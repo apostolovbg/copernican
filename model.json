@@ -1,106 +1,53 @@
 {
   "interfaceName": "Copernican Suite Model Plugin",
   "version": "1.1",
-  "description": "This document specifies the standard interface for creating a cosmological model plugin compatible with the Copernican Suite. A model plugin is a single Python file that defines a cosmological model's parameters, equations, and observable calculations, allowing it to be tested by the suite's engine.",
+  "description": "This document specifies the standard interface for creating a cosmological model plugin compatible with the Copernican Suite. A model plugin is a single Python file that defines a cosmological model's parameters, equations, and observable calculations.",
   "fileConvention": {
-    "naming": "Use a descriptive, Python-module-friendly name ending in '.py', for example, 'my_new_theory_model.py'. The user-provided examples are 'usmf2.py' and 'lcdm_model.py'.",
-    "location": "The model plugin file must reside in the same directory as the core suite scripts (copernican.py, cosmo_engine.py, etc.) due to the flat project structure."
+    "naming": "Use a descriptive, Python-module-friendly name ending in '.py'.",
+    "location": "The model plugin file must reside in the same directory as the core suite scripts."
   },
   "requiredModuleComponents": {
     "metadataBlock": {
-      "description": "A set of global variables at the top of the module that define the model's identity, parameters for fitting, and display information. This block is read by the orchestrator and engine to set up the fitting process.",
+      "description": "A set of global variables that define the model's identity, parameters, and display information.",
       "attributes": [
         {
           "name": "MODEL_NAME",
-          "type": "str",
-          "purpose": "A concise, script-friendly name for the model used in logs and filenames.",
-          "example": "In usmf2.py, this is \"USMF_V2\"."
-        },
-        {
-          "name": "MODEL_DESCRIPTION",
-          "type": "str",
-          "purpose": "A brief, human-readable description of the model."
+          "type": "str"
         },
         {
           "name": "PARAMETER_NAMES",
-          "type": "list of str",
-          "purpose": "An ORDERED list of the string names for the cosmological parameters that will be fitted. The order in this list is critical as it defines the structure of the `*cosmo_params` tuple passed to all model functions.",
-          "example": "For lcdm_model.py: `[\"H0\", \"Omega_m0\", \"Omega_b0\"]`. For usmf2.py: `[\"H_A\", \"p_alpha\", ...]`."
-        },
-        {
-          "name": "PARAMETER_LATEX_NAMES",
-          "type": "list of str",
-          "purpose": "A list of LaTeX-formatted strings for pretty-printing parameter names on plots and summaries. Must be in the same order as PARAMETER_NAMES.",
-          "example": "`[r\"$H_0$\", r\"$\\Omega_{m0}$\", r\"$\\Omega_{b0}$']`"
-        },
-        {
-          "name": "PARAMETER_UNITS",
-          "type": "list of str",
-          "purpose": "A list of units for each parameter, used for documentation and display. Same order as PARAMETER_NAMES."
+          "type": "list of str"
         },
         {
           "name": "INITIAL_GUESSES",
-          "type": "list of float",
-          "purpose": "A list of initial values for each parameter, used as the starting point for the minimizer in `cosmo_engine.py`. Same order as PARAMETER_NAMES."
+          "type": "list of float"
         },
         {
           "name": "PARAMETER_BOUNDS",
-          "type": "list of tuples",
-          "purpose": "A list of `(min, max)` tuples defining the allowed range for each parameter during fitting. Same order as PARAMETER_NAMES."
+          "type": "list of tuples"
         },
         {
-          "name": "FIXED_PARAMS",
-          "type": "dict",
-          "purpose": "An optional dictionary for any internal constants the model needs for its calculations that are NOT fitted by the main engine (e.g., speed of light, specific internal model assumptions). This makes a model's underlying assumptions explicit and accessible.",
-          "example": "In `usmf2.py`, this holds `USMF_EARLY_ALPHA_POWER_M` and fiducial omegas used ONLY for its internal `get_sound_horizon_rs_Mpc` calculation. In `lcdm_model.py`, it holds `T_CMB0_K` and `N_EFF`."
+          "name": "MODEL_EQUATIONS_LATEX_SN / _BAO",
+          "type": "list of str",
+          "purpose": "LaTeX strings representing key model equations for display in plot summaries."
         }
       ]
     },
     "functionsBlock": {
-      "description": "A set of functions that calculate cosmological observables. Each function that depends on the model's parameters must accept `*cosmo_params` as its final arguments. The engine will pass the current parameter values as an unpacked tuple (`*`) in the order defined by `PARAMETER_NAMES`.",
+      "description": "A set of functions that calculate cosmological observables, accepting `*cosmo_params` as arguments.",
       "functions": [
-        {
-          "name": "distance_modulus_model(z_array, *cosmo_params)",
-          "purpose": "Calculates the theoretical distance modulus, $\mu(z)$. This is the primary function called repeatedly by the SNe fitter in `cosmo_engine.py`.",
-          "returns": "`np.ndarray` or `float`. Should return `np.nan` on mathematical error or for invalid inputs like non-positive distance."
-        },
-        {
-          "name": "get_luminosity_distance_Mpc(z_array, *cosmo_params)",
-          "purpose": "Calculates luminosity distance $D_L(z)$. This is often a dependency for `distance_modulus_model`. For some models like USMF, this has a non-standard formula.",
-          "returns": "`np.ndarray` or `float`, in units of Mpc. Should be positive for z>0."
-        },
-        {
-          "name": "get_comoving_distance_Mpc(z_array, *cosmo_params)",
-          "purpose": "Calculates the line-of-sight comoving distance, typically by integrating `c/H(z)`. For USMF, this calculates the coordinate distance `r` by integrating `c/alpha(t)`.",
-          "returns": "`np.ndarray` or `float`, in units of Mpc."
-        },
-        {
-          "name": "get_Hz_per_Mpc(z_array, *cosmo_params)",
-          "purpose": "Calculates the Hubble parameter $H(z)$.",
-          "returns": "`np.ndarray` or `float`, in units of km/s/Mpc."
-        },
-        {
-          "name": "get_angular_diameter_distance_Mpc(z_array, *cosmo_params)",
-          "purpose": "Calculates angular diameter distance $D_A(z)$. Can rely on $D_L$ or $D_M$ via standard relations, or have a model-specific form.",
-          "returns": "`np.ndarray` or `float`, in units of Mpc."
-        },
-        {
-          "name": "get_DV_Mpc(z_array, *cosmo_params)",
-          "purpose": "Calculates the BAO volume-averaged distance $D_V(z)$, defined as `[ (1+z)^2 * D_A(z)^2 * c*z / H(z) ]^(1/3)`.",
-          "returns": "`np.ndarray` or `float`, in units of Mpc."
-        },
-        {
-          "name": "get_sound_horizon_rs_Mpc(*cosmo_params)",
-          "purpose": "Calculates the sound horizon at the drag epoch, $r_s$. This function is CRITICAL for BAO analysis. Its calculation must be consistent with the model's own physics and can use values from the SNe-fitted `*cosmo_params` (e.g., usmf2.py uses the fitted `t0_age_Gyr`) as well as any internal `FIXED_PARAMS`.",
-          "returns": "`float`, in units of Mpc. Must return `np.nan` on failure."
-        }
+        "distance_modulus_model(z_array, *cosmo_params)",
+        "get_luminosity_distance_Mpc(z_array, *cosmo_params)",
+        "get_comoving_distance_Mpc(z_array, *cosmo_params)",
+        "get_Hz_per_Mpc(z_array, *cosmo_params)",
+        "get_sound_horizon_rs_Mpc(*cosmo_params)"
       ]
     }
   },
   "implementationNotes": {
-    "numericalStability": "All functions must be robust. They should handle array inputs and edge cases like z=0, division by zero, or math domain errors. They must return `np.nan` or `np.inf` on failure, as the fitter and other engine components are designed to handle these invalid results without crashing.",
-    "optimization": "Functions called repeatedly by the fitter (primarily `distance_modulus_model` and its dependencies) MUST be optimized. The recommended strategy for models with expensive per-redshift calculations (like USMF) is to compute results only for the *unique* values in the input `z_array` and then map these results back to the original array shape.",
-    "units": "The suite's engine expects outputs in standard cosmological units (Mpc for distances, km/s/Mpc for H(z)). The model plugin is responsible for all internal unit conversions.",
-    "plotting": "If adding new plotting functions to `output_manager.py`, each function must create its own figure object (e.g., `fig, ax = plt.subplots()`) and destroy it at the end (`plt.close(fig)`) to prevent memory leaks and plot state interference."
+    "numericalStability": "All functions must be robust, handle array inputs, and return `np.nan` or `np.inf` on failure, as the engine is designed to handle these invalid results without crashing.",
+    "optimization": "Functions called repeatedly by the fitter should be optimized. For complex models, calculate results only for unique redshift values and map them back to the original array.",
+    "latexCompatibility": "When defining `MODEL_EQUATIONS_LATEX`, ensure all LaTeX commands are compatible with Matplotlib's `mathtext` renderer. For example, use `\\left. ... \\right|` for evaluation bars instead of `\\bigg|`, which can cause a crash.",
+    "units": "The suite's engine expects outputs in standard cosmological units (Mpc for distances, km/s/Mpc for H(z))."
   }
 }
