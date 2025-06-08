@@ -1,7 +1,7 @@
 # copernican_suite/cosmo_engine.py
 """
 Cosmological Engine for the Copernican Suite.
-*** MODIFIED TO SUPPORT OPTIONAL HIGH-PERFORMANCE NUMBA/GPU FUNCTIONS ***
+*** MODIFIED TO SUPPORT OPTIONAL HIGH-PERFORMANCE OpenCL/GPU FUNCTIONS ***
 """
 
 import numpy as np
@@ -9,7 +9,55 @@ from scipy.optimize import minimize
 from scipy.linalg import LinAlgError 
 import sys
 import time
-import logging # Import logging to use the logger
+import logging
+
+# --- OpenCL Initialization ---
+# Attempt to import pyopencl and initialize it.
+# This will be done once when the module is loaded.
+_pyopencl = None
+_opencl_context = None
+_opencl_queue = None
+_opencl_device_name = "N/A"
+
+try:
+    import pyopencl as cl
+    
+    # This inner try-except block only runs if 'import pyopencl as cl' was successful.
+    # It handles errors during device initialization.
+    try:
+        platforms = cl.get_platforms()
+        if platforms:
+            # Prefer GPU devices
+            gpu_devices = []
+            for p in platforms:
+                gpu_devices.extend(p.get_devices(device_type=cl.device_type.GPU))
+            
+            if gpu_devices:
+                _pyopencl = cl
+                # Use the first available GPU device
+                device = gpu_devices[0]
+                _opencl_context = cl.Context(devices=[device])
+                _opencl_queue = cl.CommandQueue(_opencl_context)
+                _opencl_device_name = device.name.strip()
+            else: # Fallback to CPU if no GPU
+                cpu_devices = []
+                for p in platforms:
+                    cpu_devices.extend(p.get_devices(device_type=cl.device_type.CPU))
+                if cpu_devices:
+                    _pyopencl = cl
+                    device = cpu_devices[0]
+                    _opencl_context = cl.Context(devices=[device])
+                    _opencl_queue = cl.CommandQueue(_opencl_context)
+                    _opencl_device_name = device.name.strip()
+
+    except (cl.LogicError, IndexError):
+        # This catches errors if pyopencl is installed but no devices are found/work.
+        _pyopencl = None
+
+except ImportError:
+    # This catches the error if the pyopencl module is not installed at all.
+    _pyopencl = None
+
 
 # --- Constants for SNe H2-style (SALT2 nuisance parameter fitting) ---
 SALT2_NUISANCE_PARAMS_INIT = {
@@ -30,11 +78,12 @@ SIGMA_INT_SQ_DEFAULT = 0.1**2
 # NOTE: These are now generalized to accept a model function as an argument.
 # ==============================================================================
 
-def chi_squared_sne_h1_fixed_nuisance(cosmo_params, mu_model_func, sne_data_df):
+def chi_squared_sne_h1_fixed_nuisance(cosmo_params, mu_model_func, sne_data_df, **kwargs):
     r"""
     Calculates chi-squared for SNe Ia: H1-style (fixed nuisance).
     This uses pre-calculated mu_obs and diagonal errors e_mu_obs.
     $\chi^2 = \sum ((mu_data - mu_model) / e_mu_obs)^2$.
+    The **kwargs are added to provide a consistent interface for the OpenCL context.
     """
     logger = logging.getLogger()
     if not all(col in sne_data_df.columns for col in ['zcmb', 'mu_obs', 'e_mu_obs']):
@@ -47,7 +96,7 @@ def chi_squared_sne_h1_fixed_nuisance(cosmo_params, mu_model_func, sne_data_df):
 
     try:
         # The model function is now passed in directly
-        mu_model = mu_model_func(z_data, *cosmo_params)
+        mu_model = mu_model_func(z_data, *cosmo_params, **kwargs)
     except Exception as e:
         return np.inf # Fitter will handle this
 
@@ -65,9 +114,10 @@ def chi_squared_sne_h1_fixed_nuisance(cosmo_params, mu_model_func, sne_data_df):
     return chi2 if np.isfinite(chi2) else np.inf
 
 
-def chi_squared_sne_h2_salt2_fitting(params_full, mu_model_func, sne_data_df, num_cosmo_params):
+def chi_squared_sne_h2_salt2_fitting(params_full, mu_model_func, sne_data_df, num_cosmo_params, **kwargs):
     r"""
     Calculates chi-squared for SNe Ia: H2-style (SALT2 m_b, x1, c fitting).
+    The **kwargs are added to provide a consistent interface for the OpenCL context.
     """
     logger = logging.getLogger()
     req_cols = ['zcmb', 'mb', 'x1', 'c', 'e_mb', 'e_x1', 'e_c']
@@ -89,7 +139,7 @@ def chi_squared_sne_h2_salt2_fitting(params_full, mu_model_func, sne_data_df, nu
 
     try:
         # The model function is now passed in directly
-        mu_cosmo_model = mu_model_func(z_data, *cosmo_params)
+        mu_cosmo_model = mu_model_func(z_data, *cosmo_params, **kwargs)
     except Exception:
         return np.inf
 
@@ -107,9 +157,10 @@ def chi_squared_sne_h2_salt2_fitting(params_full, mu_model_func, sne_data_df, nu
     return chi2 if np.isfinite(chi2) else np.inf
 
 
-def chi_squared_sne_mu_covariance(cosmo_params, mu_model_func, sne_data_df):
+def chi_squared_sne_mu_covariance(cosmo_params, mu_model_func, sne_data_df, **kwargs):
     r"""
     Calculates chi-squared for SNe Ia: H2-style (mu_obs with full covariance matrix).
+    The **kwargs are added to provide a consistent interface for the OpenCL context.
     """
     logger = logging.getLogger()
     if not all(col in sne_data_df.columns for col in ['zcmb', 'mu_obs']):
@@ -124,7 +175,7 @@ def chi_squared_sne_mu_covariance(cosmo_params, mu_model_func, sne_data_df):
 
     try:
         # The model function is now passed in directly
-        mu_model = mu_model_func(z_data, *cosmo_params)
+        mu_model = mu_model_func(z_data, *cosmo_params, **kwargs)
     except Exception:
         return np.inf
 
@@ -220,10 +271,39 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
 # --- MAIN ENGINE FUNCTIONS ---
 # ==============================================================================
 
-def fit_sne_parameters(sne_data_df, model_plugin):
+def _select_compute_backend():
+    """
+    Prompts the user to select the compute backend if OpenCL is available.
+    Returns:
+        - 'opencl' if user chooses to use OpenCL.
+        - 'standard' if user chooses not to use OpenCL or if it's unavailable.
+    """
+    logger = logging.getLogger()
+    if _pyopencl is None:
+        logger.info("OpenCL not found or no compatible devices detected. Using standard CPU (SciPy) backend.")
+        return 'standard'
+
+    logger.info(f"\nOpenCL-compatible device detected: {_opencl_device_name}")
+    print("OpenCL hardware is available. Do you want to run calculations using OpenCL?")
+    print("  1. No (Use standard CPU implementation)")
+    print("  2. Yes (Use GPU-accelerated implementation)")
+    
+    while True:
+        choice = input("Select a compute backend (1 or 2): ").strip()
+        if choice == '1':
+            logger.info("User selected standard CPU backend.")
+            return 'standard'
+        elif choice == '2':
+            logger.info("User selected OpenCL (GPU) backend.")
+            return 'opencl'
+        else:
+            print("Invalid selection. Please enter 1 or 2.")
+
+
+def fit_sne_parameters(sne_data_df, model_plugin, compute_backend):
     """
     Fits cosmological (and optionally SNe nuisance) parameters to SNe Ia data.
-    *** MODIFIED to use the high-performance function dispatcher. ***
+    *** MODIFIED to use a user-selectable compute backend (Standard or OpenCL). ***
     """
     logger = logging.getLogger()
     fit_style = sne_data_df.attrs.get('fit_style', 'unknown')
@@ -241,18 +321,19 @@ def fit_sne_parameters(sne_data_df, model_plugin):
         logger.error(f"Model plugin {model_name_str} missing or has inconsistent parameter definitions.")
         return {'success': False, 'message': "Model parameter definition error.", 'chi2_min': np.inf}
 
-    # --- NEW: HIGH-PERFORMANCE FUNCTION DISPATCHER ---
-    # This logic selects the fastest available distance modulus function from the model plugin.
-    # It checks for OpenCL, then Numba, then falls back to the standard function.
+    # --- NEW: COMPUTE BACKEND FUNCTION DISPATCHER ---
     selected_mu_func = None
-    if hasattr(model_plugin, 'distance_modulus_model_opencl'):
+    kwargs_for_chi2 = {}
+
+    if compute_backend == 'opencl' and hasattr(model_plugin, 'distance_modulus_model_opencl'):
         logger.info(f"Using OpenCL (GPU) accelerated function for '{model_name_str}'.")
         selected_mu_func = model_plugin.distance_modulus_model_opencl
-    elif hasattr(model_plugin, 'distance_modulus_model_numba'):
-        logger.info(f"Using Numba (JIT-compiled CPU) accelerated function for '{model_name_str}'.")
-        selected_mu_func = model_plugin.distance_modulus_model_numba
+        # Pass the OpenCL context and queue to the model function via kwargs
+        kwargs_for_chi2 = {'cl_context': _opencl_context, 'cl_queue': _opencl_queue}
     else:
-        logger.info(f"Using standard Python function for '{model_name_str}'.")
+        if compute_backend == 'opencl':
+            logger.warning(f"OpenCL backend was selected, but model '{model_name_str}' has no 'distance_modulus_model_opencl' function. Falling back to standard CPU implementation.")
+        logger.info(f"Using standard Python (SciPy) function for '{model_name_str}'.")
         selected_mu_func = model_plugin.distance_modulus_model
     # --- END OF DISPATCHER ---
 
@@ -269,7 +350,6 @@ def fit_sne_parameters(sne_data_df, model_plugin):
         
         current_initial_params.extend([SALT2_NUISANCE_PARAMS_INIT["M_B"], SALT2_NUISANCE_PARAMS_INIT["alpha_salt2"], SALT2_NUISANCE_PARAMS_INIT["beta_salt2"]])
         current_param_bounds.extend([SALT2_NUISANCE_PARAMS_BOUNDS["M_B"], SALT2_NUISANCE_PARAMS_BOUNDS["alpha_salt2"], SALT2_NUISANCE_PARAMS_BOUNDS["beta_salt2"]])
-        # Pass the selected model function and other args
         args_for_chi2_func = (selected_mu_func, sne_data_df, num_cosmo_params)
         
     elif fit_style == 'h2_mu_covariance' and sne_data_df.attrs.get('covariance_matrix_inv') is not None:
@@ -300,7 +380,8 @@ def fit_sne_parameters(sne_data_df, model_plugin):
     def chi2_wrapper_for_minimize(params_to_test, *args_passed):
         """Wrapper to count evaluations and track best result for robust failure handling."""
         eval_count['count'] += 1
-        current_chi2_val = chi2_function_to_call(params_to_test, *args_passed)
+        # Pass the kwargs (containing OpenCL context/queue if needed) to the chi2 function
+        current_chi2_val = chi2_function_to_call(params_to_test, *args_passed, **kwargs_for_chi2)
         
         if not np.isfinite(current_chi2_val): current_chi2_val = np.inf
         

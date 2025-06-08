@@ -1,13 +1,12 @@
 # copernican_suite/lcdm_model.py
 """
 LCDM Model Plugin for the Copernican Suite.
-*** FINAL VERSION: Corrected BAO calculation bug and restored plotting functions. ***
+*** MODIFIED to remove Numba and include an OpenCL placeholder. ***
 """
 
 import numpy as np
 from scipy.integrate import quad
-from numba import jit, cfunc
-from numba.types import intc, CPointer, float64
+import logging
 
 # --- Model Metadata ---
 MODEL_NAME = "LambdaCDM"
@@ -34,10 +33,7 @@ FIXED_PARAMS = {
 # --- Standard Python/Scipy Functions (Used for plotting and as a fallback) ---
 
 def _get_derived_densities(H0, Omega_m0, Omega_b0):
-    """
-    Core helper to calculate derived density parameters.
-    *** BUG FIX: This now correctly returns all 5 values needed by other functions. ***
-    """
+    """Core helper to calculate derived density parameters."""
     if not (np.isfinite(H0) and H0 > 0 and np.isfinite(Omega_m0) and Omega_m0 >= 0 and np.isfinite(Omega_b0) and Omega_b0 >= 0 and Omega_b0 <= Omega_m0):
         return np.nan, np.nan, np.nan, np.nan, np.nan
     h = H0 / 100.0
@@ -80,59 +76,50 @@ def get_luminosity_distance_Mpc(z_array, *cosmo_params):
 def distance_modulus_model(z_array, *cosmo_params):
     """The standard, Scipy-based function for plotting and fallback."""
     dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)
-    with np.errstate(divide='ignore'): mu = 5 * np.log10(dl_mpc) + 25.0
-    return mu
-
-# --- Numba-Accelerated Functions using cfunc for Scipy Interoperability ---
-
-cfunc_sig = float64(intc, CPointer(float64))
-def make_integrand_cfunc(H0, Omega_m0, Omega_b0):
-    @cfunc(cfunc_sig)
-    def cfunc_integrand(n, args):
-        z_prime = args[0]
-        C_LIGHT_KM_S = 299792.458; N_EFF = 3.046; OMEGA_G_H2 = 2.47282e-5
-        h = H0 / 100.0
-        omega_nu_h2 = N_EFF * (7.0/8.0) * (4.0/11.0)**(4.0/3.0) * OMEGA_G_H2
-        Omega_r0 = (OMEGA_G_H2 + omega_nu_h2) / h**2
-        Omega_L0 = 1.0 - Omega_m0 - Omega_r0
-        one_plus_z = 1.0 + z_prime
-        Ez_sq = Omega_r0 * one_plus_z**4 + Omega_m0 * one_plus_z**3 + Omega_L0
-        if Ez_sq > 0:
-            hz_val = H0 * np.sqrt(Ez_sq)
-            if hz_val > 1e-9: return C_LIGHT_KM_S / hz_val
-        return np.inf
-    return cfunc_integrand
-
-def distance_modulus_model_numba(z_array, H0, Omega_m0, Omega_b0):
-    """High-performance entry point for the fitting engine."""
-    z_array = np.asarray(z_array)
-    integrand_cfunc = make_integrand_cfunc(H0, Omega_m0, Omega_b0)
-    results_Mpc = np.empty(z_array.shape, dtype=np.float64)
-    for i, zi in np.ndenumerate(z_array):
-        if zi < 1e-9:
-            results_Mpc[i] = 0.0
-        else:
-            try:
-                Dc_val, _ = quad(integrand_cfunc.ctypes, 0.0, float(zi))
-                results_Mpc[i] = Dc_val
-            except Exception:
-                results_Mpc[i] = np.nan
-    dl_mpc = results_Mpc * (1 + z_array)
     with np.errstate(divide='ignore', invalid='ignore'):
         mu = 5 * np.log10(dl_mpc) + 25.0
     mu[np.asarray(dl_mpc) <= 0] = np.nan
     return mu
 
+# --- OpenCL High-Performance Function (Placeholder) ---
+
+def distance_modulus_model_opencl(z_array, *cosmo_params, cl_context=None, cl_queue=None):
+    """
+    High-performance OpenCL entry point for the fitting engine.
+    
+    *** THIS IS A PLACEHOLDER ***
+    A real implementation would involve:
+    1. Writing an OpenCL kernel (.cl file) for the H(z) integrand.
+    2. Compiling the kernel using cl_context.
+    3. Creating OpenCL memory buffers for z_array and the output.
+    4. Implementing a parallel reduction or map-reduce algorithm on the GPU
+       to perform the integrations for all z values in parallel.
+    5. Reading the results back from the GPU buffer.
+    
+    For now, it logs a warning and falls back to the standard CPU implementation.
+    """
+    # On the first call for this model, show a warning that this is a placeholder.
+    logger = logging.getLogger()
+    if not hasattr(distance_modulus_model_opencl, "_warned"):
+        logger.warning(f"MODEL '{MODEL_NAME}': 'distance_modulus_model_opencl' is a placeholder and will use the standard CPU-based SciPy implementation.")
+        distance_modulus_model_opencl._warned = True
+
+    # Fallback to the standard function
+    return distance_modulus_model(z_array, *cosmo_params)
+
+
 # --- Standard BAO and other functions ---
 def get_angular_diameter_distance_Mpc(z_array, *cosmo_params):
     dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)
     return dl_mpc / (1 + np.asarray(z_array))**2
+
 def get_DV_Mpc(z_array, *cosmo_params):
     da = get_angular_diameter_distance_Mpc(z_array, *cosmo_params)
     hz = get_Hz_per_Mpc(z_array, *cosmo_params)
     z = np.asarray(z_array)
     term = (1+z)**2 * da**2 * FIXED_PARAMS["C_LIGHT_KM_S"] * z / hz
     return np.power(term, 1/3, where=term>=0, out=np.full_like(z, np.nan))
+
 def get_sound_horizon_rs_Mpc(H0, Omega_m0, Omega_b0):
     h, _, _, _, omega_nu_h2 = _get_derived_densities(H0, Omega_m0, Omega_b0)
     if np.isnan(h): return np.nan

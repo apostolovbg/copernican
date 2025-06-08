@@ -1,22 +1,19 @@
 # copernican_suite/usmf2.py
 """
 Unified Shrinking Matter Framework (USMF) V2 Model Plugin for the Copernican Suite.
-*** FINAL VERSION: Corrected BAO distance function logic for full consistency. ***
-*** FIX v1.1b: Enforced strict, consistent tolerances in Numba-version solvers to prevent numerical divergence. ***
+*** MODIFIED to remove Numba and include an OpenCL placeholder. ***
 """
 
 import numpy as np
 from scipy.integrate import quad
 from scipy.optimize import brentq
-from numba import jit, cfunc
-from numba.types import intc, CPointer, float64
+import logging
 
 # --- Model Metadata and Parameters ---
 MODEL_NAME = "USMF_V2"
 MODEL_DESCRIPTION = "Unified Shrinking Matter Framework (USMF) Version 2."
 PARAMETER_NAMES = ["H_A", "p_alpha", "k_exp", "s_exp", "t0_age_Gyr", "A_osc", "omega_osc", "ti_osc_Gyr", "phi_osc"]
 INITIAL_GUESSES = [77.111, 0.4313, -0.3268, 1.1038, 13.397, 0.0027088, 2.3969, 7.1399, 0.10905]
-# Using tighter bounds as a good practice for stability.
 PARAMETER_BOUNDS = [
     (50.0, 100.0), (0.1, 1.5), (-2.0, 2.0), (0.5, 2.0), (10.0, 20.0),
     (0.0, 0.05), (0.1, 10.0), (1.0, 20.0), (-np.pi, np.pi)
@@ -80,6 +77,7 @@ class USMF_Calculator:
             if res.converged: self._t_from_z_cache[z] = sol; return sol
         except (ValueError, RuntimeError): pass
         return np.nan
+
 def _calculate_for_unique_z(z_array, single_value_calculator_func, *cosmo_params):
     z_array = np.asarray(z_array); original_shape = z_array.shape
     if not z_array.shape: return single_value_calculator_func(z_array.item(), USMF_Calculator(cosmo_params))
@@ -88,6 +86,7 @@ def _calculate_for_unique_z(z_array, single_value_calculator_func, *cosmo_params
     calculator = USMF_Calculator(cosmo_params)
     unique_results = np.array([single_value_calculator_func(zi, calculator) for zi in unique_z])
     return unique_results[inverse_indices].reshape(original_shape)
+
 def _r_Mpc_single(z, calculator):
     if abs(z) < 1e-9: return 0.0
     t_e = calculator.get_t_from_z(z)
@@ -99,8 +98,15 @@ def _r_Mpc_single(z, calculator):
         r_km, _ = quad(r_integrand, t_e, calculator.t0_sec_calc, epsabs=1e-9, epsrel=1e-9)
         return r_km * FIXED_PARAMS["MPC_PER_KM"]
     except Exception: return np.nan
+
 def get_comoving_distance_Mpc(z_array, *cosmo_params):
     return _calculate_for_unique_z(z_array, _r_Mpc_single, *cosmo_params)
+
+def get_luminosity_distance_Mpc(z_array, *cosmo_params):
+    H_A = cosmo_params[0]; C_H = 70.0 / H_A
+    r_Mpc = get_comoving_distance_Mpc(z_array, *cosmo_params)
+    dl_mpc = np.abs(r_Mpc) * np.power(1 + np.asarray(z_array), 2) * C_H
+    return dl_mpc
 
 def distance_modulus_model(z_array, *cosmo_params):
     """The standard, Scipy-based function for plotting and fallback."""
@@ -110,95 +116,30 @@ def distance_modulus_model(z_array, *cosmo_params):
     mu[np.asarray(dl_mpc) <= 0] = np.nan
     return mu
 
-# --- Numba-Accelerated High-Performance Functions using cfunc ---
+# --- OpenCL High-Performance Function (Placeholder) ---
 
-@cfunc(float64(float64, CPointer(float64)))
-def _alpha_func_cfunc_wrapper(t, args):
-    t0, p_a, k, s, A, w, ti, phi = args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7]
-    if t <= 0: return np.nan
-    ratio_t0 = t / t0
-    term_power = ratio_t0**(-p_a)
-    term_exp = np.exp(k * (ratio_t0**s - 1.0))
-    osc_term = 0.0
-    if t >= ti:
-        osc_term = np.sin(w * np.log(t / ti) + phi)
-    osc = 1.0 + A * osc_term
-    return term_power * term_exp * osc
-
-@cfunc(float64(float64, CPointer(float64)))
-def _r_integrand_cfunc_wrapper(t, args):
-    t0, p_a, k, s, A, w, ti, phi, C_LIGHT_KM_S = args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]
-    if t <= 0: return np.inf
-    ratio_t0 = t / t0
-    term_power = ratio_t0**(-p_a)
-    term_exp = np.exp(k * (ratio_t0**s - 1.0))
-    osc_term = 0.0
-    if t >= ti:
-        osc_term = np.sin(w * np.log(t / ti) + phi)
-    val = term_power * term_exp * (1.0 + A * osc_term)
-    if np.isfinite(val) and val > 1e-12:
-        return C_LIGHT_KM_S / val
-    return np.inf
-
-def distance_modulus_model_numba(z_array, *cosmo_params):
-    """High-performance entry point for the fitting engine."""
-    z_array = np.asarray(z_array)
-    H_A, p_alpha, k_exp, s_exp, t0_age_Gyr, A_osc, omega_osc, ti_osc_Gyr, phi_osc = cosmo_params
+def distance_modulus_model_opencl(z_array, *cosmo_params, cl_context=None, cl_queue=None):
+    """
+    High-performance OpenCL entry point for the fitting engine.
     
-    C_H = 70.0 / H_A; SECONDS_PER_GYR = FIXED_PARAMS["SECONDS_PER_GYR"]
-    MPC_PER_KM = FIXED_PARAMS["MPC_PER_KM"]; C_LIGHT_KM_S = FIXED_PARAMS["C_LIGHT_KM_S"]
-    TINY_FLOAT = FIXED_PARAMS["TINY_FLOAT"]
-
-    t0_sec = t0_age_Gyr * SECONDS_PER_GYR; ti_sec = ti_osc_Gyr * SECONDS_PER_GYR
-    alpha_args = np.array([t0_sec, p_alpha, k_exp, s_exp, A_osc, omega_osc, ti_sec, phi_osc])
-    integrand_args = np.array([t0_sec, p_alpha, k_exp, s_exp, A_osc, omega_osc, ti_sec, phi_osc, C_LIGHT_KM_S])
-
-    alpha_cfunc_ptr = _alpha_func_cfunc_wrapper.ctypes
+    *** THIS IS A PLACEHOLDER ***
+    A real implementation for this specific model would be very complex, requiring
+    GPU-side solvers for the root-finding (get_t_from_z) and numerical integration
+    steps, or a completely different numerical approach (e.g., pre-computing
+    a t-z relation lookup table).
     
-    try:
-        alpha_at_t0 = alpha_cfunc_ptr(t0_sec, alpha_args.ctypes.data_as(CPointer(float64)))
-        if not np.isfinite(alpha_at_t0): return np.full(z_array.shape, np.nan)
-    except:
-        return np.full(z_array.shape, np.nan)
-        
-    r_Mpc = np.empty(z_array.shape, dtype=np.float64)
-    for i, z in np.ndenumerate(z_array):
-        if z < 1e-9:
-            r_Mpc[i] = 0.0
-            continue
-        try:
-            target_alpha = (1.0 + z) * alpha_at_t0
-            # FIX: Use explicit, strict tolerances in brentq to match the stable Scipy implementation
-            t_e, res = brentq(lambda t, args: alpha_cfunc_ptr(t, args) - target_alpha, 
-                              TINY_FLOAT * t0_sec, t0_sec, args=alpha_args, 
-                              xtol=1e-12 * t0_sec, rtol=1e-12, full_output=True)
-            if not res.converged: r_Mpc[i] = np.nan; continue
-            
-            # FIX: Use explicit, strict tolerances in quad to match the stable Scipy implementation
-            r_km, _ = quad(_r_integrand_cfunc_wrapper.ctypes, t_e, t0_sec, args=integrand_args,
-                           epsabs=1e-9, epsrel=1e-9)
-            r_Mpc[i] = r_km * MPC_PER_KM
-        except (ValueError, RuntimeError, Exception):
-            r_Mpc[i] = np.nan
+    For now, it logs a warning and falls back to the standard CPU implementation.
+    """
+    # On the first call for this model, show a warning that this is a placeholder.
+    logger = logging.getLogger()
+    if not hasattr(distance_modulus_model_opencl, "_warned"):
+        logger.warning(f"MODEL '{MODEL_NAME}': 'distance_modulus_model_opencl' is a placeholder and will use the standard CPU-based SciPy implementation.")
+        distance_modulus_model_opencl._warned = True
     
-    dl_mpc = np.abs(r_Mpc) * np.power(1 + z_array, 2) * C_H
-    
-    with np.errstate(divide='ignore', invalid='ignore'):
-        mu = 5 * np.log10(dl_mpc) + 25.0
-    mu[np.asarray(dl_mpc) <= 0] = np.nan
-    return mu
+    # Fallback to the standard function
+    return distance_modulus_model(z_array, *cosmo_params)
 
 # --- Standard BAO and other functions ---
-
-def get_luminosity_distance_Mpc(z_array, *cosmo_params):
-    """
-    *** BUG FIX: This function now correctly calculates dL for BAO plotting ***
-    It calls the standard (Scipy) comoving distance function.
-    """
-    H_A = cosmo_params[0]; C_H = 70.0 / H_A
-    r_Mpc = get_comoving_distance_Mpc(z_array, *cosmo_params)
-    dl_mpc = np.abs(r_Mpc) * np.power(1 + np.asarray(z_array), 2) * C_H
-    return dl_mpc
 
 def _Hz_single(z, calculator):
     t_e = calculator.get_t_from_z(z)
@@ -213,14 +154,14 @@ def _Hz_single(z, calculator):
     d_alpha_dt_at_te = alpha_at_te * d_log_alpha_dt
     if np.isfinite(d_alpha_dt_at_te): return (-d_alpha_dt_at_te / alpha_at_te) * FIXED_PARAMS["MPC_TO_KM"]
     return np.nan
+
 def get_Hz_per_Mpc(z_array, *cosmo_params):
     return _calculate_for_unique_z(z_array, _Hz_single, *cosmo_params)
+
 def get_angular_diameter_distance_Mpc(z_array, *cosmo_params):
-    """
-    *** BUG FIX: This function now correctly calculates dA for BAO plotting ***
-    """
     dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)
     return dl_mpc / np.power(1 + np.asarray(z_array), 2)
+
 def get_DV_Mpc(z_array, *cosmo_params):
     da_mpc = get_angular_diameter_distance_Mpc(z_array, *cosmo_params)
     hz = get_Hz_per_Mpc(z_array, *cosmo_params)
@@ -228,6 +169,7 @@ def get_DV_Mpc(z_array, *cosmo_params):
     with np.errstate(divide='ignore', invalid='ignore'):
         term_in_bracket = (1+z)**2 * da_mpc**2 * FIXED_PARAMS["C_LIGHT_KM_S"] * z / hz
     return np.power(term_in_bracket, 1.0/3.0, where=term_in_bracket >= 0, out=np.full_like(z, np.nan, dtype=float))
+
 def get_sound_horizon_rs_Mpc(*cosmo_params):
     _, _, _, _, t0_age_Gyr, _, _, _, _ = cosmo_params
     om_b_h2 = FIXED_PARAMS["OMEGA_B0_H2_EFF_FOR_RS"]

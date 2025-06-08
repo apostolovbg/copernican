@@ -51,20 +51,21 @@ def main_workflow():
     try: SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
     except NameError: SCRIPT_DIR = os.getcwd()
 
-    # --- MODIFICATION: Define and create the output subdirectory ---
     OUTPUT_DIR = os.path.join(SCRIPT_DIR, 'output')
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # --- MODIFICATION: Pass the new output directory to the logger ---
     log_file = output_manager.setup_logging(run_name="CopernicanSuite_Run", log_dir=OUTPUT_DIR)
     logger = output_manager.get_logger()
     logger.info("=== Copernican Suite Initialized ===")
     logger.info(f"Running from base directory: {SCRIPT_DIR}")
     logger.info(f"All outputs will be saved to: {OUTPUT_DIR}")
 
-
     # --- 1. Configuration ---
     logger.info("\n--- Stage 1: Configuration ---")
+
+    # --- MODIFICATION: Select compute backend once at the start ---
+    compute_backend = cosmo_engine._select_compute_backend()
+
     alt_model_filepath = get_user_input_filepath("Enter alternative model plugin filename (e.g., usmf2.py)", base_dir=SCRIPT_DIR)
     if not alt_model_filepath: return logger.info("Model selection canceled. Exiting.")
     alt_model_plugin = load_alternative_model_plugin(alt_model_filepath)
@@ -94,8 +95,9 @@ def main_workflow():
 
     # --- 2. SNe Ia Fitting ---
     logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
-    lcdm_sne_fit_results = cosmo_engine.fit_sne_parameters(sne_data_df, lcdm_model)
-    alt_model_sne_fit_results = cosmo_engine.fit_sne_parameters(sne_data_df, alt_model_plugin)
+    # --- MODIFICATION: Pass the selected backend to the fitting function ---
+    lcdm_sne_fit_results = cosmo_engine.fit_sne_parameters(sne_data_df, lcdm_model, compute_backend)
+    alt_model_sne_fit_results = cosmo_engine.fit_sne_parameters(sne_data_df, alt_model_plugin, compute_backend)
     
     # --- 3. BAO Analysis ---
     logger.info("\n--- Stage 3: BAO Analysis ---")
@@ -124,7 +126,6 @@ def main_workflow():
     # --- 4. Output Generation ---
     logger.info("\n--- Stage 4: Generating Outputs ---")
     
-    # --- MODIFICATION: Pass OUTPUT_DIR to all output functions ---
     output_manager.plot_hubble_diagram(sne_data_df, lcdm_sne_fit_results, alt_model_sne_fit_results, lcdm_model, alt_model_plugin, plot_dir=OUTPUT_DIR)
     
     if bao_data_df is not None:
@@ -152,9 +153,6 @@ if __name__ == "__main__":
             import traceback
             traceback.print_exc()
     finally:
-        # This block ensures plots are displayed in interactive environments
-        # but only if figures were actually generated and not closed.
-        # With the fixes, this block should ideally not be triggered.
         if plt.get_fignums():
             print("\nDisplaying plot(s). Close plot window(s) to exit script fully.")
             try:
