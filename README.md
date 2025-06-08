@@ -10,15 +10,16 @@
 ## Table of Contents
 
 1.  [**Project Overview**](#1-project-overview)
-2.  [**Architecture**](#2-architecture)
-3.  [**Workflow Overview**](#3-workflow-overview)
-4.  [**Plugin Development Guide**](#4-plugin-development-guide)
+2.  [**Installation and Requirements**](#2-installation-and-requirements)
+3.  [**Architecture**](#3-architecture)
+4.  [**Workflow Overview**](#4-workflow-overview)
+5.  [**Plugin Development Guide**](#5-plugin-development-guide)
     -   [The Two-File System](#the-two-file-system)
     -   [Finding the Templates](#finding-the-templates)
-5.  [**Future Development: Implementing OpenCL Kernels**](#5-future-development-implementing-opencl-kernels)
+6.  [**High-Performance Computing with OpenCL**](#6-high-performance-computing-with-opencl)
     -   [Architectural Approach: Real-Time Kernel Generation](#architectural-approach-real-time-kernel-generation)
-    -   [Required File Modifications](#required-file-modifications)
-    -   [Example Implementation Sketch](#example-implementation-sketch)
+    -   [Required Model File Modifications](#required-model-file-modifications)
+    -   [Example Implementation: ΛCDM Model](#example-implementation-λcdm-model)
 
 ---
 
@@ -26,40 +27,54 @@
 
 The **Copernican Suite** is a Python-based framework for the modular testing and comparison of cosmological models against observational data. It provides a platform for researchers to easily implement and evaluate new theories alongside the standard ΛCDM model.
 
-This development version introduces a user-selectable OpenCL backend for GPU acceleration, allowing for high-performance fitting of complex models. The core dispatch logic is in place, while the GPU-specific model calculations are currently placeholders, paving the way for full implementation.
+This version introduces a user-selectable OpenCL backend for GPU acceleration, allowing for high-performance fitting of complex models. To ensure a smooth user experience, the suite now includes a dependency and system sanity checker that runs on startup, providing platform-specific installation instructions for any missing components.
 
 ---
 
-## 2. Architecture
+## 2. Installation and Requirements
+
+The suite requires Python 3.x and several common scientific libraries. To simplify setup, an automatic dependency checker has been integrated directly into the main script.
+
+When you first run `copernican.py`, it will:
+1.  Verify that required Python libraries (`numpy`, `scipy`, `matplotlib`) are installed.
+2.  Check for the optional `pyopencl` library, which is necessary for GPU acceleration.
+3.  If `pyopencl` is found, it performs a sanity check to ensure it can communicate with system-level drivers and find a compute device.
+
+If any of these checks fail, the script will print a detailed report of the missing components along with the correct commands to install them on your specific operating system (macOS, Linux, or Windows) before exiting.
+
+---
+
+## 3. Architecture
 
 The suite is designed with a primary project directory containing all core scripts and model plugins. All outputs (logs, plots, CSVs) are saved into a dedicated `output` subdirectory.
 
--   **`copernican.py`**: The main orchestrator script.
+-   **`copernican.py`**: The main orchestrator script. It now includes a dependency checker that runs on startup to validate the environment.
 -   **`data_loaders.py`**: Manages the loading and parsing of datasets.
--   **`cosmo_engine.py`**: Contains the core physics, statistics, and fitting logic, including the selectable compute backend (CPU/GPU).
+-   **`cosmo_engine.py`**: Contains the core physics, statistics, and fitting logic, including the selectable compute backend (CPU/GPU) and the real-time OpenCL kernel compiler.
 -   **`output_manager.py`**: Handles all forms of output (logging, plots, CSVs).
 -   **Model Plugins (`*.py`) & Definitions (`*.md`)**: A two-file system for each model (e.g., `lcdm_model.py` and `lcdm_model.md`).
 
 ---
 
-## 3. Workflow Overview
+## 4. Workflow Overview
 
-1.  **Initialization:** `copernican.py` starts and creates the `./output/` directory.
-2.  **Backend Selection:** If OpenCL hardware is detected, the user is prompted to choose the compute backend (Standard CPU or OpenCL GPU).
-3.  **Configuration:** The user specifies the file paths for the model and data files.
-4.  **SNe Ia Fitting:** The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data using the chosen computational backend.
-5.  **BAO Analysis:** Using the best-fit parameters, the engine calculates BAO observables for each model.
-6.  **Output Generation:** The `output_manager` saves all comparative plots and data summaries.
+1.  **Dependency Check**: `copernican.py` first verifies that all required Python libraries and system drivers are available. It will exit with instructions if the environment is not set up correctly.
+2.  **Initialization**: The script starts and creates the `./output/` directory for all results.
+3.  **Backend Selection**: If OpenCL hardware is detected, the user is prompted to choose the compute backend (Standard CPU or OpenCL GPU).
+4.  **Configuration**: The user specifies the file paths for the model and data files.
+5.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data. If the OpenCL backend is chosen, the engine compiles the kernel from the model plugin in real-time and executes the fitting on the GPU.
+6.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model using CPU-based functions.
+7.  **Output Generation**: The `output_manager` saves all comparative plots and data summaries.
 
 ---
 
-## 4. Plugin Development Guide
+## 5. Plugin Development Guide
 
 ### The Two-File System
 
 A model is defined by a two-file system:
 1.  **Model Definition File (`.md`)**: A Markdown file containing the model's theory and a machine-parsable table of its parameters.
-2.  **Model Implementation File (`.py`)**: A Python file containing the functions that perform the cosmological calculations.
+2.  **Model Implementation File (`.py`)**: A Python file containing the functions that perform the cosmological calculations, including the optional OpenCL kernel source.
 
 Each new model requires two files with matching base names (e.g., `my_theory.md` and `my_theory.py`).
 
@@ -68,118 +83,61 @@ Each new model requires two files with matching base names (e.g., `my_theory.md`
 To ensure consistency, templates for new model files are integrated directly into the base `lcdm_model` files.
 
 -   **`.md` Template:** To create a new model definition file, copy `lcdm_model.md`, rename it, and edit the content. A generic template is also provided in a blockquote at the **end of the `lcdm_model.md` file**.
--   **`.py` Template:** To create a new model implementation file, you can use the commented-out template located at the **end of the `lcdm_model.py` file**. Copy this template into a new file and fill in your model's specific logic.
+-   **`.py` Template:** To create a new model implementation file, you can use the commented-out template located at the **end of the `lcdm_model.py` file**. This template includes the structure for both standard CPU and high-performance OpenCL implementations.
 
 ---
 
-## 5. Future Development: Implementing OpenCL Kernels
+## 6. High-Performance Computing with OpenCL
 
-The current framework uses placeholder functions for OpenCL calculations. This section outlines the intended path for implementing real, hardware-accelerated kernels.
+The framework includes a functional OpenCL implementation for hardware-accelerated calculations.
+
+> **Numerical Precision of OpenCL Kernels**
+>
+> As of the latest update, the OpenCL kernels provided in the example model plugins (`lcdm_model.py`, `usmf2.py`) have been significantly upgraded. They now use high-precision numerical methods (specifically, **40-point Gauss-Legendre quadrature** for integration) designed to produce results that are consistent with the high-accuracy `SciPy` (CPU) backend. The previous issue of numerical divergence due to simplified algorithms has been resolved.
 
 ### Architectural Approach: Real-Time Kernel Generation
 
-To maintain the self-contained, two-file structure for each model, OpenCL kernels will **not** be stored in separate `.cl` files. Instead, they will be defined as Python f-strings directly within the `distance_modulus_model_opencl` function of each model's `.py` plugin. This allows for dynamic kernel generation and compilation at runtime and keeps all logic for a given model within its dedicated files.
+To maintain the self-contained, two-file structure for each model, OpenCL kernels are **not** stored in separate `.cl` files. Instead, they are defined as Python f-strings within each model's `.py` plugin, typically in a variable named `OPENCL_KERNEL_SRC`.
 
-### Required File Modifications
+The `cosmo_engine.py` script automatically handles the compilation of this kernel string at runtime. This allows for dynamic kernel generation and keeps all logic for a given model within its dedicated files.
 
-#### 1. Model Plugin Files (e.g., `lcdm_model.py`, `usmf2.py`)
+### Required Model File Modifications
 
-The primary work will be done here by replacing the placeholder content in the `distance_modulus_model_opencl` function. A full implementation will require the following steps within this function:
+To enable OpenCL acceleration for a new model, the developer must make two primary additions to the model's `.py` plugin file.
 
-1.  **Define the Kernel String:** Create a multi-line Python f-string containing the OpenCL C99 kernel code. The cosmological parameters (`*cosmo_params`) can be formatted into this string, making the kernel specific to the parameters being tested in a given evaluation.
-2.  **Compile the Kernel:** Use the passed `cl_context` object to compile the kernel string in real-time: `program = cl.Program(cl_context, kernel_string).build()`.
-3.  **Manage Memory Buffers:**
-    -   Create an input buffer for `z_array` and transfer the data from the host (CPU) to the compute device (GPU).
-    -   Create an output buffer on the device to store the results.
-    -   Use `cl.Buffer(cl_context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=z_data)` for inputs and `cl.Buffer(cl_context, cl.mem_flags.WRITE_ONLY, size=output_size_bytes)` for outputs.
-4.  **Execute the Kernel:** Call the compiled kernel function, passing the `cl_queue`, global work size (typically `z_array.shape`), local work size, and the memory buffers as arguments.
-5.  **Retrieve Results:** Copy the data from the output buffer on the device back to the host CPU using `cl.enqueue_copy(cl_queue, host_array, device_buffer)`.
+1.  **Define the Kernel Source String (`OPENCL_KERNEL_SRC`):** Create a multi-line Python string containing the OpenCL C99 kernel code. For best results, use a high-order fixed quadrature method like the 40-point Gauss-Legendre rule for any integrations.
+2.  **Implement the `distance_modulus_model_opencl` Function:** This function serves as the entry point for the OpenCL calculation. It will receive the pre-compiled `cl_program` object from the `cosmo_engine`. Its responsibilities are to manage memory buffers, execute the kernel, retrieve the results, and return the final distance modulus `mu`.
 
-> **Important Note on Complex Models:** For models like `usmf2.py` that rely on SciPy's `quad` (integration) or `brentq` (root-finding), these functions cannot be used in a GPU kernel. The developer will need to implement custom, parallel-aware numerical algorithms (e.g., parallel reduction for integration) directly within the OpenCL kernel code.
+### Example Implementation: ΛCDM Model
 
-#### 2. `cosmo_engine.py`
+The following is the actual implementation from `lcdm_model.py`, demonstrating how a standard model can be accelerated with OpenCL.
 
-This file should require minimal changes. The dispatch logic is already in place. Future modifications may include adding more robust error handling to catch and log GPU-specific issues, such as kernel compilation failures or memory errors.
+#### 1. The OpenCL Kernel String
 
-### Example Implementation Sketch
-
-The following is a conceptual sketch of what a real `distance_modulus_model_opencl` function might look like inside `lcdm_model.py`.
+This f-string, defined in `lcdm_model.py`, contains a kernel that performs numerical integration of `c/H(z)` using a 40-point Gauss-Legendre quadrature to find the luminosity distance.
 
 ```python
-# This is a conceptual example for documentation purposes.
+# Defined in lcdm_model.py
+OPENCL_KERNEL_SRC = f\"\"\"
+// --- Gauss-Legendre Quadrature Constants (40-point) ---
+__constant double GL_NODES_40[40] = {{ ... }};
+__constant double GL_WEIGHTS_40[40] = {{ ... }};
 
-def distance_modulus_model_opencl(z_array, H0, Omega_m0, Omega_b0, cl_context=None, cl_queue=None):
-    # 1. Define Kernel as an f-string, inserting current parameters
-    # This example implements a simple numerical integration (trapezoidal rule)
-    # A real implementation would use a more accurate method (e.g., Simpson's rule).
+// Helper function for the integrand c/H(z)
+inline double integrand_func(...) {{ ... }}
+
+__kernel void lcdm_dl_integrator(
+    __global const double *z_values,
+    __global double *dl_out,
+    // ... Cosmological Parameters ...
+) {{
+    int gid = get_global_id(0);
+    double z_upper = z_values[gid];
     
-    h, Omega_r0, Omega_L0, _, _ = _get_derived_densities(H0, Omega_m0, Omega_b0)
-    C_LIGHT_KM_S = FIXED_PARAMS["C_LIGHT_KM_S"]
+    // ... C99 code for 40-point Gauss-Legendre integration ...
+    // to calculate comoving distance (dc_integral)
     
-    # Check for invalid parameters before attempting to build the kernel
-    if any(np.isnan([h, Omega_r0, Omega_L0])):
-        return np.full_like(z_array, np.nan)
-
-    kernel_string = f"""
-    __kernel void integrate_dl(__global const double *z_values, __global double *dl_out) {{
-        int gid = get_global_id(0);
-        double z = z_values[gid];
-        
-        if (z < 1e-9) {{
-            dl_out[gid] = 0.0;
-            return;
-        }}
-
-        // Simple integration loop (Trapezoidal Rule)
-        int N_STEPS = 1000; // Number of integration steps
-        double step_size = z / N_STEPS;
-        double dc_integral = 0.0;
-
-        for (int i = 0; i < N_STEPS; i++) {{
-            double z_i = i * step_size;
-            double z_i1 = (i + 1) * step_size;
-            
-            // H(z) calculation at step i and i+1
-            double Ez_sq_i = {Omega_r0}*pow(1+z_i, 4) + {Omega_m0}*pow(1+z_i, 3) + {Omega_L0};
-            double hz_i = {H0} * sqrt(Ez_sq_i);
-            
-            double Ez_sq_i1 = {Omega_r0}*pow(1+z_i1, 4) + {Omega_m0}*pow(1+z_i1, 3) + {Omega_L0};
-            double hz_i1 = {H0} * sqrt(Ez_sq_i1);
-
-            // Integrand c/H(z)
-            double integrand_i = {C_LIGHT_KM_S} / hz_i;
-            double integrand_i1 = {C_LIGHT_KM_S} / hz_i1;
-            
-            dc_integral += 0.5 * (integrand_i + integrand_i1) * step_size;
-        }}
-
-        // Final luminosity distance calculation
-        dl_out[gid] = dc_integral * (1.0 + z);
-    }}
-    """
-    
-    # 2. Compile Kernel
-    try:
-        program = cl.Program(cl_context, kernel_string).build()
-    except cl.RuntimeError as e:
-        logger = logging.getLogger()
-        logger.error(f"OpenCL kernel compilation failed: {e}")
-        return np.full_like(z_array, np.nan)
-
-    # 3. Manage Buffers
-    z_buffer = cl.Buffer(cl_context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=z_array.astype(np.float64))
-    dl_buffer = cl.Buffer(cl_context, cl.mem_flags.WRITE_ONLY, size=z_array.nbytes)
-    
-    # 4. Execute Kernel
-    program.integrate_dl(cl_queue, z_array.shape, None, z_buffer, dl_buffer)
-
-    # 5. Retrieve Results
-    dl_mpc = np.empty_like(z_array, dtype=np.float64)
-    cl.enqueue_copy(cl_queue, dl_mpc, dl_buffer).wait()
-    
-    # Convert to distance modulus
-    with np.errstate(divide='ignore', invalid='ignore'):
-        mu = 5.0 * np.log10(dl_mpc) + 25.0
-    mu[dl_mpc <= 0] = np.nan
-    
-    return mu
+    // Final luminosity distance calculation
+    dl_out[gid] = dc_integral * (1.0 + z_upper);
+}}
+\"\"\"

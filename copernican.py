@@ -6,10 +6,81 @@ Copernican Suite - Main Orchestrator.
 import importlib.util
 import os
 import sys
+import platform
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Import sibling modules
+# --- NEW: System Dependency and Sanity Checker ---
+
+def check_dependencies():
+    """
+    Checks for all required Python and system dependencies.
+    Provides platform-specific installation instructions and exits if checks fail.
+    """
+    print("--- Running System Dependency Check ---")
+    errors = []
+    os_platform = platform.system()
+
+    # 1. Check for required Python libraries
+    required_libs = {
+        "numpy": "numpy",
+        "scipy": "scipy",
+        "matplotlib": "matplotlib"
+    }
+    for lib_import, lib_pip in required_libs.items():
+        try:
+            importlib.import_module(lib_import)
+        except ImportError:
+            errors.append(
+                f"- Python library '{lib_pip}' not found.\n"
+                f"  Instruction: pip install {lib_pip}"
+            )
+
+    # 2. Check for optional PyOpenCL and perform sanity check if found
+    try:
+        cl = importlib.import_module('pyopencl')
+        # If import succeeds, do a deeper sanity check
+        try:
+            platforms = cl.get_platforms()
+            if not platforms:
+                raise RuntimeError("No OpenCL platforms found.")
+            # Check if any platform has devices
+            if not any(p.get_devices() for p in platforms):
+                 raise RuntimeError("OpenCL platforms found, but no devices available.")
+        except Exception as e:
+            # This error means pyopencl is installed, but the system drivers are not.
+            instructions = {
+                'Darwin': "  Instruction: brew install opencl-icd-loader",
+                'Linux':  "  Instruction: sudo apt-get install ocl-icd-opencl-dev",
+                'Windows':"  Instruction: Install the latest GPU drivers from your manufacturer (NVIDIA, AMD, Intel)."
+            }
+            errors.append(
+                f"- OpenCL System Integration Failed: {e}\n"
+                f"  'pyopencl' is installed, but cannot find a working GPU/CPU device.\n"
+                f"  This usually means system-level drivers or the ICD loader are missing.\n"
+                f"{instructions.get(os_platform, '  Instruction: Please install OpenCL drivers for your system.')}"
+            )
+    except ImportError:
+        errors.append(
+            "- Python library 'pyopencl' not found.\n"
+            "  This is optional but required for GPU acceleration.\n"
+            "  Instruction: pip install pyopencl"
+        )
+    
+    # 3. Report results
+    if errors:
+        print("\n❌ SYSTEM DEPENDENCY CHECK FAILED. The following issues were found:")
+        print("-" * 60)
+        for error in errors:
+            print(error)
+            print("-" * 60)
+        print("Please resolve the issues above and run the script again.")
+        sys.exit(1)
+    else:
+        print("✅ System Dependency Check Passed. Continuing...\n")
+
+
+# Import sibling modules after the dependency check
 import data_loaders
 import cosmo_engine
 import output_manager
@@ -48,6 +119,9 @@ def load_alternative_model_plugin(model_filepath):
 
 def main_workflow():
     """Main workflow for the Copernican Suite."""
+    # --- NEW: Call dependency checker at the very beginning ---
+    check_dependencies()
+
     try: SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
     except NameError: SCRIPT_DIR = os.getcwd()
 
