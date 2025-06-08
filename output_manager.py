@@ -78,7 +78,6 @@ def plot_hubble_diagram(sne_data_df, lcdm_fit_results, alt_model_fit_results, lc
     dataset_name = sne_data_df.attrs.get('dataset_name_attr', 'SNe_data')
     logger.info(f"Generating Hubble Diagram for {dataset_name}...")
     
-    # --- VISUALS MODIFICATION: Define larger font sizes ---
     font_sizes = {'title': 22, 'label': 18, 'legend': 14, 'infobox': 12, 'ticks': 12}
 
     if 'mu_obs' not in sne_data_df.columns:
@@ -109,7 +108,8 @@ def plot_hubble_diagram(sne_data_df, lcdm_fit_results, alt_model_fit_results, lc
             logger.warning(f"Could not calculate binned average due to an error: {e}"); return np.array([]), np.array([])
 
     fig, axs = plt.subplots(2, 1, figsize=(17, 12), sharex=True, gridspec_kw={'height_ratios':[3,1.5],'hspace':0.05})
-    plt.subplots_adjust(left=0.08, bottom=0.08, right=0.58, top=0.92)
+    # --- LAYOUT MODIFICATION: Widen plot by changing the 'right' parameter ---
+    plt.subplots_adjust(left=0.08, bottom=0.08, right=0.75, top=0.92)
     try: plt.style.use('seaborn-v0_8-darkgrid')
     except Exception: logger.warning("Seaborn-v0_8-darkgrid style not found, using default.")
 
@@ -140,11 +140,11 @@ def plot_hubble_diagram(sne_data_df, lcdm_fit_results, alt_model_fit_results, lc
     axs[0].set_ylabel(r'Distance Modulus ($\mu$)', fontsize=font_sizes['label']); axs[0].legend(fontsize=font_sizes['legend'], loc='lower right'); axs[0].set_title(f'Hubble Diagram: {dataset_name}', fontsize=font_sizes['title']); axs[0].minorticks_on(); axs[0].tick_params(axis='both', which='major', labelsize=font_sizes['ticks'])
     axs[1].axhline(0, color='black', ls='--', lw=1); axs[1].set_xlabel('Redshift (z)', fontsize=font_sizes['label']); axs[1].set_ylabel(r'$\mu_{obs} - \mu_{model}$', fontsize=font_sizes['label']); axs[1].legend(fontsize=font_sizes['legend'], loc='lower right'); axs[1].minorticks_on(); axs[1].tick_params(axis='both', which='major', labelsize=font_sizes['ticks'])
 
-    # --- VISUALS MODIFICATION: Larger fonts and lighter background colors for info boxes ---
     bbox_lcdm = dict(boxstyle='round,pad=0.5', fc='#FFEEEE', ec='darkred', alpha=0.8)
     bbox_alt = dict(boxstyle='round,pad=0.5', fc='#EEF2FF', ec='darkblue', alpha=0.8)
-    fig.text(0.60, 0.90, format_model_summary_text(lcdm_plugin, is_sne_summary=True, fit_results=lcdm_fit_results), fontsize=font_sizes['infobox'], va='top', ha='left', wrap=True, bbox=bbox_lcdm)
-    fig.text(0.60, 0.52, format_model_summary_text(alt_model_plugin, is_sne_summary=True, fit_results=alt_model_fit_results), fontsize=font_sizes['infobox'], va='top', ha='left', wrap=True, bbox=bbox_alt)
+    # --- LAYOUT MODIFICATION: Move info boxes to the right to accommodate wider plot ---
+    fig.text(0.77, 0.90, format_model_summary_text(lcdm_plugin, is_sne_summary=True, fit_results=lcdm_fit_results), fontsize=font_sizes['infobox'], va='top', ha='left', wrap=True, bbox=bbox_lcdm)
+    fig.text(0.77, 0.52, format_model_summary_text(alt_model_plugin, is_sne_summary=True, fit_results=alt_model_fit_results), fontsize=font_sizes['infobox'], va='top', ha='left', wrap=True, bbox=bbox_alt)
 
     filename = os.path.join(plot_dir, f"{base_filename}_{dataset_name.replace(' ', '_')}_{get_timestamp()}.png")
     try:
@@ -161,14 +161,14 @@ def plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results,
     dataset_name = bao_data_df.attrs.get('dataset_name_attr', 'BAO_data')
     logger.info(f"Generating BAO Plot for {dataset_name}...")
 
-    # --- VISUALS MODIFICATION: Define larger font sizes ---
     font_sizes = {'title': 22, 'label': 18, 'legend': 14, 'infobox': 12, 'ticks': 12}
     
     min_z, max_z = bao_data_df['redshift'].min(), bao_data_df['redshift'].max()
     z_plot_smooth = np.geomspace(max(min_z * 0.8, 0.01), max_z * 1.2, 100)
 
     fig, ax = plt.subplots(figsize=(17, 10))
-    plt.subplots_adjust(left=0.08, bottom=0.1, right=0.58, top=0.90)
+    # --- LAYOUT MODIFICATION: Widen plot by changing the 'right' parameter ---
+    plt.subplots_adjust(left=0.08, bottom=0.1, right=0.75, top=0.90)
     try: plt.style.use('seaborn-v0_8-darkgrid')
     except Exception: logger.warning("Seaborn-v0_8-darkgrid style not found, using default.")
 
@@ -206,7 +206,6 @@ def plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results,
         if 'DH_over_rs' in obs_types: robust_plot(z_plot_smooth, dh/rs, color=color, ls=line_styles[1], lw=2.5, label=fr'{label_prefix} ($D_H/r_s$)')
         if 'DV_over_rs' in obs_types: robust_plot(z_plot_smooth, dv/rs, color=color, ls=line_styles[2], lw=2.5, label=fr'{label_prefix} ($D_V/r_s$)')
 
-    # --- BUG FIX: Pass distinct, valid linestyles for each observable ---
     line_styles = ['-', '--', ':']
     plot_model_bao(lcdm_plugin, lcdm_full_results, 'red', line_styles, r'$\Lambda$CDM')
     alt_name_raw = getattr(alt_model_plugin, 'MODEL_NAME', 'AltModel')
@@ -216,11 +215,11 @@ def plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results,
     ax.set_xlabel('Redshift (z)', fontsize=font_sizes['label']); ax.set_ylabel(r'$D_X/r_s$', fontsize=font_sizes['label']); ax.set_title(f'BAO Observables vs. Redshift: {dataset_name}', fontsize=font_sizes['title']); ax.legend(fontsize=font_sizes['legend'], loc='best'); ax.minorticks_on(); ax.tick_params(axis='both', which='major', labelsize=font_sizes['ticks'])
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
-    # --- VISUALS MODIFICATION: Larger fonts and lighter background colors for info boxes ---
     bbox_lcdm = dict(boxstyle='round,pad=0.5', fc='#FFEEEE', ec='darkred', alpha=0.8)
     bbox_alt = dict(boxstyle='round,pad=0.5', fc='#EEF2FF', ec='darkblue', alpha=0.8)
-    fig.text(0.60, 0.90, format_model_summary_text(lcdm_plugin, is_sne_summary=False, fit_results=lcdm_full_results.get('sne_fit_results',{}), **lcdm_full_results), fontsize=font_sizes['infobox'], va='top', ha='left', wrap=True, bbox=bbox_lcdm)
-    fig.text(0.60, 0.55, format_model_summary_text(alt_model_plugin, is_sne_summary=False, fit_results=alt_model_full_results.get('sne_fit_results',{}), **alt_model_full_results), fontsize=font_sizes['infobox'], va='top', ha='left', wrap=True, bbox=bbox_alt)
+    # --- LAYOUT MODIFICATION: Move info boxes to the right to accommodate wider plot ---
+    fig.text(0.77, 0.90, format_model_summary_text(lcdm_plugin, is_sne_summary=False, fit_results=lcdm_full_results.get('sne_fit_results',{}), **lcdm_full_results), fontsize=font_sizes['infobox'], va='top', ha='left', wrap=True, bbox=bbox_lcdm)
+    fig.text(0.77, 0.55, format_model_summary_text(alt_model_plugin, is_sne_summary=False, fit_results=alt_model_full_results.get('sne_fit_results',{}), **alt_model_full_results), fontsize=font_sizes['infobox'], va='top', ha='left', wrap=True, bbox=bbox_alt)
 
     filename = os.path.join(plot_dir, f"{base_filename}_{dataset_name.replace(' ', '_')}_{get_timestamp()}.png")
     try:
