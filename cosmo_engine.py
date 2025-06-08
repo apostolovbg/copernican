@@ -1,7 +1,7 @@
 # copernican_suite/cosmo_engine.py
 """
 Cosmological Engine for the Copernican Suite.
-...
+*** MODIFIED TO SUPPORT OPTIONAL HIGH-PERFORMANCE NUMBA/GPU FUNCTIONS ***
 """
 
 import numpy as np
@@ -27,10 +27,10 @@ SIGMA_INT_SQ_DEFAULT = 0.1**2
 
 # ==============================================================================
 # --- CHI-SQUARED HELPER FUNCTIONS ---
-# NOTE: These are defined first so they are available to fit_sne_parameters.
+# NOTE: These are now generalized to accept a model function as an argument.
 # ==============================================================================
 
-def chi_squared_sne_h1_fixed_nuisance(cosmo_params, model_plugin, sne_data_df):
+def chi_squared_sne_h1_fixed_nuisance(cosmo_params, mu_model_func, sne_data_df):
     r"""
     Calculates chi-squared for SNe Ia: H1-style (fixed nuisance).
     This uses pre-calculated mu_obs and diagonal errors e_mu_obs.
@@ -46,7 +46,8 @@ def chi_squared_sne_h1_fixed_nuisance(cosmo_params, model_plugin, sne_data_df):
     mu_err_diag = sne_data_df['e_mu_obs'].values
 
     try:
-        mu_model = model_plugin.distance_modulus_model(z_data, *cosmo_params)
+        # The model function is now passed in directly
+        mu_model = mu_model_func(z_data, *cosmo_params)
     except Exception as e:
         return np.inf # Fitter will handle this
 
@@ -56,7 +57,6 @@ def chi_squared_sne_h1_fixed_nuisance(cosmo_params, model_plugin, sne_data_df):
         return np.inf
 
     residuals = mu_data - mu_model
-    # Prevent division by zero, but also handle cases where error is legitimately tiny.
     safe_mu_err = np.where(np.abs(mu_err_diag) < 1e-12, 1e-12, np.abs(mu_err_diag))
     if np.any(safe_mu_err <= 0):
         return np.inf
@@ -65,10 +65,9 @@ def chi_squared_sne_h1_fixed_nuisance(cosmo_params, model_plugin, sne_data_df):
     return chi2 if np.isfinite(chi2) else np.inf
 
 
-def chi_squared_sne_h2_salt2_fitting(params_full, model_plugin, sne_data_df, num_cosmo_params):
+def chi_squared_sne_h2_salt2_fitting(params_full, mu_model_func, sne_data_df, num_cosmo_params):
     r"""
     Calculates chi-squared for SNe Ia: H2-style (SALT2 m_b, x1, c fitting).
-    ...
     """
     logger = logging.getLogger()
     req_cols = ['zcmb', 'mb', 'x1', 'c', 'e_mb', 'e_x1', 'e_c']
@@ -89,7 +88,8 @@ def chi_squared_sne_h2_salt2_fitting(params_full, model_plugin, sne_data_df, num
     M_B_fit, alpha_salt2_fit, beta_salt2_fit = params_full[num_cosmo_params : num_cosmo_params+3]
 
     try:
-        mu_cosmo_model = model_plugin.distance_modulus_model(z_data, *cosmo_params)
+        # The model function is now passed in directly
+        mu_cosmo_model = mu_model_func(z_data, *cosmo_params)
     except Exception:
         return np.inf
 
@@ -107,10 +107,9 @@ def chi_squared_sne_h2_salt2_fitting(params_full, model_plugin, sne_data_df, num
     return chi2 if np.isfinite(chi2) else np.inf
 
 
-def chi_squared_sne_mu_covariance(cosmo_params, model_plugin, sne_data_df):
+def chi_squared_sne_mu_covariance(cosmo_params, mu_model_func, sne_data_df):
     r"""
     Calculates chi-squared for SNe Ia: H2-style (mu_obs with full covariance matrix).
-    ...
     """
     logger = logging.getLogger()
     if not all(col in sne_data_df.columns for col in ['zcmb', 'mu_obs']):
@@ -124,7 +123,8 @@ def chi_squared_sne_mu_covariance(cosmo_params, model_plugin, sne_data_df):
     C_inv = sne_data_df.attrs['covariance_matrix_inv']
 
     try:
-        mu_model = model_plugin.distance_modulus_model(z_data, *cosmo_params)
+        # The model function is now passed in directly
+        mu_model = mu_model_func(z_data, *cosmo_params)
     except Exception:
         return np.inf
 
@@ -150,7 +150,7 @@ def chi_squared_sne_mu_covariance(cosmo_params, model_plugin, sne_data_df):
 def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
     r"""
     Calculates chi-squared for BAO data against model predictions.
-    ...
+    This function remains unchanged as it doesn't call the mu_model function.
     """
     logger = logging.getLogger()
     if bao_data_df is None or bao_data_df.empty:
@@ -165,7 +165,6 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
     try:
         get_DM_model = getattr(model_plugin, "get_comoving_distance_Mpc")
         get_Hz_model = getattr(model_plugin, "get_Hz_per_Mpc")
-        # Use specific DV if available, otherwise it will be calculated from DM and Hz
         get_DV_model_specific = getattr(model_plugin, "get_DV_Mpc", None)
         C_LIGHT = model_plugin.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458) 
     except AttributeError as e:
@@ -199,7 +198,7 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
                         model_pred_numerator = term_in_bracket**(1.0/3.0) if term_in_bracket >=0 else np.nan
                     elif abs(z_val) < 1e-9 : model_pred_numerator = 0.0
             else:
-                continue # Skip unknown observable types
+                continue
             
             if not np.isfinite(model_pred_numerator): continue
             
@@ -208,7 +207,6 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
             num_valid_points += 1
         
         except Exception:
-            # Silently continue if a single point fails for a model, fitter will handle it
             continue
             
     if num_valid_points == 0:
@@ -225,6 +223,7 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
 def fit_sne_parameters(sne_data_df, model_plugin):
     """
     Fits cosmological (and optionally SNe nuisance) parameters to SNe Ia data.
+    *** MODIFIED to use the high-performance function dispatcher. ***
     """
     logger = logging.getLogger()
     fit_style = sne_data_df.attrs.get('fit_style', 'unknown')
@@ -242,6 +241,21 @@ def fit_sne_parameters(sne_data_df, model_plugin):
         logger.error(f"Model plugin {model_name_str} missing or has inconsistent parameter definitions.")
         return {'success': False, 'message': "Model parameter definition error.", 'chi2_min': np.inf}
 
+    # --- NEW: HIGH-PERFORMANCE FUNCTION DISPATCHER ---
+    # This logic selects the fastest available distance modulus function from the model plugin.
+    # It checks for OpenCL, then Numba, then falls back to the standard function.
+    selected_mu_func = None
+    if hasattr(model_plugin, 'distance_modulus_model_opencl'):
+        logger.info(f"Using OpenCL (GPU) accelerated function for '{model_name_str}'.")
+        selected_mu_func = model_plugin.distance_modulus_model_opencl
+    elif hasattr(model_plugin, 'distance_modulus_model_numba'):
+        logger.info(f"Using Numba (JIT-compiled CPU) accelerated function for '{model_name_str}'.")
+        selected_mu_func = model_plugin.distance_modulus_model_numba
+    else:
+        logger.info(f"Using standard Python function for '{model_name_str}'.")
+        selected_mu_func = model_plugin.distance_modulus_model
+    # --- END OF DISPATCHER ---
+
     current_initial_params = list(initial_cosmo_params)
     current_param_bounds = list(cosmo_param_bounds)
     chi2_function_to_call = None
@@ -255,12 +269,13 @@ def fit_sne_parameters(sne_data_df, model_plugin):
         
         current_initial_params.extend([SALT2_NUISANCE_PARAMS_INIT["M_B"], SALT2_NUISANCE_PARAMS_INIT["alpha_salt2"], SALT2_NUISANCE_PARAMS_INIT["beta_salt2"]])
         current_param_bounds.extend([SALT2_NUISANCE_PARAMS_BOUNDS["M_B"], SALT2_NUISANCE_PARAMS_BOUNDS["alpha_salt2"], SALT2_NUISANCE_PARAMS_BOUNDS["beta_salt2"]])
-        args_for_chi2_func = (model_plugin, sne_data_df, num_cosmo_params)
+        # Pass the selected model function and other args
+        args_for_chi2_func = (selected_mu_func, sne_data_df, num_cosmo_params)
         
     elif fit_style == 'h2_mu_covariance' and sne_data_df.attrs.get('covariance_matrix_inv') is not None:
         logger.info("Fitting cosmological parameters using mu_obs with full covariance matrix.")
         chi2_function_to_call = chi_squared_sne_mu_covariance
-        args_for_chi2_func = (model_plugin, sne_data_df)
+        args_for_chi2_func = (selected_mu_func, sne_data_df)
         
     elif fit_style == 'h1_fixed_nuisance' or (fit_style == 'h2_mu_covariance' and sne_data_df.attrs.get('covariance_matrix_inv') is None):
         if fit_style == 'h2_mu_covariance':
@@ -268,7 +283,7 @@ def fit_sne_parameters(sne_data_df, model_plugin):
         else:
             logger.info("Fitting cosmological parameters using mu_obs with diagonal errors (H1-style).")
         chi2_function_to_call = chi_squared_sne_h1_fixed_nuisance
-        args_for_chi2_func = (model_plugin, sne_data_df)
+        args_for_chi2_func = (selected_mu_func, sne_data_df)
     else:
         message = f"Error: Undetermined SNe fitting type or inconsistent data attributes for fit_style '{fit_style}'."
         logger.error(message)
@@ -276,7 +291,6 @@ def fit_sne_parameters(sne_data_df, model_plugin):
 
     options = {'maxiter': 2000, 'disp': False, 'ftol': 1e-10, 'gtol': 1e-7, 'eps': 1e-9}
     
-    # Use a dictionary for mutable counter
     eval_count = {'count': 0}
     best_chi2_so_far = [np.inf]
     best_params_so_far = [list(current_initial_params)]
@@ -297,42 +311,34 @@ def fit_sne_parameters(sne_data_df, model_plugin):
         elapsed_time = time.time() - start_time
         speed_str = f"{(eval_count['count'] / elapsed_time):.1f} evals/s" if elapsed_time > 1e-6 else "--- evals/s"
         
-        # Use stderr for progress to not clutter stdout log
         print(f"  SNe Fit Evals: {eval_count['count']:<5} | Best Chi2: {best_chi2_so_far[0]:.4f} | Speed: {speed_str:<15}", end='\r', file=sys.stderr)
         
-        # Return a very large number instead of inf to guide the optimizer
         return current_chi2_val if np.isfinite(current_chi2_val) else 1e12 
 
     logger.info(f"Starting SNe optimization for {model_name_str} using {len(current_initial_params)} parameters...")
     result_obj = None
     try:
+        # Pass the arguments tuple containing the selected model function to the optimizer
         result_obj = minimize(chi2_wrapper_for_minimize, current_initial_params, args=args_for_chi2_func,
                               method='L-BFGS-B', bounds=current_param_bounds, options=options)
     except Exception as e_min:
         logger.error(f"\nException during SNe minimize call for {model_name_str}: {e_min}", exc_info=True)
     finally:
-        # Clear the progress line from stderr
         print(" " * 80, end='\r', file=sys.stderr)
         logger.info(f"SNe Optimization for {model_name_str} finished. Total evals: {eval_count['count']}.")
 
-    # Determine final parameters: use optimizer result if successful, otherwise best-found
     if result_obj and result_obj.success and np.isfinite(result_obj.fun):
         final_params = result_obj.x
         final_chi2 = result_obj.fun
         message = result_obj.message
         success_flag = True
-        n_iter = getattr(result_obj, 'nit', 0)
-        n_func_evals_optimizer = getattr(result_obj, 'nfev', eval_count['count'])
-    else: # Fallback to best result found during search
+    else: 
         final_params = np.array(best_params_so_far[0])
         final_chi2 = best_chi2_so_far[0]
         message = "Optimizer failed or did not improve; using best parameters found during search."
         if result_obj and hasattr(result_obj, 'message') and result_obj.message:
              message += f" (Optimizer msg: {result_obj.message})"
-        # Success is only true if chi2 is finite, even if optimizer itself failed
         success_flag = np.isfinite(final_chi2)
-        n_iter = 0
-        n_func_evals_optimizer = eval_count['count']
 
     fitted_cosmo_params_dict = None
     fitted_nuisance_params_dict = None
@@ -383,6 +389,7 @@ def fit_sne_parameters(sne_data_df, model_plugin):
 def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params):
     """
     Calculates BAO observable predictions for a given model and its parameters.
+    (This function remains unchanged).
     """
     logger = logging.getLogger()
     model_name = model_plugin.MODEL_NAME
@@ -394,13 +401,11 @@ def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params):
     bao_pred_df = bao_data_df.copy()
     bao_pred_df['model_prediction'] = np.nan
     
-    # DIAGNOSTIC: Log the parameters being used for the calculation
     param_str = ", ".join([f"{p:.4g}" for p in cosmo_params])
     logger.info(f"Calculating BAO observables for {model_name} with parameters: [{param_str}]")
 
     try:
         model_rs_Mpc_calc = model_plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
-        # DIAGNOSTIC: Log the calculated r_s value
         if np.isfinite(model_rs_Mpc_calc) and model_rs_Mpc_calc > 0:
             logger.info(f"Successfully calculated r_s for {model_name}: {model_rs_Mpc_calc:.3f} Mpc")
         else:
@@ -445,9 +450,7 @@ def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params):
             if np.isfinite(model_pred_numerator):
                 bao_pred_df.loc[index, 'model_prediction'] = model_pred_numerator / model_rs_Mpc_calc
         except Exception:
-            # Leave as NaN if calculation for a single point fails
             pass 
             
-    # DIAGNOSTIC: Log the head of the prediction dataframe
     logger.debug(f"BAO predictions for {model_name}:\n{bao_pred_df.head().to_string()}")
     return bao_pred_df, model_rs_Mpc_calc
