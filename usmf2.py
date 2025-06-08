@@ -17,9 +17,10 @@ MODEL_EQUATIONS_LATEX_SN = [
     r"$d_L(z) = |r| \cdot (1+z)^2 \cdot \frac{70.0}{H_A}$",
     r"$\mu = 5 \log_{10}(d_L) + 25$"
 ]
+# --- BUG FIX: Replaced unsupported `\bigg|` with `\left. ... \right|` for Matplotlib compatibility ---
 MODEL_EQUATIONS_LATEX_BAO = [
     r"$D_A(z) = |r| \cdot \frac{70.0}{H_A}$",
-    r"$H_{USMF}(z) = - \frac{1}{\alpha(t_e)}\frac{d\alpha}{dt}\bigg|_{t_e}$",
+    r"$H_{USMF}(z) = - \frac{1}{\alpha(t_e)} \left. \frac{d\alpha}{dt} \right|_{t_e}$",
     r"$D_V(z) = \left[ (1+z)^2 D_A(z)^2 \frac{cz}{H(z)} \right]^{1/3}$"
 ]
 PARAMETER_NAMES = ["H_A", "p_alpha", "k_exp", "s_exp", "t0_age_Gyr", "A_osc", "omega_osc", "ti_osc_Gyr", "phi_osc"]
@@ -199,8 +200,6 @@ def get_sound_horizon_rs_Mpc(*cosmo_params):
         try:
             g1 = 0.0783 * om_b**(-0.238) / (1.0 + 39.5 * om_b**0.763)
             g2 = 0.560 / (1.0 + 21.1 * om_b**1.81)
-            # PHYSICS BUGFIX: Corrected formula to match usmf2.json documentation
-            # The first term (1.0 + 0.00124*...) should be inverted.
             return 1048.0 * np.power(1.0 + 0.00124 * om_b**(-0.738), -1.0) * (1.0 + g1 * om_m**g2)
         except (ValueError, OverflowError): return np.nan
 
@@ -210,21 +209,17 @@ def get_sound_horizon_rs_Mpc(*cosmo_params):
     def _Hz_early(z, t0, m):
         """Effective H(z) for the simplified early USMF model."""
         t0_sec = t0 * FIXED_PARAMS["SECONDS_PER_GYR"]
-        # H(z) = m/t, and t = t0 * (1+z)^(-1/m) -> H(z) = (m/t0) * (1+z)^(1/m)
         return (m / t0_sec) * np.power(1.0 + z, 1.0 / m) * FIXED_PARAMS["MPC_TO_KM"]
 
     def _rs_integrand(z, t0, m, om_b):
         """Integrand for sound horizon: c_s(z) / H(z)."""
         hz = _Hz_early(z, t0, m)
         if not np.isfinite(hz) or hz <= 0: return np.inf
-        # Baryon-photon momentum density ratio R
         R = (3. * om_b) / (4. * FIXED_PARAMS["OMEGA_GAMMA_H2_PREFACTOR_FOR_RS"] * (1+z))
-        # Sound speed c_s
         cs = FIXED_PARAMS["C_LIGHT_KM_S"] / np.sqrt(3. * (1+R))
         return cs / hz
         
     try:
-        # Integrate from z_drag to infinity
         rs, _ = quad(_rs_integrand, z_d, np.inf, args=(t0_age_Gyr_fitted, m_fixed, om_b_h2))
         return rs if np.isfinite(rs) and rs > 0 else np.nan
     except Exception:
