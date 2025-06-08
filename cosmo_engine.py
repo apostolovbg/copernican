@@ -18,6 +18,7 @@ _pyopencl = None
 _opencl_context = None
 _opencl_queue = None
 _opencl_device_name = "N/A"
+_opencl_platform_name = "N/A"
 
 try:
     import pyopencl as cl
@@ -26,38 +27,75 @@ try:
     # It handles errors during device initialization.
     try:
         platforms = cl.get_platforms()
-        if platforms:
-            # Prefer GPU devices
-            gpu_devices = []
-            for p in platforms:
-                gpu_devices.extend(p.get_devices(device_type=cl.device_type.GPU))
-            
-            if gpu_devices:
-                _pyopencl = cl
-                # Use the first available GPU device
-                device = gpu_devices[0]
-                _opencl_context = cl.Context(devices=[device])
-                _opencl_queue = cl.CommandQueue(_opencl_context)
-                _opencl_device_name = device.name.strip()
-            else: # Fallback to CPU if no GPU
-                cpu_devices = []
-                for p in platforms:
-                    cpu_devices.extend(p.get_devices(device_type=cl.device_type.CPU))
-                if cpu_devices:
-                    _pyopencl = cl
-                    device = cpu_devices[0]
-                    _opencl_context = cl.Context(devices=[device])
-                    _opencl_queue = cl.CommandQueue(_opencl_context)
-                    _opencl_device_name = device.name.strip()
+        if not platforms:
+            raise ImportError("No OpenCL platforms found.")
 
-    except (cl.LogicError, IndexError):
+        # Prefer GPU devices
+        gpu_devices = []
+        for p in platforms:
+            try:
+                gpu_devices.extend(p.get_devices(device_type=cl.device_type.GPU))
+            except cl.RuntimeError:
+                continue # Some platforms might not have GPU devices
+        
+        target_device = None
+        if gpu_devices:
+            target_device = gpu_devices[0] # Use the first available GPU
+        else: # Fallback to CPU if no GPU
+            cpu_devices = []
+            for p in platforms:
+                try:
+                    cpu_devices.extend(p.get_devices(device_type=cl.device_type.CPU))
+                except cl.RuntimeError:
+                    continue
+            if cpu_devices:
+                target_device = cpu_devices[0]
+
+        if target_device:
+            _pyopencl = cl
+            _opencl_context = cl.Context(devices=[target_device])
+            _opencl_queue = cl.CommandQueue(_opencl_context)
+            _opencl_device_name = target_device.name.strip()
+            _opencl_platform_name = target_device.platform.name.strip()
+        else:
+            raise ImportError("No suitable OpenCL devices (GPU or CPU) found.")
+
+    except (cl.Error, ImportError, IndexError) as e:
         # This catches errors if pyopencl is installed but no devices are found/work.
         _pyopencl = None
+        logging.getLogger().warning(f"PyOpenCL is installed, but device initialization failed: {e}")
 
 except ImportError:
     # This catches the error if the pyopencl module is not installed at all.
     _pyopencl = None
 
+# --- NEW: OpenCL Kernel Compiler ---
+def _compile_opencl_kernel(kernel_name, kernel_source_code, model_name):
+    """
+    Compiles an OpenCL kernel from a source string.
+    Returns a compiled PyOpenCL Program object or None on failure.
+    """
+    logger = logging.getLogger()
+    if _pyopencl is None or _opencl_context is None:
+        logger.error(f"Cannot compile OpenCL kernel '{kernel_name}' for {model_name}; OpenCL is not available.")
+        return None
+    try:
+        logger.info(f"Compiling OpenCL kernel '{kernel_name}' for model '{model_name}'...")
+        program = _pyopencl.Program(_opencl_context, kernel_source_code).build()
+        logger.info(f"Successfully compiled kernel '{kernel_name}'.")
+        return program
+    except _pyopencl.LogicError as e:
+        logger.error(f"OpenCL Logic Error for '{kernel_name}' in {model_name}: This often means the OpenCL driver or platform is in an invalid state. {e}")
+        return None
+    except _pyopencl.RuntimeError as e:
+        logger.error(f"OpenCL Runtime Error (often a compilation failure) for '{kernel_name}' in {model_name}. Check kernel syntax.")
+        logger.error(f"Device: {_opencl_device_name}")
+        logger.error(f"Platform: {_opencl_platform_name}")
+        logger.error(f"OpenCL Build Log:\n{e}")
+        return None
+    except Exception as e:
+        logger.error(f"An unexpected error occurred during OpenCL kernel compilation for {model_name}: {e}", exc_info=True)
+        return None
 
 # --- Constants for SNe H2-style (SALT2 nuisance parameter fitting) ---
 SALT2_NUISANCE_PARAMS_INIT = {
@@ -283,10 +321,10 @@ def _select_compute_backend():
         logger.info("OpenCL not found or no compatible devices detected. Using standard CPU (SciPy) backend.")
         return 'standard'
 
-    logger.info(f"\nOpenCL-compatible device detected: {_opencl_device_name}")
-    print("OpenCL hardware is available. Do you want to run calculations using OpenCL?")
+    logger.info(f"\nOpenCL-compatible device detected: {_opencl_device_name} ({_opencl_platform_name})")
+    print("\nOpenCL hardware is available. Do you want to run calculations using OpenCL?")
     print("  1. No (Use standard CPU implementation)")
-    print("  2. Yes (Use GPU-accelerated implementation)")
+    print("  2. Yes (Use GPU/accelerated implementation)")
     
     while True:
         choice = input("Select a compute backend (1 or 2): ").strip()
@@ -294,7 +332,7 @@ def _select_compute_backend():
             logger.info("User selected standard CPU backend.")
             return 'standard'
         elif choice == '2':
-            logger.info("User selected OpenCL (GPU) backend.")
+            logger.info("User selected OpenCL (GPU/accelerated) backend.")
             return 'opencl'
         else:
             print("Invalid selection. Please enter 1 or 2.")
@@ -324,15 +362,31 @@ def fit_sne_parameters(sne_data_df, model_plugin, compute_backend):
     # --- NEW: COMPUTE BACKEND FUNCTION DISPATCHER ---
     selected_mu_func = None
     kwargs_for_chi2 = {}
+    
+    # --- MODIFICATION: Compile OpenCL kernel if provided and selected ---
+    opencl_program = None
+    if compute_backend == 'opencl' and hasattr(model_plugin, 'OPENCL_KERNEL_SRC'):
+        kernel_name = f"{model_name_str}_kernel"
+        kernel_src = getattr(model_plugin, 'OPENCL_KERNEL_SRC', None)
+        if kernel_src:
+            opencl_program = _compile_opencl_kernel(kernel_name, kernel_src, model_name_str)
 
-    if compute_backend == 'opencl' and hasattr(model_plugin, 'distance_modulus_model_opencl'):
+    if compute_backend == 'opencl' and opencl_program and hasattr(model_plugin, 'distance_modulus_model_opencl'):
         logger.info(f"Using OpenCL (GPU) accelerated function for '{model_name_str}'.")
         selected_mu_func = model_plugin.distance_modulus_model_opencl
-        # Pass the OpenCL context and queue to the model function via kwargs
-        kwargs_for_chi2 = {'cl_context': _opencl_context, 'cl_queue': _opencl_queue}
+        # Pass the OpenCL context, queue, and compiled program to the model function via kwargs
+        kwargs_for_chi2 = {'cl_context': _opencl_context, 'cl_queue': _opencl_queue, 'cl_program': opencl_program}
     else:
         if compute_backend == 'opencl':
-            logger.warning(f"OpenCL backend was selected, but model '{model_name_str}' has no 'distance_modulus_model_opencl' function. Falling back to standard CPU implementation.")
+            msg = "Falling back to standard CPU implementation."
+            if not hasattr(model_plugin, 'OPENCL_KERNEL_SRC'):
+                msg = f"Model '{model_name_str}' has no 'OPENCL_KERNEL_SRC' attribute. " + msg
+            elif not opencl_program:
+                msg = f"OpenCL kernel compilation failed for '{model_name_str}'. " + msg
+            elif not hasattr(model_plugin, 'distance_modulus_model_opencl'):
+                msg = f"Model '{model_name_str}' has no 'distance_modulus_model_opencl' function. " + msg
+            logger.warning("OpenCL backend was selected, but could not be used. " + msg)
+
         logger.info(f"Using standard Python (SciPy) function for '{model_name_str}'.")
         selected_mu_func = model_plugin.distance_modulus_model
     # --- END OF DISPATCHER ---

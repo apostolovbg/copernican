@@ -1,7 +1,7 @@
 # copernican_suite/usmf2.py
 """
 Unified Shrinking Matter Framework (USMF) V2 Model Plugin for the Copernican Suite.
-*** MODIFIED to remove Numba and include an OpenCL placeholder. ***
+*** MODIFIED to include a real, complex OpenCL implementation. ***
 """
 
 import numpy as np
@@ -33,13 +33,131 @@ PARAMETER_LATEX_NAMES = [r"$H_A$", r"$p_{\alpha}$", r"$k_{exp}$", r"$s_{exp}$", 
 PARAMETER_UNITS = ["", "", "", "", "Gyr", "", "rad/log(time_ratio)", "Gyr", "rad"]
 FIXED_PARAMS = {
     "C_LIGHT_KM_S": 299792.458, "SECONDS_PER_GYR": 1e9 * 365.25 * 24 * 3600, "MPC_PER_KM": 1.0 / (3.08567758e19),
-    "MPC_TO_KM": 3.08567758e19, "TINY_FLOAT": np.finfo(float).tiny,
+    "MPC_TO_KM": 3.08567758e19, "TINY_FLOAT": 1e-30,
     "USMF_EARLY_ALPHA_POWER_M": 0.5, "OMEGA_GAMMA_H2_PREFACTOR_FOR_RS": 2.47282e-5,
     "H0_FID_FOR_RS_PARAMS_KM_S_MPC": 67.7, "OMEGA_M0_FID_FOR_RS_PARAMS": 0.31, "OMEGA_B0_FID_FOR_RS_PARAMS": 0.0486,
 }
 _h_fid_for_rs = FIXED_PARAMS["H0_FID_FOR_RS_PARAMS_KM_S_MPC"] / 100.0
 FIXED_PARAMS["OMEGA_B0_H2_EFF_FOR_RS"] = FIXED_PARAMS["OMEGA_B0_FID_FOR_RS_PARAMS"] * _h_fid_for_rs**2
 FIXED_PARAMS["OMEGA_M0_H2_EFF_FOR_RS"] = FIXED_PARAMS["OMEGA_M0_FID_FOR_RS_PARAMS"] * _h_fid_for_rs**2
+
+# --- OpenCL Kernel Source ---
+OPENCL_KERNEL_SRC = """
+// OpenCL Helper Function for USMF alpha(t)
+inline double alpha_func(double t, double t0_sec, double p_a, double k, double s, 
+                         double A, double w, double ti_sec, double phi) {
+    if (t <= 1e-12) return NAN; // Avoid log(0) and division by zero
+    
+    double ratio_t0 = t / t0_sec;
+    double term_power = pow(ratio_t0, -p_a);
+    double term_exp = exp(k * (pow(ratio_t0, s) - 1.0));
+
+    double osc = 1.0;
+    if (t >= ti_sec) {
+        osc += A * sin(w * log(t / ti_sec) + phi);
+    }
+    return term_power * term_exp * osc;
+}
+
+// OpenCL Kernel for USMF V2: calculates r(z)
+__kernel void usmf_r_calculator(
+    __global const double* z_in,
+    __global double* r_Mpc_out,
+    // Cosmological Parameters
+    const double p_alpha, const double k_exp, const double s_exp,
+    const double t0_Gyr, const double A_osc, const double omega_osc,
+    const double ti_Gyr, const double phi_osc,
+    // Fixed constants
+    const double SECONDS_PER_GYR,
+    const double C_LIGHT_KM_S,
+    const double MPC_PER_KM,
+    const double TINY_FLOAT,
+    // Control parameters
+    const int num_integration_steps,
+    const int root_finder_max_iter
+) {
+    int i = get_global_id(0);
+    double z = z_in[i];
+
+    // Convert parameters from Gyr to seconds
+    double t0_sec = t0_Gyr * SECONDS_PER_GYR;
+    double ti_sec = ti_Gyr * SECONDS_PER_GYR;
+
+    if (z < 1e-9) {
+        r_Mpc_out[i] = 0.0;
+        return;
+    }
+
+    // --- Step 1: Find t_e from z using a root finder (Bisection method) ---
+    double alpha_at_t0 = alpha_func(t0_sec, t0_sec, p_alpha, k_exp, s_exp, A_osc, omega_osc, ti_sec, phi_osc);
+    if (isnan(alpha_at_t0)) {
+        r_Mpc_out[i] = NAN;
+        return;
+    }
+    double target_alpha = (1.0 + z) * alpha_at_t0;
+
+    double t_low = TINY_FLOAT * t0_sec;
+    double t_high = t0_sec;
+    double t_e = NAN;
+
+    double f_low = alpha_func(t_low, t0_sec, p_alpha, k_exp, s_exp, A_osc, omega_osc, ti_sec, phi_osc) - target_alpha;
+    
+    for (int j = 0; j < root_finder_max_iter; ++j) {
+        double t_mid = (t_low + t_high) / 2.0;
+        double f_mid = alpha_func(t_mid, t0_sec, p_alpha, k_exp, s_exp, A_osc, omega_osc, ti_sec, phi_osc) - target_alpha;
+        
+        if (isnan(f_mid)) { t_e = NAN; break; }
+        if (fabs(f_mid) < 1e-12) { t_e = t_mid; break; }
+
+        if (sign(f_mid) == sign(f_low)) {
+            t_low = t_mid;
+            f_low = f_mid;
+        } else {
+            t_high = t_mid;
+        }
+        if ((t_high - t_low) / t0_sec < 1e-12) {
+             t_e = (t_low + t_high) / 2.0;
+             break;
+        }
+    }
+    
+    if (isnan(t_e)) {
+        r_Mpc_out[i] = NAN;
+        return;
+    }
+    
+    // --- Step 2: Integrate c/alpha(t) from t_e to t_0 ---
+    double integral = 0.0;
+    double dt = (t0_sec - t_e) / (double)num_integration_steps;
+    
+    double t_current = t_e;
+    double y1_inv = alpha_func(t_current, t0_sec, p_alpha, k_exp, s_exp, A_osc, omega_osc, ti_sec, phi_osc);
+    if (y1_inv <= 0) {
+        r_Mpc_out[i] = NAN;
+        return;
+    }
+    double y1 = C_LIGHT_KM_S / y1_inv;
+
+    for (int j = 0; j < num_integration_steps; ++j) {
+        t_current += dt;
+        double y2_inv = alpha_func(t_current, t0_sec, p_alpha, k_exp, s_exp, A_osc, omega_osc, ti_sec, phi_osc);
+        
+        if (y2_inv <= 0) {
+            integral = NAN;
+            break;
+        }
+        double y2 = C_LIGHT_KM_S / y2_inv;
+        integral += 0.5 * (y1 + y2) * dt;
+        y1 = y2;
+    }
+
+    if (isnan(integral)) {
+        r_Mpc_out[i] = NAN;
+    } else {
+        r_Mpc_out[i] = integral * MPC_PER_KM;
+    }
+}
+"""
 
 # --- Standard Python/Scipy Implementation (Fallback and Plotting) ---
 class USMF_Calculator:
@@ -57,7 +175,7 @@ class USMF_Calculator:
         try:
             term_power = np.power(ratio_t0, -p_a)
             term_exp = np.exp(k * (np.power(ratio_t0, s) - 1.0))
-            if t < ti : osc_term = 0
+            if t < ti : osc_term = 0.0
             else: osc_term = np.sin(w * np.log(t / ti) + phi)
             osc = 1.0 + A * osc_term
             return term_power * term_exp * osc
@@ -116,28 +234,63 @@ def distance_modulus_model(z_array, *cosmo_params):
     mu[np.asarray(dl_mpc) <= 0] = np.nan
     return mu
 
-# --- OpenCL High-Performance Function (Placeholder) ---
+# --- OpenCL High-Performance Function ---
 
-def distance_modulus_model_opencl(z_array, *cosmo_params, cl_context=None, cl_queue=None):
-    """
-    High-performance OpenCL entry point for the fitting engine.
-    
-    *** THIS IS A PLACEHOLDER ***
-    A real implementation for this specific model would be very complex, requiring
-    GPU-side solvers for the root-finding (get_t_from_z) and numerical integration
-    steps, or a completely different numerical approach (e.g., pre-computing
-    a t-z relation lookup table).
-    
-    For now, it logs a warning and falls back to the standard CPU implementation.
-    """
-    # On the first call for this model, show a warning that this is a placeholder.
+def distance_modulus_model_opencl(z_array, *cosmo_params, cl_context=None, cl_queue=None, cl_program=None):
+    """High-performance OpenCL entry point for the USMF fitting engine."""
     logger = logging.getLogger()
-    if not hasattr(distance_modulus_model_opencl, "_warned"):
-        logger.warning(f"MODEL '{MODEL_NAME}': 'distance_modulus_model_opencl' is a placeholder and will use the standard CPU-based SciPy implementation.")
-        distance_modulus_model_opencl._warned = True
-    
-    # Fallback to the standard function
-    return distance_modulus_model(z_array, *cosmo_params)
+    if not all([cl_context, cl_queue, cl_program]):
+        logger.warning(f"MODEL '{MODEL_NAME}': OpenCL context not available, falling back to CPU.")
+        return distance_modulus_model(z_array, *cosmo_params)
+        
+    try:
+        # 1. Prepare parameters and data
+        z_data = np.asarray(z_array, dtype=np.float64)
+        H_A, p_alpha, k_exp, s_exp, t0_age_Gyr, A_osc, omega_osc, ti_osc_Gyr, phi_osc = cosmo_params
+        
+        # 2. Create OpenCL buffers
+        mf = cl_context.get_supported_image_formats # shortcut
+        z_buffer = cl.Buffer(cl_context, mf.MEM_READ_ONLY | mf.COPY_HOST_PTR, hostbuf=z_data)
+        r_Mpc_buffer = cl.Buffer(cl_context, mf.MEM_WRITE_ONLY, z_data.nbytes)
+        
+        # 3. Set kernel arguments and execute
+        # Control parameters for precision vs. speed
+        num_integration_steps = 1500
+        root_finder_max_iter = 100
+
+        kernel = cl_program.usmf_r_calculator
+        kernel.set_scalar_arg_dtypes([
+            None, None, np.double, np.double, np.double, np.double, np.double,
+            np.double, np.double, np.double, np.double, np.double, np.double,
+            np.double, np.int32, np.int32
+        ])
+        kernel(cl_queue, z_data.shape, None, z_buffer, r_Mpc_buffer,
+               p_alpha, k_exp, s_exp, t0_age_Gyr, A_osc, omega_osc, ti_osc_Gyr, phi_osc,
+               FIXED_PARAMS["SECONDS_PER_GYR"], FIXED_PARAMS["C_LIGHT_KM_S"],
+               FIXED_PARAMS["MPC_PER_KM"], FIXED_PARAMS["TINY_FLOAT"],
+               num_integration_steps, root_finder_max_iter)
+
+        # 4. Read results back from GPU
+        r_Mpc_results = np.empty_like(z_data)
+        cl.enqueue_copy(cl_queue, r_Mpc_results, r_Mpc_buffer).wait()
+
+        # 5. Calculate final distance modulus
+        C_H = 70.0 / H_A
+        dl_mpc = np.abs(r_Mpc_results) * np.power(1.0 + z_data, 2) * C_H
+        with np.errstate(divide='ignore', invalid='ignore'):
+            mu = 5 * np.log10(dl_mpc) + 25.0
+        mu[np.asarray(dl_mpc) <= 0] = np.nan
+
+        # Release OpenCL buffers
+        z_buffer.release()
+        r_Mpc_buffer.release()
+
+        return mu
+
+    except Exception as e:
+        logger.error(f"MODEL '{MODEL_NAME}': An error occurred during OpenCL execution: {e}", exc_info=True)
+        return np.full_like(np.asarray(z_array), np.nan)
+
 
 # --- Standard BAO and other functions ---
 

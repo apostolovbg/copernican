@@ -1,7 +1,7 @@
 # copernican_suite/lcdm_model.py
 """
 LCDM Model Plugin for the Copernican Suite.
-*** MODIFIED to remove Numba and include an OpenCL placeholder. ***
+*** MODIFIED to include an OpenCL placeholder and a template for new models. ***
 """
 
 import numpy as np
@@ -86,27 +86,15 @@ def distance_modulus_model(z_array, *cosmo_params):
 def distance_modulus_model_opencl(z_array, *cosmo_params, cl_context=None, cl_queue=None):
     """
     High-performance OpenCL entry point for the fitting engine.
-    
     *** THIS IS A PLACEHOLDER ***
-    A real implementation would involve:
-    1. Writing an OpenCL kernel (.cl file) for the H(z) integrand.
-    2. Compiling the kernel using cl_context.
-    3. Creating OpenCL memory buffers for z_array and the output.
-    4. Implementing a parallel reduction or map-reduce algorithm on the GPU
-       to perform the integrations for all z values in parallel.
-    5. Reading the results back from the GPU buffer.
-    
-    For now, it logs a warning and falls back to the standard CPU implementation.
+    For now, it falls back to the standard CPU implementation.
     """
-    # On the first call for this model, show a warning that this is a placeholder.
     logger = logging.getLogger()
-    if not hasattr(distance_modulus_model_opencl, "_warned"):
+    if not hasattr(distance_modulus_model_opencl, "_warned_lcdm"):
         logger.warning(f"MODEL '{MODEL_NAME}': 'distance_modulus_model_opencl' is a placeholder and will use the standard CPU-based SciPy implementation.")
-        distance_modulus_model_opencl._warned = True
+        distance_modulus_model_opencl._warned_lcdm = True
 
-    # Fallback to the standard function
     return distance_modulus_model(z_array, *cosmo_params)
-
 
 # --- Standard BAO and other functions ---
 def get_angular_diameter_distance_Mpc(z_array, *cosmo_params):
@@ -137,3 +125,109 @@ def get_sound_horizon_rs_Mpc(H0, Omega_m0, Omega_b0):
            np.sqrt(6.0 / R_eq) * np.log((np.sqrt(1.0 + R_d) + np.sqrt(R_d + R_eq)) / (1.0 + np.sqrt(R_eq)))
     if not np.isfinite(s_EH) or h == 0: return np.nan
     return s_EH / h
+
+# ==============================================================================
+# ==============================================================================
+# --- TEMPLATE FOR NEW MODEL IMPLEMENTATION (.py) ---
+# ==============================================================================
+# ==============================================================================
+"""
+# Copy the text below into a new file (e.g., "my_theory.py") to create a new model plugin.
+
+'''
+Python implementation for [Your Model Name].
+'''
+
+import numpy as np
+from scipy.integrate import quad
+import logging
+
+# ==============================================================================
+# --- METADATA (should be consistent with your .md file) ---
+# ==============================================================================
+MODEL_NAME = "YourModelName"
+MODEL_DESCRIPTION = "A brief description of the model."
+
+# These lists must match the order in your .md parameter table
+PARAMETER_NAMES = ["param1", "param2"]
+PARAMETER_LATEX_NAMES = [r"$p_1$", r"$p_2$"]
+INITIAL_GUESSES = [1.0, 50.0]
+PARAMETER_BOUNDS = [(0.0, 2.0), (25.0, 75.0)]
+PARAMETER_UNITS = ["Unit1", "km/s/Mpc"]
+
+FIXED_PARAMS = {
+    "C_LIGHT_KM_S": 299792.458
+    # Add other physical constants your model needs
+}
+
+# ==============================================================================
+# --- STANDARD (CPU) IMPLEMENTATION ---
+# ==============================================================================
+
+def get_Hz_per_Mpc(z_array, param1, param2):
+    '''Calculates H(z) in km/s/Mpc.'''
+    # Your implementation here...
+    z = np.asarray(z_array)
+    # Example: return param2 * np.sqrt(param1 * (1 + z)**3 + (1 - param1))
+    return np.full_like(z, 50.0) # Replace with real calculation
+
+def _integrand_Dc(z_prime, param1, param2):
+    '''Helper integrand for comoving distance.'''
+    hz_val = get_Hz_per_Mpc(z_prime, param1, param2)
+    return FIXED_PARAMS["C_LIGHT_KM_S"] / hz_val if (np.isfinite(hz_val) and hz_val > 0) else np.inf
+
+def get_comoving_distance_Mpc(z_array, param1, param2):
+    '''Calculates comoving distance in Mpc using numerical integration.'''
+    z_array_np = np.asarray(z_array)
+    results_Mpc = np.empty_like(z_array_np, dtype=float)
+    for i, zi in np.ndenumerate(z_array_np):
+        if zi < 1e-9:
+            results_Mpc[i] = 0.0
+            continue
+        try:
+            # The args must match the order in PARAMETER_NAMES
+            dc_val, _ = quad(_integrand_Dc, 0, float(zi), args=(param1, param2))
+            results_Mpc[i] = dc_val
+        except Exception:
+            results_Mpc[i] = np.nan
+    return results_Mpc.item() if z_array_np.ndim == 0 else results_Mpc
+
+def get_luminosity_distance_Mpc(z_array, *cosmo_params):
+    '''Calculates luminosity distance in Mpc.'''
+    dm = get_comoving_distance_Mpc(z_array, *cosmo_params)
+    return dm * (1 + np.asarray(z_array))
+
+def distance_modulus_model(z_array, *cosmo_params):
+    '''The standard, Scipy-based function for plotting and fallback.'''
+    dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        mu = 5.0 * np.log10(dl_mpc) + 25.0
+    mu[np.asarray(dl_mpc) <= 0] = np.nan
+    return mu
+
+def get_sound_horizon_rs_Mpc(*cosmo_params):
+    '''Calculates the sound horizon at drag epoch.'''
+    # Your implementation here...
+    return 147.0 # Replace with real calculation
+
+# ==============================================================================
+# --- OPTIONAL OPENCL (GPU) IMPLEMENTATION ---
+# ==============================================================================
+
+def distance_modulus_model_opencl(z_array, *cosmo_params, cl_context=None, cl_queue=None):
+    '''
+    High-performance OpenCL entry point for the fitting engine.
+    
+    *** THIS IS A PLACEHOLDER ***
+    A real implementation would involve writing and compiling an OpenCL kernel
+    to perform the required calculations in parallel on the GPU.
+    
+    For now, it falls back to the standard CPU implementation.
+    '''
+    logger = logging.getLogger()
+    if not hasattr(distance_modulus_model_opencl, "_warned_new_model"):
+        logger.warning(f"MODEL '{MODEL_NAME}': 'distance_modulus_model_opencl' is a placeholder and will use the standard CPU-based SciPy implementation.")
+        distance_modulus_model_opencl._warned_new_model = True
+
+    return distance_modulus_model(z_array, *cosmo_params)
+"""
