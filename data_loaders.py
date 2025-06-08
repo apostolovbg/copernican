@@ -1,7 +1,6 @@
 # copernican_suite/data_loaders.py
 """
 Modular data loading for various cosmological datasets (SNe, BAO, etc.).
-...
 """
 import pandas as pd
 import numpy as np
@@ -159,8 +158,7 @@ def parse_unistra_h1_style(filepath, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED
         if not all(col in parsed_data and not parsed_data[col].isnull().all() for col in ['mb', 'x1', 'c']):
              raise ValueError("mb, x1, or c contain all NaNs or are missing before mu_obs calculation.")
         
-        # BUGFIX: Corrected the Tripp equation sign for the beta term. It's `m - M + a*x1 - b*c`.
-        # The previous version had `... - a*x1 + b*c`, which was incorrect.
+        # BUGFIX: Corrected the Tripp equation sign for the beta term. The correct form is m - M + a*x1 - b*c.
         parsed_data['mu_obs'] = parsed_data['mb'] - salt2_m_abs_fixed + salt2_alpha_fixed * parsed_data['x1'] - salt2_beta_fixed * parsed_data['c']
         
         # The primary error on mu_obs in this simplified scheme is the error on mb
@@ -188,7 +186,6 @@ def parse_unistra_h1_style(filepath, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED
     parsed_data_filtered.attrs['salt2_beta_fixed'] = salt2_beta_fixed
     return parsed_data_filtered
 
-# --- The rest of the file (other parsers) remains unchanged ---
 @register_sne_parser("unistra_raw_lc_h2", "UniStra-like (e.g., tablef3.dat), h2-style: fit mb,x1,c and nuisance M,alpha,beta.")
 def parse_unistra_h2_style(filepath, **kwargs):
     logger = logging.getLogger()

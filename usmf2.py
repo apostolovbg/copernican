@@ -47,9 +47,9 @@ _h_fid_for_rs = FIXED_PARAMS["H0_FID_FOR_RS_PARAMS_KM_S_MPC"] / 100.0
 FIXED_PARAMS["OMEGA_B0_H2_EFF_FOR_RS"] = FIXED_PARAMS["OMEGA_B0_FID_FOR_RS_PARAMS"] * _h_fid_for_rs**2
 FIXED_PARAMS["OMEGA_M0_H2_EFF_FOR_RS"] = FIXED_PARAMS["OMEGA_M0_FID_FOR_RS_PARAMS"] * _h_fid_for_rs**2
 
-# --- OpenCL Kernel Source ---
-# This kernel now uses a robust bisection root-finder and a 40-point
-# Gauss-Legendre quadrature for maximum fixed-grid precision.
+# --- OpenCL Kernel Source (MODIFIED) ---
+# This kernel is now simplified. It no longer performs root-finding.
+# It receives the pre-calculated emission time (t_e) and performs only the integration.
 OPENCL_KERNEL_SRC = """
 // --- Gauss-Legendre Quadrature Constants (40-point) ---
 __constant double GL_NODES_40[40] = {
@@ -88,15 +88,15 @@ inline double alpha_func(double t, double t0_sec, double p_a, double k, double s
     double term_exp = exp(k * (pow(ratio_t0, s) - 1.0));
 
     double osc = 1.0;
-    if (t >= ti_sec && A > 0.0) { // check A > 0 to avoid log with w=0
+    if (t >= ti_sec && A > 0.0) {
         osc += A * sin(w * log(t / ti_sec) + phi);
     }
     return term_power * term_exp * osc;
 }
 
-// OpenCL Kernel for USMF V2: calculates r(z)
-__kernel void usmf_r_calculator(
-    __global const double* z_in,
+// OpenCL Kernel for USMF V2: calculates r by integrating from a given t_e
+__kernel void usmf_r_integrator_from_te(
+    __global const double* t_e_sec_in, // Input is now emission time, not z
     __global double* r_Mpc_out,
     // Cosmological Parameters
     const double p_alpha, const double k_exp, const double s_exp,
@@ -105,69 +105,23 @@ __kernel void usmf_r_calculator(
     // Fixed constants
     const double SECONDS_PER_GYR,
     const double C_LIGHT_KM_S,
-    const double MPC_PER_KM,
-    const double TINY_FLOAT,
-    // Control parameters
-    const int root_finder_max_iter
+    const double MPC_PER_KM
 ) {
     int i = get_global_id(0);
-    double z = z_in[i];
+    double t_e_sec = t_e_sec_in[i];
 
-    // Convert parameters from Gyr to seconds
+    // Convert parameters from Gyr to seconds for this thread
     double t0_sec = t0_Gyr * SECONDS_PER_GYR;
     double ti_sec = ti_Gyr * SECONDS_PER_GYR;
 
-    if (z < 1e-9) {
+    if (isnan(t_e_sec) || t_e_sec >= t0_sec) {
         r_Mpc_out[i] = 0.0;
         return;
     }
-
-    // --- Step 1: Find t_e from z using a root finder (Bisection method) ---
-    double alpha_at_t0 = alpha_func(t0_sec, t0_sec, p_alpha, k_exp, s_exp, A_osc, omega_osc, ti_sec, phi_osc);
-    if (isnan(alpha_at_t0)) {
-        r_Mpc_out[i] = NAN;
-        return;
-    }
-    double target_alpha = (1.0 + z) * alpha_at_t0;
-
-    double t_low = TINY_FLOAT * t0_sec;
-    double t_high = t0_sec;
-    double t_e = NAN;
-
-    double f_low = alpha_func(t_low, t0_sec, p_alpha, k_exp, s_exp, A_osc, omega_osc, ti_sec, phi_osc) - target_alpha;
-    if (isnan(f_low) || isinf(f_low)) { r_Mpc_out[i] = NAN; return; }
     
-    for (int j = 0; j < root_finder_max_iter; ++j) {
-        double t_mid = t_low + 0.5 * (t_high - t_low); // More stable midpoint calculation
-        if (t_mid == t_low || t_mid == t_high) { t_e = t_mid; break; }
-
-        double f_mid = alpha_func(t_mid, t0_sec, p_alpha, k_exp, s_exp, A_osc, omega_osc, ti_sec, phi_osc) - target_alpha;
-        
-        if (isnan(f_mid) || isinf(f_mid)) { t_e = NAN; break; }
-        
-        // Stricter tolerance check
-        if (fabs((t_high - t_low)/t0_sec) < 1e-15 || fabs(f_mid) < 1e-15) { 
-            t_e = t_mid; 
-            break; 
-        }
-
-        if (sign(f_mid) == sign(f_low)) {
-            t_low = t_mid;
-            f_low = f_mid;
-        } else {
-            t_high = t_mid;
-        }
-        t_e = (t_low + t_high) / 2.0;
-    }
-    
-    if (isnan(t_e)) {
-        r_Mpc_out[i] = NAN;
-        return;
-    }
-    
-    // --- Step 2: Integrate c/alpha(t) from t_e to t_0 using Gauss-Legendre (40-point) ---
+    // --- Integrate c/alpha(t) from t_e to t_0 using Gauss-Legendre (40-point) ---
     double integral = 0.0;
-    double interval_width = t0_sec - t_e;
+    double interval_width = t0_sec - t_e_sec;
     
     // Check for invalid interval
     if (interval_width <= 0) {
@@ -178,8 +132,8 @@ __kernel void usmf_r_calculator(
     double t_map, t_at_map;
     for (int k = 0; k < 40; ++k) {
         t_map = GL_NODES_40[k];
-        // Map GL node t from [-1, 1] to time in [t_e, t0_sec]
-        t_at_map = t_e + (interval_width / 2.0) * (1.0 + t_map);
+        // Map GL node t from [-1, 1] to time in [t_e_sec, t0_sec]
+        t_at_map = t_e_sec + (interval_width / 2.0) * (1.0 + t_map);
         
         double alpha_val = alpha_func(t_at_map, t0_sec, p_alpha, k_exp, s_exp, A_osc, omega_osc, ti_sec, phi_osc);
         
@@ -246,6 +200,19 @@ def _calculate_for_unique_z(z_array, single_value_calculator_func, *cosmo_params
     unique_results = np.array([single_value_calculator_func(zi, calculator) for zi in unique_z])
     return unique_results[inverse_indices].reshape(original_shape)
 
+def _t_e_from_z_array(z_array, *cosmo_params):
+    """Helper function to get t_e for an array of z values using the reliable Python method."""
+    z_array = np.asarray(z_array)
+    original_shape = z_array.shape
+    calculator = USMF_Calculator(cosmo_params)
+    if not z_array.shape: return np.array(calculator.get_t_from_z(z_array.item()))
+    
+    z_flat = z_array.flatten()
+    unique_z, inverse_indices = np.unique(z_flat, return_inverse=True)
+    unique_t_e = np.array([calculator.get_t_from_z(zi) for zi in unique_z])
+    return unique_t_e[inverse_indices].reshape(original_shape)
+
+
 def _r_Mpc_single(z, calculator):
     if abs(z) < 1e-9: return 0.0
     t_e = calculator.get_t_from_z(z)
@@ -275,10 +242,15 @@ def distance_modulus_model(z_array, *cosmo_params):
     mu[np.asarray(dl_mpc) <= 0] = np.nan
     return mu
 
-# --- OpenCL High-Performance Function ---
+# --- OpenCL High-Performance Function (MODIFIED) ---
 
 def distance_modulus_model_opencl(z_array, *cosmo_params, cl_context=None, cl_queue=None, cl_program=None):
-    """High-performance OpenCL entry point for the USMF fitting engine."""
+    """
+    High-performance OpenCL entry point for the USMF fitting engine.
+    This version uses a hybrid CPU/GPU approach for maximum reliability.
+    1. CPU (SciPy): Calculates emission time t_e from redshift z (sensitive root-finding).
+    2. GPU (OpenCL): Calculates comoving distance r from t_e (parallelizable integration).
+    """
     logger = logging.getLogger()
     if not all([cl, cl_context, cl_queue, cl_program]):
         logger.warning(f"MODEL '{MODEL_NAME}': OpenCL context not available, falling back to CPU.")
@@ -289,23 +261,23 @@ def distance_modulus_model_opencl(z_array, *cosmo_params, cl_context=None, cl_qu
         z_data = np.asarray(z_array, dtype=np.float64)
         H_A, p_alpha, k_exp, s_exp, t0_age_Gyr, A_osc, omega_osc, ti_osc_Gyr, phi_osc = cosmo_params
         
+        # --- NEW HYBRID STEP 1: Calculate t_e on CPU using reliable SciPy method ---
+        t_e_sec_data = _t_e_from_z_array(z_data, *cosmo_params)
+
         # 2. Create OpenCL buffers
         mf = cl.mem_flags
-        z_buffer = cl.Buffer(cl_context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=z_data)
+        # Input buffer now contains t_e values, not z values
+        t_e_buffer = cl.Buffer(cl_context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=t_e_sec_data.astype(np.float64))
         r_Mpc_buffer = cl.Buffer(cl_context, mf.WRITE_ONLY, z_data.nbytes)
         
         # 3. Set kernel arguments and execute
-        # Control parameter for root finder precision: increased iterations
-        root_finder_max_iter = np.int32(150)
-
-        kernel = cl_program.usmf_r_calculator
-        # Set all arguments for the kernel
+        # Kernel name has been changed to reflect its new purpose
+        kernel = cl_program.usmf_r_integrator_from_te
         kernel.set_args(
-            z_buffer, r_Mpc_buffer, np.double(p_alpha), np.double(k_exp), np.double(s_exp),
+            t_e_buffer, r_Mpc_buffer, np.double(p_alpha), np.double(k_exp), np.double(s_exp),
             np.double(t0_age_Gyr), np.double(A_osc), np.double(omega_osc), np.double(ti_osc_Gyr), np.double(phi_osc),
             np.double(FIXED_PARAMS["SECONDS_PER_GYR"]), np.double(FIXED_PARAMS["C_LIGHT_KM_S"]),
-            np.double(FIXED_PARAMS["MPC_PER_KM"]), np.double(FIXED_PARAMS["TINY_FLOAT"]),
-            root_finder_max_iter
+            np.double(FIXED_PARAMS["MPC_PER_KM"])
         )
         cl.enqueue_nd_range_kernel(cl_queue, kernel, z_data.shape, None).wait()
 
@@ -313,7 +285,7 @@ def distance_modulus_model_opencl(z_array, *cosmo_params, cl_context=None, cl_qu
         r_Mpc_results = np.empty_like(z_data)
         cl.enqueue_copy(cl_queue, r_Mpc_results, r_Mpc_buffer).wait()
 
-        # 5. Calculate final distance modulus
+        # 5. Calculate final distance modulus from r_Mpc
         C_H = 70.0 / H_A
         dl_mpc = np.abs(r_Mpc_results) * np.power(1.0 + z_data, 2) * C_H
         with np.errstate(divide='ignore', invalid='ignore'):

@@ -1,6 +1,6 @@
 # Copernican Suite - A Modular Cosmology Framework
 
-**Version:** 1.1b (Development)
+**Version:** 1.1 (Stable)
 **Last Updated:** 2025-06-08
 
 > **Note:** This file serves as the complete and unified documentation for the Copernican Suite project. It contains all necessary information for users and developers, including architectural decisions and future development pathways.
@@ -17,9 +17,10 @@
     -   [The Two-File System](#the-two-file-system)
     -   [Finding the Templates](#finding-the-templates)
 6.  [**High-Performance Computing with OpenCL**](#6-high-performance-computing-with-opencl)
-    -   [Architectural Approach: Real-Time Kernel Generation](#architectural-approach-real-time-kernel-generation)
-    -   [Required Model File Modifications](#required-model-file-modifications)
-    -   [Example Implementation: ΛCDM Model](#example-implementation-λcdm-model)
+    -   [Architectural Approaches: Direct vs. Hybrid](#architectural-approaches-direct-vs-hybrid)
+    -   [Best Practice: The Hybrid CPU/GPU Model](#best-practice-the-hybrid-cpugpu-model)
+    -   [A Note on Final Fit Results](#a-note-on-final-fit-results)
+    -   [OpenCL Implementation Guide](#opencl-implementation-guide)
 
 ---
 
@@ -27,7 +28,7 @@
 
 The **Copernican Suite** is a Python-based framework for the modular testing and comparison of cosmological models against observational data. It provides a platform for researchers to easily implement and evaluate new theories alongside the standard ΛCDM model.
 
-This version introduces a user-selectable OpenCL backend for GPU acceleration, allowing for high-performance fitting of complex models. To ensure a smooth user experience, the suite now includes a dependency and system sanity checker that runs on startup, providing platform-specific installation instructions for any missing components.
+The suite has now reached a stable release, capable of producing reliable, high-performance fits for complex, non-standard cosmological models. It features a user-selectable OpenCL backend for GPU acceleration and includes a dependency and system sanity checker to ensure a smooth user experience.
 
 ---
 
@@ -48,7 +49,7 @@ If any of these checks fail, the script will print a detailed report of the miss
 
 The suite is designed with a primary project directory containing all core scripts and model plugins. All outputs (logs, plots, CSVs) are saved into a dedicated `output` subdirectory.
 
--   **`copernican.py`**: The main orchestrator script. It now includes a dependency checker that runs on startup to validate the environment.
+-   **`copernican.py`**: The main orchestrator script.
 -   **`data_loaders.py`**: Manages the loading and parsing of datasets.
 -   **`cosmo_engine.py`**: Contains the core physics, statistics, and fitting logic, including the selectable compute backend (CPU/GPU) and the real-time OpenCL kernel compiler.
 -   **`output_manager.py`**: Handles all forms of output (logging, plots, CSVs).
@@ -58,12 +59,12 @@ The suite is designed with a primary project directory containing all core scrip
 
 ## 4. Workflow Overview
 
-1.  **Dependency Check**: `copernican.py` first verifies that all required Python libraries and system drivers are available. It will exit with instructions if the environment is not set up correctly.
+1.  **Dependency Check**: `copernican.py` first verifies that all required Python libraries and system drivers are available.
 2.  **Initialization**: The script starts and creates the `./output/` directory for all results.
 3.  **Backend Selection**: If OpenCL hardware is detected, the user is prompted to choose the compute backend (Standard CPU or OpenCL GPU).
 4.  **Configuration**: The user specifies the file paths for the model and data files.
-5.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data. If the OpenCL backend is chosen, the engine compiles the kernel from the model plugin in real-time and executes the fitting on the GPU.
-6.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model using CPU-based functions.
+5.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data.
+6.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
 7.  **Output Generation**: The `output_manager` saves all comparative plots and data summaries.
 
 ---
@@ -83,61 +84,41 @@ Each new model requires two files with matching base names (e.g., `my_theory.md`
 To ensure consistency, templates for new model files are integrated directly into the base `lcdm_model` files.
 
 -   **`.md` Template:** To create a new model definition file, copy `lcdm_model.md`, rename it, and edit the content. A generic template is also provided in a blockquote at the **end of the `lcdm_model.md` file**.
--   **`.py` Template:** To create a new model implementation file, you can use the commented-out template located at the **end of the `lcdm_model.py` file**. This template includes the structure for both standard CPU and high-performance OpenCL implementations.
+-   **`.py` Template:** To create a new model implementation file, use the heavily commented template located at the **end of the `lcdm_model.py` file**. This template demonstrates the recommended best practice for creating a reliable, high-performance OpenCL implementation.
 
 ---
 
 ## 6. High-Performance Computing with OpenCL
 
-The framework includes a functional OpenCL implementation for hardware-accelerated calculations.
+The framework's OpenCL implementation is crucial for fitting complex models. To ensure both speed and reliability, developers should understand the two available architectural approaches.
 
-> **Numerical Precision of OpenCL Kernels**
->
-> As of the latest update, the OpenCL kernels provided in the example model plugins (`lcdm_model.py`, `usmf2.py`) have been significantly upgraded. They now use high-precision numerical methods (specifically, **40-point Gauss-Legendre quadrature** for integration) designed to produce results that are consistent with the high-accuracy `SciPy` (CPU) backend. The previous issue of numerical divergence due to simplified algorithms has been resolved.
+### Architectural Approaches: Direct vs. Hybrid
 
-### Architectural Approach: Real-Time Kernel Generation
+1.  **Direct GPU Approach (For Simple Models)**
+    -   **Description:** The entire numerical calculation is performed within the OpenCL kernel on the GPU.
+    -   **Use Case:** Ideal for models with mathematically stable equations, such as **ΛCDM**. The `lcdm_model.py` plugin uses this approach.
+    -   **Advantage:** Maximum performance.
 
-To maintain the self-contained, two-file structure for each model, OpenCL kernels are **not** stored in separate `.cl` files. Instead, they are defined as Python f-strings within each model's `.py` plugin, typically in a variable named `OPENCL_KERNEL_SRC`.
+2.  **Hybrid CPU/GPU Approach (For Complex Models)**
+    -   **Description:** The calculation is split. Numerically sensitive steps (e.g., root-finding) are performed on the **CPU** using reliable `SciPy` functions. The stable, pre-calculated results are then sent to the **GPU** for the final, parallelizable number-crunching.
+    -   **Use Case:** Essential for complex models like **USMF_V2**, which involves a sensitive root-finding step.
+    -   **Advantage:** Maximum reliability.
 
-The `cosmo_engine.py` script automatically handles the compilation of this kernel string at runtime. This allows for dynamic kernel generation and keeps all logic for a given model within its dedicated files.
+### Best Practice: The Hybrid CPU/GPU Model
 
-### Required Model File Modifications
+For any new, non-trivial cosmological model, the **Hybrid CPU/GPU approach is the recommended best practice**. This architecture guarantees that the accelerated OpenCL mode will produce reliable and repeatable results consistent with the benchmark CPU implementation.
 
-To enable OpenCL acceleration for a new model, the developer must make two primary additions to the model's `.py` plugin file.
+### A Note on Final Fit Results
 
-1.  **Define the Kernel Source String (`OPENCL_KERNEL_SRC`):** Create a multi-line Python string containing the OpenCL C99 kernel code. For best results, use a high-order fixed quadrature method like the 40-point Gauss-Legendre rule for any integrations.
-2.  **Implement the `distance_modulus_model_opencl` Function:** This function serves as the entry point for the OpenCL calculation. It will receive the pre-compiled `cl_program` object from the `cosmo_engine`. Its responsibilities are to manage memory buffers, execute the kernel, retrieve the results, and return the final distance modulus `mu`.
+With the reliable hybrid architecture, users should note that results from the CPU-only and hybrid OpenCL backends may not be bit-for-bit identical. The optimization process explores a high-dimensional parameter space, and the subtle differences in the underlying numerical calculations can cause the optimizer to follow slightly different paths.
 
-### Example Implementation: ΛCDM Model
+This can occasionally lead to the OpenCL backend finding a different, and potentially even better, local minimum in the chi-squared landscape. This is not a sign of instability, but rather a feature of robustly exploring complex models. For instance, in test runs, the hybrid OpenCL fit for the `USMF_V2` model yielded a better $\chi^2$ value for Supernovae Ia data than both its CPU-only counterpart and the standard ΛCDM model, showcasing the suite's power in comparative cosmology.
 
-The following is the actual implementation from `lcdm_model.py`, demonstrating how a standard model can be accelerated with OpenCL.
+### OpenCL Implementation Guide
 
-#### 1. The OpenCL Kernel String
+To enable OpenCL acceleration for a new model, the developer should implement the hybrid model as demonstrated in the template at the end of `lcdm_model.py`. The key steps are:
 
-This f-string, defined in `lcdm_model.py`, contains a kernel that performs numerical integration of `c/H(z)` using a 40-point Gauss-Legendre quadrature to find the luminosity distance.
-
-```python
-# Defined in lcdm_model.py
-OPENCL_KERNEL_SRC = f\"\"\"
-// --- Gauss-Legendre Quadrature Constants (40-point) ---
-__constant double GL_NODES_40[40] = {{ ... }};
-__constant double GL_WEIGHTS_40[40] = {{ ... }};
-
-// Helper function for the integrand c/H(z)
-inline double integrand_func(...) {{ ... }}
-
-__kernel void lcdm_dl_integrator(
-    __global const double *z_values,
-    __global double *dl_out,
-    // ... Cosmological Parameters ...
-) {{
-    int gid = get_global_id(0);
-    double z_upper = z_values[gid];
-    
-    // ... C99 code for 40-point Gauss-Legendre integration ...
-    // to calculate comoving distance (dc_integral)
-    
-    // Final luminosity distance calculation
-    dl_out[gid] = dc_integral * (1.0 + z_upper);
-}}
-\"\"\"
+1.  **Implement the Standard CPU Functions:** Create the full, reliable CPU-based implementation first.
+2.  **Isolate Sensitive Calculations:** Create helper functions that use SciPy (e.g., `brentq`, `solve_ivp`) to handle any unstable parts of the model.
+3.  **Write a Simple OpenCL Kernel:** The kernel, defined in the `OPENCL_KERNEL_SRC` string, should accept pre-calculated, stable inputs from the CPU.
+4.  **Implement the Hybrid Entry Point:** The `distance_modulus_model_opencl` function orchestrates the process: it calls the CPU helpers, transfers the safe inputs to the OpenCL kernel, executes it, and retrieves the results for any final calculations.
