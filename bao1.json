@@ -1,0 +1,62 @@
+{
+  "data_points": [
+    {
+      "name": "BOSS DR12 Consensus z=0.38",
+      "redshift": 0.38,
+      "observable_type": "DV_over_rs",
+      "value": 9.1758,
+      "error": 0.1453,
+      "rs_fiducial_Mpc": null
+    },
+    {
+      "name": "BOSS DR12 Consensus z=0.51",
+      "redshift": 0.51,
+      "observable_type": "DV_over_rs",
+      "value": 12.3631,
+      "error": 0.1341,
+      "rs_fiducial_Mpc": null
+    },
+    {
+      "name": "BOSS DR12 Consensus z=0.61",
+      "redshift": 0.61,
+      "observable_type": "DV_over_rs",
+      "value": 14.3097,
+      "error": 0.1345,
+      "rs_fiducial_Mpc": null
+    },
+    {
+      "name": "eBOSS DR16 Quasar z=1.48 (DM/rs)",
+      "redshift": 1.48,
+      "observable_type": "DM_over_rs",
+      "value": 30.35,
+      "error": 0.84,
+      "rs_fiducial_Mpc": null
+    },
+    {
+      "name": "eBOSS DR16 Quasar z=1.48 (DH/rs)",
+      "redshift": 1.48,
+      "observable_type": "DH_over_rs",
+      "value": 13.26,
+      "error": 0.53,
+      "rs_fiducial_Mpc": null
+    },
+    {
+      "name": "eBOSS DR16 Lyman-alpha Combined z=2.334 (DM/rs)",
+      "redshift": 2.334,
+      "observable_type": "DM_over_rs",
+      "value": 37.5,
+      "error": 1.1,
+      "rs_fiducial_Mpc": null
+    },
+    {
+      "name": "eBOSS DR16 Lyman-alpha Combined z=2.334 (DH/rs)",
+      "redshift": 2.334,
+      "observable_type": "DH_over_rs",
+      "value": 8.88,
+      "error": 0.19,
+      "rs_fiducial_Mpc": null
+    }
+  ],
+  "citation": "BOSS DR12 Consensus: Alam et al. 2017 (arXiv:1607.03155, Table 5 for DV/rs). eBOSS DR16 Quasar: Alam et al. 2021 (arXiv:2007.08991, Table 3 for DM/rs, DH/rs). eBOSS DR16 Lyman-alpha: du Mas des Bourboux et al. 2020 (arXiv:2007.08995, Table 7 for DM/rs, DH/rs). 'rs' refers to r_d (sound horizon at drag epoch) in these papers.",
+  "notes": "Observable types: DV_over_rs (D_V(z)/r_s), DM_over_rs (D_M(z)/r_s), DH_over_rs (D_H(z)/r_s = c/(H(z)r_s)). All r_s values are the model's r_s unless a fiducial r_s is used for specific data points (not the case here)."
+}

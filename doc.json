@@ -1,0 +1,120 @@
+{
+  "projectName": "Copernican Suite",
+  "version": "0.2.0 (Stabilized Workflow)",
+  "lastUpdated": "2025-06-08",
+  "description": "A Python-based framework designed for the modular testing and comparison of cosmological models against observational datasets like Supernovae Ia (SNe Ia) and Baryon Acoustic Oscillations (BAO). The workflow is now stabilized with enhanced diagnostics and plotting capabilities.",
+  "goals": [
+    "To provide a robust and extensible platform for fitting cosmological models to observational data.",
+    "To compare the performance of alternative cosmological models against the standard LambdaCDM model using consistent statistical measures (e.g., chi-squared).",
+    "To ensure consistent parameter handling when testing a given model across different datasets. Specifically, cosmological parameters fitted using SNe Ia data should be used when subsequently testing that model against BAO data.",
+    "To support a variety of data formats through a versatile and modular data loading system.",
+    "To allow easy integration of new cosmological models via a standardized plugin architecture.",
+    "To facilitate the addition of new observational datasets and data types in the future."
+  ],
+  "historicalContext": {
+    "initialMotivation": "The development of the Copernican Suite was initially spurred by the need to rigorously and fairly test the Unified Shrinking Matter Framework (USMF), particularly USMF Version 2. The existing scripts (`hubble_plotter3.py`, `bao_plotter.py`, and the model plugin `usmf2c.py`) demonstrated the potential of USMF but highlighted the need for a more integrated and systematically consistent testing environment. The aim was to move beyond isolated tests and establish a workflow where model parameters derived from one dataset (like SNe Ia) could be consistently applied to test against other datasets (like BAO), ensuring a fair comparison with LambdaCDM under the same conditions.",
+    "keyFilesLeadingToThis": ["usmf2.json (theory)", "hubble_plotter3.py", "bao_plotter.py", "usmf2c.py (model plugin)"]
+  },
+  "architecture": {
+    "overview": "The Copernican Suite is designed with a flat directory structure. All core Python modules (`copernican.py`, `cosmo_engine.py`, `data_loaders.py`, `output_manager.py`), model plugins (e.g., `lcdm_model.py`, `usmf2.py`), and typically user-provided data files are expected to reside in the same main project directory. Outputs (logs, plots, CSVs) are also generated in this directory with descriptive, timestamped names to maintain clarity.",
+    "coreModules": [
+      {
+        "name": "copernican.py",
+        "role": "The main orchestrator script. It handles user interaction (e.g., selection of models and data files), loads models (standard LCDM directly, alternatives dynamically), manages the overall workflow by calling other modules in sequence, and coordinates the final output of results."
+      },
+      {
+        "name": "data_loaders.py",
+        "role": "Manages the loading and initial parsing of various observational datasets. It employs a modular parser system where specific parsing functions can be registered for different data types (SNe, BAO) and file formats."
+      },
+      {
+        "name": "cosmo_engine.py",
+        "role": "Contains the core physics and statistical logic. This includes chi-squared calculation functions, the SNe parameter fitting algorithm, routines for calculating theoretical observables, and enhanced diagnostic logging for key calculations (e.g., sound horizon)."
+      },
+      {
+        "name": "output_manager.py",
+        "role": "Handles all forms of output. This includes setting up and managing logging, generating comparative plots (SNe Hubble diagrams, BAO observable plots), and saving results to CSV files. The Hubble diagram function now includes plots of binned residual averages to help visualize systematic trends."
+      },
+      {
+        "name": "Model Plugins (*_model.py)",
+        "role": "Individual Python files (e.g., `lcdm_model.py`, `usmf2.py`) that define specific cosmological models. They adhere to a standardized interface, providing metadata (name, parameters, bounds) and functions to calculate cosmological observables (distance modulus, H(z), D_M(z), r_s, etc.)."
+      }
+    ]
+  },
+  "dataLoadingSystem": {
+    "module": "data_loaders.py",
+    "designRationale": "To accommodate diverse and potentially unknown future data formats without altering the core engine. Each data format's parsing logic is encapsulated.",
+    "keyFeatures": [
+      "Uses a registry pattern: Dictionaries (`SNE_PARSERS`, `BAO_PARSERS`) store references to parser functions.",
+      "Parsers are registered using decorators (e.g., `@register_sne_parser('format_key', 'description')`).",
+      "User interaction for format selection: An interactive menu (`_select_parser`) prompts the user to choose from the registered parsers.",
+      "Standardized output: Each parser function returns a pandas DataFrame with required columns and `attrs` that guide the `cosmo_engine` on how to correctly interpret and fit the data."
+    ],
+    "addingNewParserAlgorithm": [
+      "Identify the new data file format.",
+      "In `data_loaders.py`, write a new function that accepts `filepath` and `**kwargs`.",
+      "Implement the logic to read the file and create a pandas DataFrame.",
+      "The function must populate the DataFrame with standardized columns and set the required guiding attributes (`fit_style`, `is_mu_data`, etc.) in the `attrs` dictionary.",
+      "Decorate the new function with the appropriate registrar (e.g., `@register_sne_parser(...)`)."
+    ]
+  },
+  "modelPluginSystem": {
+    "location": "Model plugin `.py` files (e.g., `lcdm_model.py`, `usmf2.py`) are placed in the main project directory.",
+    "designRationale": "To allow easy addition and testing of new cosmological theories without modifying the core `cosmo_engine` or `copernican.py` orchestrator.",
+    "standardInterface (Required in each plugin module)": {
+      "attributes": [
+        "`MODEL_NAME` (str): A concise name for the model.",
+        "`MODEL_DESCRIPTION` (str): A brief description.",
+        "`PARAMETER_NAMES` (list of str): Ordered list of cosmological parameter names to be fitted.",
+        "`PARAMETER_LATEX_NAMES` (list of str): LaTeX versions of parameter names for plotting.",
+        "`PARAMETER_UNITS` (list of str): Units for each parameter.",
+        "`INITIAL_GUESSES` (list of float): Initial values for the minimizer.",
+        "`PARAMETER_BOUNDS` (list of tuples): Bounds `(min, max)` for each parameter."
+      ],
+      "optionalAttributes": [
+        "`FIXED_PARAMS` (dict): Dictionary of constants internal to the model's calculations.",
+        "`MODEL_EQUATIONS_LATEX_SN` / `_BAO` (list of str): LaTeX strings of key equations for display."
+      ],
+      "functions": [
+        "`distance_modulus_model(z_array, *cosmo_params)`",
+        "`get_comoving_distance_Mpc(z_array, *cosmo_params)`",
+        "`get_Hz_per_Mpc(z_array, *cosmo_params)`",
+        "`get_angular_diameter_distance_Mpc(z_array, *cosmo_params)`",
+        "`get_luminosity_distance_Mpc(z_array, *cosmo_params)`",
+        "`get_DV_Mpc(z_array, *cosmo_params)`",
+        "`get_sound_horizon_rs_Mpc(*cosmo_params)`"
+      ]
+    },
+    "parameterHandling": "The `*cosmo_params` argument passed to plugin functions is an ordered list/tuple of the current values for parameters defined in `PARAMETER_NAMES`.",
+    "addingNewModel": [
+      "Create a new Python file (e.g., `my_new_theory_model.py`) in the main project directory.",
+      "Implement all the 'StandardInterface' attributes and functions listed above.",
+      "Ensure the model's physics is correctly encapsulated and numerically stable.",
+      "The user can then specify this filename when running `copernican.py`."
+    ]
+  },
+  "workflowOverview": [
+    "**1. Initialization & Configuration:** `copernican.py` starts and sets up logging.",
+    "**2. User Input:** The user is prompted to specify the alternative model plugin, SNe Ia data file (and its format/auxiliary files), and BAO data file (and its format).",
+    "**3. SNe Ia Fitting:** For both LambdaCDM and the alternative model, `cosmo_engine.fit_sne_parameters` is called. This function selects the appropriate SNe $\\chi^2$ function based on the data's attributes and fits the cosmological parameters (and nuisance parameters if required by the data style).",
+    "**4. BAO Analysis (Post-SNe Fit):** For each model, the *fitted cosmological parameters* from the SNe stage are retrieved. `cosmo_engine.calculate_bao_observables` is then called to get the model's sound horizon ($r_s$) and BAO theory predictions, which are used by `cosmo_engine.chi_squared_bao` to get $\\chi^2_{BAO}$.",
+    "**5. Output Generation:** `output_manager.py` functions are called to generate and save plots (Hubble diagram with residual averages, BAO observables plot) and summary CSV files. The plotting functions now have improved resource management to run sequentially without interference."
+  ],
+  "futureExpansionGuidelines": {
+    "addingNewDatasetAlgorithms (Parsers)": "Follow the 'addingNewParserAlgorithm' steps.",
+    "supportingNewDataTypes (e.g., CMB, GWs)": [
+      "**Data Loader:** Add a new parser registry (e.g., `CMB_PARSERS`) and parser functions in `data_loaders.py`.",
+      "**Model Plugin Interface:** Extend the standard interface with new required functions (e.g., `get_cmb_angular_power_spectrum(*cosmo_params)`).",
+      "**Cosmo Engine:** Add new $\\chi^2$ functions and observable calculation routines in `cosmo_engine.py`.",
+      "**Output Manager:** Add new plotting and CSV saving functions in `output_manager.py`.",
+      "**Orchestrator (`copernican.py`):** Update `main_workflow` to handle the new data type and call the new engine and output functions."
+    ],
+    "enhancingFittingEngine": "New minimization or MCMC sampling algorithms can be integrated into `cosmo_engine.py` by modifying `fit_sne_parameters`."
+  },
+  "keyDesignPrinciplesSummary": [
+    "**Modularity:** Core functionalities (data loading, physics engine, output, model definition) are separated into distinct modules.",
+    "**Extensibility:** The architecture is designed to easily incorporate new cosmological models, data parsers, and observational tests.",
+    "**Consistency in Parameter Testing:** A primary goal is to use cosmological parameters derived from one probe (e.g., SNe Ia) when testing the same model against other probes (e.g., BAO).",
+    "**Robustness & Diagnostics:** The suite includes enhanced logging for key calculations and robust error/plot handling to provide a stable testing environment.",
+    "**Clarity through Documentation:** Extensive inline docstrings and external JSON documentation are used to maintain context and guide future development."
+  ]
+}
