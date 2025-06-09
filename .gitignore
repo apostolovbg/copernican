@@ -5,3 +5,4 @@
 /__pycache__
 *.pyc
 output/.DS_Store
+*.pyc
