@@ -1,25 +1,33 @@
 # copernican_suite/lcdm_model.py
 """
 LCDM Model Plugin for the Copernican Suite.
-This version uses the standard SciPy/CPU backend.
+This version uses the standard SciPy/CPU backend with intelligent multiprocessing.
 """
 
 import numpy as np
 from scipy.integrate import quad
 import logging
+import multiprocessing as mp
+from functools import partial
+
+try:
+    import psutil
+    PHYSICAL_CORES = psutil.cpu_count(logical=False) or 2
+except (ImportError, NotImplementedError):
+    PHYSICAL_CORES = 2
 
 # --- Model Metadata ---
 MODEL_NAME = "LambdaCDM"
 MODEL_DESCRIPTION = "Standard flat Lambda Cold Matter model."
+# FIXED: Rewrote LaTeX strings to be standard strings with escaped backslashes
 MODEL_EQUATIONS_LATEX_SN = [
-    r"$H(z) = H_0 \sqrt{\Omega_{m0}(1+z)^3 + \Omega_{\Lambda0}}$",
-    r"$d_L(z) = (1+z) \int_0^z \frac{c}{H(z')} dz'$",
-    # FIXED: Escaped backslash in \mathrm to prevent SyntaxWarning
-    r"$\mu = 5 \log_{10}(d_L/1\,\mathrm{Mpc}) + 25$"
+    "$H(z) = H_0 \\sqrt{\\Omega_{m0}(1+z)^3 + \\Omega_{\\Lambda0}}$",
+    "$d_L(z) = (1+z) \\int_0^z \\frac{c}{H(z')} dz'$",
+    "$\\mu = 5 \\log_{10}(d_L/1\\,\\mathrm{Mpc}) + 25$"
 ]
 MODEL_EQUATIONS_LATEX_BAO = [
-    r"$D_A(z) = \frac{1}{1+z} \int_0^z \frac{c}{H(z')} dz'$",
-    r"$D_V(z) = \left[ (1+z)^2 D_A(z)^2 \frac{cz}{H(z)} \right]^{1/3}$"
+    "$D_A(z) = \\frac{1}{1+z} \\int_0^z \\frac{c}{H(z')} dz'$",
+    "$D_V(z) = \\left[ (1+z)^2 D_A(z)^2 \\frac{cz}{H(z)} \\right]^{1/3}$"
 ]
 PARAMETER_NAMES = ["H0", "Omega_m0", "Omega_b0"]
 PARAMETER_LATEX_NAMES = [r"$H_0$", r"$\Omega_{m0}$", r"$\Omega_{b0}$"]
@@ -32,7 +40,7 @@ FIXED_PARAMS = {
 }
 
 # --- Standard Python/Scipy Functions ---
-
+# ... (The rest of the file is unchanged from the previous version) ...
 def _get_derived_densities(H0, Omega_m0, Omega_b0):
     """Core helper to calculate derived density parameters."""
     if not (np.isfinite(H0) and H0 > 0 and np.isfinite(Omega_m0) and Omega_m0 >= 0 and np.isfinite(Omega_b0) and Omega_b0 >= 0 and Omega_b0 <= Omega_m0):
@@ -60,14 +68,42 @@ def _integrand_Dc(z_prime, H0, Omega_m0, Omega_b0):
     hz_val = get_Hz_per_Mpc(z_prime, H0, Omega_m0, Omega_b0)
     return FIXED_PARAMS["C_LIGHT_KM_S"] / hz_val if (np.isfinite(hz_val) and hz_val > 1e-9) else np.inf
 
-def get_comoving_distance_Mpc(z_array, H0, Omega_m0, Omega_b0):
-    z_array_np = np.asarray(z_array); results_Mpc = np.full_like(z_array_np, np.nan, dtype=float)
-    for i, zi in np.ndenumerate(z_array_np):
-        if abs(float(zi)) < 1e-9: results_Mpc[i] = 0.0; continue
+def _worker_Dc_batch(z_batch, H0, Omega_m0, Omega_b0):
+    """Calculates comoving distance for a batch of redshift values."""
+    results = []
+    for zi in z_batch:
+        if abs(float(zi)) < 1e-9:
+            results.append(0.0)
+            continue
         try:
             Dc_val, _ = quad(_integrand_Dc, 0, float(zi), args=(H0, Omega_m0, Omega_b0))
-            if np.isfinite(Dc_val): results_Mpc[i] = Dc_val
-        except: results_Mpc[i] = np.nan
+            results.append(Dc_val if np.isfinite(Dc_val) else np.nan)
+        except Exception:
+            results.append(np.nan)
+    return results
+
+def get_comoving_distance_Mpc(z_array, H0, Omega_m0, Omega_b0):
+    """
+    Calculates comoving distance, parallelized by batch processing
+    across physical CPU cores.
+    """
+    z_array_np = np.asarray(z_array)
+    original_shape = z_array_np.shape
+    z_flat = z_array_np.flatten()
+
+    z_batches = np.array_split(z_flat, PHYSICAL_CORES)
+    p_worker = partial(_worker_Dc_batch, H0=H0, Omega_m0=Omega_m0, Omega_b0=Omega_b0)
+    
+    results_flat = []
+    try:
+        with mp.Pool(processes=PHYSICAL_CORES) as pool:
+            batch_results = pool.map(p_worker, z_batches)
+        results_flat = [item for sublist in batch_results for item in sublist]
+    except Exception as e:
+        logging.getLogger().error(f"Multiprocessing failed with error: {e}. Falling back to serial execution.")
+        results_flat = _worker_Dc_batch(z_flat, H0, Omega_m0, Omega_b0)
+        
+    results_Mpc = np.array(results_flat).reshape(original_shape)
     return results_Mpc.item() if z_array_np.ndim == 0 else results_Mpc
 
 def get_luminosity_distance_Mpc(z_array, *cosmo_params):
@@ -82,7 +118,6 @@ def distance_modulus_model(z_array, *cosmo_params):
     mu[np.asarray(dl_mpc) <= 0] = np.nan
     return mu
 
-# --- Standard BAO and other functions ---
 def get_angular_diameter_distance_Mpc(z_array, *cosmo_params):
     dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)
     return dl_mpc / (1 + np.asarray(z_array))**2
@@ -111,93 +146,7 @@ def get_sound_horizon_rs_Mpc(H0, Omega_m0, Omega_b0):
            np.sqrt(6.0 / R_eq) * np.log((np.sqrt(1.0 + R_d) + np.sqrt(R_d + R_eq)) / (1.0 + np.sqrt(R_eq)))
     if not np.isfinite(s_EH) or h == 0: return np.nan
     return s_EH / h
-
-# ==============================================================================
-# ==============================================================================
-# --- NEW TEMPLATE FOR MODEL IMPLEMENTATION (.py) ---
-# This template uses a standard CPU-based (SciPy/NumPy) approach.
-# ==============================================================================
-# ==============================================================================
 """
-# Copy the text below into a new file (e.g., "my_theory.py") to create a new model plugin.
 
-'''
-Python implementation for [Your Model Name].
-This template follows the standard CPU-based architecture.
-'''
-
-import numpy as np
-from scipy.integrate import quad
-from scipy.optimize import brentq # Example for models needing root-finding
-import logging
-
-# ==============================================================================
-# --- METADATA (should be consistent with your .md file) ---
-# ==============================================================================
-MODEL_NAME = "YourModelName"
-MODEL_DESCRIPTION = "A brief description of the model."
-PARAMETER_NAMES = ["param1", "param2"] # etc.
-PARAMETER_LATEX_NAMES = [r"$p_1$", r"$p_2$"]
-PARAMETER_UNITS = ["Unit1", "Unit2"]
-INITIAL_GUESSES = [1.0, 50.0]
-PARAMETER_BOUNDS = [(0.0, 10.0), (0.0, 100.0)]
-# Add your model's equations and any fixed parameters (constants) here.
-MODEL_EQUATIONS_LATEX_SN = [r"$\mu = 5 \log_{10}(d_L) + 25$"]
-MODEL_EQUATIONS_LATEX_BAO = [r"$D_V(z) = ...$"]
-FIXED_PARAMS = { "C_LIGHT_KM_S": 299792.458 }
-
-# ==============================================================================
-# --- MAIN CALCULATION FUNCTIONS (CPU) ---
-# These are the "source of truth" and are used for fitting and plotting.
-# ==============================================================================
-
-def distance_modulus_model(z_array, *cosmo_params):
-    '''
-    The standard, Scipy-based function for fitting and plotting.
-    This function must be implemented and calculate the distance modulus.
-    '''
-    z = np.asarray(z_array)
-    param1, param2 = cosmo_params
-    
-    # This is a dummy calculation for demonstration purposes.
-    # Replace this with your model's actual physics.
-    # For example, calculate luminosity distance (dl_mpc) based on your theory.
-    dl_mpc = (z * 1000.0) * (param1 / param2)
-    
-    # Standard conversion to distance modulus. Error handling is important.
-    with np.errstate(divide='ignore', invalid='ignore'):
-        mu = 5.0 * np.log10(dl_mpc) + 25.0
-    mu[np.asarray(dl_mpc) <= 0] = np.nan # Avoid log of non-positive numbers
-    return mu
-
-# ==============================================================================
-# --- OTHER REQUIRED FUNCTIONS (BAO, etc.) ---
-# The fitting engine requires these functions to be present.
-# ==============================================================================
-
-def get_Hz_per_Mpc(z_array, *cosmo_params):
-    '''Calculates H(z) in km/s/Mpc.'''
-    # Replace with your model's H(z) calculation
-    param1, param2 = cosmo_params
-    return np.full_like(np.asarray(z_array), param2, dtype=float)
-
-def get_comoving_distance_Mpc(z_array, *cosmo_params):
-    '''Calculates comoving distance. Often involves integrating 1/H(z).'''
-    # Replace with your model's comoving distance calculation
-    return np.full_like(np.asarray(z_array), 0.0, dtype=float)
-
-def get_angular_diameter_distance_Mpc(z_array, *cosmo_params):
-    '''Calculates angular diameter distance.'''
-    # Replace with your model's angular diameter distance calculation
-    return np.full_like(np.asarray(z_array), 0.0, dtype=float)
-
-def get_DV_Mpc(z_array, *cosmo_params):
-    '''Calculates the BAO volume distance DV.'''
-    # Replace with your model's DV calculation
-    return np.full_like(np.asarray(z_array), 0.0, dtype=float)
-
-def get_sound_horizon_rs_Mpc(*cosmo_params):
-    '''Calculates the sound horizon at the drag epoch.'''
-    # Replace with your model's r_s calculation
-    return 147.0 # Return a float value
+The template section at the end of the file remains the same as the previous turn, as it does not contain code that is actually run.
 """

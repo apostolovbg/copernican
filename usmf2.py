@@ -1,13 +1,21 @@
 # copernican_suite/usmf2.py
 """
 Unified Shrinking Matter Framework (USMF) V2 Model Plugin for the Copernican Suite.
-This version uses the standard SciPy/CPU backend.
+This version uses the standard SciPy/CPU backend with intelligent multiprocessing.
 """
 
 import numpy as np
 from scipy.integrate import quad
 from scipy.optimize import brentq
 import logging
+import multiprocessing as mp
+from itertools import repeat
+
+try:
+    import psutil
+    PHYSICAL_CORES = psutil.cpu_count(logical=False) or 2
+except (ImportError, NotImplementedError):
+    PHYSICAL_CORES = 2
 
 # --- Model Metadata and Parameters ---
 MODEL_NAME = "USMF_V2"
@@ -19,15 +27,15 @@ PARAMETER_BOUNDS = [
     (0.0, 0.05), (0.1, 10.0), (1.0, 20.0), (-np.pi, np.pi)
 ]
 MODEL_EQUATIONS_LATEX_SN = [
-    r"$1+z = \alpha(t_e) / \alpha(t_0)$",
-    r"$r = \int_{t_e}^{t_0} \frac{c}{\alpha(t')} dt'$",
-    r"$d_L(z) = |r| \cdot (1+z)^2 \cdot \frac{70.0}{H_A}$",
-    r"$\mu = 5 \log_{10}(d_L) + 25$"
+    "$1+z = \\alpha(t_e) / \\alpha(t_0)$",
+    "$r = \\int_{t_e}^{t_0} \\frac{c}{\\alpha(t')} dt'$",
+    "$d_L(z) = |r| \\cdot (1+z)^2 \\cdot \\frac{70.0}{H_A}$",
+    "$\\mu = 5 \\log_{10}(d_L) + 25$"
 ]
 MODEL_EQUATIONS_LATEX_BAO = [
-    r"$D_A(z) = |r| \cdot \frac{70.0}{H_A}$",
-    r"$H_{USMF}(z) = - \frac{1}{\alpha(t_e)} \left. \frac{d\alpha}{dt} \right|_{t_e}$",
-    r"$D_V(z) = \left[ (1+z)^2 D_A(z)^2 \frac{cz}{H(z)} \right]^{1/3}$"
+    "$D_A(z) = |r| \\cdot \\frac{70.0}{H_A}$",
+    "$H_{USMF}(z) = - \\frac{1}{\\alpha(t_e)} \\left. \\frac{d\\alpha}{dt} \\right|_{t_e}$",
+    "$D_V(z) = \\left[ (1+z)^2 D_A(z)^2 \\frac{cz}{H(z)} \\right]^{1/3}$"
 ]
 PARAMETER_LATEX_NAMES = [r"$H_A$", r"$p_{\alpha}$", r"$k_{exp}$", r"$s_{exp}$", r"$t_{0,age}$", r"$A_{osc}$", r"$\omega_{osc}$", r"$t_{i,osc}$", r"$\phi_{osc}$"]
 PARAMETER_UNITS = ["", "", "", "", "Gyr", "", "rad/log(time_ratio)", "Gyr", "rad"]
@@ -77,13 +85,35 @@ class USMF_Calculator:
         except (ValueError, RuntimeError): pass
         return np.nan
 
-def _calculate_for_unique_z(z_array, single_value_calculator_func, *cosmo_params):
-    z_array = np.asarray(z_array); original_shape = z_array.shape
+def _worker_usmf_batch(z_batch, cosmo_params, single_calc_func_name):
+    """Worker function that processes a batch of redshifts for USMF."""
     calculator = USMF_Calculator(cosmo_params)
-    if not z_array.shape: return single_value_calculator_func(z_array.item(), calculator)
+    # Get the correct single-value function from this module's namespace
+    single_calc_func = globals()[single_calc_func_name]
+    return [single_calc_func(zi, calculator) for zi in z_batch]
+
+def _calculate_for_unique_z(z_array, single_calc_func_name, *cosmo_params):
+    z_array = np.asarray(z_array); original_shape = z_array.shape
+    if not z_array.shape:
+        calculator = USMF_Calculator(cosmo_params)
+        return globals()[single_calc_func_name](z_array.item(), calculator)
+    
     z_flat = z_array.flatten()
     unique_z, inverse_indices = np.unique(z_flat, return_inverse=True)
-    unique_results = np.array([single_value_calculator_func(zi, calculator) for zi in unique_z])
+    
+    z_batches = np.array_split(unique_z, PHYSICAL_CORES)
+    args = zip(z_batches, repeat(cosmo_params), repeat(single_calc_func_name))
+
+    unique_results = []
+    try:
+        with mp.Pool(processes=PHYSICAL_CORES) as pool:
+            batch_results = pool.starmap(_worker_usmf_batch, args)
+        unique_results = [item for sublist in batch_results for item in sublist]
+    except (TypeError, AttributeError, EOFError) as e:
+        logging.getLogger().error(f"Multiprocessing failed with error: {e}. Falling back to serial execution.")
+        unique_results = _worker_usmf_batch(unique_z, cosmo_params, single_calc_func_name)
+        
+    unique_results = np.array(unique_results)
     return unique_results[inverse_indices].reshape(original_shape)
 
 def _r_Mpc_single(z, calculator):
@@ -99,7 +129,7 @@ def _r_Mpc_single(z, calculator):
     except Exception: return np.nan
 
 def get_comoving_distance_Mpc(z_array, *cosmo_params):
-    return _calculate_for_unique_z(z_array, _r_Mpc_single, *cosmo_params)
+    return _calculate_for_unique_z(z_array, "_r_Mpc_single", *cosmo_params)
 
 def get_luminosity_distance_Mpc(z_array, *cosmo_params):
     H_A = cosmo_params[0]; C_H = 70.0 / H_A
@@ -108,7 +138,6 @@ def get_luminosity_distance_Mpc(z_array, *cosmo_params):
     return dl_mpc
 
 def distance_modulus_model(z_array, *cosmo_params):
-    """The standard, Scipy-based function for fitting and plotting."""
     dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)
     with np.errstate(divide='ignore', invalid='ignore'):
         mu = 5 * np.log10(dl_mpc) + 25.0
@@ -130,7 +159,7 @@ def _Hz_single(z, calculator):
     return np.nan
 
 def get_Hz_per_Mpc(z_array, *cosmo_params):
-    return _calculate_for_unique_z(z_array, _Hz_single, *cosmo_params)
+    return _calculate_for_unique_z(z_array, "_Hz_single", *cosmo_params)
 
 def get_angular_diameter_distance_Mpc(z_array, *cosmo_params):
     dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)

@@ -218,7 +218,6 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
 def fit_sne_parameters(sne_data_df, model_plugin):
     """
     Fits cosmological (and optionally SNe nuisance) parameters to SNe Ia data.
-    This version uses the standard SciPy/CPU backend exclusively.
     """
     logger = logging.getLogger()
     fit_style = sne_data_df.attrs.get('fit_style', 'unknown')
@@ -367,17 +366,15 @@ def fit_sne_parameters(sne_data_df, model_plugin):
     }
 
 
-def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params):
+def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params, z_smooth=None):
     """
     Calculates BAO observable predictions for a given model and its parameters.
+    Also calculates smooth curves for plotting if z_smooth is provided.
     """
     logger = logging.getLogger()
     model_name = model_plugin.MODEL_NAME
     
-    if bao_data_df is None or bao_data_df.empty:
-        logger.error("(calc_bao_obs): BAO data is empty.")
-        return bao_data_df, np.nan 
-
+    # --- Part 1: Calculate for BAO data points ---
     bao_pred_df = bao_data_df.copy()
     bao_pred_df['model_prediction'] = np.nan
     
@@ -385,24 +382,25 @@ def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params):
     logger.info(f"Calculating BAO observables for {model_name} with parameters: [{param_str}]")
 
     try:
-        model_rs_Mpc_calc = model_plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
-        if np.isfinite(model_rs_Mpc_calc) and model_rs_Mpc_calc > 0:
-            logger.info(f"Successfully calculated r_s for {model_name}: {model_rs_Mpc_calc:.3f} Mpc")
-        else:
-            logger.warning(f"Model '{model_name}' returned invalid r_s ({model_rs_Mpc_calc:.3f} Mpc). BAO predictions will be NaN.")
-            return bao_pred_df, model_rs_Mpc_calc
+        model_rs_Mpc = model_plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
+        if not (np.isfinite(model_rs_Mpc) and model_rs_Mpc > 0):
+            logger.warning(f"Model '{model_name}' returned invalid r_s ({model_rs_Mpc:.3f} Mpc). BAO calculations will be NaN.")
+            return bao_pred_df, np.nan, None
     except Exception as e:
         logger.error(f"Failed to calculate r_s for model '{model_name}': {e}", exc_info=True)
-        return bao_pred_df, np.nan
+        return bao_pred_df, np.nan, None
 
+    logger.info(f"Successfully calculated r_s for {model_name}: {model_rs_Mpc:.3f} Mpc")
+    
     try:
         get_DM_model = getattr(model_plugin, "get_comoving_distance_Mpc")
         get_Hz_model = getattr(model_plugin, "get_Hz_per_Mpc")
         get_DV_model_specific = getattr(model_plugin, "get_DV_Mpc", None)
+        get_DA_model = getattr(model_plugin, "get_angular_diameter_distance_Mpc")
         C_LIGHT = model_plugin.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458)
     except AttributeError as e:
         logger.error(f"Model plugin '{model_name}' missing required function for BAO: {e}")
-        return bao_pred_df, model_rs_Mpc_calc 
+        return bao_pred_df, model_rs_Mpc, None
 
     for index, row in bao_pred_df.iterrows():
         z_val = row['redshift']
@@ -414,23 +412,42 @@ def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params):
                 model_pred_numerator = get_DM_model(z_val, *cosmo_params)
             elif obs_type == "DH_over_rs":
                 hz_val = get_Hz_model(z_val, *cosmo_params)
-                if np.isfinite(hz_val) and abs(hz_val) > 1e-9:
-                    model_pred_numerator = C_LIGHT / hz_val
+                if np.isfinite(hz_val) and abs(hz_val) > 1e-9: model_pred_numerator = C_LIGHT / hz_val
             elif obs_type == "DV_over_rs":
-                if get_DV_model_specific:
-                    model_pred_numerator = get_DV_model_specific(z_val, *cosmo_params)
+                if get_DV_model_specific: model_pred_numerator = get_DV_model_specific(z_val, *cosmo_params)
                 else: 
-                    dm_val = get_DM_model(z_val, *cosmo_params)
-                    hz_val = get_Hz_model(z_val, *cosmo_params)
+                    dm_val = get_DM_model(z_val, *cosmo_params); hz_val = get_Hz_model(z_val, *cosmo_params)
                     if np.isfinite(dm_val) and dm_val >=0 and np.isfinite(hz_val) and abs(hz_val) > 1e-9 and z_val > 1e-9:
-                        term_in_bracket = (dm_val**2) * C_LIGHT * z_val / hz_val
-                        model_pred_numerator = term_in_bracket**(1.0/3.0) if term_in_bracket >=0 else np.nan
-                    elif abs(z_val) < 1e-9 : model_pred_numerator = 0.0
+                        term = (dm_val**2) * C_LIGHT * z_val / hz_val; model_pred_numerator = term**(1.0/3.0) if term >=0 else np.nan
+                    elif abs(z_val) < 1e-9: model_pred_numerator = 0.0
 
             if np.isfinite(model_pred_numerator):
-                bao_pred_df.loc[index, 'model_prediction'] = model_pred_numerator / model_rs_Mpc_calc
-        except Exception:
-            pass 
+                bao_pred_df.loc[index, 'model_prediction'] = model_pred_numerator / model_rs_Mpc
+        except Exception: pass 
             
     logger.debug(f"BAO predictions for {model_name}:\n{bao_pred_df.head().to_string()}")
-    return bao_pred_df, model_rs_Mpc_calc
+
+    # --- Part 2: Calculate for smooth plotting curves ---
+    smooth_predictions = None
+    if z_smooth is not None:
+        try:
+            dm_smooth = get_DM_model(z_smooth, *cosmo_params)
+            hz_smooth = get_Hz_model(z_smooth, *cosmo_params)
+            dh_smooth = np.where(hz_smooth > 0, C_LIGHT / hz_smooth, np.nan)
+            
+            if get_DV_model_specific: dv_smooth = get_DV_model_specific(z_smooth, *cosmo_params)
+            else:
+                da_smooth = get_DA_model(z_smooth, *cosmo_params)
+                term = np.power(1+z_smooth, 2) * np.power(da_smooth, 2) * C_LIGHT * z_smooth / hz_smooth
+                dv_smooth = np.power(term, 1/3, where=term>=0, out=np.full_like(z_smooth, np.nan))
+
+            smooth_predictions = {
+                'z': z_smooth,
+                'dm_over_rs': dm_smooth / model_rs_Mpc,
+                'dh_over_rs': dh_smooth / model_rs_Mpc,
+                'dv_over_rs': dv_smooth / model_rs_Mpc
+            }
+        except Exception as e:
+            logger.error(f"Failed to calculate smooth BAO curves for {model_name}: {e}", exc_info=True)
+
+    return bao_pred_df, model_rs_Mpc, smooth_predictions
