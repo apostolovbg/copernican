@@ -236,7 +236,6 @@ def fit_sne_parameters(sne_data_df, model_plugin):
         logger.error(f"Model plugin {model_name_str} missing or has inconsistent parameter definitions.")
         return {'success': False, 'message': "Model parameter definition error.", 'chi2_min': np.inf}
 
-    # --- Use the standard CPU-based distance modulus function from the plugin ---
     logger.info(f"Using standard Python (SciPy) function for '{model_name_str}'.")
     selected_mu_func = model_plugin.distance_modulus_model
 

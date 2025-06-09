@@ -239,7 +239,6 @@ def parse_unistra_h2_style(filepath, **kwargs):
     parsed_data_filtered.attrs['diag_errors_for_plot_raw_e_mb'] = parsed_data_filtered['e_mb'].values
     return parsed_data_filtered
 
-# --- NEW: Function to get extra arguments for the Pantheon+ parser ---
 def _get_pantheon_plus_args(base_dir):
     """Prompts user for the covariance matrix file required by the Pantheon+ parser."""
     cov_path = _get_user_input_filepath("Enter SNe covariance matrix filename", base_dir=base_dir)
@@ -250,7 +249,7 @@ def _get_pantheon_plus_args(base_dir):
 @register_sne_parser(
     "pantheon_plus_mu_cov_h2",
     "Pantheon+ (e.g., Pantheon+SH0ES.txt + .cov), h2-style: fit MU_SH0ES with full Covariance Matrix.",
-    extra_args_func=_get_pantheon_plus_args  # Register the function to get extra args
+    extra_args_func=_get_pantheon_plus_args
 )
 def parse_pantheon_plus_mu_cov_h2(filepath, cov_filepath=None, **kwargs):
     logger = logging.getLogger()

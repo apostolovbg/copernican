@@ -41,7 +41,6 @@ _h_fid_for_rs = FIXED_PARAMS["H0_FID_FOR_RS_PARAMS_KM_S_MPC"] / 100.0
 FIXED_PARAMS["OMEGA_B0_H2_EFF_FOR_RS"] = FIXED_PARAMS["OMEGA_B0_FID_FOR_RS_PARAMS"] * _h_fid_for_rs**2
 FIXED_PARAMS["OMEGA_M0_H2_EFF_FOR_RS"] = FIXED_PARAMS["OMEGA_M0_FID_FOR_RS_PARAMS"] * _h_fid_for_rs**2
 
-# --- Standard Python/Scipy Implementation (Fallback and Plotting) ---
 class USMF_Calculator:
     def __init__(self, cosmo_params):
         _, p_alpha,k_exp,s_exp,t0_Gyr,A_osc,omega_osc,ti_Gyr,phi_osc = cosmo_params
@@ -80,7 +79,6 @@ class USMF_Calculator:
 
 def _calculate_for_unique_z(z_array, single_value_calculator_func, *cosmo_params):
     z_array = np.asarray(z_array); original_shape = z_array.shape
-    # Clear cache for each new calculation run by creating a new instance
     calculator = USMF_Calculator(cosmo_params)
     if not z_array.shape: return single_value_calculator_func(z_array.item(), calculator)
     z_flat = z_array.flatten()
@@ -116,8 +114,6 @@ def distance_modulus_model(z_array, *cosmo_params):
         mu = 5 * np.log10(dl_mpc) + 25.0
     mu[np.asarray(dl_mpc) <= 0] = np.nan
     return mu
-
-# --- Standard BAO and other functions ---
 
 def _Hz_single(z, calculator):
     t_e = calculator.get_t_from_z(z)

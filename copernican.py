@@ -87,7 +87,6 @@ def load_alternative_model_plugin(model_filepath):
 
 def main_workflow():
     """Main workflow for the Copernican Suite."""
-    # --- Call dependency checker at the very beginning ---
     check_dependencies()
 
     try: SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -117,12 +116,11 @@ def main_workflow():
     sne_format_key = data_loaders._select_parser(data_loaders.SNE_PARSERS, "SNe")
     if not sne_format_key: return logger.info("SNe data format selection canceled. Exiting.")
 
-    # --- NEW: Generic handling of extra parser arguments ---
     sne_loader_kwargs = {}
     parser_info = data_loaders.SNE_PARSERS.get(sne_format_key)
     if parser_info and parser_info.get('extra_args_func'):
         logger.info(f"Parser '{sne_format_key}' requires additional arguments.")
-        extra_args = parser_info['extra_args_func'](SCRIPT_DIR) # Pass base directory
+        extra_args = parser_info['extra_args_func'](SCRIPT_DIR)
         if extra_args is None:
             return logger.info("Data loading canceled by user during extra argument prompt. Exiting.")
         sne_loader_kwargs.update(extra_args)
@@ -187,7 +185,6 @@ if __name__ == "__main__":
     try:
         main_workflow()
     except Exception as e:
-        # Use a fallback logger if the main one failed to initialize
         logger = output_manager.get_logger()
         if logger.hasHandlers():
             logger.critical("Unhandled exception in main_workflow!", exc_info=True)

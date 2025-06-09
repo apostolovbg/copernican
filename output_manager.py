@@ -32,17 +32,19 @@ def get_logger(): return logging.getLogger()
 
 def format_model_summary_text(model_plugin, is_sne_summary, fit_results, **kwargs):
     """Formats a text block with model details, parameters, and fit statistics."""
-    lines = [];
+    lines = []
     model_name_raw = getattr(model_plugin, 'MODEL_NAME', 'N/A')
     model_name_latex = model_name_raw.replace('_', r'\_')
     lines.append(fr"**Model: {model_name_latex}**")
 
     eq_attr = 'MODEL_EQUATIONS_LATEX_SN' if is_sne_summary else 'MODEL_EQUATIONS_LATEX_BAO'
     if hasattr(model_plugin, eq_attr):
-        lines.append(r"$\bf{Mathematical\ Form:}$")
+        # FIXED: Changed deprecated \bf to \mathbf to avoid syntax warnings
+        lines.append(r"$\mathbf{Mathematical\ Form:}$")
         for eq_line in getattr(model_plugin, eq_attr): lines.append(f"  {eq_line}")
 
-    lines.append(r"$\bf{Cosmological\ Parameters:}$")
+    # FIXED: Changed deprecated \bf to \mathbf
+    lines.append(r"$\mathbf{Cosmological\ Parameters:}$")
     param_names = getattr(model_plugin, 'PARAMETER_NAMES', [])
     param_latex_names = getattr(model_plugin, 'PARAMETER_LATEX_NAMES', param_names)
     fitted_cosmo_params = fit_results.get('fitted_cosmological_params')
@@ -56,16 +58,19 @@ def format_model_summary_text(model_plugin, is_sne_summary, fit_results, **kwarg
         lines.append("  (Fit failed or parameters unavailable)")
 
     if is_sne_summary and fit_results.get('fitted_nuisance_params'):
-        lines.append(r"$\bf{SNe\ Nuisance\ Parameters:}$")
+        # FIXED: Changed deprecated \bf to \mathbf
+        lines.append(r"$\mathbf{SNe\ Nuisance\ Parameters:}$")
         for name, val in fit_results['fitted_nuisance_params'].items():
             name_latex = {"M_B": r"M_B", "alpha_salt2": r"\alpha", "beta_salt2": r"\beta"}.get(name, name)
             lines.append(fr"  ${name_latex}$ = ${val:.4g}$")
 
     if is_sne_summary:
-        lines.append(r"$\bf{SNe\ Fit\ Statistics:}$")
+        # FIXED: Changed deprecated \bf to \mathbf
+        lines.append(r"$\mathbf{SNe\ Fit\ Statistics:}$")
         lines.append(fr"  $\chi^2_{{SNe}}$ = {fit_results.get('chi2_min', np.nan):.2f}")
     else:
-        lines.append(r"$\bf{BAO\ Test\ Results:}$")
+        # FIXED: Changed deprecated \bf to \mathbf
+        lines.append(r"$\mathbf{BAO\ Test\ Results:}$")
         lines.append(fr"  $r_s$ = {kwargs.get('model_rs_Mpc', np.nan):.2f} Mpc")
         lines.append(fr"  $\chi^2_{{BAO}}$ = {kwargs.get('chi2_bao', np.nan):.2f}")
 
@@ -108,7 +113,6 @@ def plot_hubble_diagram(sne_data_df, lcdm_fit_results, alt_model_fit_results, lc
             logger.warning(f"Could not calculate binned average due to an error: {e}"); return np.array([]), np.array([])
 
     fig, axs = plt.subplots(2, 1, figsize=(17, 12), sharex=True, gridspec_kw={'height_ratios':[3,1.5],'hspace':0.05})
-    # --- LAYOUT MODIFICATION: Widen plot by changing the 'right' parameter ---
     plt.subplots_adjust(left=0.08, bottom=0.08, right=0.75, top=0.92)
     try: plt.style.use('seaborn-v0_8-darkgrid')
     except Exception: logger.warning("Seaborn-v0_8-darkgrid style not found, using default.")
@@ -142,7 +146,6 @@ def plot_hubble_diagram(sne_data_df, lcdm_fit_results, alt_model_fit_results, lc
 
     bbox_lcdm = dict(boxstyle='round,pad=0.5', fc='#FFEEEE', ec='darkred', alpha=0.8)
     bbox_alt = dict(boxstyle='round,pad=0.5', fc='#EEF2FF', ec='darkblue', alpha=0.8)
-    # --- LAYOUT MODIFICATION: Move info boxes to the right to accommodate wider plot ---
     fig.text(0.77, 0.90, format_model_summary_text(lcdm_plugin, is_sne_summary=True, fit_results=lcdm_fit_results), fontsize=font_sizes['infobox'], va='top', ha='left', wrap=True, bbox=bbox_lcdm)
     fig.text(0.77, 0.52, format_model_summary_text(alt_model_plugin, is_sne_summary=True, fit_results=alt_model_fit_results), fontsize=font_sizes['infobox'], va='top', ha='left', wrap=True, bbox=bbox_alt)
 
@@ -167,7 +170,6 @@ def plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results,
     z_plot_smooth = np.geomspace(max(min_z * 0.8, 0.01), max_z * 1.2, 100)
 
     fig, ax = plt.subplots(figsize=(17, 10))
-    # --- LAYOUT MODIFICATION: Widen plot by changing the 'right' parameter ---
     plt.subplots_adjust(left=0.08, bottom=0.1, right=0.75, top=0.90)
     try: plt.style.use('seaborn-v0_8-darkgrid')
     except Exception: logger.warning("Seaborn-v0_8-darkgrid style not found, using default.")
@@ -217,9 +219,8 @@ def plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results,
 
     bbox_lcdm = dict(boxstyle='round,pad=0.5', fc='#FFEEEE', ec='darkred', alpha=0.8)
     bbox_alt = dict(boxstyle='round,pad=0.5', fc='#EEF2FF', ec='darkblue', alpha=0.8)
-    # --- LAYOUT MODIFICATION: Move info boxes to the right to accommodate wider plot ---
     fig.text(0.77, 0.90, format_model_summary_text(lcdm_plugin, is_sne_summary=False, fit_results=lcdm_full_results.get('sne_fit_results',{}), **lcdm_full_results), fontsize=font_sizes['infobox'], va='top', ha='left', wrap=True, bbox=bbox_lcdm)
-    fig.text(0.77, 0.55, format_model_summary_text(alt_model_plugin, is_sne_summary=False, fit_results=alt_model_full_results.get('sne_fit_results',{}), **alt_model_full_results), fontsize=font_sizes['infobox'], va='top', ha='left', wrap=True, bbox=bbox_alt)
+    fig.text(0.77, 0.55, format_model_summary_text(alt_model_plugin, is_sne_summary=False, fit_results=alt_model_full_results.get('sne_fit_results',{}), **alt_model_full_results), fontsize=font_sizes['infobox'], va='top', ha='left', wrap=True, bbox=alt)
 
     filename = os.path.join(plot_dir, f"{base_filename}_{dataset_name.replace(' ', '_')}_{get_timestamp()}.png")
     try:

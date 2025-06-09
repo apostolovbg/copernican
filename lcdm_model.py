@@ -14,7 +14,8 @@ MODEL_DESCRIPTION = "Standard flat Lambda Cold Matter model."
 MODEL_EQUATIONS_LATEX_SN = [
     r"$H(z) = H_0 \sqrt{\Omega_{m0}(1+z)^3 + \Omega_{\Lambda0}}$",
     r"$d_L(z) = (1+z) \int_0^z \frac{c}{H(z')} dz'$",
-    r"$\mu = 5 \log_{10}(d_L/1\mathrm{Mpc}) + 25$"
+    # FIXED: Escaped backslash in \mathrm to prevent SyntaxWarning
+    r"$\mu = 5 \log_{10}(d_L/1\,\mathrm{Mpc}) + 25$"
 ]
 MODEL_EQUATIONS_LATEX_BAO = [
     r"$D_A(z) = \frac{1}{1+z} \int_0^z \frac{c}{H(z')} dz'$",
@@ -199,6 +200,4 @@ def get_sound_horizon_rs_Mpc(*cosmo_params):
     '''Calculates the sound horizon at the drag epoch.'''
     # Replace with your model's r_s calculation
     return 147.0 # Return a float value
-
 """
-}
