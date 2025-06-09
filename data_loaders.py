@@ -12,11 +12,31 @@ import logging
 SNE_PARSERS = {}
 BAO_PARSERS = {}
 
+# --- Helper function for user input, localized to this module ---
+def _get_user_input_filepath(prompt_message, base_dir, must_exist=True):
+    """Prompts the user for a filepath and validates it."""
+    while True:
+        # Construct the full prompt to be clear
+        full_prompt = f"  > This data format requires an additional file.\n  > {prompt_message} (or 'c' to cancel): "
+        filename = input(full_prompt).strip()
+        if filename.lower() == 'c': return None
+        # We assume the file is in the same base directory as the main script
+        filepath = os.path.join(base_dir, filename)
+        if not must_exist or os.path.isfile(filepath): return filepath
+        else: print(f"Error: File not found at '{filepath}'. Please try again.")
+
 # --- Decorators to register parsers ---
-def register_sne_parser(name, description=""):
-    """Decorator to register a SNe data parsing function."""
+def register_sne_parser(name, description="", extra_args_func=None):
+    """
+    Decorator to register a SNe data parsing function.
+    Can optionally include a function to gather extra arguments from the user.
+    """
     def decorator(func):
-        SNE_PARSERS[name] = {'function': func, 'description': description}
+        SNE_PARSERS[name] = {
+            'function': func,
+            'description': description,
+            'extra_args_func': extra_args_func
+        }
         return func
     return decorator
 
@@ -158,10 +178,8 @@ def parse_unistra_h1_style(filepath, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED
         if not all(col in parsed_data and not parsed_data[col].isnull().all() for col in ['mb', 'x1', 'c']):
              raise ValueError("mb, x1, or c contain all NaNs or are missing before mu_obs calculation.")
         
-        # BUGFIX: Corrected the Tripp equation sign for the beta term. The correct form is m - M + a*x1 - b*c.
         parsed_data['mu_obs'] = parsed_data['mb'] - salt2_m_abs_fixed + salt2_alpha_fixed * parsed_data['x1'] - salt2_beta_fixed * parsed_data['c']
         
-        # The primary error on mu_obs in this simplified scheme is the error on mb
         parsed_data['e_mu_obs'] = parsed_data['e_mb']
     except Exception as e:
         logger.error(f"Failed mu_obs calculation for UniStra h1_style: {e}"); return None
@@ -176,7 +194,6 @@ def parse_unistra_h1_style(filepath, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED
     
     parsed_data_filtered = parsed_data_filtered.sort_values(by='zcmb').reset_index(drop=True)
     
-    # Set attributes to guide the fitting engine
     parsed_data_filtered.attrs['fit_style'] = 'h1_fixed_nuisance'
     parsed_data_filtered.attrs['is_mu_data'] = True
     parsed_data_filtered.attrs['fit_nuisance_params'] = False
@@ -222,12 +239,22 @@ def parse_unistra_h2_style(filepath, **kwargs):
     parsed_data_filtered.attrs['diag_errors_for_plot_raw_e_mb'] = parsed_data_filtered['e_mb'].values
     return parsed_data_filtered
 
+# --- NEW: Function to get extra arguments for the Pantheon+ parser ---
+def _get_pantheon_plus_args(base_dir):
+    """Prompts user for the covariance matrix file required by the Pantheon+ parser."""
+    cov_path = _get_user_input_filepath("Enter SNe covariance matrix filename", base_dir=base_dir)
+    if not cov_path:
+        return None # Indicates cancellation
+    return {'cov_filepath': cov_path}
 
-@register_sne_parser("pantheon_plus_mu_cov_h2", "Pantheon+ (e.g., Pantheon+SH0ES.txt + .cov), h2-style: fit MU_SH0ES with full Covariance Matrix.")
+@register_sne_parser(
+    "pantheon_plus_mu_cov_h2",
+    "Pantheon+ (e.g., Pantheon+SH0ES.txt + .cov), h2-style: fit MU_SH0ES with full Covariance Matrix.",
+    extra_args_func=_get_pantheon_plus_args  # Register the function to get extra args
+)
 def parse_pantheon_plus_mu_cov_h2(filepath, cov_filepath=None, **kwargs):
     logger = logging.getLogger()
     if not cov_filepath or not os.path.isfile(cov_filepath):
-        # Attempt to infer covariance filepath
         base, _ = os.path.splitext(filepath)
         inferred_cov = base + "_STAT+SYS.txt"
         if os.path.isfile(inferred_cov):
@@ -237,13 +264,10 @@ def parse_pantheon_plus_mu_cov_h2(filepath, cov_filepath=None, **kwargs):
             logger.error(f"Pantheon+ covariance file not specified or found (tried {inferred_cov})."); return None
 
     try:
-        # Load main data
         temp_df = pd.read_csv(filepath, delim_whitespace=True, comment='#')
         data_df = pd.DataFrame()
-        # Map possible column names to standardized names
         col_map = {'Name':['CID','SNID','ID','NAME'],'zcmb':['zCMB','ZCMB','zcmb'],'mu_obs':['MU_SH0ES','mu'],'mu_sh0es_err_diag':['MU_SH0ES_ERR_DIAG','e_mu_diag']}
         
-        # Load covariance matrix first to get expected size
         with open(cov_filepath,'r') as f: N_cov = int(f.readlines()[0].strip())
 
         for target_col, possible_names in col_map.items():
@@ -266,12 +290,10 @@ def parse_pantheon_plus_mu_cov_h2(filepath, cov_filepath=None, **kwargs):
         if data_df.empty: logger.error("No valid Pantheon+ mu_cov_h2 SNe data after filtering."); return None
         if len(data_df) != N_cov: logger.critical(f"SNe count for mu_cov: data ({len(data_df)}) vs cov N ({N_cov})."); return None
         
-        # Load and reshape covariance matrix
         cov_matrix_flat = np.loadtxt(cov_filepath, skiprows=1)
         if len(cov_matrix_flat) != N_cov*N_cov: logger.error(f"Cov matrix len ({len(cov_matrix_flat)}) != N*N ({N_cov*N_cov})."); return None
         cov_matrix_pantheon = cov_matrix_flat.reshape((N_cov,N_cov))
 
-        # Use diagonal errors from file if present, otherwise calculate from covariance matrix
         if 'mu_sh0es_err_diag' in data_df and data_df['mu_sh0es_err_diag'].notna().any():
             data_df['e_mu_obs'] = data_df['mu_sh0es_err_diag']
         else:
@@ -306,7 +328,6 @@ def parse_bao_json_v1(filepath, **kwargs):
         if not all(col in df.columns for col in required_cols):
             logger.error(f"BAO JSON file {filepath} missing one or more required columns: {required_cols}"); return None 
         
-        # Convert numeric columns, coercing errors to NaN
         for col in ['redshift', 'value', 'error']:
             df[col] = pd.to_numeric(df[col], errors='coerce')
         

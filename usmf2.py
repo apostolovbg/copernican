@@ -1,19 +1,13 @@
 # copernican_suite/usmf2.py
 """
 Unified Shrinking Matter Framework (USMF) V2 Model Plugin for the Copernican Suite.
-*** MODIFIED to include a real, complex OpenCL implementation. ***
+This version uses the standard SciPy/CPU backend.
 """
 
 import numpy as np
 from scipy.integrate import quad
 from scipy.optimize import brentq
 import logging
-
-try:
-    import pyopencl as cl
-    import pyopencl.array
-except ImportError:
-    cl = None
 
 # --- Model Metadata and Parameters ---
 MODEL_NAME = "USMF_V2"
@@ -46,112 +40,6 @@ FIXED_PARAMS = {
 _h_fid_for_rs = FIXED_PARAMS["H0_FID_FOR_RS_PARAMS_KM_S_MPC"] / 100.0
 FIXED_PARAMS["OMEGA_B0_H2_EFF_FOR_RS"] = FIXED_PARAMS["OMEGA_B0_FID_FOR_RS_PARAMS"] * _h_fid_for_rs**2
 FIXED_PARAMS["OMEGA_M0_H2_EFF_FOR_RS"] = FIXED_PARAMS["OMEGA_M0_FID_FOR_RS_PARAMS"] * _h_fid_for_rs**2
-
-# --- OpenCL Kernel Source (MODIFIED) ---
-# This kernel is now simplified. It no longer performs root-finding.
-# It receives the pre-calculated emission time (t_e) and performs only the integration.
-OPENCL_KERNEL_SRC = """
-// --- Gauss-Legendre Quadrature Constants (40-point) ---
-__constant double GL_NODES_40[40] = {
-    -0.9982624958369315, -0.9917578270972743, -0.9802096309214739, -0.9636599182749419,
-    -0.9421867376173972, -0.9158999992138139, -0.8849422244840456, -0.8494833635292451,
-    -0.8097184232325178, -0.7658660098939764, -0.7181673891832343, -0.6668879683832148,
-    -0.6123184652232338, -0.5547693005898363, -0.4945722736423018, -0.4320788931118621,
-    -0.3676643734006422, -0.3017215162224716, -0.2346593895394019, -0.1668984446554368,
-    0.1668984446554368, 0.2346593895394019, 0.3017215162224716, 0.3676643734006422,
-    0.4320788931118621, 0.4945722736423018, 0.5547693005898363, 0.6123184652232338,
-    0.6668879683832148, 0.7181673891832343, 0.7658660098939764, 0.8097184232325178,
-    0.8494833635292451, 0.8849422244840456, 0.9158999992138139, 0.9421867376173972,
-    0.9636599182749419, 0.9802096309214739, 0.9917578270972743, 0.9982624958369315
-};
-__constant double GL_WEIGHTS_40[40] = {
-    0.0044558379435402, 0.0103463344603417, 0.0162002321485644, 0.0219918841400244,
-    0.0276953912119330, 0.0332851414483754, 0.0387358988924522, 0.0440229346613399,
-    0.0491221147133742, 0.0540098191931069, 0.0586632422744275, 0.0630601832141519,
-    0.0671801288940424, 0.0710034443936691, 0.0745114712294103, 0.0776868846328323,
-    0.0805137252494947, 0.0829774659433249, 0.0850650993134336, 0.0867651030397532,
-    0.0867651030397532, 0.0850650993134336, 0.0829774659433249, 0.0805137252494947,
-    0.0776868846328323, 0.0745114712294103, 0.0710034443936691, 0.0671801288940424,
-    0.0630601832141519, 0.0586632422744275, 0.0540098191931069, 0.0491221147133742,
-    0.0440229346613399, 0.0387358988924522, 0.0332851414483754, 0.0276953912119330,
-    0.0219918841400244, 0.0162002321485644, 0.0103463344603417, 0.0044558379435402
-};
-
-
-// OpenCL Helper Function for USMF alpha(t)
-inline double alpha_func(double t, double t0_sec, double p_a, double k, double s, 
-                         double A, double w, double ti_sec, double phi) {
-    if (t <= 1e-12) return NAN; // Avoid log(0) and division by zero
-    
-    double ratio_t0 = t / t0_sec;
-    double term_power = pow(ratio_t0, -p_a);
-    double term_exp = exp(k * (pow(ratio_t0, s) - 1.0));
-
-    double osc = 1.0;
-    if (t >= ti_sec && A > 0.0) {
-        osc += A * sin(w * log(t / ti_sec) + phi);
-    }
-    return term_power * term_exp * osc;
-}
-
-// OpenCL Kernel for USMF V2: calculates r by integrating from a given t_e
-__kernel void usmf_r_integrator_from_te(
-    __global const double* t_e_sec_in, // Input is now emission time, not z
-    __global double* r_Mpc_out,
-    // Cosmological Parameters
-    const double p_alpha, const double k_exp, const double s_exp,
-    const double t0_Gyr, const double A_osc, const double omega_osc,
-    const double ti_Gyr, const double phi_osc,
-    // Fixed constants
-    const double SECONDS_PER_GYR,
-    const double C_LIGHT_KM_S,
-    const double MPC_PER_KM
-) {
-    int i = get_global_id(0);
-    double t_e_sec = t_e_sec_in[i];
-
-    // Convert parameters from Gyr to seconds for this thread
-    double t0_sec = t0_Gyr * SECONDS_PER_GYR;
-    double ti_sec = ti_Gyr * SECONDS_PER_GYR;
-
-    if (isnan(t_e_sec) || t_e_sec >= t0_sec) {
-        r_Mpc_out[i] = 0.0;
-        return;
-    }
-    
-    // --- Integrate c/alpha(t) from t_e to t_0 using Gauss-Legendre (40-point) ---
-    double integral = 0.0;
-    double interval_width = t0_sec - t_e_sec;
-    
-    // Check for invalid interval
-    if (interval_width <= 0) {
-        r_Mpc_out[i] = 0.0;
-        return;
-    }
-
-    double t_map, t_at_map;
-    for (int k = 0; k < 40; ++k) {
-        t_map = GL_NODES_40[k];
-        // Map GL node t from [-1, 1] to time in [t_e_sec, t0_sec]
-        t_at_map = t_e_sec + (interval_width / 2.0) * (1.0 + t_map);
-        
-        double alpha_val = alpha_func(t_at_map, t0_sec, p_alpha, k_exp, s_exp, A_osc, omega_osc, ti_sec, phi_osc);
-        
-        if (isnan(alpha_val) || alpha_val <= 0) {
-            integral = NAN;
-            break;
-        }
-        integral += GL_WEIGHTS_40[k] * (C_LIGHT_KM_S / alpha_val);
-    }
-
-    if (isnan(integral)) {
-        r_Mpc_out[i] = NAN;
-    } else {
-        double r_km = (interval_width / 2.0) * integral;
-        r_Mpc_out[i] = r_km * MPC_PER_KM;
-    }
-}
-"""
 
 # --- Standard Python/Scipy Implementation (Fallback and Plotting) ---
 class USMF_Calculator:
@@ -200,19 +88,6 @@ def _calculate_for_unique_z(z_array, single_value_calculator_func, *cosmo_params
     unique_results = np.array([single_value_calculator_func(zi, calculator) for zi in unique_z])
     return unique_results[inverse_indices].reshape(original_shape)
 
-def _t_e_from_z_array(z_array, *cosmo_params):
-    """Helper function to get t_e for an array of z values using the reliable Python method."""
-    z_array = np.asarray(z_array)
-    original_shape = z_array.shape
-    calculator = USMF_Calculator(cosmo_params)
-    if not z_array.shape: return np.array(calculator.get_t_from_z(z_array.item()))
-    
-    z_flat = z_array.flatten()
-    unique_z, inverse_indices = np.unique(z_flat, return_inverse=True)
-    unique_t_e = np.array([calculator.get_t_from_z(zi) for zi in unique_z])
-    return unique_t_e[inverse_indices].reshape(original_shape)
-
-
 def _r_Mpc_single(z, calculator):
     if abs(z) < 1e-9: return 0.0
     t_e = calculator.get_t_from_z(z)
@@ -235,70 +110,12 @@ def get_luminosity_distance_Mpc(z_array, *cosmo_params):
     return dl_mpc
 
 def distance_modulus_model(z_array, *cosmo_params):
-    """The standard, Scipy-based function for plotting and fallback."""
+    """The standard, Scipy-based function for fitting and plotting."""
     dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)
     with np.errstate(divide='ignore', invalid='ignore'):
         mu = 5 * np.log10(dl_mpc) + 25.0
     mu[np.asarray(dl_mpc) <= 0] = np.nan
     return mu
-
-# --- OpenCL High-Performance Function (MODIFIED) ---
-
-def distance_modulus_model_opencl(z_array, *cosmo_params, cl_context=None, cl_queue=None, cl_program=None):
-    """
-    High-performance OpenCL entry point for the USMF fitting engine.
-    This version uses a hybrid CPU/GPU approach for maximum reliability.
-    1. CPU (SciPy): Calculates emission time t_e from redshift z (sensitive root-finding).
-    2. GPU (OpenCL): Calculates comoving distance r from t_e (parallelizable integration).
-    """
-    logger = logging.getLogger()
-    if not all([cl, cl_context, cl_queue, cl_program]):
-        logger.warning(f"MODEL '{MODEL_NAME}': OpenCL context not available, falling back to CPU.")
-        return distance_modulus_model(z_array, *cosmo_params)
-        
-    try:
-        # 1. Prepare parameters and data
-        z_data = np.asarray(z_array, dtype=np.float64)
-        H_A, p_alpha, k_exp, s_exp, t0_age_Gyr, A_osc, omega_osc, ti_osc_Gyr, phi_osc = cosmo_params
-        
-        # --- NEW HYBRID STEP 1: Calculate t_e on CPU using reliable SciPy method ---
-        t_e_sec_data = _t_e_from_z_array(z_data, *cosmo_params)
-
-        # 2. Create OpenCL buffers
-        mf = cl.mem_flags
-        # Input buffer now contains t_e values, not z values
-        t_e_buffer = cl.Buffer(cl_context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=t_e_sec_data.astype(np.float64))
-        r_Mpc_buffer = cl.Buffer(cl_context, mf.WRITE_ONLY, z_data.nbytes)
-        
-        # 3. Set kernel arguments and execute
-        # Kernel name has been changed to reflect its new purpose
-        kernel = cl_program.usmf_r_integrator_from_te
-        kernel.set_args(
-            t_e_buffer, r_Mpc_buffer, np.double(p_alpha), np.double(k_exp), np.double(s_exp),
-            np.double(t0_age_Gyr), np.double(A_osc), np.double(omega_osc), np.double(ti_osc_Gyr), np.double(phi_osc),
-            np.double(FIXED_PARAMS["SECONDS_PER_GYR"]), np.double(FIXED_PARAMS["C_LIGHT_KM_S"]),
-            np.double(FIXED_PARAMS["MPC_PER_KM"])
-        )
-        cl.enqueue_nd_range_kernel(cl_queue, kernel, z_data.shape, None).wait()
-
-        # 4. Read results back from GPU
-        r_Mpc_results = np.empty_like(z_data)
-        cl.enqueue_copy(cl_queue, r_Mpc_results, r_Mpc_buffer).wait()
-
-        # 5. Calculate final distance modulus from r_Mpc
-        C_H = 70.0 / H_A
-        dl_mpc = np.abs(r_Mpc_results) * np.power(1.0 + z_data, 2) * C_H
-        with np.errstate(divide='ignore', invalid='ignore'):
-            mu = 5 * np.log10(dl_mpc) + 25.0
-        mu[np.asarray(dl_mpc) <= 0] = np.nan
-
-        return mu
-
-    except (cl.Error, cl.LogicError, cl.RuntimeError) as e:
-        logger.error(f"MODEL '{MODEL_NAME}': An error occurred during OpenCL execution: {e}", exc_info=True)
-        # Return an array of NaNs on failure so the fitter can recover
-        return np.full_like(np.asarray(z_array), np.nan)
-
 
 # --- Standard BAO and other functions ---
 

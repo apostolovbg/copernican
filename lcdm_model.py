@@ -1,18 +1,12 @@
 # copernican_suite/lcdm_model.py
 """
 LCDM Model Plugin for the Copernican Suite.
-*** MODIFIED to include an OpenCL implementation and an updated template. ***
+This version uses the standard SciPy/CPU backend.
 """
 
 import numpy as np
 from scipy.integrate import quad
 import logging
-
-try:
-    import pyopencl as cl
-    import pyopencl.array
-except ImportError:
-    cl = None
 
 # --- Model Metadata ---
 MODEL_NAME = "LambdaCDM"
@@ -36,91 +30,7 @@ FIXED_PARAMS = {
     "N_EFF": 3.046, "OMEGA_G_H2": 2.47282e-5, "FLAT_UNIVERSE": True
 }
 
-# --- OpenCL Kernel Source ---
-# This kernel calculates luminosity distance for LCDM by integrating c/H(z)
-# using a 40-point Gauss-Legendre quadrature for maximum precision.
-OPENCL_KERNEL_SRC = f"""
-// --- Gauss-Legendre Quadrature Constants (40-point) ---
-__constant double GL_NODES_40[40] = {{
-    -0.9982624958369315, -0.9917578270972743, -0.9802096309214739, -0.9636599182749419,
-    -0.9421867376173972, -0.9158999992138139, -0.8849422244840456, -0.8494833635292451,
-    -0.8097184232325178, -0.7658660098939764, -0.7181673891832343, -0.6668879683832148,
-    -0.6123184652232338, -0.5547693005898363, -0.4945722736423018, -0.4320788931118621,
-    -0.3676643734006422, -0.3017215162224716, -0.2346593895394019, -0.1668984446554368,
-     0.1668984446554368,  0.2346593895394019,  0.3017215162224716,  0.3676643734006422,
-     0.4320788931118621,  0.4945722736423018,  0.5547693005898363,  0.6123184652232338,
-     0.6668879683832148,  0.7181673891832343,  0.7658660098939764,  0.8097184232325178,
-     0.8494833635292451,  0.8849422244840456,  0.9158999992138139,  0.9421867376173972,
-     0.9636599182749419,  0.9802096309214739,  0.9917578270972743,  0.9982624958369315
-}};
-__constant double GL_WEIGHTS_40[40] = {{
-    0.0044558379435402, 0.0103463344603417, 0.0162002321485644, 0.0219918841400244,
-    0.0276953912119330, 0.0332851414483754, 0.0387358988924522, 0.0440229346613399,
-    0.0491221147133742, 0.0540098191931069, 0.0586632422744275, 0.0630601832141519,
-    0.0671801288940424, 0.0710034443936691, 0.0745114712294103, 0.0776868846328323,
-    0.0805137252494947, 0.0829774659433249, 0.0850650993134336, 0.0867651030397532,
-    0.0867651030397532, 0.0850650993134336, 0.0829774659433249, 0.0805137252494947,
-    0.0776868846328323, 0.0745114712294103, 0.0710034443936691, 0.0671801288940424,
-    0.0630601832141519, 0.0586632422744275, 0.0540098191931069, 0.0491221147133742,
-    0.0440229346613399, 0.0387358988924522, 0.0332851414483754, 0.0276953912119330,
-    0.0219918841400244, 0.0162002321485644, 0.0103463344603417, 0.0044558379435402
-}};
-
-// Helper function for the integrand c/H(z)
-inline double integrand_func(
-    double z, double H0, double Omega_m0, double Omega_r0,
-    double Omega_L0, double C_LIGHT_KM_S
-) {{
-    double Ez_sq = Omega_r0*pown(1+z, 4) + Omega_m0*pown(1+z, 3) + Omega_L0;
-    if (Ez_sq <= 0.0) return 0.0; // Avoid sqrt of negative
-    double hz = H0 * sqrt(Ez_sq);
-    if (hz == 0.0) return 0.0; // Avoid division by zero
-    return C_LIGHT_KM_S / hz;
-}}
-
-__kernel void lcdm_dl_integrator(
-    __global const double *z_values,
-    __global double *dl_out,
-    // Cosmological Parameters
-    const double H0,
-    const double Omega_m0,
-    const double Omega_r0,
-    const double Omega_L0,
-    // Fixed Constants
-    const double C_LIGHT_KM_S
-) {{
-    int gid = get_global_id(0);
-    double z_upper = z_values[gid];
-
-    if (z_upper < 1e-9) {{
-        dl_out[gid] = 0.0;
-        return;
-    }}
-
-    // Gauss-Legendre Quadrature for comoving distance
-    // The integral is from 0 to z_upper.
-    // We map this interval to the standard GL interval [-1, 1].
-    double integral = 0.0;
-    double t_map, z_at_t;
-
-    for (int i = 0; i < 40; i++) {{
-        // Map GL node t from [-1, 1] to z in [0, z_upper]
-        t_map = GL_NODES_40[i];
-        z_at_t = (z_upper / 2.0) * (1.0 + t_map);
-        
-        integral += GL_WEIGHTS_40[i] * integrand_func(z_at_t, H0, Omega_m0, Omega_r0, Omega_L0, C_LIGHT_KM_S);
-    }}
-
-    // Final comoving distance
-    double dc_integral = (z_upper / 2.0) * integral;
-
-    // Final luminosity distance calculation
-    dl_out[gid] = dc_integral * (1.0 + z_upper);
-}}
-"""
-
-
-# --- Standard Python/Scipy Functions (Used for plotting and as a fallback) ---
+# --- Standard Python/Scipy Functions ---
 
 def _get_derived_densities(H0, Omega_m0, Omega_b0):
     """Core helper to calculate derived density parameters."""
@@ -164,61 +74,12 @@ def get_luminosity_distance_Mpc(z_array, *cosmo_params):
     return dm * (1 + np.asarray(z_array))
 
 def distance_modulus_model(z_array, *cosmo_params):
-    """The standard, Scipy-based function for plotting and fallback."""
+    """The standard, Scipy-based function for fitting and plotting."""
     dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)
     with np.errstate(divide='ignore', invalid='ignore'):
         mu = 5 * np.log10(dl_mpc) + 25.0
     mu[np.asarray(dl_mpc) <= 0] = np.nan
     return mu
-
-# --- OpenCL High-Performance Function ---
-
-def distance_modulus_model_opencl(z_array, *cosmo_params, cl_context=None, cl_queue=None, cl_program=None):
-    """High-performance OpenCL entry point for the LCDM fitting engine."""
-    logger = logging.getLogger()
-    if not all([cl, cl_context, cl_queue, cl_program]):
-        logger.warning(f"MODEL '{MODEL_NAME}': OpenCL context not available, falling back to CPU.")
-        return distance_modulus_model(z_array, *cosmo_params)
-        
-    try:
-        # 1. Prepare parameters and data
-        z_data = np.asarray(z_array, dtype=np.float64)
-        H0, Omega_m0, Omega_b0 = cosmo_params
-        _, Omega_r0, Omega_L0, _, _ = _get_derived_densities(H0, Omega_m0, Omega_b0)
-
-        # Handle case of invalid derived parameters
-        if any(np.isnan([Omega_r0, Omega_L0])):
-            return np.full_like(z_data, np.nan)
-
-        # 2. Create OpenCL buffers
-        mf = cl.mem_flags
-        z_buffer = cl.Buffer(cl_context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=z_data)
-        dl_buffer = cl.Buffer(cl_context, mf.WRITE_ONLY, size=z_data.nbytes)
-        
-        # 3. Set kernel arguments and execute
-        kernel = cl_program.lcdm_dl_integrator
-        kernel.set_args(
-            z_buffer, dl_buffer, np.double(H0), np.double(Omega_m0), np.double(Omega_r0),
-            np.double(Omega_L0), np.double(FIXED_PARAMS["C_LIGHT_KM_S"])
-        )
-        cl.enqueue_nd_range_kernel(cl_queue, kernel, z_data.shape, None)
-
-        # 4. Read results back from GPU
-        dl_mpc_results = np.empty_like(z_data)
-        cl.enqueue_copy(cl_queue, dl_mpc_results, dl_buffer).wait()
-
-        # 5. Convert luminosity distance to distance modulus
-        with np.errstate(divide='ignore', invalid='ignore'):
-            mu = 5.0 * np.log10(dl_mpc_results) + 25.0
-        mu[dl_mpc_results <= 0] = np.nan
-        
-        return mu
-
-    except (cl.Error, cl.LogicError, cl.RuntimeError) as e:
-        logger.error(f"MODEL '{MODEL_NAME}': An error occurred during OpenCL execution: {e}", exc_info=True)
-        # Return an array of NaNs on failure so the fitter can recover
-        return np.full_like(np.asarray(z_array), np.nan)
-
 
 # --- Standard BAO and other functions ---
 def get_angular_diameter_distance_Mpc(z_array, *cosmo_params):
@@ -253,7 +114,7 @@ def get_sound_horizon_rs_Mpc(H0, Omega_m0, Omega_b0):
 # ==============================================================================
 # ==============================================================================
 # --- NEW TEMPLATE FOR MODEL IMPLEMENTATION (.py) ---
-# This template is updated to promote the hybrid CPU/GPU approach for reliability.
+# This template uses a standard CPU-based (SciPy/NumPy) approach.
 # ==============================================================================
 # ==============================================================================
 """
@@ -261,7 +122,7 @@ def get_sound_horizon_rs_Mpc(H0, Omega_m0, Omega_b0):
 
 '''
 Python implementation for [Your Model Name].
-This template follows the recommended hybrid CPU/GPU architecture for reliability.
+This template follows the standard CPU-based architecture.
 '''
 
 import numpy as np
@@ -269,140 +130,75 @@ from scipy.integrate import quad
 from scipy.optimize import brentq # Example for models needing root-finding
 import logging
 
-try:
-    import pyopencl as cl
-    import pyopencl.array
-except ImportError:
-    cl = None
-
 # ==============================================================================
 # --- METADATA (should be consistent with your .md file) ---
 # ==============================================================================
 MODEL_NAME = "YourModelName"
 MODEL_DESCRIPTION = "A brief description of the model."
 PARAMETER_NAMES = ["param1", "param2"] # etc.
-# ... (rest of metadata)
+PARAMETER_LATEX_NAMES = [r"$p_1$", r"$p_2$"]
+PARAMETER_UNITS = ["Unit1", "Unit2"]
+INITIAL_GUESSES = [1.0, 50.0]
+PARAMETER_BOUNDS = [(0.0, 10.0), (0.0, 100.0)]
+# Add your model's equations and any fixed parameters (constants) here.
+MODEL_EQUATIONS_LATEX_SN = [r"$\mu = 5 \log_{10}(d_L) + 25$"]
+MODEL_EQUATIONS_LATEX_BAO = [r"$D_V(z) = ...$"]
+FIXED_PARAMS = { "C_LIGHT_KM_S": 299792.458 }
 
 # ==============================================================================
-# --- OPTIONAL: RELIABLE HYBRID OpenCL (GPU) IMPLEMENTATION ---
+# --- MAIN CALCULATION FUNCTIONS (CPU) ---
+# These are the "source of truth" and are used for fitting and plotting.
 # ==============================================================================
-
-# ------------------------------------------------------------------------------
-# 1. Simplified OpenCL Kernel
-# This kernel should perform a simple, stable calculation (e.g., a weighted sum).
-# It receives pre-calculated inputs from the CPU, NOT raw values like redshift.
-# ------------------------------------------------------------------------------
-OPENCL_KERNEL_SRC = f'''
-__kernel void your_simple_kernel(
-    __global const double *precalculated_inputs, // e.g., pre-integrated values or function evaluations
-    __global double *result_out,
-    // You may still need some parameters for final calculations
-    const double param1 
-) {{
-    int gid = get_global_id(0);
-    double intermediate_val = precalculated_inputs[gid];
-
-    // Example: perform a simple, final calculation on the GPU
-    result_out[gid] = intermediate_val * param1; 
-}}
-'''
-
-# ------------------------------------------------------------------------------
-# 2. Standard (CPU) Functions
-# These are the "source of truth" and are used for plotting, BAO, and preparing
-# inputs for the OpenCL kernel.
-# ------------------------------------------------------------------------------
-
-def _your_sensitive_calculation(z, *cosmo_params):
-    '''
-    This function performs the sensitive part of the calculation (e.g.,
-    root-finding or a tricky integration) using reliable SciPy methods.
-    It returns an intermediate result that is safe to pass to the GPU.
-    '''
-    # Example: A model that needs to solve an equation for a value 'x' at each z
-    param1, param2 = cosmo_params
-    
-    # def equation_to_solve(x):
-    #     return x**2 - z * param1 # dummy equation
-    # try:
-    #     # Use a reliable SciPy solver
-    #     solved_x, results = brentq(equation_to_solve, a=0, b=100, full_output=True)
-    #     if results.converged:
-    #         return solved_x
-    # except (ValueError, RuntimeError):
-    #     return np.nan
-    # For the template, we just return a placeholder
-    return z * param1 # Placeholder for a calculated intermediate value
 
 def distance_modulus_model(z_array, *cosmo_params):
     '''
-    The standard, full Scipy-based function for plotting and fallback.
-    This function defines the model completely for the CPU-only mode.
+    The standard, Scipy-based function for fitting and plotting.
+    This function must be implemented and calculate the distance modulus.
     '''
-    # Your full CPU implementation here. This should calculate the final
-    # distance modulus 'mu' from scratch.
-    # ...
-    # For the template, we'll make a simple placeholder calculation
     z = np.asarray(z_array)
     param1, param2 = cosmo_params
-    # This is a dummy calculation for mu
-    dl_mpc = (z * 1000) * (param1 / param2)
+    
+    # This is a dummy calculation for demonstration purposes.
+    # Replace this with your model's actual physics.
+    # For example, calculate luminosity distance (dl_mpc) based on your theory.
+    dl_mpc = (z * 1000.0) * (param1 / param2)
+    
+    # Standard conversion to distance modulus. Error handling is important.
     with np.errstate(divide='ignore', invalid='ignore'):
         mu = 5.0 * np.log10(dl_mpc) + 25.0
-    mu[dl_mpc <= 0] = np.nan
+    mu[np.asarray(dl_mpc) <= 0] = np.nan # Avoid log of non-positive numbers
     return mu
 
-# --- (Other required CPU functions like get_Hz_per_Mpc, get_sound_horizon_rs_Mpc, etc.) ---
+# ==============================================================================
+# --- OTHER REQUIRED FUNCTIONS (BAO, etc.) ---
+# The fitting engine requires these functions to be present.
+# ==============================================================================
 
+def get_Hz_per_Mpc(z_array, *cosmo_params):
+    '''Calculates H(z) in km/s/Mpc.'''
+    # Replace with your model's H(z) calculation
+    param1, param2 = cosmo_params
+    return np.full_like(np.asarray(z_array), param2, dtype=float)
 
-# ------------------------------------------------------------------------------
-# 3. Hybrid OpenCL Entry Point
-# This is the function called by the fitter in OpenCL mode.
-# It orchestrates the hybrid CPU/GPU calculation.
-# ------------------------------------------------------------------------------
+def get_comoving_distance_Mpc(z_array, *cosmo_params):
+    '''Calculates comoving distance. Often involves integrating 1/H(z).'''
+    # Replace with your model's comoving distance calculation
+    return np.full_like(np.asarray(z_array), 0.0, dtype=float)
 
-def distance_modulus_model_opencl(z_array, *cosmo_params, cl_context=None, cl_queue=None, cl_program=None):
-    '''High-performance OpenCL entry point using the reliable hybrid architecture.'''
-    logger = logging.getLogger()
-    if not all([cl, cl_context, cl_queue, cl_program]):
-        logger.warning(f"MODEL '{MODEL_NAME}': OpenCL context not available, falling back to CPU.")
-        return distance_modulus_model(z_array, *cosmo_params)
-        
-    try:
-        # --- HYBRID STEP 1: Perform sensitive calculations on CPU ---
-        # Use your reliable CPU function to pre-calculate the tricky parts.
-        precalculated_inputs = np.array([_your_sensitive_calculation(z, *cosmo_params) for z in np.atleast_1d(z_array)])
-        
-        # --- HYBRID STEP 2: Offload stable number-crunching to GPU ---
-        
-        # a. Prepare parameters and data buffers
-        z_data = np.asarray(z_array, dtype=np.float64)
-        param1, param2 = cosmo_params
-        
-        mf = cl.mem_flags
-        # Send the pre-calculated, safe inputs to the GPU
-        gpu_in_buffer = cl.Buffer(cl_context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=precalculated_inputs.astype(np.float64))
-        gpu_out_buffer = cl.Buffer(cl_context, mf.WRITE_ONLY, size=z_data.nbytes)
-        
-        # b. Get kernel, set arguments, and execute
-        kernel = cl_program.your_simple_kernel # Must match the name in OPENCL_KERNEL_SRC
-        kernel.set_args(gpu_in_buffer, gpu_out_buffer, np.double(param1))
-        cl.enqueue_nd_range_kernel(cl_queue, kernel, z_data.shape, None).wait()
+def get_angular_diameter_distance_Mpc(z_array, *cosmo_params):
+    '''Calculates angular diameter distance.'''
+    # Replace with your model's angular diameter distance calculation
+    return np.full_like(np.asarray(z_array), 0.0, dtype=float)
 
-        # c. Read results back from GPU
-        gpu_results = np.empty_like(z_data)
-        cl.enqueue_copy(cl_queue, gpu_results, gpu_out_buffer).wait()
+def get_DV_Mpc(z_array, *cosmo_params):
+    '''Calculates the BAO volume distance DV.'''
+    # Replace with your model's DV calculation
+    return np.full_like(np.asarray(z_array), 0.0, dtype=float)
 
-        # --- HYBRID STEP 3: Perform final calculations on CPU ---
-        # Often, a final, simple calculation is needed to get the distance modulus.
-        with np.errstate(divide='ignore', invalid='ignore'):
-            mu = 5.0 * np.log10(gpu_results) + 25.0 # Example final step
-        mu[gpu_results <= 0] = np.nan
-        
-        return mu
-
-    except (cl.Error, cl.LogicError, cl.RuntimeError) as e:
-        logger.error(f"MODEL '{MODEL_NAME}': An error occurred during OpenCL execution: {e}", exc_info=True)
-        return np.full_like(np.asarray(z_array), np.nan)
+def get_sound_horizon_rs_Mpc(*cosmo_params):
+    '''Calculates the sound horizon at the drag epoch.'''
+    # Replace with your model's r_s calculation
+    return 147.0 # Return a float value
 
 """
+}

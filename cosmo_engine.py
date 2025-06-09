@@ -1,7 +1,7 @@
 # copernican_suite/cosmo_engine.py
 """
 Cosmological Engine for the Copernican Suite.
-*** MODIFIED TO SUPPORT OPTIONAL HIGH-PERFORMANCE OpenCL/GPU FUNCTIONS ***
+Relies on SciPy/NumPy for all computations.
 """
 
 import numpy as np
@@ -10,92 +10,6 @@ from scipy.linalg import LinAlgError
 import sys
 import time
 import logging
-
-# --- OpenCL Initialization ---
-# Attempt to import pyopencl and initialize it.
-# This will be done once when the module is loaded.
-_pyopencl = None
-_opencl_context = None
-_opencl_queue = None
-_opencl_device_name = "N/A"
-_opencl_platform_name = "N/A"
-
-try:
-    import pyopencl as cl
-    
-    # This inner try-except block only runs if 'import pyopencl as cl' was successful.
-    # It handles errors during device initialization.
-    try:
-        platforms = cl.get_platforms()
-        if not platforms:
-            raise ImportError("No OpenCL platforms found.")
-
-        # Prefer GPU devices
-        gpu_devices = []
-        for p in platforms:
-            try:
-                gpu_devices.extend(p.get_devices(device_type=cl.device_type.GPU))
-            except cl.RuntimeError:
-                continue # Some platforms might not have GPU devices
-        
-        target_device = None
-        if gpu_devices:
-            target_device = gpu_devices[0] # Use the first available GPU
-        else: # Fallback to CPU if no GPU
-            cpu_devices = []
-            for p in platforms:
-                try:
-                    cpu_devices.extend(p.get_devices(device_type=cl.device_type.CPU))
-                except cl.RuntimeError:
-                    continue
-            if cpu_devices:
-                target_device = cpu_devices[0]
-
-        if target_device:
-            _pyopencl = cl
-            _opencl_context = cl.Context(devices=[target_device])
-            _opencl_queue = cl.CommandQueue(_opencl_context)
-            _opencl_device_name = target_device.name.strip()
-            _opencl_platform_name = target_device.platform.name.strip()
-        else:
-            raise ImportError("No suitable OpenCL devices (GPU or CPU) found.")
-
-    except (cl.Error, ImportError, IndexError) as e:
-        # This catches errors if pyopencl is installed but no devices are found/work.
-        _pyopencl = None
-        logging.getLogger().warning(f"PyOpenCL is installed, but device initialization failed: {e}")
-
-except ImportError:
-    # This catches the error if the pyopencl module is not installed at all.
-    _pyopencl = None
-
-# --- NEW: OpenCL Kernel Compiler ---
-def _compile_opencl_kernel(kernel_name, kernel_source_code, model_name):
-    """
-    Compiles an OpenCL kernel from a source string.
-    Returns a compiled PyOpenCL Program object or None on failure.
-    """
-    logger = logging.getLogger()
-    if _pyopencl is None or _opencl_context is None:
-        logger.error(f"Cannot compile OpenCL kernel '{kernel_name}' for {model_name}; OpenCL is not available.")
-        return None
-    try:
-        logger.info(f"Compiling OpenCL kernel '{kernel_name}' for model '{model_name}'...")
-        program = _pyopencl.Program(_opencl_context, kernel_source_code).build()
-        logger.info(f"Successfully compiled kernel '{kernel_name}'.")
-        return program
-    except _pyopencl.LogicError as e:
-        logger.error(f"OpenCL Logic Error for '{kernel_name}' in {model_name}: This often means the OpenCL driver or platform is in an invalid state. {e}")
-        return None
-    except _pyopencl.RuntimeError as e:
-        logger.error(f"OpenCL Runtime Error (often a compilation failure) for '{kernel_name}' in {model_name}. Check kernel syntax.")
-        logger.error(f"Device: {_opencl_device_name}")
-        logger.error(f"Platform: {_opencl_platform_name}")
-        logger.error(f"OpenCL Build Log:\n{e}")
-        return None
-    except Exception as e:
-        logger.error(f"An unexpected error occurred during OpenCL kernel compilation for {model_name}: {e}", exc_info=True)
-        return None
 
 # --- Constants for SNe H2-style (SALT2 nuisance parameter fitting) ---
 SALT2_NUISANCE_PARAMS_INIT = {
@@ -113,15 +27,13 @@ SIGMA_INT_SQ_DEFAULT = 0.1**2
 
 # ==============================================================================
 # --- CHI-SQUARED HELPER FUNCTIONS ---
-# NOTE: These are now generalized to accept a model function as an argument.
 # ==============================================================================
 
-def chi_squared_sne_h1_fixed_nuisance(cosmo_params, mu_model_func, sne_data_df, **kwargs):
+def chi_squared_sne_h1_fixed_nuisance(cosmo_params, mu_model_func, sne_data_df):
     r"""
     Calculates chi-squared for SNe Ia: H1-style (fixed nuisance).
     This uses pre-calculated mu_obs and diagonal errors e_mu_obs.
     $\chi^2 = \sum ((mu_data - mu_model) / e_mu_obs)^2$.
-    The **kwargs are added to provide a consistent interface for the OpenCL context.
     """
     logger = logging.getLogger()
     if not all(col in sne_data_df.columns for col in ['zcmb', 'mu_obs', 'e_mu_obs']):
@@ -133,8 +45,7 @@ def chi_squared_sne_h1_fixed_nuisance(cosmo_params, mu_model_func, sne_data_df, 
     mu_err_diag = sne_data_df['e_mu_obs'].values
 
     try:
-        # The model function is now passed in directly
-        mu_model = mu_model_func(z_data, *cosmo_params, **kwargs)
+        mu_model = mu_model_func(z_data, *cosmo_params)
     except Exception as e:
         return np.inf # Fitter will handle this
 
@@ -152,10 +63,9 @@ def chi_squared_sne_h1_fixed_nuisance(cosmo_params, mu_model_func, sne_data_df, 
     return chi2 if np.isfinite(chi2) else np.inf
 
 
-def chi_squared_sne_h2_salt2_fitting(params_full, mu_model_func, sne_data_df, num_cosmo_params, **kwargs):
+def chi_squared_sne_h2_salt2_fitting(params_full, mu_model_func, sne_data_df, num_cosmo_params):
     r"""
     Calculates chi-squared for SNe Ia: H2-style (SALT2 m_b, x1, c fitting).
-    The **kwargs are added to provide a consistent interface for the OpenCL context.
     """
     logger = logging.getLogger()
     req_cols = ['zcmb', 'mb', 'x1', 'c', 'e_mb', 'e_x1', 'e_c']
@@ -176,8 +86,7 @@ def chi_squared_sne_h2_salt2_fitting(params_full, mu_model_func, sne_data_df, nu
     M_B_fit, alpha_salt2_fit, beta_salt2_fit = params_full[num_cosmo_params : num_cosmo_params+3]
 
     try:
-        # The model function is now passed in directly
-        mu_cosmo_model = mu_model_func(z_data, *cosmo_params, **kwargs)
+        mu_cosmo_model = mu_model_func(z_data, *cosmo_params)
     except Exception:
         return np.inf
 
@@ -195,10 +104,9 @@ def chi_squared_sne_h2_salt2_fitting(params_full, mu_model_func, sne_data_df, nu
     return chi2 if np.isfinite(chi2) else np.inf
 
 
-def chi_squared_sne_mu_covariance(cosmo_params, mu_model_func, sne_data_df, **kwargs):
+def chi_squared_sne_mu_covariance(cosmo_params, mu_model_func, sne_data_df):
     r"""
     Calculates chi-squared for SNe Ia: H2-style (mu_obs with full covariance matrix).
-    The **kwargs are added to provide a consistent interface for the OpenCL context.
     """
     logger = logging.getLogger()
     if not all(col in sne_data_df.columns for col in ['zcmb', 'mu_obs']):
@@ -212,8 +120,7 @@ def chi_squared_sne_mu_covariance(cosmo_params, mu_model_func, sne_data_df, **kw
     C_inv = sne_data_df.attrs['covariance_matrix_inv']
 
     try:
-        # The model function is now passed in directly
-        mu_model = mu_model_func(z_data, *cosmo_params, **kwargs)
+        mu_model = mu_model_func(z_data, *cosmo_params)
     except Exception:
         return np.inf
 
@@ -239,7 +146,6 @@ def chi_squared_sne_mu_covariance(cosmo_params, mu_model_func, sne_data_df, **kw
 def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
     r"""
     Calculates chi-squared for BAO data against model predictions.
-    This function remains unchanged as it doesn't call the mu_model function.
     """
     logger = logging.getLogger()
     if bao_data_df is None or bao_data_df.empty:
@@ -309,39 +215,10 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
 # --- MAIN ENGINE FUNCTIONS ---
 # ==============================================================================
 
-def _select_compute_backend():
-    """
-    Prompts the user to select the compute backend if OpenCL is available.
-    Returns:
-        - 'opencl' if user chooses to use OpenCL.
-        - 'standard' if user chooses not to use OpenCL or if it's unavailable.
-    """
-    logger = logging.getLogger()
-    if _pyopencl is None:
-        logger.info("OpenCL not found or no compatible devices detected. Using standard CPU (SciPy) backend.")
-        return 'standard'
-
-    logger.info(f"\nOpenCL-compatible device detected: {_opencl_device_name} ({_opencl_platform_name})")
-    print("\nOpenCL hardware is available. Do you want to run calculations using OpenCL?")
-    print("  1. No (Use standard CPU implementation)")
-    print("  2. Yes (Use GPU/accelerated implementation)")
-    
-    while True:
-        choice = input("Select a compute backend (1 or 2): ").strip()
-        if choice == '1':
-            logger.info("User selected standard CPU backend.")
-            return 'standard'
-        elif choice == '2':
-            logger.info("User selected OpenCL (GPU/accelerated) backend.")
-            return 'opencl'
-        else:
-            print("Invalid selection. Please enter 1 or 2.")
-
-
-def fit_sne_parameters(sne_data_df, model_plugin, compute_backend):
+def fit_sne_parameters(sne_data_df, model_plugin):
     """
     Fits cosmological (and optionally SNe nuisance) parameters to SNe Ia data.
-    *** MODIFIED to use a user-selectable compute backend (Standard or OpenCL). ***
+    This version uses the standard SciPy/CPU backend exclusively.
     """
     logger = logging.getLogger()
     fit_style = sne_data_df.attrs.get('fit_style', 'unknown')
@@ -359,37 +236,9 @@ def fit_sne_parameters(sne_data_df, model_plugin, compute_backend):
         logger.error(f"Model plugin {model_name_str} missing or has inconsistent parameter definitions.")
         return {'success': False, 'message': "Model parameter definition error.", 'chi2_min': np.inf}
 
-    # --- NEW: COMPUTE BACKEND FUNCTION DISPATCHER ---
-    selected_mu_func = None
-    kwargs_for_chi2 = {}
-    
-    # --- MODIFICATION: Compile OpenCL kernel if provided and selected ---
-    opencl_program = None
-    if compute_backend == 'opencl' and hasattr(model_plugin, 'OPENCL_KERNEL_SRC'):
-        kernel_name = f"{model_name_str}_kernel"
-        kernel_src = getattr(model_plugin, 'OPENCL_KERNEL_SRC', None)
-        if kernel_src:
-            opencl_program = _compile_opencl_kernel(kernel_name, kernel_src, model_name_str)
-
-    if compute_backend == 'opencl' and opencl_program and hasattr(model_plugin, 'distance_modulus_model_opencl'):
-        logger.info(f"Using OpenCL (GPU) accelerated function for '{model_name_str}'.")
-        selected_mu_func = model_plugin.distance_modulus_model_opencl
-        # Pass the OpenCL context, queue, and compiled program to the model function via kwargs
-        kwargs_for_chi2 = {'cl_context': _opencl_context, 'cl_queue': _opencl_queue, 'cl_program': opencl_program}
-    else:
-        if compute_backend == 'opencl':
-            msg = "Falling back to standard CPU implementation."
-            if not hasattr(model_plugin, 'OPENCL_KERNEL_SRC'):
-                msg = f"Model '{model_name_str}' has no 'OPENCL_KERNEL_SRC' attribute. " + msg
-            elif not opencl_program:
-                msg = f"OpenCL kernel compilation failed for '{model_name_str}'. " + msg
-            elif not hasattr(model_plugin, 'distance_modulus_model_opencl'):
-                msg = f"Model '{model_name_str}' has no 'distance_modulus_model_opencl' function. " + msg
-            logger.warning("OpenCL backend was selected, but could not be used. " + msg)
-
-        logger.info(f"Using standard Python (SciPy) function for '{model_name_str}'.")
-        selected_mu_func = model_plugin.distance_modulus_model
-    # --- END OF DISPATCHER ---
+    # --- Use the standard CPU-based distance modulus function from the plugin ---
+    logger.info(f"Using standard Python (SciPy) function for '{model_name_str}'.")
+    selected_mu_func = model_plugin.distance_modulus_model
 
     current_initial_params = list(initial_cosmo_params)
     current_param_bounds = list(cosmo_param_bounds)
@@ -434,8 +283,7 @@ def fit_sne_parameters(sne_data_df, model_plugin, compute_backend):
     def chi2_wrapper_for_minimize(params_to_test, *args_passed):
         """Wrapper to count evaluations and track best result for robust failure handling."""
         eval_count['count'] += 1
-        # Pass the kwargs (containing OpenCL context/queue if needed) to the chi2 function
-        current_chi2_val = chi2_function_to_call(params_to_test, *args_passed, **kwargs_for_chi2)
+        current_chi2_val = chi2_function_to_call(params_to_test, *args_passed)
         
         if not np.isfinite(current_chi2_val): current_chi2_val = np.inf
         
@@ -453,7 +301,6 @@ def fit_sne_parameters(sne_data_df, model_plugin, compute_backend):
     logger.info(f"Starting SNe optimization for {model_name_str} using {len(current_initial_params)} parameters...")
     result_obj = None
     try:
-        # Pass the arguments tuple containing the selected model function to the optimizer
         result_obj = minimize(chi2_wrapper_for_minimize, current_initial_params, args=args_for_chi2_func,
                               method='L-BFGS-B', bounds=current_param_bounds, options=options)
     except Exception as e_min:
@@ -524,7 +371,6 @@ def fit_sne_parameters(sne_data_df, model_plugin, compute_backend):
 def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params):
     """
     Calculates BAO observable predictions for a given model and its parameters.
-    (This function remains unchanged).
     """
     logger = logging.getLogger()
     model_name = model_plugin.MODEL_NAME

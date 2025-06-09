@@ -10,7 +10,7 @@ import platform
 import numpy as np
 import matplotlib.pyplot as plt
 
-# --- NEW: System Dependency and Sanity Checker ---
+# --- System Dependency and Sanity Checker ---
 
 def check_dependencies():
     """
@@ -19,8 +19,7 @@ def check_dependencies():
     """
     print("--- Running System Dependency Check ---")
     errors = []
-    os_platform = platform.system()
-
+    
     # 1. Check for required Python libraries
     required_libs = {
         "numpy": "numpy",
@@ -35,39 +34,8 @@ def check_dependencies():
                 f"- Python library '{lib_pip}' not found.\n"
                 f"  Instruction: pip install {lib_pip}"
             )
-
-    # 2. Check for optional PyOpenCL and perform sanity check if found
-    try:
-        cl = importlib.import_module('pyopencl')
-        # If import succeeds, do a deeper sanity check
-        try:
-            platforms = cl.get_platforms()
-            if not platforms:
-                raise RuntimeError("No OpenCL platforms found.")
-            # Check if any platform has devices
-            if not any(p.get_devices() for p in platforms):
-                 raise RuntimeError("OpenCL platforms found, but no devices available.")
-        except Exception as e:
-            # This error means pyopencl is installed, but the system drivers are not.
-            instructions = {
-                'Darwin': "  Instruction: brew install opencl-icd-loader",
-                'Linux':  "  Instruction: sudo apt-get install ocl-icd-opencl-dev",
-                'Windows':"  Instruction: Install the latest GPU drivers from your manufacturer (NVIDIA, AMD, Intel)."
-            }
-            errors.append(
-                f"- OpenCL System Integration Failed: {e}\n"
-                f"  'pyopencl' is installed, but cannot find a working GPU/CPU device.\n"
-                f"  This usually means system-level drivers or the ICD loader are missing.\n"
-                f"{instructions.get(os_platform, '  Instruction: Please install OpenCL drivers for your system.')}"
-            )
-    except ImportError:
-        errors.append(
-            "- Python library 'pyopencl' not found.\n"
-            "  This is optional but required for GPU acceleration.\n"
-            "  Instruction: pip install pyopencl"
-        )
     
-    # 3. Report results
+    # 2. Report results
     if errors:
         print("\n❌ SYSTEM DEPENDENCY CHECK FAILED. The following issues were found:")
         print("-" * 60)
@@ -119,7 +87,7 @@ def load_alternative_model_plugin(model_filepath):
 
 def main_workflow():
     """Main workflow for the Copernican Suite."""
-    # --- NEW: Call dependency checker at the very beginning ---
+    # --- Call dependency checker at the very beginning ---
     check_dependencies()
 
     try: SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -131,14 +99,12 @@ def main_workflow():
     log_file = output_manager.setup_logging(run_name="CopernicanSuite_Run", log_dir=OUTPUT_DIR)
     logger = output_manager.get_logger()
     logger.info("=== Copernican Suite Initialized ===")
+    logger.info("Using standard CPU (SciPy) computational backend.")
     logger.info(f"Running from base directory: {SCRIPT_DIR}")
     logger.info(f"All outputs will be saved to: {OUTPUT_DIR}")
 
     # --- 1. Configuration ---
     logger.info("\n--- Stage 1: Configuration ---")
-
-    # --- MODIFICATION: Select compute backend once at the start ---
-    compute_backend = cosmo_engine._select_compute_backend()
 
     alt_model_filepath = get_user_input_filepath("Enter alternative model plugin filename (e.g., usmf2.py)", base_dir=SCRIPT_DIR)
     if not alt_model_filepath: return logger.info("Model selection canceled. Exiting.")
@@ -151,11 +117,15 @@ def main_workflow():
     sne_format_key = data_loaders._select_parser(data_loaders.SNE_PARSERS, "SNe")
     if not sne_format_key: return logger.info("SNe data format selection canceled. Exiting.")
 
+    # --- NEW: Generic handling of extra parser arguments ---
     sne_loader_kwargs = {}
-    if sne_format_key == "pantheon_plus_mu_cov_h2":
-        cov_path = get_user_input_filepath("Enter SNe covariance matrix filename", base_dir=SCRIPT_DIR)
-        if not cov_path: return logger.info("SNe covariance file selection canceled. Exiting.")
-        sne_loader_kwargs['cov_filepath'] = cov_path
+    parser_info = data_loaders.SNE_PARSERS.get(sne_format_key)
+    if parser_info and parser_info.get('extra_args_func'):
+        logger.info(f"Parser '{sne_format_key}' requires additional arguments.")
+        extra_args = parser_info['extra_args_func'](SCRIPT_DIR) # Pass base directory
+        if extra_args is None:
+            return logger.info("Data loading canceled by user during extra argument prompt. Exiting.")
+        sne_loader_kwargs.update(extra_args)
     
     sne_data_df = data_loaders.load_sne_data(sne_data_filepath, format_key=sne_format_key, **sne_loader_kwargs)
     if sne_data_df is None: return logger.error("Failed to load SNe Ia data. Exiting.")
@@ -169,9 +139,8 @@ def main_workflow():
 
     # --- 2. SNe Ia Fitting ---
     logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
-    # --- MODIFICATION: Pass the selected backend to the fitting function ---
-    lcdm_sne_fit_results = cosmo_engine.fit_sne_parameters(sne_data_df, lcdm_model, compute_backend)
-    alt_model_sne_fit_results = cosmo_engine.fit_sne_parameters(sne_data_df, alt_model_plugin, compute_backend)
+    lcdm_sne_fit_results = cosmo_engine.fit_sne_parameters(sne_data_df, lcdm_model)
+    alt_model_sne_fit_results = cosmo_engine.fit_sne_parameters(sne_data_df, alt_model_plugin)
     
     # --- 3. BAO Analysis ---
     logger.info("\n--- Stage 3: BAO Analysis ---")
