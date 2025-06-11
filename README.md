@@ -1,7 +1,7 @@
 # Copernican Suite - A Modular Cosmology Framework
 
-**Version:** 1.2 (Stable)
-**Last Updated:** 2025-06-09
+**Version:** 1.3 (Stable)
+**Last Updated:** 2025-06-11
 
 > **Note:** This file serves as the complete and unified documentation for the Copernican Suite project. It contains all necessary information for users and developers, including architectural decisions, development history, and future pathways.
 
@@ -11,11 +11,11 @@
 
 1.  [**Project Overview**](#1-project-overview)
 2.  [**Installation and Requirements**](#2-installation-and-requirements)
-3.  [**Current Architecture (v1.2)**](#3-current-architecture-v12)
+3.  [**Current Architecture (v1.3)**](#3-current-architecture-v13)
 4.  [**Workflow Overview**](#4-workflow-overview)
 5.  [**Development History & Roadmap**](#5-development-history--roadmap)
+    -   [Version 1.3 Updates (Stable Release)](#version-13-updates-stable-release)
     -   [Version 1.2 Updates (Major Refactor)](#version-12-updates-major-refactor)
-    -   [Immediate Challenges (Goals for v1.3)](#immediate-challenges-goals-for-v13)
     -   [The Future Vision: A Universal Engine](#the-future-vision-a-universal-engine)
 6.  [**A Note on AI-Driven Development**](#6-a-note-on-ai-driven-development)
 
@@ -25,7 +25,7 @@
 
 The **Copernican Suite** is an evolving Python-based framework for the modular testing and comparison of cosmological models against observational data. It provides a platform for researchers to easily implement and evaluate new theories alongside the standard ΛCDM model.
 
-This version (1.2) represents a significant stabilization and refactoring effort. It removes complex, unstable dependencies in favor of a robust, multi-core CPU engine and introduces several quality-of-life improvements for a more streamlined user experience.
+This version (1.3) resolves a critical plotting bug, enhances the data output capabilities for more detailed analysis, and streamlines the user experience.
 
 ---
 
@@ -43,14 +43,14 @@ If any of these are missing, the script will print the necessary `pip install` c
 
 ---
 
-## 3. Current Architecture (v1.2)
+## 3. Current Architecture (v1.3)
 
 The suite is designed with a primary project directory containing all core scripts and model plugins. All outputs (logs, plots, CSVs) are saved into a dedicated `output` subdirectory.
 
 -   **`copernican.py`**: The main orchestrator script, which now includes a "run again" loop and cache cleanup.
 -   **`data_loaders.py`**: Manages the loading and parsing of datasets in a fully modular way.
 -   **`cosmo_engine.py`**: Contains the core physics, statistics, and fitting logic using the SciPy library.
--   **`output_manager.py`**: Handles all forms of output (logging, plots, CSVs) with a newly harmonized filename convention.
+-   **`output_manager.py`**: Handles all forms of output, now providing streamlined, detailed CSV files for both SNe Ia and BAO analysis.
 -   **Model Plugins (`*.py`) & Definitions (`*.md`)**: In the current version, a model is defined by a two-file system. The `.md` file holds the theory and parameters, while the `.py` file contains the Python functions for the calculations.
 
 ---
@@ -63,16 +63,24 @@ The suite is designed with a primary project directory containing all core scrip
     -   **Test Mode**: A user can now enter `test` at the alternative model prompt to run ΛCDM against itself, providing a quick way to test the full analysis pipeline.
 4.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data.
 5.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
-6.  **Output Generation**: The `output_manager` saves all comparative plots and data summaries.
+6.  **Output Generation**: The `output_manager` saves all comparative plots and detailed, point-by-point data summaries for both SNe and BAO analyses.
 7.  **Loop or Exit**: The user is prompted to either run another evaluation or exit the program. On each loop or on exit, temporary cache files are automatically cleaned up.
 
 ---
 
 ## 5. Development History & Roadmap
 
+### Version 1.3 Updates (Stable Release)
+
+This version addresses the primary issues identified in v1.2 and adds significant enhancements to the data output and plot clarity.
+
+-   **CRITICAL BUG FIX - BAO Plotting Restored:** A bug that caused the smooth model lines on BAO plots to fail to render has been fixed. The issue was traced to a faulty multiprocessing implementation in `lcdm_model.py`, which was producing `NaN` arrays during the calculation of smooth curves. The function has been repaired, and BAO plots now render correctly for all models.
+-   **Enhanced Plot Clarity:** The BAO plot now renders the alternative model's lines with 25% opacity. This prevents the alternative model from completely obscuring the underlying ΛCDM model in cases of a close fit, allowing for better visual comparison.
+-   **Streamlined Data Outputs:** The CSV output has been simplified to produce only detailed, point-by-point data files for both SNe and BAO analyses, removing redundant summary files.
+
 ### Version 1.2 Updates (Major Refactor)
 
-Version 1.2 marks a major step towards stability and a more focused architecture. Key changes from v1.1 include:
+Version 1.2 marked a major step towards stability and a more focused architecture. Key changes from v1.1 include:
 -   **CPU-Centric Engine:** All OpenCL GPU-acceleration code has been removed to eliminate instability and complex dependencies, favoring a more predictable and robust pure-Python/SciPy engine.
 -   **Intelligent Multiprocessing:** A robust, batch-based multiprocessing system has been implemented. It uses the `psutil` library to detect the number of **physical** CPU cores and distributes workloads efficiently for a significant performance increase.
 -   **Bug Fixes & Stability:**
@@ -82,11 +90,6 @@ Version 1.2 marks a major step towards stability and a more focused architecture
     -   **Test Sequence:** Added the `test` mode to allow for rapid verification of the program's fitting and plotting pipeline.
     -   **Run Again & Cleanup:** The main script now supports running multiple evaluations in a single session and automatically cleans up temporary cache files upon completion.
     -   **Harmonized Filenames:** All output files (plots, CSVs, logs) now follow a clean and consistent naming convention.
-
-### Immediate Challenges (Goals for v1.3)
-
-While v1.2 is a stable release, there is a known issue that is the top priority for the next development cycle.
--   **Fix BAO Plotting:** The BAO plot currently fails to render correctly in "test mode" and potentially other scenarios. The calculations appear correct in the logs and CSVs, but the plot generation is flawed. Resolving this is the primary goal before the release of v1.3.
 
 ### The Future Vision: A Universal Engine
 

@@ -2,11 +2,11 @@
 """
 Copernican Suite - Main Orchestrator.
 """
-# DEV NOTE (v1.2): This file was last updated to fix a TypeError in the call
-# to setup_logging. When making changes, ensure that:
-# 1. Calls to functions in other modules match their current definitions.
-# 2. The main workflow loop and user prompts are handled correctly.
-# 3. Code is commented to explain logic for future AI/developer maintainability.
+# DEV NOTE (v1.3): In this version, the call to the SNe summary CSV function
+# (`output_manager.save_sne_fit_results_csv`) was removed from the output
+# generation stage. This was done to streamline the outputs, as the new
+# detailed SNe data CSV provides a more comprehensive, point-by-point
+# breakdown, making the summary file redundant.
 
 import importlib.util
 import os
@@ -117,7 +117,6 @@ def main_workflow():
     OUTPUT_DIR = os.path.join(SCRIPT_DIR, 'output')
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # FIXED: Removed the unexpected keyword argument 'run_name'
     log_file = output_manager.setup_logging(log_dir=OUTPUT_DIR)
     logger = output_manager.get_logger()
     logger.info("=== Copernican Suite Initialized ===")
@@ -201,7 +200,13 @@ def main_workflow():
         output_manager.plot_hubble_diagram(sne_data_df, lcdm_sne_fit_results, alt_model_sne_fit_results, lcdm_model, alt_model_plugin, plot_dir=OUTPUT_DIR)
         if bao_data_df is not None:
             output_manager.plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results, lcdm_model, alt_model_plugin, plot_dir=OUTPUT_DIR)
-        output_manager.save_sne_fit_results_csv([lcdm_sne_fit_results, alt_model_sne_fit_results], sne_data_df, csv_dir=OUTPUT_DIR)
+        
+        # The call to the redundant summary CSV has been removed.
+        # output_manager.save_sne_fit_results_csv(...)
+        
+        # Save the detailed point-by-point SNe results CSV
+        output_manager.save_sne_results_detailed_csv(sne_data_df, lcdm_sne_fit_results, alt_model_sne_fit_results, lcdm_model, alt_model_plugin, csv_dir=OUTPUT_DIR)
+        
         if bao_data_df is not None:
             output_manager.save_bao_results_csv(bao_data_df, lcdm_full_results, alt_model_full_results, alt_model_name=alt_model_plugin.MODEL_NAME, csv_dir=OUTPUT_DIR)
 
@@ -223,6 +228,7 @@ def main_workflow():
         cleanup_cache(SCRIPT_DIR)
 
 if __name__ == "__main__":
+    # This is essential for multiprocessing to work correctly on all platforms
     mp.freeze_support()
     try:
         main_workflow()
@@ -235,6 +241,7 @@ if __name__ == "__main__":
             import traceback
             traceback.print_exc()
     finally:
+        # Ensure that any generated plot windows are displayed at the very end
         if plt.get_fignums():
             print("\nDisplaying plot(s). Close plot window(s) to exit script fully.")
             try:

@@ -3,11 +3,16 @@
 Output Manager for the Copernican Suite.
 Handles all forms of output (logging, plots, CSVs) with a consistent format.
 """
-# DEV NOTE (v1.2): This file was updated to harmonize all output filenames and
-# update the logging format. When making changes, ensure that:
-# 1. Filename generation uses the central `_generate_filename` helper.
-# 2. LaTeX strings are properly escaped to avoid SyntaxWarnings.
-# 3. Code is commented to explain logic for future AI/developer maintainability.
+# DEV NOTE (v1.3): This file was updated to streamline the CSV outputs and
+# improve plot clarity based on user feedback.
+# 1. The `save_sne_fit_results_csv` function was removed as it was redundant
+#    with the new detailed SNe data output.
+# 2. The `plot_bao_observables` function was modified to render the alternative
+#    model's plot lines with 25% opacity (alpha=0.25). This prevents the
+#    alternative model from completely obscuring the underlying LCDM model
+#    in cases of a close fit.
+# 3. The BAO data output filename was changed from "bao-summary" to
+#    "bao-detailed-data" for clarity and consistency.
 
 import logging
 import os
@@ -52,7 +57,6 @@ def setup_logging(log_dir="."):
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
 
-    # FIXED: Log file now uses .txt extension for better AI support
     log_filename = os.path.join(log_dir, f"copernican-run_{_get_timestamp()}.txt")
     
     # File handler for writing to the log file
@@ -115,7 +119,7 @@ def format_model_summary_text(model_plugin, is_sne_summary, fit_results, **kwarg
     return "\n".join(lines)
 
 def plot_hubble_diagram(sne_data_df, lcdm_fit_results, alt_model_fit_results, lcdm_plugin, alt_model_plugin, plot_dir="."):
-    """Generates and saves a Hubble diagram and residuals plot."""
+    """Generates and saves a Hubble diagram and residuals plot. This function is not changed in v1.3."""
     _ensure_dir_exists(plot_dir)
     logger = get_logger()
     dataset_name = sne_data_df.attrs.get('dataset_name_attr', 'SNe_data')
@@ -159,10 +163,11 @@ def plot_hubble_diagram(sne_data_df, lcdm_fit_results, alt_model_fit_results, lc
 
     if lcdm_fit_results and lcdm_fit_results.get('success'):
         p_lcdm = list(lcdm_fit_results['fitted_cosmological_params'].values())
-        mu_model_lcdm = lcdm_plugin.distance_modulus_model(z_plot_smooth, *p_lcdm)
-        res_lcdm = mu_obs_data - lcdm_plugin.distance_modulus_model(z_data, *p_lcdm)
+        mu_model_lcdm_smooth = lcdm_plugin.distance_modulus_model(z_plot_smooth, *p_lcdm)
+        mu_model_lcdm_points = lcdm_plugin.distance_modulus_model(z_data, *p_lcdm)
+        res_lcdm = mu_obs_data - mu_model_lcdm_points
         chi2_lcdm = f"{lcdm_fit_results.get('chi2_min', np.nan):.2f}"
-        axs[0].plot(z_plot_smooth, mu_model_lcdm, color='red', ls='-', label=fr'$\Lambda$CDM ($\chi^2$={chi2_lcdm})', lw=2.5)
+        axs[0].plot(z_plot_smooth, mu_model_lcdm_smooth, color='red', ls='-', label=fr'$\Lambda$CDM ($\chi^2$={chi2_lcdm})', lw=2.5)
         axs[1].errorbar(z_data, res_lcdm, yerr=diag_errors_plot, fmt='.', color='red', alpha=0.5, label=r'$\Lambda$CDM Res.', elinewidth=1, capsize=2, ms=4)
         z_lcdm_avg, res_lcdm_avg = get_binned_average(z_data, res_lcdm)
         axs[1].plot(z_lcdm_avg, res_lcdm_avg, color='darkred', ls='-', lw=2, zorder=10, label=r'Avg. $\Lambda$CDM Res.')
@@ -171,10 +176,11 @@ def plot_hubble_diagram(sne_data_df, lcdm_fit_results, alt_model_fit_results, lc
     alt_name_latex = alt_name_raw.replace('_', r'\_')
     if alt_model_fit_results and alt_model_fit_results.get('success'):
         p_alt = list(alt_model_fit_results['fitted_cosmological_params'].values())
-        mu_model_alt = alt_model_plugin.distance_modulus_model(z_plot_smooth, *p_alt)
-        res_alt = mu_obs_data - alt_model_plugin.distance_modulus_model(z_data, *p_alt)
+        mu_model_alt_smooth = alt_model_plugin.distance_modulus_model(z_plot_smooth, *p_alt)
+        mu_model_alt_points = alt_model_plugin.distance_modulus_model(z_data, *p_alt)
+        res_alt = mu_obs_data - mu_model_alt_points
         chi2_alt = f"{alt_model_fit_results.get('chi2_min', np.nan):.2f}"
-        axs[0].plot(z_plot_smooth, mu_model_alt, color='blue', ls='--', label=fr"{alt_name_latex} ($\chi^2$={chi2_alt})", lw=2.5)
+        axs[0].plot(z_plot_smooth, mu_model_alt_smooth, color='blue', ls='--', label=fr"{alt_name_latex} ($\chi^2$={chi2_alt})", lw=2.5)
         axs[1].errorbar(z_data, res_alt, yerr=diag_errors_plot, fmt='.', mfc='none', mec='blue', ecolor='lightblue', alpha=0.5, label=fr'{alt_name_latex} Res.', elinewidth=1, capsize=2, ms=4)
         z_alt_avg, res_alt_avg = get_binned_average(z_data, res_alt)
         axs[1].plot(z_alt_avg, res_alt_avg, color='darkblue', ls='--', lw=2, zorder=11, label=f'Avg. {alt_name_latex} Res.')
@@ -218,7 +224,8 @@ def plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results,
         label = f"Data: {obs_type.replace('_', '/')}"
         ax.errorbar(subset['redshift'], subset['value'], yerr=subset['error'], fmt='o', label=label, capsize=3, color=colors[i], ms=8, zorder=5)
 
-    def plot_model_bao(results, color, line_styles, label_prefix):
+    def plot_model_bao(results, color, line_styles, label_prefix, alpha=1.0):
+        """Internal helper to plot a model's smooth BAO curves with specified transparency."""
         if not results or not results.get('smooth_predictions'):
             logger.warning(f"Skipping BAO plot for {label_prefix} as smooth predictions are missing.")
             return
@@ -227,23 +234,26 @@ def plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results,
         z = smooth_preds['z']
         
         def robust_plot(z_vals, y_vals, **kwargs):
+            # This helper ensures that only finite, valid data is plotted.
             valid_indices = np.isfinite(z_vals) & np.isfinite(y_vals)
             if np.any(valid_indices): ax.plot(z_vals[valid_indices], y_vals[valid_indices], **kwargs)
             else: logger.warning(f"No valid data points to plot for {kwargs.get('label')}")
 
         if 'DM_over_rs' in obs_types:
-            robust_plot(z, smooth_preds['dm_over_rs'], color=color, ls=line_styles[0], lw=2.5, label=fr'{label_prefix} ($D_M/r_s$)')
+            robust_plot(z, smooth_preds['dm_over_rs'], color=color, ls=line_styles[0], lw=2.5, label=fr'{label_prefix} ($D_M/r_s$)', alpha=alpha)
         if 'DH_over_rs' in obs_types:
-            robust_plot(z, smooth_preds['dh_over_rs'], color=color, ls=line_styles[1], lw=2.5, label=fr'{label_prefix} ($D_H/r_s$)')
+            robust_plot(z, smooth_preds['dh_over_rs'], color=color, ls=line_styles[1], lw=2.5, label=fr'{label_prefix} ($D_H/r_s$)', alpha=alpha)
         if 'DV_over_rs' in obs_types:
-            robust_plot(z, smooth_preds['dv_over_rs'], color=color, ls=line_styles[2], lw=2.5, label=fr'{label_prefix} ($D_V/r_s$)')
+            robust_plot(z, smooth_preds['dv_over_rs'], color=color, ls=line_styles[2], lw=2.5, label=fr'{label_prefix} ($D_V/r_s$)', alpha=alpha)
 
+    # Plot LCDM model (red, solid)
     line_styles = ['-', '--', ':']
     plot_model_bao(lcdm_full_results, 'red', line_styles, r'$\Lambda$CDM')
     
+    # Plot Alternative model (blue, dashed, 25% transparent)
     alt_name_raw = getattr(alt_model_plugin, 'MODEL_NAME', 'AltModel')
     alt_name_latex = alt_name_raw.replace('_', r'\_')
-    plot_model_bao(alt_model_full_results, 'blue', line_styles, alt_name_latex)
+    plot_model_bao(alt_model_full_results, 'blue', line_styles, alt_name_latex, alpha=0.25)
 
     ax.set_xlabel('Redshift (z)', fontsize=font_sizes['label']); ax.set_ylabel(r'$D_X/r_s$', fontsize=font_sizes['label']); ax.set_title(f'BAO Observables vs. Redshift: {dataset_name}', fontsize=font_sizes['title']); ax.legend(fontsize=font_sizes['legend'], loc='best'); ax.minorticks_on(); ax.tick_params(axis='both', which='major', labelsize=font_sizes['ticks'])
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
@@ -262,27 +272,52 @@ def plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results,
     finally:
         plt.close(fig)
 
-def save_sne_fit_results_csv(all_fit_results, sne_data_df, csv_dir="."):
-    """Saves a summary of the SNe Ia fitting results to a CSV file."""
+def save_sne_results_detailed_csv(sne_data_df, lcdm_fit_results, alt_model_fit_results, lcdm_plugin, alt_model_plugin, csv_dir="."):
+    """
+    Saves a detailed, point-by-point breakdown of the SNe Ia fitting results.
+    This includes observed data, model predictions, and residuals for both models.
+    """
     _ensure_dir_exists(csv_dir)
-    logger = get_logger(); summary_data = []
-    for result in all_fit_results:
-        if not result or not result.get('success'): continue
-        row = {'Model': result.get('model_name'), 'FitStyle': result.get('fit_style_used'), 'Chi2_min': result.get('chi2_min'), 'DoF': result.get('dof'), 'ReducedChi2': result.get('reduced_chi2'), 'FitSuccess': result.get('success'), 'OptimizerMessage': result.get('message')}
-        if result.get('fitted_cosmological_params'): row.update(result['fitted_cosmological_params'])
-        if result.get('fitted_nuisance_params'): row.update(result['fitted_nuisance_params'])
-        summary_data.append(row)
+    logger = get_logger()
     
-    if not summary_data:
-        logger.warning("No successful SNe fits to save to CSV."); return
+    # Start with a copy of the essential data columns. This list can be expanded
+    # if the original dataframe contains other useful columns like 'Name' or 'e_mu_obs'.
+    cols_to_keep = [col for col in ['Name', 'zcmb', 'mu_obs', 'e_mu_obs'] if col in sne_data_df.columns]
+    df_out = sne_data_df[cols_to_keep].copy()
+    
+    z_data = df_out['zcmb'].values
+    mu_data = df_out['mu_obs'].values
 
-    summary_df = pd.DataFrame(summary_data)
+    # --- Add LCDM Model Predictions ---
+    if lcdm_fit_results and lcdm_fit_results.get('success'):
+        p_lcdm = list(lcdm_fit_results['fitted_cosmological_params'].values())
+        mu_model_lcdm = lcdm_plugin.distance_modulus_model(z_data, *p_lcdm)
+        df_out['mu_model_lcdm'] = mu_model_lcdm
+        df_out['residual_lcdm'] = mu_data - mu_model_lcdm
+    else:
+        df_out['mu_model_lcdm'] = np.nan
+        df_out['residual_lcdm'] = np.nan
+
+    # --- Add Alternative Model Predictions ---
+    alt_model_name = alt_model_plugin.MODEL_NAME.replace(' ', '_').replace('.', '')
+    if alt_model_fit_results and alt_model_fit_results.get('success'):
+        p_alt = list(alt_model_fit_results['fitted_cosmological_params'].values())
+        mu_model_alt = alt_model_plugin.distance_modulus_model(z_data, *p_alt)
+        df_out[f'mu_model_{alt_model_name}'] = mu_model_alt
+        df_out[f'residual_{alt_model_name}'] = mu_data - mu_model_alt
+    else:
+        df_out[f'mu_model_{alt_model_name}'] = np.nan
+        df_out[f'residual_{alt_model_name}'] = np.nan
+
+    # Generate filename and save the detailed CSV
     dataset_name = sne_data_df.attrs.get('dataset_name_attr', 'SNe_data')
-    filename = _generate_filename("sne-summary", dataset_name, "csv")
+    model_comparison_name = f"LCDM-vs-{alt_model_name}"
+    filename = _generate_filename("sne-detailed-data", dataset_name, "csv", model_name=model_comparison_name)
     try:
-        summary_df.to_csv(os.path.join(csv_dir, filename), index=False, float_format='%.6g'); logger.info(f"SNe fit summary CSV saved to {filename}")
+        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format='%.8g')
+        logger.info(f"SNe detailed results CSV saved to {filename}")
     except Exception as e:
-        logger.error(f"Error saving SNe fit summary CSV: {e}")
+        logger.error(f"Error saving SNe detailed results CSV: {e}")
 
 def save_bao_results_csv(bao_data_df, lcdm_results, alt_model_results, alt_model_name, csv_dir="."):
     """Saves a detailed breakdown of the BAO results to a CSV file."""
@@ -304,8 +339,9 @@ def save_bao_results_csv(bao_data_df, lcdm_results, alt_model_results, alt_model
 
     dataset_name = bao_data_df.attrs.get('dataset_name_attr', 'BAO_data')
     model_comparison_name = f"LCDM-vs-{alt_model_name}"
-    filename = _generate_filename("bao-summary", dataset_name, "csv", model_name=model_comparison_name)
+    # Change file_type to "bao-detailed-data" for consistency
+    filename = _generate_filename("bao-detailed-data", dataset_name, "csv", model_name=model_comparison_name)
     try:
-        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format='%.6g'); logger.info(f"BAO results CSV saved to {filename}")
+        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format='%.6g'); logger.info(f"BAO detailed results CSV saved to {filename}")
     except Exception as e:
-        logger.error(f"Error saving BAO results CSV: {e}")
+        logger.error(f"Error saving BAO detailed results CSV: {e}")
