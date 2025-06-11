@@ -1,250 +1,233 @@
-# copernican_suite/copernican.py
+# copernican.py
 """
-Copernican Suite - Main Orchestrator.
-"""
-# DEV NOTE (v1.3): In this version, the call to the SNe summary CSV function
-# (`output_manager.save_sne_fit_results_csv`) was removed from the output
-# generation stage. This was done to streamline the outputs, as the new
-# detailed SNe data CSV provides a more comprehensive, point-by-point
-# breakdown, making the summary file redundant.
+DEV NOTE (v1.4a): This is the main orchestrator script, significantly refactored
+for the v1.4a "black box" architecture. Its responsibilities are now focused
+on user interaction and high-level workflow control.
 
-import importlib.util
+- It no longer directly interacts with the specifics of data loading, model
+  fitting, or output generation.
+- New Feature: It now scans for available `cosmo_engine_*.py` files and
+  prompts the user to select a computational engine for the analysis.
+- The main loop has been streamlined to follow the new linear pipeline:
+    1. Get user inputs (engine, model, data files).
+    2. Call `input_aggregator.build_job_json()` to create the analysis job.
+    3. Dynamically load the chosen engine and call `execute_job(job_json)`.
+    4. Pass the returned `results_json` to `output_manager.generate_outputs()`.
+- A user-friendly splash screen and initial guidance have been added.
+
+BUG FIX (v1.4a): The special 'test' keyword functionality, which allows for a
+quick self-test of LCDM vs LCDM, was restored. The code now explicitly checks
+for this keyword after user input and sets the model path accordingly.
+"""
+
 import os
 import sys
-import platform
-import numpy as np
-import matplotlib.pyplot as plt
-import multiprocessing as mp
-import shutil
+import logging
+import time
+from datetime import datetime
+import importlib.util
 
-# --- System Dependency and Sanity Checker ---
-
+# --- Dependency Check at Startup ---
 def check_dependencies():
-    """
-    Checks for all required Python and system dependencies.
-    Provides platform-specific installation instructions and exits if checks fail.
-    """
-    print("--- Running System Dependency Check ---")
-    errors = []
-    
-    required_libs = {
-        "numpy": "numpy",
-        "scipy": "scipy",
-        "matplotlib": "matplotlib",
-        "psutil": "psutil"
-    }
-    for lib_import, lib_pip in required_libs.items():
+    """Checks for required libraries and prints install commands if missing."""
+    required_libs = {'numpy': 'numpy', 'scipy': 'scipy', 'matplotlib': 'matplotlib', 'pandas': 'pandas'}
+    missing_libs = []
+    for lib, import_name in required_libs.items():
         try:
-            importlib.import_module(lib_import)
+            __import__(import_name)
         except ImportError:
-            errors.append(
-                f"- Python library '{lib_pip}' not found.\n"
-                f"  Instruction: pip install {lib_pip}"
-            )
-    
-    if errors:
-        print("\n❌ SYSTEM DEPENDENCY CHECK FAILED. The following issues were found:")
-        print("-" * 60)
-        for error in errors:
-            print(error)
-        print("-" * 60)
-        print("Please resolve the issues above and run the script again.")
+            missing_libs.append(lib)
+    if missing_libs:
+        print("\n--- Missing Dependencies ---")
+        print("The following required Python libraries are not installed:")
+        for lib in missing_libs:
+            print(f"  - {lib}")
+        print("\nPlease install them by running the following command:")
+        print(f"  pip install {' '.join(missing_libs)}")
+        print("--------------------------\n")
         sys.exit(1)
-    else:
-        print("✅ System Dependency Check Passed. Continuing...\n")
+    return True
 
-
-# Import sibling modules after the dependency check
-import data_loaders
-import cosmo_engine
-import output_manager
-import lcdm_model
-
-def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
-    """Prompts the user for a filepath and validates it."""
-    while True:
-        filename = input(f"{prompt_message} (or 'c' to cancel): ").strip()
-        if filename.lower() == 'c': return None
-        # Allow special keywords like 'test' to pass through without existing as a file
-        if not must_exist and not os.path.isabs(filename):
-            return filename
-        filepath = os.path.join(base_dir, filename)
-        if os.path.isfile(filepath): return filepath
-        else: print(f"Error: File not found at '{filepath}'. Please try again.")
-
-def load_alternative_model_plugin(model_filepath):
-    """Dynamically loads an alternative cosmological model plugin."""
-    logger = output_manager.get_logger()
-    if not model_filepath.endswith(".py"): model_filepath += ".py"
-    if not os.path.isfile(model_filepath):
-        logger.error(f"Alternative model plugin file '{model_filepath}' not found.")
-        return None
-    try:
-        module_name = os.path.splitext(os.path.basename(model_filepath))[0]
-        spec = importlib.util.spec_from_file_location(module_name, model_filepath)
-        alt_model_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(alt_model_module)
-        required_attrs = ['MODEL_NAME', 'PARAMETER_NAMES', 'INITIAL_GUESSES', 'PARAMETER_BOUNDS', 'distance_modulus_model']
-        if not all(hasattr(alt_model_module, attr) for attr in required_attrs):
-            logger.error(f"Model plugin '{os.path.basename(model_filepath)}' missing required attributes.")
-            return None
-        logger.info(f"Successfully loaded alternative model: {alt_model_module.MODEL_NAME}")
-        return alt_model_module
-    except Exception as e:
-        logger.error(f"Error loading model plugin '{os.path.basename(model_filepath)}': {e}", exc_info=True)
-        return None
-
-def cleanup_cache(base_dir):
-    """Finds and removes all __pycache__ directories."""
-    logger = output_manager.get_logger()
-    logger.info("--- Cleaning up cache files ---")
-    for root, dirs, files in os.walk(base_dir):
-        if "__pycache__" in dirs:
-            pycache_path = os.path.join(root, "__pycache__")
-            try:
-                shutil.rmtree(pycache_path)
-                logger.info(f"Removed cache directory: {pycache_path}")
-            except OSError as e:
-                logger.error(f"Error removing cache directory {pycache_path}: {e}")
-
-def main_workflow():
-    """Main workflow for the Copernican Suite."""
+# --- Main Program Execution ---
+if __name__ == "__main__":
     check_dependencies()
 
-    try: SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-    except NameError: SCRIPT_DIR = os.getcwd()
+    # Now that dependencies are confirmed, import the rest of the suite
+    import data_loaders
+    import input_aggregator
+    import output_manager
 
-    OUTPUT_DIR = os.path.join(SCRIPT_DIR, 'output')
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    # --- UI and Helper Functions ---
+    def display_splash_screen():
+        """Clears the screen and displays a title splash."""
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print("="*60)
+        print("")
+        print("")
+        print("         C  O  P  E  R  N  I  C  A  N    S  U  I  T  E")
+        print("")
+        print("\n                 A Modular Cosmology Framework")
+        print("                            v1.4a")
+        print("\n" + "="*60)
+        print("        ✨ 🔭 🌠 A tool for exploring the cosmos 🪐 ✨")
+        print("="*60)
+        time.sleep(2.5)
 
-    log_file = output_manager.setup_logging(log_dir=OUTPUT_DIR)
-    logger = output_manager.get_logger()
-    logger.info("=== Copernican Suite Initialized ===")
-    logger.info("Using standard CPU (SciPy) computational backend with multiprocessing.")
-    logger.info(f"Running from base directory: {SCRIPT_DIR}")
-    logger.info(f"All outputs will be saved to: {OUTPUT_DIR}")
+    def setup_logging(base_dir, run_id):
+        """Initializes logging to file and console."""
+        log_dir = os.path.join(base_dir, 'output')
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+
+        log_filename = os.path.join(log_dir, f'copernican-run_{run_id}.txt')
+
+        for handler in logging.root.handlers[:]:
+            logging.root.removeHandler(handler)
+
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler(log_filename),
+                logging.StreamHandler(sys.stdout)
+            ]
+        )
+        return logging.getLogger()
+
+    def select_engine(base_dir):
+        """Scans for engine files and prompts the user for a selection."""
+        print("\n--- 🪐 Select a Computational Engine ---")
+        try:
+            engine_files = sorted([f for f in os.listdir(base_dir) if f.startswith('cosmo_engine_') and f.endswith('.py')])
+            if not engine_files:
+                print("Error: No 'cosmo_engine_*.py' files found in the directory.")
+                return None
+
+            for i, fname in enumerate(engine_files):
+                print(f"  {i+1}. {fname}")
+
+            while True:
+                choice = input("Enter the number of the engine to use (or 'c' to cancel): ").strip().lower()
+                if choice == 'c': return None
+                try:
+                    idx = int(choice) - 1
+                    if 0 <= idx < len(engine_files):
+                        return engine_files[idx]
+                    else:
+                        print("Invalid number. Please try again.")
+                except ValueError:
+                    print("Invalid input. Please enter a number.")
+        except Exception as e:
+            print(f"Error finding engines: {e}")
+            return None
+
+    def get_user_input(prompt, must_exist=True):
+        """Generic function to get a valid file path or keyword from the user."""
+        while True:
+            # For the model prompt, we allow 'test' which doesn't exist as a file.
+            is_model_prompt = 'model' in prompt.lower()
+            
+            user_response = input(prompt).strip()
+            if user_response.lower() == 'c': return None
+
+            # Handle special 'test' keyword for the model prompt
+            if is_model_prompt and user_response.lower() == 'test':
+                return 'test'
+
+            # Standard file existence check
+            if not must_exist or os.path.isfile(user_response):
+                return user_response
+            else:
+                print(f"Error: File not found at '{user_response}'. Please try again.")
+
+    # --- Main Application Workflow ---
+    display_splash_screen()
+
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     
     while True:
-        logger.info("\n--- Stage 1: Configuration ---")
+        # Generate a new Run ID for each loop
+        RUN_ID = datetime.now().strftime('%Y%m%d_%H%M%S')
+        logger = setup_logging(BASE_DIR, RUN_ID)
 
-        prompt = "Enter alternative model plugin filename (e.g., usmf2.py or 'test'): "
-        alt_model_input = get_user_input_filepath(prompt, base_dir=SCRIPT_DIR, must_exist=False)
+        logger.info("="*30)
+        logger.info("    Copernican Suite v1.4a Initialized")
+        logger.info("="*30)
+        logger.info(f"Running from base directory: {BASE_DIR}")
+        logger.info(f"All outputs will be saved to: {os.path.join(BASE_DIR, 'output')}")
         
-        if not alt_model_input: break
+        # --- Stage 1: Configuration ---
+        print("\n--- 🛰️  New Analysis Configuration ---")
+        print("Enter file paths for your analysis or 'test' for a quick self-test.")
+        print("You can type 'c' at any prompt to cancel and exit.")
+
+        engine_name = select_engine(BASE_DIR)
+        if engine_name is None: break
+        logger.info(f"User selected engine: {engine_name}")
+
+        alt_model_input = get_user_input("Enter path to alternative model .py file (or 'test'): ")
+        if alt_model_input is None: break
         
-        alt_model_plugin = None
+        # **BUG FIX**: Handle the 'test' keyword to run LCDM against itself
         if alt_model_input.lower() == 'test':
-            alt_model_plugin = lcdm_model
-            logger.info("--- RUNNING IN TEST MODE: Comparing LCDM against itself. ---")
+            alt_model_path = 'lcdm_model.py'
+            logger.info("Test mode selected. Running LCDM vs LCDM.")
         else:
-            alt_model_filepath = os.path.join(SCRIPT_DIR, alt_model_input)
-            alt_model_plugin = load_alternative_model_plugin(alt_model_filepath)
-
-        if not alt_model_plugin: continue
-
-        sne_data_filepath = get_user_input_filepath("Enter SNe Ia data filepath", base_dir=SCRIPT_DIR)
-        if not sne_data_filepath: break
+            alt_model_path = alt_model_input
         
+        print("\n--- 🌠 Type Ia Supernovae Data ---")
+        sne_path = get_user_input("Enter path to SNe Ia data file: ")
+        if sne_path is None: break
+
         sne_format_key = data_loaders._select_parser(data_loaders.SNE_PARSERS, "SNe")
-        if not sne_format_key: break
+        if sne_format_key is None: break
 
-        sne_loader_kwargs = {}
-        parser_info = data_loaders.SNE_PARSERS.get(sne_format_key)
-        if parser_info and parser_info.get('extra_args_func'):
-            logger.info(f"Parser '{sne_format_key}' requires additional arguments.")
-            extra_args = parser_info['extra_args_func'](SCRIPT_DIR)
-            if extra_args is None: break
-            sne_loader_kwargs.update(extra_args)
+        sne_extra_args = {}
+        extra_args_func = data_loaders.SNE_PARSERS[sne_format_key].get('extra_args_func')
+        if extra_args_func:
+            sne_extra_args = extra_args_func(BASE_DIR)
+            if sne_extra_args is None: break
+
+        sne_data_info = {'path': sne_path, 'format_key': sne_format_key, 'extra_args': sne_extra_args}
+
+        print("\n--- 🌌 Baryon Acoustic Oscillation Data ---")
+        bao_path = get_user_input("Enter path to BAO data file (or press Enter to skip): ", must_exist=False)
+        bao_data_info = {}
+        if bao_path:
+            bao_format_key = data_loaders._select_parser(data_loaders.BAO_PARSERS, "BAO")
+            if bao_format_key:
+                bao_data_info = {'path': bao_path, 'format_key': bao_format_key}
         
-        sne_data_df = data_loaders.load_sne_data(sne_data_filepath, format_key=sne_format_key, **sne_loader_kwargs)
-        if sne_data_df is None: continue
+        # --- Stage 2: Job Aggregation ---
+        logger.info("\n--- Stage 2: Aggregating Job Data ---")
+        job_json = input_aggregator.build_job_json(RUN_ID, engine_name, alt_model_path, sne_data_info, bao_data_info)
 
-        bao_data_filepath = get_user_input_filepath("Enter BAO data filename (e.g., bao1.json)", base_dir=SCRIPT_DIR)
-        if not bao_data_filepath: break
-        bao_format_key = data_loaders._select_parser(data_loaders.BAO_PARSERS, "BAO")
-        if not bao_format_key: break
-        bao_data_df = data_loaders.load_bao_data(bao_data_filepath, format_key=bao_format_key)
-        if bao_data_df is None: continue
+        if not job_json:
+            logger.critical("Failed to build the Job JSON. Aborting this run.")
+            continue
 
-        logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
-        lcdm_sne_fit_results = cosmo_engine.fit_sne_parameters(sne_data_df, lcdm_model)
-        alt_model_sne_fit_results = cosmo_engine.fit_sne_parameters(sne_data_df, alt_model_plugin)
-        
-        logger.info("\n--- Stage 3: BAO Analysis ---")
-        
-        min_z, max_z = bao_data_df['redshift'].min(), bao_data_df['redshift'].max()
-        z_plot_smooth = np.geomspace(max(min_z * 0.8, 0.01), max_z * 1.2, 100)
-        
-        def run_bao_analysis(model_plugin, sne_fit_results, z_smooth_arr):
-            """Helper to run BAO analysis for a given model."""
-            if not (sne_fit_results and sne_fit_results.get('success')):
-                logger.warning(f"{model_plugin.MODEL_NAME} SNe fit failed; skipping BAO analysis.")
-                return {'sne_fit_results': sne_fit_results, 'pred_df': None, 'rs_Mpc': np.nan, 'chi2_bao': np.inf, 'smooth_predictions': None}
+        # --- Stage 3: Engine Execution ---
+        logger.info(f"\n--- Stage 3: Executing Job with Engine: {engine_name} ---")
+        try:
+            engine_path = os.path.join(BASE_DIR, engine_name)
+            spec = importlib.util.spec_from_file_location("engine", engine_path)
+            engine_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(engine_module)
 
-            fitted_cosmo_p = list(sne_fit_results['fitted_cosmological_params'].values())
-            pred_df, rs_Mpc, smooth_preds = cosmo_engine.calculate_bao_observables(bao_data_df, model_plugin, fitted_cosmo_p, z_smooth=z_smooth_arr)
-            
-            chi2_bao = np.inf
-            if pred_df is not None and np.isfinite(rs_Mpc):
-                chi2_bao = cosmo_engine.chi_squared_bao(bao_data_df, model_plugin, fitted_cosmo_p, rs_Mpc)
-                logger.info(f"{model_plugin.MODEL_NAME} BAO: r_s = {rs_Mpc:.2f} Mpc, Chi2_BAO = {chi2_bao:.2f}")
-            else:
-                logger.warning(f"{model_plugin.MODEL_NAME} BAO calculation failed or produced invalid r_s.")
-                
-            return {'sne_fit_results': sne_fit_results, 'pred_df': pred_df, 'rs_Mpc': rs_Mpc, 'chi2_bao': chi2_bao, 'smooth_predictions': smooth_preds}
+            results_json = engine_module.execute_job(job_json)
 
-        lcdm_full_results = run_bao_analysis(lcdm_model, lcdm_sne_fit_results, z_plot_smooth)
-        alt_model_full_results = run_bao_analysis(alt_model_plugin, alt_model_sne_fit_results, z_plot_smooth)
+            if not results_json:
+                 raise RuntimeError("Engine returned an empty result.")
 
-        logger.info("\n--- Stage 4: Generating Outputs ---")
-        output_manager.plot_hubble_diagram(sne_data_df, lcdm_sne_fit_results, alt_model_sne_fit_results, lcdm_model, alt_model_plugin, plot_dir=OUTPUT_DIR)
-        if bao_data_df is not None:
-            output_manager.plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results, lcdm_model, alt_model_plugin, plot_dir=OUTPUT_DIR)
-        
-        # The call to the redundant summary CSV has been removed.
-        # output_manager.save_sne_fit_results_csv(...)
-        
-        # Save the detailed point-by-point SNe results CSV
-        output_manager.save_sne_results_detailed_csv(sne_data_df, lcdm_sne_fit_results, alt_model_sne_fit_results, lcdm_model, alt_model_plugin, csv_dir=OUTPUT_DIR)
-        
-        if bao_data_df is not None:
-            output_manager.save_bao_results_csv(bao_data_df, lcdm_full_results, alt_model_full_results, alt_model_name=alt_model_plugin.MODEL_NAME, csv_dir=OUTPUT_DIR)
+        except Exception as e:
+            logger.critical(f"A critical error occurred while executing the engine: {e}", exc_info=True)
+            continue
 
-        print("\n" + "="*50)
-        print("Evaluation complete. All files saved to the 'output' directory.")
-        print("="*50 + "\n")
+        # --- Stage 4: Output Generation ---
+        output_manager.generate_outputs(results_json)
 
-        while True:
-            another_run = input("Would you like to run another evaluation? (yes/no): ").strip().lower()
-            if another_run in ["yes", "y", "1"]:
-                break 
-            elif another_run in ["no", "n", "2"]:
-                cleanup_cache(SCRIPT_DIR)
-                logger.info("Exiting Copernican Suite. Goodbye!")
-                return
-            else:
-                print("Invalid input. Please enter 'yes' or 'no'.")
-        
-        cleanup_cache(SCRIPT_DIR)
+        run_again = input("\nAnalysis complete. Run another? (y/n): ").strip().lower()
+        if run_again != 'y':
+            break
 
-if __name__ == "__main__":
-    # This is essential for multiprocessing to work correctly on all platforms
-    mp.freeze_support()
-    try:
-        main_workflow()
-    except Exception as e:
-        logger = output_manager.get_logger()
-        if logger.hasHandlers():
-            logger.critical("Unhandled exception in main_workflow!", exc_info=True)
-        else:
-            print("CRITICAL UNHANDLED EXCEPTION IN MAIN WORKFLOW:")
-            import traceback
-            traceback.print_exc()
-    finally:
-        # Ensure that any generated plot windows are displayed at the very end
-        if plt.get_fignums():
-            print("\nDisplaying plot(s). Close plot window(s) to exit script fully.")
-            try:
-                plt.show(block=True)
-            except Exception as e_show:
-                print(f"Error during final plt.show(): {e_show}")
+    logger.info("Copernican Suite session finished.")
