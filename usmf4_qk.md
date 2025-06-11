@@ -27,21 +27,12 @@ $$\mu = 5 \log_{10}(d_L/1\,\mathrm{Mpc}) + 25$$
 $$D_A(z) = \frac{1}{1+z} \int_0^z \frac{c}{H(z')} dz'$$
 $$D_V(z) = \left[ (1+z)^2 D_A(z)^2 \frac{cz}{H(z)} \right]^{1/3}$$
 
-**For Sound Horizon ($r_s$) Calculation:**
-The model uses the standard Eisenstein & Hu (1998) fitting formula for $r_s$, which depends on the physical densities of matter ($\Omega_{m0}h^2$) and baryons ($\Omega_{b0}h^2$) in the early universe. This approach is consistent with treating the late-time kinematic effects of USMF as separate from the well-understood physics of the pre-recombination era.
+### Model Parameters
 
-### Parameters
+This table provides the parameter specification in the format required by the Copernican Suite.
 
-* **Free Parameters for Fitting:**
-    1.  `H0`: The Hubble Constant at redshift z=0.
-    2.  `Omega_m0`: The matter density parameter at redshift z=0.
-* **Fixed/Derived Parameters for BAO:**
-    3.  `Omega_b0`: The baryon density parameter at z=0, used for the $r_s$ calculation. This is typically fixed or constrained by Big Bang Nucleosynthesis (BBN).
-
-### Parameter Metadata
-
-* `PARAMETER_NAMES`: ["H0", "Omega_m0", "Omega_b0"]
-* `PARAMETER_LATEX_NAMES`: ["$H_0$", "$\\Omega_{m0}$", "$\\Omega_{b0}$"]
-* `PARAMETER_UNITS`: ["km/s/Mpc", "", ""]
-* `PARAMETER_PRIORS`: [(50, 80), (0.1, 0.5), (0.04, 0.06)]
-* `PARAMETER_INITIAL_GUESSES`: [68.0, 0.3, 0.0486]
+| Parameter Name | Python Variable | Initial Guess | Bounds | Unit | LaTeX Name |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| H0 | `H0` | 68.0 | (50, 80) | km/s/Mpc | `$H_0$` |
+| Omega_m0 | `Omega_m0` | 0.3 | (0.1, 0.5) | | `$\Omega_{m0}$` |
+| Omega_b0 | `Omega_b0` | 0.0486 | (0.04, 0.06)| | `$\Omega_{b0}$` |
