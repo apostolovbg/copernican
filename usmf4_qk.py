@@ -4,18 +4,12 @@ USMFv4 "Quantum Kinematic" Model Plugin for the Copernican Suite.
 This version is based on the postulate that m(z) = m_0(1+z), which leads
 to a matter density evolution of rho_m ~ (1+z)^4. This requires
 numerical integration for distance measures, similar to LambdaCDM.
+
+CORRECTED: Removed internal multiprocessing to comply with suite architecture.
 """
 import numpy as np
 from scipy.integrate import quad
 import logging
-import multiprocessing as mp
-from itertools import repeat
-
-try:
-    import psutil
-    PHYSICAL_CORES = psutil.cpu_count(logical=False) or 2
-except (ImportError, NotImplementedError):
-    PHYSICAL_CORES = 2
 
 # --- Model Metadata ---
 MODEL_NAME = "USMFv4_QuantumKinematic"
@@ -74,14 +68,13 @@ def _integrand_comoving_dist(z, *cosmo_params):
     hz = get_Hz_per_Mpc(z, *cosmo_params)
     return FIXED_PARAMS["C_LIGHT_KM_S"] / hz
 
+def _integrator(func, z_array, cosmo_params):
+    """Helper function to integrate over a z-array."""
+    return np.array([quad(func, 0, z, args=cosmo_params)[0] for z in z_array])
+
 def get_comoving_distance_Mpc(z_array, *cosmo_params):
-    """
-    Calculates comoving distance using numerical integration.
-    Uses multiprocessing for efficiency.
-    """
-    with mp.Pool(processes=PHYSICAL_CORES) as pool:
-        results = pool.starmap(quad, zip(repeat(_integrand_comoving_dist), np.zeros_like(z_array), z_array, repeat(cosmo_params)))
-    return np.array([res[0] for res in results])
+    """Calculates comoving distance using numerical integration."""
+    return _integrator(_integrand_comoving_dist, z_array, cosmo_params)
 
 def get_luminosity_distance_Mpc(z_array, *cosmo_params):
     """Calculates luminosity distance."""
@@ -91,9 +84,10 @@ def get_luminosity_distance_Mpc(z_array, *cosmo_params):
 def get_distance_modulus_mu(z_array, *cosmo_params):
     """Calculates the distance modulus."""
     dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)
-    # Return NaN for non-physical distances
+    dl_mpc = np.asarray(dl_mpc)
     if np.any(dl_mpc <= 0): return np.nan
-    return 5 * np.log10(dl_mpc * 1e6 / 10)
+    mu = 5 * np.log10(dl_mpc) + 25
+    return mu
 
 def get_angular_diameter_distance_Mpc(z_array, *cosmo_params):
     """Calculates angular diameter distance."""
@@ -114,7 +108,7 @@ def get_DV_Mpc(z_array, *cosmo_params):
 def get_sound_horizon_rs_Mpc(H0, Omega_m0, Omega_b0):
     """
     Calculates the sound horizon at the drag epoch using the Eisenstein & Hu (1998)
-    fitting formula. This is a standard, fast, and accurate approximation.
+    fitting formula.
     """
     h, _, _, _, omega_nu_h2 = _get_derived_densities(H0, Omega_m0, Omega_b0)
     if np.isnan(h): return np.nan
