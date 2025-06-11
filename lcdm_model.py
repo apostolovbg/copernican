@@ -2,16 +2,14 @@
 """
 LCDM Model Plugin for the Copernican Suite.
 
-DEV NOTE (v1.4a):
-This plugin has been reverted to a pure single-core implementation. The
-previous multiprocessing logic within `get_comoving_distance_Mpc` was causing
-critical "pickling" errors when the model was dynamically loaded by the new
-decoupled engine. This conflict arises because the engine is the primary unit
-of work, and adding a secondary layer of multiprocessing within a plugin is
-architecturally unsound and unstable.
+DEV NOTE (v1.4b-fix3): This version contains a critical stability fix.
 
-This version is now simpler, more robust, and fully compatible with the v1.4a
-engine-based architecture, eliminating the source of the hangs and errors.
+BUG FIX: The `get_comoving_distance_Mpc` function was using `np.vectorize`
+on top of `scipy.integrate.quad`. This implementation proved to be unstable,
+especially when called by the plotter to generate a smooth array of 300
+points, resulting in an array of NaNs and a failure to draw BAO model lines.
+The function has been rewritten to use a more robust and explicit list
+comprehension loop, which resolves the instability.
 """
 
 import numpy as np
@@ -66,21 +64,17 @@ def get_Hz_per_Mpc(z_array, H0, Omega_m0, Omega_b0):
 def _integrand_Dc(z_prime, H0, Omega_m0, Omega_b0):
     """The function to be integrated to find comoving distance."""
     hz_val = get_Hz_per_Mpc(z_prime, H0, Omega_m0, Omega_b0)
-    # If H(z) is invalid or zero, the distance is infinite
     return FIXED_PARAMS["C_LIGHT_KM_S"] / hz_val if (np.isfinite(hz_val) and hz_val > 1e-9) else np.inf
 
 def get_comoving_distance_Mpc(z_array, H0, Omega_m0, Omega_b0):
     """
-    Calculates comoving distance using a simple, robust, single-core map.
-    This avoids all multiprocessing issues with dynamically loaded modules.
+    Calculates comoving distance. This version uses a robust list comprehension
+    which is more stable than the previous np.vectorize implementation.
     """
-    z_array_np = np.asarray(z_array)
-    # The `np.vectorize` function is a clean way to apply a scalar function
-    # to each element of an array without writing an explicit loop.
-    integrator_vec = np.vectorize(
-        lambda z: quad(_integrand_Dc, 0, z, args=(H0, Omega_m0, Omega_b0))[0] if z > 0 else 0.0
-    )
-    return integrator_vec(z_array_np)
+    z_array_np = np.atleast_1d(z_array)
+    results = [quad(_integrand_Dc, 0, z, args=(H0, Omega_m0, Omega_b0))[0] if z > 0 else 0.0 for z in z_array_np]
+    # Return a scalar if a scalar was passed, otherwise return the array
+    return results[0] if np.isscalar(z_array) else np.array(results)
 
 def get_luminosity_distance_Mpc(z_array, *cosmo_params):
     dm = get_comoving_distance_Mpc(z_array, *cosmo_params)
@@ -91,7 +85,11 @@ def distance_modulus_model(z_array, *cosmo_params):
     dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)
     with np.errstate(divide='ignore', invalid='ignore'):
         mu = 5 * np.log10(dl_mpc) + 25.0
-    mu[np.asarray(dl_mpc) <= 0] = np.nan
+    # Ensure that if dl_mpc is an array, we handle it correctly
+    if isinstance(mu, np.ndarray):
+        mu[np.asarray(dl_mpc) <= 0] = np.nan
+    elif dl_mpc <= 0:
+        mu = np.nan
     return mu
 
 def get_angular_diameter_distance_Mpc(z_array, *cosmo_params):

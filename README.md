@@ -1,7 +1,7 @@
 # Copernican Suite - A Modular Cosmology Framework
 
-**Version:** 1.4a (Stable)
-**Last Updated:** 2025-06-11
+**Version:** 1.4b (Unstable)
+**Last Updated:** 2025-06-12
 
 > **Note:** This file serves as the complete and unified documentation for the Copernican Suite project. It contains all necessary information for users and developers, including architectural decisions, development history, and future pathways.
 
@@ -11,9 +11,10 @@
 
 1.  [**Project Overview**](#1-project-overview)
 2.  [**Installation and Requirements**](#2-installation-and-requirements)
-3.  [**Current Architecture (v1.4a)**](#3-current-architecture-v14a)
+3.  [**Current Architecture (v1.4b)**](#3-current-architecture-v14b)
 4.  [**Workflow Overview**](#4-workflow-overview)
 5.  [**Development History & Roadmap**](#5-development-history--roadmap)
+    -   [Version 1.4b Updates (Plotting Restoration - IN PROGRESS)](#version-14b-updates-plotting-restoration---in-progress)
     -   [Version 1.4a Updates (The Great Refactor)](#version-14a-updates-the-great-refactor)
     -   [Version 1.3 Updates (Stable Release)](#version-13-updates-stable-release)
     -   [The Future Vision: A Universal Engine](#the-future-vision-a-universal-engine)
@@ -25,7 +26,7 @@
 
 The **Copernican Suite** is an evolving Python-based framework for the modular testing and comparison of cosmological models against observational data. It provides a platform for researchers to easily implement and evaluate new theories alongside the standard ΛCDM model.
 
-This version (1.4a) marks a major architectural refactor, transforming the suite into a fully decoupled, engine-based system. This design enhances stability, simplifies development, and paves the way for future high-performance and declarative backends.
+This version (`1.4b`) is an unstable development release focused on restoring the high-quality plotting functionality from v1.3 into the new, more robust engine-based architecture introduced in v1.4a.
 
 ---
 
@@ -44,65 +45,66 @@ If any of these are missing, the script will print the necessary `pip install` c
 
 ---
 
-## 3. Current Architecture (v1.4a)
+## 3. Current Architecture (v1.4b)
 
-The suite is designed around a **linear, decoupled pipeline** where each major component is a "black box" that communicates via a standardized JSON-based data contract (our "DSL").
+The suite is now built on a **fully modular, decoupled output pipeline**. The `v1.4a` refactor isolated the computational engine; the `v1.4b` refactor isolates each component of the output stage.
 
--   **`copernican.py`**: The main orchestrator script. Its role is now focused purely on user interaction (getting file paths) and high-level workflow management. It discovers and allows the user to select a computational engine for the analysis.
-
--   **`input_aggregator.py`**: The "Assembler." This new module gathers all model and data information and serializes it into a single "Job JSON" string. This is the standardized "work order" for the engine.
-
--   **`cosmo_engine_*.py`**: A "Black Box" computational engine. Any file matching this pattern is a self-contained, swappable unit that:
-    1.  Accepts a "Job JSON" string.
-    2.  Performs all cosmological calculations and statistical fitting.
-    3.  Returns a single "Results JSON" string with all findings.
-
--   **`output_manager.py`**: The "Renderer." This module accepts the final "Results JSON" and generates all user-facing outputs (plots, CSVs) from this data, without needing to know how the calculations were performed.
-
--   **`data_loaders.py`**: A modular system for parsing different SNe Ia and BAO data formats. Unchanged in v1.4a.
-
--   **`doc.json`**: The authoritative technical specification for the entire suite, including the formal schema for the Job/Results JSON interface.
-
--   **Model Plugins (`*.py`) & Definitions (`*.md`)**: The two-file system for defining new cosmological models. As of v1.4a, it is highly recommended that plugins be single-core to ensure stability.
+-   **`copernican.py`**: The main orchestrator script. Manages user interaction and high-level workflow.
+-   **`input_aggregator.py`**: The "Assembler." Gathers all model and data info and serializes it into the "Job JSON" for the engine.
+-   **`cosmo_engine_*.py`**: A "Black Box" computational engine that accepts a "Job JSON" and returns a "Results JSON".
+-   **`output_manager.py`**: The "Dispatcher." This module's *sole responsibility* is to accept the final "Results JSON" and delegate output tasks to the appropriate specialist modules. It contains no plotting or file-writing logic itself.
+-   **`plotter.py`**: The "Plotting Specialist." A new module that contains all `matplotlib` logic for generating and saving plots in the required v1.3 style. It is called by the `output_manager`.
+-   **`csv_writer.py`**: The "CSV Specialist." A new module containing all logic for writing detailed data files. It is called by the `output_manager`.
+-   **`data_loaders.py`**: A modular system for parsing different SNe Ia and BAO data formats.
+-   **Model Plugins (`*.py`) & Definitions (`*.md`)**: The two-file system for defining new cosmological models.
 
 ---
 
 ## 4. Workflow Overview
 
-1.  **Dependency Check**: `copernican.py` first verifies all required Python libraries are available.
-2.  **Engine Selection**: The user is prompted to select which version of the `cosmo_engine` they wish to use for the analysis.
-3.  **Configuration**: The user specifies the file paths for the alternative model, SNe data, and (optionally) BAO data.
-4.  **Job Aggregation**: `copernican.py` passes these paths to `input_aggregator.py`, which builds the complete "Job JSON".
-5.  **Engine Execution**: `copernican.py` dynamically loads the chosen engine and passes it the "Job JSON". The engine runs in isolation, performing all fits and calculations.
-6.  **Output Generation**: The engine returns a "Results JSON" to `copernican.py`, which passes it to `output_manager.py` to generate all plots and data files.
+1.  **Dependency Check**: `copernican.py` first verifies all required Python libraries.
+2.  **Engine Selection & Configuration**: The user selects an engine and provides paths for the model and data files.
+3.  **Job Aggregation**: `input_aggregator.py` builds the complete "Job JSON".
+4.  **Engine Execution**: The chosen `cosmo_engine` runs in isolation and returns a "Results JSON".
+5.  **Output Dispatch**: `copernican.py` passes the "Results JSON" to `output_manager.py`.
+6.  **Specialist Output Generation**: The `output_manager` calls `plotter.py` to create the plots and `csv_writer.py` to create the data files.
 7.  **Loop or Exit**: The user is prompted to run another evaluation or exit.
 
 ---
 
 ## 5. Development History & Roadmap
 
+### Version 1.4b Updates (Plotting Restoration - IN PROGRESS)
+
+This version represents a concerted effort to restore the high-quality plotting of v1.3 within the new modular architecture, and to formalize the output pipeline for future stability.
+
+-   **Goal**: Replicate the exact style and informational content of the v1.3 SNe Ia and BAO plots.
+-   **Architectural Change**: The monolithic `output_manager.py` from v1.4a was refactored into three separate, single-responsibility modules:
+    -   `output_manager.py`: Now a pure **Dispatcher** that coordinates output tasks.
+    -   `plotter.py`: A new **Plotting Specialist** to handle all `matplotlib` code.
+    -   `csv_writer.py`: A new **CSV Specialist** to handle all `.csv` file writing.
+-   **Current Status (As of 2025-06-12):**
+    -   ✅ **WORKING**: The SNe Ia Hubble Diagram is generated correctly, matching the v1.3 style with a main plot, residuals, binned averages, and detailed information boxes.
+    -   ✅ **WORKING**: Detailed, point-by-point comparative CSV files for both SNe Ia and BAO analyses are generated correctly.
+    -   ❌ **CRITICAL BUG**: There is a persistent bug preventing the theoretical model lines (for both ΛCDM and the alternative model) from being rendered on the BAO observables plot. The data points and info boxes are drawn correctly, but the smooth curves are missing. This is the primary blocker for a stable release.
+
 ### Version 1.4a Updates (The Great Refactor)
 
-This version represents the most significant architectural evolution of the project, achieving the long-term goal of a truly modular system.
-
--   **Decoupled Engine Architecture:** The core logic has been refactored into a "black box" `cosmo_engine` that communicates with the rest of the suite via a JSON-based DSL.
--   **Swappable Engines:** The main `copernican.py` script now discovers and allows the user to select any available `cosmo_engine_*.py` file, enabling easy testing of different computational backends or statistical methods in the future (e.g., `cosmo_engine_v1.5_numba.py`).
--   **Enhanced Stability:** By isolating components, bugs are easier to trace and fix. The root cause of the `multiprocessing` conflicts was identified and resolved by simplifying model plugins to be single-core, with the engine itself being the true unit of parallelization in future versions.
--   **Clear Path to Declarative Models:** The new JSON interface is the critical foundation for a future engine that can parse model equations directly from `.md` files, eliminating the need for custom `.py` plugins.
+This version represented the most significant architectural evolution of the project, achieving the long-term goal of a truly modular system.
+-   **Decoupled Engine Architecture:** The core logic was refactored into a "black box" `cosmo_engine`.
+-   **Swappable Engines:** The main script now discovers and allows the user to select any available `cosmo_engine_*.py` file.
 
 ### Version 1.3 Updates (Stable Release)
 
 This version addressed critical bugs and added significant enhancements to the data output, plot clarity, and developer framework.
--   **CRITICAL BUG FIX - BAO Plotting Restored:** Fixed a bug that caused smooth model lines on BAO plots to fail to render.
--   **New Developer Specification (`doc.json`):** Added a comprehensive `doc.json` file to act as a machine-readable "dictionary" for the suite's architecture.
+-   **CRITICAL BUG FIX - BAO Plotting Restored:** Fixed a bug that caused smooth model lines on BAO plots to fail to render. (Note: This bug, while similar, had a different cause than the current v1.4b bug).
 
 ### The Future Vision: A Universal Engine
 
-The v1.4a refactor has turned this vision into a concrete, achievable goal. The next major architectural evolution will build directly on this foundation.
+The `v1.4` architecture is the final stepping stone to this vision. With a fully decoupled pipeline, the focus can now shift to developing the declarative engine.
 
 -   **Deprecation of `.py` Plugins:** The long-term goal is to eliminate the need for custom `model_plugin.py` files.
--   **Universal Math Engine (v1.5+):** A new, powerful engine (`cosmo_engine_v1.5_declarative.py`) will be developed that can directly parse, interpret, and solve the mathematical equations provided in the `.md` definition files using symbolic math libraries like `sympy`. It will also integrate JIT compilers like `numba` for high performance.
--   **Declarative Model Definition:** Researchers will only need to create a single, well-defined `.md` file. By specifying their model's key equations and parameters, the universal engine will handle the rest.
+-   **Universal Math Engine (v1.5+):** A new engine (`cosmo_engine_v1.5_declarative.py`) will be developed that can directly parse, interpret, and solve the mathematical equations provided in the `.md` definition files using symbolic math libraries like `sympy`.
 
 ---
 

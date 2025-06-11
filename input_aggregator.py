@@ -1,19 +1,13 @@
 # copernican_suite/input_aggregator.py
 """
-DEV NOTE (v1.4a): This module is the "Assembler" of the Copernican Suite.
-Introduced in the v1.4a refactor, its sole responsibility is to consolidate all
-inputs into a single, standardized "Job JSON" object. It acts as the gateway
-to the computational engine, ensuring the engine receives a predictable and
-complete "work order."
+DEV NOTE (v1.4b): This module is the "Assembler" of the Copernican Suite.
+The `build_job_json` function has been updated to read the LaTeX mathematical
+equations (`MODEL_EQUATIONS_LATEX_SN` and `MODEL_EQUATIONS_LATEX_BAO`) from
+the model plugin files. This information is now included in the Job JSON.
 
-FUTURE EVOLUTION:
-This module is the key to enabling a fully declarative system. The current
-implementation loads model information from a procedural `.py` file. In the
-future (e.g., v1.5), the `_load_model_module` function can be replaced or
-supplemented by a new `_parse_model_definition_file` function. This new
-function would parse a declarative `.md` or `.json` file to extract the
-model's parameters and equations, achieving the goal of a `.py`-less workflow.
-The `job_dict` structure below is already designed to accommodate this change.
+This change is critical for the v1.4b plotting restoration, as it makes the
+model's mathematical form available to the downstream output modules, which
+is required to generate the detailed information boxes on the plots.
 """
 
 import json
@@ -104,9 +98,6 @@ def build_job_json(run_id, engine_name, model_filepath, sne_data_info, bao_data_
     logger.info("--- Building Job JSON for Engine ---")
 
     # --- Step 1: Model Loading ---
-    # In the current version, we load procedural Python files. In a future
-    # declarative version, this step would be replaced by a call to a
-    # new `_parse_model_definition_file` function that would read an .md file.
     lcdm_model_module = _load_model_module('lcdm_model.py')
     alt_model_module = _load_model_module(model_filepath)
     if not lcdm_model_module or not alt_model_module:
@@ -114,7 +105,6 @@ def build_job_json(run_id, engine_name, model_filepath, sne_data_info, bao_data_
         return None
 
     # --- Step 2: Observational Data Loading ---
-    # This step uses the modular data_loaders to parse various data formats.
     sne_df = data_loaders.load_sne_data(
         sne_data_info['path'],
         format_key=sne_data_info['format_key'],
@@ -138,11 +128,9 @@ def build_job_json(run_id, engine_name, model_filepath, sne_data_info, bao_data_
             "run_id": run_id,
             "engine_name": engine_name,
             "creation_timestamp": datetime.now().isoformat(),
-            "project_version": "1.4a"
+            "project_version": "1.4b" # Version updated to 1.4b
         },
         # MODELS: Defines the models to be compared.
-        # FUTURE: This section would be populated from a declarative file. It
-        # could include a new key like "equations" containing LaTeX strings.
         "models": {
             "lcdm": {
                 "name": getattr(lcdm_model_module, 'MODEL_NAME', 'Unknown'),
@@ -150,6 +138,9 @@ def build_job_json(run_id, engine_name, model_filepath, sne_data_info, bao_data_
                 "initial_guesses": getattr(lcdm_model_module, 'INITIAL_GUESSES', []),
                 "bounds": getattr(lcdm_model_module, 'PARAMETER_BOUNDS', []),
                 "fixed_params": getattr(lcdm_model_module, 'FIXED_PARAMS', {}),
+                # NEW (v1.4b): Add LaTeX equations for plotting later
+                "equations_sn": getattr(lcdm_model_module, 'MODEL_EQUATIONS_LATEX_SN', []),
+                "equations_bao": getattr(lcdm_model_module, 'MODEL_EQUATIONS_LATEX_BAO', [])
             },
             "alt_model": {
                 "name": getattr(alt_model_module, 'MODEL_NAME', 'Unknown'),
@@ -158,13 +149,14 @@ def build_job_json(run_id, engine_name, model_filepath, sne_data_info, bao_data_
                 "initial_guesses": getattr(alt_model_module, 'INITIAL_GUESSES', []),
                 "bounds": getattr(alt_model_module, 'PARAMETER_BOUNDS', []),
                 "fixed_params": getattr(alt_model_module, 'FIXED_PARAMS', {}),
+                # NEW (v1.4b): Add LaTeX equations for plotting later
+                "equations_sn": getattr(alt_model_module, 'MODEL_EQUATIONS_LATEX_SN', []),
+                "equations_bao": getattr(alt_model_module, 'MODEL_EQUATIONS_LATEX_BAO', [])
             }
         },
         # DATASETS: Contains the actual observational data points and metadata.
         "datasets": {
             "sne_data": {
-                # We serialize the DataFrame to the 'split' format, which is a
-                # robust way to preserve the structure for perfect reconstruction.
                 "data": sne_df.to_dict(orient='split') if sne_df is not None else None,
                 "attributes": sne_df.attrs if sne_df is not None else {}
             },
@@ -174,17 +166,13 @@ def build_job_json(run_id, engine_name, model_filepath, sne_data_info, bao_data_
             }
         },
         # ENGINE_SETTINGS: Allows passing configuration options to the engine.
-        # This section is highly expandable for future features.
         "engine_settings": {
             "minimizer_method": "L-BFGS-B",
             "confidence_level": 0.95
-            # FUTURE: Could add keys like "mcmc_walkers", "learning_rate", etc.
         }
     }
 
     # --- Step 4: Serialize to JSON ---
-    # The final step is to convert the Python dictionary into a formatted,
-    # human-readable JSON string using our custom encoder.
     try:
         job_json = json.dumps(job_dict, cls=CustomJSONEncoder, indent=2)
         logger.info("Successfully built and serialized Job JSON.")

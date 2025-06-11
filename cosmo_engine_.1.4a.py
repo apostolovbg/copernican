@@ -1,21 +1,16 @@
-# copernican_suite/cosmo_engine_1.4a_stable.py
+# copernican_suite/cosmo_engine_1.4b.py
 """
-DEV NOTE (v1.4a): This is the first stable, "black box" version of the
-cosmology engine, created during the v1.4a architectural refactor. It has
-been fundamentally changed to operate as a self-contained unit.
+DEV NOTE (v1.4b-fix3): This version corrects a critical SyntaxError introduced
+in the previous fix.
 
-- It now has a SINGLE public entry point: execute_job(job_json_string).
-- It receives all necessary information (model paths, data, settings) from
-  the standardized "Job JSON" string.
-- It dynamically loads the required model plugin files itself.
-- It performs all fitting and analysis internally.
-- It returns a single, comprehensive "Results JSON" string containing all
-  fit parameters, statistics, and detailed data for plotting.
+BUG FIX (Critical): A typo on line 193 resulted in an unclosed parenthesis,
+causing a SyntaxError that crashed the engine during the creation of the SNe
+detailed dataframe. This has been corrected.
 
-BUG FIX (v1.4a) - Definitive Edition: This version incorporates all previous
-fixes and corrects the final `KeyError: 'inputs'` bug. This error was caused
-by an incorrect dictionary construction when creating the final Results JSON.
-This version should now be stable and produce a complete, successful run.
+BUG FIX 2: The check for SNe fit success was faulty. This has been corrected
+to properly check the 'success' flag within the 'fit_summary'.
+
+BUG FIX 3: In `_calculate_bao_observables`, a `NameError` was corrected.
 """
 
 import json
@@ -158,25 +153,28 @@ def _calculate_bao_observables(model_module, best_fit_cosmo_params, bao_df):
     except Exception as e:
         logger.error(f"Could not calculate sound horizon for {model_module.MODEL_NAME}: {e}")
         results['rs_Mpc'], rs_model = np.nan, np.nan
+        
     if pd.isna(rs_model):
         bao_df['model_value'], results['chi2'], results['dof'] = np.nan, np.nan, len(bao_df)
         results['detailed_df'] = bao_df
         return results
+        
     model_values = []
     for _, row in bao_df.iterrows():
         z, obs_type, val = row['redshift'], row['observable_type'], np.nan
         try:
             if obs_type == 'DV_rs':
-                val = model_module.get_DV_Mpc(z, *best_fit_params) / rs_model
+                val = model_module.get_DV_Mpc(z, *best_fit_cosmo_params) / rs_model
             elif obs_type == 'DM_rs':
-                val = model_module.get_comoving_distance_Mpc(z, *best_fit_params) / rs_model
+                val = model_module.get_comoving_distance_Mpc(z, *best_fit_cosmo_params) / rs_model
             elif obs_type == 'DH_rs':
                 c_km_s = model_module.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458)
-                hz = model_module.get_Hz_per_Mpc(z, *best_fit_params)
+                hz = model_module.get_Hz_per_Mpc(z, *best_fit_cosmo_params)
                 val = (c_km_s / hz) / rs_model
         except Exception as e:
-            logger.warning(f"Failed to calculate BAO observable {obs_type} at z={z}: {e}")
+            logger.error(f"ENGINE failed to calculate BAO observable {obs_type} at z={z}: {e}", exc_info=True)
         model_values.append(val)
+        
     bao_df['model_value'] = model_values
     bao_df['residual'] = bao_df['value'] - bao_df['model_value']
     chi2 = np.sum((bao_df['residual'] / bao_df['error']) ** 2)
@@ -186,13 +184,16 @@ def _calculate_bao_observables(model_module, best_fit_cosmo_params, bao_df):
 
 def _create_detailed_sne_df(model_module, fit_results, sne_df):
     """Generates a detailed DataFrame for SNe results, including model predictions."""
-    z_obs, num_cosmo_params = sne_df['zcmb'].values, len(fit_results['best_fit_params'])
+    z_obs = sne_df['zcmb'].values
+    num_cosmo_params = len(fit_results['best_fit_params'])
     if sne_df.attrs.get('fit_style') == 'h2_fit_nuisance':
         num_cosmo_params = len(sne_df.attrs['cosmo_param_names'])
+        
     cosmo_params = list(fit_results['best_fit_params'].values())[:num_cosmo_params]
+    # BUG FIX: Corrected the line below which was cut off
     mu_model = model_module.distance_modulus_model(z_obs, *cosmo_params)
     detailed_df = sne_df.copy()
-    detailed_df['mu_model'], detailed_df['residual'] = mu_model, detailed_df['mu_obs'] - mu_model
+    detailed_df['mu_model'], detailed_df['residual'] = mu_model, detailed_df.get('mu_obs', np.nan) - mu_model
     return detailed_df
 
 # --- Main Public Entry Point ---
@@ -215,11 +216,10 @@ def execute_job(job_json_string):
 
     sne_df = _reconstruct_df_from_split(job_dict['datasets']['sne_data']['data'])
     if sne_df is not None: sne_df.attrs = job_dict['datasets']['sne_data']['attributes']
-    
+
     bao_df = _reconstruct_df_from_split(job_dict['datasets']['bao_data']['data'])
     if bao_df is not None: bao_df.attrs = job_dict['datasets']['bao_data']['attributes']
 
-    # **BUG FIX**: Correctly construct the `results_dict` to prevent the KeyError.
     results_dict = {
         "metadata": job_dict['metadata'],
         "inputs": {
@@ -228,23 +228,29 @@ def execute_job(job_json_string):
         },
         "results": {"lcdm": {}, "alt_model": {}}
     }
-    
+
     if sne_df is not None:
         logger.info("\n--- Stage: SNe Fitting ---")
         lcdm_sne_results = _fit_sne_model(lcdm_model_module, job_dict['models']['lcdm'], sne_df.copy())
         alt_sne_results = _fit_sne_model(alt_model_module, job_dict['models']['alt_model'], sne_df.copy())
-        
-        # **BUG FIX**: Corrected the typo in the variable name below
+
         results_dict['results']['lcdm']['sne_fit'] = lcdm_sne_results
         results_dict['results']['alt_model']['sne_fit'] = alt_sne_results
-        results_dict['results']['lcdm']['sne_detailed_df'] = _create_detailed_sne_df(lcdm_model_module, lcdm_sne_results, sne_df)
-        results_dict['results']['alt_model']['sne_detailed_df'] = _create_detailed_sne_df(alt_model_module, alt_sne_results, sne_df)
+        
+        if lcdm_sne_results.get('fit_summary', {}).get('success'):
+            results_dict['results']['lcdm']['sne_detailed_df'] = _create_detailed_sne_df(lcdm_model_module, lcdm_sne_results, sne_df)
+        if alt_sne_results.get('fit_summary', {}).get('success'):
+            results_dict['results']['alt_model']['sne_detailed_df'] = _create_detailed_sne_df(alt_model_module, alt_sne_results, sne_df)
 
     if bao_df is not None and sne_df is not None:
-        if results_dict['results']['lcdm']['sne_fit']['fit_summary']['success']:
+        if results_dict['results']['lcdm']['sne_fit'].get('fit_summary', {}).get('success'):
             logger.info("\n--- Stage: BAO Analysis ---")
-            lcdm_cosmo_params = list(lcdm_sne_results['best_fit_params'].values())[:len(job_dict['models']['lcdm']['parameters'])]
-            alt_cosmo_params = list(alt_sne_results['best_fit_params'].values())[:len(job_dict['models']['alt_model']['parameters'])]
+            num_lcdm_cosmo = len(job_dict['models']['lcdm']['parameters'])
+            num_alt_cosmo = len(job_dict['models']['alt_model']['parameters'])
+            
+            lcdm_cosmo_params = list(lcdm_sne_results['best_fit_params'].values())[:num_lcdm_cosmo]
+            alt_cosmo_params = list(alt_sne_results['best_fit_params'].values())[:num_alt_cosmo]
+            
             results_dict['results']['lcdm']['bao_analysis'] = _calculate_bao_observables(lcdm_model_module, lcdm_cosmo_params, bao_df.copy())
             results_dict['results']['alt_model']['bao_analysis'] = _calculate_bao_observables(alt_model_module, alt_cosmo_params, bao_df.copy())
         else:

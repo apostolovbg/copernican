@@ -1,74 +1,98 @@
 {
   "projectName": "Copernican Suite",
-  "projectVersion": "1.4a",
-  "lastUpdated": "2025-06-11",
-  "description": "This document serves as the master technical specification and AI development interface for the Copernican Suite. It defines the required structure for all components, outlines the development protocol, and provides a 'how-to' guide for creating new cosmological model plugins. This version reflects the major architectural refactor to a decoupled, engine-based system.",
+  "projectVersion": "1.4b (Unstable)",
+  "lastUpdated": "2025-06-12",
+  "description": "This document serves as the master technical specification and AI development interface for the Copernican Suite. It defines the required structure for all components, outlines the development protocol, and provides the authoritative style guide for all generated outputs. This version reflects the v1.4b refactor of the output stage and its current unstable status due to a persistent bug in the BAO plot rendering.",
   "projectSchema": {
-    "copernican.py": "Main orchestrator script. Manages user interaction and high-level workflow control. It now discovers and allows selection of different engine versions. It initiates the Job JSON creation and passes the final Results JSON to the output manager.",
-    "input_aggregator.py": "The 'Assembler'. This module's sole responsibility is to gather all user inputs (model paths, data paths) and serialize them into a standardized 'Job JSON' string that the engine can process.",
-    "cosmo_engine_*.py": "The 'Black Box' computational engine. A file matching this pattern is a swappable, self-contained unit that accepts a 'Job JSON' string, performs all cosmological calculations and fitting, and returns a 'Results JSON' string. Different engines can use different methods (e.g., SciPy, Numba, MCMC).",
-    "output_manager.py": "The 'Renderer'. Manages all outputs (plots, CSVs). It accepts the final 'Results JSON' from the main script and generates all user-facing files from that data.",
-    "data_loaders.py": "Modular data loading system. Contains parsers for different SNe Ia and BAO data formats. Unchanged in v1.4a.",
-    "lcdm_model.py": "The reference implementation of the standard LambdaCDM model. Now explicitly single-core to ensure stability when dynamically loaded by the engine.",
+    "copernican.py": "Main orchestrator script. Manages user interaction and high-level workflow control.",
+    "input_aggregator.py": "The 'Assembler'. Gathers all user inputs (model paths, data paths) and serializes them into a standardized 'Job JSON'.",
+    "cosmo_engine_*.py": "The 'Black Box' computational engine. Accepts a 'Job JSON', performs all fitting, and returns a 'Results JSON'.",
+    "output_manager.py": "The 'Dispatcher'. Its sole responsibility is to orchestrate the output stage by accepting the 'Results JSON' and delegating tasks to the specialist modules (`plotter.py`, `csv_writer.py`). It contains no plotting or writing logic itself.",
+    "plotter.py": "The 'Plotting Specialist'. A new module containing all Matplotlib code. It generates and saves all plots according to the strict specifications in the `plottingStyleGuide` section of this document. NOTE: This module currently has a bug preventing BAO model lines from rendering.",
+    "csv_writer.py": "The 'CSV Specialist'. A new module responsible for writing all detailed data files to CSV format.",
+    "data_loaders.py": "Modular data loading system for SNe, BAO, and other datasets.",
+    "lcdm_model.py": "The reference implementation of the standard LambdaCDM model.",
     "README.md": "The main user-facing documentation, providing a high-level overview, history, and future vision.",
     "doc.json": "This file. The authoritative technical specification for AI and developer reference.",
     "output/": "The dedicated directory where all generated plots, logs, and CSV files are saved."
   },
   "engineInterface": {
-    "description": "The v1.4a architecture is built around a JSON-based Domain Specific Language (DSL). The engine is a black box that communicates with the rest of the suite exclusively through these two JSON structures.",
+    "description": "The v1.4 architecture is built around a JSON-based Domain Specific Language (DSL). The engine is a black box that communicates with the rest of the suite exclusively through these two JSON structures.",
     "jobJsonSchema": {
       "description": "The 'work order' produced by input_aggregator.py and consumed by the engine.",
       "structure": {
         "metadata": "Contains run_id, engine_name, timestamp, and project_version.",
-        "models": "A dictionary containing 'lcdm' and 'alt_model' sub-dictionaries. Each contains the model's name, parameters, initial guesses, bounds, and the filepath to the .py plugin (for alt_model).",
-        "datasets": "A dictionary containing 'sne_data' and 'bao_data'. Each contains the serialized DataFrame ('split' orientation) and the metadata attributes from the data loader.",
-        "engine_settings": "A dictionary for future engine-specific settings, like 'minimizer_method'."
+        "models": "A dictionary containing 'lcdm' and 'alt_model' sub-dictionaries. Each contains the model's name, parameters, initial guesses, bounds, and the NEW (v1.4b) 'equations_sn' and 'equations_bao' lists containing LaTeX strings for plotting.",
+        "datasets": "A dictionary containing 'sne_data' and 'bao_data', each with the serialized DataFrame and its attributes.",
+        "engine_settings": "A dictionary for future engine-specific settings."
       }
     },
     "resultsJsonSchema": {
       "description": "The final report produced by the engine and consumed by output_manager.py.",
       "structure": {
         "metadata": "Copied from the Job JSON.",
-        "inputs": "An archival copy of the 'models' and 'datasets' sections from the Job JSON.",
-        "results": "A dictionary containing 'lcdm' and 'alt_model' sub-dictionaries. Each contains the results of the 'sne_fit' and 'bao_analysis', including best-fit parameters, chi-squared values, and the detailed dataframes with model predictions."
+        "inputs": "An archival copy of the 'models' and 'datasets' sections from the Job JSON. This ensures the plotter has access to the model equations.",
+        "results": "A dictionary containing 'lcdm' and 'alt_model' sub-dictionaries with the results of the 'sne_fit' and 'bao_analysis'."
       }
     }
   },
-  "modelPluginInterface": {
-    "description": "To create a new cosmological model, two files are required: a Markdown definition (.md) and a Python implementation (.py). They must strictly adhere to the following interface.",
-    "noteOnImplementation": "IMPORTANT: As of v1.4a, it is strongly recommended that model plugins be written as single-core/single-threaded code. Attempting to implement a secondary layer of multiprocessing within a plugin can cause 'pickling' errors when the module is dynamically loaded by the engine.",
-    "markdownDefinitionFile": {
-      "fileExtension": ".md",
-      "purpose": "The human-readable 'paper' and machine-parsable single source of truth for model parameters and equations.",
-      "requirements": [
-        {"element": "YAML Front Matter", "..."},
-        {"element": "Quantitative Model Specification Section", "..."},
-        {"element": "Key Equations Subsections", "..."},
-        {"element": "Model Parameters Table", "..."}
-      ]
+  "plottingStyleGuide": {
+    "description": "THE LAW OF THE LAND. This section is the authoritative specification for all plots generated by `plotter.py`. Any modifications to plotting must adhere strictly to these rules to ensure a consistent, publication-quality output.",
+    "general": {
+      "style_template": "seaborn-v0_8-darkgrid",
+      "dpi": 300,
+      "footer_text": "A footer with the format 'Made with Copernican Suite vX.X using engine_name.py on YYYYMMDD_HHMMSS' must be present at the bottom center of each plot."
     },
-    "pythonImplementationFile": {
-      "fileExtension": ".py",
-      "purpose": "The computational implementation of the model. It provides the functions that the engine will call.",
-      "requirements": {
-        "metadataBlock": {
-          "description": "The file MUST define a set of global variables. Their names are NOT flexible.",
-          "variables": [
-            {"strictName": "MODEL_NAME"},
-            {"strictName": "PARAMETER_NAMES"},
-            {"strictName": "INITIAL_GUESSES"},
-            {"strictName": "PARAMETER_BOUNDS"},
-            "..."
-          ]
+    "hubbleDiagram": {
+      "layout": "Two-panel vertical stack using gridspec_kw={'height_ratios':[3,1.5]}",
+      "data_points": {
+        "type": "errorbar",
+        "format": "'.'",
+        "color": "'darkgray'",
+        "ecolor": "'lightgray'",
+        "alpha": 0.6,
+        "zorder": 1
+      },
+      "models": {
+        "lcdm": { "color": "'red'", "linestyle": "'-'" },
+        "alt_model": { "color": "'blue'", "linestyle": "'--'" }
+      },
+      "residuals": {
+        "lcdm_points": { "color": "'red'", "alpha": 0.4 },
+        "alt_model_points": { "markerfacecolor": "'none'", "edgecolor": "'blue'", "alpha": 0.4 },
+        "lcdm_binned_avg": { "color": "'darkred'", "linestyle": "'-'", "zorder": 10 },
+        "alt_model_binned_avg": { "color": "'darkblue'", "linestyle": "'--'", "zorder": 11 }
+      },
+      "info_boxes": {
+        "positioning": "Placed outside the plot area on the right, controlled by fig.text.",
+        "lcdm_style": "{'boxstyle':'round,pad=0.5', 'fc':'#FFEEEE', 'ec':'darkred', 'alpha':0.9}",
+        "alt_model_style": "{'boxstyle':'round,pad=0.5', 'fc':'#EEF2FF', 'ec':'darkblue', 'alpha':0.9}",
+        "content": "Must contain: Model Name, Mathematical Form (from JSON), Cosmological Parameters, SNe Nuisance Parameters, and Chi-Squared."
+      }
+    },
+    "baoPlot": {
+      "layout": "Single large panel.",
+      "data_points": {
+        "type": "errorbar",
+        "format": "'o'",
+        "colormap": "One distinct color from the 'viridis' colormap for each unique observable type (e.g., DV/rs, DM/rs).",
+        "zorder": 10
+      },
+      "models": {
+        "lcdm": {
+          "linestyle": "'-'",
+          "colors": "A list of three distinct shades of red (e.g., ['#8B0000', '#FF0000', '#FF6347']) corresponding to the sorted observable types."
         },
-        "mandatoryFunctions": {
-          "description": "The file MUST implement the following functions. Their names and signatures are NOT flexible.",
-          "functions": [
-            {"strictName": "distance_modulus_model(z_array, *cosmo_params)"},
-            {"strictName": "get_comoving_distance_Mpc(z_array, *cosmo_params)"},
-            "..."
-          ]
+        "alt_model": {
+          "linestyle": "A prominent dash-gap style, specifically (0, (8, 5)).",
+          "colors": "A list of three distinct shades of blue (e.g., ['#00008B', '#0000FF', '#4169E1']) corresponding to the sorted observable types."
         }
+      },
+      "info_boxes": {
+        "positioning": "Placed outside the plot area on the right, controlled by fig.text.",
+        "lcdm_style": "{'boxstyle':'round,pad=0.5', 'fc':'#FFEEEE', 'ec':'darkred', 'alpha':0.9}",
+        "alt_model_style": "{'boxstyle':'round,pad=0.5', 'fc':'#EEF2FF', 'ec':'darkblue', 'alpha':0.9}",
+        "content": "Must contain: Model Name, Mathematical Form (from JSON), Cosmological Parameters, and BAO Test Results (r_s and Chi-Squared)."
       }
     }
   },
@@ -76,9 +100,10 @@
     "aiDevelopmentGuidelines": {
       "description": "To ensure clarity, maintainability, and smooth transitions between development sessions, a strict commenting and documentation standard MUST be followed by any modifying AI.",
       "rules": [
-        "Add a 'DEV NOTE' at the top of any modified file summarizing changes for the current version and providing guidance for future modifications.",
-        "Comment code extensively. Explain the purpose of new functions, the logic behind complex algorithms or bug fixes, and the flow of data.",
-        "Update the main README.md and this doc.json file to reflect the latest changes, architectural decisions, and future plans."
+        "Add a 'DEV NOTE' at the top of any modified file summarizing changes for the current version.",
+        "Comment code extensively. Explain the 'why' behind your code, not just the 'what'.",
+        "Update the main README.md and this doc.json file to reflect the latest changes, architectural decisions, and future plans.",
+        "All changes to plotting logic MUST strictly adhere to the `plottingStyleGuide` defined in this document."
       ]
     }
   }
