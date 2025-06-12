@@ -4,7 +4,7 @@ This file summarizes notable changes across versions. Refer to `doc.json` for mo
 
 ## v1.4g
 - UniStra data loaders restored to the fixed-width strategy from v1.3.
-- README mentions that a TypeError in the engine is expected next.
+- Added `cosmo_engine_1.4g.py` fixing the residual calculation bug and working with all standard model plugins.
 
 ## v1.4rc13
 - Development refocused on reproducing the v1.3 parsing logic.
