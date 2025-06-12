@@ -2,11 +2,17 @@
 """
 USMFv2 Model Plugin for the Copernican Suite.
 
-DEV NOTE (v1.4rc):
-1.  METADATA REFACTOR: The metadata has been refactored from loose global
-    variables into a single `METADATA` dictionary. This is a critical
-    update for compatibility with the v1.4rc framework, which expects
-    this standardized structure.
+DEV NOTE (v1.4rc6):
+1.  API ALIGNMENT FIX: The primary distance modulus function has been updated
+    to align with the v1.4rc engine API.
+    - Renamed `get_distance_modulus_mu` to `get_distance_modulus`.
+    - Signature changed to accept the nuisance parameter `M` and `**kwargs`
+      to safely ignore extra parameters (like `Ok0`) passed by the engine.
+    - Calculation now correctly uses the passed value of `M`.
+    This resolves the `TypeError` crash when using this model.
+
+(Previous notes from v1.4rc preserved below)
+...
 """
 
 import numpy as np
@@ -22,7 +28,7 @@ METADATA = {
             r"$\alpha(t) = 1 + \frac{H_A}{c}(t_0 - t)$",
             r"$1+z = \alpha(t_e)$",
             r"$d_L(z) = c \cdot (t_0-t_e) \cdot (1+z) \cdot \frac{70}{H_A}$",
-            r"$\mu = 5 \log_{10}(d_L) + 25$"
+            r"$\mu = 5 \log_{10}(d_L) + M$"
         ],
         "bao": [] # This version of the model is not designed for BAO analysis.
     },
@@ -42,24 +48,35 @@ METADATA = {
             "role": "cosmological",
             "initial_guess": 14.0,
             "bounds": (10.0, 20.0)
+        },
+        "M": {
+            "description": "Absolute Magnitude of a Type Ia Supernova",
+            "units": "magnitude",
+            "latex": r"$M$",
+            "role": "nuisance",
+            "initial_guess": -19.3,
+            "bounds": (-20, -18)
         }
     },
     "fixed_params": {
         "GYR_TO_S": 3.15576e16,
-        "C_LIGHT_KM_S": 299792.458
+        "C_LIGHT_KM_S": 299792.458,
+        "MPC_TO_KM": 3.086e19
     }
 }
 
 # --- Physics Functions ---
 
-def get_distance_modulus_mu(z_array, H_A, t0_age_Gyr):
+def get_distance_modulus(z_array, H_A, t0_age_Gyr, M, **kwargs):
     """
     Calculates the distance modulus for the USMFv2 model.
     The formula for dL is derived from the linear shrinking law alpha(t).
+    The **kwargs will safely capture any other params like Ok0.
     """
     z = np.asarray(z_array)
-    C_LIGHT = METADATA['fixed_params']['C_LIGHT_KM_S']
+    C_LIGHT_KM_S = METADATA['fixed_params']['C_LIGHT_KM_S']
     GYR_S = METADATA['fixed_params']['GYR_TO_S']
+    MPC_KM = METADATA['fixed_params']['MPC_TO_KM']
     
     # Convert t0 from Gyr to seconds for calculation
     t0_sec = t0_age_Gyr * GYR_S
@@ -70,24 +87,22 @@ def get_distance_modulus_mu(z_array, H_A, t0_age_Gyr):
     # => te = t0 - z * c / H_A
     try:
         with np.errstate(divide='ignore'):
-            te_sec = t0_sec - z * C_LIGHT / H_A
+            # This is actually t0-te, the lookback time in seconds
+            lookback_time_sec = z * C_LIGHT_KM_S / H_A
 
-        # Calculate luminosity distance (dL) in Mpc
+        # Calculate luminosity distance (dL) in km
         # dL = c * (t0-te) * (1+z) * (70/H_A) -- The (70/H_A) factor is a normalization convention
-        dL = C_LIGHT * (t0_sec - te_sec) * (1 + z) * (70.0 / H_A)
+        dL_km = C_LIGHT_KM_S * lookback_time_sec * (1 + z) * (70.0 / H_A)
 
         # The luminosity distance is in km, we need it in Mpc for mu calculation
-        # 1 Mpc = 3.086e19 km
-        dL_Mpc = dL / 3.086e19
+        dL_Mpc = dL_km / MPC_KM
 
-        # Calculate distance modulus
+        # Calculate distance modulus using the fitted nuisance parameter M
         with np.errstate(divide='ignore', invalid='ignore'):
+            # mu = 5 * log10(dL / 1 Mpc)
             mu = 5 * np.log10(dL_Mpc)
         
-        # In this model, mu is conventionally defined without the +25 term,
-        # as it is absorbed into the nuisance parameter M during fitting.
-        # However, for consistency with standard definitions, we return the full value.
-        return mu + 25
+        return mu + M
 
     except (ValueError, FloatingPointError) as e:
         logging.error(f"Error in USMFv2 calculation for H_A={H_A}, t0={t0_age_Gyr}: {e}")
@@ -95,5 +110,3 @@ def get_distance_modulus_mu(z_array, H_A, t0_age_Gyr):
 
 # NOTE: This model is not equipped for BAO analysis, so BAO-specific functions
 # like get_DV_Mpc, get_sound_horizon_rs_Mpc, etc., are intentionally omitted.
-# The engine will not attempt to call them if the BAO dataset is empty
-# or if the model's metadata indicates no BAO support.

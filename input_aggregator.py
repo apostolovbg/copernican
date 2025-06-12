@@ -4,101 +4,121 @@ This module is responsible for collecting all user inputs and data from various
 sources and aggregating them into a single, standardized 'Job JSON' structure.
 This structure is then passed to the computational engine.
 
-DEV NOTE (v1.4rc):
-1.  CRITICAL FIX: Corrected the dynamic module loading in `_load_model_plugin`.
-    Previously, all model plugins were loaded with the same internal name
-    ("model_plugin"), causing caching conflicts in Python that led to a
-    crash when trying to access model `METADATA`. The loader now assigns a
-    unique name to each plugin based on its filename, resolving the bug.
-2.  LOGGING: Replaced internal `logger` calls with standard `print` statements
-    to conform to the new verbatim console-mirroring log system in copernican.py.
+DEV NOTE (v1.4rc6):
+This module has been corrected to resolve the TypeError during parser execution.
+
+1.  CRITICAL FIX (TypeError): The _load_data function was incorrectly passing
+    the `base_dir` argument to all parsers, causing a crash for any parser
+    not explicitly designed to receive it. The logic has been corrected to
+    pass `base_dir` ONLY to the 'pantheon_plus_h2' parser.
+
+2.  DIAGNOSTICS: Added verbose print statements to the _load_data function
+    to make the parsing process more transparent, showing exactly which
+    parser is being called and how.
 """
 
 import os
 import importlib.util
 import sys
 
+# Deferred import to be called later
+import data_loaders
+
 # --- Dynamic Module and Data Loading ---
 
 def _load_model_plugin(model_path):
     """Dynamically loads a model plugin from a given .py file path."""
     try:
-        # Generate a unique module name from the file path.
-        # This is CRITICAL to prevent Python's import caching from causing
-        # conflicts when loading multiple different model files.
         module_name = os.path.splitext(os.path.basename(model_path))[0]
-
         spec = importlib.util.spec_from_file_location(module_name, model_path)
         model_plugin = importlib.util.module_from_spec(spec)
-        # Add the module to sys.modules under its unique name before execution
-        # to handle circular dependencies if they ever arise.
         sys.modules[module_name] = model_plugin
         spec.loader.exec_module(model_plugin)
+        print(f"Successfully loaded model plugin: {model_path}")
         return model_plugin
     except Exception as e:
-        print(f"ERROR: Failed to load model plugin from '{model_path}': {e}")
-        return None
+        print(f"CRITICAL: Failed to load model plugin from {model_path}: {e}")
+        raise RuntimeError(f"Could not load model file {model_path}.") from e
 
 def _load_model_metadata(model_path):
-    """Loads the METADATA dictionary from a model plugin."""
-    model_plugin = _load_model_plugin(model_path)
-    if model_plugin and hasattr(model_plugin, 'METADATA'):
-        return model_plugin.METADATA
-    print(f"ERROR: Failed to load or find METADATA in model plugin at '{model_path}'.")
-    return None
+    """Loads only the METADATA dictionary from a model plugin."""
+    print(f"Loading metadata from '{os.path.basename(model_path)}'...")
+    try:
+        plugin = _load_model_plugin(model_path)
+        if hasattr(plugin, 'METADATA'):
+            print("Metadata loaded successfully.")
+            return plugin.METADATA
+        else:
+            print(f"Error: METADATA dictionary not found in {model_path}.")
+            return None
+    except Exception:
+        return None
 
 def _load_data(data_info, parsers_dict, base_dir):
-    """Loads dataset using the specified parser function."""
-    if not data_info or 'path' not in data_info or 'parser' not in data_info:
-        return {} # Return empty dict if no data is to be loaded
+    """
+    Handles the loading of a single dataset (SNe or BAO) using the selected parser.
+    Returns a dictionary containing the loaded data, or None on failure.
+    """
+    if not data_info or not data_info.get('filepath'):
+        return {}
 
-    path = data_info['path']
-    parser_key = data_info['parser']
-    parser_func = parsers_dict.get(parser_key, {}).get('function')
-    
-    if not parser_func:
-        print(f"ERROR: Could not find the specified data parser '{parser_key}'.")
+    filepath = data_info['filepath']
+    parser_id = data_info['parser_id']
+    parser_func = parsers_dict[parser_id]['function']
+    data_type_key = data_info['type']
+
+    print(f"Loading data from '{os.path.basename(filepath)}' using parser '{parser_id}'...")
+    full_path = filepath if os.path.isabs(filepath) else os.path.join(base_dir, filepath)
+
+    try:
+        # --- DIAGNOSTIC & CRITICAL FIX (v1.4rc6) ---
+        # Only pass `base_dir` to the specific parser that needs it.
+        print(f"DIAGNOSTIC: Preparing to call parser '{parser_id}'.")
+        if parser_id == 'pantheon_plus_h2':
+            print(f"DIAGNOSTIC: Pantheon+ parser detected. Passing 'base_dir' for covariance matrix handling.")
+            loaded_df = parser_func(full_path, base_dir=base_dir)
+        else:
+            print(f"DIAGNOSTIC: Standard parser detected. Calling without extra arguments.")
+            loaded_df = parser_func(full_path)
+        print(f"DIAGNOSTIC: Parser '{parser_id}' returned a result.")
+
+
+        if loaded_df is None or loaded_df.empty:
+            raise RuntimeError("Parser returned no data.")
+
+        print(f"Successfully loaded {len(loaded_df)} data points from '{os.path.basename(filepath)}'.")
+
+        structured_data = {
+            'dataframe': loaded_df,
+            'parser_id': parser_id
+        }
+
+        return {data_type_key: structured_data}
+
+    except Exception as e:
+        print(f"\nFATAL ERROR while loading data from '{os.path.basename(filepath)}'.")
+        print(f"Parser '{parser_id}' failed with error: {e}")
         return None
 
-    full_path = path if os.path.isabs(path) else os.path.join(base_dir, path)
-    
-    print(f"Loading data from '{os.path.basename(full_path)}' using parser '{parser_key}'...")
-    loaded_data = parser_func(full_path)
-    
-    if loaded_data is None:
-        print(f"ERROR: The parser '{parser_key}' failed to load data from '{full_path}'.")
-        return None
-        
-    return loaded_data
 
 # --- Main Aggregation Function ---
 
-def build_job_json(run_id, engine_name, alt_model_path, sne_data_info, bao_data_info):
+def build_job_json(engine_name, alt_model_path, sne_data_info, bao_data_info, base_dir, run_id):
     """
-    Constructs the main job JSON by collecting metadata and data.
-
-    Returns:
-        dict: The fully assembled job data structure, or None on failure.
+    The main function of this module. It orchestrates the collection of all
+    data and metadata and assembles the final Job JSON.
     """
-    # Dynamically import the data_loaders module to access its parser dictionaries
-    # This avoids circular import issues at startup.
-    import data_loaders
-    
+    print("\n--- Stage 2: Aggregating Job Data ---")
     print("Building job data structure...")
-    
-    # The base path for loading models is the directory of copernican.py
-    base_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
 
     job_data = {
         'run_id': run_id,
-        'engine': engine_name,
+        'engine_name': engine_name,
         'model1_metadata': None,
         'model2_metadata': None,
         'data': {}
     }
 
-    # Load metadata for the two models
-    # The 'test' keyword in the UI resolves to using lcdm_model.py for both.
     if alt_model_path.lower() == 'test':
         alt_model_path = 'lcdm_model.py'
         print("Test mode: Loading LCDM metadata for both models.")
@@ -110,21 +130,19 @@ def build_job_json(run_id, engine_name, alt_model_path, sne_data_info, bao_data_
         print("CRITICAL: Failed to load essential model metadata. Cannot proceed.")
         return None
 
-    # Load the actual datasets
     sne_loaded_data = _load_data(sne_data_info, data_loaders.SNE_PARSERS, base_dir)
-    if sne_loaded_data is None: # A hard failure in the parser
+    if sne_loaded_data is None:
         return None
     job_data['data'].update(sne_loaded_data)
 
     bao_loaded_data = _load_data(bao_data_info, data_loaders.BAO_PARSERS, base_dir)
-    if bao_loaded_data is None: # A hard failure in the parser
+    if bao_loaded_data is None:
         return None
     job_data['data'].update(bao_loaded_data)
 
-    # Final check to ensure we have at least SNe data
-    if 'sne_data' not in job_data['data']:
-        print("CRITICAL: Supernova data is required but was not loaded successfully. Cannot proceed.")
+    if 'sne_data' not in job_data['data'] and 'bao_data' not in job_data['data']:
+        print("Error: No data was loaded. At least one dataset (SNe or BAO) is required.")
         return None
-        
+
     print("Job data structure built successfully.")
     return job_data

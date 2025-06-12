@@ -1,87 +1,94 @@
 {
+  "dev_note": "Session 20250612_1530: Updated to v1.4rc13. This version reflects a full reset of the debugging strategy for the data_loaders.py module. The root cause of the persistent data loss (loading 33 of 740 SNe) has been identified as reading from incorrect columns in the source file. All previous diagnoses were incorrect. The new specification mandates that the data loader logic for UniStra files must be a direct, robust replication of the successful v1.3 implementation. The secondary TypeError in the cosmo_engine is the next expected failure point after this is resolved.",
   "projectName": "Copernican Suite",
-  "projectVersion": "1.4b (Unstable)",
+  "projectVersion": "1.4rc13 (Definitive Data Loader Fix)",
   "lastUpdated": "2025-06-12",
-  "description": "This document serves as the master technical specification and AI development interface for the Copernican Suite. It defines the required structure for all components, outlines the development protocol, and provides the authoritative style guide for all generated outputs. This version reflects the v1.4b refactor of the output stage and its current unstable status due to a persistent bug in the BAO plot rendering.",
+  "description": "This document serves as the master technical specification for the Copernican Suite. It defines the required structure for all components and provides the authoritative style guide for all generated outputs. The current priority is to resolve the critical data loading failure in data_loaders.py by correctly implementing the logic from the stable v1.3 release.",
+  "developmentHistory": {
+    "v1.3": "Stable version with robust and correct data loaders for all specified formats. Its data handling serves as a reference.",
+    "v1.4b": "Major output stage refactor. Introduced a bug that prevents BAO model lines from being plotted.",
+    "v1.4rc_pre-fix": "Unstable. An attempt to fix the BAO plot and overhaul logging introduced a fatal `KeyError` and a `ValueError`.",
+    "v1.4rc_post-pipeline-fix": "The initial pipeline and logging errors were fixed, but this exposed a fatal `TypeError` in the engine due to string-based math.",
+    "v1.4rc_data-type-fix": "The engine's `TypeError` was fixed, but this revealed a `KeyError` in the engine due to a column name mismatch from the data loader.",
+    "v1.4rc_column-name-fix": "The column name `KeyError` was fixed, but this revealed a deeper issue: the data loader was only loading 33 of 740 SNe due to incorrect handling of missing data placeholders ('---').",
+    "v1.4rc13_current": "The root cause of the SNe data loss is now understood to be the parser reading from entirely incorrect columns. The immediate goal is to fix data_loaders.py by implementing the v1.3 logic. The next expected bug is a `TypeError` in the cosmo_engine."
+  },
   "projectSchema": {
     "copernican.py": "Main orchestrator script. Manages user interaction and high-level workflow control.",
-    "input_aggregator.py": "The 'Assembler'. Gathers all user inputs (model paths, data paths) and serializes them into a standardized 'Job JSON'.",
+    "input_aggregator.py": "The 'Assembler'. Gathers all user inputs and serializes them into a standardized 'Job JSON'.",
     "cosmo_engine_*.py": "The 'Black Box' computational engine. Accepts a 'Job JSON', performs all fitting, and returns a 'Results JSON'.",
-    "output_manager.py": "The 'Dispatcher'. Its sole responsibility is to orchestrate the output stage by accepting the 'Results JSON' and delegating tasks to the specialist modules (`plotter.py`, `csv_writer.py`). It contains no plotting or writing logic itself.",
-    "plotter.py": "The 'Plotting Specialist'. A new module containing all Matplotlib code. It generates and saves all plots according to the strict specifications in the `plottingStyleGuide` section of this document. NOTE: This module currently has a bug preventing BAO model lines from rendering.",
-    "csv_writer.py": "The 'CSV Specialist'. A new module responsible for writing all detailed data files to CSV format.",
-    "data_loaders.py": "Modular data loading system for SNe, BAO, and other datasets.",
-    "lcdm_model.py": "The reference implementation of the standard LambdaCDM model.",
-    "README.md": "The main user-facing documentation, providing a high-level overview, history, and future vision.",
-    "doc.json": "This file. The authoritative technical specification for AI and developer reference.",
-    "output/": "The dedicated directory where all generated plots, logs, and CSV files are saved."
-  },
-  "engineInterface": {
-    "description": "The v1.4 architecture is built around a JSON-based Domain Specific Language (DSL). The engine is a black box that communicates with the rest of the suite exclusively through these two JSON structures.",
-    "jobJsonSchema": {
-      "description": "The 'work order' produced by input_aggregator.py and consumed by the engine.",
-      "structure": {
-        "metadata": "Contains run_id, engine_name, timestamp, and project_version.",
-        "models": "A dictionary containing 'lcdm' and 'alt_model' sub-dictionaries. Each contains the model's name, parameters, initial guesses, bounds, and the NEW (v1.4b) 'equations_sn' and 'equations_bao' lists containing LaTeX strings for plotting.",
-        "datasets": "A dictionary containing 'sne_data' and 'bao_data', each with the serialized DataFrame and its attributes.",
-        "engine_settings": "A dictionary for future engine-specific settings."
-      }
-    },
-    "resultsJsonSchema": {
-      "description": "The final report produced by the engine and consumed by output_manager.py.",
-      "structure": {
-        "metadata": "Copied from the Job JSON.",
-        "inputs": "An archival copy of the 'models' and 'datasets' sections from the Job JSON. This ensures the plotter has access to the model equations.",
-        "results": "A dictionary containing 'lcdm' and 'alt_model' sub-dictionaries with the results of the 'sne_fit' and 'bao_analysis'."
-      }
+    "output_manager.py": "The 'Dispatcher'. Orchestrates the output stage by delegating tasks to specialist modules (`plotter.py`, `csv_writer.py`).",
+    "plotter.py": "The 'Plotting Specialist'. Contains all Matplotlib code. Generates plots according to the `plottingStyleGuide`.",
+    "csv_writer.py": "The 'CSV Specialist'. Contains all pandas code for writing tabular data output.",
+    "data_loaders.py": {
+      "description": "Contains all functions for parsing various data file formats.",
+      "parsing_standard": "The logic for parsing UniStra-type files (e.g., tablef3.dat) MUST replicate the robust method from the v1.3 codebase. This includes: 1) Targeting the correct columns for redshift and distance modulus. 2) Using the `na_values` parameter in pandas to handle placeholders like '---' at read-time. 3) Implementing a fallback from `z_cmb` to `z_hel` to maximize data retention."
     }
   },
   "plottingStyleGuide": {
-    "description": "THE LAW OF THE LAND. This section is the authoritative specification for all plots generated by `plotter.py`. Any modifications to plotting must adhere strictly to these rules to ensure a consistent, publication-quality output.",
-    "general": {
-      "style_template": "seaborn-v0_8-darkgrid",
-      "dpi": 300,
-      "footer_text": "A footer with the format 'Made with Copernican Suite vX.X using engine_name.py on YYYYMMDD_HHMMSS' must be present at the bottom center of each plot."
-    },
-    "hubbleDiagram": {
-      "layout": "Two-panel vertical stack using gridspec_kw={'height_ratios':[3,1.5]}",
+    "base_style": "seaborn-v0_8-colorblind",
+    "figure_facecolor": "#f0f0f0",
+    "axes_facecolor": "#ffffff",
+    "grid_color": "#cccccc",
+    "title_fontsize": 16,
+    "label_fontsize": 12,
+    "tick_fontsize": 10,
+    "legend_fontsize": 10,
+    "footer_fontsize": 8,
+    "info_box_fontsize": 9,
+    "hubble_plot": {
+      "title": "Hubble Diagram",
+      "xlabel": "Redshift (z)",
+      "ylabel": "Distance Modulus (μ)",
       "data_points": {
-        "type": "errorbar",
-        "format": "'.'",
-        "color": "'darkgray'",
-        "ecolor": "'lightgray'",
+        "color": "#333333",
+        "marker": "o",
+        "s": 20,
         "alpha": 0.6,
-        "zorder": 1
+        "ecolor": "#555555",
+        "elinewidth": 1,
+        "capsize": 2
       },
-      "models": {
-        "lcdm": { "color": "'red'", "linestyle": "'-'" },
-        "alt_model": { "color": "'blue'", "linestyle": "'--'" }
+      "model_lines": {
+        "lcdm": {
+          "color": "#D55E00",
+          "linestyle": "-",
+          "linewidth": 2.5
+        },
+        "alt_model": {
+          "color": "#0072B2",
+          "linestyle": "--",
+          "linewidth": 2.5
+        }
       },
       "residuals": {
-        "lcdm_points": { "color": "'red'", "alpha": 0.4 },
-        "alt_model_points": { "markerfacecolor": "'none'", "edgecolor": "'blue'", "alpha": 0.4 },
-        "lcdm_binned_avg": { "color": "'darkred'", "linestyle": "'-'", "zorder": 10 },
-        "alt_model_binned_avg": { "color": "'darkblue'", "linestyle": "'--'", "zorder": 11 }
+        "ylabel": "Δμ (Model - Data)",
+        "hline_color": "#000000",
+        "hline_style": ":",
+        "hline_width": 1
       },
       "info_boxes": {
-        "positioning": "Placed outside the plot area on the right, controlled by fig.text.",
+        "positioning": "Placed inside the main plot area, typically 'upper left' and 'lower right'.",
         "lcdm_style": "{'boxstyle':'round,pad=0.5', 'fc':'#FFEEEE', 'ec':'darkred', 'alpha':0.9}",
-        "alt_model_style": "{'boxstyle':'round,pad=0.5', 'fc':'#EEF2FF', 'ec':'darkblue', 'alpha':0.9}",
-        "content": "Must contain: Model Name, Mathematical Form (from JSON), Cosmological Parameters, SNe Nuisance Parameters, and Chi-Squared."
+        "alt_model_style": "{'boxstyle':'round,pad=0.5', 'fc':'#EEF2FF', 'ec':'darkblue', 'alpha':0.9}"
       }
     },
-    "baoPlot": {
-      "layout": "Single large panel.",
+    "bao_plot": {
+      "title": "Baryon Acoustic Oscillations",
+      "xlabel": "Redshift (z)",
+      "ylabel_template": "BAO Observable ({observable_name})",
       "data_points": {
-        "type": "errorbar",
-        "format": "'o'",
-        "colormap": "One distinct color from the 'viridis' colormap for each unique observable type (e.g., DV/rs, DM/rs).",
-        "zorder": 10
+        "marker": "D",
+        "s": 40,
+        "alpha": 0.8,
+        "elinewidth": 1.5,
+        "capsize": 3,
+        "colors": "A list of distinct, vibrant colors (e.g., ['#009E73', '#F0E442', '#56B4E9']) corresponding to the sorted observable types."
       },
-      "models": {
+      "model_lines": {
         "lcdm": {
-          "linestyle": "'-'",
-          "colors": "A list of three distinct shades of red (e.g., ['#8B0000', '#FF0000', '#FF6347']) corresponding to the sorted observable types."
+          "linestyle": "A solid line style, specifically '-' or (0, ()).",
+          "colors": "A list of three distinct shades of red (e.g., ['#8B0000', '#FF0000', '#FA8072']) corresponding to the sorted observable types."
         },
         "alt_model": {
           "linestyle": "A prominent dash-gap style, specifically (0, (8, 5)).",
@@ -102,8 +109,7 @@
       "rules": [
         "Add a 'DEV NOTE' at the top of any modified file summarizing changes for the current version.",
         "Comment code extensively. Explain the 'why' behind your code, not just the 'what'.",
-        "Update the main README.md and this doc.json file to reflect the latest changes, architectural decisions, and future plans.",
-        "All changes to plotting logic MUST strictly adhere to the `plottingStyleGuide` defined in this document."
+        "Update the main README.md and this doc.json file to reflect the latest changes, architectural decisions, and future plans."
       ]
     }
   }

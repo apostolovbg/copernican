@@ -1,123 +1,224 @@
 # usmf3b.py
-# "Unified Scalar Field with barotropic fluid" Model 3b Plugin
-
 """
-DEV NOTE (v1.4rc): This model's code has not been changed, but its
-functionality should now be restored due to the framework-level bugfixes
-in the v1.4rc engine and plotter. The model's version is updated to
-reflect its compatibility with the repaired Copernican Suite.
+USMFv3b "Kinematic" Model Plugin for the Copernican Suite
+
+DEV NOTE (v1.4rc7):
+This model has been completely rewritten to match the official specification
+in the usmf3b.md documentation. It now implements the "Kinematic" USMF model.
+
+1.  METADATA OVERHAUL: The parameters have been changed to H_A, t0_age_Gyr,
+    p_kin, and fiducial parameters for BAO analysis, as specified in the
+    markdown file.
+2.  EQUATIONS REIMPLEMENTED: All physics functions have been replaced to
+    implement the analytic equations for the Kinematic model (r(z), dL(z),
+    DA(z), H(z), DV(z)).
+3.  BAO SUPPORT: The model is now fully equipped for BAO analysis, including
+    an implementation of the Eisenstein & Hu fitting formula for the sound
+    horizon `rs` based on the model's fiducial parameters.
+4.  API COMPLIANCE: All function signatures are compatible with the v1.4rc
+    engine, accepting a nuisance `M` parameter and `**kwargs` where needed.
 """
 
 import numpy as np
+import logging
 
 # --- Model Metadata ---
 METADATA = {
-    "model_name": "USMF3b",
-    "model_description": "A 'toy model' of a flat universe with a unified scalar field behaving as both dark matter and dark energy, plus a baryonic matter component.",
+    "model_name": "USMF3b-Kinematic",
+    "model_description": "A kinematic USMF model with a power-law shrinking index, providing analytic solutions for cosmological distances.",
+    "equations": {
+        "sne": [
+            r"$r(z) = \frac{c t_0}{p+1} [ 1 - (1+z)^{-(p+1)/p} ]$",
+            r"$d_L(z) = |r(z)|(1+z)^2 \frac{70}{H_A}$",
+            r"$\mu = 5 \log_{10}(d_L) + M$"
+        ],
+        "bao": [
+            r"$D_A(z) = |r(z)| \frac{70}{H_A}$",
+            r"$H(z) = \frac{p_{kin}}{t_0} (1+z)^{1/p_{kin}}$",
+            r"$D_V(z) = [ (1+z)^2 D_A(z)^2 \frac{cz}{H(z)} ]^{1/3}$"
+        ]
+    },
     "parameters": {
-        "H0": {
-            "description": "Hubble Constant at z=0",
+        "H_A": {
+            "description": "Apparent Hubble Constant, related to the shrinking rate",
             "units": "km/s/Mpc",
-            "latex": "$H_0$",
+            "latex": r"$H_A$",
             "role": "cosmological",
-            "initial_guess": 70,
-            "bounds": (50, 90)
+            "initial_guess": 70.0,
+            "bounds": (50.0, 100.0)
         },
-        "Om0": {
-            "description": "Baryonic Matter Density Parameter at z=0",
-            "units": None,
-            "latex": "$\\Omega_{b,0}$",
+        "t0_age_Gyr": {
+            "description": "Age of the Universe at present time",
+            "units": "Gyr",
+            "latex": r"$t_{0,age}$",
             "role": "cosmological",
-            "initial_guess": 0.05,
-            "bounds": (0.01, 0.1)
+            "initial_guess": 14.0,
+            "bounds": (10.0, 20.0)
+        },
+        "p_kin": {
+            "description": "Kinematic power-law index",
+            "units": None,
+            "latex": r"$p_{kin}$",
+            "role": "cosmological",
+            "initial_guess": 0.8,
+            "bounds": (0.1, 2.0)
+        },
+        "Omega_m0_fid": {
+            "description": "Fiducial Matter Density for rs calculation",
+            "units": None,
+            "latex": r"$\Omega_{m0,fid}$",
+            "role": "cosmological", # Treated as cosmological for engine compatibility
+            "initial_guess": 0.31,
+            "bounds": (0.2, 0.4)
+        },
+        "Omega_b0_fid": {
+            "description": "Fiducial Baryon Density for rs calculation",
+            "units": None,
+            "latex": r"$\Omega_{b0,fid}$",
+            "role": "cosmological", # Treated as cosmological for engine compatibility
+            "initial_guess": 0.0486,
+            "bounds": (0.03, 0.07)
         },
         "M": {
             "description": "Absolute Magnitude of a Type Ia Supernova",
             "units": "magnitude",
-            "latex": "$M$",
+            "latex": r"$M$",
             "role": "nuisance",
             "initial_guess": -19.3,
             "bounds": (-20, -18)
         }
+    },
+    "fixed_params": {
+        "C_LIGHT_KM_S": 299792.458,
+        "GYR_TO_S": 3.15576e16,
+        "MPC_TO_KM": 3.08567758e19,
+        "H0_fid": 70.0 # Fiducial Hubble constant for h in rs calculation
     }
 }
 
-# Define fixed physical constants used by the model
-FIXED_PARAMS = {
-    "C_LIGHT_KM_S": 299792.458,  # Speed of light in km/s
-}
+# --- Core Physics Functions ---
 
-
-# --- Core Cosmological Functions ---
-
-def get_Ez(z, Om0, Ok0):
+def _get_rz_Mpc(z, t0_age_Gyr, p_kin):
     """
-    Calculates the dimensionless Hubble parameter E(z) = H(z)/H0.
-    For this model, the universe is assumed flat (Ok0=0), and the dark sector
-    (dark matter + dark energy) is modeled as a single scalar field component.
-    The total density parameter is Om0 (baryons) + (1-Om0) (scalar field).
+    Calculates the analytic comoving-like distance r(z) in Mpc.
+    r(z) = [c*t0/(p+1)] * [1 - (1+z)^(-(p+1)/p)]
     """
-    # E(z)^2 = Om_baryon(1+z)^3 + (1-Om_baryon)(1+z)^(3/2)
-    # The (1+z)^(3/2) term is a characteristic of this specific toy model's scalar field.
-    return np.sqrt(Om0 * (1+z)**3 + (1 - Om0) * (1+z)**(3/2))
+    z = np.asarray(z)
+    C_LIGHT_KM_S = METADATA['fixed_params']['C_LIGHT_KM_S']
+    GYR_S = METADATA['fixed_params']['GYR_TO_S']
+    MPC_KM = METADATA['fixed_params']['MPC_TO_KM']
 
-
-def get_Hz_per_Mpc(z, H0, Om0, Ok0):
-    """
-    Calculates the Hubble parameter H(z) in units of 1/Mpc.
-    """
-    return (H0 / FIXED_PARAMS["C_LIGHT_KM_S"]) * get_Ez(z, Om0, Ok0)
-
-
-def get_comoving_distance_Mpc(z, H0, Om0, Ok0):
-    """
-    Calculates comoving distance. For this model, there's an analytic solution,
-    so no integration is needed.
-    """
-    # Analytic solution for the integral of 1/E(z) for this model
-    integral_val = (2 / (1 - Om0)) * (np.sqrt(Om0 * (1+z)**(3/2) + (1-Om0)) - np.sqrt(1))
-    return (FIXED_PARAMS["C_LIGHT_KM_S"] / H0) * integral_val
-
-
-# --- Derived Cosmological Distances & Observables ---
-
-def get_angular_diameter_distance_Mpc(z, H0, Om0, Ok0):
-    """
-    Calculates the angular diameter distance in Mpc.
-    """
-    return get_comoving_distance_Mpc(z, H0, Om0, Ok0) / (1+z)
-
-
-def get_luminosity_distance_Mpc(z, H0, Om0, Ok0):
-    """
-    Calculates the luminosity distance in Mpc.
-    """
-    return get_comoving_distance_Mpc(z, H0, Om0, Ok0) * (1+z)
-
-
-def get_distance_modulus(z, H0, Om0, Ok0, M):
-    """
-    Calculates the distance modulus (mu).
-    """
-    dl_pc = get_luminosity_distance_Mpc(z, H0, Om0, Ok0) * 1e6
-    return 5 * np.log10(dl_pc / 10) + M
-
-
-def get_DV_Mpc(z, H0, Om0, Ok0):
-    """
-    Calculates the volume-averaged distance DV in Mpc. This is also analytic.
-    DV = [ (c/H0) * z * (1+z)^2 * D_A(z)^2 / E(z) ] ^ (1/3)
-    """
-    # Since all components are numpy-friendly, this should vectorize safely.
-    da = get_angular_diameter_distance_Mpc(z, H0, Om0, Ok0)
-    ez = get_Ez(z, Om0, Ok0)
+    t0_s = t0_age_Gyr * GYR_S
     
-    # Handle z=0 case to prevent 0/0 if ez were also 0
-    # Although for this model E(0)=1, this is good practice.
-    term = np.zeros_like(z, dtype=float)
-    non_zero_z = z > 0
+    # Avoid division by zero if p_kin is close to 0
+    if np.abs(p_kin) < 1e-9:
+        return np.full_like(z, np.nan)
+        
+    exponent = -(p_kin + 1) / p_kin
     
-    term[non_zero_z] = ( (FIXED_PARAMS["C_LIGHT_KM_S"] / H0) *
-                         z[non_zero_z] * (1+z[non_zero_z])**2 * da[non_zero_z]**2 / ez[non_zero_z] )
+    # Calculate r(z) in km
+    rz_km = (C_LIGHT_KM_S * t0_s / (p_kin + 1)) * (1 - np.power(1 + z, exponent))
+    
+    # Convert from km to Mpc
+    return rz_km / MPC_KM
 
-    return np.power(term, 1/3)
+# --- Derived Cosmological Observables ---
+
+def get_luminosity_distance_Mpc(z, H_A, t0_age_Gyr, p_kin, **kwargs):
+    """
+    Calculates luminosity distance dL in Mpc.
+    dL(z) = |r(z)| * (1+z)^2 * (70.0 / H_A)
+    """
+    z = np.asarray(z)
+    rz = _get_rz_Mpc(z, t0_age_Gyr, p_kin)
+    return np.abs(rz) * (1 + z)**2 * (70.0 / H_A)
+
+def get_distance_modulus(z, M, H_A, t0_age_Gyr, p_kin, **kwargs):
+    """
+    Calculates the distance modulus mu.
+    mu = 5 * log10(dL / 1 Mpc) + M
+    """
+    dl_mpc = get_luminosity_distance_Mpc(z, H_A=H_A, t0_age_Gyr=t0_age_Gyr, p_kin=p_kin)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        mu = 5 * np.log10(dl_mpc)
+    return mu + M
+
+def get_angular_diameter_distance_Mpc(z, H_A, t0_age_Gyr, p_kin, **kwargs):
+    """
+    Calculates angular diameter distance DA in Mpc.
+    DA(z) = |r(z)| * (70.0 / H_A)
+    """
+    z = np.asarray(z)
+    rz = _get_rz_Mpc(z, t0_age_Gyr, p_kin)
+    return np.abs(rz) * (70.0 / H_A)
+
+def get_Hz_per_Mpc(z, t0_age_Gyr, p_kin, **kwargs):
+    """
+    Calculates the Hubble parameter H(z) in units of km/s/Mpc.
+    H_usmf(z) = (p_kin/t0) * (1+z)^(1/p_kin)
+    """
+    z = np.asarray(z)
+    GYR_S = METADATA['fixed_params']['GYR_TO_S']
+    MPC_KM = METADATA['fixed_params']['MPC_TO_KM']
+    
+    t0_s = t0_age_Gyr * GYR_S
+    
+    # Calculate H in units of 1/s
+    Hz_per_s = (p_kin / t0_s) * np.power(1 + z, 1.0 / p_kin)
+    
+    # Convert from 1/s to km/s/Mpc
+    return Hz_per_s * (MPC_KM / 1e19) # Correction for Mpc -> km factor
+
+def get_DV_Mpc(z, H_A, t0_age_Gyr, p_kin, **kwargs):
+    """
+    Calculates the volume-averaged distance DV in Mpc.
+    DV = [ (1+z)^2 * DA^2 * c*z / H(z) ] ^ (1/3)
+    """
+    z = np.asarray(z)
+    C_LIGHT_KM_S = METADATA['fixed_params']['C_LIGHT_KM_S']
+    
+    da = get_angular_diameter_distance_Mpc(z, H_A=H_A, t0_age_Gyr=t0_age_Gyr, p_kin=p_kin)
+    hz = get_Hz_per_Mpc(z, t0_age_Gyr=t0_age_Gyr, p_kin=p_kin)
+    
+    with np.errstate(divide='ignore', invalid='ignore'):
+        safe_hz = np.where(hz > 1e-9, hz, np.nan)
+        term = (1 + z)**2 * da**2 * C_LIGHT_KM_S * z / safe_hz
+        
+    return np.power(term, 1/3, where=term >= 0, out=np.full_like(z, np.nan))
+
+def get_sound_horizon_rs_Mpc(Omega_m0_fid, Omega_b0_fid, **kwargs):
+    """
+    Calculates the sound horizon at the drag epoch using the Eisenstein & Hu (1998)
+    fitting formula with this model's fiducial parameters.
+    """
+    # Use fiducial H0 to get fiducial h
+    H0_fid = METADATA['fixed_params']['H0_fid']
+    h_fid = H0_fid / 100.0
+    
+    omega_m_h2 = Omega_m0_fid * h_fid**2
+    omega_b_h2 = Omega_b0_fid * h_fid**2
+    
+    # These constants are from the standard model, used here for the rs calculation
+    T_CMB0 = 2.7255
+    OMEGA_G_H2 = 2.472e-5
+    NEUTRINO_MASS_eV = 0.06
+    omega_nu_h2 = NEUTRINO_MASS_eV / 93.14
+    om_r_h2 = OMEGA_G_H2 + omega_nu_h2
+    
+    if not (omega_m_h2 > 1e-5 and omega_b_h2 > 1e-5): return np.nan
+    
+    # Calculations from Eisenstein & Hu (1998), ApJ, 496, 605
+    z_eq = 2.50e4 * omega_m_h2 * (T_CMB0/2.7)**-4
+    k_eq = 7.46e-2 * omega_m_h2 * (T_CMB0/2.7)**-2
+    
+    b1 = 0.313 * (omega_m_h2)**-0.419 * (1 + 0.607 * (omega_m_h2)**0.674)
+    b2 = 0.238 * (omega_m_h2)**0.223
+    z_d = 1291 * ((omega_m_h2)**0.251 / (1 + 0.659 * (omega_m_h2)**0.828)) * (1 + b1 * (omega_b_h2)**b2)
+
+    R_eq = 3.15e4 * omega_b_h2 * (T_CMB0/2.7)**-4 / z_eq
+    R_d = 3.15e4 * omega_b_h2 * (T_CMB0/2.7)**-4 / z_d
+    
+    s = (2. / (3. * k_eq)) * np.sqrt(6. / R_eq) * np.log((np.sqrt(1 + R_d) + np.sqrt(R_d + R_eq)) / (1 + np.sqrt(R_eq)))
+    
+    # E&H formula gives s in Mpc/h, so we convert to Mpc using fiducial h
+    return s / h_fid

@@ -1,39 +1,54 @@
 # Copernican Suite - A Modular Cosmology Framework
 
-## Current Status (v1.4 Release Candidate - Under Active Debugging)
+## Current Status (v1.4rc13 - Definitive Data Loader Fix)
 
-**Version 1.4rc is an unstable development build and is not suitable for production use.**
+**DEV NOTE (Session: 20250612_1530): This document has been updated to `v1.4rc13`. This version reflects a full stop and reassessment of the persistent data loading bug. The root cause has been definitively identified and the fix is specified herein.**
 
-The original goal for the v1.4 release was to build upon v1.4b and finalize the plotting functionality, particularly for Baryon Acoustic Oscillation (BAO) data. However, development has been blocked by a series of critical, cascading errors that prevent the program from completing a single successful run.
+**Version 1.4rc remains unstable and is not suitable for any use.**
 
-Previous debugging sessions to fix the plotting were sidetracked, leading to a loss of context and further instability in the codebase. The current debugging effort is focused on restoring core functionality that was broken during a major refactoring between versions. Specifically, the data parsing algorithms in `data_loaders.py` were compromised. A working version of this file from `v1.3` is being used as a reference to restore the correct data handling logic.
+The primary goal of the v1.4rc stabilization effort has been blocked by a single, persistent, and difficult bug in `data_loaders.py` that resulted in a failure to load the complete supernova dataset. All previous attempts to fix this have failed.
 
-The primary objective is to stabilize the application. Testing and development of the plotting features cannot resume until the program can execute a full analysis without crashing.
+**Root Cause Analysis of the Data Loading Failure:**
+* **The Problem:** The `_load_unistra_fixed_nuisance_h1` parser was consistently loading only 33 of 740 supernovae from `tablef3.dat`.
+* **The Reason:** The parser was configured to read data from the **incorrect columns**. It was reading from columns that contained placeholders or non-essential data, which were then correctly identified as invalid and dropped, leading to the massive data loss.
+* **The Law of the Land (`v1.3` Logic):** The stable `v1.3` version of the parser worked because it correctly targeted the columns for redshift, distance modulus, and error, and correctly handled placeholder values as `NaN`s *during* the initial read.
+
+**The Path Forward:**
+The immediate and only priority is to rewrite the UniStra parsers in `data_loaders.py` to **exactly replicate the successful column-targeting and NaN-handling logic of the `1.3data_loaders.py` script.** A secondary `TypeError` is expected to appear in the `cosmo_engine` once the data is correctly loaded.
 
 ---
 
 ## Overview
 
-The Copernican Suite is a Python-based, modular framework designed for cosmological data analysis. It allows users to test different cosmological models against observational data, such as Type Ia Supernovae (SNe Ia) and Baryon Acoustic Oscillations (BAO). Its primary goal is to provide a flexible and extensible platform for researchers and enthusiasts to explore cosmological paradigms.
+The Copernican Suite is a Python-based, modular framework designed for cosmological data analysis. It allows users to test different cosmological models against observational data, such as Type Ia Supernovae (SNe Ia) and Baryon Acoustic Oscillations (BAO). Its primary goal is to provide a flexible and extensible platform for researchers to compare theoretical models with empirical evidence.
 
-## Architecture (v1.4)
+## Architecture
 
-The suite is designed with a decoupled architecture to promote modularity and ease of development.
+The suite is composed of several key modules that work in a pipeline:
 
--   **`copernican.py`**: The main orchestrator and user interface. It manages the overall workflow, from user input to dispatching jobs.
--   **`input_aggregator.py`**: Gathers all necessary inputs—model selections, data file paths, and parser choices—and assembles them into a standardized JSON job file.
--   **`cosmo_engine_*.py`**: The computational heart of the suite. These are swappable engines that perform the intensive calculations, such as parameter fitting (e.g., using `scipy.optimize.minimize`) and generating model predictions.
--   **Model Plugins (`.py` files)**: Self-contained Python files that define a specific cosmological model. Each plugin must provide a `METADATA` dictionary containing the model's name, equations (in LaTeX), parameter definitions, and the core physics functions (`get_distance_modulus_mu`, etc.).
--   **`data_loaders.py`**: Contains a library of parser functions for different observational data formats.
--   **`output_manager.py`**: Manages the post-processing stage. It receives a "Results JSON" from the engine and dispatches tasks to the appropriate output modules.
--   **`csv_writer.py`**: A submodule of the output manager that writes detailed numerical results to CSV files.
--   **`plotter.py`**: A submodule of the output manager that generates all plots (e.g., Hubble diagrams, BAO plots) based on the results and a strict style guide.
+* **`copernican.py`**: The main orchestrator.
+* **`input_aggregator.py`**: Assembles the `Job JSON`.
+* **`data_loaders.py`**: Contains data parsers. **This is the current point of failure.** Its parsers for UniStra-type data **must** be rewritten to use the correct column indices and `NaN` handling from the v1.3 implementation to ensure all 740 SNe are loaded from `tablef3.dat`.
+* **`cosmo_engine_*.py`**: The computational engine. Will likely expose a secondary `TypeError` once data loading is fixed.
+* **`output_manager.py`**: Dispatches output tasks.
+* **`csv_writer.py`**: Writes tabular data.
+* **`plotter.py`**: Generates plots based on the style guide.
+
+---
+
+## Development History
+
+* **v1.3:** Stable version with a robust `data_loaders.py` that is the reference for the current bugfix.
+* **v1.4rc (Initial):** A major refactor that broke the data pipeline.
+* **v1.4rc2 - v1.4rc11:** A series of failed attempts to fix the data loading issue. These versions suffered from numerous cascading errors, including `KeyError`, `ValueError`, `TypeError` (string math), and incorrect data filtering, all stemming from the initial broken refactor.
+* **v1.4rc12:** The last failed attempt. It incorrectly diagnosed the data loading issue, which was still only loading 33 supernovae. This version's failure made it clear a fundamental misunderstanding of the problem was occurring.
+* **v1.4rc13 (This Version):** A full reset. The root cause of the data loss has been identified as reading from the wrong columns. The plan is to implement the correct `v1.3` logic.
+
+---
 
 ## Future Vision (v1.5 and beyond)
 
-The long-term vision is to evolve the suite into a "Universal Math Engine". The current reliance on model-specific `.py` plugins will be deprecated in favor of a system that can parse mathematical models directly from structured text files (e.g., Markdown with a YAML header).
-
-This would allow users to define new models by simply writing out their equations and parameter specifications in a `.md` file, making the suite accessible to users without Python programming experience. The engine would parse these files to dynamically generate the necessary computational objects, creating a truly universal tool for cosmological exploration.
+The long-term vision is to evolve the suite into a "Universal Math Engine" that can parse models directly from structured text files. This is contingent on first achieving a stable, working `v1.4`.
 
 ## Note on AI-Driven Development
 

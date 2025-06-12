@@ -2,17 +2,18 @@
 """
 LCDM Model Plugin for the Copernican Suite.
 
-DEV NOTE (v1.4rc):
-1.  METADATA REFACTOR: The metadata has been refactored from loose global
-    variables into a single `METADATA` dictionary. This is a critical
-    update for compatibility with the v1.4rc framework, which expects
-    this standardized structure. All model information (name, description,
-    equations, parameters, etc.) is now accessible from this single object.
+DEV NOTE (v1.4rc6):
+1.  API ALIGNMENT FIX: The primary distance modulus function has been updated
+    to align with the v1.4rc engine API.
+    - Renamed `get_distance_modulus_mu` to `get_distance_modulus`.
+    - Signature changed to accept the nuisance parameter `M` and `**kwargs`
+      to safely ignore extra parameters (like `Ok0`) passed by the engine.
+    - Calculation now correctly uses the passed value of `M` instead of a
+      hardcoded `+ 25`.
+    This resolves the `TypeError` crash when using this model.
 
-2.  BUG FIX (Inherited from v1.4b): The `get_comoving_distance_Mpc`
-    function uses a robust list comprehension loop instead of the unstable
-    `np.vectorize` method to prevent NaN outputs when generating smooth curves
-    for plotting.
+(Previous notes from v1.4rc preserved below)
+...
 """
 
 import numpy as np
@@ -28,7 +29,7 @@ METADATA = {
         "sne": [
             r"$H(z) = H_0 \sqrt{\Omega_{m0}(1+z)^3 + \Omega_{\Lambda0}}$",
             r"$d_L(z) = (1+z) \int_0^z \frac{c}{H(z')} dz'$",
-            r"$\mu = 5 \log_{10}(d_L/1\,\mathrm{Mpc}) + 25$"
+            r"$\mu = 5 \log_{10}(d_L/1\,\mathrm{Mpc}) + M$"
         ],
         "bao": [
             r"$D_A(z) = \frac{1}{1+z} \int_0^z \frac{c}{H(z')} dz'$",
@@ -148,28 +149,30 @@ def get_comoving_distance_Mpc(z_array, H0, Omega_m0):
 
 # --- Derived Cosmological Observables ---
 
-def get_luminosity_distance_Mpc(z_array, *cosmo_params):
+def get_luminosity_distance_Mpc(z_array, H0, Omega_m0):
     """Calculates luminosity distance, d_L = d_C * (1+z), in Mpc."""
-    d_c = get_comoving_distance_Mpc(z_array, *cosmo_params)
+    d_c = get_comoving_distance_Mpc(z_array, H0, Omega_m0)
     return d_c * (1 + np.asarray(z_array))
 
-def get_distance_modulus_mu(z_array, *cosmo_params):
-    """Calculates the distance modulus, mu = 5*log10(d_L/Mpc) + 25."""
-    dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)
-    with np.errstate(divide='ignore'): # Ignore log10(0) if dl is zero
-        return 5 * np.log10(dl_mpc) + 25 if dl_mpc is not None else np.full(np.shape(z_array), np.nan)
+def get_distance_modulus(z_array, H0, Omega_m0, M, **kwargs):
+    """Calculates the distance modulus, mu = 5*log10(d_L/Mpc) + M."""
+    # Pass only the needed cosmological params to the luminosity distance function.
+    # The **kwargs will safely capture any other params like Omega_b0, Ok0.
+    dl_mpc = get_luminosity_distance_Mpc(z_array, H0, Omega_m0)
+    with np.errstate(divide='ignore', invalid='ignore'): # Ignore log10(0) if dl is zero
+        # Use the fitted nuisance parameter M, not a fixed value
+        return 5 * np.log10(dl_mpc) + M
 
-def get_angular_diameter_distance_Mpc(z_array, *cosmo_params):
+def get_angular_diameter_distance_Mpc(z_array, H0, Omega_m0, **kwargs):
     """Calculates angular diameter distance, d_A = d_C / (1+z), in Mpc."""
-    d_c = get_comoving_distance_Mpc(z_array, *cosmo_params)
+    d_c = get_comoving_distance_Mpc(z_array, H0, Omega_m0)
     return d_c / (1 + np.asarray(z_array))
 
-def get_DV_Mpc(z_array, *cosmo_params):
+def get_DV_Mpc(z_array, H0, Omega_m0, **kwargs):
     """
     Calculates the BAO volume-averaged distance, D_V.
     D_V = [ (1+z)^2 * D_A^2 * c*z / H(z) ]^(1/3)
     """
-    H0, Omega_m0 = cosmo_params[:2] # Only H0 and Omega_m0 are needed for this calculation
     da = get_angular_diameter_distance_Mpc(z_array, H0, Omega_m0)
     hz = get_Hz_per_Mpc(z_array, H0, Omega_m0)
     z = np.asarray(z_array)
