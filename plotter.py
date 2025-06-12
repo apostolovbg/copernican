@@ -3,8 +3,8 @@
 
 """
 DEV NOTE (v1.4g):
-Minor refinements for the stabilized data loaders.
-The footer now reports v1.4g. The BAO plotting fix from v1.4rc8 is retained.
+Updated footer text to v1.4g and cleaned up BAO plotting code.
+The earlier v1.4rc8 fix for BAO lines remains intact.
 
 
 ---

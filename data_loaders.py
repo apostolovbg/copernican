@@ -3,8 +3,8 @@
 Handles the loading and parsing of various cosmological data formats.
 
 DEV NOTE (v1.4g):
-The UniStra parsers now replicate the stable v1.3 fixed-width logic.
-This restores correct column targeting and NaN handling for `tablef3.dat`.
+Restored the UniStra fixed-width parsers using the stable v1.3 logic.
+They now target the correct columns, convert '---' to NaN, and load all 740 SNe.
 """
 
 import os
