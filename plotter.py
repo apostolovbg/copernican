@@ -178,12 +178,20 @@ def create_bao_plot(results_json, style_guide):
             curves = smooth_curves_data[obs_type]
             m1_c = m1_colors[i % len(m1_colors)]
             m2_c = m2_colors[i % len(m2_colors)]
-            ax.plot(curves['z_smooth'], curves['model1_y_smooth'], color=m1_c,
-                    linestyle=ast.literal_eval(m1_line_style.get('linestyle', "'-'")),
-                    linewidth=m1_line_style.get('linewidth', 2))
-            ax.plot(curves['z_smooth'], curves['model2_y_smooth'], color=m2_c,
-                    linestyle=ast.literal_eval(m2_line_style.get('linestyle', "'-'")),
-                    linewidth=m2_line_style.get('linewidth', 2))
+            ax.plot(
+                curves['z_smooth'],
+                curves['model1_y_smooth'],
+                color=m1_c,
+                linestyle=ast.literal_eval(m1_line_style.get('linestyle', "'-'")),
+                linewidth=m1_line_style.get('linewidth', 2),
+            )
+            ax.plot(
+                curves['z_smooth'],
+                curves['model2_y_smooth'],
+                color=m2_c,
+                linestyle=ast.literal_eval(m2_line_style.get('linestyle', "'-'")),
+                linewidth=m2_line_style.get('linewidth', 2),
+            )
         else:
             print(f"Warning: No smooth curve data found for BAO observable '{obs_type}'.")
 
