@@ -2,22 +2,8 @@
 """
 Handles the loading and parsing of various cosmological data formats.
 
-DEV NOTE (v1.4g):
-tkyfah-codex/fix-bug-in-data_readers.py-and-explain-long-term-solution
-Restored the UniStra fixed-width parsers using the stable v1.3 logic.
+DEV NOTE (v1.4g): Restored the UniStra fixed-width parsers using the stable v1.3 logic.
 They now target the correct columns, convert '---' to NaN, and load all 740 SNe.
-=======
- codex/fix-bug-in-data_readers.py-and-explain-long-term-solution
-Restored the UniStra fixed-width parsers using the stable v1.3 logic.
-They now target the correct columns, convert '---' to NaN, and load all 740 SNe.
-
-gggxa2-codex/fix-bug-in-data_readers.py-and-explain-long-term-solution
-Restored the UniStra fixed-width parsers using the stable v1.3 logic.
-They now target the correct columns, convert '---' to NaN, and load all 740 SNe.
-
-The UniStra parsers now replicate the stable v1.3 fixed-width logic.
-This restores correct column targeting and NaN handling for `tablef3.dat`.
-1.4g
 """
 
 import os
@@ -274,10 +260,12 @@ def _prompt_for_data(base_dir, data_type_name, parsers_dict, is_optional=False):
 def get_user_selections(base_dir):
     """Main UI function to get all user selections for a run."""
     print("\n--- 🪐 Select a Computational Engine ---")
-    print("  1. cosmo_engine_.1.4rc.py")
+    print("  1. cosmo_engine_1.4g.py")
+    print("  2. cosmo_engine_.1.4rc.py")
     engine_choice = input("Enter the number of the engine to use (or 'c' to cancel): ").strip()
-    if engine_choice.lower() == 'c': return None
-    engine_name = "cosmo_engine_.1.4rc.py"
+    if engine_choice.lower() == 'c':
+        return None
+    engine_name = "cosmo_engine_1.4g.py" if engine_choice == '1' else "cosmo_engine_.1.4rc.py"
 
     alt_model_path = input("Enter path to alternative model .py file (or 'test'): ").strip()
     if alt_model_path.lower() == 'c': return None

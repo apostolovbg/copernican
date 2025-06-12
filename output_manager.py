@@ -7,6 +7,8 @@ non-existent function (`create_csv_outputs`) in the csv_writer. The dispatch
 logic has been updated to call the correct, specific writer functions
 (e.g., `create_sne_csv`, `create_bao_csv`) based on the contents of the
 results dictionary. This aligns the dispatcher with the v1.4 architecture.
+
+DEV NOTE (v1.4g): Added a missing newline at file end for consistency.
 """
 
 import logging

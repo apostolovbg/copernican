@@ -1,27 +1,11 @@
-# cosmo_engine_.1.4rc.py
+# cosmo_engine_1.4g.py
 # Computational Engine for Copernican Suite
 
 """
-DEV NOTE (v1.4rc): This engine has been significantly updated to fix the
-critical bug preventing BAO model curve generation.
-
-1.  NEW FUNCTION: A new private helper, `_generate_smooth_bao_curves`, has
-    been added. This function creates smooth arrays of theoretical BAO
-    observables using the best-fit parameters from the SNe analysis. This
-    is the data that was missing for the plotter.
-
-2.  MODIFIED WORKFLOW: The main `execute_job` function now calls this new
-    helper and injects the resulting smooth curve data into the
-    `bao_analysis` dictionary within the `Results JSON`.
-
-3.  ERROR HANDLING: Added more specific logging within the BAO calculation
-    loop to improve future diagnostics.
-
-This change restores the BAO plotting functionality that was lost in the
-v1.4a refactor.
-
-DEV NOTE (v1.4g): Added a final newline for consistency with the
-repository style guide. No functional changes were made.
+DEV NOTE (v1.4g): This engine refines the unfinished v1.4rc prototype.
+- COLUMN FIX: uses the SNe column `mu` to compute residuals, avoiding a KeyError.
+- COMPATIBLE: designed for lcdm_model.py, usmf2.py, usmf3b.py, and any plugin following the v1.4 API.
+- BAO SUPPORT: retains generation of smooth curves for BAO plots.
 """
 
 import logging
@@ -63,12 +47,12 @@ def _chi_squared(params, sne_df, model_plugin):
     cosmo_params_dict['Ok0'] = 0.0 # Assuming flat universe for now
 
     z = sne_df['z'].values
-    mu_data = sne_df['mu'].values
+    mu = sne_df['mu'].values
     mu_err = sne_df['mu_err'].values
 
     mu_model = model_plugin.get_distance_modulus(z, **cosmo_params_dict, M=M)
     
-    chi2 = np.sum(((mu_data - mu_model) / mu_err)**2)
+    chi2 = np.sum(((mu - mu_model) / mu_err)**2)
     return chi2
 
 def _perform_sne_fit(sne_df, model_plugin):
@@ -121,7 +105,7 @@ def _create_detailed_sne_df(sne_df, fit_results, model_plugin):
     M = params['M']
 
     sne_df['mu_model'] = model_plugin.get_distance_modulus(sne_df['z'].values, **cosmo_params, M=M)
-    sne_df['residual'] = sne_df['mu_data'] - sne_df['mu_model']
+    sne_df['residual'] = sne_df['mu'] - sne_df['mu_model']
     
     # Generate smooth curve for plotting
     z_smooth = np.linspace(sne_df['z'].min(), sne_df['z'].max(), 300)
@@ -223,79 +207,94 @@ def _generate_smooth_bao_curves(bao_df, model1_params, model2_params, model1_plu
 
 def execute_job(job_json):
     """
-    The main entry point for the engine.
-    Orchestrates the loading, fitting, and calculation process.
+    The main entry point for the engine. The entire workflow is wrapped in a
+    try/except block so unexpected errors are logged with full tracebacks.
     """
     logging.info("Cosmological engine execution started.")
-    run_id = job_json['run_id']
-    
-    # --- Load Data and Models ---
-    sne_df = pd.DataFrame(job_json['data']['sne_data']['dataframe'])
-    model1_plugin = _load_model_plugin(job_json['models']['model1']['path'])
-    model2_plugin = _load_model_plugin(job_json['models']['model2']['path'])
+    run_id = job_json.get('run_id', 'unknown')
 
-    if not all([model1_plugin, model2_plugin]):
-        logging.critical("One or more model plugins failed to load. Aborting job.")
-        return None
+    try:
+        # --- Validate Job Structure ---
+        if 'data' not in job_json:
+            logging.error("Job JSON is missing the 'data' section.")
+            return None
+        if 'models' not in job_json:
+            logging.error("Job JSON is missing the 'models' section with plugin paths.")
+            logging.debug(f"Job JSON keys received: {list(job_json.keys())}")
+            return None
 
-    # --- SNe Ia Fitting ---
-    model1_fit_results = _perform_sne_fit(sne_df, model1_plugin)
-    model2_fit_results = _perform_sne_fit(sne_df, model2_plugin)
-    
-    # Create detailed SNe dataframes with model predictions
-    sne_df_model1, smooth1 = _create_detailed_sne_df(sne_df.copy(), model1_fit_results, model1_plugin)
-    sne_df_model2, smooth2 = _create_detailed_sne_df(sne_df.copy(), model2_fit_results, model2_plugin)
-    
-    # Consolidate SNe results
-    sne_results_df = sne_df_model1.rename(columns={'mu_model': 'model1_mu', 'residual': 'model1_residual'})
-    sne_results_df['model2_mu'] = sne_df_model2['mu_model']
-    sne_results_df['model2_residual'] = sne_df_model2['residual']
-    
-    # --- BAO Analysis (if data provided) ---
-    bao_analysis_results = {}
-    if job_json['data']['bao_data']:
-        bao_df = pd.DataFrame(job_json['data']['bao_data']['dataframe'])
-        
-        # Calculate observables for each model at the data points
-        bao_m1_df = _calculate_bao_observables(bao_df.copy(), model1_fit_results['best_fit_params'], model1_plugin)
-        bao_m2_df = _calculate_bao_observables(bao_df.copy(), model2_fit_results['best_fit_params'], model2_plugin)
+        # --- Load Data and Models ---
+        sne_df = pd.DataFrame(job_json['data']['sne_data']['dataframe'])
+        model1_plugin = _load_model_plugin(job_json['models']['model1']['path'])
+        model2_plugin = _load_model_plugin(job_json['models']['model2']['path'])
 
-        bao_results_df = bao_m1_df.rename(columns={'y_model': 'model1_y'})
-        bao_results_df['model2_y'] = bao_m2_df['y_model']
-        
-        # MODIFIED (v1.4rc): Generate the smooth curves for plotting
-        smooth_curves = _generate_smooth_bao_curves(
-            bao_results_df, 
-            model1_fit_results['best_fit_params'], 
-            model2_fit_results['best_fit_params'],
-            model1_plugin,
-            model2_plugin
-        )
-        
-        bao_analysis_results = {
-            "detailed_df": bao_results_df.to_dict('split'),
-            "smooth_curves": smooth_curves # Add the new data to the results
+        if not all([model1_plugin, model2_plugin]):
+            logging.critical("One or more model plugins failed to load. Aborting job.")
+            return None
+
+        # --- SNe Ia Fitting ---
+        model1_fit_results = _perform_sne_fit(sne_df, model1_plugin)
+        model2_fit_results = _perform_sne_fit(sne_df, model2_plugin)
+
+        # Create detailed SNe dataframes with model predictions
+        sne_df_model1, smooth1 = _create_detailed_sne_df(sne_df.copy(), model1_fit_results, model1_plugin)
+        sne_df_model2, smooth2 = _create_detailed_sne_df(sne_df.copy(), model2_fit_results, model2_plugin)
+
+        # Consolidate SNe results
+        sne_results_df = sne_df_model1.rename(columns={'mu_model': 'model1_mu', 'residual': 'model1_residual'})
+        sne_results_df['model2_mu'] = sne_df_model2['mu_model']
+        sne_results_df['model2_residual'] = sne_df_model2['residual']
+
+        # --- BAO Analysis (if data provided) ---
+        bao_analysis_results = {}
+        if job_json['data'].get('bao_data'):
+            bao_df = pd.DataFrame(job_json['data']['bao_data']['dataframe'])
+
+            bao_m1_df = _calculate_bao_observables(
+                bao_df.copy(), model1_fit_results['best_fit_params'], model1_plugin)
+            bao_m2_df = _calculate_bao_observables(
+                bao_df.copy(), model2_fit_results['best_fit_params'], model2_plugin)
+
+            bao_results_df = bao_m1_df.rename(columns={'y_model': 'model1_y'})
+            bao_results_df['model2_y'] = bao_m2_df['y_model']
+
+            smooth_curves = _generate_smooth_bao_curves(
+                bao_results_df,
+                model1_fit_results['best_fit_params'],
+                model2_fit_results['best_fit_params'],
+                model1_plugin,
+                model2_plugin
+            )
+
+            bao_analysis_results = {
+                "detailed_df": bao_results_df.to_dict('split'),
+                "smooth_curves": smooth_curves
+            }
+
+        # --- Assemble Final Results JSON ---
+        results_dict = {
+            "metadata": {
+                "run_id": run_id,
+                "engine_name": job_json['engine_name'],
+                "model1_name": model1_plugin.METADATA['model_name'],
+                "model2_name": model2_plugin.METADATA['model_name'],
+                "model1_metadata": model1_plugin.METADATA,
+                "model2_metadata": model2_plugin.METADATA,
+            },
+            "sne_analysis": {
+                "detailed_df": sne_results_df.to_dict('split'),
+                "model1_fit_results": model1_fit_results,
+                "model2_fit_results": model2_fit_results,
+                "model1_smooth_curve": smooth1,
+                "model2_smooth_curve": smooth2
+            },
+            "bao_analysis": bao_analysis_results
         }
 
-    # --- Assemble Final Results JSON ---
-    results_dict = {
-        "metadata": {
-            "run_id": run_id,
-            "engine_name": job_json['engine_name'],
-            "model1_name": model1_plugin.METADATA['model_name'],
-            "model2_name": model2_plugin.METADATA['model_name'],
-            "model1_metadata": model1_plugin.METADATA,
-            "model2_metadata": model2_plugin.METADATA,
-        },
-        "sne_analysis": {
-            "detailed_df": sne_results_df.to_dict('split'),
-            "model1_fit_results": model1_fit_results,
-            "model2_fit_results": model2_fit_results,
-            "model1_smooth_curve": smooth1,
-            "model2_smooth_curve": smooth2
-        },
-        "bao_analysis": bao_analysis_results
-    }
-    
-    logging.info("Cosmological engine execution finished successfully.")
-    return results_dict
+        logging.info("Cosmological engine execution finished successfully.")
+        return results_dict
+
+    except Exception as e:
+        logging.critical(f"Engine execution failed: {e}", exc_info=True)
+        return None
+

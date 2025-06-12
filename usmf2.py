@@ -13,6 +13,8 @@ DEV NOTE (v1.4rc6):
 
 (Previous notes from v1.4rc preserved below)
 ...
+
+DEV NOTE (v1.4g): Added newline at end of file to match repository style.
 """
 
 import numpy as np

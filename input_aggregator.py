@@ -15,6 +15,9 @@ This module has been corrected to resolve the TypeError during parser execution.
 2.  DIAGNOSTICS: Added verbose print statements to the _load_data function
     to make the parsing process more transparent, showing exactly which
     parser is being called and how.
+
+DEV NOTE (v1.4g): Added a missing newline at the end of the file for
+style consistency.
 """
 
 import os
