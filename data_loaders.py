@@ -2,16 +2,9 @@
 """
 Handles the loading and parsing of various cosmological data formats.
 
-DEV NOTE (v1.4rc12 - CRITICAL REGRESSION FIX):
-This version corrects a fatal `NameError` introduced in v1.4rc11.
-
-1.  CRITICAL FIX (NameError): Re-inserted several missing lines in the
-    `_prompt_for_data` function that were accidentally deleted. These lines
-    are responsible for defining the `parser_keys` variable. Their absence
-    caused the program to crash instantly on startup.
-
-(Previous notes from v1.4rc11 preserved below)
-...
+DEV NOTE (v1.4g):
+Restored the UniStra fixed-width parsers using the stable v1.3 logic.
+They now target the correct columns, convert '---' to NaN, and load all 740 SNe.
 """
 
 import os
@@ -20,39 +13,52 @@ import pandas as pd
 import numpy as np
 import json
 
+# --- Constants used for UniStra parsers (from v1.3) ---
+DEFAULT_SALT2_M_ABS_FIXED = -19.3
+DEFAULT_SALT2_ALPHA_FIXED = 0.14
+DEFAULT_SALT2_BETA_FIXED = 3.1
+
 # --- SNe Ia Parser Functions (Restored from v1.3 for stability) ---
 
 def _load_unistra_fixed_nuisance_h1(filepath, **kwargs):
-    """
-    Parser for UniStra-like data (h1-style).
-    Reads z_cmb, mu_obs, and mu_err from tablef3.dat.
-    Falls back to z_hel if z_cmb is not available for a given row.
-    """
+    """Parses UniStra-like data using fixed nuisance parameters (h1-style)."""
     try:
-        # Read z_hel, z_cmb, mu, and mu_err
-        data = pd.read_csv(
-            filepath,
-            sep=r'\s+',
-            comment='#',
-            usecols=[1, 2, 4, 5],
-            names=['z_hel', 'z_cmb', 'mu', 'mu_err']
+        col_specs = [
+            (0, 12), (12, 21), (21, 30), (30, 31), (31, 41), (41, 50), (50, 60),
+            (60, 69), (69, 79), (79, 88), (88, 98), (98, 108), (108, 121),
+            (121, 130), (130, 140), (140, 150), (150, 160), (160, 161),
+            (161, 172), (172, 183), (183, 193)
+        ]
+        col_names = [
+            'name', 'z_cmb_str', 'z_hel_str', 'ez_str', 'mb_str', 'e_mb_str',
+            'x1_str', 'e_x1_str', 'c_str', 'e_c_str', 'logM_str', 'e_logM_str',
+            'tmax_str', 'e_tmax_str', 'cov_mb_x1_str', 'cov_mb_c_str',
+            'cov_x1_c_str', 'set_str', 'ra_str', 'dec_str', 'bias_str'
+        ]
+
+        df_raw = pd.read_fwf(
+            filepath, colspecs=col_specs, names=col_names,
+            na_values='---', comment='#', dtype=str
         )
-        
-        # Coerce all columns to numeric, turning non-numbers into NaN
-        data['z_hel'] = pd.to_numeric(data['z_hel'], errors='coerce')
-        data['z_cmb'] = pd.to_numeric(data['z_cmb'], errors='coerce')
-        data['mu'] = pd.to_numeric(data['mu'], errors='coerce')
-        data['mu_err'] = pd.to_numeric(data['mu_err'], errors='coerce')
 
-        # Create the final 'z' column: use z_cmb if it's a valid number, otherwise use z_hel.
-        data['z'] = np.where(pd.notna(data['z_cmb']), data['z_cmb'], data['z_hel'])
+        df = pd.DataFrame()
+        df['z_cmb'] = pd.to_numeric(df_raw['z_cmb_str'], errors='coerce')
+        df['z_hel'] = pd.to_numeric(df_raw['z_hel_str'], errors='coerce')
+        df['mb'] = pd.to_numeric(df_raw['mb_str'], errors='coerce')
+        df['mb_err'] = pd.to_numeric(df_raw['e_mb_str'], errors='coerce')
+        df['x1'] = pd.to_numeric(df_raw['x1_str'], errors='coerce')
+        df['c'] = pd.to_numeric(df_raw['c_str'], errors='coerce')
 
-        # Drop rows only if the essential FINAL columns are missing
-        data.dropna(subset=['z', 'mu', 'mu_err'], inplace=True)
-        
-        # Return only the standardized columns the engine needs
-        return data[['z', 'mu', 'mu_err']]
-        
+        df['mu'] = df['mb'] - DEFAULT_SALT2_M_ABS_FIXED \
+            + DEFAULT_SALT2_ALPHA_FIXED * df['x1'] \
+            - DEFAULT_SALT2_BETA_FIXED * df['c']
+        df['mu_err'] = df['mb_err']
+
+        df['z'] = np.where(pd.notna(df['z_cmb']), df['z_cmb'], df['z_hel'])
+
+        final = df[['z', 'mu', 'mu_err']].dropna().reset_index(drop=True)
+        return final
+
     except Exception as e:
         print(f"FATAL: Failed to parse UniStra (h1-style) file '{filepath}': {e}")
         raise
@@ -63,29 +69,39 @@ def _load_unistra_fit_nuisance_h2(filepath, **kwargs):
     Reads light-curve parameters and handles missing z_cmb.
     """
     try:
-        # Read all necessary columns, including both redshift types
-        data = pd.read_csv(
-            filepath,
-            sep=r'\s+',
-            comment='#',
-            usecols=[1, 2, 7, 8, 9, 10, 11, 12],
-            names=['z_hel', 'z_cmb', 'mb', 'mb_err', 'x1', 'x1_err', 'c', 'c_err']
-        )
-        
-        # Coerce all columns to numeric
-        numeric_cols = ['z_hel', 'z_cmb', 'mb', 'mb_err', 'x1', 'x1_err', 'c', 'c_err']
-        for col in numeric_cols:
-            data[col] = pd.to_numeric(data[col], errors='coerce')
+        col_specs = [
+            (0, 12), (12, 21), (21, 30), (30, 31), (31, 41), (41, 50), (50, 60),
+            (60, 69), (69, 79), (79, 88), (88, 98), (98, 108), (108, 121),
+            (121, 130), (130, 140), (140, 150), (150, 160), (160, 161),
+            (161, 172), (172, 183), (183, 193)
+        ]
+        col_names = [
+            'name', 'z_cmb_str', 'z_hel_str', 'ez_str', 'mb_str', 'e_mb_str',
+            'x1_str', 'e_x1_str', 'c_str', 'e_c_str', 'logM_str', 'e_logM_str',
+            'tmax_str', 'e_tmax_str', 'cov_mb_x1_str', 'cov_mb_c_str',
+            'cov_x1_c_str', 'set_str', 'ra_str', 'dec_str', 'bias_str'
+        ]
 
-        # Create the final 'z' column with fallback logic
-        data['z'] = np.where(pd.notna(data['z_cmb']), data['z_cmb'], data['z_hel'])
-        
-        # Define the essential final columns and drop rows if they are missing
+        df_raw = pd.read_fwf(
+            filepath, colspecs=col_specs, names=col_names,
+            na_values='---', comment='#', dtype=str
+        )
+
+        df = pd.DataFrame()
+        df['z_cmb'] = pd.to_numeric(df_raw['z_cmb_str'], errors='coerce')
+        df['z_hel'] = pd.to_numeric(df_raw['z_hel_str'], errors='coerce')
+        df['mb'] = pd.to_numeric(df_raw['mb_str'], errors='coerce')
+        df['mb_err'] = pd.to_numeric(df_raw['e_mb_str'], errors='coerce')
+        df['x1'] = pd.to_numeric(df_raw['x1_str'], errors='coerce')
+        df['x1_err'] = pd.to_numeric(df_raw['e_x1_str'], errors='coerce')
+        df['c'] = pd.to_numeric(df_raw['c_str'], errors='coerce')
+        df['c_err'] = pd.to_numeric(df_raw['e_c_str'], errors='coerce')
+
+        df['z'] = np.where(pd.notna(df['z_cmb']), df['z_cmb'], df['z_hel'])
+
         final_cols = ['z', 'mb', 'mb_err', 'x1', 'x1_err', 'c', 'c_err']
-        data.dropna(subset=final_cols, inplace=True)
-        
-        # Return only the standardized columns
-        return data[final_cols]
+        final = df[final_cols].dropna().reset_index(drop=True)
+        return final
 
     except Exception as e:
         print(f"FATAL: Failed to parse UniStra (h2-style) file '{filepath}': {e}")
@@ -99,7 +115,7 @@ def _load_pantheon_plus_h2(filepath, base_dir, **kwargs):
     try:
         df = pd.read_csv(filepath, sep=r'\s+', comment='#')
         df.rename(columns={'zCMB': 'z', 'm_b_corr': 'mb', 'm_b_corr_err_DIAG': 'mb_err'}, inplace=True)
-        
+
         numeric_cols = ['z', 'mb', 'mb_err']
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col], errors='coerce')
@@ -141,7 +157,7 @@ def _load_bao_json_v1(filepath, **kwargs):
             data_json = json.load(f)
 
         df = pd.DataFrame(data_json['data_points'])
-        
+
         required_cols = ['redshift', 'observable_type', 'value', 'error']
         if not all(col in df.columns for col in required_cols):
             raise ValueError(f"BAO JSON file missing one or more required columns: {required_cols}")
@@ -149,17 +165,17 @@ def _load_bao_json_v1(filepath, **kwargs):
         for col in ['redshift', 'value', 'error']:
             df[col] = pd.to_numeric(df[col], errors='coerce')
         df.dropna(subset=required_cols, inplace=True)
-        
+
         df.rename(columns={'redshift': 'z'}, inplace=True)
 
         if df.empty:
             raise ValueError("No valid BAO data points after parsing.")
-            
+
         if 'rs_drag' in data_json:
              df['rs_drag'] = pd.to_numeric(data_json['rs_drag'])
         else:
              df['rs_drag'] = np.nan
-             
+
         return df
     except Exception as e:
         print(f"FATAL: Failed to parse BAO JSON file '{filepath}': {e}")
