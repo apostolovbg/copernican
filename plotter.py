@@ -2,13 +2,10 @@
 # Handles all plot generation for the Copernican Suite.
 
 """
-DEV NOTE (v1.4rc8):
-This module has been updated to align with the standardized data structure
-produced by the corrected data_loaders module.
+DEV NOTE (v1.4g):
+Minor refinements for the stabilized data loaders.
+The footer now reports v1.4g. The BAO plotting fix from v1.4rc8 is retained.
 
-1.  BUGFIX (BAO Plotting): The `create_bao_plot` function now uses the column
-    'z' for the x-axis instead of 'redshift'. This makes it compatible with
-    the DataFrame structure passed from the engine and prevents a `KeyError`.
 
 ---
 (Previous notes from v1.4rc2 preserved below)
@@ -37,7 +34,7 @@ def _setup_plot_style(style_guide):
 
 def _create_footer_text(run_id, m1_name, m2_name):
     """Creates the standard footer text for all plots."""
-    return f"Copernican Suite v1.4rc8 | Run ID: {run_id} | Comparison: {m1_name} vs. {m2_name}"
+    return f"Copernican Suite v1.4g | Run ID: {run_id} | Comparison: {m1_name} vs. {m2_name}"
 
 def _create_info_box_text(model_name, model_meta, fit_results):
     """Creates the text content for a model's info box."""
@@ -168,7 +165,7 @@ def create_bao_plot(results_json, style_guide):
         group = df[df['observable_type'] == obs_type]
         color = dp_colors[i % len(dp_colors)]
         
-        # FIX (v1.4rc8): Use 'z' for the x-axis, not 'redshift'.
+        # FIX (v1.4g): Use 'z' for the x-axis, not 'redshift'.
         x_data, y_data, y_err_data = group['z'], group['value'], group['error']
 
         # Plot data points

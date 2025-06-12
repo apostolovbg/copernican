@@ -1,8 +1,8 @@
 # Copernican Suite - A Modular Cosmology Framework
 
-## Current Status (v1.4rc13 - Definitive Data Loader Fix)
+## Current Status (v1.4g - UniStra Parsing Restored)
 
-**DEV NOTE (Session: 20250612_1530): This document has been updated to `v1.4rc13`. This version reflects a full stop and reassessment of the persistent data loading bug. The root cause has been definitively identified and the fix is specified herein.**
+**DEV NOTE (Session: 20250612_1530): This document has been updated to `v1.4g`. The UniStra parsers now replicate the successful fixed-width logic from v1.3 to fully load all 740 supernovae.**
 
 **Version 1.4rc remains unstable and is not suitable for any use.**
 
@@ -14,7 +14,7 @@ The primary goal of the v1.4rc stabilization effort has been blocked by a single
 * **The Law of the Land (`v1.3` Logic):** The stable `v1.3` version of the parser worked because it correctly targeted the columns for redshift, distance modulus, and error, and correctly handled placeholder values as `NaN`s *during* the initial read.
 
 **The Path Forward:**
-The immediate and only priority is to rewrite the UniStra parsers in `data_loaders.py` to **exactly replicate the successful column-targeting and NaN-handling logic of the `1.3data_loaders.py` script.** A secondary `TypeError` is expected to appear in the `cosmo_engine` once the data is correctly loaded.
+The UniStra parsers in `data_loaders.py` have been rewritten to **exactly replicate the column-targeting and NaN-handling logic of the `1.3` script.** A secondary `TypeError` is expected to appear in the `cosmo_engine` once the data is correctly loaded.
 
 ---
 
@@ -42,7 +42,8 @@ The suite is composed of several key modules that work in a pipeline:
 * **v1.4rc (Initial):** A major refactor that broke the data pipeline.
 * **v1.4rc2 - v1.4rc11:** A series of failed attempts to fix the data loading issue. These versions suffered from numerous cascading errors, including `KeyError`, `ValueError`, `TypeError` (string math), and incorrect data filtering, all stemming from the initial broken refactor.
 * **v1.4rc12:** The last failed attempt. It incorrectly diagnosed the data loading issue, which was still only loading 33 supernovae. This version's failure made it clear a fundamental misunderstanding of the problem was occurring.
-* **v1.4rc13 (This Version):** A full reset. The root cause of the data loss has been identified as reading from the wrong columns. The plan is to implement the correct `v1.3` logic.
+* **v1.4rc13:** Development reset with a focus on reproducing the v1.3 parsing logic. The bug source was confirmed to be incorrect column selection.
+* **v1.4g:** The UniStra data loaders now use the v1.3 fixed-width parsing strategy, restoring all 740 SNe. A `TypeError` in the engine is anticipated next.
 
 ---
 
