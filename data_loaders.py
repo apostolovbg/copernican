@@ -274,10 +274,12 @@ def _prompt_for_data(base_dir, data_type_name, parsers_dict, is_optional=False):
 def get_user_selections(base_dir):
     """Main UI function to get all user selections for a run."""
     print("\n--- 🪐 Select a Computational Engine ---")
-    print("  1. cosmo_engine_.1.4rc.py")
+    print("  1. cosmo_engine_1.4g.py")
+    print("  2. cosmo_engine_.1.4rc.py")
     engine_choice = input("Enter the number of the engine to use (or 'c' to cancel): ").strip()
-    if engine_choice.lower() == 'c': return None
-    engine_name = "cosmo_engine_.1.4rc.py"
+    if engine_choice.lower() == 'c':
+        return None
+    engine_name = "cosmo_engine_1.4g.py" if engine_choice == '1' else "cosmo_engine_.1.4rc.py"
 
     alt_model_path = input("Enter path to alternative model .py file (or 'test'): ").strip()
     if alt_model_path.lower() == 'c': return None
