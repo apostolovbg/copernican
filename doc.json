@@ -1,7 +1,7 @@
 {
-  "dev_note": "Session 20250612_1530: Updated to v1.4rc13. This version reflects a full reset of the debugging strategy for the data_loaders.py module. The root cause of the persistent data loss (loading 33 of 740 SNe) has been identified as reading from incorrect columns in the source file. All previous diagnoses were incorrect. The new specification mandates that the data loader logic for UniStra files must be a direct, robust replication of the successful v1.3 implementation. The secondary TypeError in the cosmo_engine is the next expected failure point after this is resolved.",
+  "dev_note": "Session 20250612_1530: Updated to v1.4g. The UniStra parsers replicate v1.3 fixed-width logic. See AGENTS.md for coding rules and CHANGELOG.md for history.",
   "projectName": "Copernican Suite",
-  "projectVersion": "1.4rc13 (Definitive Data Loader Fix)",
+  "projectVersion": "1.4g",
   "lastUpdated": "2025-06-12",
   "description": "This document serves as the master technical specification for the Copernican Suite. It defines the required structure for all components and provides the authoritative style guide for all generated outputs. The current priority is to resolve the critical data loading failure in data_loaders.py by correctly implementing the logic from the stable v1.3 release.",
   "developmentHistory": {
@@ -11,7 +11,8 @@
     "v1.4rc_post-pipeline-fix": "The initial pipeline and logging errors were fixed, but this exposed a fatal `TypeError` in the engine due to string-based math.",
     "v1.4rc_data-type-fix": "The engine's `TypeError` was fixed, but this revealed a `KeyError` in the engine due to a column name mismatch from the data loader.",
     "v1.4rc_column-name-fix": "The column name `KeyError` was fixed, but this revealed a deeper issue: the data loader was only loading 33 of 740 SNe due to incorrect handling of missing data placeholders ('---').",
-    "v1.4rc13_current": "The root cause of the SNe data loss is now understood to be the parser reading from entirely incorrect columns. The immediate goal is to fix data_loaders.py by implementing the v1.3 logic. The next expected bug is a `TypeError` in the cosmo_engine."
+    "v1.4rc13_current": "The root cause of the SNe data loss was confirmed as incorrect column selection. Development refocused on reproducing the v1.3 logic.",
+    "v1.4g_current": "UniStra parsers now use the stable v1.3 fixed-width method, restoring all data. A `TypeError` in the engine is anticipated."
   },
   "projectSchema": {
     "copernican.py": "Main orchestrator script. Manages user interaction and high-level workflow control.",
@@ -108,9 +109,11 @@
       "description": "To ensure clarity, maintainability, and smooth transitions between development sessions, a strict commenting and documentation standard MUST be followed by any modifying AI.",
       "rules": [
         "Add a 'DEV NOTE' at the top of any modified file summarizing changes for the current version.",
-        "Comment code extensively. Explain the 'why' behind your code, not just the 'what'.",
-        "Update the main README.md and this doc.json file to reflect the latest changes, architectural decisions, and future plans."
+        "Comment code extensively. Explain the why behind your code, not just the what. Run python -m py_compile data_loaders.py plotter.py and python -m py_compile *.py before committing.",
+        "Update the main README.md and this doc.json file to reflect the latest changes, architectural decisions, and future plans.",
+        "Avoid conflict markers like <<<<<<<, =======, and >>>>>>> in comments or docs. See AGENTS.md for full guidelines."
       ]
     }
   }
 }
+
