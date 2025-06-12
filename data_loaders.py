@@ -3,8 +3,17 @@
 Handles the loading and parsing of various cosmological data formats.
 
 DEV NOTE (v1.4g):
+ codex/fix-bug-in-data_readers.py-and-explain-long-term-solution
 Restored the UniStra fixed-width parsers using the stable v1.3 logic.
 They now target the correct columns, convert '---' to NaN, and load all 740 SNe.
+
+gggxa2-codex/fix-bug-in-data_readers.py-and-explain-long-term-solution
+Restored the UniStra fixed-width parsers using the stable v1.3 logic.
+They now target the correct columns, convert '---' to NaN, and load all 740 SNe.
+
+The UniStra parsers now replicate the stable v1.3 fixed-width logic.
+This restores correct column targeting and NaN handling for `tablef3.dat`.
+1.4g
 """
 
 import os
