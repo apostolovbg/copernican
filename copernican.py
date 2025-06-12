@@ -1,18 +1,26 @@
 # copernican.py
 """
-DEV NOTE (v1.4rc): Logging level has been increased from INFO to DEBUG to
-provide more verbose output for easier debugging, fulfilling a key
-requirement of the v1.4rc development cycle. The version has been updated
-to reflect the new Release Candidate status. The log file extension has been
-reverted to .txt as per project standards.
-"""
+DEV NOTE (v1.4rc):
+1.  LOGGING OVERHAUL: The logging system has been completely replaced with a
+    'Tee' class that provides a verbatim mirror of the console session to the
+    log file. This removes the 'logging' module in favor of a simpler, more
+    robust system that captures all output, including user interaction and
+    crash tracebacks, exactly as they appear on screen. This fulfills the
+    final v1.4rc logging requirement.
 
+2.  EXCEPTION HANDLING: Added a custom exception hook to ensure that fatal
+    tracebacks are correctly routed through the Tee logger to be saved in the
+    log file.
+
+3.  STABILITY FIX: (from previous version) The main loop now handles graceful
+    exits on job failure or engine errors.
+"""
 import os
 import sys
-import logging
-import time
+import io
 from datetime import datetime
 import importlib.util
+import traceback
 
 # --- Dependency Check at Startup ---
 def check_dependencies():
@@ -35,6 +43,22 @@ def check_dependencies():
         sys.exit(1)
     return True
 
+# --- Verbatim Console-to-File Logger ---
+class Tee:
+    """
+    A file-like object that duplicates all writes to multiple streams.
+    Used to mirror stdout to both the original console and a log file.
+    """
+    def __init__(self, *files):
+        self.files = files
+    def write(self, obj):
+        for f in self.files:
+            f.write(obj)
+            f.flush()  # Flush immediately to ensure real-time logging
+    def flush(self):
+        for f in self.files:
+            f.flush()
+
 # --- Main Program Execution ---
 if __name__ == "__main__":
     check_dependencies()
@@ -44,198 +68,143 @@ if __name__ == "__main__":
     import input_aggregator
     import output_manager
 
-    # --- UI and Helper Functions ---
-    def display_splash_screen():
-        """Clears the screen and displays a title splash."""
-        os.system('cls' if os.name == 'nt' else 'clear')
-        print("="*60)
-        print("")
-        print("         C  O  P  E  R  N  I  C  A  N    S  U  I  T  E")
-        print("")
-        print("\n                 A Modular Cosmology Framework")
-        print("                            v1.4rc") # Updated version
-        print("\n" + "="*60)
-        print("        ✨ 🔭 🌠 A tool for exploring the cosmos 🪐 ✨")
-        print("="*60)
-        time.sleep(1.5)
+    # --- UI & Orchestration ---
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    OUTPUT_DIR = os.path.join(BASE_DIR, 'output')
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    
+    VERSION = "v1.4rc"
 
-    def display_how_to_message():
-        """Displays a brief guide on how to use the program."""
-        print("\n--- How to Use ---")
+    def print_banner():
+        """Prints the application's startup banner."""
+        print("\n============================================================")
+        print(" \n        C O P E R N I C A N   S U I T E \n")
+        print("         A Modular Cosmology Framework ")
+        print(f"                   {VERSION} \n")
+        print("============================================================")
+        print("        ✨ 🔭 🌠 A tool for exploring the cosmos 🪐 ✨ ")
+        print("============================================================\n")
+        print("--- How to Use ---")
         print("1. Select the computational engine to use for the analysis.")
         print("2. Provide the file path to an alternative model's .py plugin.")
         print("   > Type 'test' to run a quick self-comparison of the LCDM model.")
         print("3. Provide file paths for your SNe and (optionally) BAO data.")
         print("4. Select the correct data parser for each file when prompted.")
         print("\nNOTE: You can type 'c' and press Enter at any prompt to cancel and exit.")
-        print("-" * 60)
-        
-    def setup_logging(base_dir, run_id):
-        """Initializes logging to file and console."""
-        log_dir = os.path.join(base_dir, 'output')
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
+        print("------------------------------------------------------------")
 
-        # REVERTED (v1.4rc): Changed extension back to .txt per user feedback
-        log_filename = os.path.join(log_dir, f'copernican-run_{run_id}.txt')
-
-        # Clear any previous logging handlers to prevent duplicate output
-        for handler in logging.root.handlers[:]:
-            logging.root.removeHandler(handler)
-
-        logging.basicConfig(
-            level=logging.DEBUG, 
-            format='%(asctime)s - %(levelname)-8s - %(module)-20s - %(message)s',
-            handlers=[
-                logging.FileHandler(log_filename),
-                logging.StreamHandler(sys.stdout)
-            ]
-        )
-        # Add a custom format for the console to be less verbose if desired
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.INFO)
-        console_formatter = logging.Formatter('%(levelname)-8s - %(message)s')
-        console_handler.setFormatter(console_formatter)
-
-        # Replace the default stream handler with our custom-formatted one
-        logging.root.handlers = [h for h in logging.root.handlers if not isinstance(h, logging.StreamHandler)]
-        logging.root.addHandler(console_handler)
-
-        return logging.getLogger()
-
-    def select_engine(base_dir):
-        """Scans for engine files and prompts the user for a selection."""
-        print("\n--- 🪐 Select a Computational Engine ---")
-        try:
-            engine_files = sorted([f for f in os.listdir(base_dir) if f.startswith('cosmo_engine_') and f.endswith('.py')])
-            if not engine_files:
-                print("Error: No 'cosmo_engine_*.py' files found in the directory.")
-                return None
-
-            for i, fname in enumerate(engine_files):
-                print(f"  {i+1}. {fname}")
-
-            while True:
-                choice = input("Enter the number of the engine to use (or 'c' to cancel): ").strip().lower()
-                if choice == 'c': return None
-                try:
-                    idx = int(choice) - 1
-                    if 0 <= idx < len(engine_files):
-                        return engine_files[idx]
-                    else:
-                        print("Invalid number. Please try again.")
-                except ValueError:
-                    print("Invalid input. Please enter a number.")
-        except Exception as e:
-            print(f"Error finding engines: {e}")
-            return None
-
-    def get_user_input(prompt, must_exist=True):
-        """Generic function to get a valid file path or keyword from the user."""
+    def get_user_input(prompt, validation_func, *validation_args):
+        """Generic user input handler with validation."""
         while True:
-            user_response = input(prompt).strip()
-            if user_response.lower() == 'c': return None
+            user_input = input(prompt).strip()
+            if user_input.lower() == 'c':
+                return None
+            if validation_func(user_input, *validation_args):
+                return user_input
 
-            # Handle special 'test' keyword for the model prompt
-            if 'model' in prompt.lower() and user_response.lower() == 'test':
-                return 'test'
-
-            # Standard file existence check
-            if not must_exist or os.path.isfile(user_response):
-                return user_response
-            else:
-                print(f"Error: File not found at '{user_response}'. Please try again.")
-
-    # --- Main Application Workflow ---
-    display_splash_screen()
-    display_how_to_message()
-
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    # --- Main Application Loop ---
+    original_stdout = sys.stdout  # Save the original stdout stream once at the start.
     
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)-8s - %(message)s')
-    logger = logging.getLogger()
-
     while True:
-        # Generate a new Run ID for each analysis loop
-        RUN_ID = datetime.now().strftime('%Y%m%d_%H%M%S')
-        logger = setup_logging(BASE_DIR, RUN_ID)
-
-        logger.info("="*30)
-        logger.info(f"    Copernican Suite v{ '1.4rc' } Initialized") 
-        logger.info("="*30)
-        logger.info(f"Running from base directory: {BASE_DIR}")
-        logger.info(f"All outputs will be saved to: {os.path.join(BASE_DIR, 'output')}")
+        # For each new run, we generate a new run_id and log file.
+        run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_filename = os.path.join(OUTPUT_DIR, f"copernican-run_{run_id}.txt")
         
-        # --- Stage 1: Configuration ---
-        print("\n--- 🛰️  New Analysis Configuration ---")
-
-        engine_name = select_engine(BASE_DIR)
-        if engine_name is None: break
-        logger.info(f"User selected engine: {engine_name}")
-
-        alt_model_input = get_user_input("Enter path to alternative model .py file (or 'test'): ")
-        if alt_model_input is None: break
-        
-        if alt_model_input.lower() == 'test':
-            alt_model_path = 'lcdm_model.py'
-            logger.info("Test mode selected. Running LCDM vs LCDM.")
-        else:
-            alt_model_path = alt_model_input
-        
-        print("\n--- 🌠 Type Ia Supernovae Data ---")
-        sne_path = get_user_input("Enter path to SNe Ia data file: ")
-        if sne_path is None: break
-
-        sne_format_key = data_loaders._select_parser(data_loaders.SNE_PARSERS, "SNe")
-        if sne_format_key is None: break
-
-        sne_extra_args = {}
-        extra_args_func = data_loaders.SNE_PARSERS[sne_format_key].get('extra_args_func')
-        if extra_args_func:
-            sne_extra_args = extra_args_func(BASE_DIR)
-            if sne_extra_args is None: break 
-
-        sne_data_info = {'path': sne_path, 'format_key': sne_format_key, 'extra_args': sne_extra_args}
-
-        print("\n--- 🌌 Baryon Acoustic Oscillation Data ---")
-        bao_path = get_user_input("Enter path to BAO data file (or press Enter to skip): ", must_exist=False)
-        bao_data_info = {}
-        if bao_path:
-            bao_format_key = data_loaders._select_parser(data_loaders.BAO_PARSERS, "BAO")
-            if bao_format_key:
-                bao_data_info = {'path': bao_path, 'format_key': bao_format_key}
-        
-        # --- Stage 2: Job Aggregation ---
-        logger.info("\n--- Stage 2: Aggregating Job Data ---")
-        job_json = input_aggregator.build_job_json(RUN_ID, engine_name, alt_model_path, sne_data_info, bao_data_info)
-
-        if not job_json:
-            logger.critical("Failed to build the Job JSON. Aborting this run.")
-            continue
-
-        # --- Stage 3: Engine Execution ---
-        logger.info(f"\n--- Stage 3: Executing Job with Engine: {engine_name} ---")
         try:
-            engine_path = os.path.join(BASE_DIR, engine_name)
-            spec = importlib.util.spec_from_file_location("engine", engine_path)
-            engine_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(engine_module)
+            with open(log_filename, 'w', encoding='utf-8') as log_file:
+                # Set up the Tee to mirror console to file for the duration of the run.
+                sys.stdout = Tee(original_stdout, log_file)
+                
+                # Custom exception hook to ensure tracebacks are written to the Tee logger
+                def log_excepthook(exc_type, exc_value, exc_traceback):
+                    """Prints the exception to the Tee logger."""
+                    print("\n--- CRITICAL ERROR ---", file=sys.stdout)
+                    traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stdout)
+                    print("----------------------", file=sys.stdout)
+                
+                sys.excepthook = log_excepthook
 
-            results_json = engine_module.execute_job(job_json)
+                # --- START OF LOGGED SESSION ---
+                print_banner()
+                
+                print(f"\n--- 🛰️  New Analysis Configuration (Run ID: {run_id}) ---\n")
 
-            if not results_json:
-                 raise RuntimeError("Engine returned an empty result.")
+                # --- Stage 1: User Input ---
+                print("--- 🪐 Select a Computational Engine ---")
+                engine_files = [f for f in os.listdir(BASE_DIR) if f.startswith('cosmo_engine_') and f.endswith('.py')]
+                for i, fname in enumerate(engine_files): print(f"  {i+1}. {fname}")
+                
+                def validate_engine(choice, options):
+                    try:
+                        idx = int(choice) - 1
+                        if 0 <= idx < len(options): return True
+                    except ValueError: pass
+                    print("Invalid selection. Please enter a number from the list.")
+                    return False
+                    
+                engine_choice = get_user_input("Enter the number of the engine to use (or 'c' to cancel): ", validate_engine, engine_files)
+                if engine_choice is None: break
+                engine_name = engine_files[int(engine_choice)-1]
+                
+                def validate_model_path(path, base_dir):
+                    if path.lower() == 'test': return True
+                    full_path = path if os.path.isabs(path) else os.path.join(base_dir, path)
+                    if os.path.isfile(full_path): return True
+                    print(f"Error: File not found at '{full_path}'. Please try again.")
+                    return False
 
-        except Exception as e:
-            logger.critical(f"A critical error occurred while executing the engine: {e}", exc_info=True)
-            continue
+                alt_model_path = get_user_input("Enter path to alternative model .py file (or 'test'): ", validate_model_path, BASE_DIR)
+                if alt_model_path is None: break
+                
+                sne_data_info = data_loaders.collect_data_info("SNe Ia", data_loaders.SNE_PARSERS, BASE_DIR)
+                if sne_data_info is None: break 
+                
+                bao_data_info = data_loaders.collect_data_info("BAO", data_loaders.BAO_PARSERS, BASE_DIR, is_optional=True)
+                if bao_data_info is None: break
+                if not bao_data_info:
+                    bao_data_info = {}
 
-        # --- Stage 4: Output Generation ---
-        output_manager.generate_outputs(results_json)
+                # --- Stage 2: Job Aggregation ---
+                print("\n--- Stage 2: Aggregating Job Data ---")
+                job_json = input_aggregator.build_job_json(run_id, engine_name, alt_model_path, sne_data_info, bao_data_info)
+
+                if not job_json:
+                    raise RuntimeError("Failed to build the Job JSON. See messages above for details.")
+
+                # --- Stage 3: Engine Execution ---
+                print(f"\n--- Stage 3: Executing Job with Engine: {engine_name} ---")
+                engine_path = os.path.join(BASE_DIR, engine_name)
+                spec = importlib.util.spec_from_file_location("engine", engine_path)
+                engine_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(engine_module)
+                results_json = engine_module.execute_job(job_json)
+
+                if not results_json:
+                    raise RuntimeError("Engine returned an empty result.")
+
+                # --- Stage 4: Output Generation ---
+                output_manager.generate_outputs(results_json)
+                print("\nAnalysis complete.")
+
+        except (RuntimeError, KeyboardInterrupt, Exception) as e:
+            # This block catches errors and user cancellations (Ctrl+C)
+            # The excepthook handles printing the traceback if it's an unhandled Exception
+            if isinstance(e, RuntimeError):
+                 print(f"\nRun Aborted: {e}")
+            elif isinstance(e, KeyboardInterrupt):
+                 print("\n\nRun cancelled by user.")
+            else:
+                 # The excepthook already printed the detailed traceback
+                 print(f"\nRun failed due to an unexpected error.")
+        
+        finally:
+            # Always restore stdout and the default excepthook
+            sys.stdout = original_stdout
+            sys.excepthook = sys.__excepthook__
 
         # --- Loop or Exit ---
-        run_again = input("\nAnalysis complete. Run another? (y/n): ").strip().lower()
+        run_again = input("Run another analysis? (y/n): ").strip().lower()
         if run_again != 'y':
             break
 
-    logger.info("Copernican Suite session finished.")
+    print("\nThank you for using the Copernican Suite. Goodbye! ✨")

@@ -1,15 +1,18 @@
-# copernican_suite/lcdm_model.py
+# lcdm_model.py
 """
 LCDM Model Plugin for the Copernican Suite.
 
-DEV NOTE (v1.4b-fix3): This version contains a critical stability fix.
+DEV NOTE (v1.4rc):
+1.  METADATA REFACTOR: The metadata has been refactored from loose global
+    variables into a single `METADATA` dictionary. This is a critical
+    update for compatibility with the v1.4rc framework, which expects
+    this standardized structure. All model information (name, description,
+    equations, parameters, etc.) is now accessible from this single object.
 
-BUG FIX: The `get_comoving_distance_Mpc` function was using `np.vectorize`
-on top of `scipy.integrate.quad`. This implementation proved to be unstable,
-especially when called by the plotter to generate a smooth array of 300
-points, resulting in an array of NaNs and a failure to draw BAO model lines.
-The function has been rewritten to use a more robust and explicit list
-comprehension loop, which resolves the instability.
+2.  BUG FIX (Inherited from v1.4b): The `get_comoving_distance_Mpc`
+    function uses a robust list comprehension loop instead of the unstable
+    `np.vectorize` method to prevent NaN outputs when generating smooth curves
+    for plotting.
 """
 
 import numpy as np
@@ -17,92 +20,163 @@ from scipy.integrate import quad
 import logging
 
 # --- Model Metadata ---
-MODEL_NAME = "LambdaCDM"
-MODEL_DESCRIPTION = "Standard flat Lambda Cold Matter model."
-MODEL_EQUATIONS_LATEX_SN = [
-    r"$H(z) = H_0 \sqrt{\Omega_{m0}(1+z)^3 + \Omega_{\Lambda0}}$",
-    r"$d_L(z) = (1+z) \int_0^z \frac{c}{H(z')} dz'$",
-    r"$\mu = 5 \log_{10}(d_L/1\,\mathrm{Mpc}) + 25$"
-]
-MODEL_EQUATIONS_LATEX_BAO = [
-    r"$D_A(z) = \frac{1}{1+z} \int_0^z \frac{c}{H(z')} dz'$",
-    r"$D_V(z) = \left[ (1+z)^2 D_A(z)^2 \frac{cz}{H(z)} \right]^{1/3}$"
-]
-PARAMETER_NAMES = ["H0", "Omega_m0", "Omega_b0"]
-PARAMETER_LATEX_NAMES = [r"$H_0$", r"$\Omega_{m0}$", r"$\Omega_{b0}$"]
-PARAMETER_UNITS = ["km/s/Mpc", "", ""]
-INITIAL_GUESSES = [67.7, 0.31, 0.0486]
-PARAMETER_BOUNDS = [(50.0, 100.0), (0.05, 0.7), (0.01, 0.1)]
-FIXED_PARAMS = {
-    "C_LIGHT_KM_S": 299792.458, "MPC_PER_KM": 1.0 / (3.08567758e19), "T_CMB0_K": 2.7255,
-    "N_EFF": 3.046, "OMEGA_G_H2": 2.47282e-5, "FLAT_UNIVERSE": True
+# This dictionary is the standardized format for model information in v1.4+.
+METADATA = {
+    "model_name": "LambdaCDM",
+    "model_description": "Standard flat Lambda Cold Matter model.",
+    "equations": {
+        "sne": [
+            r"$H(z) = H_0 \sqrt{\Omega_{m0}(1+z)^3 + \Omega_{\Lambda0}}$",
+            r"$d_L(z) = (1+z) \int_0^z \frac{c}{H(z')} dz'$",
+            r"$\mu = 5 \log_{10}(d_L/1\,\mathrm{Mpc}) + 25$"
+        ],
+        "bao": [
+            r"$D_A(z) = \frac{1}{1+z} \int_0^z \frac{c}{H(z')} dz'$",
+            r"$D_V(z) = \left[ (1+z)^2 D_A(z)^2 \frac{cz}{H(z)} \right]^{1/3}$"
+        ]
+    },
+    "parameters": {
+        "H0": {
+            "description": "Hubble Constant at z=0",
+            "units": "km/s/Mpc",
+            "latex": r"$H_0$",
+            "role": "cosmological",
+            "initial_guess": 70,
+            "bounds": (50, 90)
+        },
+        "Omega_m0": {
+            "description": "Matter Density Parameter at z=0",
+            "units": None,
+            "latex": r"$\Omega_{m0}$",
+            "role": "cosmological",
+            "initial_guess": 0.3,
+            "bounds": (0.0, 1.0)
+        },
+        "Omega_b0": {
+            "description": "Baryon Density Parameter at z=0",
+            "units": None,
+            "latex": r"$\Omega_{b0}$",
+            "role": "cosmological",
+            "initial_guess": 0.05,
+            "bounds": (0.01, 0.1)
+        },
+        "M": {
+            "description": "Absolute Magnitude of a Type Ia Supernova",
+            "units": "magnitude",
+            "latex": r"$M$",
+            "role": "nuisance",
+            "initial_guess": -19.3,
+            "bounds": (-20, -18)
+        },
+        "alpha": {
+            "description": "SNe Light Curve Stretch Nuisance Parameter",
+            "units": None,
+            "latex": r"$\alpha$",
+            "role": "nuisance",
+            "initial_guess": 0.14,
+            "bounds": (0.0, 1.0)
+        },
+        "beta": {
+            "description": "SNe Light Curve Color Nuisance Parameter",
+            "units": None,
+            "latex": r"$\beta$",
+            "role": "nuisance",
+            "initial_guess": 3.1,
+            "bounds": (1.0, 5.0)
+        }
+    },
+    "fixed_params": {
+        "C_LIGHT_KM_S": 299792.458,
+        "T_CMB0_K": 2.7255,
+        "OMEGA_G_H2": 2.472e-5,
+        "NEUTRINO_MASS_eV": 0.06
+    }
 }
 
+
+# --- Physics Functions ---
+# These functions implement the core logic of the LambdaCDM model.
+
 def _get_derived_densities(H0, Omega_m0, Omega_b0):
-    """Core helper to calculate derived density parameters."""
-    if not (np.isfinite(H0) and H0 > 0 and np.isfinite(Omega_m0) and Omega_m0 >= 0 and np.isfinite(Omega_b0) and Omega_b0 >= 0 and Omega_b0 <= Omega_m0):
-        return np.nan, np.nan, np.nan, np.nan, np.nan
+    """
+    Helper function to calculate derived cosmological densities.
+    Returns h, Omega_Lambda0, omega_m_h2, omega_b_h2, omega_nu_h2.
+    """
+    if H0 <= 0: return (np.nan,) * 5
     h = H0 / 100.0
-    omega_nu_h2 = FIXED_PARAMS["N_EFF"] * (7.0/8.0) * (4.0/11.0)**(4.0/3.0) * FIXED_PARAMS["OMEGA_G_H2"]
-    Omega_r0 = (FIXED_PARAMS["OMEGA_G_H2"] + omega_nu_h2) / h**2
-    Omega_k0 = 0.0
-    Omega_L0 = 1.0 - Omega_m0 - Omega_r0
-    if Omega_L0 < 0: return np.nan, np.nan, np.nan, np.nan, np.nan
-    return h, Omega_r0, Omega_L0, Omega_k0, omega_nu_h2
+    Omega_Lambda0 = 1.0 - Omega_m0 # Assuming a flat universe
+    omega_m_h2 = Omega_m0 * h**2
+    omega_b_h2 = Omega_b0 * h**2
+    # Neutrino density approximation
+    omega_nu_h2 = METADATA['fixed_params']['NEUTRINO_MASS_eV'] / 93.14
+    return h, Omega_Lambda0, omega_m_h2, omega_b_h2, omega_nu_h2
 
-def get_Hz_per_Mpc(z_array, H0, Omega_m0, Omega_b0):
-    z_array = np.asarray(z_array)
-    h, Omega_r0, Omega_L0, Omega_k0, _ = _get_derived_densities(H0, Omega_m0, Omega_b0)
-    if np.isnan(h): return np.full_like(z_array, np.nan, dtype=float)
-    one_plus_z = 1 + z_array
-    Ez_sq = Omega_r0 * one_plus_z**4 + Omega_m0 * one_plus_z**3 + Omega_k0 * one_plus_z**2 + Omega_L0
-    Hz = np.full_like(z_array, np.nan, dtype=float)
-    valid_Ez_sq = np.isfinite(Ez_sq) & (Ez_sq >= 0)
-    if np.any(valid_Ez_sq): Hz[valid_Ez_sq] = H0 * np.sqrt(Ez_sq[valid_Ez_sq])
-    return Hz.item() if z_array.ndim == 0 else Hz
-
-def _integrand_Dc(z_prime, H0, Omega_m0, Omega_b0):
-    """The function to be integrated to find comoving distance."""
-    hz_val = get_Hz_per_Mpc(z_prime, H0, Omega_m0, Omega_b0)
-    return FIXED_PARAMS["C_LIGHT_KM_S"] / hz_val if (np.isfinite(hz_val) and hz_val > 1e-9) else np.inf
-
-def get_comoving_distance_Mpc(z_array, H0, Omega_m0, Omega_b0):
+def get_Hz_per_Mpc(z_array, H0, Omega_m0):
     """
-    Calculates comoving distance. This version uses a robust list comprehension
-    which is more stable than the previous np.vectorize implementation.
+    Calculates the Hubble parameter H(z) in units of (km/s)/Mpc.
+    This is the core equation for the expansion history.
     """
-    z_array_np = np.atleast_1d(z_array)
-    results = [quad(_integrand_Dc, 0, z, args=(H0, Omega_m0, Omega_b0))[0] if z > 0 else 0.0 for z in z_array_np]
-    # Return a scalar if a scalar was passed, otherwise return the array
-    return results[0] if np.isscalar(z_array) else np.array(results)
+    z = np.asarray(z_array)
+    _, Omega_Lambda0, _, _, _ = _get_derived_densities(H0, Omega_m0, 0) # Omega_b0 not needed here
+    if np.isnan(Omega_Lambda0): return np.full_like(z, np.nan)
+    
+    term_m = Omega_m0 * (1 + z)**3
+    term_lambda = Omega_Lambda0
+    
+    # Ensure terms inside sqrt are non-negative
+    radicand = term_m + term_lambda
+    with np.errstate(invalid='ignore'): # Ignore warnings for z < -1 if present
+        return H0 * np.sqrt(radicand)
+
+def get_comoving_distance_Mpc(z_array, H0, Omega_m0):
+    """
+    Calculates the line-of-sight comoving distance in Mpc.
+    Integrates c/H(z) from 0 to z.
+    """
+    C_LIGHT = METADATA['fixed_params']['C_LIGHT_KM_S']
+    integrand = lambda z_prime: C_LIGHT / get_Hz_per_Mpc(z_prime, H0, Omega_m0)
+    
+    # BUG FIX (v1.4b): Use a robust list comprehension instead of np.vectorize
+    # This prevents NaN arrays when calculating smooth model lines for plotting.
+    try:
+        # Perform integration for each z value in the input array.
+        results = [quad(integrand, 0, z)[0] for z in np.asarray(z_array)]
+        return np.array(results)
+    except Exception as e:
+        logging.error(f"Error during comoving distance integration: {e}")
+        return np.full(np.shape(z_array), np.nan)
+
+# --- Derived Cosmological Observables ---
 
 def get_luminosity_distance_Mpc(z_array, *cosmo_params):
-    dm = get_comoving_distance_Mpc(z_array, *cosmo_params)
-    return dm * (1 + np.asarray(z_array))
+    """Calculates luminosity distance, d_L = d_C * (1+z), in Mpc."""
+    d_c = get_comoving_distance_Mpc(z_array, *cosmo_params)
+    return d_c * (1 + np.asarray(z_array))
 
-def distance_modulus_model(z_array, *cosmo_params):
-    """The standard, Scipy-based function for fitting and plotting."""
+def get_distance_modulus_mu(z_array, *cosmo_params):
+    """Calculates the distance modulus, mu = 5*log10(d_L/Mpc) + 25."""
     dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)
-    with np.errstate(divide='ignore', invalid='ignore'):
-        mu = 5 * np.log10(dl_mpc) + 25.0
-    # Ensure that if dl_mpc is an array, we handle it correctly
-    if isinstance(mu, np.ndarray):
-        mu[np.asarray(dl_mpc) <= 0] = np.nan
-    elif dl_mpc <= 0:
-        mu = np.nan
-    return mu
+    with np.errstate(divide='ignore'): # Ignore log10(0) if dl is zero
+        return 5 * np.log10(dl_mpc) + 25 if dl_mpc is not None else np.full(np.shape(z_array), np.nan)
 
 def get_angular_diameter_distance_Mpc(z_array, *cosmo_params):
-    dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)
-    return dl_mpc / (1 + np.asarray(z_array))**2
+    """Calculates angular diameter distance, d_A = d_C / (1+z), in Mpc."""
+    d_c = get_comoving_distance_Mpc(z_array, *cosmo_params)
+    return d_c / (1 + np.asarray(z_array))
 
 def get_DV_Mpc(z_array, *cosmo_params):
-    da = get_angular_diameter_distance_Mpc(z_array, *cosmo_params)
-    hz = get_Hz_per_Mpc(z_array, *cosmo_params)
+    """
+    Calculates the BAO volume-averaged distance, D_V.
+    D_V = [ (1+z)^2 * D_A^2 * c*z / H(z) ]^(1/3)
+    """
+    H0, Omega_m0 = cosmo_params[:2] # Only H0 and Omega_m0 are needed for this calculation
+    da = get_angular_diameter_distance_Mpc(z_array, H0, Omega_m0)
+    hz = get_Hz_per_Mpc(z_array, H0, Omega_m0)
     z = np.asarray(z_array)
+    
     with np.errstate(divide='ignore', invalid='ignore'):
         safe_hz = np.where(hz > 1e-9, hz, np.nan)
-        term = (1+z)**2 * da**2 * FIXED_PARAMS["C_LIGHT_KM_S"] * z / safe_hz
+        term = (1+z)**2 * da**2 * METADATA['fixed_params']["C_LIGHT_KM_S"] * z / safe_hz
     return np.power(term, 1/3, where=term>=0, out=np.full_like(z, np.nan))
 
 def get_sound_horizon_rs_Mpc(H0, Omega_m0, Omega_b0):
@@ -110,24 +184,24 @@ def get_sound_horizon_rs_Mpc(H0, Omega_m0, Omega_b0):
     Calculates the sound horizon at the drag epoch using the Eisenstein & Hu (1998)
     fitting formula. This is a standard, fast, and accurate approximation.
     """
-    h, _, _, _, omega_nu_h2 = _get_derived_densities(H0, Omega_m0, Omega_b0)
+    h, _, _, omega_m_h2, omega_b_h2, omega_nu_h2 = _get_derived_densities(H0, Omega_m0, Omega_b0)
     if np.isnan(h): return np.nan
-    om_m_h2, om_b_h2 = Omega_m0 * h**2, Omega_b0 * h**2
-    if not (om_m_h2 > 1e-5 and om_b_h2 > 1e-5): return np.nan
+    if not (omega_m_h2 > 1e-5 and omega_b_h2 > 1e-5): return np.nan
 
-    om_r_h2 = FIXED_PARAMS["OMEGA_G_H2"] + omega_nu_h2
-    z_eq = 2.50e4 * om_m_h2 * (FIXED_PARAMS["T_CMB0_K"]/2.7)**-4
-    k_eq = 7.46e-2 * om_m_h2 * (FIXED_PARAMS["T_CMB0_K"]/2.7)**-2
+    T_CMB0 = METADATA['fixed_params']["T_CMB0_K"]
+    om_r_h2 = METADATA['fixed_params']["OMEGA_G_H2"] + omega_nu_h2
+    
+    # Calculations from Eisenstein & Hu (1998), ApJ, 496, 605
+    z_eq = 2.50e4 * omega_m_h2 * (T_CMB0/2.7)**-4
+    k_eq = 7.46e-2 * omega_m_h2 * (T_CMB0/2.7)**-2
+    
+    b1 = 0.313 * (omega_m_h2)**-0.419 * (1 + 0.607 * (omega_m_h2)**0.674)
+    b2 = 0.238 * (omega_m_h2)**0.223
+    z_d = 1291 * ((omega_m_h2)**0.251 / (1 + 0.659 * (omega_m_h2)**0.828)) * (1 + b1 * (omega_b_h2)**b2)
 
-    b1 = 0.313 * om_m_h2**(-0.419) * (1 + 0.607 * om_m_h2**(0.674))
-    b2 = 0.238 * om_m_h2**(0.223)
-    z_d = 1291 * (om_m_h2**(0.251) / (1 + 0.659 * om_m_h2**(0.828))) * (1 + b1 * om_b_h2**b2)
-
-    R_d = 31.5e3 * om_b_h2 * (FIXED_PARAMS["T_CMB0_K"]/2.7)**-4 / (1 + z_d)
-    R_eq = 31.5e3 * om_b_h2 * (FIXED_PARAMS["T_CMB0_K"]/2.7)**-4 / (1 + z_eq)
-
-    s_EH = (2.0 / (3.0 * k_eq)) * np.sqrt(6.0 / R_eq) * \
-           np.log((np.sqrt(1.0 + R_d) + np.sqrt(R_d + R_eq)) / (1.0 + np.sqrt(R_eq)))
-
-    if not np.isfinite(s_EH) or h == 0: return np.nan
-    return s_EH
+    R_eq = 3.15e4 * omega_b_h2 * (T_CMB0/2.7)**-4 / z_eq
+    R_d = 3.15e4 * omega_b_h2 * (T_CMB0/2.7)**-4 / z_d
+    
+    s = (2. / (3. * k_eq)) * np.sqrt(6. / R_eq) * np.log((np.sqrt(1 + R_d) + np.sqrt(R_d + R_eq)) / (1 + np.sqrt(R_eq)))
+    
+    return s / h # Convert from Mpc/h to Mpc

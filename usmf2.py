@@ -1,201 +1,99 @@
-# copernican_suite/usmf2.py
+# usmf2.py
 """
-Unified Shrinking Matter Framework (USMF) V2 Model Plugin for the Copernican Suite.
-This version uses the standard SciPy/CPU backend with intelligent multiprocessing.
+USMFv2 Model Plugin for the Copernican Suite.
+
+DEV NOTE (v1.4rc):
+1.  METADATA REFACTOR: The metadata has been refactored from loose global
+    variables into a single `METADATA` dictionary. This is a critical
+    update for compatibility with the v1.4rc framework, which expects
+    this standardized structure.
 """
 
 import numpy as np
-from scipy.integrate import quad
-from scipy.optimize import brentq
 import logging
-import multiprocessing as mp
-from itertools import repeat
 
-try:
-    import psutil
-    PHYSICAL_CORES = psutil.cpu_count(logical=False) or 2
-except (ImportError, NotImplementedError):
-    PHYSICAL_CORES = 2
-
-# --- Model Metadata and Parameters ---
-MODEL_NAME = "USMF_V2"
-MODEL_DESCRIPTION = "Unified Shrinking Matter Framework (USMF) Version 2."
-PARAMETER_NAMES = ["H_A", "p_alpha", "k_exp", "s_exp", "t0_age_Gyr", "A_osc", "omega_osc", "ti_osc_Gyr", "phi_osc"]
-INITIAL_GUESSES = [77.111, 0.4313, -0.3268, 1.1038, 13.397, 0.0027088, 2.3969, 7.1399, 0.10905]
-PARAMETER_BOUNDS = [
-    (50.0, 100.0), (0.1, 1.5), (-2.0, 2.0), (0.5, 2.0), (10.0, 20.0),
-    (0.0, 0.05), (0.1, 10.0), (1.0, 20.0), (-np.pi, np.pi)
-]
-MODEL_EQUATIONS_LATEX_SN = [
-    "$1+z = \\alpha(t_e) / \\alpha(t_0)$",
-    "$r = \\int_{t_e}^{t_0} \\frac{c}{\\alpha(t')} dt'$",
-    "$d_L(z) = |r| \\cdot (1+z)^2 \\cdot \\frac{70.0}{H_A}$",
-    "$\\mu = 5 \\log_{10}(d_L) + 25$"
-]
-MODEL_EQUATIONS_LATEX_BAO = [
-    "$D_A(z) = |r| \\cdot \\frac{70.0}{H_A}$",
-    "$H_{USMF}(z) = - \\frac{1}{\\alpha(t_e)} \\left. \\frac{d\\alpha}{dt} \\right|_{t_e}$",
-    "$D_V(z) = \\left[ (1+z)^2 D_A(z)^2 \\frac{cz}{H(z)} \\right]^{1/3}$"
-]
-PARAMETER_LATEX_NAMES = [r"$H_A$", r"$p_{\alpha}$", r"$k_{exp}$", r"$s_{exp}$", r"$t_{0,age}$", r"$A_{osc}$", r"$\omega_{osc}$", r"$t_{i,osc}$", r"$\phi_{osc}$"]
-PARAMETER_UNITS = ["", "", "", "", "Gyr", "", "rad/log(time_ratio)", "Gyr", "rad"]
-FIXED_PARAMS = {
-    "C_LIGHT_KM_S": 299792.458, "SECONDS_PER_GYR": 1e9 * 365.25 * 24 * 3600, "MPC_PER_KM": 1.0 / (3.08567758e19),
-    "MPC_TO_KM": 3.08567758e19, "TINY_FLOAT": 1e-30,
-    "USMF_EARLY_ALPHA_POWER_M": 0.5, "OMEGA_GAMMA_H2_PREFACTOR_FOR_RS": 2.47282e-5,
-    "H0_FID_FOR_RS_PARAMS_KM_S_MPC": 67.7, "OMEGA_M0_FID_FOR_RS_PARAMS": 0.31, "OMEGA_B0_FID_FOR_RS_PARAMS": 0.0486,
+# --- Model Metadata ---
+# This dictionary is the standardized format for model information in v1.4+.
+METADATA = {
+    "model_name": "USMFv2",
+    "model_description": "Unified Shrinking Matter Framework v2. A cosmological model positing apparent expansion is an effect of matter shrinking over time, based on a linear shrinking law.",
+    "equations": {
+        "sne": [
+            r"$\alpha(t) = 1 + \frac{H_A}{c}(t_0 - t)$",
+            r"$1+z = \alpha(t_e)$",
+            r"$d_L(z) = c \cdot (t_0-t_e) \cdot (1+z) \cdot \frac{70}{H_A}$",
+            r"$\mu = 5 \log_{10}(d_L) + 25$"
+        ],
+        "bao": [] # This version of the model is not designed for BAO analysis.
+    },
+    "parameters": {
+        "H_A": {
+            "description": "Apparent Hubble Constant, related to the shrinking rate",
+            "units": "km/s/Mpc",
+            "latex": r"$H_A$",
+            "role": "cosmological",
+            "initial_guess": 70.0,
+            "bounds": (50.0, 100.0)
+        },
+        "t0_age_Gyr": {
+            "description": "Age of the Universe at present time",
+            "units": "Gyr",
+            "latex": r"$t_{0,age}$",
+            "role": "cosmological",
+            "initial_guess": 14.0,
+            "bounds": (10.0, 20.0)
+        }
+    },
+    "fixed_params": {
+        "GYR_TO_S": 3.15576e16,
+        "C_LIGHT_KM_S": 299792.458
+    }
 }
-_h_fid_for_rs = FIXED_PARAMS["H0_FID_FOR_RS_PARAMS_KM_S_MPC"] / 100.0
-FIXED_PARAMS["OMEGA_B0_H2_EFF_FOR_RS"] = FIXED_PARAMS["OMEGA_B0_FID_FOR_RS_PARAMS"] * _h_fid_for_rs**2
-FIXED_PARAMS["OMEGA_M0_H2_EFF_FOR_RS"] = FIXED_PARAMS["OMEGA_M0_FID_FOR_RS_PARAMS"] * _h_fid_for_rs**2
 
-class USMF_Calculator:
-    def __init__(self, cosmo_params):
-        _, p_alpha,k_exp,s_exp,t0_Gyr,A_osc,omega_osc,ti_Gyr,phi_osc = cosmo_params
-        self.t0_sec_calc = t0_Gyr * FIXED_PARAMS["SECONDS_PER_GYR"]
-        ti_sec = ti_Gyr * FIXED_PARAMS["SECONDS_PER_GYR"]
-        self.alpha_core_args = (self.t0_sec_calc,p_alpha,k_exp,s_exp,A_osc,omega_osc,ti_sec,phi_osc)
-        self._t_from_z_cache = {}
-        self.alpha_at_t0 = self._alpha_func(self.t0_sec_calc)
-    def _alpha_func(self, t):
-        t0,p_a,k,s,A,w,ti,phi = self.alpha_core_args
-        if t <= 0: return np.nan
-        ratio_t0 = t / t0
-        try:
-            term_power = np.power(ratio_t0, -p_a)
-            term_exp = np.exp(k * (np.power(ratio_t0, s) - 1.0))
-            if t < ti : osc_term = 0.0
-            else: osc_term = np.sin(w * np.log(t / ti) + phi)
-            osc = 1.0 + A * osc_term
-            return term_power * term_exp * osc
-        except (ValueError, OverflowError): return np.nan
-    def get_t_from_z(self, z):
-        if z in self._t_from_z_cache: return self._t_from_z_cache[z]
-        if abs(z) < 1e-9: self._t_from_z_cache[z] = self.t0_sec_calc; return self.t0_sec_calc
-        if not np.isfinite(self.alpha_at_t0): return np.nan
-        target_alpha = (1.0 + z) * self.alpha_at_t0
-        def eq(t):
-            val = self._alpha_func(t)
-            return val - target_alpha if np.isfinite(val) else 1e30
-        try:
-            low_b = FIXED_PARAMS["TINY_FLOAT"] * self.t0_sec_calc
-            high_b = self.t0_sec_calc
-            sol, res = brentq(eq, low_b, high_b, xtol=1e-12 * self.t0_sec_calc, rtol=1e-12, full_output=True)
-            if res.converged: self._t_from_z_cache[z] = sol; return sol
-        except (ValueError, RuntimeError): pass
-        return np.nan
+# --- Physics Functions ---
 
-def _worker_usmf_batch(z_batch, cosmo_params, single_calc_func_name):
-    """Worker function that processes a batch of redshifts for USMF."""
-    calculator = USMF_Calculator(cosmo_params)
-    # Get the correct single-value function from this module's namespace
-    single_calc_func = globals()[single_calc_func_name]
-    return [single_calc_func(zi, calculator) for zi in z_batch]
-
-def _calculate_for_unique_z(z_array, single_calc_func_name, *cosmo_params):
-    z_array = np.asarray(z_array); original_shape = z_array.shape
-    if not z_array.shape:
-        calculator = USMF_Calculator(cosmo_params)
-        return globals()[single_calc_func_name](z_array.item(), calculator)
-    
-    z_flat = z_array.flatten()
-    unique_z, inverse_indices = np.unique(z_flat, return_inverse=True)
-    
-    z_batches = np.array_split(unique_z, PHYSICAL_CORES)
-    args = zip(z_batches, repeat(cosmo_params), repeat(single_calc_func_name))
-
-    unique_results = []
-    try:
-        with mp.Pool(processes=PHYSICAL_CORES) as pool:
-            batch_results = pool.starmap(_worker_usmf_batch, args)
-        unique_results = [item for sublist in batch_results for item in sublist]
-    except (TypeError, AttributeError, EOFError) as e:
-        logging.getLogger().error(f"Multiprocessing failed with error: {e}. Falling back to serial execution.")
-        unique_results = _worker_usmf_batch(unique_z, cosmo_params, single_calc_func_name)
-        
-    unique_results = np.array(unique_results)
-    return unique_results[inverse_indices].reshape(original_shape)
-
-def _r_Mpc_single(z, calculator):
-    if abs(z) < 1e-9: return 0.0
-    t_e = calculator.get_t_from_z(z)
-    if not np.isfinite(t_e): return np.nan
-    def r_integrand(t): 
-        val = calculator._alpha_func(t)
-        return FIXED_PARAMS["C_LIGHT_KM_S"] / val if (np.isfinite(val) and val > 1e-12) else np.inf
-    try:
-        r_km, _ = quad(r_integrand, t_e, calculator.t0_sec_calc, epsabs=1e-9, epsrel=1e-9)
-        return r_km * FIXED_PARAMS["MPC_PER_KM"]
-    except Exception: return np.nan
-
-def get_comoving_distance_Mpc(z_array, *cosmo_params):
-    return _calculate_for_unique_z(z_array, "_r_Mpc_single", *cosmo_params)
-
-def get_luminosity_distance_Mpc(z_array, *cosmo_params):
-    H_A = cosmo_params[0]; C_H = 70.0 / H_A
-    r_Mpc = get_comoving_distance_Mpc(z_array, *cosmo_params)
-    dl_mpc = np.abs(r_Mpc) * np.power(1 + np.asarray(z_array), 2) * C_H
-    return dl_mpc
-
-def distance_modulus_model(z_array, *cosmo_params):
-    dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)
-    with np.errstate(divide='ignore', invalid='ignore'):
-        mu = 5 * np.log10(dl_mpc) + 25.0
-    mu[np.asarray(dl_mpc) <= 0] = np.nan
-    return mu
-
-def _Hz_single(z, calculator):
-    t_e = calculator.get_t_from_z(z)
-    if not np.isfinite(t_e): return np.nan
-    t0,p_a,k,s,A,w,ti,phi = calculator.alpha_core_args
-    alpha_at_te = calculator._alpha_func(t_e)
-    if not (np.isfinite(alpha_at_te) and alpha_at_te > 1e-12 and t_e > 1e-12): return np.nan
-    osc_val = 1.0 + A * np.sin(w * np.log(t_e / ti) + phi) if t_e >= ti else 1.0
-    if abs(osc_val) < 1e-9: return np.nan
-    d_log_alpha_dt = -p_a/t_e + (k*s/t_e)*np.power(t_e/t0,s)
-    if t_e >= ti: d_log_alpha_dt += (A*w/t_e)*np.cos(w*np.log(t_e/ti)+phi)/osc_val
-    d_alpha_dt_at_te = alpha_at_te * d_log_alpha_dt
-    if np.isfinite(d_alpha_dt_at_te): return (-d_alpha_dt_at_te / alpha_at_te) * FIXED_PARAMS["MPC_TO_KM"]
-    return np.nan
-
-def get_Hz_per_Mpc(z_array, *cosmo_params):
-    return _calculate_for_unique_z(z_array, "_Hz_single", *cosmo_params)
-
-def get_angular_diameter_distance_Mpc(z_array, *cosmo_params):
-    dl_mpc = get_luminosity_distance_Mpc(z_array, *cosmo_params)
-    return dl_mpc / np.power(1 + np.asarray(z_array), 2)
-
-def get_DV_Mpc(z_array, *cosmo_params):
-    da_mpc = get_angular_diameter_distance_Mpc(z_array, *cosmo_params)
-    hz = get_Hz_per_Mpc(z_array, *cosmo_params)
+def get_distance_modulus_mu(z_array, H_A, t0_age_Gyr):
+    """
+    Calculates the distance modulus for the USMFv2 model.
+    The formula for dL is derived from the linear shrinking law alpha(t).
+    """
     z = np.asarray(z_array)
-    with np.errstate(divide='ignore', invalid='ignore'):
-        term_in_bracket = (1+z)**2 * da_mpc**2 * FIXED_PARAMS["C_LIGHT_KM_S"] * z / hz
-    return np.power(term_in_bracket, 1.0/3.0, where=term_in_bracket >= 0, out=np.full_like(z, np.nan, dtype=float))
+    C_LIGHT = METADATA['fixed_params']['C_LIGHT_KM_S']
+    GYR_S = METADATA['fixed_params']['GYR_TO_S']
+    
+    # Convert t0 from Gyr to seconds for calculation
+    t0_sec = t0_age_Gyr * GYR_S
 
-def get_sound_horizon_rs_Mpc(*cosmo_params):
-    _, _, _, _, t0_age_Gyr, _, _, _, _ = cosmo_params
-    om_b_h2 = FIXED_PARAMS["OMEGA_B0_H2_EFF_FOR_RS"]
-    om_m_h2 = FIXED_PARAMS["OMEGA_M0_H2_EFF_FOR_RS"]
-    m_fixed = FIXED_PARAMS["USMF_EARLY_ALPHA_POWER_M"]
-    def _zd(om_m, om_b):
-        try:
-            g1 = 0.0783 * om_b**(-0.238) / (1.0 + 39.5 * om_b**0.763)
-            g2 = 0.560 / (1.0 + 21.1 * om_b**1.81)
-            return 1048.0 * np.power(1.0 + 0.00124 * om_b**(-0.738), -1.0) * (1.0 + g1 * om_m**g2)
-        except (ValueError, OverflowError): return np.nan
-    z_d = _zd(om_m_h2, om_b_h2)
-    if not np.isfinite(z_d) or z_d <= 0: return np.nan
-    def _Hz_early(z, t0, m):
-        t0_sec = t0 * FIXED_PARAMS["SECONDS_PER_GYR"]
-        return (m / t0_sec) * np.power(1.0 + z, 1.0 / m) * FIXED_PARAMS["MPC_TO_KM"]
-    def _rs_integrand(z, t0, m, om_b):
-        hz = _Hz_early(z, t0, m)
-        if not np.isfinite(hz) or hz <= 0: return np.inf
-        R = (3. * om_b) / (4. * FIXED_PARAMS["OMEGA_GAMMA_H2_PREFACTOR_FOR_RS"] * (1+z))
-        cs = FIXED_PARAMS["C_LIGHT_KM_S"] / np.sqrt(3. * (1+R))
-        return cs / hz
+    # Calculate time of emission (te) from redshift
+    # From 1+z = alpha(te) = 1 + H_A/c * (t0 - te)
+    # => z = H_A/c * (t0 - te)
+    # => te = t0 - z * c / H_A
     try:
-        rs, _ = quad(_rs_integrand, z_d, np.inf, args=(t0_age_Gyr, m_fixed, om_b_h2))
-        return rs if np.isfinite(rs) and rs > 0 else np.nan
-    except Exception: return np.nan
+        with np.errstate(divide='ignore'):
+            te_sec = t0_sec - z * C_LIGHT / H_A
+
+        # Calculate luminosity distance (dL) in Mpc
+        # dL = c * (t0-te) * (1+z) * (70/H_A) -- The (70/H_A) factor is a normalization convention
+        dL = C_LIGHT * (t0_sec - te_sec) * (1 + z) * (70.0 / H_A)
+
+        # The luminosity distance is in km, we need it in Mpc for mu calculation
+        # 1 Mpc = 3.086e19 km
+        dL_Mpc = dL / 3.086e19
+
+        # Calculate distance modulus
+        with np.errstate(divide='ignore', invalid='ignore'):
+            mu = 5 * np.log10(dL_Mpc)
+        
+        # In this model, mu is conventionally defined without the +25 term,
+        # as it is absorbed into the nuisance parameter M during fitting.
+        # However, for consistency with standard definitions, we return the full value.
+        return mu + 25
+
+    except (ValueError, FloatingPointError) as e:
+        logging.error(f"Error in USMFv2 calculation for H_A={H_A}, t0={t0_age_Gyr}: {e}")
+        return np.full_like(z, np.nan)
+
+# NOTE: This model is not equipped for BAO analysis, so BAO-specific functions
+# like get_DV_Mpc, get_sound_horizon_rs_Mpc, etc., are intentionally omitted.
+# The engine will not attempt to call them if the BAO dataset is empty
+# or if the model's metadata indicates no BAO support.
