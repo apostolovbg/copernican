@@ -5,8 +5,16 @@
 DEV NOTE (v1.4g):
 Updated footer text to v1.4g and cleaned up BAO plotting code.
 The earlier v1.4rc8 fix for BAO lines remains intact.
+codex/fix-bug-in-data_readers.py-and-explain-long-term-solution
+Updated footer text to v1.4g and cleaned up BAO plotting code.
+The earlier v1.4rc8 fix for BAO lines remains intact.
 
+Updated footer text to v1.4g and cleaned up BAO plotting code.
+The earlier v1.4rc8 fix for BAO lines remains intact.
 
+Minor refinements for the stabilized data loaders.
+The footer now reports v1.4g. The BAO plotting fix from v1.4rc8 is retained.
+1.4g
 ---
 (Previous notes from v1.4rc2 preserved below)
 ...
@@ -164,8 +172,20 @@ def create_bao_plot(results_json, style_guide):
     for i, obs_type in enumerate(unique_observables):
         group = df[df['observable_type'] == obs_type]
         color = dp_colors[i % len(dp_colors)]
+      
 
         # Use 'z' for the x-axis instead of the raw 'redshift' column (v1.4g).
+
+        codex/fix-bug-in-data_readers.py-and-explain-long-term-solution
+
+        # Use 'z' for the x-axis instead of the raw 'redshift' column (v1.4g).
+        
+        gggxa2-codex/fix-bug-in-data_readers.py-and-explain-long-term-solution
+
+
+        
+        # 1.4g
+        # FIX (v1.4g): Use 'z' for the x-axis, not 'redshift'.
         x_data, y_data, y_err_data = group['z'], group['value'], group['error']
 
         # Plot data points

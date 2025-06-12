@@ -1,5 +1,8 @@
 {
+tkyfah-codex/fix-bug-in-data_readers.py-and-explain-long-term-solution
   "dev_note": "Session 20250612_1530: Updated to v1.4g. The UniStra parsers replicate v1.3 fixed-width logic. See AGENTS.md for coding rules and CHANGELOG.md for history.",
+=======
+  "dev_note": "Session 20250612_1530: Updated to v1.4g. The UniStra parsers now mirror the stable v1.3 fixed-width logic, resolving the data loss. A TypeError in the cosmo_engine is expected next.",
   "projectName": "Copernican Suite",
   "projectVersion": "1.4g",
   "lastUpdated": "2025-06-12",
@@ -109,9 +112,15 @@
       "description": "To ensure clarity, maintainability, and smooth transitions between development sessions, a strict commenting and documentation standard MUST be followed by any modifying AI.",
       "rules": [
         "Add a 'DEV NOTE' at the top of any modified file summarizing changes for the current version.",
+        tkyfah-codex/fix-bug-in-data_readers.py-and-explain-long-term-solution
         "Comment code extensively. Explain the why behind your code, not just the what. Run python -m py_compile data_loaders.py plotter.py and python -m py_compile *.py before committing.",
         "Update the main README.md and this doc.json file to reflect the latest changes, architectural decisions, and future plans.",
         "Avoid merge conflict markers (the sequences Git inserts during merges) in comments or docs. See AGENTS.md for full guidelines."
+=======
+        "Comment code extensively. Explain the 'why' behind your code, not just the 'what'.",
+        "Update the main README.md and this doc.json file to reflect the latest changes, architectural decisions, and future plans.",
+        "Avoid \"<<<<<<<\", \"======\", and \">>>>>>>\" sequences in comments, as they are parsed as conflict markers on GitHub."
+         1.4g
       ]
     }
   }
