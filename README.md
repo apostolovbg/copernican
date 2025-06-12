@@ -57,3 +57,5 @@ This project is being developed with the assistance of a large language model (L
 1.  **`DEV NOTE`s**: Any file modified by the AI must contain a `DEV NOTE` block at the top, explaining the version, the nature of the changes, and the reason for them.
 2.  **Extensive Commenting**: All new or modified code must be commented clearly to explain its logic and purpose.
 3.  **Documentation First**: Before implementing new features, the `README.md` and `doc.json` files should be updated to reflect the proposed changes, serving as a specification.
+4.  **No Conflict Markers**: Avoid sequences like "<<<<<<<", "======", or ">>>>>>>" in comments or documentation, as they appear as merge conflict markers.
+

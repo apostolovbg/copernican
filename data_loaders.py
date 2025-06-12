@@ -3,8 +3,13 @@
 Handles the loading and parsing of various cosmological data formats.
 
 DEV NOTE (v1.4g):
+gggxa2-codex/fix-bug-in-data_readers.py-and-explain-long-term-solution
+Restored the UniStra fixed-width parsers using the stable v1.3 logic.
+They now target the correct columns, convert '---' to NaN, and load all 740 SNe.
+
 The UniStra parsers now replicate the stable v1.3 fixed-width logic.
 This restores correct column targeting and NaN handling for `tablef3.dat`.
+1.4g
 """
 
 import os
@@ -115,7 +120,7 @@ def _load_pantheon_plus_h2(filepath, base_dir, **kwargs):
     try:
         df = pd.read_csv(filepath, sep=r'\s+', comment='#')
         df.rename(columns={'zCMB': 'z', 'm_b_corr': 'mb', 'm_b_corr_err_DIAG': 'mb_err'}, inplace=True)
-        
+
         numeric_cols = ['z', 'mb', 'mb_err']
         for col in numeric_cols:
             df[col] = pd.to_numeric(df[col], errors='coerce')
@@ -157,7 +162,7 @@ def _load_bao_json_v1(filepath, **kwargs):
             data_json = json.load(f)
 
         df = pd.DataFrame(data_json['data_points'])
-        
+
         required_cols = ['redshift', 'observable_type', 'value', 'error']
         if not all(col in df.columns for col in required_cols):
             raise ValueError(f"BAO JSON file missing one or more required columns: {required_cols}")
@@ -165,17 +170,17 @@ def _load_bao_json_v1(filepath, **kwargs):
         for col in ['redshift', 'value', 'error']:
             df[col] = pd.to_numeric(df[col], errors='coerce')
         df.dropna(subset=required_cols, inplace=True)
-        
+
         df.rename(columns={'redshift': 'z'}, inplace=True)
 
         if df.empty:
             raise ValueError("No valid BAO data points after parsing.")
-            
+
         if 'rs_drag' in data_json:
              df['rs_drag'] = pd.to_numeric(data_json['rs_drag'])
         else:
              df['rs_drag'] = np.nan
-             
+
         return df
     except Exception as e:
         print(f"FATAL: Failed to parse BAO JSON file '{filepath}': {e}")
