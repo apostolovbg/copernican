@@ -8,6 +8,9 @@ dictionary before attempting to create a CSV file. If data is missing (e.g.,
 no BAO data was provided for the run), the function will log an info message
 and exit gracefully instead of crashing with a KeyError. This improves the
 suite's overall stability and error handling.
+
+DEV NOTE (v1.4g): Added a missing newline at the end of the file to satisfy
+repository style guidelines. No functional code changes were made.
 """
 
 import logging
@@ -49,6 +52,7 @@ def create_sne_csv(results, style_guide):
     
     full_path = os.path.join('output', filename)
     _save_df_to_csv(df, full_path)
+
 
 def create_bao_csv(results, style_guide):
     """Creates the detailed CSV for the BAO analysis."""

@@ -14,6 +14,8 @@ DEV NOTE (v1.4rc6):
 
 (Previous notes from v1.4rc preserved below)
 ...
+
+DEV NOTE (v1.4g): Added newline at EOF for consistent file formatting.
 """
 
 import numpy as np

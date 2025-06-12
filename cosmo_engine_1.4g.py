@@ -297,9 +297,10 @@ def execute_job(job_json):
     except Exception as e:
         logging.critical(f"Engine execution failed: {e}", exc_info=True)
         return None
-=======
-    The main entry point for the engine.
-    Orchestrates the loading, fitting, and calculation process.
+
+
+    # --- The main entry point for the engine. ---
+    # Orchestrates the loading, fitting, and calculation process.
     """
     logging.info("Cosmological engine execution started.")
     run_id = job_json['run_id']
@@ -374,3 +375,4 @@ def execute_job(job_json):
     
     logging.info("Cosmological engine execution finished successfully.")
     return results_dict
+

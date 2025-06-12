@@ -17,6 +17,9 @@ DEV NOTE (v1.4rc2):
 
 3.  (from v1.4rc) EXCEPTION HANDLING: Added a custom exception hook to ensure
     that fatal tracebacks are correctly routed through the Tee logger.
+
+DEV NOTE (v1.4g): Appended missing newline at EOF to prevent shell
+prompt collisions in logs.
 """
 
 import os

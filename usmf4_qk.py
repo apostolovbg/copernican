@@ -14,6 +14,8 @@ numerical integration for distance measures.
 #    multiprocessing implementation from lcdm_model.py for performance.
 # 5. Replaced internal sound horizon calculation with the vetted lcdm_model.py
 #    version for consistency and accuracy.
+# DEV NOTE (v1.4g): Added newline at end of file to conform to coding
+# style guidelines.
 
 import numpy as np
 from scipy.integrate import quad

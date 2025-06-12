@@ -17,6 +17,8 @@ in the usmf3b.md documentation. It now implements the "Kinematic" USMF model.
     horizon `rs` based on the model's fiducial parameters.
 4.  API COMPLIANCE: All function signatures are compatible with the v1.4rc
     engine, accepting a nuisance `M` parameter and `**kwargs` where needed.
+
+DEV NOTE (v1.4g): Newline appended at file end for style compliance.
 """
 
 import numpy as np

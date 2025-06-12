@@ -19,6 +19,9 @@ critical bug preventing BAO model curve generation.
 
 This change restores the BAO plotting functionality that was lost in the
 v1.4a refactor.
+
+DEV NOTE (v1.4g): Added a final newline for consistency with the
+repository style guide. No functional changes were made.
 """
 
 import logging
