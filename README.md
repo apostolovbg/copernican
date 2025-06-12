@@ -5,6 +5,7 @@
 **DEV NOTE (Session: 20250612_1530): This document has been updated to `v1.4g`. The UniStra parsers now replicate the successful fixed-width logic from v1.3 to fully load all 740 supernovae.**
 
 **Version 1.4rc remains unstable and is not suitable for any use.**
+The full history of the project is maintained in `CHANGELOG.md`. Development guidelines can be found in `AGENTS.md`.
 
 The primary goal of the v1.4rc stabilization effort has been blocked by a single, persistent, and difficult bug in `data_loaders.py` that resulted in a failure to load the complete supernova dataset. All previous attempts to fix this have failed.
 
@@ -57,5 +58,8 @@ This project is being developed with the assistance of a large language model (L
 1.  **`DEV NOTE`s**: Any file modified by the AI must contain a `DEV NOTE` block at the top, explaining the version, the nature of the changes, and the reason for them.
 2.  **Extensive Commenting**: All new or modified code must be commented clearly to explain its logic and purpose.
 3.  **Documentation First**: Before implementing new features, the `README.md` and `doc.json` files should be updated to reflect the proposed changes, serving as a specification.
+tkyfah-codex/fix-bug-in-data_readers.py-and-explain-long-term-solution
+4.  **No Conflict Markers**: Avoid any merge conflict markers (the special sequences inserted by Git during merges) in comments or documentation.
 4.  **No Conflict Markers**: Avoid sequences like "<<<<<<<", "======", or ">>>>>>>" in comments or documentation, as they appear as merge conflict markers.
+1.4g
 
