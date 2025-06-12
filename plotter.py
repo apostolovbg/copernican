@@ -2,13 +2,10 @@
 # Handles all plot generation for the Copernican Suite.
 
 """
-DEV NOTE (v1.4rc8):
-This module has been updated to align with the standardized data structure
-produced by the corrected data_loaders module.
+DEV NOTE (v1.4g):
+Updated footer text to v1.4g and cleaned up BAO plotting code.
+The earlier v1.4rc8 fix for BAO lines remains intact.
 
-1.  BUGFIX (BAO Plotting): The `create_bao_plot` function now uses the column
-    'z' for the x-axis instead of 'redshift'. This makes it compatible with
-    the DataFrame structure passed from the engine and prevents a `KeyError`.
 
 ---
 (Previous notes from v1.4rc2 preserved below)
@@ -37,7 +34,7 @@ def _setup_plot_style(style_guide):
 
 def _create_footer_text(run_id, m1_name, m2_name):
     """Creates the standard footer text for all plots."""
-    return f"Copernican Suite v1.4rc8 | Run ID: {run_id} | Comparison: {m1_name} vs. {m2_name}"
+    return f"Copernican Suite v1.4g | Run ID: {run_id} | Comparison: {m1_name} vs. {m2_name}"
 
 def _create_info_box_text(model_name, model_meta, fit_results):
     """Creates the text content for a model's info box."""
@@ -132,7 +129,7 @@ def create_hubble_plot(results_json, style_guide):
     fig.text(0.5, 0.01, footer_text, ha='center', va='bottom',
              fontsize=style_guide.get('footer_fontsize', 8), color='#666666')
     plt.tight_layout(rect=[0, 0.03, 1, 0.96])
-    
+
     output_dir = os.path.join(os.getcwd(), 'output')
     dataset_name = os.path.basename(results_json['sne_analysis']['filepath']).split('.')[0]
     filename = f"hubble-plot_{m1_name}-vs-{m2_name}_{dataset_name}_{results_meta['run_id']}"
@@ -167,8 +164,8 @@ def create_bao_plot(results_json, style_guide):
     for i, obs_type in enumerate(unique_observables):
         group = df[df['observable_type'] == obs_type]
         color = dp_colors[i % len(dp_colors)]
-        
-        # FIX (v1.4rc8): Use 'z' for the x-axis, not 'redshift'.
+
+        # Use 'z' for the x-axis instead of the raw 'redshift' column (v1.4g).
         x_data, y_data, y_err_data = group['z'], group['value'], group['error']
 
         # Plot data points
@@ -181,12 +178,20 @@ def create_bao_plot(results_json, style_guide):
             curves = smooth_curves_data[obs_type]
             m1_c = m1_colors[i % len(m1_colors)]
             m2_c = m2_colors[i % len(m2_colors)]
-            ax.plot(curves['z_smooth'], curves['model1_y_smooth'], color=m1_c,
-                    linestyle=ast.literal_eval(m1_line_style.get('linestyle', "'-'")),
-                    linewidth=m1_line_style.get('linewidth', 2))
-            ax.plot(curves['z_smooth'], curves['model2_y_smooth'], color=m2_c,
-                    linestyle=ast.literal_eval(m2_line_style.get('linestyle', "'-'")),
-                    linewidth=m2_line_style.get('linewidth', 2))
+            ax.plot(
+                curves['z_smooth'],
+                curves['model1_y_smooth'],
+                color=m1_c,
+                linestyle=ast.literal_eval(m1_line_style.get('linestyle', "'-'")),
+                linewidth=m1_line_style.get('linewidth', 2),
+            )
+            ax.plot(
+                curves['z_smooth'],
+                curves['model2_y_smooth'],
+                color=m2_c,
+                linestyle=ast.literal_eval(m2_line_style.get('linestyle', "'-'")),
+                linewidth=m2_line_style.get('linewidth', 2),
+            )
         else:
             print(f"Warning: No smooth curve data found for BAO observable '{obs_type}'.")
 
@@ -205,7 +210,7 @@ def create_bao_plot(results_json, style_guide):
     m2_box_style = ast.literal_eval(style_guide['info_boxes'].get('alt_model_style', '{}'))
     m1_text = _create_info_box_text(m1_name, results_meta['model1_metadata'], results_json['sne_analysis']['model1_fit_results'])
     m2_text = _create_info_box_text(m2_name, results_meta['model2_metadata'], results_json['sne_analysis']['model2_fit_results'])
-    
+
     # Position boxes on the right side of the figure
     fig.text(0.99, 0.95, m1_text, transform=fig.transFigure, fontsize=style_guide.get('info_box_fontsize', 9),
              verticalalignment='top', horizontalalignment='right', bbox=m1_box_style)
@@ -216,7 +221,7 @@ def create_bao_plot(results_json, style_guide):
     footer_text = _create_footer_text(results_meta['run_id'], m1_name, m2_name)
     fig.text(0.5, 0.01, footer_text, ha='center', va='bottom',
              fontsize=style_guide.get('footer_fontsize', 8), color='#666666')
-    
+
     # Adjust layout to make room for info boxes and footer
     plt.tight_layout(rect=[0, 0.03, 0.82, 0.95]) # Make right margin smaller
 
