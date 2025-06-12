@@ -110,8 +110,10 @@
       "rules": [
         "Add a 'DEV NOTE' at the top of any modified file summarizing changes for the current version.",
         "Comment code extensively. Explain the 'why' behind your code, not just the 'what'.",
-        "Update the main README.md and this doc.json file to reflect the latest changes, architectural decisions, and future plans."
+        "Update the main README.md and this doc.json file to reflect the latest changes, architectural decisions, and future plans.",
+        "Avoid \"<<<<<<<\", \"======\", and \">>>>>>>\" sequences in comments, as they are parsed as conflict markers on GitHub."
       ]
     }
   }
 }
+
