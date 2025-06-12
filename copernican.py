@@ -1,14 +1,10 @@
 # copernican.py
 """
-DEV NOTE (v1.4b): The version is updated to reflect the new plotting and
-output architecture of the suite. No logical changes were required in this
-file because the v1.4a architecture correctly abstracts all output generation
-behind the `output_manager.py` dispatcher.
-
-This file's responsibility remains focused on user interaction and high-level
-workflow orchestration. The only functional change in this version is the
-addition of a user-friendly "How-To" message displayed at startup to improve
-usability. Comments have also been enhanced for clarity.
+DEV NOTE (v1.4rc): Logging level has been increased from INFO to DEBUG to
+provide more verbose output for easier debugging, fulfilling a key
+requirement of the v1.4rc development cycle. The version has been updated
+to reflect the new Release Candidate status. The log file extension has been
+reverted to .txt as per project standards.
 """
 
 import os
@@ -57,7 +53,7 @@ if __name__ == "__main__":
         print("         C  O  P  E  R  N  I  C  A  N    S  U  I  T  E")
         print("")
         print("\n                 A Modular Cosmology Framework")
-        print("                            v1.4b") # Updated version
+        print("                            v1.4rc") # Updated version
         print("\n" + "="*60)
         print("        ✨ 🔭 🌠 A tool for exploring the cosmos 🪐 ✨")
         print("="*60)
@@ -80,6 +76,7 @@ if __name__ == "__main__":
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
 
+        # REVERTED (v1.4rc): Changed extension back to .txt per user feedback
         log_filename = os.path.join(log_dir, f'copernican-run_{run_id}.txt')
 
         # Clear any previous logging handlers to prevent duplicate output
@@ -87,13 +84,23 @@ if __name__ == "__main__":
             logging.root.removeHandler(handler)
 
         logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s',
+            level=logging.DEBUG, 
+            format='%(asctime)s - %(levelname)-8s - %(module)-20s - %(message)s',
             handlers=[
                 logging.FileHandler(log_filename),
                 logging.StreamHandler(sys.stdout)
             ]
         )
+        # Add a custom format for the console to be less verbose if desired
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(logging.INFO)
+        console_formatter = logging.Formatter('%(levelname)-8s - %(message)s')
+        console_handler.setFormatter(console_formatter)
+
+        # Replace the default stream handler with our custom-formatted one
+        logging.root.handlers = [h for h in logging.root.handlers if not isinstance(h, logging.StreamHandler)]
+        logging.root.addHandler(console_handler)
+
         return logging.getLogger()
 
     def select_engine(base_dir):
@@ -141,31 +148,31 @@ if __name__ == "__main__":
 
     # --- Main Application Workflow ---
     display_splash_screen()
-    display_how_to_message() # NEW (v1.4b): Add user guidance
+    display_how_to_message()
 
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)-8s - %(message)s')
+    logger = logging.getLogger()
+
     while True:
         # Generate a new Run ID for each analysis loop
         RUN_ID = datetime.now().strftime('%Y%m%d_%H%M%S')
         logger = setup_logging(BASE_DIR, RUN_ID)
 
         logger.info("="*30)
-        logger.info(f"    Copernican Suite v{ '1.4b' } Initialized") # Updated version
+        logger.info(f"    Copernican Suite v{ '1.4rc' } Initialized") 
         logger.info("="*30)
         logger.info(f"Running from base directory: {BASE_DIR}")
         logger.info(f"All outputs will be saved to: {os.path.join(BASE_DIR, 'output')}")
         
         # --- Stage 1: Configuration ---
-        # Gather all user inputs for the analysis.
         print("\n--- 🛰️  New Analysis Configuration ---")
 
-        # Step 1.1: Select the computational engine
         engine_name = select_engine(BASE_DIR)
         if engine_name is None: break
         logger.info(f"User selected engine: {engine_name}")
 
-        # Step 1.2: Get the alternative model to test
         alt_model_input = get_user_input("Enter path to alternative model .py file (or 'test'): ")
         if alt_model_input is None: break
         
@@ -175,7 +182,6 @@ if __name__ == "__main__":
         else:
             alt_model_path = alt_model_input
         
-        # Step 1.3: Get the SNe Ia data and parser info
         print("\n--- 🌠 Type Ia Supernovae Data ---")
         sne_path = get_user_input("Enter path to SNe Ia data file: ")
         if sne_path is None: break
@@ -187,11 +193,10 @@ if __name__ == "__main__":
         extra_args_func = data_loaders.SNE_PARSERS[sne_format_key].get('extra_args_func')
         if extra_args_func:
             sne_extra_args = extra_args_func(BASE_DIR)
-            if sne_extra_args is None: break # User cancelled
+            if sne_extra_args is None: break 
 
         sne_data_info = {'path': sne_path, 'format_key': sne_format_key, 'extra_args': sne_extra_args}
 
-        # Step 1.4: Get the BAO data and parser info (optional)
         print("\n--- 🌌 Baryon Acoustic Oscillation Data ---")
         bao_path = get_user_input("Enter path to BAO data file (or press Enter to skip): ", must_exist=False)
         bao_data_info = {}
@@ -201,7 +206,6 @@ if __name__ == "__main__":
                 bao_data_info = {'path': bao_path, 'format_key': bao_format_key}
         
         # --- Stage 2: Job Aggregation ---
-        # Consolidate all inputs into a single "Job JSON" for the engine.
         logger.info("\n--- Stage 2: Aggregating Job Data ---")
         job_json = input_aggregator.build_job_json(RUN_ID, engine_name, alt_model_path, sne_data_info, bao_data_info)
 
@@ -210,7 +214,6 @@ if __name__ == "__main__":
             continue
 
         # --- Stage 3: Engine Execution ---
-        # Dynamically load and run the selected engine as a black box.
         logger.info(f"\n--- Stage 3: Executing Job with Engine: {engine_name} ---")
         try:
             engine_path = os.path.join(BASE_DIR, engine_name)
@@ -228,7 +231,6 @@ if __name__ == "__main__":
             continue
 
         # --- Stage 4: Output Generation ---
-        # Pass the final "Results JSON" to the output manager dispatcher.
         output_manager.generate_outputs(results_json)
 
         # --- Loop or Exit ---

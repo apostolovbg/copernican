@@ -1,146 +1,108 @@
-# copernican_suite/csv_writer.py
-"""
-DEV NOTE (v1.4b): This is a new module introduced in the v1.4b refactor to
-handle all CSV output generation. Its creation follows the Single
-Responsibility Principle, separating data serialization from plotting.
+# csv_writer.py
+# Handles the generation of all CSV output files.
 
-The logic herein was migrated and refined from the `_save_detailed_csvs`
-function in the v1.4a `output_manager.py`. This module is designed to be
-called by the `output_manager.py` dispatcher, which passes it the final
-results data.
+"""
+DEV NOTE (v1.4rc): This module has been fortified to be more robust. Each
+function now checks for the existence of the required data in the results
+dictionary before attempting to create a CSV file. If data is missing (e.g.,
+no BAO data was provided for the run), the function will log an info message
+and exit gracefully instead of crashing with a KeyError. This improves the
+suite's overall stability and error handling.
 """
 
-import os
 import logging
+import os
 import pandas as pd
 
-def _reconstruct_df_from_split(df_dict):
-    """
-    Internal helper to safely reconstruct a pandas DataFrame from the 'split'
-    dictionary format that is used in the JSON data contract.
+# --- Helper Functions ---
 
-    Args:
-        df_dict (dict): The dictionary in 'split' orientation.
+def _reconstruct_df_from_split(split_dict):
+    """Reconstructs a Pandas DataFrame from the 'split' dictionary format."""
+    return pd.DataFrame(split_dict['data'], index=split_dict['index'], columns=split_dict['columns'])
 
-    Returns:
-        pandas.DataFrame: The reconstructed DataFrame, or an empty one on failure.
-    """
-    # Basic validation to prevent errors with malformed or missing data.
-    if not isinstance(df_dict, dict) or 'data' not in df_dict or 'columns' not in df_dict:
-        logging.getLogger().warning("Failed to reconstruct DataFrame: dictionary is malformed or empty.")
-        return pd.DataFrame()
+def _save_df_to_csv(df, full_path):
+    """Saves a DataFrame to a CSV file."""
     try:
-        return pd.DataFrame(df_dict['data'], index=df_dict.get('index'), columns=df_dict['columns'])
+        df.to_csv(full_path, index=False)
+        logging.info(f"Successfully saved data to {full_path}")
     except Exception as e:
-        logging.getLogger().error(f"Error reconstructing DataFrame: {e}")
-        return pd.DataFrame()
+        logging.error(f"Failed to save CSV to {full_path}: {e}", exc_info=True)
 
-def _save_sne_csv(results, alt_model_name, dataset_name, run_id, output_dir):
-    """
-    Creates and saves a detailed, unified CSV for the SNe Ia analysis results.
-    """
-    logger = logging.getLogger()
+# --- Public CSV Generation Functions ---
+
+def create_sne_csv(results, style_guide):
+    """Creates the detailed CSV for the SNe Ia analysis."""
+    # Fortification: Check if SNe data exists
+    sne_analysis = results.get('sne_analysis')
+    if not sne_analysis or 'detailed_df' not in sne_analysis:
+        logging.info("No SNe analysis data found in results. Skipping SNe CSV generation.")
+        return
+
+    df = _reconstruct_df_from_split(sne_analysis['detailed_df'])
     
-    # Reconstruct the detailed DataFrames from the results dictionary
-    lcdm_df_dict = results['results']['lcdm'].get('sne_detailed_df')
-    alt_df_dict = results['results']['alt_model'].get('sne_detailed_df')
-
-    if lcdm_df_dict is None or alt_df_dict is None:
-        logger.warning("SNe detailed data missing, skipping unified CSV output.")
-        return
-
-    lcdm_df = _reconstruct_df_from_split(lcdm_df_dict)
-    alt_df = _reconstruct_df_from_split(alt_df_dict)
-
-    if lcdm_df.empty or alt_df.empty:
-        logger.warning("Reconstructed SNe DataFrames are empty, skipping CSV output.")
-        return
-
-    # Create a single, unified DataFrame for easier comparison.
-    # Start with the observational data columns from the LCDM dataframe.
-    obs_cols = [col for col in lcdm_df.columns if 'model' not in col and 'residual' not in col]
-    combined_df = lcdm_df[obs_cols].copy()
-
-    # Add model predictions and residuals from both models with clear, dynamic names.
-    combined_df['mu_model_lcdm'] = lcdm_df['mu_model']
-    combined_df['residual_lcdm'] = lcdm_df['residual']
-    combined_df[f'mu_model_{alt_model_name}'] = alt_df['mu_model']
-    combined_df[f'residual_{alt_model_name}'] = alt_df['residual']
-
-    filename = f"sne-detailed-data_LambdaCDM-vs-{alt_model_name}_{dataset_name}_{run_id}.csv"
-    filepath = os.path.join(output_dir, filename)
+    # Generate filename
+    m1_name = results['metadata']['model1_name']
+    m2_name = results['metadata']['model2_name']
+    dataset_name = sne_analysis['detailed_df']['name']
+    run_id = results['metadata']['run_id']
+    filename = f"sne-detailed-data_{m1_name}-vs-{m2_name}_{dataset_name}_{run_id}.csv"
     
-    try:
-        combined_df.to_csv(filepath, index=False, float_format='%.6f')
-        logger.info(f"Unified SNe detailed data saved to {filename}")
-    except Exception as e:
-        logger.error(f"Failed to save unified SNe CSV {filename}: {e}", exc_info=True)
+    full_path = os.path.join('output', filename)
+    _save_df_to_csv(df, full_path)
 
-
-def _save_bao_csv(results, alt_model_name, dataset_name, run_id, output_dir):
-    """
-    Creates and saves a detailed, unified CSV for the BAO analysis results.
-    """
-    logger = logging.getLogger()
-
-    # Reconstruct the detailed DataFrames from the results dictionary
-    lcdm_df_dict = results['results']['lcdm']['bao_analysis'].get('detailed_df')
-    alt_df_dict = results['results']['alt_model']['bao_analysis'].get('detailed_df')
-
-    if lcdm_df_dict is None or alt_df_dict is None:
-        logger.warning("BAO detailed data missing, skipping unified CSV output.")
+def create_bao_csv(results, style_guide):
+    """Creates the detailed CSV for the BAO analysis."""
+    # Fortification: Check if BAO data exists
+    bao_analysis = results.get('bao_analysis')
+    if not bao_analysis or 'detailed_df' not in bao_analysis:
+        logging.info("No BAO analysis data found in results. Skipping BAO CSV generation.")
         return
+        
+    df = _reconstruct_df_from_split(bao_analysis['detailed_df'])
 
-    lcdm_df = _reconstruct_df_from_split(lcdm_df_dict)
-    alt_df = _reconstruct_df_from_split(alt_df_dict)
-
-    if lcdm_df.empty or alt_df.empty:
-        logger.warning("Reconstructed BAO DataFrames are empty, skipping CSV output.")
-        return
-
-    # For BAO, combine the observational data with model predictions from both.
-    obs_cols = ['redshift', 'observable_type', 'value', 'error']
-    combined_df = lcdm_df[obs_cols].copy()
-    combined_df['model_value_lcdm'] = lcdm_df['model_value']
-    combined_df[f'model_value_{alt_model_name}'] = alt_df['model_value']
-
-    filename = f"bao-detailed-data_LambdaCDM-vs-{alt_model_name}_{dataset_name}_{run_id}.csv"
-    filepath = os.path.join(output_dir, filename)
+    # Generate filename
+    m1_name = results['metadata']['model1_name']
+    m2_name = results['metadata']['model2_name']
+    run_id = results['metadata']['run_id']
+    # Since there can be multiple BAO types, we don't include a single dataset name
+    filename = f"bao-detailed-data_{m1_name}-vs-{m2_name}_BAO_{run_id}.csv"
     
-    try:
-        combined_df.to_csv(filepath, index=False, float_format='%.6f')
-        logger.info(f"Unified BAO detailed data saved to {filename}")
-    except Exception as e:
-        logger.error(f"Failed to save unified BAO CSV {filename}: {e}", exc_info=True)
+    full_path = os.path.join('output', filename)
+    _save_df_to_csv(df, full_path)
 
+def create_fit_summary_csv(results, style_guide):
+    """Creates a summary CSV with the best-fit parameters and Chi2 values."""
+    # Fortification: Check if fit data exists
+    sne_analysis = results.get('sne_analysis')
+    if not sne_analysis or 'model1_fit_results' not in sne_analysis:
+        logging.info("No fit summary data found in results. Skipping fit summary CSV generation.")
+        return
+        
+    m1_name = results['metadata']['model1_name']
+    m2_name = results['metadata']['model2_name']
+    m1_fit = sne_analysis['model1_fit_results']
+    m2_fit = sne_analysis['model2_fit_results']
 
-def create_csv_outputs(results, output_dir='output'):
-    """
-    The main public entry point for this module. It coordinates the creation
-    of all relevant CSV output files based on the contents of the results data.
+    summary_data = {
+        'Model': [m1_name, m2_name],
+        'Chi_Squared': [m1_fit['min_chi2'], m2_fit['min_chi2']],
+        'Reduced_Chi_Squared': [m1_fit['reduced_chi2'], m2_fit['reduced_chi2']],
+        'DOF': [m1_fit['dof'], m2_fit['dof']]
+    }
+    
+    # Add all fitted parameters to the dictionary
+    all_params = set(m1_fit['best_fit_params'].keys()) | set(m2_fit['best_fit_params'].keys())
+    for param in all_params:
+        summary_data[f"{param}_best_fit"] = [
+            m1_fit['best_fit_params'].get(param),
+            m2_fit['best_fit_params'].get(param)
+        ]
 
-    Args:
-        results (dict): The parsed JSON results from the cosmology engine.
-        output_dir (str): The directory where files will be saved.
-    """
-    logger = logging.getLogger()
-    logger.info("--- CSV Writer Module Activated ---")
-
-    # Safely extract metadata needed for filenames
-    run_id = results.get('metadata', {}).get('run_id', 'unknown_run')
-    alt_model_name_raw = results.get('inputs', {}).get('models', {}).get('alt_model', {}).get('name', 'AltModel')
-    # Sanitize the model name for use in filenames
-    alt_model_name_safe = alt_model_name_raw.replace(' ', '_').replace('.', '')
-
-
-    # Check if SNe analysis was run and save its CSV
-    if 'sne_fit' in results.get('results', {}).get('lcdm', {}):
-        sne_dataset_name_raw = results['inputs']['datasets']['sne_data']['attributes'].get('dataset_name_attr', 'SNe_data')
-        sne_dataset_name_safe = sne_dataset_name_raw.replace('.dat', '').replace('.txt', '')
-        _save_sne_csv(results, alt_model_name_safe, sne_dataset_name_safe, run_id, output_dir)
-
-    # Check if BAO analysis was run and save its CSV
-    if 'bao_analysis' in results.get('results', {}).get('lcdm', {}):
-        bao_dataset_name_raw = results['inputs']['datasets']['bao_data']['attributes'].get('dataset_name_attr', 'BAO_data')
-        bao_dataset_name_safe = bao_dataset_name_raw.replace('.json', '')
-        _save_bao_csv(results, alt_model_name_safe, bao_dataset_name_safe, run_id, output_dir)
+    df = pd.DataFrame(summary_data)
+    
+    # Generate filename
+    run_id = results['metadata']['run_id']
+    filename = f"fit-summary_{m1_name}-vs-{m2_name}_{run_id}.csv"
+    
+    full_path = os.path.join('output', filename)
+    _save_df_to_csv(df, full_path)
