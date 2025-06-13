@@ -1,10 +1,15 @@
 # Copernican Suite Change Log
 
-This file summarizes notable changes across versions. Refer to `doc.json` for more technical details.
+This file summarizes notable changes across versions.
 
 ## v1.4g
 - UniStra data loaders restored to the fixed-width strategy from v1.3.
 - Added `cosmo_engine_1.4g.py` fixing the residual calculation bug and working with all standard model plugins.
+
+## v2.0
+- Switched to a plugin-based engine architecture and CosmoDSL model files.
+- `main.py` replaces `copernican.py` as the only entry point.
+- Start scripts updated and `doc.json` removed.
 
 ## v1.4rc13
 - Development refocused on reproducing the v1.3 parsing logic.

@@ -19,5 +19,6 @@ python -m py_compile *.py
 
 ## Documentation Updates
 - Keep `README.md` concise and reference `CHANGELOG.md` for the full history of modifications.
-- When project version updates occur, update `doc.json` and add an entry in `CHANGELOG.md`.
+- When project version updates occur, update `README.md` and add an entry in `CHANGELOG.md`.
+- The `doc.json` file has been deprecated; any important notes should be kept in `README.md` or here.
 
