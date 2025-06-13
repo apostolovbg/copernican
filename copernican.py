@@ -2,13 +2,12 @@
 """
 Copernican Suite - Main Orchestrator.
 """
-# DEV NOTE (v1.3): In this version, the call to the SNe summary CSV function
-# (`output_manager.save_sne_fit_results_csv`) was removed from the output
-# generation stage. This was done to streamline the outputs, as the new
-# detailed SNe data CSV provides a more comprehensive, point-by-point
-# breakdown, making the summary file redundant.
+# DEV NOTE (v1.4): Refactored into a pluggable architecture. Models, parsers,
+# plugins now reside in the `models` package. The summary CSV call removed in
+# v1.3 remains omitted.
 
 import importlib.util
+import importlib
 import os
 import sys
 import platform
@@ -16,6 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 import shutil
+import glob
 
 # --- System Dependency and Sanity Checker ---
 
@@ -56,9 +56,8 @@ def check_dependencies():
 
 # Import sibling modules after the dependency check
 import data_loaders
-import cosmo_engine
 import output_manager
-import lcdm_model
+from models import lcdm_model
 
 def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
     """Prompts the user for a filepath and validates it."""
@@ -94,6 +93,37 @@ def load_alternative_model_plugin(model_filepath):
         logger.error(f"Error loading model plugin '{os.path.basename(model_filepath)}': {e}", exc_info=True)
         return None
 
+def select_from_list(options, prompt):
+    """Utility to allow user selection from a list."""
+    if not options:
+        return None
+    for i, opt in enumerate(options, 1):
+        print(f"  {i}. {opt}")
+    while True:
+        choice = input(f"{prompt} (number or 'c' to cancel): ").strip()
+        if choice.lower() == 'c':
+            return None
+        if choice.isdigit() and 1 <= int(choice) <= len(options):
+            return options[int(choice) - 1]
+        print("Invalid selection. Try again.")
+
+def parse_model_header(md_path):
+    """Read minimal YAML front matter for plugin lookup."""
+    data = {}
+    try:
+        with open(md_path, 'r') as f:
+            lines = f.readlines()
+        if lines and lines[0].strip() == '---':
+            for line in lines[1:]:
+                if line.strip() == '---':
+                    break
+                if ':' in line:
+                    k, v = line.split(':', 1)
+                    data[k.strip()] = v.strip().strip('"').strip("'")
+    except Exception:
+        pass
+    return data
+
 def cleanup_cache(base_dir):
     """Finds and removes all __pycache__ directories."""
     logger = output_manager.get_logger()
@@ -127,23 +157,44 @@ def main_workflow():
     while True:
         logger.info("\n--- Stage 1: Configuration ---")
 
-        prompt = "Enter alternative model plugin filename (e.g., usmf2.py or 'test'): "
-        alt_model_input = get_user_input_filepath(prompt, base_dir=SCRIPT_DIR, must_exist=False)
-        
-        if not alt_model_input: break
-        
-        alt_model_plugin = None
-        if alt_model_input.lower() == 'test':
+        models_dir = os.path.join(SCRIPT_DIR, 'models')
+        model_files = sorted([f for f in os.listdir(models_dir) if f.startswith('cosmo_model_') and f.endswith('.md')])
+        selected_model = select_from_list(model_files + ['test'], 'Select cosmological model')
+        if not selected_model:
+            break
+
+        if selected_model == 'test':
             alt_model_plugin = lcdm_model
             logger.info("--- RUNNING IN TEST MODE: Comparing LCDM against itself. ---")
         else:
-            alt_model_filepath = os.path.join(SCRIPT_DIR, alt_model_input)
+            md_path = os.path.join(models_dir, selected_model)
+            meta = parse_model_header(md_path)
+            plugin_name = meta.get('model_plugin')
+            if not plugin_name:
+                logger.error(f"Model file {selected_model} missing 'model_plugin' entry.")
+                continue
+            alt_model_filepath = os.path.join(SCRIPT_DIR, plugin_name)
+            if not os.path.isfile(alt_model_filepath):
+                alt_model_filepath = os.path.join(models_dir, plugin_name)
             alt_model_plugin = load_alternative_model_plugin(alt_model_filepath)
 
-        if not alt_model_plugin: continue
+        if not alt_model_plugin:
+            continue
 
-        sne_data_filepath = get_user_input_filepath("Enter SNe Ia data filepath", base_dir=SCRIPT_DIR)
-        if not sne_data_filepath: break
+        engines_dir = os.path.join(SCRIPT_DIR, 'engines')
+        engine_files = sorted([f for f in os.listdir(engines_dir) if f.startswith('cosmo_engine_') and f.endswith('.py')])
+        engine_choice = select_from_list(engine_files, 'Select computation engine')
+        if not engine_choice:
+            break
+        engine_module = importlib.import_module(f"engines.{engine_choice[:-3]}")
+        cosmo_engine_selected = engine_module
+
+        sne_data_dir = os.path.join(SCRIPT_DIR, 'data', 'sne')
+        sne_files = sorted(os.listdir(sne_data_dir))
+        sne_choice = select_from_list(sne_files, 'Select SNe Ia data file')
+        if not sne_choice:
+            break
+        sne_data_filepath = os.path.join(sne_data_dir, sne_choice)
         
         sne_format_key = data_loaders._select_parser(data_loaders.SNE_PARSERS, "SNe")
         if not sne_format_key: break
@@ -159,16 +210,20 @@ def main_workflow():
         sne_data_df = data_loaders.load_sne_data(sne_data_filepath, format_key=sne_format_key, **sne_loader_kwargs)
         if sne_data_df is None: continue
 
-        bao_data_filepath = get_user_input_filepath("Enter BAO data filename (e.g., bao1.json)", base_dir=SCRIPT_DIR)
-        if not bao_data_filepath: break
+        bao_data_dir = os.path.join(SCRIPT_DIR, 'data', 'bao')
+        bao_files = sorted(os.listdir(bao_data_dir))
+        bao_choice = select_from_list(bao_files, 'Select BAO data file')
+        if not bao_choice:
+            break
+        bao_data_filepath = os.path.join(bao_data_dir, bao_choice)
         bao_format_key = data_loaders._select_parser(data_loaders.BAO_PARSERS, "BAO")
         if not bao_format_key: break
         bao_data_df = data_loaders.load_bao_data(bao_data_filepath, format_key=bao_format_key)
         if bao_data_df is None: continue
 
         logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
-        lcdm_sne_fit_results = cosmo_engine.fit_sne_parameters(sne_data_df, lcdm_model)
-        alt_model_sne_fit_results = cosmo_engine.fit_sne_parameters(sne_data_df, alt_model_plugin)
+        lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, lcdm_model)
+        alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, alt_model_plugin)
         
         logger.info("\n--- Stage 3: BAO Analysis ---")
         
@@ -182,11 +237,11 @@ def main_workflow():
                 return {'sne_fit_results': sne_fit_results, 'pred_df': None, 'rs_Mpc': np.nan, 'chi2_bao': np.inf, 'smooth_predictions': None}
 
             fitted_cosmo_p = list(sne_fit_results['fitted_cosmological_params'].values())
-            pred_df, rs_Mpc, smooth_preds = cosmo_engine.calculate_bao_observables(bao_data_df, model_plugin, fitted_cosmo_p, z_smooth=z_smooth_arr)
+            pred_df, rs_Mpc, smooth_preds = cosmo_engine_selected.calculate_bao_observables(bao_data_df, model_plugin, fitted_cosmo_p, z_smooth=z_smooth_arr)
             
             chi2_bao = np.inf
             if pred_df is not None and np.isfinite(rs_Mpc):
-                chi2_bao = cosmo_engine.chi_squared_bao(bao_data_df, model_plugin, fitted_cosmo_p, rs_Mpc)
+                chi2_bao = cosmo_engine_selected.chi_squared_bao(bao_data_df, model_plugin, fitted_cosmo_p, rs_Mpc)
                 logger.info(f"{model_plugin.MODEL_NAME} BAO: r_s = {rs_Mpc:.2f} Mpc, Chi2_BAO = {chi2_bao:.2f}")
             else:
                 logger.warning(f"{model_plugin.MODEL_NAME} BAO calculation failed or produced invalid r_s.")

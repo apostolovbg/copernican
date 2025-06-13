@@ -106,3 +106,5 @@ where $c$ is the speed of light, $dt_{local}$ is the local time interval, $dx^i$
 >
 > 3.  **Theoretical Framework Section:**
 >     -   The remainder of the document contains the detailed theoretical write-up of the model. It should be formatted using standard Markdown headings, lists, and LaTeX for equations. This section is intended for human readers and for providing context.
+>     -   The remainder of the document contains the detailed theoretical write-up of the model. It should be formatted using standard Markdown headings, lists, and LaTeX for equations. This section is intended for human readers and for providing context.
+
