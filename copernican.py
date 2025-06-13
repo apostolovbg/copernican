@@ -2,6 +2,9 @@
 """
 Copernican Suite - Main Orchestrator.
 """
+# DEV NOTE (v1.4.1): Added splash screen, per-run logging with timestamps, and
+# migrated the base model import to the new `lcdm.py` plugin file. Previous
+# refactor notes retained below for context.
 # DEV NOTE (v1.4): Refactored into a pluggable architecture. Models, parsers,
 # plugins now reside in the `models` package. The summary CSV call removed in
 # v1.3 remains omitted.
@@ -16,6 +19,26 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 import shutil
 import glob
+import time
+
+COPERNICAN_VERSION = "1.4.1"
+
+def show_splash_screen():
+    """Displays the startup banner once at launch."""
+    banner = [
+        "=" * 60,
+        "Copernican Suite".center(60),
+        "=" * 60,
+        "A tool for rapid development, prototyping and testing of",
+        "alternative cosmological frameworks against observational data",
+        "=" * 60,
+        f"Current build {COPERNICAN_VERSION}".center(60),
+        "=" * 60,
+    ]
+    for line in banner:
+        print(line)
+    time.sleep(1)
+    print("Follow the prompts to configure a run. Results are saved in the 'output' directory.\n")
 
 # --- System Dependency and Sanity Checker ---
 
@@ -57,7 +80,7 @@ def check_dependencies():
 # Import sibling modules after the dependency check
 import data_loaders
 import output_manager
-from models import lcdm_model
+from models import lcdm
 
 def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
     """Prompts the user for a filepath and validates it."""
@@ -147,14 +170,19 @@ def main_workflow():
     OUTPUT_DIR = os.path.join(SCRIPT_DIR, 'output')
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    log_file = output_manager.setup_logging(log_dir=OUTPUT_DIR)
-    logger = output_manager.get_logger()
-    logger.info("=== Copernican Suite Initialized ===")
-    logger.info("Using standard CPU (SciPy) computational backend with multiprocessing.")
-    logger.info(f"Running from base directory: {SCRIPT_DIR}")
-    logger.info(f"All outputs will be saved to: {OUTPUT_DIR}")
-    
+    show_splash_screen()
+
     while True:
+        log_file = output_manager.setup_logging(log_dir=OUTPUT_DIR)
+        logger = output_manager.get_logger()
+        start_ts = time.strftime("%y%m%d_%H%M%S")
+        logger.info(
+            f"Copernican {COPERNICAN_VERSION} has initialized! Current timestamp is {start_ts}. Log file: {log_file}"
+        )
+        logger.info("Using standard CPU (SciPy) computational backend with multiprocessing.")
+        logger.info(f"Running from base directory: {SCRIPT_DIR}")
+        logger.info(f"All outputs will be saved to: {OUTPUT_DIR}")
+
         logger.info("\n--- Stage 1: Configuration ---")
 
         models_dir = os.path.join(SCRIPT_DIR, 'models')
@@ -164,7 +192,7 @@ def main_workflow():
             break
 
         if selected_model == 'test':
-            alt_model_plugin = lcdm_model
+            alt_model_plugin = lcdm
             logger.info("--- RUNNING IN TEST MODE: Comparing LCDM against itself. ---")
         else:
             md_path = os.path.join(models_dir, selected_model)
@@ -222,7 +250,7 @@ def main_workflow():
         if bao_data_df is None: continue
 
         logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
-        lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, lcdm_model)
+        lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, lcdm)
         alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, alt_model_plugin)
         
         logger.info("\n--- Stage 3: BAO Analysis ---")
@@ -248,19 +276,19 @@ def main_workflow():
                 
             return {'sne_fit_results': sne_fit_results, 'pred_df': pred_df, 'rs_Mpc': rs_Mpc, 'chi2_bao': chi2_bao, 'smooth_predictions': smooth_preds}
 
-        lcdm_full_results = run_bao_analysis(lcdm_model, lcdm_sne_fit_results, z_plot_smooth)
+        lcdm_full_results = run_bao_analysis(lcdm, lcdm_sne_fit_results, z_plot_smooth)
         alt_model_full_results = run_bao_analysis(alt_model_plugin, alt_model_sne_fit_results, z_plot_smooth)
 
         logger.info("\n--- Stage 4: Generating Outputs ---")
-        output_manager.plot_hubble_diagram(sne_data_df, lcdm_sne_fit_results, alt_model_sne_fit_results, lcdm_model, alt_model_plugin, plot_dir=OUTPUT_DIR)
+        output_manager.plot_hubble_diagram(sne_data_df, lcdm_sne_fit_results, alt_model_sne_fit_results, lcdm, alt_model_plugin, plot_dir=OUTPUT_DIR)
         if bao_data_df is not None:
-            output_manager.plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results, lcdm_model, alt_model_plugin, plot_dir=OUTPUT_DIR)
+            output_manager.plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results, lcdm, alt_model_plugin, plot_dir=OUTPUT_DIR)
         
         # The call to the redundant summary CSV has been removed.
         # output_manager.save_sne_fit_results_csv(...)
         
         # Save the detailed point-by-point SNe results CSV
-        output_manager.save_sne_results_detailed_csv(sne_data_df, lcdm_sne_fit_results, alt_model_sne_fit_results, lcdm_model, alt_model_plugin, csv_dir=OUTPUT_DIR)
+        output_manager.save_sne_results_detailed_csv(sne_data_df, lcdm_sne_fit_results, alt_model_sne_fit_results, lcdm, alt_model_plugin, csv_dir=OUTPUT_DIR)
         
         if bao_data_df is not None:
             output_manager.save_bao_results_csv(bao_data_df, lcdm_full_results, alt_model_full_results, alt_model_name=alt_model_plugin.MODEL_NAME, csv_dir=OUTPUT_DIR)
@@ -268,6 +296,9 @@ def main_workflow():
         print("\n" + "="*50)
         print("Evaluation complete. All files saved to the 'output' directory.")
         print("="*50 + "\n")
+
+        end_ts = time.strftime("%y%m%d_%H%M%S")
+        logger.info(f"Run completed at {end_ts}.")
 
         while True:
             another_run = input("Would you like to run another evaluation? (yes/no): ").strip().lower()
