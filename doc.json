@@ -1,8 +1,8 @@
 {
-  "dev_note": "Session 20250612_1530: Updated to v1.4g. The UniStra parsers replicate v1.3 fixed-width logic. See AGENTS.md for coding rules and CHANGELOG.md for history.",
+  "dev_note": "Session 20250612_1600: Added CosmoDSL directories and plugin architecture.",
   "projectName": "Copernican Suite",
   "projectVersion": "1.4g",
-  "lastUpdated": "2025-06-12",
+  "lastUpdated": "2025-06-13",
   "description": "This document serves as the master technical specification for the Copernican Suite. It defines the required structure for all components and provides the authoritative style guide for all generated outputs. The current priority is to resolve the critical data loading failure in data_loaders.py by correctly implementing the logic from the stable v1.3 release.",
   "developmentHistory": {
     "v1.3": "Stable version with robust and correct data loaders for all specified formats. Its data handling serves as a reference.",
@@ -13,6 +13,7 @@
     "v1.4rc_column-name-fix": "The column name `KeyError` was fixed, but this revealed a deeper issue: the data loader was only loading 33 of 740 SNe due to incorrect handling of missing data placeholders ('---').",
     "v1.4rc13_current": "The root cause of the SNe data loss was confirmed as incorrect column selection. Development refocused on reproducing the v1.3 logic.",
     "v1.4g_current": "UniStra parsers now use the stable v1.3 fixed-width method, restoring all data. The engine has been repaired with `cosmo_engine_1.4g.py`."
+    "v1.4g_cosmodsl": "Introduced CosmoDSL and plugin-based engine folder."
   },
   "projectSchema": {
     "copernican.py": "Main orchestrator script. Manages user interaction and high-level workflow control.",
