@@ -3,6 +3,7 @@
 ## Current Status (v1.4g - UniStra Parsing Restored)
 
 **DEV NOTE (Session: 20250612_1530): This document has been updated to `v1.4g`. The UniStra parsers now replicate the successful fixed-width logic from v1.3 to fully load all 740 supernovae.**
+**DEV NOTE (Session: 20250612_1600): CosmoDSL folders and plugin engine structure have been introduced.**
 
 **Version 1.4rc remains unstable and is not suitable for any use.**
 The full history of the project is maintained in `CHANGELOG.md`. Development guidelines can be found in `AGENTS.md`.
@@ -34,6 +35,8 @@ The suite is composed of several key modules that work in a pipeline:
 * **`output_manager.py`**: Dispatches output tasks.
 * **`csv_writer.py`**: Writes tabular data.
 * **`plotter.py`**: Generates plots based on the style guide.
+The v1.4g refactor introduced **CosmoDSL** and a plugin-based engine folder (`/engines`). Models now live in `/models` as `.md` files written in the DSL, and data files are kept under `/data`. The new `main.py` script automatically discovers engines, models, and data at runtime.
+
 
 ---
 
