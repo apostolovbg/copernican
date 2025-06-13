@@ -18,6 +18,9 @@ This module has been corrected to resolve the TypeError during parser execution.
 
 DEV NOTE (v1.4g): Added a missing newline at the end of the file for
 style consistency.
+DEV NOTE (engine sync): The returned Job JSON now includes a new
+`models` section with plugin paths so the engine can load model
+plugins without errors.
 """
 
 import os
@@ -119,7 +122,8 @@ def build_job_json(engine_name, alt_model_path, sne_data_info, bao_data_info, ba
         'engine_name': engine_name,
         'model1_metadata': None,
         'model2_metadata': None,
-        'data': {}
+        'data': {},
+        'models': {}
     }
 
     if alt_model_path.lower() == 'test':
@@ -128,6 +132,10 @@ def build_job_json(engine_name, alt_model_path, sne_data_info, bao_data_info, ba
 
     job_data['model1_metadata'] = _load_model_metadata(os.path.join(base_dir, "lcdm_model.py"))
     job_data['model2_metadata'] = _load_model_metadata(os.path.join(base_dir, alt_model_path))
+    job_data['models'] = {
+        'model1': {'path': os.path.join(base_dir, "lcdm_model.py")},
+        'model2': {'path': os.path.join(base_dir, alt_model_path)}
+    }
 
     if not job_data['model1_metadata'] or not job_data['model2_metadata']:
         print("CRITICAL: Failed to load essential model metadata. Cannot proceed.")
