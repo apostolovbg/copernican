@@ -5,6 +5,16 @@
 **DEV NOTE (v2.0):** The Suite uses a declarative DSL for models and plugin-based engines. `main.py` is the sole entry point. A minimal `doc.json` is kept only for legacy merges and references `README.md` for full details.
 **DEV NOTE (v2.0 discovery fix):** Engine discovery now lists the modern `cosmo_engine_new1.py` so users can run the v2 interface.
 **DEV NOTE (v2.0 cleanup):** The obsolete `legacy` folder has been removed and `plotter.py` restored to the project root.
+=======
+
+codex/debug-copernican-suite-v2.0
+**DEV NOTE (v2.0):** The Suite uses a declarative DSL for models and plugin-based engines. `main.py` is the sole entry point. A minimal `doc.json` is kept only for legacy merges and references `README.md` for full details.
+**DEV NOTE (v2.0):** The Suite uses a declarative DSL for models and plugin-based engines. `main.py` is the sole entry point. A minimal `doc.json` is kept only for legacy merges and references `README.md` for full details.
+**DEV NOTE (v2.0 cleanup):** The obsolete `legacy` folder has been removed and `plotter.py` restored to the project root.
+
+j9ep1u-codex/refactor-copernican-suite-to-cosmodsl
+**DEV NOTE (v2.0):** The Suite uses a declarative DSL for models and plugin-based engines. `main.py` is the sole entry point. A minimal `doc.json` is kept only for legacy merges and references `README.md` for full details.
+2.0
 **DEV NOTE (Session: 20250612_1530): This document has been updated to `v1.4g`. The UniStra parsers now replicate the successful fixed-width logic from v1.3 to fully load all 740 supernovae.**
 **DEV NOTE (v2.0 bugfix):** Cleaned CLI functions and removed conflict markers.
 **DEV NOTE (Session: 20250612_1600): CosmoDSL folders and plugin engine structure have been introduced.**
@@ -41,6 +51,14 @@ The v2.0 release introduces **CosmoDSL** and a plugin-based architecture. `main.
 Plots follow a unified theme based on the `seaborn-v0_8-colorblind` style with light backgrounds and readable font sizes. Info boxes and legend colors follow the guidelines from the old `doc.json` specification.
 * **`data_loaders.py`**: Parsers for SNe Ia and BAO data.
 * **`cosmo_engine_*.py`**: Plugin computational engines. The active implementation is `cosmo_engine_new1.py`.
+=======
+* **`cosmo_engine_*.py`**: Plugin computational engines. The stable implementation is `cosmo_engine_1.4g.py`.
+* **`copernican.py`**: The main orchestrator.
+* **`input_aggregator.py`**: Assembles the `Job JSON`.
+* **`data_loaders.py`**: Contains data parsers. **This is the current point of failure.** Its parsers for UniStra-type data **must** be rewritten to use the correct column indices and `NaN` handling from the v1.3 implementation to ensure all 740 SNe are loaded from `tablef3.dat`.
+* **`cosmo_engine_*.py`**: The modular computational engine. The stable implementation is `cosmo_engine_1.4g.py` which works with the standard model plugins.
+* **`output_manager.py`**: Dispatches output tasks.
+* **`csv_writer.py`**: Writes tabular data.
 * **`plotter.py`**: Generates plots based on the style guide.
 The v1.4g refactor introduced **CosmoDSL** and a plugin-based engine folder (`/engines`). Models now live in `/models` as `.md` files written in the DSL, and data files are kept under `/data`. The new `main.py` script automatically discovers engines, models, and data at runtime.
 

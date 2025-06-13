@@ -12,9 +12,11 @@ This file summarizes notable changes across versions.
 - Start scripts updated and `doc.json` removed.
 - Restored a minimal `doc.json` for compatibility with the legacy 1.4g branch.
 - Improved menu validation in `main.py` and clarified documentation.
-- Cleaned CLI functions and removed conflict markers.
 - Removed obsolete `legacy` folder and restored `plotter.py` to the project root.
 - Engine discovery now includes `cosmo_engine_new1.py` and warns on legacy engines.
+=======
+codex/debug-copernican-suite-v2.0
+
 
 ## v1.4rc13
 - Development refocused on reproducing the v1.3 parsing logic.
