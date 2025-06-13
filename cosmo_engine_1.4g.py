@@ -3,6 +3,11 @@
 
 """
 DEV NOTE (v1.4g): This engine refines the unfinished v1.4rc prototype.
+DEV NOTE (import fix): Removed a duplicated block at the end of
+`execute_job` that introduced an unterminated triple-quoted string and
+prevented module import.
+DEV NOTE (output filenames): Engine now propagates dataset file names so
+CSV writers can produce descriptive filenames.
 - COLUMN FIX: uses the SNe column `mu` to compute residuals, avoiding a KeyError.
 - COMPATIBLE: designed for lcdm_model.py, usmf2.py, usmf3b.py, and any plugin following the v1.4 API.
 - BAO SUPPORT: retains generation of smooth curves for BAO plots.
@@ -225,6 +230,8 @@ def execute_job(job_json):
 
         # --- Load Data and Models ---
         sne_df = pd.DataFrame(job_json['data']['sne_data']['dataframe'])
+        # Capture the original filename for later use in output names
+        sne_filepath = job_json['data']['sne_data'].get('filepath', 'sne')
         model1_plugin = _load_model_plugin(job_json['models']['model1']['path'])
         model2_plugin = _load_model_plugin(job_json['models']['model2']['path'])
 
@@ -247,8 +254,11 @@ def execute_job(job_json):
 
         # --- BAO Analysis (if data provided) ---
         bao_analysis_results = {}
+        bao_filepath = None
         if job_json['data'].get('bao_data'):
             bao_df = pd.DataFrame(job_json['data']['bao_data']['dataframe'])
+            # Track the BAO filename for descriptive CSV/plot names
+            bao_filepath = job_json['data']['bao_data'].get('filepath', 'bao')
 
             bao_m1_df = _calculate_bao_observables(
                 bao_df.copy(), model1_fit_results['best_fit_params'], model1_plugin)
@@ -268,7 +278,8 @@ def execute_job(job_json):
 
             bao_analysis_results = {
                 "detailed_df": bao_results_df.to_dict('split'),
-                "smooth_curves": smooth_curves
+                "smooth_curves": smooth_curves,
+                "filepath": bao_filepath
             }
 
         # --- Assemble Final Results JSON ---
@@ -286,7 +297,8 @@ def execute_job(job_json):
                 "model1_fit_results": model1_fit_results,
                 "model2_fit_results": model2_fit_results,
                 "model1_smooth_curve": smooth1,
-                "model2_smooth_curve": smooth2
+                "model2_smooth_curve": smooth2,
+                "filepath": sne_filepath
             },
             "bao_analysis": bao_analysis_results
         }
@@ -297,82 +309,4 @@ def execute_job(job_json):
     except Exception as e:
         logging.critical(f"Engine execution failed: {e}", exc_info=True)
         return None
-
-
-    # --- The main entry point for the engine. ---
-    # Orchestrates the loading, fitting, and calculation process.
-    """
-    logging.info("Cosmological engine execution started.")
-    run_id = job_json['run_id']
-    
-    # --- Load Data and Models ---
-    sne_df = pd.DataFrame(job_json['data']['sne_data']['dataframe'])
-    model1_plugin = _load_model_plugin(job_json['models']['model1']['path'])
-    model2_plugin = _load_model_plugin(job_json['models']['model2']['path'])
-
-    if not all([model1_plugin, model2_plugin]):
-        logging.critical("One or more model plugins failed to load. Aborting job.")
-        return None
-
-    # --- SNe Ia Fitting ---
-    model1_fit_results = _perform_sne_fit(sne_df, model1_plugin)
-    model2_fit_results = _perform_sne_fit(sne_df, model2_plugin)
-    
-    # Create detailed SNe dataframes with model predictions
-    sne_df_model1, smooth1 = _create_detailed_sne_df(sne_df.copy(), model1_fit_results, model1_plugin)
-    sne_df_model2, smooth2 = _create_detailed_sne_df(sne_df.copy(), model2_fit_results, model2_plugin)
-    
-    # Consolidate SNe results
-    sne_results_df = sne_df_model1.rename(columns={'mu_model': 'model1_mu', 'residual': 'model1_residual'})
-    sne_results_df['model2_mu'] = sne_df_model2['mu_model']
-    sne_results_df['model2_residual'] = sne_df_model2['residual']
-    
-    # --- BAO Analysis (if data provided) ---
-    bao_analysis_results = {}
-    if job_json['data']['bao_data']:
-        bao_df = pd.DataFrame(job_json['data']['bao_data']['dataframe'])
-        
-        # Calculate observables for each model at the data points
-        bao_m1_df = _calculate_bao_observables(bao_df.copy(), model1_fit_results['best_fit_params'], model1_plugin)
-        bao_m2_df = _calculate_bao_observables(bao_df.copy(), model2_fit_results['best_fit_params'], model2_plugin)
-
-        bao_results_df = bao_m1_df.rename(columns={'y_model': 'model1_y'})
-        bao_results_df['model2_y'] = bao_m2_df['y_model']
-        
-        # MODIFIED (v1.4rc): Generate the smooth curves for plotting
-        smooth_curves = _generate_smooth_bao_curves(
-            bao_results_df, 
-            model1_fit_results['best_fit_params'], 
-            model2_fit_results['best_fit_params'],
-            model1_plugin,
-            model2_plugin
-        )
-        
-        bao_analysis_results = {
-            "detailed_df": bao_results_df.to_dict('split'),
-            "smooth_curves": smooth_curves # Add the new data to the results
-        }
-
-    # --- Assemble Final Results JSON ---
-    results_dict = {
-        "metadata": {
-            "run_id": run_id,
-            "engine_name": job_json['engine_name'],
-            "model1_name": model1_plugin.METADATA['model_name'],
-            "model2_name": model2_plugin.METADATA['model_name'],
-            "model1_metadata": model1_plugin.METADATA,
-            "model2_metadata": model2_plugin.METADATA,
-        },
-        "sne_analysis": {
-            "detailed_df": sne_results_df.to_dict('split'),
-            "model1_fit_results": model1_fit_results,
-            "model2_fit_results": model2_fit_results,
-            "model1_smooth_curve": smooth1,
-            "model2_smooth_curve": smooth2
-        },
-        "bao_analysis": bao_analysis_results
-    }
-    
-    logging.info("Cosmological engine execution finished successfully.")
-    return results_dict
 
