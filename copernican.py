@@ -2,13 +2,9 @@
 """
 Copernican Suite - Main Orchestrator.
 """
-# DEV NOTE (v1.4rc): Refactored into a pluggable architecture. Models, parsers,
-# engines, and data files are discovered from dedicated directories. Model
+# DEV NOTE (v1.4): Refactored into a pluggable architecture. Models, parsers,
 # plugins now reside in the `models` package. The summary CSV call removed in
 # v1.3 remains omitted.
-# DEV NOTE (v1.4b): Refactored into a pluggable architecture. Models, parsers,
-# engines, and data files are now discovered from dedicated directories. The
-# summary CSV call removed in v1.3 remains omitted.
 
 import importlib.util
 import importlib

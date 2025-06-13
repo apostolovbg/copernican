@@ -1,10 +1,11 @@
 # Copernican Suite Change Log
 
-## Version 1.4rc
+## Version 1.4 (Stable Release)
 - Refactored into a fully pluggable architecture with discoverable engines,
   parsers and models.
 - Migrated specification into `AGENTS.md` and cleaned documentation.
 - Added modular data and model directories.
+- Finalized engine and model interfaces for long-term stability.
 
 ## Version 1.3 (Stable Release)
 - CRITICAL BUG FIX - BAO plotting restored (fixed multiprocessing issue).

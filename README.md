@@ -1,7 +1,7 @@
 # Copernican Suite
 
-**Version:** 1.4rc
-**Last Updated:** 2025-06-13
+**Version:** 1.4
+**Last Updated:** 2025-06-14
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
 Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. It
@@ -28,6 +28,23 @@ provided by the user. Each model is defined by a Markdown file under
 Users select models, datasets, and computational engines at runtime through a
 simple command line interface. Results are saved as plots and CSV files in the
 `./output/` directory.
+
+Under the hood the program follows a clear pipeline:
+1. **Dependency Check** – `copernican.py` verifies that all required Python
+   libraries are installed.
+2. **Initialization** – the output directory is created and logging begins.
+3. **Configuration** – the user chooses a model, an engine from `./engines/`,
+   and data parsers for SNe Ia and BAO. Models are discovered from
+   `cosmo_model_*.md` files and automatically import their matching Python
+   plugin.
+4. **SNe Ia Fitting** – the selected engine estimates cosmological parameters
+   for both the ΛCDM reference and the alternative model.
+5. **BAO Analysis** – using the best-fit parameters the engine predicts BAO
+   observables and computes chi-squared statistics.
+6. **Output Generation** – `output_manager.py` produces plots and detailed CSV
+   tables summarizing the results.
+7. **Loop or Exit** – the user may evaluate another model or quit, at which
+   point temporary cache files are cleaned automatically.
 
 ## Quick Start
 1. Ensure Python 3 with `numpy`, `scipy`, `matplotlib` and `psutil` is
@@ -102,11 +119,11 @@ See `CHANGELOG.md` for complete version history.
 
 > **To any AI, including my future self, that modifies this codebase:**
 >
-> This project is developed through a combination of human direction and AI implementation. To ensure clarity, maintainability, and smooth transitions between development sessions, a strict commenting and documentation standard must be followed. The `doc.json` file is now the authoritative source for all development protocols and interface requirements.
+> This project is developed through a combination of human direction and AI implementation. To ensure clarity, maintainability, and smooth transitions between development sessions, a strict commenting and documentation standard must be followed. The `AGENTS.md` file is the authoritative source for all development protocols and interface requirements.
 >
 > **When modifying any file, you are required to:**
 > 1.  **Add a `DEV NOTE` at the top of the file.** This note should summarize the changes made in the current version.
 > 2.  **Comment the code extensively.** Explain the "why" behind your code, not just the "what".
-> 3.  **Update this README file and `doc.json`**. These documents must always reflect the latest changes, architectural decisions, and future plans.
+> 3.  **Update this README file and `AGENTS.md`**. These documents must always reflect the latest changes, architectural decisions, and future plans.
 >
 > Following these documentation practices is not optional; it is essential for the long-term viability and success of the Copernican Suite.
