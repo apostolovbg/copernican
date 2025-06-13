@@ -1,5 +1,42 @@
 # main.py
 """
+DEV NOTE (v2.0.1): main.py consolidates the legacy copernican.py UI with the new
+CosmoDSL loader. It performs dependency checks, shows a familiar splash screen
+and offers a simple menu for choosing engines, models and data.
+"""
+
+import os
+import sys
+import importlib.util
+import argparse
+from engines.cosmo_engine_new1 import discover_engines as _discover_engines
+
+VERSION = "2.0.1"
+
+# --- Dependency Check -------------------------------------------------------
+
+def check_dependencies():
+    required = ["numpy", "scipy", "matplotlib", "pandas"]
+    missing = []
+    for lib in required:
+        try:
+            __import__(lib)
+        except ImportError:
+            missing.append(lib)
+    if missing:
+        print("Missing required libraries: " + ", ".join(missing))
+        sys.exit(1)
+
+# --- Splash Screen ---------------------------------------------------------
+
+def splash_screen():
+    print("\n===========================================================")
+    print("        C O P E R N I C A N   S U I T E")
+    print(f"                v{VERSION}\n")
+    print("    A Modular Cosmology Framework built with CosmoDSL")
+    print("===========================================================\n")
+
+=======
 DEV NOTE: Introduces the new command-line orchestrator using CosmoDSL and
 plugin-based engines. This script dynamically discovers available engines,
 models, and data files.
@@ -29,6 +66,35 @@ def list_cov_matrices(path):
 # --- Simple Prompt Utilities -----------------------------------------------
 
 def prompt_choice(msg, options):
+    """Ask the user to pick a single option by number."""
+    while True:
+        print(msg)
+        for i, opt in enumerate(options, 1):
+            print(f"  {i}. {os.path.basename(opt)}")
+        inp = input("Choice: ").strip()
+        if inp.isdigit() and 1 <= int(inp) <= len(options):
+            return options[int(inp) - 1]
+        print("Invalid choice. Please try again.\n")
+
+
+def prompt_multichoice(msg, options):
+    """Prompt the user to select multiple options separated by commas."""
+    selected = []
+    while not selected:
+        print(msg)
+        for i, opt in enumerate(options, 1):
+            print(f"  {i}. {os.path.basename(opt)}")
+        inp = input("Comma separated numbers: ")
+        indices = []
+        for c in inp.split(','):
+            c = c.strip()
+            if c.isdigit() and 1 <= int(c) <= len(options):
+                indices.append(int(c) - 1)
+        if indices:
+            selected = [options[i] for i in indices]
+        else:
+            print("No valid selections made. Please try again.\n")
+    return selected
     print(msg)
     for i, opt in enumerate(options, 1):
         print(f"  {i}. {os.path.basename(opt)}")
@@ -77,6 +143,18 @@ def load_engine(path):
 
 # --- Main Workflow ---------------------------------------------------------
 
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Copernican Suite")
+    parser.add_argument('--version', action='store_true', help='Print version and exit')
+    args = parser.parse_args(argv)
+
+    if args.version:
+        print(f"Copernican Suite v{VERSION}")
+        return
+
+    check_dependencies()
+    splash_screen()
+
 def main():
     engines = discover_engines('engines')
     models = discover_models('models')
@@ -94,4 +172,5 @@ def main():
     print(engine.run(model_ast, data_files, covar_file))
 
 if __name__ == '__main__':
+    main(sys.argv[1:])
     main()

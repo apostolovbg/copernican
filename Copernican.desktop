@@ -1,0 +1,8 @@
+[Desktop Entry]  # DEV NOTE (v2.0): Desktop shortcut for new entry point
+Type=Application
+Name=Copernican Suite
+Exec=python3 main.py
+Path=.
+Terminal=true
+Comment=Launch Copernican Suite v2.0
+

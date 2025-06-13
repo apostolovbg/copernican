@@ -1,4 +1,7 @@
 {
+  "dev_note": "CosmoDSL v2.0: doc.json deprecated; see README.md and AGENTS.md for latest details.",
+  "projectVersion": "2.0",
+  "status": "deprecated"
   "dev_note": "Session 20250612_1600: Added CosmoDSL directories and plugin architecture.",
   "projectName": "Copernican Suite",
   "projectVersion": "1.4g",
@@ -117,4 +120,3 @@
     }
   }
 }
-
