@@ -1,15 +1,19 @@
-# copernican_suite/lcdm_model.py
+# copernican_suite/lcdm.py
 """
 LCDM Model Plugin for the Copernican Suite.
 This version uses the standard SciPy/CPU backend with intelligent multiprocessing.
 """
-# DEV NOTE (v1.3a): This file was updated to fix a critical bug in the
-# get_comoving_distance_Mpc function. The multiprocessing implementation
+# DEV NOTE (v1.4.1): Extracted from `cosmo_model_lcdm.md` and renamed
+# to `lcdm.py` to match the two-file model pattern. The legacy
+# `lcdm_model.py` file has been removed. Original v1.3a multiprocessing
+# bug fix retained below for reference.
+#
+# Previous DEV NOTE (v1.3a): This file was updated to fix a critical bug in the
+# `get_comoving_distance_Mpc` function. The multiprocessing implementation
 # was reverted from a `pool.map` with `partial` to the more robust and
-# stable `pool.starmap` with `zip` and `repeat`. This change was necessary
-# to resolve an issue where the function would fail silently and return NaNs
-# when calculating smooth curves for plotting, causing the BAO plot lines
-# to disappear. This fix restores correct BAO plot generation.
+# stable `pool.starmap` with `zip` and `repeat`. This change resolved an issue
+# where the function would fail silently and return NaNs when calculating
+# smooth curves for plotting, causing the BAO plot lines to disappear.
 
 import numpy as np
 from scipy.integrate import quad

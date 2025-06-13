@@ -45,11 +45,23 @@ The following table defines the cosmological parameters for the USMF V3b model.
 | Omega_m0_fid | `Omega_m0_fid` | 0.31 | (0.2, 0.4) | | `$\Omega_{m0,fid}$` |
 | Omega_b0_fid | `Omega_b0_fid` | 0.0486| (0.03, 0.07)| | `$\Omega_{b0,fid}$` |
 > ### **Internal Formatting Guide for Model Definition Files**
-> 1. Begin with YAML front matter containing `title`, `version`, `date`, and
->    `model_plugin`.
-> 2. Provide a section titled `## Quantitative Model Specification for Copernican Suite`.
->    Include a `### Model Parameters` table with headers `Parameter Name`, `Python Variable`,
->    `Initial Guess`, `Bounds`, `Unit`, `LaTeX Name`.
-> 3. Additional theory and discussion may follow using standard Markdown.
+>
+> This document establishes the `.md` format standard for defining cosmological models for the Copernican Suite. This structure is designed to be both human-readable and machine-parsable for generating Python model plugins.
+>
+> 1.  **YAML Front Matter:** The file must begin with a YAML front matter block (enclosed by `---`). It should contain basic metadata:
+>     -   `title`: The full, human-readable name of the model.
+>     -   `version`: The version of the model definition.
+>     -   `date`: The date of the last update.
+>     -   `model_plugin`: The filename of the corresponding Python implementation (e.g., `usmf2.py`).
+>
+> 2.  **Quantitative Model Specification Section:**
+>     -   This section is **critical for machine parsing** and must begin with the heading: `## Quantitative Model Specification for Copernican Suite`.
+>     -   It must contain a subsection titled `### Model Parameters`.
+>     -   This subsection must contain a Markdown table with the following exact headers: `Parameter Name`, `Python Variable`, `Initial Guess`, `Bounds`, `Unit`, `LaTeX Name`.
+>     -   This table's content will be parsed to automatically generate the `PARAMETER_NAMES`, `INITIAL_GUESSES`, `PARAMETER_BOUNDS`, and `PARAMETER_LATEX_NAMES` lists in the Python plugin script.
+>
+> 3.  **Theoretical Framework Section:**
+>     -   The remainder of the document contains the detailed theoretical write-up of the model. It should be formatted using standard Markdown headings, lists, and LaTeX for equations. This section is intended for human readers and for providing context.
+>     -   The remainder of the document contains the detailed theoretical write-up of the model. It should be formatted using standard Markdown headings, lists, and LaTeX for equations. This section is intended for human readers and for providing context.
 
-| Omega_b0_fid | `Omega_b0_fid` | 0.0486| (0.03, 0.07)| | `$\Omega_{b0,fid}$` |
+

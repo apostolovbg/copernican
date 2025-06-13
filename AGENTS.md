@@ -1,6 +1,6 @@
 
-# Copernican Suite Development Guide (v1.4)
-This document replaces the old `doc.json` specification and is the authoritative development reference for version 1.4.
+# Copernican Suite Development Guide (v1.4.1)
+This document replaces the old `doc.json` specification and is the authoritative development reference for version 1.4.1.
 
 
 ## Full Technical Specification
@@ -8,19 +8,20 @@ This document replaces the old `doc.json` specification and is the authoritative
 ```json
 {
   "projectName": "Copernican Suite",
-  "projectVersion": "1.4",
-  "lastUpdated": "2025-06-14",
+  "projectVersion": "1.4.1",
+  "lastUpdated": "2025-06-15",
   "description": "This document serves as the master technical specification and AI development interface for the Copernican Suite. It defines the required structure for all components, outlines the development protocol, and provides a 'how-to' guide for creating new cosmological model plugins. This version includes AI-hardening features to ensure strict adherence to the plugin interface.",
   "projectSchema": {
     "copernican.py": "Main orchestrator script. Handles user interaction, workflow control, and calls to other modules. All output generation calls originate here.",
     "cosmo_engine.py": "The core physics and statistics engine. Handles parameter fitting (via SciPy's minimize) and chi-squared calculations. It calls functions from model plugins but is model-agnostic.",
     "output_manager.py": "Manages all outputs: logging, plots, and detailed CSV data files. Contains functions for generating standardized plots and data tables.",
     "data_loaders.py": "Modular data loading system. Contains parsers for different SNe Ia and BAO data formats. New data formats can be supported by adding new parsers here.",
-    "lcdm_model.py": "The reference implementation of the standard LambdaCDM model. Serves as the primary 'control' model and a template for plugins requiring numerical integration.",
+    "lcdm.py": "The reference implementation of the standard LambdaCDM model. Serves as the primary 'control' model and a template for plugins requiring numerical integration.",
     "usmf3b.py": "An example of a fully analytic cosmological model. Serves as a template for plugins with computationally simple, closed-form solutions.",
     "README.md": "The main user-facing documentation, providing a high-level overview, history, and future vision.",
     "AGENTS.md": "This file. The authoritative technical specification for AI and developer reference.",
     "output/": "The dedicated directory where all generated plots, logs, and CSV files are saved."
+    "NOTE": "Files within data/ are treated as read-only reference datasets and should not be modified by AI."
   },
   "modelPluginInterface": {
     "description": "To create a new cosmological model, two files are required: a Markdown definition (.md) and a Python implementation (.py). They must strictly adhere to the following interface to be compatible with cosmo_engine.py.",
@@ -94,8 +95,8 @@ This document replaces the old `doc.json` specification and is the authoritative
     "creatingNewModelWorkflow": {
       "description": "The workflow for an AI to generate a new, compatible cosmological model plugin from a user's idea.",
       "steps": [
-        "Step 1: Ingest User Idea & Templates. Receive the user's conceptual model idea, this AGENTS.md file, lcdm_model.py (numerical template), and usmf3b.py (analytic template).",
-        "Step 2: Formulate Equations. Translate the user's idea into a set of mathematical equations. Prioritize creating analytic, closed-form solutions for distance measures to ensure high computational performance. If numerical integration is unavoidable, follow the pattern in lcdm_model.py.",
+        "Step 1: Ingest User Idea & Templates. Receive the user's conceptual model idea, this AGENTS.md file, lcdm.py (numerical template), and usmf3b.py (analytic template).",
+        "Step 2: Formulate Equations. Translate the user's idea into a set of mathematical equations. Prioritize creating analytic, closed-form solutions for distance measures to ensure high computational performance. If numerical integration is unavoidable, follow the pattern in lcdm.py.",
         "Step 3: Create the Markdown (.md) Definition File. Following the `modelPluginInterface.markdownDefinitionFile` specification, write the complete .md file. This file is the 'source of truth'.",
         "Step 4: Create the Python (.py) Implementation File. Following the `modelPluginInterface.pythonImplementationFile` specification, write the Python code. Implement all mandatory functions and metadata variables using the exact names specified.",
         "Step 5: Verify & Deliver. Before delivering the files, perform a final check against the `verificationChecklist` below. Deliver the two new files (`new_model.md` and `new_model.py`) to the user for testing."
