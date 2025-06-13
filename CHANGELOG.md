@@ -11,6 +11,10 @@ This file summarizes notable changes across versions.
 - `main.py` replaces `copernican.py` as the only entry point.
 - Start scripts updated and `doc.json` removed.
 
+## v2.0.1
+- Restored a minimal `doc.json` for compatibility with the legacy 1.4g branch.
+- Improved menu validation in `main.py` and clarified documentation.
+
 ## v1.4rc13
 - Development refocused on reproducing the v1.3 parsing logic.
 - Confirmed that the previous data loss came from incorrect column selection.

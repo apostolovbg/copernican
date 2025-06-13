@@ -1,12 +1,10 @@
 # Copernican Suite - A Modular Cosmology Framework
 
-## Current Status (v2.0 - CosmoDSL Architecture)
+## Current Status (v2.0.1 - CosmoDSL Architecture)
 
-**DEV NOTE (v2.0): The Suite now uses a declarative DSL for models and plugin-based engines. `main.py` is the sole entry point.**
+**DEV NOTE (v2.0.1):** The Suite uses a declarative DSL for models and plugin-based engines. `main.py` is the sole entry point. A minimal `doc.json` is kept only for legacy merges and references `README.md` for full details.
 
-The outdated `doc.json` has been removed. Development notes now live here and in `AGENTS.md`.
-
-The full history of the project is maintained in `CHANGELOG.md`. Development guidelines are found in `AGENTS.md`.
+The full history of the project is maintained in `CHANGELOG.md`. Development guidelines are found in `AGENTS.md`. A tiny `doc.json` remains solely for merge compatibility with the historic `1.4g` branch.
 
 ---
 
@@ -31,7 +29,7 @@ The suite is composed of several key modules that work in a pipeline:
 * **`data/`**: Default location for SNe Ia and BAO datasets.
 * **`data_loaders.py`**: Parsers for supported data formats.
 * **`cosmo_engine_*.py`**: Individual engine implementations.
-The v2.0 release introduces **CosmoDSL** and a plugin-based architecture. `main.py` now handles all user interaction and dynamically loads engines and models from their respective folders.
+The v2.0.1 release introduces **CosmoDSL** and a plugin-based architecture. `main.py` now handles all user interaction and dynamically loads engines and models from their respective folders.
 
 ## Plotting Style
 

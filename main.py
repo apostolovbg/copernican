@@ -1,8 +1,8 @@
 # main.py
 """
-DEV NOTE (v2.0): Unified entry point with splash screen, dependency checks and
-menu workflow migrated from the old copernican.py. Engines and models are
-discovered dynamically.
+DEV NOTE (v2.0.1): main.py consolidates the legacy copernican.py UI with the new
+CosmoDSL loader. It performs dependency checks, shows a familiar splash screen
+and offers a simple menu for choosing engines, models and data.
 """
 
 import os
@@ -11,7 +11,7 @@ import importlib.util
 import argparse
 from engines.cosmo_engine_new1 import discover_engines as _discover_engines
 
-VERSION = "2.0"
+VERSION = "2.0.1"
 
 # --- Dependency Check -------------------------------------------------------
 
@@ -56,20 +56,35 @@ def list_cov_matrices(path):
 # --- Simple Prompt Utilities -----------------------------------------------
 
 def prompt_choice(msg, options):
-    print(msg)
-    for i, opt in enumerate(options, 1):
-        print(f"  {i}. {os.path.basename(opt)}")
-    idx = int(input("Choice: ")) - 1
-    return options[idx]
+    """Ask the user to pick a single option by number."""
+    while True:
+        print(msg)
+        for i, opt in enumerate(options, 1):
+            print(f"  {i}. {os.path.basename(opt)}")
+        inp = input("Choice: ").strip()
+        if inp.isdigit() and 1 <= int(inp) <= len(options):
+            return options[int(inp) - 1]
+        print("Invalid choice. Please try again.\n")
 
 
 def prompt_multichoice(msg, options):
-    print(msg)
-    for i, opt in enumerate(options, 1):
-        print(f"  {i}. {os.path.basename(opt)}")
-    choices = input("Comma separated numbers: ")
-    indices = [int(c.strip()) - 1 for c in choices.split(',') if c.strip().isdigit()]
-    return [options[i] for i in indices]
+    """Prompt the user to select multiple options separated by commas."""
+    selected = []
+    while not selected:
+        print(msg)
+        for i, opt in enumerate(options, 1):
+            print(f"  {i}. {os.path.basename(opt)}")
+        inp = input("Comma separated numbers: ")
+        indices = []
+        for c in inp.split(','):
+            c = c.strip()
+            if c.isdigit() and 1 <= int(c) <= len(options):
+                indices.append(int(c) - 1)
+        if indices:
+            selected = [options[i] for i in indices]
+        else:
+            print("No valid selections made. Please try again.\n")
+    return selected
 
 # --- CosmoDSL Loader --------------------------------------------------------
 
