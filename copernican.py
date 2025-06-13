@@ -2,6 +2,10 @@
 """
 Copernican Suite - Main Orchestrator.
 """
+# DEV NOTE (v1.4rc): Refactored into a pluggable architecture. Models, parsers,
+# engines, and data files are discovered from dedicated directories. Model
+# plugins now reside in the `models` package. The summary CSV call removed in
+# v1.3 remains omitted.
 # DEV NOTE (v1.4b): Refactored into a pluggable architecture. Models, parsers,
 # engines, and data files are now discovered from dedicated directories. The
 # summary CSV call removed in v1.3 remains omitted.
@@ -57,7 +61,7 @@ def check_dependencies():
 # Import sibling modules after the dependency check
 import data_loaders
 import output_manager
-import lcdm_model
+from models import lcdm_model
 
 def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
     """Prompts the user for a filepath and validates it."""
@@ -174,6 +178,9 @@ def main_workflow():
                 logger.error(f"Model file {selected_model} missing 'model_plugin' entry.")
                 continue
             alt_model_filepath = os.path.join(SCRIPT_DIR, plugin_name)
+        gm8ing-codex/review-and-understand-1.4b-baseline-code
+            if not os.path.isfile(alt_model_filepath):
+                alt_model_filepath = os.path.join(models_dir, plugin_name)
             alt_model_plugin = load_alternative_model_plugin(alt_model_filepath)
 
         if not alt_model_plugin:

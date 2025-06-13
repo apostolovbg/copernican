@@ -1,3 +1,4 @@
+# DEV NOTE (v1.4rc): Pantheon+ covariance parser separated for plugin architecture.
 # DEV NOTE (v1.4b): Pantheon+ covariance parser separated for plugin architecture.
 
 import pandas as pd

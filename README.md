@@ -1,61 +1,86 @@
-# Copernican Suite - A Modular Cosmology Framework
+# Copernican Suite
 
-**Version:** 1.4b
-**Last Updated:** 2025-06-12
+**Version:** 1.4rc
+**Last Updated:** 2025-06-13
 
-> **Note:** This file serves as the complete and unified documentation for the Copernican Suite project. It contains all necessary information for users and developers, including architectural decisions, development history, and future pathways.
+The Copernican Suite is a Python toolkit for testing cosmological models against
+Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. It
+provides a modular architecture that allows new models, data parsers and
+computational engines to be plugged in with minimal effort.
 
 ---
 
 ## Table of Contents
-
-1.  [**Project Overview**](#1-project-overview)
-2.  [**Installation and Requirements**](#2-installation-and-requirements)
-3.  [**Current Architecture (v1.3)**](#3-current-architecture-v13)
-4.  [**Workflow Overview**](#4-workflow-overview)
-5.  [**Development History & Roadmap**](#5-development-history--roadmap)
-    -   [Version 1.3 Updates (Stable Release)](#version-13-updates-stable-release)
-    -   [Version 1.2 Updates (Major Refactor)](#version-12-updates-major-refactor)
-    -   [The Future Vision: A Universal Engine](#the-future-vision-a-universal-engine)
-6.  [**A Note on AI-Driven Development**](#6-a-note-on-ai-driven-development)
+1. [Overview](#overview)
+2. [Quick Start](#quick-start)
+3. [Directory Layout](#directory-layout)
+4. [Using the Suite](#using-the-suite)
+5. [Creating New Models](#creating-new-models)
+6. [Development Notes](#development-notes)
+7. [AI Development Laws](#ai-development-laws)
 
 ---
 
-## 1. Project Overview
+## Overview
+The suite compares the reference \(\Lambda\)CDM model with alternative theories
+provided by the user. Each model is defined by a Markdown file under
+`./models/` and a matching Python implementation residing in the same package.
+Users select models, datasets, and computational engines at runtime through a
+simple command line interface. Results are saved as plots and CSV files in the
+`./output/` directory.
 
-The **Copernican Suite** is an evolving Python-based framework for the modular testing and comparison of cosmological models against observational data. It provides a platform for researchers to easily implement and evaluate new theories alongside the standard ΛCDM model.
+## Quick Start
+1. Ensure Python 3 with `numpy`, `scipy`, `matplotlib` and `psutil` is
+   installed.
+2. Run `python3 copernican.py` and follow the prompts to choose a model, data
+   files and engine.
+3. Plots and CSV results will appear in the `output/` folder when the run
+   completes.
 
-This version (1.3) resolves a critical plotting bug, enhances data outputs, and introduces a formal specification to streamline future development.
+## Directory Layout
+```
+models/           - Markdown definitions and Python plugins
+engines/          - Computational backends (SciPy CPU by default)
+parsers/          - Data format parsers for SNe and BAO
+data/             - Example data files
+output/           - All generated results
+AGENTS.md         - Development specification and contributor rules
+CHANGELOG.md      - Release history
+```
 
----
+## Using the Suite
+- The program discovers available models from `models/cosmo_model_*.md`.
+- Data files for SNe and BAO are chosen interactively from `data/sne` and
+  `data/bao`.
+- Parsers and engines are also selected interactively from their respective
+  directories.
+- After each run you may choose to evaluate another model or exit. Cache files
+  are cleaned automatically.
 
-## 2. Installation and Requirements
+## Creating New Models
+Model definition follows a two-file system:
+1. **Markdown file** (`cosmo_model_name.md`) describing equations and providing
+   a table of parameters. See the formatting guide at the end of every model
+   file.
+2. **Python plugin** implementing the required functions listed in `AGENTS.md`.
+   Place this module in the `models` package and reference its filename in the
+   Markdown front matter under `model_plugin`.
 
-The suite requires Python 3.x and several scientific libraries. To simplify setup, an automatic dependency checker runs when the program starts.
+## Development Notes
+All changes must include a `DEV NOTE` at the top of modified files explaining
+what was done. Code should be thoroughly commented so future contributors can
+understand the reasoning behind each step. The documentation in `README.md` and
+`AGENTS.md` must be updated whenever behavior or structure changes.
+See `CHANGELOG.md` for the complete project history.
 
-When you first run `copernican.py`, it will verify that the following required Python libraries are installed:
--   `numpy`
--   `scipy`
--   `matplotlib`
--   `psutil` (for detecting CPU cores)
+## AI Development Laws
+1. **Add a `DEV NOTE` to every changed file** summarizing modifications.
+2. **Comment code extensively** to clarify complex logic or algorithms.
+3. **Update all documentation**, including this `README.md` and `AGENTS.md`,
+   whenever the codebase changes.
 
-If any of these are missing, the script will print the necessary `pip install` commands before exiting.
-
----
-
-## 3. Current Architecture (v1.3)
-
-The suite is designed with a primary project directory containing all core scripts and model plugins. All outputs (logs, plots, CSVs) are saved into a dedicated `output` subdirectory.
-
--   **`copernican.py`**: The main orchestrator script.
--   **`data_loaders.py`**: Manages the loading and parsing of datasets.
--   **`cosmo_engine.py`**: Contains the core physics, statistics, and fitting logic.
--   **`output_manager.py`**: Handles all forms of output (logging, plots, detailed CSVs).
--   **`doc.json`**: An AI/developer-focused specification file that defines the project architecture and the model plugin interface.
--   **Model Plugins (`*.py`) & Definitions (`*.md`)**: A two-file system for defining new cosmological models.
-
----
-
+Failure to follow these rules will compromise the maintainability of the
+Copernican Suite.
 ## 4. Workflow Overview
 
 1.  **Dependency Check**: `copernican.py` first verifies all required Python libraries are available.
