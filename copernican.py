@@ -178,7 +178,6 @@ def main_workflow():
                 logger.error(f"Model file {selected_model} missing 'model_plugin' entry.")
                 continue
             alt_model_filepath = os.path.join(SCRIPT_DIR, plugin_name)
-        gm8ing-codex/review-and-understand-1.4b-baseline-code
             if not os.path.isfile(alt_model_filepath):
                 alt_model_filepath = os.path.join(models_dir, plugin_name)
             alt_model_plugin = load_alternative_model_plugin(alt_model_filepath)
