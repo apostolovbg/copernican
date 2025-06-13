@@ -14,13 +14,15 @@ import numpy as np
 # --- Engine Discovery -------------------------------------------------------
 
 def discover_engines(engine_dir):
-    """Return paths to all cosmo_engine_*.py files excluding this file."""
-    current = os.path.basename(__file__)
+    """Return paths to all available cosmo_engine_*.py files."""
+    # DEV NOTE (v2.0): Previous versions excluded this file from discovery,
+    # which left only legacy engines selectable in the CLI. The new CLI relies
+    # on the modern engine defined here, so we include every matching file.
     engines = []
     for fname in os.listdir(engine_dir):
-        if fname.startswith("cosmo_engine_") and fname.endswith(".py") and fname != current:
+        if fname.startswith("cosmo_engine_") and fname.endswith(".py"):
             engines.append(os.path.join(engine_dir, fname))
-    return engines
+    return sorted(engines)
 
 # --- Equation Compilation ---------------------------------------------------
 
