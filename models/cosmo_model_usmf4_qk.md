@@ -35,4 +35,13 @@ This table provides the parameter specification in the format required by the Co
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | H0 | `H0` | 68.0 | (50, 80) | km/s/Mpc | `$H_0$` |
 | Omega_m0 | `Omega_m0` | 0.3 | (0.1, 0.5) | | `$\Omega_{m0}$` |
-| Omega_b0 | `Omega_b0` | 0.0486 | (0.04, 0.06)| | `$\Omega_{b0}$` |
+| Omega_b0 | `Omega_b0` | 0.0486 | (0.04, 0.06)| | `$\Omega_{b0}$` || Omega_b0 | `Omega_b0` | 0.0486 | (0.04, 0.06)| | `$\Omega_{b0}$` |
+
+> ### **Internal Formatting Guide for Model Definition Files**
+> 1. Begin with YAML front matter containing `title`, `version`, `date`, and
+>    `model_plugin`.
+> 2. Provide a section titled `## Quantitative Model Specification for Copernican Suite`.
+>    Include a `### Model Parameters` table with headers `Parameter Name`, `Python Variable`,
+>    `Initial Guess`, `Bounds`, `Unit`, `LaTeX Name`.
+> 3. Additional theory and discussion may follow using standard Markdown.
+

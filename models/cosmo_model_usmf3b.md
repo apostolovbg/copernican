@@ -44,3 +44,11 @@ The following table defines the cosmological parameters for the USMF V3b model.
 | p_kin | `p_kin` | 0.8 | (0.1, 2.0) | | `$p_{kin}$` |
 | Omega_m0_fid | `Omega_m0_fid` | 0.31 | (0.2, 0.4) | | `$\Omega_{m0,fid}$` |
 | Omega_b0_fid | `Omega_b0_fid` | 0.0486| (0.03, 0.07)| | `$\Omega_{b0,fid}$` |
+> ### **Internal Formatting Guide for Model Definition Files**
+> 1. Begin with YAML front matter containing `title`, `version`, `date`, and
+>    `model_plugin`.
+> 2. Provide a section titled `## Quantitative Model Specification for Copernican Suite`.
+>    Include a `### Model Parameters` table with headers `Parameter Name`, `Python Variable`,
+>    `Initial Guess`, `Bounds`, `Unit`, `LaTeX Name`.
+> 3. Additional theory and discussion may follow using standard Markdown.
+
