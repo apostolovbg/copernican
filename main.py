@@ -36,6 +36,16 @@ def splash_screen():
     print("    A Modular Cosmology Framework built with CosmoDSL")
     print("===========================================================\n")
 
+=======
+DEV NOTE: Introduces the new command-line orchestrator using CosmoDSL and
+plugin-based engines. This script dynamically discovers available engines,
+models, and data files.
+"""
+
+import os
+import importlib.util
+from engines.cosmo_engine_new1 import discover_engines as _discover_engines
+
 # --- Discovery Helpers ------------------------------------------------------
 
 def discover_engines(path):
@@ -85,6 +95,20 @@ def prompt_multichoice(msg, options):
         else:
             print("No valid selections made. Please try again.\n")
     return selected
+    print(msg)
+    for i, opt in enumerate(options, 1):
+        print(f"  {i}. {os.path.basename(opt)}")
+    idx = int(input("Choice: ")) - 1
+    return options[idx]
+
+
+def prompt_multichoice(msg, options):
+    print(msg)
+    for i, opt in enumerate(options, 1):
+        print(f"  {i}. {os.path.basename(opt)}")
+    choices = input("Comma separated numbers: ")
+    indices = [int(c.strip()) - 1 for c in choices.split(',') if c.strip().isdigit()]
+    return [options[i] for i in indices]
 
 # --- CosmoDSL Loader --------------------------------------------------------
 
@@ -131,6 +155,7 @@ def main(argv=None):
     check_dependencies()
     splash_screen()
 
+def main():
     engines = discover_engines('engines')
     models = discover_models('models')
     data = discover_data('data')
@@ -148,3 +173,4 @@ def main(argv=None):
 
 if __name__ == '__main__':
     main(sys.argv[1:])
+    main()

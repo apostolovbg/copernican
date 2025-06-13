@@ -2,7 +2,12 @@
 
 ## Current Status (v2.0.1 - CosmoDSL Architecture)
 
+j9ep1u-codex/refactor-copernican-suite-to-cosmodsl
 **DEV NOTE (v2.0.1):** The Suite uses a declarative DSL for models and plugin-based engines. `main.py` is the sole entry point. A minimal `doc.json` is kept only for legacy merges and references `README.md` for full details.
+=======
+**DEV NOTE (Session: 20250612_1530): This document has been updated to `v1.4g`. The UniStra parsers now replicate the successful fixed-width logic from v1.3 to fully load all 740 supernovae.**
+**DEV NOTE (Session: 20250612_1600): CosmoDSL folders and plugin engine structure have been introduced.**
+
 
 The full history of the project is maintained in `CHANGELOG.md`. Development guidelines are found in `AGENTS.md`. A tiny `doc.json` remains solely for merge compatibility with the historic `1.4g` branch.
 
@@ -23,6 +28,7 @@ The Copernican Suite is a Python-based, modular framework designed for cosmologi
 
 The suite is composed of several key modules that work in a pipeline:
 
+j9ep1u-codex/refactor-copernican-suite-to-cosmodsl
 * **`main.py`**: Entry point that performs dependency checks, shows the splash screen, and launches the menu-driven workflow.
 * **`engines/`**: Folder of plugin engines automatically discovered at runtime.
 * **`models/`**: CosmoDSL model files.
@@ -34,6 +40,16 @@ The v2.0.1 release introduces **CosmoDSL** and a plugin-based architecture. `mai
 ## Plotting Style
 
 Plots follow a unified theme based on the `seaborn-v0_8-colorblind` style with light backgrounds and readable font sizes. Info boxes and legend colors follow the guidelines from the old `doc.json` specification.
+=======
+* **`copernican.py`**: The main orchestrator.
+* **`input_aggregator.py`**: Assembles the `Job JSON`.
+* **`data_loaders.py`**: Contains data parsers. **This is the current point of failure.** Its parsers for UniStra-type data **must** be rewritten to use the correct column indices and `NaN` handling from the v1.3 implementation to ensure all 740 SNe are loaded from `tablef3.dat`.
+* **`cosmo_engine_*.py`**: The modular computational engine. The stable implementation is `cosmo_engine_1.4g.py` which works with the standard model plugins.
+* **`output_manager.py`**: Dispatches output tasks.
+* **`csv_writer.py`**: Writes tabular data.
+* **`plotter.py`**: Generates plots based on the style guide.
+The v1.4g refactor introduced **CosmoDSL** and a plugin-based engine folder (`/engines`). Models now live in `/models` as `.md` files written in the DSL, and data files are kept under `/data`. The new `main.py` script automatically discovers engines, models, and data at runtime.
+1.4g
 
 
 ---
