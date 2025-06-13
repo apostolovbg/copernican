@@ -1,3 +1,10 @@
+# Copernican Suite Development Guide (v1.4b)
+
+This document supersedes `doc.json` and consolidates all development protocols, model interface definitions, and plotting guidelines.
+
+## Full Technical Specification
+
+```json
 {
   "projectName": "Copernican Suite",
   "projectVersion": "1.3",
@@ -108,3 +115,15 @@
     }
   }
 }
+
+```
+
+## AI Development Laws
+
+To any AI modifying this project:
+
+1. **Add a `DEV NOTE` at the top of each changed file** summarizing the modifications.
+2. **Comment code extensively** to explain the reasoning behind complex logic.
+3. **Update all documentation files**, including this `AGENTS.md` and `README.md`, whenever the codebase changes.
+
+Failure to follow these guidelines jeopardizes the maintainability of the Copernican Suite.
