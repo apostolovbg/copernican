@@ -1,4 +1,6 @@
 # copernican_suite/output_manager.py
+# DEV NOTE (v1.4.1): Logging now initializes per run and records the start and
+# end timestamps. Previous notes retained below.
 """
 Output Manager for the Copernican Suite.
 Handles all forms of output (logging, plots, CSVs) with a consistent format.

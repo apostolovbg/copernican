@@ -1,4 +1,8 @@
 # Copernican Suite Change Log
+## Version 1.4.1 (Maintenance Release)
+- LCDM model separated into lcdm.py plugin.
+- Added splash screen and improved logging with per-run timestamps.
+
 
 ## Version 1.4 (Stable Release)
 - Refactored into a fully pluggable architecture with discoverable engines,
