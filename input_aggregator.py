@@ -21,6 +21,9 @@ style consistency.
 DEV NOTE (engine sync): The returned Job JSON now includes a new
 `models` section with plugin paths so the engine can load model
 plugins without errors.
+DEV NOTE (file tracking): Data loaders now store the basename of the
+source file in the Job JSON so output filenames reflect the input
+datasets.
 """
 
 import os
@@ -94,9 +97,12 @@ def _load_data(data_info, parsers_dict, base_dir):
 
         print(f"Successfully loaded {len(loaded_df)} data points from '{os.path.basename(filepath)}'.")
 
+        # Include the source filename so the engine can construct
+        # informative CSV and plot names later on.
         structured_data = {
             'dataframe': loaded_df,
-            'parser_id': parser_id
+            'parser_id': parser_id,
+            'filepath': os.path.basename(filepath)
         }
 
         return {data_type_key: structured_data}

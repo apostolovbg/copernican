@@ -4,6 +4,8 @@
 """
 DEV NOTE (v1.4g): Updated footer text to v1.4g and cleaned up BAO plotting code.
 The BAO line fix introduced in v1.4rc8 is retained.
+(style fix): Added sanitization of point style dictionaries to avoid
+unsupported Matplotlib keyword errors.
 (Previous notes from v1.4rc2 preserved below)
 ...
 """
@@ -27,6 +29,36 @@ def _setup_plot_style(style_guide):
     plt.rcParams['grid.color'] = style_guide.get('grid_color', '#cccccc')
     plt.rcParams['font.family'] = 'sans-serif'
     plt.rcParams['font.sans-serif'] = ['Helvetica', 'Arial', 'DejaVu Sans']
+
+def _sanitize_errorbar_style(style_dict):
+    """Removes unsupported keys from a Matplotlib errorbar style dict."""
+    allowed = {'color', 'marker', 'markersize', 'alpha', 'ecolor', 'elinewidth',
+               'capsize', 'linestyle'}
+    sanitized = {}
+    for key, val in style_dict.items():
+        if key == 's':
+            sanitized['markersize'] = val
+        elif key in allowed:
+            sanitized[key] = val
+    return sanitized
+
+def _sanitize_line_style(style_dict):
+    """Converts linestyle strings and extracts any custom color list."""
+    sanitized = style_dict.copy()
+    raw_colors = sanitized.pop('colors', None)
+    if isinstance(raw_colors, str):
+        try:
+            colors = ast.literal_eval(raw_colors)
+        except Exception:
+            colors = ['#000000']
+    else:
+        colors = raw_colors
+    if isinstance(sanitized.get('linestyle'), str):
+        try:
+            sanitized['linestyle'] = ast.literal_eval(sanitized['linestyle'])
+        except Exception:
+            sanitized['linestyle'] = '-'
+    return sanitized, colors
 
 def _create_footer_text(run_id, m1_name, m2_name):
     """Creates the standard footer text for all plots."""
@@ -79,7 +111,7 @@ def create_hubble_plot(results_json, style_guide):
                  fontsize=style_guide.get('title_fontsize', 16), weight='bold')
 
     # --- Main Hubble Plot (ax1) ---
-    dp_style = style_guide.get('data_points', {})
+    dp_style = _sanitize_errorbar_style(style_guide.get('data_points', {}))
     ax1.errorbar(df['z'], df['mu'], yerr=df['mu_err'], fmt='o', **dp_style)
 
     smooth1 = results_json['sne_analysis']['model1_smooth_curve']
@@ -150,12 +182,22 @@ def create_bao_plot(results_json, style_guide):
                  fontsize=style_guide.get('title_fontsize', 16), weight='bold')
 
     # --- Plot Data and Model Lines for Each Observable ---
-    dp_style = style_guide.get('data_points', {})
-    dp_colors = dp_style.get('colors', ['#009E73', '#F0E442', '#56B4E9'])
-    m1_line_style = style_guide.get('model_lines', {}).get('lcdm', {})
-    m2_line_style = style_guide.get('model_lines', {}).get('alt_model', {})
-    m1_colors = m1_line_style.get('colors', ['#8B0000', '#FF0000', '#FA8072'])
-    m2_colors = m2_line_style.get('colors', ['#00008B', '#0000FF', '#4169E1'])
+    raw_dp_style = style_guide.get('data_points', {})
+    dp_style = _sanitize_errorbar_style(raw_dp_style)
+    dp_colors = raw_dp_style.get('colors', ['#009E73', '#F0E442', '#56B4E9'])
+    if isinstance(dp_colors, str):
+        try:
+            dp_colors = ast.literal_eval(dp_colors)
+        except Exception:
+            dp_colors = ['#009E73', '#F0E442', '#56B4E9']
+    m1_line_style, m1_colors = _sanitize_line_style(
+        style_guide.get('model_lines', {}).get('lcdm', {}))
+    m2_line_style, m2_colors = _sanitize_line_style(
+        style_guide.get('model_lines', {}).get('alt_model', {}))
+    if m1_colors is None:
+        m1_colors = ['#8B0000', '#FF0000', '#FA8072']
+    if m2_colors is None:
+        m2_colors = ['#00008B', '#0000FF', '#4169E1']
 
     for i, obs_type in enumerate(unique_observables):
         group = df[df['observable_type'] == obs_type]
@@ -177,26 +219,40 @@ def create_bao_plot(results_json, style_guide):
             curves = smooth_curves_data[obs_type]
             m1_c = m1_colors[i % len(m1_colors)]
             m2_c = m2_colors[i % len(m2_colors)]
+            try:
+                ls1 = ast.literal_eval(m1_line_style.get('linestyle', "'-'"))
+            except Exception:
+                ls1 = '-'
             ax.plot(
                 curves['z_smooth'],
                 curves['model1_y_smooth'],
                 color=m1_c,
-                linestyle=ast.literal_eval(m1_line_style.get('linestyle', "'-'")),
+                linestyle=ls1,
                 linewidth=m1_line_style.get('linewidth', 2),
             )
+            try:
+                ls2 = ast.literal_eval(m2_line_style.get('linestyle', "'-'"))
+            except Exception:
+                ls2 = '-'
             ax.plot(
                 curves['z_smooth'],
                 curves['model2_y_smooth'],
                 color=m2_c,
-                linestyle=ast.literal_eval(m2_line_style.get('linestyle', "'-'")),
+                linestyle=ls2,
                 linewidth=m2_line_style.get('linewidth', 2),
             )
         else:
             print(f"Warning: No smooth curve data found for BAO observable '{obs_type}'.")
 
     # Add dummy lines for legend
-    ax.plot([], [], label=m1_name, **m1_line_style, color=m1_colors[0])
-    ax.plot([], [], label=m2_name, **m2_line_style, color=m2_colors[0])
+    ax.plot([], [], label=m1_name,
+            linestyle=m1_line_style.get('linestyle', '-'),
+            linewidth=m1_line_style.get('linewidth', 2),
+            color=m1_colors[0])
+    ax.plot([], [], label=m2_name,
+            linestyle=m2_line_style.get('linestyle', '-'),
+            linewidth=m2_line_style.get('linewidth', 2),
+            color=m2_colors[0])
 
     # --- Axes, Grid, and Legend ---
     ax.set_xlabel(style_guide.get('xlabel', 'Redshift (z)'), fontsize=style_guide.get('label_fontsize', 12))

@@ -11,6 +11,8 @@ suite's overall stability and error handling.
 
 DEV NOTE (v1.4g): Added a missing newline at the end of the file to satisfy
 repository style guidelines. No functional code changes were made.
+DEV NOTE (data filenames): CSV generators now derive dataset names from the
+new 'filepath' fields provided by the engine.
 """
 
 import logging
@@ -46,7 +48,8 @@ def create_sne_csv(results, style_guide):
     # Generate filename
     m1_name = results['metadata']['model1_name']
     m2_name = results['metadata']['model2_name']
-    dataset_name = sne_analysis['detailed_df']['name']
+    dataset_path = sne_analysis.get('filepath', 'sne')
+    dataset_name = os.path.splitext(os.path.basename(dataset_path))[0]
     run_id = results['metadata']['run_id']
     filename = f"sne-detailed-data_{m1_name}-vs-{m2_name}_{dataset_name}_{run_id}.csv"
     
@@ -68,8 +71,9 @@ def create_bao_csv(results, style_guide):
     m1_name = results['metadata']['model1_name']
     m2_name = results['metadata']['model2_name']
     run_id = results['metadata']['run_id']
-    # Since there can be multiple BAO types, we don't include a single dataset name
-    filename = f"bao-detailed-data_{m1_name}-vs-{m2_name}_BAO_{run_id}.csv"
+    dataset_path = bao_analysis.get('filepath', 'bao')
+    dataset_name = os.path.splitext(os.path.basename(dataset_path))[0]
+    filename = f"bao-detailed-data_{m1_name}-vs-{m2_name}_{dataset_name}_{run_id}.csv"
     
     full_path = os.path.join('output', filename)
     _save_df_to_csv(df, full_path)

@@ -6,6 +6,8 @@ DEV NOTE (v1.4g): This engine refines the unfinished v1.4rc prototype.
 DEV NOTE (import fix): Removed a duplicated block at the end of
 `execute_job` that introduced an unterminated triple-quoted string and
 prevented module import.
+DEV NOTE (output filenames): Engine now propagates dataset file names so
+CSV writers can produce descriptive filenames.
 - COLUMN FIX: uses the SNe column `mu` to compute residuals, avoiding a KeyError.
 - COMPATIBLE: designed for lcdm_model.py, usmf2.py, usmf3b.py, and any plugin following the v1.4 API.
 - BAO SUPPORT: retains generation of smooth curves for BAO plots.
@@ -228,6 +230,8 @@ def execute_job(job_json):
 
         # --- Load Data and Models ---
         sne_df = pd.DataFrame(job_json['data']['sne_data']['dataframe'])
+        # Capture the original filename for later use in output names
+        sne_filepath = job_json['data']['sne_data'].get('filepath', 'sne')
         model1_plugin = _load_model_plugin(job_json['models']['model1']['path'])
         model2_plugin = _load_model_plugin(job_json['models']['model2']['path'])
 
@@ -250,8 +254,11 @@ def execute_job(job_json):
 
         # --- BAO Analysis (if data provided) ---
         bao_analysis_results = {}
+        bao_filepath = None
         if job_json['data'].get('bao_data'):
             bao_df = pd.DataFrame(job_json['data']['bao_data']['dataframe'])
+            # Track the BAO filename for descriptive CSV/plot names
+            bao_filepath = job_json['data']['bao_data'].get('filepath', 'bao')
 
             bao_m1_df = _calculate_bao_observables(
                 bao_df.copy(), model1_fit_results['best_fit_params'], model1_plugin)
@@ -271,7 +278,8 @@ def execute_job(job_json):
 
             bao_analysis_results = {
                 "detailed_df": bao_results_df.to_dict('split'),
-                "smooth_curves": smooth_curves
+                "smooth_curves": smooth_curves,
+                "filepath": bao_filepath
             }
 
         # --- Assemble Final Results JSON ---
@@ -289,7 +297,8 @@ def execute_job(job_json):
                 "model1_fit_results": model1_fit_results,
                 "model2_fit_results": model2_fit_results,
                 "model1_smooth_curve": smooth1,
-                "model2_smooth_curve": smooth2
+                "model2_smooth_curve": smooth2,
+                "filepath": sne_filepath
             },
             "bao_analysis": bao_analysis_results
         }

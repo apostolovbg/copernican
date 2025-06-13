@@ -16,6 +16,8 @@ DEV NOTE (v1.4rc6):
 ...
 
 DEV NOTE (v1.4g): Added newline at EOF for consistent file formatting.
+DEV NOTE (scalar support): get_comoving_distance_Mpc now accepts scalar
+redshift inputs to prevent integration errors.
 """
 
 import numpy as np
@@ -138,16 +140,24 @@ def get_comoving_distance_Mpc(z_array, H0, Omega_m0):
     """
     C_LIGHT = METADATA['fixed_params']['C_LIGHT_KM_S']
     integrand = lambda z_prime: C_LIGHT / get_Hz_per_Mpc(z_prime, H0, Omega_m0)
-    
+
     # BUG FIX (v1.4b): Use a robust list comprehension instead of np.vectorize
     # This prevents NaN arrays when calculating smooth model lines for plotting.
+    #
+    # DEV NOTE (scalar support): v1.4g+ -- Accept scalar z by converting to at
+    # least 1D before iteration. This resolves 'iteration over a 0-d array'
+    # errors triggered when the engine calls model functions with a single
+    # redshift value.
+    z_vals = np.atleast_1d(z_array)
     try:
         # Perform integration for each z value in the input array.
-        results = [quad(integrand, 0, z)[0] for z in np.asarray(z_array)]
-        return np.array(results)
+        results = [quad(integrand, 0, z)[0] for z in z_vals]
+        results = np.array(results)
+        return results if results.size > 1 else results[0]
     except Exception as e:
         logging.error(f"Error during comoving distance integration: {e}")
-        return np.full(np.shape(z_array), np.nan)
+        nan_array = np.full(z_vals.shape, np.nan)
+        return nan_array if nan_array.size > 1 else np.nan
 
 # --- Derived Cosmological Observables ---
 
