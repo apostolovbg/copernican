@@ -1,10 +1,11 @@
 {
   "dev_note": "CosmoDSL v2.0: doc.json deprecated; see README.md and AGENTS.md for latest details.",
+  "dev_note": "v2.0 cleanup: removed legacy folder and restored plotter.py to project root.",
   "projectVersion": "2.0",
   "status": "deprecated"
   "dev_note": "Session 20250612_1600: Added CosmoDSL directories and plugin architecture.",
   "projectName": "Copernican Suite",
-  "projectVersion": "1.4g",
+  "projectVersion": "2.0",
   "lastUpdated": "2025-06-13",
   "description": "This document serves as the master technical specification for the Copernican Suite. It defines the required structure for all components and provides the authoritative style guide for all generated outputs. The current priority is to resolve the critical data loading failure in data_loaders.py by correctly implementing the logic from the stable v1.3 release.",
   "developmentHistory": {
