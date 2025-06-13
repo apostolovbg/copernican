@@ -1,1 +1,1 @@
-# DEV NOTE (v1.4rc): Package init for model plugins.
+# DEV NOTE (v1.4): Package init for model plugins.
