@@ -6,6 +6,9 @@ Copernican Suite - Main Orchestrator.
 # engines, and data files are discovered from dedicated directories. Model
 # plugins now reside in the `models` package. The summary CSV call removed in
 # v1.3 remains omitted.
+# DEV NOTE (v1.4b): Refactored into a pluggable architecture. Models, parsers,
+# engines, and data files are now discovered from dedicated directories. The
+# summary CSV call removed in v1.3 remains omitted.
 
 import importlib.util
 import importlib
@@ -175,6 +178,7 @@ def main_workflow():
                 logger.error(f"Model file {selected_model} missing 'model_plugin' entry.")
                 continue
             alt_model_filepath = os.path.join(SCRIPT_DIR, plugin_name)
+        gm8ing-codex/review-and-understand-1.4b-baseline-code
             if not os.path.isfile(alt_model_filepath):
                 alt_model_filepath = os.path.join(models_dir, plugin_name)
             alt_model_plugin = load_alternative_model_plugin(alt_model_filepath)

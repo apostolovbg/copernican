@@ -45,3 +45,4 @@ This table provides the parameter specification in the format required by the Co
 >    `Initial Guess`, `Bounds`, `Unit`, `LaTeX Name`.
 > 3. Additional theory and discussion may follow using standard Markdown.
 
+| Omega_b0 | `Omega_b0` | 0.0486 | (0.04, 0.06)| | `$\Omega_{b0}$` |

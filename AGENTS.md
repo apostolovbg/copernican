@@ -1,3 +1,4 @@
+
 # Copernican Suite Development Guide (v1.4rc)
 
 This document supersedes `doc.json` and consolidates all development protocols, model interface definitions, and plotting guidelines.
@@ -19,6 +20,7 @@ This document supersedes `doc.json` and consolidates all development protocols, 
     "usmf3b.py": "An example of a fully analytic cosmological model. Serves as a template for plugins with computationally simple, closed-form solutions.",
     "README.md": "The main user-facing documentation, providing a high-level overview, history, and future vision.",
     "AGENTS.md": "This file. The authoritative technical specification for AI and developer reference.",
+    "doc.json": "This file. The authoritative technical specification for AI and developer reference.",
     "output/": "The dedicated directory where all generated plots, logs, and CSV files are saved."
   },
   "modelPluginInterface": {
@@ -88,12 +90,14 @@ This document supersedes `doc.json` and consolidates all development protocols, 
         "Add a 'DEV NOTE' at the top of any modified file summarizing changes for the current version and providing guidance for future modifications.",
         "Comment code extensively. Explain the purpose of new functions, the logic behind complex algorithms or bug fixes, and the flow of data.",
         "Update the main README.md and AGENTS.md files to reflect the latest changes, architectural decisions, and future plans."
+        "Update the main README.md and this doc.json file to reflect the latest changes, architectural decisions, and future plans."
       ]
     },
     "creatingNewModelWorkflow": {
       "description": "The workflow for an AI to generate a new, compatible cosmological model plugin from a user's idea.",
       "steps": [
         "Step 1: Ingest User Idea & Templates. Receive the user's conceptual model idea, this AGENTS.md file, lcdm_model.py (numerical template), and usmf3b.py (analytic template).",
+        "Step 1: Ingest User Idea & Templates. Receive the user's conceptual model idea, this doc.json file, lcdm_model.py (numerical template), and usmf3b.py (analytic template).",
         "Step 2: Formulate Equations. Translate the user's idea into a set of mathematical equations. Prioritize creating analytic, closed-form solutions for distance measures to ensure high computational performance. If numerical integration is unavoidable, follow the pattern in lcdm_model.py.",
         "Step 3: Create the Markdown (.md) Definition File. Following the `modelPluginInterface.markdownDefinitionFile` specification, write the complete .md file. This file is the 'source of truth'.",
         "Step 4: Create the Python (.py) Implementation File. Following the `modelPluginInterface.pythonImplementationFile` specification, write the Python code. Implement all mandatory functions and metadata variables using the exact names specified.",

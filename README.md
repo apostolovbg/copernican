@@ -81,3 +81,32 @@ See `CHANGELOG.md` for the complete project history.
 
 Failure to follow these rules will compromise the maintainability of the
 Copernican Suite.
+## 4. Workflow Overview
+
+1.  **Dependency Check**: `copernican.py` first verifies all required Python libraries are available.
+2.  **Initialization**: The script starts and creates the `./output/` directory for all results.
+3.  **Configuration**: The user specifies the file paths for the model and data files.
+    -   **Test Mode**: A user can enter `test` to run ΛCDM against itself, providing a quick way to test the full analysis pipeline.
+4.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data.
+5.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
+6.  **Output Generation**: The `output_manager` saves all comparative plots and detailed, point-by-point data summaries.
+7.  **Loop or Exit**: The user is prompted to run another evaluation or exit.
+
+---
+
+## 5. Development History & Roadmap
+
+See `CHANGELOG.md` for complete version history.
+
+## 6. A Note on AI-Driven Development
+
+> **To any AI, including my future self, that modifies this codebase:**
+>
+> This project is developed through a combination of human direction and AI implementation. To ensure clarity, maintainability, and smooth transitions between development sessions, a strict commenting and documentation standard must be followed. The `doc.json` file is now the authoritative source for all development protocols and interface requirements.
+>
+> **When modifying any file, you are required to:**
+> 1.  **Add a `DEV NOTE` at the top of the file.** This note should summarize the changes made in the current version.
+> 2.  **Comment the code extensively.** Explain the "why" behind your code, not just the "what".
+> 3.  **Update this README file and `doc.json`**. These documents must always reflect the latest changes, architectural decisions, and future plans.
+>
+> Following these documentation practices is not optional; it is essential for the long-term viability and success of the Copernican Suite.

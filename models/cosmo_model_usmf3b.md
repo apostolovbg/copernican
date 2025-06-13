@@ -52,3 +52,4 @@ The following table defines the cosmological parameters for the USMF V3b model.
 >    `Initial Guess`, `Bounds`, `Unit`, `LaTeX Name`.
 > 3. Additional theory and discussion may follow using standard Markdown.
 
+| Omega_b0_fid | `Omega_b0_fid` | 0.0486| (0.03, 0.07)| | `$\Omega_{b0,fid}$` |
