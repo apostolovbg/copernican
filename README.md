@@ -1,7 +1,7 @@
 # Copernican Suite - A Modular Cosmology Framework
 
-**Version:** 1.3 (Stable)
-**Last Updated:** 2025-06-11
+**Version:** 1.4b
+**Last Updated:** 2025-06-12
 
 > **Note:** This file serves as the complete and unified documentation for the Copernican Suite project. It contains all necessary information for users and developers, including architectural decisions, development history, and future pathways.
 
@@ -71,31 +71,7 @@ The suite is designed with a primary project directory containing all core scrip
 
 ## 5. Development History & Roadmap
 
-### Version 1.3 Updates (Stable Release)
-
-This version addresses the primary issues identified in v1.2 and adds significant enhancements to the data output, plot clarity, and developer framework.
-
--   **CRITICAL BUG FIX - BAO Plotting Restored:** A bug that caused the smooth model lines on BAO plots to fail to render has been fixed. The issue was traced to a faulty multiprocessing implementation in `lcdm_model.py` and has been repaired.
--   **New Developer Specification (`doc.json`):** To formalize the development process and support future automation, a comprehensive `doc.json` file has been added. It acts as a machine-readable "dictionary" and "how-to" guide for the suite's architecture and model plugin interface.
--   **Enhanced Plot Clarity:** The BAO plot now renders the alternative model's lines with 25% opacity. This prevents the alternative model from completely obscuring the underlying ΛCDM model in cases of a close fit.
--   **Streamlined Data Outputs:** The CSV output has been simplified to produce only detailed, point-by-point data files for both SNe and BAO analyses, removing redundant summary files.
-
-### Version 1.2 Updates (Major Refactor)
-
-Version 1.2 marked a major step towards stability and a more focused architecture. Key changes from v1.1 include:
--   **CPU-Centric Engine:** All OpenCL GPU-acceleration code was removed to eliminate instability and complex dependencies.
--   **Intelligent Multiprocessing:** A robust, batch-based multiprocessing system was implemented using `psutil`.
--   **Workflow Enhancements:** Added the `test` mode, a "run again" loop with cache cleanup, and harmonized output filenames.
-
-### The Future Vision: A Universal Engine
-
-The next major architectural evolution will focus on making the suite even more accessible and powerful by removing the need for Python coding to define a new model. The `doc.json` specification is the first step in formalizing the interface that this future engine will target.
-
--   **Deprecation of `.py` Plugins:** The long-term goal is to eliminate the need for custom `model_plugin.py` files altogether.
--   **Universal Math Engine:** A new, powerful engine will be developed within `cosmo_engine.py` that can directly parse, interpret, and solve the mathematical equations provided in the `.md` definition files.
--   **Declarative Model Definition:** Researchers will only need to create a single, well-defined `.md` file. By specifying their model's key equations and parameters, the universal engine will handle the rest.
-
----
+See `CHANGELOG.md` for complete version history.
 
 ## 6. A Note on AI-Driven Development
 
