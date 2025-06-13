@@ -4,6 +4,8 @@
 
 **DEV NOTE (v2.0): The Suite now uses a declarative DSL for models and plugin-based engines. `main.py` is the sole entry point.**
 
+The outdated `doc.json` has been removed. Development notes now live here and in `AGENTS.md`.
+
 The full history of the project is maintained in `CHANGELOG.md`. Development guidelines are found in `AGENTS.md`.
 
 ---
