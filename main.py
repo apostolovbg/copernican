@@ -1,8 +1,8 @@
 # main.py
 """
-DEV NOTE (v2.0.1): main.py consolidates the legacy copernican.py UI with the new
-CosmoDSL loader. It performs dependency checks, shows a familiar splash screen
-and offers a simple menu for choosing engines, models and data.
+DEV NOTE (v2.0): Consolidated command-line interface for the Copernican Suite.
+This script checks dependencies, shows a splash screen, discovers plugins,
+and runs selected engines with CosmoDSL models.
 """
 
 import os
@@ -11,7 +11,7 @@ import importlib.util
 import argparse
 from engines.cosmo_engine_new1 import discover_engines as _discover_engines
 
-VERSION = "2.0.1"
+VERSION = "2.0"
 
 # --- Dependency Check -------------------------------------------------------
 
@@ -35,16 +35,6 @@ def splash_screen():
     print(f"                v{VERSION}\n")
     print("    A Modular Cosmology Framework built with CosmoDSL")
     print("===========================================================\n")
-
-=======
-DEV NOTE: Introduces the new command-line orchestrator using CosmoDSL and
-plugin-based engines. This script dynamically discovers available engines,
-models, and data files.
-"""
-
-import os
-import importlib.util
-from engines.cosmo_engine_new1 import discover_engines as _discover_engines
 
 # --- Discovery Helpers ------------------------------------------------------
 
@@ -95,20 +85,6 @@ def prompt_multichoice(msg, options):
         else:
             print("No valid selections made. Please try again.\n")
     return selected
-    print(msg)
-    for i, opt in enumerate(options, 1):
-        print(f"  {i}. {os.path.basename(opt)}")
-    idx = int(input("Choice: ")) - 1
-    return options[idx]
-
-
-def prompt_multichoice(msg, options):
-    print(msg)
-    for i, opt in enumerate(options, 1):
-        print(f"  {i}. {os.path.basename(opt)}")
-    choices = input("Comma separated numbers: ")
-    indices = [int(c.strip()) - 1 for c in choices.split(',') if c.strip().isdigit()]
-    return [options[i] for i in indices]
 
 # --- CosmoDSL Loader --------------------------------------------------------
 
@@ -125,11 +101,10 @@ def load_model(path):
                     sections[current].append(line.rstrip())
     for key, val in sections.items():
         sections[key] = '\n'.join(val).strip()
-    # Parameters block -> dict of values
     params = {}
     for line in sections.get('parameters', '').splitlines():
         if '=' in line:
-            k, v = line.split('#')[0].split('=',1)
+            k, v = line.split('#')[0].split('=', 1)
             params[k.strip()] = float(v)
     sections['parameters'] = params
     return sections
@@ -155,14 +130,13 @@ def main(argv=None):
     check_dependencies()
     splash_screen()
 
-def main():
     engines = discover_engines('engines')
     models = discover_models('models')
     data = discover_data('data')
     covars = list_cov_matrices('data')
 
     engine_path = prompt_choice('Choose engine:', engines)
-    model_path = prompt_choice("Choose model (or 'test'\u2192lcdm):", models + ['test'])
+    model_path = prompt_choice("Choose model (or 'test'→lcdm):", models + ['test'])
     data_files = prompt_multichoice('Choose data files:', data)
     covar_file = prompt_choice("Choose covariance matrix (or 'none'):", covars + ['none'])
 
@@ -173,4 +147,3 @@ def main():
 
 if __name__ == '__main__':
     main(sys.argv[1:])
-    main()
