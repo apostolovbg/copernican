@@ -1,21 +1,10 @@
 # Copernican Suite - A Modular Cosmology Framework
 
-## Current Status (v1.4g - UniStra Parsing Restored)
+## Current Status (v2.0 - CosmoDSL Architecture)
 
-**DEV NOTE (Session: 20250612_1530): This document has been updated to `v1.4g`. The UniStra parsers now replicate the successful fixed-width logic from v1.3 to fully load all 740 supernovae.**
+**DEV NOTE (v2.0): The Suite now uses a declarative DSL for models and plugin-based engines. `main.py` is the sole entry point.**
 
-**Version 1.4rc remains unstable and is not suitable for any use.**
-The full history of the project is maintained in `CHANGELOG.md`. Development guidelines can be found in `AGENTS.md`.
-
-The primary goal of the v1.4rc stabilization effort has been blocked by a single, persistent, and difficult bug in `data_loaders.py` that resulted in a failure to load the complete supernova dataset. All previous attempts to fix this have failed.
-
-**Root Cause Analysis of the Data Loading Failure:**
-* **The Problem:** The `_load_unistra_fixed_nuisance_h1` parser was consistently loading only 33 of 740 supernovae from `tablef3.dat`.
-* **The Reason:** The parser was configured to read data from the **incorrect columns**. It was reading from columns that contained placeholders or non-essential data, which were then correctly identified as invalid and dropped, leading to the massive data loss.
-* **The Law of the Land (`v1.3` Logic):** The stable `v1.3` version of the parser worked because it correctly targeted the columns for redshift, distance modulus, and error, and correctly handled placeholder values as `NaN`s *during* the initial read.
-
-**The Path Forward:**
-The UniStra parsers in `data_loaders.py` have been rewritten to **exactly replicate the column-targeting and NaN-handling logic of the `1.3` script.** The computational engine has also been updated (see `cosmo_engine_1.4g.py`) and now runs without the previous `TypeError`.
+The full history of the project is maintained in `CHANGELOG.md`. Development guidelines are found in `AGENTS.md`.
 
 ---
 
@@ -23,17 +12,29 @@ The UniStra parsers in `data_loaders.py` have been rewritten to **exactly replic
 
 The Copernican Suite is a Python-based, modular framework designed for cosmological data analysis. It allows users to test different cosmological models against observational data, such as Type Ia Supernovae (SNe Ia) and Baryon Acoustic Oscillations (BAO). Its primary goal is to provide a flexible and extensible platform for researchers to compare theoretical models with empirical evidence.
 
+## Installation & Usage
+
+1. Ensure Python 3.10+ is installed with NumPy, SciPy, pandas and Matplotlib.
+2. Place your data files in the `/data` folder.
+3. Run `python main.py` (or use `start.command`, `run.bat`, or `Copernican.desktop`).
+4. Select an engine, a model from `/models`, and your data files when prompted.
+
 ## Architecture
 
 The suite is composed of several key modules that work in a pipeline:
 
-* **`copernican.py`**: The main orchestrator.
-* **`input_aggregator.py`**: Assembles the `Job JSON`.
-* **`data_loaders.py`**: Contains data parsers. **This is the current point of failure.** Its parsers for UniStra-type data **must** be rewritten to use the correct column indices and `NaN` handling from the v1.3 implementation to ensure all 740 SNe are loaded from `tablef3.dat`.
-* **`cosmo_engine_*.py`**: The modular computational engine. The stable implementation is `cosmo_engine_1.4g.py` which works with the standard model plugins.
-* **`output_manager.py`**: Dispatches output tasks.
-* **`csv_writer.py`**: Writes tabular data.
-* **`plotter.py`**: Generates plots based on the style guide.
+* **`main.py`**: Entry point that performs dependency checks, shows the splash screen, and launches the menu-driven workflow.
+* **`engines/`**: Folder of plugin engines automatically discovered at runtime.
+* **`models/`**: CosmoDSL model files.
+* **`data/`**: Default location for SNe Ia and BAO datasets.
+* **`data_loaders.py`**: Parsers for supported data formats.
+* **`cosmo_engine_*.py`**: Individual engine implementations.
+The v2.0 release introduces **CosmoDSL** and a plugin-based architecture. `main.py` now handles all user interaction and dynamically loads engines and models from their respective folders.
+
+## Plotting Style
+
+Plots follow a unified theme based on the `seaborn-v0_8-colorblind` style with light backgrounds and readable font sizes. Info boxes and legend colors follow the guidelines from the old `doc.json` specification.
+
 
 ---
 
@@ -57,6 +58,6 @@ The long-term vision is to evolve the suite into a "Universal Math Engine" that 
 This project is being developed with the assistance of a large language model (LLM). To ensure clarity, maintainability, and accountability, the following policies are enforced:
 1.  **`DEV NOTE`s**: Any file modified by the AI must contain a `DEV NOTE` block at the top, explaining the version, the nature of the changes, and the reason for them.
 2.  **Extensive Commenting**: All new or modified code must be commented clearly to explain its logic and purpose.
-3.  **Documentation First**: Before implementing new features, the `README.md` and `doc.json` files should be updated to reflect the proposed changes, serving as a specification.
+3.  **Documentation First**: Update `README.md` before adding new features so it always matches the codebase.
 4.  **No Conflict Markers**: Avoid any merge conflict markers (such as `<<<<<<<`, `=======`, or `>>>>>>>`) in comments or documentation.
 

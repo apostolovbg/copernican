@@ -1,14 +1,8 @@
 @echo off
-:: This batch file will launch the Copernican Suite.
-:: It ensures that it runs from the same directory where the script itself is located.
-
-:: Change directory to the script's location.
+:: DEV NOTE (v2.0): Updated to run main.py
+:: Launch Copernican Suite v2.0
 cd /d "%~dp0"
-
-:: Run the Python script.
 echo Starting Copernican Suite...
-python copernican.py
-
-:: Pause the command window so you can see the final output before it closes.
-echo.
+python main.py
 pause
+
