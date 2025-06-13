@@ -10,10 +10,9 @@ This file summarizes notable changes across versions.
 - Switched to a plugin-based engine architecture and CosmoDSL model files.
 - `main.py` replaces `copernican.py` as the only entry point.
 - Start scripts updated and `doc.json` removed.
-
-## v2.0.1
 - Restored a minimal `doc.json` for compatibility with the legacy 1.4g branch.
 - Improved menu validation in `main.py` and clarified documentation.
+- Cleaned CLI functions and removed conflict markers.
 
 ## v1.4rc13
 - Development refocused on reproducing the v1.3 parsing logic.
