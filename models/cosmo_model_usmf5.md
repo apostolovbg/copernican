@@ -1,5 +1,3 @@
-<!-- DEV NOTE (v1.4.1): Added missing Key Equations section and general
-formatting corrections so the file can be parsed by the suite. -->
 ---
 title: "Fixed-Size Filament Contraction Model (USMF) Version 5"
 version: "5.0"
