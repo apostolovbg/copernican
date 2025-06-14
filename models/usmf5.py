@@ -1,20 +1,45 @@
 # usmf5.py
 """
-Fixed-Size Filament Contraction Model (USMF) Version 5 Plugin for the Copernican Suite.
+Fixed-Size Filament Contraction Model (USMF) Version 5 Plugin for the
+Copernican Suite.
 """
+# DEV NOTE (v1.4.1): Refactored to comply with the plugin specification.
+# Added required metadata variables, removed incorrect imports and
+# renamed functions to the standard names expected by the engine.
 
 import numpy as np
 from scipy.integrate import quad
 from scipy.optimize import brentq
 import multiprocessing as mp
 
-from copernican_suite.cosmo_engine import CosmoModel, FIXED_PARAMS
+try:
+    import psutil
+    PHYSICAL_CORES = psutil.cpu_count(logical=False) or 2
+except (ImportError, NotImplementedError):
+    PHYSICAL_CORES = 2
+
 
 # Module‐level name for engine registration
 MODEL_NAME = "Fixed-Size Filament Contraction Model (USMF) Version 5"
+MODEL_DESCRIPTION = (
+    "USMF version 5 assumes a fixed cosmic scale while local filaments "
+    "contract over time. An early-universe exponent controls the BAO "
+    "behavior and oscillatory terms encode quantum ripples."
+)
+MODEL_EQUATIONS_LATEX_SN = [
+    r"$\alpha(t)$ piecewise as in Eq.(1)",
+    r"$r(z)=\int_{t_e}^{t_0} \frac{c}{\alpha(t)} dt$",
+    r"$d_L(z)=|r(z)|(1+z)^2\frac{70}{H_A}$",
+    r"$\mu = 5\log_{10}(d_L)+25$",
+]
+MODEL_EQUATIONS_LATEX_BAO = [
+    r"$D_A(z)=|r(z)|\frac{70}{H_A}$",
+    r"$H(z)=-\frac{1}{\alpha}\frac{d\alpha}{dt}$",
+    r"$D_V(z)=\left[(1+z)^2 D_A(z)^2 \frac{cz}{H(z)}\right]^{1/3}$",
+    r"$r_s=\int_{z_d}^{\infty} \frac{c_s(z)}{H_{\rm early}(z)} dz$",
+]
 
 # Number of physical cores for multiprocessing
-PHYSICAL_CORES = mp.cpu_count(logical=False) or 2
 
 # ----------------------------------------------------------------------
 # Parameter definitions (must match cosmo_model_usmf5.md)
@@ -39,6 +64,21 @@ PARAMETER_LATEX_NAMES = [
     r"$A_{\rm osc}$", r"$\omega_{\rm osc}$", r"$t_{i,\rm osc}$", r"$\phi_{\rm osc}$",
     r"$m_e$", r"$t_{\rm eq}$", r"$\Delta$", r"$n$"
 ]
+PARAMETER_UNITS = [
+    "km/s/Mpc", "", "", "", "", "", "Gyr", "rad", "", "Gyr", "Gyr", ""
+]
+
+FIXED_PARAMS = {
+    "C_LIGHT_KM_S": 299792.458,
+    "SECONDS_PER_GYR": 1e9 * 365.25 * 24 * 3600,
+    "MPC_PER_KM": 1.0 / (3.08567758e19),
+    "MPC_TO_KM": 3.08567758e19,
+    "TINY_FLOAT": 1e-30,
+    "AGE_GYR": 13.8,
+    "OMEGA_GAMMA_H2_PREFACTOR_FOR_RS": 2.47282e-5,
+    "OMEGA_B0_H2_EFF_FOR_RS": 0.0224,
+    "ZD": 1059.0,
+}
 
 # ----------------------------------------------------------------------
 # Core calculator: piecewise α(t), inversion t(z), distance integrals
@@ -158,7 +198,8 @@ def _mu_single(z, calc: USMF5Calculator):
         return np.nan
     return 5 * np.log10(DL) + 25
 
-def get_luminosity_distance_modulus(z_array, *params):
+def distance_modulus_model(z_array, *params):
+    """Return the distance modulus \(\mu\) for a redshift array."""
     return _parallelize(z_array, "_mu_single", *params)
 
 def _Hz_single(z, calc: USMF5Calculator):
@@ -173,7 +214,8 @@ def _Hz_single(z, calc: USMF5Calculator):
     # convert to km/s/Mpc
     return H_sec * FIXED_PARAMS["SECONDS_PER_GYR"] * (70.0 / calc.H_A)
 
-def get_Hubble_parameter_km_s_Mpc(z_array, *params):
+def get_Hz_per_Mpc(z_array, *params):
+    """Hubble parameter $H(z)$ in km/s/Mpc."""
     return _parallelize(z_array, "_Hz_single", *params)
 
 def _DV_single(z, calc: USMF5Calculator):
@@ -181,10 +223,11 @@ def _DV_single(z, calc: USMF5Calculator):
     H_z = _Hz_single(z, calc)
     return ((1+z)**2 * DA**2 * (FIXED_PARAMS["C_LIGHT_KM_S"] * z / H_z))**(1/3)
 
-def get_volume_distance_Mpc(z_array, *params):
+def get_DV_Mpc(z_array, *params):
+    """BAO volume distance $D_V(z)$ in Mpc."""
     return _parallelize(z_array, "_DV_single", *params)
 
-def get_sound_horizon_Mpc(*params):
+def get_sound_horizon_rs_Mpc(*params):
     # Early-time H(z) ∝ (1+z)^{1/m_e}
     om_b = FIXED_PARAMS["OMEGA_B0_H2_EFF_FOR_RS"]
     z_d  = FIXED_PARAMS["ZD"]
@@ -200,31 +243,11 @@ def get_sound_horizon_Mpc(*params):
     return rs
 
 # ----------------------------------------------------------------------
-# Engine‐compatible aliases
+# Interface helpers required by the engine
 # ----------------------------------------------------------------------
-# SNe Ia
-distance_modulus_model       = get_luminosity_distance_modulus
-
-# BAO
-get_Hz_per_Mpc               = get_Hubble_parameter_km_s_Mpc
-get_DV_Mpc                   = get_volume_distance_Mpc
-get_sound_horizon_rs_Mpc     = get_sound_horizon_Mpc
 def get_angular_diameter_distance_Mpc(z_array, *params):
     z = np.asarray(z_array)
     # D_A = D_L / (1+z)^2, but D_L here is r*(1+z)^2*C_H -> so use our DL func
     DL = get_luminosity_distance_Mpc(z_array, *params)
     return DL / np.power(1+z, 2)
 
-# ----------------------------------------------------------------------
-# CosmoModel subclass (for plotting / extended usage)
-# ----------------------------------------------------------------------
-class CosmoModelUSMF5(CosmoModel):
-    name = MODEL_NAME
-
-    def model_distances(self, z, params):
-        return {
-            "mu": distance_modulus_model(z, *params),
-            "H":  get_Hz_per_Mpc(z, *params),
-            "D_V": get_DV_Mpc(z, *params),
-            "r_s": get_sound_horizon_rs_Mpc(*params)
-        }

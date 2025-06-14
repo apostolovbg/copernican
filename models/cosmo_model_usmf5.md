@@ -4,6 +4,8 @@ version: "5.0"
 date: "2025-06-14"
 model_plugin: "usmf5.py"
 ---
+<!-- DEV NOTE (v1.4.1): Added a Key Equations section and corrected formatting so the model parses correctly. -->
+
 
 # Fixed-Size Filament Contraction Model (USMF) Version 5
 
@@ -11,6 +13,23 @@ model_plugin: "usmf5.py"
 We propose a cosmological model in which the Universe has always possessed a fixed global scale, while local spacetime within dense filaments undergoes time-dependent contraction. This preserves the exceptional Type Ia supernovae fits of USMF v2 but introduces an adjustable early-universe exponent to improve the BAO fit. Quantum ripples are still encoded as oscillations in the scale factor, now tied to vacuum energy scales. Newtonian mechanics is recovered on short timescales, and the model naturally explains the very early universe without a singular “bang.”
 
 ## Quantitative Model Specification for Copernican Suite
+
+### Key Equations
+
+**For Supernovae (SNe Ia) Fitting:**
+$$\alpha(t)=\begin{cases}(t/t_0)^{-m_e},&t\le t_{\rm eq}\\[6pt]
+\tfrac{1}{2}\bigl[1+\tanh((t-t_{\rm eq})/\Delta)\bigr](t/t_0)^{-p_\alpha}
+e^{k_{\exp}((t/t_0)^{s_{\exp}}-1)}\bigl[1+A_{\rm osc}\sin(\omega_{\rm osc}
+\ln(t/t_{i,\rm osc})+\phi_{\rm osc})\bigr],&t>t_{\rm eq}\end{cases}$$
+$$r(z)=\int_{t_e(z)}^{t_0}\frac{c}{\alpha(t)}\,dt$$
+$$d_L(z)=|r(z)|(1+z)^2\frac{70.0}{H_A}$$
+$$\mu=5\log_{10}(d_L)+25$$
+
+**For Baryon Acoustic Oscillation (BAO) Analysis:**
+$$D_A(z)=|r(z)|\frac{70.0}{H_A}$$
+$$H_{\rm USMF}(z)=-\frac{1}{\alpha(t_e)}\left.\frac{d\alpha}{dt}\right|_{t_e}$$
+$$D_V(z)=\left[(1+z)^2D_A(z)^2\frac{cz}{H(z)}\right]^{1/3}$$
+$$r_s=\int_{z_d}^{\infty}\frac{c_s(z)}{H_{\rm early}(z)}\,dz$$
 
 ### Model Parameters
 
@@ -76,5 +95,4 @@ This framework replaces global shrinking with localized filament contraction on 
 >     -   The table is parsed to generate `PARAMETER_NAMES`, `INITIAL_GUESSES`, `PARAMETER_BOUNDS`, and `PARAMETER_LATEX_NAMES` lists in the Python plugin.
 >
 > 3.  **Theoretical Framework Section:**
->     -   The remainder of the document contains the detailed theoretical write-up, intended for human readers and context.
 >     -   The remainder of the document contains the detailed theoretical write-up, intended for human readers and context.
