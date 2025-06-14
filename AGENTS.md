@@ -84,6 +84,74 @@ Refer to `models/usmf3b.py` for a concise analytic implementation and `models/lc
 4. Place both files in the `models/` directory. `copernican.py` will automatically discover them.
 5. Verify your plugin by running the checklist below.
 
+### 4.1 Markdown Template
+Use the following structure when creating `cosmo_model_*.md` files. The
+`model_plugin` field must reference the Python plugin and the
+`## Quantitative Model Specification for Copernican Suite` section must
+contain `### Key Equations` and a parameter table.
+
+```markdown
+---
+title: "Model Name"
+version: "1.0"
+date: "2025-06-14"
+model_plugin: "model_name.py"
+---
+
+## Quantitative Model Specification for Copernican Suite
+
+### Key Equations
+Provide LaTeX equations for SNe Ia and BAO here.
+
+### Model Parameters
+| Parameter Name | Python Variable | Initial Guess | Bounds | Unit | LaTeX Name |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| H0 | `H0` | 70.0 | (50.0, 100.0) | km/s/Mpc | `$H_0$` |
+```
+
+Append the **Internal Formatting Guide for Model Definition Files** after
+your model description so future developers understand the format.
+
+### 4.2 Python Plugin Skeleton
+The matching Python module must define all global metadata variables and
+implement the interface functions exactly as shown below:
+
+```python
+MODEL_NAME = "My Model"
+MODEL_DESCRIPTION = "Short summary."
+MODEL_EQUATIONS_LATEX_SN = []
+MODEL_EQUATIONS_LATEX_BAO = []
+PARAMETER_NAMES = []
+PARAMETER_LATEX_NAMES = []
+PARAMETER_UNITS = []
+INITIAL_GUESSES = []
+PARAMETER_BOUNDS = []
+FIXED_PARAMS = {}
+
+def distance_modulus_model(z_array, *params):
+    pass
+
+def get_comoving_distance_Mpc(z_array, *params):
+    pass
+
+def get_luminosity_distance_Mpc(z_array, *params):
+    pass
+
+def get_angular_diameter_distance_Mpc(z_array, *params):
+    pass
+
+def get_Hz_per_Mpc(z_array, *params):
+    pass
+
+def get_DV_Mpc(z_array, *params):
+    pass
+
+def get_sound_horizon_rs_Mpc(*params):
+    pass
+```
+
+Ensure the parameter order matches the Markdown table exactly.
+
 ### Verification Checklist
 - Does the `.py` file define all required global variables?
 - Are `distance_modulus_model`, `get_comoving_distance_Mpc`, `get_luminosity_distance_Mpc`, `get_angular_diameter_distance_Mpc`, `get_Hz_per_Mpc`, `get_DV_Mpc`, and `get_sound_horizon_rs_Mpc` implemented?
