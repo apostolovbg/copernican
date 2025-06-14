@@ -26,19 +26,23 @@ COPERNICAN_VERSION = "1.4.1"
 def show_splash_screen():
     """Displays the startup banner once at launch."""
     banner = [
-        "=" * 60,
-        "Copernican Suite".center(60),
-        "=" * 60,
-        "A tool for rapid development, prototyping and testing of",
-        "alternative cosmological frameworks against observational data",
-        "=" * 60,
-        f"Current build {COPERNICAN_VERSION}".center(60),
-        "=" * 60,
+        " " * 70,
+        "\n",
+        "C O P E R N I C A N   S U I T E".center(70),
+        "\n",
+        "=" * 70,
+        "\n",
+        "A tool for rapid development, prototyping and testing of\n".center(70),
+        "alternative cosmological frameworks against observational data\n".center(70),
+        "-" * 70,
+        f"build {COPERNICAN_VERSION}".center(70),
+        "=" * 70,
+        "\n",
     ]
     for line in banner:
         print(line)
-    time.sleep(1)
-    print("Follow the prompts to configure a run. Results are saved in the 'output' directory.\n")
+    time.sleep(3)
+    print("Follow the prompts to configure a run. Results are saved in the 'output' directory.\n\n")
 
 # --- System Dependency and Sanity Checker ---
 
