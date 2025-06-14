@@ -6,6 +6,8 @@ version: "5.0"
 date: "2025-06-14"
 model_plugin: "usmf5.py"
 ---
+<!-- DEV NOTE (v1.4.1): Added a Key Equations section and corrected formatting so the model parses correctly. -->
+
 
 # Fixed-Size Filament Contraction Model (USMF) Version 5
 
@@ -95,5 +97,4 @@ This framework replaces global shrinking with localized filament contraction on 
 >     -   The table is parsed to generate `PARAMETER_NAMES`, `INITIAL_GUESSES`, `PARAMETER_BOUNDS`, and `PARAMETER_LATEX_NAMES` lists in the Python plugin.
 >
 > 3.  **Theoretical Framework Section:**
->     -   The remainder of the document contains the detailed theoretical write-up, intended for human readers and context.
 >     -   The remainder of the document contains the detailed theoretical write-up, intended for human readers and context.
