@@ -1,3 +1,4 @@
+<!-- DEV NOTE (v1.4.2): Removed duplicated bullet line in documentation. -->
 ---
 title: "The Unified Shrinking Matter Framework (USMF) Version 3b - Kinematic"
 version: "3.0b"
@@ -61,7 +62,6 @@ The following table defines the cosmological parameters for the USMF V3b model.
 >     -   This table's content will be parsed to automatically generate the `PARAMETER_NAMES`, `INITIAL_GUESSES`, `PARAMETER_BOUNDS`, and `PARAMETER_LATEX_NAMES` lists in the Python plugin script.
 >
 > 3.  **Theoretical Framework Section:**
->     -   The remainder of the document contains the detailed theoretical write-up of the model. It should be formatted using standard Markdown headings, lists, and LaTeX for equations. This section is intended for human readers and for providing context.
 >     -   The remainder of the document contains the detailed theoretical write-up of the model. It should be formatted using standard Markdown headings, lists, and LaTeX for equations. This section is intended for human readers and for providing context.
 
 
