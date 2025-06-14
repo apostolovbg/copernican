@@ -19,8 +19,6 @@ except (ImportError, NotImplementedError):
     PHYSICAL_CORES = 2
 
 
-main
-
 # Module‐level name for engine registration
 MODEL_NAME = "Fixed-Size Filament Contraction Model (USMF) Version 5"
 MODEL_DESCRIPTION = (
