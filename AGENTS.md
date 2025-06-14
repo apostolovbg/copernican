@@ -1,131 +1,99 @@
+# DEV NOTE (v1.4.1)
+This file was rewritten entirely to document the current Copernican Suite structure and the model plugin system introduced in version 1.4b.
 
-# Copernican Suite Development Guide (v1.4.1)
-This document replaces the old `doc.json` specification and is the authoritative development reference for version 1.4.1.
+# Copernican Suite Development Guide
 
+This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications.
 
-## Full Technical Specification
+## 1. Program Overview
+The suite evaluates cosmological models against SNe Ia and BAO data. Users interact with `copernican.py`, choose a model from `./models/`, pick a computational engine from `./engines/` and select data parsers from `./parsers/`. Results are saved under `./output/`.
 
-```json
-{
-  "projectName": "Copernican Suite",
-  "projectVersion": "1.4.1",
-  "lastUpdated": "2025-06-15",
-  "description": "This document serves as the master technical specification and AI development interface for the Copernican Suite. It defines the required structure for all components, outlines the development protocol, and provides a 'how-to' guide for creating new cosmological model plugins. This version includes AI-hardening features to ensure strict adherence to the plugin interface.",
-  "projectSchema": {
-    "copernican.py": "Main orchestrator script. Handles user interaction, workflow control, and calls to other modules. All output generation calls originate here.",
-    "cosmo_engine.py": "The core physics and statistics engine. Handles parameter fitting (via SciPy's minimize) and chi-squared calculations. It calls functions from model plugins but is model-agnostic.",
-    "output_manager.py": "Manages all outputs: logging, plots, and detailed CSV data files. Contains functions for generating standardized plots and data tables.",
-    "data_loaders.py": "Modular data loading system. Contains parsers for different SNe Ia and BAO data formats. New data formats can be supported by adding new parsers here.",
-    "lcdm.py": "The reference implementation of the standard LambdaCDM model. Serves as the primary 'control' model and a template for plugins requiring numerical integration.",
-    "usmf3b.py": "An example of a fully analytic cosmological model. Serves as a template for plugins with computationally simple, closed-form solutions.",
-    "README.md": "The main user-facing documentation, providing a high-level overview, history, and future vision.",
-    "AGENTS.md": "This file. The authoritative technical specification for AI and developer reference.",
-    "output/": "The dedicated directory where all generated plots, logs, and CSV files are saved."
-    "NOTE": "Files within data/ are treated as read-only reference datasets and should not be modified by AI."
-  },
-  "modelPluginInterface": {
-    "description": "To create a new cosmological model, two files are required: a Markdown definition (.md) and a Python implementation (.py). They must strictly adhere to the following interface to be compatible with cosmo_engine.py.",
-    "markdownDefinitionFile": {
-      "fileExtension": ".md",
-      "purpose": "The human-readable 'paper' and machine-parsable single source of truth for model parameters and equations.",
-      "requirements": [
-        {
-          "element": "YAML Front Matter",
-          "details": "The file MUST begin with a YAML block (---...---) containing the keys: 'title', 'version', 'date', and 'model_plugin' (the name of the corresponding .py file)."
-        },
-        {
-          "element": "Quantitative Model Specification Section",
-          "details": "The file MUST contain a level-2 markdown header: '## Quantitative Model Specification for Copernican Suite'. This section is critical for automated parsing."
-        },
-        {
-          "element": "Key Equations Subsections",
-          "details": "Within the quantitative section, there MUST be level-3 headers '### Key Equations' with separate entries for 'Supernovae (SNe Ia) Fitting' and 'Baryon Acoustic Oscillation (BAO) Analysis', containing the model's core equations in LaTeX."
-        },
-        {
-          "element": "Model Parameters Table",
-          "details": "Within the quantitative section, there MUST be a level-3 header '### Model Parameters' followed by a Markdown table. This table MUST have the exact following headers: 'Parameter Name', 'Python Variable', 'Initial Guess', 'Bounds', 'Unit', 'LaTeX Name'."
-        }
-      ]
-    },
-    "pythonImplementationFile": {
-      "fileExtension": ".py",
-      "purpose": "The computational implementation of the model. It provides the functions that cosmo_engine.py will call to perform calculations.",
-      "requirements": {
-        "metadataBlock": {
-          "description": "The file MUST define a set of global variables. Their names are NOT flexible. They must match the strictName exactly.",
-          "pythonExample": "MODEL_NAME = \"YourModelName\"\nMODEL_DESCRIPTION = \"A description.\"\nMODEL_EQUATIONS_LATEX_SN = [r\"...\", r\"...\"]\nMODEL_EQUATIONS_LATEX_BAO = [r\"...\", r\"...\"]\nPARAMETER_NAMES = [\"p1\", \"p2\"]\nPARAMETER_LATEX_NAMES = [r\"$p_1$\", r\"$p_2$\"]\nPARAMETER_UNITS = [\"unit1\", \"\"]\nINITIAL_GUESSES = [1.0, 2.0]\nPARAMETER_BOUNDS = [(0.1, 2.0), (1.0, 3.0)]\nFIXED_PARAMS = {\"C_LIGHT_KM_S\": 299792.458}",
-          "variables": [
-            {"strictName": "MODEL_NAME"},
-            {"strictName": "MODEL_DESCRIPTION"},
-            {"strictName": "MODEL_EQUATIONS_LATEX_SN"},
-            {"strictName": "MODEL_EQUATIONS_LATEX_BAO"},
-            {"strictName": "PARAMETER_NAMES"},
-            {"strictName": "PARAMETER_LATEX_NAMES"},
-            {"strictName": "PARAMETER_UNITS"},
-            {"strictName": "INITIAL_GUESSES"},
-            {"strictName": "PARAMETER_BOUNDS"},
-            {"strictName": "FIXED_PARAMS"}
-          ]
-        },
-        "mandatoryFunctions": {
-          "description": "The file MUST implement the following functions. Their names and signatures are NOT flexible.",
-          "pythonExample": "def distance_modulus_model(z_array, *cosmo_params):\n    # ... your implementation ...\n    return mu_array\n\ndef get_Hz_per_Mpc(z_array, *cosmo_params):\n    # ... your implementation ...\n    return hz_array",
-          "functions": [
-            {"strictName": "distance_modulus_model(z_array, *cosmo_params)"},
-            {"strictName": "get_comoving_distance_Mpc(z_array, *cosmo_params)"},
-            {"strictName": "get_luminosity_distance_Mpc(z_array, *cosmo_params)"},
-            {"strictName": "get_angular_diameter_distance_Mpc(z_array, *cosmo_params)"},
-            {"strictName": "get_Hz_per_Mpc(z_array, *cosmo_params)"},
-            {"strictName": "get_DV_Mpc(z_array, *cosmo_params)"},
-            {"strictName": "get_sound_horizon_rs_Mpc(*cosmo_params)"}
-          ]
-        }
-      }
-    }
-  },
-  "developmentProtocol": {
-    "aiDevelopmentGuidelines": {
-      "description": "To ensure clarity, maintainability, and smooth transitions between development sessions, a strict commenting and documentation standard MUST be followed by any modifying AI.",
-      "rules": [
-        "Add a 'DEV NOTE' at the top of any modified file summarizing changes for the current version and providing guidance for future modifications.",
-        "Comment code extensively. Explain the purpose of new functions, the logic behind complex algorithms or bug fixes, and the flow of data.",
-        "Update the main README.md and AGENTS.md files to reflect the latest changes, architectural decisions, and future plans."
-      ]
-    },
-    "creatingNewModelWorkflow": {
-      "description": "The workflow for an AI to generate a new, compatible cosmological model plugin from a user's idea.",
-      "steps": [
-        "Step 1: Ingest User Idea & Templates. Receive the user's conceptual model idea, this AGENTS.md file, lcdm.py (numerical template), and usmf3b.py (analytic template).",
-        "Step 2: Formulate Equations. Translate the user's idea into a set of mathematical equations. Prioritize creating analytic, closed-form solutions for distance measures to ensure high computational performance. If numerical integration is unavoidable, follow the pattern in lcdm.py.",
-        "Step 3: Create the Markdown (.md) Definition File. Following the `modelPluginInterface.markdownDefinitionFile` specification, write the complete .md file. This file is the 'source of truth'.",
-        "Step 4: Create the Python (.py) Implementation File. Following the `modelPluginInterface.pythonImplementationFile` specification, write the Python code. Implement all mandatory functions and metadata variables using the exact names specified.",
-        "Step 5: Verify & Deliver. Before delivering the files, perform a final check against the `verificationChecklist` below. Deliver the two new files (`new_model.md` and `new_model.py`) to the user for testing."
-      ],
-      "verificationChecklist": [
-          "Does the .py file contain the global variable 'MODEL_NAME'?",
-          "Does the .py file contain the global variable 'PARAMETER_NAMES'?",
-          "Does the .py file contain the global variable 'INITIAL_GUESSES'?",
-          "Does the .py file contain the global variable 'PARAMETER_BOUNDS'?",
-          "Does the .py file contain the function 'distance_modulus_model(z_array, *cosmo_params)'?",
-          "Does the .py file contain the function 'get_comoving_distance_Mpc(z_array, *cosmo_params)'?",
-          "Does the .py file contain the function 'get_luminosity_distance_Mpc(z_array, *cosmo_params)'?",
-          "Does the .py file contain the function 'get_angular_diameter_distance_Mpc(z_array, *cosmo_params)'?",
-          "Does the .py file contain the function 'get_Hz_per_Mpc(z_array, *cosmo_params)'?",
-          "Does the .py file contain the function 'get_DV_Mpc(z_array, *cosmo_params)'?",
-          "Does the .py file contain the function 'get_sound_horizon_rs_Mpc(*cosmo_params)'?"
-      ]
-    }
-  }
-}
+The default engine is `engines/cosmo_engine_1_4b.py`. It imports a model's Python plugin based on the `model_plugin` field of a Markdown definition file.
 
+## 2. Directory Layout
 ```
+models/           - Markdown definitions and Python plugins
+engines/          - Computational backends (SciPy CPU by default)
+parsers/          - Data format parsers for SNe and BAO
+data/             - Example data files
+output/           - Generated plots and CSV tables
+AGENTS.md         - Development specification and contributor rules
+CHANGELOG.md      - Release history
+```
+Files in `data/` are read-only and must not be modified by AI-driven changes.
 
-## AI Development Laws
+## 3. Model Plugin System (introduced in v1.4b)
+Each cosmological model consists of two files stored in `models/`:
+1. **Markdown definition** (`cosmo_model_name.md`)
+2. **Python plugin** (`name.py`)
 
-To any AI modifying this project:
+### 3.1 Markdown Definition File
+The Markdown file is the single source of truth for parameters and equations. It must begin with a YAML front matter block containing `title`, `version`, `date`, and `model_plugin`. Directly after, include a section titled:
+```
+## Quantitative Model Specification for Copernican Suite
+```
+Within this section provide:
+- `### Key Equations` describing SNe and BAO formulas in LaTeX.
+- `### Model Parameters` containing a Markdown table with these headers exactly:
+  `Parameter Name`, `Python Variable`, `Initial Guess`, `Bounds`, `Unit`, `LaTeX Name`.
 
-1. **Add a `DEV NOTE` at the top of each changed file** summarizing the modifications.
-2. **Comment code extensively** to explain the reasoning behind complex logic.
-3. **Update all documentation files**, including this `AGENTS.md` and `README.md`, whenever the codebase changes.
+The files `models/cosmo_model_usmf3b.md` and `models/cosmo_model_lcdm.md` show fully compliant examples.
 
-Failure to follow these guidelines jeopardizes the maintainability of the Copernican Suite.
+### 3.2 Python Plugin File
+The Python module referenced by `model_plugin` implements the numerical functions used by `cosmo_engine_1_4b.py`. It must define the following global variables:
+- `MODEL_NAME`
+- `MODEL_DESCRIPTION`
+- `MODEL_EQUATIONS_LATEX_SN`
+- `MODEL_EQUATIONS_LATEX_BAO`
+- `PARAMETER_NAMES`
+- `PARAMETER_LATEX_NAMES`
+- `PARAMETER_UNITS`
+- `INITIAL_GUESSES`
+- `PARAMETER_BOUNDS`
+- `FIXED_PARAMS`
+
+And it must implement these functions with the exact names and signatures:
+```python
+def distance_modulus_model(z_array, *cosmo_params):
+    ...
+
+def get_comoving_distance_Mpc(z_array, *cosmo_params):
+    ...
+
+def get_luminosity_distance_Mpc(z_array, *cosmo_params):
+    ...
+
+def get_angular_diameter_distance_Mpc(z_array, *cosmo_params):
+    ...
+
+def get_Hz_per_Mpc(z_array, *cosmo_params):
+    ...
+
+def get_DV_Mpc(z_array, *cosmo_params):
+    ...
+
+def get_sound_horizon_rs_Mpc(*cosmo_params):
+    ...
+```
+Refer to `models/usmf3b.py` for a concise analytic implementation and `models/lcdm.py` for a more complex numerical example.
+
+## 4. Creating a New Model
+1. Copy `cosmo_model_usmf3b.md` and `usmf3b.py` as templates.
+2. Edit the Markdown file's YAML block and parameter table to describe the new model.
+3. Implement the Python plugin using the required variables and functions. The parameter lists must correspond exactly to the table in the Markdown file.
+4. Place both files in the `models/` directory. `copernican.py` will automatically discover them.
+5. Verify your plugin by running the checklist below.
+
+### Verification Checklist
+- Does the `.py` file define all required global variables?
+- Are `distance_modulus_model`, `get_comoving_distance_Mpc`, `get_luminosity_distance_Mpc`, `get_angular_diameter_distance_Mpc`, `get_Hz_per_Mpc`, `get_DV_Mpc`, and `get_sound_horizon_rs_Mpc` implemented?
+- Do the parameter lists match the Markdown table?
+- Can `copernican.py` run with the new model without raising import errors?
+
+## 5. Development Protocol
+To keep the project maintainable all contributors, human or AI, must follow these rules:
+1. **Add a `DEV NOTE` at the top of each changed file** summarizing your modifications.
+2. **Comment code extensively** to explain non-obvious logic or algorithms.
+3. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behavior or structure changes.
+
+Failure to follow these guidelines will compromise the Copernican Suite.
