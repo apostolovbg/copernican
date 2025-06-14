@@ -77,10 +77,12 @@ should not be modified by AI-driven code changes.
   are cleaned automatically.
 
 ## Creating New Models
-Model definition follows a two-file system:
+Model definition follows a two-file system and detailed instructions are in
+`AGENTS.md`:
 1. **Markdown file** (`cosmo_model_name.md`) describing equations and providing
-   a table of parameters. See the formatting guide at the end of every model
-   file.
+   a table of parameters. Each model file should conclude with the *Internal
+   Formatting Guide for Model Definition Files* so contributors understand the
+   required structure.
 2. **Python plugin** implementing the required functions listed in `AGENTS.md`.
    Place this module in the `models` package and reference its filename in the
    Markdown front matter under `model_plugin`.
