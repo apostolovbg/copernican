@@ -12,6 +12,14 @@ from scipy.integrate import quad
 from scipy.optimize import brentq
 import multiprocessing as mp
 
+try:
+    import psutil
+    PHYSICAL_CORES = psutil.cpu_count(logical=False) or 2
+except (ImportError, NotImplementedError):
+    PHYSICAL_CORES = 2
+
+
+main
 
 # Module‐level name for engine registration
 MODEL_NAME = "Fixed-Size Filament Contraction Model (USMF) Version 5"
@@ -34,7 +42,6 @@ MODEL_EQUATIONS_LATEX_BAO = [
 ]
 
 # Number of physical cores for multiprocessing
-PHYSICAL_CORES = mp.cpu_count(logical=False) or 2
 
 # ----------------------------------------------------------------------
 # Parameter definitions (must match cosmo_model_usmf5.md)
