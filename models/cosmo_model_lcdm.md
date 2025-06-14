@@ -1,4 +1,5 @@
 <!-- DEV NOTE (v1.4.1): Split LCDM into two-file format using lcdm.py -->
+<!-- DEV NOTE (v1.4.2): Removed duplicated bullet line in documentation. -->
 ---
 title: "Lambda Cold Dark Matter (\u039bCDM) Reference Model"
 version: "1.0"
@@ -51,7 +52,6 @@ $$D_V(z) = \left[ (1+z)^2 D_A(z)^2 \frac{cz}{H(z)} \right]^{1/3}$$
 >     -   This table's content will be parsed to automatically generate the `PARAMETER_NAMES`, `INITIAL_GUESSES`, `PARAMETER_BOUNDS`, and `PARAMETER_LATEX_NAMES` lists in the Python plugin script.
 >
 > 3.  **Theoretical Framework Section:**
->     -   The remainder of the document contains the detailed theoretical write-up of the model. It should be formatted using standard Markdown headings, lists, and LaTeX for equations. This section is intended for human readers and for providing context.
 >     -   The remainder of the document contains the detailed theoretical write-up of the model. It should be formatted using standard Markdown headings, lists, and LaTeX for equations. This section is intended for human readers and for providing context.
 
 
