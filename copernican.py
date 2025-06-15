@@ -2,7 +2,7 @@
 """
 Copernican Suite - Main Orchestrator.
 """
-# DEV NOTE (v1.4.1): Added splash screen, per-run logging with timestamps, and
+# DEV NOTE (v1.5a): Updated version constants and documentation.
 # migrated the base model import to the new `lcdm.py` plugin file. Previous
 # refactor notes retained below for context.
 # DEV NOTE (v1.4): Refactored into a pluggable architecture. Models, parsers,
@@ -21,7 +21,7 @@ import shutil
 import glob
 import time
 
-COPERNICAN_VERSION = "1.4.1"
+COPERNICAN_VERSION = "1.5a"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
