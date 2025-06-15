@@ -1,5 +1,5 @@
 """Automated dependency installer for the Copernican Suite."""
-# DEV NOTE (v1.5d): Installs missing packages and restarts the suite.
+# DEV NOTE (v1.5e): Installs missing packages and restarts the suite.
 import os
 import subprocess
 import sys

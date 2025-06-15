@@ -2,7 +2,7 @@
 """
 Copernican Suite - Main Orchestrator.
 """
-# DEV NOTE (v1.5d): Loads the LCDM baseline from JSON and introduces an
+# DEV NOTE (v1.5e): Added Numba engine option and separated utilities into modules.
 # automatic dependency installer triggered by missing packages. Plugin
 # validation now occurs on the generated module.
 # Previous notes retained below for context.
@@ -27,7 +27,7 @@ import glob
 import time
 from scripts import model_parser, model_coder, engine_interface
 
-COPERNICAN_VERSION = "1.5d"
+COPERNICAN_VERSION = "1.5e"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""

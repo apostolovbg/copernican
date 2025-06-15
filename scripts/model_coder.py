@@ -1,5 +1,5 @@
 """Model coder that turns validated JSON into callable Python functions."""
-# DEV NOTE (v1.5d): Loads sanitized models from ``models/cache`` and stores the
+# DEV NOTE (v1.5e): Loads sanitized models from ``models/cache`` and stores the
 # generated SymPy expressions back to that cache.
 
 import json

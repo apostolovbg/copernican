@@ -1,5 +1,5 @@
-# DEV NOTE (v1.5d)
-Updated for Phase 4 completion and version bump to 1.5d.
+# DEV NOTE (v1.5e)
+Updated for Phase 5 completion and version bump to 1.5e.
 
 # Copernican Suite Refactoring Plan
 This document explains how the project will evolve from the current Markdown + Python plugin system to a cleaner architecture where cosmological models are described solely in JSON. All engines will load code generated on the fly.
@@ -76,3 +76,4 @@ Whenever a phase or bullet point is completed, insert a short note below it summ
 - **2025-06-18** – Phase 4 completed. Converted all models to JSON, removed legacy plugin files, and updated documentation.
 - **2025-06-18** – Added automatic dependency installation triggered by `copernican.py`.
 
+- **2025-06-19** – Phase 5 completed. Added Numba engine and split output utilities into separate modules.

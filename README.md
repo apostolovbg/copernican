@@ -1,8 +1,9 @@
 # Copernican Suite
-<!-- DEV NOTE (v1.5d): Updated for Phase 4, added automatic dependency installer and version bump. -->
+<!-- DEV NOTE (v1.5e): Updated for Phase 5, added Numba engine and modular utilities. -->
 
-**Version:** 1.5d
-**Last Updated:** 2025-06-18
+**Version:** 1.5e
+**Last Updated:** 2025-06-19
+engines/          - Computational backends (SciPy CPU by default, plus Numba)
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
 Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. It
@@ -41,8 +42,7 @@ Under the hood the program follows a clear pipeline:
    for both the ΛCDM reference and the alternative model.
 5. **BAO Analysis** – using the best-fit parameters the engine predicts BAO
    observables and computes chi-squared statistics.
-6. **Output Generation** – `output_manager.py` produces plots and detailed CSV
-   tables summarizing the results.
+6. **Output Generation** – `logger.py`, `plotter.py` and `csv_writer.py` handle logs, plots and tables.
 7. **Loop or Exit** – the user may evaluate another model or quit, at which
    point temporary cache files are cleaned automatically.
 
@@ -63,12 +63,15 @@ packages include `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`, `psutil` and
 ## Directory Layout
 ```
 models/           - JSON model definitions (Markdown optional)
-engines/          - Computational backends (SciPy CPU by default)
+engines/          - Computational backends (SciPy CPU and Numba)
 parsers/          - Data format parsers for SNe and BAO
 data/             - Example data files
 output/           - All generated results
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
+logger.py         - Logging setup and helpers
+plotter.py       - Plotting functions
+csv_writer.py    - CSV output helpers
 ```
 **Note:** Files in `data/` are treated as read-only reference datasets and
 should not be modified by AI-driven code changes.
