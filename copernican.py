@@ -2,8 +2,10 @@
 """
 Copernican Suite - Main Orchestrator.
 """
-# DEV NOTE (v1.5c): Added plugin validation through ``engine_interface`` and
-# bumped version to 1.5c. Previous notes retained below for context.
+# DEV NOTE (v1.5d): Loads the LCDM baseline from JSON and introduces an
+# automatic dependency installer triggered by missing packages. Plugin
+# validation now occurs on the generated module.
+# Previous notes retained below for context.
 # DEV NOTE (v1.4.1): Added splash screen, per-run logging with timestamps, and
 # migrated the base model import to the new `lcdm.py` plugin file.
 # DEV NOTE (v1.4): Refactored into a pluggable architecture. Models, parsers,
@@ -20,11 +22,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 import shutil
+import subprocess
 import glob
 import time
 from scripts import model_parser, model_coder, engine_interface
 
-COPERNICAN_VERSION = "1.5c"
+COPERNICAN_VERSION = "1.5d"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
@@ -49,39 +52,60 @@ def show_splash_screen():
 
 # --- System Dependency and Sanity Checker ---
 
-def check_dependencies():
-    """
-    Checks for all required Python and system dependencies.
-    Provides platform-specific installation instructions and exits if checks fail.
-    """
-    print("--- Running System Dependency Check ---")
-    errors = []
-    
-    required_libs = {
-        "numpy": "numpy",
-        "scipy": "scipy",
-        "matplotlib": "matplotlib",
-        "psutil": "psutil",
-        "sympy": "sympy",
-        "jsonschema": "jsonschema"
+def _gather_required_packages():
+    """Scan project files for imported modules."""
+    pkg_names = set()
+    search_dirs = ['.', 'scripts', 'engines', 'parsers']
+    for base in search_dirs:
+        for root, _, files in os.walk(base):
+            for fname in files:
+                if fname.endswith('.py'):
+                    with open(os.path.join(root, fname), 'r', encoding='utf-8') as f:
+                        for line in f:
+                            line = line.strip()
+                            if line.startswith('import '):
+                                parts = line.split()
+                                if len(parts) >= 2:
+                                    pkg_names.add(parts[1].split('.')[0])
+                            elif line.startswith('from '):
+                                parts = line.split()
+                                if len(parts) >= 2:
+                                    pkg_names.add(parts[1].split('.')[0])
+    ignore = {
+        'os', 'sys', 'time', 'json', 'logging', 'subprocess', 'importlib',
+        'multiprocessing', 'glob', 'shutil', 'platform', 'inspect', 'types',
+        'pathlib', 'builtins'
     }
-    for lib_import, lib_pip in required_libs.items():
-        try:
-            importlib.import_module(lib_import)
-        except ImportError:
-            errors.append(
-                f"- Python library '{lib_pip}' not found.\n"
-                f"  Instruction: pip install {lib_pip}"
-            )
-    
-    if errors:
-        print("\n❌ SYSTEM DEPENDENCY CHECK FAILED. The following issues were found:")
-        print("-" * 60)
-        for error in errors:
-            print(error)
-        print("-" * 60)
-        print("Please resolve the issues above and run the script again.")
-        sys.exit(1)
+    return {pkg for pkg in pkg_names if not pkg.startswith(('scripts', 'engines', 'parsers')) and pkg not in ignore}
+
+
+def _run_dep_installer(missing_pkgs):
+    """Launch the dependency installer in a new terminal window."""
+    installer = os.path.join(os.path.dirname(__file__), 'scripts', 'dep_install.py')
+    cmd_base = [sys.executable, installer] + list(missing_pkgs)
+    system = platform.system()
+    if system == 'Windows':
+        subprocess.Popen(['cmd', '/c', 'start', 'cmd', '/k'] + cmd_base)
+    elif system == 'Darwin':
+        subprocess.Popen(['osascript', '-e', f'tell application "Terminal" to do script "{" ".join(cmd_base)}"'])
+    else:
+        term = shutil.which('x-terminal-emulator') or shutil.which('xterm') or shutil.which('gnome-terminal') or shutil.which('konsole')
+        if term:
+            subprocess.Popen([term, '-e', ' '.join(cmd_base)])
+        else:
+            subprocess.Popen(cmd_base)
+    print('Missing dependencies installed in separate terminal. Restarting when done.')
+    sys.exit(0)
+
+
+def check_dependencies():
+    """Check for required packages and launch installer if any are missing."""
+    print("--- Running System Dependency Check ---")
+    required = _gather_required_packages()
+    missing = [pkg for pkg in required if importlib.util.find_spec(pkg) is None]
+    if missing:
+        print(f"Missing packages detected: {', '.join(missing)}")
+        _run_dep_installer(missing)
     else:
         print("✅ System Dependency Check Passed. Continuing...\n")
 
@@ -89,7 +113,8 @@ def check_dependencies():
 # Import sibling modules after the dependency check
 import data_loaders
 import output_manager
-from models import lcdm
+
+lcdm = None
 
 def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
     """Prompts the user for a filepath and validates it."""
@@ -190,7 +215,17 @@ def main_workflow():
 
     show_splash_screen()
 
-    # Ensure the built-in LCDM plugin conforms to the interface before running.
+    # Load the baseline LCDM model from JSON and validate it
+    def _load_lcdm_from_json():
+        models_dir = os.path.join(SCRIPT_DIR, 'models')
+        json_path = os.path.join(models_dir, 'cosmo_model_lcdm.json')
+        cache_dir = os.path.join(models_dir, 'cache')
+        cache_path = model_parser.parse_model_json(json_path, cache_dir)
+        func_dict, parsed = model_coder.generate_callables(cache_path)
+        return engine_interface.build_plugin(parsed, func_dict)
+
+    global lcdm
+    lcdm = _load_lcdm_from_json()
     engine_interface.validate_plugin(lcdm)
 
     while True:

@@ -4,7 +4,7 @@ version: "5.0"
 date: "2025-06-14"
 model_plugin: "usmf5.py"
 ---
-<!-- DEV NOTE (v1.5c): Added a Key Equations section and corrected formatting so the model parses correctly. -->
+<!-- DEV NOTE (v1.5d): Added a Key Equations section and corrected formatting so the model parses correctly. -->
 
 
 # Fixed-Size Filament Contraction Model (USMF) Version 5

@@ -1,0 +1,20 @@
+{
+  "dev_note": "v1.5d: Converted from Markdown/Plugin for JSON pipeline",
+  "model_name": "USMFv2",
+  "version": "2.0",
+  "parameters": [
+    {"name": "H_A", "python_var": "H_A", "initial_guess": 77.111, "bounds": [50.0, 100.0], "unit": "", "latex_name": "$H_A$"},
+    {"name": "p_alpha", "python_var": "p_alpha", "initial_guess": 0.4313, "bounds": [0.1, 1.5], "unit": "", "latex_name": "$p_{\\alpha}$"},
+    {"name": "k_exp", "python_var": "k_exp", "initial_guess": -0.3268, "bounds": [-2.0, 2.0], "unit": "", "latex_name": "$k_{exp}$"},
+    {"name": "s_exp", "python_var": "s_exp", "initial_guess": 1.1038, "bounds": [0.5, 2.0], "unit": "", "latex_name": "$s_{exp}$"},
+    {"name": "t0_age_Gyr", "python_var": "t0_age_Gyr", "initial_guess": 13.397, "bounds": [10.0, 20.0], "unit": "Gyr", "latex_name": "$t_{0,age}$"},
+    {"name": "A_osc", "python_var": "A_osc", "initial_guess": 0.0027088, "bounds": [0.0, 0.05], "unit": "", "latex_name": "$A_{osc}$"},
+    {"name": "omega_osc", "python_var": "omega_osc", "initial_guess": 2.3969, "bounds": [0.1, 10.0], "unit": "rad/log(time_ratio)", "latex_name": "$\\omega_{osc}$"},
+    {"name": "ti_osc_Gyr", "python_var": "ti_osc_Gyr", "initial_guess": 7.1399, "bounds": [1.0, 20.0], "unit": "Gyr", "latex_name": "$t_{i,osc}$"},
+    {"name": "phi_osc", "python_var": "phi_osc", "initial_guess": 0.10905, "bounds": [-3.1416, 3.1416], "unit": "rad", "latex_name": "$\\phi_{osc}$"}
+  ],
+  "equations": {
+    "get_Hz_per_Mpc": "H_A*(1+z)",
+    "distance_modulus_model": "5*sympy.log(1+z,10)*H_A"
+  }
+}
