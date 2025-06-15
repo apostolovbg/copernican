@@ -1,5 +1,5 @@
 """Model parser for Copernican Suite JSON models."""
-# DEV NOTE (v1.5c): Writes validated JSON models to the cache directory and
+# DEV NOTE (v1.5d): Writes validated JSON models to the cache directory and
 # reports errors through ``error_handler``.
 
 import json

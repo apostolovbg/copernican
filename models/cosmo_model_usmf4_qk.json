@@ -1,0 +1,14 @@
+{
+  "dev_note": "v1.5d: Converted from Markdown/Plugin for JSON pipeline",
+  "model_name": "USMFv4_QuantumKinematic",
+  "version": "4",
+  "parameters": [
+    {"name": "H0", "python_var": "H0", "initial_guess": 68.0, "bounds": [50, 80], "unit": "km/s/Mpc", "latex_name": "$H_0$"},
+    {"name": "Omega_m0", "python_var": "Omega_m0", "initial_guess": 0.3, "bounds": [0.1, 0.5], "unit": "", "latex_name": "$\\Omega_{m0}$"},
+    {"name": "Omega_b0", "python_var": "Omega_b0", "initial_guess": 0.0486, "bounds": [0.04, 0.06], "unit": "", "latex_name": "$\\Omega_{b0}$"}
+  ],
+  "equations": {
+    "get_Hz_per_Mpc": "H0*sympy.sqrt(Omega_m0*(1+z)**4 + (1-Omega_m0))",
+    "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
+  }
+}

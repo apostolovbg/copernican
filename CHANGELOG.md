@@ -1,5 +1,11 @@
 # Copernican Suite Change Log
-<!-- DEV NOTE (v1.5c): Added release notes for Phase 3 and bumped version. -->
+<!-- DEV NOTE (v1.5d): Added release notes for Phase 4 and bumped version. -->
+## Version 1.5d (Development Release)
+- Completed Phase 4: all models converted to JSON and legacy plugins removed.
+- Updated documentation and headers for version 1.5d.
+- Automatic dependency installer added and invoked by `copernican.py` when
+  packages are missing.
+
 ## Version 1.5c (Development Release)
 - Completed Phase 3: engine_interface now validates plugins and engines use the new abstraction layer.
 - Updated documentation and headers for version 1.5c.

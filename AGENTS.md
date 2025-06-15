@@ -1,5 +1,5 @@
-# DEV NOTE (v1.5c)
-This file was rewritten entirely to document the current Copernican Suite structure and the model plugin system introduced in version 1.4b.
+# DEV NOTE (v1.5d)
+Updated for Phase 4. Models are now defined solely in JSON and plugins are generated at runtime. Added automatic dependency installer.
 
 # Copernican Suite Development Guide
 
@@ -14,7 +14,7 @@ ensures the expected functions are present and callable.
 
 ## 2. Directory Layout
 ```
-models/           - Markdown definitions and Python plugins
+models/           - JSON model definitions (Markdown files optional)
 engines/          - Computational backends (SciPy CPU by default)
 parsers/          - Data format parsers for SNe and BAO
 data/             - Example data files
@@ -24,143 +24,52 @@ CHANGELOG.md      - Release history
 ```
 Files in `data/` are read-only and must not be modified by AI-driven changes.
 
-## 3. Model Plugin System (introduced in v1.4b)
-Each cosmological model consists of two files stored in `models/`:
-1. **Markdown definition** (`cosmo_model_name.md`)
-2. **Python plugin** (`name.py`)
+## 3. Dependency Installation
+`copernican.py` scans all project files for imported modules. If any required
+package is missing, it launches `scripts/dep_install.py` in a new terminal
+window. The installer uses `pip` to fetch the libraries and then restarts the
+suite automatically. This mechanism works on Windows, macOS and Linux so new
+engines can introduce additional dependencies without manual updates.
 
-### 3.1 Markdown Definition File
-The Markdown file is the single source of truth for parameters and equations. It must begin with a YAML front matter block containing `title`, `version`, `date`, and `model_plugin`. Directly after, include a section titled:
-```
-## Quantitative Model Specification for Copernican Suite
-```
-Within this section provide:
-- `### Key Equations` describing SNe and BAO formulas in LaTeX.
-- `### Model Parameters` containing a Markdown table with these headers exactly:
-  `Parameter Name`, `Python Variable`, `Initial Guess`, `Bounds`, `Unit`, `LaTeX Name`.
+## 4. JSON Model System
+As of version 1.5d every cosmological model is described by a single JSON file
+`cosmo_model_*.json`. Markdown files may accompany the JSON for human
+readability, but there are no permanent Python plugins in the repository.
 
-The files `models/cosmo_model_usmf3b.md` and `models/cosmo_model_lcdm.md` show fully compliant examples.
+### 4.1 JSON Model File
+The schema requires `model_name`, `version`, `parameters` and `equations`.
+Optional fields such as `unit` and `latex_name` provide additional context.
+`scripts/model_parser.py` validates the JSON and writes a sanitized copy to
+`models/cache/`. `scripts/model_coder.py` transforms the equations into NumPy
+callables. These callables are validated by `scripts/engine_interface.py` before
+being passed to the chosen engine.
 
-### 3.2 Python Plugin File
-The Python module referenced by `model_plugin` implements the numerical functions used by `cosmo_engine_1_4b.py`. It must define the following global variables:
-- `MODEL_NAME`
-- `MODEL_DESCRIPTION`
-- `MODEL_EQUATIONS_LATEX_SN`
-- `MODEL_EQUATIONS_LATEX_BAO`
-- `PARAMETER_NAMES`
-- `PARAMETER_LATEX_NAMES`
-- `PARAMETER_UNITS`
-- `INITIAL_GUESSES`
-- `PARAMETER_BOUNDS`
-- `FIXED_PARAMS`
+## 5. Creating a New Model
+1. Copy an existing `cosmo_model_*.json` file such as `cosmo_model_lcdm.json`.
+2. Edit the JSON fields to describe your model, following the schema above.
+3. Optionally provide a Markdown file with the same base name to document the
+   model for human readers.
 
-And it must implement these functions with the exact names and signatures:
-```python
-def distance_modulus_model(z_array, *cosmo_params):
-    ...
+### 5.1 JSON Template
+Use the following structure when creating new models:
 
-def get_comoving_distance_Mpc(z_array, *cosmo_params):
-    ...
-
-def get_luminosity_distance_Mpc(z_array, *cosmo_params):
-    ...
-
-def get_angular_diameter_distance_Mpc(z_array, *cosmo_params):
-    ...
-
-def get_Hz_per_Mpc(z_array, *cosmo_params):
-    ...
-
-def get_DV_Mpc(z_array, *cosmo_params):
-    ...
-
-def get_sound_horizon_rs_Mpc(*cosmo_params):
-    ...
-```
-Refer to `models/usmf3b.py` for a concise analytic implementation and `models/lcdm.py` for a more complex numerical example.
-
-## 4. Creating a New Model
-1. Copy `cosmo_model_usmf3b.md` and `usmf3b.py` as templates.
-2. Edit the Markdown file's YAML block and parameter table to describe the new model.
-3. Implement the Python plugin using the required variables and functions. The parameter lists must correspond exactly to the table in the Markdown file.
-4. Place both files in the `models/` directory. `copernican.py` will automatically discover them.
-5. Verify your plugin by running the checklist below.
-
-### 4.1 Markdown Template
-Use the following structure when creating `cosmo_model_*.md` files. The
-`model_plugin` field must reference the Python plugin and the
-`## Quantitative Model Specification for Copernican Suite` section must
-contain `### Key Equations` and a parameter table.
-
-```markdown
----
-title: "Model Name"
-version: "1.0"
-date: "2025-06-14"
-model_plugin: "model_name.py"
----
-
-## Quantitative Model Specification for Copernican Suite
-
-### Key Equations
-Provide LaTeX equations for SNe Ia and BAO here.
-
-### Model Parameters
-| Parameter Name | Python Variable | Initial Guess | Bounds | Unit | LaTeX Name |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| H0 | `H0` | 70.0 | (50.0, 100.0) | km/s/Mpc | `$H_0$` |
+```json
+{
+  "model_name": "My Model",
+  "version": "1.0",
+  "parameters": [
+    {"name": "H0", "python_var": "H0", "initial_guess": 70.0, "bounds": [50, 100]}
+  ],
+  "equations": {
+    "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
+  }
+}
 ```
 
-Append the **Internal Formatting Guide for Model Definition Files** after
-your model description so future developers understand the format.
+`model_parser.py` and `model_coder.py` handle validation and code generation
+automatically; no manual Python implementation is required.
 
-### 4.2 Python Plugin Skeleton
-The matching Python module must define all global metadata variables and
-implement the interface functions exactly as shown below:
-
-```python
-MODEL_NAME = "My Model"
-MODEL_DESCRIPTION = "Short summary."
-MODEL_EQUATIONS_LATEX_SN = []
-MODEL_EQUATIONS_LATEX_BAO = []
-PARAMETER_NAMES = []
-PARAMETER_LATEX_NAMES = []
-PARAMETER_UNITS = []
-INITIAL_GUESSES = []
-PARAMETER_BOUNDS = []
-FIXED_PARAMS = {}
-
-def distance_modulus_model(z_array, *params):
-    pass
-
-def get_comoving_distance_Mpc(z_array, *params):
-    pass
-
-def get_luminosity_distance_Mpc(z_array, *params):
-    pass
-
-def get_angular_diameter_distance_Mpc(z_array, *params):
-    pass
-
-def get_Hz_per_Mpc(z_array, *params):
-    pass
-
-def get_DV_Mpc(z_array, *params):
-    pass
-
-def get_sound_horizon_rs_Mpc(*params):
-    pass
-```
-
-Ensure the parameter order matches the Markdown table exactly.
-
-### Verification Checklist
-- Does the `.py` file define all required global variables?
-- Are `distance_modulus_model`, `get_comoving_distance_Mpc`, `get_luminosity_distance_Mpc`, `get_angular_diameter_distance_Mpc`, `get_Hz_per_Mpc`, `get_DV_Mpc`, and `get_sound_horizon_rs_Mpc` implemented?
-- Do the parameter lists match the Markdown table?
-- Can `copernican.py` run with the new model without raising import errors?
-
-## 5. Development Protocol
+## 6. Development Protocol
 To keep the project maintainable all contributors, human or AI, must follow these rules:
 1. **Add a `DEV NOTE` at the top of each changed file** summarizing your modifications.
 2. **Comment code extensively** to explain non-obvious logic or algorithms.

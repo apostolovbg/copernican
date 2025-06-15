@@ -1,8 +1,8 @@
 # Copernican Suite
-<!-- DEV NOTE (v1.5c): Updated for Phase 3 with engine interface validation and version bump. -->
+<!-- DEV NOTE (v1.5d): Updated for Phase 4, added automatic dependency installer and version bump. -->
 
-**Version:** 1.5c
-**Last Updated:** 2025-06-17
+**Version:** 1.5d
+**Last Updated:** 2025-06-18
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
 Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. It
@@ -31,13 +31,12 @@ simple command line interface. Results are saved as plots and CSV files in the
 `./output/` directory.
 
 Under the hood the program follows a clear pipeline:
-1. **Dependency Check** – `copernican.py` verifies that all required Python
-   libraries are installed.
+1. **Dependency Check** – `copernican.py` scans for required packages and
+   installs any that are missing before continuing.
 2. **Initialization** – the output directory is created and logging begins.
 3. **Configuration** – the user chooses a model, an engine from `./engines/`,
-   and data parsers for SNe Ia and BAO. Models are discovered from
-   `cosmo_model_*.md` files and automatically import their matching Python
-   plugin.
+  and data parsers for SNe Ia and BAO. Models are discovered from
+  `cosmo_model_*.json` files which are converted into Python code on the fly.
 4. **SNe Ia Fitting** – the selected engine estimates cosmological parameters
    for both the ΛCDM reference and the alternative model.
 5. **BAO Analysis** – using the best-fit parameters the engine predicts BAO
@@ -48,16 +47,22 @@ Under the hood the program follows a clear pipeline:
    point temporary cache files are cleaned automatically.
 
 ## Quick Start
-1. Ensure Python 3 with `numpy`, `scipy`, `matplotlib` and `psutil` is
-   installed.
+1. Ensure Python 3 is available. The suite requires `numpy`, `scipy`,
+   `matplotlib`, `pandas`, `sympy`, `psutil` and `jsonschema`. Missing packages
+   are installed automatically when the program starts.
 2. Run `python3 copernican.py` and follow the prompts to choose a model, data
    files and engine.
 3. Plots and CSV results will appear in the `output/` folder when the run
    completes.
 
+## Dependencies
+The suite automatically installs any missing Python packages at startup. Current
+packages include `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`, `psutil` and
+`jsonschema`. Future engines may also depend on `numba` or GPU libraries.
+
 ## Directory Layout
 ```
-models/           - Markdown definitions and Python plugins
+models/           - JSON model definitions (Markdown optional)
 engines/          - Computational backends (SciPy CPU by default)
 parsers/          - Data format parsers for SNe and BAO
 data/             - Example data files
@@ -78,18 +83,14 @@ should not be modified by AI-driven code changes.
   are cleaned automatically.
 
 ## Creating New Models
-Model definition previously followed a two-file system. As of version 1.5c you
-may also supply a single JSON file. Details are in `AGENTS.md`:
-1. **Markdown file** (`cosmo_model_name.md`) describing equations and providing
-   a table of parameters. Each model file should conclude with the *Internal
-   Formatting Guide for Model Definition Files* so contributors understand the
-   required structure.
-2. **Python plugin** implementing the required functions listed in `AGENTS.md`.
-   Place this module in the `models` package and reference its filename in the
-   Markdown front matter under `model_plugin`.
-3. **JSON file** (`cosmo_model_name.json`) following the schema below. The suite
-   validates the file, stores a sanitized copy under `models/cache/`, and
-   auto-generates the required Python functions.
+All models are now provided as a single JSON file. Markdown files can still be
+included for explanatory text but are not required. To create a new model:
+1. Copy an existing `cosmo_model_*.json` file and edit the fields to describe
+   your theory.
+2. Optionally create `cosmo_model_name.md` to document the equations in LaTeX so
+   other researchers can read them easily.
+The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
+auto-generates the necessary Python functions.
 
 ### JSON Schema
 ```json
@@ -124,7 +125,8 @@ Failure to follow these rules will compromise the maintainability of the
 Copernican Suite.
 ## 4. Workflow Overview
 
-1.  **Dependency Check**: `copernican.py` first verifies all required Python libraries are available.
+1.  **Dependency Check**: `copernican.py` scans for missing packages and launches
+    an installer if necessary before continuing.
 2.  **Initialization**: The script starts and creates the `./output/` directory for all results.
 3.  **Configuration**: The user specifies the file paths for the model and data files.
     -   **Test Mode**: A user can enter `test` to run ΛCDM against itself, providing a quick way to test the full analysis pipeline.

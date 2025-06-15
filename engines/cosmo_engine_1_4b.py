@@ -3,7 +3,7 @@
 Cosmological Engine for the Copernican Suite.
 Relies on SciPy/NumPy for all computations.
 """
-# DEV NOTE (v1.5c): Integrated with ``engine_interface`` to validate model
+# DEV NOTE (v1.5d): Integrated with ``engine_interface`` to validate model
 # plugins before use.
 
 import numpy as np
