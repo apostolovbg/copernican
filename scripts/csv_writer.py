@@ -1,5 +1,5 @@
 """CSV output utilities for Copernican Suite."""
-# DEV NOTE (v1.5b): Skeleton module created during Phase 0.
+# DEV NOTE (v1.5c): Skeleton module retained from Phase 0.
 
 def write_csv(filepath, data_frame):
     """Placeholder CSV writer."""

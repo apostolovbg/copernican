@@ -1,5 +1,5 @@
 """Centralized error handling utilities for the Copernican Suite."""
-# DEV NOTE (v1.5b): Skeleton error reporting helper added in Phase 0.
+# DEV NOTE (v1.5c): Error reporting helper from Phase 0.
 import logging
 
 def report_error(message):

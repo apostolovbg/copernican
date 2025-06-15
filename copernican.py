@@ -2,8 +2,8 @@
 """
 Copernican Suite - Main Orchestrator.
 """
-# DEV NOTE (v1.5b): Pipeline hooks added for new `scripts` package. Previous
-# notes retained below for context.
+# DEV NOTE (v1.5c): Updated version constant and documentation for the
+# engine abstraction layer. Previous notes retained below for context.
 # DEV NOTE (v1.4.1): Added splash screen, per-run logging with timestamps, and
 # migrated the base model import to the new `lcdm.py` plugin file. Previous
 # refactor notes retained below for context.
@@ -23,7 +23,7 @@ import shutil
 import glob
 import time
 
-COPERNICAN_VERSION = "1.5b"
+COPERNICAN_VERSION = "1.5c"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""

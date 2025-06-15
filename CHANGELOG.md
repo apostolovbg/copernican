@@ -1,5 +1,10 @@
 # Copernican Suite Change Log
-# DEV NOTE (v1.5b): Recorded Phase 2 completion and version bump.
+# DEV NOTE (v1.5c): Documented Phase 3 engine abstraction and version bump.
+## Version 1.5c (Development)
+- Implemented engine abstraction layer via `engine_interface`.
+- Refactored `cosmo_engine_1_4b.py` to accept model dictionaries.
+- Updated documentation and version metadata for the 1.5c cycle.
+
 ## Version 1.5b (Development)
 - Implemented DSL parser validation and new `model_compiler.py` replacing
   `model_compiler.py`.

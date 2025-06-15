@@ -1,4 +1,4 @@
-# DEV NOTE (v1.5b)
+# DEV NOTE (v1.5c)
 This file was rewritten entirely to document the current Copernican Suite structure and the model plugin system introduced in version 1.4b.
 
 # Copernican Suite Development Guide
@@ -8,7 +8,9 @@ This document is the authoritative reference for contributors and AI systems wor
 ## 1. Program Overview
 The suite evaluates cosmological models against SNe Ia and BAO data. Users interact with `copernican.py`, choose a model from `./models/`, pick a computational engine from `./engines/` and select data parsers from `./parsers/`. Results are saved under `./output/`.
 
-The default engine is `engines/cosmo_engine_1_4b.py`. It imports a model's Python plugin based on the `model_plugin` field of a Markdown definition file.
+The default engine is `engines/cosmo_engine_1_4b.py`. Starting with version 1.5c
+an `engine_interface` module validates model callables before handing them to the
+engine. Legacy plugins are still supported through this layer.
 
 ## 2. Directory Layout
 ```

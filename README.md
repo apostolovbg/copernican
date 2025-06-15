@@ -1,8 +1,8 @@
 # Copernican Suite
-# DEV NOTE (v1.5b): Updated documentation for the new modular pipeline and JSON DSL.
+# DEV NOTE (v1.5c): Documented engine abstraction layer and version bump.
 
-**Version:** 1.5b
-**Last Updated:** 2025-06-16
+**Version:** 1.5c
+**Last Updated:** 2025-06-17
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
 Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. It

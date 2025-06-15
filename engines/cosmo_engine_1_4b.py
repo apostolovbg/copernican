@@ -3,13 +3,29 @@
 Cosmological Engine for the Copernican Suite.
 Relies on SciPy/NumPy for all computations.
 """
+# DEV NOTE (v1.5c): Refactored to accept model dictionaries provided by
+# `engine_interface`. Legacy plugin objects are still supported for
+# backward compatibility.
 
 import numpy as np
 from scipy.optimize import minimize
-from scipy.linalg import LinAlgError 
+from scipy.linalg import LinAlgError
 import sys
 import time
 import logging
+
+
+def _get_attr(model, attr, default=None):
+    """Safely fetch attribute from either dict or object."""
+    if isinstance(model, dict):
+        return model.get(attr, default)
+    return getattr(model, attr, default)
+
+
+def _get_callable(model, name):
+    """Return a callable attribute if available, else None."""
+    func = _get_attr(model, name)
+    return func if callable(func) else None
 
 # --- Constants for SNe H2-style (SALT2 nuisance parameter fitting) ---
 SALT2_NUISANCE_PARAMS_INIT = {
@@ -158,12 +174,13 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
     num_valid_points = 0
 
     try:
-        get_DM_model = getattr(model_plugin, "get_comoving_distance_Mpc")
-        get_Hz_model = getattr(model_plugin, "get_Hz_per_Mpc")
-        get_DV_model_specific = getattr(model_plugin, "get_DV_Mpc", None)
-        C_LIGHT = model_plugin.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458) 
-    except AttributeError as e:
-        logger.error(f"(chi2_bao): Model plugin '{model_plugin.MODEL_NAME}' missing required function: {e}")
+        get_DM_model = _get_callable(model_plugin, "get_comoving_distance_Mpc")
+        get_Hz_model = _get_callable(model_plugin, "get_Hz_per_Mpc")
+        get_DV_model_specific = _get_callable(model_plugin, "get_DV_Mpc")
+        C_LIGHT = _get_attr(model_plugin, "FIXED_PARAMS", {}).get("C_LIGHT_KM_S", 299792.458)
+    except Exception as e:
+        name = _get_attr(model_plugin, 'MODEL_NAME', 'UnknownModel')
+        logger.error(f"(chi2_bao): Model '{name}' missing required function: {e}")
         return np.inf
 
     for index, row in bao_data_df.iterrows():
@@ -222,13 +239,13 @@ def fit_sne_parameters(sne_data_df, model_plugin):
     logger = logging.getLogger()
     fit_style = sne_data_df.attrs.get('fit_style', 'unknown')
     dataset_name = sne_data_df.attrs.get('dataset_name_attr', 'UnknownSNeDataset')
-    model_name_str = getattr(model_plugin, 'MODEL_NAME', 'UnknownModel')
+    model_name_str = _get_attr(model_plugin, 'MODEL_NAME', 'UnknownModel')
 
     logger.info(f"\n--- Fitting SNe Ia ({dataset_name}, Style: {fit_style}) for Model: {model_name_str} ---")
 
-    cosmo_param_names = getattr(model_plugin, 'PARAMETER_NAMES', [])
-    initial_cosmo_params = list(getattr(model_plugin, 'INITIAL_GUESSES', []))
-    cosmo_param_bounds = list(getattr(model_plugin, 'PARAMETER_BOUNDS', []))
+    cosmo_param_names = list(_get_attr(model_plugin, 'PARAMETER_NAMES', []))
+    initial_cosmo_params = list(_get_attr(model_plugin, 'INITIAL_GUESSES', []))
+    cosmo_param_bounds = list(_get_attr(model_plugin, 'PARAMETER_BOUNDS', []))
     num_cosmo_params = len(initial_cosmo_params)
 
     if not (cosmo_param_names and initial_cosmo_params and cosmo_param_bounds and len(cosmo_param_names) == num_cosmo_params and len(cosmo_param_bounds) == num_cosmo_params):
@@ -236,7 +253,7 @@ def fit_sne_parameters(sne_data_df, model_plugin):
         return {'success': False, 'message': "Model parameter definition error.", 'chi2_min': np.inf}
 
     logger.info(f"Using standard Python (SciPy) function for '{model_name_str}'.")
-    selected_mu_func = model_plugin.distance_modulus_model
+    selected_mu_func = _get_callable(model_plugin, 'distance_modulus_model')
 
     current_initial_params = list(initial_cosmo_params)
     current_param_bounds = list(cosmo_param_bounds)
@@ -372,7 +389,7 @@ def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params, z_smooth=
     Also calculates smooth curves for plotting if z_smooth is provided.
     """
     logger = logging.getLogger()
-    model_name = model_plugin.MODEL_NAME
+    model_name = _get_attr(model_plugin, 'MODEL_NAME', 'UnknownModel')
     
     # --- Part 1: Calculate for BAO data points ---
     bao_pred_df = bao_data_df.copy()
@@ -382,7 +399,7 @@ def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params, z_smooth=
     logger.info(f"Calculating BAO observables for {model_name} with parameters: [{param_str}]")
 
     try:
-        model_rs_Mpc = model_plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
+        model_rs_Mpc = _get_callable(model_plugin, 'get_sound_horizon_rs_Mpc')(*cosmo_params)
         if not (np.isfinite(model_rs_Mpc) and model_rs_Mpc > 0):
             logger.warning(f"Model '{model_name}' returned invalid r_s ({model_rs_Mpc:.3f} Mpc). BAO calculations will be NaN.")
             return bao_pred_df, np.nan, None
@@ -393,12 +410,12 @@ def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params, z_smooth=
     logger.info(f"Successfully calculated r_s for {model_name}: {model_rs_Mpc:.3f} Mpc")
     
     try:
-        get_DM_model = getattr(model_plugin, "get_comoving_distance_Mpc")
-        get_Hz_model = getattr(model_plugin, "get_Hz_per_Mpc")
-        get_DV_model_specific = getattr(model_plugin, "get_DV_Mpc", None)
-        get_DA_model = getattr(model_plugin, "get_angular_diameter_distance_Mpc")
-        C_LIGHT = model_plugin.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458)
-    except AttributeError as e:
+        get_DM_model = _get_callable(model_plugin, "get_comoving_distance_Mpc")
+        get_Hz_model = _get_callable(model_plugin, "get_Hz_per_Mpc")
+        get_DV_model_specific = _get_callable(model_plugin, "get_DV_Mpc")
+        get_DA_model = _get_callable(model_plugin, "get_angular_diameter_distance_Mpc")
+        C_LIGHT = _get_attr(model_plugin, "FIXED_PARAMS", {}).get("C_LIGHT_KM_S", 299792.458)
+    except Exception as e:
         logger.error(f"Model plugin '{model_name}' missing required function for BAO: {e}")
         return bao_pred_df, model_rs_Mpc, None
 

@@ -1,4 +1,4 @@
-# DEV NOTE (v1.5b)
+# DEV NOTE (v1.5c)
 Updated for Phase 0 and Phase 1 completion. Added pipeline skeleton modules and
 documented the new JSON DSL with an example model file.
 
@@ -75,6 +75,10 @@ complete Phase 1 for version 1.5a.
 3. **Pluggable engines**
    - Standardize an interface so additional engines (Numba, OpenCL, etc.) can
      drop in without altering model definitions.
+
+**Progress:** Phase 3 implemented in version 1.5c. `engine_interface.py` now
+validates model dictionaries and dispatches them to `cosmo_engine_1_4b.py`,
+which was refactored accordingly.
 
 ## Phase 4 – Incremental Migration of Models
 1. **Convert Markdown models**
