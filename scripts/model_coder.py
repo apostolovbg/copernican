@@ -1,5 +1,6 @@
 """Model coder that turns validated JSON into callable Python functions."""
 # DEV NOTE (v1.5e): Loads sanitized models from ``models/cache`` and stores the
+# DEV NOTE (v1.5e hotfix): Allow sympy-prefixed expressions by mapping "sympy" to SymPy.
 # generated SymPy expressions back to that cache.
 
 import json
@@ -29,6 +30,8 @@ def generate_callables(cache_path):
     param_syms = [sp.symbols(p['python_var']) for p in model_data['parameters']]
     local_dict = {p['python_var']: sym for p, sym in zip(model_data['parameters'], param_syms)}
     local_dict['z'] = z
+    # Allow JSON equations to reference the full 'sympy' prefix as well as shorthand
+    local_dict['sympy'] = sp
 
     funcs = {}
     code_dict = {}
