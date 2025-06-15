@@ -32,6 +32,10 @@ the following helper modules:
 Cache files will be retained until the end of a run, at which point the user may
 choose to delete them. This pipeline keeps each component focused and makes the
 engines truly pluggable.
+Added an initial roadmap for replacing model `.py` files with a JSON-based DSL and pluggable engines. This file will track progress as phases are completed.
+
+# Development Roadmap
+This document outlines the steps required to refactor the Copernican Suite so that cosmological models are defined entirely in a domain specific language (DSL). Engines become black-box components that consume compiled models. After completing each phase or step, update the corresponding section with an explanation of how it was achieved.
 
 ## Phase 1 – Define the Model DSL
 1. **Design the JSON schema**
@@ -66,6 +70,24 @@ engines truly pluggable.
 3. **Pluggable engines**
    - Standardize an interface so additional engines (Numba, OpenCL, etc.) can
      drop in without altering model definitions.
+=======
+2. **Draft example JSON models**
+   - Convert an existing Markdown+Python model into JSON as a template.
+   - Document the schema in `README.md` so contributors can easily create new models.
+
+## Phase 2 – Implement a DSL Parser/Compiler
+1. **Create `model_compiler.py`**
+   - Load and validate JSON files against the schema.
+   - Parse equations with SymPy and generate Python callables that match the current engine interface.
+2. **Error handling and robustness**
+   - Provide clear messages for missing fields or malformed equations.
+   - Guard against division by zero and other numerical pitfalls when compiling wild theories.
+
+## Phase 3 – Engine Abstraction Layer
+1. **Refactor existing engine**
+   - Modify `cosmo_engine_1_4b.py` to accept compiled model objects instead of importing Python plugins directly.
+2. **Pluggable engines**
+   - Standardize an interface so additional engines (Numba, OpenCL, etc.) can drop in without altering model definitions.
 
 ## Phase 4 – Incremental Migration of Models
 1. **Convert Markdown models**
