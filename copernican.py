@@ -2,8 +2,8 @@
 """
 Copernican Suite - Main Orchestrator.
 """
-# DEV NOTE (v1.5b): Refined JSON pipeline with cache handling and improved error
-# reporting. Previous notes retained below for context.
+# DEV NOTE (v1.5c): Added plugin validation through ``engine_interface`` and
+# bumped version to 1.5c. Previous notes retained below for context.
 # DEV NOTE (v1.4.1): Added splash screen, per-run logging with timestamps, and
 # migrated the base model import to the new `lcdm.py` plugin file.
 # DEV NOTE (v1.4): Refactored into a pluggable architecture. Models, parsers,
@@ -24,7 +24,7 @@ import glob
 import time
 from scripts import model_parser, model_coder, engine_interface
 
-COPERNICAN_VERSION = "1.5b"
+COPERNICAN_VERSION = "1.5c"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
@@ -115,9 +115,8 @@ def load_alternative_model_plugin(model_filepath):
         spec = importlib.util.spec_from_file_location(module_name, model_filepath)
         alt_model_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(alt_model_module)
-        required_attrs = ['MODEL_NAME', 'PARAMETER_NAMES', 'INITIAL_GUESSES', 'PARAMETER_BOUNDS', 'distance_modulus_model']
-        if not all(hasattr(alt_model_module, attr) for attr in required_attrs):
-            logger.error(f"Model plugin '{os.path.basename(model_filepath)}' missing required attributes.")
+        if not engine_interface.validate_plugin(alt_model_module):
+            logger.error(f"Model plugin '{os.path.basename(model_filepath)}' failed validation.")
             return None
         logger.info(f"Successfully loaded alternative model: {alt_model_module.MODEL_NAME}")
         return alt_model_module
@@ -190,6 +189,9 @@ def main_workflow():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     show_splash_screen()
+
+    # Ensure the built-in LCDM plugin conforms to the interface before running.
+    engine_interface.validate_plugin(lcdm)
 
     while True:
         log_file = output_manager.setup_logging(log_dir=OUTPUT_DIR)

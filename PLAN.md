@@ -1,4 +1,4 @@
-# DEV NOTE (v1.5b)
+# DEV NOTE (v1.5c)
 Replaced the previous roadmap with a more detailed plan covering the new JSON-based model system, pipeline, and staged migration.
 
 # Copernican Suite Refactoring Plan
@@ -72,4 +72,5 @@ Whenever a phase or bullet point is completed, insert a short note below it summ
 - **2025-06-15** – Phase 0 implemented. `copernican.py` now detects JSON model files and processes them through the new `scripts/` pipeline.
 - **2025-06-15** – Phase 1 completed. Created `model_parser.py`, `model_coder.py`, and `engine_interface.py`; added an example JSON model and documented the schema in `README.md`.
 - **2025-06-16** – Phase 2 completed. Parser now writes sanitized models to `models/cache/`; coder loads from cache, generates functions with sanity checks, and updates the cache.
+- **2025-06-17** – Phase 3 completed. Added plugin validation in `engine_interface.py` and updated `copernican.py` and `cosmo_engine_1_4b.py` to use the interface.
 

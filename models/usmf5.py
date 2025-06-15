@@ -3,7 +3,7 @@
 Fixed-Size Filament Contraction Model (USMF) Version 5 Plugin for the
 Copernican Suite.
 """
-# DEV NOTE (v1.5b): Refactored to comply with the plugin specification.
+# DEV NOTE (v1.5c): Refactored to comply with the plugin specification.
 # Added required metadata variables, removed incorrect imports and
 # renamed functions to the standard names expected by the engine.
 

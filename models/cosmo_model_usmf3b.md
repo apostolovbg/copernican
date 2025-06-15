@@ -1,4 +1,4 @@
-<!-- DEV NOTE (v1.5b): Removed duplicated bullet line in documentation. -->
+<!-- DEV NOTE (v1.5c): Removed duplicated bullet line in documentation. -->
 ---
 title: "The Unified Shrinking Matter Framework (USMF) Version 3b - Kinematic"
 version: "3.0b"
