@@ -1,5 +1,5 @@
 """Compile sanitized model data into executable Python callables."""
-# DEV NOTE (v1.5c): Initial SymPy compiler with basic
+# DEV NOTE (v1.5d): Initial SymPy compiler with basic
 # validation and safety checks from Phase 2.
 
 import json

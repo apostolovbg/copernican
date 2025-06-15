@@ -1,5 +1,5 @@
-# DEV NOTE (v1.5c)
-This file was rewritten entirely to document the current Copernican Suite structure and the model plugin system introduced in version 1.4b.
+# DEV NOTE (v1.5d)
+Updated to reflect Phase 4 migration to the JSON model DSL. Legacy plugin guidance is retained for backward compatibility.
 
 # Copernican Suite Development Guide
 
@@ -8,13 +8,13 @@ This document is the authoritative reference for contributors and AI systems wor
 ## 1. Program Overview
 The suite evaluates cosmological models against SNe Ia and BAO data. Users interact with `copernican.py`, choose a model from `./models/`, pick a computational engine from `./engines/` and select data parsers from `./parsers/`. Results are saved under `./output/`.
 
-The default engine is `engines/cosmo_engine_1_4b.py`. Starting with version 1.5c
+The default engine is `engines/cosmo_engine_1_4b.py`. Starting with version 1.5d
 an `engine_interface` module validates model callables before handing them to the
 engine. Legacy plugins are still supported through this layer.
 
 ## 2. Directory Layout
 ```
-models/           - Markdown definitions and Python plugins
+models/           - JSON model definitions and legacy Python plugins
 engines/          - Computational backends (SciPy CPU by default)
 parsers/          - Data format parsers for SNe and BAO
 data/             - Example data files
@@ -79,86 +79,63 @@ def get_sound_horizon_rs_Mpc(*cosmo_params):
 ```
 Refer to `models/usmf3b.py` for a concise analytic implementation and `models/lcdm.py` for a more complex numerical example.
 
+## 3.3 JSON Model DSL (introduced in v1.5d)
+Models can now be defined entirely in JSON without accompanying Python code. A
+`cosmo_model_name.json` file contains:
+```
+{
+  "model_name": "Example",
+  "version": "1.0",
+  "date": "2025-06-18",
+  "parameters": [{"name": "H0", "latex": "$H_0$", "guess": 70.0,
+                   "bounds": [50,100], "unit": "km/s/Mpc"}],
+  "equations": {"sne": ["mu = ..."], "bao": ["D_V = ..."]},
+  "constants": {"C_LIGHT_KM_S": 299792.458}
+}
+```
+The parser validates this schema and caches a sanitized copy in `models/cache/`.
+`model_compiler.py` then converts the equations into callables consumed by the
+engines.
+
 ## 4. Creating a New Model
-1. Copy `cosmo_model_usmf3b.md` and `usmf3b.py` as templates.
-2. Edit the Markdown file's YAML block and parameter table to describe the new model.
-3. Implement the Python plugin using the required variables and functions. The parameter lists must correspond exactly to the table in the Markdown file.
-4. Place both files in the `models/` directory. `copernican.py` will automatically discover them.
-5. Verify your plugin by running the checklist below.
+1. Copy an existing `cosmo_model_*.json` as a template and edit the metadata,
+   parameter list and equation strings.
+2. Place the JSON file in the `models/` directory. Legacy Markdown and plugin
+   pairs are still loaded if present but are no longer required.
+3. Run `model_parser.py` to validate the file and generate a cache entry.
+4. Execute `model_compiler.py` on the cached file to produce engine-ready
+   callables.
+5. Verify the new model using the checklist below.
 
-### 4.1 Markdown Template
-Use the following structure when creating `cosmo_model_*.md` files. The
-`model_plugin` field must reference the Python plugin and the
-`## Quantitative Model Specification for Copernican Suite` section must
-contain `### Key Equations` and a parameter table.
+### 4.1 JSON Template
+Use the following structure when creating `cosmo_model_*.json` files.
 
-```markdown
----
-title: "Model Name"
-version: "1.0"
-date: "2025-06-14"
-model_plugin: "model_name.py"
----
-
-## Quantitative Model Specification for Copernican Suite
-
-### Key Equations
-Provide LaTeX equations for SNe Ia and BAO here.
-
-### Model Parameters
-| Parameter Name | Python Variable | Initial Guess | Bounds | Unit | LaTeX Name |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| H0 | `H0` | 70.0 | (50.0, 100.0) | km/s/Mpc | `$H_0$` |
+```json
+{
+  "model_name": "Model Name",
+  "version": "1.0",
+  "date": "2025-06-18",
+  "parameters": [
+    {"name": "H0", "latex": "$H_0$", "guess": 70.0,
+     "bounds": [50.0, 100.0], "unit": "km/s/Mpc"}
+  ],
+  "equations": {
+    "sne": ["mu = ..."],
+    "bao": ["D_V = ..."]
+  },
+  "constants": {
+    "C_LIGHT_KM_S": 299792.458
+  }
+}
 ```
 
-Append the **Internal Formatting Guide for Model Definition Files** after
-your model description so future developers understand the format.
-
-### 4.2 Python Plugin Skeleton
-The matching Python module must define all global metadata variables and
-implement the interface functions exactly as shown below:
-
-```python
-MODEL_NAME = "My Model"
-MODEL_DESCRIPTION = "Short summary."
-MODEL_EQUATIONS_LATEX_SN = []
-MODEL_EQUATIONS_LATEX_BAO = []
-PARAMETER_NAMES = []
-PARAMETER_LATEX_NAMES = []
-PARAMETER_UNITS = []
-INITIAL_GUESSES = []
-PARAMETER_BOUNDS = []
-FIXED_PARAMS = {}
-
-def distance_modulus_model(z_array, *params):
-    pass
-
-def get_comoving_distance_Mpc(z_array, *params):
-    pass
-
-def get_luminosity_distance_Mpc(z_array, *params):
-    pass
-
-def get_angular_diameter_distance_Mpc(z_array, *params):
-    pass
-
-def get_Hz_per_Mpc(z_array, *params):
-    pass
-
-def get_DV_Mpc(z_array, *params):
-    pass
-
-def get_sound_horizon_rs_Mpc(*params):
-    pass
-```
-
-Ensure the parameter order matches the Markdown table exactly.
+The parser will reject files missing required fields or malformed equations.
 
 ### Verification Checklist
-- Does the `.py` file define all required global variables?
-- Are `distance_modulus_model`, `get_comoving_distance_Mpc`, `get_luminosity_distance_Mpc`, `get_angular_diameter_distance_Mpc`, `get_Hz_per_Mpc`, `get_DV_Mpc`, and `get_sound_horizon_rs_Mpc` implemented?
-- Do the parameter lists match the Markdown table?
-- Can `copernican.py` run with the new model without raising import errors?
+- Does the JSON file include `model_name`, `version`, `date`, `parameters`, and `equations`?
+- Do parameter objects provide `name`, `latex`, `guess`, `bounds`, and `unit`?
+- Does `model_compiler.py` successfully generate callables from the cached JSON?
+- Can `copernican.py` run with the compiled model without errors?
 
 ## 5. Development Protocol
 To keep the project maintainable all contributors, human or AI, must follow these rules:

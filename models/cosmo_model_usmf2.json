@@ -1,0 +1,124 @@
+{
+  "model_name": "USMF_V2",
+  "version": "1.0",
+  "date": "2025-06-18",
+  "parameters": [
+    {
+      "name": "H_A",
+      "latex": "$H_A$",
+      "guess": 77.111,
+      "bounds": [
+        50.0,
+        100.0
+      ],
+      "unit": ""
+    },
+    {
+      "name": "p_alpha",
+      "latex": "$p_{\\alpha}$",
+      "guess": 0.4313,
+      "bounds": [
+        0.1,
+        1.5
+      ],
+      "unit": ""
+    },
+    {
+      "name": "k_exp",
+      "latex": "$k_{exp}$",
+      "guess": -0.3268,
+      "bounds": [
+        -2.0,
+        2.0
+      ],
+      "unit": ""
+    },
+    {
+      "name": "s_exp",
+      "latex": "$s_{exp}$",
+      "guess": 1.1038,
+      "bounds": [
+        0.5,
+        2.0
+      ],
+      "unit": ""
+    },
+    {
+      "name": "t0_age_Gyr",
+      "latex": "$t_{0,age}$",
+      "guess": 13.397,
+      "bounds": [
+        10.0,
+        20.0
+      ],
+      "unit": "Gyr"
+    },
+    {
+      "name": "A_osc",
+      "latex": "$A_{osc}$",
+      "guess": 0.0027088,
+      "bounds": [
+        0.0,
+        0.05
+      ],
+      "unit": ""
+    },
+    {
+      "name": "omega_osc",
+      "latex": "$\\omega_{osc}$",
+      "guess": 2.3969,
+      "bounds": [
+        0.1,
+        10.0
+      ],
+      "unit": "rad/log(time_ratio)"
+    },
+    {
+      "name": "ti_osc_Gyr",
+      "latex": "$t_{i,osc}$",
+      "guess": 7.1399,
+      "bounds": [
+        1.0,
+        20.0
+      ],
+      "unit": "Gyr"
+    },
+    {
+      "name": "phi_osc",
+      "latex": "$\\phi_{osc}$",
+      "guess": 0.10905,
+      "bounds": [
+        -3.141592653589793,
+        3.141592653589793
+      ],
+      "unit": "rad"
+    }
+  ],
+  "equations": {
+    "sne": [
+      "$1+z = \\alpha(t_e) / \\alpha(t_0)$",
+      "$r = \\int_{t_e}^{t_0} \\frac{c}{\\alpha(t')} dt'$",
+      "$d_L(z) = |r| \\cdot (1+z)^2 \\cdot \\frac{70.0}{H_A}$",
+      "$\\mu = 5 \\log_{10}(d_L) + 25$"
+    ],
+    "bao": [
+      "$D_A(z) = |r| \\cdot \\frac{70.0}{H_A}$",
+      "$H_{USMF}(z) = - \\frac{1}{\\alpha(t_e)} \\left. \\frac{d\\alpha}{dt} \\right|_{t_e}$",
+      "$D_V(z) = \\left[ (1+z)^2 D_A(z)^2 \\frac{cz}{H(z)} \\right]^{1/3}$"
+    ]
+  },
+  "constants": {
+    "C_LIGHT_KM_S": 299792.458,
+    "SECONDS_PER_GYR": 3.15576e+16,
+    "MPC_PER_KM": 3.240779291010696e-20,
+    "MPC_TO_KM": 3.08567758e+19,
+    "TINY_FLOAT": 1e-30,
+    "USMF_EARLY_ALPHA_POWER_M": 0.5,
+    "OMEGA_GAMMA_H2_PREFACTOR_FOR_RS": 2.47282e-05,
+    "H0_FID_FOR_RS_PARAMS_KM_S_MPC": 67.7,
+    "OMEGA_M0_FID_FOR_RS_PARAMS": 0.31,
+    "OMEGA_B0_FID_FOR_RS_PARAMS": 0.0486,
+    "OMEGA_B0_H2_EFF_FOR_RS": 0.0222747894,
+    "OMEGA_M0_H2_EFF_FOR_RS": 0.14208199000000002
+  }
+}

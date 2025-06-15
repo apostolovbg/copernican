@@ -1,5 +1,10 @@
 # Copernican Suite Change Log
-# DEV NOTE (v1.5c): Documented Phase 3 engine abstraction and version bump.
+# DEV NOTE (v1.5d): Documented Phase 4 model migration and version bump.
+## Version 1.5d (Development)
+- Converted all existing Markdown models and plugins to JSON DSL files.
+- Added cache cleanup prompt after each run and updated documentation.
+- Bumped version metadata across the project.
+
 ## Version 1.5c (Development)
 - Implemented engine abstraction layer via `engine_interface`.
 - Refactored `cosmo_engine_1_4b.py` to accept model dictionaries.
