@@ -1,14 +1,16 @@
 # Copernican Suite
-<!-- DEV NOTE (v1.5e): Updated for Phase 5, added Numba engine and modular utilities. -->
+<!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
 
-**Version:** 1.5e
-**Last Updated:** 2025-06-19
+**Version:** 1.5f
+**Last Updated:** 2025-06-20
 engines/          - Computational backends (SciPy CPU by default, plus Numba)
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
-Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. It
-provides a modular architecture that allows new models, data parsers and
-computational engines to be plugged in with minimal effort.
+Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. Future
+releases will also handle Cosmic Microwave Background (CMB) measurements,
+gravitational waves and standard siren events. The suite provides a modular
+architecture so new models, data parsers and computational engines can be
+plugged in with minimal effort.
 
 ---
 
@@ -64,7 +66,7 @@ packages include `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`, `psutil` and
 ```
 models/           - JSON model definitions (Markdown optional)
 engines/          - Computational backends (SciPy CPU and Numba)
-parsers/          - Data format parsers for SNe and BAO
+parsers/          - Data format parsers for SNe, BAO, CMB, gravitational waves and standard sirens
 data/             - Example data files
 output/           - All generated results
 AGENTS.md         - Development specification and contributor rules
@@ -79,7 +81,8 @@ should not be modified by AI-driven code changes.
 ## Using the Suite
 - The program discovers available models from `models/cosmo_model_*.md`.
 - Data files for SNe and BAO are chosen interactively from `data/sne` and
-  `data/bao`.
+  `data/bao`. Future datasets such as CMB or gravitational waves will use
+  their own folders.
 - Parsers and engines are also selected interactively from their respective
   directories.
 - After each run you may choose to evaluate another model or exit. Cache files
@@ -105,7 +108,10 @@ auto-generates the necessary Python functions.
   ],
   "equations": {
     "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
-  }
+  },
+  "cmb": {},
+  "gravitational_waves": {},
+  "standard_sirens": {}
 }
 ```
 `model_parser.py` validates this structure and `model_coder.py` translates the

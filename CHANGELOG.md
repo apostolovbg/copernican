@@ -1,5 +1,11 @@
 # Copernican Suite Change Log
-<!-- DEV NOTE (v1.5e): Added release notes for Phase 5 and bumped version. -->
+<!-- DEV NOTE (v1.5f): Added release notes for Phase 6 and bumped version. -->
+## Version 1.5f (Development Release)
+- Completed Phase 6: JSON schema extended with optional fields for CMB,
+  gravitational waves and standard sirens. Added placeholder parser modules
+  and loader functions for these data types.
+- Updated documentation for version 1.5f.
+
 ## Version 1.5e (Development Release)
 - Added Numba-based engine and modular utility wrappers.
 - Updated documentation for version 1.5e.
