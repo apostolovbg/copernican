@@ -1,6 +1,7 @@
 # Copernican Suite
+<!-- DEV NOTE (v1.5b): Updated for Phase 2 with JSON cache description and version bump. -->
 
-**Version:** 1.5a
+**Version:** 1.5b
 **Last Updated:** 2025-06-15
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -77,7 +78,7 @@ should not be modified by AI-driven code changes.
   are cleaned automatically.
 
 ## Creating New Models
-Model definition previously followed a two-file system. As of version 1.5a you
+Model definition previously followed a two-file system. As of version 1.5b you
 may also supply a single JSON file. Details are in `AGENTS.md`:
 1. **Markdown file** (`cosmo_model_name.md`) describing equations and providing
    a table of parameters. Each model file should conclude with the *Internal
@@ -87,7 +88,8 @@ may also supply a single JSON file. Details are in `AGENTS.md`:
    Place this module in the `models` package and reference its filename in the
    Markdown front matter under `model_plugin`.
 3. **JSON file** (`cosmo_model_name.json`) following the schema below. The suite
-   will parse this file and auto-generate the required Python functions.
+   validates the file, stores a sanitized copy under `models/cache/`, and
+   auto-generates the required Python functions.
 
 ### JSON Schema
 ```json

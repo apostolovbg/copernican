@@ -1,4 +1,4 @@
-<!-- DEV NOTE (v1.5a): Removed duplicated bullet line in documentation. -->
+<!-- DEV NOTE (v1.5b): Removed duplicated bullet line in documentation. -->
 ---
 title: "The Unified Shrinking Matter Framework (USMF) Version 2"
 version: "2.0"

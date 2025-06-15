@@ -1,5 +1,6 @@
 """Interface to bridge generated model functions with existing engines."""
-# DEV NOTE (v1.5a): Loads callables from the coder and presents them like a plugin.
+# DEV NOTE (v1.5b): Presents generated functions in the same format as classic
+# Python plugins.
 
 from types import SimpleNamespace
 

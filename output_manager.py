@@ -1,5 +1,5 @@
 # copernican_suite/output_manager.py
-# DEV NOTE (v1.5a): Logging system unchanged; updated header for new version.
+# DEV NOTE (v1.5b): Logging system unchanged; updated header for new version.
 """
 Output Manager for the Copernican Suite.
 Handles all forms of output (logging, plots, CSVs) with a consistent format.

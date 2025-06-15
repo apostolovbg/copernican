@@ -2,8 +2,8 @@
 """
 Copernican Suite - Main Orchestrator.
 """
-# DEV NOTE (v1.5a): Integrated the initial JSON-based model pipeline and bumped
-# version constant. Previous notes retained below for context.
+# DEV NOTE (v1.5b): Refined JSON pipeline with cache handling and improved error
+# reporting. Previous notes retained below for context.
 # DEV NOTE (v1.4.1): Added splash screen, per-run logging with timestamps, and
 # migrated the base model import to the new `lcdm.py` plugin file.
 # DEV NOTE (v1.4): Refactored into a pluggable architecture. Models, parsers,
@@ -24,7 +24,7 @@ import glob
 import time
 from scripts import model_parser, model_coder, engine_interface
 
-COPERNICAN_VERSION = "1.5a"
+COPERNICAN_VERSION = "1.5b"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
@@ -219,18 +219,14 @@ def main_workflow():
         else:
             if selected_model.endswith('.json'):
                 json_path = os.path.join(models_dir, selected_model)
+                cache_dir = os.path.join(models_dir, 'cache')
                 try:
-                    parsed = model_parser.parse_model_json(json_path)
+                    cache_path = model_parser.parse_model_json(json_path, cache_dir)
                 except Exception as e:
                     logger.error(str(e))
                     continue
-                cache_dir = os.path.join(models_dir, 'cache')
-                os.makedirs(cache_dir, exist_ok=True)
-                cache_path = os.path.join(cache_dir, f"cache_{selected_model}")
-                with open(cache_path, 'w') as cf:
-                    json.dump(parsed, cf, indent=2)
                 try:
-                    func_dict = model_coder.generate_callables(parsed)
+                    func_dict, parsed = model_coder.generate_callables(cache_path)
                     alt_model_plugin = engine_interface.build_plugin(parsed, func_dict)
                     logger.info(f"Loaded JSON model: {parsed.get('model_name')}")
                 except Exception as e:
