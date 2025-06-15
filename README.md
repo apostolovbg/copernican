@@ -1,5 +1,6 @@
 # Copernican Suite
-# DEV NOTE (v1.5a): Updated documentation for the new modular pipeline and JSON DSL.
+# DEV NOTE (v1.5a): Updated pipeline references; model_converter.py renamed to
+# model_encoder.py.
 
 **Version:** 1.5a
 **Last Updated:** 2025-06-16
@@ -37,7 +38,7 @@ Under the hood the program now follows a modular pipeline:
    are prepared.
 3. **Model Parsing** – `scripts/model_parser.py` validates `cosmo_model_*.json`
    files and caches the sanitized content.
-4. **Model Conversion** – `scripts/model_converter.py` turns the cached data
+4. **Model Encoding** – `scripts/model_encoder.py` turns the cached data
    into Python callables used by the engines.
 5. **Engine Execution** – `scripts/engine_interface.py` hands the callables and
    parsed data to the selected engine.
@@ -80,18 +81,20 @@ should not be modified by AI-driven code changes.
   are cleaned automatically.
 
 ## Creating New Models
-Model definition follows a two-file system and detailed instructions are in
+Model definition historically used a two-file system (Markdown + Python module).
+The legacy approach is preserved here for reference and is documented in
 `AGENTS.md`:
 1. **Markdown file** (`cosmo_model_name.md`) describing equations and providing
    a table of parameters. Each model file should conclude with the *Internal
    Formatting Guide for Model Definition Files* so contributors understand the
    required structure.
 2. **Python plugin** implementing the required functions listed in `AGENTS.md`.
-   Place this module in the `models` package and reference its filename in the
-   Markdown front matter under `model_plugin`.
+   These plugins will be retired once every Markdown file is migrated to the JSON
+   DSL, but they remain as examples for now.
 
 Version 1.5a introduces an experimental **JSON DSL** for model definitions. A
-`cosmo_model_name.json` file contains:
+`cosmo_model_name.json` file will eventually replace both the Markdown file and
+the Python plugin. It contains:
 
 - `model_name`, `version`, and `date` metadata
 - a list of parameter objects with `name`, `latex`, `guess`, `bounds`, and
@@ -121,7 +124,7 @@ Copernican Suite.
 1.  **Dependency Check**: `copernican.py` verifies required Python libraries.
 2.  **Initialization**: Logging via `scripts/logger.py` starts and the `./output/` directory is created.
 3.  **Configuration**: The user specifies model and data paths. Test mode (`test`) runs ΛCDM against itself.
-4.  **Model Parsing and Conversion**: The JSON DSL is processed by `model_parser.py` and `model_converter.py`.
+4.  **Model Parsing and Encoding**: The JSON DSL is processed by `model_parser.py` and `model_encoder.py`.
 5.  **SNe Ia Fitting**: The selected engine receives callables through `engine_interface.py` and fits parameters.
 6.  **BAO Analysis**: Using best-fit parameters, the engine computes BAO observables.
 7.  **Output Generation**: Plots and CSVs are produced via `plotter.py`, `csv_writer.py`, and `output_manager.py`.

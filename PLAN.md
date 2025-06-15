@@ -1,6 +1,6 @@
 # DEV NOTE (v1.5a)
-Updated for Phase 0 and Phase 1 completion. Added pipeline skeleton modules and
-documented the new JSON DSL with an example model file.
+Updated to clarify that Markdown models will be migrated to JSON and compiled
+dynamically. `model_converter.py` is renamed to `model_encoder.py`.
 
 # Development Roadmap
 This document outlines the steps required to refactor the Copernican Suite so
@@ -18,7 +18,7 @@ the following helper modules:
 
 1. **`scripts/model_parser.py`** – validates `cosmo_model_*.json` files against
    the DSL template and writes validated information to `models/cache/cache_*`.
-2. **`scripts/model_converter.py`** – converts the parsed DSL into Python
+2. **`scripts/model_encoder.py`** – encodes the parsed DSL into Python
    callables stored in the cache. No executable code is kept inside model JSON
    files.
 3. **`scripts/engine_interface.py`** – loads the compiled callables from the
@@ -55,9 +55,9 @@ under `models/`.
 complete Phase 1 for version 1.5a.
 
 ## Phase 2 – Implement a DSL Parser/Compiler
-1. **Create `model_parser.py` and `model_compiler.py`**
+1. **Create `model_parser.py` and `model_encoder.py`**
    - `model_parser.py` validates the DSL files and writes sanitized content to the cache.
-   - `model_compiler.py` reads that cache entry, parses equations with SymPy, and
+   - `model_encoder.py` reads that cache entry, parses equations with SymPy, and
      generates Python callables that match the current engine interface.
 2. **Error handling and robustness**
    - Provide clear messages for missing fields or malformed equations.
@@ -77,11 +77,13 @@ complete Phase 1 for version 1.5a.
 
 ## Phase 4 – Incremental Migration of Models
 1. **Convert Markdown models**
-   - Translate each `cosmo_model_*.md` and its plugin into a single JSON file using the DSL.
+   - Translate each `cosmo_model_*.md` file into a single JSON file using the DSL.
+   - Existing `.py` plugin modules remain only as reference examples.
 2. **Validate conversions**
    - Confirm that compiled JSON models reproduce the outputs of the original plugins.
 3. **Retire `.py` plugins**
-   - Remove outdated plugin files once all engines operate on the DSL.
+   - After every Markdown model is migrated, delete the old plugin modules because
+     `model_encoder.py` will generate equivalent code dynamically.
 4. **Cache management**
     - Store compiled code in `models/cache/cache_*.json` during runs and prompt
       the user to delete or keep the cache afterward.
