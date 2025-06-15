@@ -1,5 +1,9 @@
 # Copernican Suite Change Log
-<!-- DEV NOTE (v1.5b): Added release notes for Phase 2 and bumped version. -->
+<!-- DEV NOTE (v1.5c): Added release notes for Phase 3 and bumped version. -->
+## Version 1.5c (Development Release)
+- Completed Phase 3: engine_interface now validates plugins and engines use the new abstraction layer.
+- Updated documentation and headers for version 1.5c.
+
 ## Version 1.5b (Development Release)
 - Completed Phase 2: parser caches validated JSON and coder generates callables with sanity checks.
 - Updated documentation and headers for version 1.5b.
