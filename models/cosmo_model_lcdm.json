@@ -1,0 +1,13 @@
+{
+  "model_name": "LambdaCDM",
+  "version": "1.0",
+  "parameters": [
+    {"name": "H0", "python_var": "H0", "initial_guess": 67.7, "bounds": [50.0, 100.0], "unit": "km/s/Mpc"},
+    {"name": "Omega_m0", "python_var": "Omega_m0", "initial_guess": 0.31, "bounds": [0.05, 0.7]},
+    {"name": "Omega_b0", "python_var": "Omega_b0", "initial_guess": 0.0486, "bounds": [0.01, 0.1]}
+  ],
+  "equations": {
+    "get_Hz_per_Mpc": "H0*sympy.sqrt(Omega_m0*(1+z)**3 + (1 - Omega_m0))",
+    "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
+  }
+}

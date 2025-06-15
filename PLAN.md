@@ -1,4 +1,4 @@
-# DEV NOTE (v1.4.1)
+# DEV NOTE (v1.5a)
 Replaced the previous roadmap with a more detailed plan covering the new JSON-based model system, pipeline, and staged migration.
 
 # Copernican Suite Refactoring Plan
@@ -13,6 +13,7 @@ After finishing each phase or major step, append a short paragraph here describi
 4. **`scripts/model_coder.py`** – Reads the cache, converts the model equations and plan into executable Python code, and stores that generated code back in the same cache file. There is no permanent Python model file.
 5. **`scripts/engine_interface.py`** – Loads the generated code from the cache and passes it to whichever engine (`cosmo_engine_*.py`, Numba, OpenCL, etc.) the user chooses. Engines themselves remain black boxes.
 6. **Results & cleanup** – `output_manager.py` orchestrates plotting via `plotter.py`, writes CSV files with `csv_writer.py`, and `logger.py` records every step. Afterward, the user is asked whether to delete the cache file.
+   - *Done 2025-06-15 – Initial pipeline implemented with stub modules and JSON detection in `copernican.py`.*
 
 This pipeline ensures that models stay purely declarative while engines receive ready-to-run Python functions.
 
@@ -24,6 +25,7 @@ This pipeline ensures that models stay purely declarative while engines receive 
 2. **Create example models**
    - Translate one Markdown + plugin pair into JSON to serve as the official template.
    - Document the schema in `README.md` so non-programmers can create models correctly.
+   - *Done 2025-06-15 – Schema documented and example `cosmo_model_lcdm.json` added.*
 
 ## Phase 2 – Build the Parser and Coder
 1. **Implement `model_parser.py` and `model_coder.py`**
@@ -65,4 +67,7 @@ This pipeline ensures that models stay purely declarative while engines receive 
 ---
 ### Progress Tracking
 Whenever a phase or bullet point is completed, insert a short note below it summarizing what changed and the date. This running commentary keeps the plan relevant for both developers and non-programmers.
+
+- **2025-06-15** – Phase 0 implemented. `copernican.py` now detects JSON model files and processes them through the new `scripts/` pipeline.
+- **2025-06-15** – Phase 1 completed. Created `model_parser.py`, `model_coder.py`, and `engine_interface.py`; added an example JSON model and documented the schema in `README.md`.
 

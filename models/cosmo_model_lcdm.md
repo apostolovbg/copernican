@@ -1,5 +1,5 @@
-<!-- DEV NOTE (v1.4.1): Split LCDM into two-file format using lcdm.py -->
-<!-- DEV NOTE (v1.4.2): Removed duplicated bullet line in documentation. -->
+<!-- DEV NOTE (v1.5a): Split LCDM into two-file format using lcdm.py -->
+<!-- DEV NOTE (v1.5a): Removed duplicated bullet line in documentation. -->
 ---
 title: "Lambda Cold Dark Matter (\u039bCDM) Reference Model"
 version: "1.0"
