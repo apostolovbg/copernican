@@ -1,6 +1,6 @@
 """Compile sanitized model data into executable Python callables."""
-# DEV NOTE (v1.5b): Implemented initial compiler using SymPy with basic
-# validation and safety checks. Replaces the old model_converter stub.
+# DEV NOTE (v1.5c): Initial SymPy compiler with basic
+# validation and safety checks from Phase 2.
 
 import json
 import numpy as np

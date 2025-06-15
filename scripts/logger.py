@@ -1,5 +1,5 @@
 """Logging configuration for the Copernican Suite."""
-# DEV NOTE (v1.5b): Initial logging utility for Phase 0.
+# DEV NOTE (v1.5c): Initial logging utility carried over from Phase 0.
 import logging
 import os
 
