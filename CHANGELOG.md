@@ -1,8 +1,4 @@
 # Copernican Suite Change Log
-## Version 1.5a (Development Release)
-- Updated documentation and version constants.
-- Added development rules about version changes and Git conflict markers.
-
 ## Version 1.4.1 (Maintenance Release)
 - LCDM model separated into lcdm.py plugin.
 - Added splash screen and improved logging with per-run timestamps.
