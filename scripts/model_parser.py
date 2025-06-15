@@ -1,6 +1,7 @@
 """Model parser for Copernican Suite JSON models."""
-# DEV NOTE (v1.5e): Writes validated JSON models to the cache directory and
-# reports errors through ``error_handler``.
+# DEV NOTE (v1.5f): Schema updated with optional CMB, gravitational wave, and
+# standard siren fields for Phase 6. Writes validated JSON models to the cache
+# directory and reports errors through ``error_handler``.
 
 import json
 from jsonschema import validate, ValidationError
@@ -33,7 +34,10 @@ MODEL_SCHEMA = {
                 }
             }
         },
-        "equations": {"type": "object"}
+        "equations": {"type": "object"},
+        "cmb": {"type": "object"},
+        "gravitational_waves": {"type": "object"},
+        "standard_sirens": {"type": "object"}
     }
 }
 

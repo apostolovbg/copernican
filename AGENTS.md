@@ -1,12 +1,16 @@
-# DEV NOTE (v1.5e)
-Updated for Phase 5. Added Numba engine and modular utilities.
+# DEV NOTE (v1.5f)
+Updated for Phase 6. Added placeholder parsers for CMB, gravitational waves and standard sirens, and expanded JSON schema.
 
 # Copernican Suite Development Guide
 
 This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications.
 
 ## 1. Program Overview
-The suite evaluates cosmological models against SNe Ia and BAO data. Users interact with `copernican.py`, choose a model from `./models/`, pick a computational engine from `./engines/` and select data parsers from `./parsers/`. Results are saved under `./output/`.
+The suite evaluates cosmological models against SNe Ia and BAO data. Support for
+additional observations such as CMB, gravitational waves and standard sirens is
+being prepared. Users interact with `copernican.py`, choose a model from
+`./models/`, pick a computational engine from `./engines/` and select data
+parsers from `./parsers/`. Results are saved under `./output/`.
 
 The default engine is `engines/cosmo_engine_1_4b.py`. All model plugins are validated
 through `scripts/engine_interface.py` before being passed to the engine. This
@@ -16,7 +20,7 @@ ensures the expected functions are present and callable.
 ```
 models/           - JSON model definitions (Markdown files optional)
 engines/          - Computational backends (SciPy CPU by default)
-parsers/          - Data format parsers for SNe and BAO
+parsers/          - Data format parsers for SNe, BAO, CMB, gravitational waves and standard sirens
 data/             - Example data files
 output/           - Generated plots and CSV tables
 AGENTS.md         - Development specification and contributor rules
@@ -32,7 +36,7 @@ suite automatically. This mechanism works on Windows, macOS and Linux so new
 engines can introduce additional dependencies without manual updates.
 
 ## 4. JSON Model System
-As of version 1.5e every cosmological model is described by a single JSON file
+As of version 1.5f every cosmological model is described by a single JSON file
 `cosmo_model_*.json`. Markdown files may accompany the JSON for human
 readability, but there are no permanent Python plugins in the repository.
 

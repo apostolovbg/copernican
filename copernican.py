@@ -2,9 +2,9 @@
 """
 Copernican Suite - Main Orchestrator.
 """
-# DEV NOTE (v1.5e): Added Numba engine option and separated utilities into modules.
-# automatic dependency installer triggered by missing packages. Plugin
-# validation now occurs on the generated module.
+# DEV NOTE (v1.5f): Added placeholders for future data types and bumped version.
+# Automatic dependency installer still triggers when packages are missing.
+# Plugin validation now occurs on the generated module.
 # Previous notes retained below for context.
 # DEV NOTE (v1.4.1): Added splash screen, per-run logging with timestamps, and
 # migrated the base model import to the new `lcdm.py` plugin file.
@@ -27,7 +27,7 @@ import glob
 import time
 from scripts import model_parser, model_coder, engine_interface
 
-COPERNICAN_VERSION = "1.5e"
+COPERNICAN_VERSION = "1.5f"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""

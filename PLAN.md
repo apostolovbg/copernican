@@ -1,5 +1,5 @@
-# DEV NOTE (v1.5e)
-Updated for Phase 5 completion and version bump to 1.5e.
+# DEV NOTE (v1.5f)
+Updated for Phase 6 completion and version bump to 1.5f.
 
 # Copernican Suite Refactoring Plan
 This document explains how the project will evolve from the current Markdown + Python plugin system to a cleaner architecture where cosmological models are described solely in JSON. All engines will load code generated on the fly.
@@ -62,8 +62,10 @@ This pipeline ensures that models stay purely declarative while engines receive 
 ## Phase 6 – Future Data Types & Extensibility
 1. **Prepare the schema for new observations**
    - Add optional fields in the JSON for CMB, gravitational waves, standard sirens, and any other data types we may add later.
+   - *Done 2025-06-20 – JSON schema updated with optional CMB, gravitational wave and standard siren sections.*
 2. **Update parsers and documentation**
    - When new data become available, introduce matching parser modules and update examples so users can easily extend the suite.
+   - *Done 2025-06-20 – Parser registries and placeholder modules added for CMB, gravitational waves and standard sirens; documentation updated.*
 
 ---
 ### Progress Tracking
@@ -77,3 +79,4 @@ Whenever a phase or bullet point is completed, insert a short note below it summ
 - **2025-06-18** – Added automatic dependency installation triggered by `copernican.py`.
 
 - **2025-06-19** – Phase 5 completed. Added Numba engine and split output utilities into separate modules.
+- **2025-06-20** – Phase 6 completed. JSON schema now includes optional fields for CMB, gravitational waves and standard sirens. Parser framework extended accordingly.
