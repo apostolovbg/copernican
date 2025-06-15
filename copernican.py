@@ -3,6 +3,7 @@
 Copernican Suite - Main Orchestrator.
 """
 # DEV NOTE (v1.5f): Added placeholders for future data types and bumped version.
+# DEV NOTE (v1.5f hotfix): Fixed dependency scanner to ignore relative imports.
 # Automatic dependency installer still triggers when packages are missing.
 # Plugin validation now occurs on the generated module.
 # Previous notes retained below for context.
@@ -66,15 +67,24 @@ def _gather_required_packages():
                             if line.startswith('import '):
                                 parts = line.split()
                                 if len(parts) >= 2:
-                                    pkg_names.add(parts[1].split('.')[0])
+                                    mod = parts[1].split('.')[0]
+                                    if mod and not mod.startswith('.'):
+                                        pkg_names.add(mod)
                             elif line.startswith('from '):
                                 parts = line.split()
                                 if len(parts) >= 2:
-                                    pkg_names.add(parts[1].split('.')[0])
+                                    mod = parts[1].split('.')[0]
+                                    if mod and not mod.startswith('.'):
+                                        pkg_names.add(mod)
     ignore = {
+        # Standard library modules or local packages that should not trigger
+        # the dependency installer
         'os', 'sys', 'time', 'json', 'logging', 'subprocess', 'importlib',
         'multiprocessing', 'glob', 'shutil', 'platform', 'inspect', 'types',
-        'pathlib', 'builtins'
+        'pathlib', 'builtins', 'traceback', 'typing',
+        # Local modules within this repository
+        'data_loaders', 'output_manager', 'csv_writer', 'plotter', 'logger',
+        'utils'
     }
     return {pkg for pkg in pkg_names if not pkg.startswith(('scripts', 'engines', 'parsers')) and pkg not in ignore}
 

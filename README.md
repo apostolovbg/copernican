@@ -1,5 +1,6 @@
 # Copernican Suite
 <!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
+<!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
 
 **Version:** 1.5f
 **Last Updated:** 2025-06-20
