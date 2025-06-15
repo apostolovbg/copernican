@@ -1,7 +1,7 @@
 # Copernican Suite
-# DEV NOTE (v1.5a): Updated documentation for the new modular pipeline and JSON DSL.
+# DEV NOTE (v1.5b): Updated documentation for the new modular pipeline and JSON DSL.
 
-**Version:** 1.5a
+**Version:** 1.5b
 **Last Updated:** 2025-06-16
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -37,7 +37,7 @@ Under the hood the program now follows a modular pipeline:
    are prepared.
 3. **Model Parsing** – `scripts/model_parser.py` validates `cosmo_model_*.json`
    files and caches the sanitized content.
-4. **Model Conversion** – `scripts/model_converter.py` turns the cached data
+4. **Model Conversion** – `scripts/model_compiler.py` turns the cached data
    into Python callables used by the engines.
 5. **Engine Execution** – `scripts/engine_interface.py` hands the callables and
    parsed data to the selected engine.
@@ -90,7 +90,7 @@ Model definition follows a two-file system and detailed instructions are in
    Place this module in the `models` package and reference its filename in the
    Markdown front matter under `model_plugin`.
 
-Version 1.5a introduces an experimental **JSON DSL** for model definitions. A
+Version 1.5b introduces an experimental **JSON DSL** for model definitions. A
 `cosmo_model_name.json` file contains:
 
 - `model_name`, `version`, and `date` metadata
@@ -121,7 +121,7 @@ Copernican Suite.
 1.  **Dependency Check**: `copernican.py` verifies required Python libraries.
 2.  **Initialization**: Logging via `scripts/logger.py` starts and the `./output/` directory is created.
 3.  **Configuration**: The user specifies model and data paths. Test mode (`test`) runs ΛCDM against itself.
-4.  **Model Parsing and Conversion**: The JSON DSL is processed by `model_parser.py` and `model_converter.py`.
+4.  **Model Parsing and Conversion**: The JSON DSL is processed by `model_parser.py` and `model_compiler.py`.
 5.  **SNe Ia Fitting**: The selected engine receives callables through `engine_interface.py` and fits parameters.
 6.  **BAO Analysis**: Using best-fit parameters, the engine computes BAO observables.
 7.  **Output Generation**: Plots and CSVs are produced via `plotter.py`, `csv_writer.py`, and `output_manager.py`.
