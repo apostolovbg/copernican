@@ -1,4 +1,4 @@
-# DEV NOTE (v1.4.1)
+# DEV NOTE (v1.5a)
 This file was rewritten entirely to document the current Copernican Suite structure and the model plugin system introduced in version 1.4b.
 
 # Copernican Suite Development Guide
@@ -163,5 +163,7 @@ To keep the project maintainable all contributors, human or AI, must follow thes
 1. **Add a `DEV NOTE` at the top of each changed file** summarizing your modifications.
 2. **Comment code extensively** to explain non-obvious logic or algorithms.
 3. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behavior or structure changes.
+4. **Version updates require explicit human request.** The version number of the suite may not be changed autonomously.
+5. **Never insert Git conflict markers** (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.
 
 Failure to follow these guidelines will compromise the Copernican Suite.

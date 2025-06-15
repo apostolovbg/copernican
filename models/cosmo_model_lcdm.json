@@ -1,0 +1,25 @@
+{
+  "model_name": "LambdaCDM",
+  "version": "1.0",
+  "date": "2025-06-13",
+  "parameters": [
+    {"name": "H0", "latex": "$H_0$", "guess": 67.7, "bounds": [50.0, 100.0], "unit": "km/s/Mpc"},
+    {"name": "Omega_m0", "latex": "$\\Omega_{m0}$", "guess": 0.31, "bounds": [0.05, 0.7], "unit": ""},
+    {"name": "Omega_b0", "latex": "$\\Omega_{b0}$", "guess": 0.0486, "bounds": [0.01, 0.1], "unit": ""}
+  ],
+  "equations": {
+    "sne": [
+      "H(z) = H_0 sqrt(Omega_{m0}(1+z)^3 + Omega_{Lambda0})",
+      "d_L(z) = (1+z) int_0^z c/H(z') dz'",
+      "mu = 5 log10(d_L/1 Mpc) + 25"
+    ],
+    "bao": [
+      "D_A(z) = (1/(1+z)) int_0^z c/H(z') dz'",
+      "D_V(z) = [ (1+z)^2 D_A(z)^2 cz/H(z) ]^(1/3)"
+    ]
+  },
+  "constants": {
+    "C_LIGHT_KM_S": 299792.458
+  }
+}
+
