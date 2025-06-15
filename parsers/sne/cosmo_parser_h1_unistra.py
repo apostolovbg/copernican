@@ -1,4 +1,4 @@
-# DEV NOTE (v1.5d): Extracted from data_loaders.py during modular refactor.
+# DEV NOTE (v1.5e): Extracted from data_loaders.py during modular refactor.
 # This module registers the UniStra fixed-nuisance (h1) parser.
 
 import pandas as pd

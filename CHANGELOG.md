@@ -1,5 +1,9 @@
 # Copernican Suite Change Log
-<!-- DEV NOTE (v1.5d): Added release notes for Phase 4 and bumped version. -->
+<!-- DEV NOTE (v1.5e): Added release notes for Phase 5 and bumped version. -->
+## Version 1.5e (Development Release)
+- Added Numba-based engine and modular utility wrappers.
+- Updated documentation for version 1.5e.
+
 ## Version 1.5d (Development Release)
 - Completed Phase 4: all models converted to JSON and legacy plugins removed.
 - Updated documentation and headers for version 1.5d.

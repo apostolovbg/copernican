@@ -1,1 +1,1 @@
-# DEV NOTE (v1.5d): Package init for SNe parsers.
+# DEV NOTE (v1.5e): Package init for SNe parsers.

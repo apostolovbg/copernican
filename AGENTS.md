@@ -1,5 +1,5 @@
-# DEV NOTE (v1.5d)
-Updated for Phase 4. Models are now defined solely in JSON and plugins are generated at runtime. Added automatic dependency installer.
+# DEV NOTE (v1.5e)
+Updated for Phase 5. Added Numba engine and modular utilities.
 
 # Copernican Suite Development Guide
 
@@ -32,7 +32,7 @@ suite automatically. This mechanism works on Windows, macOS and Linux so new
 engines can introduce additional dependencies without manual updates.
 
 ## 4. JSON Model System
-As of version 1.5d every cosmological model is described by a single JSON file
+As of version 1.5e every cosmological model is described by a single JSON file
 `cosmo_model_*.json`. Markdown files may accompany the JSON for human
 readability, but there are no permanent Python plugins in the repository.
 

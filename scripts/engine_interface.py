@@ -1,5 +1,5 @@
 """Interface to bridge generated model functions with existing engines."""
-# DEV NOTE (v1.5d): Validates plugin interfaces and presents generated
+# DEV NOTE (v1.5e): Validates plugin interfaces and presents generated
 # functions in the same format as classic Python plugins.
 
 from types import SimpleNamespace
