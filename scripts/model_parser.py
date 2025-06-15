@@ -1,9 +1,11 @@
 """Model parser for Copernican Suite JSON models."""
-# DEV NOTE (v1.5a): New module to validate JSON model files as part of the JSON-based pipeline.
+# DEV NOTE (v1.5b): Writes validated JSON models to the cache directory and
+# reports errors through ``error_handler``.
 
 import json
 from jsonschema import validate, ValidationError
 from pathlib import Path
+from . import error_handler
 
 MODEL_SCHEMA = {
     "type": "object",
@@ -36,13 +38,38 @@ MODEL_SCHEMA = {
 }
 
 
-def parse_model_json(path):
-    """Validate and load a model JSON file."""
+def parse_model_json(path, cache_dir):
+    """Validate ``path`` and write cleaned JSON to ``cache_dir``.
+
+    Parameters
+    ----------
+    path : str or Path
+        Source JSON model file.
+    cache_dir : str or Path
+        Directory where the sanitized model will be stored.
+
+    Returns
+    -------
+    str
+        Path to the sanitized cache file.
+    """
     path = Path(path)
-    with path.open("r") as f:
-        data = json.load(f)
+    try:
+        with path.open("r") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        error_handler.report_error(f"Failed to read model JSON '{path}': {e}")
+        raise
+
     try:
         validate(instance=data, schema=MODEL_SCHEMA)
     except ValidationError as e:
+        error_handler.report_error(f"Model JSON validation error: {e.message}")
         raise ValueError(f"Model JSON validation error: {e.message}") from e
-    return data
+
+    cache_dir = Path(cache_dir)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = cache_dir / f"cache_{path.name}"
+    with cache_path.open("w") as f:
+        json.dump(data, f, indent=2)
+    return str(cache_path)

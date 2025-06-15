@@ -1,4 +1,4 @@
-# DEV NOTE (v1.5a): General BAO JSON parser separated for modular discovery.
+# DEV NOTE (v1.5b): General BAO JSON parser separated for modular discovery.
 
 import pandas as pd
 import json

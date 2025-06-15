@@ -1,4 +1,9 @@
 # Copernican Suite Change Log
+<!-- DEV NOTE (v1.5b): Added release notes for Phase 2 and bumped version. -->
+## Version 1.5b (Development Release)
+- Completed Phase 2: parser caches validated JSON and coder generates callables with sanity checks.
+- Updated documentation and headers for version 1.5b.
+
 ## Version 1.5a (Development Release)
 - Introduced JSON-based model pipeline and new `scripts/` modules.
 - Added example JSON model and updated documentation for version 1.5a.

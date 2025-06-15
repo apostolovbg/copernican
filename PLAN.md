@@ -1,4 +1,4 @@
-# DEV NOTE (v1.5a)
+# DEV NOTE (v1.5b)
 Replaced the previous roadmap with a more detailed plan covering the new JSON-based model system, pipeline, and staged migration.
 
 # Copernican Suite Refactoring Plan
@@ -33,6 +33,7 @@ This pipeline ensures that models stay purely declarative while engines receive 
    - The coder reads equations from the cache, uses SymPy or similar tools to generate Python callables matching the engine interface, and stores them back in the cache.
 2. **Robust error handling**
    - Detect division by zero, undefined variables, or other issues in "wild" models. Report them through `error_handler.py` so the user understands what went wrong.
+   - *Done 2025-06-16 – Parser writes cache files and coder checks generated functions before use.*
 
 ## Phase 3 – Engine Abstraction Layer
 1. **Introduce `engine_interface.py`**
@@ -70,4 +71,5 @@ Whenever a phase or bullet point is completed, insert a short note below it summ
 
 - **2025-06-15** – Phase 0 implemented. `copernican.py` now detects JSON model files and processes them through the new `scripts/` pipeline.
 - **2025-06-15** – Phase 1 completed. Created `model_parser.py`, `model_coder.py`, and `engine_interface.py`; added an example JSON model and documented the schema in `README.md`.
+- **2025-06-16** – Phase 2 completed. Parser now writes sanitized models to `models/cache/`; coder loads from cache, generates functions with sanity checks, and updates the cache.
 

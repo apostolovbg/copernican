@@ -3,7 +3,7 @@
 LCDM Model Plugin for the Copernican Suite.
 This version uses the standard SciPy/CPU backend with intelligent multiprocessing.
 """
-# DEV NOTE (v1.5a): Extracted from `cosmo_model_lcdm.md` and renamed
+# DEV NOTE (v1.5b): Extracted from `cosmo_model_lcdm.md` and renamed
 # to `lcdm.py` to match the two-file model pattern. The legacy
 # `lcdm_model.py` file has been removed. Original v1.3a multiprocessing
 # bug fix retained below for reference.
