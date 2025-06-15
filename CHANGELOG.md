@@ -1,4 +1,8 @@
 # Copernican Suite Change Log
+## Version 1.5a (Development Release)
+- Introduced JSON-based model pipeline and new `scripts/` modules.
+- Added example JSON model and updated documentation for version 1.5a.
+
 ## Version 1.4.1 (Maintenance Release)
 - LCDM model separated into lcdm.py plugin.
 - Added splash screen and improved logging with per-run timestamps.

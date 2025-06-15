@@ -2,9 +2,10 @@
 """
 Copernican Suite - Main Orchestrator.
 """
+# DEV NOTE (v1.5a): Integrated the initial JSON-based model pipeline and bumped
+# version constant. Previous notes retained below for context.
 # DEV NOTE (v1.4.1): Added splash screen, per-run logging with timestamps, and
-# migrated the base model import to the new `lcdm.py` plugin file. Previous
-# refactor notes retained below for context.
+# migrated the base model import to the new `lcdm.py` plugin file.
 # DEV NOTE (v1.4): Refactored into a pluggable architecture. Models, parsers,
 # plugins now reside in the `models` package. The summary CSV call removed in
 # v1.3 remains omitted.
@@ -14,14 +15,16 @@ import importlib
 import os
 import sys
 import platform
+import json
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 import shutil
 import glob
 import time
+from scripts import model_parser, model_coder, engine_interface
 
-COPERNICAN_VERSION = "1.4.1"
+COPERNICAN_VERSION = "1.5a"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
@@ -58,7 +61,9 @@ def check_dependencies():
         "numpy": "numpy",
         "scipy": "scipy",
         "matplotlib": "matplotlib",
-        "psutil": "psutil"
+        "psutil": "psutil",
+        "sympy": "sympy",
+        "jsonschema": "jsonschema"
     }
     for lib_import, lib_pip in required_libs.items():
         try:
@@ -163,6 +168,16 @@ def cleanup_cache(base_dir):
                 logger.info(f"Removed cache directory: {pycache_path}")
             except OSError as e:
                 logger.error(f"Error removing cache directory {pycache_path}: {e}")
+    cache_dir = os.path.join(base_dir, 'models', 'cache')
+    if os.path.isdir(cache_dir):
+        for fname in os.listdir(cache_dir):
+            if fname.startswith('cache_') and fname.endswith('.json'):
+                path = os.path.join(cache_dir, fname)
+                try:
+                    os.remove(path)
+                    logger.info(f"Removed cache file: {path}")
+                except OSError as e:
+                    logger.error(f"Error removing cache file {path}: {e}")
 
 def main_workflow():
     """Main workflow for the Copernican Suite."""
@@ -190,7 +205,10 @@ def main_workflow():
         logger.info("\n--- Stage 1: Configuration ---")
 
         models_dir = os.path.join(SCRIPT_DIR, 'models')
-        model_files = sorted([f for f in os.listdir(models_dir) if f.startswith('cosmo_model_') and f.endswith('.md')])
+        model_files = sorted([
+            f for f in os.listdir(models_dir)
+            if f.startswith('cosmo_model_') and (f.endswith('.md') or f.endswith('.json'))
+        ])
         selected_model = select_from_list(model_files + ['test'], 'Select cosmological model')
         if not selected_model:
             break
@@ -199,16 +217,36 @@ def main_workflow():
             alt_model_plugin = lcdm
             logger.info("--- RUNNING IN TEST MODE: Comparing LCDM against itself. ---")
         else:
-            md_path = os.path.join(models_dir, selected_model)
-            meta = parse_model_header(md_path)
-            plugin_name = meta.get('model_plugin')
-            if not plugin_name:
-                logger.error(f"Model file {selected_model} missing 'model_plugin' entry.")
-                continue
-            alt_model_filepath = os.path.join(SCRIPT_DIR, plugin_name)
-            if not os.path.isfile(alt_model_filepath):
-                alt_model_filepath = os.path.join(models_dir, plugin_name)
-            alt_model_plugin = load_alternative_model_plugin(alt_model_filepath)
+            if selected_model.endswith('.json'):
+                json_path = os.path.join(models_dir, selected_model)
+                try:
+                    parsed = model_parser.parse_model_json(json_path)
+                except Exception as e:
+                    logger.error(str(e))
+                    continue
+                cache_dir = os.path.join(models_dir, 'cache')
+                os.makedirs(cache_dir, exist_ok=True)
+                cache_path = os.path.join(cache_dir, f"cache_{selected_model}")
+                with open(cache_path, 'w') as cf:
+                    json.dump(parsed, cf, indent=2)
+                try:
+                    func_dict = model_coder.generate_callables(parsed)
+                    alt_model_plugin = engine_interface.build_plugin(parsed, func_dict)
+                    logger.info(f"Loaded JSON model: {parsed.get('model_name')}")
+                except Exception as e:
+                    logger.error(f"Error generating model from JSON: {e}", exc_info=True)
+                    continue
+            else:
+                md_path = os.path.join(models_dir, selected_model)
+                meta = parse_model_header(md_path)
+                plugin_name = meta.get('model_plugin')
+                if not plugin_name:
+                    logger.error(f"Model file {selected_model} missing 'model_plugin' entry.")
+                    continue
+                alt_model_filepath = os.path.join(SCRIPT_DIR, plugin_name)
+                if not os.path.isfile(alt_model_filepath):
+                    alt_model_filepath = os.path.join(models_dir, plugin_name)
+                alt_model_plugin = load_alternative_model_plugin(alt_model_filepath)
 
         if not alt_model_plugin:
             continue

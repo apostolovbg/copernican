@@ -1,6 +1,6 @@
 # Copernican Suite
 
-**Version:** 1.4.1
+**Version:** 1.5a
 **Last Updated:** 2025-06-15
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -77,8 +77,8 @@ should not be modified by AI-driven code changes.
   are cleaned automatically.
 
 ## Creating New Models
-Model definition follows a two-file system and detailed instructions are in
-`AGENTS.md`:
+Model definition previously followed a two-file system. As of version 1.5a you
+may also supply a single JSON file. Details are in `AGENTS.md`:
 1. **Markdown file** (`cosmo_model_name.md`) describing equations and providing
    a table of parameters. Each model file should conclude with the *Internal
    Formatting Guide for Model Definition Files* so contributors understand the
@@ -86,6 +86,24 @@ Model definition follows a two-file system and detailed instructions are in
 2. **Python plugin** implementing the required functions listed in `AGENTS.md`.
    Place this module in the `models` package and reference its filename in the
    Markdown front matter under `model_plugin`.
+3. **JSON file** (`cosmo_model_name.json`) following the schema below. The suite
+   will parse this file and auto-generate the required Python functions.
+
+### JSON Schema
+```json
+{
+  "model_name": "My Model",
+  "version": "1.0",
+  "parameters": [
+    {"name": "H0", "python_var": "H0", "initial_guess": 70.0, "bounds": [50, 100]}
+  ],
+  "equations": {
+    "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
+  }
+}
+```
+`model_parser.py` validates this structure and `model_coder.py` translates the
+equations into NumPy-ready callables used by `engine_interface.py`.
 
 ## Development Notes
 All changes must include a `DEV NOTE` at the top of modified files explaining

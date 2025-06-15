@@ -1,4 +1,4 @@
-# DEV NOTE (v1.4): Pantheon+ covariance parser separated for plugin architecture.
+# DEV NOTE (v1.5a): Pantheon+ covariance parser separated for plugin architecture.
 
 import pandas as pd
 import numpy as np

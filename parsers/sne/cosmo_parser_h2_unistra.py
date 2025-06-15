@@ -1,4 +1,4 @@
-# DEV NOTE (v1.4): Extracted from data_loaders.py for modular architecture.
+# DEV NOTE (v1.5a): Extracted from data_loaders.py for modular architecture.
 # Registers the UniStra raw light-curve (h2) parser.
 
 import pandas as pd
