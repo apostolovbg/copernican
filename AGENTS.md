@@ -1,5 +1,5 @@
-# DEV NOTE (v1.5d)
-Updated to reflect Phase 4 migration to the JSON model DSL. Legacy plugin guidance is retained for backward compatibility.
+# DEV NOTE (v1.5e)
+Added Numba and OpenCL engines for Phase 5 and bumped version references.
 
 # Copernican Suite Development Guide
 
@@ -8,9 +8,10 @@ This document is the authoritative reference for contributors and AI systems wor
 ## 1. Program Overview
 The suite evaluates cosmological models against SNe Ia and BAO data. Users interact with `copernican.py`, choose a model from `./models/`, pick a computational engine from `./engines/` and select data parsers from `./parsers/`. Results are saved under `./output/`.
 
-The default engine is `engines/cosmo_engine_1_4b.py`. Starting with version 1.5d
+The default engine is `engines/cosmo_engine_1_4b.py`. Starting with version 1.5e
 an `engine_interface` module validates model callables before handing them to the
-engine. Legacy plugins are still supported through this layer.
+engine. Optional back ends `cosmo_engine_numba.py` and `cosmo_engine_opencl.py`
+provide experimental acceleration. Legacy plugins are still supported through this layer.
 
 ## 2. Directory Layout
 ```

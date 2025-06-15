@@ -1,5 +1,5 @@
 """Model Parser for Copernican Suite."""
-# DEV NOTE (v1.5d): Added field validation and integration with error_handler.
+# DEV NOTE (v1.5e): Added field validation and integration with error_handler.
 
 import json
 import os

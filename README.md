@@ -1,7 +1,7 @@
 # Copernican Suite
-# DEV NOTE (v1.5d): Documented Phase 4 DSL migration and version bump.
+# DEV NOTE (v1.5e): Added experimental Numba and OpenCL engines.
 
-**Version:** 1.5d
+**Version:** 1.5e
 **Last Updated:** 2025-06-18
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -60,7 +60,7 @@ Under the hood the program now follows a modular pipeline:
 ## Directory Layout
 ```
 models/           - Markdown definitions and Python plugins
-engines/          - Computational backends (SciPy CPU by default)
+engines/          - Computational backends (SciPy CPU by default, optional Numba and OpenCL)
 parsers/          - Data format parsers for SNe and BAO
 data/             - Example data files
 output/           - All generated results

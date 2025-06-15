@@ -1,5 +1,9 @@
 # Copernican Suite Change Log
-# DEV NOTE (v1.5d): Documented Phase 4 model migration and version bump.
+# DEV NOTE (v1.5e): Added Numba and OpenCL engines and bumped version.
+## Version 1.5e (Development)
+- Added experimental Numba and OpenCL engine modules.
+- Updated documentation and version metadata across the project.
+
 ## Version 1.5d (Development)
 - Converted all existing Markdown models and plugins to JSON DSL files.
 - Added cache cleanup prompt after each run and updated documentation.

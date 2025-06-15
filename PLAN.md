@@ -1,6 +1,5 @@
-# DEV NOTE (v1.5d)
-Updated for Phase 0 and Phase 1 completion. Added pipeline skeleton modules and
-documented the new JSON DSL with an example model file.
+# DEV NOTE (v1.5e)
+Documented completion of Phase 5 with new Numba and OpenCL engines.
 
 # Development Roadmap
 This document outlines the steps required to refactor the Copernican Suite so
@@ -103,6 +102,10 @@ clear the `models/cache` directory at the end of each run.
 3. **Modular utilities**
    - Split plotting and CSV generation into `plotter.py` and `csv_writer.py`.
    - Move logging into `logger.py` so each component can log through a common interface.
+
+**Progress:** Phase 5 implemented in version 1.5e. Added `cosmo_engine_numba.py` and
+`cosmo_engine_opencl.py` modules conforming to the engine interface. Existing
+plotter, CSV writer and logger modules already provide the modular utilities.
 
 ## Phase 6 – Future Data Types and Extensibility
 1. **Extend schema for new observations**
