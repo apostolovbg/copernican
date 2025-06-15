@@ -1,7 +1,8 @@
 # Copernican Suite
+# DEV NOTE (v1.5a): Updated documentation for the new modular pipeline and JSON DSL.
 
-**Version:** 1.4.1
-**Last Updated:** 2025-06-15
+**Version:** 1.5a
+**Last Updated:** 2025-06-16
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
 Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. It
@@ -29,22 +30,24 @@ Users select models, datasets, and computational engines at runtime through a
 simple command line interface. Results are saved as plots and CSV files in the
 `./output/` directory.
 
-Under the hood the program follows a clear pipeline:
-1. **Dependency Check** – `copernican.py` verifies that all required Python
-   libraries are installed.
-2. **Initialization** – the output directory is created and logging begins.
-3. **Configuration** – the user chooses a model, an engine from `./engines/`,
-   and data parsers for SNe Ia and BAO. Models are discovered from
-   `cosmo_model_*.md` files and automatically import their matching Python
-   plugin.
-4. **SNe Ia Fitting** – the selected engine estimates cosmological parameters
-   for both the ΛCDM reference and the alternative model.
-5. **BAO Analysis** – using the best-fit parameters the engine predicts BAO
-   observables and computes chi-squared statistics.
-6. **Output Generation** – `output_manager.py` produces plots and detailed CSV
-   tables summarizing the results.
-7. **Loop or Exit** – the user may evaluate another model or quit, at which
-   point temporary cache files are cleaned automatically.
+Under the hood the program now follows a modular pipeline:
+1. **Dependency Check** – `copernican.py` verifies all required Python
+   libraries.
+2. **Initialization** – logging via `scripts/logger.py` and the output directory
+   are prepared.
+3. **Model Parsing** – `scripts/model_parser.py` validates `cosmo_model_*.json`
+   files and caches the sanitized content.
+4. **Model Conversion** – `scripts/model_converter.py` turns the cached data
+   into Python callables used by the engines.
+5. **Engine Execution** – `scripts/engine_interface.py` hands the callables and
+   parsed data to the selected engine.
+6. **Output Generation** – `scripts/plotter.py` and `scripts/csv_writer.py`
+   produce plots and CSV summaries while `output_manager.py` coordinates file
+   placement.
+7. **Error Handling** – `scripts/error_handler.py` reports issues in a
+   consistent format.
+8. **Loop or Exit** – the user may evaluate another model or quit. Cache files
+   remain until the end of the run.
 
 ## Quick Start
 1. Ensure Python 3 with `numpy`, `scipy`, `matplotlib` and `psutil` is
@@ -87,6 +90,17 @@ Model definition follows a two-file system and detailed instructions are in
    Place this module in the `models` package and reference its filename in the
    Markdown front matter under `model_plugin`.
 
+Version 1.5a introduces an experimental **JSON DSL** for model definitions. A
+`cosmo_model_name.json` file contains:
+
+- `model_name`, `version`, and `date` metadata
+- a list of parameter objects with `name`, `latex`, `guess`, `bounds`, and
+  `unit`
+- LaTeX or SymPy strings for SNe Ia and BAO equations
+- optional constants or fixed parameters
+
+See `models/cosmo_model_lcdm.json` for a minimal example.
+
 ## Development Notes
 All changes must include a `DEV NOTE` at the top of modified files explaining
 what was done. Code should be thoroughly commented so future contributors can
@@ -104,14 +118,14 @@ Failure to follow these rules will compromise the maintainability of the
 Copernican Suite.
 ## 4. Workflow Overview
 
-1.  **Dependency Check**: `copernican.py` first verifies all required Python libraries are available.
-2.  **Initialization**: The script starts and creates the `./output/` directory for all results.
-3.  **Configuration**: The user specifies the file paths for the model and data files.
-    -   **Test Mode**: A user can enter `test` to run ΛCDM against itself, providing a quick way to test the full analysis pipeline.
-4.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data.
-5.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
-6.  **Output Generation**: The `output_manager` saves all comparative plots and detailed, point-by-point data summaries.
-7.  **Loop or Exit**: The user is prompted to run another evaluation or exit.
+1.  **Dependency Check**: `copernican.py` verifies required Python libraries.
+2.  **Initialization**: Logging via `scripts/logger.py` starts and the `./output/` directory is created.
+3.  **Configuration**: The user specifies model and data paths. Test mode (`test`) runs ΛCDM against itself.
+4.  **Model Parsing and Conversion**: The JSON DSL is processed by `model_parser.py` and `model_converter.py`.
+5.  **SNe Ia Fitting**: The selected engine receives callables through `engine_interface.py` and fits parameters.
+6.  **BAO Analysis**: Using best-fit parameters, the engine computes BAO observables.
+7.  **Output Generation**: Plots and CSVs are produced via `plotter.py`, `csv_writer.py`, and `output_manager.py`.
+8.  **Loop or Exit**: The user may evaluate another model or exit.
 
 ---
 

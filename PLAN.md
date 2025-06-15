@@ -1,7 +1,6 @@
-# DEV NOTE (v1.4.1)
-Expanded the roadmap with a more detailed pipeline and clarified that model JSON
-files remain purely declarative. Added notes about new helper modules and
-progress tracking.
+# DEV NOTE (v1.5a)
+Updated for Phase 0 and Phase 1 completion. Added pipeline skeleton modules and
+documented the new JSON DSL with an example model file.
 
 # Development Roadmap
 This document outlines the steps required to refactor the Copernican Suite so
@@ -33,18 +32,27 @@ Cache files will be retained until the end of a run, at which point the user may
 choose to delete them. This pipeline keeps each component focused and makes the
 engines truly pluggable.
 
+**Progress:** Implemented in version 1.5a by creating the `scripts/` package
+with placeholder modules for parsing, conversion, engine interfacing, logging,
+plotting, CSV writing and error handling. A cache directory was also added
+under `models/`.
+
 ## Phase 1 – Define the Model DSL
 1. **Design the JSON schema**
    - Specify required fields: `model_name`, `version`, `date`, parameter list, and LaTeX or SymPy equations for SNe Ia and BAO.
    - Include optional fields for constants, fixed parameters, and metadata about future data types.
    - Keep the syntax simple so that any scientist can copy an existing
-     `cosmo_model_*.json` as a template and fill in their own theory without
-     writing Python.
+    `cosmo_model_*.json` as a template and fill in their own theory without
+    writing Python.
 2. **Draft example JSON models**
    - Convert an existing Markdown+Python model into JSON as a template.
    - Document the schema in `README.md` so contributors can easily create new models.
    - Note a future tool (`model_json_maker.py`) may automate this process once
      the DSL stabilizes.
+
+**Progress:** The JSON schema was outlined in `README.md` and an example file
+`models/cosmo_model_lcdm.json` demonstrates the structure. These additions
+complete Phase 1 for version 1.5a.
 
 ## Phase 2 – Implement a DSL Parser/Compiler
 1. **Create `model_parser.py` and `model_compiler.py`**
