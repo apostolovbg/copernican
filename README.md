@@ -1,8 +1,8 @@
 # Copernican Suite
-# DEV NOTE (v1.5c): Documented engine abstraction layer and version bump.
+# DEV NOTE (v1.5d): Documented Phase 4 DSL migration and version bump.
 
-**Version:** 1.5c
-**Last Updated:** 2025-06-17
+**Version:** 1.5d
+**Last Updated:** 2025-06-18
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
 Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. It
@@ -80,18 +80,11 @@ should not be modified by AI-driven code changes.
   are cleaned automatically.
 
 ## Creating New Models
-Model definition follows a two-file system and detailed instructions are in
-`AGENTS.md`:
-1. **Markdown file** (`cosmo_model_name.md`) describing equations and providing
-   a table of parameters. Each model file should conclude with the *Internal
-   Formatting Guide for Model Definition Files* so contributors understand the
-   required structure.
-2. **Python plugin** implementing the required functions listed in `AGENTS.md`.
-   Place this module in the `models` package and reference its filename in the
-   Markdown front matter under `model_plugin`.
+Models are now defined using a single JSON file as described in `AGENTS.md`.
+Legacy Markdown files with Python plugins are still supported but will be
+retired in a future release.
 
-Version 1.5b introduces an experimental **JSON DSL** for model definitions. A
-`cosmo_model_name.json` file contains:
+A `cosmo_model_name.json` file contains:
 
 - `model_name`, `version`, and `date` metadata
 - a list of parameter objects with `name`, `latex`, `guess`, `bounds`, and

@@ -1,0 +1,76 @@
+{
+  "model_name": "USMFv3b_Kinematic",
+  "version": "1.0",
+  "date": "2025-06-18",
+  "parameters": [
+    {
+      "name": "H_A",
+      "latex": "$H_A$",
+      "guess": 70.0,
+      "bounds": [
+        50.0,
+        100.0
+      ],
+      "unit": ""
+    },
+    {
+      "name": "t0_age_Gyr",
+      "latex": "$t_{0,age}$",
+      "guess": 14.0,
+      "bounds": [
+        10.0,
+        20.0
+      ],
+      "unit": "Gyr"
+    },
+    {
+      "name": "p_kin",
+      "latex": "$p_{kin}$",
+      "guess": 0.8,
+      "bounds": [
+        0.1,
+        2.0
+      ],
+      "unit": ""
+    },
+    {
+      "name": "Omega_m0_fid",
+      "latex": "$\\Omega_{m0,fid}$",
+      "guess": 0.31,
+      "bounds": [
+        0.2,
+        0.4
+      ],
+      "unit": ""
+    },
+    {
+      "name": "Omega_b0_fid",
+      "latex": "$\\Omega_{b0,fid}$",
+      "guess": 0.0486,
+      "bounds": [
+        0.03,
+        0.07
+      ],
+      "unit": ""
+    }
+  ],
+  "equations": {
+    "sne": [
+      "$\\alpha(t) = \\left( t_0/t \\right)^{p_{kin}}$",
+      "$r(z) = \\frac{c \\cdot t_0}{p_{kin}+1} \\left[ 1 - (1+z)^{-\\frac{p_{kin}+1}{p_{kin}}} \\right]$",
+      "$d_L(z) = |r(z)| \\cdot (1+z)^2 \\cdot \\frac{70.0}{H_A}$",
+      "$\\mu = 5 \\log_{10}(d_L) + 25$"
+    ],
+    "bao": [
+      "$D_A(z) = |r(z)| \\cdot \\frac{70.0}{H_A}$",
+      "$H_{USMF}(z) = \\frac{p_{kin}}{t_0} (1+z)^{1/p_{kin}}$",
+      "$D_V(z) = \\left[ (1+z)^2 D_A(z)^2 \\frac{cz}{H(z)} \\right]^{1/3}$"
+    ]
+  },
+  "constants": {
+    "C_LIGHT_KM_S": 299792.458,
+    "SECONDS_PER_GYR": 3.15576e+16,
+    "MPC_PER_KM": 3.240779291010696e-20,
+    "H0_FID_FOR_RS": 70.0
+  }
+}

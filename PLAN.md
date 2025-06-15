@@ -1,4 +1,4 @@
-# DEV NOTE (v1.5c)
+# DEV NOTE (v1.5d)
 Updated for Phase 0 and Phase 1 completion. Added pipeline skeleton modules and
 documented the new JSON DSL with an example model file.
 
@@ -76,7 +76,7 @@ complete Phase 1 for version 1.5a.
    - Standardize an interface so additional engines (Numba, OpenCL, etc.) can
      drop in without altering model definitions.
 
-**Progress:** Phase 3 implemented in version 1.5c. `engine_interface.py` now
+**Progress:** Phase 3 implemented in version 1.5d. `engine_interface.py` now
 validates model dictionaries and dispatches them to `cosmo_engine_1_4b.py`,
 which was refactored accordingly.
 
@@ -90,6 +90,10 @@ which was refactored accordingly.
 4. **Cache management**
     - Store compiled code in `models/cache/cache_*.json` during runs and prompt
       the user to delete or keep the cache afterward.
+
+**Progress:** Phase 4 implemented in version 1.5d. All existing models now have
+JSON definitions generated from their legacy plugins. `copernican.py` prompts to
+clear the `models/cache` directory at the end of each run.
 
 ## Phase 5 – Expand Back-End Support
 1. **Implement alternative engines**

@@ -3,7 +3,7 @@
 Cosmological Engine for the Copernican Suite.
 Relies on SciPy/NumPy for all computations.
 """
-# DEV NOTE (v1.5c): Refactored to accept model dictionaries provided by
+# DEV NOTE (v1.5d): Refactored to accept model dictionaries provided by
 # `engine_interface`. Legacy plugin objects are still supported for
 # backward compatibility.
 
