@@ -1,4 +1,4 @@
-# DEV NOTE (v1.5a)
+# DEV NOTE (v1.5b)
 Updated for Phase 0 and Phase 1 completion. Added pipeline skeleton modules and
 documented the new JSON DSL with an example model file.
 
@@ -18,7 +18,7 @@ the following helper modules:
 
 1. **`scripts/model_parser.py`** – validates `cosmo_model_*.json` files against
    the DSL template and writes validated information to `models/cache/cache_*`.
-2. **`scripts/model_converter.py`** – converts the parsed DSL into Python
+2. **`scripts/model_compiler.py`** – converts the parsed DSL into Python
    callables stored in the cache. No executable code is kept inside model JSON
    files.
 3. **`scripts/engine_interface.py`** – loads the compiled callables from the
@@ -64,6 +64,7 @@ complete Phase 1 for version 1.5a.
    - Guard against division by zero and other numerical pitfalls when compiling
      wild theories.
 
+**Progress:** Phase 2 implemented in version 1.5b. Parser validates JSON and compiler generates safe callables.
 ## Phase 3 – Engine Abstraction Layer
 1. **Create `engine_interface.py`**
    - Serves as a manager between compiled models and the chosen engine.

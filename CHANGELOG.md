@@ -1,9 +1,10 @@
 # Copernican Suite Change Log
-# DEV NOTE (v1.5a): Recorded Phase 0 and Phase 1 completion.
-## Version 1.5a (Development)
-- Pipeline skeleton introduced under `scripts/` implementing the new modular
-  architecture.
-- Added JSON DSL example `cosmo_model_lcdm.json` and documentation updates.
+# DEV NOTE (v1.5b): Recorded Phase 2 completion and version bump.
+## Version 1.5b (Development)
+- Implemented DSL parser validation and new `model_compiler.py` replacing
+  `model_compiler.py`.
+- Improved error handling for malformed JSON and numerical issues.
+- Updated documentation and version metadata for the 1.5b development cycle.
 
 ## Version 1.4.1 (Maintenance Release)
 - LCDM model separated into lcdm.py plugin.

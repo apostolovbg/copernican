@@ -1,4 +1,4 @@
-# DEV NOTE (v1.5a)
+# DEV NOTE (v1.5b)
 This file was rewritten entirely to document the current Copernican Suite structure and the model plugin system introduced in version 1.4b.
 
 # Copernican Suite Development Guide
