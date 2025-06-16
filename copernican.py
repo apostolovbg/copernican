@@ -82,7 +82,7 @@ def _gather_required_packages():
         'os', 'sys', 'time', 'json', 'logging', 'subprocess', 'importlib',
         'multiprocessing', 'glob', 'shutil', 'platform', 'inspect', 'types',
         'pathlib', 'builtins', 'traceback', 'typing',
-        # Local modules within this repository
+        # Local modules within this repository (under ``scripts``)
         'data_loaders', 'output_manager', 'csv_writer', 'plotter', 'logger',
         'utils'
     }
@@ -121,8 +121,7 @@ def check_dependencies():
 
 
 # Import sibling modules after the dependency check
-import data_loaders
-import output_manager
+from scripts import data_loaders, output_manager
 
 lcdm = None
 

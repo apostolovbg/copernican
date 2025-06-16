@@ -1,4 +1,5 @@
 # copernican_suite/output_manager.py
+# DEV NOTE (v1.5f): Module moved under ``scripts/`` package; internal references remain unchanged.
 # DEV NOTE (v1.5e): Logging utilities now accessible via logger.py; plotting and CSV functions via new wrappers.
 """
 Output Manager for the Copernican Suite.

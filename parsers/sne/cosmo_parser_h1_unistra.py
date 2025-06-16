@@ -1,10 +1,11 @@
 # DEV NOTE (v1.5e): Extracted from data_loaders.py during modular refactor.
 # This module registers the UniStra fixed-nuisance (h1) parser.
+# DEV NOTE (v1.5f hotfix): Updated ``data_loaders`` import path.
 
 import pandas as pd
 import logging
 
-from data_loaders import register_sne_parser
+from scripts.data_loaders import register_sne_parser
 
 DEFAULT_SALT2_M_ABS_FIXED = -19.3
 DEFAULT_SALT2_ALPHA_FIXED = 0.14
