@@ -1,6 +1,7 @@
 # DEV NOTE (v1.5f): Placeholder parser for future gravitational wave data formats.
+# DEV NOTE (v1.5f hotfix): Updated ``data_loaders`` import to new location.
 import logging
-from data_loaders import register_gw_parser
+from scripts.data_loaders import register_gw_parser
 
 @register_gw_parser("gw_placeholder_v1", "Placeholder GW parser.")
 def parse_gw_placeholder(filepath, **kwargs):

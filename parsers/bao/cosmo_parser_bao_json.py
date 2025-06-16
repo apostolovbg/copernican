@@ -1,11 +1,12 @@
 # DEV NOTE (v1.5e): General BAO JSON parser separated for modular discovery.
+# DEV NOTE (v1.5f hotfix): Updated import path for ``data_loaders`` package.
 
 import pandas as pd
 import json
 import os
 import logging
 
-from data_loaders import register_bao_parser
+from scripts.data_loaders import register_bao_parser
 
 
 @register_bao_parser("bao_json_general_v1", "General BAO JSON format (e.g., bao1.json).")

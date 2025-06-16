@@ -46,7 +46,7 @@ Under the hood the program follows a clear pipeline:
    for both the ΛCDM reference and the alternative model.
 5. **BAO Analysis** – using the best-fit parameters the engine predicts BAO
    observables and computes chi-squared statistics.
-6. **Output Generation** – `logger.py`, `plotter.py` and `csv_writer.py` handle logs, plots and tables.
+6. **Output Generation** – `scripts/logger.py`, `scripts/plotter.py` and `scripts/csv_writer.py` handle logs, plots and tables.
 7. **Loop or Exit** – the user may evaluate another model or quit, at which
    point temporary cache files are cleaned automatically.
 
@@ -73,9 +73,13 @@ data/             - Example data files
 output/           - All generated results
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
-logger.py         - Logging setup and helpers
-plotter.py       - Plotting functions
-csv_writer.py    - CSV output helpers
+scripts/          - Helper modules
+  logger.py         - Logging setup and helpers
+  plotter.py        - Plotting functions
+  csv_writer.py     - CSV output helpers
+  output_manager.py - Plotting, CSV, and logging utilities
+  data_loaders.py   - Data loading utilities
+  utils.py          - Common helpers
 ```
 **Note:** Files in `data/` are treated as read-only reference datasets and
 should not be modified by AI-driven code changes.

@@ -12,7 +12,7 @@ After finishing each phase or major step, append a short paragraph here describi
 3. **`scripts/model_parser.py`** – Checks that the JSON follows the `cosmo_model_template.json` format. If valid, it writes a `models/cache/cache_*.json` file containing the cleaned data. If invalid, details are handed to `scripts/error_handler.py` so the user knows what to fix.
 4. **`scripts/model_coder.py`** – Reads the cache, converts the model equations and plan into executable Python code, and stores that generated code back in the same cache file. There is no permanent Python model file.
 5. **`scripts/engine_interface.py`** – Loads the generated code from the cache and passes it to whichever engine (`cosmo_engine_*.py`, Numba, OpenCL, etc.) the user chooses. Engines themselves remain black boxes.
-6. **Results & cleanup** – `output_manager.py` orchestrates plotting via `plotter.py`, writes CSV files with `csv_writer.py`, and `logger.py` records every step. Afterward, the user is asked whether to delete the cache file.
+6. **Results & cleanup** – `scripts/output_manager.py` orchestrates plotting via `scripts/plotter.py`, writes CSV files with `scripts/csv_writer.py`, and `scripts/logger.py` records every step. Afterward, the user is asked whether to delete the cache file.
    - *Done 2025-06-15 – Initial pipeline implemented with stub modules and JSON detection in `copernican.py`.*
 
 This pipeline ensures that models stay purely declarative while engines receive ready-to-run Python functions.
@@ -57,7 +57,7 @@ This pipeline ensures that models stay purely declarative while engines receive 
 1. **Add alternative engines**
    - Implement faster back ends using Numba or GPU acceleration. Each engine simply consumes the callables provided by `engine_interface.py`.
 2. **Refine modular utilities**
-   - Keep `logger.py`, `plotter.py`, and `csv_writer.py` separate so they can be reused across engines and future data types.
+  - Keep `scripts/logger.py`, `scripts/plotter.py`, and `scripts/csv_writer.py` separate so they can be reused across engines and future data types.
 
 ## Phase 6 – Future Data Types & Extensibility
 1. **Prepare the schema for new observations**

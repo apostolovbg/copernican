@@ -1,6 +1,7 @@
 # copernican_suite/data_loaders.py
 # DEV NOTE (v1.5f): Added registries and loader functions for CMB, gravitational
 # wave, and standard siren data types as preparation for future datasets.
+# DEV NOTE (v1.5f hotfix): File moved to ``scripts/`` package; import paths for parsers updated.
 """
 Modular data loading for various cosmological datasets (SNe, BAO, etc.).
 """
