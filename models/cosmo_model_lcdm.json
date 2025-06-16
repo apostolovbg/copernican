@@ -1,5 +1,5 @@
 {
-  "dev_note": "v1.5f hotfix 8: added baryon, photon parameters for r_s computation",
+  "dev_note": "v1.5f hotfix 11: removed placeholder distance_modulus_model; relies on auto-generated function. Prior hotfix 8 added baryon, photon parameters.",
   "model_name": "LambdaCDM",
   "version": "1.0",
   "Hz_expression": "H0*sympy.sqrt(Omega_m0*(1+z)**3 + (1 - Omega_m0))",
@@ -11,9 +11,7 @@
     {"name": "Og", "python_var": "Og", "initial_guess": 5e-5, "bounds": [1e-5, 1e-4]},
     {"name": "z_recomb", "python_var": "z_recomb", "initial_guess": 1089, "bounds": [1000, 1200]}
   ],
-  "equations": {
-    "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
-  },
+  "equations": {},
   "abstract": "LambdaCDM model describes a flat universe dominated by cold dark matter and a cosmological constant serving as the reference model",
   "description": "Uses H(z)=H0*sqrt(Omega_m0(1+z)^3+Omega_Lambda0). Luminosity distance integrates c/H. BAO scale DV uses angular distance and H(z).",
   "notes": "See cosmo_model_lcdm.md for parameter table and example chi squared of 1700"
