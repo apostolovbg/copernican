@@ -11,6 +11,8 @@
 # curve generation.
 # DEV NOTE (v1.5f hotfix 11): Automatically derives ``distance_modulus_model``
 # from ``get_luminosity_distance_Mpc`` when not provided by the JSON model.
+# DEV NOTE (v1.5f hotfix 12): ``get_DV_Mpc`` now handles NumPy arrays for
+# smooth BAO curve generation without runtime errors.
 
 import json
 from pathlib import Path
@@ -89,9 +91,25 @@ def generate_callables(cache_path):
                 funcs['get_angular_diameter_distance_Mpc'] = lambda zv, *p: _dm(zv, *p) / (1 + zv)
                 code_dict['get_angular_diameter_distance_Mpc'] = 'DC/(1+z)'
             if 'get_DV_Mpc' not in funcs:
-                funcs['get_DV_Mpc'] = lambda zv, *p: ((
-                    _dm(zv, *p) ** 2 * 299792.458 * zv / hz_fn(zv, *p)
-                ) ** (1 / 3) if zv > 0 and hz_fn(zv, *p) != 0 else 0.0)
+                def _dv(z_val, *params):
+                    """Volume-averaged distance D_V valid for scalars or arrays."""
+                    dm_val = _dm(z_val, *params)
+                    hz_val = hz_fn(z_val, *params)
+
+                    term = dm_val ** 2 * 299792.458 * z_val / hz_val
+
+                    if np.isscalar(z_val):
+                        if z_val > 0 and hz_val != 0:
+                            return term ** (1 / 3) if term >= 0 else np.nan
+                        return 0.0
+
+                    result = np.zeros_like(z_val, dtype=float)
+                    mask = (z_val > 0) & (hz_val != 0)
+                    term_arr = term[mask]
+                    result[mask] = np.where(term_arr >= 0, np.power(term_arr, 1/3), np.nan)
+                    return result
+
+                funcs['get_DV_Mpc'] = _dv
                 code_dict['get_DV_Mpc'] = '((DC^2 * c*z/H)^1/3)'
             logger.info("Derived distance functions from symbolic Hz_expression in model JSON.")
 
