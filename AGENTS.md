@@ -3,6 +3,7 @@ Hotfix: improved dependency scanner to skip relative imports and added SymPy ali
 Hotfix 2: JSON models now contain optional abstract, description and notes fields.
 Hotfix 3: `copernican.py` now performs the dependency check before importing third-party packages to avoid start-up failures. Style fixes applied across the codebase.
 Hotfix 4: Multiprocessing's `freeze_support` is now called using a local import after the dependency check to prevent NoneType errors.
+Hotfix 5: Removed automatic dependency installer. The suite now instructs users to run `pip install` manually when packages are missing.
 Updated for Phase 6. Added placeholder parsers for CMB, gravitational waves and standard sirens, and expanded JSON schema.
 
 # Copernican Suite Development Guide
@@ -34,10 +35,12 @@ Files in `data/` are read-only and must not be modified by AI-driven changes.
 
 ## 3. Dependency Installation
 `copernican.py` scans all project files for imported modules. If any required
-package is missing, it launches `scripts/dep_install.py` in a new terminal
-window. The installer uses `pip` to fetch the libraries and then restarts the
-suite automatically. This mechanism works on Windows, macOS and Linux so new
-engines can introduce additional dependencies without manual updates.
+package is missing, the program prints a `pip install` command listing **all**
+detected dependencies and then exits. Run that command manually to install or
+upgrade packages (already installed libraries will be skipped). This
+lightweight approach works across Windows, macOS and Linux while allowing new
+engines to introduce additional dependencies without manual updates to the
+documentation.
 
 ## 4. JSON Model System
 As of version 1.5f every cosmological model is described by a single JSON file

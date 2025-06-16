@@ -4,7 +4,8 @@ Copernican Suite - Main Orchestrator.
 """
 # DEV NOTE (v1.5f): Added placeholders for future data types and bumped version.
 # DEV NOTE (v1.5f hotfix): Fixed dependency scanner to ignore relative imports.
-# Automatic dependency installer still triggers when packages are missing.
+# DEV NOTE (v1.5f hotfix 5): Removed automatic dependency installer. The program
+# now prints a manual `pip install` command when packages are missing and exits.
 # Plugin validation now occurs on the generated module.
 # DEV NOTE (v1.5f hotfix 4): Moved `freeze_support` call to a local import at
 # runtime to prevent NoneType errors when optional imports are deferred.
@@ -96,33 +97,20 @@ def _gather_required_packages():
     return {pkg for pkg in pkg_names if not pkg.startswith(('scripts', 'engines', 'parsers')) and pkg not in ignore}
 
 
-def _run_dep_installer(missing_pkgs):
-    """Launch the dependency installer in a new terminal window."""
-    installer = os.path.join(os.path.dirname(__file__), 'scripts', 'dep_install.py')
-    cmd_base = [sys.executable, installer] + list(missing_pkgs)
-    system = platform.system()
-    if system == 'Windows':
-        subprocess.Popen(['cmd', '/c', 'start', 'cmd', '/k'] + cmd_base)
-    elif system == 'Darwin':
-        subprocess.Popen(['osascript', '-e', f'tell application "Terminal" to do script "{" ".join(cmd_base)}"'])
-    else:
-        term = shutil.which('x-terminal-emulator') or shutil.which('xterm') or shutil.which('gnome-terminal') or shutil.which('konsole')
-        if term:
-            subprocess.Popen([term, '-e', ' '.join(cmd_base)])
-        else:
-            subprocess.Popen(cmd_base)
-    print('Missing dependencies installed in separate terminal. Restarting when done.')
-    sys.exit(0)
 
 
 def check_dependencies():
-    """Check for required packages and launch installer if any are missing."""
+    """Ensure all required packages are installed."""
     print("--- Running System Dependency Check ---")
-    required = _gather_required_packages()
+    required = sorted(_gather_required_packages())
     missing = [pkg for pkg in required if importlib.util.find_spec(pkg) is None]
     if missing:
         print(f"Missing packages detected: {', '.join(missing)}")
-        _run_dep_installer(missing)
+        print(
+            "To install all project dependencies, run:\n"
+            f"  pip install {' '.join(required)}\n"
+        )
+        sys.exit(1)
     else:
         print("✅ System Dependency Check Passed. Continuing...\n")
 
