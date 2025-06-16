@@ -13,6 +13,8 @@
   a fallback integral if `rs_expression` is missing.
 - Hotfix 9: Parser auto-discovery now searches the project's top-level `parsers`
   directory instead of a nonexistent `scripts/parsers` folder.
+- Hotfix 10: Fixed BAO smooth curve generation by allowing `_dm` to accept array
+  redshift values.
 
 ## Version 1.5e (Development Release)
 - Added Numba-based engine and modular utility wrappers.

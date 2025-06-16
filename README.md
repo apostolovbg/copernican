@@ -5,6 +5,7 @@
 <!-- DEV NOTE (v1.5f hotfix 3): Dependency check now runs before importing optional packages; code style cleanup. -->
 <!-- DEV NOTE (v1.5f hotfix 4): Multiprocessing freeze_support is now called via a local import after verifying dependencies. -->
 <!-- DEV NOTE (v1.5f hotfix 5): Automatic dependency installer removed; the program now prints a pip command when packages are missing. -->
+<!-- DEV NOTE (v1.5f hotfix 10): BAO smooth curve generation fixed by vectorizing distance integrals. -->
 
 **Version:** 1.5f
 **Last Updated:** 2025-06-20

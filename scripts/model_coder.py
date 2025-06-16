@@ -7,6 +7,8 @@
 # DEV NOTE (v1.5f hotfix 8): Adds ``rs_expression`` handling and a fallback
 # numerical integral for the sound horizon when model parameters ``Ob``,
 # ``Og`` and ``z_recomb`` are present.
+# DEV NOTE (v1.5f hotfix 10): ``_dm`` now accepts array inputs for BAO smooth
+# curve generation.
 
 import json
 from pathlib import Path
@@ -63,8 +65,17 @@ def generate_callables(cache_path):
             model_data['valid_for_distance_metrics'] = True
 
             def _dm(z_val, *params):
+                """Comoving distance integral valid for scalars or arrays."""
                 integrand = lambda zp: 299792.458 / hz_fn(zp, *params)
-                return quad(integrand, 0, z_val, limit=100)[0]
+                if np.isscalar(z_val):
+                    # ``quad`` expects scalar limits; cast to float explicitly.
+                    return quad(integrand, 0, float(z_val), limit=100)[0]
+
+                # For arrays, compute the integral element-wise and
+                # preserve the input shape.
+                z_flat = np.ravel(z_val)
+                results = [quad(integrand, 0, float(z), limit=100)[0] for z in z_flat]
+                return np.reshape(results, np.shape(z_val))
 
             if 'get_comoving_distance_Mpc' not in funcs:
                 funcs['get_comoving_distance_Mpc'] = _dm
