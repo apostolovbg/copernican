@@ -95,7 +95,8 @@ should not be modified by AI-driven code changes.
   `data/bao`. Future datasets such as CMB or gravitational waves will use
   their own folders.
 - Parsers and engines are also selected interactively from their respective
-  directories.
+  directories. Parsers for each data type are automatically discovered from
+  `parsers/<type>/` subfolders at startup.
 - After each run you may choose to evaluate another model or exit. Cache files
   are cleaned automatically.
 

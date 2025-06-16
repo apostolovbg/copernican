@@ -11,6 +11,8 @@
   distance predictions.
 - Hotfix 8: Sound horizon `r_s` is now computed automatically when possible using
   a fallback integral if `rs_expression` is missing.
+- Hotfix 9: Parser auto-discovery now searches the project's top-level `parsers`
+  directory instead of a nonexistent `scripts/parsers` folder.
 
 ## Version 1.5e (Development Release)
 - Added Numba-based engine and modular utility wrappers.
