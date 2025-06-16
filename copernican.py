@@ -18,15 +18,20 @@ import importlib
 import os
 import sys
 import platform
-import json
-import numpy as np
-import matplotlib.pyplot as plt
-import multiprocessing as mp
 import shutil
 import subprocess
-import glob
 import time
-from scripts import model_parser, model_coder, engine_interface
+
+# Delay heavy third-party imports until after the dependency check
+np = None
+plt = None
+mp = None
+
+model_parser = None
+model_coder = None
+engine_interface = None
+output_manager = None
+data_loaders = None
 
 COPERNICAN_VERSION = "1.5f"
 
@@ -120,8 +125,7 @@ def check_dependencies():
         print("✅ System Dependency Check Passed. Continuing...\n")
 
 
-# Import sibling modules after the dependency check
-from scripts import data_loaders, output_manager
+# Modules that rely on optional packages will be imported in ``main_workflow``
 
 lcdm = None
 
@@ -129,18 +133,22 @@ def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
     """Prompts the user for a filepath and validates it."""
     while True:
         filename = input(f"{prompt_message} (or 'c' to cancel): ").strip()
-        if filename.lower() == 'c': return None
+        if filename.lower() == 'c':
+            return None
         # Allow special keywords like 'test' to pass through without existing as a file
         if not must_exist and not os.path.isabs(filename):
             return filename
         filepath = os.path.join(base_dir, filename)
-        if os.path.isfile(filepath): return filepath
-        else: print(f"Error: File not found at '{filepath}'. Please try again.")
+        if os.path.isfile(filepath):
+            return filepath
+        else:
+            print(f"Error: File not found at '{filepath}'. Please try again.")
 
 def load_alternative_model_plugin(model_filepath):
     """Dynamically loads an alternative cosmological model plugin."""
     logger = output_manager.get_logger()
-    if not model_filepath.endswith(".py"): model_filepath += ".py"
+    if not model_filepath.endswith(".py"):
+        model_filepath += ".py"
     if not os.path.isfile(model_filepath):
         logger.error(f"Alternative model plugin file '{model_filepath}' not found.")
         return None
@@ -216,8 +224,18 @@ def main_workflow():
     """Main workflow for the Copernican Suite."""
     check_dependencies()
 
-    try: SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-    except NameError: SCRIPT_DIR = os.getcwd()
+    # Import optional third-party packages after confirming they are installed
+    global np, plt, mp, model_parser, model_coder, engine_interface, data_loaders, output_manager
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import multiprocessing as mp
+    from scripts import model_parser, model_coder, engine_interface
+    from scripts import data_loaders, output_manager
+
+    try:
+        SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    except NameError:
+        SCRIPT_DIR = os.getcwd()
 
     OUTPUT_DIR = os.path.join(SCRIPT_DIR, 'output')
     os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -309,18 +327,25 @@ def main_workflow():
         sne_data_filepath = os.path.join(sne_data_dir, sne_choice)
         
         sne_format_key = data_loaders._select_parser(data_loaders.SNE_PARSERS, "SNe")
-        if not sne_format_key: break
+        if not sne_format_key:
+            break
 
         sne_loader_kwargs = {}
         parser_info = data_loaders.SNE_PARSERS.get(sne_format_key)
         if parser_info and parser_info.get('extra_args_func'):
             logger.info(f"Parser '{sne_format_key}' requires additional arguments.")
             extra_args = parser_info['extra_args_func'](SCRIPT_DIR)
-            if extra_args is None: break
+            if extra_args is None:
+                break
             sne_loader_kwargs.update(extra_args)
         
-        sne_data_df = data_loaders.load_sne_data(sne_data_filepath, format_key=sne_format_key, **sne_loader_kwargs)
-        if sne_data_df is None: continue
+        sne_data_df = data_loaders.load_sne_data(
+            sne_data_filepath,
+            format_key=sne_format_key,
+            **sne_loader_kwargs,
+        )
+        if sne_data_df is None:
+            continue
 
         bao_data_dir = os.path.join(SCRIPT_DIR, 'data', 'bao')
         bao_files = sorted(os.listdir(bao_data_dir))
@@ -329,9 +354,13 @@ def main_workflow():
             break
         bao_data_filepath = os.path.join(bao_data_dir, bao_choice)
         bao_format_key = data_loaders._select_parser(data_loaders.BAO_PARSERS, "BAO")
-        if not bao_format_key: break
-        bao_data_df = data_loaders.load_bao_data(bao_data_filepath, format_key=bao_format_key)
-        if bao_data_df is None: continue
+        if not bao_format_key:
+            break
+        bao_data_df = data_loaders.load_bao_data(
+            bao_data_filepath, format_key=bao_format_key
+        )
+        if bao_data_df is None:
+            continue
 
         logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
         lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, lcdm)
@@ -402,7 +431,7 @@ if __name__ == "__main__":
     mp.freeze_support()
     try:
         main_workflow()
-    except Exception as e:
+    except Exception:
         logger = output_manager.get_logger()
         if logger.hasHandlers():
             logger.critical("Unhandled exception in main_workflow!", exc_info=True)
