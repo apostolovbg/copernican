@@ -1,5 +1,5 @@
 {
-  "dev_note": "v1.5d: Converted from Markdown/Plugin for JSON pipeline",
+  "dev_note": "v1.5d: Converted from Markdown/Plugin for JSON pipeline; v1.5f hotfix added abstract description notes",
   "model_name": "USMFv5",
   "version": "5",
   "parameters": [
@@ -19,5 +19,8 @@
   "equations": {
     "get_Hz_per_Mpc": "H_A*(1+z)**(1/m_e)",
     "distance_modulus_model": "5*sympy.log(1+z,10)*H_A"
-  }
+  },
+  "abstract": "Fixed Size Filament Contraction model keeps global scale constant while local filaments contract preserving supernova fits with adjustable early exponent",
+  "description": "Piecewise alpha(t) with oscillations encodes vacuum energy scales. Parameter m_e tunes early era improving BAO results while retaining Newtonian behavior",
+  "notes": "Full formulation in cosmo_model_usmf5.md"
 }

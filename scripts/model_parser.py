@@ -2,6 +2,8 @@
 # DEV NOTE (v1.5f): Schema updated with optional CMB, gravitational wave, and
 # standard siren fields for Phase 6. Writes validated JSON models to the cache
 # directory and reports errors through ``error_handler``.
+# DEV NOTE (v1.5f hotfix): Added optional ``abstract``, ``description`` and
+# ``notes`` fields for human readability.
 
 import json
 from jsonschema import validate, ValidationError
@@ -37,7 +39,11 @@ MODEL_SCHEMA = {
         "equations": {"type": "object"},
         "cmb": {"type": "object"},
         "gravitational_waves": {"type": "object"},
-        "standard_sirens": {"type": "object"}
+        "standard_sirens": {"type": "object"},
+        # Optional human-readable fields used by upcoming UI modules
+        "abstract": {"type": "string"},
+        "description": {"type": "string"},
+        "notes": {"type": "string"}
     }
 }
 

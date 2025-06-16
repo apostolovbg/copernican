@@ -1,4 +1,5 @@
 {
+  "dev_note": "v1.5f hotfix: added abstract description notes fields",
   "model_name": "LambdaCDM",
   "version": "1.0",
   "parameters": [
@@ -9,5 +10,8 @@
   "equations": {
     "get_Hz_per_Mpc": "H0*sympy.sqrt(Omega_m0*(1+z)**3 + (1 - Omega_m0))",
     "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
-  }
+  },
+  "abstract": "LambdaCDM model describes a flat universe dominated by cold dark matter and a cosmological constant serving as the reference model",
+  "description": "Uses H(z)=H0*sqrt(Omega_m0(1+z)^3+Omega_Lambda0). Luminosity distance integrates c/H. BAO scale DV uses angular distance and H(z).",
+  "notes": "See cosmo_model_lcdm.md for parameter table and example chi squared of 1700"
 }
