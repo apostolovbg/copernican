@@ -4,6 +4,8 @@
 # directory and reports errors through ``error_handler``.
 # DEV NOTE (v1.5f hotfix): Added optional ``abstract``, ``description`` and
 # ``notes`` fields for human readability.
+# DEV NOTE (v1.5f hotfix 8): Added optional ``rs_expression`` and
+# ``predicts_bao`` fields allowing automatic sound-horizon computation.
 
 import json
 from jsonschema import validate, ValidationError
@@ -37,9 +39,11 @@ MODEL_SCHEMA = {
             }
         },
         "equations": {"type": "object"},
+        "rs_expression": {"type": "string"},
         "cmb": {"type": "object"},
         "gravitational_waves": {"type": "object"},
         "standard_sirens": {"type": "object"},
+        "predicts_bao": {"type": "boolean"},
         # Optional human-readable fields used by upcoming UI modules
         "abstract": {"type": "string"},
         "description": {"type": "string"},

@@ -5,6 +5,7 @@ Hotfix 3: `copernican.py` now performs the dependency check before importing thi
 Hotfix 4: Multiprocessing's `freeze_support` is now called using a local import after the dependency check to prevent NoneType errors.
 Hotfix 5: Removed automatic dependency installer. The suite now instructs users to run `pip install` manually when packages are missing.
 Hotfix 7: Models now provide a symbolic `Hz_expression` compiled at runtime for distance calculations.
+Hotfix 8: When `rs_expression` is absent but `Ob`, `Og` and `z_recomb` exist, the suite derives `get_sound_horizon_rs_Mpc` using SciPy's `quad` integral.
 Updated for Phase 6. Added placeholder parsers for CMB, gravitational waves and standard sirens, and expanded JSON schema.
 
 # Copernican Suite Development Guide

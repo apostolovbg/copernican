@@ -4,6 +4,9 @@
 # functions. The generated SymPy expressions are written back to the cache.
 # Previous hotfix notes: loads sanitized models from ``models/cache`` and allows
 # "sympy." prefix in JSON equations.
+# DEV NOTE (v1.5f hotfix 8): Adds ``rs_expression`` handling and a fallback
+# numerical integral for the sound horizon when model parameters ``Ob``,
+# ``Og`` and ``z_recomb`` are present.
 
 import json
 from pathlib import Path
@@ -78,6 +81,55 @@ def generate_callables(cache_path):
                 ) ** (1 / 3) if zv > 0 and hz_fn(zv, *p) != 0 else 0.0)
                 code_dict['get_DV_Mpc'] = '((DC^2 * c*z/H)^1/3)'
             logger.info("Derived distance functions from symbolic Hz_expression in model JSON.")
+
+            # --- Derive sound horizon at recombination (r_s) ---
+            rs_expr_str = model_data.get('rs_expression')
+            param_names = {p['python_var'] for p in model_data['parameters']}
+            param_index = {p['python_var']: i for i, p in enumerate(model_data['parameters'])}
+
+            if rs_expr_str:
+                try:
+                    rs_sym = sp.sympify(rs_expr_str, locals=local_dict)
+                    used = {str(s) for s in rs_sym.free_symbols} - {'z'}
+                    missing_rs = used - param_names
+                    if missing_rs:
+                        raise ValueError(
+                            "Parameter '" + "', '".join(missing_rs) + "' used in rs_expression is not defined in model parameters."
+                        )
+                    rs_fn_sym = sp.lambdify(tuple(param_syms), rs_sym, 'numpy')
+                    funcs['get_sound_horizon_rs_Mpc'] = lambda *p: float(rs_fn_sym(*p))
+                    code_dict['get_sound_horizon_rs_Mpc'] = str(rs_sym)
+                    model_data['valid_for_bao'] = True
+                    logger.info("Derived r_s from symbolic rs_expression in model JSON.")
+                except Exception as e:
+                    error_handler.report_error(f"Failed to parse rs_expression: {e}")
+                    raise ValueError(f"Failed to parse rs_expression: {e}") from e
+            elif {'Ob', 'Og', 'z_recomb'}.issubset(param_names) and 'get_Hz_per_Mpc' in funcs:
+                ob_i = param_index['Ob']
+                og_i = param_index['Og']
+                zr_i = param_index['z_recomb']
+
+                def _rs(*params):
+                    Ob_val = params[ob_i]
+                    Og_val = params[og_i]
+                    zrec = params[zr_i]
+
+                    def sound_speed(zv):
+                        return 299792.458 / np.sqrt(3 * (1 + 3 * Ob_val / (4 * Og_val) / (1 + zv)))
+
+                    integrand = lambda zv: sound_speed(zv) / hz_fn(zv, *params)
+                    result, _ = quad(integrand, zrec, np.inf, limit=100)
+                    return result
+
+                funcs['get_sound_horizon_rs_Mpc'] = _rs
+                code_dict['get_sound_horizon_rs_Mpc'] = 'quad(c_s/H(z))'
+                model_data['valid_for_bao'] = True
+                logger.info("Derived r_s using fallback integral from Hz_expression.")
+            else:
+                print(
+                    "\u26A0\uFE0F  Model does not define all necessary parameters for computing r_s. BAO scaling may be unavailable."
+                )
+                model_data['valid_for_bao'] = False
         except Exception as e:
             error_handler.report_error(f"Failed to parse Hz_expression: {e}")
             raise ValueError(f"Failed to parse Hz_expression: {e}") from e
@@ -86,6 +138,7 @@ def generate_callables(cache_path):
             "\u26A0\uFE0F  Model does not define H(z). Distance-based observables such as BAO, comoving distances, and luminosity distances will be unavailable."
         )
         model_data['valid_for_distance_metrics'] = False
+        model_data['valid_for_bao'] = False
     for name, expr in model_data.get('equations', {}).items():
         try:
             sym_expr = sp.sympify(expr, locals=local_dict)

@@ -1,12 +1,15 @@
 {
-  "dev_note": "v1.5f hotfix 7: added Hz_expression key for automatic H(z)",
+  "dev_note": "v1.5f hotfix 8: added baryon, photon parameters for r_s computation",
   "model_name": "LambdaCDM",
   "version": "1.0",
   "Hz_expression": "H0*sympy.sqrt(Omega_m0*(1+z)**3 + (1 - Omega_m0))",
   "parameters": [
     {"name": "H0", "python_var": "H0", "initial_guess": 67.7, "bounds": [50.0, 100.0], "unit": "km/s/Mpc"},
     {"name": "Omega_m0", "python_var": "Omega_m0", "initial_guess": 0.31, "bounds": [0.05, 0.7]},
-    {"name": "Omega_b0", "python_var": "Omega_b0", "initial_guess": 0.0486, "bounds": [0.01, 0.1]}
+    {"name": "Omega_b0", "python_var": "Omega_b0", "initial_guess": 0.0486, "bounds": [0.01, 0.1]},
+    {"name": "Ob", "python_var": "Ob", "initial_guess": 0.0486, "bounds": [0.01, 0.1]},
+    {"name": "Og", "python_var": "Og", "initial_guess": 5e-5, "bounds": [1e-5, 1e-4]},
+    {"name": "z_recomb", "python_var": "z_recomb", "initial_guess": 1089, "bounds": [1000, 1200]}
   ],
   "equations": {
     "distance_modulus_model": "5*sympy.log(1+z,10)*H0"

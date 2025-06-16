@@ -1,6 +1,8 @@
 """Interface to bridge generated model functions with existing engines."""
 # DEV NOTE (v1.5e): Validates plugin interfaces and presents generated
 # functions in the same format as classic Python plugins.
+# DEV NOTE (v1.5f hotfix 8): Supports ``valid_for_bao`` flag which skips
+# BAO-specific functions when unavailable.
 
 from types import SimpleNamespace
 import inspect
@@ -40,6 +42,7 @@ def build_plugin(model_data, func_dict):
     plugin.PARAMETER_BOUNDS = [tuple(p['bounds']) for p in model_data['parameters']]
     plugin.FIXED_PARAMS = {}
     plugin.valid_for_distance_metrics = model_data.get('valid_for_distance_metrics', True)
+    plugin.valid_for_bao = model_data.get('valid_for_bao', True)
     for name, func in func_dict.items():
         setattr(plugin, name, func)
     validate_plugin(plugin)
@@ -58,6 +61,15 @@ def validate_plugin(plugin):
     required_funcs = REQUIRED_FUNCTIONS
     if getattr(plugin, 'valid_for_distance_metrics', True) is False:
         required_funcs = ['distance_modulus_model']
+    elif getattr(plugin, 'valid_for_bao', True) is False:
+        required_funcs = [
+            'distance_modulus_model',
+            'get_comoving_distance_Mpc',
+            'get_luminosity_distance_Mpc',
+            'get_angular_diameter_distance_Mpc',
+            'get_Hz_per_Mpc',
+            'get_DV_Mpc',
+        ]
 
     for fname in required_funcs:
         func = getattr(plugin, fname, None)
