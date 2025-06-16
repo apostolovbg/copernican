@@ -11,3 +11,5 @@ output/.DS_Store
 *.pyc
 .DS_Store
 /output
+/models/cache
+.DS_Store
