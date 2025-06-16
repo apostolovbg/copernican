@@ -20,7 +20,6 @@ import logging
 import os
 import time
 import sys
-import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -89,7 +88,8 @@ def format_model_summary_text(model_plugin, is_sne_summary, fit_results, **kwarg
     eq_attr = 'MODEL_EQUATIONS_LATEX_SN' if is_sne_summary else 'MODEL_EQUATIONS_LATEX_BAO'
     if hasattr(model_plugin, eq_attr):
         lines.append("$\\mathbf{Mathematical\\ Form:}$")
-        for eq_line in getattr(model_plugin, eq_attr): lines.append(f"  {eq_line}")
+        for eq_line in getattr(model_plugin, eq_attr):
+            lines.append(f"  {eq_line}")
 
     lines.append("$\\mathbf{Cosmological\\ Parameters:}$")
     param_names = getattr(model_plugin, 'PARAMETER_NAMES', [])
@@ -136,7 +136,10 @@ def plot_hubble_diagram(sne_data_df, lcdm_fit_results, alt_model_fit_results, lc
             M_B, alpha, beta = nuisance['M_B'], nuisance['alpha_salt2'], nuisance['beta_salt2']
             sne_data_df['mu_obs'] = sne_data_df['mb'] - M_B + alpha * sne_data_df['x1'] - beta * sne_data_df['c']
         else:
-            logger.error("Cannot plot Hubble Diagram: 'mu_obs' column missing and could not be calculated."); return
+            logger.error(
+                "Cannot plot Hubble Diagram: 'mu_obs' column missing and could not be calculated."
+            )
+            return
 
     mu_obs_data = sne_data_df['mu_obs'].values
     z_data = sne_data_df['zcmb'].values
@@ -144,7 +147,8 @@ def plot_hubble_diagram(sne_data_df, lcdm_fit_results, alt_model_fit_results, lc
     z_plot_smooth = np.geomspace(max(np.min(z_data) * 0.9, 0.001), np.max(z_data) * 1.05, 200)
 
     def get_binned_average(z, residuals, n_bins=20):
-        if len(z) < n_bins: return np.array([]), np.array([])
+        if len(z) < n_bins:
+            return np.array([]), np.array([])
         try:
             from scipy.stats import binned_statistic
             mean_stat, bin_edges, _ = binned_statistic(z, residuals, statistic='mean', bins=n_bins)
@@ -152,14 +156,18 @@ def plot_hubble_diagram(sne_data_df, lcdm_fit_results, alt_model_fit_results, lc
             valid_indices = ~np.isnan(mean_stat)
             return bin_centers[valid_indices], mean_stat[valid_indices]
         except ImportError:
-            logger.warning("Scipy not found, cannot plot binned residual averages."); return np.array([]), np.array([])
+            logger.warning("Scipy not found, cannot plot binned residual averages.")
+            return np.array([]), np.array([])
         except Exception as e:
-            logger.warning(f"Could not calculate binned average due to an error: {e}"); return np.array([]), np.array([])
+            logger.warning(f"Could not calculate binned average due to an error: {e}")
+            return np.array([]), np.array([])
 
     fig, axs = plt.subplots(2, 1, figsize=(17, 12), sharex=True, gridspec_kw={'height_ratios':[3,1.5],'hspace':0.05})
     plt.subplots_adjust(left=0.08, bottom=0.08, right=0.75, top=0.92)
-    try: plt.style.use('seaborn-v0_8-darkgrid')
-    except Exception: logger.warning("Seaborn-v0_8-darkgrid style not found, using default.")
+    try:
+        plt.style.use('seaborn-v0_8-darkgrid')
+    except Exception:
+        logger.warning("Seaborn-v0_8-darkgrid style not found, using default.")
 
     axs[0].errorbar(z_data, mu_obs_data, yerr=diag_errors_plot, fmt='.', color='darkgray', alpha=0.6, label=f"{dataset_name}", elinewidth=1, capsize=2, ms=5, ecolor='lightgray', zorder=1)
 
@@ -187,8 +195,18 @@ def plot_hubble_diagram(sne_data_df, lcdm_fit_results, alt_model_fit_results, lc
         z_alt_avg, res_alt_avg = get_binned_average(z_data, res_alt)
         axs[1].plot(z_alt_avg, res_alt_avg, color='darkblue', ls='--', lw=2, zorder=11, label=f'Avg. {alt_name_latex} Res.')
 
-    axs[0].set_ylabel(r'Distance Modulus ($\mu$)', fontsize=font_sizes['label']); axs[0].legend(fontsize=font_sizes['legend'], loc='lower right'); axs[0].set_title(f'Hubble Diagram: {dataset_name}', fontsize=font_sizes['title']); axs[0].minorticks_on(); axs[0].tick_params(axis='both', which='major', labelsize=font_sizes['ticks'])
-    axs[1].axhline(0, color='black', ls='--', lw=1); axs[1].set_xlabel('Redshift (z)', fontsize=font_sizes['label']); axs[1].set_ylabel(r'$\mu_{obs} - \mu_{model}$', fontsize=font_sizes['label']); axs[1].legend(fontsize=font_sizes['legend'], loc='lower right'); axs[1].minorticks_on(); axs[1].tick_params(axis='both', which='major', labelsize=font_sizes['ticks'])
+    axs[0].set_ylabel(r'Distance Modulus ($\mu$)', fontsize=font_sizes['label'])
+    axs[0].legend(fontsize=font_sizes['legend'], loc='lower right')
+    axs[0].set_title(f'Hubble Diagram: {dataset_name}', fontsize=font_sizes['title'])
+    axs[0].minorticks_on()
+    axs[0].tick_params(axis='both', which='major', labelsize=font_sizes['ticks'])
+
+    axs[1].axhline(0, color='black', ls='--', lw=1)
+    axs[1].set_xlabel('Redshift (z)', fontsize=font_sizes['label'])
+    axs[1].set_ylabel(r'$\mu_{obs} - \mu_{model}$', fontsize=font_sizes['label'])
+    axs[1].legend(fontsize=font_sizes['legend'], loc='lower right')
+    axs[1].minorticks_on()
+    axs[1].tick_params(axis='both', which='major', labelsize=font_sizes['ticks'])
 
     bbox_lcdm = dict(boxstyle='round,pad=0.5', fc='#FFEEEE', ec='darkred', alpha=0.8)
     bbox_alt = dict(boxstyle='round,pad=0.5', fc='#EEF2FF', ec='darkblue', alpha=0.8)
@@ -198,7 +216,8 @@ def plot_hubble_diagram(sne_data_df, lcdm_fit_results, alt_model_fit_results, lc
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
     filename = _generate_filename("hubble-plot", dataset_name, "png", model_name=model_comparison_name)
     try:
-        plt.savefig(os.path.join(plot_dir, filename), dpi=300); logger.info(f"Hubble diagram saved to {filename}")
+        plt.savefig(os.path.join(plot_dir, filename), dpi=300)
+        logger.info(f"Hubble diagram saved to {filename}")
     except Exception as e:
         logger.error(f"Error saving Hubble diagram: {e}")
     finally:
@@ -215,8 +234,10 @@ def plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results,
     
     fig, ax = plt.subplots(figsize=(17, 10))
     plt.subplots_adjust(left=0.08, bottom=0.1, right=0.75, top=0.90)
-    try: plt.style.use('seaborn-v0_8-darkgrid')
-    except Exception: logger.warning("Seaborn-v0_8-darkgrid style not found, using default.")
+    try:
+        plt.style.use('seaborn-v0_8-darkgrid')
+    except Exception:
+        logger.warning("Seaborn-v0_8-darkgrid style not found, using default.")
 
     obs_types = bao_data_df['observable_type'].unique()
     cmap = plt.get_cmap('viridis')
@@ -238,8 +259,10 @@ def plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results,
         def robust_plot(z_vals, y_vals, **kwargs):
             # This helper ensures that only finite, valid data is plotted.
             valid_indices = np.isfinite(z_vals) & np.isfinite(y_vals)
-            if np.any(valid_indices): ax.plot(z_vals[valid_indices], y_vals[valid_indices], **kwargs)
-            else: logger.warning(f"No valid data points to plot for {kwargs.get('label')}")
+            if np.any(valid_indices):
+                ax.plot(z_vals[valid_indices], y_vals[valid_indices], **kwargs)
+            else:
+                logger.warning(f"No valid data points to plot for {kwargs.get('label')}")
 
         if 'DM_over_rs' in obs_types:
             robust_plot(z, smooth_preds['dm_over_rs'], color=color, ls=line_styles[0], lw=2.5, label=fr'{label_prefix} ($D_M/r_s$)', alpha=alpha)
@@ -257,7 +280,15 @@ def plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results,
     alt_name_latex = alt_name_raw.replace('_', r'\_')
     plot_model_bao(alt_model_full_results, 'blue', line_styles, alt_name_latex, alpha=0.25)
 
-    ax.set_xlabel('Redshift (z)', fontsize=font_sizes['label']); ax.set_ylabel(r'$D_X/r_s$', fontsize=font_sizes['label']); ax.set_title(f'BAO Observables vs. Redshift: {dataset_name}', fontsize=font_sizes['title']); ax.legend(fontsize=font_sizes['legend'], loc='best'); ax.minorticks_on(); ax.tick_params(axis='both', which='major', labelsize=font_sizes['ticks'])
+    ax.set_xlabel('Redshift (z)', fontsize=font_sizes['label'])
+    ax.set_ylabel(r'$D_X/r_s$', fontsize=font_sizes['label'])
+    ax.set_title(
+        f'BAO Observables vs. Redshift: {dataset_name}',
+        fontsize=font_sizes['title'],
+    )
+    ax.legend(fontsize=font_sizes['legend'], loc='best')
+    ax.minorticks_on()
+    ax.tick_params(axis='both', which='major', labelsize=font_sizes['ticks'])
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
     bbox_lcdm = dict(boxstyle='round,pad=0.5', fc='#FFEEEE', ec='darkred', alpha=0.8)
@@ -268,7 +299,8 @@ def plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results,
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
     filename = _generate_filename("bao-plot", dataset_name, "png", model_name=model_comparison_name)
     try:
-        plt.savefig(os.path.join(plot_dir, filename), dpi=300); logger.info(f"BAO plot saved to {filename}")
+        plt.savefig(os.path.join(plot_dir, filename), dpi=300)
+        logger.info(f"BAO plot saved to {filename}")
     except Exception as e:
         logger.error(f"Error saving BAO plot: {e}")
     finally:
@@ -326,7 +358,8 @@ def save_bao_results_csv(bao_data_df, lcdm_results, alt_model_results, alt_model
     _ensure_dir_exists(csv_dir)
     logger = get_logger()
     if bao_data_df is None or bao_data_df.empty:
-        logger.warning("BAO data is empty, skipping CSV save."); return
+        logger.warning("BAO data is empty, skipping CSV save.")
+        return
         
     df_out = bao_data_df.copy()
     
@@ -344,6 +377,7 @@ def save_bao_results_csv(bao_data_df, lcdm_results, alt_model_results, alt_model
     # Change file_type to "bao-detailed-data" for consistency
     filename = _generate_filename("bao-detailed-data", dataset_name, "csv", model_name=model_comparison_name)
     try:
-        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format='%.6g'); logger.info(f"BAO detailed results CSV saved to {filename}")
+        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format='%.6g')
+        logger.info(f"BAO detailed results CSV saved to {filename}")
     except Exception as e:
         logger.error(f"Error saving BAO detailed results CSV: {e}")
