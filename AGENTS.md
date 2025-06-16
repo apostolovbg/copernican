@@ -1,5 +1,6 @@
-# DEV NOTE (v1.6a)
-Introduced dynamic parser plugin system with data-type and source directories.
+# DEV NOTE (v1.6a update)
+Parser registry now uses explicit `register_parser()` calls. The CLI now asks
+for a data type first, then data source, parser and file.
 # DEV NOTE (v1.5f)
 Hotfix: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
 Hotfix 2: JSON models now contain optional abstract, description and notes fields.
@@ -86,8 +87,9 @@ automatically; no manual Python implementation is required.
 
 ## 6. Parser Plugin System
 Parsers are organized by **data type** and **source** under the `parsers/`
-directory. Each parser is a subclass of `scripts.data_loaders.BaseParser` and
-registers itself via a metaclass when imported. To add a new parser:
+directory. Each parser subclasses `scripts.data_loaders.BaseParser` and must
+call `register_parser()` when imported. Discovery uses `importlib` to load each
+`cosmo_parser_*.py` file. To add a new parser:
 1. Create the folder `parsers/<data_type>/<source_name>/` if it does not exist.
 2. Copy `parsers/cosmo_parser_template.py` into that folder and implement the
    parsing logic.
@@ -98,9 +100,9 @@ registers itself via a metaclass when imported. To add a new parser:
 5. Implement `can_parse()` and `parse()` methods. Optionally implement
    `get_extra_args()` to request additional user input.
 
-The discovery routine in `scripts.data_loaders` automatically imports all files
-named `cosmo_parser_*.py` under `parsers/` (except the template). No manual
-registration is required.
+`scripts.data_loaders` automatically imports all files named
+`cosmo_parser_*.py` under `parsers/` (except the template) and builds a global
+registry from the `register_parser()` calls.
 
 ## 7. Development Protocol
 To keep the project maintainable all contributors, human or AI, must follow these rules:

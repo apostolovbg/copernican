@@ -1,4 +1,4 @@
-<!-- DEV NOTE (v1.6a): Introduced dynamic parser plugin system and directory refactor. -->
+<!-- DEV NOTE (v1.6a update): CLI now asks for data type, source, parser and file in that order. -->
 # Copernican Suite
 <!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
 <!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
@@ -92,12 +92,13 @@ should not be modified by AI-driven code changes.
 
 ## Using the Suite
 - The program discovers available models from `models/cosmo_model_*.md`.
-- Data files for SNe and BAO are organized by source under `data/sne/` and `data/bao/`.
-  The program lists available sources and picks an appropriate parser automatically.
-- Parsers and engines are also selected interactively from their respective
-  directories.
-- After each run you may choose to evaluate another model or exit. Cache files
-  are cleaned automatically.
+- Data files are grouped by type and source under `data/<type>/<source>/`.
+- During each run you first pick a **data type** (e.g. `sne` or `bao`), then
+  select the source, parser and finally the data file.
+- You repeat this sequence for each data type you wish to include.
+- Parsers and engines are selected interactively from their respective directories.
+- After each run you may choose to evaluate another model or exit. Cache files are
+  cleaned automatically.
 
 ## Creating New Models
 All models are now provided as a single JSON file. Markdown files can still be
@@ -147,8 +148,8 @@ compiled into `get_Hz_per_Mpc` and related distance functions used by
 
 ## Creating New Parsers
 
-Parsers live inside `parsers/<data_type>/<source_name>/` and register
-automatically when imported. Start from `parsers/cosmo_parser_template.py`.
+Parsers live inside `parsers/<data_type>/<source_name>/` and must call
+`register_parser()` when imported. Start from `parsers/cosmo_parser_template.py`.
 
 1. Copy the template into the appropriate folder for your data source.
 2. Fill in `DATA_TYPE`, `SOURCE_NAME`, `PARSER_NAME` and any supported
@@ -158,8 +159,8 @@ automatically when imported. Start from `parsers/cosmo_parser_template.py`.
 4. Ensure each directory has an `__init__.py` so Python recognizes it as a
    package.
 
-The suite scans the `parsers/` tree on startup and reports available sources and
-parsers for each data type.
+The suite scans the `parsers/` tree on startup, dynamically imports each
+`cosmo_parser_*.py` file and builds a registry of available parsers.
 
 ## Development Notes
 All changes must include a `DEV NOTE` at the top of modified files explaining

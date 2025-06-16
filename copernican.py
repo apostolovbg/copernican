@@ -1,7 +1,9 @@
 # copernican_suite/copernican.py
 """
 Copernican Suite - Main Orchestrator.
-# DEV NOTE (v1.6a): Parser plugin system with auto-registration.
+# DEV NOTE (v1.6a update): CLI now selects datasets in fixed order
+# (SNe then BAO) without prompting for data type. Parser plugin system uses
+# explicit registration.
 """
 # DEV NOTE (v1.5f): Added placeholders for future data types and bumped version.
 # DEV NOTE (v1.5f hotfix): Fixed dependency scanner to ignore relative imports.
@@ -211,6 +213,44 @@ def cleanup_cache(base_dir):
                 except OSError as e:
                     logger.error(f"Error removing cache file {path}: {e}")
 
+
+def select_dataset(data_loaders):
+    """Interactive selection of a dataset returning (data_type, DataFrame)."""
+    data_types = data_loaders.list_available_data_types()
+    data_type = select_from_list(data_types, 'Select data type')
+    if not data_type:
+        return None, None
+    sources = data_loaders.list_available_sources(data_type)
+    if not sources:
+        print(f"\u274c No parser registered for data type '{data_type}'.")
+        return None, None
+    source_choice = select_from_list(sources, f"Select {data_type.upper()} data source")
+    if not source_choice:
+        return None, None
+    parsers = data_loaders.list_parsers(data_type, source_choice)
+    if not parsers:
+        print(f"\u26A0\uFE0F No valid parsers available for {data_type.upper()} \u2192 {source_choice}.")
+        return None, None
+    parser_names = [p['name'] for p in parsers]
+    parser_choice = select_from_list(parser_names, f"Select parser for {data_type.upper()} \u2192 {source_choice}")
+    if not parser_choice:
+        return None, None
+    parser_info = next(p for p in parsers if p['name'] == parser_choice)
+    data_dir = os.path.join(SCRIPT_DIR, 'data', data_type, source_choice)
+    if not os.path.isdir(data_dir):
+        print(f"\u274c Data directory not found: {data_dir}")
+        return None, None
+    files = sorted(os.listdir(data_dir))
+    if not files:
+        print(f"\u274c No data files found in {data_dir}.")
+        return None, None
+    file_choice = select_from_list(files, f"Select data file for {data_type.upper()} \u2192 {source_choice}")
+    if not file_choice:
+        return None, None
+    filepath = os.path.join(data_dir, file_choice)
+    df = data_loaders.load_data(data_type, source_choice, parser_info, filepath)
+    return data_type, df
+
 def main_workflow():
     """Main workflow for the Copernican Suite."""
     check_dependencies()
@@ -310,38 +350,20 @@ def main_workflow():
         engine_module = importlib.import_module(f"engines.{engine_choice[:-3]}")
         cosmo_engine_selected = engine_module
 
-        sne_data_base = os.path.join(SCRIPT_DIR, 'data', 'sne')
-        sne_sources = [d for d in sorted(os.listdir(sne_data_base)) if os.path.isdir(os.path.join(sne_data_base, d))]
-        print('Available SNe sources and parsers:')
-        for src in sne_sources:
-            pars = data_loaders.list_parsers('sne', src)
-            names = ', '.join(p.PARSER_NAME for p in pars) or 'none'
-            print(f'  - {src}: {names}')
-        source_choice = select_from_list(sne_sources, 'Select SNe Ia data source')
-        if not source_choice:
+        datasets = {}
+        remaining = {'sne', 'bao'}
+        while remaining:
+            dt, df = select_dataset(data_loaders)
+            if dt is None:
+                datasets = {}
+                break
+            if df is not None:
+                datasets[dt] = df
+                remaining.discard(dt)
+        sne_data_df = datasets.get('sne')
+        bao_data_df = datasets.get('bao')
+        if sne_data_df is None:
             break
-        sne_files = sorted(os.listdir(os.path.join(sne_data_base, source_choice)))
-        sne_choice = select_from_list(sne_files, 'Select SNe Ia data file')
-        if not sne_choice:
-            break
-        sne_data_filepath = os.path.join(sne_data_base, source_choice, sne_choice)
-        sne_data_df = data_loaders.load_sne_data(sne_data_filepath)
-        bao_data_base = os.path.join(SCRIPT_DIR, 'data', 'bao')
-        bao_sources = [d for d in sorted(os.listdir(bao_data_base)) if os.path.isdir(os.path.join(bao_data_base, d))]
-        print('Available BAO sources and parsers:')
-        for src in bao_sources:
-            pars = data_loaders.list_parsers('bao', src)
-            names = ', '.join(p.PARSER_NAME for p in pars) or 'none'
-            print(f'  - {src}: {names}')
-        bao_source_choice = select_from_list(bao_sources, 'Select BAO data source')
-        if not bao_source_choice:
-            break
-        bao_files = sorted(os.listdir(os.path.join(bao_data_base, bao_source_choice)))
-        bao_choice = select_from_list(bao_files, 'Select BAO data file')
-        if not bao_choice:
-            break
-        bao_data_filepath = os.path.join(bao_data_base, bao_source_choice, bao_choice)
-        bao_data_df = data_loaders.load_bao_data(bao_data_filepath)
         if bao_data_df is None:
             continue
         logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
