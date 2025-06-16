@@ -138,11 +138,28 @@ auto-generates the necessary Python functions.
   "notes": "any additional remarks"
 }
 ```
+
 `model_parser.py` validates this structure and `model_coder.py` translates the
 equations into NumPy-ready callables. When `Hz_expression` is present it is
 compiled into `get_Hz_per_Mpc` and related distance functions used by
 `engine_interface.py`. If an `rs_expression` or the parameters `Ob`, `Og` and
 `z_recomb` are provided, a callable `get_sound_horizon_rs_Mpc` is also generated.
+
+## Creating New Parsers
+
+Parsers live inside `parsers/<data_type>/<source_name>/` and register
+automatically when imported. Start from `parsers/cosmo_parser_template.py`.
+
+1. Copy the template into the appropriate folder for your data source.
+2. Fill in `DATA_TYPE`, `SOURCE_NAME`, `PARSER_NAME` and any supported
+   `FILE_EXTENSIONS`.
+3. Implement the `can_parse()` and `parse()` methods. Optionally implement
+   `get_extra_args()` to prompt for companion files (e.g., covariance matrices).
+4. Ensure each directory has an `__init__.py` so Python recognizes it as a
+   package.
+
+The suite scans the `parsers/` tree on startup and reports available sources and
+parsers for each data type.
 
 ## Development Notes
 All changes must include a `DEV NOTE` at the top of modified files explaining

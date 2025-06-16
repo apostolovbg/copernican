@@ -67,13 +67,16 @@ def _get_user_input_filepath(prompt_message, base_dir, must_exist=True):
 def _discover_parsers():
     """Import all parser modules under the ./parsers directory."""
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'parsers'))
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     for root, _, files in os.walk(base_dir):
         for fname in files:
             if not fname.startswith('cosmo_parser_') or not fname.endswith('.py'):
                 continue
             if fname == 'cosmo_parser_template.py':
                 continue
+
             rel = os.path.relpath(os.path.join(root, fname), os.path.dirname(__file__))
+
             module_name = rel.replace(os.sep, '.')[:-3]
             try:
                 importlib.import_module(module_name)
