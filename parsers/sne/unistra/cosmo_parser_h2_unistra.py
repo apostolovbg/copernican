@@ -1,16 +1,12 @@
-# DEV NOTE (v1.5e): Extracted from data_loaders.py for modular architecture.
+# DEV NOTE (v1.6a): Updated for plugin registry.
 # Registers the UniStra raw light-curve (h2) parser.
 # DEV NOTE (v1.5f hotfix): Updated ``data_loaders`` import path.
 
 import pandas as pd
 import logging
 
-from scripts.data_loaders import register_sne_parser
+from scripts.data_loaders import BaseParser
 
-@register_sne_parser(
-    "unistra_raw_lc_h2",
-    "UniStra-like (e.g., tablef3.dat), h2-style: fit mb,x1,c and nuisance M,alpha,beta."
-)
 def parse_unistra_h2_style(filepath, **kwargs):
     logger = logging.getLogger()
     col_specs = [(0,12),(12,21),(21,30),(30,31),(31,41),(41,50),(50,60),(60,69),(69,79),
@@ -50,3 +46,13 @@ def parse_unistra_h2_style(filepath, **kwargs):
     parsed_data_filtered.attrs['fit_nuisance_params'] = True
     parsed_data_filtered.attrs['diag_errors_for_plot_raw_e_mb'] = parsed_data_filtered['e_mb'].values
     return parsed_data_filtered
+
+class UniStraH2Parser(BaseParser):
+    """Parser wrapper for UniStra h2 raw light-curve data."""
+    DATA_TYPE = "sne"
+    SOURCE_NAME = "unistra"
+    PARSER_NAME = "h2_raw_lc"
+    FILE_EXTENSIONS = [".dat"]
+
+    def parse(self, filepath, **kwargs):
+        return parse_unistra_h2_style(filepath, **kwargs)

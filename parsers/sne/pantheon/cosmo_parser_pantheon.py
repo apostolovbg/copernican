@@ -1,4 +1,4 @@
-# DEV NOTE (v1.5e): Pantheon+ covariance parser separated for plugin architecture.
+# DEV NOTE (v1.6a): Updated for plugin registry.
 # DEV NOTE (v1.5f hotfix): Updated ``data_loaders`` import path.
 
 import pandas as pd
@@ -6,7 +6,7 @@ import numpy as np
 import os
 import logging
 
-from scripts.data_loaders import register_sne_parser, _get_user_input_filepath
+from scripts.data_loaders import BaseParser, _get_user_input_filepath
 
 
 def _get_pantheon_plus_args(base_dir):
@@ -17,11 +17,6 @@ def _get_pantheon_plus_args(base_dir):
     return {'cov_filepath': cov_path}
 
 
-@register_sne_parser(
-    "pantheon_plus_mu_cov_h2",
-    "Pantheon+ (e.g., Pantheon+SH0ES.txt + .cov), h2-style: fit MU_SH0ES with full Covariance Matrix.",
-    extra_args_func=_get_pantheon_plus_args,
-)
 def parse_pantheon_plus_mu_cov_h2(filepath, cov_filepath=None, **kwargs):
     logger = logging.getLogger()
     if not cov_filepath or not os.path.isfile(cov_filepath):
@@ -96,3 +91,16 @@ def parse_pantheon_plus_mu_cov_h2(filepath, cov_filepath=None, **kwargs):
         return output_df
     except Exception as e:
         logger.error(f"Error processing Pantheon+ (mu_cov h2_style): {e}", exc_info=True); return None
+
+class PantheonPlusMuCovH2Parser(BaseParser):
+    """Parser wrapper for Pantheon+ mu covariance files."""
+    DATA_TYPE = "sne"
+    SOURCE_NAME = "pantheon"
+    PARSER_NAME = "pantheon_plus_mu_cov_h2"
+    FILE_EXTENSIONS = [".dat", ".txt"]
+
+    def get_extra_args(self, base_dir):
+        return _get_pantheon_plus_args(base_dir)
+
+    def parse(self, filepath, cov_filepath=None, **kwargs):
+        return parse_pantheon_plus_mu_cov_h2(filepath, cov_filepath=cov_filepath, **kwargs)

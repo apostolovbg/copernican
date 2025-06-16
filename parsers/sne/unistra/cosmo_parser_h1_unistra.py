@@ -1,20 +1,16 @@
-# DEV NOTE (v1.5e): Extracted from data_loaders.py during modular refactor.
+# DEV NOTE (v1.6a): Updated for plugin registry.
 # This module registers the UniStra fixed-nuisance (h1) parser.
 # DEV NOTE (v1.5f hotfix): Updated ``data_loaders`` import path.
 
 import pandas as pd
 import logging
 
-from scripts.data_loaders import register_sne_parser
+from scripts.data_loaders import BaseParser
 
 DEFAULT_SALT2_M_ABS_FIXED = -19.3
 DEFAULT_SALT2_ALPHA_FIXED = 0.14
 DEFAULT_SALT2_BETA_FIXED = 3.1
 
-@register_sne_parser(
-    "unistra_fixed_nuisance_h1",
-    "UniStra-like (e.g., tablef3.dat), h1-style: mu_obs from fixed M,alpha,beta."
-)
 def parse_unistra_h1_style(filepath, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED,
                            salt2_alpha_fixed=DEFAULT_SALT2_ALPHA_FIXED,
                            salt2_beta_fixed=DEFAULT_SALT2_BETA_FIXED, **kwargs):
@@ -65,3 +61,13 @@ def parse_unistra_h1_style(filepath, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED
     parsed_data_filtered.attrs['salt2_alpha_fixed'] = salt2_alpha_fixed
     parsed_data_filtered.attrs['salt2_beta_fixed'] = salt2_beta_fixed
     return parsed_data_filtered
+
+class UniStraH1Parser(BaseParser):
+    """Parser wrapper for UniStra h1 fixed-nuisance data."""
+    DATA_TYPE = "sne"
+    SOURCE_NAME = "unistra"
+    PARSER_NAME = "h1_fixed_nuisance"
+    FILE_EXTENSIONS = [".dat"]
+
+    def parse(self, filepath, **kwargs):
+        return parse_unistra_h1_style(filepath, **kwargs)

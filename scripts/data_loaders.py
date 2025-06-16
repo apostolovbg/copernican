@@ -1,10 +1,7 @@
 # copernican_suite/data_loaders.py
-# DEV NOTE (v1.5f): Added registries and loader functions for CMB, gravitational
-# wave, and standard siren data types as preparation for future datasets.
-# DEV NOTE (v1.5f hotfix): File moved to ``scripts/`` package; import paths for parsers updated.
-"""
-Modular data loading for various cosmological datasets (SNe, BAO, etc.).
-"""
+# DEV NOTE (v1.6a): Reworked into dynamic parser plugin registry.
+"""Modular data loading for various cosmological datasets."""
+
 import pandas as pd
 import numpy as np
 import json
@@ -12,293 +9,154 @@ import os
 import logging
 import importlib
 
-# --- Parser Registry ---
-SNE_PARSERS = {}
-BAO_PARSERS = {}
-CMB_PARSERS = {}
-GW_PARSERS = {}
-SIREN_PARSERS = {}
+# --- Parser Registry using metaclass auto-registration ---
+PARSER_REGISTRY = {
+    'sne': {},
+    'bao': {},
+    'cmb': {},
+    'gw': {},
+    'sirens': {}
+}
 
-# --- Helper function for user input, localized to this module ---
+class ParserMeta(type):
+    """Metaclass that registers parser subclasses on import."""
+    def __init__(cls, name, bases, attrs):
+        super().__init__(name, bases, attrs)
+        dt = getattr(cls, 'DATA_TYPE', None)
+        src = getattr(cls, 'SOURCE_NAME', None)
+        if not dt or not src or cls.__name__ == 'BaseParser':
+            return
+        dt = dt.lower()
+        src = src.lower()
+        PARSER_REGISTRY.setdefault(dt, {}).setdefault(src, []).append(cls)
+
+class BaseParser(metaclass=ParserMeta):
+    """Base class for all data parsers."""
+    DATA_TYPE = None
+    SOURCE_NAME = None
+    PARSER_NAME = None
+    FILE_EXTENSIONS = []
+
+    def can_parse(self, filepath):
+        if not self.FILE_EXTENSIONS:
+            return True
+        filepath = filepath.lower()
+        return any(filepath.endswith(ext.lower()) for ext in self.FILE_EXTENSIONS)
+
+    def get_extra_args(self, base_dir):
+        return {}
+
+    def parse(self, filepath, **kwargs):
+        raise NotImplementedError
+
+# --- Helper function for user input ---
 def _get_user_input_filepath(prompt_message, base_dir, must_exist=True):
-    """Prompts the user for a filepath and validates it."""
+    """Prompt the user for an additional file path."""
     while True:
-        # Construct the full prompt to be clear
         full_prompt = f"  > This data format requires an additional file.\n  > {prompt_message} (or 'c' to cancel): "
         filename = input(full_prompt).strip()
-        if filename.lower() == 'c': return None
-        # We assume the file is in the same base directory as the main script
+        if filename.lower() == 'c':
+            return None
         filepath = os.path.join(base_dir, filename)
-        if not must_exist or os.path.isfile(filepath): return filepath
-        else: print(f"Error: File not found at '{filepath}'. Please try again.")
-
-# --- Decorators to register parsers ---
-def register_sne_parser(name, description="", extra_args_func=None):
-    """
-    Decorator to register a SNe data parsing function.
-    Can optionally include a function to gather extra arguments from the user.
-    """
-    def decorator(func):
-        SNE_PARSERS[name] = {
-            'function': func,
-            'description': description,
-            'extra_args_func': extra_args_func
-        }
-        return func
-    return decorator
-
-def register_bao_parser(name, description=""):
-    """Decorator to register a BAO data parsing function."""
-    def decorator(func):
-        BAO_PARSERS[name] = {'function': func, 'description': description}
-        return func
-    return decorator
-
-def register_cmb_parser(name, description=""):
-    """Decorator to register a CMB data parsing function."""
-    def decorator(func):
-        CMB_PARSERS[name] = {'function': func, 'description': description}
-        return func
-    return decorator
-
-def register_gw_parser(name, description=""):
-    """Decorator to register a gravitational wave data parsing function."""
-    def decorator(func):
-        GW_PARSERS[name] = {'function': func, 'description': description}
-        return func
-    return decorator
-
-def register_siren_parser(name, description=""):
-    """Decorator to register a standard siren data parsing function."""
-    def decorator(func):
-        SIREN_PARSERS[name] = {'function': func, 'description': description}
-        return func
-    return decorator
+        if not must_exist or os.path.isfile(filepath):
+            return filepath
+        print(f"Error: File not found at '{filepath}'. Please try again.")
 
 # --- Dynamic Discovery of Parser Modules ---
-def _discover_parsers():
-    """Imports all parser modules under the ./parsers directory."""
-    base_dir = os.path.join(os.path.dirname(__file__), 'parsers')
-    for sub in ('sne', 'bao', 'cmb', 'gw', 'sirens'):
-        subdir = os.path.join(base_dir, sub)
-        if not os.path.isdir(subdir):
-            continue
-        for fname in os.listdir(subdir):
-            if fname.startswith('cosmo_parser_') and fname.endswith('.py'):
-                module_name = f"parsers.{sub}.{fname[:-3]}"
-                try:
-                    importlib.import_module(module_name)
-                except Exception as e:
-                    logging.getLogger().error(f"Failed loading parser module {module_name}: {e}")
 
-# Discover parsers at import time
+def _discover_parsers():
+    """Import all parser modules under the ./parsers directory."""
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'parsers'))
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    for root, _, files in os.walk(base_dir):
+        for fname in files:
+            if not fname.startswith('cosmo_parser_') or not fname.endswith('.py'):
+                continue
+            if fname == 'cosmo_parser_template.py':
+                continue
+            rel = os.path.relpath(os.path.join(root, fname), project_root)
+            module_name = rel.replace(os.sep, '.')[:-3]
+            try:
+                importlib.import_module(module_name)
+            except Exception as e:
+                logging.getLogger().error(f"Failed loading parser module {module_name}: {e}")
+
 _discover_parsers()
 
-# --- Helper to list and select parsers ---
-def _select_parser(parser_registry, data_type_name):
-    """Displays available parsers and prompts user for selection."""
+# --- Utility functions ---
+
+def list_available_sources(data_type):
+    """Return sorted list of sources for a data type."""
+    return sorted(PARSER_REGISTRY.get(data_type, {}).keys())
+
+def list_parsers(data_type, source):
+    """Return list of parser classes for a source."""
+    return PARSER_REGISTRY.get(data_type, {}).get(source, [])
+
+# --- Generic loading helpers ---
+
+def _try_parsers(data_type, source, filepath, base_dir):
     logger = logging.getLogger()
-    if not parser_registry:
-        logger.error(f"No parsers registered for {data_type_name} data.")
+    parsers = list_parsers(data_type, source)
+    if not parsers:
+        logger.error(f"No valid parsers found for {data_type.upper()} data source '{source}'.")
         return None
-
-    logger.info(f"\nAvailable {data_type_name} data format parsers:")
-    options = list(parser_registry.keys())
-    for i, key in enumerate(options):
-        desc = parser_registry[key]['description']
-        # Print to console directly for user interaction
-        print(f"  {i+1}. {key} ({desc})")
-
-    while True:
-        try:
-            choice = input(f"Select a {data_type_name} parser (number) or 'c' to cancel: ")
-            if choice.lower() == 'c':
+    for parser_cls in parsers:
+        parser = parser_cls()
+        if not parser.can_parse(filepath):
+            continue
+        extra_kwargs = {}
+        if hasattr(parser, 'get_extra_args'):
+            extra_kwargs = parser.get_extra_args(base_dir)
+            if extra_kwargs is None:
+                logger.info(f"{parser.PARSER_NAME} parser canceled by user.")
                 return None
-            choice_idx = int(choice) - 1
-            if 0 <= choice_idx < len(options):
-                return options[choice_idx]
+        try:
+            logger.info(f"Attempting {parser.PARSER_NAME} on {os.path.basename(filepath)}")
+            data_df = parser.parse(filepath, **extra_kwargs)
+            if data_df is not None and not data_df.empty:
+                data_df.attrs['filepath'] = filepath
+                data_df.attrs['parser_name'] = parser.PARSER_NAME
+                if 'dataset_name_attr' not in data_df.attrs:
+                    data_df.attrs['dataset_name_attr'] = f"{data_type.upper()}_{parser.PARSER_NAME}"
+                logger.info(f"Successfully loaded {len(data_df)} points using {parser.PARSER_NAME}.")
+                return data_df
+            elif data_df is None:
+                logger.error(f"{parser.PARSER_NAME} returned None for {filepath}.")
             else:
-                print("Invalid selection. Please try again.")
-        except ValueError:
-            print("Invalid input. Please enter a number or 'c'.")
+                logger.error(f"{parser.PARSER_NAME} produced empty DataFrame for {filepath}.")
+        except Exception as e:
+            logger.error(f"Failed to parse '{filepath}' using {parser.PARSER_NAME}: {e}")
+    logger.error(f"No parser succeeded for {filepath}.")
+    return None
 
-# --- Main Loading Functions ---
-def load_sne_data(filepath, format_key=None, **kwargs):
-    """Loads SNe data using a registered parser."""
-    logger = logging.getLogger()
-    if not os.path.isfile(filepath):
-        logger.error(f"SNe data file not found at {filepath}")
-        return None
+# --- Public Loading Functions ---
 
-    if format_key is None:
-        format_key = _select_parser(SNE_PARSERS, "SNe")
-        if format_key is None:
-            logger.info("SNe data loading canceled by user.")
-            return None
-    
-    if format_key not in SNE_PARSERS:
-        logger.error(f"No SNe parser registered for format_key '{format_key}'")
-        return None
-        
-    try:
-        logger.info(f"Attempting to load SNe data from '{os.path.basename(filepath)}' using format: {format_key}")
-        parser_func = SNE_PARSERS[format_key]['function']
-        data_df = parser_func(filepath, **kwargs) 
-        if data_df is not None and not data_df.empty:
-            data_df.attrs['filepath'] = filepath
-            data_df.attrs['format_key'] = format_key
-            if 'dataset_name_attr' not in data_df.attrs: 
-                data_df.attrs['dataset_name_attr'] = f"SNe_{format_key.replace(' ', '_')}"
-            logger.info(f"Successfully loaded {len(data_df)} SNe data points.")
-        elif data_df is None:
-             logger.error(f"SNe parser '{format_key}' returned None for {filepath}.")
-        else: 
-             logger.error(f"SNe parser '{format_key}' returned an empty DataFrame for {filepath}.")
-        return data_df
-    except Exception as e:
-        logger.critical(f"CRITICAL Error during SNe data parsing ({filepath}, {format_key}): {e}", exc_info=True)
-        return None
+def load_sne_data(filepath):
+    base_dir = os.path.dirname(filepath)
+    source = os.path.basename(os.path.dirname(filepath))
+    return _try_parsers('sne', source, filepath, base_dir)
 
-def load_bao_data(filepath, format_key=None, **kwargs):
-    """Loads BAO data using a registered parser."""
-    logger = logging.getLogger()
-    if not os.path.isfile(filepath):
-        logger.error(f"BAO data file not found at {filepath}")
-        return None
 
-    if format_key is None:
-        format_key = _select_parser(BAO_PARSERS, "BAO")
-        if format_key is None:
-            logger.info("BAO data loading canceled by user.")
-            return None
+def load_bao_data(filepath):
+    base_dir = os.path.dirname(filepath)
+    source = os.path.basename(os.path.dirname(filepath))
+    return _try_parsers('bao', source, filepath, base_dir)
 
-    if format_key not in BAO_PARSERS:
-        logger.error(f"No BAO parser registered for format_key '{format_key}'")
-        return None
-        
-    try:
-        logger.info(f"Attempting to load BAO data from '{os.path.basename(filepath)}' using format: {format_key}")
-        parser_func = BAO_PARSERS[format_key]['function']
-        data_df = parser_func(filepath, **kwargs)
-        if data_df is not None and not data_df.empty:
-            data_df.attrs['filepath'] = filepath
-            data_df.attrs['format_key'] = format_key
-            if 'dataset_name_attr' not in data_df.attrs: 
-                data_df.attrs['dataset_name_attr'] = f"BAO_{format_key.replace(' ', '_')}"
-            logger.info(f"Successfully loaded {len(data_df)} BAO data points.")
-        elif data_df is None:
-            logger.error(f"BAO parser '{format_key}' returned None for {filepath}.")
-        else: 
-            logger.error(f"BAO parser '{format_key}' returned an empty DataFrame for {filepath}.")
-        return data_df
-    except Exception as e:
-        logger.critical(f"CRITICAL Error during BAO data parsing ({filepath}, {format_key}): {e}", exc_info=True)
-        return None
 
-def load_cmb_data(filepath, format_key=None, **kwargs):
-    """Loads CMB data using a registered parser."""
-    logger = logging.getLogger()
-    if not os.path.isfile(filepath):
-        logger.error(f"CMB data file not found at {filepath}")
-        return None
+def load_cmb_data(filepath):
+    base_dir = os.path.dirname(filepath)
+    source = os.path.basename(os.path.dirname(filepath))
+    return _try_parsers('cmb', source, filepath, base_dir)
 
-    if format_key is None:
-        format_key = _select_parser(CMB_PARSERS, "CMB")
-        if format_key is None:
-            logger.info("CMB data loading canceled by user.")
-            return None
 
-    if format_key not in CMB_PARSERS:
-        logger.error(f"No CMB parser registered for format_key '{format_key}'")
-        return None
+def load_gw_data(filepath):
+    base_dir = os.path.dirname(filepath)
+    source = os.path.basename(os.path.dirname(filepath))
+    return _try_parsers('gw', source, filepath, base_dir)
 
-    try:
-        logger.info(f"Attempting to load CMB data from '{os.path.basename(filepath)}' using format: {format_key}")
-        parser_func = CMB_PARSERS[format_key]['function']
-        data_df = parser_func(filepath, **kwargs)
-        if data_df is not None and not data_df.empty:
-            data_df.attrs['filepath'] = filepath
-            data_df.attrs['format_key'] = format_key
-            if 'dataset_name_attr' not in data_df.attrs:
-                data_df.attrs['dataset_name_attr'] = f"CMB_{format_key.replace(' ', '_')}"
-            logger.info(f"Successfully loaded {len(data_df)} CMB data points.")
-        elif data_df is None:
-            logger.error(f"CMB parser '{format_key}' returned None for {filepath}.")
-        else:
-            logger.error(f"CMB parser '{format_key}' returned an empty DataFrame for {filepath}.")
-        return data_df
-    except Exception as e:
-        logger.critical(f"CRITICAL Error during CMB data parsing ({filepath}, {format_key}): {e}", exc_info=True)
-        return None
 
-def load_gw_data(filepath, format_key=None, **kwargs):
-    """Loads gravitational wave data using a registered parser."""
-    logger = logging.getLogger()
-    if not os.path.isfile(filepath):
-        logger.error(f"Gravitational wave data file not found at {filepath}")
-        return None
-
-    if format_key is None:
-        format_key = _select_parser(GW_PARSERS, "GW")
-        if format_key is None:
-            logger.info("Gravitational wave data loading canceled by user.")
-            return None
-
-    if format_key not in GW_PARSERS:
-        logger.error(f"No gravitational wave parser registered for format_key '{format_key}'")
-        return None
-
-    try:
-        logger.info(f"Attempting to load GW data from '{os.path.basename(filepath)}' using format: {format_key}")
-        parser_func = GW_PARSERS[format_key]['function']
-        data_df = parser_func(filepath, **kwargs)
-        if data_df is not None and not data_df.empty:
-            data_df.attrs['filepath'] = filepath
-            data_df.attrs['format_key'] = format_key
-            if 'dataset_name_attr' not in data_df.attrs:
-                data_df.attrs['dataset_name_attr'] = f"GW_{format_key.replace(' ', '_')}"
-            logger.info(f"Successfully loaded {len(data_df)} GW data points.")
-        elif data_df is None:
-            logger.error(f"GW parser '{format_key}' returned None for {filepath}.")
-        else:
-            logger.error(f"GW parser '{format_key}' returned an empty DataFrame for {filepath}.")
-        return data_df
-    except Exception as e:
-        logger.critical(f"CRITICAL Error during GW data parsing ({filepath}, {format_key}): {e}", exc_info=True)
-        return None
-
-def load_siren_data(filepath, format_key=None, **kwargs):
-    """Loads standard siren data using a registered parser."""
-    logger = logging.getLogger()
-    if not os.path.isfile(filepath):
-        logger.error(f"Standard siren data file not found at {filepath}")
-        return None
-
-    if format_key is None:
-        format_key = _select_parser(SIREN_PARSERS, "standard siren")
-        if format_key is None:
-            logger.info("Standard siren data loading canceled by user.")
-            return None
-
-    if format_key not in SIREN_PARSERS:
-        logger.error(f"No standard siren parser registered for format_key '{format_key}'")
-        return None
-
-    try:
-        logger.info(f"Attempting to load siren data from '{os.path.basename(filepath)}' using format: {format_key}")
-        parser_func = SIREN_PARSERS[format_key]['function']
-        data_df = parser_func(filepath, **kwargs)
-        if data_df is not None and not data_df.empty:
-            data_df.attrs['filepath'] = filepath
-            data_df.attrs['format_key'] = format_key
-            if 'dataset_name_attr' not in data_df.attrs:
-                data_df.attrs['dataset_name_attr'] = f"SIREN_{format_key.replace(' ', '_')}"
-            logger.info(f"Successfully loaded {len(data_df)} standard siren data points.")
-        elif data_df is None:
-            logger.error(f"Standard siren parser '{format_key}' returned None for {filepath}.")
-        else:
-            logger.error(f"Standard siren parser '{format_key}' returned an empty DataFrame for {filepath}.")
-        return data_df
-    except Exception as e:
-        logger.critical(f"CRITICAL Error during standard siren data parsing ({filepath}, {format_key}): {e}", exc_info=True)
-        return None
+def load_siren_data(filepath):
+    base_dir = os.path.dirname(filepath)
+    source = os.path.basename(os.path.dirname(filepath))
+    return _try_parsers('sirens', source, filepath, base_dir)

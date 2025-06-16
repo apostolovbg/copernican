@@ -1,3 +1,4 @@
+<!-- DEV NOTE (v1.6a): Introduced dynamic parser plugin system and directory refactor. -->
 # Copernican Suite
 <!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
 <!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
@@ -6,7 +7,7 @@
 <!-- DEV NOTE (v1.5f hotfix 4): Multiprocessing freeze_support is now called via a local import after verifying dependencies. -->
 <!-- DEV NOTE (v1.5f hotfix 5): Automatic dependency installer removed; the program now prints a pip command when packages are missing. -->
 
-**Version:** 1.5f
+**Version:** 1.6a
 **Last Updated:** 2025-06-20
 engines/          - Computational backends (SciPy CPU by default, plus Numba)
 
@@ -73,8 +74,8 @@ GPU libraries.
 ```
 models/           - JSON model definitions (Markdown optional)
 engines/          - Computational backends (SciPy CPU and Numba)
-parsers/          - Data format parsers for SNe, BAO, CMB, gravitational waves and standard sirens
-data/             - Example data files
+parsers/          - Parser modules grouped by data type and source
+data/             - Reference datasets grouped by type and source
 output/           - All generated results
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
@@ -91,9 +92,8 @@ should not be modified by AI-driven code changes.
 
 ## Using the Suite
 - The program discovers available models from `models/cosmo_model_*.md`.
-- Data files for SNe and BAO are chosen interactively from `data/sne` and
-  `data/bao`. Future datasets such as CMB or gravitational waves will use
-  their own folders.
+- Data files for SNe and BAO are organized by source under `data/sne/` and `data/bao/`.
+  The program lists available sources and picks an appropriate parser automatically.
 - Parsers and engines are also selected interactively from their respective
   directories.
 - After each run you may choose to evaluate another model or exit. Cache files
@@ -138,11 +138,28 @@ auto-generates the necessary Python functions.
   "notes": "any additional remarks"
 }
 ```
+
 `model_parser.py` validates this structure and `model_coder.py` translates the
 equations into NumPy-ready callables. When `Hz_expression` is present it is
 compiled into `get_Hz_per_Mpc` and related distance functions used by
 `engine_interface.py`. If an `rs_expression` or the parameters `Ob`, `Og` and
 `z_recomb` are provided, a callable `get_sound_horizon_rs_Mpc` is also generated.
+
+## Creating New Parsers
+
+Parsers live inside `parsers/<data_type>/<source_name>/` and register
+automatically when imported. Start from `parsers/cosmo_parser_template.py`.
+
+1. Copy the template into the appropriate folder for your data source.
+2. Fill in `DATA_TYPE`, `SOURCE_NAME`, `PARSER_NAME` and any supported
+   `FILE_EXTENSIONS`.
+3. Implement the `can_parse()` and `parse()` methods. Optionally implement
+   `get_extra_args()` to prompt for companion files (e.g., covariance matrices).
+4. Ensure each directory has an `__init__.py` so Python recognizes it as a
+   package.
+
+The suite scans the `parsers/` tree on startup and reports available sources and
+parsers for each data type.
 
 ## Development Notes
 All changes must include a `DEV NOTE` at the top of modified files explaining

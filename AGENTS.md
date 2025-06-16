@@ -1,3 +1,5 @@
+# DEV NOTE (v1.6a)
+Introduced dynamic parser plugin system with data-type and source directories.
 # DEV NOTE (v1.5f)
 Hotfix: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
 Hotfix 2: JSON models now contain optional abstract, description and notes fields.
@@ -27,8 +29,8 @@ ensures the expected functions are present and callable.
 ```
 models/           - JSON model definitions (Markdown files optional)
 engines/          - Computational backends (SciPy CPU by default)
-parsers/          - Data format parsers for SNe, BAO, CMB, gravitational waves and standard sirens
-data/             - Example data files
+parsers/          - Parser modules grouped by data type and source
+data/             - Reference datasets grouped by type and source
 output/           - Generated plots and CSV tables
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
@@ -82,7 +84,25 @@ Use the following structure when creating new models:
 `model_parser.py` and `model_coder.py` handle validation and code generation
 automatically; no manual Python implementation is required.
 
-## 6. Development Protocol
+## 6. Parser Plugin System
+Parsers are organized by **data type** and **source** under the `parsers/`
+directory. Each parser is a subclass of `scripts.data_loaders.BaseParser` and
+registers itself via a metaclass when imported. To add a new parser:
+1. Create the folder `parsers/<data_type>/<source_name>/` if it does not exist.
+2. Copy `parsers/cosmo_parser_template.py` into that folder and implement the
+   parsing logic.
+3. Ensure an `__init__.py` file exists in every directory of the path so Python
+   treats it as a package.
+4. The parser must define `DATA_TYPE`, `SOURCE_NAME`, `PARSER_NAME` and optional
+   `FILE_EXTENSIONS` attributes as shown in the template.
+5. Implement `can_parse()` and `parse()` methods. Optionally implement
+   `get_extra_args()` to request additional user input.
+
+The discovery routine in `scripts.data_loaders` automatically imports all files
+named `cosmo_parser_*.py` under `parsers/` (except the template). No manual
+registration is required.
+
+## 7. Development Protocol
 To keep the project maintainable all contributors, human or AI, must follow these rules:
 1. **Add a `DEV NOTE` at the top of each changed file** summarizing your modifications.
 2. **Comment code extensively** to explain non-obvious logic or algorithms.
