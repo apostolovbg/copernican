@@ -1,5 +1,5 @@
 {
-  "dev_note": "v1.5f hotfix 8: added baryon parameters for r_s computation",
+  "dev_note": "v1.5f hotfix 11: removed placeholder distance_modulus_model; prior hotfix 8 added baryon parameters.",
   "model_name": "USMFv5",
   "version": "5",
   "Hz_expression": "H_A*(1+z)**(1/m_e)",
@@ -20,9 +20,7 @@
     ,{"name": "Og", "python_var": "Og", "initial_guess": 5e-5, "bounds": [1e-5, 1e-4]}
     ,{"name": "z_recomb", "python_var": "z_recomb", "initial_guess": 1089, "bounds": [1000, 1200]}
   ],
-  "equations": {
-    "distance_modulus_model": "5*sympy.log(1+z,10)*H_A"
-  },
+  "equations": {},
   "abstract": "Fixed Size Filament Contraction model keeps global scale constant while local filaments contract preserving supernova fits with adjustable early exponent",
   "description": "Piecewise alpha(t) with oscillations encodes vacuum energy scales. Parameter m_e tunes early era improving BAO results while retaining Newtonian behavior",
   "notes": "Full formulation in cosmo_model_usmf5.md"

@@ -9,6 +9,8 @@
 # ``Og`` and ``z_recomb`` are present.
 # DEV NOTE (v1.5f hotfix 10): ``_dm`` now accepts array inputs for BAO smooth
 # curve generation.
+# DEV NOTE (v1.5f hotfix 11): Automatically derives ``distance_modulus_model``
+# from ``get_luminosity_distance_Mpc`` when not provided by the JSON model.
 
 import json
 from pathlib import Path
@@ -167,6 +169,21 @@ def generate_callables(cache_path):
         except Exception as e:
             error_handler.report_error(f"Failed to parse equation '{name}': {e}")
             raise ValueError(f"Failed to parse equation '{name}': {e}") from e
+
+    if (
+        'distance_modulus_model' not in funcs
+        and 'get_luminosity_distance_Mpc' in funcs
+    ):
+        def _mu(zv, *params):
+            dl = funcs['get_luminosity_distance_Mpc'](zv, *params)
+            with np.errstate(divide='ignore', invalid='ignore'):
+                mu = 5 * np.log10(dl) + 25.0
+            mu = np.where(np.asarray(dl) > 0, mu, np.nan)
+            return mu
+
+        funcs['distance_modulus_model'] = _mu
+        code_dict['distance_modulus_model'] = '5*log10(DL_Mpc)+25'
+        logger.info("Derived distance_modulus_model from luminosity distance.")
 
     model_data['generated_code'] = code_dict
     with cache_path.open("w") as f:

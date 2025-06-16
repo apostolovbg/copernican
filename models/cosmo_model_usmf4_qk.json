@@ -1,5 +1,5 @@
 {
-  "dev_note": "v1.5f hotfix 8: added baryon parameters for r_s computation",
+  "dev_note": "v1.5f hotfix 11: removed placeholder distance_modulus_model; prior hotfix 8 added baryon parameters.",
   "model_name": "USMFv4_QuantumKinematic",
   "version": "4",
   "Hz_expression": "H0*sympy.sqrt(Omega_m0*(1+z)**4 + (1-Omega_m0))",
@@ -11,9 +11,7 @@
     ,{"name": "Og", "python_var": "Og", "initial_guess": 5e-5, "bounds": [1e-5, 1e-4]}
     ,{"name": "z_recomb", "python_var": "z_recomb", "initial_guess": 1089, "bounds": [1000, 1200]}
   ],
-  "equations": {
-    "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
-  },
+  "equations": {},
   "abstract": "USMFv4 quantum kinematic links particle mass to inverse scale factor giving rho_m as one plus z to the fourth and new expansion history for strong fits",
   "description": "Rest mass scaling 1/a(t) yields H(z)=H0 sqrt(Omega_m0(1+z)^4+Omega_Lambda0). Model connects to quantum properties and stays Newtonian at low redshift",
   "notes": "See cosmo_model_usmf4_qk.md for details"
