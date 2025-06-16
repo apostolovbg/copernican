@@ -6,7 +6,7 @@ import json
 import os
 import logging
 
-from scripts.data_loaders import BaseParser
+from scripts.data_loaders import BaseParser, register_parser
 
 
 def parse_bao_json_v1(filepath, **kwargs):
@@ -44,3 +44,12 @@ class BAOJsonV1Parser(BaseParser):
 
     def parse(self, filepath, **kwargs):
         return parse_bao_json_v1(filepath, **kwargs)
+
+
+register_parser(
+    data_type="bao",
+    source="basic",
+    name="BAO JSON General V1",
+    parser=BAOJsonV1Parser()
+)
+

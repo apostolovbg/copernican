@@ -5,6 +5,8 @@
 - Introduced dynamic parser plugin system with automatic discovery.
 - Data and parsers reorganized by type and source.
 - Added developer template for new parsers.
+- Parser registration is now explicit via `register_parser()` and the CLI
+  walks data type → source → parser → file.
 
 ## Version 1.5f (Development Release)
 - Completed Phase 6: JSON schema extended with optional fields for CMB,
