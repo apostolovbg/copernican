@@ -74,7 +74,9 @@ def _discover_parsers():
                 continue
             if fname == 'cosmo_parser_template.py':
                 continue
-            rel = os.path.relpath(os.path.join(root, fname), project_root)
+
+            rel = os.path.relpath(os.path.join(root, fname), os.path.dirname(__file__))
+
             module_name = rel.replace(os.sep, '.')[:-3]
             try:
                 importlib.import_module(module_name)
