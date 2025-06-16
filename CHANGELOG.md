@@ -7,6 +7,8 @@
 - Updated documentation for version 1.5f.
 - Hotfix 5: Removed automatic dependency installer. Users are now instructed to
   run a printed `pip install` command when packages are missing.
+- Hotfix 7: `Hz_expression` added to JSON models and compiled automatically for
+  distance predictions.
 
 ## Version 1.5e (Development Release)
 - Added Numba-based engine and modular utility wrappers.

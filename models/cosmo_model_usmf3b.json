@@ -1,7 +1,8 @@
 {
-  "dev_note": "v1.5d: Converted from Markdown/Plugin for JSON pipeline; v1.5f hotfix added abstract description notes",
+  "dev_note": "v1.5f hotfix 7: added Hz_expression key for automatic H(z)",
   "model_name": "USMFv3b_Kinematic",
   "version": "3b",
+  "Hz_expression": "H_A*(1+z)**(1/p_kin)",
   "parameters": [
     {"name": "H_A", "python_var": "H_A", "initial_guess": 70.0, "bounds": [50.0, 100.0], "unit": "", "latex_name": "$H_A$"},
     {"name": "t0_age_Gyr", "python_var": "t0_age_Gyr", "initial_guess": 14.0, "bounds": [10.0, 20.0], "unit": "Gyr", "latex_name": "$t_{0,age}$"},
@@ -10,7 +11,6 @@
     {"name": "Omega_b0_fid", "python_var": "Omega_b0_fid", "initial_guess": 0.0486, "bounds": [0.03, 0.07], "unit": "", "latex_name": "$\\Omega_{b0,fid}$"}
   ],
   "equations": {
-    "get_Hz_per_Mpc": "H_A*(1+z)**(1/p_kin)",
     "distance_modulus_model": "5*sympy.log(1+z,10)*H_A"
   },
   "abstract": "USMFv3b kinematic simplifies shrinking matter model with power law index p_kin giving analytic distance solutions",
