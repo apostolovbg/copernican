@@ -39,6 +39,7 @@ def build_plugin(model_data, func_dict):
     plugin.INITIAL_GUESSES = [p['initial_guess'] for p in model_data['parameters']]
     plugin.PARAMETER_BOUNDS = [tuple(p['bounds']) for p in model_data['parameters']]
     plugin.FIXED_PARAMS = {}
+    plugin.valid_for_distance_metrics = model_data.get('valid_for_distance_metrics', True)
     for name, func in func_dict.items():
         setattr(plugin, name, func)
     validate_plugin(plugin)
@@ -54,7 +55,11 @@ def validate_plugin(plugin):
         logger.error(f"Plugin validation failed. Missing attributes: {missing_attrs}")
         return False
 
-    for fname in REQUIRED_FUNCTIONS:
+    required_funcs = REQUIRED_FUNCTIONS
+    if getattr(plugin, 'valid_for_distance_metrics', True) is False:
+        required_funcs = ['distance_modulus_model']
+
+    for fname in required_funcs:
         func = getattr(plugin, fname, None)
         if not callable(func):
             logger.error(f"Plugin validation failed. Missing function '{fname}'.")

@@ -1,7 +1,8 @@
 {
-  "dev_note": "v1.5d: Converted from Markdown/Plugin for JSON pipeline; v1.5f hotfix added abstract description notes",
+  "dev_note": "v1.5f hotfix 7: added Hz_expression key for automatic H(z)",
   "model_name": "USMFv5",
   "version": "5",
+  "Hz_expression": "H_A*(1+z)**(1/m_e)",
   "parameters": [
     {"name": "H_A", "python_var": "H_A", "initial_guess": 70.0, "bounds": [50.0, 90.0], "unit": "km/s/Mpc", "latex_name": "$H_A$"},
     {"name": "p_alpha", "python_var": "p_alpha", "initial_guess": 1.0, "bounds": [0.0, 5.0], "unit": "", "latex_name": "$p_\\alpha$"},
@@ -17,7 +18,6 @@
     {"name": "n", "python_var": "n", "initial_guess": 2.0, "bounds": [0.0, 4.0], "unit": "", "latex_name": "$n$"}
   ],
   "equations": {
-    "get_Hz_per_Mpc": "H_A*(1+z)**(1/m_e)",
     "distance_modulus_model": "5*sympy.log(1+z,10)*H_A"
   },
   "abstract": "Fixed Size Filament Contraction model keeps global scale constant while local filaments contract preserving supernova fits with adjustable early exponent",

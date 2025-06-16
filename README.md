@@ -106,6 +106,8 @@ included for explanatory text but are not required. To create a new model:
    your theory.
 2. Optionally create `cosmo_model_name.md` to document the equations in LaTeX so
    other researchers can read them easily.
+3. Include an `Hz_expression` string defining `H(z)` in terms of your model
+   parameters. This enables BAO and distance-based predictions.
 The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
 auto-generates the necessary Python functions.
 
@@ -114,6 +116,7 @@ auto-generates the necessary Python functions.
 {
   "model_name": "My Model",
   "version": "1.0",
+  "Hz_expression": "H0 * sympy.sqrt(Om*(1+z)**3 + Ol)",
   "parameters": [
     {"name": "H0", "python_var": "H0", "initial_guess": 70.0, "bounds": [50, 100]}
   ],
@@ -129,7 +132,9 @@ auto-generates the necessary Python functions.
 }
 ```
 `model_parser.py` validates this structure and `model_coder.py` translates the
-equations into NumPy-ready callables used by `engine_interface.py`.
+equations into NumPy-ready callables. When `Hz_expression` is present it is
+compiled into `get_Hz_per_Mpc` and related distance functions used by
+`engine_interface.py`.
 
 ## Development Notes
 All changes must include a `DEV NOTE` at the top of modified files explaining
