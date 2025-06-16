@@ -1,5 +1,11 @@
+<!-- DEV NOTE (v1.6a): Declared version 1.6a with parser plugin system. -->
 # Copernican Suite Change Log
 <!-- DEV NOTE (v1.5f): Added release notes for Phase 6 and bumped version. -->
+## Version 1.6a
+- Introduced dynamic parser plugin system with automatic discovery.
+- Data and parsers reorganized by type and source.
+- Added developer template for new parsers.
+
 ## Version 1.5f (Development Release)
 - Completed Phase 6: JSON schema extended with optional fields for CMB,
   gravitational waves and standard sirens. Added placeholder parser modules
