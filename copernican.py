@@ -1,7 +1,9 @@
 # copernican_suite/copernican.py
 """
 Copernican Suite - Main Orchestrator.
-# DEV NOTE (v1.6a): Parser plugin system with auto-registration.
+# DEV NOTE (v1.6a update): CLI now selects datasets in fixed order
+# (SNe then BAO) without prompting for data type. Parser plugin system uses
+# explicit registration.
 """
 # DEV NOTE (v1.5f): Added placeholders for future data types and bumped version.
 # DEV NOTE (v1.5f hotfix): Fixed dependency scanner to ignore relative imports.
@@ -310,32 +312,26 @@ def main_workflow():
         engine_module = importlib.import_module(f"engines.{engine_choice[:-3]}")
         cosmo_engine_selected = engine_module
 
-        def select_dataset_flow(expected_type):
+        def select_dataset_flow(data_type):
+            """Handle dataset selection for a fixed data type."""
             while True:
-                data_types = sorted({dt for dt, _ in data_loaders.registry.keys()})
-                type_choice = select_from_list(data_types, 'Select data type')
-                if not type_choice:
-                    return None
-                if type_choice != expected_type:
-                    print(f"Please select data type '{expected_type}'.")
-                    continue
-                sources = data_loaders.list_available_sources(type_choice)
+                sources = data_loaders.list_available_sources(data_type)
                 if not sources:
-                    print(f"\u274c No parser registered for data type '{type_choice}'.")
+                    print(f"\u274c No parser registered for data type '{data_type}'.")
                     return None
-                source_choice = select_from_list(sources, f"Select {type_choice.upper()} data source")
+                source_choice = select_from_list(sources, f"Select {data_type.upper()} data source")
                 if not source_choice:
                     return None
-                parsers = data_loaders.list_parsers(type_choice, source_choice)
+                parsers = data_loaders.list_parsers(data_type, source_choice)
                 if not parsers:
-                    print(f"\u26A0\uFE0F No valid parsers available for {type_choice.upper()} \u2192 {source_choice}.")
+                    print(f"\u26A0\uFE0F No valid parsers available for {data_type.upper()} \u2192 {source_choice}.")
                     return None
                 parser_names = [p['name'] for p in parsers]
-                parser_choice = select_from_list(parser_names, f"Select parser for {type_choice.upper()} \u2192 {source_choice}")
+                parser_choice = select_from_list(parser_names, f"Select parser for {data_type.upper()} \u2192 {source_choice}")
                 if not parser_choice:
                     return None
                 parser_info = next(p for p in parsers if p['name'] == parser_choice)
-                data_dir = os.path.join(SCRIPT_DIR, 'data', type_choice, source_choice)
+                data_dir = os.path.join(SCRIPT_DIR, 'data', data_type, source_choice)
                 if not os.path.isdir(data_dir):
                     print(f"\u274c Data directory not found: {data_dir}")
                     return None
@@ -343,11 +339,11 @@ def main_workflow():
                 if not files:
                     print(f"\u274c No data files found in {data_dir}.")
                     return None
-                file_choice = select_from_list(files, f"Select data file for {type_choice.upper()} \u2192 {source_choice}")
+                file_choice = select_from_list(files, f"Select data file for {data_type.upper()} \u2192 {source_choice}")
                 if not file_choice:
                     return None
                 filepath = os.path.join(data_dir, file_choice)
-                return data_loaders.load_data(type_choice, source_choice, parser_info, filepath)
+                return data_loaders.load_data(data_type, source_choice, parser_info, filepath)
 
         sne_data_df = select_dataset_flow('sne')
         if sne_data_df is None:

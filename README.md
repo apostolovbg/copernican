@@ -1,4 +1,4 @@
-<!-- DEV NOTE (v1.6a): Introduced dynamic parser plugin system and directory refactor. -->
+<!-- DEV NOTE (v1.6a update): CLI selection now follows dataset → parser → file for SNe then BAO. -->
 # Copernican Suite
 <!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
 <!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
@@ -93,9 +93,10 @@ should not be modified by AI-driven code changes.
 ## Using the Suite
 - The program discovers available models from `models/cosmo_model_*.md`.
 - Data files are grouped by type and source under `data/<type>/<source>/`.
-- At runtime you choose the **data type**, **data source**, **parser** and finally
-  the data file to load. Only valid options detected in the directory tree are
-  presented.
+- During each run you first pick an **SNe dataset** (e.g. Pantheon+, UniStra),
+  choose a parser within that dataset and then select the exact data file.
+- The same sequence repeats for **BAO data**.
+
 - Parsers and engines are selected interactively from their respective directories.
 - After each run you may choose to evaluate another model or exit. Cache files are
   cleaned automatically.

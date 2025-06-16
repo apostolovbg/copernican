@@ -1,12 +1,13 @@
-<!-- DEV NOTE (v1.6a): Declared version 1.6a with parser plugin system. -->
+<!-- DEV NOTE (v1.6a update): Added dataset-first CLI flow. -->
 # Copernican Suite Change Log
 <!-- DEV NOTE (v1.5f): Added release notes for Phase 6 and bumped version. -->
 ## Version 1.6a
 - Introduced dynamic parser plugin system with automatic discovery.
 - Data and parsers reorganized by type and source.
 - Added developer template for new parsers.
-- Parser registration is now explicit via `register_parser()` and the CLI
-  walks data type → source → parser → file.
+- Parser registration is now explicit via `register_parser()`.
+- The CLI selects datasets in order: SNe dataset → parser → file, then BAO
+  dataset → parser → file.
 
 ## Version 1.5f (Development Release)
 - Completed Phase 6: JSON schema extended with optional fields for CMB,
