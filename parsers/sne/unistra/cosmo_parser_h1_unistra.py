@@ -5,7 +5,7 @@
 import pandas as pd
 import logging
 
-from scripts.data_loaders import BaseParser
+from scripts.data_loaders import BaseParser, register_parser
 
 DEFAULT_SALT2_M_ABS_FIXED = -19.3
 DEFAULT_SALT2_ALPHA_FIXED = 0.14
@@ -71,3 +71,12 @@ class UniStraH1Parser(BaseParser):
 
     def parse(self, filepath, **kwargs):
         return parse_unistra_h1_style(filepath, **kwargs)
+
+
+register_parser(
+    data_type="sne",
+    source="unistra",
+    name="Unistra H1",
+    parser=UniStraH1Parser()
+)
+

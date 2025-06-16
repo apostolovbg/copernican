@@ -6,7 +6,7 @@ import numpy as np
 import os
 import logging
 
-from scripts.data_loaders import BaseParser, _get_user_input_filepath
+from scripts.data_loaders import BaseParser, _get_user_input_filepath, register_parser
 
 
 def _get_pantheon_plus_args(base_dir):
@@ -104,3 +104,12 @@ class PantheonPlusMuCovH2Parser(BaseParser):
 
     def parse(self, filepath, cov_filepath=None, **kwargs):
         return parse_pantheon_plus_mu_cov_h2(filepath, cov_filepath=cov_filepath, **kwargs)
+
+
+register_parser(
+    data_type="sne",
+    source="pantheon",
+    name="Pantheon+ Mu Covariance H2",
+    parser=PantheonPlusMuCovH2Parser()
+)
+
