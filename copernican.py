@@ -4,6 +4,11 @@ Copernican Suite - Main Orchestrator.
 # DEV NOTE (v1.6a update): CLI now selects datasets in fixed order
 # (SNe then BAO) without prompting for data type. Parser plugin system uses
 # explicit registration.
+# DEV NOTE (v1.6a patch): Dataset selection now occurs before engine choice and
+# directories under ``data/<type>/`` are enumerated for available datasets. The
+# user is shown a summary and must confirm before calculations proceed.
+# DEV NOTE (v1.6a patch2): Prompts now display their description before the list
+# of options and echo the selected item for better UX.
 """
 # DEV NOTE (v1.5f): Added placeholders for future data types and bumped version.
 # DEV NOTE (v1.5f hotfix): Fixed dependency scanner to ignore relative imports.
@@ -163,14 +168,17 @@ def select_from_list(options, prompt):
     """Utility to allow user selection from a list."""
     if not options:
         return None
+    print(f"{prompt}:")
     for i, opt in enumerate(options, 1):
         print(f"  {i}. {opt}")
     while True:
-        choice = input(f"{prompt} (number or 'c' to cancel): ").strip()
+        choice = input("Please write your choice number here (or 'c' to cancel): ").strip()
         if choice.lower() == 'c':
             return None
         if choice.isdigit() and 1 <= int(choice) <= len(options):
-            return options[int(choice) - 1]
+            selected = options[int(choice) - 1]
+            print(f"{selected} has been selected!")
+            return selected
         print("Invalid selection. Try again.")
 
 def parse_model_header(md_path):
@@ -304,22 +312,18 @@ def main_workflow():
         if not alt_model_plugin:
             continue
 
-        engines_dir = os.path.join(SCRIPT_DIR, 'engines')
-        engine_files = sorted([f for f in os.listdir(engines_dir) if f.startswith('cosmo_engine_') and f.endswith('.py')])
-        engine_choice = select_from_list(engine_files, 'Select computation engine')
-        if not engine_choice:
-            break
-        engine_module = importlib.import_module(f"engines.{engine_choice[:-3]}")
-        cosmo_engine_selected = engine_module
-
         def select_dataset_flow(data_type):
             """Handle dataset selection for a fixed data type."""
             while True:
-                sources = data_loaders.list_available_sources(data_type)
-                if not sources:
-                    print(f"\u274c No parser registered for data type '{data_type}'.")
+                data_base = os.path.join(SCRIPT_DIR, 'data', data_type)
+                if not os.path.isdir(data_base):
+                    print(f"\u274c Data directory not found: {data_base}")
                     return None
-                source_choice = select_from_list(sources, f"Select {data_type.upper()} data source")
+                dir_sources = sorted([d for d in os.listdir(data_base) if os.path.isdir(os.path.join(data_base, d))])
+                if not dir_sources:
+                    print(f"\u274c No datasets found for '{data_type}'.")
+                    return None
+                source_choice = select_from_list(dir_sources, f"Select {data_type.upper()} dataset")
                 if not source_choice:
                     return None
                 parsers = data_loaders.list_parsers(data_type, source_choice)
@@ -331,10 +335,7 @@ def main_workflow():
                 if not parser_choice:
                     return None
                 parser_info = next(p for p in parsers if p['name'] == parser_choice)
-                data_dir = os.path.join(SCRIPT_DIR, 'data', data_type, source_choice)
-                if not os.path.isdir(data_dir):
-                    print(f"\u274c Data directory not found: {data_dir}")
-                    return None
+                data_dir = os.path.join(data_base, source_choice)
                 files = sorted(os.listdir(data_dir))
                 if not files:
                     print(f"\u274c No data files found in {data_dir}.")
@@ -343,14 +344,39 @@ def main_workflow():
                 if not file_choice:
                     return None
                 filepath = os.path.join(data_dir, file_choice)
-                return data_loaders.load_data(data_type, source_choice, parser_info, filepath)
+                data_df = data_loaders.load_data(data_type, source_choice, parser_info, filepath)
+                if data_df is None:
+                    return None
+                dataset_name = data_df.attrs.get('dataset_name_attr', os.path.basename(filepath))
+                return data_df, {'source': source_choice, 'parser': parser_choice, 'file': file_choice, 'dataset': dataset_name}
 
-        sne_data_df = select_dataset_flow('sne')
-        if sne_data_df is None:
+        sne_result = select_dataset_flow('sne')
+        if sne_result is None:
             break
+        sne_data_df, sne_info = sne_result
 
-        bao_data_df = select_dataset_flow('bao')
-        if bao_data_df is None:
+        bao_result = select_dataset_flow('bao')
+        if bao_result is None:
+            continue
+        bao_data_df, bao_info = bao_result
+
+        engines_dir = os.path.join(SCRIPT_DIR, 'engines')
+        engine_files = sorted([f for f in os.listdir(engines_dir) if f.startswith('cosmo_engine_') and f.endswith('.py')])
+        engine_choice = select_from_list(engine_files, 'Select computation engine')
+        if not engine_choice:
+            break
+        engine_module = importlib.import_module(f"engines.{engine_choice[:-3]}")
+        cosmo_engine_selected = engine_module
+
+        print("\nConfiguration summary:")
+        print(f"  Model: {alt_model_plugin.MODEL_NAME}")
+        print(f"  SNe dataset: {sne_info['dataset']} parsed by {sne_info['parser']}")
+        print(f"  BAO dataset: {bao_info['dataset']} parsed by {bao_info['parser']}")
+        print(f"  Engine: {engine_choice}")
+        proceed = input("Proceed? (y/n): ").strip().lower()
+        if proceed not in ['y', 'yes']:
+            cleanup_cache(SCRIPT_DIR)
+            logger.info("Run canceled by user after summary.")
             continue
         logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
         lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, lcdm)
