@@ -9,6 +9,8 @@
   run a printed `pip install` command when packages are missing.
 - Hotfix 7: `Hz_expression` added to JSON models and compiled automatically for
   distance predictions.
+- Hotfix 8: Sound horizon `r_s` is now computed automatically when possible using
+  a fallback integral if `rs_expression` is missing.
 
 ## Version 1.5e (Development Release)
 - Added Numba-based engine and modular utility wrappers.

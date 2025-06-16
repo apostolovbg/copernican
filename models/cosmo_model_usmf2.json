@@ -1,5 +1,5 @@
 {
-  "dev_note": "v1.5f hotfix 7: added Hz_expression key for automatic H(z)",
+  "dev_note": "v1.5f hotfix 8: added baryon parameters for r_s computation",
   "model_name": "USMFv2",
   "version": "2.0",
   "Hz_expression": "H_A*(1+z)",
@@ -13,6 +13,9 @@
     {"name": "omega_osc", "python_var": "omega_osc", "initial_guess": 2.3969, "bounds": [0.1, 10.0], "unit": "rad/log(time_ratio)", "latex_name": "$\\omega_{osc}$"},
     {"name": "ti_osc_Gyr", "python_var": "ti_osc_Gyr", "initial_guess": 7.1399, "bounds": [1.0, 20.0], "unit": "Gyr", "latex_name": "$t_{i,osc}$"},
     {"name": "phi_osc", "python_var": "phi_osc", "initial_guess": 0.10905, "bounds": [-3.1416, 3.1416], "unit": "rad", "latex_name": "$\\phi_{osc}$"}
+    ,{"name": "Ob", "python_var": "Ob", "initial_guess": 0.0486, "bounds": [0.01, 0.1]}
+    ,{"name": "Og", "python_var": "Og", "initial_guess": 5e-5, "bounds": [1e-5, 1e-4]}
+    ,{"name": "z_recomb", "python_var": "z_recomb", "initial_guess": 1089, "bounds": [1000, 1200]}
   ],
   "equations": {
     "distance_modulus_model": "5*sympy.log(1+z,10)*H_A"

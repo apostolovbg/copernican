@@ -1,5 +1,5 @@
 {
-  "dev_note": "v1.5f hotfix 7: added Hz_expression key for automatic H(z)",
+  "dev_note": "v1.5f hotfix 8: added baryon parameters for r_s computation",
   "model_name": "USMFv4_QuantumKinematic",
   "version": "4",
   "Hz_expression": "H0*sympy.sqrt(Omega_m0*(1+z)**4 + (1-Omega_m0))",
@@ -7,6 +7,9 @@
     {"name": "H0", "python_var": "H0", "initial_guess": 68.0, "bounds": [50, 80], "unit": "km/s/Mpc", "latex_name": "$H_0$"},
     {"name": "Omega_m0", "python_var": "Omega_m0", "initial_guess": 0.3, "bounds": [0.1, 0.5], "unit": "", "latex_name": "$\\Omega_{m0}$"},
     {"name": "Omega_b0", "python_var": "Omega_b0", "initial_guess": 0.0486, "bounds": [0.04, 0.06], "unit": "", "latex_name": "$\\Omega_{b0}$"}
+    ,{"name": "Ob", "python_var": "Ob", "initial_guess": 0.0486, "bounds": [0.01, 0.1]}
+    ,{"name": "Og", "python_var": "Og", "initial_guess": 5e-5, "bounds": [1e-5, 1e-4]}
+    ,{"name": "z_recomb", "python_var": "z_recomb", "initial_guess": 1089, "bounds": [1000, 1200]}
   ],
   "equations": {
     "distance_modulus_model": "5*sympy.log(1+z,10)*H0"

@@ -152,6 +152,9 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
     """
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)
+    if getattr(model_plugin, 'valid_for_bao', True) is False:
+        logger.warning("(chi2_bao): Model flagged as invalid for BAO. Skipping calculation.")
+        return np.inf
     if bao_data_df is None or bao_data_df.empty:
         logger.error("(chi2_bao): BAO data is empty.")
         return np.inf
@@ -379,10 +382,13 @@ def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params, z_smooth=
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)
     model_name = model_plugin.MODEL_NAME
-    
+
     # --- Part 1: Calculate for BAO data points ---
     bao_pred_df = bao_data_df.copy()
     bao_pred_df['model_prediction'] = np.nan
+    if getattr(model_plugin, 'valid_for_bao', True) is False:
+        logger.warning("Model flagged as invalid for BAO. Skipping calculations.")
+        return bao_pred_df, np.nan, None
     
     param_str = ", ".join([f"{p:.4g}" for p in cosmo_params])
     logger.info(f"Calculating BAO observables for {model_name} with parameters: [{param_str}]")
