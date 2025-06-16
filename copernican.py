@@ -6,6 +6,8 @@ Copernican Suite - Main Orchestrator.
 # DEV NOTE (v1.5f hotfix): Fixed dependency scanner to ignore relative imports.
 # Automatic dependency installer still triggers when packages are missing.
 # Plugin validation now occurs on the generated module.
+# DEV NOTE (v1.5f hotfix 4): Moved `freeze_support` call to a local import at
+# runtime to prevent NoneType errors when optional imports are deferred.
 # Previous notes retained below for context.
 # DEV NOTE (v1.4.1): Added splash screen, per-run logging with timestamps, and
 # migrated the base model import to the new `lcdm.py` plugin file.
@@ -427,8 +429,9 @@ def main_workflow():
         cleanup_cache(SCRIPT_DIR)
 
 if __name__ == "__main__":
-    # This is essential for multiprocessing to work correctly on all platforms
-    mp.freeze_support()
+    # This is essential for multiprocessing to work correctly on all platforms.
+    import multiprocessing as _mp
+    _mp.freeze_support()
     try:
         main_workflow()
     except Exception:

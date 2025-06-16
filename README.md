@@ -3,6 +3,7 @@
 <!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
 <!-- DEV NOTE (v1.5f hotfix 2): JSON models include abstract, description and notes fields for upcoming UI modules. -->
 <!-- DEV NOTE (v1.5f hotfix 3): Dependency check now runs before importing optional packages; code style cleanup. -->
+<!-- DEV NOTE (v1.5f hotfix 4): Multiprocessing freeze_support is now called via a local import after verifying dependencies. -->
 
 **Version:** 1.5f
 **Last Updated:** 2025-06-20
