@@ -8,6 +8,8 @@
 <!-- DEV NOTE (v1.5f hotfix 10): BAO smooth curve generation fixed by vectorizing distance integrals. -->
 <!-- DEV NOTE (v1.5f hotfix 11): Volume-averaged distance function now supports
      array inputs to prevent BAO plotting errors. -->
+<!-- DEV NOTE (v1.5f hotfix 12): r_s fallback integral includes radiation
+     density for accurate BAO scaling. -->
 
 **Version:** 1.5f
 **Last Updated:** 2025-06-20
