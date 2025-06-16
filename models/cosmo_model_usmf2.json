@@ -1,5 +1,5 @@
 {
-  "dev_note": "v1.5d: Converted from Markdown/Plugin for JSON pipeline",
+  "dev_note": "v1.5d: Converted from Markdown/Plugin for JSON pipeline; v1.5f hotfix added abstract description notes",
   "model_name": "USMFv2",
   "version": "2.0",
   "parameters": [
@@ -16,5 +16,8 @@
   "equations": {
     "get_Hz_per_Mpc": "H_A*(1+z)",
     "distance_modulus_model": "5*sympy.log(1+z,10)*H_A"
-  }
+  },
+  "abstract": "Unified Shrinking Matter Framework proposes cosmic acceleration and dark matter effects are apparent from observing within shrinking systems refined with early universe evolution",
+  "description": "Model introduces dual reference frames universal and local. Scale factor alpha(t) evolves with parameters H_A p_alpha k_exp s_exp producing distance measures and BAO predictions.",
+  "notes": "Detailed theory in cosmo_model_usmf2.md including unique predictions"
 }

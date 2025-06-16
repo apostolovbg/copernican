@@ -1,5 +1,6 @@
 # DEV NOTE (v1.5f)
 Hotfix: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
+Hotfix 2: JSON models now contain optional abstract, description and notes fields.
 Updated for Phase 6. Added placeholder parsers for CMB, gravitational waves and standard sirens, and expanded JSON schema.
 
 # Copernican Suite Development Guide

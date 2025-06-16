@@ -1,5 +1,5 @@
 {
-  "dev_note": "v1.5d: Converted from Markdown/Plugin for JSON pipeline",
+  "dev_note": "v1.5d: Converted from Markdown/Plugin for JSON pipeline; v1.5f hotfix added abstract description notes",
   "model_name": "USMFv3b_Kinematic",
   "version": "3b",
   "parameters": [
@@ -12,5 +12,8 @@
   "equations": {
     "get_Hz_per_Mpc": "H_A*(1+z)**(1/p_kin)",
     "distance_modulus_model": "5*sympy.log(1+z,10)*H_A"
-  }
+  },
+  "abstract": "USMFv3b kinematic simplifies shrinking matter model with power law index p_kin giving analytic distance solutions",
+  "description": "Combines the kinematic shrinking law with a standard sound horizon formula enabling rapid testing with SNe Ia and BAO data",
+  "notes": "See cosmo_model_usmf3b.md for theoretical discussion"
 }

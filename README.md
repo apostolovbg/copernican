@@ -1,6 +1,7 @@
 # Copernican Suite
 <!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
 <!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
+<!-- DEV NOTE (v1.5f hotfix 2): JSON models include abstract, description and notes fields for upcoming UI modules. -->
 
 **Version:** 1.5f
 **Last Updated:** 2025-06-20
@@ -112,7 +113,10 @@ auto-generates the necessary Python functions.
   },
   "cmb": {},
   "gravitational_waves": {},
-  "standard_sirens": {}
+  "standard_sirens": {},
+  "abstract": "short overview text",
+  "description": "longer explanation with optional equations",
+  "notes": "any additional remarks"
 }
 ```
 `model_parser.py` validates this structure and `model_coder.py` translates the
