@@ -1,3 +1,5 @@
+# DEV NOTE (v1.6a)
+Introduced dynamic parser plugin system with data-type and source directories.
 # DEV NOTE (v1.5f)
 Hotfix: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
 Hotfix 2: JSON models now contain optional abstract, description and notes fields.
@@ -27,8 +29,8 @@ ensures the expected functions are present and callable.
 ```
 models/           - JSON model definitions (Markdown files optional)
 engines/          - Computational backends (SciPy CPU by default)
-parsers/          - Data format parsers for SNe, BAO, CMB, gravitational waves and standard sirens
-data/             - Example data files
+parsers/          - Parser modules grouped by data type and source
+data/             - Reference datasets grouped by type and source
 output/           - Generated plots and CSV tables
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history

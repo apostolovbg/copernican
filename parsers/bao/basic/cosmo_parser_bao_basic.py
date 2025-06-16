@@ -1,4 +1,4 @@
-# DEV NOTE (v1.5e): General BAO JSON parser separated for modular discovery.
+# DEV NOTE (v1.6a): Updated for plugin registry.
 # DEV NOTE (v1.5f hotfix): Updated import path for ``data_loaders`` package.
 
 import pandas as pd
@@ -6,10 +6,9 @@ import json
 import os
 import logging
 
-from scripts.data_loaders import register_bao_parser
+from scripts.data_loaders import BaseParser
 
 
-@register_bao_parser("bao_json_general_v1", "General BAO JSON format (e.g., bao1.json).")
 def parse_bao_json_v1(filepath, **kwargs):
     """Parses a generic BAO JSON file into a standard DataFrame."""
     logger = logging.getLogger()
@@ -35,3 +34,13 @@ def parse_bao_json_v1(filepath, **kwargs):
         return df
     except Exception as e:
         logger.error(f"Error reading or parsing BAO JSON file {filepath}: {e}", exc_info=True); return None
+
+class BAOJsonV1Parser(BaseParser):
+    """Parser wrapper for generic BAO JSON files."""
+    DATA_TYPE = "bao"
+    SOURCE_NAME = "basic"
+    PARSER_NAME = "bao_json_general_v1"
+    FILE_EXTENSIONS = [".json"]
+
+    def parse(self, filepath, **kwargs):
+        return parse_bao_json_v1(filepath, **kwargs)

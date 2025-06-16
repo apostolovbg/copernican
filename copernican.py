@@ -1,6 +1,7 @@
 # copernican_suite/copernican.py
 """
 Copernican Suite - Main Orchestrator.
+# DEV NOTE (v1.6a): Parser plugin system with auto-registration.
 """
 # DEV NOTE (v1.5f): Added placeholders for future data types and bumped version.
 # DEV NOTE (v1.5f hotfix): Fixed dependency scanner to ignore relative imports.
@@ -36,7 +37,7 @@ engine_interface = None
 output_manager = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.5f"
+COPERNICAN_VERSION = "1.6a"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
@@ -309,49 +310,40 @@ def main_workflow():
         engine_module = importlib.import_module(f"engines.{engine_choice[:-3]}")
         cosmo_engine_selected = engine_module
 
-        sne_data_dir = os.path.join(SCRIPT_DIR, 'data', 'sne')
-        sne_files = sorted(os.listdir(sne_data_dir))
+        sne_data_base = os.path.join(SCRIPT_DIR, 'data', 'sne')
+        sne_sources = [d for d in sorted(os.listdir(sne_data_base)) if os.path.isdir(os.path.join(sne_data_base, d))]
+        print('Available SNe sources and parsers:')
+        for src in sne_sources:
+            pars = data_loaders.list_parsers('sne', src)
+            names = ', '.join(p.PARSER_NAME for p in pars) or 'none'
+            print(f'  - {src}: {names}')
+        source_choice = select_from_list(sne_sources, 'Select SNe Ia data source')
+        if not source_choice:
+            break
+        sne_files = sorted(os.listdir(os.path.join(sne_data_base, source_choice)))
         sne_choice = select_from_list(sne_files, 'Select SNe Ia data file')
         if not sne_choice:
             break
-        sne_data_filepath = os.path.join(sne_data_dir, sne_choice)
-        
-        sne_format_key = data_loaders._select_parser(data_loaders.SNE_PARSERS, "SNe")
-        if not sne_format_key:
+        sne_data_filepath = os.path.join(sne_data_base, source_choice, sne_choice)
+        sne_data_df = data_loaders.load_sne_data(sne_data_filepath)
+        bao_data_base = os.path.join(SCRIPT_DIR, 'data', 'bao')
+        bao_sources = [d for d in sorted(os.listdir(bao_data_base)) if os.path.isdir(os.path.join(bao_data_base, d))]
+        print('Available BAO sources and parsers:')
+        for src in bao_sources:
+            pars = data_loaders.list_parsers('bao', src)
+            names = ', '.join(p.PARSER_NAME for p in pars) or 'none'
+            print(f'  - {src}: {names}')
+        bao_source_choice = select_from_list(bao_sources, 'Select BAO data source')
+        if not bao_source_choice:
             break
-
-        sne_loader_kwargs = {}
-        parser_info = data_loaders.SNE_PARSERS.get(sne_format_key)
-        if parser_info and parser_info.get('extra_args_func'):
-            logger.info(f"Parser '{sne_format_key}' requires additional arguments.")
-            extra_args = parser_info['extra_args_func'](SCRIPT_DIR)
-            if extra_args is None:
-                break
-            sne_loader_kwargs.update(extra_args)
-        
-        sne_data_df = data_loaders.load_sne_data(
-            sne_data_filepath,
-            format_key=sne_format_key,
-            **sne_loader_kwargs,
-        )
-        if sne_data_df is None:
-            continue
-
-        bao_data_dir = os.path.join(SCRIPT_DIR, 'data', 'bao')
-        bao_files = sorted(os.listdir(bao_data_dir))
+        bao_files = sorted(os.listdir(os.path.join(bao_data_base, bao_source_choice)))
         bao_choice = select_from_list(bao_files, 'Select BAO data file')
         if not bao_choice:
             break
-        bao_data_filepath = os.path.join(bao_data_dir, bao_choice)
-        bao_format_key = data_loaders._select_parser(data_loaders.BAO_PARSERS, "BAO")
-        if not bao_format_key:
-            break
-        bao_data_df = data_loaders.load_bao_data(
-            bao_data_filepath, format_key=bao_format_key
-        )
+        bao_data_filepath = os.path.join(bao_data_base, bao_source_choice, bao_choice)
+        bao_data_df = data_loaders.load_bao_data(bao_data_filepath)
         if bao_data_df is None:
             continue
-
         logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
         lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, lcdm)
         alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, alt_model_plugin)
