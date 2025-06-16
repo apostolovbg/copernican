@@ -1,0 +1,8 @@
+name,redshift,observable_type,value,error,rs_fiducial_Mpc,pred_lcdm,chi2_contrib_lcdm,pred_USMFv2,chi2_contrib_USMFv2
+BOSS DR12 Consensus z=0.38,0.38,DV_over_rs,9.1758,0.1453,,6.12015,442.258,0.00774225,3981.29
+BOSS DR12 Consensus z=0.51,0.51,DV_over_rs,12.3631,0.1341,,7.78243,1166.81,0.00976772,8486.15
+BOSS DR12 Consensus z=0.61,0.61,DV_over_rs,14.3097,0.1345,,8.92909,1600.36,0.0111764,11301.5
+eBOSS DR16 Quasar z=1.48 (DM/rs),1.48,DM_over_rs,30.35,0.84,,18.147,211.044,0.0230036,1303.47
+eBOSS DR16 Quasar z=1.48 (DH/rs),1.48,DH_over_rs,13.26,0.53,,7.58282,114.74,0.0102126,624.98
+eBOSS DR16 Lyman-alpha Combined z=2.334 (DM/rs),2.334,DM_over_rs,37.5,1.1,,23.4134,163.994,0.0304983,1160.3
+eBOSS DR16 Lyman-alpha Combined z=2.334 (DH/rs),2.334,DH_over_rs,8.88,0.19,,5.02406,411.864,0.00759663,2180.6
