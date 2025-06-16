@@ -1,11 +1,12 @@
 # DEV NOTE (v1.5e): Pantheon+ covariance parser separated for plugin architecture.
+# DEV NOTE (v1.5f hotfix): Updated ``data_loaders`` import path.
 
 import pandas as pd
 import numpy as np
 import os
 import logging
 
-from data_loaders import register_sne_parser, _get_user_input_filepath
+from scripts.data_loaders import register_sne_parser, _get_user_input_filepath
 
 
 def _get_pantheon_plus_args(base_dir):

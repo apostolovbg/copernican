@@ -1,10 +1,11 @@
 # DEV NOTE (v1.5e): Extracted from data_loaders.py for modular architecture.
 # Registers the UniStra raw light-curve (h2) parser.
+# DEV NOTE (v1.5f hotfix): Updated ``data_loaders`` import path.
 
 import pandas as pd
 import logging
 
-from data_loaders import register_sne_parser
+from scripts.data_loaders import register_sne_parser
 
 @register_sne_parser(
     "unistra_raw_lc_h2",

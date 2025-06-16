@@ -1,5 +1,6 @@
 # utils.py
 """Common utility functions for the Copernican Suite."""
+# DEV NOTE (v1.5f): File relocated into ``scripts/`` package.
 # DEV NOTE (v1.5e): Extracted timestamp and filename helpers for modular utilities.
 
 import os

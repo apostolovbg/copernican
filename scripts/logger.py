@@ -1,11 +1,12 @@
 # Copernican Suite Logger
 """Logging utilities for the Copernican Suite."""
+# DEV NOTE (v1.5f): Module moved to ``scripts/`` package and import path updated.
 # DEV NOTE (v1.5e): Separated from output_manager for Phase 5 modularization.
 
 import logging
 import os
 import sys
-from utils import get_timestamp, ensure_dir_exists
+from .utils import get_timestamp, ensure_dir_exists
 
 
 def setup_logging(log_dir="."):

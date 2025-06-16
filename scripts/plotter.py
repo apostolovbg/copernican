@@ -1,9 +1,10 @@
 # Copernican Suite Plotter
 """Wrapper module exposing plotting utilities."""
+# DEV NOTE (v1.5f): Relocated into ``scripts/`` package; import adjusted.
 # DEV NOTE (v1.5e): Thin wrappers calling `output_manager` functions for reuse across engines.
 
 from typing import Any
-import output_manager as _om
+from . import output_manager as _om
 
 
 def format_model_summary_text(*args: Any, **kwargs: Any) -> str:

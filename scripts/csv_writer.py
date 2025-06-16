@@ -1,9 +1,10 @@
 # Copernican Suite CSV Writer
 """Wrapper module exposing CSV writing utilities."""
+# DEV NOTE (v1.5f): Moved into ``scripts/`` package and updated output_manager import.
 # DEV NOTE (v1.5e): Thin wrappers calling `output_manager` CSV helpers.
 
 from typing import Any
-import output_manager as _om
+from . import output_manager as _om
 
 
 def save_sne_results_detailed_csv(*args: Any, **kwargs: Any) -> None:

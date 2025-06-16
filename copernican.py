@@ -4,6 +4,8 @@ Copernican Suite - Main Orchestrator.
 """
 # DEV NOTE (v1.5f): Added placeholders for future data types and bumped version.
 # DEV NOTE (v1.5f hotfix): Fixed dependency scanner to ignore relative imports.
+# DEV NOTE (v1.5f hotfix 2): Local modules are now imported after running
+# `check_dependencies()` to avoid import errors when packages are missing.
 # Automatic dependency installer still triggers when packages are missing.
 # Plugin validation now occurs on the generated module.
 # Previous notes retained below for context.
@@ -26,7 +28,6 @@ import shutil
 import subprocess
 import glob
 import time
-from scripts import model_parser, model_coder, engine_interface
 
 COPERNICAN_VERSION = "1.5f"
 
@@ -82,7 +83,7 @@ def _gather_required_packages():
         'os', 'sys', 'time', 'json', 'logging', 'subprocess', 'importlib',
         'multiprocessing', 'glob', 'shutil', 'platform', 'inspect', 'types',
         'pathlib', 'builtins', 'traceback', 'typing',
-        # Local modules within this repository
+        # Local modules within this repository (under ``scripts``)
         'data_loaders', 'output_manager', 'csv_writer', 'plotter', 'logger',
         'utils'
     }
@@ -120,9 +121,14 @@ def check_dependencies():
         print("✅ System Dependency Check Passed. Continuing...\n")
 
 
-# Import sibling modules after the dependency check
-import data_loaders
-import output_manager
+# Sibling modules are imported after dependency verification in main_workflow
+
+# Placeholders for modules loaded post dependency check
+model_parser = None
+model_coder = None
+engine_interface = None
+data_loaders = None
+output_manager = None
 
 lcdm = None
 
@@ -216,6 +222,12 @@ def cleanup_cache(base_dir):
 def main_workflow():
     """Main workflow for the Copernican Suite."""
     check_dependencies()
+
+    # Import project modules only after verifying required packages
+    global model_parser, model_coder, engine_interface
+    global data_loaders, output_manager
+    from scripts import model_parser, model_coder, engine_interface
+    from scripts import data_loaders, output_manager
 
     try: SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
     except NameError: SCRIPT_DIR = os.getcwd()
@@ -404,11 +416,16 @@ if __name__ == "__main__":
     try:
         main_workflow()
     except Exception as e:
-        logger = output_manager.get_logger()
-        if logger.hasHandlers():
-            logger.critical("Unhandled exception in main_workflow!", exc_info=True)
+        if output_manager is not None:
+            logger = output_manager.get_logger()
+            if logger.hasHandlers():
+                logger.critical("Unhandled exception in main_workflow!", exc_info=True)
+            else:
+                print("CRITICAL UNHANDLED EXCEPTION IN MAIN WORKFLOW:")
+                import traceback
+                traceback.print_exc()
         else:
-            print("CRITICAL UNHANDLED EXCEPTION IN MAIN WORKFLOW:")
+            print("CRITICAL UNHANDLED EXCEPTION IN MAIN WORKFLOW (logger unavailable):")
             import traceback
             traceback.print_exc()
     finally:
