@@ -13,6 +13,9 @@
 # from ``get_luminosity_distance_Mpc`` when not provided by the JSON model.
 # DEV NOTE (v1.5f hotfix 12): ``get_DV_Mpc`` now handles NumPy arrays for
 # smooth BAO curve generation without runtime errors.
+# DEV NOTE (v1.5f hotfix 13): The fallback ``get_sound_horizon_rs_Mpc``
+# integral now adds radiation density to the model's ``H(z)`` to produce
+# realistic sound horizon values.
 
 import json
 from pathlib import Path
@@ -141,6 +144,7 @@ def generate_callables(cache_path):
                 zr_i = param_index['z_recomb']
 
                 def _rs(*params):
+                    """Numerically compute the sound horizon r_s in Mpc."""
                     Ob_val = params[ob_i]
                     Og_val = params[og_i]
                     zrec = params[zr_i]
@@ -148,7 +152,14 @@ def generate_callables(cache_path):
                     def sound_speed(zv):
                         return 299792.458 / np.sqrt(3 * (1 + 3 * Ob_val / (4 * Og_val) / (1 + zv)))
 
-                    integrand = lambda zv: sound_speed(zv) / hz_fn(zv, *params)
+                    h0_val = hz_fn(0.0, *params)
+
+                    def hz_with_radiation(zv):
+                        base = hz_fn(zv, *params)
+                        rad_sq = (h0_val ** 2) * Og_val * (1 + zv) ** 4
+                        return np.sqrt(base ** 2 + rad_sq)
+
+                    integrand = lambda zv: sound_speed(zv) / hz_with_radiation(zv)
                     result, _ = quad(integrand, zrec, np.inf, limit=100)
                     return result
 
