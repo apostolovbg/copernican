@@ -2,6 +2,7 @@
 # DEV NOTE (v1.5f): Added registries and loader functions for CMB, gravitational
 # wave, and standard siren data types as preparation for future datasets.
 # DEV NOTE (v1.5f hotfix): File moved to ``scripts/`` package; import paths for parsers updated.
+# DEV NOTE (v1.5f hotfix 9): Corrected parser discovery path to top-level ``parsers`` directory.
 """
 Modular data loading for various cosmological datasets (SNe, BAO, etc.).
 """
@@ -77,8 +78,10 @@ def register_siren_parser(name, description=""):
 
 # --- Dynamic Discovery of Parser Modules ---
 def _discover_parsers():
-    """Imports all parser modules under the ./parsers directory."""
-    base_dir = os.path.join(os.path.dirname(__file__), 'parsers')
+    """Imports all parser modules under the project's ``parsers`` directory."""
+    # ``data_loaders.py`` lives in ``scripts/`` so we move one level up to find
+    # the root ``parsers`` folder next to ``scripts``.
+    base_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'parsers')
     for sub in ('sne', 'bao', 'cmb', 'gw', 'sirens'):
         subdir = os.path.join(base_dir, sub)
         if not os.path.isdir(subdir):
