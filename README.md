@@ -4,6 +4,7 @@
 <!-- DEV NOTE (v1.5f hotfix 2): JSON models include abstract, description and notes fields for upcoming UI modules. -->
 <!-- DEV NOTE (v1.5f hotfix 3): Dependency check now runs before importing optional packages; code style cleanup. -->
 <!-- DEV NOTE (v1.5f hotfix 4): Multiprocessing freeze_support is now called via a local import after verifying dependencies. -->
+<!-- DEV NOTE (v1.5f hotfix 5): Automatic dependency installer removed; the program now prints a pip command when packages are missing. -->
 
 **Version:** 1.5f
 **Last Updated:** 2025-06-20
@@ -39,7 +40,7 @@ simple command line interface. Results are saved as plots and CSV files in the
 
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages and
-   installs any that are missing before continuing.
+   prints a `pip install` command if any are missing.
 2. **Initialization** – the output directory is created and logging begins.
 3. **Configuration** – the user chooses a model, an engine from `./engines/`,
   and data parsers for SNe Ia and BAO. Models are discovered from
@@ -54,17 +55,19 @@ Under the hood the program follows a clear pipeline:
 
 ## Quick Start
 1. Ensure Python 3 is available. The suite requires `numpy`, `scipy`,
-   `matplotlib`, `pandas`, `sympy`, `psutil` and `jsonschema`. Missing packages
-   are installed automatically when the program starts.
+   `matplotlib`, `pandas`, `sympy`, `psutil` and `jsonschema`. If any package is
+   missing the program will print the command to install them.
 2. Run `python3 copernican.py` and follow the prompts to choose a model, data
    files and engine.
 3. Plots and CSV results will appear in the `output/` folder when the run
    completes.
 
 ## Dependencies
-The suite automatically installs any missing Python packages at startup. Current
-packages include `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`, `psutil` and
-`jsonschema`. Future engines may also depend on `numba` or GPU libraries.
+The program relies on `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`,
+`psutil` and `jsonschema`. If any of these are missing the dependency check
+will print the full installation command `pip install numpy scipy matplotlib
+pandas sympy psutil jsonschema`. Future engines may also depend on `numba` or
+GPU libraries.
 
 ## Directory Layout
 ```
@@ -146,8 +149,8 @@ Failure to follow these rules will compromise the maintainability of the
 Copernican Suite.
 ## 4. Workflow Overview
 
-1.  **Dependency Check**: `copernican.py` scans for missing packages and launches
-    an installer if necessary before continuing.
+1.  **Dependency Check**: `copernican.py` scans for missing packages and
+    instructs you to run a `pip install` command if any are absent.
 2.  **Initialization**: The script starts and creates the `./output/` directory for all results.
 3.  **Configuration**: The user specifies the file paths for the model and data files.
     -   **Test Mode**: A user can enter `test` to run ΛCDM against itself, providing a quick way to test the full analysis pipeline.

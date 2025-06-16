@@ -5,6 +5,8 @@
   gravitational waves and standard sirens. Added placeholder parser modules
   and loader functions for these data types.
 - Updated documentation for version 1.5f.
+- Hotfix 5: Removed automatic dependency installer. Users are now instructed to
+  run a printed `pip install` command when packages are missing.
 
 ## Version 1.5e (Development Release)
 - Added Numba-based engine and modular utility wrappers.
