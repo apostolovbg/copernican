@@ -1,4 +1,4 @@
-<!-- DEV NOTE (v1.6a update): CLI now prompts for data type before source and parser. -->
+<!-- DEV NOTE (v1.6a update): CLI now prompts for SNe then BAO datasets before engine selection. -->
 # Copernican Suite Change Log
 <!-- DEV NOTE (v1.5f): Added release notes for Phase 6 and bumped version. -->
 ## Version 1.6a
@@ -6,7 +6,7 @@
 - Data and parsers reorganized by type and source.
 - Added developer template for new parsers.
 - Parser registration is now explicit via `register_parser()`.
-- The CLI now asks for a data type, then a source, parser and file in sequence.
+- The CLI now selects the SNe dataset (source and parser) followed by the BAO dataset before choosing a computational engine.
 
 ## Version 1.5f (Development Release)
 - Completed Phase 6: JSON schema extended with optional fields for CMB,

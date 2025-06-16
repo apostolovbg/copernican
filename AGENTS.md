@@ -1,6 +1,5 @@
 # DEV NOTE (v1.6a update)
-Parser registry now uses explicit `register_parser()` calls. The CLI now asks
-for a data type first, then data source, parser and file.
+Parser registry now uses explicit `register_parser()` calls. The CLI now prompts first for the SNe data source and parser, then for BAO, before selecting an engine.
 # DEV NOTE (v1.5f)
 Hotfix: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
 Hotfix 2: JSON models now contain optional abstract, description and notes fields.

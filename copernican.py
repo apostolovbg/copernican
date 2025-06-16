@@ -214,43 +214,41 @@ def cleanup_cache(base_dir):
                     logger.error(f"Error removing cache file {path}: {e}")
 
 
-def select_dataset(data_loaders):
-    """Interactive selection of a dataset returning (data_type, DataFrame)."""
-    data_types = data_loaders.list_available_data_types()
-    data_type = select_from_list(data_types, 'Select data type')
-    if not data_type:
-        return None, None
+
+
+def select_dataset_for_type(data_loaders, data_type):
+    """Interactive selection of a dataset for a specific data type."""
+    data_type = data_type.lower()
     sources = data_loaders.list_available_sources(data_type)
     if not sources:
         print(f"\u274c No parser registered for data type '{data_type}'.")
-        return None, None
+        return None
     source_choice = select_from_list(sources, f"Select {data_type.upper()} data source")
     if not source_choice:
-        return None, None
+        return None
     parsers = data_loaders.list_parsers(data_type, source_choice)
     if not parsers:
-        print(f"\u26A0\uFE0F No valid parsers available for {data_type.upper()} \u2192 {source_choice}.")
-        return None, None
+        print(f"\u26A0\uFE0F No valid parsers available for {data_type.upper()}\u2192 {source_choice}.")
+        return None
     parser_names = [p['name'] for p in parsers]
     parser_choice = select_from_list(parser_names, f"Select parser for {data_type.upper()} \u2192 {source_choice}")
     if not parser_choice:
-        return None, None
+        return None
     parser_info = next(p for p in parsers if p['name'] == parser_choice)
     data_dir = os.path.join(SCRIPT_DIR, 'data', data_type, source_choice)
     if not os.path.isdir(data_dir):
         print(f"\u274c Data directory not found: {data_dir}")
-        return None, None
+        return None
     files = sorted(os.listdir(data_dir))
     if not files:
         print(f"\u274c No data files found in {data_dir}.")
-        return None, None
+        return None
     file_choice = select_from_list(files, f"Select data file for {data_type.upper()} \u2192 {source_choice}")
     if not file_choice:
-        return None, None
+        return None
     filepath = os.path.join(data_dir, file_choice)
     df = data_loaders.load_data(data_type, source_choice, parser_info, filepath)
-    return data_type, df
-
+    return df
 def main_workflow():
     """Main workflow for the Copernican Suite."""
     check_dependencies()
@@ -342,6 +340,13 @@ def main_workflow():
         if not alt_model_plugin:
             continue
 
+        sne_data_df = select_dataset_for_type(data_loaders, 'sne')
+        if sne_data_df is None:
+            break
+        bao_data_df = select_dataset_for_type(data_loaders, 'bao')
+        if bao_data_df is None:
+            continue
+
         engines_dir = os.path.join(SCRIPT_DIR, 'engines')
         engine_files = sorted([f for f in os.listdir(engines_dir) if f.startswith('cosmo_engine_') and f.endswith('.py')])
         engine_choice = select_from_list(engine_files, 'Select computation engine')
@@ -349,23 +354,6 @@ def main_workflow():
             break
         engine_module = importlib.import_module(f"engines.{engine_choice[:-3]}")
         cosmo_engine_selected = engine_module
-
-        datasets = {}
-        remaining = {'sne', 'bao'}
-        while remaining:
-            dt, df = select_dataset(data_loaders)
-            if dt is None:
-                datasets = {}
-                break
-            if df is not None:
-                datasets[dt] = df
-                remaining.discard(dt)
-        sne_data_df = datasets.get('sne')
-        bao_data_df = datasets.get('bao')
-        if sne_data_df is None:
-            break
-        if bao_data_df is None:
-            continue
         logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
         lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, lcdm)
         alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, alt_model_plugin)

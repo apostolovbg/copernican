@@ -1,4 +1,4 @@
-<!-- DEV NOTE (v1.6a update): CLI now asks for data type, source, parser and file in that order. -->
+<!-- DEV NOTE (v1.6a update): CLI now prompts for SNe source and parser followed by BAO before engine selection. -->
 # Copernican Suite
 <!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
 <!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
@@ -93,12 +93,10 @@ should not be modified by AI-driven code changes.
 ## Using the Suite
 - The program discovers available models from `models/cosmo_model_*.md`.
 - Data files are grouped by type and source under `data/<type>/<source>/`.
-- During each run you first pick a **data type** (e.g. `sne` or `bao`), then
-  select the source, parser and finally the data file.
-- You repeat this sequence for each data type you wish to include.
-- Parsers and engines are selected interactively from their respective directories.
-- After each run you may choose to evaluate another model or exit. Cache files are
-  cleaned automatically.
+- During each run you first select the SNe dataset: choose a source, then a parser and data file.
+- Next you select the BAO dataset in the same manner.
+- After datasets are loaded you choose the computational engine from `engines/`.
+- You can repeat evaluations or exit; cache files are cleaned automatically.
 
 ## Creating New Models
 All models are now provided as a single JSON file. Markdown files can still be
