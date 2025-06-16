@@ -1,14 +1,17 @@
 {
-  "dev_note": "v1.5f hotfix: added abstract description notes fields",
+  "dev_note": "v1.5f hotfix 8: added sound horizon parameters",
   "model_name": "LambdaCDM",
   "version": "1.0",
+  "Hz_expression": "H0*sympy.sqrt(Omega_m0*(1+z)**3 + (1 - Omega_m0))",
   "parameters": [
     {"name": "H0", "python_var": "H0", "initial_guess": 67.7, "bounds": [50.0, 100.0], "unit": "km/s/Mpc"},
     {"name": "Omega_m0", "python_var": "Omega_m0", "initial_guess": 0.31, "bounds": [0.05, 0.7]},
-    {"name": "Omega_b0", "python_var": "Omega_b0", "initial_guess": 0.0486, "bounds": [0.01, 0.1]}
+    {"name": "Omega_b0", "python_var": "Omega_b0", "initial_guess": 0.0486, "bounds": [0.01, 0.1]},
+    {"name": "Ob", "python_var": "Ob", "initial_guess": 0.0486, "bounds": [0.01, 0.1]},
+    {"name": "Og", "python_var": "Og", "initial_guess": 5e-5, "bounds": [4e-5, 6e-5]},
+    {"name": "z_recomb", "python_var": "z_recomb", "initial_guess": 1089.0, "bounds": [1000, 1200]}
   ],
   "equations": {
-    "get_Hz_per_Mpc": "H0*sympy.sqrt(Omega_m0*(1+z)**3 + (1 - Omega_m0))",
     "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
   },
   "abstract": "LambdaCDM model describes a flat universe dominated by cold dark matter and a cosmological constant serving as the reference model",

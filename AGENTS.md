@@ -4,6 +4,8 @@ Hotfix 2: JSON models now contain optional abstract, description and notes field
 Hotfix 3: `copernican.py` now performs the dependency check before importing third-party packages to avoid start-up failures. Style fixes applied across the codebase.
 Hotfix 4: Multiprocessing's `freeze_support` is now called using a local import after the dependency check to prevent NoneType errors.
 Hotfix 5: Removed automatic dependency installer. The suite now instructs users to run `pip install` manually when packages are missing.
+Hotfix 7: Models now provide a symbolic `Hz_expression` compiled at runtime for distance calculations.
+Hotfix 8: Optional `rs_expression` allows automatic sound horizon calculation; models with `Ob`, `Og` and `z_recomb` fallback to a numerical integral.
 Updated for Phase 6. Added placeholder parsers for CMB, gravitational waves and standard sirens, and expanded JSON schema.
 
 # Copernican Suite Development Guide

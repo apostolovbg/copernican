@@ -106,6 +106,11 @@ included for explanatory text but are not required. To create a new model:
    your theory.
 2. Optionally create `cosmo_model_name.md` to document the equations in LaTeX so
    other researchers can read them easily.
+3. Include an `Hz_expression` string defining `H(z)` in terms of your model
+   parameters. This enables BAO and distance-based predictions.
+4. Optionally supply an `rs_expression` for the sound horizon at recombination
+   or add parameters `Ob`, `Og` and `z_recomb` so the suite can derive it
+   automatically.
 The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
 auto-generates the necessary Python functions.
 
@@ -114,8 +119,13 @@ auto-generates the necessary Python functions.
 {
   "model_name": "My Model",
   "version": "1.0",
+  "Hz_expression": "H0 * sympy.sqrt(Om*(1+z)**3 + Ol)",
+  "rs_expression": "integrate(299792.458/(sqrt(3*(1+3*Ob/(4*Og)/(1+z)))*Hz_expression), (z, z_recomb, inf))",
   "parameters": [
     {"name": "H0", "python_var": "H0", "initial_guess": 70.0, "bounds": [50, 100]}
+    {"name": "Ob", "python_var": "Ob", "initial_guess": 0.0486, "bounds": [0.01, 0.1]}
+    {"name": "Og", "python_var": "Og", "initial_guess": 5e-5, "bounds": [4e-5, 6e-5]}
+    {"name": "z_recomb", "python_var": "z_recomb", "initial_guess": 1089.0, "bounds": [1000, 1200]}
   ],
   "equations": {
     "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
@@ -129,7 +139,8 @@ auto-generates the necessary Python functions.
 }
 ```
 `model_parser.py` validates this structure and `model_coder.py` translates the
-equations into NumPy-ready callables used by `engine_interface.py`.
+equations into NumPy-ready callables. When `Hz_expression` is present it is
+compiled into `get_Hz_per_Mpc` and related distance functions. If `rs_expression` or the fallback parameters are present, `get_sound_horizon_rs_Mpc` is generated for use by `engine_interface.py`.
 
 ## Development Notes
 All changes must include a `DEV NOTE` at the top of modified files explaining

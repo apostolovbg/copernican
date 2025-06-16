@@ -1,7 +1,8 @@
 {
-  "dev_note": "v1.5d: Converted from Markdown/Plugin for JSON pipeline; v1.5f hotfix added abstract description notes",
+  "dev_note": "v1.5f hotfix 8: added sound horizon parameters",
   "model_name": "USMFv5",
   "version": "5",
+  "Hz_expression": "H_A*(1+z)**(1/m_e)",
   "parameters": [
     {"name": "H_A", "python_var": "H_A", "initial_guess": 70.0, "bounds": [50.0, 90.0], "unit": "km/s/Mpc", "latex_name": "$H_A$"},
     {"name": "p_alpha", "python_var": "p_alpha", "initial_guess": 1.0, "bounds": [0.0, 5.0], "unit": "", "latex_name": "$p_\\alpha$"},
@@ -15,9 +16,11 @@
     {"name": "t_eq", "python_var": "t_eq", "initial_guess": 0.01, "bounds": [0.0001, 0.1], "unit": "Gyr", "latex_name": "$t_{eq}$"},
     {"name": "delta", "python_var": "delta", "initial_guess": 0.1, "bounds": [0.01, 1.0], "unit": "Gyr", "latex_name": "$\\Delta$"},
     {"name": "n", "python_var": "n", "initial_guess": 2.0, "bounds": [0.0, 4.0], "unit": "", "latex_name": "$n$"}
+    {"name": "Ob", "python_var": "Ob", "initial_guess": 0.0486, "bounds": [0.01, 0.1]},
+    {"name": "Og", "python_var": "Og", "initial_guess": 5e-5, "bounds": [4e-5, 6e-5]},
+    {"name": "z_recomb", "python_var": "z_recomb", "initial_guess": 1089.0, "bounds": [1000, 1200]}
   ],
   "equations": {
-    "get_Hz_per_Mpc": "H_A*(1+z)**(1/m_e)",
     "distance_modulus_model": "5*sympy.log(1+z,10)*H_A"
   },
   "abstract": "Fixed Size Filament Contraction model keeps global scale constant while local filaments contract preserving supernova fits with adjustable early exponent",

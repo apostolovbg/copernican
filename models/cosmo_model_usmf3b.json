@@ -1,16 +1,19 @@
 {
-  "dev_note": "v1.5d: Converted from Markdown/Plugin for JSON pipeline; v1.5f hotfix added abstract description notes",
+  "dev_note": "v1.5f hotfix 8: added sound horizon parameters",
   "model_name": "USMFv3b_Kinematic",
   "version": "3b",
+  "Hz_expression": "H_A*(1+z)**(1/p_kin)",
   "parameters": [
     {"name": "H_A", "python_var": "H_A", "initial_guess": 70.0, "bounds": [50.0, 100.0], "unit": "", "latex_name": "$H_A$"},
     {"name": "t0_age_Gyr", "python_var": "t0_age_Gyr", "initial_guess": 14.0, "bounds": [10.0, 20.0], "unit": "Gyr", "latex_name": "$t_{0,age}$"},
     {"name": "p_kin", "python_var": "p_kin", "initial_guess": 0.8, "bounds": [0.1, 2.0], "unit": "", "latex_name": "$p_{kin}$"},
     {"name": "Omega_m0_fid", "python_var": "Omega_m0_fid", "initial_guess": 0.31, "bounds": [0.2, 0.4], "unit": "", "latex_name": "$\\Omega_{m0,fid}$"},
     {"name": "Omega_b0_fid", "python_var": "Omega_b0_fid", "initial_guess": 0.0486, "bounds": [0.03, 0.07], "unit": "", "latex_name": "$\\Omega_{b0,fid}$"}
+    {"name": "Ob", "python_var": "Ob", "initial_guess": 0.0486, "bounds": [0.01, 0.1]},
+    {"name": "Og", "python_var": "Og", "initial_guess": 5e-5, "bounds": [4e-5, 6e-5]},
+    {"name": "z_recomb", "python_var": "z_recomb", "initial_guess": 1089.0, "bounds": [1000, 1200]}
   ],
   "equations": {
-    "get_Hz_per_Mpc": "H_A*(1+z)**(1/p_kin)",
     "distance_modulus_model": "5*sympy.log(1+z,10)*H_A"
   },
   "abstract": "USMFv3b kinematic simplifies shrinking matter model with power law index p_kin giving analytic distance solutions",
