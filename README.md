@@ -96,6 +96,7 @@ should not be modified by AI-driven code changes.
 - During each run you first pick an **SNe dataset** (e.g. Pantheon+, UniStra),
   choose a parser within that dataset and then select the exact data file.
 - The same sequence repeats for **BAO data**.
+
 - Parsers and engines are selected interactively from their respective directories.
 - After each run you may choose to evaluate another model or exit. Cache files are
   cleaned automatically.
