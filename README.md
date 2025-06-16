@@ -1,4 +1,5 @@
 <!-- DEV NOTE (v1.6a update): CLI selection now follows dataset → parser → file for SNe then BAO. -->
+<!-- DEV NOTE (v1.6a patch): Dataset and parser are chosen before selecting the computation engine, and a summary confirmation is shown. -->
 # Copernican Suite
 <!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
 <!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
@@ -43,9 +44,10 @@ Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages and
    prints a `pip install` command if any are missing.
 2. **Initialization** – the output directory is created and logging begins.
-3. **Configuration** – the user chooses a model, an engine from `./engines/`,
-  and data parsers for SNe Ia and BAO. Models are discovered from
-  `cosmo_model_*.json` files which are converted into Python code on the fly.
+3. **Configuration** – the user chooses a model, selects SNe and BAO datasets
+   along with their parsers, then picks a computation engine. Models are
+   discovered from `cosmo_model_*.json` files which are converted into Python
+   code on the fly. A summary of all choices is displayed for confirmation.
 4. **SNe Ia Fitting** – the selected engine estimates cosmological parameters
    for both the ΛCDM reference and the alternative model.
 5. **BAO Analysis** – using the best-fit parameters the engine predicts BAO
@@ -96,6 +98,9 @@ should not be modified by AI-driven code changes.
 - During each run you first pick an **SNe dataset** (e.g. Pantheon+, UniStra),
   choose a parser within that dataset and then select the exact data file.
 - The same sequence repeats for **BAO data**.
+- After all datasets are chosen you select a computational engine.
+- A summary of the selected model, datasets, parsers and engine is displayed and
+  you must confirm before calculations begin.
 
 - Parsers and engines are selected interactively from their respective directories.
 - After each run you may choose to evaluate another model or exit. Cache files are

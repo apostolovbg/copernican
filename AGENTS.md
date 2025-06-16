@@ -1,6 +1,10 @@
 # DEV NOTE (v1.6a update)
 Parser registry now uses explicit `register_parser()` calls. The CLI selects
 datasets in the fixed order SNe → BAO without prompting for data type.
+# DEV NOTE (v1.6a patch)
+Datasets are now chosen before selecting a computational engine. Available
+datasets are read from `data/<type>/` directories and a summary confirmation
+step has been added to the workflow.
 # DEV NOTE (v1.5f)
 Hotfix: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
 Hotfix 2: JSON models now contain optional abstract, description and notes fields.
