@@ -1,5 +1,6 @@
-# DEV NOTE (v1.5f)
+# DEV NOTE (v1.5h)
 Hotfix: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
+Added Flask web interface skeleton and session handling.
 Hotfix 2: JSON models now contain optional abstract, description and notes fields.
 Hotfix 3: `copernican.py` now performs the dependency check before importing third-party packages to avoid start-up failures. Style fixes applied across the codebase.
 Hotfix 4: Multiprocessing's `freeze_support` is now called using a local import after the dependency check to prevent NoneType errors.
@@ -47,7 +48,7 @@ engines to introduce additional dependencies without manual updates to the
 documentation.
 
 ## 4. JSON Model System
-As of version 1.5f every cosmological model is described by a single JSON file
+As of version 1.5h every cosmological model is described by a single JSON file
 `cosmo_model_*.json`. Markdown files may accompany the JSON for human
 readability, but there are no permanent Python plugins in the repository.
 

@@ -1,8 +1,8 @@
-# DEV NOTE (v1.5f)
-Planning for migration from the command line interface to a web-based interface. Added detailed description of the upcoming web UI and development phases.
+# DEV NOTE (v1.5h)
+Planning notes updated after implementing phases 0–3 with a basic Flask web interface and session handling.
 
 # Copernican Suite Web Transition Plan
-This document replaces the previous refactoring roadmap. All earlier phases were completed in version 1.5f. The next steps focus on building a Flask-based web server that wraps the existing analysis pipeline. The legacy CLI remains for testing but will be deprecated once the web UI is stable.
+This document replaces the previous refactoring roadmap. All earlier phases were completed in version 1.5f. Phases 0–3 are now implemented in version 1.5h with a minimal Flask server. The legacy CLI remains for testing but will be deprecated once the web UI is fully functional.
 
 After each phase is finished, append a note to the **Progress Tracking** section at the end of this file.
 
@@ -16,6 +16,7 @@ After each phase is finished, append a note to the **Progress Tracking** section
 2. **New Run / Abort Run Button** on top of the landing page, below the header, always visible. Starts or cancels a run. When a run is active the button text changes to *Abort run* and turns red.
 3. **Compile Model Button** – beside the previous button, again, always visible. Placeholder for the future model compiler. For now it simply shows a stub message.
 
+*Phase 0 implemented in v1.5h: Flask app created and CLI refactored.*
 ## Phase 2 – Tabbed Workflow
 1. **Tab Layout** – Below the main buttons add a tab bar with the following tabs:
    - **Alternative model** – Initially contains a file upload control for `cosmo_model_*.json` and a Test button which selects cosmo_model_lcdm.json which will continue to live under models/. Other tabs stay disabled until a file is chosen. When a file is chosen, a model summary will appear under the buttons - it shows the model equations in formatted math plus metadata from the JSON file.
@@ -26,11 +27,13 @@ After each phase is finished, append a note to the **Progress Tracking** section
    - **Export results** – Provides a *Download all results of the last run in a .zip* button.
 2. **Tab Activation** – Tabs become active in order: uploading a model enables *Model summary* and *Computational engine*, confirming dataset choices enables *Run*, finishing the run enables the plot tabs and export tab.
 
+*Phase 2 implemented in v1.5h: Tab layout and placeholders added to web interface.*
 ## Phase 3 – Running Analyses
 1. **Session Management** – Starting a run creates a timestamped session folder under `output/` to store plots, CSV files and the log.
 2. **Abort Logic** – Clicking *Abort run* stops the current process and marks the run as cancelled. Cached files persist until the user starts a new run.
 3. **Result Download** – After a run completes, users can fetch a ZIP archive of all outputs via the export tab.
 4. **Prompt Before Discarding** – If cached results exist, a new run request prompts: "Do you really want to discard results from the last run? Please make sure you have downloaded them or you don't really need them, because they will vanish into the vacuum of space!" with options **Space them out** or **Cancel**.
+*Phase 3 implemented in v1.5h: Sessions and downloads available via Flask UI.*
 
 ## Phase 4 – Future Enhancements
 1. **Model Compiler Module** – A form-driven tool for creating new JSON models directly in the browser - appears just as the tab bar and box, below the New run and Compile model buttons, when compile model is clicked
@@ -41,3 +44,4 @@ After each phase is finished, append a note to the **Progress Tracking** section
 ---
 ### Progress Tracking
 - *2025-06-20* – Initial plan created for web interface transition.
+- *2025-06-21* – Phases 0–3 completed with Flask skeleton and session management.

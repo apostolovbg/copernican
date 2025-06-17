@@ -2,6 +2,7 @@
 """
 Copernican Suite - Main Orchestrator.
 """
+# DEV NOTE (v1.5h): Added run_analysis_once for web UI and bumped version number.
 # DEV NOTE (v1.5f): Added placeholders for future data types and bumped version.
 # DEV NOTE (v1.5f hotfix): Fixed dependency scanner to ignore relative imports.
 # DEV NOTE (v1.5f hotfix 5): Removed automatic dependency installer. The program
@@ -36,7 +37,7 @@ engine_interface = None
 output_manager = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.5f"
+COPERNICAN_VERSION = "1.5h"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
@@ -209,6 +210,115 @@ def cleanup_cache(base_dir):
                     logger.info(f"Removed cache file: {path}")
                 except OSError as e:
                     logger.error(f"Error removing cache file {path}: {e}")
+
+def run_analysis_once(model_json, engine_file, sne_file, bao_file,
+                      sne_format, bao_format, output_dir=None):
+    """Run the core analysis once without user prompts."""
+    check_dependencies()
+
+    global np, plt, mp, model_parser, model_coder, engine_interface, data_loaders, output_manager
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import multiprocessing as mp
+    from scripts import model_parser, model_coder, engine_interface
+    from scripts import data_loaders, output_manager
+
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    OUTPUT_DIR = output_dir or os.path.join(SCRIPT_DIR, 'output')
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    log_file = output_manager.setup_logging(log_dir=OUTPUT_DIR)
+    logger = output_manager.get_logger()
+    logger.info(
+        f"Copernican {COPERNICAN_VERSION} non-interactive run. Log file: {log_file}"
+    )
+
+    def _load_model(json_path):
+        cache_dir = os.path.join(SCRIPT_DIR, 'models', 'cache')
+        cache_path = model_parser.parse_model_json(json_path, cache_dir)
+        func_dict, parsed = model_coder.generate_callables(cache_path)
+        return engine_interface.build_plugin(parsed, func_dict)
+
+    lcdm = _load_model(os.path.join(SCRIPT_DIR, 'models', 'cosmo_model_lcdm.json'))
+    alt_model = _load_model(model_json)
+    engine_module = importlib.import_module(f"engines.{engine_file[:-3]}")
+
+    sne_df = data_loaders.load_sne_data(sne_file, format_key=sne_format)
+    bao_df = data_loaders.load_bao_data(bao_file, format_key=bao_format)
+    cosmo_engine = engine_module
+
+    logger.info("--- Stage 2: Supernovae Ia Fitting ---")
+    lcdm_sne = cosmo_engine.fit_sne_parameters(sne_df, lcdm)
+    alt_sne = cosmo_engine.fit_sne_parameters(sne_df, alt_model)
+
+    logger.info("--- Stage 3: BAO Analysis ---")
+    min_z, max_z = bao_df['redshift'].min(), bao_df['redshift'].max()
+    z_smooth = np.geomspace(max(min_z * 0.8, 0.01), max_z * 1.2, 100)
+
+    def _bao(model, sne_res):
+        if not (sne_res and sne_res.get('success')):
+            return {
+                'sne_fit_results': sne_res,
+                'pred_df': None,
+                'rs_Mpc': np.nan,
+                'chi2_bao': np.inf,
+                'smooth_predictions': None,
+            }
+        params = list(sne_res['fitted_cosmological_params'].values())
+        pred_df, rs_Mpc, smooth = cosmo_engine.calculate_bao_observables(
+            bao_df, model, params, z_smooth=z_smooth
+        )
+        chi2 = (
+            cosmo_engine.chi_squared_bao(bao_df, model, params, rs_Mpc)
+            if pred_df is not None
+            else np.inf
+        )
+        return {
+            'sne_fit_results': sne_res,
+            'pred_df': pred_df,
+            'rs_Mpc': rs_Mpc,
+            'chi2_bao': chi2,
+            'smooth_predictions': smooth,
+        }
+
+    lcdm_results = _bao(lcdm, lcdm_sne)
+    alt_results = _bao(alt_model, alt_sne)
+
+    logger.info("--- Stage 4: Generating Outputs ---")
+    output_manager.plot_hubble_diagram(
+        sne_df,
+        lcdm_sne,
+        alt_sne,
+        lcdm,
+        alt_model,
+        plot_dir=OUTPUT_DIR,
+    )
+    output_manager.plot_bao_observables(
+        bao_df,
+        lcdm_results,
+        alt_results,
+        lcdm,
+        alt_model,
+        plot_dir=OUTPUT_DIR,
+    )
+    output_manager.save_sne_results_detailed_csv(
+        sne_df,
+        lcdm_sne,
+        alt_sne,
+        lcdm,
+        alt_model,
+        csv_dir=OUTPUT_DIR,
+    )
+    output_manager.save_bao_results_csv(
+        bao_df,
+        lcdm_results,
+        alt_results,
+        alt_model_name=alt_model.MODEL_NAME,
+        csv_dir=OUTPUT_DIR,
+    )
+    end_ts = time.strftime('%y%m%d_%H%M%S')
+    logger.info(f"Run completed at {end_ts}.")
+    cleanup_cache(SCRIPT_DIR)
+
 
 def main_workflow():
     """Main workflow for the Copernican Suite."""

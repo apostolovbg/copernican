@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+    <title>Copernican Suite</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>
+    function openTab(evt, name) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName('tabcontent');
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = 'none';
+        }
+        tablinks = document.getElementsByClassName('tablinks');
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(' active', '');
+        }
+        document.getElementById(name).style.display = 'block';
+        evt.currentTarget.className += ' active';
+    }
+    </script>
+</head>
+<body>
+    <h1>Copernican Suite {{ version }}</h1>
+    <form method="post" action="{{ url_for('toggle_run') }}">
+        {% if run_active %}
+        <button type="submit" name="action" value="abort" class="abort">Abort run</button>
+        {% else %}
+        <button type="submit" name="action" value="start">New run</button>
+        {% endif %}
+    </form>
+    <button onclick="alert('Model compiler coming soon!')">Compile model</button>
+    <div class="tab">
+        <button class="tablinks" onclick="openTab(event, 'Model')">Alternative model</button>
+        <button class="tablinks" onclick="openTab(event, 'Engine')">Computational engine</button>
+        <button class="tablinks" onclick="openTab(event, 'Datasets')">Datasets</button>
+        <button class="tablinks" onclick="openTab(event, 'Run')">Run</button>
+        <button class="tablinks" onclick="openTab(event, 'Hubble')">Hubble diagram</button>
+        <button class="tablinks" onclick="openTab(event, 'BAO')">BAO</button>
+        <button class="tablinks" onclick="openTab(event, 'Export')">Export results</button>
+    </div>
+    <div id="Model" class="tabcontent">
+        <p>Upload your <code>cosmo_model_*.json</code> file here.</p>
+    </div>
+    <div id="Engine" class="tabcontent">
+        <p>Select computational engine.</p>
+    </div>
+    <div id="Datasets" class="tabcontent">
+        <p>Select datasets for SNe and BAO.</p>
+    </div>
+    <div id="Run" class="tabcontent">
+        <p>Console output will appear after running.</p>
+    </div>
+    <div id="Hubble" class="tabcontent">
+        <p>Hubble diagram plot placeholder.</p>
+    </div>
+    <div id="BAO" class="tabcontent">
+        <p>BAO plot placeholder.</p>
+    </div>
+    <div id="Export" class="tabcontent">
+        <a href="{{ url_for('download') }}">Download results</a>
+    </div>
+</body>
+</html>
