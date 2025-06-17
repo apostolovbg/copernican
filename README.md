@@ -10,6 +10,8 @@
      array inputs to prevent BAO plotting errors. -->
 <!-- DEV NOTE (v1.5f hotfix 12): r_s fallback integral includes radiation
      density for accurate BAO scaling. -->
+<!-- DEV NOTE (v1.5f plan update): Added roadmap for migrating to a web-based
+     interface and updated usage notes. -->
 
 **Version:** 1.5f
 **Last Updated:** 2025-06-20
@@ -39,9 +41,12 @@ plugged in with minimal effort.
 The suite compares the reference \(\Lambda\)CDM model with alternative theories
 provided by the user. Each model is defined by a Markdown file under
 `./models/` and a matching Python implementation residing in the same package.
-Users select models, datasets, and computational engines at runtime through a
-simple command line interface. Results are saved as plots and CSV files in the
-`./output/` directory.
+Users currently run the suite from the command line, selecting models,
+datasets and computational engines interactively. The project is transitioning
+to a Flask-based web interface that replicates this workflow in the browser
+while displaying the log output in a console-like widget. Until the migration
+is complete, the CLI remains available for testing. Results are saved as plots
+and CSV files in the `./output/` directory.
 
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages and
@@ -63,7 +68,9 @@ Under the hood the program follows a clear pipeline:
    `matplotlib`, `pandas`, `sympy`, `psutil` and `jsonschema`. If any package is
    missing the program will print the command to install them.
 2. Run `python3 copernican.py` and follow the prompts to choose a model, data
-   files and engine.
+   files and engine. A Flask-based web interface is under active development;
+   once available you will be able to start it with `python3 webapp/app.py` and
+   use the browser instead of the terminal.
 3. Plots and CSV results will appear in the `output/` folder when the run
    completes.
 
@@ -95,15 +102,12 @@ scripts/          - Helper modules
 should not be modified by AI-driven code changes.
 
 ## Using the Suite
-- The program discovers available models from `models/cosmo_model_*.md`.
-- Data files for SNe and BAO are chosen interactively from `data/sne` and
-  `data/bao`. Future datasets such as CMB or gravitational waves will use
-  their own folders.
-- Parsers and engines are also selected interactively from their respective
-  directories. Parsers for each data type are automatically discovered from
-  `parsers/<type>/` subfolders at startup.
-- After each run you may choose to evaluate another model or exit. Cache files
-  are cleaned automatically.
+- The program currently discovers available models from `models/cosmo_model_*.json`
+  and guides you through dataset and engine selection via terminal prompts.
+  Future releases will expose the same workflow through a web page with tabs
+  for model upload, engine selection, dataset configuration and result viewing.
+  Until then follow the command line prompts. After each run you may choose to
+  evaluate another model or exit. Cache files are cleaned automatically.
 
 ## Creating New Models
 All models are now provided as a single JSON file. Markdown files can still be
