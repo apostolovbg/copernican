@@ -1,4 +1,4 @@
-# DEV NOTE (v1.5f)
+# DEV NOTE (v1.5g)
 Hotfix: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
 Hotfix 2: JSON models now contain optional abstract, description and notes fields.
 Hotfix 3: `copernican.py` now performs the dependency check before importing third-party packages to avoid start-up failures. Style fixes applied across the codebase.
@@ -8,6 +8,7 @@ Hotfix 7: Models now provide a symbolic `Hz_expression` compiled at runtime for 
 Hotfix 8: When `rs_expression` is absent but `Ob`, `Og` and `z_recomb` exist, the suite derives `get_sound_horizon_rs_Mpc` using SciPy's `quad` integral.
 Hotfix 9: Parser auto-discovery fixed to look in the top-level `parsers` directory.
 Updated for Phase 6. Added placeholder parsers for CMB, gravitational waves and standard sirens, and expanded JSON schema.
+Data sources restructured as data/<type>/<source>; parsers reside with their data.
 
 # Copernican Suite Development Guide
 
@@ -17,8 +18,9 @@ This document is the authoritative reference for contributors and AI systems wor
 The suite evaluates cosmological models against SNe Ia and BAO data. Support for
 additional observations such as CMB, gravitational waves and standard sirens is
 being prepared. Users interact with `copernican.py`, choose a model from
-`./models/`, pick a computational engine from `./engines/` and select data
-parsers from `./parsers/`. Results are saved under `./output/`.
+`./models/`, pick a computational engine from `./engines/` and choose data
+sources. Parsers reside alongside their data. Results are saved under
+`./output/`.
 
 The default engine is `engines/cosmo_engine_1_4b.py`. All model plugins are validated
 through `scripts/engine_interface.py` before being passed to the engine. This
@@ -28,8 +30,7 @@ ensures the expected functions are present and callable.
 ```
 models/           - JSON model definitions (Markdown files optional)
 engines/          - Computational backends (SciPy CPU by default)
-parsers/          - Data format parsers for SNe, BAO, CMB, gravitational waves and standard sirens
-data/             - Example data files
+data/             - Observation files under ``data/<type>/<source>/``
 output/           - Generated plots and CSV tables
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
