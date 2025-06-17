@@ -1,7 +1,6 @@
 # DEV NOTE (v1.5g)
 Updated for data source reorganization and version bump to 1.5g.
 Hotfix: Improved selection prompts with descriptive dataset names.
-
 # Copernican Suite Refactoring Plan
 This document explains how the project will evolve from the current Markdown + Python plugin system to a cleaner architecture where cosmological models are described solely in JSON. All engines will load code generated on the fly.
 
