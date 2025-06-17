@@ -1,6 +1,8 @@
 # Copernican Suite
-<!-- DEV NOTE (v1.5h): Added Flask web interface skeleton and session management. -->
-<!-- DEV NOTE (v1.5h hotfix 10): `webapp.__init__` now lazy-loads the Flask app to avoid runpy warnings when starting the server. -->
+<!-- DEV NOTE (v1.5i): Web interface operational with model upload and dataset selection. -->
+<!-- DEV NOTE (v1.5i): Added Flask web interface skeleton and session management. -->
+<!-- DEV NOTE (v1.5i hotfix 10): `webapp.__init__` now lazy-loads the Flask app to avoid runpy warnings when starting the server. -->
+<!-- DEV NOTE (v1.5i hotfix 11): Pantheon+ dataset support added to web UI and `_current_process` bug fixed. -->
 <!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
 <!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
 <!-- DEV NOTE (v1.5f hotfix 2): JSON models include abstract, description and notes fields for upcoming UI modules. -->
@@ -15,7 +17,7 @@
 <!-- DEV NOTE (v1.5f plan update): Added roadmap for migrating to a web-based
      interface and updated usage notes. -->
 
-**Version:** 1.5h
+**Version:** 1.5i
 **Last Updated:** 2025-06-21
 engines/          - Computational backends (SciPy CPU by default, plus Numba)
 
@@ -107,6 +109,8 @@ should not be modified by AI-driven code changes.
   and guides you through dataset and engine selection via terminal prompts.
   Future releases will expose the same workflow through a web page with tabs
   for model upload, engine selection, dataset configuration and result viewing.
+  The development server already offers presets for the UniStra and Pantheon+
+  SNe datasets.
   Until then follow the command line prompts. After each run you may choose to
   evaluate another model or exit. Cache files are cleaned automatically.
 
