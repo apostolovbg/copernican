@@ -1,5 +1,10 @@
 # Copernican Suite Change Log
-<!-- DEV NOTE (v1.5f): Added release notes for Phase 6 and bumped version. -->
+<!-- DEV NOTE (v1.5h): Added Flask web interface notes and bumped version. -->
+## Version 1.5h (Development Release)
+- Implemented phases 0–3 of the web transition plan with a Flask skeleton,
+  tabbed workflow and session management.
+- Added `run_analysis_once` function for programmatic execution.
+- Documentation updated for version 1.5h.
 ## Version 1.5f (Development Release)
 - Completed Phase 6: JSON schema extended with optional fields for CMB,
   gravitational waves and standard sirens. Added placeholder parser modules

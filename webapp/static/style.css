@@ -1,0 +1,7 @@
+/* DEV NOTE (v1.5h): Basic styling for the Flask tabs. */
+body { font-family: Arial, sans-serif; }
+.tab { overflow: hidden; border-bottom: 1px solid #ccc; }
+.tab button { background-color: inherit; border: none; outline: none; cursor: pointer; padding: 10px 16px; transition: 0.3s; }
+.tab button.active { background-color: #ddd; }
+.tabcontent { display: none; padding: 10px; border: 1px solid #ccc; border-top: none; }
+button.abort { background: #e66565; color: white; }

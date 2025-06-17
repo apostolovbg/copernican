@@ -1,4 +1,5 @@
 # Copernican Suite
+<!-- DEV NOTE (v1.5h): Added Flask web interface skeleton and session management. -->
 <!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
 <!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
 <!-- DEV NOTE (v1.5f hotfix 2): JSON models include abstract, description and notes fields for upcoming UI modules. -->
@@ -13,8 +14,8 @@
 <!-- DEV NOTE (v1.5f plan update): Added roadmap for migrating to a web-based
      interface and updated usage notes. -->
 
-**Version:** 1.5f
-**Last Updated:** 2025-06-20
+**Version:** 1.5h
+**Last Updated:** 2025-06-21
 engines/          - Computational backends (SciPy CPU by default, plus Numba)
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -68,9 +69,8 @@ Under the hood the program follows a clear pipeline:
    `matplotlib`, `pandas`, `sympy`, `psutil` and `jsonschema`. If any package is
    missing the program will print the command to install them.
 2. Run `python3 copernican.py` and follow the prompts to choose a model, data
-   files and engine. A Flask-based web interface is under active development;
-   once available you will be able to start it with `python3 webapp/app.py` and
-   use the browser instead of the terminal.
+   files and engine. You can alternatively launch the new Flask interface with
+   `python3 -m webapp.app` and use the browser instead of the terminal.
 3. Plots and CSV results will appear in the `output/` folder when the run
    completes.
 

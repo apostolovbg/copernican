@@ -1,0 +1,13 @@
+<!doctype html>
+<html>
+<head>
+    <title>Discard previous results?</title>
+</head>
+<body>
+    <h3>Do you really want to discard results from the last run? Please make sure you have downloaded them or you don't really need them, because they will vanish into the vacuum of space!</h3>
+    <form method="post" action="{{ url_for('confirm_discard') }}">
+        <button type="submit" name="choice" value="space">Space them out</button>
+        <button type="submit" name="choice" value="cancel">Cancel</button>
+    </form>
+</body>
+</html>
