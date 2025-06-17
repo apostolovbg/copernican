@@ -2,7 +2,9 @@
 """
 Copernican Suite - Main Orchestrator.
 """
-# DEV NOTE (v1.5h): Added run_analysis_once for web UI and bumped version number.
+# DEV NOTE (v1.5i hotfix 11): run_analysis_once accepts optional SNe covariance
+# path for Pantheon+ dataset support.
+# DEV NOTE (v1.5i): Added run_analysis_once for web UI and bumped version number.
 # DEV NOTE (v1.5f): Added placeholders for future data types and bumped version.
 # DEV NOTE (v1.5f hotfix): Fixed dependency scanner to ignore relative imports.
 # DEV NOTE (v1.5f hotfix 5): Removed automatic dependency installer. The program
@@ -37,7 +39,7 @@ engine_interface = None
 output_manager = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.5h"
+COPERNICAN_VERSION = "1.5i"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
@@ -212,8 +214,29 @@ def cleanup_cache(base_dir):
                     logger.error(f"Error removing cache file {path}: {e}")
 
 def run_analysis_once(model_json, engine_file, sne_file, bao_file,
-                      sne_format, bao_format, output_dir=None):
-    """Run the core analysis once without user prompts."""
+                      sne_format, bao_format, output_dir=None,
+                      sne_cov_file=None):
+    """Run the core analysis once without user prompts.
+
+    Parameters
+    ----------
+    model_json : str
+        Path to the alternative model JSON file.
+    engine_file : str
+        Filename of the computational engine module.
+    sne_file : str
+        Supernovae dataset filepath.
+    bao_file : str
+        BAO dataset filepath.
+    sne_format : str
+        Key of the SNe parser to use.
+    bao_format : str
+        Key of the BAO parser to use.
+    output_dir : str, optional
+        Directory where all results will be written.
+    sne_cov_file : str, optional
+        Covariance matrix filepath for SNe parsers that require it.
+    """
     check_dependencies()
 
     global np, plt, mp, model_parser, model_coder, engine_interface, data_loaders, output_manager
@@ -242,7 +265,12 @@ def run_analysis_once(model_json, engine_file, sne_file, bao_file,
     alt_model = _load_model(model_json)
     engine_module = importlib.import_module(f"engines.{engine_file[:-3]}")
 
-    sne_df = data_loaders.load_sne_data(sne_file, format_key=sne_format)
+    sne_kwargs = {}
+    if sne_cov_file:
+        sne_kwargs['cov_filepath'] = sne_cov_file
+    sne_df = data_loaders.load_sne_data(
+        sne_file, format_key=sne_format, **sne_kwargs
+    )
     bao_df = data_loaders.load_bao_data(bao_file, format_key=bao_format)
     cosmo_engine = engine_module
 

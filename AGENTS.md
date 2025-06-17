@@ -1,7 +1,9 @@
-# DEV NOTE (v1.5h)
+# DEV NOTE (v1.5i hotfix 11): Pantheon+ dataset option and process control fix.
+# DEV NOTE (v1.5i)
 Hotfix: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
 Added Flask web interface skeleton and session handling.
 Hotfix 2: JSON models now contain optional abstract, description and notes fields.
+Web interface now operational with model upload, engine selection and dataset management.
 Hotfix 3: `copernican.py` now performs the dependency check before importing third-party packages to avoid start-up failures. Style fixes applied across the codebase.
 Hotfix 4: Multiprocessing's `freeze_support` is now called using a local import after the dependency check to prevent NoneType errors.
 Hotfix 5: Removed automatic dependency installer. The suite now instructs users to run `pip install` manually when packages are missing.
@@ -9,6 +11,7 @@ Hotfix 7: Models now provide a symbolic `Hz_expression` compiled at runtime for 
 Hotfix 8: When `rs_expression` is absent but `Ob`, `Og` and `z_recomb` exist, the suite derives `get_sound_horizon_rs_Mpc` using SciPy's `quad` integral.
 Hotfix 9: Parser auto-discovery fixed to look in the top-level `parsers` directory.
 Hotfix 10: `webapp.__init__` lazily imports the Flask app to prevent runpy warnings when executed with `python -m webapp.app`.
+Hotfix 11: Pantheon+ dataset can be selected in the web interface and `_current_process` scoping bug fixed.
 Updated for Phase 6. Added placeholder parsers for CMB, gravitational waves and standard sirens, and expanded JSON schema.
 Web transition plan added. CLI remains for now but will be deprecated when the new Flask interface is complete.
 
@@ -49,7 +52,7 @@ engines to introduce additional dependencies without manual updates to the
 documentation.
 
 ## 4. JSON Model System
-As of version 1.5h every cosmological model is described by a single JSON file
+As of version 1.5i every cosmological model is described by a single JSON file
 `cosmo_model_*.json`. Markdown files may accompany the JSON for human
 readability, but there are no permanent Python plugins in the repository.
 
