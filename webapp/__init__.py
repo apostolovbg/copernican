@@ -1,4 +1,4 @@
-# DEV NOTE (v1.5h hotfix 10): Package now lazy-loads the Flask app to
+# DEV NOTE (v1.5i hotfix 10): Package now lazy-loads the Flask app to
 # avoid runpy warnings when executed with ``python -m webapp.app``.
 """Expose the Flask application for external runners."""
 
