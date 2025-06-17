@@ -2,7 +2,6 @@
 """
 Copernican Suite - Main Orchestrator.
 """
-# DEV NOTE (v1.5h): Added webapp package and run_webapp entrypoint.
 # DEV NOTE (v1.5f): Added placeholders for future data types and bumped version.
 # DEV NOTE (v1.5f hotfix): Fixed dependency scanner to ignore relative imports.
 # DEV NOTE (v1.5f hotfix 5): Removed automatic dependency installer. The program
@@ -37,7 +36,7 @@ engine_interface = None
 output_manager = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.5h"
+COPERNICAN_VERSION = "1.5f"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
@@ -211,7 +210,7 @@ def cleanup_cache(base_dir):
                 except OSError as e:
                     logger.error(f"Error removing cache file {path}: {e}")
 
-def main_workflow(output_dir=None):
+def main_workflow():
     """Main workflow for the Copernican Suite."""
     check_dependencies()
 
@@ -228,7 +227,7 @@ def main_workflow(output_dir=None):
     except NameError:
         SCRIPT_DIR = os.getcwd()
 
-    OUTPUT_DIR = os.path.join(SCRIPT_DIR, 'output') if output_dir is None else output_dir
+    OUTPUT_DIR = os.path.join(SCRIPT_DIR, 'output')
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     show_splash_screen()

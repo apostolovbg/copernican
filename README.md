@@ -1,5 +1,4 @@
 # Copernican Suite
-<!-- DEV NOTE (v1.5h): Added Flask web interface skeleton (Phases 0-3) and bumped version. -->
 <!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
 <!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
 <!-- DEV NOTE (v1.5f hotfix 2): JSON models include abstract, description and notes fields for upcoming UI modules. -->
@@ -14,7 +13,7 @@
 <!-- DEV NOTE (v1.5f plan update): Added roadmap for migrating to a web-based
      interface and updated usage notes. -->
 
-**Version:** 1.5h
+**Version:** 1.5f
 **Last Updated:** 2025-06-20
 engines/          - Computational backends (SciPy CPU by default, plus Numba)
 
