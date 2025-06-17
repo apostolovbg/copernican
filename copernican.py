@@ -9,6 +9,7 @@ Copernican Suite - Main Orchestrator.
 # Plugin validation now occurs on the generated module.
 # DEV NOTE (v1.5f hotfix 4): Moved `freeze_support` call to a local import at
 # runtime to prevent NoneType errors when optional imports are deferred.
+# DEV NOTE (v1.5g hotfix): Selection lists now include descriptive titles and prompts.
 # Previous notes retained below for context.
 # DEV NOTE (v1.4.1): Added splash screen, per-run logging with timestamps, and
 # migrated the base model import to the new `lcdm.py` plugin file.
@@ -160,10 +161,15 @@ def select_from_list(options, prompt):
     """Utility to allow user selection from a list."""
     if not options:
         return None
+    header = prompt.replace('Select ', '').strip()
+    if not header.endswith('s'):
+        header += 's'
+    print(f"\nAvailable {header}:")
     for i, opt in enumerate(options, 1):
         print(f"  {i}. {opt}")
+    print("Write the number of your preferred choice or 'c' to cancel:")
     while True:
-        choice = input(f"{prompt} (number or 'c' to cancel): ").strip()
+        choice = input("> ").strip()
         if choice.lower() == 'c':
             return None
         if choice.isdigit() and 1 <= int(choice) <= len(options):

@@ -1,4 +1,5 @@
 <!-- DEV NOTE (v1.5g): Data sources restructured under data/<type>/<source>; parsers moved accordingly. -->
+<!-- DEV NOTE (v1.5g hotfix): Selection prompts now display descriptive dataset and engine names. -->
 # Copernican Suite
 <!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
 <!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
@@ -63,8 +64,8 @@ Under the hood the program follows a clear pipeline:
 1. Ensure Python 3 is available. The suite requires `numpy`, `scipy`,
    `matplotlib`, `pandas`, `sympy`, `psutil` and `jsonschema`. If any package is
    missing the program will print the command to install them.
-2. Run `python3 copernican.py` and follow the prompts to choose a model, data
-   files and engine.
+2. Run `python3 copernican.py` and follow the prompts to choose a model,
+   preferred data sources and computation engine.
 3. Plots and CSV results will appear in the `output/` folder when the run
    completes.
 

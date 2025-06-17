@@ -1,5 +1,6 @@
 # DEV NOTE (v1.5g): Parser relocated to ``data/sne/pantheon`` and automatically
 # loads ``Pan.dat`` and ``Pancm.cov`` from this directory without user prompts.
+# DEV NOTE (v1.5g hotfix): Registered with a human-friendly source name.
 
 import os
 import pandas as pd
@@ -10,8 +11,8 @@ from scripts.data_loaders import register_sne_parser
 
 
 @register_sne_parser(
-    "pantheon_plus_mu_cov_h2",
-    "Pantheon+ (Pan.dat + Pancm.cov), h2-style with full covariance.",
+    "Pantheon+ dataset",
+    "with full covariance, but LCDM-oriented calibration",
     data_dir=os.path.dirname(__file__),
 )
 def parse_pantheon_plus_mu_cov_h2(data_dir, **kwargs):

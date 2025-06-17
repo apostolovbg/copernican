@@ -5,6 +5,7 @@
 - Parser selection now based on data source only.
 - Removed deprecated `parsers/` directory and UniStra h2 parser.
 - Updated documentation for version 1.5g.
+- Hotfix: Prompts list friendly dataset names with a clear title for every selection.
 
 ## Version 1.5f (Development Release)
 ## Version 1.5f (Development Release)

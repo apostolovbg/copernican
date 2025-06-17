@@ -3,6 +3,7 @@
 # wave, and standard siren data types as preparation for future datasets.
 # DEV NOTE (v1.5g hotfix): File moved to ``scripts/`` package; import paths for parsers updated.
 # DEV NOTE (v1.5g hotfix 9): Corrected parser discovery path to top-level ``parsers`` directory.
+# DEV NOTE (v1.5g hotfix 10): Added descriptive titles and improved data source names.
 """
 # DEV NOTE (v1.5g update): Parsers loaded from data source directories; parser selection uses source names.
 Modular data loading for various cosmological datasets (SNe, BAO, etc.).
@@ -116,11 +117,12 @@ def _select_source(parser_registry, data_type_name):
     options = list(parser_registry.keys())
     for i, key in enumerate(options):
         desc = parser_registry[key]['description']
-        print(f"  {i+1}. {key} ({desc})")
+        print(f"  {i+1}. {key} ({desc})" if desc else f"  {i+1}. {key}")
 
+    print("Write the number of your preferred choice or 'c' to cancel:")
     while True:
         try:
-            choice = input(f"Select a {data_type_name} source (number) or 'c' to cancel: ")
+            choice = input("> ").strip()
             if choice.lower() == 'c':
                 return None
             choice_idx = int(choice) - 1

@@ -9,6 +9,7 @@ Hotfix 8: When `rs_expression` is absent but `Ob`, `Og` and `z_recomb` exist, th
 Hotfix 9: Parser auto-discovery fixed to look in the top-level `parsers` directory.
 Updated for Phase 6. Added placeholder parsers for CMB, gravitational waves and standard sirens, and expanded JSON schema.
 Data sources restructured as data/<type>/<source>; parsers reside with their data.
+Hotfix 10: Data source names are now human-readable and selection lists show a descriptive title.
 
 # Copernican Suite Development Guide
 

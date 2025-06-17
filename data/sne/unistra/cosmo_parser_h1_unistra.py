@@ -1,6 +1,7 @@
 # DEV NOTE (v1.5g): Parser relocated to ``data/sne/unistra``. It now loads
 # ``tablef3.dat`` from this directory automatically and the deprecated
 # h2 parser has been removed from the project.
+# DEV NOTE (v1.5g hotfix): Registered with a human-friendly source name.
 
 import os
 import pandas as pd
@@ -13,8 +14,8 @@ DEFAULT_SALT2_ALPHA_FIXED = 0.14
 DEFAULT_SALT2_BETA_FIXED = 3.1
 
 @register_sne_parser(
-    "unistra_fixed_nuisance_h1",
-    "UniStra-like (e.g., tablef3.dat), h1-style: mu_obs from fixed M,alpha,beta.",
+    "University of Strassbourg dataset",
+    "mu_obs from fixed nuisance parameters",
     data_dir=os.path.dirname(__file__),
 )
 def parse_unistra_h1_style(data_dir, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED,
