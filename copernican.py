@@ -2,7 +2,7 @@
 """
 Copernican Suite - Main Orchestrator.
 """
-# DEV NOTE (v1.5h): Added run_analysis_once for web UI and bumped version number.
+# DEV NOTE (v1.5i): Added run_analysis_once for web UI and bumped version number.
 # DEV NOTE (v1.5f): Added placeholders for future data types and bumped version.
 # DEV NOTE (v1.5f hotfix): Fixed dependency scanner to ignore relative imports.
 # DEV NOTE (v1.5f hotfix 5): Removed automatic dependency installer. The program
@@ -37,7 +37,7 @@ engine_interface = None
 output_manager = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.5h"
+COPERNICAN_VERSION = "1.5i"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""

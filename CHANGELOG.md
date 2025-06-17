@@ -1,4 +1,8 @@
+<!-- DEV NOTE (v1.5i): Web interface fully operational and version bumped. -->
 # Copernican Suite Change Log
+## Version 1.5i (Development Release)
+- Web interface operational through Phase 3 with model upload, engine selection and dataset management.
+
 <!-- DEV NOTE (v1.5h): Added Flask web interface notes and bumped version. -->
 ## Version 1.5h (Development Release)
 - Implemented phases 0–3 of the web transition plan with a Flask skeleton,

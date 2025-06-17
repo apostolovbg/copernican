@@ -21,11 +21,18 @@
 </head>
 <body>
     <h1>Copernican Suite {{ version }}</h1>
+    {% with msgs = get_flashed_messages() %}
+      {% if msgs %}
+        <ul class="flashes">
+        {% for m in msgs %}<li>{{ m }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
     <form method="post" action="{{ url_for('toggle_run') }}">
         {% if run_active %}
         <button type="submit" name="action" value="abort" class="abort">Abort run</button>
         {% else %}
-        <button type="submit" name="action" value="start">New run</button>
+        <button type="submit" name="action" value="start">Run analysis</button>
         {% endif %}
     </form>
     <button onclick="alert('Model compiler coming soon!')">Compile model</button>
@@ -39,25 +46,41 @@
         <button class="tablinks" onclick="openTab(event, 'Export')">Export results</button>
     </div>
     <div id="Model" class="tabcontent">
-        <p>Upload your <code>cosmo_model_*.json</code> file here.</p>
+        <form method="post" action="{{ url_for('upload_model') }}" enctype="multipart/form-data">
+            <input type="file" name="model_json" accept=".json" required>
+            <button type="submit">Upload</button>
+        </form>
+        {% if model %}<p>Current model: {{ model }}</p>{% endif %}
     </div>
     <div id="Engine" class="tabcontent">
-        <p>Select computational engine.</p>
+        <form method="post" action="{{ url_for('select_engine') }}">
+            {% for eng in engines %}
+            <label><input type="radio" name="engine" value="{{ eng }}" {% if engine==eng %}checked{% endif %}> {{ eng }}</label><br>
+            {% endfor %}
+            <button type="submit">Employ selected engine</button>
+        </form>
     </div>
     <div id="Datasets" class="tabcontent">
-        <p>Select datasets for SNe and BAO.</p>
+        <form method="post" action="{{ url_for('select_datasets') }}">
+            <p>SNe dataset:</p>
+            <label><input type="radio" name="sne_source" value="unistra" {% if sne=='unistra' %}checked{% endif %}> University of Strasbourg</label><br>
+            <p>BAO dataset:</p>
+            <label><input type="radio" name="bao_source" value="basic" {% if bao=='basic' %}checked{% endif %}> Basic set</label><br>
+            <button type="submit">Confirm</button>
+        </form>
     </div>
     <div id="Run" class="tabcontent">
-        <p>Console output will appear after running.</p>
+        <pre>{{ log_text }}</pre>
     </div>
     <div id="Hubble" class="tabcontent">
-        <p>Hubble diagram plot placeholder.</p>
+        {% if hubble_plot %}<img src="{{ url_for('session_file', filename=hubble_plot) }}" alt="Hubble plot">{% else %}<p>No plot available.</p>{% endif %}
     </div>
     <div id="BAO" class="tabcontent">
-        <p>BAO plot placeholder.</p>
+        {% if bao_plot %}<img src="{{ url_for('session_file', filename=bao_plot) }}" alt="BAO plot">{% else %}<p>No plot available.</p>{% endif %}
     </div>
     <div id="Export" class="tabcontent">
         <a href="{{ url_for('download') }}">Download results</a>
     </div>
 </body>
 </html>
+
