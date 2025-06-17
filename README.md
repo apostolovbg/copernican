@@ -1,3 +1,5 @@
+<!-- DEV NOTE (v1.5g): Data sources restructured under data/<type>/<source>; parsers moved accordingly. -->
+<!-- DEV NOTE (v1.5g hotfix): Selection prompts now display descriptive dataset and engine names. -->
 # Copernican Suite
 <!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
 <!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
@@ -11,7 +13,7 @@
 <!-- DEV NOTE (v1.5f hotfix 12): r_s fallback integral includes radiation
      density for accurate BAO scaling. -->
 
-**Version:** 1.5f
+**Version:** 1.5g
 **Last Updated:** 2025-06-20
 engines/          - Computational backends (SciPy CPU by default, plus Numba)
 
@@ -62,8 +64,8 @@ Under the hood the program follows a clear pipeline:
 1. Ensure Python 3 is available. The suite requires `numpy`, `scipy`,
    `matplotlib`, `pandas`, `sympy`, `psutil` and `jsonschema`. If any package is
    missing the program will print the command to install them.
-2. Run `python3 copernican.py` and follow the prompts to choose a model, data
-   files and engine.
+2. Run `python3 copernican.py` and follow the prompts to choose a model,
+   preferred data sources and computation engine.
 3. Plots and CSV results will appear in the `output/` folder when the run
    completes.
 
@@ -78,8 +80,7 @@ GPU libraries.
 ```
 models/           - JSON model definitions (Markdown optional)
 engines/          - Computational backends (SciPy CPU and Numba)
-parsers/          - Data format parsers for SNe, BAO, CMB, gravitational waves and standard sirens
-data/             - Example data files
+data/             - Observation data organized as ``data/<type>/<source>/``
 output/           - All generated results
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
@@ -96,12 +97,11 @@ should not be modified by AI-driven code changes.
 
 ## Using the Suite
 - The program discovers available models from `models/cosmo_model_*.md`.
-- Data files for SNe and BAO are chosen interactively from `data/sne` and
-  `data/bao`. Future datasets such as CMB or gravitational waves will use
-  their own folders.
-- Parsers and engines are also selected interactively from their respective
-  directories. Parsers for each data type are automatically discovered from
-  `parsers/<type>/` subfolders at startup.
+- Data sources for SNe and BAO are chosen interactively. Once a source is
+  selected, its parser and files are loaded automatically from
+  `data/<type>/<source>/`. Future datasets will follow the same structure.
+- Engines are selected interactively from the `engines/` directory. Parsers are
+  discovered automatically when their source folders are imported.
 - After each run you may choose to evaluate another model or exit. Cache files
   are cleaned automatically.
 

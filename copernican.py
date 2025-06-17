@@ -9,6 +9,7 @@ Copernican Suite - Main Orchestrator.
 # Plugin validation now occurs on the generated module.
 # DEV NOTE (v1.5f hotfix 4): Moved `freeze_support` call to a local import at
 # runtime to prevent NoneType errors when optional imports are deferred.
+# DEV NOTE (v1.5g hotfix): Selection lists now include descriptive titles and prompts.
 # Previous notes retained below for context.
 # DEV NOTE (v1.4.1): Added splash screen, per-run logging with timestamps, and
 # migrated the base model import to the new `lcdm.py` plugin file.
@@ -36,7 +37,7 @@ engine_interface = None
 output_manager = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.5f"
+COPERNICAN_VERSION = "1.5g"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
@@ -160,10 +161,15 @@ def select_from_list(options, prompt):
     """Utility to allow user selection from a list."""
     if not options:
         return None
+    header = prompt.replace('Select ', '').strip()
+    if not header.endswith('s'):
+        header += 's'
+    print(f"\nAvailable {header}:")
     for i, opt in enumerate(options, 1):
         print(f"  {i}. {opt}")
+    print("Write the number of your preferred choice or 'c' to cancel:")
     while True:
-        choice = input(f"{prompt} (number or 'c' to cancel): ").strip()
+        choice = input("> ").strip()
         if choice.lower() == 'c':
             return None
         if choice.isdigit() and 1 <= int(choice) <= len(options):
@@ -309,46 +315,11 @@ def main_workflow():
         engine_module = importlib.import_module(f"engines.{engine_choice[:-3]}")
         cosmo_engine_selected = engine_module
 
-        sne_data_dir = os.path.join(SCRIPT_DIR, 'data', 'sne')
-        sne_files = sorted(os.listdir(sne_data_dir))
-        sne_choice = select_from_list(sne_files, 'Select SNe Ia data file')
-        if not sne_choice:
-            break
-        sne_data_filepath = os.path.join(sne_data_dir, sne_choice)
-        
-        sne_format_key = data_loaders._select_parser(data_loaders.SNE_PARSERS, "SNe")
-        if not sne_format_key:
-            break
-
-        sne_loader_kwargs = {}
-        parser_info = data_loaders.SNE_PARSERS.get(sne_format_key)
-        if parser_info and parser_info.get('extra_args_func'):
-            logger.info(f"Parser '{sne_format_key}' requires additional arguments.")
-            extra_args = parser_info['extra_args_func'](SCRIPT_DIR)
-            if extra_args is None:
-                break
-            sne_loader_kwargs.update(extra_args)
-        
-        sne_data_df = data_loaders.load_sne_data(
-            sne_data_filepath,
-            format_key=sne_format_key,
-            **sne_loader_kwargs,
-        )
+        sne_data_df = data_loaders.load_sne_data()
         if sne_data_df is None:
             continue
 
-        bao_data_dir = os.path.join(SCRIPT_DIR, 'data', 'bao')
-        bao_files = sorted(os.listdir(bao_data_dir))
-        bao_choice = select_from_list(bao_files, 'Select BAO data file')
-        if not bao_choice:
-            break
-        bao_data_filepath = os.path.join(bao_data_dir, bao_choice)
-        bao_format_key = data_loaders._select_parser(data_loaders.BAO_PARSERS, "BAO")
-        if not bao_format_key:
-            break
-        bao_data_df = data_loaders.load_bao_data(
-            bao_data_filepath, format_key=bao_format_key
-        )
+        bao_data_df = data_loaders.load_bao_data()
         if bao_data_df is None:
             continue
 

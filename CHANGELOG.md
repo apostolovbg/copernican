@@ -1,5 +1,13 @@
 # Copernican Suite Change Log
-<!-- DEV NOTE (v1.5f): Added release notes for Phase 6 and bumped version. -->
+<!-- DEV NOTE (v1.5g): Data source reorganization and version bump. -->
+## Version 1.5g (Development Release)
+- Data files and parsers reorganized under ``data/<type>/<source>/``.
+- Parser selection now based on data source only.
+- Removed deprecated `parsers/` directory and UniStra h2 parser.
+- Updated documentation for version 1.5g.
+- Hotfix: Prompts list friendly dataset names with a clear title for every selection.
+
+## Version 1.5f (Development Release)
 ## Version 1.5f (Development Release)
 - Completed Phase 6: JSON schema extended with optional fields for CMB,
   gravitational waves and standard sirens. Added placeholder parser modules
