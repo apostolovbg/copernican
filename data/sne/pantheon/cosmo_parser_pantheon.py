@@ -1,37 +1,23 @@
-# DEV NOTE (v1.5e): Pantheon+ covariance parser separated for plugin architecture.
-# DEV NOTE (v1.5f hotfix): Updated ``data_loaders`` import path.
+# DEV NOTE (v1.5g): Parser relocated to ``data/sne/pantheon`` and automatically
+# loads ``Pan.dat`` and ``Pancm.cov`` from this directory without user prompts.
 
+import os
 import pandas as pd
 import numpy as np
-import os
 import logging
 
-from scripts.data_loaders import register_sne_parser, _get_user_input_filepath
-
-
-def _get_pantheon_plus_args(base_dir):
-    """Prompts user for the covariance matrix file required by the Pantheon+ parser."""
-    cov_path = _get_user_input_filepath("Enter SNe covariance matrix filename", base_dir=base_dir)
-    if not cov_path:
-        return None  # Indicates cancellation
-    return {'cov_filepath': cov_path}
+from scripts.data_loaders import register_sne_parser
 
 
 @register_sne_parser(
     "pantheon_plus_mu_cov_h2",
-    "Pantheon+ (e.g., Pantheon+SH0ES.txt + .cov), h2-style: fit MU_SH0ES with full Covariance Matrix.",
-    extra_args_func=_get_pantheon_plus_args,
+    "Pantheon+ (Pan.dat + Pancm.cov), h2-style with full covariance.",
+    data_dir=os.path.dirname(__file__),
 )
-def parse_pantheon_plus_mu_cov_h2(filepath, cov_filepath=None, **kwargs):
+def parse_pantheon_plus_mu_cov_h2(data_dir, **kwargs):
     logger = logging.getLogger()
-    if not cov_filepath or not os.path.isfile(cov_filepath):
-        base, _ = os.path.splitext(filepath)
-        inferred_cov = base + "_STAT+SYS.txt"
-        if os.path.isfile(inferred_cov):
-            logger.info(f"Inferred covariance file: {inferred_cov}")
-            cov_filepath = inferred_cov
-        else:
-            logger.error(f"Pantheon+ covariance file not specified or found (tried {inferred_cov})."); return None
+    filepath = os.path.join(data_dir, "Pan.dat")
+    cov_filepath = os.path.join(data_dir, "Pancm.cov")
 
     try:
         temp_df = pd.read_csv(filepath, delim_whitespace=True, comment='#')
