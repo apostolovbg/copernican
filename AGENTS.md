@@ -8,6 +8,7 @@ Hotfix 7: Models now provide a symbolic `Hz_expression` compiled at runtime for 
 Hotfix 8: When `rs_expression` is absent but `Ob`, `Og` and `z_recomb` exist, the suite derives `get_sound_horizon_rs_Mpc` using SciPy's `quad` integral.
 Hotfix 9: Parser auto-discovery fixed to look in the top-level `parsers` directory.
 Updated for Phase 6. Added placeholder parsers for CMB, gravitational waves and standard sirens, and expanded JSON schema.
+Web transition plan added. CLI remains for now but will be deprecated when the new Flask interface is complete.
 
 # Copernican Suite Development Guide
 
