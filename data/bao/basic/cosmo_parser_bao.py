@@ -1,17 +1,20 @@
-# DEV NOTE (v1.4): General BAO JSON parser separated for modular discovery.
+# DEV NOTE (v1.5g): Parser relocated to ``data/bao/basic`` and now automatically
+# loads ``bao1.json`` from this directory.
+# DEV NOTE (v1.5g hotfix): Registered with a human-friendly source name.
 
+import os
 import pandas as pd
 import json
-import os
 import logging
 
-from data_loaders import register_bao_parser
+from scripts.data_loaders import register_bao_parser
 
 
-@register_bao_parser("bao_json_general_v1", "General BAO JSON format (e.g., bao1.json).")
-def parse_bao_json_v1(filepath, **kwargs):
+@register_bao_parser("Basic BAO testing dataset", "", data_dir=os.path.dirname(__file__))
+def parse_bao_json_v1(data_dir, **kwargs):
     """Parses a generic BAO JSON file into a standard DataFrame."""
     logger = logging.getLogger()
+    filepath = os.path.join(data_dir, "bao1.json")
     try:
         with open(filepath, 'r') as f:
             data_json = json.load(f)

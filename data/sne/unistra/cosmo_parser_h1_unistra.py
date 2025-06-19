@@ -1,24 +1,29 @@
-# DEV NOTE (v1.4): Extracted from data_loaders.py during modular refactor.
-# This module registers the UniStra fixed-nuisance (h1) parser.
+# DEV NOTE (v1.5g): Parser relocated to ``data/sne/unistra``. It now loads
+# ``tablef3.dat`` from this directory automatically and the deprecated
+# h2 parser has been removed from the project.
+# DEV NOTE (v1.5g hotfix): Registered with a human-friendly source name.
 
+import os
 import pandas as pd
 import logging
 
-from data_loaders import register_sne_parser
+from scripts.data_loaders import register_sne_parser
 
 DEFAULT_SALT2_M_ABS_FIXED = -19.3
 DEFAULT_SALT2_ALPHA_FIXED = 0.14
 DEFAULT_SALT2_BETA_FIXED = 3.1
 
 @register_sne_parser(
-    "unistra_fixed_nuisance_h1",
-    "UniStra-like (e.g., tablef3.dat), h1-style: mu_obs from fixed M,alpha,beta."
+    "University of Strassbourg dataset",
+    "mu_obs from fixed nuisance parameters",
+    data_dir=os.path.dirname(__file__),
 )
-def parse_unistra_h1_style(filepath, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED,
+def parse_unistra_h1_style(data_dir, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED,
                            salt2_alpha_fixed=DEFAULT_SALT2_ALPHA_FIXED,
                            salt2_beta_fixed=DEFAULT_SALT2_BETA_FIXED, **kwargs):
     """Parses UniStra-like fixed-width files and calculates mu_obs with fixed nuisance parameters."""
     logger = logging.getLogger()
+    filepath = os.path.join(data_dir, "tablef3.dat")
     col_specs = [(0,12),(12,21),(21,30),(30,31),(31,41),(41,50),(50,60),(60,69),(69,79),
                  (79,88),(88,98),(98,108),(108,121),(121,130),(130,140),(140,150),(150,160),
                  (160,161),(161,172),(172,183),(183,193)]

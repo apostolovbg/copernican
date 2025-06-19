@@ -3,6 +3,8 @@
 Cosmological Engine for the Copernican Suite.
 Relies on SciPy/NumPy for all computations.
 """
+# DEV NOTE (v1.5e): Integrated with ``engine_interface`` to validate model
+# plugins before use.
 
 import numpy as np
 from scipy.optimize import minimize
@@ -10,6 +12,7 @@ from scipy.linalg import LinAlgError
 import sys
 import time
 import logging
+from scripts import engine_interface
 
 # --- Constants for SNe H2-style (SALT2 nuisance parameter fitting) ---
 SALT2_NUISANCE_PARAMS_INIT = {
@@ -148,6 +151,10 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
     Calculates chi-squared for BAO data against model predictions.
     """
     logger = logging.getLogger()
+    engine_interface.validate_plugin(model_plugin)
+    if getattr(model_plugin, 'valid_for_bao', True) is False:
+        logger.warning("(chi2_bao): Model flagged as invalid for BAO. Skipping calculation.")
+        return np.inf
     if bao_data_df is None or bao_data_df.empty:
         logger.error("(chi2_bao): BAO data is empty.")
         return np.inf
@@ -220,6 +227,7 @@ def fit_sne_parameters(sne_data_df, model_plugin):
     Fits cosmological (and optionally SNe nuisance) parameters to SNe Ia data.
     """
     logger = logging.getLogger()
+    engine_interface.validate_plugin(model_plugin)
     fit_style = sne_data_df.attrs.get('fit_style', 'unknown')
     dataset_name = sne_data_df.attrs.get('dataset_name_attr', 'UnknownSNeDataset')
     model_name_str = getattr(model_plugin, 'MODEL_NAME', 'UnknownModel')
@@ -372,11 +380,15 @@ def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params, z_smooth=
     Also calculates smooth curves for plotting if z_smooth is provided.
     """
     logger = logging.getLogger()
+    engine_interface.validate_plugin(model_plugin)
     model_name = model_plugin.MODEL_NAME
-    
+
     # --- Part 1: Calculate for BAO data points ---
     bao_pred_df = bao_data_df.copy()
     bao_pred_df['model_prediction'] = np.nan
+    if getattr(model_plugin, 'valid_for_bao', True) is False:
+        logger.warning("Model flagged as invalid for BAO. Skipping calculations.")
+        return bao_pred_df, np.nan, None
     
     param_str = ", ".join([f"{p:.4g}" for p in cosmo_params])
     logger.info(f"Calculating BAO observables for {model_name} with parameters: [{param_str}]")

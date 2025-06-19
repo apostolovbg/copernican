@@ -1,0 +1,74 @@
+2025-06-17 01:49:29,787 - INFO - Logging initialized. Log file: /Users/apostolov/Documents/GitHub/copernican/output/copernican-run_20250617_014929.txt
+2025-06-17 01:49:29,787 - INFO - Copernican 1.5f has initialized! Current timestamp is 250617_014929. Log file: /Users/apostolov/Documents/GitHub/copernican/output/copernican-run_20250617_014929.txt
+2025-06-17 01:49:29,787 - INFO - Using standard CPU (SciPy) computational backend with multiprocessing.
+2025-06-17 01:49:29,787 - INFO - Running from base directory: /Users/apostolov/Documents/GitHub/copernican
+2025-06-17 01:49:29,787 - INFO - All outputs will be saved to: /Users/apostolov/Documents/GitHub/copernican/output
+2025-06-17 01:49:29,787 - INFO - 
+--- Stage 1: Configuration ---
+2025-06-17 01:49:32,013 - INFO - Derived distance functions from symbolic Hz_expression in model JSON.
+2025-06-17 01:49:32,013 - INFO - Derived r_s using fallback integral from Hz_expression.
+2025-06-17 01:49:32,013 - INFO - Derived distance_modulus_model from luminosity distance.
+2025-06-17 01:49:32,013 - INFO - Loaded JSON model: LambdaCDM
+2025-06-17 01:49:36,952 - INFO - 
+Available SNe data format parsers:
+2025-06-17 01:49:40,168 - INFO - Attempting to load SNe data from 'tablef3.dat' using format: unistra_fixed_nuisance_h1
+2025-06-17 01:49:40,229 - INFO - Successfully loaded 740 SNe data points.
+2025-06-17 01:49:41,016 - INFO - 
+Available BAO data format parsers:
+2025-06-17 01:49:41,672 - INFO - Attempting to load BAO data from 'bao1.json' using format: bao_json_general_v1
+2025-06-17 01:49:41,677 - INFO - Successfully loaded 7 BAO data points.
+2025-06-17 01:49:41,677 - INFO - 
+--- Stage 2: Supernovae Ia Fitting ---
+2025-06-17 01:49:41,677 - INFO - 
+--- Fitting SNe Ia (SNe_unistra_fixed_nuisance_h1, Style: h1_fixed_nuisance) for Model: LambdaCDM ---
+2025-06-17 01:49:41,677 - INFO - Using standard Python (SciPy) function for 'LambdaCDM'.
+2025-06-17 01:49:41,677 - INFO - Fitting cosmological parameters using mu_obs with diagonal errors (H1-style).
+2025-06-17 01:49:41,677 - INFO - Starting SNe optimization for LambdaCDM using 6 parameters...
+2025-06-17 01:49:43,443 - INFO - SNe Optimization for LambdaCDM finished. Total evals: 63.
+2025-06-17 01:49:43,443 - INFO - SNe Fitting Results for LambdaCDM:
+2025-06-17 01:49:43,443 - INFO -   - Best-fit Cosmological Parameters:
+2025-06-17 01:49:43,443 - INFO -     - H0: 63.434
+2025-06-17 01:49:43,443 - INFO -     - Omega_m0: 0.27343
+2025-06-17 01:49:43,443 - INFO -     - Omega_b0: 0.0486
+2025-06-17 01:49:43,443 - INFO -     - Ob: 0.0486
+2025-06-17 01:49:43,443 - INFO -     - Og: 5e-05
+2025-06-17 01:49:43,443 - INFO -     - z_recomb: 1089
+2025-06-17 01:49:43,443 - INFO -   - Final Chi-squared: 1673.4663
+2025-06-17 01:49:43,443 - INFO -   - Degrees of Freedom (DoF): 734
+2025-06-17 01:49:43,444 - INFO -   - Reduced Chi-squared: 2.2799
+2025-06-17 01:49:43,444 - INFO -   - Optimizer Success: True, Message: CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH
+2025-06-17 01:49:43,444 - INFO - 
+--- Fitting SNe Ia (SNe_unistra_fixed_nuisance_h1, Style: h1_fixed_nuisance) for Model: LambdaCDM ---
+2025-06-17 01:49:43,444 - INFO - Using standard Python (SciPy) function for 'LambdaCDM'.
+2025-06-17 01:49:43,444 - INFO - Fitting cosmological parameters using mu_obs with diagonal errors (H1-style).
+2025-06-17 01:49:43,444 - INFO - Starting SNe optimization for LambdaCDM using 6 parameters...
+2025-06-17 01:49:45,155 - INFO - SNe Optimization for LambdaCDM finished. Total evals: 63.
+2025-06-17 01:49:45,155 - INFO - SNe Fitting Results for LambdaCDM:
+2025-06-17 01:49:45,155 - INFO -   - Best-fit Cosmological Parameters:
+2025-06-17 01:49:45,155 - INFO -     - H0: 63.434
+2025-06-17 01:49:45,155 - INFO -     - Omega_m0: 0.27343
+2025-06-17 01:49:45,155 - INFO -     - Omega_b0: 0.0486
+2025-06-17 01:49:45,155 - INFO -     - Ob: 0.0486
+2025-06-17 01:49:45,155 - INFO -     - Og: 5e-05
+2025-06-17 01:49:45,155 - INFO -     - z_recomb: 1089
+2025-06-17 01:49:45,155 - INFO -   - Final Chi-squared: 1673.4663
+2025-06-17 01:49:45,155 - INFO -   - Degrees of Freedom (DoF): 734
+2025-06-17 01:49:45,155 - INFO -   - Reduced Chi-squared: 2.2799
+2025-06-17 01:49:45,155 - INFO -   - Optimizer Success: True, Message: CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH
+2025-06-17 01:49:45,155 - INFO - 
+--- Stage 3: BAO Analysis ---
+2025-06-17 01:49:45,156 - INFO - Calculating BAO observables for LambdaCDM with parameters: [63.43, 0.2734, 0.0486, 0.0486, 5e-05, 1089]
+2025-06-17 01:49:45,158 - INFO - Successfully calculated r_s for LambdaCDM: 288.547 Mpc
+2025-06-17 01:49:45,175 - INFO - LambdaCDM BAO: r_s = 288.55 Mpc, Chi2_BAO = 5256.51
+2025-06-17 01:49:45,176 - INFO - Calculating BAO observables for LambdaCDM with parameters: [63.43, 0.2734, 0.0486, 0.0486, 5e-05, 1089]
+2025-06-17 01:49:45,178 - INFO - Successfully calculated r_s for LambdaCDM: 288.547 Mpc
+2025-06-17 01:49:45,191 - INFO - LambdaCDM BAO: r_s = 288.55 Mpc, Chi2_BAO = 5256.51
+2025-06-17 01:49:45,191 - INFO - 
+--- Stage 4: Generating Outputs ---
+2025-06-17 01:49:45,191 - INFO - Generating Hubble Diagram for SNe_unistra_fixed_nuisance_h1...
+2025-06-17 01:49:48,450 - INFO - Hubble diagram saved to hubble-plot-LambdaCDM-vs-LambdaCDM-SNe-unistra-fixed-nuisance-h1_20250617_014945.png
+2025-06-17 01:49:48,450 - INFO - Generating BAO Plot for BAO_bao1.json...
+2025-06-17 01:49:50,553 - INFO - BAO plot saved to bao-plot-LambdaCDM-vs-LambdaCDM-BAO-bao1_20250617_014948.png
+2025-06-17 01:49:51,113 - INFO - SNe detailed results CSV saved to sne-detailed-data-LCDM-vs-LambdaCDM-SNe-unistra-fixed-nuisance-h1_20250617_014950.csv
+2025-06-17 01:49:51,116 - INFO - BAO detailed results CSV saved to bao-detailed-data-LCDM-vs-LambdaCDM-BAO-bao1_20250617_014951.csv
+2025-06-17 01:49:51,116 - INFO - Run completed at 250617_014951.

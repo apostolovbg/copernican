@@ -1,12 +1,28 @@
+<!-- DEV NOTE (v1.5g): Data sources restructured under data/<type>/<source>; parsers moved accordingly. -->
+<!-- DEV NOTE (v1.5g hotfix): Selection prompts now display descriptive dataset and engine names. -->
 # Copernican Suite
+<!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
+<!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
+<!-- DEV NOTE (v1.5f hotfix 2): JSON models include abstract, description and notes fields for upcoming UI modules. -->
+<!-- DEV NOTE (v1.5f hotfix 3): Dependency check now runs before importing optional packages; code style cleanup. -->
+<!-- DEV NOTE (v1.5f hotfix 4): Multiprocessing freeze_support is now called via a local import after verifying dependencies. -->
+<!-- DEV NOTE (v1.5f hotfix 5): Automatic dependency installer removed; the program now prints a pip command when packages are missing. -->
+<!-- DEV NOTE (v1.5f hotfix 10): BAO smooth curve generation fixed by vectorizing distance integrals. -->
+<!-- DEV NOTE (v1.5f hotfix 11): Volume-averaged distance function now supports
+     array inputs to prevent BAO plotting errors. -->
+<!-- DEV NOTE (v1.5f hotfix 12): r_s fallback integral includes radiation
+     density for accurate BAO scaling. -->
 
-**Version:** 1.4.1
-**Last Updated:** 2025-06-15
+**Version:** 1.5g
+**Last Updated:** 2025-06-20
+engines/          - Computational backends (SciPy CPU by default, plus Numba)
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
-Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. It
-provides a modular architecture that allows new models, data parsers and
-computational engines to be plugged in with minimal effort.
+Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. Future
+releases will also handle Cosmic Microwave Background (CMB) measurements,
+gravitational waves and standard siren events. The suite provides a modular
+architecture so new models, data parsers and computational engines can be
+plugged in with minimal effort.
 
 ---
 
@@ -30,62 +46,109 @@ simple command line interface. Results are saved as plots and CSV files in the
 `./output/` directory.
 
 Under the hood the program follows a clear pipeline:
-1. **Dependency Check** – `copernican.py` verifies that all required Python
-   libraries are installed.
+1. **Dependency Check** – `copernican.py` scans for required packages and
+   prints a `pip install` command if any are missing.
 2. **Initialization** – the output directory is created and logging begins.
 3. **Configuration** – the user chooses a model, an engine from `./engines/`,
-   and data parsers for SNe Ia and BAO. Models are discovered from
-   `cosmo_model_*.md` files and automatically import their matching Python
-   plugin.
+  and data parsers for SNe Ia and BAO. Models are discovered from
+  `cosmo_model_*.json` files which are converted into Python code on the fly.
 4. **SNe Ia Fitting** – the selected engine estimates cosmological parameters
    for both the ΛCDM reference and the alternative model.
 5. **BAO Analysis** – using the best-fit parameters the engine predicts BAO
    observables and computes chi-squared statistics.
-6. **Output Generation** – `output_manager.py` produces plots and detailed CSV
-   tables summarizing the results.
+6. **Output Generation** – `scripts/logger.py`, `scripts/plotter.py` and `scripts/csv_writer.py` handle logs, plots and tables.
 7. **Loop or Exit** – the user may evaluate another model or quit, at which
    point temporary cache files are cleaned automatically.
 
 ## Quick Start
-1. Ensure Python 3 with `numpy`, `scipy`, `matplotlib` and `psutil` is
-   installed.
-2. Run `python3 copernican.py` and follow the prompts to choose a model, data
-   files and engine.
+1. Ensure Python 3 is available. The suite requires `numpy`, `scipy`,
+   `matplotlib`, `pandas`, `sympy`, `psutil` and `jsonschema`. If any package is
+   missing the program will print the command to install them.
+2. Run `python3 copernican.py` and follow the prompts to choose a model,
+   preferred data sources and computation engine.
 3. Plots and CSV results will appear in the `output/` folder when the run
    completes.
 
+## Dependencies
+The program relies on `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`,
+`psutil` and `jsonschema`. If any of these are missing the dependency check
+will print the full installation command `pip install numpy scipy matplotlib
+pandas sympy psutil jsonschema`. Future engines may also depend on `numba` or
+GPU libraries.
+
 ## Directory Layout
 ```
-models/           - Markdown definitions and Python plugins
-engines/          - Computational backends (SciPy CPU by default)
-parsers/          - Data format parsers for SNe and BAO
-data/             - Example data files
+models/           - JSON model definitions (Markdown optional)
+engines/          - Computational backends (SciPy CPU and Numba)
+data/             - Observation data organized as ``data/<type>/<source>/``
 output/           - All generated results
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
+scripts/          - Helper modules
+  logger.py         - Logging setup and helpers
+  plotter.py        - Plotting functions
+  csv_writer.py     - CSV output helpers
+  output_manager.py - Plotting, CSV, and logging utilities
+  data_loaders.py   - Data loading utilities
+  utils.py          - Common helpers
 ```
 **Note:** Files in `data/` are treated as read-only reference datasets and
 should not be modified by AI-driven code changes.
 
 ## Using the Suite
 - The program discovers available models from `models/cosmo_model_*.md`.
-- Data files for SNe and BAO are chosen interactively from `data/sne` and
-  `data/bao`.
-- Parsers and engines are also selected interactively from their respective
-  directories.
+- Data sources for SNe and BAO are chosen interactively. Once a source is
+  selected, its parser and files are loaded automatically from
+  `data/<type>/<source>/`. Future datasets will follow the same structure.
+- Engines are selected interactively from the `engines/` directory. Parsers are
+  discovered automatically when their source folders are imported.
 - After each run you may choose to evaluate another model or exit. Cache files
   are cleaned automatically.
 
 ## Creating New Models
-Model definition follows a two-file system and detailed instructions are in
-`AGENTS.md`:
-1. **Markdown file** (`cosmo_model_name.md`) describing equations and providing
-   a table of parameters. Each model file should conclude with the *Internal
-   Formatting Guide for Model Definition Files* so contributors understand the
-   required structure.
-2. **Python plugin** implementing the required functions listed in `AGENTS.md`.
-   Place this module in the `models` package and reference its filename in the
-   Markdown front matter under `model_plugin`.
+All models are now provided as a single JSON file. Markdown files can still be
+included for explanatory text but are not required. To create a new model:
+1. Copy an existing `cosmo_model_*.json` file and edit the fields to describe
+   your theory.
+2. Optionally create `cosmo_model_name.md` to document the equations in LaTeX so
+   other researchers can read them easily.
+3. Include an `Hz_expression` string defining `H(z)` in terms of your model
+   parameters. This enables BAO and distance-based predictions.
+4. Optionally provide an `rs_expression` for the sound horizon at recombination
+   or include the parameters `Ob`, `Og` and `z_recomb`. The suite will then
+   derive `r_s` automatically using a numerical integral.
+The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
+auto-generates the necessary Python functions.
+
+### JSON Schema
+```json
+{
+  "model_name": "My Model",
+  "version": "1.0",
+  "Hz_expression": "H0 * sympy.sqrt(Om*(1+z)**3 + Ol)",
+  "rs_expression": "integrate(c_s/H, (z, z_recomb, inf))",
+  "parameters": [
+    {"name": "H0", "python_var": "H0", "initial_guess": 70.0, "bounds": [50, 100]}
+    ,{"name": "Ob", "python_var": "Ob", "initial_guess": 0.0486, "bounds": [0.01, 0.1]},
+    {"name": "Og", "python_var": "Og", "initial_guess": 5e-5, "bounds": [1e-5, 1e-4]},
+    {"name": "z_recomb", "python_var": "z_recomb", "initial_guess": 1089, "bounds": [1000, 1200]}
+  ],
+  "equations": {
+    "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
+  },
+  "cmb": {},
+  "gravitational_waves": {},
+  "standard_sirens": {},
+  "abstract": "short overview text",
+  "description": "longer explanation with optional equations",
+  "notes": "any additional remarks"
+}
+```
+`model_parser.py` validates this structure and `model_coder.py` translates the
+equations into NumPy-ready callables. When `Hz_expression` is present it is
+compiled into `get_Hz_per_Mpc` and related distance functions used by
+`engine_interface.py`. If an `rs_expression` or the parameters `Ob`, `Og` and
+`z_recomb` are provided, a callable `get_sound_horizon_rs_Mpc` is also generated.
 
 ## Development Notes
 All changes must include a `DEV NOTE` at the top of modified files explaining
@@ -99,12 +162,14 @@ See `CHANGELOG.md` for the complete project history.
 2. **Comment code extensively** to clarify complex logic or algorithms.
 3. **Update all documentation**, including this `README.md` and `AGENTS.md`,
    whenever the codebase changes.
+4. **Never add Git conflict markers** (`<<<<<<<`, `=======`, `>>>>>>>`) in any file. These break automated merges and will be rejected.
 
 Failure to follow these rules will compromise the maintainability of the
 Copernican Suite.
 ## 4. Workflow Overview
 
-1.  **Dependency Check**: `copernican.py` first verifies all required Python libraries are available.
+1.  **Dependency Check**: `copernican.py` scans for missing packages and
+    instructs you to run a `pip install` command if any are absent.
 2.  **Initialization**: The script starts and creates the `./output/` directory for all results.
 3.  **Configuration**: The user specifies the file paths for the model and data files.
     -   **Test Mode**: A user can enter `test` to run ΛCDM against itself, providing a quick way to test the full analysis pipeline.
