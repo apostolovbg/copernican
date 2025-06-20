@@ -1,4 +1,5 @@
 <!-- Development History (for AI reference) -->
+# DEV NOTE (v1.5g update): clarified that all model details reside in JSON files; Markdown is optional for readability only.
 - v1.5.0: Semantic versioning adopted; version constant updated.
 - v1.5g: Added pyproject configuration and installation instructions.
 - Hotfix 1: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
@@ -32,7 +33,7 @@ ensures the expected functions are present and callable.
 
 ## 2. Directory Layout
 ```
-models/           - JSON model definitions (Markdown files optional)
+models/           - JSON model definitions with embedded theory text and equations (Markdown optional)
 engines/          - Computational backends (SciPy CPU by default)
 data/             - Observation files under ``data/<type>/<source>/``
 output/           - Generated plots and CSV tables
@@ -53,8 +54,10 @@ To install the suite as a package, run `pip install .` at the repository root. U
 
 ## 4. JSON Model System
 As of version 1.5f every cosmological model is described by a single JSON file
-`cosmo_model_*.json`. Markdown files may accompany the JSON for human
-readability, but there are no permanent Python plugins in the repository.
+`cosmo_model_*.json`. All theory text, equations and parameters reside in this
+file. Markdown files may mirror the JSON for readability, but there are no
+permanent Python plugins in the repository. Models are automatically discovered
+by scanning for `cosmo_model_*.json` files in the `models/` directory.
 
 ### 4.1 JSON Model File
 The schema requires `model_name`, `version`, `parameters` and `equations`.
@@ -67,8 +70,8 @@ being passed to the chosen engine.
 ## 5. Creating a New Model
 1. Copy an existing `cosmo_model_*.json` file such as `cosmo_model_lcdm.json`.
 2. Edit the JSON fields to describe your model, following the schema above.
-3. Optionally provide a Markdown file with the same base name to document the
-   model for human readers.
+3. Optionally create a Markdown file with the same base name if you want a
+   human-readable summary. The JSON must contain the complete theory.
 
 ### 5.1 JSON Template
 Use the following structure when creating new models:
