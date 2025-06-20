@@ -61,7 +61,7 @@ def show_splash_screen():
     ]
     for line in banner:
         print(line)
-    time.sleep(3)
+    time.sleep(1)
     print("Follow the prompts to configure a run. Results are saved in the 'output' directory.\n\n")
 
 # --- System Dependency and Sanity Checker ---
