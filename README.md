@@ -96,7 +96,6 @@ scripts/          - Helper modules
   logger.py         - Logging setup and helpers
   plotter.py        - Plotting functions
   csv_writer.py     - CSV output helpers
-  output_manager.py - Plotting, CSV, and logging utilities
   data_loaders.py   - Data loading utilities
   utils.py          - Common helpers
 ```
@@ -193,7 +192,7 @@ features increment `MINOR` and bug fixes increment `PATCH`. Package builds use
     -   **Test Mode**: A user can enter `test` to run ΛCDM against itself, providing a quick way to test the full analysis pipeline.
 4.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data.
 5.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
-6.  **Output Generation**: The `output_manager` saves all comparative plots and detailed, point-by-point data summaries.
+6.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots, tables and logs using a consistent format.
 7.  **Loop or Exit**: The user is prompted to run another evaluation or exit.
 
 ---
