@@ -18,7 +18,7 @@
 
 **Version:** 1.5.0
 **Last Updated:** 2025-06-20
-engines/          - Computational backends (SciPy CPU by default, plus Numba)
+engines/          - Computational backends (SciPy CPU by default; optional Numba acceleration with fallback)
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
 Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. Future
@@ -87,7 +87,7 @@ Run `pip install .` from the repository root to build and install the `copernica
 ## Directory Layout
 ```
 models/           - JSON model definitions (Markdown optional)
-engines/          - Computational backends (SciPy CPU and Numba)
+engines/          - Computational backends (SciPy CPU and Numba with automatic fallback)
 data/             - Observation data organized as ``data/<type>/<source>/``
 output/           - All generated results
 AGENTS.md         - Development specification and contributor rules
