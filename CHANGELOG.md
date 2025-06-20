@@ -1,10 +1,11 @@
 # Copernican Suite Change Log
+<!-- DEV NOTE (v1.5.0): Adopted semantic versioning. -->
 <!-- DEV NOTE (v1.5g): Data source reorganization and version bump. -->
-## Version 1.5g (Development Release)
+## Version 1.5.0 (Development Release)
 - Data files and parsers reorganized under ``data/<type>/<source>/``.
 - Parser selection now based on data source only.
 - Removed deprecated `parsers/` directory and UniStra h2 parser.
-- Updated documentation for version 1.5g.
+- Updated documentation for version 1.5.0.
 - Hotfix: Prompts list friendly dataset names with a clear title for every selection.
 
 ## Version 1.5f (Development Release)

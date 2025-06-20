@@ -2,6 +2,7 @@
 """
 Copernican Suite - Main Orchestrator.
 """
+# DEV NOTE (v1.5.0): Adopted semantic versioning; constant updated accordingly.
 # DEV NOTE (v1.5f): Added placeholders for future data types and bumped version.
 # DEV NOTE (v1.5f hotfix): Fixed dependency scanner to ignore relative imports.
 # DEV NOTE (v1.5f hotfix 5): Removed automatic dependency installer. The program
@@ -37,7 +38,7 @@ engine_interface = None
 output_manager = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.5g"
+COPERNICAN_VERSION = "1.5.0"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""

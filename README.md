@@ -1,5 +1,6 @@
 <!-- DEV NOTE (v1.5g): Data sources restructured under data/<type>/<source>; parsers moved accordingly. -->
 <!-- DEV NOTE (v1.5g hotfix): Selection prompts now display descriptive dataset and engine names. -->
+# DEV NOTE (v1.5.0): Adopted semantic versioning and updated documentation.
 # Copernican Suite
 <!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
 <!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
@@ -15,7 +16,7 @@
 <!-- DEV NOTE (v1.5g hotfix 14): Replaced GPL reference with Copernican Suite License (CSL). -->
 <!-- DEV NOTE (v1.5g update): Added pyproject build instructions and install section. -->
 
-**Version:** 1.5g
+**Version:** 1.5.0
 **Last Updated:** 2025-06-20
 engines/          - Computational backends (SciPy CPU by default, plus Numba)
 
@@ -37,6 +38,7 @@ plugged in with minimal effort.
 6. [Development Notes](#development-notes)
 7. [AI Development Laws](#ai-development-laws)
 8. [License](#license)
+9. [Versioning Policy](#versioning-policy)
 
 ---
 
@@ -176,6 +178,11 @@ Copernican Suite.
 ## License
 The Copernican Suite is distributed under the terms of the [Copernican Suite License (CSL)](LICENSE.md).
 
+## Versioning Policy
+The project now follows [Semantic Versioning](https://semver.org/). Versions are
+listed as `MAJOR.MINOR.PATCH`, where breaking changes increment `MAJOR`, new
+features increment `MINOR` and bug fixes increment `PATCH`. Package builds use
+`setuptools_scm` to derive the version from Git tags.
 
 ## 4. Workflow Overview
 

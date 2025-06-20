@@ -1,3 +1,4 @@
+# DEV NOTE (v1.5.0) Semantic versioning adopted; version constant updated.
 # DEV NOTE (v1.5g)
 Added pyproject configuration and installation instructions.
 Hotfix: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
@@ -98,3 +99,9 @@ To keep the project maintainable all contributors, human or AI, must follow thes
 5. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.**
 
 Failure to follow these guidelines will compromise the Copernican Suite.
+
+## 7. Versioning Policy
+The project follows Semantic Versioning (`MAJOR.MINOR.PATCH`). Increment the
+`MAJOR` number for breaking changes, the `MINOR` for new backward-compatible
+features and the `PATCH` for bug fixes. Package versions are derived from Git
+tags using `setuptools_scm`.
