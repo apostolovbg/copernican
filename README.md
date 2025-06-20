@@ -1,24 +1,6 @@
-<!-- DEV NOTE (v1.5g): Data sources restructured under data/<type>/<source>; parsers moved accordingly. -->
-<!-- DEV NOTE (v1.5g hotfix): Selection prompts now display descriptive dataset and engine names. -->
-# DEV NOTE (v1.5.0): Adopted semantic versioning and updated documentation.
-# Copernican Suite
-<!-- DEV NOTE (v1.5f): Updated for Phase 6 with new data-type placeholders and schema fields. -->
-<!-- DEV NOTE (v1.5f hotfix): Dependency scanner ignores relative imports; JSON models now support "sympy." prefix. -->
-<!-- DEV NOTE (v1.5f hotfix 2): JSON models include abstract, description and notes fields for upcoming UI modules. -->
-<!-- DEV NOTE (v1.5f hotfix 3): Dependency check now runs before importing optional packages; code style cleanup. -->
-<!-- DEV NOTE (v1.5f hotfix 4): Multiprocessing freeze_support is now called via a local import after verifying dependencies. -->
-<!-- DEV NOTE (v1.5f hotfix 5): Automatic dependency installer removed; the program now prints a pip command when packages are missing. -->
-<!-- DEV NOTE (v1.5f hotfix 10): BAO smooth curve generation fixed by vectorizing distance integrals. -->
-<!-- DEV NOTE (v1.5f hotfix 11): Volume-averaged distance function now supports
-     array inputs to prevent BAO plotting errors. -->
-<!-- DEV NOTE (v1.5f hotfix 12): r_s fallback integral includes radiation
-     density for accurate BAO scaling. -->
-<!-- DEV NOTE (v1.5g hotfix 14): Replaced GPL reference with Copernican Suite License (CSL). -->
-<!-- DEV NOTE (v1.5g update): Added pyproject build instructions and install section. -->
-
 **Version:** 1.5.0
 **Last Updated:** 2025-06-20
-engines/          - Computational backends (SciPy CPU by default, plus Numba)
+engines/          - Computational backends (SciPy CPU by default; optional Numba acceleration with fallback)
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
 Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. Future
@@ -87,7 +69,7 @@ Run `pip install .` from the repository root to build and install the `copernica
 ## Directory Layout
 ```
 models/           - JSON model definitions (Markdown optional)
-engines/          - Computational backends (SciPy CPU and Numba)
+engines/          - Computational backends (SciPy CPU and Numba with automatic fallback)
 data/             - Observation data organized as ``data/<type>/<source>/``
 output/           - All generated results
 AGENTS.md         - Development specification and contributor rules
@@ -158,14 +140,14 @@ compiled into `get_Hz_per_Mpc` and related distance functions used by
 `z_recomb` are provided, a callable `get_sound_horizon_rs_Mpc` is also generated.
 
 ## Development Notes
-All changes must include a `DEV NOTE` at the top of modified files explaining
+All changes must include a `DEV NOTE` at the top of modified source files (excluding `README.md` and `LICENSE.md`) explaining
 what was done. Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md` and
 `AGENTS.md` must be updated whenever behavior or structure changes.
 See `CHANGELOG.md` for the complete project history.
 
 ## AI Development Laws
-1. **Add a `DEV NOTE` to every changed file** summarizing modifications.
+1. **Add a `DEV NOTE` to every changed code file (except `README.md` and `LICENSE.md`)** summarizing modifications.
 2. **Comment code extensively** to clarify complex logic or algorithms.
 3. **Update all documentation**, including this `README.md` and `AGENTS.md`,
    whenever the codebase changes.
@@ -208,7 +190,7 @@ See `CHANGELOG.md` for complete version history.
 > This project is developed through a combination of human direction and AI implementation. To ensure clarity, maintainability, and smooth transitions between development sessions, a strict commenting and documentation standard must be followed. The `AGENTS.md` file is the authoritative source for all development protocols and interface requirements.
 >
 > **When modifying any file, you are required to:**
-> 1.  **Add a `DEV NOTE` at the top of the file.** This note should summarize the changes made in the current version.
+> 1.  **Add a `DEV NOTE` at the top of each changed code file (excluding `README.md` and `LICENSE.md`).** This note should summarize the changes made in the current version.
 > 2.  **Comment the code extensively.** Explain the "why" behind your code, not just the "what".
 > 3.  **Update this README file and `AGENTS.md`**. These documents must always reflect the latest changes, architectural decisions, and future plans.
 >
