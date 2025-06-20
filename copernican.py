@@ -35,7 +35,10 @@ mp = None
 model_parser = None
 model_coder = None
 engine_interface = None
-output_manager = None
+plotter = None
+csv_writer = None
+log_mod = None
+logger = None
 data_loaders = None
 
 COPERNICAN_VERSION = "1.5.0"
@@ -93,7 +96,7 @@ def _gather_required_packages():
         'multiprocessing', 'glob', 'shutil', 'platform', 'inspect', 'types',
         'pathlib', 'builtins', 'traceback', 'typing',
         # Local modules within this repository (under ``scripts``)
-        'data_loaders', 'output_manager', 'csv_writer', 'plotter', 'logger',
+        'data_loaders', 'csv_writer', 'plotter', 'logger',
         'utils'
     }
     return {pkg for pkg in pkg_names if not pkg.startswith(('scripts', 'engines', 'parsers')) and pkg not in ignore}
@@ -138,7 +141,7 @@ def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
 
 def load_alternative_model_plugin(model_filepath):
     """Dynamically loads an alternative cosmological model plugin."""
-    logger = output_manager.get_logger()
+    logger = log_mod.get_logger()
     if not model_filepath.endswith(".py"):
         model_filepath += ".py"
     if not os.path.isfile(model_filepath):
@@ -196,7 +199,7 @@ def parse_model_header(md_path):
 
 def cleanup_cache(base_dir):
     """Finds and removes all __pycache__ directories."""
-    logger = output_manager.get_logger()
+    logger = log_mod.get_logger()
     logger.info("--- Cleaning up cache files ---")
     for root, dirs, files in os.walk(base_dir):
         if "__pycache__" in dirs:
@@ -222,12 +225,12 @@ def main_workflow():
     check_dependencies()
 
     # Import optional third-party packages after confirming they are installed
-    global np, plt, mp, model_parser, model_coder, engine_interface, data_loaders, output_manager
+    global np, plt, mp, model_parser, model_coder, engine_interface, data_loaders, plotter, csv_writer, log_mod, logger
     import numpy as np
     import matplotlib.pyplot as plt
     import multiprocessing as mp
     from scripts import model_parser, model_coder, engine_interface
-    from scripts import data_loaders, output_manager
+    from scripts import data_loaders, plotter, csv_writer, logger as log_mod
 
     try:
         SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -253,8 +256,8 @@ def main_workflow():
     engine_interface.validate_plugin(lcdm)
 
     while True:
-        log_file = output_manager.setup_logging(log_dir=OUTPUT_DIR)
-        logger = output_manager.get_logger()
+        log_file = log_mod.setup_logging(log_dir=OUTPUT_DIR)
+        logger = log_mod.get_logger()
         start_ts = time.strftime("%y%m%d_%H%M%S")
         logger.info(
             f"Copernican {COPERNICAN_VERSION} has initialized! Current timestamp is {start_ts}. Log file: {log_file}"
@@ -355,18 +358,45 @@ def main_workflow():
         alt_model_full_results = run_bao_analysis(alt_model_plugin, alt_model_sne_fit_results, z_plot_smooth)
 
         logger.info("\n--- Stage 4: Generating Outputs ---")
-        output_manager.plot_hubble_diagram(sne_data_df, lcdm_sne_fit_results, alt_model_sne_fit_results, lcdm, alt_model_plugin, plot_dir=OUTPUT_DIR)
+        plotter.plot_hubble_diagram(
+            sne_data_df,
+            lcdm_sne_fit_results,
+            alt_model_sne_fit_results,
+            lcdm,
+            alt_model_plugin,
+            plot_dir=OUTPUT_DIR,
+        )
         if bao_data_df is not None:
-            output_manager.plot_bao_observables(bao_data_df, lcdm_full_results, alt_model_full_results, lcdm, alt_model_plugin, plot_dir=OUTPUT_DIR)
+            plotter.plot_bao_observables(
+                bao_data_df,
+                lcdm_full_results,
+                alt_model_full_results,
+                lcdm,
+                alt_model_plugin,
+                plot_dir=OUTPUT_DIR,
+            )
         
         # The call to the redundant summary CSV has been removed.
-        # output_manager.save_sne_fit_results_csv(...)
+        # csv_writer.save_sne_fit_results_csv(...)
         
         # Save the detailed point-by-point SNe results CSV
-        output_manager.save_sne_results_detailed_csv(sne_data_df, lcdm_sne_fit_results, alt_model_sne_fit_results, lcdm, alt_model_plugin, csv_dir=OUTPUT_DIR)
+        csv_writer.save_sne_results_detailed_csv(
+            sne_data_df,
+            lcdm_sne_fit_results,
+            alt_model_sne_fit_results,
+            lcdm,
+            alt_model_plugin,
+            csv_dir=OUTPUT_DIR,
+        )
         
         if bao_data_df is not None:
-            output_manager.save_bao_results_csv(bao_data_df, lcdm_full_results, alt_model_full_results, alt_model_name=alt_model_plugin.MODEL_NAME, csv_dir=OUTPUT_DIR)
+            csv_writer.save_bao_results_csv(
+                bao_data_df,
+                lcdm_full_results,
+                alt_model_full_results,
+                alt_model_name=alt_model_plugin.MODEL_NAME,
+                csv_dir=OUTPUT_DIR,
+            )
 
         print("\n" + "="*50)
         print("Evaluation complete. All files saved to the 'output' directory.")
@@ -395,7 +425,7 @@ if __name__ == "__main__":
     try:
         main_workflow()
     except Exception:
-        logger = output_manager.get_logger()
+        logger = log_mod.get_logger()
         if logger.hasHandlers():
             logger.critical("Unhandled exception in main_workflow!", exc_info=True)
         else:
