@@ -13,6 +13,7 @@
 <!-- DEV NOTE (v1.5f hotfix 12): r_s fallback integral includes radiation
      density for accurate BAO scaling. -->
 <!-- DEV NOTE (v1.5g hotfix 14): Replaced GPL reference with Copernican Suite License (CSL). -->
+<!-- DEV NOTE (v1.5g update): Added pyproject build instructions and install section. -->
 
 **Version:** 1.5g
 **Last Updated:** 2025-06-20
@@ -64,7 +65,7 @@ Under the hood the program follows a clear pipeline:
 
 ## Quick Start
 1. Ensure Python 3 is available. The suite requires `numpy`, `scipy`,
-   `matplotlib`, `pandas`, `sympy`, `psutil` and `jsonschema`. If any package is
+   `matplotlib`, `pandas`, `sympy` and `jsonschema`. If any package is
    missing the program will print the command to install them.
 2. Run `python3 copernican.py` and follow the prompts to choose a model,
    preferred data sources and computation engine.
@@ -73,10 +74,13 @@ Under the hood the program follows a clear pipeline:
 
 ## Dependencies
 The program relies on `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`,
-`psutil` and `jsonschema`. If any of these are missing the dependency check
+`jsonschema`. If any of these are missing the dependency check
 will print the full installation command `pip install numpy scipy matplotlib
-pandas sympy psutil jsonschema`. Future engines may also depend on `numba` or
+pandas sympy jsonschema`. Future engines may also depend on `numba` or
 GPU libraries.
+ 
+## Building & Installation
+Run `pip install .` from the repository root to build and install the `copernican` command. Use `pip install -e .` for editable installs.
 
 ## Directory Layout
 ```

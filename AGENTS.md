@@ -1,4 +1,5 @@
 # DEV NOTE (v1.5g)
+Added pyproject configuration and installation instructions.
 Hotfix: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
 Hotfix 2: JSON models now contain optional abstract, description and notes fields.
 Hotfix 3: `copernican.py` now performs the dependency check before importing third-party packages to avoid start-up failures. Style fixes applied across the codebase.
@@ -48,6 +49,7 @@ upgrade packages (already installed libraries will be skipped). This
 lightweight approach works across Windows, macOS and Linux while allowing new
 engines to introduce additional dependencies without manual updates to the
 documentation.
+To install the suite as a package, run `pip install .` at the repository root. Use `pip install -e .` if you intend to develop the code.
 
 ## 4. JSON Model System
 As of version 1.5f every cosmological model is described by a single JSON file
