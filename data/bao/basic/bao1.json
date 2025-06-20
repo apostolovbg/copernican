@@ -1,6 +1,22 @@
 {
   "data_points": [
     {
+      "name": "6dFGS z=0.106",
+      "redshift": 0.106,
+      "observable_type": "DV_over_rs",
+      "value": 2.976,
+      "error": 0.133,
+      "rs_fiducial_Mpc": null
+    },
+    {
+      "name": "SDSS MGS z=0.15",
+      "redshift": 0.15,
+      "observable_type": "DV_over_rs",
+      "value": 4.480,
+      "error": 0.168,
+      "rs_fiducial_Mpc": null
+    },
+    {
       "name": "BOSS DR12 Consensus z=0.38",
       "redshift": 0.38,
       "observable_type": "DV_over_rs",
@@ -22,6 +38,38 @@
       "observable_type": "DV_over_rs",
       "value": 14.3097,
       "error": 0.1345,
+      "rs_fiducial_Mpc": null
+    },
+    {
+      "name": "WiggleZ z=0.44",
+      "redshift": 0.44,
+      "observable_type": "DV_over_rs",
+      "value": 11.54,
+      "error": 0.56,
+      "rs_fiducial_Mpc": null
+    },
+    {
+      "name": "WiggleZ z=0.60",
+      "redshift": 0.60,
+      "observable_type": "DV_over_rs",
+      "value": 14.94,
+      "error": 0.68,
+      "rs_fiducial_Mpc": null
+    },
+    {
+      "name": "WiggleZ z=0.73",
+      "redshift": 0.73,
+      "observable_type": "DV_over_rs",
+      "value": 16.92,
+      "error": 0.58,
+      "rs_fiducial_Mpc": null
+    },
+    {
+      "name": "eBOSS DR14 Quasar z=1.52",
+      "redshift": 1.52,
+      "observable_type": "DV_over_rs",
+      "value": 25.94,
+      "error": 1.14,
       "rs_fiducial_Mpc": null
     },
     {
@@ -57,6 +105,6 @@
       "rs_fiducial_Mpc": null
     }
   ],
-  "citation": "BOSS DR12 Consensus: Alam et al. 2017 (arXiv:1607.03155, Table 5 for DV/rs). eBOSS DR16 Quasar: Alam et al. 2021 (arXiv:2007.08991, Table 3 for DM/rs, DH/rs). eBOSS DR16 Lyman-alpha: du Mas des Bourboux et al. 2020 (arXiv:2007.08995, Table 7 for DM/rs, DH/rs). 'rs' refers to r_d (sound horizon at drag epoch) in these papers.",
-  "notes": "Observable types: DV_over_rs (D_V(z)/r_s), DM_over_rs (D_M(z)/r_s), DH_over_rs (D_H(z)/r_s = c/(H(z)r_s)). All r_s values are the model's r_s unless a fiducial r_s is used for specific data points (not the case here)."
+  "citation": "6dFGS: Beutler et al. 2011 (DV/rs from rs/DV = 0.336 ± 0.015) :contentReference[oaicite:0]{index=0}. SDSS MGS: Ross et al. 2015 (DV/rs = 4.480 ± 0.168) :contentReference[oaicite:1]{index=1}. WiggleZ: Blake et al. 2011 (DV(rsfid/rs) = 1716 ± 83, 2221 ± 101, 2516 ± 86 Mpc at z = 0.44, 0.6, 0.73) :contentReference[oaicite:2]{index=2}. BOSS DR12 Consensus: Alam et al. 2017 (Table 5) :contentReference[oaicite:8]{index=8}. eBOSS DR14 Quasar: Benasque BAO DR14 QSO (DV(rsfid/rs) = 3855 ± 170 Mpc at z = 1.52) :contentReference[oaicite:4]{index=4}. eBOSS DR16 Quasar: Alam et al. 2021 (Table 3) :contentReference[oaicite:9]{index=9}. eBOSS DR16 Lyman-α: du Mas des Bourboux et al. 2020 (Table 7) :contentReference[oaicite:10]{index=10}.",
+  "notes": "Observable types: DV_over_rs (D_V(z)/r_s), DM_over_rs (D_M(z)/r_s), DH_over_rs (D_H(z)/r_s = c/(H(z) r_s)). All r_s values are the model's sound horizon at the drag epoch unless a fiducial r_s is specified (rs_fiducial_Mpc)."
 }
