@@ -1,0 +1,29 @@
+# DEV NOTE (v1.5g): Added packaging metadata and entry point.
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "copernican-suite"
+description = "Evaluate cosmological models using observational data."
+dynamic = ["version"]
+authors = [{name = "Copernican Developers"}]
+license = {file = "LICENSE.md"}
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "pandas",
+    "sympy",
+    "jsonschema",
+]
+
+[project.scripts]
+copernican = "copernican:main_workflow"
+
+[tool.setuptools]
+packages = ["scripts", "engines"]
+py-modules = ["copernican"]
+
+[tool.setuptools.dynamic]
+version = {attr = "copernican.COPERNICAN_VERSION"}
