@@ -12,6 +12,8 @@
      array inputs to prevent BAO plotting errors. -->
 <!-- DEV NOTE (v1.5f hotfix 12): r_s fallback integral includes radiation
      density for accurate BAO scaling. -->
+<!-- DEV NOTE (v1.5g hotfix 13): Added GPL-3.0 license file and documented the
+     project's license. -->
 
 **Version:** 1.5g
 **Last Updated:** 2025-06-20
@@ -34,6 +36,7 @@ plugged in with minimal effort.
 5. [Creating New Models](#creating-new-models)
 6. [Development Notes](#development-notes)
 7. [AI Development Laws](#ai-development-laws)
+8. [License](#license)
 
 ---
 
@@ -166,6 +169,11 @@ See `CHANGELOG.md` for the complete project history.
 
 Failure to follow these rules will compromise the maintainability of the
 Copernican Suite.
+
+## License
+The Copernican Suite is distributed under the terms of the
+[GNU General Public License v3.0](LICENSE).
+
 ## 4. Workflow Overview
 
 1.  **Dependency Check**: `copernican.py` scans for missing packages and
