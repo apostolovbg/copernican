@@ -1,8 +1,9 @@
+# DEV NOTE: corrected location spelling to Bulgaria in copyright line.
 SPDX-License-Identifier: LicenseRef-CSL-1.4
 
 # Copernican Suite License (CSL) v1.4
 
-© 2025 Apostol Valentinov Apostolov and Black Epsilon Ltd., Sofia, Buglaria
+© 2025 Apostol Valentinov Apostolov and Black Epsilon Ltd., Sofia, **Bulgaria**
 All rights reserved.
 
 ## 1. Definitions
