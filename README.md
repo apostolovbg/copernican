@@ -26,8 +26,10 @@ plugged in with minimal effort.
 
 ## Overview
 The suite compares the reference \(\Lambda\)CDM model with alternative theories
-provided by the user. Each model is defined by a Markdown file under
-`./models/` and a matching Python implementation residing in the same package.
+provided by the user. Each model is defined entirely by a JSON file
+`cosmo_model_*.json` under `./models/`. The JSON contains all theory text,
+equations and parameters. Markdown files may optionally mirror the JSON for
+human readability.
 Users select models, datasets, and computational engines at runtime through a
 simple command line interface. Results are saved as plots and CSV files in the
 `./output/` directory.
@@ -68,7 +70,8 @@ Run `pip install .` from the repository root to build and install the `copernica
 
 ## Directory Layout
 ```
-models/           - JSON model definitions (Markdown optional)
+models/           - JSON model definitions containing all theory text and
+                    equations (Markdown optional)
 engines/          - Computational backends (SciPy CPU and Numba with automatic fallback)
 data/             - Observation data organized as ``data/<type>/<source>/``
 output/           - All generated results
@@ -85,7 +88,7 @@ scripts/          - Helper modules
 should not be modified by AI-driven code changes.
 
 ## Using the Suite
-- The program discovers available models from `models/cosmo_model_*.md`.
+- The program discovers available models from `models/cosmo_model_*.json`.
 - Data sources for SNe and BAO are chosen interactively. Once a source is
   selected, its parser and files are loaded automatically from
   `data/<type>/<source>/`. Future datasets will follow the same structure.
@@ -95,12 +98,13 @@ should not be modified by AI-driven code changes.
   are cleaned automatically.
 
 ## Creating New Models
-All models are now provided as a single JSON file. Markdown files can still be
-included for explanatory text but are not required. To create a new model:
+All model details, including theory text and equations, must be stored in a
+single JSON file. Markdown files can optionally mirror this information for
+readability but are not required. To create a new model:
 1. Copy an existing `cosmo_model_*.json` file and edit the fields to describe
    your theory.
-2. Optionally create `cosmo_model_name.md` to document the equations in LaTeX so
-   other researchers can read them easily.
+2. Optionally create `cosmo_model_name.md` if you want a human-friendly summary
+   of the same content.
 3. Include an `Hz_expression` string defining `H(z)` in terms of your model
    parameters. This enables BAO and distance-based predictions.
 4. Optionally provide an `rs_expression` for the sound horizon at recombination
