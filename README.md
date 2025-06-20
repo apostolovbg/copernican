@@ -134,9 +134,15 @@ auto-generates the necessary Python functions.
   "standard_sirens": {},
   "abstract": "short overview text",
   "description": "longer explanation with optional equations",
-  "notes": "any additional remarks"
+  "notes": "any additional remarks",
+  "title": "Human friendly model title",
+  "date": "2025-06-20",
+  "theory": {}
 }
 ```
+`model_parser.py` accepts unknown keys and simply copies them to the sanitized
+cache. This allows the domain-specific JSON language to evolve while remaining
+compatible with older models.
 `model_parser.py` validates this structure and `model_coder.py` translates the
 equations into NumPy-ready callables. When `Hz_expression` is present it is
 compiled into `get_Hz_per_Mpc` and related distance functions used by

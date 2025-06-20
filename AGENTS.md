@@ -66,6 +66,8 @@ Optional fields such as `unit` and `latex_name` provide additional context.
 `models/cache/`. `scripts/model_coder.py` transforms the equations into NumPy
 callables. These callables are validated by `scripts/engine_interface.py` before
 being passed to the chosen engine.
+`model_parser.py` ignores unrecognized keys and copies them to the cache, so
+new metadata can be added without breaking older JSON files.
 
 ## 5. Creating a New Model
 1. Copy an existing `cosmo_model_*.json` file such as `cosmo_model_lcdm.json`.
@@ -91,6 +93,8 @@ Use the following structure when creating new models:
 
 `model_parser.py` and `model_coder.py` handle validation and code generation
 automatically; no manual Python implementation is required.
+The parser keeps unknown keys intact, ensuring the DSL stays backward
+compatible as new fields are introduced.
 
 ## 6. Development Protocol
 To keep the project maintainable all contributors, human or AI, must follow these rules:
