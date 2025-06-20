@@ -1,20 +1,19 @@
-# DEV NOTE (v1.5.0) Semantic versioning adopted; version constant updated.
-# DEV NOTE (v1.5g)
-Added pyproject configuration and installation instructions.
-Hotfix: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
-Hotfix 2: JSON models now contain optional abstract, description and notes fields.
-Hotfix 3: `copernican.py` now performs the dependency check before importing third-party packages to avoid start-up failures. Style fixes applied across the codebase.
-Hotfix 4: Multiprocessing's `freeze_support` is now called using a local import after the dependency check to prevent NoneType errors.
-Hotfix 5: Removed automatic dependency installer. The suite now instructs users to run `pip install` manually when packages are missing.
-Hotfix 7: Models now provide a symbolic `Hz_expression` compiled at runtime for distance calculations.
-Hotfix 8: When `rs_expression` is absent but `Ob`, `Og` and `z_recomb` exist, the suite derives `get_sound_horizon_rs_Mpc` using SciPy's `quad` integral.
-Hotfix 9: Parser auto-discovery fixed to look in the top-level `parsers` directory.
-Updated for Phase 6. Added placeholder parsers for CMB, gravitational waves and standard sirens, and expanded JSON schema.
-Data sources restructured as data/<type>/<source>; parsers reside with their data.
-Hotfix 10: Data source names are now human-readable and selection lists show a descriptive title.
-Hotfix 11: Added GPL-3.0 license and documented license section in README.
-Hotfix 12: Replaced GPL-3.0 with Copernican Suite License and updated README accordingly.
-
+<!-- Development History (for AI reference) -->
+- v1.5.0: Semantic versioning adopted; version constant updated.
+- v1.5g: Added pyproject configuration and installation instructions.
+- Hotfix 1: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
+- Hotfix 2: JSON models now contain optional abstract, description and notes fields.
+- Hotfix 3: `copernican.py` now performs the dependency check before importing third-party packages to avoid start-up failures. Style fixes applied across the codebase.
+- Hotfix 4: Multiprocessing's `freeze_support` is now called using a local import after the dependency check to prevent NoneType errors.
+- Hotfix 5: Removed automatic dependency installer. The suite now instructs users to run `pip install` manually when packages are missing.
+- Hotfix 7: Models now provide a symbolic `Hz_expression` compiled at runtime for distance calculations.
+- Hotfix 8: When `rs_expression` is absent but `Ob`, `Og` and `z_recomb` exist, the suite derives `get_sound_horizon_rs_Mpc` using SciPy's `quad` integral.
+- Hotfix 9: Parser auto-discovery fixed to look in the top-level `parsers` directory.
+- Phase 6 update: Added placeholder parsers for CMB, gravitational waves and standard sirens; expanded JSON schema.
+- Data sources restructured as data/<type>/<source>; parsers reside with their data.
+- Hotfix 10: Data source names are now human-readable and selection lists show a descriptive title.
+- Hotfix 11: Added GPL-3.0 license and documented license section in README.
+- Hotfix 12: Replaced GPL-3.0 with Copernican Suite License and updated README accordingly.
 # Copernican Suite Development Guide
 
 This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications.
@@ -92,7 +91,7 @@ automatically; no manual Python implementation is required.
 
 ## 6. Development Protocol
 To keep the project maintainable all contributors, human or AI, must follow these rules:
-1. **Add a `DEV NOTE` at the top of each changed file** summarizing your modifications.
+1. **Add a `DEV NOTE` at the top of each changed source file (excluding `README.md` and `LICENSE.md`)** summarizing your modifications.
 2. **Comment code extensively** to explain non-obvious logic or algorithms.
 3. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behavior or structure changes.
 4. **Do not change the project version number unless explicitly requested by a human contributor.**
