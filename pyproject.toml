@@ -1,6 +1,7 @@
+# DEV NOTE (v1.5.0): Added setuptools_scm for Git-based versioning.
 # DEV NOTE (v1.5g): Added packaging metadata and entry point.
 [build-system]
-requires = ["setuptools>=61", "wheel"]
+requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -25,5 +26,6 @@ copernican = "copernican:main_workflow"
 packages = ["scripts", "engines"]
 py-modules = ["copernican"]
 
-[tool.setuptools.dynamic]
-version = {attr = "copernican.COPERNICAN_VERSION"}
+
+[tool.setuptools_scm]
+version_scheme = "no-guess-dev"
