@@ -11,6 +11,7 @@ Updated for Phase 6. Added placeholder parsers for CMB, gravitational waves and 
 Data sources restructured as data/<type>/<source>; parsers reside with their data.
 Hotfix 10: Data source names are now human-readable and selection lists show a descriptive title.
 Hotfix 11: Added GPL-3.0 license and documented license section in README.
+Hotfix 12: Replaced GPL-3.0 with Copernican Suite License and updated README accordingly.
 
 # Copernican Suite Development Guide
 
