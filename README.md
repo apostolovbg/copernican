@@ -103,6 +103,7 @@ should not be modified by AI-driven code changes.
 All model details, including theory text and equations, must be stored in a
 single JSON file. Markdown summaries are optional and have no effect on the
 software. To create a new model:
+See `cosmo_model_guide.json` for a detailed template.
 1. Copy an existing `cosmo_model_*.json` file and edit the fields to describe
    your theory.
 2. *(Optional)* Create `cosmo_model_name.md` if you want a human-friendly
@@ -118,6 +119,7 @@ The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
 auto-generates the necessary Python functions.
 
 ### JSON Schema
+The schema requires `model_name`, `version`, `abstract`, `description`, `parameters` and `equations`.
 ```json
 {
   "model_name": "My Model",
@@ -154,14 +156,14 @@ compiled into `get_Hz_per_Mpc` and related distance functions used by
 `z_recomb` are provided, a callable `get_sound_horizon_rs_Mpc` is also generated.
 
 ## Development Notes
-All changes must include a `DEV NOTE` at the top of modified source files (excluding `README.md` and `LICENSE.md`) explaining
-what was done. Code should be thoroughly commented so future contributors can
+Document every change in `CHANGELOG.md` or the change-log section of `AGENTS.md`.
+Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md` and
 `AGENTS.md` must be updated whenever behavior or structure changes.
 See `CHANGELOG.md` for the complete project history.
 
 ## AI Development Laws
-1. **Add a `DEV NOTE` to every changed code file (except `README.md` and `LICENSE.md`)** summarizing modifications.
+1. **Record each modification in `CHANGELOG.md` (or the change-log within `AGENTS.md`).**
 2. **Comment code extensively** to clarify complex logic or algorithms.
 3. **Update all documentation**, including this `README.md` and `AGENTS.md`,
    whenever the codebase changes.
@@ -204,7 +206,7 @@ See `CHANGELOG.md` for complete version history.
 > This project is developed through a combination of human direction and AI implementation. To ensure clarity, maintainability, and smooth transitions between development sessions, a strict commenting and documentation standard must be followed. The `AGENTS.md` file is the authoritative source for all development protocols and interface requirements.
 >
 > **When modifying any file, you are required to:**
-> 1.  **Add a `DEV NOTE` at the top of each changed code file (excluding `README.md` and `LICENSE.md`).** This note should summarize the changes made in the current version.
+> 1.  **Document all modifications in `CHANGELOG.md` or the change-log section of `AGENTS.md`.**
 > 2.  **Comment the code extensively.** Explain the "why" behind your code, not just the "what".
 > 3.  **Update this README file and `AGENTS.md`**. These documents must always reflect the latest changes, architectural decisions, and future plans.
 >
