@@ -1,23 +1,8 @@
-<!-- Development History (for AI reference) -->
-# DEV NOTE (v1.5g update): clarified that all model details reside in JSON files; Markdown is optional for readability only.
-# DEV NOTE (v1.5.1): Removed legacy ``theory`` section from models and auto-generated
-# parameter guesses from bounds midpoints.
-- v1.5.0: Semantic versioning adopted; version constant updated.
-- v1.5g: Added pyproject configuration and installation instructions.
-- Hotfix 1: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
-- Hotfix 2: `abstract` and `description` fields are now mandatory in JSON models; `notes` remains optional.
-- Hotfix 3: `copernican.py` now performs the dependency check before importing third-party packages to avoid start-up failures. Style fixes applied across the codebase.
-- Hotfix 4: Multiprocessing's `freeze_support` is now called using a local import after the dependency check to prevent NoneType errors.
-- Hotfix 5: Removed automatic dependency installer. The suite now instructs users to run `pip install` manually when packages are missing.
-- Hotfix 7: Models now provide a symbolic `Hz_expression` compiled at runtime for distance calculations.
-- Hotfix 8: When `rs_expression` is absent but `Ob`, `Og` and `z_recomb` exist, the suite derives `get_sound_horizon_rs_Mpc` using SciPy's `quad` integral.
-- Hotfix 9: Parser auto-discovery fixed to look in the top-level `parsers` directory.
-- Phase 6 update: Added placeholder parsers for CMB, gravitational waves and standard sirens; expanded JSON schema.
-- Data sources restructured as data/<type>/<source>; parsers reside with their data.
-- Hotfix 10: Data source names are now human-readable and selection lists show a descriptive title.
-- Hotfix 11: Added GPL-3.0 license and documented license section in README.
-- Hotfix 12: Replaced GPL-3.0 with Copernican Suite License and updated README accordingly.
 # Copernican Suite Development Guide
+
+Development notes were previously kept at the top of this file. That history now
+lives in `CHANGELOG.md`. New modifications must update the changelog, and legacy
+`dev_note` headers embedded in source files are being phased out.
 
 This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications.
 
@@ -104,7 +89,7 @@ compatible as new fields are introduced.
 
 ## 6. Development Protocol
 To keep the project maintainable all contributors, human or AI, must follow these rules:
-1. **Summarize every change in `CHANGELOG.md` or another central log agreed upon by the maintainers.** Use the template `- YYYY-MM-DD: short summary (author)` for each entry.
+1. **Summarize every change in `CHANGELOG.md`.** Use the template `- YYYY-MM-DD: short summary (author)` for each entry. Legacy `dev_note` headers should be migrated to the changelog when touched.
 2. **Comment code extensively** to explain non-obvious logic or algorithms.
 3. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behavior or structure changes.
 4. **Do not change the project version number unless explicitly requested by a human contributor.**

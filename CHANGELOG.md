@@ -19,6 +19,7 @@ Example:
 - Documentation updated to reflect declarative model design.
 - Development protocol revised: DEV NOTE markers removed in favor of documenting changes in `CHANGELOG.md` or `AGENTS.md`.
 - Schema documentation updated: `abstract` and `description` are now mandatory and all contributors summarize updates in `CHANGELOG.md`.
+- 2025-06-21: Added explicit `rs_expression` to `cosmo_model_lcdm.json` and migrated legacy documentation notes to `CHANGELOG.md` (AI assistant)
 
 ## Version 1.5.0 (Development Release)
 - Data files and parsers reorganized under ``data/<type>/<source>/``.
