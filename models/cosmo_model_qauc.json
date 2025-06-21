@@ -25,6 +25,27 @@
       "latex_name": "$\\Omega_{r0}$"
     },
     {
+      "name": "Baryon density",
+      "python_var": "Omega_b0",
+      "bounds": [0.01, 0.1],
+      "unit": "",
+      "latex_name": "$\\Omega_{b0}$"
+    },
+    {
+      "name": "Photon density",
+      "python_var": "Omega_g0",
+      "bounds": [1e-6, 1e-4],
+      "unit": "",
+      "latex_name": "$\\Omega_{\\gamma0}$"
+    },
+    {
+      "name": "Recombination redshift",
+      "python_var": "z_recomb",
+      "bounds": [800, 1500],
+      "unit": "",
+      "latex_name": "$z_{\\rm recomb}$"
+    },
+    {
       "name": "Envelope amplitude",
       "python_var": "A",
       "bounds": [0.0, 0.5],
@@ -64,6 +85,7 @@
       "$$D_V(z) = \\bigl[D_M(z)^2 \\frac{c\\,z}{H(z)}\\bigr]^{1/3}$$"
     ]
   },
+  "rs_expression": "integrate(c/(sqrt(3*(1 + 3*Omega_b0/(4*Omega_g0*(1+z))))*H(z)), (z, z_recomb, oo))",
   "predicts_bao": true,
-  "abstract": "A scalar-tensor model with an exponential attractor envelope and oscillatory modulation in the dark-energy sector, designed to fit both SNe Ia and BAO observations while opening a portal to quantum topological couplings."
+  "abstract": "A scalar-tensor model with an exponential attractor envelope and oscillatory modulation in the dark-energy sector, designed to fit both SNe Ia and BAO while opening a portal to quantum topological couplings."
 }
