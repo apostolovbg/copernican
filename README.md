@@ -27,9 +27,10 @@ plugged in with minimal effort.
 ## Overview
 The suite compares the reference \(\Lambda\)CDM model with alternative theories
 provided by the user. Each model is defined entirely by a JSON file
-`cosmo_model_*.json` under `./models/`. The JSON contains all theory text,
-equations and parameters. Markdown files may optionally mirror the JSON for
-human readability.
+`cosmo_model_*.json` under `./models/`. This JSON stores all theory text,
+equations and parameters and serves as the sole source of truth. Optional
+Markdown summaries may exist for human readers but are ignored by the
+software.
 Users select models, datasets, and computational engines at runtime through a
 simple command line interface. Results are saved as plots and CSV files in the
 `./output/` directory.
@@ -71,7 +72,8 @@ Run `pip install .` from the repository root to build and install the `copernica
 ## Directory Layout
 ```
 models/           - JSON model definitions containing all theory text and
-                    equations (Markdown optional)
+                    equations. Optional `.md` files may provide human-readable
+                    summaries but are not required.
 engines/          - Computational backends (SciPy CPU and Numba with automatic fallback)
 data/             - Observation data organized as ``data/<type>/<source>/``
 output/           - All generated results
@@ -99,12 +101,12 @@ should not be modified by AI-driven code changes.
 
 ## Creating New Models
 All model details, including theory text and equations, must be stored in a
-single JSON file. Markdown files can optionally mirror this information for
-readability but are not required. To create a new model:
+single JSON file. Markdown summaries are optional and have no effect on the
+software. To create a new model:
 1. Copy an existing `cosmo_model_*.json` file and edit the fields to describe
    your theory.
-2. Optionally create `cosmo_model_name.md` if you want a human-friendly summary
-   of the same content.
+2. *(Optional)* Create `cosmo_model_name.md` if you want a human-friendly
+   summary of the same content. The suite does not read this file.
 3. Include an `Hz_expression` string defining `H(z)` in terms of your model
    parameters. This enables BAO and distance-based predictions.
 4. Optionally provide an `rs_expression` for the sound horizon at recombination

@@ -33,7 +33,7 @@ ensures the expected functions are present and callable.
 
 ## 2. Directory Layout
 ```
-models/           - JSON model definitions with embedded theory text and equations (Markdown optional)
+models/           - JSON model definitions with embedded theory text and equations. Optional `.md` files may accompany a model for readability.
 engines/          - Computational backends (SciPy CPU by default)
 data/             - Observation files under ``data/<type>/<source>/``
 output/           - Generated plots and CSV tables
@@ -55,8 +55,9 @@ To install the suite as a package, run `pip install .` at the repository root. U
 ## 4. JSON Model System
 As of version 1.5f every cosmological model is described by a single JSON file
 `cosmo_model_*.json`. All theory text, equations and parameters reside in this
-file. Markdown files may mirror the JSON for readability, but there are no
-permanent Python plugins in the repository. Models are automatically discovered
+file. Markdown files may mirror the JSON for readability, but models are
+distributed only as JSON. No permanent Python plugins exist in the repository.
+Models are automatically discovered
 by scanning for `cosmo_model_*.json` files in the `models/` directory.
 
 ### 4.1 JSON Model File
@@ -72,8 +73,8 @@ new metadata can be added without breaking older JSON files.
 ## 5. Creating a New Model
 1. Copy an existing `cosmo_model_*.json` file such as `cosmo_model_lcdm.json`.
 2. Edit the JSON fields to describe your model, following the schema above.
-3. Optionally create a Markdown file with the same base name if you want a
-   human-readable summary. The JSON must contain the complete theory.
+3. *(Optional)* Create a Markdown file with the same base name if you want a
+   human-readable summary. The JSON file remains the single source of truth.
 
 ### 5.1 JSON Template
 Use the following structure when creating new models:
