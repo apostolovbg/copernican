@@ -1,0 +1,69 @@
+{
+  "model_name": "QuantumAttractorUnifiedCosmology",
+  "version": "1.0",
+  "Hz_expression": "H0 * sqrt(Omega_m0*(1+z)**3 + Omega_r0*(1+z)**4 + (1 - Omega_m0 - Omega_r0)*(1 + A*exp(-alpha*z)*cos(omega*z + phi0)))",
+  "parameters": [
+    {
+      "name": "Hubble constant",
+      "python_var": "H0",
+      "bounds": [50.0, 80.0],
+      "unit": "km/s/Mpc",
+      "latex_name": "$H_0$"
+    },
+    {
+      "name": "Matter density",
+      "python_var": "Omega_m0",
+      "bounds": [0.1, 0.5],
+      "unit": "",
+      "latex_name": "$\\Omega_{m0}$"
+    },
+    {
+      "name": "Radiation density",
+      "python_var": "Omega_r0",
+      "bounds": [1e-6, 1e-3],
+      "unit": "",
+      "latex_name": "$\\Omega_{r0}$"
+    },
+    {
+      "name": "Envelope amplitude",
+      "python_var": "A",
+      "bounds": [0.0, 0.5],
+      "unit": "",
+      "latex_name": "$A$"
+    },
+    {
+      "name": "Envelope steepness",
+      "python_var": "alpha",
+      "bounds": [0.1, 10.0],
+      "unit": "",
+      "latex_name": "$\\alpha$"
+    },
+    {
+      "name": "Oscillation frequency",
+      "python_var": "omega",
+      "bounds": [0.0, 20.0],
+      "unit": "",
+      "latex_name": "$\\omega$"
+    },
+    {
+      "name": "Phase offset",
+      "python_var": "phi0",
+      "bounds": [0.0, 6.283],
+      "unit": "rad",
+      "latex_name": "$\\varphi_0$"
+    }
+  ],
+  "equations": {
+    "sne": [
+      "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$\\mu(z) = 5\\log_{10}\\bigl[d_L(z)/{\\rm Mpc}\\bigr] + 25$$"
+    ],
+    "bao": [
+      "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$D_H(z) = \\frac{c}{H(z)}$$",
+      "$$D_V(z) = \\bigl[D_M(z)^2 \\frac{c\\,z}{H(z)}\\bigr]^{1/3}$$"
+    ]
+  },
+  "predicts_bao": true,
+  "abstract": "A scalar-tensor model with an exponential attractor envelope and oscillatory modulation in the dark-energy sector, designed to fit both SNe Ia and BAO observations while opening a portal to quantum topological couplings."
+}
