@@ -1,0 +1,64 @@
+{
+  "guide_title": "Copernican Suite cosmo_model_*.json Definition Guide",
+  "guide_version": "1.0",
+  "overview": "This guide explains how to write valid cosmo_model JSON files for the Copernican Suite.  Each cosmo_model_*.json defines a cosmological model by declaring metadata, parameters, H(z) and r_s expressions, and display equations for SNe Ia and BAO.",
+  "requirements": "Every cosmo_model JSON must include these top-level keys: model_name (string), version (string), description (string), abstract (string), parameters (array), equations (object).  If you supply r_s, include rs_expression (string) and set predicts_bao to true.",
+  "parameter_definition": "The parameters array contains objects with these fields: name (human-readable string), python_var (valid Python identifier), bounds ([min, max]), and optional unit (string) and latex_name (string).  All symbols used in Hz_expression and rs_expression must be declared here.  To define a fixed constant (e.g. c), give identical bounds.",
+  "expressions": {
+    "Hz_expression": "A Python-syntax string for H(z), referencing only declared parameters and the variable z.  Use numeric operations and functions exp(), cos(), log(), sqrt().  Do not use Python lists or comments.",
+    "rs_expression": "A Python-syntax string for the sound horizon r_s at drag epoch.  It may reference only declared parameters (no z).  If omitted or if predicts_bao=false, BAO predictions are disabled."
+  },
+  "display_equations": {
+    "sne": [
+      "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$\\mu(z) = 5\\log_{10}[d_L(z)/{\\rm Mpc}] + 25$$"
+    ],
+    "bao": [
+      "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$D_H(z) = \\frac{c}{H(z)}$$",
+      "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
+    ]
+  },
+  "edge_cases": [
+    "Do not include symbolic Integrals in rs_expression—Sympy cannot lambdify them.",
+    "Avoid Python list syntax in expressions; use parentheses for grouping.",
+    "LaTeX in description and abstract may include math (double-escaped backslashes).",
+    "All parameter names in expressions must exactly match python_var entries."
+  ],
+  "template": {
+    "model_name": "YourModelName",
+    "version": "1.0",
+    "description": "A one-to-two page resume of the theory, with full explanation and any necessary math expressions written in LaTeX.",
+    "abstract": "A concise abstract paragraph that summarizes the entire theory, including key equations and their roles.",
+    "parameters": [
+      {
+        "name": "Hubble constant",
+        "python_var": "H0",
+        "bounds": [50.0, 80.0],
+        "unit": "km/s/Mpc",
+        "latex_name": "H_0"
+      },
+      {
+        "name": "Matter density",
+        "python_var": "Omega_m0",
+        "bounds": [0.1, 0.5],
+        "unit": "",
+        "latex_name": "\\Omega_{m0}"
+      }
+    ],
+    "Hz_expression": "H0 * sqrt(Omega_m0*(1+z)**3 + /* additional model terms */)",
+    "equations": {
+      "sne": [
+        "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+        "$$\\mu(z) = 5\\log_{10}[d_L(z)/{\\rm Mpc}] + 25$$"
+      ],
+      "bao": [
+        "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+        "$$D_H(z) = \\frac{c}{H(z)}$$",
+        "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
+      ]
+    },
+    "rs_expression": "rs0*(1 + B*z_recomb*exp(-gamma*z_recomb))",
+    "predicts_bao": true
+  }
+}

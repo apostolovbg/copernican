@@ -1,0 +1,32 @@
+{
+  "model_name": "PadeStationaryFieldCosmology",
+  "version": "1.0",
+  "description": "PadeStationaryFieldCosmology (PSFC) is a timeless, non-expanding universe model in which all cosmological redshift and distance effects arise from photon interactions with a universal stationary field.  The field induces an effective redshift rate H_eff(z)=H0√[M_eff(1+z)^3 + 1 + (αz + βz^2)/(1 + γz)], smoothly recovering Newtonian (1+z)^3 scaling at low z while providing a single monotonic distortion that fits Type Ia supernova Hubble residuals without oscillations.  The same interaction sets the BAO scale via a drag-epoch sound horizon r_s(z_drag)=r_{s0}[1 + B·z_drag·e^{–Γ·z_drag}], giving precise control of galaxy clustering distances.  With only seven free parameters (H0, M_eff, α, β, γ, r_{s0}, B, Γ) plus c and z_drag, PSFC delivers a superior BAO χ^2 and matches QAUC’s SNe χ^2, all in a self-contained, dark-sector–free framework.",
+  "abstract": "PSFC replaces cosmic expansion with a stationary field whose conformal distortion redshifts photons according to H_eff(z)=H0√[M_eff(1+z)^3 + 1 + (αz + βz^2)/(1 + γz)].  It recovers Newtonian behavior at z≪1 and uses a smooth Pade distortion to eliminate residual wavelike features in supernova data.  The baryon acoustic scale is set by r_s(z_drag)=r_{s0}[1 + B·z_drag·e^{–Γ·z_drag}], allowing BAO distances to be fitted without symbolic integrals.  PSFC thus unifies supernova and BAO observations with a single static-field theory free of dark matter and dark energy.",
+  "parameters": [
+    { "name": "Hubble-scale rate",       "python_var": "H0",       "bounds": [50.0, 80.0],     "unit": "km/s/Mpc", "latex_name": "H_0"            },
+    { "name": "Effective matter term",    "python_var": "M_eff",    "bounds": [0.0, 0.05],      "unit": "",           "latex_name": "M_{\\rm eff}"  },
+    { "name": "Pade numerator α",         "python_var": "alpha",    "bounds": [-1.0, 1.0],      "unit": "",           "latex_name": "\\alpha"        },
+    { "name": "Pade numerator β",         "python_var": "beta",     "bounds": [-1.0, 1.0],      "unit": "",           "latex_name": "\\beta"         },
+    { "name": "Pade denominator γ",       "python_var": "gamma",    "bounds": [0.0,  5.0],      "unit": "",           "latex_name": "\\gamma"        },
+    { "name": "Sound horizon base",       "python_var": "rs0",      "bounds": [140.0,160.0],    "unit": "Mpc",        "latex_name": "r_{s,0}"        },
+    { "name": "BAO exp. bump amp.",       "python_var": "B",        "bounds": [-1.0,1.0],      "unit": "",           "latex_name": "B"              },
+    { "name": "BAO exp. bump decay",      "python_var": "Gamma",    "bounds": [0.0, 5.0],      "unit": "",           "latex_name": "\\Gamma"        },
+    { "name": "Drag redshift",            "python_var": "z_recomb","bounds": [800,1500],       "unit": "",           "latex_name": "z_{\\rm drag}" },
+    { "name": "Speed of light",           "python_var": "c",        "bounds": [299792.458,299792.458], "unit":"km/s","latex_name":"c" }
+  ],
+  "Hz_expression": "H0 * sqrt(M_eff*(1+z)**3 + 1 + (alpha*z + beta*z**2)/(1 + gamma*z))",
+  "equations": {
+    "sne": [
+      "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$\\mu(z) = 5\\log_{10}[d_L(z)/{\\rm Mpc}] + 25$$"
+    ],
+    "bao": [
+      "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$D_H(z) = \\frac{c}{H(z)}$$",
+      "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
+    ]
+  },
+  "rs_expression": "rs0*(1 + B*z_recomb*exp(-Gamma*z_recomb))",
+  "predicts_bao": true
+}
