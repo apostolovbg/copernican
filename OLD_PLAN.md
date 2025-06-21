@@ -2,7 +2,7 @@
 Updated for data source reorganization and version bump to 1.5g.
 Hotfix: Improved selection prompts with descriptive dataset names.
 # Copernican Suite Refactoring Plan
-This document explains how the project will evolve from the current Markdown + Python plugin system to a cleaner architecture where cosmological models are described solely in JSON. All engines will load code generated on the fly.
+This document explains how the project evolved from an initial Markdown + Python plugin system to a cleaner architecture where cosmological models are described solely in JSON. All engines load code generated on the fly.
 
 After finishing each phase or major step, append a short paragraph here describing what was done and when. This living document keeps everyone in sync.
 
@@ -23,7 +23,7 @@ This pipeline ensures that models stay purely declarative while engines receive 
    - Optional fields for constants and notes about future data types.
    - Keep the syntax approachable so scientists can copy any existing `cosmo_model_*.json` and fill in their own theory without writing code.
 2. **Create example models**
-   - Translate one Markdown + plugin pair into JSON to serve as the official template.
+   - Translate one of the original Markdown and plugin pairs into JSON to serve as the official template.
    - Document the schema in `README.md` so non-programmers can create models correctly.
    - *Done 2025-06-15 – Schema documented and example `cosmo_model_lcdm.json` added.*
 
@@ -45,7 +45,7 @@ This pipeline ensures that models stay purely declarative while engines receive 
 
 ## Phase 4 – Migrate Existing Models
 1. **Convert `.md` definitions**
-   - For each model, read its Markdown file and Python plugin. Recreate the same information in a single `.json` file using the new schema.
+   - For each original model, read its Markdown file and Python plugin. Recreate the same information in a single `.json` file using the new schema.
    - During this period, the original `.py` files can serve as edge-case examples of what the engine might need to compute.
 2. **Validate outputs**
    - Run the converted models through the suite and compare results with the original plugins to ensure correctness.
