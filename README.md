@@ -157,13 +157,14 @@ compiled into `get_Hz_per_Mpc` and related distance functions used by
 
 ## Development Notes
 Document every change in `CHANGELOG.md` or the change-log section of `AGENTS.md`.
+Each substantive update must add an entry using the template `- YYYY-MM-DD: short summary (author)`.
 Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md` and
 `AGENTS.md` must be updated whenever behavior or structure changes.
 See `CHANGELOG.md` for the complete project history.
 
 ## AI Development Laws
-1. **Record each modification in `CHANGELOG.md` (or the change-log within `AGENTS.md`).**
+1. **Record each modification in `CHANGELOG.md` (or the change-log within `AGENTS.md`) using the changelog template.**
 2. **Comment code extensively** to clarify complex logic or algorithms.
 3. **Update all documentation**, including this `README.md` and `AGENTS.md`,
    whenever the codebase changes.
@@ -206,7 +207,7 @@ See `CHANGELOG.md` for complete version history.
 > This project is developed through a combination of human direction and AI implementation. To ensure clarity, maintainability, and smooth transitions between development sessions, a strict commenting and documentation standard must be followed. The `AGENTS.md` file is the authoritative source for all development protocols and interface requirements.
 >
 > **When modifying any file, you are required to:**
-> 1.  **Document all modifications in `CHANGELOG.md` or the change-log section of `AGENTS.md`.**
+> 1.  **Document all modifications in `CHANGELOG.md` (or the change-log section of `AGENTS.md`) using the changelog template.**
 > 2.  **Comment the code extensively.** Explain the "why" behind your code, not just the "what".
 > 3.  **Update this README file and `AGENTS.md`**. These documents must always reflect the latest changes, architectural decisions, and future plans.
 >

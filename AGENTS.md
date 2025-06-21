@@ -104,7 +104,7 @@ compatible as new fields are introduced.
 
 ## 6. Development Protocol
 To keep the project maintainable all contributors, human or AI, must follow these rules:
-1. **Summarize every change in `CHANGELOG.md` or another central log agreed upon by the maintainers.**
+1. **Summarize every change in `CHANGELOG.md` or another central log agreed upon by the maintainers.** Use the template `- YYYY-MM-DD: short summary (author)` for each entry.
 2. **Comment code extensively** to explain non-obvious logic or algorithms.
 3. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behavior or structure changes.
 4. **Do not change the project version number unless explicitly requested by a human contributor.**
