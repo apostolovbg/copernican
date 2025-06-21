@@ -1,0 +1,40 @@
+{
+  "model_name": "ConformalStationaryFieldCosmology",
+  "version": "1.0",
+  "description": "Conformal Stationary Field Cosmology (CSFC) is a static-universe model in which the observed redshift of light and the apparent cosmic distances arise entirely from photons interacting with a universal, stationary field—there is no spatial expansion and no dark energy or dark matter.  In CSFC, the field imparts a red-shift “rate” that combines:  (1) a small effective matter mimic \n   M_eff·(1+z)^3 (recovering Newton’s law at low redshift),  (2) simple linear and quadratic z-terms L·z + D·z^2 (further matching low-z gravity tests), and (3) two damped oscillatory modes A₁e^{–α₁z}cos(ω₁z+φ₀₁) and A₂e^{–α₂z}cos(ω₂z+φ₀₂) that reproduce the subtle wiggles seen in supernova brightness.  The same interaction also sets the BAO scale via a drag-epoch sound horizon r_s(z_drag)=rs0[1 + B·z_drag·e^{–γz_drag} + C·log(1+z_drag)], allowing a precise fit to galaxy-clustering distances.  Twelve free parameters are simultaneously optimized to match both Type Ia supernova Hubble diagrams and BAO distance ratios, all while preserving the Newtonian limit at z≪1 and doing away with any notion of cosmic expansion or unseen dark components.",
+  "abstract": "CSFC replaces the Big Bang and cosmic expansion with a permanent conformal field that redshifts photons as they travel.  The effective redshift rate H_eff(z)=H₀√[M_eff(1+z)^3 + 1 + L·z + D·z^2 + A₁e^{–α₁z}cos(ω₁z+φ₀₁) + A₂e^{–α₂z}cos(ω₂z+φ₀₂)] smoothly recovers Newtonian dynamics at low z and adds two damped waves to capture supernova residuals.  The baryon acoustic scale emerges from a hybrid sound horizon r_s(z_drag)=r_{s0}[1 + B·z_drag·e^{–γz_drag} + C·ln(1+z_drag)], giving the necessary freedom to fit galaxy-clustering distances without any expansion.  CSFC thus unifies supernova and BAO observations in a single, timeless framework free of dark matter and dark energy.",
+  "Hz_expression": "H0 * sqrt(M_eff*(1+z)**3 + 1 + L*z + D*z**2 + A1*exp(-alpha1*z)*cos(omega1*z + phi01) + A2*exp(-alpha2*z)*cos(omega2*z + phi02))",
+  "parameters": [
+    { "name": "Hubble-scale rate",     "python_var": "H0",       "bounds": [50,  80],    "unit": "km/s/Mpc", "latex_name": "H_0"          },
+    { "name": "Linear redshift term",  "python_var": "L",        "bounds": [-1,  1],    "unit": "",           "latex_name": "L"            },
+    { "name": "Quadratic redshift term","python_var": "D",       "bounds": [-1,  1],    "unit": "",           "latex_name": "D"            },
+    { "name": "Mode-1 amplitude",       "python_var": "A1",      "bounds": [0.0,0.5],   "unit": "",           "latex_name": "A_1"          },
+    { "name": "Mode-1 decay rate",      "python_var": "alpha1",  "bounds": [0.1,10.0],   "unit": "",           "latex_name": "\\alpha_1"    },
+    { "name": "Mode-1 frequency",       "python_var": "omega1",  "bounds": [0.0,20.0],   "unit": "",           "latex_name": "\\omega_1"    },
+    { "name": "Mode-1 phase",           "python_var": "phi01",   "bounds": [0.0,6.283],  "unit": "rad",        "latex_name": "\\varphi_{0,1}" },
+    { "name": "Mode-2 amplitude",       "python_var": "A2",      "bounds": [0.0,0.5],   "unit": "",           "latex_name": "A_2"          },
+    { "name": "Mode-2 decay rate",      "python_var": "alpha2",  "bounds": [0.1,10.0],   "unit": "",           "latex_name": "\\alpha_2"    },
+    { "name": "Mode-2 frequency",       "python_var": "omega2",  "bounds": [0.0,50.0],   "unit": "",           "latex_name": "\\omega_2"    },
+    { "name": "Mode-2 phase",           "python_var": "phi02",   "bounds": [0.0,6.283],  "unit": "rad",        "latex_name": "\\varphi_{0,2}" },
+    { "name": "Effective matter term",  "python_var": "M_eff",   "bounds": [0.0,0.05],   "unit": "",           "latex_name": "M_{\\rm eff}" },
+    { "name": "Sound horizon base",     "python_var": "rs0",     "bounds": [140,160],    "unit": "Mpc",        "latex_name": "r_{s,0}"      },
+    { "name": "BAO exp. bump amp.",     "python_var": "B",       "bounds": [-1.0,1.0],   "unit": "",           "latex_name": "B"            },
+    { "name": "BAO exp. bump decay",    "python_var": "gamma",   "bounds": [0.0,5.0],    "unit": "",           "latex_name": "\\gamma"      },
+    { "name": "BAO log-term amp.",      "python_var": "C",       "bounds": [-1.0,1.0],   "unit": "",           "latex_name": "C"            },
+    { "name": "Drag redshift",          "python_var": "z_recomb","bounds": [800,1500],   "unit": "",           "latex_name": "z_{\\rm drag}" },
+    { "name": "Speed of light",         "python_var": "c",       "bounds": [299792.458,299792.458], "unit":"km/s","latex_name":"c" }
+  ],
+  "equations": {
+    "sne": [
+      "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$\\mu(z) = 5\\log_{10}[d_L(z)/{\\rm Mpc}] + 25$$"
+    ],
+    "bao": [
+      "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$D_H(z) = \\frac{c}{H(z)}$$",
+      "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
+    ]
+  },
+  "rs_expression": "rs0*(1 + B*z_recomb*exp(-gamma*z_recomb) + C*log(1+z_recomb))",
+  "predicts_bao": true
+}
