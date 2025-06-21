@@ -1,4 +1,5 @@
 """Model parser for Copernican Suite JSON models."""
+# DEV NOTE (hotfix): removed ``initial_guess`` from the model schema.
 # DEV NOTE (v1.5f): Schema updated with optional CMB, gravitational wave, and
 # standard siren fields for Phase 6. Writes validated JSON models to the cache
 # directory and reports errors through ``error_handler``.
@@ -22,11 +23,10 @@ MODEL_SCHEMA = {
             "type": "array",
             "items": {
                 "type": "object",
-                "required": ["name", "python_var", "initial_guess", "bounds"],
+                "required": ["name", "python_var", "bounds"],
                 "properties": {
                     "name": {"type": "string"},
                     "python_var": {"type": "string"},
-                    "initial_guess": {"type": "number"},
                     "bounds": {
                         "type": "array",
                         "minItems": 2,

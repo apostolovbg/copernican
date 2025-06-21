@@ -1,5 +1,7 @@
 <!-- Development History (for AI reference) -->
 # DEV NOTE (v1.5g update): clarified that all model details reside in JSON files; Markdown is optional for readability only.
+# DEV NOTE (v1.5.1): Removed legacy ``theory`` section from models and auto-generated
+# parameter guesses from bounds midpoints.
 - v1.5.0: Semantic versioning adopted; version constant updated.
 - v1.5g: Added pyproject configuration and installation instructions.
 - Hotfix 1: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
@@ -84,13 +86,15 @@ Use the following structure when creating new models:
   "model_name": "My Model",
   "version": "1.0",
   "parameters": [
-    {"name": "H0", "python_var": "H0", "initial_guess": 70.0, "bounds": [50, 100]}
+    {"name": "H0", "python_var": "H0", "bounds": [50, 100]}
   ],
   "equations": {
     "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
   }
 }
 ```
+Initial guesses are computed automatically as the midpoint of each
+parameter's bounds.
 
 `model_parser.py` and `model_coder.py` handle validation and code generation
 automatically; no manual Python implementation is required.
