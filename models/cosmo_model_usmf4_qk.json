@@ -7,7 +7,6 @@
     {
       "name": "H0",
       "python_var": "H0",
-      "initial_guess": 68.0,
       "bounds": [
         50,
         80
@@ -18,7 +17,6 @@
     {
       "name": "Omega_m0",
       "python_var": "Omega_m0",
-      "initial_guess": 0.3,
       "bounds": [
         0.1,
         0.5
@@ -29,7 +27,6 @@
     {
       "name": "Omega_b0",
       "python_var": "Omega_b0",
-      "initial_guess": 0.0486,
       "bounds": [
         0.04,
         0.06
@@ -40,7 +37,6 @@
     {
       "name": "Ob",
       "python_var": "Ob",
-      "initial_guess": 0.0486,
       "bounds": [
         0.01,
         0.1
@@ -49,7 +45,6 @@
     {
       "name": "Og",
       "python_var": "Og",
-      "initial_guess": 5e-05,
       "bounds": [
         1e-05,
         0.0001
@@ -58,23 +53,14 @@
     {
       "name": "z_recomb",
       "python_var": "z_recomb",
-      "initial_guess": 1089,
       "bounds": [
         1000,
         1200
       ]
     }
   ],
-  "equations": {},
-  "abstract": "USMFv4 quantum kinematic links particle mass to inverse scale factor giving rho_m as one plus z to the fourth and new expansion history for strong fits",
-  "description": "Rest mass scaling 1/a(t) yields H(z)=H0 sqrt(Omega_m0(1+z)^4+Omega_Lambda0). Model connects to quantum properties and stays Newtonian at low redshift",
-  "notes": "Additional notes available.",
-  "title": "The Unified Shrinking Matter Framework (USMF) Version 4 - Quantum Kinematic",
-  "date": "2025-06-11",
-  "theory": {
-    "abstract": "This paper introduces the \"Quantum Kinematic\" version of the Unified Shrinking Matter Framework (USMFv4), a cosmological model that resolves the observational inconsistencies of its predecessor (USMFv3b). The model is founded on a new physical postulate: the rest mass of fundamental particles evolves in inverse proportion to the cosmic scale factor, $m(t) \\propto 1/a(t)$. This leads to a matter-energy density evolution of $\\rho_m(z) \\propto (1+z)^4$. This simple change has profound implications, creating a model with a direct conceptual link to quantum properties of matter, while yielding a new cosmic expansion history, $H(z) = H_0 \\sqrt{\\Omega_{m0}(1+z)^4 + \\Omega_{\\Lambda0}}$. USMFv4 is computationally robust, providing excellent fits to both Type Ia Supernovae (SNe Ia) and Baryon Acoustic Oscillation (BAO) data, and remains consistent with Newtonian mechanics in the low-redshift limit.",
-    "key_equations": [
-      "**For Supernovae (SNe Ia) and Baryon Acoustic Oscillation (BAO) Fitting:**",
+  "equations": {
+    "sne": [
       "$$H(z) = H_0 \\sqrt{\\Omega_{m0}(1+z)^4 + \\Omega_{\\Lambda0}}$$",
       "$$\\Omega_{\\Lambda0} = 1 - \\Omega_{m0}$$",
       "$$d_L(z) = (1+z) \\int_0^z \\frac{c}{H(z')} dz'$$",
@@ -82,5 +68,10 @@
       "$$D_A(z) = \\frac{1}{1+z} \\int_0^z \\frac{c}{H(z')} dz'$$",
       "$$D_V(z) = \\left[ (1+z)^2 D_A(z)^2 \\frac{cz}{H(z)} \\right]^{1/3}$$"
     ]
-  }
+  },
+  "abstract": "This paper introduces the \"Quantum Kinematic\" version of the Unified Shrinking Matter Framework (USMFv4), a cosmological model that resolves the observational inconsistencies of its predecessor (USMFv3b). The model is founded on a new physical postulate: the rest mass of fundamental particles evolves in inverse proportion to the cosmic scale factor, $m(t) \\propto 1/a(t)$. This leads to a matter-energy density evolution of $\\rho_m(z) \\propto (1+z)^4$. This simple change has profound implications, creating a model with a direct conceptual link to quantum properties of matter, while yielding a new cosmic expansion history, $H(z) = H_0 \\sqrt{\\Omega_{m0}(1+z)^4 + \\Omega_{\\Lambda0}}$. USMFv4 is computationally robust, providing excellent fits to both Type Ia Supernovae (SNe Ia) and Baryon Acoustic Oscillation (BAO) data, and remains consistent with Newtonian mechanics in the low-redshift limit.",
+  "description": "Rest mass scaling 1/a(t) yields H(z)=H0 sqrt(Omega_m0(1+z)^4+Omega_Lambda0). Model connects to quantum properties and stays Newtonian at low redshift",
+  "notes": "Additional notes available.",
+  "title": "The Unified Shrinking Matter Framework (USMF) Version 4 - Quantum Kinematic",
+  "date": "2025-06-11"
 }
