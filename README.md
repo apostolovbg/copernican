@@ -25,7 +25,7 @@ plugged in with minimal effort.
 ---
 
 ## Overview
-The suite compares the reference \(\Lambda\)CDM model with alternative theories
+The suite compares the reference ΛCDM model with alternative theories
 provided by the user. Each model is defined entirely by a JSON file
 `cosmo_model_*.json` under `./models/`. This JSON stores all theory text,
 equations and parameters and serves as the sole source of truth. Optional
