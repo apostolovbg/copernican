@@ -157,7 +157,7 @@ compiled into `get_Hz_per_Mpc` and related distance functions used by
 
 ## Development Notes
 Document every change in `CHANGELOG.md`. Each substantive update must add an entry using the template `- YYYY-MM-DD: short summary (author)`.
-Legacy `dev_note` headers embedded in source files are being removed in favour of changelog entries.
+Legacy `dev_note` headers embedded in source files have been removed in favour of changelog entries.
 Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md` and
 `AGENTS.md` must be updated whenever behavior or structure changes.

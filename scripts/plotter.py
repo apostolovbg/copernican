@@ -1,8 +1,5 @@
 # Copernican Suite Plotter
 """Plotting utilities for the Copernican Suite."""
-# DEV NOTE (v1.6): Implementations moved here from ``output_manager.py`` to
-# simplify the codebase and avoid thin wrapper modules. The plotting functions
-# remain unchanged in behavior and formatting.
 
 from typing import Any
 import logging

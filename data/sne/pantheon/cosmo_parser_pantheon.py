@@ -1,6 +1,3 @@
-# DEV NOTE (v1.5g): Parser relocated to ``data/sne/pantheon`` and automatically
-# loads ``Pan.dat`` and ``Pancm.cov`` from this directory without user prompts.
-# DEV NOTE (v1.5g hotfix): Registered with a human-friendly source name.
 
 import os
 import pandas as pd

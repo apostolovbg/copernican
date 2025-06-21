@@ -1,8 +1,5 @@
 # Copernican Suite Numba Engine
 """Numba-accelerated engine wrapper."""
-# DEV NOTE (v1.5e): Introduced in Phase 5 to provide a faster backend.
-# DEV NOTE (patch): Improved JIT helper to compile functions individually and
-# fall back to Python when compilation fails.
 
 from numba import njit
 import logging

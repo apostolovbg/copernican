@@ -1,12 +1,4 @@
 """Model parser for Copernican Suite JSON models."""
-# DEV NOTE (hotfix): removed ``initial_guess`` from the model schema.
-# DEV NOTE (v1.5f): Schema updated with optional CMB, gravitational wave, and
-# standard siren fields for Phase 6. Writes validated JSON models to the cache
-# directory and reports errors through ``error_handler``.
-# DEV NOTE (v1.5f hotfix): Added optional ``abstract``, ``description`` and
-# ``notes`` fields for human readability.
-# DEV NOTE (v1.5f hotfix 8): Added optional ``rs_expression`` and
-# ``predicts_bao`` fields allowing automatic sound-horizon computation.
 
 import json
 from jsonschema import validate, ValidationError

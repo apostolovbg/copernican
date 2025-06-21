@@ -1,23 +1,4 @@
 """Model coder that turns validated JSON into callable Python functions."""
-# DEV NOTE (hotfix): uses parameter bounds to test equations and ignores
-# non-string entries under ``equations``.
-# DEV NOTE (v1.5f hotfix 7): Parses ``Hz_expression`` from each model and
-# generates a callable ``get_Hz_per_Mpc`` along with optional distance
-# functions. The generated SymPy expressions are written back to the cache.
-# Previous hotfix notes: loads sanitized models from ``models/cache`` and allows
-# "sympy." prefix in JSON equations.
-# DEV NOTE (v1.5f hotfix 8): Adds ``rs_expression`` handling and a fallback
-# numerical integral for the sound horizon when model parameters ``Ob``,
-# ``Og`` and ``z_recomb`` are present.
-# DEV NOTE (v1.5f hotfix 10): ``_dm`` now accepts array inputs for BAO smooth
-# curve generation.
-# DEV NOTE (v1.5f hotfix 11): Automatically derives ``distance_modulus_model``
-# from ``get_luminosity_distance_Mpc`` when not provided by the JSON model.
-# DEV NOTE (v1.5f hotfix 12): ``get_DV_Mpc`` now handles NumPy arrays for
-# smooth BAO curve generation without runtime errors.
-# DEV NOTE (v1.5f hotfix 13): The fallback ``get_sound_horizon_rs_Mpc``
-# integral now adds radiation density to the model's ``H(z)`` to produce
-# realistic sound horizon values.
 
 import json
 from pathlib import Path

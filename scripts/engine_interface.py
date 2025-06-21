@@ -1,9 +1,4 @@
 """Interface to bridge generated model functions with existing engines."""
-# DEV NOTE (hotfix): initial guesses now computed from parameter bounds.
-# DEV NOTE (v1.5e): Validates plugin interfaces and presents generated
-# functions in the same format as classic Python plugins.
-# DEV NOTE (v1.5f hotfix 8): Supports ``valid_for_bao`` flag which skips
-# BAO-specific functions when unavailable.
 
 from types import SimpleNamespace
 import inspect

@@ -2,23 +2,7 @@
 """
 Copernican Suite - Main Orchestrator.
 """
-# DEV NOTE (v1.6): Release version. Documentation and constants updated. Automatic
-# parameter guess generation uses bounds midpoints.
-# DEV NOTE (v1.5.0): Adopted semantic versioning; constant updated accordingly.
-# DEV NOTE (v1.5f): Added placeholders for future data types and bumped version.
-# DEV NOTE (v1.5f hotfix): Fixed dependency scanner to ignore relative imports.
-# DEV NOTE (v1.5f hotfix 5): Removed automatic dependency installer. The program
-# now prints a manual `pip install` command when packages are missing and exits.
-# Plugin validation now occurs on the generated module.
-# DEV NOTE (v1.5f hotfix 4): Moved `freeze_support` call to a local import at
-# runtime to prevent NoneType errors when optional imports are deferred.
-# DEV NOTE (v1.5g hotfix): Selection lists now include descriptive titles and prompts.
-# Previous notes retained below for context.
-# DEV NOTE (v1.4.1): Added splash screen, per-run logging with timestamps, and
-# migrated the base model import to the new `lcdm.py` plugin file.
-# DEV NOTE (v1.4): Refactored into a pluggable architecture. Models, parsers,
-# plugins now reside in the `models` package. The summary CSV call removed in
-# v1.3 remains omitted.
+
 
 import importlib.util
 import importlib

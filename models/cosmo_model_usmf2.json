@@ -1,5 +1,4 @@
 {
-  "dev_note": "DEV NOTE: added structured theory fields from markdown; removed md references. v1.5f hotfix 11: removed placeholder distance_modulus_model; prior hotfix 8 added baryon parameters.",
   "model_name": "USMFv2",
   "version": "2.0",
   "Hz_expression": "H_A*(1+z)",
