@@ -2,7 +2,16 @@
 <!-- DEV NOTE (v1.5.0): Adopted semantic versioning. -->
 <!-- DEV NOTE (v1.5g): Data source reorganization and version bump. -->
 <!-- DEV NOTE (v1.5.1): Removed theory block and auto-generated parameter guesses. -->
+
+## How to Log Changes
+Add one line for each substantive commit or pull request directly under the latest version header. Use this template:
+
+`- YYYY-MM-DD: short summary (author)`
+
+Example:
+`- 2025-07-15: Improved BAO solver stability (Alice Doe)`
 ## Version 1.5.1 (Development Release)
+- 2025-06-21: Added CHANGELOG template and updated docs to reference it (AI assistant)
 - Removed ``initial_guess`` from JSON models; parameter guesses now computed
   automatically from bounds.
 - Consolidated model metadata: ``theory`` block removed and equations moved
