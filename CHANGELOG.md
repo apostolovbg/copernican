@@ -1,6 +1,14 @@
 # Copernican Suite Change Log
 <!-- DEV NOTE (v1.5.0): Adopted semantic versioning. -->
 <!-- DEV NOTE (v1.5g): Data source reorganization and version bump. -->
+<!-- DEV NOTE (v1.5.1): Removed theory block and auto-generated parameter guesses. -->
+## Version 1.5.1 (Development Release)
+- Removed ``initial_guess`` from JSON models; parameter guesses now computed
+  automatically from bounds.
+- Consolidated model metadata: ``theory`` block removed and equations moved
+  under ``equations``.
+- Documentation updated to reflect declarative model design.
+
 ## Version 1.5.0 (Development Release)
 - Data files and parsers reorganized under ``data/<type>/<source>/``.
 - Parser selection now based on data source only.
