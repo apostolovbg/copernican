@@ -119,7 +119,7 @@ The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
 auto-generates the necessary Python functions.
 
 ### JSON Schema
-The schema requires `model_name`, `version`, `abstract`, `description`, `parameters` and `equations`.
+The schema requires `model_name`, `version`, `parameters`, `equations`, `abstract` and `description`.
 ```json
 {
   "model_name": "My Model",

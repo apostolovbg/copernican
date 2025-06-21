@@ -9,6 +9,7 @@
   under ``equations``.
 - Documentation updated to reflect declarative model design.
 - Development protocol revised: DEV NOTE markers removed in favor of documenting changes in `CHANGELOG.md` or `AGENTS.md`.
+- Schema documentation updated: `abstract` and `description` are now mandatory and all contributors summarize updates in `CHANGELOG.md`.
 
 ## Version 1.5.0 (Development Release)
 - Data files and parsers reorganized under ``data/<type>/<source>/``.

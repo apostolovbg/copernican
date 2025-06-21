@@ -5,7 +5,7 @@
 - v1.5.0: Semantic versioning adopted; version constant updated.
 - v1.5g: Added pyproject configuration and installation instructions.
 - Hotfix 1: improved dependency scanner to skip relative imports and added SymPy aliasing in model_coder.
-- Hotfix 2: JSON models now include required `abstract` and `description` fields plus an optional `notes` field.
+- Hotfix 2: `abstract` and `description` fields are now mandatory in JSON models; `notes` remains optional.
 - Hotfix 3: `copernican.py` now performs the dependency check before importing third-party packages to avoid start-up failures. Style fixes applied across the codebase.
 - Hotfix 4: Multiprocessing's `freeze_support` is now called using a local import after the dependency check to prevent NoneType errors.
 - Hotfix 5: Removed automatic dependency installer. The suite now instructs users to run `pip install` manually when packages are missing.
@@ -63,7 +63,7 @@ Models are automatically discovered
 by scanning for `cosmo_model_*.json` files in the `models/` directory.
 
 ### 4.1 JSON Model File
-The schema requires `model_name`, `version`, `abstract`, `description`, `parameters` and `equations`.
+The schema requires `model_name`, `version`, `parameters`, `equations`, `abstract` and `description`.
 Optional fields such as `unit` and `latex_name` provide additional context.
 `scripts/model_parser.py` validates the JSON and writes a sanitized copy to
 `models/cache/`. `scripts/model_coder.py` transforms the equations into NumPy
@@ -104,7 +104,7 @@ compatible as new fields are introduced.
 
 ## 6. Development Protocol
 To keep the project maintainable all contributors, human or AI, must follow these rules:
-1. **Document all changes in `CHANGELOG.md` or the `Development History` section of this file.**
+1. **Summarize every change in `CHANGELOG.md` or another central log agreed upon by the maintainers.**
 2. **Comment code extensively** to explain non-obvious logic or algorithms.
 3. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behavior or structure changes.
 4. **Do not change the project version number unless explicitly requested by a human contributor.**
