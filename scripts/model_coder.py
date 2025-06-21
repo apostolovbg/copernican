@@ -18,6 +18,7 @@
 # DEV NOTE (v1.5f hotfix 13): The fallback ``get_sound_horizon_rs_Mpc``
 # integral now adds radiation density to the model's ``H(z)`` to produce
 # realistic sound horizon values.
+# DEV NOTE (hotfix 14): key_equations ignored; distances and r_s auto-computed from Hz_expression.
 
 import json
 from pathlib import Path
@@ -26,6 +27,7 @@ import numpy as np
 from scipy.integrate import quad
 import logging
 from . import error_handler
+from . import cosmology_utils
 
 
 def generate_callables(cache_path):
@@ -86,61 +88,40 @@ def generate_callables(cache_path):
                 results = [quad(integrand, 0, float(z), limit=100)[0] for z in z_flat]
                 return np.reshape(results, np.shape(z_val))
 
-            if 'get_comoving_distance_Mpc' not in funcs:
-                funcs['get_comoving_distance_Mpc'] = _dm
-                code_dict['get_comoving_distance_Mpc'] = 'integral(c/H(z))'
-            if 'get_luminosity_distance_Mpc' not in funcs:
-                funcs['get_luminosity_distance_Mpc'] = lambda zv, *p: (1 + zv) * _dm(zv, *p)
-                code_dict['get_luminosity_distance_Mpc'] = '(1+z)*DC'
-            if 'get_angular_diameter_distance_Mpc' not in funcs:
-                funcs['get_angular_diameter_distance_Mpc'] = lambda zv, *p: _dm(zv, *p) / (1 + zv)
-                code_dict['get_angular_diameter_distance_Mpc'] = 'DC/(1+z)'
-            if 'get_DV_Mpc' not in funcs:
-                def _dv(z_val, *params):
-                    """Volume-averaged distance D_V valid for scalars or arrays."""
-                    dm_val = _dm(z_val, *params)
-                    hz_val = hz_fn(z_val, *params)
+            funcs['get_comoving_distance_Mpc'] = _dm
+            code_dict['get_comoving_distance_Mpc'] = 'integral(c/H(z))'
+            funcs['get_luminosity_distance_Mpc'] = lambda zv, *p: (1 + zv) * _dm(zv, *p)
+            code_dict['get_luminosity_distance_Mpc'] = '(1+z)*DC'
+            funcs['get_angular_diameter_distance_Mpc'] = lambda zv, *p: _dm(zv, *p) / (1 + zv)
+            code_dict['get_angular_diameter_distance_Mpc'] = 'DC/(1+z)'
 
-                    term = dm_val ** 2 * 299792.458 * z_val / hz_val
+            def _dv(z_val, *params):
+                """Volume-averaged distance D_V valid for scalars or arrays."""
+                dm_val = _dm(z_val, *params)
+                hz_val = hz_fn(z_val, *params)
 
-                    if np.isscalar(z_val):
-                        if z_val > 0 and hz_val != 0:
-                            return term ** (1 / 3) if term >= 0 else np.nan
-                        return 0.0
+                term = dm_val ** 2 * 299792.458 * z_val / hz_val
 
-                    result = np.zeros_like(z_val, dtype=float)
-                    mask = (z_val > 0) & (hz_val != 0)
-                    term_arr = term[mask]
-                    result[mask] = np.where(term_arr >= 0, np.power(term_arr, 1/3), np.nan)
-                    return result
+                if np.isscalar(z_val):
+                    if z_val > 0 and hz_val != 0:
+                        return term ** (1 / 3) if term >= 0 else np.nan
+                    return 0.0
 
-                funcs['get_DV_Mpc'] = _dv
-                code_dict['get_DV_Mpc'] = '((DC^2 * c*z/H)^1/3)'
+                result = np.zeros_like(z_val, dtype=float)
+                mask = (z_val > 0) & (hz_val != 0)
+                term_arr = term[mask]
+                result[mask] = np.where(term_arr >= 0, np.power(term_arr, 1/3), np.nan)
+                return result
+
+            funcs['get_DV_Mpc'] = _dv
+            code_dict['get_DV_Mpc'] = '((DC^2 * c*z/H)^1/3)'
             logger.info("Derived distance functions from symbolic Hz_expression in model JSON.")
 
             # --- Derive sound horizon at recombination (r_s) ---
-            rs_expr_str = model_data.get('rs_expression')
             param_names = {p['python_var'] for p in model_data['parameters']}
             param_index = {p['python_var']: i for i, p in enumerate(model_data['parameters'])}
 
-            if rs_expr_str:
-                try:
-                    rs_sym = sp.sympify(rs_expr_str, locals=local_dict)
-                    used = {str(s) for s in rs_sym.free_symbols} - {'z'}
-                    missing_rs = used - param_names
-                    if missing_rs:
-                        raise ValueError(
-                            "Parameter '" + "', '".join(missing_rs) + "' used in rs_expression is not defined in model parameters."
-                        )
-                    rs_fn_sym = sp.lambdify(tuple(param_syms), rs_sym, 'numpy')
-                    funcs['get_sound_horizon_rs_Mpc'] = lambda *p: float(rs_fn_sym(*p))
-                    code_dict['get_sound_horizon_rs_Mpc'] = str(rs_sym)
-                    model_data['valid_for_bao'] = True
-                    logger.info("Derived r_s from symbolic rs_expression in model JSON.")
-                except Exception as e:
-                    error_handler.report_error(f"Failed to parse rs_expression: {e}")
-                    raise ValueError(f"Failed to parse rs_expression: {e}") from e
-            elif {'Ob', 'Og', 'z_recomb'}.issubset(param_names) and 'get_Hz_per_Mpc' in funcs:
+            if {'Ob', 'Og', 'z_recomb'}.issubset(param_names) and 'get_Hz_per_Mpc' in funcs:
                 ob_i = param_index['Ob']
                 og_i = param_index['Og']
                 zr_i = param_index['z_recomb']
@@ -150,25 +131,12 @@ def generate_callables(cache_path):
                     Ob_val = params[ob_i]
                     Og_val = params[og_i]
                     zrec = params[zr_i]
-
-                    def sound_speed(zv):
-                        return 299792.458 / np.sqrt(3 * (1 + 3 * Ob_val / (4 * Og_val) / (1 + zv)))
-
-                    h0_val = hz_fn(0.0, *params)
-
-                    def hz_with_radiation(zv):
-                        base = hz_fn(zv, *params)
-                        rad_sq = (h0_val ** 2) * Og_val * (1 + zv) ** 4
-                        return np.sqrt(base ** 2 + rad_sq)
-
-                    integrand = lambda zv: sound_speed(zv) / hz_with_radiation(zv)
-                    result, _ = quad(integrand, zrec, np.inf, limit=100)
-                    return result
+                    return cosmology_utils.compute_sound_horizon(zrec, hz_fn, params, Ob_val, Og_val)
 
                 funcs['get_sound_horizon_rs_Mpc'] = _rs
-                code_dict['get_sound_horizon_rs_Mpc'] = 'quad(c_s/H(z))'
+                code_dict['get_sound_horizon_rs_Mpc'] = 'compute_sound_horizon'
                 model_data['valid_for_bao'] = True
-                logger.info("Derived r_s using fallback integral from Hz_expression.")
+                logger.info("Derived r_s using standard compute_sound_horizon routine.")
             else:
                 print(
                     "\u26A0\uFE0F  Model does not define all necessary parameters for computing r_s. BAO scaling may be unavailable."
@@ -183,27 +151,6 @@ def generate_callables(cache_path):
         )
         model_data['valid_for_distance_metrics'] = False
         model_data['valid_for_bao'] = False
-    for name, expr in model_data.get('equations', {}).items():
-        if not isinstance(expr, str):
-            # Textual equations are preserved but not parsed into functions
-            continue
-        try:
-            sym_expr = sp.sympify(expr, locals=local_dict)
-            fn = sp.lambdify((z, *param_syms), sym_expr, 'numpy')
-            # Quick sanity evaluation using midpoints of parameter bounds
-            try:
-                mid_params = tuple(sum(p['bounds']) / 2.0 for p in model_data['parameters'])
-                test_args = (0.5,) + mid_params
-                fn(*test_args)
-            except Exception as eval_e:
-                error_handler.report_error(
-                    f"Generated function '{name}' raised an error when tested: {eval_e}"
-                )
-            funcs[name] = fn
-            code_dict[name] = str(sym_expr)
-        except Exception as e:
-            error_handler.report_error(f"Failed to parse equation '{name}': {e}")
-            raise ValueError(f"Failed to parse equation '{name}': {e}") from e
 
     if (
         'distance_modulus_model' not in funcs

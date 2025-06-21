@@ -10,13 +10,14 @@
 - Hotfix 4: Multiprocessing's `freeze_support` is now called using a local import after the dependency check to prevent NoneType errors.
 - Hotfix 5: Removed automatic dependency installer. The suite now instructs users to run `pip install` manually when packages are missing.
 - Hotfix 7: Models now provide a symbolic `Hz_expression` compiled at runtime for distance calculations.
-- Hotfix 8: When `rs_expression` is absent but `Ob`, `Og` and `z_recomb` exist, the suite derives `get_sound_horizon_rs_Mpc` using SciPy's `quad` integral.
+ - Hotfix 8: Sound horizon `r_s` is always computed via `compute_sound_horizon`; any `rs_expression` in JSON is ignored.
 - Hotfix 9: Parser auto-discovery fixed to look in the top-level `parsers` directory.
 - Phase 6 update: Added placeholder parsers for CMB, gravitational waves and standard sirens; expanded JSON schema.
 - Data sources restructured as data/<type>/<source>; parsers reside with their data.
 - Hotfix 10: Data source names are now human-readable and selection lists show a descriptive title.
 - Hotfix 11: Added GPL-3.0 license and documented license section in README.
 - Hotfix 12: Replaced GPL-3.0 with Copernican Suite License and updated README accordingly.
+- Hotfix 14: The `equations` block in models is kept for documentation only and never overrides generated observables.
 # Copernican Suite Development Guide
 
 This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications.
@@ -35,7 +36,7 @@ ensures the expected functions are present and callable.
 
 ## 2. Directory Layout
 ```
-models/           - JSON model definitions with embedded theory text and equations. Optional `.md` files may accompany a model for readability.
+models/           - JSON model definitions with embedded theory text and equations (for reference only). Optional `.md` files may accompany a model for readability.
 engines/          - Computational backends (SciPy CPU by default)
 data/             - Observation files under ``data/<type>/<source>/``
 output/           - Generated plots and CSV tables
@@ -56,7 +57,7 @@ To install the suite as a package, run `pip install .` at the repository root. U
 
 ## 4. JSON Model System
 As of version 1.5f every cosmological model is described by a single JSON file
-`cosmo_model_*.json`. All theory text, equations and parameters reside in this
+`cosmo_model_*.json`. All theory text, parameters and optional equations (for documentation) reside in this
 file. Markdown files may mirror the JSON for readability, but models are
 distributed only as JSON. No permanent Python plugins exist in the repository.
 Models are automatically discovered
@@ -64,11 +65,14 @@ by scanning for `cosmo_model_*.json` files in the `models/` directory.
 
 ### 4.1 JSON Model File
 The schema requires `model_name`, `version`, `parameters` and `equations`.
-Optional fields such as `unit` and `latex_name` provide additional context.
+Optional fields such as `unit` and `latex_name` provide additional context. The
+`equations` section is preserved for human reference only and never affects
+calculations.
 `scripts/model_parser.py` validates the JSON and writes a sanitized copy to
-`models/cache/`. `scripts/model_coder.py` transforms the equations into NumPy
-callables. These callables are validated by `scripts/engine_interface.py` before
-being passed to the chosen engine.
+`models/cache/`. `scripts/model_coder.py` ignores the `equations` block (kept for
+theory documentation) and instead derives all observables from `Hz_expression`
+using built-in integrals. The generated functions are validated by
+`scripts/engine_interface.py` before being passed to the chosen engine.
 `model_parser.py` ignores unrecognized keys and copies them to the cache, so
 new metadata can be added without breaking older JSON files.
 

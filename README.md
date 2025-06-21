@@ -28,7 +28,7 @@ plugged in with minimal effort.
 The suite compares the reference \(\Lambda\)CDM model with alternative theories
 provided by the user. Each model is defined entirely by a JSON file
 `cosmo_model_*.json` under `./models/`. This JSON stores all theory text,
-equations and parameters and serves as the sole source of truth. Optional
+equations (for documentation only) and parameters and serves as the sole source of truth. Optional
 Markdown summaries may exist for human readers but are ignored by the
 software.
 Users select models, datasets, and computational engines at runtime through a
@@ -72,7 +72,7 @@ Run `pip install .` from the repository root to build and install the `copernica
 ## Directory Layout
 ```
 models/           - JSON model definitions containing all theory text and
-                    equations. Optional `.md` files may provide human-readable
+                    equations for documentation only. Optional `.md` files may provide human-readable
                     summaries but are not required.
 engines/          - Computational backends (SciPy CPU and Numba with automatic fallback)
 data/             - Observation data organized as ``data/<type>/<source>/``
@@ -109,9 +109,8 @@ software. To create a new model:
    summary of the same content. The suite does not read this file.
 3. Include an `Hz_expression` string defining `H(z)` in terms of your model
    parameters. This enables BAO and distance-based predictions.
-4. Optionally provide an `rs_expression` for the sound horizon at recombination
-   or include the parameters `Ob`, `Og` and `z_recomb`. The suite will then
-   derive `r_s` automatically using a numerical integral.
+4. Include the parameters `Ob`, `Og` and `z_recomb` so the standard
+   `compute_sound_horizon` routine can derive `r_s` automatically.
 5. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
 The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
@@ -123,16 +122,13 @@ auto-generates the necessary Python functions.
   "model_name": "My Model",
   "version": "1.0",
   "Hz_expression": "H0 * sympy.sqrt(Om*(1+z)**3 + Ol)",
-  "rs_expression": "integrate(c_s/H, (z, z_recomb, inf))",
   "parameters": [
     {"name": "H0", "python_var": "H0", "bounds": [50, 100]},
     {"name": "Ob", "python_var": "Ob", "bounds": [0.01, 0.1]},
     {"name": "Og", "python_var": "Og", "bounds": [1e-5, 1e-4]},
     {"name": "z_recomb", "python_var": "z_recomb", "bounds": [1000, 1200]}
   ],
-  "equations": {
-    "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
-  },
+  "equations": {},
   "cmb": {},
   "gravitational_waves": {},
   "standard_sirens": {},
@@ -147,11 +143,12 @@ Initial guesses are derived automatically from each parameter's bounds.
 `model_parser.py` accepts unknown keys and simply copies them to the sanitized
 cache. This allows the domain-specific JSON language to evolve while remaining
 compatible with older models.
-`model_parser.py` validates this structure and `model_coder.py` translates the
-equations into NumPy-ready callables. When `Hz_expression` is present it is
+`model_parser.py` validates this structure and `model_coder.py` translates
+`Hz_expression` into NumPy-ready callables. The `equations` block is kept only
+for theory documentation and is never executed. When `Hz_expression` is present it is
 compiled into `get_Hz_per_Mpc` and related distance functions used by
-`engine_interface.py`. If an `rs_expression` or the parameters `Ob`, `Og` and
-`z_recomb` are provided, a callable `get_sound_horizon_rs_Mpc` is also generated.
+`engine_interface.py`. When `Ob`, `Og` and `z_recomb` are present the
+standard `compute_sound_horizon` routine provides `get_sound_horizon_rs_Mpc`.
 
 ## Development Notes
 All changes must include a `DEV NOTE` at the top of modified source files (excluding `README.md` and `LICENSE.md`) explaining
