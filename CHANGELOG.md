@@ -8,6 +8,7 @@
 - Consolidated model metadata: ``theory`` block removed and equations moved
   under ``equations``.
 - Documentation updated to reflect declarative model design.
+- Development protocol revised: DEV NOTE markers removed in favor of documenting changes in `CHANGELOG.md` or `AGENTS.md`.
 
 ## Version 1.5.0 (Development Release)
 - Data files and parsers reorganized under ``data/<type>/<source>/``.
