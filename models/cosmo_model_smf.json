@@ -1,10 +1,12 @@
 {
   "model_name": "StationaryMetronomicFieldCosmology",
   "version": "1.0",
+  "description": "Stationary Metronomic Field Cosmology (SMF) is a fixed-universe framework in which all cosmological redshifts and distance indicators arise from photon interactions with a primordial, spatially-uniform metronomic field.  Rather than invoking cosmic expansion or a dark sector, SMF attributes the observed Hubble diagram and BAO scale to a time-dependent modulation in an unchanging cosmos.  The same four parameters (amplitude A, decay rate α, frequency ω, phase φ₀) that control the field’s oscillatory attractor behavior produce both the smooth secular ‘acceleration’ signature and the small oscillatory residuals seen in Type Ia supernovae and baryon acoustic observations.  SMF thus offers a self-contained, stationary alternative to ΛCDM, preserves QAUC’s successful fit to data, and eliminates the need for dark energy or dark matter.",
+  "abstract": "SMF replaces the Big Bang expansion paradigm with a forever-static universe pervaded by an oscillatory attractor field.  Photons redshift as they traverse this field, yielding distance–redshift relations identical in functional form to those of an expanding universe but driven by a metronomic interaction rather than spacetime stretching.  A single set of attractor parameters accounts for both the luminosity distances of supernovae and the characteristic BAO scale in galaxy clustering, all without invoking any new matter or energy components.",
   "Hz_expression": "H0*(1 + A*exp(-alpha*z)*cos(omega*z + phi0))",
   "parameters": [
     {
-      "name": "Hubble‐scale rate",
+      "name": "Hubble-scale rate",
       "python_var": "H0",
       "bounds": [50.0, 80.0],
       "unit": "km/s/Mpc",
@@ -55,16 +57,15 @@
   ],
   "equations": {
     "sne": [
-      "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H0*(1 + A e^{-\\alpha z'}\\cos(\\omega z' + \\varphi_0))}$$",
+      "$$d_L(z) = (1+z) \\displaystyle\\int_0^z \\frac{c\\,dz'}{H0*(1 + A e^{-\\alpha z'}\\cos(\\omega z' + \\varphi_0))}$$",
       "$$\\mu(z) = 5\\log_{10}\\bigl[d_L(z)/{\\rm Mpc}\\bigr] + 25$$"
     ],
     "bao": [
-      "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H0*(1 + A e^{-\\alpha z'}\\cos(\\omega z' + \\varphi_0))}$$",
+      "$$D_M(z) = \\displaystyle\\int_0^z \\frac{c\\,dz'}{H0*(1 + A e^{-\\alpha z'}\\cos(\\omega z' + \\varphi_0))}$$",
       "$$D_H(z) = \\frac{c}{H0*(1 + A e^{-\\alpha z}\\cos(\\omega z + \\varphi_0))}$$",
       "$$D_V(z) = \\bigl[D_M(z)^2 D_H(z)\\bigr]^{1/3}$$"
     ]
   },
   "rs_expression": "rs",
-  "predicts_bao": true,
-  "abstract": "A static-universe model in which all redshift and distance effects come from a primordial, oscillatory field disturbance—no expansion, no dark sector."
+  "predicts_bao": true
 }
