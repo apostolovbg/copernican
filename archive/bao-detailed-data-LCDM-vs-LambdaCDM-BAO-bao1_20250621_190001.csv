@@ -1,0 +1,14 @@
+name,redshift,observable_type,value,error,rs_fiducial_Mpc,pred_lcdm,chi2_contrib_lcdm,pred_LambdaCDM,chi2_contrib_LambdaCDM
+6dFGS z=0.106,0.106,DV_over_rs,2.976,0.133,,2.74674,2.97146,2.74674,2.97146
+SDSS MGS z=0.15,0.15,DV_over_rs,4.48,0.168,,3.83533,14.725,3.83533,14.725
+BOSS DR12 Consensus z=0.38,0.38,DV_over_rs,9.1758,0.1453,,9.01126,1.28242,9.01126,1.28242
+BOSS DR12 Consensus z=0.51,0.51,DV_over_rs,12.3631,0.1341,,11.5572,36.1183,11.5572,36.1183
+BOSS DR12 Consensus z=0.61,0.61,DV_over_rs,14.3097,0.1345,,13.3386,52.1264,13.3386,52.1264
+WiggleZ z=0.44,0.44,DV_over_rs,11.54,0.56,,10.2195,5.56021,10.2195,5.56021
+WiggleZ z=0.60,0.6,DV_over_rs,14.94,0.68,,13.1671,6.79728,13.1671,6.79728
+WiggleZ z=0.73,0.73,DV_over_rs,16.92,0.58,,15.2869,7.9279,15.2869,7.9279
+eBOSS DR14 Quasar z=1.52,1.52,DV_over_rs,25.94,1.14,,24.1668,2.41939,24.1668,2.41939
+eBOSS DR16 Quasar z=1.48 (DM/rs),1.48,DM_over_rs,30.35,0.84,,27.544,11.159,27.544,11.159
+eBOSS DR16 Quasar z=1.48 (DH/rs),1.48,DH_over_rs,13.26,0.53,,12.0706,5.03649,12.0706,5.03649
+eBOSS DR16 Lyman-alpha Combined z=2.334 (DM/rs),2.334,DM_over_rs,37.5,1.1,,35.9895,1.88562,35.9895,1.88562
+eBOSS DR16 Lyman-alpha Combined z=2.334 (DH/rs),2.334,DH_over_rs,8.88,0.19,,8.10575,16.6057,8.10575,16.6057
