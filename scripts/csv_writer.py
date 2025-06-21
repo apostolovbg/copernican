@@ -1,8 +1,5 @@
 # Copernican Suite CSV Writer
 """CSV writing utilities for the Copernican Suite."""
-# DEV NOTE (v1.6): Implementations migrated from ``output_manager.py`` to make
-# this module self-contained. CSV output formatting remains unchanged.
-
 from typing import Any
 import os
 import numpy as np

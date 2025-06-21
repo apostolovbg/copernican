@@ -1,5 +1,3 @@
-# DEV NOTE (v1.5g): Placeholder parser moved under ``data/gw/placeholder`` and
-# updated to use the new source-based loader interface.
 import logging
 import os
 from scripts.data_loaders import register_gw_parser

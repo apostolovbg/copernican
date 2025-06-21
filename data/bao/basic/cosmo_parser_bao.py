@@ -1,6 +1,3 @@
-# DEV NOTE (v1.5g): Parser relocated to ``data/bao/basic`` and now automatically
-# loads ``bao1.json`` from this directory.
-# DEV NOTE (v1.5g hotfix): Registered with a human-friendly source name.
 
 import os
 import pandas as pd

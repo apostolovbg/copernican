@@ -1,5 +1,4 @@
 {
-  "dev_note": "DEV NOTE: QESF model strictly following USMFv2 schema; analytic H(z) expression normalized so H(0)=H_A; environmental δ(z) enters distances but omitted from Hz_expression for analytic tractability; v1.0.",
   "model_name": "QESF",
   "version": "1.0",
   "predicts_bao": true,

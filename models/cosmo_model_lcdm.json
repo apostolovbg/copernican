@@ -1,5 +1,4 @@
 {
-  "dev_note": "DEV NOTE: added placeholder theory structure and removed md reference. v1.5f hotfix 11: removed placeholder distance_modulus_model; relies on auto-generated function. Prior hotfix 8 added baryon, photon parameters.",
   "model_name": "LambdaCDM",
   "version": "1.0",
   "Hz_expression": "H0*sympy.sqrt(Omega_m0*(1+z)**3 + (1 - Omega_m0))",

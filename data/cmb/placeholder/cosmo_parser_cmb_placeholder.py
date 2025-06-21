@@ -1,5 +1,3 @@
-# DEV NOTE (v1.5g): Placeholder parser moved under ``data/cmb/placeholder`` and
-# updated to use the new source-based loader interface.
 import os
 import logging
 from scripts.data_loaders import register_cmb_parser

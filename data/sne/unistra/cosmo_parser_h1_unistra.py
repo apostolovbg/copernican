@@ -1,7 +1,3 @@
-# DEV NOTE (v1.5g): Parser relocated to ``data/sne/unistra``. It now loads
-# ``tablef3.dat`` from this directory automatically and the deprecated
-# h2 parser has been removed from the project.
-# DEV NOTE (v1.5g hotfix): Registered with a human-friendly source name.
 
 import os
 import pandas as pd

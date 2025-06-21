@@ -1,5 +1,4 @@
 {
-  "dev_note": "DEV NOTE: inserted description field summarizing QAUC after the version.",
   "model_name": "QuantumAttractorUnifiedCosmology",
   "version": "1.0",
   "description": "Quantum Attractor Unified Cosmology (QAUC) enhances ΛCDM with a scalar–tensor attractor whose exponential envelope and sinusoidal modulation alter the dark-energy sector. Ordinary matter and radiation follow their standard evolution while the oscillating dark-energy wave hints at a link between acceleration and quantum topology.",
