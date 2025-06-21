@@ -70,7 +70,7 @@ def parse_model_json(path, cache_dir):
     path = Path(path)
     try:
         with path.open("r") as f:
-            data = json.load(f)  # NOTE: key_equations are purely for theory documentation. All observables are auto-generated from Hz_expression and the standard rs() routine.
+            data = json.load(f)
     except (OSError, json.JSONDecodeError) as e:
         error_handler.report_error(f"Failed to read model JSON '{path}': {e}")
         raise
