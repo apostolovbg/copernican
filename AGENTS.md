@@ -84,13 +84,15 @@ Use the following structure when creating new models:
   "model_name": "My Model",
   "version": "1.0",
   "parameters": [
-    {"name": "H0", "python_var": "H0", "initial_guess": 70.0, "bounds": [50, 100]}
+    {"name": "H0", "python_var": "H0", "bounds": [50, 100]}
   ],
   "equations": {
     "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
   }
 }
 ```
+Initial guesses are computed automatically as the midpoint of each
+parameter's bounds.
 
 `model_parser.py` and `model_coder.py` handle validation and code generation
 automatically; no manual Python implementation is required.

@@ -7,7 +7,6 @@
     {
       "name": "H_A",
       "python_var": "H_A",
-      "initial_guess": 70.0,
       "bounds": [
         50.0,
         100.0
@@ -18,7 +17,6 @@
     {
       "name": "t0_age_Gyr",
       "python_var": "t0_age_Gyr",
-      "initial_guess": 14.0,
       "bounds": [
         10.0,
         20.0
@@ -29,7 +27,6 @@
     {
       "name": "p_kin",
       "python_var": "p_kin",
-      "initial_guess": 0.8,
       "bounds": [
         0.1,
         2.0
@@ -40,7 +37,6 @@
     {
       "name": "Omega_m0_fid",
       "python_var": "Omega_m0_fid",
-      "initial_guess": 0.31,
       "bounds": [
         0.2,
         0.4
@@ -51,7 +47,6 @@
     {
       "name": "Omega_b0_fid",
       "python_var": "Omega_b0_fid",
-      "initial_guess": 0.0486,
       "bounds": [
         0.03,
         0.07
@@ -62,7 +57,6 @@
     {
       "name": "Ob",
       "python_var": "Ob",
-      "initial_guess": 0.0486,
       "bounds": [
         0.01,
         0.1
@@ -71,7 +65,6 @@
     {
       "name": "Og",
       "python_var": "Og",
-      "initial_guess": 5e-05,
       "bounds": [
         1e-05,
         0.0001
@@ -80,33 +73,30 @@
     {
       "name": "z_recomb",
       "python_var": "z_recomb",
-      "initial_guess": 1089,
       "bounds": [
         1000,
         1200
       ]
     }
   ],
-  "equations": {},
-  "abstract": "USMFv3b kinematic simplifies shrinking matter model with power law index p_kin giving analytic distance solutions",
-  "description": "Combines the kinematic shrinking law with a standard sound horizon formula enabling rapid testing with SNe Ia and BAO data",
-  "notes": "Additional notes available.",
-  "title": "The Unified Shrinking Matter Framework (USMF) Version 3b - Kinematic",
-  "date": "2025-06-11",
-  "theory": {
-    "abstract": "This paper details the \"Kinematic\" version of the Unified Shrinking Matter Framework (USMF), a cosmological model that posits the apparent accelerated expansion of the Universe is an observational effect arising from matter shrinking over cosmic time. USMFv3b replaces the complex, computationally expensive formulation of previous versions with a simple, elegant power-law describing the shrinking process. This \"kinematic law\" is defined by a single index, `$p_{kin}$`, and leads to fully analytic solutions for cosmological distance measures, dramatically increasing computational speed and model robustness. By coupling this late-time kinematic model with a standard, physically-motivated calculation for the sound horizon (`$r_s$`) at the drag epoch, USMFv3b provides a consistent and powerful framework for testing against both Type Ia Supernovae (SNe Ia) and Baryon Acoustic Oscillation (BAO) data.",
-    "key_equations": [
-      "**For Supernovae (SNe Ia) Fitting:**",
+  "equations": {
+    "sne": [
       "$$\\alpha(t) = \\left( \\frac{t_0}{t} \\right)^{p_{kin}}$$",
       "$$1+z = \\alpha(t_e) \\implies t_e(z) = \\frac{t_0}{(1+z)^{1/p_{kin}}}$$",
       "$$r(z) = \\frac{c \\cdot t_0}{p_{kin}+1} \\left[ 1 - (1+z)^{-\\frac{p_{kin}+1}{p_{kin}}} \\right]$$",
       "$$d_L(z) = |r(z)| \\cdot (1+z)^2 \\cdot \\frac{70.0}{H_A}$$",
-      "$$\\mu = 5 \\log_{10}(d_L) + 25$$",
-      "**For Baryon Acoustic Oscillation (BAO) Analysis:**",
+      "$$\\mu = 5 \\log_{10}(d_L) + 25$$"
+    ],
+    "bao": [
       "$$D_A(z) = |r(z)| \\cdot \\frac{70.0}{H_A}$$",
       "$$H_{USMF}(z) = \\frac{p_{kin}}{t_0} (1+z)^{1/p_{kin}}$$",
       "$$D_V(z) = \\left[ (1+z)^2 D_A(z)^2 \\frac{cz}{H(z)} \\right]^{1/3}$$",
       "$$r_s \\approx \\frac{55.154 \\exp[-72.3(\\Omega_{m0}h^2 - 0.14)^2]}{\\sqrt{(\\Omega_{m0}h^2)^{0.25351}(\\Omega_{b0}h^2)^{0.12807}}} \\quad (\\text{Eisenstein & Hu 1998})$$"
     ]
-  }
+  },
+  "abstract": "This paper details the \"Kinematic\" version of the Unified Shrinking Matter Framework (USMF), a cosmological model that posits the apparent accelerated expansion of the Universe is an observational effect arising from matter shrinking over cosmic time. USMFv3b replaces the complex, computationally expensive formulation of previous versions with a simple, elegant power-law describing the shrinking process. This \"kinematic law\" is defined by a single index, `$p_{kin}$`, and leads to fully analytic solutions for cosmological distance measures, dramatically increasing computational speed and model robustness. By coupling this late-time kinematic model with a standard, physically-motivated calculation for the sound horizon (`$r_s$`) at the drag epoch, USMFv3b provides a consistent and powerful framework for testing against both Type Ia Supernovae (SNe Ia) and Baryon Acoustic Oscillation (BAO) data.",
+  "description": "Combines the kinematic shrinking law with a standard sound horizon formula enabling rapid testing with SNe Ia and BAO data",
+  "notes": "Additional notes available.",
+  "title": "The Unified Shrinking Matter Framework (USMF) Version 3b - Kinematic",
+  "date": "2025-06-11"
 }

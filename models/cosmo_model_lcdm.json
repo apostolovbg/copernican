@@ -7,7 +7,6 @@
     {
       "name": "H0",
       "python_var": "H0",
-      "initial_guess": 67.7,
       "bounds": [
         50.0,
         100.0
@@ -17,7 +16,6 @@
     {
       "name": "Omega_m0",
       "python_var": "Omega_m0",
-      "initial_guess": 0.31,
       "bounds": [
         0.05,
         0.7
@@ -26,7 +24,6 @@
     {
       "name": "Omega_b0",
       "python_var": "Omega_b0",
-      "initial_guess": 0.0486,
       "bounds": [
         0.01,
         0.1
@@ -35,7 +32,6 @@
     {
       "name": "Ob",
       "python_var": "Ob",
-      "initial_guess": 0.0486,
       "bounds": [
         0.01,
         0.1
@@ -44,7 +40,6 @@
     {
       "name": "Og",
       "python_var": "Og",
-      "initial_guess": 5e-05,
       "bounds": [
         1e-05,
         0.0001
@@ -53,7 +48,6 @@
     {
       "name": "z_recomb",
       "python_var": "z_recomb",
-      "initial_guess": 1089,
       "bounds": [
         1000,
         1200
@@ -63,6 +57,5 @@
   "equations": {},
   "abstract": "LambdaCDM model describes a flat universe dominated by cold dark matter and a cosmological constant serving as the reference model",
   "description": "Uses H(z)=H0*sqrt(Omega_m0(1+z)^3+Omega_Lambda0). Luminosity distance integrates c/H. BAO scale DV uses angular distance and H(z).",
-  "notes": "Additional notes available.",
-  "theory": {}
+  "notes": "Additional notes available."
 }

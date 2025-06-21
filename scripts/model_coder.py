@@ -1,4 +1,6 @@
 """Model coder that turns validated JSON into callable Python functions."""
+# DEV NOTE (hotfix): uses parameter bounds to test equations and ignores
+# non-string entries under ``equations``.
 # DEV NOTE (v1.5f hotfix 7): Parses ``Hz_expression`` from each model and
 # generates a callable ``get_Hz_per_Mpc`` along with optional distance
 # functions. The generated SymPy expressions are written back to the cache.
@@ -182,12 +184,16 @@ def generate_callables(cache_path):
         model_data['valid_for_distance_metrics'] = False
         model_data['valid_for_bao'] = False
     for name, expr in model_data.get('equations', {}).items():
+        if not isinstance(expr, str):
+            # Textual equations are preserved but not parsed into functions
+            continue
         try:
             sym_expr = sp.sympify(expr, locals=local_dict)
             fn = sp.lambdify((z, *param_syms), sym_expr, 'numpy')
-            # Quick sanity evaluation to catch division by zero or bad symbols
+            # Quick sanity evaluation using midpoints of parameter bounds
             try:
-                test_args = (0.5,) + tuple(p['initial_guess'] for p in model_data['parameters'])
+                mid_params = tuple(sum(p['bounds']) / 2.0 for p in model_data['parameters'])
+                test_args = (0.5,) + mid_params
                 fn(*test_args)
             except Exception as eval_e:
                 error_handler.report_error(

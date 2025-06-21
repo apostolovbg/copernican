@@ -1,4 +1,5 @@
 """Interface to bridge generated model functions with existing engines."""
+# DEV NOTE (hotfix): initial guesses now computed from parameter bounds.
 # DEV NOTE (v1.5e): Validates plugin interfaces and presents generated
 # functions in the same format as classic Python plugins.
 # DEV NOTE (v1.5f hotfix 8): Supports ``valid_for_bao`` flag which skips
@@ -38,7 +39,9 @@ def build_plugin(model_data, func_dict):
     plugin.PARAMETER_NAMES = [p['python_var'] for p in model_data['parameters']]
     plugin.PARAMETER_LATEX_NAMES = [p.get('latex_name', p['name']) for p in model_data['parameters']]
     plugin.PARAMETER_UNITS = [p.get('unit', '') for p in model_data['parameters']]
-    plugin.INITIAL_GUESSES = [p['initial_guess'] for p in model_data['parameters']]
+    plugin.INITIAL_GUESSES = [
+        sum(p['bounds']) / 2.0 for p in model_data['parameters']
+    ]
     plugin.PARAMETER_BOUNDS = [tuple(p['bounds']) for p in model_data['parameters']]
     plugin.FIXED_PARAMS = {}
     plugin.valid_for_distance_metrics = model_data.get('valid_for_distance_metrics', True)
