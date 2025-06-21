@@ -112,6 +112,8 @@ software. To create a new model:
 4. Optionally provide an `rs_expression` for the sound horizon at recombination
    or include the parameters `Ob`, `Og` and `z_recomb`. The suite will then
    derive `r_s` automatically using a numerical integral.
+5. Parameter initial guesses are calculated automatically as the midpoint of
+   each parameter's bounds.
 The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
 auto-generates the necessary Python functions.
 
@@ -123,10 +125,10 @@ auto-generates the necessary Python functions.
   "Hz_expression": "H0 * sympy.sqrt(Om*(1+z)**3 + Ol)",
   "rs_expression": "integrate(c_s/H, (z, z_recomb, inf))",
   "parameters": [
-    {"name": "H0", "python_var": "H0", "initial_guess": 70.0, "bounds": [50, 100]}
-    ,{"name": "Ob", "python_var": "Ob", "initial_guess": 0.0486, "bounds": [0.01, 0.1]},
-    {"name": "Og", "python_var": "Og", "initial_guess": 5e-5, "bounds": [1e-5, 1e-4]},
-    {"name": "z_recomb", "python_var": "z_recomb", "initial_guess": 1089, "bounds": [1000, 1200]}
+    {"name": "H0", "python_var": "H0", "bounds": [50, 100]},
+    {"name": "Ob", "python_var": "Ob", "bounds": [0.01, 0.1]},
+    {"name": "Og", "python_var": "Og", "bounds": [1e-5, 1e-4]},
+    {"name": "z_recomb", "python_var": "z_recomb", "bounds": [1000, 1200]}
   ],
   "equations": {
     "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
@@ -138,10 +140,10 @@ auto-generates the necessary Python functions.
   "description": "longer explanation with optional equations",
   "notes": "any additional remarks",
   "title": "Human friendly model title",
-  "date": "2025-06-20",
-  "theory": {}
+  "date": "2025-06-20"
 }
 ```
+Initial guesses are derived automatically from each parameter's bounds.
 `model_parser.py` accepts unknown keys and simply copies them to the sanitized
 cache. This allows the domain-specific JSON language to evolve while remaining
 compatible with older models.
