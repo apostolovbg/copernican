@@ -2,7 +2,7 @@
 """
 Copernican Suite - Main Orchestrator.
 """
-# DEV NOTE (v1.5.1): Version updated and documentation revised. Automatic
+# DEV NOTE (v1.6): Release version. Documentation and constants updated. Automatic
 # parameter guess generation uses bounds midpoints.
 # DEV NOTE (v1.5.0): Adopted semantic versioning; constant updated accordingly.
 # DEV NOTE (v1.5f): Added placeholders for future data types and bumped version.
@@ -43,7 +43,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.5.1"
+COPERNICAN_VERSION = "1.6"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
