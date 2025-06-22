@@ -41,6 +41,11 @@ def build_plugin(model_data, func_dict):
     plugin.FIXED_PARAMS = {}
     plugin.valid_for_distance_metrics = model_data.get('valid_for_distance_metrics', True)
     plugin.valid_for_bao = model_data.get('valid_for_bao', True)
+    eqs = model_data.get('equations', {})
+    plugin.MODEL_EQUATIONS_LATEX_SN = eqs.get('sne', [])
+    plugin.MODEL_EQUATIONS_LATEX_BAO = eqs.get('bao', [])
+    if 'filename' in model_data:
+        plugin.MODEL_FILENAME = model_data['filename']
     for name, func in func_dict.items():
         setattr(plugin, name, func)
     validate_plugin(plugin)
