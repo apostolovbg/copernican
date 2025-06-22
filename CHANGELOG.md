@@ -15,6 +15,7 @@ Example:
 - 2025-06-21: Legacy DEV NOTE headers removed from source files and notes migrated to `CHANGELOG.md` (AI assistant)
 - 2025-06-22: Plugin now exposes model equations and filename (AI assistant)
 - 2025-06-22: Plugin filename stored during JSON loading (AI assistant)
+- 2025-06-22: Plots now include a timestamped footer with comparison details (AI assistant)
 ## Version 1.5.1 (Development Release)
 - 2025-06-21: Added CHANGELOG template and updated docs to reference it (AI assistant)
 - Removed ``initial_guess`` from JSON models; parameter guesses now computed

@@ -34,6 +34,8 @@ software.
 Users select models, datasets, and computational engines at runtime through a
 simple command line interface. Results are saved as plots and CSV files in the
 `./output/` directory.
+Each generated plot now includes a footer noting the comparison details,
+Copernican Suite version and a timestamp.
 
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages and
