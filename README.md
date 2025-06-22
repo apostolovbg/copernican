@@ -187,6 +187,11 @@ listed as `MAJOR.MINOR.PATCH`, where breaking changes increment `MAJOR`, new
 features increment `MINOR` and bug fixes increment `PATCH`. Package builds use
 `setuptools_scm` to derive the version from Git tags.
 
+The `MINOR` value only increases when the suite gains a new data type or a
+similarly significant feature, such as introducing CMB support or a new engine.
+Routine bug fixes and small feature restorations bump the `PATCH` value without
+altering `MAJOR.MINOR`.
+
 ## 4. Workflow Overview
 
 1.  **Dependency Check**: `copernican.py` scans for missing packages and

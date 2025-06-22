@@ -22,6 +22,7 @@ Example:
 - Added standardized plot footer with run metadata.
 - start.command cleaned up.
 - 2025-06-22: Documented stable plotting style and algorithms (AI assistant)
+- 2025-06-22: Clarified when MINOR vs PATCH increments occur in README (AI assistant)
 
 ## Version 1.5.1 (Development Release)
 - 2025-06-21: Added CHANGELOG template and updated docs to reference it (AI assistant)
