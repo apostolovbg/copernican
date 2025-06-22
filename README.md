@@ -61,7 +61,7 @@ Under the hood the program follows a clear pipeline:
    completes.
 
 ## Dependencies
-This project requires **Python 3.8+** and relies on `numpy`, `scipy`, `matplotlib`,
+This project requires **Python 3.13.1 or later+** and relies on `numpy`, `scipy`, `matplotlib`,
 `pandas`, `sympy` and `jsonschema`. If any of these are missing the dependency check
 will print the full installation command `pip install numpy scipy matplotlib
 pandas sympy jsonschema`. Future engines may also depend on `numba` or
