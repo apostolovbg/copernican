@@ -19,6 +19,7 @@ Example:
 - 2025-06-22: Plots now include a timestamped footer with comparison details (AI assistant)
 ## Version 1.6.1 (Patch Release)
 - Restored model equations in plot info boxes.
+- 2025-06-23: Fixed plot crashes when model equations used display-mode dollar signs (AI assistant)
 - Added standardized plot footer with run metadata.
 - start.command cleaned up.
 - 2025-06-22: Documented stable plotting style and algorithms (AI assistant)
