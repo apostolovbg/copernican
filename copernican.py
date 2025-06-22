@@ -27,7 +27,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.6"
+COPERNICAN_VERSION = "1.6.1"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
@@ -235,7 +235,10 @@ def main_workflow():
         cache_dir = os.path.join(models_dir, 'cache')
         cache_path = model_parser.parse_model_json(json_path, cache_dir)
         func_dict, parsed = model_coder.generate_callables(cache_path)
-        return engine_interface.build_plugin(parsed, func_dict)
+        plugin = engine_interface.build_plugin(parsed, func_dict)
+        # Record the original model filename for downstream modules and logs.
+        plugin.MODEL_FILENAME = os.path.basename(json_path)
+        return plugin
 
     global lcdm
     lcdm = _load_lcdm_from_json()
@@ -278,6 +281,8 @@ def main_workflow():
                 try:
                     func_dict, parsed = model_coder.generate_callables(cache_path)
                     alt_model_plugin = engine_interface.build_plugin(parsed, func_dict)
+                    # Keep track of which JSON file produced this plugin.
+                    alt_model_plugin.MODEL_FILENAME = os.path.basename(json_path)
                     logger.info(f"Loaded JSON model: {parsed.get('model_name')}")
                 except Exception as e:
                     logger.error(f"Error generating model from JSON: {e}", exc_info=True)
@@ -359,6 +364,7 @@ def main_workflow():
                 alt_model_full_results,
                 lcdm,
                 alt_model_plugin,
+                sne_data_df,
                 plot_dir=OUTPUT_DIR,
             )
         

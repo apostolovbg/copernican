@@ -4,7 +4,7 @@ Development notes were previously kept at the top of this file. That history now
 lives in `CHANGELOG.md`. New modifications must update the changelog, and legacy
 `dev_note` headers embedded in source files have been fully phased out.
 
-This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current stable release is **version 1.6**.
+This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current stable release is **version 1.6.1**.
 
 ## 1. Program Overview
 The suite evaluates cosmological models against SNe Ia and BAO data. Support for
@@ -28,6 +28,9 @@ AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
 ```
 Files in `data/` are read-only and must not be modified by AI-driven changes.
+
+The current plotting style and algorithms are considered stable. Do not alter
+them without explicit instruction.
 
 ## 3. Dependency Installation
 `copernican.py` scans all project files for imported modules. If any required
