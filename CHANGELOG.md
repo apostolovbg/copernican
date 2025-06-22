@@ -10,17 +10,11 @@ Add one line for each substantive commit or pull request directly under the late
 
 Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
-## Version 1.6 (Stable Release)
-- 2025-06-22: Fixed trailing text in start.command and ensured newline (AI assistant)
-- 2025-06-22: First stable release with reliable SNe Ia and BAO calculations (AI assistant)
-- 2025-06-21: Legacy DEV NOTE headers removed from source files and notes migrated to `CHANGELOG.md` (AI assistant)
-- 2025-06-21: Plugin now exposes model equations and filename (AI assistant)
-- 2025-06-21: Plugin filename stored during JSON loading (AI assistant)
-- 2025-06-21: Plots now include a timestamped footer with comparison details (AI assistant)
-## Version 1.6.2 (Patch Release)
-- 2025-06-21: Added LCDM equations and sound horizon formula (AI assistant)
 ## Version 1.6.3 (Patch Release)
 - 2025-06-21: Restored `pyproject.toml` and silenced Pandas whitespace warning (AI assistant)
+- 2025-06-22: Declared Python 3.8+ requirement in pyproject and README (AI assistant)
+## Version 1.6.2 (Patch Release)
+- 2025-06-21: Added LCDM equations and sound horizon formula (AI assistant)
 ## Version 1.6.1 (Patch Release)
 - Restored model equations in plot info boxes.
 - 2025-06-21: Fixed plot crashes when model equations used display-mode dollar signs (AI assistant)
@@ -28,7 +22,13 @@ Example:
 - start.command cleaned up.
 - 2025-06-21: Documented stable plotting style and algorithms (AI assistant)
 - 2025-06-21: Clarified when MINOR vs PATCH increments occur in README (AI assistant)
-
+## Version 1.6 (Stable Release)
+- 2025-06-22: Fixed trailing text in start.command and ensured newline (AI assistant)
+- 2025-06-22: First stable release with reliable SNe Ia and BAO calculations (AI assistant)
+- 2025-06-21: Legacy DEV NOTE headers removed from source files and notes migrated to `CHANGELOG.md` (AI assistant)
+- 2025-06-21: Plugin now exposes model equations and filename (AI assistant)
+- 2025-06-21: Plugin filename stored during JSON loading (AI assistant)
+- 2025-06-21: Plots now include a timestamped footer with comparison details (AI assistant)
 ## Version 1.5.1 (Development Release)
 - 2025-06-20: Added CHANGELOG template and updated docs to reference it (AI assistant)
 - Removed ``initial_guess`` from JSON models; parameter guesses now computed
