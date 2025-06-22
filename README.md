@@ -52,7 +52,7 @@ Under the hood the program follows a clear pipeline:
    point temporary cache files are cleaned automatically.
 
 ## Quick Start
-1. Ensure Python 3.8 or later is available. The suite requires `numpy`, `scipy`,
+1. Ensure Python 3.13.1 or later is available. The suite requires `numpy`, `scipy`,
    `matplotlib`, `pandas`, `sympy` and `jsonschema`. If any package is
    missing the program will print the command to install them.
 2. Run `python3 copernican.py` and follow the prompts to choose a model,
