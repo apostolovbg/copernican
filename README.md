@@ -52,7 +52,7 @@ Under the hood the program follows a clear pipeline:
    point temporary cache files are cleaned automatically.
 
 ## Quick Start
-1. Ensure Python 3 is available. The suite requires `numpy`, `scipy`,
+1. Ensure Python 3.8 or later is available. The suite requires `numpy`, `scipy`,
    `matplotlib`, `pandas`, `sympy` and `jsonschema`. If any package is
    missing the program will print the command to install them.
 2. Run `python3 copernican.py` and follow the prompts to choose a model,
@@ -61,8 +61,8 @@ Under the hood the program follows a clear pipeline:
    completes.
 
 ## Dependencies
-The program relies on `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`,
-`jsonschema`. If any of these are missing the dependency check
+This project requires **Python 3.8+** and relies on `numpy`, `scipy`, `matplotlib`,
+`pandas`, `sympy` and `jsonschema`. If any of these are missing the dependency check
 will print the full installation command `pip install numpy scipy matplotlib
 pandas sympy jsonschema`. Future engines may also depend on `numba` or
 GPU libraries.
