@@ -364,6 +364,7 @@ def main_workflow():
                 alt_model_full_results,
                 lcdm,
                 alt_model_plugin,
+                sne_data_df,
                 plot_dir=OUTPUT_DIR,
             )
         

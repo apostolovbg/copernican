@@ -7,8 +7,9 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .utils import generate_filename, ensure_dir_exists
+from .utils import generate_filename, ensure_dir_exists, get_timestamp
 from .logger import get_logger
+from copernican import COPERNICAN_VERSION
 
 
 def format_model_summary_text(model_plugin: Any, is_sne_summary: bool,
@@ -208,6 +209,15 @@ def plot_hubble_diagram(
         bbox=bbox_alt,
     )
 
+    footer = (
+        f"\u039bCDM against {alt_model_plugin.MODEL_NAME} "
+        f"{alt_model_plugin.MODEL_FILENAME}, {dataset_name}, "
+        f"{sne_data_df.attrs.get('source_key')}, "
+        f"created with Copernican Suite {COPERNICAN_VERSION}, "
+        f"{get_timestamp()}"
+    )
+    fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"])
+
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
     filename = generate_filename("hubble-plot", dataset_name, "png", model_name=model_comparison_name)
     try:
@@ -225,6 +235,7 @@ def plot_bao_observables(
     alt_model_full_results: Any,
     lcdm_plugin: Any,
     alt_model_plugin: Any,
+    sne_data_df: Any,
     plot_dir: str = ".",
 ) -> None:
     """Generate and save a plot of BAO observables versus redshift."""
@@ -337,6 +348,15 @@ def plot_bao_observables(
         wrap=True,
         bbox=bbox_alt,
     )
+
+    footer = (
+        f"\u039bCDM against {alt_model_plugin.MODEL_NAME} "
+        f"{alt_model_plugin.MODEL_FILENAME}, {dataset_name}, "
+        f"{sne_data_df.attrs.get('source_key')}, "
+        f"created with Copernican Suite {COPERNICAN_VERSION}, "
+        f"{get_timestamp()}"
+    )
+    fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"])
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
     filename = generate_filename("bao-plot", dataset_name, "png", model_name=model_comparison_name)
