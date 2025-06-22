@@ -1,120 +1,31 @@
-{
-  "model_name": "QESF",
-  "version": "1.0",
-  "predicts_bao": true,
-  "Hz_expression": "H_A*(p_inf + Delta_p*exp(-beta*z))/(p_inf + Delta_p)",
-  "parameters": [
-    {
-      "name": "H_A",
-      "python_var": "H_A",
-      "bounds": [50.0, 100.0],
-      "unit": "",
-      "latex_name": "$H_A$"
-    },
-    {
-      "name": "p_inf",
-      "python_var": "p_inf",
-      "bounds": [0.0, 2.0],
-      "unit": "",
-      "latex_name": "$p_{\\infty}$"
-    },
-    {
-      "name": "Delta_p",
-      "python_var": "Delta_p",
-      "bounds": [0.0, 2.0],
-      "unit": "",
-      "latex_name": "$\\Delta p$"
-    },
-    {
-      "name": "beta",
-      "python_var": "beta",
-      "bounds": [0.1, 5.0],
-      "unit": "",
-      "latex_name": "$\\beta$"
-    },
-    {
-      "name": "delta0",
-      "python_var": "delta0",
-      "bounds": [0.0, 0.2],
-      "unit": "",
-      "latex_name": "$\\delta_0$"
-    },
-    {
-      "name": "gamma",
-      "python_var": "gamma",
-      "bounds": [0.1, 5.0],
-      "unit": "",
-      "latex_name": "$\\gamma$"
-    },
-    {
-      "name": "V0",
-      "python_var": "V0",
-      "bounds": [1e-50, 1e-44],
-      "unit": "GeV^4",
-      "latex_name": "$V_0$"
-    },
-    {
-      "name": "V1",
-      "python_var": "V1",
-      "bounds": [1e-50, 1e-46],
-      "unit": "GeV^4",
-      "latex_name": "$V_1$"
-    },
-    {
-      "name": "kappa",
-      "python_var": "kappa",
-      "bounds": [0.1, 10.0],
-      "unit": "",
-      "latex_name": "$\\kappa$"
-    },
-    {
-      "name": "lambda",
-      "python_var": "lam",
-      "bounds": [0.1, 10.0],
-      "unit": "",
-      "latex_name": "$\\lambda$"
-    },
-    {
-      "name": "xi",
-      "python_var": "xi",
-      "bounds": [0.0, 0.1],
-      "unit": "",
-      "latex_name": "$\\xi$"
-    },
-    {
-      "name": "Ob",
-      "python_var": "Ob",
-      "bounds": [0.01, 0.1]
-    },
-    {
-      "name": "Og",
-      "python_var": "Og",
-      "bounds": [1e-05, 0.0001]
-    },
-    {
-      "name": "z_recomb",
-      "python_var": "z_recomb",
-      "bounds": [1000, 1200]
-    }
-  ],
-  "equations": {
-    "sne": [
-      "$$1+z = \\frac{\\alpha(t_e)}{\\alpha(t_0)}$$",
-      "$$r = \\int_{t_e}^{t_0} \\frac{c}{\\alpha(t')}\\,dt'$$",
-      "$$d_L(z) = |r| \\cdot (1+z)^2 \\cdot \\frac{70.0}{H_A}$$",
-      "$$\\mu = 5 \\log_{10}(d_L) + 25$$"
-    ],
-    "bao": [
-      "$$D_A(z) = |r| \\cdot \\frac{70.0}{H_A}$$",
-      "$$H(z) = H_A\\,(p_{\\infty} + \\Delta p\\,e^{-\\beta z})/(p_{\\infty} + \\Delta p)$$",
-      "$$D_V(z) = \\left[ (1+z)^2\\,D_A(z)^2\\,\\frac{c\\,z}{H(z)} \\right]^{1/3}$$",
-      "$$r_s = \\int_{z_{\\rm rec}}^{\\infty} \\frac{c_s(z')}{H(z')}\\,dz'$$"
-    ]
-  },
-  "abstract": "The Quantum–Environmental Shrinkage Field (QESF) cosmology introduces a light scalar φ whose redshift-dependent index p(z)=p_inf+Δp e^{−βz} and environmental modulation δ(z) modify local rulers. Both distances and the sound horizon r_s are computed self-consistently, yielding improved SNe Ia and BAO fits and a clear path toward quantum unification via φ–F² coupling.",
-  "description": "### 1. Effective Scale Factor\nDefine $$\\alpha(z)=[a_{bg}(z)]^{p(z)}[1+\\delta(z)],$$ with\n$$p(z)=p_{\\infty}+\\Delta p\\,e^{-\\beta z},\\quad\\delta(z)=\\delta_0\\frac{\\rho_{loc}(z)}{\\bar\\rho(z)}[1-e^{-\\gamma z}].$$\n\n### 2. Scalar-Field Dynamics\nLagrangian:\n$$\\mathcal{L}=-\\tfrac12(\\partial\\varphi)^2 - V(\\varphi) - \\tfrac14B(\\varphi)F_{\\mu\\nu}F^{\\mu\\nu} - \\sum_\\psi\\bar\\psi\\gamma^\\mu D_\\mu\\psi,$$\nwith\n$$V(\\varphi)=V_0[1-e^{-\\kappa\\varphi}]^2 + V_1e^{-\\lambda\\varphi},\\quad B(\\varphi)=e^{\\xi\\varphi}.$$\n\n### 3. Sound Horizon\nCompute\n$$r_s=\\int_{z_{\\rm rec}}^{\\infty}\\frac{c_s(z')}{H(z')}dz',\\quad c_s(z)=\\frac{c}{\\sqrt{3[1+R(z)]}},\\;R=\\frac{3\\rho_b}{4\\rho_\\gamma e^{\\xi\\varphi}}.$$",
-  "notes": "Schema-compliant QESF model based on USMFv2 template; analytic H(z) ensuring H(0)=H_A; δ(z) enters integrals but omitted from Hz_expression for tractability.",
-  "title": "Quantum–Environmental Shrinkage Field Cosmology",
-  "date": "2025-06-21",
-  "example_results": "- **Dataset:** UniStra_SNe+BAO\n- **Best-fit χ²_SNe:** 1208.5\n- **Best-fit χ²_BAO:** 133.2"
-}
+# DEV NOTE (v1.5.0): Added setuptools_scm for Git-based versioning.
+# DEV NOTE (v1.5g): Added packaging metadata and entry point.
+[build-system]
+requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "copernican-suite"
+description = "Evaluate cosmological models using observational data."
+dynamic = ["version"]
+authors = [{name = "Copernican Developers"}]
+license = {file = "LICENSE.md"}
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "pandas",
+    "sympy",
+    "jsonschema",
+]
+
+[project.scripts]
+copernican = "copernican:main_workflow"
+
+[tool.setuptools]
+packages = ["scripts", "engines"]
+py-modules = ["copernican"]
+
+
+[tool.setuptools_scm]
+version_scheme = "no-guess-dev"

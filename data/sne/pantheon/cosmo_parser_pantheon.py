@@ -18,7 +18,7 @@ def parse_pantheon_plus_mu_cov_h2(data_dir, **kwargs):
     cov_filepath = os.path.join(data_dir, "Pancm.cov")
 
     try:
-        temp_df = pd.read_csv(filepath, delim_whitespace=True, comment='#')
+        temp_df = pd.read_csv(filepath, sep='\s+', engine='python', comment='#')
         data_df = pd.DataFrame()
         col_map = {
             'Name': ['CID','SNID','ID','NAME'],

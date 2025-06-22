@@ -1,5 +1,5 @@
-**Version:** 1.6.2
-**Last Updated:** 2025-06-21
+**Version:** 1.6.3
+**Last Updated:** 2025-06-24
 engines/          - Computational backends (SciPy CPU by default; optional Numba acceleration with fallback)
 
 The Copernican Suite is a Python toolkit for testing cosmological models against

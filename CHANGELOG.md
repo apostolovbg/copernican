@@ -19,6 +19,8 @@ Example:
 - 2025-06-22: Plots now include a timestamped footer with comparison details (AI assistant)
 ## Version 1.6.2 (Patch Release)
 - 2025-06-24: Added LCDM equations and sound horizon formula (AI assistant)
+## Version 1.6.3 (Patch Release)
+- 2025-06-24: Restored `pyproject.toml` and silenced Pandas whitespace warning (AI assistant)
 ## Version 1.6.1 (Patch Release)
 - Restored model equations in plot info boxes.
 - 2025-06-23: Fixed plot crashes when model equations used display-mode dollar signs (AI assistant)
