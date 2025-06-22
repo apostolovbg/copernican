@@ -4,27 +4,27 @@
 <!-- DEV NOTE (v1.5.1): Removed theory block and auto-generated parameter guesses. -->
 
 ## How to Log Changes
-Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: always check what is the current date when you are logging last changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Use this template:
+Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: please, always check what is the current date when you are logging last changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Use this template:
 
 `- YYYY-MM-DD: short summary (author)`
 
 Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
 ## Version 1.6.3 (Patch Release)
-- 2025-06-21: Restored `pyproject.toml` and silenced Pandas whitespace warning (AI assistant)
+- 2025-06-22: Restored `pyproject.toml` and silenced Pandas whitespace warning (AI assistant)
 - 2025-06-22: Declared Python 3.8+ requirement in pyproject and README (AI assistant)
 ## Version 1.6.2 (Patch Release)
-- 2025-06-21: Added LCDM equations and sound horizon formula (AI assistant)
+- 2025-06-22: Added LCDM equations and sound horizon formula (AI assistant)
 ## Version 1.6.1 (Patch Release)
 - Restored model equations in plot info boxes.
-- 2025-06-21: Fixed plot crashes when model equations used display-mode dollar signs (AI assistant)
+- 2025-06-22: Fixed plot crashes when model equations used display-mode dollar signs (AI assistant)
 - Added standardized plot footer with run metadata.
 - start.command cleaned up.
 - 2025-06-21: Documented stable plotting style and algorithms (AI assistant)
 - 2025-06-21: Clarified when MINOR vs PATCH increments occur in README (AI assistant)
 ## Version 1.6 (Stable Release)
-- 2025-06-22: Fixed trailing text in start.command and ensured newline (AI assistant)
-- 2025-06-22: First stable release with reliable SNe Ia and BAO calculations (AI assistant)
+- 2025-06-21: Fixed trailing text in start.command and ensured newline (AI assistant)
+- 2025-06-21: First stable release with reliable SNe Ia and BAO calculations (AI assistant)
 - 2025-06-21: Legacy DEV NOTE headers removed from source files and notes migrated to `CHANGELOG.md` (AI assistant)
 - 2025-06-21: Plugin now exposes model equations and filename (AI assistant)
 - 2025-06-21: Plugin filename stored during JSON loading (AI assistant)
