@@ -29,6 +29,9 @@ CHANGELOG.md      - Release history
 ```
 Files in `data/` are read-only and must not be modified by AI-driven changes.
 
+The current plotting style and algorithms are considered stable. Do not alter
+them without explicit instruction.
+
 ## 3. Dependency Installation
 `copernican.py` scans all project files for imported modules. If any required
 package is missing, the program prints a `pip install` command listing **all**

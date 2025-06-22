@@ -165,6 +165,9 @@ understand the reasoning behind each step. The documentation in `README.md` and
 `AGENTS.md` must be updated whenever behavior or structure changes.
 See `CHANGELOG.md` for the complete project history.
 
+**Note:** The current plotting style and algorithms are considered stable. Do
+not modify them unless explicitly instructed.
+
 ## AI Development Laws
 1. **Record each modification in `CHANGELOG.md` using the changelog template.**
 2. **Comment code extensively** to clarify complex logic or algorithms.
