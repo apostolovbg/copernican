@@ -4,7 +4,7 @@
 <!-- DEV NOTE (v1.5.1): Removed theory block and auto-generated parameter guesses. -->
 
 ## How to Log Changes
-Add one line for each substantive commit or pull request directly under the latest version header. Use this template:
+Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: always check what is the current date when you are logging last changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Use this template:
 
 `- YYYY-MM-DD: short summary (author)`
 
