@@ -10,7 +10,7 @@ description = "Evaluate cosmological models using observational data."
 dynamic = ["version"]
 authors = [{name = "Copernican Developers"}]
 license = {file = "LICENSE.md"}
-requires-python = ">=3.8"
+requires-python = ">=3.13.1"
 dependencies = [
     "numpy",
     "scipy",
