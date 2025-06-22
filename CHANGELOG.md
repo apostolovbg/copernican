@@ -48,7 +48,6 @@ Example:
 - Hotfix: Prompts list friendly dataset names with a clear title for every selection.
 
 ## Version 1.5f (Development Release)
-## Version 1.5f (Development Release)
 - Completed Phase 6: JSON schema extended with optional fields for CMB,
   gravitational waves and standard sirens. Added placeholder parser modules
   and loader functions for these data types.
