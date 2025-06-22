@@ -21,6 +21,7 @@ Example:
 - Restored model equations in plot info boxes.
 - Added standardized plot footer with run metadata.
 - start.command cleaned up.
+- 2025-06-22: Documented stable plotting style and algorithms (AI assistant)
 
 ## Version 1.5.1 (Development Release)
 - 2025-06-21: Added CHANGELOG template and updated docs to reference it (AI assistant)
