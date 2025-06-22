@@ -1,7 +1,8 @@
 {
   "model_name": "LambdaCDM",
   "version": "1.0",
-  "Hz_expression": "H0*sympy.sqrt(Omega_m0*(1+z)**3 + (1 - Omega_m0))",
+  "description": "Uses H(z)=H0*sqrt(Omega_m0(1+z)^3+Omega_Lambda0). Luminosity distance integrates c/H. BAO scale DV uses angular distance and H(z).",
+  "abstract": "LambdaCDM model describes a flat universe dominated by cold dark matter and a cosmological constant serving as the reference model",
   "parameters": [
     {
       "name": "H0",
@@ -53,10 +54,20 @@
       ]
     }
   ],
-  "equations": {},
-  "rs_expression": "147.0",
+  "Hz_expression": "H0*sympy.sqrt(Omega_m0*(1+z)**3 + (1 - Omega_m0))",
+  "equations": {
+    "sne": [
+      "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$\\mu(z) = 5\\log_{10}[d_L(z)/{\\rm Mpc}] + 25$$"
+    ],
+    "bao": [
+      "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$D_H(z) = \\frac{c}{H(z)}$$",
+      "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
+    ]
+  },
+  "rs_expression": "44.5*sympy.log(9.83/(Omega_m0*(H0/100)**2))/sympy.sqrt(1 + 10*(Omega_b0*(H0/100)**2)**0.75)",
   "predicts_bao": true,
-  "abstract": "LambdaCDM model describes a flat universe dominated by cold dark matter and a cosmological constant serving as the reference model",
-  "description": "Uses H(z)=H0*sqrt(Omega_m0(1+z)^3+Omega_Lambda0). Luminosity distance integrates c/H. BAO scale DV uses angular distance and H(z).",
   "notes": "Additional notes available."
 }
+
