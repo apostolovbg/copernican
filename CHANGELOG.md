@@ -12,7 +12,7 @@ Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
 ## Version 1.6.3 (Patch Release)
 - 2025-06-22: Restored `pyproject.toml` and silenced Pandas whitespace warning (AI assistant)
-- 2025-06-22: Declared Python 3.8+ requirement in pyproject and README (AI assistant)
+- 2025-06-22: Declared Python 3.13.1+ requirement in pyproject and README (AI assistant)
 ## Version 1.6.2 (Patch Release)
 - 2025-06-22: Added LCDM equations and sound horizon formula (AI assistant)
 ## Version 1.6.1 (Patch Release)
