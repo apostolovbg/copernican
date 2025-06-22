@@ -1,4 +1,4 @@
-**Version:** 1.6
+**Version:** 1.6.1
 **Last Updated:** 2025-06-21
 engines/          - Computational backends (SciPy CPU by default; optional Numba acceleration with fallback)
 
@@ -34,6 +34,8 @@ software.
 Users select models, datasets, and computational engines at runtime through a
 simple command line interface. Results are saved as plots and CSV files in the
 `./output/` directory.
+Each generated plot now includes a footer noting the comparison details,
+Copernican Suite version and a timestamp.
 
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages and
@@ -163,6 +165,9 @@ understand the reasoning behind each step. The documentation in `README.md` and
 `AGENTS.md` must be updated whenever behavior or structure changes.
 See `CHANGELOG.md` for the complete project history.
 
+**Note:** The current plotting style and algorithms are considered stable. Do
+not modify them unless explicitly instructed.
+
 ## AI Development Laws
 1. **Record each modification in `CHANGELOG.md` using the changelog template.**
 2. **Comment code extensively** to clarify complex logic or algorithms.
@@ -181,6 +186,11 @@ The project now follows [Semantic Versioning](https://semver.org/). Versions are
 listed as `MAJOR.MINOR.PATCH`, where breaking changes increment `MAJOR`, new
 features increment `MINOR` and bug fixes increment `PATCH`. Package builds use
 `setuptools_scm` to derive the version from Git tags.
+
+The `MINOR` value only increases when the suite gains a new data type or a
+similarly significant feature, such as introducing CMB support or a new engine.
+Routine bug fixes and small feature restorations bump the `PATCH` value without
+altering `MAJOR.MINOR`.
 
 ## 4. Workflow Overview
 
