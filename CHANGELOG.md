@@ -12,25 +12,25 @@ Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
 ## Version 1.6 (Stable Release)
 - 2025-06-22: Fixed trailing text in start.command and ensured newline (AI assistant)
-- 2025-06-21: First stable release with reliable SNe Ia and BAO calculations (AI assistant)
+- 2025-06-22: First stable release with reliable SNe Ia and BAO calculations (AI assistant)
 - 2025-06-21: Legacy DEV NOTE headers removed from source files and notes migrated to `CHANGELOG.md` (AI assistant)
-- 2025-06-22: Plugin now exposes model equations and filename (AI assistant)
-- 2025-06-22: Plugin filename stored during JSON loading (AI assistant)
-- 2025-06-22: Plots now include a timestamped footer with comparison details (AI assistant)
+- 2025-06-21: Plugin now exposes model equations and filename (AI assistant)
+- 2025-06-21: Plugin filename stored during JSON loading (AI assistant)
+- 2025-06-21: Plots now include a timestamped footer with comparison details (AI assistant)
 ## Version 1.6.2 (Patch Release)
-- 2025-06-24: Added LCDM equations and sound horizon formula (AI assistant)
+- 2025-06-21: Added LCDM equations and sound horizon formula (AI assistant)
 ## Version 1.6.3 (Patch Release)
-- 2025-06-24: Restored `pyproject.toml` and silenced Pandas whitespace warning (AI assistant)
+- 2025-06-21: Restored `pyproject.toml` and silenced Pandas whitespace warning (AI assistant)
 ## Version 1.6.1 (Patch Release)
 - Restored model equations in plot info boxes.
-- 2025-06-23: Fixed plot crashes when model equations used display-mode dollar signs (AI assistant)
+- 2025-06-21: Fixed plot crashes when model equations used display-mode dollar signs (AI assistant)
 - Added standardized plot footer with run metadata.
 - start.command cleaned up.
-- 2025-06-22: Documented stable plotting style and algorithms (AI assistant)
-- 2025-06-22: Clarified when MINOR vs PATCH increments occur in README (AI assistant)
+- 2025-06-21: Documented stable plotting style and algorithms (AI assistant)
+- 2025-06-21: Clarified when MINOR vs PATCH increments occur in README (AI assistant)
 
 ## Version 1.5.1 (Development Release)
-- 2025-06-21: Added CHANGELOG template and updated docs to reference it (AI assistant)
+- 2025-06-20: Added CHANGELOG template and updated docs to reference it (AI assistant)
 - Removed ``initial_guess`` from JSON models; parameter guesses now computed
   automatically from bounds.
 - Consolidated model metadata: ``theory`` block removed and equations moved
@@ -38,7 +38,7 @@ Example:
 - Documentation updated to reflect declarative model design.
 - Development protocol revised: DEV NOTE markers removed in favor of documenting changes in `CHANGELOG.md` or `AGENTS.md`.
 - Schema documentation updated: `abstract` and `description` are now mandatory and all contributors summarize updates in `CHANGELOG.md`.
-- 2025-06-21: Added explicit `rs_expression` to `cosmo_model_lcdm.json` and migrated legacy documentation notes to `CHANGELOG.md` (AI assistant)
+- 2025-06-20: Added explicit `rs_expression` to `cosmo_model_lcdm.json` and migrated legacy documentation notes to `CHANGELOG.md` (AI assistant)
 
 ## Version 1.5.0 (Development Release)
 - Data files and parsers reorganized under ``data/<type>/<source>/``.
