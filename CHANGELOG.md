@@ -11,6 +11,7 @@ Add one line for each substantive commit or pull request directly under the late
 Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
 ## Version 1.6 (Stable Release)
+- 2025-06-22: Fixed trailing text in start.command and ensured newline (AI assistant)
 - 2025-06-21: First stable release with reliable SNe Ia and BAO calculations (AI assistant)
 - 2025-06-21: Legacy DEV NOTE headers removed from source files and notes migrated to `CHANGELOG.md` (AI assistant)
 - 2025-06-22: Plugin now exposes model equations and filename (AI assistant)
