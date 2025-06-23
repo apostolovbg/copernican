@@ -12,6 +12,9 @@ Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
 ## Version 1.6.4 (Patch Release)
 - 2025-06-23: Added numerical quadrature support for Integral expressions (AI assistant)
+## Version 1.6.5 (Patch Release)
+- 2025-06-23: Fixed plot info boxes to display equations from the selected alternative theory and ensured Greek letters render correctly (AI assistant)
+- 2025-06-23: Updated README and AGENTS documentation for corrected JSON schema and version bump (AI assistant)
 ## Version 1.6.3 (Patch Release)
 - 2025-06-22: Restored `pyproject.toml` and silenced Pandas whitespace warning (AI assistant)
 - 2025-06-22: Declared Python 3.13.1+ requirement in pyproject and README (AI assistant)

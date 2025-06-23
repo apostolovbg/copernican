@@ -6,10 +6,19 @@ import logging
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import re
 
 from .utils import generate_filename, ensure_dir_exists, get_timestamp
 from .logger import get_logger
 from copernican import COPERNICAN_VERSION
+
+
+def _wrap_math(text: str) -> str:
+    """Return ``text`` wrapped in dollar signs for MathText rendering."""
+    if text is None:
+        return ""
+    cleaned = re.sub(r'^\$+|\$+$', '', str(text).strip())
+    return f"${cleaned}$" if cleaned else ""
 
 
 def format_model_summary_text(model_plugin: Any, is_sne_summary: bool,
@@ -35,10 +44,11 @@ def format_model_summary_text(model_plugin: Any, is_sne_summary: bool,
         for i, name in enumerate(param_names):
             val = fitted_cosmo_params.get(name)
             latex_name = param_latex_names[i] if i < len(param_latex_names) else name
+            latex_name = _wrap_math(latex_name)
             if val is not None:
                 lines.append(fr"  {latex_name} = ${val:.4g}$")
             else:
-                lines.append(f"  {latex_name} = N/A")
+                lines.append(fr"  {latex_name} = N/A")
     else:
         lines.append("  (Fit failed or parameters unavailable)")
 
@@ -46,7 +56,7 @@ def format_model_summary_text(model_plugin: Any, is_sne_summary: bool,
         lines.append("$\\mathbf{SNe\\ Nuisance\\ Parameters:}$")
         for name, val in fit_results["fitted_nuisance_params"].items():
             name_latex = {"M_B": r"M_B", "alpha_salt2": r"\alpha", "beta_salt2": r"\beta"}.get(name, name)
-            lines.append(fr"  ${name_latex}$ = ${val:.4g}$")
+            lines.append(fr"  {_wrap_math(name_latex)} = ${val:.4g}$")
 
     if is_sne_summary:
         lines.append("$\\mathbf{SNe\\ Fit\\ Statistics:}$")
