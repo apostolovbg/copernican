@@ -27,7 +27,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.6.4"
+COPERNICAN_VERSION = "1.6.5"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
