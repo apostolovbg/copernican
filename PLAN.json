@@ -1,0 +1,94 @@
+{
+  "plan_name": "CMB Integration Plan",
+  "description": "Add full‐fidelity Planck2018 TT+TE+EE χ² fitting to Copernican Suite with pluggable data/engine support",
+  "context": "We have placed the Planck2018-lite ASCII data files (`cl_cmb_plik_v22.dat`, `c_matrix_plik_v22.dat`) and a placeholder parser under `data/cmb/planck2018lite/`.  We need to wire them into the existing Copernican Suite pipeline, implement theory calculation, plotting, and CSV output, keeping the design modular for future CMB datasets.",
+  "steps": [
+    {
+      "step": 1,
+      "title": "Implement CMB parser",
+      "file": "data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py",
+      "tasks": [
+        "Load ℓ and $D_ℓ$ from `cl_cmb_plik_v22.dat`",
+        "Load covariance matrix from `c_matrix_plik_v22.dat`",
+        "Instantiate and return an ObsData/DataSet object with fields { name: 'cmb', x: ells, y: d_obs, cov: cov, units: 'µK²' }"
+      ],
+      "notes": "Follow the pattern of existing SNe & BAO parsers. Do not hardcode paths beyond your local folder."
+    },
+    {
+      "step": 2,
+      "title": "Register parser in data loader",
+      "file": "scripts/data_loaders.py",
+      "tasks": [
+        "Ensure that any `cosmo_parser_cmb_*` under `data/cmb/` is auto-discovered",
+        "Add 'cmb' to the dataset-type dispatch so ObsData with name 'cmb' propagates to the engine"
+      ],
+      "notes": "Data loaders should remain agnostic of source: after parser, pipeline sees uniform ObsData."
+    },
+    {
+      "step": 3,
+      "title": "Extend engine interface for CMB",
+      "file": "engines/engine_interface.py",
+      "tasks": [
+        "Add support for a new dataset type 'cmb' in the main engine dispatch",
+        "Define a method signature `compute_cmb_spectrum(params, ells) -> theory_vector`"
+      ],
+      "notes": "Maintain backwards compatibility: other dataset types (sne, bao) must continue working unchanged."
+    },
+    {
+      "step": 4,
+      "title": "Implement CMB in cosmo_engine_1_4b",
+      "file": "engines/cosmo_engine_1_4b.py",
+      "tasks": [
+        "Import a Boltzmann solver (e.g. CAMB or CLASS Python wrapper)",
+        "Implement `compute_cmb_spectrum(params, ells)` that returns band‐powers $D_ℓ$ at provided ℓ",
+        "In the engine's run loop, when encountering ObsData.name=='cmb', call compute_cmb_spectrum and store the result"
+      ],
+      "notes": "Chebyshev interpolation of theory to exact ℓ bins is acceptable; keep API pluggable for future engines."
+    },
+    {
+      "step": 5,
+      "title": "Plot CMB results",
+      "file": "scripts/plotter.py",
+      "tasks": [
+        "Detect ObsData.name=='cmb' and create a new figure panel",
+        "Plot data points+error bars: $D_{ℓ}^{obs}$ vs ℓ; overlay theory curves for ΛCDM (red) and alternative (blue)",
+        "Add a residual subplot: $D^{obs}-D^{th}$ vs ℓ",
+        "Insert an info box with cosmological parameters and χ²₍CMB₎",
+        "Include standard footer and follow existing color/theme conventions"
+      ],
+      "notes": "Copy the SNe plotting patterns (main+residuals+info box+footer)."
+    },
+    {
+      "step": 6,
+      "title": "CSV output for CMB",
+      "file": "scripts/csv_writer.py",
+      "tasks": [
+        "Detect CMB results and write rows: ℓ, D_obs, D_th_LCDM, D_th_alt, σ = sqrt(cov[ii]), residuals",
+        "Name the CSV file `cmb_planck2018lite.csv` in the output folder"
+      ],
+      "notes": "Match column conventions used for SNe and BAO CSVs."
+    },
+    {
+      "step": 7,
+      "title": "Model definitions and model_coder",
+      "files": ["models/*.json", "model_coder.py"],
+      "tasks": [
+        "No change to CMB math in JSON: the engine plugin handles it",
+        "Optionally add a metadata section under each model JSON: { 'cmb': { 'ell_range': [30,2500] } }"
+      ],
+      "notes": "Leave `model_coder.py` untouched unless you plan to auto-generate solver code—out of scope."
+    },
+    {
+      "step": 8,
+      "title": "Update README & requirements",
+      "file": "README.md",
+      "tasks": [
+        "Document the new data folder `data/cmb/planck2018lite/` and parser naming convention",
+        "Add installation instructions for any new dependency (e.g. `pip install camb`)"
+      ],
+      "notes": "Ensure future CMB datasets only need a parser drop-in."
+    }
+  ],
+  "modularity": "Parsers under `data/cmb/<dataset>/` auto-register; engines must implement `compute_cmb_spectrum`.  Adding new datasets is then just a matter of writing a parser and placing it in its own folder.",
+  "future_extension": "To support e.g. WMAP or new Planck releases, copy-and-edit the parser and data folder; the rest of the pipeline will pick it up automatically."
+}
