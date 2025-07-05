@@ -79,7 +79,15 @@ Use the following structure when creating new models:
     {"name": "H0", "python_var": "H0", "bounds": [50, 100]}
   ],
   "equations": {
-    "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
+    "sne": [
+      "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$\\mu(z) = 5\\log_{10}[d_L(z)/{\\rm Mpc}] + 25$$"
+    ],
+    "bao": [
+      "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$D_H(z) = \\frac{c}{H(z)}$$",
+      "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
+    ]
   }
 }
 ```

@@ -1,5 +1,3 @@
-SPDX-License-Identifier: LicenseRef-CSL-1.4
-
 # Copernican Suite License (CSL) v1.4
 
 > **Effective Date:** June 22, 2025
