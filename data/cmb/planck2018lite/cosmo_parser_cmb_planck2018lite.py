@@ -47,6 +47,15 @@ def parse_planck2018lite(data_dir, **kwargs):
         df.attrs["covariance_matrix_inv"] = cov_inv
         df.attrs["dataset_name_attr"] = "CMB_Planck2018lite"
         df.attrs["is_cmb"] = True
+        # Map the order of CAMB parameters used by the engine
+        df.attrs["param_names"] = [
+            "H0",
+            "ombh2",
+            "omch2",
+            "tau",
+            "As",
+            "ns",
+        ]
         return df
     except Exception as e:
         logger.error(f"Error parsing Planck2018lite data: {e}", exc_info=True)
