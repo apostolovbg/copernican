@@ -16,6 +16,7 @@ Example:
 - 2025-07-05: Re-added integral expression support using numerical quadrature (AI assistant)
 - 2025-07-05: Added `_wrap_math` helper and updated parameter label rendering (AI assistant)
 - 2025-07-05: Updated LICENSE.md with new definitions and effective date (AI assistant)
+- 2025-07-05: Restored 1.6.4 and 1.6.5 changelog entries (AI assistant)
 ## Version 1.7.2-beta (Development Release)
 - 2025-07-05: Fixed Planck covariance parser using np.loadtxt (AI assistant)
 - 2025-07-05: Added default CAMB parameter mapping from SNe fits (AI assistant)
@@ -40,6 +41,13 @@ Example:
 - 2025-07-05: Added CAMB dependency to pyproject and updated docs (AI assistant)
 - 2025-07-05: Corrected CMB spectrum units and Planck parser to use D_l (AI assistant)
 - 2025-07-05: Removed DEV NOTE headers from pyproject.toml (AI assistant)
+
+## Version 1.6.5 (Patch Release)
+- 2025-06-23: Fixed plot info boxes to display equations from the selected alternative theory and ensured Greek letters render correctly (AI assistant)
+- 2025-06-23: Updated README and AGENTS documentation for corrected JSON schema and version bump (AI assistant)
+
+## Version 1.6.4 (Patch Release)
+- 2025-06-23: Added numerical quadrature support for Integral expressions (AI assistant)
 
 ## Version 1.6.3 (Patch Release)
 - 2025-06-22: Restored `pyproject.toml` and silenced Pandas whitespace warning (AI assistant)
