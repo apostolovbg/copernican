@@ -19,6 +19,7 @@ Example:
 - 2025-07-05: Added cmb.param_map metadata to models and documentation (AI assistant)
 - 2025-07-05: Stored CAMB parameter order in Planck 2018 parser (AI assistant)
 - 2025-07-05: Added automatic CMB wrapper and parameter mapping helper (AI assistant)
+- 2025-07-05: run_cmb_analysis now converts fitted parameters with get_camb_params (AI assistant)
 ## Version 1.6.2 (Patch Release)
 - 2025-06-22: Added LCDM equations and sound horizon formula (AI assistant)
 ## Version 1.6.1 (Patch Release)
