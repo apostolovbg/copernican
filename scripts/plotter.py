@@ -62,7 +62,8 @@ def format_model_summary_text(model_plugin: Any, is_sne_summary: bool,
         lines.append("$\\mathbf{SNe\\ Fit\\ Statistics:}$")
         lines.append(fr"  $\chi^2_{{SNe}}$ = {fit_results.get('chi2_min', np.nan):.2f}")
     else:
-        lines.append("$\\mathbf{BAO\\ Test\\ Results:}$")
+        # Display BAO fit statistics in the info box
+        lines.append("$\\mathbf{BAO\\ Fit\\ Results:}$")
         lines.append(fr"  $r_s$ = {kwargs.get('rs_Mpc', np.nan):.2f} Mpc")
         lines.append(fr"  $\chi^2_{{BAO}}$ = {kwargs.get('chi2_bao', np.nan):.2f}")
 
