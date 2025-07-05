@@ -6,7 +6,32 @@ import sympy as sp
 import numpy as np
 from scipy.integrate import quad
 import logging
+from sympy.printing.numpy import NumPyPrinter
 from . import error_handler
+
+
+class QuadPrinter(NumPyPrinter):
+    """NumPy printer that expands ``Integral`` nodes into ``scipy`` quad calls."""
+
+    def _print_Integral(self, expr):
+        # Currently support single-variable integrals of the form (var, a, b).
+        var, a, b = expr.limits[0]
+        integrand = expr.function
+        var_code = self._print(var)
+        a_code = self._print(a)
+        b_code = self._print(b)
+        integrand_code = self._print(integrand)
+        return f"quad(lambda {var_code}: {integrand_code}, {a_code}, {b_code})[0]"
+
+
+def _compile_sympy_expr(sym_expr, args):
+    """Compile a SymPy expression into a callable handling ``Integral`` nodes."""
+    if sym_expr.atoms(sp.Integral):
+        printer = QuadPrinter({'strict': False})
+        code = printer.doprint(sym_expr)
+        lambda_src = f"lambda {', '.join(str(a) for a in args)}: {code}"
+        return eval(lambda_src, {'np': np, 'quad': quad})
+    return sp.lambdify(args, sym_expr, 'numpy')
 
 
 def generate_callables(cache_path):
@@ -49,7 +74,9 @@ def generate_callables(cache_path):
                 raise ValueError(
                     "Parameter '" + "', '".join(missing) + "' used in Hz_expression is not defined in model parameters."
                 )
-            hz_fn = sp.lambdify((z, *param_syms), hz_sym, 'numpy')
+            # Convert SymPy expression to NumPy callable. Any ``Integral`` terms
+            # are replaced with numerical quad evaluations.
+            hz_fn = _compile_sympy_expr(hz_sym, (z, *param_syms))
             funcs['get_Hz_per_Mpc'] = hz_fn
             code_dict['get_Hz_per_Mpc'] = str(hz_sym)
             model_data['valid_for_distance_metrics'] = True
@@ -113,7 +140,8 @@ def generate_callables(cache_path):
                         raise ValueError(
                             "Parameter '" + "', '".join(missing_rs) + "' used in rs_expression is not defined in model parameters."
                         )
-                    rs_fn_sym = sp.lambdify(tuple(param_syms), rs_sym, 'numpy')
+                    # ``Integral`` terms here are also expanded to calls to ``quad``.
+                    rs_fn_sym = _compile_sympy_expr(rs_sym, tuple(param_syms))
                     funcs['get_sound_horizon_rs_Mpc'] = lambda *p: float(rs_fn_sym(*p))
                     code_dict['get_sound_horizon_rs_Mpc'] = str(rs_sym)
                     model_data['valid_for_bao'] = True
@@ -170,7 +198,9 @@ def generate_callables(cache_path):
             continue
         try:
             sym_expr = sp.sympify(expr, locals=local_dict)
-            fn = sp.lambdify((z, *param_syms), sym_expr, 'numpy')
+            # Convert SymPy expression to a callable, numerically evaluating
+            # ``Integral`` constructs if present.
+            fn = _compile_sympy_expr(sym_expr, (z, *param_syms))
             # Quick sanity evaluation using midpoints of parameter bounds
             try:
                 mid_params = tuple(sum(p['bounds']) / 2.0 for p in model_data['parameters'])
