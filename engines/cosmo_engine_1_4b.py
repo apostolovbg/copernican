@@ -227,24 +227,30 @@ def compute_cmb_spectrum(param_dict, ells):
         tau = float(param_dict.get("tau", 0.054))
         As = float(param_dict.get("As", 2.1e-9))
         ns = float(param_dict.get("ns", 0.965))
+        omnuh2 = float(param_dict.get("omnuh2", 0.0))
     except Exception as exc:
         logger.error(f"(compute_cmb_spectrum): Invalid parameter mapping: {exc}")
         return np.full_like(ells, np.nan, dtype=float)
 
     params = camb.CAMBparams()
     params.set_cosmology(H0=H0, ombh2=ombh2, omch2=omch2, tau=tau)
+    # CAMB does not accept ``omnuh2`` directly in ``set_cosmology`` so assign
+    # it explicitly on the params object after calling the routine.
+    params.omnuh2 = omnuh2
     params.InitPower.set_params(As=As, ns=ns)
     params.set_for_lmax(int(np.max(ells)) + 300, lens_potential_accuracy=0)
     try:
         results = camb.get_results(params)
+        # Retrieve raw C_ell spectra in Kelvin^2 then convert to microKelvin^2
         powers = results.get_cmb_power_spectra(
-            params, lmax=int(np.max(ells)), CMB_unit="muK"
+            params, lmax=int(np.max(ells)), raw_cl=True, CMB_unit="K"
         )
+        for key in powers:
+            powers[key] *= 1.0e12  # convert from K^2 to \u03bcK^2
+
         cl_tt = powers["total"][:, 0]
         ell_arr = np.asarray(ells, dtype=int)
-        # CAMB already returns D_ell = ell(ell+1) C_ell / (2pi) when raw_cl=False
-        # (the default). Simply index the array without applying the factor again.
-        dl = cl_tt[ell_arr]
+        dl = cl_tt[ell_arr] * (ell_arr * (ell_arr + 1) / (2 * np.pi))
         return dl
     except Exception as exc:
         logger.error(f"(compute_cmb_spectrum): CAMB failed: {exc}")

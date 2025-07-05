@@ -55,6 +55,7 @@ def build_plugin(model_data, func_dict):
             "H0": "H0",
             "ombh2": "Omega_b0 * (H0/100)**2",
             "omch2": "(Omega_m0 - Omega_b0) * (H0/100)**2",
+            "omnuh2": "Og * (H0/100)**2",
             "tau": 0.054,
             "As": 2.1e-9,
             "ns": 0.965,
