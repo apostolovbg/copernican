@@ -402,6 +402,17 @@ def main_workflow():
                 sne_data_df,
                 plot_dir=OUTPUT_DIR,
             )
+        if cmb_data_df is not None:
+            plotter.plot_cmb_spectrum(
+                cmb_data_df,
+                lcdm_cmb,
+                alt_cmb,
+                lcdm_sne_fit_results,
+                alt_model_sne_fit_results,
+                lcdm,
+                alt_model_plugin,
+                plot_dir=OUTPUT_DIR,
+            )
         
         # The call to the redundant summary CSV has been removed.
         # csv_writer.save_sne_fit_results_csv(...)
@@ -421,6 +432,14 @@ def main_workflow():
                 bao_data_df,
                 lcdm_full_results,
                 alt_model_full_results,
+                alt_model_name=alt_model_plugin.MODEL_NAME,
+                csv_dir=OUTPUT_DIR,
+            )
+        if cmb_data_df is not None:
+            csv_writer.save_cmb_results_csv(
+                cmb_data_df,
+                lcdm_cmb,
+                alt_cmb,
                 alt_model_name=alt_model_plugin.MODEL_NAME,
                 csv_dir=OUTPUT_DIR,
             )
