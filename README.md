@@ -119,6 +119,8 @@ See `cosmo_model_guide.json` for a detailed template.
    numerically with SciPy's `quad` when the model is loaded.
 6. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
+7. `latex_name` values do not require `$` delimiters. Plots automatically wrap
+   parameter names in math mode.
 The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
 auto-generates the necessary Python functions.
 
