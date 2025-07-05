@@ -1,5 +1,3 @@
-# DEV NOTE (v1.5.0): Added setuptools_scm for Git-based versioning.
-# DEV NOTE (v1.5g): Added packaging metadata and entry point.
 [build-system]
 requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]"]
 build-backend = "setuptools.build_meta"

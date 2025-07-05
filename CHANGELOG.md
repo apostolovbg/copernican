@@ -27,6 +27,7 @@ Example:
 - 2025-07-05: Removed obsolete CMB placeholder parser and dataset (AI assistant)
 - 2025-07-05: Added CAMB dependency to pyproject and updated docs (AI assistant)
 - 2025-07-05: Corrected CMB spectrum units and Planck parser to use D_l (AI assistant)
+- 2025-07-05: Removed DEV NOTE headers from pyproject.toml (AI assistant)
 
 ## Version 1.6.3 (Patch Release)
 - 2025-06-22: Restored `pyproject.toml` and silenced Pandas whitespace warning (AI assistant)
