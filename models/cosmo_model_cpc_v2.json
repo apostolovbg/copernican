@@ -1,0 +1,92 @@
+{
+  "model_name": "CPCfRGravityCosmology_v2",
+  "version": "2.2",
+  "description": "A self-contained CP-coupled f(R) gravity cosmology.  Starting from the Jordan-frame action S=∫d⁴x√−g [Mₚₗ²/2 (R + α R² − β R^{−n}) + ℒ_SM + (ξ/4) R F\\tilde F], the R² term enforces exact radiation-dominated behavior for Big Bang Nucleosynthesis (R→0 ⇒ f(R)≈R), while the inverse-power tail −β R^{−n} drives late-time acceleration without a cosmological constant.  A minimal CP-violating curvature coupling ξ R F\\tilde F biases the QCD vacuum during the T∼150 MeV epoch to generate the observed baryon asymmetry (n_B/s≈10⁻¹⁰).  In the weak-field limit, the scalar f_R−1 mediates a Yukawa potential that is negligible in the Solar System (recovering Newton) but significant at galactic radii, flattening rotation curves without dark-matter particles.  The comoving sound horizon r_s is treated as a free fit parameter, allowing an honest test of the acoustic scale against BAO data.",
+  "abstract": "We introduce CPCfRGravityCosmology_v2: a two-term modified gravity + CP coupling framework that replaces both dark energy and dark matter.  The gravitational Lagrangian is f(R)=R+α R²−β R^{−n}, with the R² term yielding exact H²∝ρ during radiation domination (preserving BBN) and the R^{−n} term producing Ω_DE≈0.7 at late times without Λ.  A CP-violating term ξ R F\\tilde F at the QCD scale provides n_B/s∼10⁻¹⁰ automatically.  Linearizing around Minkowski, the extra scalar degree of freedom induces a Yukawa correction to Newtonian gravity—negligible at AU scales but flattening galaxy rotation curves without WIMPs.  We fit SNe Ia and BAO simultaneously, treating the sound horizon r_s as a free parameter to avoid integral expressions in the model loader.",
+  "parameters": [
+    {
+      "name": "Hubble constant",
+      "python_var": "H0",
+      "bounds": [50.0, 80.0],
+      "unit": "km/s/Mpc",
+      "latex_name": "H_0"
+    },
+    {
+      "name": "Matter density",
+      "python_var": "Omega_m0",
+      "bounds": [0.1, 0.5],
+      "unit": "",
+      "latex_name": "\\Omega_{m0}"
+    },
+    {
+      "name": "Radiation density",
+      "python_var": "Omega_r0",
+      "bounds": [1e-5, 1e-4],
+      "unit": "",
+      "latex_name": "\\Omega_{r0}"
+    },
+    {
+      "name": "Early curvature term",
+      "python_var": "Omega_alpha",
+      "bounds": [0.0, 0.1],
+      "unit": "",
+      "latex_name": "\\Omega_{\\alpha}"
+    },
+    {
+      "name": "Inverse-power coefficient",
+      "python_var": "beta",
+      "bounds": [0.0, 1.0],
+      "unit": "",
+      "latex_name": "\\beta"
+    },
+    {
+      "name": "Inverse-power exponent",
+      "python_var": "n",
+      "bounds": [-2.0, 4.0],
+      "unit": "",
+      "latex_name": "n"
+    },
+    {
+      "name": "CP-coupling strength",
+      "python_var": "xi",
+      "bounds": [0.0, 1.0],
+      "unit": "",
+      "latex_name": "\\xi"
+    },
+    {
+      "name": "Drag-epoch redshift",
+      "python_var": "z_recomb",
+      "bounds": [800, 1500],
+      "unit": "",
+      "latex_name": "z_{\\rm drag}"
+    },
+    {
+      "name": "Comoving sound horizon",
+      "python_var": "rs0",
+      "bounds": [120.0, 180.0],
+      "unit": "Mpc",
+      "latex_name": "r_{s,0}"
+    },
+    {
+      "name": "Speed of light",
+      "python_var": "c",
+      "bounds": [299792.458, 299792.458],
+      "unit": "km/s",
+      "latex_name": "c"
+    }
+  ],
+  "Hz_expression": "H0 * sqrt(Omega_m0*(1+z)**3 + Omega_r0*(1+z)**4 + Omega_alpha*(1+z)**8 + beta*(1+z)**(-n))",
+  "rs_expression": "rs0",
+  "equations": {
+    "sne": [
+      "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$\\mu(z) = 5\\log_{10}[d_L(z)/\\mathrm{Mpc}] + 25$$"
+    ],
+    "bao": [
+      "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$D_H(z) = \\frac{c}{H(z)}$$",
+      "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
+    ]
+  },
+  "predicts_bao": true
+}

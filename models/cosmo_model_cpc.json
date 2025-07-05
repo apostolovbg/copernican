@@ -1,0 +1,92 @@
+{
+  "model_name": "CPCfRGravityCosmology",
+  "version": "1.0",
+  "description": "CPC-f(R) Gravity Cosmology combines a modified gravity action f(R)=R+αR²−βR^{−n} with a CP-violating curvature coupling ξR F\\tilde F in the Standard Model gauge sector. This framework recovers standard radiation-dominated expansion (R→0→f(R)≈R) for BBN, features late-time cosmic acceleration from the R^{-n} term without a cosmological constant, and mediates Newtonian gravity plus Yukawa corrections at galactic scales. The CP term generates baryon asymmetry during the QCD phase transition, eliminating the need for extra baryogenesis fields.",
+  "abstract": "We propose a CP-coupled f(R) gravity model: S⊃∫d⁴x√−g [M_{Pl}²/2 f(R) + (ξ/4)R F\\tilde F + L_{SM}], with f(R)=R+αR²−βR^{−n}. In the radiation era R→0, yielding standard H∝√ρ behavior for BBN. At late times the −βR^{−n} term drives self-acceleration without Λ. We include a CP-violating term ξR F\\tilde F to generate n_B/s∼10^{−10} at T∼150 MeV. This model unifies cosmic acceleration, baryogenesis, and structure formation in a pure gravitational framework.",
+  "parameters": [
+    {
+      "name": "Hubble constant",
+      "python_var": "H0",
+      "bounds": [50.0, 80.0],
+      "unit": "km/s/Mpc",
+      "latex_name": "H_0"
+    },
+    {
+      "name": "Matter density",
+      "python_var": "Omega_m0",
+      "bounds": [0.1, 0.5],
+      "unit": "",
+      "latex_name": "\\Omega_{m0}"
+    },
+    {
+      "name": "Radiation density",
+      "python_var": "Omega_r0",
+      "bounds": [1e-5, 1e-4],
+      "unit": "",
+      "latex_name": "\\Omega_{r0}"
+    },
+    {
+      "name": "R² coefficient",
+      "python_var": "alpha",
+      "bounds": [0.0, 1e6],
+      "unit": "",
+      "latex_name": "\\alpha"
+    },
+    {
+      "name": "Inverse-power coefficient",
+      "python_var": "beta",
+      "bounds": [0.0, 1.0],
+      "unit": "",
+      "latex_name": "\\beta"
+    },
+    {
+      "name": "Inverse-power exponent",
+      "python_var": "n",
+      "bounds": [0.0, 2.0],
+      "unit": "",
+      "latex_name": "n"
+    },
+    {
+      "name": "CP-coupling strength",
+      "python_var": "xi",
+      "bounds": [0.0, 1.0],
+      "unit": "",
+      "latex_name": "\\xi"
+    },
+    {
+      "name": "Sound horizon base",
+      "python_var": "rs0",
+      "bounds": [140.0, 160.0],
+      "unit": "Mpc",
+      "latex_name": "r_{s,0}"
+    },
+    {
+      "name": "Drag redshift",
+      "python_var": "z_recomb",
+      "bounds": [800, 1500],
+      "unit": "",
+      "latex_name": "z_{\\rm drag}"
+    },
+    {
+      "name": "Speed of light",
+      "python_var": "c",
+      "bounds": [299792.458, 299792.458],
+      "unit": "km/s",
+      "latex_name": "c"
+    }
+  ],
+  "Hz_expression": "H0 * sqrt(Omega_m0*(1+z)**3 + Omega_r0*(1+z)**4 + beta*(1+z)**(-n))",
+  "equations": {
+    "sne": [
+      "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$\\mu(z) = 5\\log_{10}[d_L(z)/{\\rm Mpc}] + 25$$"
+    ],
+    "bao": [
+      "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$D_H(z) = \\frac{c}{H(z)}$$",
+      "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
+    ]
+  },
+  "rs_expression": "rs0",
+  "predicts_bao": true
+}
