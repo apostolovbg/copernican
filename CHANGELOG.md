@@ -23,6 +23,8 @@ Example:
 - 2025-07-05: Added CMB residual CSV export (AI assistant)
 - 2025-07-05: Documented cmb.param_map usage and parser param_names attribute (AI assistant)
 - 2025-07-05: Bumped version to 1.7.0 and reorganized changelog (AI assistant)
+- 2025-07-05: Removed obsolete CMB placeholder parser and dataset (AI assistant)
+- 2025-07-05: Added CAMB dependency to pyproject and updated docs (AI assistant)
 
 ## Version 1.6.3 (Patch Release)
 - 2025-06-22: Restored `pyproject.toml` and silenced Pandas whitespace warning (AI assistant)
