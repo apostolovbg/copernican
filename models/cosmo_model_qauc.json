@@ -95,5 +95,16 @@
   },
   "rs_expression": "rs",
   "predicts_bao": true,
+  "valid_for_cmb": true,
+  "cmb": {
+    "param_map": {
+      "H0": "H0",
+      "ombh2": "Omega_b0 * (H0/100)**2",
+      "omch2": "(Omega_m0 - Omega_b0) * (H0/100)**2",
+      "tau": 0.054,
+      "As": 2.1e-9,
+      "ns": 0.965
+    }
+  },
   "abstract": "A scalar-tensor model with an exponential attractor envelope and oscillatory modulation in the dark-energy sector, designed to fit both SNe Ia and BAO while opening a portal to quantum topological couplings."
 }
