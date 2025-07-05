@@ -48,7 +48,8 @@ def build_plugin(model_data, func_dict):
     plugin.CMB_PARAM_MAP = model_data.get('cmb', {}).get('param_map', {})
     if plugin.valid_for_cmb and not plugin.CMB_PARAM_MAP:
         # Fallback mapping ensures CAMB receives the SNe-derived cosmological
-        # parameters without re-fitting. Only H0, Omega_b0 and Omega_m0 are
+        # parameters without re-fitting. Copernican's design is "fit once to SNe
+        # then predict everything else". Only H0, Omega_b0 and Omega_m0 are
         # required from the model; the remaining parameters use fixed defaults.
         plugin.CMB_PARAM_MAP = {
             "H0": "H0",
