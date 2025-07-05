@@ -83,3 +83,15 @@ Available CMB data sources:
 2025-07-05 16:43:53,255 - INFO - BAO detailed results CSV saved to bao-detailed-data-LCDM-vs-LambdaCDM-BAO-bao1_20250705_164353.csv
 2025-07-05 16:43:53,270 - INFO - CMB detailed results CSV saved to cmb-detailed-data-LCDM-vs-LambdaCDM-CMB-Planck2018lite_20250705_164353.csv
 2025-07-05 16:43:53,271 - INFO - Run completed at 250705_164353.
+2025-07-05 16:44:45,906 - INFO - --- Cleaning up cache files ---
+2025-07-05 16:44:45,908 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/__pycache__
+2025-07-05 16:44:45,909 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/engines/__pycache__
+2025-07-05 16:44:45,910 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/scripts/__pycache__
+2025-07-05 16:44:45,913 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/data/cmb/planck2018lite/__pycache__
+2025-07-05 16:44:45,914 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/data/sirens/placeholder/__pycache__
+2025-07-05 16:44:45,914 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/data/gw/placeholder/__pycache__
+2025-07-05 16:44:45,915 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/data/sne/unistra/__pycache__
+2025-07-05 16:44:45,915 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/data/sne/pantheon/__pycache__
+2025-07-05 16:44:45,916 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/data/bao/basic/__pycache__
+2025-07-05 16:44:45,916 - INFO - Removed cache file: /Users/apostolov/Documents/GitHub/copernican/models/cache/cache_cosmo_model_lcdm.json
+2025-07-05 16:44:45,916 - INFO - Exiting Copernican Suite. Goodbye!
