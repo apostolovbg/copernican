@@ -27,7 +27,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.7.4-beta"
+COPERNICAN_VERSION = "1.7.5-beta"
 
 def run_startup_tests():
     """Execute functional tests using the standard unittest runner."""

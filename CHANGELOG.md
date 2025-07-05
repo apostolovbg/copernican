@@ -11,6 +11,7 @@ Add one line for each substantive commit or pull request directly under the late
 Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
 ## Version 1.7.5-beta (Development Release)
+- 2025-07-05: Bumped version references to 1.7.5-beta and updated README date (AI assistant)
 - 2025-07-05: Removed test mode from model selection workflow (AI assistant)
 - 2025-07-05: Updated BAO summary header to "BAO Fit Results" (AI assistant)
 - 2025-07-05: Added functional tests and automatic startup test runner (AI assistant)
