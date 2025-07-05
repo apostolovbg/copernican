@@ -13,6 +13,7 @@ Example:
 ## Version 1.7.5-beta (Development Release)
 - 2025-07-05: Removed test mode from model selection workflow (AI assistant)
 - 2025-07-05: Updated BAO summary header to "BAO Fit Results" (AI assistant)
+- 2025-07-05: Added functional tests and automatic startup test runner (AI assistant)
 ## Version 1.7.4-beta (Development Release)
 - 2025-07-05: Fixed unit conversion (K\u00b2 \u2192 \u03bcK\u00b2) by applying a 1e12 scale factor (AI assistant)
 - 2025-07-05: Added neutrino density mapping (`omnuh2`) to the \u039bCDM parameter map (AI assistant)
