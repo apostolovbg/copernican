@@ -163,6 +163,9 @@ cosmological parameters into a dictionary for CAMB. Models without a custom
 `compute_cmb_spectrum` automatically use this mapping with the default engine.
 When `valid_for_cmb` is `false` the suite logs a message and skips the CMB
 evaluation stage for that model.
+CMB data parsers attach a `param_names` attribute to the returned DataFrame
+listing the CAMB parameter order. The engine combines this list with
+`get_camb_params` to evaluate the power spectrum and chi-squared.
 `model_parser.py` accepts unknown keys and simply copies them to the sanitized
 cache. This allows the domain-specific JSON language to evolve while remaining
 compatible with older models.
