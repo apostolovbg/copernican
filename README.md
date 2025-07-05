@@ -157,6 +157,10 @@ The schema requires `model_name`, `version`, `parameters`, `equations`, `abstrac
 }
 ```
 Initial guesses are derived automatically from each parameter's bounds.
+When a `cmb.param_map` object is provided, the mapping is stored on the plugin
+as `CMB_PARAM_MAP`. Call `plugin.get_camb_params(values)` to convert a list of
+cosmological parameters into a dictionary for CAMB. Models without a custom
+`compute_cmb_spectrum` automatically use this mapping with the default engine.
 `model_parser.py` accepts unknown keys and simply copies them to the sanitized
 cache. This allows the domain-specific JSON language to evolve while remaining
 compatible with older models.
