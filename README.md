@@ -224,8 +224,9 @@ altering `MAJOR.MINOR`.
 
 1.  **Dependency Check**: `copernican.py` scans for missing packages and
     instructs you to run a `pip install` command if any are absent.
-2.  **Startup Tests**: A small test suite verifies that the LCDM model and
-    data parsers work as expected.
+2.  **Startup Tests**: At launch, `copernican.py` automatically runs a
+    functional test suite to verify that the LCDM model and data parsers work
+    as expected.
 3.  **Initialization**: The script starts and creates the `./output/` directory for all results.
 4.  **Configuration**: The user specifies the file paths for the model and data files.
 5.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data.

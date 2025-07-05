@@ -16,7 +16,9 @@ sources. Parsers reside alongside their data. Results are saved under
 
 The default engine is `engines/cosmo_engine_1_4b.py`. All model plugins are validated
 through `scripts/engine_interface.py` before being passed to the engine. This
-ensures the expected functions are present and callable.
+ensures the expected functions are present and callable. At startup,
+`copernican.py` automatically executes a functional test suite to confirm that
+the reference LCDM model and data parsers operate correctly.
 
 ## 2. Directory Layout
 ```
