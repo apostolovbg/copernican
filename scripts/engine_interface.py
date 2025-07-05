@@ -46,6 +46,18 @@ def build_plugin(model_data, func_dict):
     plugin.valid_for_bao = model_data.get('valid_for_bao', True)
     plugin.valid_for_cmb = model_data.get('valid_for_cmb', True)
     plugin.CMB_PARAM_MAP = model_data.get('cmb', {}).get('param_map', {})
+    if plugin.valid_for_cmb and not plugin.CMB_PARAM_MAP:
+        # Fallback mapping ensures CAMB receives the SNe-derived cosmological
+        # parameters without re-fitting. Only H0, Omega_b0 and Omega_m0 are
+        # required from the model; the remaining parameters use fixed defaults.
+        plugin.CMB_PARAM_MAP = {
+            "H0": "H0",
+            "ombh2": "Omega_b0 * (H0/100)**2",
+            "omch2": "(Omega_m0 - Omega_b0) * (H0/100)**2",
+            "tau": 0.054,
+            "As": 2.1e-9,
+            "ns": 0.965,
+        }
 
     def get_camb_params(values):
         """Return a CAMB parameter dictionary from ``values``."""
