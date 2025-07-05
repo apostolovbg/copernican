@@ -6,7 +6,8 @@ Relies on SciPy/NumPy for all computations.
 
 import numpy as np
 from scipy.optimize import minimize
-from scipy.linalg import LinAlgError 
+from scipy.linalg import LinAlgError
+import camb
 import sys
 import time
 import logging
@@ -214,6 +215,64 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
         return np.inf
         
     return total_chi2 if np.isfinite(total_chi2) else np.inf
+
+
+def compute_cmb_spectrum(param_dict, ells):
+    """Return the theoretical D_ell spectrum using CAMB."""
+    logger = logging.getLogger()
+    try:
+        H0 = float(param_dict.get("H0", 67.0))
+        ombh2 = float(param_dict.get("ombh2", 0.02237))
+        omch2 = float(param_dict.get("omch2", 0.12))
+        tau = float(param_dict.get("tau", 0.054))
+        As = float(param_dict.get("As", 2.1e-9))
+        ns = float(param_dict.get("ns", 0.965))
+    except Exception as exc:
+        logger.error(f"(compute_cmb_spectrum): Invalid parameter mapping: {exc}")
+        return np.full_like(ells, np.nan, dtype=float)
+
+    params = camb.CAMBparams()
+    params.set_cosmology(H0=H0, ombh2=ombh2, omch2=omch2, tau=tau)
+    params.InitPower.set_params(As=As, ns=ns)
+    params.set_for_lmax(int(np.max(ells)) + 300, lens_potential_accuracy=0)
+    try:
+        results = camb.get_results(params)
+        powers = results.get_cmb_power_spectra(params, lmax=int(np.max(ells)))
+        cl_tt = powers['total'][:, 0]
+        ell_arr = np.asarray(ells, dtype=int)
+        dl = ell_arr * (ell_arr + 1) * cl_tt[ell_arr] / (2 * np.pi)
+        return dl
+    except Exception as exc:
+        logger.error(f"(compute_cmb_spectrum): CAMB failed: {exc}")
+        return np.full_like(ells, np.nan, dtype=float)
+
+
+def chi_squared_cmb(cosmo_params, cmb_data_df):
+    """Calculate chi-squared for CMB data using full covariance."""
+    logger = logging.getLogger()
+    if cmb_data_df is None or cmb_data_df.empty:
+        logger.error("(chi2_cmb): CMB data is empty.")
+        return np.inf
+    if 'covariance_matrix_inv' not in cmb_data_df.attrs:
+        logger.error("(chi2_cmb): Inverse covariance matrix missing in attrs.")
+        return np.inf
+
+    ells = cmb_data_df['ell'].values
+    obs = cmb_data_df['Dl_obs'].values
+    param_dict = {name: val for name, val in zip(cmb_data_df.attrs.get('param_names', []), cosmo_params)} if isinstance(cosmo_params, (list, tuple)) else cosmo_params
+    th = compute_cmb_spectrum(param_dict, ells)
+    if th.shape != obs.shape or np.any(~np.isfinite(th)):
+        return np.inf
+
+    resid = obs - th
+    C_inv = cmb_data_df.attrs['covariance_matrix_inv']
+    try:
+        chi2 = float(resid @ C_inv @ resid)
+    except Exception as exc:
+        logger.error(f"(chi2_cmb): Linear algebra failure: {exc}")
+        return np.inf
+
+    return chi2 if np.isfinite(chi2) else np.inf
 
 
 # ==============================================================================

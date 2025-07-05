@@ -62,10 +62,9 @@ Under the hood the program follows a clear pipeline:
 
 ## Dependencies
 This project requires **Python 3.13.1 or later** and relies on `numpy`, `scipy`, `matplotlib`,
-`pandas`, `sympy` and `jsonschema`. If any of these are missing the dependency check
-will print the full installation command `pip install numpy scipy matplotlib
-pandas sympy jsonschema`. Future engines may also depend on `numba` or
-GPU libraries.
+`pandas`, `sympy`, `jsonschema` and `camb`. If any of these are missing the dependency check
+will print the full installation command `pip install numpy scipy matplotlib pandas sympy jsonschema camb`.
+Future engines may also depend on `numba` or GPU libraries.
  
 ## Building & Installation
 Run `pip install .` from the repository root to build and install the `copernican` command. Use `pip install -e .` for editable installs.
@@ -77,6 +76,7 @@ models/           - JSON model definitions containing all theory text and
                     summaries but are not required.
 engines/          - Computational backends (SciPy CPU and Numba with automatic fallback)
 data/             - Observation data organized as ``data/<type>/<source>/``
+  cmb/planck2018lite/ - Planck 2018 lite TT power spectrum parser and files
 output/           - All generated results
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
@@ -92,9 +92,9 @@ should not be modified by AI-driven code changes.
 
 ## Using the Suite
 - The program discovers available models from `models/cosmo_model_*.json`.
-- Data sources for SNe and BAO are chosen interactively. Once a source is
-  selected, its parser and files are loaded automatically from
-  `data/<type>/<source>/`. Future datasets will follow the same structure.
+ - Data sources for SNe, BAO and CMB are chosen interactively. Once a source is
+   selected, its parser and files are loaded automatically from
+   `data/<type>/<source>/`. Future datasets will follow the same structure.
 - Engines are selected interactively from the `engines/` directory. Parsers are
   discovered automatically when their source folders are imported.
 - After each run you may choose to evaluate another model or exit. Cache files
