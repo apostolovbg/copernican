@@ -318,6 +318,10 @@ def main_workflow():
         if bao_data_df is None:
             continue
 
+        cmb_data_df = data_loaders.load_cmb_data()
+        if cmb_data_df is None:
+            continue
+
         logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
         lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, lcdm)
         alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, alt_model_plugin)
@@ -345,10 +349,24 @@ def main_workflow():
                 
             return {'sne_fit_results': sne_fit_results, 'pred_df': pred_df, 'rs_Mpc': rs_Mpc, 'chi2_bao': chi2_bao, 'smooth_predictions': smooth_preds}
 
+        def run_cmb_analysis(cmb_df, model_plugin, cosmo_params):
+            """Run CMB analysis for a given model."""
+            if cmb_df is None or cmb_df.empty:
+                return {'chi2_cmb': np.inf, 'theory_spectrum': None}
+            theory = cosmo_engine_selected.compute_cmb_spectrum(cosmo_params, cmb_df['ell'].values)
+            chi2_val = cosmo_engine_selected.chi_squared_cmb(cosmo_params, cmb_df)
+            logger.info(f"{model_plugin.MODEL_NAME} CMB chi2 = {chi2_val:.2f}")
+            return {'chi2_cmb': chi2_val, 'theory_spectrum': theory}
+
         lcdm_full_results = run_bao_analysis(lcdm, lcdm_sne_fit_results, z_plot_smooth)
         alt_model_full_results = run_bao_analysis(alt_model_plugin, alt_model_sne_fit_results, z_plot_smooth)
 
+        lcdm_cmb = run_cmb_analysis(cmb_data_df, lcdm, list(lcdm_sne_fit_results['fitted_cosmological_params'].values()))
+        alt_cmb = run_cmb_analysis(cmb_data_df, alt_model_plugin, list(alt_model_sne_fit_results['fitted_cosmological_params'].values()))
+
         logger.info("\n--- Stage 4: Generating Outputs ---")
+        logger.info(f"{lcdm.MODEL_NAME} CMB chi2 = {lcdm_cmb['chi2_cmb']:.2f}")
+        logger.info(f"{alt_model_plugin.MODEL_NAME} CMB chi2 = {alt_cmb['chi2_cmb']:.2f}")
         plotter.plot_hubble_diagram(
             sne_data_df,
             lcdm_sne_fit_results,
