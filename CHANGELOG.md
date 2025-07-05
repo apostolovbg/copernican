@@ -6,12 +6,13 @@
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: please, always check what is the current date when you are logging last changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Use this template:
 
-`- YYYY-MM-DD: short summary (author)`
+`- 2025-07-05: short summary (author)`
 
 Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
 ## Version 1.7.5-beta (Development Release)
-- YYYY-MM-DD: Removed test mode from model selection workflow (AI assistant)
+- 2025-07-05: Removed test mode from model selection workflow (AI assistant)
+- 2025-07-05: Updated BAO summary header to "BAO Fit Results" (AI assistant)
 ## Version 1.7.4-beta (Development Release)
 - 2025-07-05: Fixed unit conversion (K\u00b2 \u2192 \u03bcK\u00b2) by applying a 1e12 scale factor (AI assistant)
 - 2025-07-05: Added neutrino density mapping (`omnuh2`) to the \u039bCDM parameter map (AI assistant)
