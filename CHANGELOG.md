@@ -15,6 +15,7 @@ Example:
 - 2025-07-05: Automatic functional tests run at startup. (AI assistant)
 - 2025-07-05: Updated documentation and model guide. (AI assistant)
 - 2025-07-05: Clarified CMB requirements in cosmo_model_guide and bumped guide version. (AI assistant)
+- 2025-07-05: Documented automatic startup test suite in README. (AI assistant)
 ## Version 1.7.4-beta (Development Release)
 - 2025-07-05: Fixed unit conversion (K\u00b2 \u2192 \u03bcK\u00b2) by applying a 1e12 scale factor (AI assistant)
 - 2025-07-05: Added neutrino density mapping (`omnuh2`) to the \u039bCDM parameter map (AI assistant)
