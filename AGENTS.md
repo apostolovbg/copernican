@@ -90,6 +90,13 @@ automatically; no manual Python implementation is required.
 The parser keeps unknown keys intact, ensuring the DSL stays backward
 compatible as new fields are introduced.
 
+### 4.2 Dataset compatibility flags
+
+Generated model plugins include boolean attributes `valid_for_distance_metrics`,
+`valid_for_bao` and `valid_for_cmb`. All default to `True` and signal which
+datasets the model supports. When `valid_for_cmb` is `False` the engine does not
+require the optional `compute_cmb_spectrum` function during validation.
+
 ## 6. Development Protocol
 To keep the project maintainable all contributors, human or AI, must follow these rules:
 1. **Summarize every change in `CHANGELOG.md`.** Use the template `- YYYY-MM-DD: short summary (author)` for each entry. Legacy `dev_note` headers should be migrated to the changelog when touched.
