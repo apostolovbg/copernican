@@ -237,10 +237,14 @@ def compute_cmb_spectrum(param_dict, ells):
     params.set_for_lmax(int(np.max(ells)) + 300, lens_potential_accuracy=0)
     try:
         results = camb.get_results(params)
-        powers = results.get_cmb_power_spectra(params, lmax=int(np.max(ells)))
-        cl_tt = powers['total'][:, 0]
+        powers = results.get_cmb_power_spectra(
+            params, lmax=int(np.max(ells)), CMB_unit="muK"
+        )
+        cl_tt = powers["total"][:, 0]
         ell_arr = np.asarray(ells, dtype=int)
-        dl = ell_arr * (ell_arr + 1) * cl_tt[ell_arr] / (2 * np.pi)
+        # CAMB already returns D_ell = ell(ell+1) C_ell / (2pi) when raw_cl=False
+        # (the default). Simply index the array without applying the factor again.
+        dl = cl_tt[ell_arr]
         return dl
     except Exception as exc:
         logger.error(f"(compute_cmb_spectrum): CAMB failed: {exc}")
