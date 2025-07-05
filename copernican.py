@@ -353,8 +353,15 @@ def main_workflow():
             """Run CMB analysis for a given model."""
             if cmb_df is None or cmb_df.empty:
                 return {'chi2_cmb': np.inf, 'theory_spectrum': None}
-            theory = cosmo_engine_selected.compute_cmb_spectrum(cosmo_params, cmb_df['ell'].values)
-            chi2_val = cosmo_engine_selected.chi_squared_cmb(cosmo_params, cmb_df)
+
+            # Convert the fitted cosmological parameters to CAMB's expected
+            # dictionary format using the helper provided by the model plugin.
+            camb_params = model_plugin.get_camb_params(cosmo_params)
+
+            theory = cosmo_engine_selected.compute_cmb_spectrum(
+                camb_params, cmb_df['ell'].values
+            )
+            chi2_val = cosmo_engine_selected.chi_squared_cmb(camb_params, cmb_df)
             logger.info(f"{model_plugin.MODEL_NAME} CMB chi2 = {chi2_val:.2f}")
             return {'chi2_cmb': chi2_val, 'theory_spectrum': theory}
 
