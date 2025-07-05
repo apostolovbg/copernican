@@ -115,7 +115,9 @@ See `cosmo_model_guide.json` for a detailed template.
 4. Optionally provide an `rs_expression` for the sound horizon at recombination
    or include the parameters `Ob`, `Og` and `z_recomb`. The suite will then
    derive `r_s` automatically using a numerical integral.
-5. Parameter initial guesses are calculated automatically as the midpoint of
+5. Expressions may include `Integral(...)` terms. These are evaluated
+   numerically with SciPy's `quad` when the model is loaded.
+6. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
 The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
 auto-generates the necessary Python functions.
