@@ -4,7 +4,7 @@ Development notes were previously kept at the top of this file. That history now
 lives in `CHANGELOG.md`. New modifications must update the changelog, and legacy
 `dev_note` headers embedded in source files have been fully phased out.
 
-This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current stable release is **version 1.7.0**.
+This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.7.0-beta**.
 
 ## 1. Program Overview
 The suite evaluates cosmological models against SNe Ia and BAO data. Support for
@@ -23,6 +23,7 @@ ensures the expected functions are present and callable.
 models/           - JSON model definitions with embedded theory text and equations. Optional `.md` files may accompany a model for readability.
 engines/          - Computational backends (SciPy CPU by default)
 data/             - Observation files under ``data/<type>/<source>/``
+  cmb/planck2018lite/ - Planck 2018 lite TT power spectrum
 output/           - Generated plots and CSV tables
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
