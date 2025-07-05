@@ -136,7 +136,17 @@ The schema requires `model_name`, `version`, `parameters`, `equations`, `abstrac
   "equations": {
     "distance_modulus_model": "5*sympy.log(1+z,10)*H0"
   },
-  "cmb": {},
+  "valid_for_cmb": true,
+  "cmb": {
+    "param_map": {
+      "H0": "H0",
+      "ombh2": "Ob * (H0/100)**2",
+      "omch2": "(Om - Ob) * (H0/100)**2",
+      "tau": 0.054,
+      "As": 2.1e-9,
+      "ns": 0.965
+    }
+  },
   "gravitational_waves": {},
   "standard_sirens": {},
   "abstract": "short overview text",

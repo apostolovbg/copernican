@@ -136,5 +136,6 @@
   "notes": "Detailed theory embedded in this JSON.",
   "title": "The Unified Shrinking Matter Framework (USMF) Version 2",
   "date": "2025-05-26",
-  "example_results": "-   **Dataset:** UniStra_FixedNuis_h1\n-   **Best-fit $\\chi^2$:** 1662.54"
+  "example_results": "-   **Dataset:** UniStra_FixedNuis_h1\n-   **Best-fit $\\chi^2$:** 1662.54",
+  "valid_for_cmb": false
 }

@@ -96,6 +96,9 @@ Generated model plugins include boolean attributes `valid_for_distance_metrics`,
 `valid_for_bao` and `valid_for_cmb`. All default to `True` and signal which
 datasets the model supports. When `valid_for_cmb` is `False` the engine does not
 require the optional `compute_cmb_spectrum` function during validation.
+Models that can compute a CMB power spectrum should also define a `cmb.param_map`
+object describing how standard CAMB parameters such as `H0` and `ombh2` are
+derived from the model's variables or constants.
 
 ## 6. Development Protocol
 To keep the project maintainable all contributors, human or AI, must follow these rules:

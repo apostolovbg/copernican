@@ -36,5 +36,6 @@
     ]
   },
   "rs_expression": "rs0*(1 + B*z_recomb*exp(-gamma*z_recomb) + C*log(1+z_recomb))",
-  "predicts_bao": true
+  "predicts_bao": true,
+  "valid_for_cmb": false
 }
