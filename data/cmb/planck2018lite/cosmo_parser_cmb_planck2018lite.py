@@ -32,9 +32,15 @@ def parse_planck2018lite(data_dir, **kwargs):
         ell_arr = df["ell"].values
         df["Dl_obs"] = ell_arr * (ell_arr + 1) * df["Cl_obs"] / (2 * np.pi)
         n = len(df)
-        cov_arr = np.fromfile(
-            cov_path, dtype=np.float64, offset=4, count=n * n
-        )
+
+        # The covariance file is distributed as plain ASCII. ``np.fromfile`` was
+        # previously used but mis-interpreted the binary layout, leading to a
+        # malformed array. ``np.loadtxt`` correctly reads the text data even when
+        # an extra header row is present.
+        cov_arr = np.loadtxt(cov_path)
+        if cov_arr.size != n * n:
+            # Some releases prepend a single header line; try again skipping it
+            cov_arr = np.loadtxt(cov_path, skiprows=1)
         if cov_arr.size != n * n:
             logger.error(
                 f"Covariance matrix size mismatch: expected {n*n} values, got {cov_arr.size}"

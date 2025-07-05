@@ -10,6 +10,9 @@ Add one line for each substantive commit or pull request directly under the late
 
 Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
+## Version 1.7.2-beta (Development Release)
+- 2025-07-05: Fixed Planck covariance parser using np.loadtxt (AI assistant)
+- 2025-07-05: Added default CAMB parameter mapping from SNe fits (AI assistant)
 ## Version 1.7.1-beta (Development Release)
 - 2025-07-05: Updated version references to 1.7.1-beta (AI assistant)
 - 2025-07-05: Implemented Planck 2018 lite CMB parser (AI assistant)
