@@ -26,8 +26,11 @@ def parse_planck2018lite(data_dir, **kwargs):
             sep=r"\s+",
             header=None,
             usecols=[0, 1],
-            names=["ell", "Dl_obs"],
+            names=["ell", "Cl_obs"],
         )
+        # Convert the provided C_ell (in \mu K^2) to D_ell for comparison
+        ell_arr = df["ell"].values
+        df["Dl_obs"] = ell_arr * (ell_arr + 1) * df["Cl_obs"] / (2 * np.pi)
         n = len(df)
         cov_arr = np.fromfile(
             cov_path, dtype=np.float64, offset=4, count=n * n
@@ -38,6 +41,10 @@ def parse_planck2018lite(data_dir, **kwargs):
             )
             return None
         cov_matrix = cov_arr.reshape(n, n)
+        # The covariance matrix is supplied for C_ell. Scale to D_ell using
+        # the same ell(ell+1)/(2pi) factors applied above.
+        factors = ell_arr * (ell_arr + 1) / (2 * np.pi)
+        cov_matrix = cov_matrix * np.outer(factors, factors)
         try:
             cov_inv = np.linalg.inv(cov_matrix)
         except np.linalg.LinAlgError:
