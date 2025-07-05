@@ -351,6 +351,16 @@ def main_workflow():
 
         def run_cmb_analysis(cmb_df, model_plugin, cosmo_params):
             """Run CMB analysis for a given model."""
+            # Skip the CMB step entirely when the model declares it is invalid
+            # for such data. This prevents misleading chi-squared calculations
+            # and ensures plugin validation does not fail for missing CMB
+            # functions.
+            if getattr(model_plugin, 'valid_for_cmb', True) is False:
+                logger.info(
+                    f"{model_plugin.MODEL_NAME} does not support CMB; skipping analysis."
+                )
+                return {'chi2_cmb': np.inf, 'theory_spectrum': None}
+
             if cmb_df is None or cmb_df.empty:
                 return {'chi2_cmb': np.inf, 'theory_spectrum': None}
 
