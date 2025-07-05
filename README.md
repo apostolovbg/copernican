@@ -161,6 +161,8 @@ When a `cmb.param_map` object is provided, the mapping is stored on the plugin
 as `CMB_PARAM_MAP`. Call `plugin.get_camb_params(values)` to convert a list of
 cosmological parameters into a dictionary for CAMB. Models without a custom
 `compute_cmb_spectrum` automatically use this mapping with the default engine.
+When `valid_for_cmb` is `false` the suite logs a message and skips the CMB
+evaluation stage for that model.
 `model_parser.py` accepts unknown keys and simply copies them to the sanitized
 cache. This allows the domain-specific JSON language to evolve while remaining
 compatible with older models.
