@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import inspect
 import logging
 import re
+import numpy as np
 
 REQUIRED_FUNCTIONS = [
     "distance_modulus_model",
@@ -44,6 +45,29 @@ def build_plugin(model_data, func_dict):
     plugin.valid_for_distance_metrics = model_data.get('valid_for_distance_metrics', True)
     plugin.valid_for_bao = model_data.get('valid_for_bao', True)
     plugin.valid_for_cmb = model_data.get('valid_for_cmb', True)
+    plugin.CMB_PARAM_MAP = model_data.get('cmb', {}).get('param_map', {})
+
+    def get_camb_params(values):
+        """Return a CAMB parameter dictionary from ``values``."""
+        logger = logging.getLogger()
+        env = {name: val for name, val in zip(plugin.PARAMETER_NAMES, values)}
+        env['np'] = np
+        camb_params = {}
+        for key, expr in plugin.CMB_PARAM_MAP.items():
+            if isinstance(expr, str):
+                try:
+                    val = eval(expr, {"__builtins__": {}}, env)
+                except Exception as exc:
+                    logger.error(
+                        f"(get_camb_params): failed to evaluate '{expr}' for '{key}': {exc}"
+                    )
+                    val = np.nan
+            else:
+                val = expr
+            camb_params[key] = float(val)
+        return camb_params
+
+    plugin.get_camb_params = get_camb_params
     def sanitize_equation(eq_line: str) -> str:
         """Return a Matplotlib-friendly LaTeX string."""
         if not isinstance(eq_line, str):
@@ -60,6 +84,14 @@ def build_plugin(model_data, func_dict):
         plugin.MODEL_FILENAME = model_data['filename']
     for name, func in func_dict.items():
         setattr(plugin, name, func)
+
+    if plugin.valid_for_cmb and not hasattr(plugin, 'compute_cmb_spectrum'):
+        def _default_cmb(values, ells):
+            from engines import cosmo_engine_1_4b
+            return cosmo_engine_1_4b.compute_cmb_spectrum(plugin.get_camb_params(values), ells)
+
+        plugin.compute_cmb_spectrum = _default_cmb
+
     validate_plugin(plugin)
     return plugin
 
@@ -90,6 +122,17 @@ def validate_plugin(plugin):
 
     for fname in required_funcs:
         func = getattr(plugin, fname, None)
+        if fname == 'compute_cmb_spectrum' and not callable(func):
+            if hasattr(plugin, 'get_camb_params'):
+                def _default_cmb(values, ells):
+                    from engines import cosmo_engine_1_4b
+                    return cosmo_engine_1_4b.compute_cmb_spectrum(plugin.get_camb_params(values), ells)
+
+                setattr(plugin, 'compute_cmb_spectrum', _default_cmb)
+                func = _default_cmb
+            else:
+                logger.error("Plugin validation failed. Missing function 'compute_cmb_spectrum'.")
+                return False
         if not callable(func):
             logger.error(f"Plugin validation failed. Missing function '{fname}'.")
             return False
