@@ -116,9 +116,6 @@ def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
         filename = input(f"{prompt_message} (or 'c' to cancel): ").strip()
         if filename.lower() == 'c':
             return None
-        # Allow special keywords like 'test' to pass through without existing as a file
-        if not must_exist and not os.path.isabs(filename):
-            return filename
         filepath = os.path.join(base_dir, filename)
         if os.path.isfile(filepath):
             return filepath
@@ -262,42 +259,37 @@ def main_workflow():
             f for f in os.listdir(models_dir)
             if f.startswith('cosmo_model_') and (f.endswith('.md') or f.endswith('.json'))
         ])
-        selected_model = select_from_list(model_files + ['test'], 'Select cosmological model')
+        selected_model = select_from_list(model_files, 'Select cosmological model')
         if not selected_model:
             break
-
-        if selected_model == 'test':
-            alt_model_plugin = lcdm
-            logger.info("--- RUNNING IN TEST MODE: Comparing LCDM against itself. ---")
+        if selected_model.endswith('.json'):
+            json_path = os.path.join(models_dir, selected_model)
+            cache_dir = os.path.join(models_dir, 'cache')
+            try:
+                cache_path = model_parser.parse_model_json(json_path, cache_dir)
+            except Exception as e:
+                logger.error(str(e))
+                continue
+            try:
+                func_dict, parsed = model_coder.generate_callables(cache_path)
+                alt_model_plugin = engine_interface.build_plugin(parsed, func_dict)
+                # Keep track of which JSON file produced this plugin.
+                alt_model_plugin.MODEL_FILENAME = os.path.basename(json_path)
+                logger.info(f"Loaded JSON model: {parsed.get('model_name')}")
+            except Exception as e:
+                logger.error(f"Error generating model from JSON: {e}", exc_info=True)
+                continue
         else:
-            if selected_model.endswith('.json'):
-                json_path = os.path.join(models_dir, selected_model)
-                cache_dir = os.path.join(models_dir, 'cache')
-                try:
-                    cache_path = model_parser.parse_model_json(json_path, cache_dir)
-                except Exception as e:
-                    logger.error(str(e))
-                    continue
-                try:
-                    func_dict, parsed = model_coder.generate_callables(cache_path)
-                    alt_model_plugin = engine_interface.build_plugin(parsed, func_dict)
-                    # Keep track of which JSON file produced this plugin.
-                    alt_model_plugin.MODEL_FILENAME = os.path.basename(json_path)
-                    logger.info(f"Loaded JSON model: {parsed.get('model_name')}")
-                except Exception as e:
-                    logger.error(f"Error generating model from JSON: {e}", exc_info=True)
-                    continue
-            else:
-                md_path = os.path.join(models_dir, selected_model)
-                meta = parse_model_header(md_path)
-                plugin_name = meta.get('model_plugin')
-                if not plugin_name:
-                    logger.error(f"Model file {selected_model} missing 'model_plugin' entry.")
-                    continue
-                alt_model_filepath = os.path.join(SCRIPT_DIR, plugin_name)
-                if not os.path.isfile(alt_model_filepath):
-                    alt_model_filepath = os.path.join(models_dir, plugin_name)
-                alt_model_plugin = load_alternative_model_plugin(alt_model_filepath)
+            md_path = os.path.join(models_dir, selected_model)
+            meta = parse_model_header(md_path)
+            plugin_name = meta.get('model_plugin')
+            if not plugin_name:
+                logger.error(f"Model file {selected_model} missing 'model_plugin' entry.")
+                continue
+            alt_model_filepath = os.path.join(SCRIPT_DIR, plugin_name)
+            if not os.path.isfile(alt_model_filepath):
+                alt_model_filepath = os.path.join(models_dir, plugin_name)
+            alt_model_plugin = load_alternative_model_plugin(alt_model_filepath)
 
         if not alt_model_plugin:
             continue

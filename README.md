@@ -226,7 +226,6 @@ altering `MAJOR.MINOR`.
     instructs you to run a `pip install` command if any are absent.
 2.  **Initialization**: The script starts and creates the `./output/` directory for all results.
 3.  **Configuration**: The user specifies the file paths for the model and data files.
-    -   **Test Mode**: A user can enter `test` to run ΛCDM against itself, providing a quick way to test the full analysis pipeline.
 4.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data.
 5.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
 6.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots, tables and logs using a consistent format.
