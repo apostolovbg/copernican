@@ -32,9 +32,25 @@ def parse_planck2018lite(data_dir, **kwargs):
         ell_arr = df["ell"].values
         df["Dl_obs"] = ell_arr * (ell_arr + 1) * df["Cl_obs"] / (2 * np.pi)
         n = len(df)
-        cov_arr = np.fromfile(
-            cov_path, dtype=np.float64, offset=4, count=n * n
-        )
+
+        # ``c_matrix_plik_v22.dat`` is expected to be an ASCII table.  Earlier
+        # versions of this parser used ``np.fromfile`` assuming a binary layout,
+        # which failed when provided with plain text.  ``np.loadtxt`` correctly
+        # handles the ASCII distribution.  Should the file actually be a binary
+        # blob (as some Planck releases ship), we fall back to ``np.fromfile``.
+        try:
+            cov_arr = np.loadtxt(cov_path)
+            if cov_arr.size != n * n:
+                # A single header row may be present in some archives.
+                cov_arr = np.loadtxt(cov_path, skiprows=1)
+        except Exception as txt_err:  # pylint: disable=broad-except
+            logger.warning(
+                "np.loadtxt failed on %s (%s); falling back to binary read",
+                cov_path,
+                txt_err,
+            )
+            cov_arr = np.fromfile(cov_path, dtype=np.float64, count=n * n)
+
         if cov_arr.size != n * n:
             logger.error(
                 f"Covariance matrix size mismatch: expected {n*n} values, got {cov_arr.size}"
