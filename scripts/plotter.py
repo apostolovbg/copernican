@@ -367,3 +367,188 @@ def plot_bao_observables(
         logger.error(f"Error saving BAO plot: {exc}")
     finally:
         plt.close(fig)
+
+
+def format_cmb_summary_text(model_plugin: Any, sne_results: Any, chi2_cmb: float) -> str:
+    """Return formatted summary text for CMB plots."""
+    lines: list[str] = []
+    model_name_raw = getattr(model_plugin, "MODEL_NAME", "N/A")
+    model_name_latex = model_name_raw.replace("_", r"\_")
+    lines.append(fr"**Model: {model_name_latex}**")
+
+    lines.append(r"$\mathbf{Cosmological\ Parameters:}$")
+    param_names = getattr(model_plugin, "PARAMETER_NAMES", [])
+    param_latex_names = getattr(model_plugin, "PARAMETER_LATEX_NAMES", [])
+    fitted_cosmo_params = sne_results.get("fitted_cosmological_params", {})
+    if fitted_cosmo_params:
+        for i, name in enumerate(param_names):
+            val = fitted_cosmo_params.get(name)
+            latex_name = param_latex_names[i] if i < len(param_latex_names) else name
+            if val is not None:
+                lines.append(fr"  {latex_name} = ${val:.4g}$")
+            else:
+                lines.append(f"  {latex_name} = N/A")
+    else:
+        lines.append("  (Parameters unavailable)")
+
+    lines.append(r"$\mathbf{CMB\ Fit\ Statistics:}$")
+    if chi2_cmb is not None and np.isfinite(chi2_cmb):
+        lines.append(fr"  $\chi^2_{{CMB}}$ = {chi2_cmb:.2f}")
+    else:
+        lines.append("  $\\chi^2_{CMB}$ = N/A")
+
+    return "\n".join(lines)
+
+
+def plot_cmb_spectrum(
+    cmb_data_df: Any,
+    lcdm_cmb_results: Any,
+    alt_cmb_results: Any,
+    lcdm_sne_results: Any,
+    alt_sne_results: Any,
+    lcdm_plugin: Any,
+    alt_model_plugin: Any,
+    plot_dir: str = ".",
+) -> None:
+    """Generate and save a CMB power spectrum plot with residuals."""
+    ensure_dir_exists(plot_dir)
+    logger = get_logger()
+    dataset_name = cmb_data_df.attrs.get("dataset_name_attr", "CMB_data")
+    logger.info(f"Generating CMB Spectrum Plot for {dataset_name}...")
+
+    font_sizes = {
+        "title": 22,
+        "label": 18,
+        "legend": 14,
+        "infobox": 12,
+        "ticks": 12,
+    }
+
+    ells = cmb_data_df["ell"].values
+    dl_obs = cmb_data_df["Dl_obs"].values
+    diag_errors_plot = None
+    if "covariance_matrix_inv" in cmb_data_df.attrs:
+        try:
+            cov = np.linalg.inv(cmb_data_df.attrs["covariance_matrix_inv"])
+            diag_errors_plot = np.sqrt(np.diag(cov))
+        except Exception as exc:
+            logger.warning(f"Could not derive CMB errors from covariance: {exc}")
+            diag_errors_plot = np.full_like(dl_obs, 1.0)
+    else:
+        diag_errors_plot = np.full_like(dl_obs, 1.0)
+
+    fig, axs = plt.subplots(2, 1, figsize=(17, 12), sharex=True, gridspec_kw={"height_ratios": [3, 1.5], "hspace": 0.05})
+    plt.subplots_adjust(left=0.08, bottom=0.08, right=0.75, top=0.92)
+    try:
+        plt.style.use("seaborn-v0_8-darkgrid")
+    except Exception:
+        logger.warning("Seaborn-v0_8-darkgrid style not found, using default.")
+
+    axs[0].errorbar(
+        ells,
+        dl_obs,
+        yerr=diag_errors_plot,
+        fmt=".",
+        color="darkgray",
+        alpha=0.6,
+        label=f"{dataset_name}",
+        elinewidth=1,
+        capsize=2,
+        ms=5,
+        ecolor="lightgray",
+        zorder=1,
+    )
+
+    if lcdm_cmb_results and lcdm_cmb_results.get("theory_spectrum") is not None:
+        th_lcdm = lcdm_cmb_results["theory_spectrum"]
+        chi2_lcdm = f"{lcdm_cmb_results.get('chi2_cmb', np.nan):.2f}"
+        axs[0].plot(ells, th_lcdm, color="red", ls="-", lw=2.0, label=fr"$\Lambda$CDM ($\chi^2$={chi2_lcdm})")
+        res_lcdm = dl_obs - th_lcdm
+        axs[1].errorbar(
+            ells,
+            res_lcdm,
+            yerr=diag_errors_plot,
+            fmt=".",
+            color="red",
+            alpha=0.5,
+            label=r"$\Lambda$CDM Res.",
+            elinewidth=1,
+            capsize=2,
+            ms=4,
+        )
+
+    alt_name_raw = getattr(alt_model_plugin, "MODEL_NAME", "AltModel")
+    alt_name_latex = alt_name_raw.replace("_", r"\_")
+    if alt_cmb_results and alt_cmb_results.get("theory_spectrum") is not None:
+        th_alt = alt_cmb_results["theory_spectrum"]
+        chi2_alt = f"{alt_cmb_results.get('chi2_cmb', np.nan):.2f}"
+        axs[0].plot(ells, th_alt, color="blue", ls="--", lw=2.0, label=fr"{alt_name_latex} ($\chi^2$={chi2_alt})")
+        res_alt = dl_obs - th_alt
+        axs[1].errorbar(
+            ells,
+            res_alt,
+            yerr=diag_errors_plot,
+            fmt=".",
+            mfc="none",
+            mec="blue",
+            ecolor="lightblue",
+            alpha=0.5,
+            label=fr"{alt_name_latex} Res.",
+            elinewidth=1,
+            capsize=2,
+            ms=4,
+        )
+
+    axs[0].set_ylabel(r"$D_\ell\ (\mu K^2)$", fontsize=font_sizes["label"])
+    axs[0].legend(fontsize=font_sizes["legend"], loc="best")
+    axs[0].set_title(f"CMB TT Power Spectrum: {dataset_name}", fontsize=font_sizes["title"])
+    axs[0].minorticks_on()
+    axs[0].tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
+
+    axs[1].axhline(0, color="black", ls="--", lw=1)
+    axs[1].set_xlabel(r"Multipole $\ell$", fontsize=font_sizes["label"])
+    axs[1].set_ylabel(r"$D_\ell^{obs} - D_\ell^{th}$", fontsize=font_sizes["label"])
+    axs[1].legend(fontsize=font_sizes["legend"], loc="best")
+    axs[1].minorticks_on()
+    axs[1].tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
+
+    bbox_lcdm = dict(boxstyle="round,pad=0.5", fc="#FFEEEE", ec="darkred", alpha=0.8)
+    bbox_alt = dict(boxstyle="round,pad=0.5", fc="#EEF2FF", ec="darkblue", alpha=0.8)
+    fig.text(
+        0.77,
+        0.90,
+        format_cmb_summary_text(lcdm_plugin, lcdm_sne_results, lcdm_cmb_results.get("chi2_cmb")),
+        fontsize=font_sizes["infobox"],
+        va="top",
+        ha="left",
+        wrap=True,
+        bbox=bbox_lcdm,
+    )
+    fig.text(
+        0.77,
+        0.55,
+        format_cmb_summary_text(alt_model_plugin, alt_sne_results, alt_cmb_results.get("chi2_cmb")),
+        fontsize=font_sizes["infobox"],
+        va="top",
+        ha="left",
+        wrap=True,
+        bbox=bbox_alt,
+    )
+
+    footer = (
+        f"\u039bCDM against {alt_model_plugin.MODEL_NAME} "
+        f"{alt_model_plugin.MODEL_FILENAME}, {dataset_name}, "
+        f"created with Copernican Suite {COPERNICAN_VERSION}, "
+        f"{get_timestamp()}"
+    )
+    fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"])
+
+    model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
+    filename = generate_filename("cmb-plot", dataset_name, "png", model_name=model_comparison_name)
+    try:
+        plt.savefig(os.path.join(plot_dir, filename), dpi=300)
+        logger.info(f"CMB plot saved to {filename}")
+    except Exception as exc:
+        logger.error(f"Error saving CMB plot: {exc}")
+    finally:
+        plt.close(fig)

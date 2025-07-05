@@ -88,3 +88,46 @@ def save_bao_results_csv(
         logger.info(f"BAO detailed results CSV saved to {filename}")
     except Exception as exc:
         logger.error(f"Error saving BAO detailed results CSV: {exc}")
+
+
+def save_cmb_results_csv(
+    cmb_data_df: Any,
+    lcdm_results: Any,
+    alt_model_results: Any,
+    alt_model_name: str,
+    csv_dir: str = ".",
+) -> None:
+    """Save CMB spectrum predictions and residuals to a CSV file."""
+    ensure_dir_exists(csv_dir)
+    logger = get_logger()
+    if cmb_data_df is None or cmb_data_df.empty:
+        logger.warning("CMB data is empty, skipping CSV save.")
+        return
+
+    df_out = cmb_data_df[["ell", "Dl_obs"]].copy()
+
+    if lcdm_results and lcdm_results.get("theory_spectrum") is not None:
+        th_lcdm = lcdm_results["theory_spectrum"]
+        df_out["Dl_lcdm"] = th_lcdm
+        df_out["residual_lcdm"] = df_out["Dl_obs"] - th_lcdm
+    else:
+        df_out["Dl_lcdm"] = np.nan
+        df_out["residual_lcdm"] = np.nan
+
+    alt_name_safe = alt_model_name.replace(" ", "_").replace(".", "")
+    if alt_model_results and alt_model_results.get("theory_spectrum") is not None:
+        th_alt = alt_model_results["theory_spectrum"]
+        df_out[f"Dl_{alt_name_safe}"] = th_alt
+        df_out[f"residual_{alt_name_safe}"] = df_out["Dl_obs"] - th_alt
+    else:
+        df_out[f"Dl_{alt_name_safe}"] = np.nan
+        df_out[f"residual_{alt_name_safe}"] = np.nan
+
+    dataset_name = cmb_data_df.attrs.get("dataset_name_attr", "CMB_data")
+    model_comparison_name = f"LCDM-vs-{alt_name_safe}"
+    filename = generate_filename("cmb-detailed-data", dataset_name, "csv", model_name=model_comparison_name)
+    try:
+        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.6g")
+        logger.info(f"CMB detailed results CSV saved to {filename}")
+    except Exception as exc:
+        logger.error(f"Error saving CMB detailed results CSV: {exc}")
