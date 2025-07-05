@@ -12,8 +12,6 @@ Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
 ## Version 1.7.1-beta (Development Release)
 - 2025-07-05: Updated version references to 1.7.1-beta (AI assistant)
-
-## Version 1.7.0-beta (Development Release)
 - 2025-07-05: Implemented Planck 2018 lite CMB parser (AI assistant)
 - 2025-07-05: Added `valid_for_cmb` flag and updated plugin validation (AI assistant)
 - 2025-07-05: Added CAMB-based CMB analysis and chi-squared routines (AI assistant)
@@ -21,6 +19,8 @@ Example:
 - 2025-07-05: Stored CAMB parameter order in Planck 2018 parser (AI assistant)
 - 2025-07-05: Added automatic CMB wrapper and parameter mapping helper (AI assistant)
 - 2025-07-05: run_cmb_analysis now converts fitted parameters with get_camb_params (AI assistant)
+
+## Version 1.7.0-beta (Development Release)
 - 2025-07-05: Skip CMB evaluation when model sets valid_for_cmb=false (AI assistant)
 - 2025-07-05: Implemented CMB spectrum plotting (AI assistant)
 - 2025-07-05: Added CMB residual CSV export (AI assistant)
