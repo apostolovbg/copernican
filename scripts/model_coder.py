@@ -74,6 +74,8 @@ def generate_callables(cache_path):
                 raise ValueError(
                     "Parameter '" + "', '".join(missing) + "' used in Hz_expression is not defined in model parameters."
                 )
+            # Convert SymPy expression to NumPy callable. Any ``Integral`` terms
+            # are replaced with numerical quad evaluations.
             hz_fn = _compile_sympy_expr(hz_sym, (z, *param_syms))
             funcs['get_Hz_per_Mpc'] = hz_fn
             code_dict['get_Hz_per_Mpc'] = str(hz_sym)
@@ -138,6 +140,7 @@ def generate_callables(cache_path):
                         raise ValueError(
                             "Parameter '" + "', '".join(missing_rs) + "' used in rs_expression is not defined in model parameters."
                         )
+                    # ``Integral`` terms here are also expanded to calls to ``quad``.
                     rs_fn_sym = _compile_sympy_expr(rs_sym, tuple(param_syms))
                     funcs['get_sound_horizon_rs_Mpc'] = lambda *p: float(rs_fn_sym(*p))
                     code_dict['get_sound_horizon_rs_Mpc'] = str(rs_sym)
@@ -195,6 +198,8 @@ def generate_callables(cache_path):
             continue
         try:
             sym_expr = sp.sympify(expr, locals=local_dict)
+            # Convert SymPy expression to a callable, numerically evaluating
+            # ``Integral`` constructs if present.
             fn = _compile_sympy_expr(sym_expr, (z, *param_syms))
             # Quick sanity evaluation using midpoints of parameter bounds
             try:

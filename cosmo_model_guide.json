@@ -2,8 +2,8 @@
   "guide_title": "Copernican Suite cosmo_model_*.json Definition Guide",
   "guide_version": "1.0",
   "overview": "This guide explains how to write valid cosmo_model JSON files for the Copernican Suite.  Each cosmo_model_*.json defines a cosmological model by declaring metadata, parameters, H(z) and r_s expressions, and display equations for SNe Ia and BAO.",
-  "requirements": "Every cosmo_model JSON must include these top-level keys: model_name (string), version (string), description (string), abstract (string), parameters (array), equations (object).  If you supply r_s, include rs_expression (string) and set predicts_bao to true.",
-  "parameter_definition": "The parameters array contains objects with these fields: name (human-readable string), python_var (valid Python identifier), bounds ([min, max]), and optional unit (string) and latex_name (string).  All symbols used in Hz_expression and rs_expression must be declared here.  To define a fixed constant (e.g. c), give identical bounds.",
+  "requirements": "Every cosmo_model JSON must include these top-level keys: model_name (string), version (string), description (string), abstract (string), parameters (array), equations (object). If you supply r_s, include rs_expression (string) and set predicts_bao to true. Add a cmb.param_map object to translate variables into CAMB parameters, or set valid_for_cmb to false if unsupported.",
+  "parameter_definition": "The parameters array contains objects with these fields: name (human-readable string), python_var (valid Python identifier), bounds ([min, max]), and optional unit (string) and latex_name (string).  All symbols used in Hz_expression and rs_expression must be declared here.  To define a fixed constant (e.g. c), give identical bounds. Parameter latex_name values are automatically wrapped in math mode when displayed.",
   "expressions": {
     "Hz_expression": "A Python-syntax string for H(z), referencing only declared parameters and the variable z.  Use numeric operations and functions exp(), cos(), log(), sqrt().  Do not use Python lists or comments.",
     "rs_expression": "A Python-syntax string for the sound horizon r_s at drag epoch.  It may reference only declared parameters (no z).  If omitted or if predicts_bao=false, BAO predictions are disabled."
@@ -59,6 +59,17 @@
       ]
     },
     "rs_expression": "rs0*(1 + B*z_recomb*exp(-gamma*z_recomb))",
-    "predicts_bao": true
+    "predicts_bao": true,
+    "valid_for_cmb": true,
+    "cmb": {
+      "param_map": {
+        "H0": "H0",
+        "ombh2": "Ob * (H0/100)**2",
+        "omch2": "(Omega_m0 - Ob) * (H0/100)**2",
+        "tau": 0.054,
+        "As": 2.1e-9,
+        "ns": 0.965
+      }
+    }
   }
 }

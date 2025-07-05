@@ -1,5 +1,5 @@
-**Version:** 1.6.5
-**Last Updated:** 2025-06-23
+**Version:** 1.7.3-beta
+**Last Updated:** 2025-07-05
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
 Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. Future
@@ -62,10 +62,9 @@ Under the hood the program follows a clear pipeline:
 
 ## Dependencies
 This project requires **Python 3.13.1 or later** and relies on `numpy`, `scipy`, `matplotlib`,
-`pandas`, `sympy` and `jsonschema`. If any of these are missing the dependency check
-will print the full installation command `pip install numpy scipy matplotlib
-pandas sympy jsonschema`. Future engines may also depend on `numba` or
-GPU libraries.
+`pandas`, `sympy`, `jsonschema` and `camb`. If any of these are missing the dependency check
+will print the full installation command `pip install numpy scipy matplotlib pandas sympy jsonschema camb`.
+Future engines may also depend on `numba` or GPU libraries.
  
 ## Building & Installation
 Run `pip install .` from the repository root to build and install the `copernican` command. Use `pip install -e .` for editable installs.
@@ -77,6 +76,8 @@ models/           - JSON model definitions containing all theory text and
                     summaries but are not required.
 engines/          - Computational backends (SciPy CPU and Numba with automatic fallback)
 data/             - Observation data organized as ``data/<type>/<source>/``
+  cmb/planck2018lite/ - Planck 2018 lite TT power spectrum parser and files
+                         (covariance matrix may be binary Fortran or ASCII)
 output/           - All generated results
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
@@ -92,9 +93,9 @@ should not be modified by AI-driven code changes.
 
 ## Using the Suite
 - The program discovers available models from `models/cosmo_model_*.json`.
-- Data sources for SNe and BAO are chosen interactively. Once a source is
-  selected, its parser and files are loaded automatically from
-  `data/<type>/<source>/`. Future datasets will follow the same structure.
+ - Data sources for SNe, BAO and CMB are chosen interactively. Once a source is
+   selected, its parser and files are loaded automatically from
+   `data/<type>/<source>/`. Future datasets will follow the same structure.
 - Engines are selected interactively from the `engines/` directory. Parsers are
   discovered automatically when their source folders are imported.
 - After each run you may choose to evaluate another model or exit. Cache files
@@ -118,6 +119,8 @@ See `cosmo_model_guide.json` for a detailed template.
    numerically with SciPy's `quad` when the model is loaded.
 6. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
+7. `latex_name` values do not require `$` delimiters. Plots automatically wrap
+   parameter names in math mode.
 The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
 auto-generates the necessary Python functions.
 
@@ -145,12 +148,34 @@ The required top-level keys are `model_name`, `version`, `parameters`,
       "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
     ]
   },
+  "valid_for_cmb": true,
+  "cmb": {
+    "param_map": {
+      "H0": "H0",
+      "ombh2": "Ob * (H0/100)**2",
+      "omch2": "(Om - Ob) * (H0/100)**2",
+      "tau": 0.054,
+      "As": 2.1e-9,
+      "ns": 0.965
+    }
+  },
+  "gravitational_waves": {},
+  "standard_sirens": {},
   "abstract": "short overview text",
   "description": "longer explanation",
   "notes": "any additional remarks"
 }
 ```
 Initial guesses are derived automatically from each parameter's bounds.
+When a `cmb.param_map` object is provided, the mapping is stored on the plugin
+as `CMB_PARAM_MAP`. Call `plugin.get_camb_params(values)` to convert a list of
+cosmological parameters into a dictionary for CAMB. Models without a custom
+`compute_cmb_spectrum` automatically use this mapping with the default engine.
+When `valid_for_cmb` is `false` the suite logs a message and skips the CMB
+evaluation stage for that model.
+CMB data parsers attach a `param_names` attribute to the returned DataFrame
+listing the CAMB parameter order. The engine combines this list with
+`get_camb_params` to evaluate the power spectrum and chi-squared.
 `model_parser.py` accepts unknown keys and simply copies them to the sanitized
 cache. This allows the domain-specific JSON language to evolve while remaining
 compatible with older models.

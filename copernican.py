@@ -27,7 +27,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.6.5"
+COPERNICAN_VERSION = "1.7.3-beta"
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
@@ -318,6 +318,10 @@ def main_workflow():
         if bao_data_df is None:
             continue
 
+        cmb_data_df = data_loaders.load_cmb_data()
+        if cmb_data_df is None:
+            continue
+
         logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
         lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, lcdm)
         alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, alt_model_plugin)
@@ -345,10 +349,41 @@ def main_workflow():
                 
             return {'sne_fit_results': sne_fit_results, 'pred_df': pred_df, 'rs_Mpc': rs_Mpc, 'chi2_bao': chi2_bao, 'smooth_predictions': smooth_preds}
 
+        def run_cmb_analysis(cmb_df, model_plugin, cosmo_params):
+            """Run CMB analysis for a given model."""
+            # Skip the CMB step entirely when the model declares it is invalid
+            # for such data. This prevents misleading chi-squared calculations
+            # and ensures plugin validation does not fail for missing CMB
+            # functions.
+            if getattr(model_plugin, 'valid_for_cmb', True) is False:
+                logger.info(
+                    f"{model_plugin.MODEL_NAME} does not support CMB; skipping analysis."
+                )
+                return {'chi2_cmb': np.inf, 'theory_spectrum': None}
+
+            if cmb_df is None or cmb_df.empty:
+                return {'chi2_cmb': np.inf, 'theory_spectrum': None}
+
+            # Convert the fitted cosmological parameters to CAMB's expected
+            # dictionary format using the helper provided by the model plugin.
+            camb_params = model_plugin.get_camb_params(cosmo_params)
+
+            theory = cosmo_engine_selected.compute_cmb_spectrum(
+                camb_params, cmb_df['ell'].values
+            )
+            chi2_val = cosmo_engine_selected.chi_squared_cmb(camb_params, cmb_df)
+            logger.info(f"{model_plugin.MODEL_NAME} CMB chi2 = {chi2_val:.2f}")
+            return {'chi2_cmb': chi2_val, 'theory_spectrum': theory}
+
         lcdm_full_results = run_bao_analysis(lcdm, lcdm_sne_fit_results, z_plot_smooth)
         alt_model_full_results = run_bao_analysis(alt_model_plugin, alt_model_sne_fit_results, z_plot_smooth)
 
+        lcdm_cmb = run_cmb_analysis(cmb_data_df, lcdm, list(lcdm_sne_fit_results['fitted_cosmological_params'].values()))
+        alt_cmb = run_cmb_analysis(cmb_data_df, alt_model_plugin, list(alt_model_sne_fit_results['fitted_cosmological_params'].values()))
+
         logger.info("\n--- Stage 4: Generating Outputs ---")
+        logger.info(f"{lcdm.MODEL_NAME} CMB chi2 = {lcdm_cmb['chi2_cmb']:.2f}")
+        logger.info(f"{alt_model_plugin.MODEL_NAME} CMB chi2 = {alt_cmb['chi2_cmb']:.2f}")
         plotter.plot_hubble_diagram(
             sne_data_df,
             lcdm_sne_fit_results,
@@ -365,6 +400,17 @@ def main_workflow():
                 lcdm,
                 alt_model_plugin,
                 sne_data_df,
+                plot_dir=OUTPUT_DIR,
+            )
+        if cmb_data_df is not None:
+            plotter.plot_cmb_spectrum(
+                cmb_data_df,
+                lcdm_cmb,
+                alt_cmb,
+                lcdm_sne_fit_results,
+                alt_model_sne_fit_results,
+                lcdm,
+                alt_model_plugin,
                 plot_dir=OUTPUT_DIR,
             )
         
@@ -386,6 +432,14 @@ def main_workflow():
                 bao_data_df,
                 lcdm_full_results,
                 alt_model_full_results,
+                alt_model_name=alt_model_plugin.MODEL_NAME,
+                csv_dir=OUTPUT_DIR,
+            )
+        if cmb_data_df is not None:
+            csv_writer.save_cmb_results_csv(
+                cmb_data_df,
+                lcdm_cmb,
+                alt_cmb,
                 alt_model_name=alt_model_plugin.MODEL_NAME,
                 csv_dir=OUTPUT_DIR,
             )

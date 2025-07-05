@@ -10,11 +10,45 @@ Add one line for each substantive commit or pull request directly under the late
 
 Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
-## Version 1.6.4 (Patch Release)
-- 2025-06-23: Added numerical quadrature support for Integral expressions (AI assistant)
+## Version 1.7.3-beta (Development Release)
+- 2025-07-05: Fixed Planck covariance reader for ASCII data and ensured CMB parameters use SNe best-fit values (AI assistant)
+- 2025-07-05: Corrected Planck covariance parsing for binary Fortran record (AI assistant)
+- 2025-07-05: Re-added integral expression support using numerical quadrature (AI assistant)
+- 2025-07-05: Added `_wrap_math` helper and updated parameter label rendering (AI assistant)
+- 2025-07-05: Updated LICENSE.md with new definitions and effective date (AI assistant)
+- 2025-07-05: Restored 1.6.4 and 1.6.5 changelog entries (AI assistant)
+## Version 1.7.2-beta (Development Release)
+- 2025-07-05: Fixed Planck covariance parser using np.loadtxt (AI assistant)
+- 2025-07-05: Added default CAMB parameter mapping from SNe fits (AI assistant)
+- 2025-07-05: Handled binary Planck covariance matrix fallback (AI assistant)
+## Version 1.7.1-beta (Development Release)
+- 2025-07-05: Updated version references to 1.7.1-beta (AI assistant)
+- 2025-07-05: Implemented Planck 2018 lite CMB parser (AI assistant)
+- 2025-07-05: Added `valid_for_cmb` flag and updated plugin validation (AI assistant)
+- 2025-07-05: Added CAMB-based CMB analysis and chi-squared routines (AI assistant)
+- 2025-07-05: Added cmb.param_map metadata to models and documentation (AI assistant)
+- 2025-07-05: Stored CAMB parameter order in Planck 2018 parser (AI assistant)
+- 2025-07-05: Added automatic CMB wrapper and parameter mapping helper (AI assistant)
+- 2025-07-05: run_cmb_analysis now converts fitted parameters with get_camb_params (AI assistant)
+
+## Version 1.7.0-beta (Development Release)
+- 2025-07-05: Skip CMB evaluation when model sets valid_for_cmb=false (AI assistant)
+- 2025-07-05: Implemented CMB spectrum plotting (AI assistant)
+- 2025-07-05: Added CMB residual CSV export (AI assistant)
+- 2025-07-05: Documented cmb.param_map usage and parser param_names attribute (AI assistant)
+- 2025-07-05: Bumped version to 1.7.0 and reorganized changelog (AI assistant)
+- 2025-07-05: Removed obsolete CMB placeholder parser and dataset (AI assistant)
+- 2025-07-05: Added CAMB dependency to pyproject and updated docs (AI assistant)
+- 2025-07-05: Corrected CMB spectrum units and Planck parser to use D_l (AI assistant)
+- 2025-07-05: Removed DEV NOTE headers from pyproject.toml (AI assistant)
+
 ## Version 1.6.5 (Patch Release)
 - 2025-06-23: Fixed plot info boxes to display equations from the selected alternative theory and ensured Greek letters render correctly (AI assistant)
 - 2025-06-23: Updated README and AGENTS documentation for corrected JSON schema and version bump (AI assistant)
+
+## Version 1.6.4 (Patch Release)
+- 2025-06-23: Added numerical quadrature support for Integral expressions (AI assistant)
+
 ## Version 1.6.3 (Patch Release)
 - 2025-06-22: Restored `pyproject.toml` and silenced Pandas whitespace warning (AI assistant)
 - 2025-06-22: Declared Python 3.13.1+ requirement in pyproject and README (AI assistant)
@@ -112,3 +146,4 @@ Example:
 - Removed GPU code for stability.
 - Implemented robust multiprocessing using `psutil`.
 - Added test mode and cache cleanup loop.
+

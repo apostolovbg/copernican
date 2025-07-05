@@ -67,5 +67,6 @@
     ]
   },
   "rs_expression": "rs",
-  "predicts_bao": true
+  "predicts_bao": true,
+  "valid_for_cmb": false
 }

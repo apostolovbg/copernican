@@ -4,7 +4,7 @@ Development notes were previously kept at the top of this file. That history now
 lives in `CHANGELOG.md`. New modifications must update the changelog, and legacy
 `dev_note` headers embedded in source files have been fully phased out.
 
-This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current stable release is **version 1.6.5**.
+This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.7.3-beta**.
 
 ## 1. Program Overview
 The suite evaluates cosmological models against SNe Ia and BAO data. Support for
@@ -23,6 +23,7 @@ ensures the expected functions are present and callable.
 models/           - JSON model definitions with embedded theory text and equations. Optional `.md` files may accompany a model for readability.
 engines/          - Computational backends (SciPy CPU by default)
 data/             - Observation files under ``data/<type>/<source>/``
+  cmb/planck2018lite/ - Planck 2018 lite TT power spectrum
 output/           - Generated plots and CSV tables
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
@@ -97,6 +98,16 @@ parameter's bounds.
 automatically; no manual Python implementation is required.
 The parser keeps unknown keys intact, ensuring the DSL stays backward
 compatible as new fields are introduced.
+
+### 4.2 Dataset compatibility flags
+
+Generated model plugins include boolean attributes `valid_for_distance_metrics`,
+`valid_for_bao` and `valid_for_cmb`. All default to `True` and signal which
+datasets the model supports. When `valid_for_cmb` is `False` the engine does not
+require the optional `compute_cmb_spectrum` function during validation.
+Models that can compute a CMB power spectrum should also define a `cmb.param_map`
+object describing how standard CAMB parameters such as `H0` and `ombh2` are
+derived from the model's variables or constants.
 
 ## 6. Development Protocol
 To keep the project maintainable all contributors, human or AI, must follow these rules:
