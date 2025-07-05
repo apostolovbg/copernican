@@ -15,6 +15,7 @@ Example:
 - 2025-07-05: Corrected Planck covariance parsing for binary Fortran record (AI assistant)
 - 2025-07-05: Re-added integral expression support using numerical quadrature (AI assistant)
 - 2025-07-05: Added `_wrap_math` helper and updated parameter label rendering (AI assistant)
+- 2025-07-05: Updated LICENSE.md with new definitions and effective date (AI assistant)
 ## Version 1.7.2-beta (Development Release)
 - 2025-07-05: Fixed Planck covariance parser using np.loadtxt (AI assistant)
 - 2025-07-05: Added default CAMB parameter mapping from SNe fits (AI assistant)
