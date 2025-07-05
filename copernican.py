@@ -29,6 +29,18 @@ data_loaders = None
 
 COPERNICAN_VERSION = "1.7.4-beta"
 
+def run_startup_tests():
+    """Execute functional tests using the standard unittest runner."""
+    import unittest
+    try:
+        tests = importlib.import_module('tests.functional')
+    except Exception as exc:
+        print(f"Error importing startup tests: {exc}")
+        return False
+    suite = unittest.defaultTestLoader.loadTestsFromModule(tests)
+    result = unittest.TextTestRunner(verbosity=1).run(suite)
+    return result.wasSuccessful()
+
 def show_splash_screen():
     """Displays the startup banner once at launch."""
     banner = [
@@ -206,6 +218,9 @@ def cleanup_cache(base_dir):
 def main_workflow():
     """Main workflow for the Copernican Suite."""
     check_dependencies()
+    if not run_startup_tests():
+        print("Startup tests failed. Exiting.")
+        return
 
     # Import optional third-party packages after confirming they are installed
     global np, plt, mp, model_parser, model_coder, engine_interface, data_loaders, plotter, csv_writer, log_mod, logger

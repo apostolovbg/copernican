@@ -224,12 +224,14 @@ altering `MAJOR.MINOR`.
 
 1.  **Dependency Check**: `copernican.py` scans for missing packages and
     instructs you to run a `pip install` command if any are absent.
-2.  **Initialization**: The script starts and creates the `./output/` directory for all results.
-3.  **Configuration**: The user specifies the file paths for the model and data files.
-4.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data.
-5.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
-6.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots, tables and logs using a consistent format.
-7.  **Loop or Exit**: The user is prompted to run another evaluation or exit.
+2.  **Startup Tests**: A small test suite verifies that the LCDM model and
+    data parsers work as expected.
+3.  **Initialization**: The script starts and creates the `./output/` directory for all results.
+4.  **Configuration**: The user specifies the file paths for the model and data files.
+5.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data.
+6.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
+7.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots, tables and logs using a consistent format.
+8.  **Loop or Exit**: The user is prompted to run another evaluation or exit.
 
 ---
 
