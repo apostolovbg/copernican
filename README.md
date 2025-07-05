@@ -77,6 +77,7 @@ models/           - JSON model definitions containing all theory text and
 engines/          - Computational backends (SciPy CPU and Numba with automatic fallback)
 data/             - Observation data organized as ``data/<type>/<source>/``
   cmb/planck2018lite/ - Planck 2018 lite TT power spectrum parser and files
+                         (covariance matrix may be binary Fortran or ASCII)
 output/           - All generated results
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
