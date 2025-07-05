@@ -33,18 +33,21 @@ def parse_planck2018lite(data_dir, **kwargs):
         df["Dl_obs"] = ell_arr * (ell_arr + 1) * df["Cl_obs"] / (2 * np.pi)
         n = len(df)
 
-        # The covariance matrix file is plain ASCII text. Older versions of
-        # this parser treated it as a Fortran unformatted binary, but that
-        # produced a 1D array of incorrect length. Use ``np.loadtxt`` to
-        # read the entire matrix and skip a potential header line.
-        cov_arr = np.loadtxt(cov_path)
-        if cov_arr.size != n * n:
-            cov_arr = np.loadtxt(cov_path, skiprows=1)
-        if cov_arr.size != n * n:
+        # The covariance matrix file is stored as a Fortran unformatted
+        # binary record. The first and last 4 bytes contain the record
+        # length (n*n*8). Read the data as little-endian 64-bit floats
+        # and reshape to ``n x n``.
+        with open(cov_path, "rb") as fh:
+            header = np.fromfile(fh, dtype="<i4", count=1)[0]
+            cov_arr = np.fromfile(fh, dtype="<f8", count=n * n)
+            trailer = np.fromfile(fh, dtype="<i4", count=1)[0]
+
+        if cov_arr.size != n * n or header != trailer or header != n * n * 8:
             logger.error(
-                f"Covariance matrix size mismatch: expected {n*n} values, got {cov_arr.size}"
+                "Planck2018lite covariance matrix header mismatch or size error."
             )
             return None
+
         cov_matrix = cov_arr.reshape(n, n)
         # The covariance matrix is supplied for C_ell. Scale to D_ell using
         # the same ell(ell+1)/(2pi) factors applied above.
