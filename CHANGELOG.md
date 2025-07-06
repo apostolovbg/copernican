@@ -1,8 +1,3 @@
-# Copernican Suite Change Log
-<!-- DEV NOTE (v1.5.0): Adopted semantic versioning. -->
-<!-- DEV NOTE (v1.5g): Data source reorganization and version bump. -->
-<!-- DEV NOTE (v1.5.1): Removed theory block and auto-generated parameter guesses. -->
-
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: please, always check what is the current date when you are logging last changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Use this template:
 
@@ -28,34 +23,40 @@ Example:
 - 2025-07-06: Bumped version to 1.7.11-beta (AI assistant)
 
 ## Version 1.7.12-beta (Development Release)
- - 2025-07-06: Added TE/EE spectrum handling and improved cosmic variance plotting (AI assistant)
- - 2025-07-06: Bumped version to 1.7.12-beta (AI assistant)
+- 2025-07-06: Added TE/EE spectrum handling and improved cosmic variance plotting (AI assistant)
+- 2025-07-06: Bumped version to 1.7.12-beta (AI assistant)
 
 ## Version 1.7.9-beta (Development Release)
 - 2025-07-06: Fixed Planck lite scaling and covariance endianness (AI assistant)
 - 2025-07-06: Enhanced default CMB wrapper and engine spectra output (AI assistant)
 - 2025-07-06: Updated documentation and version bump to 1.7.9-beta (AI assistant)
+
 ## Version 1.7.8-beta (Development Release)
 - 2025-07-06: Added dedicated CMB analysis stage with verbose logging (AI assistant)
 - 2025-07-06: Updated documentation and version bump to 1.7.8-beta (AI assistant)
+
 ## Version 1.7.7-beta (Development Release)
 - 2025-07-06: Overhauled Planck parser with µK² conversion and TE/EE support (AI assistant)
 - 2025-07-06: Redesigned CMB plot with log scaling and variance shading (AI assistant)
 - 2025-07-06: Documentation updates and version bump to 1.7.7-beta (AI assistant)
+
 ## Version 1.7.6-beta (Development Release)
 - 2025-07-05: Bumped COPERNICAN_VERSION and docs to 1.7.6-beta. (AI assistant)
 - 2025-07-06: Added TE/EE spectrum handling in parser, engine and plotter. (AI assistant)
 - 2025-07-06: Improved Planck lite parser covariance checks with fallback warnings. (AI assistant)
 - 2025-07-06: Fixed chi-squared label formatting warnings in plotter. (AI assistant)
+
 ## Version 1.7.5-beta (Development Release)
 - 2025-07-05: Removal of user-selectable test mode. (AI assistant)
 - 2025-07-05: Automatic functional tests run at startup. (AI assistant)
 - 2025-07-05: Updated documentation and model guide. (AI assistant)
 - 2025-07-05: Clarified CMB requirements in cosmo_model_guide and bumped guide version. (AI assistant)
 - 2025-07-05: Documented automatic startup test suite in README. (AI assistant)
+
 ## Version 1.7.4-beta (Development Release)
 - 2025-07-05: Fixed unit conversion (K\u00b2 \u2192 \u03bcK\u00b2) by applying a 1e12 scale factor (AI assistant)
 - 2025-07-05: Added neutrino density mapping (`omnuh2`) to the \u039bCDM parameter map (AI assistant)
+
 ## Version 1.7.3-beta (Development Release)
 - 2025-07-05: Fixed Planck covariance reader for ASCII data and ensured CMB parameters use SNe best-fit values (AI assistant)
 - 2025-07-05: Corrected Planck covariance parsing for binary Fortran record (AI assistant)
@@ -63,10 +64,12 @@ Example:
 - 2025-07-05: Added `_wrap_math` helper and updated parameter label rendering (AI assistant)
 - 2025-07-05: Updated LICENSE.md with new definitions and effective date (AI assistant)
 - 2025-07-05: Restored 1.6.4 and 1.6.5 changelog entries (AI assistant)
+
 ## Version 1.7.2-beta (Development Release)
 - 2025-07-05: Fixed Planck covariance parser using np.loadtxt (AI assistant)
 - 2025-07-05: Added default CAMB parameter mapping from SNe fits (AI assistant)
 - 2025-07-05: Handled binary Planck covariance matrix fallback (AI assistant)
+
 ## Version 1.7.1-beta (Development Release)
 - 2025-07-05: Updated version references to 1.7.1-beta (AI assistant)
 - 2025-07-05: Implemented Planck 2018 lite CMB parser (AI assistant)
@@ -98,8 +101,10 @@ Example:
 ## Version 1.6.3 (Patch Release)
 - 2025-06-22: Restored `pyproject.toml` and silenced Pandas whitespace warning (AI assistant)
 - 2025-06-22: Declared Python 3.13.1+ requirement in pyproject and README (AI assistant)
+
 ## Version 1.6.2 (Patch Release)
 - 2025-06-22: Added LCDM equations and sound horizon formula (AI assistant)
+
 ## Version 1.6.1 (Patch Release)
 - Restored model equations in plot info boxes.
 - 2025-06-22: Fixed plot crashes when model equations used display-mode dollar signs (AI assistant)
@@ -107,6 +112,7 @@ Example:
 - start.command cleaned up.
 - 2025-06-21: Documented stable plotting style and algorithms (AI assistant)
 - 2025-06-21: Clarified when MINOR vs PATCH increments occur in README (AI assistant)
+
 ## Version 1.6 (Stable Release)
 - 2025-06-21: Fixed trailing text in start.command and ensured newline (AI assistant)
 - 2025-06-21: First stable release with reliable SNe Ia and BAO calculations (AI assistant)
@@ -114,6 +120,7 @@ Example:
 - 2025-06-21: Plugin now exposes model equations and filename (AI assistant)
 - 2025-06-21: Plugin filename stored during JSON loading (AI assistant)
 - 2025-06-21: Plots now include a timestamped footer with comparison details (AI assistant)
+
 ## Version 1.5.1 (Development Release)
 - 2025-06-20: Added CHANGELOG template and updated docs to reference it (AI assistant)
 - Removed ``initial_guess`` from JSON models; parameter guesses now computed
