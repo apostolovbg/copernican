@@ -10,11 +10,6 @@ Add one line for each substantive commit or pull request directly under the late
 
 Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
-
-## Version 1.7.7-beta (Development Release)
-- 2025-07-06: Bumped COPERNICAN_VERSION and documentation to 1.7.7-beta. (AI assistant)
-- 2025-07-06: CMB spectrum now computed with CAMB and plots use logarithmic scale. (AI assistant)
-
 ## Version 1.7.6-beta (Development Release)
 - 2025-07-05: Bumped COPERNICAN_VERSION and docs to 1.7.6-beta. (AI assistant)
 - 2025-07-06: Added TE/EE spectrum handling in parser, engine and plotter. (AI assistant)
