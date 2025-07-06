@@ -44,7 +44,7 @@ def run_startup_tests():
 def show_splash_screen():
     """Displays the startup banner once at launch."""
     banner = [
-        " " * 70,
+        "=" * 70,
         "\n",
         "C O P E R N I C A N   S U I T E".center(70),
         "\n",
