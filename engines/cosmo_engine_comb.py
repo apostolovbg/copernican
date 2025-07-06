@@ -489,7 +489,7 @@ def fit_sne_parameters(sne_data_df, model_plugin):
     }
 
 def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin):
-    """Fit a model to SNe, BAO and CMB simultaneously.
+    r"""Fit a model to SNe, BAO and CMB simultaneously.
 
     Parameters are optimized with ``scipy.optimize.minimize`` against the
     combined :math:`\chi^2` from all datasets.  The routine mirrors
@@ -505,13 +505,57 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
         logger.error(f"Model plugin {model_plugin.MODEL_NAME} has inconsistent parameter definitions.")
         return {'success': False, 'chi2_total': np.inf}
 
+    # Counter for iterations so progress can be displayed in real time
+    eval_count = {'count': 0}
+    best_val = [np.inf]
+    best_params = [list(init_params)]
+    start_t = time.time()
+
     def chi2_wrapper(p):
-        return chi_squared_combined(p, model_plugin, sne_data_df, bao_data_df, cmb_data_df)
+        """Wrapper that tracks evaluations and prints live progress."""
+        eval_count['count'] += 1
+        chi_val = chi_squared_combined(p, model_plugin, sne_data_df, bao_data_df, cmb_data_df)
+        if not np.isfinite(chi_val):
+            chi_val = np.inf
+        if chi_val < best_val[0]:
+            best_val[0] = float(chi_val)
+            best_params[0] = list(p)
+        elapsed = time.time() - start_t
+        rate = f"{eval_count['count'] / elapsed:.1f} evals/s" if elapsed > 1e-6 else "--- evals/s"
+        print(
+            f"  Combined Fit Evals: {eval_count['count']:<5} | Best Chi2: {best_val[0]:.4f} | Speed: {rate:<15}",
+            end='\r',
+            file=sys.stderr,
+        )
+        return chi_val if np.isfinite(chi_val) else 1e12
 
-    result = minimize(chi2_wrapper, init_params, method='L-BFGS-B', bounds=bounds, options={'maxiter': 2000, 'disp': False})
+    logger.info(
+        f"Starting combined optimization for {model_plugin.MODEL_NAME} using {len(init_params)} parameters..."
+    )
 
-    final_params = result.x if result.success else init_params
-    chi2_tot = chi_squared_combined(final_params, model_plugin, sne_data_df, bao_data_df, cmb_data_df)
+    options = {'maxiter': 2000, 'disp': False}
+    result = None
+    try:
+        result = minimize(chi2_wrapper, init_params, method='L-BFGS-B', bounds=bounds, options=options)
+    except Exception as exc:
+        logger.error(f"Exception during combined fit: {exc}", exc_info=True)
+    finally:
+        # Clear the progress line
+        print(" " * 80, end='\r', file=sys.stderr)
+        logger.info(f"Combined optimization finished. Total evals: {eval_count['count']}.")
+
+    if result and result.success and np.isfinite(result.fun):
+        final_params = result.x
+        chi2_tot = float(result.fun)
+        message = result.message
+        success_flag = True
+    else:
+        final_params = np.array(best_params[0])
+        chi2_tot = chi_squared_combined(final_params, model_plugin, sne_data_df, bao_data_df, cmb_data_df)
+        message = "Optimizer failed or did not converge"
+        if result and hasattr(result, 'message') and result.message:
+            message += f" (Optimizer msg: {result.message})"
+        success_flag = np.isfinite(chi2_tot)
     chi2_sne = chi_squared_sne_h1_fixed_nuisance(final_params, model_plugin.distance_modulus_model, sne_data_df) if sne_data_df is not None else np.nan
     chi2_bao = np.nan
     if bao_data_df is not None and getattr(model_plugin, 'valid_for_bao', True):
@@ -520,6 +564,13 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
     chi2_cmb = np.nan
     if cmb_data_df is not None and getattr(model_plugin, 'valid_for_cmb', True):
         chi2_cmb = chi_squared_cmb(model_plugin.get_camb_params(final_params), cmb_data_df)
+
+    logger.info(f"Combined fit results for {model_plugin.MODEL_NAME}:")
+    for name, val in zip(param_names, final_params):
+        logger.info(f"  - {name}: {val:.5g}")
+    logger.info(
+        f"  - Chi2 Total: {chi2_tot:.4f} (SNe={chi2_sne:.4f}, BAO={chi2_bao:.4f}, CMB={chi2_cmb:.4f})"
+    )
 
     dof = 0
     if sne_data_df is not None:
@@ -532,7 +583,7 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
     reduced = chi2_tot / dof if dof > 0 else np.nan
 
     return {
-        'success': result.success and np.isfinite(chi2_tot),
+        'success': success_flag and np.isfinite(chi2_tot),
         'fit_style_used': 'combined',
         'fitted_cosmological_params': {n: v for n, v in zip(param_names, final_params)},
         # chi2_min is kept for compatibility with existing plotters
@@ -543,7 +594,7 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
         'chi2_cmb': chi2_cmb,
         'dof': dof,
         'reduced_chi2': reduced,
-        'message': result.message if hasattr(result, 'message') else ''
+        'message': message
     }
 
 
