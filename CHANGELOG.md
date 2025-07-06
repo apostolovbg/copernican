@@ -6,6 +6,9 @@ Add one line for each substantive commit or pull request directly under the late
 Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
 
+## Version 1.8.2-beta (Development Release)
+- 2025-07-06: Optimized CMB evaluation with cached CAMB calls (AI assistant)
+
 ## Version 1.8.1-beta (Development Release)
 - 2025-07-06: Made combined-fit engine verbose and fixed docstring escape warning (AI assistant)
 

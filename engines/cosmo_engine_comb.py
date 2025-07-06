@@ -12,6 +12,7 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.linalg import LinAlgError
 import camb
+from functools import lru_cache
 import sys
 import time
 import logging
@@ -221,8 +222,39 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
     return total_chi2 if np.isfinite(total_chi2) else np.inf
 
 
+@lru_cache(maxsize=128)
+def _cached_cmb(tuple_key):
+    """Return unlensed CAMB spectra for a given parameter key.
+
+    The tuple key packs cosmology parameters rounded to three decimals,
+    the maximum multipole ``lmax`` and the set of requested spectra.
+    """
+    key_tuple, lmax, spectra = tuple_key
+    param_dict = dict(key_tuple)
+    params = camb.CAMBparams()
+    params.set_cosmology(
+        H0=param_dict["H0"],
+        ombh2=param_dict["ombh2"],
+        omch2=param_dict["omch2"],
+        tau=param_dict["tau"],
+    )
+    params.omnuh2 = param_dict.get("omnuh2", 0.0)
+    params.InitPower.set_params(As=param_dict["As"], ns=param_dict["ns"])
+    params.set_for_lmax(lmax + 300, lens_potential_accuracy=0)
+    results = camb.get_results(params)
+    cls = results.get_unlensed_scalar_cls(lmax=lmax, CMB_unit="muK")
+    out = {}
+    if "TT" in spectra:
+        out["TT"] = cls[:, 0]
+    if "EE" in spectra:
+        out["EE"] = cls[:, 1]
+    if "TE" in spectra:
+        out["TE"] = cls[:, 3]
+    return out
+
+
 def compute_cmb_spectrum(param_dict, ells, spectra=("TT",)):
-    """Return theoretical D_ell spectra using CAMB.
+    """Return theoretical D_ell spectra using CAMB with caching.
 
     Parameters
     ----------
@@ -243,47 +275,29 @@ def compute_cmb_spectrum(param_dict, ells, spectra=("TT",)):
     """
     logger = logging.getLogger()
     try:
-        H0 = float(param_dict.get("H0", 67.0))
-        ombh2 = float(param_dict.get("ombh2", 0.02237))
-        omch2 = float(param_dict.get("omch2", 0.12))
-        tau = float(param_dict.get("tau", 0.054))
-        As = float(param_dict.get("As", 2.1e-9))
-        ns = float(param_dict.get("ns", 0.965))
-        omnuh2 = float(param_dict.get("omnuh2", 0.0))
+        key_dict = {
+            k: float(param_dict.get(k, 0.0)) for k in [
+                "H0", "ombh2", "omch2", "omnuh2", "tau", "As", "ns"
+            ]
+        }
     except Exception as exc:
         logger.error(f"(compute_cmb_spectrum): Invalid parameter mapping: {exc}")
         return np.full_like(ells, np.nan, dtype=float)
 
-    params = camb.CAMBparams()
-    params.set_cosmology(H0=H0, ombh2=ombh2, omch2=omch2, tau=tau)
-    # CAMB does not accept ``omnuh2`` directly in ``set_cosmology`` so assign
-    # it explicitly on the params object after calling the routine.
-    params.omnuh2 = omnuh2
-    params.InitPower.set_params(As=As, ns=ns)
-    params.set_for_lmax(int(np.max(ells)) + 300, lens_potential_accuracy=0)
+    lmax = int(np.max(ells))
+    key_tuple = tuple((k, round(v, 3)) for k, v in sorted(key_dict.items()))
+    cache_key = (key_tuple, lmax, tuple(sorted(spectra)))
     try:
-        results = camb.get_results(params)
-        # Obtain unlensed D_\ell spectra directly in \u03bcK^2
-        full_dls = results.get_unlensed_scalar_cls(
-            lmax=int(np.max(ells)), CMB_unit="muK"
-        )
-
-        ell_arr = np.asarray(ells, dtype=int)
-
-        result = {}
-        if "TT" in spectra:
-            result["TT"] = full_dls[ell_arr, 0]
-        if "EE" in spectra:
-            result["EE"] = full_dls[ell_arr, 1]
-        if "TE" in spectra:
-            result["TE"] = full_dls[ell_arr, 3]
-
-        if len(result) == 1:
-            return next(iter(result.values()))
-        return result
+        full_spectra = _cached_cmb(cache_key)
     except Exception as exc:
         logger.error(f"(compute_cmb_spectrum): CAMB failed: {exc}")
         return np.full_like(ells, np.nan, dtype=float)
+
+    ell_arr = np.asarray(ells, dtype=int)
+    result = {spec: full_spectra[spec][ell_arr] for spec in spectra}
+    if len(result) == 1:
+        return next(iter(result.values()))
+    return result
 
 
 def chi_squared_cmb(cosmo_params, cmb_data_df):
