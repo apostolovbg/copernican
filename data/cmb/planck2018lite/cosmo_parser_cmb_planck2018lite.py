@@ -38,20 +38,32 @@ def parse_planck2018lite(data_dir, **kwargs):
         block_te = raw.iloc[idx_tt:idx_te].reset_index(drop=True)
         block_ee = raw.iloc[idx_te:].reset_index(drop=True)
 
-        ell_arr = block_tt[0].values.astype(int)
-        df = pd.DataFrame({"ell": ell_arr})
-        df["Dl_obs"] = ell_arr * (ell_arr + 1) * block_tt[1].values / (2 * np.pi)
+        ell_tt = block_tt[0].values.astype(int)
+        df = pd.DataFrame({"ell": ell_tt})
+        df["Dl_obs"] = ell_tt * (ell_tt + 1) * block_tt[1].values / (2 * np.pi)
 
-        if len(block_te) == len(ell_arr):
-            df["Dl_te_obs"] = (
-                ell_arr * (ell_arr + 1) * block_te[1].values / (2 * np.pi)
-            )
-        if len(block_ee) == len(ell_arr):
-            df["Dl_ee_obs"] = (
-                ell_arr * (ell_arr + 1) * block_ee[1].values / (2 * np.pi)
-            )
+        # Build TE and EE columns aligned to the TT ell grid. Where the TE/EE
+        # block does not provide a value (the high-\ell tail), NaN is used.
+        ell_te = block_te[0].values.astype(int)
+        ell_ee = block_ee[0].values.astype(int)
+        te_map = ell_te * (ell_te + 1) * block_te[1].values / (2 * np.pi)
+        te_err = ell_te * (ell_te + 1) * block_te[2].values / (2 * np.pi)
+        ee_map = ell_ee * (ell_ee + 1) * block_ee[1].values / (2 * np.pi)
+        ee_err = ell_ee * (ell_ee + 1) * block_ee[2].values / (2 * np.pi)
 
-        n = len(ell_arr)
+        df["Dl_te_obs"] = np.full_like(ell_tt, np.nan, dtype=float)
+        df["Dl_ee_obs"] = np.full_like(ell_tt, np.nan, dtype=float)
+        df["e_te_obs"] = np.full_like(ell_tt, np.nan, dtype=float)
+        df["e_ee_obs"] = np.full_like(ell_tt, np.nan, dtype=float)
+
+        idx_te = np.searchsorted(ell_tt, ell_te)
+        idx_ee = np.searchsorted(ell_tt, ell_ee)
+        df.loc[idx_te, "Dl_te_obs"] = te_map
+        df.loc[idx_te, "e_te_obs"] = te_err
+        df.loc[idx_ee, "Dl_ee_obs"] = ee_map
+        df.loc[idx_ee, "e_ee_obs"] = ee_err
+
+        n = len(ell_tt)
 
         # The covariance matrix file is stored as a Fortran unformatted binary
         # record. Determine the endianness from the leading 4-byte header and
@@ -87,7 +99,7 @@ def parse_planck2018lite(data_dir, **kwargs):
 
         cov_matrix = cov_arr.reshape(n_full, n_full)[:n, :n]
         # Convert covariance from $C_\ell$ to $D_\ell$ in $\mu K^2$.
-        factors = ell_arr * (ell_arr + 1) / (2 * np.pi)
+        factors = ell_tt * (ell_tt + 1) / (2 * np.pi)
         cov_matrix = cov_matrix * np.outer(factors, factors)
 
         # Pre-compute diagonal errors for plotting or fallback usage
