@@ -41,16 +41,18 @@ Under the hood the program follows a clear pipeline:
    prints a `pip install` command if any are missing.
 2. **Initialization** – the output directory is created and logging begins.
 3. **Configuration** – the user chooses a model and a computation engine
-   from `./engines/` (either the classic SNe-only fitter or the new
-   `cosmo_engine_comb.py` combined-fit engine). Data parsers for SNe Ia,
-   BAO and CMB are discovered automatically from `data/<type>/<source>`
-   folders. Models are loaded from `cosmo_model_*.json` files and turned into
-   Python code on the fly.
-4. **SNe Ia Fitting** – the selected engine estimates cosmological parameters
-   for both the ΛCDM reference and the alternative model.
-5. **BAO Analysis** – using the best-fit parameters the engine predicts BAO
-   observables and computes chi-squared statistics.
-6. **CMB Analysis** – the pipeline computes CMB power spectra and chi-squared values.
+   from `./engines/`.  The default `cosmo_engine_1_4b.py` performs an
+   SNe-only fit, while `cosmo_engine_comb.py` minimises a joint chi-squared
+   across SNe, BAO and CMB.  Data parsers are discovered automatically under
+   `data/<type>/<source>` and models are loaded from `cosmo_model_*.json`.
+4. **Parameter Fitting** – depending on the chosen engine either a pure
+   SNe fit is performed or a combined optimisation over all datasets.  Both
+   the ΛCDM reference and the alternative model are fitted in turn.
+5. **BAO Analysis** – BAO observables are computed using the fitted
+   parameters (from the combined fit if that engine was selected) and
+   chi-squared statistics are reported.
+6. **CMB Analysis** – similarly, CMB power spectra are generated and the
+   chi-squared contribution is calculated.
 7. **Output Generation** – `scripts/logger.py`, `scripts/plotter.py` and `scripts/csv_writer.py` handle logs, plots and tables.
 8. **Loop or Exit** – the user may evaluate another model or quit, at which
    point temporary cache files are cleaned automatically.

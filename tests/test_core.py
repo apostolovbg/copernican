@@ -57,11 +57,16 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertEqual(len(spec["TT"]), len(cmb_df))
 
     def test_combined_fit(self):
-        sne_df = data_loaders.load_sne_data('University of Strassbourg dataset').head(1)
-        bao_df = data_loaders.load_bao_data('Basic BAO testing dataset').head(1)
-        params = self.plugin.INITIAL_GUESSES
-        chi2 = engine_comb.chi_squared_combined(params, self.plugin, sne_df, bao_df, None)
-        self.assertTrue(np.isfinite(chi2))
+        sne_df = data_loaders.load_sne_data('University of Strassbourg dataset').head(2)
+        bao_df = data_loaders.load_bao_data('Basic BAO testing dataset').head(2)
+        cmb_df = data_loaders.load_cmb_data('planck2018lite_v1')
+        cmb_df = cmb_df.head(10)
+        cmb_df.attrs['covariance_matrix_inv'] = cmb_df.attrs['covariance_matrix_inv'][:10, :10]
+
+        result = engine_comb.fit_combined_parameters(sne_df, bao_df, cmb_df, self.plugin)
+        self.assertTrue(result['success'])
+        self.assertIn('chi2_total', result)
+        self.assertTrue(np.isfinite(result['chi2_total']))
 
 
 if __name__ == '__main__':
