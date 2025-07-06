@@ -8,6 +8,7 @@ Example:
 
 ## Version 1.8.2-beta (Development Release)
 - 2025-07-06: Optimized CMB evaluation with cached CAMB calls (AI assistant)
+- 2025-07-06: Enabled true joint fitting with optional SALT2 parameters (AI assistant)
 
 ## Version 1.8.1-beta (Development Release)
 - 2025-07-06: Made combined-fit engine verbose and fixed docstring escape warning (AI assistant)

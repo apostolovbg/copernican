@@ -42,8 +42,9 @@ Under the hood the program follows a clear pipeline:
 2. **Initialization** – the output directory is created and logging begins.
 3. **Configuration** – the user chooses a model and a computation engine
    from `./engines/`.  The default `cosmo_engine_1_4b.py` performs an
-   SNe-only fit, while `cosmo_engine_comb.py` minimises a joint chi-squared
-   across SNe, BAO and CMB.  Data parsers are discovered automatically under
+   SNe-only fit, while `cosmo_engine_comb.py` performs a true joint optimisation
+   across SNe, BAO and CMB, including optional SALT2 nuisance parameters when
+   available.  Data parsers are discovered automatically under
    `data/<type>/<source>` and models are loaded from `cosmo_model_*.json`.
 4. **Parameter Fitting** – depending on the chosen engine either a pure
    SNe fit is performed or a combined optimisation over all datasets.  Both
