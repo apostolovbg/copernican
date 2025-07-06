@@ -74,5 +74,6 @@
         "ns": 0.965
       }
     }
+    // your CMB parser must define df.attrs["param_names"] in this order
   }
 }

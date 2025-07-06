@@ -1,7 +1,7 @@
 {
-  "version": "1.7.9-beta",
+  "version": "1.7.10-beta",
   "changelog": [
-    "Bumped version to 1.7.9-beta",
+    "Bumped version to 1.7.10-beta",
     "Fixed CMB parser to include neutrino density parameter",
     "Enhanced default CMB wrapper to return TT, TE, EE spectra",
     "Improved covariance matrix reader endianness and header validation",

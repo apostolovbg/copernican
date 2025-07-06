@@ -259,20 +259,20 @@ def compute_cmb_spectrum(param_dict, ells, spectra=("TT",)):
     params.set_for_lmax(int(np.max(ells)) + 300, lens_potential_accuracy=0)
     try:
         results = camb.get_results(params)
-        # Obtain the unlensed scalar C_ell spectra in Kelvin^2
-        full_cls = results.get_unlensed_scalar_cls(lmax=int(np.max(ells)))
-        full_cls *= 1.0e12  # convert from K^2 to \u03bcK^2
+        # Obtain unlensed D_\ell spectra directly in \u03bcK^2
+        full_dls = results.get_unlensed_scalar_cls(
+            lmax=int(np.max(ells)), CMB_unit="muK"
+        )
 
         ell_arr = np.asarray(ells, dtype=int)
-        factors = ell_arr * (ell_arr + 1) / (2 * np.pi)
 
         result = {}
         if "TT" in spectra:
-            result["TT"] = full_cls[ell_arr, 0] * factors
+            result["TT"] = full_dls[ell_arr, 0]
         if "EE" in spectra:
-            result["EE"] = full_cls[ell_arr, 1] * factors
+            result["EE"] = full_dls[ell_arr, 1]
         if "TE" in spectra:
-            result["TE"] = full_cls[ell_arr, 3] * factors
+            result["TE"] = full_dls[ell_arr, 3]
 
         if len(result) == 1:
             return next(iter(result.values()))

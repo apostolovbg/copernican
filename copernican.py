@@ -27,7 +27,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.7.9-beta"
+COPERNICAN_VERSION = "1.7.10-beta"
 
 def run_startup_tests():
     """Execute functional tests using the standard unittest runner."""
@@ -44,7 +44,7 @@ def run_startup_tests():
 def show_splash_screen():
     """Displays the startup banner once at launch."""
     banner = [
-        " " * 70,
+        "=" * 70,
         "\n",
         "C O P E R N I C A N   S U I T E".center(70),
         "\n",

@@ -1,4 +1,4 @@
-**Version:** 1.7.9-beta
+**Version:** 1.7.10-beta
 **Last Updated:** 2025-07-06
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -175,7 +175,8 @@ as `CMB_PARAM_MAP`. Call `plugin.get_camb_params(values)` to convert a list of
 cosmological parameters into a dictionary for CAMB. Models without a custom
 `compute_cmb_spectrum` automatically use this mapping with the default engine.
 The fallback wrapper calls the engine and returns a dictionary with keys `TT`,
-`TE` and `EE`.
+`TE` and `EE`. The engine now retrieves unlensed $D_\ell$ spectra directly in
+\(\mu K^2\) units, ensuring consistent scaling with Planck 2018 lite tables.
 When `valid_for_cmb` is `false` the suite logs a message and skips the CMB
 evaluation stage for that model.
 CMB data parsers attach a `param_names` attribute to the returned DataFrame
