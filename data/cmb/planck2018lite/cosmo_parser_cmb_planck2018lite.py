@@ -25,12 +25,14 @@ def parse_planck2018lite(data_dir, **kwargs):
             cl_path,
             sep=r"\s+",
             header=None,
-            usecols=[0, 1],
-            names=["ell", "Cl_obs"],
+            names=["ell", "Cl_TT", "sigma_Cl_TT"],
         )
-        # Convert the provided C_ell (in \mu K^2) to D_ell for comparison
-        ell_arr = df["ell"].values
-        df["Dl_obs"] = ell_arr * (ell_arr + 1) * df["Cl_obs"] / (2 * np.pi)
+
+        ell_arr = df["ell"].to_numpy()
+        factor = ell_arr * (ell_arr + 1) / (2 * np.pi)
+        df["Dl_TT"] = factor * df["Cl_TT"]
+        df["sigma_TT"] = factor * df["sigma_Cl_TT"]
+        df = df.drop(columns=["Cl_TT", "sigma_Cl_TT"])
         n = len(df)
 
         # The covariance matrix file is stored as a Fortran unformatted
@@ -49,20 +51,16 @@ def parse_planck2018lite(data_dir, **kwargs):
             return None
 
         cov_matrix = cov_arr.reshape(n, n)
-        # The covariance matrix is supplied for C_ell. Scale to D_ell using
-        # the same ell(ell+1)/(2pi) factors applied above.
-        factors = ell_arr * (ell_arr + 1) / (2 * np.pi)
+        factors = factor
         cov_matrix = cov_matrix * np.outer(factors, factors)
         try:
             cov_inv = np.linalg.inv(cov_matrix)
         except np.linalg.LinAlgError:
             logger.error("Planck2018lite covariance matrix is singular.")
             return None
-
-        df.attrs["covariance_matrix_inv"] = cov_inv
+        df.attrs["covariance_matrix_inv_TT"] = cov_inv
         df.attrs["dataset_name_attr"] = "CMB_Planck2018lite"
         df.attrs["is_cmb"] = True
-        # Map the order of CAMB parameters used by the engine
         df.attrs["param_names"] = [
             "H0",
             "ombh2",

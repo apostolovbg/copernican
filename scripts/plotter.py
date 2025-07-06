@@ -420,7 +420,7 @@ def plot_cmb_spectrum(
     alt_model_plugin: Any,
     plot_dir: str = ".",
 ) -> None:
-    """Generate and save a CMB power spectrum plot with residuals."""
+    """Generate and save multi-panel CMB spectra with residuals."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
     dataset_name = cmb_data_df.attrs.get("dataset_name_attr", "CMB_data")
@@ -434,93 +434,120 @@ def plot_cmb_spectrum(
         "ticks": 12,
     }
 
+    spectra_keys = ["TT", "TE", "EE"]
     ells = cmb_data_df["ell"].values
-    dl_obs = cmb_data_df["Dl_obs"].values
-    diag_errors_plot = None
-    if "covariance_matrix_inv" in cmb_data_df.attrs:
-        try:
-            cov = np.linalg.inv(cmb_data_df.attrs["covariance_matrix_inv"])
-            diag_errors_plot = np.sqrt(np.diag(cov))
-        except Exception as exc:
-            logger.warning(f"Could not derive CMB errors from covariance: {exc}")
-            diag_errors_plot = np.full_like(dl_obs, 1.0)
-    else:
-        diag_errors_plot = np.full_like(dl_obs, 1.0)
+    theory_lcdm = lcdm_cmb_results.get("theory_spectrum", {}) if lcdm_cmb_results else {}
+    theory_alt = alt_cmb_results.get("theory_spectrum", {}) if alt_cmb_results else {}
+    alt_name_latex = alt_model_plugin.MODEL_NAME.replace("_", r"\_")
 
-    fig, axs = plt.subplots(2, 1, figsize=(17, 12), sharex=True, gridspec_kw={"height_ratios": [3, 1.5], "hspace": 0.05})
-    plt.subplots_adjust(left=0.08, bottom=0.08, right=0.75, top=0.92)
+    diag_errors: dict[str, np.ndarray] = {}
+    for key in spectra_keys:
+        cov_key = f"covariance_matrix_inv_{key}"
+        if cov_key in cmb_data_df.attrs:
+            try:
+                cov = np.linalg.inv(cmb_data_df.attrs[cov_key])
+                diag_errors[key] = np.sqrt(np.diag(cov))
+            except Exception:
+                diag_errors[key] = np.ones_like(ells)
+        elif "covariance_matrix_inv" in cmb_data_df.attrs:
+            try:
+                cov = np.linalg.inv(cmb_data_df.attrs["covariance_matrix_inv"])
+                diag_errors[key] = np.sqrt(np.diag(cov))
+            except Exception:
+                diag_errors[key] = np.ones_like(ells)
+        elif f"sigma_{key}" in cmb_data_df.columns:
+            diag_errors[key] = cmb_data_df[f"sigma_{key}"].values
+        else:
+            diag_errors[key] = np.ones_like(ells)
+
+    fig, axs = plt.subplots(
+        len(spectra_keys),
+        2,
+        figsize=(18, 18),
+        sharex=True,
+        gridspec_kw={"height_ratios": [3, 3, 3], "hspace": 0.15, "wspace": 0.08},
+    )
+    plt.subplots_adjust(left=0.08, bottom=0.06, right=0.75, top=0.92)
     try:
         plt.style.use("seaborn-v0_8-darkgrid")
     except Exception:
         logger.warning("Seaborn-v0_8-darkgrid style not found, using default.")
 
-    axs[0].errorbar(
-        ells,
-        dl_obs,
-        yerr=diag_errors_plot,
-        fmt=".",
-        color="darkgray",
-        alpha=0.6,
-        label=f"{dataset_name}",
-        elinewidth=1,
-        capsize=2,
-        ms=5,
-        ecolor="lightgray",
-        zorder=1,
-    )
+    for i, spec in enumerate(spectra_keys):
+        col = f"Dl_{spec}"
+        ax_main = axs[i, 0]
+        ax_res = axs[i, 1]
+        if col in cmb_data_df.columns:
+            ax_main.errorbar(
+                ells,
+                cmb_data_df[col].values,
+                yerr=diag_errors[spec],
+                fmt="o",
+                color="black",
+                ms=4,
+                label=f"{dataset_name} {spec}",
+                capsize=2,
+                alpha=0.6,
+            )
+        if spec in theory_lcdm:
+            ax_main.plot(
+                ells,
+                theory_lcdm[spec],
+                color="red",
+                ls="-",
+                lw=2.0,
+                label=r"$\Lambda$CDM",
+            )
+            if col in cmb_data_df.columns:
+                ax_res.errorbar(
+                    ells,
+                    cmb_data_df[col].values - theory_lcdm[spec],
+                    yerr=diag_errors[spec],
+                    fmt="o",
+                    color="red",
+                    ms=3,
+                    alpha=0.5,
+                    label=r"$\Lambda$CDM Res.",
+                )
+        if spec in theory_alt:
+            ax_main.plot(
+                ells,
+                theory_alt[spec],
+                color="blue",
+                ls="--",
+                lw=2.0,
+                alpha=0.7,
+                label=alt_name_latex,
+            )
+            if col in cmb_data_df.columns:
+                ax_res.errorbar(
+                    ells,
+                    cmb_data_df[col].values - theory_alt[spec],
+                    yerr=diag_errors[spec],
+                    fmt="o",
+                    mfc="none",
+                    mec="blue",
+                    ecolor="lightblue",
+                    ms=3,
+                    alpha=0.5,
+                    label=f"{alt_name_latex} Res.",
+                )
 
-    if lcdm_cmb_results and lcdm_cmb_results.get("theory_spectrum") is not None:
-        th_lcdm = lcdm_cmb_results["theory_spectrum"]
-        chi2_lcdm = f"{lcdm_cmb_results.get('chi2_cmb', np.nan):.2f}"
-        axs[0].plot(ells, th_lcdm, color="red", ls="-", lw=2.0, label=fr"$\Lambda$CDM ($\chi^2$={chi2_lcdm})")
-        res_lcdm = dl_obs - th_lcdm
-        axs[1].errorbar(
-            ells,
-            res_lcdm,
-            yerr=diag_errors_plot,
-            fmt=".",
-            color="red",
-            alpha=0.5,
-            label=r"$\Lambda$CDM Res.",
-            elinewidth=1,
-            capsize=2,
-            ms=4,
-        )
+        ax_main.set_ylabel(r"$D_\ell\ (\mu K^2)$", fontsize=font_sizes["label"])
+        if spec in ["TT", "EE"]:
+            ax_main.set_yscale("log")
+        ax_main.legend(fontsize=font_sizes["legend"], loc="best")
+        ax_main.minorticks_on()
+        ax_main.tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
 
-    alt_name_raw = getattr(alt_model_plugin, "MODEL_NAME", "AltModel")
-    alt_name_latex = alt_name_raw.replace("_", r"\_")
-    if alt_cmb_results and alt_cmb_results.get("theory_spectrum") is not None:
-        th_alt = alt_cmb_results["theory_spectrum"]
-        chi2_alt = f"{alt_cmb_results.get('chi2_cmb', np.nan):.2f}"
-        axs[0].plot(ells, th_alt, color="blue", ls="--", lw=2.0, label=fr"{alt_name_latex} ($\chi^2$={chi2_alt})")
-        res_alt = dl_obs - th_alt
-        axs[1].errorbar(
-            ells,
-            res_alt,
-            yerr=diag_errors_plot,
-            fmt=".",
-            mfc="none",
-            mec="blue",
-            ecolor="lightblue",
-            alpha=0.5,
-            label=fr"{alt_name_latex} Res.",
-            elinewidth=1,
-            capsize=2,
-            ms=4,
-        )
+        ax_res.axhline(0, color="black", ls="--", lw=1)
+        ax_res.set_xlabel(r"Multipole $\ell$", fontsize=font_sizes["label"])
+        ax_res.set_ylabel("Residuals", fontsize=font_sizes["label"])
+        ax_res.legend(fontsize=font_sizes["legend"], loc="best")
+        ax_res.minorticks_on()
+        ax_res.tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
 
-    axs[0].set_ylabel(r"$D_\ell\ (\mu K^2)$", fontsize=font_sizes["label"])
-    axs[0].legend(fontsize=font_sizes["legend"], loc="best")
-    axs[0].set_title(f"CMB TT Power Spectrum: {dataset_name}", fontsize=font_sizes["title"])
-    axs[0].minorticks_on()
-    axs[0].tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
-
-    axs[1].axhline(0, color="black", ls="--", lw=1)
-    axs[1].set_xlabel(r"Multipole $\ell$", fontsize=font_sizes["label"])
-    axs[1].set_ylabel(r"$D_\ell^{obs} - D_\ell^{th}$", fontsize=font_sizes["label"])
-    axs[1].legend(fontsize=font_sizes["legend"], loc="best")
-    axs[1].minorticks_on()
-    axs[1].tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
+    axs[0, 0].set_title(f"CMB Power Spectra: {dataset_name}", fontsize=font_sizes["title"])
 
     bbox_lcdm = dict(boxstyle="round,pad=0.5", fc="#FFEEEE", ec="darkred", alpha=0.8)
     bbox_alt = dict(boxstyle="round,pad=0.5", fc="#EEF2FF", ec="darkblue", alpha=0.8)

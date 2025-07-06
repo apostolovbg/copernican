@@ -104,24 +104,40 @@ def save_cmb_results_csv(
         logger.warning("CMB data is empty, skipping CSV save.")
         return
 
-    df_out = cmb_data_df[["ell", "Dl_obs"]].copy()
+    df_out = cmb_data_df[["ell"]].copy()
+    for spec in ["TT", "TE", "EE"]:
+        col = f"Dl_{spec}"
+        if col in cmb_data_df.columns:
+            df_out[col] = cmb_data_df[col]
 
     if lcdm_results and lcdm_results.get("theory_spectrum") is not None:
         th_lcdm = lcdm_results["theory_spectrum"]
-        df_out["Dl_lcdm"] = th_lcdm
-        df_out["residual_lcdm"] = df_out["Dl_obs"] - th_lcdm
+        for spec, arr in th_lcdm.items():
+            col = f"Dl_{spec}"
+            df_out[f"Dl_lcdm_{spec}"] = arr
+            if col in df_out.columns:
+                df_out[f"residual_lcdm_{spec}"] = df_out[col] - arr
+            else:
+                df_out[f"residual_lcdm_{spec}"] = np.nan
     else:
-        df_out["Dl_lcdm"] = np.nan
-        df_out["residual_lcdm"] = np.nan
+        for spec in ["TT", "TE", "EE"]:
+            df_out[f"Dl_lcdm_{spec}"] = np.nan
+            df_out[f"residual_lcdm_{spec}"] = np.nan
 
     alt_name_safe = alt_model_name.replace(" ", "_").replace(".", "")
     if alt_model_results and alt_model_results.get("theory_spectrum") is not None:
         th_alt = alt_model_results["theory_spectrum"]
-        df_out[f"Dl_{alt_name_safe}"] = th_alt
-        df_out[f"residual_{alt_name_safe}"] = df_out["Dl_obs"] - th_alt
+        for spec, arr in th_alt.items():
+            col = f"Dl_{spec}"
+            df_out[f"Dl_{alt_name_safe}_{spec}"] = arr
+            if col in df_out.columns:
+                df_out[f"residual_{alt_name_safe}_{spec}"] = df_out[col] - arr
+            else:
+                df_out[f"residual_{alt_name_safe}_{spec}"] = np.nan
     else:
-        df_out[f"Dl_{alt_name_safe}"] = np.nan
-        df_out[f"residual_{alt_name_safe}"] = np.nan
+        for spec in ["TT", "TE", "EE"]:
+            df_out[f"Dl_{alt_name_safe}_{spec}"] = np.nan
+            df_out[f"residual_{alt_name_safe}_{spec}"] = np.nan
 
     dataset_name = cmb_data_df.attrs.get("dataset_name_attr", "CMB_data")
     model_comparison_name = f"LCDM-vs-{alt_name_safe}"

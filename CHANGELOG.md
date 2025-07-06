@@ -10,6 +10,11 @@ Add one line for each substantive commit or pull request directly under the late
 
 Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
+## Version 1.7.7-beta (Development Release)
+- 2025-07-05: Refactored CMB parser for Planck2018lite and added multi-spectrum support (AI assistant)
+- 2025-07-05: Updated CMB engine, plotter and CSV outputs for TT/TE/EE (AI assistant)
+- 2025-07-05: Bumped version to 1.7.7-beta and refreshed documentation (AI assistant)
+
 ## Version 1.7.3-beta (Development Release)
 - 2025-07-05: Fixed Planck covariance reader for ASCII data and ensured CMB parameters use SNe best-fit values (AI assistant)
 - 2025-07-05: Corrected Planck covariance parsing for binary Fortran record (AI assistant)
