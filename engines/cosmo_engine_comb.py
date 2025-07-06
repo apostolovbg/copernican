@@ -258,8 +258,10 @@ def compute_cmb_spectrum_from_dict(param_dict, ells, spectra=("TT",)):
 
     Parameters
     ----------
-    param_dict : dict
-        Dictionary of CAMB parameters.
+    plugin : object
+        Model plugin providing ``get_camb_params``.
+    cosmo_params : sequence
+        Cosmological parameter values for the plugin.
     ells : array-like
         Multipole moments at which to evaluate the spectra.
     spectra : tuple of str, optional
