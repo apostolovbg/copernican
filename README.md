@@ -1,4 +1,4 @@
-**Version:** 1.8.2-beta
+**Version:** 1.8.3-beta
 **Last Updated:** 2025-07-06
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -44,7 +44,8 @@ Under the hood the program follows a clear pipeline:
    from `./engines/`.  The default `cosmo_engine_1_4b.py` performs an
    SNe-only fit, while `cosmo_engine_comb.py` performs a true joint optimisation
    across SNe, BAO and CMB, including optional SALT2 nuisance parameters when
-   available.  Data parsers are discovered automatically under
+   available. Constant values in a model's `cmb.param_map` are treated as
+   additional fit parameters so CMB spectra can be matched precisely. Data parsers are discovered automatically under
    `data/<type>/<source>` and models are loaded from `cosmo_model_*.json`.
 4. **Parameter Fitting** – depending on the chosen engine either a pure
    SNe fit is performed or a combined optimisation over all datasets.  Both
