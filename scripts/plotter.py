@@ -499,6 +499,15 @@ def plot_cmb_spectrum(
             zorder=1,
         )
 
+        axs[idx_main].fill_between(
+            ells,
+            obs - err,
+            obs + err,
+            color="lightgray",
+            alpha=0.3,
+            label="Data ±1σ",
+        )
+
         if lcdm_theory is not None:
             th = lcdm_theory.get(comp) if isinstance(lcdm_theory, dict) else (
                 lcdm_theory if comp == "TT" else None
@@ -507,6 +516,15 @@ def plot_cmb_spectrum(
                 chi2_lcdm = f"{lcdm_cmb_results.get('chi2_cmb', np.nan):.2f}" if comp == "TT" else ""
                 label = r"$\Lambda$CDM" + (rf" ($\chi^2$={chi2_lcdm})" if chi2_lcdm else "")
                 axs[idx_main].plot(ells, th, color="red", ls="-", lw=2.0, label=label)
+                cv = np.sqrt(2.0 / (2 * ells + 1.0)) * th
+                axs[idx_main].fill_between(
+                    ells,
+                    th - cv,
+                    th + cv,
+                    color="red",
+                    alpha=0.1,
+                    label="Cosmic var.",
+                )
                 res = obs - th
                 axs[idx_res].errorbar(
                     ells,
@@ -546,6 +564,8 @@ def plot_cmb_spectrum(
                 )
 
         axs[idx_main].set_ylabel(r"$D_\ell\ (\mu K^2)$", fontsize=font_sizes["label"])
+        if comp in ("TT", "EE"):
+            axs[idx_main].set_yscale("log")
         axs[idx_main].legend(fontsize=font_sizes["legend"], loc="best")
         axs[idx_main].set_title(
             f"CMB {comp} Power Spectrum: {dataset_name}", fontsize=font_sizes["title"]
