@@ -67,11 +67,13 @@
       "param_map": {
         "H0": "H0",
         "ombh2": "Ob * (H0/100)**2",
-        "omch2": "(Omega_m0 - Ob) * (H0/100)**2",
-        "tau": 0.054,
+      "omch2": "(Omega_m0 - Ob) * (H0/100)**2",
+      "omnuh2": "Og * (H0/100)**2",
+      "tau": 0.054,
         "As": 2.1e-9,
         "ns": 0.965
       }
     }
+    // your CMB parser must define df.attrs["param_names"] in this order
   }
 }
