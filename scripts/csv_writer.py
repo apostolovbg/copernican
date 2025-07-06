@@ -105,23 +105,60 @@ def save_cmb_results_csv(
         return
 
     df_out = cmb_data_df[["ell", "Dl_obs"]].copy()
+    if "Dl_te_obs" in cmb_data_df.columns:
+        df_out["Dl_te_obs"] = cmb_data_df["Dl_te_obs"]
+    if "Dl_ee_obs" in cmb_data_df.columns:
+        df_out["Dl_ee_obs"] = cmb_data_df["Dl_ee_obs"]
 
     if lcdm_results and lcdm_results.get("theory_spectrum") is not None:
         th_lcdm = lcdm_results["theory_spectrum"]
-        df_out["Dl_lcdm"] = th_lcdm
-        df_out["residual_lcdm"] = df_out["Dl_obs"] - th_lcdm
+        if isinstance(th_lcdm, dict):
+            if "TT" in th_lcdm:
+                df_out["Dl_lcdm_tt"] = th_lcdm["TT"]
+                df_out["residual_lcdm_tt"] = df_out["Dl_obs"] - th_lcdm["TT"]
+            if "TE" in th_lcdm and "Dl_te_obs" in df_out.columns:
+                df_out["Dl_lcdm_te"] = th_lcdm["TE"]
+                df_out["residual_lcdm_te"] = df_out["Dl_te_obs"] - th_lcdm["TE"]
+            if "EE" in th_lcdm and "Dl_ee_obs" in df_out.columns:
+                df_out["Dl_lcdm_ee"] = th_lcdm["EE"]
+                df_out["residual_lcdm_ee"] = df_out["Dl_ee_obs"] - th_lcdm["EE"]
+        else:
+            df_out["Dl_lcdm"] = th_lcdm
+            df_out["residual_lcdm"] = df_out["Dl_obs"] - th_lcdm
     else:
-        df_out["Dl_lcdm"] = np.nan
-        df_out["residual_lcdm"] = np.nan
+        df_out[[
+            col
+            for col in ["Dl_lcdm", "residual_lcdm", "Dl_lcdm_tt", "residual_lcdm_tt",
+                        "Dl_lcdm_te", "residual_lcdm_te", "Dl_lcdm_ee", "residual_lcdm_ee"]
+            if col not in df_out.columns
+        ]] = np.nan
 
     alt_name_safe = alt_model_name.replace(" ", "_").replace(".", "")
     if alt_model_results and alt_model_results.get("theory_spectrum") is not None:
         th_alt = alt_model_results["theory_spectrum"]
-        df_out[f"Dl_{alt_name_safe}"] = th_alt
-        df_out[f"residual_{alt_name_safe}"] = df_out["Dl_obs"] - th_alt
+        if isinstance(th_alt, dict):
+            if "TT" in th_alt:
+                df_out[f"Dl_{alt_name_safe}_tt"] = th_alt["TT"]
+                df_out[f"residual_{alt_name_safe}_tt"] = df_out["Dl_obs"] - th_alt["TT"]
+            if "TE" in th_alt and "Dl_te_obs" in df_out.columns:
+                df_out[f"Dl_{alt_name_safe}_te"] = th_alt["TE"]
+                df_out[f"residual_{alt_name_safe}_te"] = df_out["Dl_te_obs"] - th_alt["TE"]
+            if "EE" in th_alt and "Dl_ee_obs" in df_out.columns:
+                df_out[f"Dl_{alt_name_safe}_ee"] = th_alt["EE"]
+                df_out[f"residual_{alt_name_safe}_ee"] = df_out["Dl_ee_obs"] - th_alt["EE"]
+        else:
+            df_out[f"Dl_{alt_name_safe}"] = th_alt
+            df_out[f"residual_{alt_name_safe}"] = df_out["Dl_obs"] - th_alt
     else:
-        df_out[f"Dl_{alt_name_safe}"] = np.nan
-        df_out[f"residual_{alt_name_safe}"] = np.nan
+        df_out[[
+            col
+            for col in [
+                f"Dl_{alt_name_safe}", f"residual_{alt_name_safe}",
+                f"Dl_{alt_name_safe}_tt", f"residual_{alt_name_safe}_tt",
+                f"Dl_{alt_name_safe}_te", f"residual_{alt_name_safe}_te",
+                f"Dl_{alt_name_safe}_ee", f"residual_{alt_name_safe}_ee",
+            ] if col not in df_out.columns
+        ]] = np.nan
 
     dataset_name = cmb_data_df.attrs.get("dataset_name_attr", "CMB_data")
     model_comparison_name = f"LCDM-vs-{alt_name_safe}"
