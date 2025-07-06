@@ -5,6 +5,7 @@ import numpy as np
 
 from scripts import model_parser, model_coder, engine_interface, data_loaders
 import engines.cosmo_engine_1_4b as engine
+import engines.cosmo_engine_comb as engine_comb
 
 
 class FunctionalTestCase(unittest.TestCase):
@@ -54,6 +55,13 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertTrue(np.isfinite(chi2_cmb))
         self.assertIn("TT", spec)
         self.assertEqual(len(spec["TT"]), len(cmb_df))
+
+    def test_combined_fit(self):
+        sne_df = data_loaders.load_sne_data('University of Strassbourg dataset').head(1)
+        bao_df = data_loaders.load_bao_data('Basic BAO testing dataset').head(1)
+        params = self.plugin.INITIAL_GUESSES
+        chi2 = engine_comb.chi_squared_combined(params, self.plugin, sne_df, bao_df, None)
+        self.assertTrue(np.isfinite(chi2))
 
 
 if __name__ == '__main__':
