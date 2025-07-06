@@ -21,16 +21,22 @@ def parse_planck2018lite(data_dir, **kwargs):
     cov_path = os.path.join(data_dir, "c_matrix_plik_v22.dat")
 
     try:
-        df = pd.read_csv(
-            cl_path,
-            sep=r"\s+",
-            header=None,
-            usecols=[0, 1],
-            names=["ell", "Cl_obs"],
-        )
-        # Convert the provided C_ell (in \mu K^2) to D_ell for comparison
+        raw = pd.read_csv(cl_path, sep=r"\s+", header=None)
+        col_map = {0: "ell", 1: "Cl_obs"}
+        if raw.shape[1] >= 3:
+            col_map[2] = "Cl_te_obs"
+        if raw.shape[1] >= 4:
+            col_map[3] = "Cl_ee_obs"
+
+        raw.rename(columns=col_map, inplace=True)
+        df = raw[list(col_map.values())]
+
         ell_arr = df["ell"].values
         df["Dl_obs"] = ell_arr * (ell_arr + 1) * df["Cl_obs"] / (2 * np.pi)
+        if "Cl_te_obs" in df.columns:
+            df["Dl_te_obs"] = ell_arr * (ell_arr + 1) * df["Cl_te_obs"] / (2 * np.pi)
+        if "Cl_ee_obs" in df.columns:
+            df["Dl_ee_obs"] = ell_arr * (ell_arr + 1) * df["Cl_ee_obs"] / (2 * np.pi)
         n = len(df)
 
         # The covariance matrix file is stored as a Fortran unformatted

@@ -217,8 +217,26 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
     return total_chi2 if np.isfinite(total_chi2) else np.inf
 
 
-def compute_cmb_spectrum(param_dict, ells):
-    """Return the theoretical D_ell spectrum using CAMB."""
+def compute_cmb_spectrum(param_dict, ells, spectra=("TT",)):
+    """Return theoretical D_ell spectra using CAMB.
+
+    Parameters
+    ----------
+    param_dict : dict
+        Dictionary of CAMB parameters.
+    ells : array-like
+        Multipole moments to evaluate.
+    spectra : tuple of str, optional
+        Which spectra to return. Options include ``"TT"``, ``"TE"`` and
+        ``"EE"``. The default is ``("TT",)`` for backward compatibility.
+
+    Returns
+    -------
+    array or dict
+        If ``spectra`` contains a single entry, a NumPy array for that
+        component is returned. Otherwise a dictionary mapping component name
+        to its array is returned.
+    """
     logger = logging.getLogger()
     try:
         H0 = float(param_dict.get("H0", 67.0))
@@ -248,10 +266,23 @@ def compute_cmb_spectrum(param_dict, ells):
         for key in powers:
             powers[key] *= 1.0e12  # convert from K^2 to \u03bcK^2
 
-        cl_tt = powers["total"][:, 0]
         ell_arr = np.asarray(ells, dtype=int)
-        dl = cl_tt[ell_arr] * (ell_arr * (ell_arr + 1) / (2 * np.pi))
-        return dl
+        factors = ell_arr * (ell_arr + 1) / (2 * np.pi)
+
+        result = {}
+        if "TT" in spectra:
+            cl_tt = powers["total"][:, 0]
+            result["TT"] = cl_tt[ell_arr] * factors
+        if "EE" in spectra:
+            cl_ee = powers["total"][:, 1]
+            result["EE"] = cl_ee[ell_arr] * factors
+        if "TE" in spectra:
+            cl_te = powers["total"][:, 3]
+            result["TE"] = cl_te[ell_arr] * factors
+
+        if len(result) == 1:
+            return next(iter(result.values()))
+        return result
     except Exception as exc:
         logger.error(f"(compute_cmb_spectrum): CAMB failed: {exc}")
         return np.full_like(ells, np.nan, dtype=float)
@@ -270,7 +301,7 @@ def chi_squared_cmb(cosmo_params, cmb_data_df):
     ells = cmb_data_df['ell'].values
     obs = cmb_data_df['Dl_obs'].values
     param_dict = {name: val for name, val in zip(cmb_data_df.attrs.get('param_names', []), cosmo_params)} if isinstance(cosmo_params, (list, tuple)) else cosmo_params
-    th = compute_cmb_spectrum(param_dict, ells)
+    th = compute_cmb_spectrum(param_dict, ells, spectra=("TT",))
     if th.shape != obs.shape or np.any(~np.isfinite(th)):
         return np.inf
 

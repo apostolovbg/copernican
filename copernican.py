@@ -375,8 +375,14 @@ def main_workflow():
             # dictionary format using the helper provided by the model plugin.
             camb_params = model_plugin.get_camb_params(cosmo_params)
 
+            components = ["TT"]
+            if "Dl_te_obs" in cmb_df.columns:
+                components.append("TE")
+            if "Dl_ee_obs" in cmb_df.columns:
+                components.append("EE")
+
             theory = cosmo_engine_selected.compute_cmb_spectrum(
-                camb_params, cmb_df['ell'].values
+                camb_params, cmb_df['ell'].values, spectra=tuple(components)
             )
             chi2_val = cosmo_engine_selected.chi_squared_cmb(camb_params, cmb_df)
             logger.info(f"{model_plugin.MODEL_NAME} CMB chi2 = {chi2_val:.2f}")
