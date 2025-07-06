@@ -10,6 +10,8 @@ Add one line for each substantive commit or pull request directly under the late
 
 Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
+## Version 1.7.6-beta (Development Release)
+- 2025-07-05: Bumped COPERNICAN_VERSION and docs to 1.7.6-beta. (AI assistant)
 ## Version 1.7.5-beta (Development Release)
 - 2025-07-05: Removal of user-selectable test mode. (AI assistant)
 - 2025-07-05: Automatic functional tests run at startup. (AI assistant)
