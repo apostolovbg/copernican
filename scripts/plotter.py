@@ -546,7 +546,6 @@ def plot_cmb_spectrum(
                 )
 
         axs[idx_main].set_ylabel(r"$D_\ell\ (\mu K^2)$", fontsize=font_sizes["label"])
-        axs[idx_main].set_yscale("log")
         axs[idx_main].legend(fontsize=font_sizes["legend"], loc="best")
         axs[idx_main].set_title(
             f"CMB {comp} Power Spectrum: {dataset_name}", fontsize=font_sizes["title"]

@@ -218,12 +218,7 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
 
 
 def compute_cmb_spectrum(param_dict, ells, spectra=("TT",)):
-    """Return theoretical :math:`D_\ell` spectra using CAMB.
-
-    The input cosmological parameters are mapped to CAMB's ``CAMBparams``
-    object. The raw temperature and polarization :math:`C_\ell` values
-    returned by CAMB are converted to
-    :math:`D_\ell = \ell(\ell+1)C_\ell / 2\pi` in :math:`\mu K^2` units.
+    """Return theoretical D_ell spectra using CAMB.
 
     Parameters
     ----------
@@ -257,19 +252,19 @@ def compute_cmb_spectrum(param_dict, ells, spectra=("TT",)):
 
     params = camb.CAMBparams()
     params.set_cosmology(H0=H0, ombh2=ombh2, omch2=omch2, tau=tau)
-    # CAMB does not accept ``omnuh2`` directly in ``set_cosmology`` so assign it
-    # explicitly on the params object after calling the routine.
+    # CAMB does not accept ``omnuh2`` directly in ``set_cosmology`` so assign
+    # it explicitly on the params object after calling the routine.
     params.omnuh2 = omnuh2
     params.InitPower.set_params(As=As, ns=ns)
-    lmax = int(np.max(ells))
-    # Request additional multipoles so that the lensed spectrum is reliable
-    params.set_for_lmax(lmax + 300, lens_potential_accuracy=0)
+    params.set_for_lmax(int(np.max(ells)) + 300, lens_potential_accuracy=0)
     try:
         results = camb.get_results(params)
-        # Retrieve raw C_ell spectra directly in \u03bcK^2 units
+        # Retrieve raw C_ell spectra in Kelvin^2 then convert to microKelvin^2
         powers = results.get_cmb_power_spectra(
-            params, lmax=lmax, raw_cl=True, CMB_unit="muK"
+            params, lmax=int(np.max(ells)), raw_cl=True, CMB_unit="K"
         )
+        for key in powers:
+            powers[key] *= 1.0e12  # convert from K^2 to \u03bcK^2
 
         ell_arr = np.asarray(ells, dtype=int)
         factors = ell_arr * (ell_arr + 1) / (2 * np.pi)
