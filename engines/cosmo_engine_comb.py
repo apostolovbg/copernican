@@ -253,6 +253,37 @@ def _cached_cmb(key):
     return out
 
 
+def compute_cmb_spectrum_from_dict(param_dict, ells, spectra=("TT",)):
+    """Return theoretical D_ell spectra using CAMB with caching.
+
+    Parameters
+    ----------
+    plugin : object
+        Model plugin providing ``get_camb_params``.
+    cosmo_params : sequence
+        Cosmological parameter values for the plugin.
+    ells : array-like
+        Multipole moments at which to evaluate the spectra.
+    spectra : tuple of str, optional
+        Spectra to return (``"TT"``, ``"TE"`` and/or ``"EE"``).
+    """
+    logger = logging.getLogger()
+    try:
+        key_tuple = tuple((k, round(float(v), 3)) for k, v in sorted(param_dict.items()))
+        lmax = int(np.max(ells))
+        cache_key = ("dict", key_tuple, lmax, tuple(sorted(spectra)))
+        full = _cached_cmb(cache_key)
+    except Exception as exc:
+        logger.error(f"(compute_cmb_spectrum_from_dict): {exc}")
+        return np.full_like(ells, np.nan, dtype=float)
+
+    ell_arr = np.asarray(ells, dtype=int)
+    result = {spec: full[spec][ell_arr] for spec in spectra}
+    if len(result) == 1:
+        return next(iter(result.values()))
+    return result
+
+
 def compute_cmb_spectrum_cached(plugin, cosmo_params, ells, spectra=("TT",)):
     """Return theoretical D_ell spectra using CAMB with caching.
 
@@ -270,21 +301,11 @@ def compute_cmb_spectrum_cached(plugin, cosmo_params, ells, spectra=("TT",)):
     logger = logging.getLogger()
     try:
         camb_params = plugin.get_camb_params(cosmo_params)
-        key_tuple = tuple(
-            (k, round(float(v), 3)) for k, v in sorted(camb_params.items())
-        )
-        lmax = int(np.max(ells))
-        cache_key = (plugin.MODEL_NAME, key_tuple, lmax, tuple(sorted(spectra)))
-        full = _cached_cmb(cache_key)
     except Exception as exc:
         logger.error(f"(compute_cmb_spectrum_cached): {exc}")
         return np.full_like(ells, np.nan, dtype=float)
 
-    ell_arr = np.asarray(ells, dtype=int)
-    result = {spec: full[spec][ell_arr] for spec in spectra}
-    if len(result) == 1:
-        return next(iter(result.values()))
-    return result
+    return compute_cmb_spectrum_from_dict(camb_params, ells, spectra=spectra)
 
 
 def compute_cmb_spectrum(param_dict, ells, spectra=("TT",)):
@@ -295,7 +316,7 @@ def compute_cmb_spectrum(param_dict, ells, spectra=("TT",)):
     return compute_cmb_spectrum_cached(dummy, [], ells, spectra)
 
 
-def chi_squared_cmb(cosmo_params, cmb_data_df, plugin):
+def chi_squared_cmb(cosmo_params, cmb_data_df, plugin, extra_params=None):
     """Calculate chi-squared for CMB data using full covariance."""
     logger = logging.getLogger()
     if cmb_data_df is None or cmb_data_df.empty:
@@ -307,7 +328,11 @@ def chi_squared_cmb(cosmo_params, cmb_data_df, plugin):
 
     ells = cmb_data_df['ell'].values
     obs = cmb_data_df['Dl_obs'].values
-    th = compute_cmb_spectrum_cached(plugin, cosmo_params, ells, spectra=("TT",))
+    camb_params = plugin.get_camb_params(cosmo_params)
+    if extra_params:
+        camb_params.update(extra_params)
+
+    th = compute_cmb_spectrum_from_dict(camb_params, ells, spectra=("TT",))
     if th.shape != obs.shape or np.any(~np.isfinite(th)):
         return np.inf
 
@@ -329,6 +354,8 @@ def chi_squared_combined(
     cmb_df=None,
     sne_fit_style="h1_fixed_nuisance",
     num_cosmo_params=None,
+    cmb_extra_names=None,
+    num_nuisance=0,
 ):
     """Return global chi-squared summed over all available datasets.
 
@@ -347,11 +374,20 @@ def chi_squared_combined(
     num_cosmo_params : int, optional
         Number of cosmological parameters at the start of ``params``. Required
         when nuisance parameters are present.
+    cmb_extra_names : list of str, optional
+        CAMB parameter names appended after any nuisance parameters.
+    num_nuisance : int, optional
+        Number of SNe nuisance parameters placed after the cosmological ones.
     """
 
     cosmo_params = (
         params[:num_cosmo_params] if num_cosmo_params is not None else params
     )
+    extra_params = None
+    if cmb_extra_names:
+        start = num_cosmo_params + num_nuisance if num_cosmo_params is not None else len(cosmo_params)
+        extra_slice = params[start : start + len(cmb_extra_names)]
+        extra_params = {n: v for n, v in zip(cmb_extra_names, extra_slice)}
 
     chi2_total = 0.0
 
@@ -381,7 +417,7 @@ def chi_squared_combined(
         chi2_total += chi_squared_bao(bao_df, plugin, cosmo_params, rs_val)
 
     if cmb_df is not None and getattr(plugin, "valid_for_cmb", True):
-        chi2_total += chi_squared_cmb(cosmo_params, cmb_df, plugin)
+        chi2_total += chi_squared_cmb(cosmo_params, cmb_df, plugin, extra_params)
 
     return chi2_total if np.isfinite(chi2_total) else np.inf
 
@@ -562,6 +598,7 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
     sne_fit_style = sne_data_df.attrs.get('fit_style', 'h1_fixed_nuisance') if sne_data_df is not None else 'h1_fixed_nuisance'
     fit_nuisance_params_flag = sne_data_df.attrs.get('fit_nuisance_params', False) if sne_data_df is not None else False
 
+    num_nuisance = 0
     if sne_fit_style == 'h2_fit_nuisance' and fit_nuisance_params_flag:
         init_params.extend([
             SALT2_NUISANCE_PARAMS_INIT['M_B'],
@@ -573,6 +610,19 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
             SALT2_NUISANCE_PARAMS_BOUNDS['alpha_salt2'],
             SALT2_NUISANCE_PARAMS_BOUNDS['beta_salt2'],
         ])
+        param_names.extend(['M_B', 'alpha_salt2', 'beta_salt2'])
+        num_nuisance = 3
+
+    cmb_extra_names = []
+    if cmb_data_df is not None and getattr(model_plugin, 'valid_for_cmb', True):
+        for key, val in getattr(model_plugin, 'CMB_PARAM_MAP', {}).items():
+            if not isinstance(val, str):
+                cmb_extra_names.append(key)
+                init_params.append(float(val))
+                spread = abs(float(val)) * 0.5 if val != 0 else 1.0
+                bounds.append((float(val) - spread, float(val) + spread))
+                param_names.append(key)
+    num_cmb_extra = len(cmb_extra_names)
 
     # Counter for iterations so progress can be displayed in real time
     eval_count = {'count': 0}
@@ -591,6 +641,8 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
             cmb_df=cmb_data_df,
             sne_fit_style=sne_fit_style,
             num_cosmo_params=num_cosmo_params,
+            cmb_extra_names=cmb_extra_names,
+            num_nuisance=num_nuisance,
         )
         if not np.isfinite(chi_val):
             chi_val = np.inf
@@ -642,6 +694,8 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
             cmb_df=cmb_data_df,
             sne_fit_style=sne_fit_style,
             num_cosmo_params=num_cosmo_params,
+            cmb_extra_names=cmb_extra_names,
+            num_nuisance=num_nuisance,
         )
         message = "Optimizer failed or did not converge"
         if result and hasattr(result, 'message') and result.message:
@@ -679,6 +733,7 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
             final_params[:num_cosmo_params],
             cmb_data_df,
             model_plugin,
+            {n: final_params[num_cosmo_params + num_nuisance + i] for i, n in enumerate(cmb_extra_names)} if cmb_extra_names else None,
         )
 
     logger.info(f"Combined fit results for {model_plugin.MODEL_NAME}:")
@@ -699,20 +754,27 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
     reduced = chi2_tot / dof if dof > 0 else np.nan
 
     fitted_cosmo_dict = {n: v for n, v in zip(param_names, final_params[:num_cosmo_params])}
+    idx = num_cosmo_params
     nuisance_dict = None
-    if len(final_params) > num_cosmo_params:
-        nuisance_vals = final_params[num_cosmo_params:]
+    if num_nuisance:
+        nuisance_vals = final_params[idx: idx + num_nuisance]
         nuisance_dict = {
             'M_B': nuisance_vals[0],
             'alpha_salt2': nuisance_vals[1],
             'beta_salt2': nuisance_vals[2],
         }
+        idx += num_nuisance
+    cmb_extra_dict = None
+    if cmb_extra_names:
+        extra_vals = final_params[idx: idx + len(cmb_extra_names)]
+        cmb_extra_dict = {n: v for n, v in zip(cmb_extra_names, extra_vals)}
 
     return {
         'success': success_flag and np.isfinite(chi2_tot),
         'fit_style_used': 'combined',
         'fitted_cosmological_params': fitted_cosmo_dict,
         'fitted_nuisance_params': nuisance_dict,
+        'fitted_cmb_params': cmb_extra_dict,
         # chi2_min is kept for compatibility with existing plotters
         'chi2_min': chi2_tot,
         'chi2_total': chi2_tot,

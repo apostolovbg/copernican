@@ -8,6 +8,8 @@ Example:
 
 ## Version 1.8.3-beta (Development Release)
 - 2025-07-06: Rewrote combined engine for true joint optimisation (AI assistant)
+- 2025-07-06: Fixed CMB chi-squared interface and allowed fitting of CAMB
+  parameters (AI assistant)
 
 ## Version 1.8.2-beta (Development Release)
 - 2025-07-06: Optimized CMB evaluation with cached CAMB calls (AI assistant)

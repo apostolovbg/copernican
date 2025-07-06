@@ -408,7 +408,11 @@ def main_workflow():
             theory = cosmo_engine_selected.compute_cmb_spectrum(
                 camb_params, cmb_df['ell'].values, spectra=tuple(components)
             )
-            chi2_val = cosmo_engine_selected.chi_squared_cmb(camb_params, cmb_df)
+            chi2_val = cosmo_engine_selected.chi_squared_cmb(
+                cosmo_params,
+                cmb_df,
+                model_plugin,
+            )
             logger.info(f"{model_plugin.MODEL_NAME} CMB chi2 = {chi2_val:.2f}")
             return {'chi2_cmb': chi2_val, 'theory_spectrum': theory}
 
