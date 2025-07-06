@@ -101,8 +101,14 @@ def build_plugin(model_data, func_dict):
 
     if plugin.valid_for_cmb and not hasattr(plugin, 'compute_cmb_spectrum'):
         def _default_cmb(values, ells):
+            """Fallback CMB wrapper returning TT, TE and EE spectra."""
             from engines import cosmo_engine_1_4b
-            return cosmo_engine_1_4b.compute_cmb_spectrum(plugin.get_camb_params(values), ells)
+            spec = cosmo_engine_1_4b.compute_cmb_spectrum(
+                plugin.get_camb_params(values),
+                ells,
+                spectra=("TT", "TE", "EE"),
+            )
+            return {"TT": spec["TT"], "TE": spec["TE"], "EE": spec["EE"]}
 
         plugin.compute_cmb_spectrum = _default_cmb
 
@@ -139,8 +145,14 @@ def validate_plugin(plugin):
         if fname == 'compute_cmb_spectrum' and not callable(func):
             if hasattr(plugin, 'get_camb_params'):
                 def _default_cmb(values, ells):
+                    """Fallback CMB wrapper returning TT, TE and EE spectra."""
                     from engines import cosmo_engine_1_4b
-                    return cosmo_engine_1_4b.compute_cmb_spectrum(plugin.get_camb_params(values), ells)
+                    spec = cosmo_engine_1_4b.compute_cmb_spectrum(
+                        plugin.get_camb_params(values),
+                        ells,
+                        spectra=("TT", "TE", "EE"),
+                    )
+                    return {"TT": spec["TT"], "TE": spec["TE"], "EE": spec["EE"]}
 
                 setattr(plugin, 'compute_cmb_spectrum', _default_cmb)
                 func = _default_cmb
