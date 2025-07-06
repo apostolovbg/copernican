@@ -1,4 +1,4 @@
-**Version:** 1.7.7-beta
+**Version:** 1.7.8-beta
 **Last Updated:** 2025-07-06
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -42,13 +42,14 @@ Under the hood the program follows a clear pipeline:
 2. **Initialization** – the output directory is created and logging begins.
 3. **Configuration** – the user chooses a model, an engine from `./engines/`,
   and data parsers for SNe Ia and BAO. Models are discovered from
-  `cosmo_model_*.json` files which are converted into Python code on the fly.
+ `cosmo_model_*.json` files which are converted into Python code on the fly.
 4. **SNe Ia Fitting** – the selected engine estimates cosmological parameters
    for both the ΛCDM reference and the alternative model.
 5. **BAO Analysis** – using the best-fit parameters the engine predicts BAO
    observables and computes chi-squared statistics.
-6. **Output Generation** – `scripts/logger.py`, `scripts/plotter.py` and `scripts/csv_writer.py` handle logs, plots and tables.
-7. **Loop or Exit** – the user may evaluate another model or quit, at which
+6. **CMB Analysis** – the pipeline computes CMB power spectra and chi-squared values.
+7. **Output Generation** – `scripts/logger.py`, `scripts/plotter.py` and `scripts/csv_writer.py` handle logs, plots and tables.
+8. **Loop or Exit** – the user may evaluate another model or quit, at which
    point temporary cache files are cleaned automatically.
 
 ## Quick Start
@@ -236,8 +237,9 @@ altering `MAJOR.MINOR`.
 4.  **Configuration**: The user specifies the file paths for the model and data files.
 5.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data.
 6.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
-7.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots, tables and logs using a consistent format.
-8.  **Loop or Exit**: The user is prompted to run another evaluation or exit.
+7.  **CMB Analysis**: Each model's CMB spectrum is evaluated against the selected dataset.
+8.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots, tables and logs using a consistent format.
+9.  **Loop or Exit**: The user is prompted to run another evaluation or exit.
 
 ---
 

@@ -27,7 +27,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.7.7-beta"
+COPERNICAN_VERSION = "1.7.8-beta"
 
 def run_startup_tests():
     """Execute functional tests using the standard unittest runner."""
@@ -391,10 +391,20 @@ def main_workflow():
         lcdm_full_results = run_bao_analysis(lcdm, lcdm_sne_fit_results, z_plot_smooth)
         alt_model_full_results = run_bao_analysis(alt_model_plugin, alt_model_sne_fit_results, z_plot_smooth)
 
-        lcdm_cmb = run_cmb_analysis(cmb_data_df, lcdm, list(lcdm_sne_fit_results['fitted_cosmological_params'].values()))
-        alt_cmb = run_cmb_analysis(cmb_data_df, alt_model_plugin, list(alt_model_sne_fit_results['fitted_cosmological_params'].values()))
+        logger.info("\n--- Stage 4: CMB Analysis ---")
 
-        logger.info("\n--- Stage 4: Generating Outputs ---")
+        lcdm_cmb = run_cmb_analysis(
+            cmb_data_df,
+            lcdm,
+            list(lcdm_sne_fit_results['fitted_cosmological_params'].values()),
+        )
+        alt_cmb = run_cmb_analysis(
+            cmb_data_df,
+            alt_model_plugin,
+            list(alt_model_sne_fit_results['fitted_cosmological_params'].values()),
+        )
+
+        logger.info("\n--- Stage 5: Generating Outputs ---")
         logger.info(f"{lcdm.MODEL_NAME} CMB chi2 = {lcdm_cmb['chi2_cmb']:.2f}")
         logger.info(f"{alt_model_plugin.MODEL_NAME} CMB chi2 = {alt_cmb['chi2_cmb']:.2f}")
         plotter.plot_hubble_diagram(
