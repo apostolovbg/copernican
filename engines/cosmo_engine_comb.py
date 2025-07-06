@@ -327,23 +327,69 @@ def chi_squared_cmb(cosmo_params, cmb_data_df):
 
     return chi2 if np.isfinite(chi2) else np.inf
 
-def chi_squared_combined(params, plugin, sne_df=None, bao_df=None, cmb_df=None):
-    """Return global chi-squared for a set of parameters.
+def chi_squared_combined(
+    params,
+    plugin,
+    sne_df=None,
+    bao_df=None,
+    cmb_df=None,
+    sne_fit_style="h1_fixed_nuisance",
+    num_cosmo_params=None,
+):
+    """Return global chi-squared summed over all available datasets.
 
-    The helper simply sums the individual contributions from the available
-    datasets.  A model may opt out of any dataset type via its ``valid_for_*``
-    flags in the generated plugin.
+    Parameters
+    ----------
+    params : array-like
+        Parameter vector containing cosmological parameters followed by optional
+        SNe nuisance parameters.
+    plugin : object
+        Model plugin implementing the required distance and CMB functions.
+    sne_df, bao_df, cmb_df : DataFrame, optional
+        Data for the respective observations. Any of them may be ``None``.
+    sne_fit_style : str, optional
+        Style flag describing which SNe chi-squared helper to call.  Supported
+        values mirror :func:`fit_sne_parameters`.
+    num_cosmo_params : int, optional
+        Number of cosmological parameters at the start of ``params``. Required
+        when nuisance parameters are present.
     """
+
+    cosmo_params = (
+        params[:num_cosmo_params] if num_cosmo_params is not None else params
+    )
+
     chi2_total = 0.0
-    if sne_df is not None and getattr(plugin, 'valid_for_distance_metrics', True):
-        chi2_total += chi_squared_sne_h1_fixed_nuisance(
-            params, plugin.distance_modulus_model, sne_df
-        )
-    if bao_df is not None and getattr(plugin, 'valid_for_bao', True):
-        rs_val = plugin.get_sound_horizon_rs_Mpc(*params)
-        chi2_total += chi_squared_bao(bao_df, plugin, params, rs_val)
-    if cmb_df is not None and getattr(plugin, 'valid_for_cmb', True):
-        chi2_total += chi_squared_cmb(plugin.get_camb_params(params), cmb_df)
+
+    if sne_df is not None and getattr(plugin, "valid_for_distance_metrics", True):
+        if (
+            sne_fit_style == "h2_fit_nuisance"
+            and sne_df.attrs.get("fit_nuisance_params", False)
+            and num_cosmo_params is not None
+        ):
+            chi2_total += chi_squared_sne_h2_salt2_fitting(
+                params, plugin.distance_modulus_model, sne_df, num_cosmo_params
+            )
+        elif (
+            sne_fit_style == "h2_mu_covariance"
+            and sne_df.attrs.get("covariance_matrix_inv") is not None
+        ):
+            chi2_total += chi_squared_sne_mu_covariance(
+                cosmo_params, plugin.distance_modulus_model, sne_df
+            )
+        else:
+            chi2_total += chi_squared_sne_h1_fixed_nuisance(
+                cosmo_params, plugin.distance_modulus_model, sne_df
+            )
+
+    if bao_df is not None and getattr(plugin, "valid_for_bao", True):
+        rs_val = plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
+        chi2_total += chi_squared_bao(bao_df, plugin, cosmo_params, rs_val)
+
+    if cmb_df is not None and getattr(plugin, "valid_for_cmb", True):
+        camb_params = plugin.get_camb_params(cosmo_params)
+        chi2_total += chi_squared_cmb(camb_params, cmb_df)
+
     return chi2_total if np.isfinite(chi2_total) else np.inf
 
 
@@ -519,6 +565,22 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
         logger.error(f"Model plugin {model_plugin.MODEL_NAME} has inconsistent parameter definitions.")
         return {'success': False, 'chi2_total': np.inf}
 
+    num_cosmo_params = len(init_params)
+    sne_fit_style = sne_data_df.attrs.get('fit_style', 'h1_fixed_nuisance') if sne_data_df is not None else 'h1_fixed_nuisance'
+    fit_nuisance_params_flag = sne_data_df.attrs.get('fit_nuisance_params', False) if sne_data_df is not None else False
+
+    if sne_fit_style == 'h2_fit_nuisance' and fit_nuisance_params_flag:
+        init_params.extend([
+            SALT2_NUISANCE_PARAMS_INIT['M_B'],
+            SALT2_NUISANCE_PARAMS_INIT['alpha_salt2'],
+            SALT2_NUISANCE_PARAMS_INIT['beta_salt2'],
+        ])
+        bounds.extend([
+            SALT2_NUISANCE_PARAMS_BOUNDS['M_B'],
+            SALT2_NUISANCE_PARAMS_BOUNDS['alpha_salt2'],
+            SALT2_NUISANCE_PARAMS_BOUNDS['beta_salt2'],
+        ])
+
     # Counter for iterations so progress can be displayed in real time
     eval_count = {'count': 0}
     best_val = [np.inf]
@@ -528,7 +590,15 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
     def chi2_wrapper(p):
         """Wrapper that tracks evaluations and prints live progress."""
         eval_count['count'] += 1
-        chi_val = chi_squared_combined(p, model_plugin, sne_data_df, bao_data_df, cmb_data_df)
+        chi_val = chi_squared_combined(
+            p,
+            model_plugin,
+            sne_df=sne_data_df,
+            bao_df=bao_data_df,
+            cmb_df=cmb_data_df,
+            sne_fit_style=sne_fit_style,
+            num_cosmo_params=num_cosmo_params,
+        )
         if not np.isfinite(chi_val):
             chi_val = np.inf
         if chi_val < best_val[0]:
@@ -550,7 +620,13 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
     options = {'maxiter': 2000, 'disp': False}
     result = None
     try:
-        result = minimize(chi2_wrapper, init_params, method='L-BFGS-B', bounds=bounds, options=options)
+        result = minimize(
+            chi2_wrapper,
+            init_params,
+            method='L-BFGS-B',
+            bounds=bounds,
+            options=options,
+        )
     except Exception as exc:
         logger.error(f"Exception during combined fit: {exc}", exc_info=True)
     finally:
@@ -565,19 +641,51 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
         success_flag = True
     else:
         final_params = np.array(best_params[0])
-        chi2_tot = chi_squared_combined(final_params, model_plugin, sne_data_df, bao_data_df, cmb_data_df)
+        chi2_tot = chi_squared_combined(
+            final_params,
+            model_plugin,
+            sne_df=sne_data_df,
+            bao_df=bao_data_df,
+            cmb_df=cmb_data_df,
+            sne_fit_style=sne_fit_style,
+            num_cosmo_params=num_cosmo_params,
+        )
         message = "Optimizer failed or did not converge"
         if result and hasattr(result, 'message') and result.message:
             message += f" (Optimizer msg: {result.message})"
         success_flag = np.isfinite(chi2_tot)
-    chi2_sne = chi_squared_sne_h1_fixed_nuisance(final_params, model_plugin.distance_modulus_model, sne_data_df) if sne_data_df is not None else np.nan
+    chi2_sne = np.nan
+    if sne_data_df is not None and getattr(model_plugin, 'valid_for_distance_metrics', True):
+        if sne_fit_style == 'h2_fit_nuisance' and fit_nuisance_params_flag:
+            chi2_sne = chi_squared_sne_h2_salt2_fitting(
+                final_params,
+                model_plugin.distance_modulus_model,
+                sne_data_df,
+                num_cosmo_params,
+            )
+        elif sne_fit_style == 'h2_mu_covariance' and sne_data_df.attrs.get('covariance_matrix_inv') is not None:
+            chi2_sne = chi_squared_sne_mu_covariance(
+                final_params[:num_cosmo_params],
+                model_plugin.distance_modulus_model,
+                sne_data_df,
+            )
+        else:
+            chi2_sne = chi_squared_sne_h1_fixed_nuisance(
+                final_params[:num_cosmo_params],
+                model_plugin.distance_modulus_model,
+                sne_data_df,
+            )
     chi2_bao = np.nan
     if bao_data_df is not None and getattr(model_plugin, 'valid_for_bao', True):
-        rs_val = model_plugin.get_sound_horizon_rs_Mpc(*final_params)
-        chi2_bao = chi_squared_bao(bao_data_df, model_plugin, final_params, rs_val)
+        cosmo_subset = final_params[:num_cosmo_params]
+        rs_val = model_plugin.get_sound_horizon_rs_Mpc(*cosmo_subset)
+        chi2_bao = chi_squared_bao(bao_data_df, model_plugin, cosmo_subset, rs_val)
     chi2_cmb = np.nan
     if cmb_data_df is not None and getattr(model_plugin, 'valid_for_cmb', True):
-        chi2_cmb = chi_squared_cmb(model_plugin.get_camb_params(final_params), cmb_data_df)
+        chi2_cmb = chi_squared_cmb(
+            model_plugin.get_camb_params(final_params[:num_cosmo_params]),
+            cmb_data_df,
+        )
 
     logger.info(f"Combined fit results for {model_plugin.MODEL_NAME}:")
     for name, val in zip(param_names, final_params):
@@ -596,10 +704,21 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
     dof -= len(final_params)
     reduced = chi2_tot / dof if dof > 0 else np.nan
 
+    fitted_cosmo_dict = {n: v for n, v in zip(param_names, final_params[:num_cosmo_params])}
+    nuisance_dict = None
+    if len(final_params) > num_cosmo_params:
+        nuisance_vals = final_params[num_cosmo_params:]
+        nuisance_dict = {
+            'M_B': nuisance_vals[0],
+            'alpha_salt2': nuisance_vals[1],
+            'beta_salt2': nuisance_vals[2],
+        }
+
     return {
         'success': success_flag and np.isfinite(chi2_tot),
         'fit_style_used': 'combined',
-        'fitted_cosmological_params': {n: v for n, v in zip(param_names, final_params)},
+        'fitted_cosmological_params': fitted_cosmo_dict,
+        'fitted_nuisance_params': nuisance_dict,
         # chi2_min is kept for compatibility with existing plotters
         'chi2_min': chi2_tot,
         'chi2_total': chi2_tot,
@@ -608,7 +727,7 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
         'chi2_cmb': chi2_cmb,
         'dof': dof,
         'reduced_chi2': reduced,
-        'message': message
+        'message': message,
     }
 
 
