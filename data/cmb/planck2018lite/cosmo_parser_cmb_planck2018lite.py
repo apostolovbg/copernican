@@ -22,30 +22,41 @@ def parse_planck2018lite(data_dir, **kwargs):
 
     try:
         raw = pd.read_csv(cl_path, sep=r"\s+", header=None)
-        col_map = {0: "ell", 1: "Cl_obs"}
-        if raw.shape[1] >= 3:
-            col_map[2] = "Cl_te_obs"
-        if raw.shape[1] >= 4:
-            col_map[3] = "Cl_ee_obs"
 
-        raw.rename(columns=col_map, inplace=True)
-        df = raw[list(col_map.values())]
+        # The file contains three blocks: TT, TE and EE. Each block lists the
+        # power spectrum followed by its diagonal error. Identify the block
+        # boundaries by the drop in the \ell column.
+        drops = np.where(np.diff(raw[0]) < 0)[0]
+        if len(drops) != 2:
+            logger.error("Unexpected Planck2018lite file format")
+            return None
 
-        # The Planck 2018 lite files already provide $C_\ell$ in $\mu K^2$.
-        # No additional scaling is required before converting to $D_\ell$.
+        idx_tt = drops[0] + 1
+        idx_te = drops[1] + 1
 
-        ell_arr = df["ell"].values
-        df["Dl_obs"] = ell_arr * (ell_arr + 1) * df["Cl_obs"] / (2 * np.pi)
-        if "Cl_te_obs" in df.columns:
-            df["Dl_te_obs"] = ell_arr * (ell_arr + 1) * df["Cl_te_obs"] / (2 * np.pi)
-        if "Cl_ee_obs" in df.columns:
-            df["Dl_ee_obs"] = ell_arr * (ell_arr + 1) * df["Cl_ee_obs"] / (2 * np.pi)
-        n = len(df)
+        block_tt = raw.iloc[:idx_tt].reset_index(drop=True)
+        block_te = raw.iloc[idx_tt:idx_te].reset_index(drop=True)
+        block_ee = raw.iloc[idx_te:].reset_index(drop=True)
+
+        ell_arr = block_tt[0].values.astype(int)
+        df = pd.DataFrame({"ell": ell_arr})
+        df["Dl_obs"] = ell_arr * (ell_arr + 1) * block_tt[1].values / (2 * np.pi)
+
+        if len(block_te) == len(ell_arr):
+            df["Dl_te_obs"] = (
+                ell_arr * (ell_arr + 1) * block_te[1].values / (2 * np.pi)
+            )
+        if len(block_ee) == len(ell_arr):
+            df["Dl_ee_obs"] = (
+                ell_arr * (ell_arr + 1) * block_ee[1].values / (2 * np.pi)
+            )
+
+        n = len(ell_arr)
 
         # The covariance matrix file is stored as a Fortran unformatted binary
         # record. Determine the endianness from the leading 4-byte header and
-        # validate that the trailer matches. The matrix entries are 64-bit
-        # floats ordered as ``n*n``.
+        # validate that the trailer matches. The matrix entries cover the full
+        # TT/TE/EE dataset, so read the entire matrix then slice the TT block.
         with open(cov_path, "rb") as fh:
             hdr_bytes = fh.read(4)
             if len(hdr_bytes) != 4:
@@ -53,10 +64,10 @@ def parse_planck2018lite(data_dir, **kwargs):
                 return None
             header_le = np.frombuffer(hdr_bytes, dtype="<i4")[0]
             header_be = np.frombuffer(hdr_bytes, dtype=">i4")[0]
-            if header_le == n * n * 8:
+            if header_le > 0 and int(np.sqrt(header_le / 8)) ** 2 * 8 == header_le:
                 endian = "<"
                 header = header_le
-            elif header_be == n * n * 8:
+            elif header_be > 0 and int(np.sqrt(header_be / 8)) ** 2 * 8 == header_be:
                 endian = ">"
                 header = header_be
             else:
@@ -64,16 +75,17 @@ def parse_planck2018lite(data_dir, **kwargs):
                     "Planck2018lite covariance matrix header mismatch or size error."
                 )
                 return None
-            cov_arr = np.fromfile(fh, dtype=f"{endian}f8", count=n * n)
+            n_full = int(np.sqrt(header / 8))
+            cov_arr = np.fromfile(fh, dtype=f"{endian}f8", count=n_full * n_full)
             trailer = np.fromfile(fh, dtype=f"{endian}i4", count=1)[0]
 
-        if cov_arr.size != n * n or trailer != header:
+        if cov_arr.size != n_full * n_full or trailer != header:
             logger.error(
                 "Planck2018lite covariance matrix trailer mismatch or incomplete read."
             )
             return None
 
-        cov_matrix = cov_arr.reshape(n, n)
+        cov_matrix = cov_arr.reshape(n_full, n_full)[:n, :n]
         # Convert covariance from $C_\ell$ to $D_\ell$ in $\mu K^2$.
         factors = ell_arr * (ell_arr + 1) / (2 * np.pi)
         cov_matrix = cov_matrix * np.outer(factors, factors)
