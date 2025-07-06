@@ -1,5 +1,5 @@
-**Version:** 1.7.6-beta
-**Last Updated:** 2025-07-05
+**Version:** 1.7.7-beta
+**Last Updated:** 2025-07-06
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
 Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. Future
@@ -76,8 +76,8 @@ models/           - JSON model definitions containing all theory text and
                     summaries but are not required.
 engines/          - Computational backends (SciPy CPU and Numba with automatic fallback)
 data/             - Observation data organized as ``data/<type>/<source>/``
-  cmb/planck2018lite/ - Planck 2018 lite TT power spectrum parser and files
-                         (covariance matrix may be binary Fortran or ASCII)
+  cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance
+                         (binary Fortran matrix)
 output/           - All generated results
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
@@ -95,7 +95,9 @@ should not be modified by AI-driven code changes.
 - The program discovers available models from `models/cosmo_model_*.json`.
  - Data sources for SNe, BAO and CMB are chosen interactively. Once a source is
    selected, its parser and files are loaded automatically from
-   `data/<type>/<source>/`. Future datasets will follow the same structure.
+   `data/<type>/<source>/`. The CMB loader now understands TT, TE and EE
+   spectra with full covariance so additional datasets can be dropped in with
+   minimal effort.
 - Engines are selected interactively from the `engines/` directory. Parsers are
   discovered automatically when their source folders are imported.
 - After each run you may choose to evaluate another model or exit. Cache files
@@ -176,6 +178,9 @@ evaluation stage for that model.
 CMB data parsers attach a `param_names` attribute to the returned DataFrame
 listing the CAMB parameter order. The engine combines this list with
 `get_camb_params` to evaluate the power spectrum and chi-squared.
+The CMB plotter now draws separate TT, TE and EE panels with residuals,
+uses a logarithmic scale for temperature and $E$-mode spectra and shows
+cosmic-variance and observational uncertainty bands.
 `model_parser.py` accepts unknown keys and simply copies them to the sanitized
 cache. This allows the domain-specific JSON language to evolve while remaining
 compatible with older models.

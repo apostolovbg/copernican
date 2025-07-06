@@ -1,4 +1,4 @@
-"""Planck 2018 lite CMB parser."""
+"""Parse the Planck 2018 lite TT/TE/EE spectra with covariance."""
 
 import os
 import logging
@@ -10,7 +10,7 @@ from scripts.data_loaders import register_cmb_parser
 
 @register_cmb_parser(
     "planck2018lite_v1",
-    "Planck 2018 lite TT spectrum.",
+    "Planck 2018 lite TT/TE/EE spectra.",
     data_dir=os.path.dirname(__file__),
 )
 def parse_planck2018lite(data_dir, **kwargs):
@@ -30,6 +30,10 @@ def parse_planck2018lite(data_dir, **kwargs):
 
         raw.rename(columns=col_map, inplace=True)
         df = raw[list(col_map.values())]
+
+        # The Planck 2018 lite files store raw C_ell values in K^2.
+        # Convert to \u03bcK^2 before forming D_ell.
+        df[[c for c in df.columns if c.startswith("Cl")]] *= 1.0e12
 
         ell_arr = df["ell"].values
         df["Dl_obs"] = ell_arr * (ell_arr + 1) * df["Cl_obs"] / (2 * np.pi)
@@ -55,10 +59,9 @@ def parse_planck2018lite(data_dir, **kwargs):
             return None
 
         cov_matrix = cov_arr.reshape(n, n)
-        # The covariance matrix is supplied for C_ell. Scale to D_ell using
-        # the same ell(ell+1)/(2pi) factors applied above.
+        # Convert from K^2 to \u03bcK^2 and transform C_ell covariance to D_ell.
         factors = ell_arr * (ell_arr + 1) / (2 * np.pi)
-        cov_matrix = cov_matrix * np.outer(factors, factors)
+        cov_matrix = cov_matrix * (1.0e12 ** 2) * np.outer(factors, factors)
 
         # Pre-compute diagonal errors for plotting or fallback usage
         diag_errors = np.sqrt(np.diag(cov_matrix))
