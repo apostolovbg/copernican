@@ -482,7 +482,10 @@ def plot_cmb_spectrum(
         idx_res = idx_main + 1
         obs_key = "Dl_obs" if comp == "TT" else f"Dl_{comp.lower()}_obs"
         obs = cmb_data_df[obs_key].values
-        err = diag_errors_plot if comp == "TT" else np.full_like(obs, 1.0)
+        if comp == "TT":
+            err = diag_errors_plot
+        else:
+            err = cmb_data_df.get(f"e_{comp.lower()}_obs", np.full_like(obs, 1.0))
 
         axs[idx_main].errorbar(
             ells,
@@ -517,13 +520,15 @@ def plot_cmb_spectrum(
                 label = r"$\Lambda$CDM" + (rf" ($\chi^2$={chi2_lcdm})" if chi2_lcdm else "")
                 axs[idx_main].plot(ells, th, color="red", ls="-", lw=2.0, label=label)
                 cv = np.sqrt(2.0 / (2 * ells + 1.0)) * th
+                lower = np.clip(th - cv, 1e-8, None)
                 axs[idx_main].fill_between(
                     ells,
-                    th - cv,
+                    lower,
                     th + cv,
                     color="red",
                     alpha=0.1,
                     label="Cosmic var.",
+                    zorder=0,
                 )
                 res = obs - th
                 axs[idx_res].errorbar(
