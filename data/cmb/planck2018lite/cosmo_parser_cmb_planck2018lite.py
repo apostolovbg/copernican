@@ -59,13 +59,30 @@ def parse_planck2018lite(data_dir, **kwargs):
         # the same ell(ell+1)/(2pi) factors applied above.
         factors = ell_arr * (ell_arr + 1) / (2 * np.pi)
         cov_matrix = cov_matrix * np.outer(factors, factors)
+
+        # Pre-compute diagonal errors for plotting or fallback usage
+        diag_errors = np.sqrt(np.diag(cov_matrix))
+
         try:
             cov_inv = np.linalg.inv(cov_matrix)
-        except np.linalg.LinAlgError:
-            logger.error("Planck2018lite covariance matrix is singular.")
-            return None
+            # Check for NaNs or infinities after inversion
+            if not np.all(np.isfinite(cov_inv)):
+                raise ValueError(
+                    "Inverted Planck2018lite covariance contains non-finite values."
+                )
+
+            cond_num = np.linalg.cond(cov_matrix)
+            if not np.isfinite(cond_num) or cond_num > 1e12:
+                raise ValueError(
+                    f"Planck2018lite covariance matrix ill-conditioned (cond={cond_num:.2e})."
+                )
+        except (np.linalg.LinAlgError, ValueError) as e:
+            # Fall back to diagonal errors if inversion fails or matrix is bad
+            logger.warning(f"{e} Falling back to diagonal errors.")
+            cov_inv = None
 
         df.attrs["covariance_matrix_inv"] = cov_inv
+        df.attrs["diag_errors_for_plot"] = diag_errors
         df.attrs["dataset_name_attr"] = "CMB_Planck2018lite"
         df.attrs["is_cmb"] = True
         # Map the order of CAMB parameters used by the engine
