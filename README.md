@@ -1,4 +1,4 @@
-**Version:** 1.7.12-beta
+**Version:** 1.8.0-beta
 **Last Updated:** 2025-07-06
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -40,9 +40,12 @@ Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages and
    prints a `pip install` command if any are missing.
 2. **Initialization** – the output directory is created and logging begins.
-3. **Configuration** – the user chooses a model, an engine from `./engines/`,
-  and data parsers for SNe Ia and BAO. Models are discovered from
- `cosmo_model_*.json` files which are converted into Python code on the fly.
+3. **Configuration** – the user chooses a model and a computation engine
+   from `./engines/` (either the classic SNe-only fitter or the new
+   `cosmo_engine_comb.py` combined-fit engine). Data parsers for SNe Ia,
+   BAO and CMB are discovered automatically from `data/<type>/<source>`
+   folders. Models are loaded from `cosmo_model_*.json` files and turned into
+   Python code on the fly.
 4. **SNe Ia Fitting** – the selected engine estimates cosmological parameters
    for both the ΛCDM reference and the alternative model.
 5. **BAO Analysis** – using the best-fit parameters the engine predicts BAO
@@ -57,7 +60,8 @@ Under the hood the program follows a clear pipeline:
    `matplotlib`, `pandas`, `sympy` and `jsonschema`. If any package is
    missing the program will print the command to install them.
 2. Run `python3 copernican.py` and follow the prompts to choose a model,
-   preferred data sources and computation engine.
+   preferred data sources and computation engine. Add `--run-tests` if you wish
+   to execute the built-in functional tests.
 3. Plots and CSV results will appear in the `output/` folder when the run
    completes.
 
@@ -75,7 +79,7 @@ Run `pip install .` from the repository root to build and install the `copernica
 models/           - JSON model definitions containing all theory text and
                     equations. Optional `.md` files may provide human-readable
                     summaries but are not required.
-engines/          - Computational backends (SciPy CPU and Numba with automatic fallback)
+engines/          - Computational backends (e.g. `cosmo_engine_1_4b.py` for SNe-only fits and `cosmo_engine_comb.py` for combined fits)
 data/             - Observation data organized as ``data/<type>/<source>/``
   cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance
                          (binary Fortran matrix)
@@ -233,8 +237,8 @@ altering `MAJOR.MINOR`.
 
 1.  **Dependency Check**: `copernican.py` scans for missing packages and
     instructs you to run a `pip install` command if any are absent.
-2.  **Startup Tests**: At launch, `copernican.py` automatically runs a
-    functional test suite to verify that the LCDM model and data parsers work
+2.  **Optional Tests**: Run `copernican.py --run-tests` to execute the
+    functional test suite and verify that the LCDM model and data parsers work
     as expected.
 3.  **Initialization**: The script starts and creates the `./output/` directory for all results.
 4.  **Configuration**: The user specifies the file paths for the model and data files.
