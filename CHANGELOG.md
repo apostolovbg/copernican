@@ -10,6 +10,11 @@ Add one line for each substantive commit or pull request directly under the late
 
 Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
+
+## Version 1.7.9-beta (Development Release)
+- 2025-07-06: Fixed Planck lite scaling and covariance endianness (AI assistant)
+- 2025-07-06: Enhanced default CMB wrapper and engine spectra output (AI assistant)
+- 2025-07-06: Updated documentation and version bump to 1.7.9-beta (AI assistant)
 ## Version 1.7.8-beta (Development Release)
 - 2025-07-06: Added dedicated CMB analysis stage with verbose logging (AI assistant)
 - 2025-07-06: Updated documentation and version bump to 1.7.8-beta (AI assistant)

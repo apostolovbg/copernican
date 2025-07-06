@@ -31,9 +31,8 @@ def parse_planck2018lite(data_dir, **kwargs):
         raw.rename(columns=col_map, inplace=True)
         df = raw[list(col_map.values())]
 
-        # The Planck 2018 lite files store raw C_ell values in K^2.
-        # Convert to \u03bcK^2 before forming D_ell.
-        df[[c for c in df.columns if c.startswith("Cl")]] *= 1.0e12
+        # The Planck 2018 lite files already provide $C_\ell$ in $\mu K^2$.
+        # No additional scaling is required before converting to $D_\ell$.
 
         ell_arr = df["ell"].values
         df["Dl_obs"] = ell_arr * (ell_arr + 1) * df["Cl_obs"] / (2 * np.pi)
@@ -43,25 +42,41 @@ def parse_planck2018lite(data_dir, **kwargs):
             df["Dl_ee_obs"] = ell_arr * (ell_arr + 1) * df["Cl_ee_obs"] / (2 * np.pi)
         n = len(df)
 
-        # The covariance matrix file is stored as a Fortran unformatted
-        # binary record. The first and last 4 bytes contain the record
-        # length (n*n*8). Read the data as little-endian 64-bit floats
-        # and reshape to ``n x n``.
+        # The covariance matrix file is stored as a Fortran unformatted binary
+        # record. Determine the endianness from the leading 4-byte header and
+        # validate that the trailer matches. The matrix entries are 64-bit
+        # floats ordered as ``n*n``.
         with open(cov_path, "rb") as fh:
-            header = np.fromfile(fh, dtype="<i4", count=1)[0]
-            cov_arr = np.fromfile(fh, dtype="<f8", count=n * n)
-            trailer = np.fromfile(fh, dtype="<i4", count=1)[0]
+            hdr_bytes = fh.read(4)
+            if len(hdr_bytes) != 4:
+                logger.error("Planck2018lite covariance matrix missing header")
+                return None
+            header_le = np.frombuffer(hdr_bytes, dtype="<i4")[0]
+            header_be = np.frombuffer(hdr_bytes, dtype=">i4")[0]
+            if header_le == n * n * 8:
+                endian = "<"
+                header = header_le
+            elif header_be == n * n * 8:
+                endian = ">"
+                header = header_be
+            else:
+                logger.error(
+                    "Planck2018lite covariance matrix header mismatch or size error."
+                )
+                return None
+            cov_arr = np.fromfile(fh, dtype=f"{endian}f8", count=n * n)
+            trailer = np.fromfile(fh, dtype=f"{endian}i4", count=1)[0]
 
-        if cov_arr.size != n * n or header != trailer or header != n * n * 8:
+        if cov_arr.size != n * n or trailer != header:
             logger.error(
-                "Planck2018lite covariance matrix header mismatch or size error."
+                "Planck2018lite covariance matrix trailer mismatch or incomplete read."
             )
             return None
 
         cov_matrix = cov_arr.reshape(n, n)
-        # Convert from K^2 to \u03bcK^2 and transform C_ell covariance to D_ell.
+        # Convert covariance from $C_\ell$ to $D_\ell$ in $\mu K^2$.
         factors = ell_arr * (ell_arr + 1) / (2 * np.pi)
-        cov_matrix = cov_matrix * (1.0e12 ** 2) * np.outer(factors, factors)
+        cov_matrix = cov_matrix * np.outer(factors, factors)
 
         # Pre-compute diagonal errors for plotting or fallback usage
         diag_errors = np.sqrt(np.diag(cov_matrix))
@@ -93,6 +108,7 @@ def parse_planck2018lite(data_dir, **kwargs):
             "H0",
             "ombh2",
             "omch2",
+            "omnuh2",
             "tau",
             "As",
             "ns",

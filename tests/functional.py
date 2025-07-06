@@ -48,9 +48,13 @@ class FunctionalTestCase(unittest.TestCase):
 
         camb_params = self.plugin.get_camb_params(params)
         chi2_cmb = engine.chi_squared_cmb(camb_params, cmb_df)
-        spec = engine.compute_cmb_spectrum(camb_params, cmb_df['ell'].values)
+        spec = engine.compute_cmb_spectrum(
+            camb_params, cmb_df['ell'].values, spectra=("TT", "TE", "EE")
+        )
         self.assertTrue(np.isfinite(chi2_cmb))
-        self.assertEqual(len(spec), len(cmb_df))
+        self.assertEqual(set(spec.keys()), {"TT", "TE", "EE"})
+        for arr in spec.values():
+            self.assertEqual(len(arr), len(cmb_df))
 
 
 if __name__ == '__main__':
