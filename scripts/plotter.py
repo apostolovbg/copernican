@@ -505,7 +505,7 @@ def plot_cmb_spectrum(
             )
             if th is not None:
                 chi2_lcdm = f"{lcdm_cmb_results.get('chi2_cmb', np.nan):.2f}" if comp == "TT" else ""
-                label = r"$\Lambda$CDM" + (f" ($\chi^2$={chi2_lcdm})" if chi2_lcdm else "")
+                label = r"$\Lambda$CDM" + (rf" ($\chi^2$={chi2_lcdm})" if chi2_lcdm else "")
                 axs[idx_main].plot(ells, th, color="red", ls="-", lw=2.0, label=label)
                 res = obs - th
                 axs[idx_res].errorbar(
@@ -527,7 +527,7 @@ def plot_cmb_spectrum(
             )
             if th is not None:
                 chi2_alt = f"{alt_cmb_results.get('chi2_cmb', np.nan):.2f}" if comp == "TT" else ""
-                label = fr"{alt_name_latex}" + (f" ($\chi^2$={chi2_alt})" if chi2_alt else "")
+                label = fr"{alt_name_latex}" + (rf" ($\chi^2$={chi2_alt})" if chi2_alt else "")
                 axs[idx_main].plot(ells, th, color="blue", ls="--", lw=2.0, label=label)
                 res = obs - th
                 axs[idx_res].errorbar(

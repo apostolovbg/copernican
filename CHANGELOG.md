@@ -14,6 +14,7 @@ Example:
 - 2025-07-05: Bumped COPERNICAN_VERSION and docs to 1.7.6-beta. (AI assistant)
 - 2025-07-06: Added TE/EE spectrum handling in parser, engine and plotter. (AI assistant)
 - 2025-07-06: Improved Planck lite parser covariance checks with fallback warnings. (AI assistant)
+- 2025-07-06: Fixed chi-squared label formatting warnings in plotter. (AI assistant)
 ## Version 1.7.5-beta (Development Release)
 - 2025-07-05: Removal of user-selectable test mode. (AI assistant)
 - 2025-07-05: Automatic functional tests run at startup. (AI assistant)
