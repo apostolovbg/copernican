@@ -12,6 +12,7 @@ import platform
 import shutil
 import subprocess
 import time
+import argparse
 
 # Delay heavy third-party imports until after the dependency check
 np = None
@@ -27,7 +28,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.7.12-beta"
+COPERNICAN_VERSION = "1.8.0-beta"
 
 def run_startup_tests():
     """Execute functional tests using the standard unittest runner."""
@@ -40,6 +41,11 @@ def run_startup_tests():
     suite = unittest.defaultTestLoader.loadTestsFromModule(tests)
     result = unittest.TextTestRunner(verbosity=1).run(suite)
     return result.wasSuccessful()
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Copernican Suite")
+    parser.add_argument('--run-tests', action='store_true', help='execute functional tests and exit')
+    return parser.parse_args()
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
@@ -217,10 +223,11 @@ def cleanup_cache(base_dir):
 
 def main_workflow():
     """Main workflow for the Copernican Suite."""
+    args = parse_args()
     check_dependencies()
-    if not run_startup_tests():
-        print("Startup tests failed. Exiting.")
-        return
+    if args.run_tests:
+        success = run_startup_tests()
+        sys.exit(0 if success else 1)
 
     # Import optional third-party packages after confirming they are installed
     global np, plt, mp, model_parser, model_coder, engine_interface, data_loaders, plotter, csv_writer, log_mod, logger
@@ -329,9 +336,18 @@ def main_workflow():
         if cmb_data_df is None:
             continue
 
-        logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
-        lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, lcdm)
-        alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, alt_model_plugin)
+        if hasattr(cosmo_engine_selected, 'fit_combined_parameters'):
+            logger.info("\n--- Stage 2: Combined Fit (SNe + BAO + CMB) ---")
+            lcdm_sne_fit_results = cosmo_engine_selected.fit_combined_parameters(
+                sne_data_df, bao_data_df, cmb_data_df, lcdm
+            )
+            alt_model_sne_fit_results = cosmo_engine_selected.fit_combined_parameters(
+                sne_data_df, bao_data_df, cmb_data_df, alt_model_plugin
+            )
+        else:
+            logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
+            lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, lcdm)
+            alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, alt_model_plugin)
         
         logger.info("\n--- Stage 3: BAO Analysis ---")
         
@@ -341,8 +357,16 @@ def main_workflow():
         def run_bao_analysis(model_plugin, sne_fit_results, z_smooth_arr):
             """Helper to run BAO analysis for a given model."""
             if not (sne_fit_results and sne_fit_results.get('success')):
-                logger.warning(f"{model_plugin.MODEL_NAME} SNe fit failed; skipping BAO analysis.")
-                return {'sne_fit_results': sne_fit_results, 'pred_df': None, 'rs_Mpc': np.nan, 'chi2_bao': np.inf, 'smooth_predictions': None}
+                logger.warning(
+                    f"{model_plugin.MODEL_NAME} fit failed; skipping BAO analysis."
+                )
+                return {
+                    'sne_fit_results': sne_fit_results,
+                    'pred_df': None,
+                    'rs_Mpc': np.nan,
+                    'chi2_bao': np.inf,
+                    'smooth_predictions': None,
+                }
 
             fitted_cosmo_p = list(sne_fit_results['fitted_cosmological_params'].values())
             pred_df, rs_Mpc, smooth_preds = cosmo_engine_selected.calculate_bao_observables(bao_data_df, model_plugin, fitted_cosmo_p, z_smooth=z_smooth_arr)
