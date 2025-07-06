@@ -4,7 +4,7 @@ Development notes were previously kept at the top of this file. That history now
 lives in `CHANGELOG.md`. New modifications must update the changelog, and legacy
 `dev_note` headers embedded in source files have been fully phased out.
 
-This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.7.12-beta**.
+This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.8.1-beta**.
 
 ## 1. Program Overview
 The suite evaluates cosmological models against SNe Ia and BAO data. Support for
@@ -16,8 +16,9 @@ sources. Parsers reside alongside their data. Results are saved under
 
 The default engine is `engines/cosmo_engine_1_4b.py`. All model plugins are validated
 through `scripts/engine_interface.py` before being passed to the engine. This
-ensures the expected functions are present and callable. At startup,
-`copernican.py` automatically executes a functional test suite to confirm that
+ensures the expected functions are present and callable. Starting with
+version 1.8.1-beta the test suite no longer runs automatically. Execute
+`copernican.py --run-tests` or run `python -m unittest discover` to verify that
 the reference LCDM model and data parsers operate correctly.
 
 ## 2. Directory Layout
