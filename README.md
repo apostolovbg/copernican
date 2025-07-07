@@ -65,7 +65,8 @@ Under the hood the program follows a clear pipeline:
 2. Run `python3 copernican.py` and follow the prompts to choose a model,
    preferred data sources and computation engine.
 3. Execute `python3 copernican.py --run-tests` or run `python -m unittest discover`
-   to verify the reference model and parsers.
+   to verify the reference model and parsers. The `--run-tests` flag now leverages
+   unittest discovery to gather all modules under `tests/`.
 4. Plots and CSV results will appear in the `output/` folder when the run
    completes.
 
@@ -239,7 +240,7 @@ Run the tests with either command:
 
 ```bash
 python -m unittest discover
-python copernican.py --run-tests
+python copernican.py --run-tests  # uses unittest discovery internally
 ```
 
 New models are described entirely by JSON. Copy an existing file from `models/`
@@ -280,7 +281,7 @@ altering `MAJOR.MINOR`.
     instructs you to run a `pip install` command if any are absent.
 2.  **Optional Tests**: Run `copernican.py --run-tests` to execute the
     functional test suite and verify that the LCDM model and data parsers work
-    as expected.
+    as expected. This flag performs unittest discovery over the `tests` package.
 3.  **Initialization**: The script starts and creates the `./output/` directory for all results.
 4.  **Configuration**: The user specifies the file paths for the model and data files.
 5.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data.

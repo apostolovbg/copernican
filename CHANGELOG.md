@@ -11,6 +11,7 @@ Example:
 - 2025-07-07: Bumped development version and updated documentation (AI assistant)
 - 2025-07-07: Documented engine-plugin architecture and updated JSON example (AI assistant)
 - 2025-07-07: Revised AGENTS overview and expanded README with developer guide (AI assistant)
+- 2025-07-07: Fixed test discovery and matplotlib cleanup in run-tests mode (AI assistant)
 
 ## Version 1.8.3-beta (Development Release)
 - 2025-07-06: Rewrote combined engine for true joint optimisation (AI assistant)
