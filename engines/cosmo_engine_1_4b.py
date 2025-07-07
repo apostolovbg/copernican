@@ -5,13 +5,12 @@ Relies on SciPy/NumPy for all computations.
 """
 
 import numpy as np
-from scipy.optimize import minimize
 from scipy.linalg import LinAlgError
 import camb
 import sys
-import time
 import logging
 from scripts import engine_interface
+from scripts.optim_utils import minimize_with_progress
 
 # --- Constants for SNe H2-style (SALT2 nuisance parameter fitting) ---
 SALT2_NUISANCE_PARAMS_INIT = {
@@ -400,50 +399,28 @@ def fit_sne_parameters(sne_data_df, model_plugin):
         return {'success': False, 'message': message, 'chi2_min': np.inf, 'model_name': model_name_str}
 
     options = {'maxiter': 2000, 'disp': False, 'ftol': 1e-10, 'gtol': 1e-7, 'eps': 1e-9}
-    
-    eval_count = {'count': 0}
-    best_chi2_so_far = [np.inf]
-    best_params_so_far = [list(current_initial_params)]
-    
-    start_time = time.time()
 
-    def chi2_wrapper_for_minimize(params_to_test, *args_passed):
-        """Wrapper to count evaluations and track best result for robust failure handling."""
-        eval_count['count'] += 1
-        current_chi2_val = chi2_function_to_call(params_to_test, *args_passed)
-        
-        if not np.isfinite(current_chi2_val): current_chi2_val = np.inf
-        
-        if current_chi2_val < best_chi2_so_far[0]:
-            best_chi2_so_far[0] = float(current_chi2_val)
-            best_params_so_far[0] = list(params_to_test) 
-        
-        elapsed_time = time.time() - start_time
-        speed_str = f"{(eval_count['count'] / elapsed_time):.1f} evals/s" if elapsed_time > 1e-6 else "--- evals/s"
-        
-        print(f"  SNe Fit Evals: {eval_count['count']:<5} | Best Chi2: {best_chi2_so_far[0]:.4f} | Speed: {speed_str:<15}", end='\r', file=sys.stderr)
-        
-        return current_chi2_val if np.isfinite(current_chi2_val) else 1e12 
+    logger.info(
+        f"Starting SNe optimization for {model_name_str} using {len(current_initial_params)} parameters..."
+    )
 
-    logger.info(f"Starting SNe optimization for {model_name_str} using {len(current_initial_params)} parameters...")
-    result_obj = None
-    try:
-        result_obj = minimize(chi2_wrapper_for_minimize, current_initial_params, args=args_for_chi2_func,
-                              method='L-BFGS-B', bounds=current_param_bounds, options=options)
-    except Exception as e_min:
-        logger.error(f"\nException during SNe minimize call for {model_name_str}: {e_min}", exc_info=True)
-    finally:
-        print(" " * 80, end='\r', file=sys.stderr)
-        logger.info(f"SNe Optimization for {model_name_str} finished. Total evals: {eval_count['count']}.")
+    result_obj, eval_total, best_chi2_so_far, best_params_so_far = minimize_with_progress(
+        chi2_function_to_call,
+        current_initial_params,
+        bounds=current_param_bounds,
+        args=args_for_chi2_func,
+        options=options,
+        label="SNe Fit",
+    )
 
     if result_obj and result_obj.success and np.isfinite(result_obj.fun):
         final_params = result_obj.x
         final_chi2 = result_obj.fun
         message = result_obj.message
         success_flag = True
-    else: 
-        final_params = np.array(best_params_so_far[0])
-        final_chi2 = best_chi2_so_far[0]
+    else:
+        final_params = np.array(best_params_so_far)
+        final_chi2 = best_chi2_so_far
         message = "Optimizer failed or did not improve; using best parameters found during search."
         if result_obj and hasattr(result_obj, 'message') and result_obj.message:
              message += f" (Optimizer msg: {result_obj.message})"
@@ -491,7 +468,7 @@ def fit_sne_parameters(sne_data_df, model_plugin):
         'reduced_chi2': reduced_chi2,
         'success': success_flag and np.isfinite(final_chi2),
         'message': message,
-        'n_evals_wrapper': eval_count['count']
+        'n_evals_wrapper': eval_total
     }
 
 

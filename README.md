@@ -1,4 +1,4 @@
-**Version:** 1.8.5-beta
+**Version:** 1.9.0-beta
 **Last Updated:** 2025-07-07
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -97,6 +97,7 @@ scripts/          - Helper modules
   csv_writer.py     - CSV output helpers
   data_loaders.py   - Data loading utilities
   utils.py          - Common helpers
+  optim_utils.py    - Shared optimisation wrappers used by engines
 ```
 **Note:** Files in `data/` are treated as read-only reference datasets and
 should not be modified by AI-driven code changes.
@@ -247,6 +248,8 @@ Multiprocessing is used by several engines. The program enforces the `spawn`
 start method when it launches so that each worker process begins with a fresh
 Python interpreter. Model JSON files are validated with `jsonschema` only in the
 main process; child processes simply read the sanitized cache.
+All engines import progress helpers from `scripts/optim_utils.py` so that
+evaluation counting and reporting remain consistent across backends.
 
 New models are described entirely by JSON. Copy an existing file from `models/`
 and consult `cosmo_model_guide.json` for the full schema. Additional engines may
