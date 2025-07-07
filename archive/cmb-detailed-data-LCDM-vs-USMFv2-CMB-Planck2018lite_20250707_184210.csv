@@ -1,4 +1,4 @@
-ell,Dl_obs,Dl_te_obs,Dl_ee_obs,Dl_lcdm_tt,residual_lcdm_tt,Dl_lcdm_te,residual_lcdm_te,Dl_lcdm_ee,residual_lcdm_ee,Dl_LambdaCDM_tt,residual_LambdaCDM_tt,Dl_LambdaCDM_te,residual_LambdaCDM_te,Dl_LambdaCDM_ee,residual_LambdaCDM_ee
+ell,Dl_obs,Dl_te_obs,Dl_ee_obs,Dl_lcdm_tt,residual_lcdm_tt,Dl_lcdm_te,residual_lcdm_te,Dl_lcdm_ee,residual_lcdm_ee,Dl_USMFv2_tt,residual_USMFv2_tt,Dl_USMFv2_te,residual_USMFv2_te,Dl_USMFv2_ee,residual_USMFv2_ee
 32,1097.01,1.51224,0.0643557,0.099742,1096.91,0.000393656,1.51184,9.15635e-06,0.0643466,0.099742,1096.91,0.000393656,1.51184,9.15635e-06,0.0643466
 37,1180.26,3.11711,0.0649424,0,1180.26,0,3.11711,0,0.0649424,0,1180.26,0,3.11711,0,0.0649424
 42,1426.97,0.820244,0.0699042,-0.0234076,1426.99,-0.00219004,0.822434,-1.07767e-05,0.069915,-0.0234076,1426.99,-0.00219004,0.822434,-1.07767e-05,0.069915

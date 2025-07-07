@@ -3,8 +3,25 @@ Add one line for each substantive commit or pull request directly under the late
 
 `- 2025-07-05: short summary (author)`
 
+## Version 1.10.1-beta (Development Release)
+- 2025-07-07: Unified CMB handling with SNe and BAO, removed engine interface fallbacks, updated docs (AI assistant)
+
+## Version 1.9.3-beta (Development Release)
+- 2025-07-07: Fixed parameter list mutation in combined engine and bumped version (AI assistant)
+- 2025-07-07: Removed deprecated L-BFGS-B solver options to silence SciPy warnings (AI assistant)
+- 2025-07-07: Increased CMB cache precision to six significant digits (AI assistant)
+
+## Version 1.9.2-beta (Development Release)
+- 2025-07-07: Bumped version to 1.9.2-beta and expanded code comments (AI assistant)
+
+## Version 1.9.1-beta (Development Release)
+- 2025-07-07: Renamed scripts package to copernican_lib and updated documentation (AI assistant)
+
 Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
+
+## Version 1.9.0-beta (Development Release)
+- 2025-07-07: Centralized optimization wrappers and updated documentation (AI assistant)
 
 ## Version 1.8.5-beta (Development Release)
 - 2025-07-07: Enforced spawn start method and restricted JSON validation to main process (AI assistant)

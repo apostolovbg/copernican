@@ -1,11 +1,15 @@
 """Parse the Planck 2018 lite TT/TE/EE spectra with covariance."""
+# The Planck team provides the data in a simple text format accompanied by a
+# Fortran-style binary covariance matrix. This parser converts those files into
+# a convenient Pandas DataFrame with the inverse covariance stored in
+# ``.attrs``.
 
 import os
 import logging
 import numpy as np
 import pandas as pd
 
-from scripts.data_loaders import register_cmb_parser
+from copernican_lib.data_loaders import register_cmb_parser
 
 
 @register_cmb_parser(

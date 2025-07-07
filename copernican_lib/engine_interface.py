@@ -1,5 +1,9 @@
 """Interface to bridge generated model functions with existing engines."""
 
+# Engines expect models in a specific "plugin" format. This module provides
+# helper functions that take the parsed JSON representation of a model and
+# turn it into a simple object with the required attributes and callables.
+
 from types import SimpleNamespace
 import inspect
 import logging
@@ -14,7 +18,6 @@ REQUIRED_FUNCTIONS = [
     "get_Hz_per_Mpc",
     "get_DV_Mpc",
     "get_sound_horizon_rs_Mpc",
-    "compute_cmb_spectrum",
 ]
 
 REQUIRED_ATTRIBUTES = [
@@ -47,19 +50,10 @@ def build_plugin(model_data, func_dict):
     plugin.valid_for_cmb = model_data.get('valid_for_cmb', True)
     plugin.CMB_PARAM_MAP = model_data.get('cmb', {}).get('param_map', {})
     if plugin.valid_for_cmb and not plugin.CMB_PARAM_MAP:
-        # Fallback mapping ensures CAMB receives the SNe-derived cosmological
-        # parameters without re-fitting. Copernican's design is "fit once to SNe
-        # then predict everything else". Only H0, Omega_b0 and Omega_m0 are
-        # required from the model; the remaining parameters use fixed defaults.
-        plugin.CMB_PARAM_MAP = {
-            "H0": "H0",
-            "ombh2": "Omega_b0 * (H0/100)**2",
-            "omch2": "(Omega_m0 - Omega_b0) * (H0/100)**2",
-            "omnuh2": "Og * (H0/100)**2",
-            "tau": 0.054,
-            "As": 2.1e-9,
-            "ns": 0.965,
-        }
+        logging.getLogger().warning(
+            "Model marked valid_for_cmb but no cmb.param_map provided. Disabling CMB support."
+        )
+        plugin.valid_for_cmb = False
 
     def get_camb_params(values):
         """Return a CAMB parameter dictionary from ``values``."""
@@ -99,18 +93,7 @@ def build_plugin(model_data, func_dict):
     for name, func in func_dict.items():
         setattr(plugin, name, func)
 
-    if plugin.valid_for_cmb and not hasattr(plugin, 'compute_cmb_spectrum'):
-        def _default_cmb(values, ells):
-            """Fallback CMB wrapper returning TT, TE and EE spectra."""
-            from engines import cosmo_engine_1_4b
-            spec = cosmo_engine_1_4b.compute_cmb_spectrum(
-                plugin.get_camb_params(values),
-                ells,
-                spectra=("TT", "TE", "EE"),
-            )
-            return {"TT": spec["TT"], "TE": spec["TE"], "EE": spec["EE"]}
 
-        plugin.compute_cmb_spectrum = _default_cmb
 
     validate_plugin(plugin)
     return plugin
@@ -118,6 +101,10 @@ def build_plugin(model_data, func_dict):
 
 def validate_plugin(plugin):
     """Validate that ``plugin`` exposes the required attributes and functions."""
+    # Engines rely on a consistent interface. This function checks for the
+    # presence of all mandatory methods and attributes and logs helpful error
+    # messages when something is missing. It returns ``True`` for a valid
+    # plugin and ``False`` otherwise.
     logger = logging.getLogger()
 
     missing_attrs = [attr for attr in REQUIRED_ATTRIBUTES if not hasattr(plugin, attr)]
@@ -137,28 +124,11 @@ def validate_plugin(plugin):
             'get_Hz_per_Mpc',
             'get_DV_Mpc',
         ]
-    if getattr(plugin, 'valid_for_cmb', True) is False and 'compute_cmb_spectrum' in required_funcs:
-        required_funcs.remove('compute_cmb_spectrum')
+    # When the model lacks CMB support, exclude the spectrum routine from the
+    # required function list.
 
     for fname in required_funcs:
         func = getattr(plugin, fname, None)
-        if fname == 'compute_cmb_spectrum' and not callable(func):
-            if hasattr(plugin, 'get_camb_params'):
-                def _default_cmb(values, ells):
-                    """Fallback CMB wrapper returning TT, TE and EE spectra."""
-                    from engines import cosmo_engine_1_4b
-                    spec = cosmo_engine_1_4b.compute_cmb_spectrum(
-                        plugin.get_camb_params(values),
-                        ells,
-                        spectra=("TT", "TE", "EE"),
-                    )
-                    return {"TT": spec["TT"], "TE": spec["TE"], "EE": spec["EE"]}
-
-                setattr(plugin, 'compute_cmb_spectrum', _default_cmb)
-                func = _default_cmb
-            else:
-                logger.error("Plugin validation failed. Missing function 'compute_cmb_spectrum'.")
-                return False
         if not callable(func):
             logger.error(f"Plugin validation failed. Missing function '{fname}'.")
             return False

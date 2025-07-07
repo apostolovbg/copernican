@@ -1,9 +1,11 @@
 
+"""Parser for the University of Strassbourg SNe dataset."""
+
 import os
 import pandas as pd
 import logging
 
-from scripts.data_loaders import register_sne_parser
+from copernican_lib.data_loaders import register_sne_parser
 
 DEFAULT_SALT2_M_ABS_FIXED = -19.3
 DEFAULT_SALT2_ALPHA_FIXED = 0.14
@@ -18,6 +20,9 @@ def parse_unistra_h1_style(data_dir, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED
                            salt2_alpha_fixed=DEFAULT_SALT2_ALPHA_FIXED,
                            salt2_beta_fixed=DEFAULT_SALT2_BETA_FIXED, **kwargs):
     """Parses UniStra-like fixed-width files and calculates mu_obs with fixed nuisance parameters."""
+    # The raw data uses a legacy fixed-column format. This parser reads those
+    # columns, applies the SALT2 nuisance parameters and returns a clean
+    # DataFrame ready for fitting.
     logger = logging.getLogger()
     filepath = os.path.join(data_dir, "tablef3.dat")
     col_specs = [(0,12),(12,21),(21,30),(30,31),(31,41),(41,50),(50,60),(60,69),(69,79),

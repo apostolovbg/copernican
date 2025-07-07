@@ -1,15 +1,21 @@
 
+"""Parser for a minimal BAO test dataset."""
+
 import os
 import pandas as pd
 import json
 import logging
 
-from scripts.data_loaders import register_bao_parser
+from copernican_lib.data_loaders import register_bao_parser
 
 
 @register_bao_parser("Basic BAO testing dataset", "", data_dir=os.path.dirname(__file__))
 def parse_bao_json_v1(data_dir, **kwargs):
     """Parses a generic BAO JSON file into a standard DataFrame."""
+    # ``data_dir`` points to the folder containing ``bao1.json``. The JSON
+    # structure is trivial: a list of data points with redshift, observable type
+    # and error columns. Invalid rows are dropped and useful metadata is stored
+    # on the returned DataFrame.
     logger = logging.getLogger()
     filepath = os.path.join(data_dir, "bao1.json")
     try:

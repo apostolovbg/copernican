@@ -1,9 +1,11 @@
+"""Basic functional tests for the Copernican Suite."""
+
 import unittest
 import importlib
 from pathlib import Path
 import numpy as np
 
-from scripts import model_parser, model_coder, engine_interface, data_loaders
+from copernican_lib import model_parser, model_coder, engine_interface, data_loaders
 import engines.cosmo_engine_1_4b as engine
 import engines.cosmo_engine_comb as engine_comb
 
@@ -11,6 +13,7 @@ import engines.cosmo_engine_comb as engine_comb
 class FunctionalTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # Prepare a validated ΛCDM plugin used by several test cases.
         base = Path(__file__).resolve().parents[1]
         models_dir = base / 'models'
         json_path = models_dir / 'cosmo_model_lcdm.json'
@@ -67,6 +70,12 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertTrue(result['success'])
         self.assertIn('chi2_total', result)
         self.assertTrue(np.isfinite(result['chi2_total']))
+
+    def test_chi_squared_cmb_planck2018lite(self):
+        cmb_df = data_loaders.load_cmb_data('planck2018lite_v1')
+        params = self.plugin.INITIAL_GUESSES
+        chi2 = engine_comb.chi_squared_cmb(params, cmb_df, self.plugin)
+        self.assertTrue(np.isfinite(chi2))
 
 
 if __name__ == '__main__':

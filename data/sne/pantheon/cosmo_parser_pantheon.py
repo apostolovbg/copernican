@@ -1,10 +1,12 @@
 
+"""Parser for the Pantheon+ supernova sample."""
+
 import os
 import pandas as pd
 import numpy as np
 import logging
 
-from scripts.data_loaders import register_sne_parser
+from copernican_lib.data_loaders import register_sne_parser
 
 
 @register_sne_parser(
@@ -13,6 +15,7 @@ from scripts.data_loaders import register_sne_parser
     data_dir=os.path.dirname(__file__),
 )
 def parse_pantheon_plus_mu_cov_h2(data_dir, **kwargs):
+    """Parse Pantheon+ data and its covariance matrix."""
     logger = logging.getLogger()
     filepath = os.path.join(data_dir, "Pan.dat")
     cov_filepath = os.path.join(data_dir, "Pancm.cov")
