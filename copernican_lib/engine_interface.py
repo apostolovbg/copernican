@@ -1,5 +1,9 @@
 """Interface to bridge generated model functions with existing engines."""
 
+# Engines expect models in a specific "plugin" format. This module provides
+# helper functions that take the parsed JSON representation of a model and
+# turn it into a simple object with the required attributes and callables.
+
 from types import SimpleNamespace
 import inspect
 import logging
@@ -118,6 +122,10 @@ def build_plugin(model_data, func_dict):
 
 def validate_plugin(plugin):
     """Validate that ``plugin`` exposes the required attributes and functions."""
+    # Engines rely on a consistent interface. This function checks for the
+    # presence of all mandatory methods and attributes and logs helpful error
+    # messages when something is missing. It returns ``True`` for a valid
+    # plugin and ``False`` otherwise.
     logger = logging.getLogger()
 
     missing_attrs = [attr for attr in REQUIRED_ATTRIBUTES if not hasattr(plugin, attr)]

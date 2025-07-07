@@ -1,5 +1,8 @@
 # Copernican Suite CSV Writer
 """CSV writing utilities for the Copernican Suite."""
+# Functions here convert the results of a run into comma-separated value files
+# so that they can be analysed with spreadsheets or other tools. Each helper
+# handles a specific data type such as SNe, BAO or CMB.
 from typing import Any
 import os
 import numpy as np

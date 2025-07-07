@@ -1,5 +1,8 @@
 # Copernican Suite Logger
 """Logging utilities for the Copernican Suite."""
+# The application writes human-readable logs both to the console and to a file
+# in the output directory. This module centralises the setup so every module can
+# retrieve the same logger instance.
 
 import logging
 import os

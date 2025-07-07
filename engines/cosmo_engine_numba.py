@@ -1,5 +1,8 @@
 # Copernican Suite Numba Engine
 """Numba-accelerated engine wrapper."""
+# This lightweight wrapper compiles the pure Python functions from the CPU
+# engine using Numba's ``njit`` decorator. If compilation fails, the code falls
+# back to the original Python implementation.
 
 from numba import njit
 import logging
