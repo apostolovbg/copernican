@@ -401,7 +401,9 @@ def fit_sne_parameters(sne_data_df, model_plugin):
         logger.error(message)
         return {'success': False, 'message': message, 'chi2_min': np.inf, 'model_name': model_name_str}
 
-    options = {'maxiter': 2000, 'disp': False, 'ftol': 1e-10, 'gtol': 1e-7, 'eps': 1e-9}
+    # Avoid deprecated 'disp' option in SciPy 1.10+. Default settings already
+    # suppress solver output, so we omit 'disp' entirely.
+    options = {'maxiter': 2000, 'ftol': 1e-10, 'gtol': 1e-7, 'eps': 1e-9}
 
     logger.info(
         f"Starting SNe optimization for {model_name_str} using {len(current_initial_params)} parameters..."
