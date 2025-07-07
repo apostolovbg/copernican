@@ -3,6 +3,9 @@
 Cosmological Engine for the Copernican Suite.
 Relies on SciPy/NumPy for all computations.
 """
+# This is the reference CPU implementation used when no acceleration is
+# available. It implements generic chi-squared calculations for SNe, BAO and CMB
+# data and exposes fitting routines consumed by ``copernican.py``.
 
 import numpy as np
 from scipy.linalg import LinAlgError

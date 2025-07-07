@@ -1,5 +1,9 @@
 """Model parser for Copernican Suite JSON models."""
 
+# This module validates model definition files against a JSON schema and writes
+# a sanitized copy to ``models/cache/``. The sanitized file is used by child
+# processes so that validation only happens once in the main process.
+
 import json
 from jsonschema import validate, ValidationError
 from pathlib import Path

@@ -1,3 +1,5 @@
+"""Basic functional tests for the Copernican Suite."""
+
 import unittest
 import importlib
 from pathlib import Path
@@ -11,6 +13,7 @@ import engines.cosmo_engine_comb as engine_comb
 class FunctionalTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # Prepare a validated ΛCDM plugin used by several test cases.
         base = Path(__file__).resolve().parents[1]
         models_dir = base / 'models'
         json_path = models_dir / 'cosmo_model_lcdm.json'

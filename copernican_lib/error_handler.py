@@ -10,4 +10,7 @@ import logging
 
 def report_error(message: str) -> None:
     """Log ``message`` to the shared application logger."""
+    # Parsers call this helper instead of accessing the root logger directly so
+    # that logging configuration stays centralised. Any error messages end up in
+    # the same log file as the main application output.
     logging.getLogger().error(message)

@@ -1,4 +1,4 @@
-**Version:** 1.9.1-beta
+**Version:** 1.9.2-beta
 **Last Updated:** 2025-07-07
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -16,12 +16,13 @@ plugged in with minimal effort.
 3. [Directory Layout](#directory-layout)
 
 4. [Design Overview](docs/design_overview.md)
-5. [Using the Suite](#using-the-suite)
-6. [Creating New Models](#creating-new-models)
-7. [Developer Guide](#developer-guide)
-8. [AI Development Laws](#ai-development-laws)
-9. [License](#license)
-9. [Versioning Policy](#versioning-policy)
+5. [Data Directory Overview](docs/data_overview.md)
+6. [Using the Suite](#using-the-suite)
+7. [Creating New Models](#creating-new-models)
+8. [Developer Guide](#developer-guide)
+9. [AI Development Laws](#ai-development-laws)
+10. [License](#license)
+11. [Versioning Policy](#versioning-policy)
 
 ---
 

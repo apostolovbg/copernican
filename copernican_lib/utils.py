@@ -1,5 +1,7 @@
 # utils.py
 """Common utility functions for the Copernican Suite."""
+# These helpers are intentionally tiny but keep repetitive tasks such as
+# timestamp generation and directory creation in one place.
 
 import os
 import time

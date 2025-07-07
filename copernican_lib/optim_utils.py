@@ -6,6 +6,11 @@ optimisation. Engines can import these helpers to keep the engine code
 focused strictly on mathematical calculations without bookkeeping.
 """
 
+# At the moment the main helper ``minimize_with_progress`` wraps SciPy's
+# ``minimize`` function and prints a live progress indicator. It also tracks the
+# best solution seen so that a reasonable result is returned even if the
+# optimiser fails.
+
 from typing import Iterable, Tuple, Callable, Any, Optional, List
 import sys
 import time

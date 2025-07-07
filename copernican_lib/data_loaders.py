@@ -2,6 +2,9 @@
 """
 Modular data loading for various cosmological datasets (SNe, BAO, etc.).
 """
+# Each parser is registered via a decorator so that ``copernican.py`` can list
+# available data sources dynamically. The loaders below simply call the
+# registered functions after prompting the user.
 import pandas as pd
 import numpy as np
 import json
