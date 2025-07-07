@@ -1,10 +1,9 @@
-**Version:** 1.7.3-beta
-**Last Updated:** 2025-07-05
+**Version:** 1.8.4-beta
+**Last Updated:** 2025-07-07
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
-Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. Future
-releases will also handle Cosmic Microwave Background (CMB) measurements,
-gravitational waves and standard siren events. The suite provides a modular
+Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and Cosmic Microwave Background (CMB) data.
+Support for gravitational waves and standard siren events is planned for future releases. The suite provides a modular
 architecture so new models, data parsers and computational engines can be
 plugged in with minimal effort.
 
@@ -16,7 +15,7 @@ plugged in with minimal effort.
 3. [Directory Layout](#directory-layout)
 4. [Using the Suite](#using-the-suite)
 5. [Creating New Models](#creating-new-models)
-6. [Development Notes](#development-notes)
+6. [Developer Guide](#developer-guide)
 7. [AI Development Laws](#ai-development-laws)
 8. [License](#license)
 9. [Versioning Policy](#versioning-policy)
@@ -40,15 +39,23 @@ Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages and
    prints a `pip install` command if any are missing.
 2. **Initialization** – the output directory is created and logging begins.
-3. **Configuration** – the user chooses a model, an engine from `./engines/`,
-  and data parsers for SNe Ia and BAO. Models are discovered from
-  `cosmo_model_*.json` files which are converted into Python code on the fly.
-4. **SNe Ia Fitting** – the selected engine estimates cosmological parameters
-   for both the ΛCDM reference and the alternative model.
-5. **BAO Analysis** – using the best-fit parameters the engine predicts BAO
-   observables and computes chi-squared statistics.
-6. **Output Generation** – `scripts/logger.py`, `scripts/plotter.py` and `scripts/csv_writer.py` handle logs, plots and tables.
-7. **Loop or Exit** – the user may evaluate another model or quit, at which
+3. **Configuration** – the user chooses a model and a computation engine
+   from `./engines/`.  The default `cosmo_engine_1_4b.py` performs an
+   SNe-only fit, while `cosmo_engine_comb.py` performs a true joint optimisation
+   across SNe, BAO and CMB, including optional SALT2 nuisance parameters when
+   available. Constant values in a model's `cmb.param_map` are treated as
+   additional fit parameters so CMB spectra can be matched precisely. Data parsers are discovered automatically under
+   `data/<type>/<source>` and models are loaded from `cosmo_model_*.json`.
+4. **Parameter Fitting** – depending on the chosen engine either a pure
+   SNe fit is performed or a combined optimisation over all datasets.  Both
+   the ΛCDM reference and the alternative model are fitted in turn.
+5. **BAO Analysis** – BAO observables are computed using the fitted
+   parameters (from the combined fit if that engine was selected) and
+   chi-squared statistics are reported.
+6. **CMB Analysis** – similarly, CMB power spectra are generated and the
+   chi-squared contribution is calculated.
+7. **Output Generation** – `scripts/logger.py`, `scripts/plotter.py` and `scripts/csv_writer.py` handle logs, plots and tables.
+8. **Loop or Exit** – the user may evaluate another model or quit, at which
    point temporary cache files are cleaned automatically.
 
 ## Quick Start
@@ -57,7 +64,10 @@ Under the hood the program follows a clear pipeline:
    missing the program will print the command to install them.
 2. Run `python3 copernican.py` and follow the prompts to choose a model,
    preferred data sources and computation engine.
-3. Plots and CSV results will appear in the `output/` folder when the run
+3. Execute `python3 copernican.py --run-tests` or run `python -m unittest discover`
+   to verify the reference model and parsers. The `--run-tests` flag now leverages
+   unittest discovery to gather all modules under `tests/`.
+4. Plots and CSV results will appear in the `output/` folder when the run
    completes.
 
 ## Dependencies
@@ -74,10 +84,10 @@ Run `pip install .` from the repository root to build and install the `copernica
 models/           - JSON model definitions containing all theory text and
                     equations. Optional `.md` files may provide human-readable
                     summaries but are not required.
-engines/          - Computational backends (SciPy CPU and Numba with automatic fallback)
+engines/          - Computational backends (e.g. `cosmo_engine_1_4b.py` for SNe-only fits and `cosmo_engine_comb.py` for combined fits)
 data/             - Observation data organized as ``data/<type>/<source>/``
-  cmb/planck2018lite/ - Planck 2018 lite TT power spectrum parser and files
-                         (covariance matrix may be binary Fortran or ASCII)
+  cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance
+                         (binary Fortran matrix)
 output/           - All generated results
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
@@ -91,11 +101,29 @@ scripts/          - Helper modules
 **Note:** Files in `data/` are treated as read-only reference datasets and
 should not be modified by AI-driven code changes.
 
+## Engine and Plugin Architecture
+The program compiles model equations into Python functions at runtime. When a
+`cosmo_model_*.json` file is selected, `scripts/model_parser.py` validates the
+content and `scripts/model_coder.py` converts the symbolic expressions into
+NumPy-ready callables. `scripts/engine_interface.build_plugin` attaches these
+functions to a lightweight plugin object that exposes a stable API. Every engine
+operates solely through this plugin and decides how parameters are fitted. The
+main workflow simply loads the plugin, selects an engine from `./engines/` and
+invokes its functions. New engines can therefore implement alternate strategies
+—such as SNe-only fits or fully combined optimisations—without modifying the
+rest of the codebase.
+
+`cosmo_engine_1_4b.chi_squared_cmb` now accepts either a plugin and parameter
+vector or a ready CAMB dictionary. This flexibility lets future engines reuse
+the same CMB calculation regardless of their own fitting scheme.
+
 ## Using the Suite
 - The program discovers available models from `models/cosmo_model_*.json`.
  - Data sources for SNe, BAO and CMB are chosen interactively. Once a source is
    selected, its parser and files are loaded automatically from
-   `data/<type>/<source>/`. Future datasets will follow the same structure.
+   `data/<type>/<source>/`. The CMB loader now understands TT, TE and EE
+   spectra with full covariance so additional datasets can be dropped in with
+   minimal effort.
 - Engines are selected interactively from the `engines/` directory. Parsers are
   discovered automatically when their source folders are imported.
 - After each run you may choose to evaluate another model or exit. Cache files
@@ -171,11 +199,20 @@ When a `cmb.param_map` object is provided, the mapping is stored on the plugin
 as `CMB_PARAM_MAP`. Call `plugin.get_camb_params(values)` to convert a list of
 cosmological parameters into a dictionary for CAMB. Models without a custom
 `compute_cmb_spectrum` automatically use this mapping with the default engine.
+Constant numeric values inside `param_map` are treated as additional fit
+parameters by combined-fit engines so that the CMB spectrum can be adjusted
+independently.
+The fallback wrapper calls the engine and returns a dictionary with keys `TT`,
+`TE` and `EE`. The engine now retrieves unlensed $D_\ell$ spectra directly in
+\(\mu K^2\) units, ensuring consistent scaling with Planck 2018 lite tables.
 When `valid_for_cmb` is `false` the suite logs a message and skips the CMB
 evaluation stage for that model.
 CMB data parsers attach a `param_names` attribute to the returned DataFrame
-listing the CAMB parameter order. The engine combines this list with
-`get_camb_params` to evaluate the power spectrum and chi-squared.
+listing the CAMB parameter order—including `omnuh2` when relevant. The engine
+combines this list with `get_camb_params` to evaluate the power spectrum and
+chi-squared. The CMB plotter draws separate TT, TE and EE panels with
+residuals, uses a logarithmic scale for temperature and $E$-mode spectra and
+shows cosmic-variance and observational uncertainty bands.
 `model_parser.py` accepts unknown keys and simply copies them to the sanitized
 cache. This allows the domain-specific JSON language to evolve while remaining
 compatible with older models.
@@ -185,13 +222,31 @@ compiled into `get_Hz_per_Mpc` and related distance functions used by
 `engine_interface.py`. If an `rs_expression` or the parameters `Ob`, `Og` and
 `z_recomb` are provided, a callable `get_sound_horizon_rs_Mpc` is also generated.
 
-## Development Notes
+## Developer Guide
 Document every change in `CHANGELOG.md`. Each substantive update must add an entry using the template `- YYYY-MM-DD: short summary (author)`.
 Legacy `dev_note` headers embedded in source files have been removed in favour of changelog entries.
 Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md` and
 `AGENTS.md` must be updated whenever behavior or structure changes.
 See `CHANGELOG.md` for the complete project history.
+
+To start developing, install the suite in editable mode:
+
+```bash
+pip install -e .
+```
+
+Run the tests with either command:
+
+```bash
+python -m unittest discover
+python copernican.py --run-tests  # uses unittest discovery internally
+```
+
+New models are described entirely by JSON. Copy an existing file from `models/`
+and consult `cosmo_model_guide.json` for the full schema. Additional engines may
+be placed under `engines/` and must follow the interface in
+`scripts/engine_interface.py`.
 
 **Note:** The current plotting style and algorithms are considered stable. Do
 not modify them unless explicitly instructed.
@@ -224,13 +279,16 @@ altering `MAJOR.MINOR`.
 
 1.  **Dependency Check**: `copernican.py` scans for missing packages and
     instructs you to run a `pip install` command if any are absent.
-2.  **Initialization**: The script starts and creates the `./output/` directory for all results.
-3.  **Configuration**: The user specifies the file paths for the model and data files.
-    -   **Test Mode**: A user can enter `test` to run ΛCDM against itself, providing a quick way to test the full analysis pipeline.
-4.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data.
-5.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
-6.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots, tables and logs using a consistent format.
-7.  **Loop or Exit**: The user is prompted to run another evaluation or exit.
+2.  **Optional Tests**: Run `copernican.py --run-tests` to execute the
+    functional test suite and verify that the LCDM model and data parsers work
+    as expected. This flag performs unittest discovery over the `tests` package.
+3.  **Initialization**: The script starts and creates the `./output/` directory for all results.
+4.  **Configuration**: The user specifies the file paths for the model and data files.
+5.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data.
+6.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
+7.  **CMB Analysis**: Each model's CMB spectrum is evaluated against the selected dataset.
+8.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots, tables and logs using a consistent format.
+9.  **Loop or Exit**: The user is prompted to run another evaluation or exit.
 
 ---
 
