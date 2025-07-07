@@ -227,8 +227,9 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
 def _cached_cmb(key):
     """Return unlensed CAMB spectra for a given parameter key.
 
-    The cache key contains the model name, cosmology parameters rounded to three
-    decimals, the maximum multipole ``lmax`` and the requested spectra.
+    The cache key contains the model name, cosmology parameters rounded to six
+    significant digits using ``float(f"{float(v):.6g}")``, the maximum
+    multipole ``lmax`` and the requested spectra.
     """
     _, param_tuple, lmax, spectra = key
     param_dict = dict(param_tuple)
@@ -270,7 +271,9 @@ def compute_cmb_spectrum_from_dict(param_dict, ells, spectra=("TT",)):
     """
     logger = logging.getLogger()
     try:
-        key_tuple = tuple((k, round(float(v), 3)) for k, v in sorted(param_dict.items()))
+        key_tuple = tuple(
+            (k, float(f"{float(v):.6g}")) for k, v in sorted(param_dict.items())
+        )
         lmax = int(np.max(ells))
         cache_key = ("dict", key_tuple, lmax, tuple(sorted(spectra)))
         full = _cached_cmb(cache_key)
