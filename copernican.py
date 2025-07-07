@@ -31,14 +31,13 @@ data_loaders = None
 COPERNICAN_VERSION = "1.8.4-beta"
 
 def run_startup_tests():
-    """Execute functional tests using the standard unittest runner."""
+    """Discover and execute functional tests within the ``tests`` package."""
     import unittest
     try:
-        tests = importlib.import_module('tests.functional')
+        suite = unittest.defaultTestLoader.discover('tests')
     except Exception as exc:
-        print(f"Error importing startup tests: {exc}")
+        print(f"Error discovering startup tests: {exc}")
         return False
-    suite = unittest.defaultTestLoader.loadTestsFromModule(tests)
     result = unittest.TextTestRunner(verbosity=1).run(suite)
     return result.wasSuccessful()
 
@@ -531,7 +530,7 @@ if __name__ == "__main__":
             traceback.print_exc()
     finally:
         # Ensure that any generated plot windows are displayed at the very end
-        if plt.get_fignums():
+        if plt is not None and hasattr(plt, "get_fignums") and plt.get_fignums():
             print("\nDisplaying plot(s). Close plot window(s) to exit script fully.")
             try:
                 plt.show(block=True)
