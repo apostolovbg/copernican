@@ -1,4 +1,4 @@
-**Version:** 1.11.2
+**Version:** 1.11.3
 **Last Updated:** 2025-07-07
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -56,8 +56,9 @@ Under the hood the program follows a clear pipeline:
 5. **BAO Analysis** – BAO observables are computed using the fitted
    parameters (from the combined fit if that engine was selected) and
    chi-squared statistics are reported.
-6. **CMB Analysis** – similarly, CMB power spectra are generated and the
-   chi-squared contribution is calculated.
+6. **CMB Analysis** – CMB power spectra are generated using the fitted
+   cosmological parameters **and** any extra CMB-specific values from a
+   combined optimisation. The chi-squared contribution is then calculated.
 7. **Spectra Caching** – unlensed CAMB spectra are cached using parameter
    keys rounded to six significant digits.
 8. **Output Generation** – `copernican_lib/logger.py`, `copernican_lib/plotter.py` and `copernican_lib/csv_writer.py` handle logs, plots and tables.
