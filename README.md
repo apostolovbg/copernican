@@ -2,9 +2,8 @@
 **Last Updated:** 2025-07-07
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
-Supernovae Type Ia (SNe Ia) and Baryon Acoustic Oscillation (BAO) data. Future
-releases will also handle Cosmic Microwave Background (CMB) measurements,
-gravitational waves and standard siren events. The suite provides a modular
+Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and Cosmic Microwave Background (CMB) data.
+Support for gravitational waves and standard siren events is planned for future releases. The suite provides a modular
 architecture so new models, data parsers and computational engines can be
 plugged in with minimal effort.
 
@@ -16,7 +15,7 @@ plugged in with minimal effort.
 3. [Directory Layout](#directory-layout)
 4. [Using the Suite](#using-the-suite)
 5. [Creating New Models](#creating-new-models)
-6. [Development Notes](#development-notes)
+6. [Developer Guide](#developer-guide)
 7. [AI Development Laws](#ai-development-laws)
 8. [License](#license)
 9. [Versioning Policy](#versioning-policy)
@@ -64,9 +63,10 @@ Under the hood the program follows a clear pipeline:
    `matplotlib`, `pandas`, `sympy` and `jsonschema`. If any package is
    missing the program will print the command to install them.
 2. Run `python3 copernican.py` and follow the prompts to choose a model,
-   preferred data sources and computation engine. Add `--run-tests` if you wish
-   to execute the built-in functional tests.
-3. Plots and CSV results will appear in the `output/` folder when the run
+   preferred data sources and computation engine.
+3. Execute `python3 copernican.py --run-tests` or run `python -m unittest discover`
+   to verify the reference model and parsers.
+4. Plots and CSV results will appear in the `output/` folder when the run
    completes.
 
 ## Dependencies
@@ -221,13 +221,31 @@ compiled into `get_Hz_per_Mpc` and related distance functions used by
 `engine_interface.py`. If an `rs_expression` or the parameters `Ob`, `Og` and
 `z_recomb` are provided, a callable `get_sound_horizon_rs_Mpc` is also generated.
 
-## Development Notes
+## Developer Guide
 Document every change in `CHANGELOG.md`. Each substantive update must add an entry using the template `- YYYY-MM-DD: short summary (author)`.
 Legacy `dev_note` headers embedded in source files have been removed in favour of changelog entries.
 Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md` and
 `AGENTS.md` must be updated whenever behavior or structure changes.
 See `CHANGELOG.md` for the complete project history.
+
+To start developing, install the suite in editable mode:
+
+```bash
+pip install -e .
+```
+
+Run the tests with either command:
+
+```bash
+python -m unittest discover
+python copernican.py --run-tests
+```
+
+New models are described entirely by JSON. Copy an existing file from `models/`
+and consult `cosmo_model_guide.json` for the full schema. Additional engines may
+be placed under `engines/` and must follow the interface in
+`scripts/engine_interface.py`.
 
 **Note:** The current plotting style and algorithms are considered stable. Do
 not modify them unless explicitly instructed.
