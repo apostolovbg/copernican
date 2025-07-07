@@ -4,9 +4,10 @@ Development notes were previously kept at the top of this file. That history now
 lives in `CHANGELOG.md`. New modifications must update the changelog, and legacy
 `dev_note` headers embedded in source files have been fully phased out.
 
-This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.9.0-beta**.
+This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.9.1-beta**.
 
 ## 1. Program Overview
+The helper modules previously stored under `scripts/` now live in the `copernican_lib/` package.
 The suite evaluates cosmological models against SNe Ia, BAO and CMB data.
 Support for additional observations such as gravitational waves and standard sirens is
 being prepared. Users interact with `copernican.py`, choose a model from
@@ -15,9 +16,9 @@ sources. Parsers reside alongside their data. Results are saved under
 `./output/`.
 
 The default engine is `engines/cosmo_engine_1_4b.py`. All model plugins are validated
-through `scripts/engine_interface.py` before being passed to the engine. This
+through `copernican_lib/engine_interface.py` before being passed to the engine. This
 ensures the expected functions are present and callable. Starting with
-version 1.9.0-beta the test suite no longer runs automatically. Execute
+version 1.9.1-beta the test suite no longer runs automatically. Execute
 `copernican.py --run-tests` or run `python -m unittest discover` to verify that
 the reference LCDM model and data parsers operate correctly. The `--run-tests`
 flag now uses Python's built-in discovery to gather all tests from the `tests`
@@ -32,7 +33,7 @@ data/             - Observation files under ``data/<type>/<source>/``
 output/           - Generated plots and CSV tables (created automatically)
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
-scripts/optim_utils.py - Shared optimisation helpers used by engines
+copernican_lib/optim_utils.py - Shared optimisation helpers used by engines
 ```
 Files in `data/` are read-only and must not be modified by AI-driven changes.
 
@@ -46,7 +47,7 @@ method to `spawn` at entry. Model JSON files are validated via `jsonschema`
 re-validating to prevent occasional plugin failures under multiprocessing.
 
 All engines should remain purely computational. Shared utilities such as
-evaluation counters now live in ``scripts/optim_utils.py`` and are imported
+evaluation counters now live in ``copernican_lib/optim_utils.py`` and are imported
 by the engines instead of being reimplemented inside each backend.
 
 ## 3. Dependency Installation
@@ -70,9 +71,9 @@ by scanning for `cosmo_model_*.json` files in the `models/` directory.
 ### 4.1 JSON Model File
 The schema requires `model_name`, `version`, `parameters`, `equations`, `abstract` and `description`.
 Optional fields such as `unit` and `latex_name` provide additional context.
-`scripts/model_parser.py` validates the JSON and writes a sanitized copy to
-`models/cache/`. `scripts/model_coder.py` transforms the equations into NumPy
-callables. These callables are validated by `scripts/engine_interface.py` before
+`copernican_lib/model_parser.py` validates the JSON and writes a sanitized copy to
+`models/cache/`. `copernican_lib/model_coder.py` transforms the equations into NumPy
+callables. These callables are validated by `copernican_lib/engine_interface.py` before
 being passed to the chosen engine.
 `model_parser.py` ignores unrecognized keys and copies them to the cache, so
 new metadata can be added without breaking older JSON files.

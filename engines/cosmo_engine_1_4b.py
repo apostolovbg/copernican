@@ -9,8 +9,8 @@ from scipy.linalg import LinAlgError
 import camb
 import sys
 import logging
-from scripts import engine_interface
-from scripts.optim_utils import minimize_with_progress
+from copernican_lib import engine_interface
+from copernican_lib.optim_utils import minimize_with_progress
 
 # --- Constants for SNe H2-style (SALT2 nuisance parameter fitting) ---
 SALT2_NUISANCE_PARAMS_INIT = {

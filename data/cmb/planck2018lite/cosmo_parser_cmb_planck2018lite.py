@@ -5,7 +5,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from scripts.data_loaders import register_cmb_parser
+from copernican_lib.data_loaders import register_cmb_parser
 
 
 @register_cmb_parser(

@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import logging
 
-from scripts.data_loaders import register_sne_parser
+from copernican_lib.data_loaders import register_sne_parser
 
 
 @register_sne_parser(

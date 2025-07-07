@@ -4,7 +4,7 @@ import pandas as pd
 import json
 import logging
 
-from scripts.data_loaders import register_bao_parser
+from copernican_lib.data_loaders import register_bao_parser
 
 
 @register_bao_parser("Basic BAO testing dataset", "", data_dir=os.path.dirname(__file__))
