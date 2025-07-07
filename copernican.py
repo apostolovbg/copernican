@@ -12,6 +12,7 @@ import platform
 import shutil
 import subprocess
 import time
+import argparse
 
 # Delay heavy third-party imports until after the dependency check
 np = None
@@ -27,12 +28,28 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.7.3-beta"
+COPERNICAN_VERSION = "1.8.4-beta"
+
+def run_startup_tests():
+    """Discover and execute functional tests within the ``tests`` package."""
+    import unittest
+    try:
+        suite = unittest.defaultTestLoader.discover('tests')
+    except Exception as exc:
+        print(f"Error discovering startup tests: {exc}")
+        return False
+    result = unittest.TextTestRunner(verbosity=1).run(suite)
+    return result.wasSuccessful()
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Copernican Suite")
+    parser.add_argument('--run-tests', action='store_true', help='execute functional tests and exit')
+    return parser.parse_args()
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
     banner = [
-        " " * 70,
+        "=" * 70,
         "\n",
         "C O P E R N I C A N   S U I T E".center(70),
         "\n",
@@ -116,9 +133,6 @@ def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
         filename = input(f"{prompt_message} (or 'c' to cancel): ").strip()
         if filename.lower() == 'c':
             return None
-        # Allow special keywords like 'test' to pass through without existing as a file
-        if not must_exist and not os.path.isabs(filename):
-            return filename
         filepath = os.path.join(base_dir, filename)
         if os.path.isfile(filepath):
             return filepath
@@ -208,7 +222,11 @@ def cleanup_cache(base_dir):
 
 def main_workflow():
     """Main workflow for the Copernican Suite."""
+    args = parse_args()
     check_dependencies()
+    if args.run_tests:
+        success = run_startup_tests()
+        sys.exit(0 if success else 1)
 
     # Import optional third-party packages after confirming they are installed
     global np, plt, mp, model_parser, model_coder, engine_interface, data_loaders, plotter, csv_writer, log_mod, logger
@@ -262,42 +280,37 @@ def main_workflow():
             f for f in os.listdir(models_dir)
             if f.startswith('cosmo_model_') and (f.endswith('.md') or f.endswith('.json'))
         ])
-        selected_model = select_from_list(model_files + ['test'], 'Select cosmological model')
+        selected_model = select_from_list(model_files, 'Select cosmological model')
         if not selected_model:
             break
-
-        if selected_model == 'test':
-            alt_model_plugin = lcdm
-            logger.info("--- RUNNING IN TEST MODE: Comparing LCDM against itself. ---")
+        if selected_model.endswith('.json'):
+            json_path = os.path.join(models_dir, selected_model)
+            cache_dir = os.path.join(models_dir, 'cache')
+            try:
+                cache_path = model_parser.parse_model_json(json_path, cache_dir)
+            except Exception as e:
+                logger.error(str(e))
+                continue
+            try:
+                func_dict, parsed = model_coder.generate_callables(cache_path)
+                alt_model_plugin = engine_interface.build_plugin(parsed, func_dict)
+                # Keep track of which JSON file produced this plugin.
+                alt_model_plugin.MODEL_FILENAME = os.path.basename(json_path)
+                logger.info(f"Loaded JSON model: {parsed.get('model_name')}")
+            except Exception as e:
+                logger.error(f"Error generating model from JSON: {e}", exc_info=True)
+                continue
         else:
-            if selected_model.endswith('.json'):
-                json_path = os.path.join(models_dir, selected_model)
-                cache_dir = os.path.join(models_dir, 'cache')
-                try:
-                    cache_path = model_parser.parse_model_json(json_path, cache_dir)
-                except Exception as e:
-                    logger.error(str(e))
-                    continue
-                try:
-                    func_dict, parsed = model_coder.generate_callables(cache_path)
-                    alt_model_plugin = engine_interface.build_plugin(parsed, func_dict)
-                    # Keep track of which JSON file produced this plugin.
-                    alt_model_plugin.MODEL_FILENAME = os.path.basename(json_path)
-                    logger.info(f"Loaded JSON model: {parsed.get('model_name')}")
-                except Exception as e:
-                    logger.error(f"Error generating model from JSON: {e}", exc_info=True)
-                    continue
-            else:
-                md_path = os.path.join(models_dir, selected_model)
-                meta = parse_model_header(md_path)
-                plugin_name = meta.get('model_plugin')
-                if not plugin_name:
-                    logger.error(f"Model file {selected_model} missing 'model_plugin' entry.")
-                    continue
-                alt_model_filepath = os.path.join(SCRIPT_DIR, plugin_name)
-                if not os.path.isfile(alt_model_filepath):
-                    alt_model_filepath = os.path.join(models_dir, plugin_name)
-                alt_model_plugin = load_alternative_model_plugin(alt_model_filepath)
+            md_path = os.path.join(models_dir, selected_model)
+            meta = parse_model_header(md_path)
+            plugin_name = meta.get('model_plugin')
+            if not plugin_name:
+                logger.error(f"Model file {selected_model} missing 'model_plugin' entry.")
+                continue
+            alt_model_filepath = os.path.join(SCRIPT_DIR, plugin_name)
+            if not os.path.isfile(alt_model_filepath):
+                alt_model_filepath = os.path.join(models_dir, plugin_name)
+            alt_model_plugin = load_alternative_model_plugin(alt_model_filepath)
 
         if not alt_model_plugin:
             continue
@@ -322,9 +335,18 @@ def main_workflow():
         if cmb_data_df is None:
             continue
 
-        logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
-        lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, lcdm)
-        alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, alt_model_plugin)
+        if hasattr(cosmo_engine_selected, 'fit_combined_parameters'):
+            logger.info("\n--- Stage 2: Combined Fit (SNe + BAO + CMB) ---")
+            lcdm_sne_fit_results = cosmo_engine_selected.fit_combined_parameters(
+                sne_data_df, bao_data_df, cmb_data_df, lcdm
+            )
+            alt_model_sne_fit_results = cosmo_engine_selected.fit_combined_parameters(
+                sne_data_df, bao_data_df, cmb_data_df, alt_model_plugin
+            )
+        else:
+            logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
+            lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, lcdm)
+            alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, alt_model_plugin)
         
         logger.info("\n--- Stage 3: BAO Analysis ---")
         
@@ -334,8 +356,16 @@ def main_workflow():
         def run_bao_analysis(model_plugin, sne_fit_results, z_smooth_arr):
             """Helper to run BAO analysis for a given model."""
             if not (sne_fit_results and sne_fit_results.get('success')):
-                logger.warning(f"{model_plugin.MODEL_NAME} SNe fit failed; skipping BAO analysis.")
-                return {'sne_fit_results': sne_fit_results, 'pred_df': None, 'rs_Mpc': np.nan, 'chi2_bao': np.inf, 'smooth_predictions': None}
+                logger.warning(
+                    f"{model_plugin.MODEL_NAME} fit failed; skipping BAO analysis."
+                )
+                return {
+                    'sne_fit_results': sne_fit_results,
+                    'pred_df': None,
+                    'rs_Mpc': np.nan,
+                    'chi2_bao': np.inf,
+                    'smooth_predictions': None,
+                }
 
             fitted_cosmo_p = list(sne_fit_results['fitted_cosmological_params'].values())
             pred_df, rs_Mpc, smooth_preds = cosmo_engine_selected.calculate_bao_observables(bao_data_df, model_plugin, fitted_cosmo_p, z_smooth=z_smooth_arr)
@@ -368,20 +398,40 @@ def main_workflow():
             # dictionary format using the helper provided by the model plugin.
             camb_params = model_plugin.get_camb_params(cosmo_params)
 
+            components = ["TT"]
+            if "Dl_te_obs" in cmb_df.columns:
+                components.append("TE")
+            if "Dl_ee_obs" in cmb_df.columns:
+                components.append("EE")
+
             theory = cosmo_engine_selected.compute_cmb_spectrum(
-                camb_params, cmb_df['ell'].values
+                camb_params, cmb_df['ell'].values, spectra=tuple(components)
             )
-            chi2_val = cosmo_engine_selected.chi_squared_cmb(camb_params, cmb_df)
+            chi2_val = cosmo_engine_selected.chi_squared_cmb(
+                cosmo_params,
+                cmb_df,
+                model_plugin,
+            )
             logger.info(f"{model_plugin.MODEL_NAME} CMB chi2 = {chi2_val:.2f}")
             return {'chi2_cmb': chi2_val, 'theory_spectrum': theory}
 
         lcdm_full_results = run_bao_analysis(lcdm, lcdm_sne_fit_results, z_plot_smooth)
         alt_model_full_results = run_bao_analysis(alt_model_plugin, alt_model_sne_fit_results, z_plot_smooth)
 
-        lcdm_cmb = run_cmb_analysis(cmb_data_df, lcdm, list(lcdm_sne_fit_results['fitted_cosmological_params'].values()))
-        alt_cmb = run_cmb_analysis(cmb_data_df, alt_model_plugin, list(alt_model_sne_fit_results['fitted_cosmological_params'].values()))
+        logger.info("\n--- Stage 4: CMB Analysis ---")
 
-        logger.info("\n--- Stage 4: Generating Outputs ---")
+        lcdm_cmb = run_cmb_analysis(
+            cmb_data_df,
+            lcdm,
+            list(lcdm_sne_fit_results['fitted_cosmological_params'].values()),
+        )
+        alt_cmb = run_cmb_analysis(
+            cmb_data_df,
+            alt_model_plugin,
+            list(alt_model_sne_fit_results['fitted_cosmological_params'].values()),
+        )
+
+        logger.info("\n--- Stage 5: Generating Outputs ---")
         logger.info(f"{lcdm.MODEL_NAME} CMB chi2 = {lcdm_cmb['chi2_cmb']:.2f}")
         logger.info(f"{alt_model_plugin.MODEL_NAME} CMB chi2 = {alt_cmb['chi2_cmb']:.2f}")
         plotter.plot_hubble_diagram(
@@ -480,7 +530,7 @@ if __name__ == "__main__":
             traceback.print_exc()
     finally:
         # Ensure that any generated plot windows are displayed at the very end
-        if plt.get_fignums():
+        if plt is not None and hasattr(plt, "get_fignums") and plt.get_fignums():
             print("\nDisplaying plot(s). Close plot window(s) to exit script fully.")
             try:
                 plt.show(block=True)

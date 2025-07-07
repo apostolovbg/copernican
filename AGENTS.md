@@ -4,11 +4,11 @@ Development notes were previously kept at the top of this file. That history now
 lives in `CHANGELOG.md`. New modifications must update the changelog, and legacy
 `dev_note` headers embedded in source files have been fully phased out.
 
-This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.7.3-beta**.
+This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.8.4-beta**.
 
 ## 1. Program Overview
-The suite evaluates cosmological models against SNe Ia and BAO data. Support for
-additional observations such as CMB, gravitational waves and standard sirens is
+The suite evaluates cosmological models against SNe Ia, BAO and CMB data.
+Support for additional observations such as gravitational waves and standard sirens is
 being prepared. Users interact with `copernican.py`, choose a model from
 `./models/`, pick a computational engine from `./engines/` and choose data
 sources. Parsers reside alongside their data. Results are saved under
@@ -16,15 +16,20 @@ sources. Parsers reside alongside their data. Results are saved under
 
 The default engine is `engines/cosmo_engine_1_4b.py`. All model plugins are validated
 through `scripts/engine_interface.py` before being passed to the engine. This
-ensures the expected functions are present and callable.
+ensures the expected functions are present and callable. Starting with
+version 1.8.4-beta the test suite no longer runs automatically. Execute
+`copernican.py --run-tests` or run `python -m unittest discover` to verify that
+the reference LCDM model and data parsers operate correctly. The `--run-tests`
+flag now uses Python's built-in discovery to gather all tests from the `tests`
+package and will exit cleanly even when Matplotlib has not yet been imported.
 
 ## 2. Directory Layout
 ```
 models/           - JSON model definitions with embedded theory text and equations. Optional `.md` files may accompany a model for readability.
 engines/          - Computational backends (SciPy CPU by default)
 data/             - Observation files under ``data/<type>/<source>/``
-  cmb/planck2018lite/ - Planck 2018 lite TT power spectrum
-output/           - Generated plots and CSV tables
+  cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance
+output/           - Generated plots and CSV tables (created automatically)
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
 ```
