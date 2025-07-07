@@ -1,4 +1,4 @@
-**Version:** 1.11.1
+**Version:** 1.11.2
 **Last Updated:** 2025-07-07
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -119,6 +119,7 @@ main workflow simply loads the plugin, selects an engine from `./engines/` and
 invokes its functions. New engines can therefore implement alternate strategies
 —such as SNe-only fits or fully combined optimisations—without modifying the
 rest of the codebase.
+Generic chi-squared helpers now live in `copernican_lib/chi2_helper.py`, keeping `model_coder.py` focused on translating models.
 
 `cosmo_engine_1_4b.chi_squared_cmb` now accepts either a plugin and parameter
 vector or a ready CAMB dictionary. This flexibility lets future engines reuse
