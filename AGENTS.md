@@ -4,7 +4,7 @@ Development notes were previously kept at the top of this file. That history now
 lives in `CHANGELOG.md`. New modifications must update the changelog, and legacy
 `dev_note` headers embedded in source files have been fully phased out.
 
-This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.8.5-beta**.
+This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.9.0-beta**.
 
 ## 1. Program Overview
 The suite evaluates cosmological models against SNe Ia, BAO and CMB data.
@@ -17,7 +17,7 @@ sources. Parsers reside alongside their data. Results are saved under
 The default engine is `engines/cosmo_engine_1_4b.py`. All model plugins are validated
 through `scripts/engine_interface.py` before being passed to the engine. This
 ensures the expected functions are present and callable. Starting with
-version 1.8.5-beta the test suite no longer runs automatically. Execute
+version 1.9.0-beta the test suite no longer runs automatically. Execute
 `copernican.py --run-tests` or run `python -m unittest discover` to verify that
 the reference LCDM model and data parsers operate correctly. The `--run-tests`
 flag now uses Python's built-in discovery to gather all tests from the `tests`
@@ -32,6 +32,7 @@ data/             - Observation files under ``data/<type>/<source>/``
 output/           - Generated plots and CSV tables (created automatically)
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
+scripts/optim_utils.py - Shared optimisation helpers used by engines
 ```
 Files in `data/` are read-only and must not be modified by AI-driven changes.
 
@@ -43,6 +44,10 @@ environment for each worker, the program sets Python's multiprocessing start
 method to `spawn` at entry. Model JSON files are validated via `jsonschema`
 **only** in the main process; child processes read the sanitized cache without
 re-validating to prevent occasional plugin failures under multiprocessing.
+
+All engines should remain purely computational. Shared utilities such as
+evaluation counters now live in ``scripts/optim_utils.py`` and are imported
+by the engines instead of being reimplemented inside each backend.
 
 ## 3. Dependency Installation
 `copernican.py` scans all project files for imported modules. If any required

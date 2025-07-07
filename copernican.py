@@ -28,7 +28,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.8.5-beta"
+COPERNICAN_VERSION = "1.9.0-beta"
 
 def run_startup_tests():
     """Discover and execute functional tests within the ``tests`` package."""
