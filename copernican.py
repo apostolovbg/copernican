@@ -28,10 +28,18 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.9.1-beta"
+COPERNICAN_VERSION = "1.9.2-beta"
+
+# The high-level workflow is broken into small helper functions below. Each
+# helper is documented in plain language so non-programmers can follow the
+# logic of the program.
 
 def run_startup_tests():
     """Discover and execute functional tests within the ``tests`` package."""
+    # This routine is invoked when the ``--run-tests`` flag is supplied.
+    # It uses Python's built-in unittest discovery to execute all test modules
+    # under the ``tests`` folder. The boolean return value determines whether
+    # the suite ran successfully.
     import unittest
     try:
         suite = unittest.defaultTestLoader.discover('tests')
@@ -42,8 +50,14 @@ def run_startup_tests():
     return result.wasSuccessful()
 
 def parse_args():
+    """Parse command line flags provided by the user."""
     parser = argparse.ArgumentParser(description="Copernican Suite")
-    parser.add_argument('--run-tests', action='store_true', help='execute functional tests and exit')
+    # ``--run-tests`` triggers the functional test suite and then exits.
+    parser.add_argument(
+        '--run-tests',
+        action='store_true',
+        help='execute functional tests and exit'
+    )
     return parser.parse_args()
 
 def show_splash_screen():
@@ -71,6 +85,9 @@ def show_splash_screen():
 
 def _gather_required_packages():
     """Scan project files for imported modules."""
+    # The dependency check looks through all *.py files and extracts the names
+    # of imported modules. Any package not part of the standard library is
+    # collected so we can warn the user when dependencies are missing.
     pkg_names = set()
     search_dirs = ['.', 'copernican_lib', 'engines', 'parsers']
     for base in search_dirs:
@@ -109,6 +126,10 @@ def _gather_required_packages():
 
 def check_dependencies():
     """Ensure all required packages are installed."""
+    # Before importing heavy third-party libraries we verify that everything
+    # needed by the project is available.  If something is missing the user is
+    # shown the exact ``pip install`` command to resolve it and the program
+    # exits early.
     print("--- Running System Dependency Check ---")
     required = sorted(_gather_required_packages())
     missing = [pkg for pkg in required if importlib.util.find_spec(pkg) is None]
@@ -222,6 +243,12 @@ def cleanup_cache(base_dir):
 
 def main_workflow():
     """Main workflow for the Copernican Suite."""
+    # This routine coordinates the entire user interaction:
+    #  * parse command-line flags
+    #  * verify Python dependencies
+    #  * load the reference ΛCDM model
+    #  * repeatedly ask the user for models, data sources and engines
+    #  * produce plots and CSV files with the results
     args = parse_args()
     check_dependencies()
     if args.run_tests:

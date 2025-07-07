@@ -1,5 +1,9 @@
 """Model coder that turns validated JSON into callable Python functions."""
 
+# Every cosmological model is stored as JSON.  This module reads the sanitized
+# JSON and uses SymPy to translate mathematical expressions into efficient
+# NumPy-friendly functions.
+
 import json
 from pathlib import Path
 import sympy as sp
@@ -26,6 +30,10 @@ class QuadPrinter(NumPyPrinter):
 
 def _compile_sympy_expr(sym_expr, args):
     """Compile a SymPy expression into a callable handling ``Integral`` nodes."""
+    # SymPy can convert expressions directly to Python functions, but it does
+    # not evaluate ``Integral`` objects by default. When an integral is present
+    # we expand it into a call to ``scipy.integrate.quad`` so the resulting
+    # callable is fully numerical.
     if sym_expr.atoms(sp.Integral):
         printer = QuadPrinter({'strict': False})
         code = printer.doprint(sym_expr)
