@@ -28,7 +28,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.8.4-beta"
+COPERNICAN_VERSION = "1.8.5-beta"
 
 def run_startup_tests():
     """Discover and execute functional tests within the ``tests`` package."""
@@ -515,9 +515,18 @@ def main_workflow():
         cleanup_cache(SCRIPT_DIR)
 
 if __name__ == "__main__":
-    # This is essential for multiprocessing to work correctly on all platforms.
+    # Multiprocessing start method must be 'spawn' so that each child process
+    # inherits a pristine interpreter state. This avoids subtle issues when
+    # worker processes import project modules that expect to run only once.
     import multiprocessing as _mp
     _mp.freeze_support()
+    try:
+        _mp.set_start_method("spawn", force=True)
+    except RuntimeError:
+        # The start method was already set (e.g. by another library). Using
+        # 'force=True' above normally prevents this, but wrap in try/except for
+        # absolute safety.
+        pass
     try:
         main_workflow()
     except Exception:
