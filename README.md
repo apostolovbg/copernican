@@ -1,10 +1,11 @@
-**Version:** 1.9.0-beta
+**Version:** 1.9.1-beta
 **Last Updated:** 2025-07-07
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
 Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and Cosmic Microwave Background (CMB) data.
 Support for gravitational waves and standard siren events is planned for future releases. The suite provides a modular
 architecture so new models, data parsers and computational engines can be
+Additional design notes can be found under the `docs/` directory.
 plugged in with minimal effort.
 
 ---
@@ -13,11 +14,13 @@ plugged in with minimal effort.
 1. [Overview](#overview)
 2. [Quick Start](#quick-start)
 3. [Directory Layout](#directory-layout)
-4. [Using the Suite](#using-the-suite)
-5. [Creating New Models](#creating-new-models)
-6. [Developer Guide](#developer-guide)
-7. [AI Development Laws](#ai-development-laws)
-8. [License](#license)
+
+4. [Design Overview](docs/design_overview.md)
+5. [Using the Suite](#using-the-suite)
+6. [Creating New Models](#creating-new-models)
+7. [Developer Guide](#developer-guide)
+8. [AI Development Laws](#ai-development-laws)
+9. [License](#license)
 9. [Versioning Policy](#versioning-policy)
 
 ---
@@ -54,7 +57,7 @@ Under the hood the program follows a clear pipeline:
    chi-squared statistics are reported.
 6. **CMB Analysis** – similarly, CMB power spectra are generated and the
    chi-squared contribution is calculated.
-7. **Output Generation** – `scripts/logger.py`, `scripts/plotter.py` and `scripts/csv_writer.py` handle logs, plots and tables.
+7. **Output Generation** – `copernican_lib/logger.py`, `copernican_lib/plotter.py` and `copernican_lib/csv_writer.py` handle logs, plots and tables.
 8. **Loop or Exit** – the user may evaluate another model or quit, at which
    point temporary cache files are cleaned automatically.
 
@@ -91,7 +94,7 @@ data/             - Observation data organized as ``data/<type>/<source>/``
 output/           - All generated results
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
-scripts/          - Helper modules
+copernican_lib/          - Helper modules
   logger.py         - Logging setup and helpers
   plotter.py        - Plotting functions
   csv_writer.py     - CSV output helpers
@@ -104,9 +107,9 @@ should not be modified by AI-driven code changes.
 
 ## Engine and Plugin Architecture
 The program compiles model equations into Python functions at runtime. When a
-`cosmo_model_*.json` file is selected, `scripts/model_parser.py` validates the
-content and `scripts/model_coder.py` converts the symbolic expressions into
-NumPy-ready callables. `scripts/engine_interface.build_plugin` attaches these
+`cosmo_model_*.json` file is selected, `copernican_lib/model_parser.py` validates the
+content and `copernican_lib/model_coder.py` converts the symbolic expressions into
+NumPy-ready callables. `copernican_lib/engine_interface.build_plugin` attaches these
 functions to a lightweight plugin object that exposes a stable API. Every engine
 operates solely through this plugin and decides how parameters are fitted. The
 main workflow simply loads the plugin, selects an engine from `./engines/` and
@@ -248,13 +251,13 @@ Multiprocessing is used by several engines. The program enforces the `spawn`
 start method when it launches so that each worker process begins with a fresh
 Python interpreter. Model JSON files are validated with `jsonschema` only in the
 main process; child processes simply read the sanitized cache.
-All engines import progress helpers from `scripts/optim_utils.py` so that
+All engines import progress helpers from `copernican_lib/optim_utils.py` so that
 evaluation counting and reporting remain consistent across backends.
 
 New models are described entirely by JSON. Copy an existing file from `models/`
 and consult `cosmo_model_guide.json` for the full schema. Additional engines may
 be placed under `engines/` and must follow the interface in
-`scripts/engine_interface.py`.
+`copernican_lib/engine_interface.py`.
 
 **Note:** The current plotting style and algorithms are considered stable. Do
 not modify them unless explicitly instructed.

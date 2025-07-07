@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import logging
 
-from scripts.data_loaders import register_sne_parser
+from copernican_lib.data_loaders import register_sne_parser
 
 DEFAULT_SALT2_M_ABS_FIXED = -19.3
 DEFAULT_SALT2_ALPHA_FIXED = 0.14

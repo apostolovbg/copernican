@@ -23,7 +23,7 @@ dependencies = [
 copernican = "copernican:main_workflow"
 
 [tool.setuptools]
-packages = ["scripts", "engines"]
+packages = ["copernican_lib", "engines"]
 py-modules = ["copernican"]
 
 

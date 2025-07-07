@@ -3,6 +3,9 @@ Add one line for each substantive commit or pull request directly under the late
 
 `- 2025-07-05: short summary (author)`
 
+## Version 1.9.1-beta (Development Release)
+- 2025-07-07: Renamed scripts package to copernican_lib and updated documentation (AI assistant)
+
 Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
 

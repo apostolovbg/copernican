@@ -28,7 +28,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.9.0-beta"
+COPERNICAN_VERSION = "1.9.1-beta"
 
 def run_startup_tests():
     """Discover and execute functional tests within the ``tests`` package."""
@@ -72,7 +72,7 @@ def show_splash_screen():
 def _gather_required_packages():
     """Scan project files for imported modules."""
     pkg_names = set()
-    search_dirs = ['.', 'scripts', 'engines', 'parsers']
+    search_dirs = ['.', 'copernican_lib', 'engines', 'parsers']
     for base in search_dirs:
         for root, _, files in os.walk(base):
             for fname in files:
@@ -98,11 +98,11 @@ def _gather_required_packages():
         'os', 'sys', 'time', 'json', 'logging', 'subprocess', 'importlib',
         'multiprocessing', 'glob', 'shutil', 'platform', 'inspect', 'types',
         'pathlib', 'builtins', 'traceback', 'typing',
-        # Local modules within this repository (under ``scripts``)
+        # Local modules within this repository (under ``copernican_lib``)
         'data_loaders', 'csv_writer', 'plotter', 'logger',
         'utils'
     }
-    return {pkg for pkg in pkg_names if not pkg.startswith(('scripts', 'engines', 'parsers')) and pkg not in ignore}
+    return {pkg for pkg in pkg_names if not pkg.startswith(('copernican_lib', 'engines', 'parsers')) and pkg not in ignore}
 
 
 
@@ -233,8 +233,8 @@ def main_workflow():
     import numpy as np
     import matplotlib.pyplot as plt
     import multiprocessing as mp
-    from scripts import model_parser, model_coder, engine_interface
-    from scripts import data_loaders, plotter, csv_writer, logger as log_mod
+    from copernican_lib import model_parser, model_coder, engine_interface
+    from copernican_lib import data_loaders, plotter, csv_writer, logger as log_mod
 
     try:
         SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))

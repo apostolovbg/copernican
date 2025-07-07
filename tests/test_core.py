@@ -3,7 +3,7 @@ import importlib
 from pathlib import Path
 import numpy as np
 
-from scripts import model_parser, model_coder, engine_interface, data_loaders
+from copernican_lib import model_parser, model_coder, engine_interface, data_loaders
 import engines.cosmo_engine_1_4b as engine
 import engines.cosmo_engine_comb as engine_comb
 

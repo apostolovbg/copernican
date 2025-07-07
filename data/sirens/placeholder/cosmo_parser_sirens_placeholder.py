@@ -1,6 +1,6 @@
 import logging
 import os
-from scripts.data_loaders import register_siren_parser
+from copernican_lib.data_loaders import register_siren_parser
 
 @register_siren_parser("siren_placeholder_v1", "Placeholder standard siren parser.", data_dir=os.path.dirname(__file__))
 def parse_siren_placeholder(data_dir, **kwargs):
