@@ -483,7 +483,9 @@ def fit_sne_parameters(sne_data_df, model_plugin):
         logger.error(message)
         return {'success': False, 'message': message, 'chi2_min': np.inf, 'model_name': model_name_str}
 
-    options = {'maxiter': 2000, 'disp': False, 'ftol': 1e-10, 'gtol': 1e-7, 'eps': 1e-9}
+    # Avoid deprecated 'disp' parameter for compatibility with newer SciPy
+    # versions. Defaults already suppress output.
+    options = {'maxiter': 2000, 'ftol': 1e-10, 'gtol': 1e-7, 'eps': 1e-9}
 
     logger.info(
         f"Starting SNe optimization for {model_name_str} using {len(current_initial_params)} parameters..."
@@ -566,7 +568,10 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
     """
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)
-    param_names = getattr(model_plugin, 'PARAMETER_NAMES', [])
+    # Copy the model's parameter list so modifications for nuisance/CMB
+    # parameters do not alter the plugin in-place. Mutating the original list
+    # caused inconsistent parameter definitions on subsequent runs.
+    param_names = list(getattr(model_plugin, 'PARAMETER_NAMES', []))
     init_params = list(getattr(model_plugin, 'INITIAL_GUESSES', []))
     bounds = list(getattr(model_plugin, 'PARAMETER_BOUNDS', []))
     if not (param_names and init_params and bounds and len(param_names) == len(init_params)):
@@ -607,7 +612,9 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
         f"Starting combined optimization for {model_plugin.MODEL_NAME} using {len(init_params)} parameters..."
     )
 
-    options = {'maxiter': 2000, 'disp': False}
+    # Do not pass deprecated L-BFGS-B options; default configuration already
+    # keeps the solver quiet.
+    options = {'maxiter': 2000}
 
     def combined_chi2(p):
         return chi_squared_combined(
