@@ -3,6 +3,7 @@
 import json
 from jsonschema import validate, ValidationError
 from pathlib import Path
+import multiprocessing as _mp
 from . import error_handler
 
 MODEL_SCHEMA = {
@@ -47,6 +48,9 @@ MODEL_SCHEMA = {
 def parse_model_json(path, cache_dir):
     """Validate ``path`` and write cleaned JSON to ``cache_dir``.
 
+    Validation is performed only in the main process. Worker processes simply
+    read the sanitized file produced during program startup.
+
     Parameters
     ----------
     path : str or Path
@@ -67,11 +71,20 @@ def parse_model_json(path, cache_dir):
         error_handler.report_error(f"Failed to read model JSON '{path}': {e}")
         raise
 
-    try:
-        validate(instance=data, schema=MODEL_SCHEMA)
-    except ValidationError as e:
-        error_handler.report_error(f"Model JSON validation error: {e.message}")
-        raise ValueError(f"Model JSON validation error: {e.message}") from e
+    # Only validate in the main process to avoid random failures when
+    # worker processes import this module under multiprocessing. The
+    # sanitized file produced here is shared by child processes, so
+    # repeated validation is unnecessary.
+    if _mp.current_process().name == "MainProcess":
+        try:
+            validate(instance=data, schema=MODEL_SCHEMA)
+        except ValidationError as e:
+            error_handler.report_error(
+                f"Model JSON validation error: {e.message}"
+            )
+            raise ValueError(
+                f"Model JSON validation error: {e.message}"
+            ) from e
 
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)

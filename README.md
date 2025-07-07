@@ -1,4 +1,4 @@
-**Version:** 1.8.4-beta
+**Version:** 1.8.5-beta
 **Last Updated:** 2025-07-07
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -242,6 +242,11 @@ Run the tests with either command:
 python -m unittest discover
 python copernican.py --run-tests  # uses unittest discovery internally
 ```
+
+Multiprocessing is used by several engines. The program enforces the `spawn`
+start method when it launches so that each worker process begins with a fresh
+Python interpreter. Model JSON files are validated with `jsonschema` only in the
+main process; child processes simply read the sanitized cache.
 
 New models are described entirely by JSON. Copy an existing file from `models/`
 and consult `cosmo_model_guide.json` for the full schema. Additional engines may
