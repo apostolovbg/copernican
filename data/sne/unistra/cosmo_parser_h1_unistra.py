@@ -1,5 +1,5 @@
 
-"""Parser for the University of Strassbourg SNe dataset."""
+"""Parser for the University of Strasbourg SNe dataset."""
 
 import os
 import pandas as pd
@@ -12,11 +12,11 @@ DEFAULT_SALT2_ALPHA_FIXED = 0.14
 DEFAULT_SALT2_BETA_FIXED = 3.1
 
 @register_sne_parser(
-    "University of Strassbourg dataset",
-    "mu_obs from fixed nuisance parameters",
+    "University of Strasbourg dataset (distance modulus, diagonal errors; SALT2 fixed)",
+    "Distance moduli computed from SALT2-corrected magnitudes. No covariance matrix.",
     data_dir=os.path.dirname(__file__),
 )
-def parse_unistra_h1_style(data_dir, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED,
+def parse_unistra_standard(data_dir, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED,
                            salt2_alpha_fixed=DEFAULT_SALT2_ALPHA_FIXED,
                            salt2_beta_fixed=DEFAULT_SALT2_BETA_FIXED, **kwargs):
     """Parses UniStra-like fixed-width files and calculates mu_obs with fixed nuisance parameters."""
@@ -35,7 +35,7 @@ def parse_unistra_h1_style(data_dir, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED
     try:
         df = pd.read_fwf(filepath, colspecs=col_specs, names=col_names, dtype=str, comment="#")
     except Exception as e:
-        logger.error(f"Error reading UniStra-like file for h1_style: {e}"); return None
+        logger.error(f"Error reading UniStra-like file: {e}"); return None
 
     parsed_data = pd.DataFrame()
     parsed_data['Name'] = df['Name'].str.strip()
@@ -50,21 +50,19 @@ def parse_unistra_h1_style(data_dir, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED
         parsed_data['mu_obs'] = parsed_data['mb'] - salt2_m_abs_fixed + salt2_alpha_fixed * parsed_data['x1'] - salt2_beta_fixed * parsed_data['c']
         parsed_data['e_mu_obs'] = parsed_data['e_mb']
     except Exception as e:
-        logger.error(f"Failed mu_obs calculation for UniStra h1_style: {e}"); return None
+        logger.error(f"Failed mu_obs calculation for UniStra data: {e}"); return None
 
     essential_cols = ['Name','zcmb','mu_obs','e_mu_obs']
     if any(col not in parsed_data.columns or parsed_data[col].isnull().all() for col in essential_cols):
-        logger.error("One or more essential columns missing/all NaN after parsing for UniStra h1_style."); return None
+        logger.error("One or more essential columns missing/all NaN after parsing UniStra data."); return None
 
     parsed_data_filtered = parsed_data[essential_cols].dropna().copy()
     if parsed_data_filtered.empty:
-        logger.error("No valid SNe data remains after cleaning NaNs in UniStra h1_style parser."); return None
+        logger.error("No valid SNe data remains after cleaning NaNs in UniStra parser."); return None
 
     parsed_data_filtered = parsed_data_filtered.sort_values(by='zcmb').reset_index(drop=True)
 
-    parsed_data_filtered.attrs['fit_style'] = 'h1_fixed_nuisance'
-    parsed_data_filtered.attrs['is_mu_data'] = True
-    parsed_data_filtered.attrs['fit_nuisance_params'] = False
+    parsed_data_filtered.attrs['covariance_matrix_inv'] = None
     parsed_data_filtered.attrs['diag_errors_for_plot'] = parsed_data_filtered['e_mu_obs'].values
     parsed_data_filtered.attrs['salt2_m_abs_fixed'] = salt2_m_abs_fixed
     parsed_data_filtered.attrs['salt2_alpha_fixed'] = salt2_alpha_fixed

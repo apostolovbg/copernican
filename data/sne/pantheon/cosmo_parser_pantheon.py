@@ -10,11 +10,11 @@ from copernican_lib.data_loaders import register_sne_parser
 
 
 @register_sne_parser(
-    "Pantheon+ dataset",
-    "with full covariance, but LCDM-oriented calibration",
+    "Pantheon+ dataset (distance modulus with covariance; SALT2 fixed)",
+    "Distance moduli using the published covariance matrix and fixed SALT2 parameters.",
     data_dir=os.path.dirname(__file__),
 )
-def parse_pantheon_plus_mu_cov_h2(data_dir, **kwargs):
+def parse_pantheon_plus(data_dir, **kwargs):
     """Parse Pantheon+ data and its covariance matrix."""
     logger = logging.getLogger()
     filepath = os.path.join(data_dir, "Pan.dat")
@@ -50,11 +50,11 @@ def parse_pantheon_plus_mu_cov_h2(data_dir, **kwargs):
                 data_df[col] = pd.to_numeric(data_df[col], errors='coerce')
 
         if any(col not in data_df.columns or data_df[col].isnull().all() for col in essential_cols):
-            logger.error("One or more essential columns missing/all NaN in Pantheon+ mu_cov_h2 data."); return None
+            logger.error("One or more essential columns missing/all NaN in Pantheon+ data."); return None
 
         data_df = data_df.dropna(subset=essential_cols).reset_index(drop=True)
         if data_df.empty:
-            logger.error("No valid Pantheon+ mu_cov_h2 SNe data after filtering."); return None
+            logger.error("No valid Pantheon+ SNe data after filtering."); return None
         if len(data_df) != N_cov:
             logger.critical(f"SNe count for mu_cov: data ({len(data_df)}) vs cov N ({N_cov})."); return None
 
@@ -69,17 +69,13 @@ def parse_pantheon_plus_mu_cov_h2(data_dir, **kwargs):
             data_df['e_mu_obs'] = np.sqrt(np.diag(cov_matrix_pantheon))
 
         output_df = data_df[['Name', 'zcmb', 'mu_obs', 'e_mu_obs']].copy().sort_values(by='zcmb').reset_index(drop=True)
-
-        output_df.attrs['fit_style'] = 'h2_mu_covariance'
-        output_df.attrs['is_mu_data'] = True
-        output_df.attrs['fit_nuisance_params'] = False
         try:
             output_df.attrs['covariance_matrix_inv'] = np.linalg.inv(cov_matrix_pantheon)
             output_df.attrs['diag_errors_for_plot'] = np.sqrt(np.diag(cov_matrix_pantheon))
         except np.linalg.LinAlgError:
-            logger.warning("Could not invert Pantheon+ cov matrix. Chi2 will fallback to diagonal errors.")
+            logger.warning("Could not invert Pantheon+ covariance matrix. Chi2 will fallback to diagonal errors.")
             output_df.attrs['covariance_matrix_inv'] = None
             output_df.attrs['diag_errors_for_plot'] = output_df['e_mu_obs'].values
         return output_df
     except Exception as e:
-        logger.error(f"Error processing Pantheon+ (mu_cov h2_style): {e}", exc_info=True); return None
+        logger.error(f"Error processing Pantheon+ data: {e}", exc_info=True); return None
