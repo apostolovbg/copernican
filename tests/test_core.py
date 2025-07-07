@@ -27,7 +27,7 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertTrue(hasattr(self.plugin, 'distance_modulus_model'))
 
     def test_engine_routines(self):
-        sne_df = data_loaders.load_sne_data('University of Strassbourg dataset')
+        sne_df = data_loaders.load_sne_data('University of Strasbourg dataset (distance modulus, diagonal errors; SALT2 fixed)')
         self.assertIsNotNone(sne_df)
         sne_df = sne_df.head(3)
 
@@ -39,7 +39,7 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertIsNotNone(cmb_df)
 
         params = self.plugin.INITIAL_GUESSES
-        chi2_sne = engine.chi_squared_sne_h1_fixed_nuisance(
+        chi2_sne = engine.chi_squared_sne(
             params,
             self.plugin.distance_modulus_model,
             sne_df
@@ -60,7 +60,7 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertEqual(len(spec["TT"]), len(cmb_df))
 
     def test_combined_fit(self):
-        sne_df = data_loaders.load_sne_data('University of Strassbourg dataset').head(2)
+        sne_df = data_loaders.load_sne_data('University of Strasbourg dataset (distance modulus, diagonal errors; SALT2 fixed)').head(2)
         bao_df = data_loaders.load_bao_data('Basic BAO testing dataset').head(2)
         cmb_df = data_loaders.load_cmb_data('planck2018lite_v1')
         cmb_df = cmb_df.head(10)
