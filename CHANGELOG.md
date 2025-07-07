@@ -6,6 +6,10 @@ Add one line for each substantive commit or pull request directly under the late
 Example:
 `- 2025-07-15: Improved BAO solver stability (Alice Doe)`
 
+## Version 1.8.4-beta (Development Release)
+- 2025-07-07: Restored compatibility of chi_squared_cmb with plugin interface (AI assistant)
+- 2025-07-07: Bumped development version and updated documentation (AI assistant)
+
 ## Version 1.8.3-beta (Development Release)
 - 2025-07-06: Rewrote combined engine for true joint optimisation (AI assistant)
 - 2025-07-06: Fixed CMB chi-squared interface and allowed fitting of CAMB

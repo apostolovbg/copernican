@@ -282,8 +282,21 @@ def compute_cmb_spectrum(param_dict, ells, spectra=("TT",)):
         return np.full_like(ells, np.nan, dtype=float)
 
 
-def chi_squared_cmb(cosmo_params, cmb_data_df):
-    """Calculate chi-squared for CMB data using full covariance."""
+def chi_squared_cmb(cosmo_params, cmb_data_df, plugin=None, extra_params=None):
+    """Calculate chi-squared for CMB data using full covariance.
+
+    Parameters
+    ----------
+    cosmo_params : sequence or dict
+        Cosmological parameter vector or direct CAMB parameter dictionary.
+    cmb_data_df : DataFrame
+        Observed CMB spectrum with inverse covariance attached.
+    plugin : object, optional
+        Model plugin providing ``get_camb_params``.  When ``None`` the
+        ``cosmo_params`` argument must already be a CAMB parameter mapping.
+    extra_params : dict, optional
+        Additional CAMB parameters to merge into the evaluation.
+    """
     logger = logging.getLogger()
     if cmb_data_df is None or cmb_data_df.empty:
         logger.error("(chi2_cmb): CMB data is empty.")
@@ -294,7 +307,23 @@ def chi_squared_cmb(cosmo_params, cmb_data_df):
 
     ells = cmb_data_df['ell'].values
     obs = cmb_data_df['Dl_obs'].values
-    param_dict = {name: val for name, val in zip(cmb_data_df.attrs.get('param_names', []), cosmo_params)} if isinstance(cosmo_params, (list, tuple)) else cosmo_params
+
+    if plugin is not None:
+        try:
+            param_dict = plugin.get_camb_params(cosmo_params)
+        except Exception as exc:
+            logger.error(f"(chi2_cmb): failed to map parameters: {exc}")
+            return np.inf
+    else:
+        if isinstance(cosmo_params, dict):
+            param_dict = dict(cosmo_params)
+        else:
+            names = cmb_data_df.attrs.get('param_names', [])
+            param_dict = {n: v for n, v in zip(names, cosmo_params)}
+
+    if extra_params:
+        param_dict.update(extra_params)
+
     th = compute_cmb_spectrum(param_dict, ells, spectra=("TT",))
     if th.shape != obs.shape or np.any(~np.isfinite(th)):
         return np.inf
