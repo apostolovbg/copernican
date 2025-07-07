@@ -71,9 +71,11 @@
       "omnuh2": "Og * (H0/100)**2",
       "tau": 0.054,
         "As": 2.1e-9,
-        "ns": 0.965
+      "ns": 0.965
       }
     }
+    // constant numeric values become additional fit parameters when
+    // using a combined-fit engine
     // your CMB parser must define df.attrs["param_names"] in this order
   }
 }

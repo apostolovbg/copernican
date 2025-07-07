@@ -48,7 +48,7 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertTrue(np.isfinite(chi2_bao))
 
         camb_params = self.plugin.get_camb_params(params)
-        chi2_cmb = engine.chi_squared_cmb(camb_params, cmb_df)
+        chi2_cmb = engine.chi_squared_cmb(params, cmb_df, self.plugin)
         spec = engine.compute_cmb_spectrum(
             camb_params, cmb_df['ell'].values, spectra=("TT", "TE", "EE")
         )
