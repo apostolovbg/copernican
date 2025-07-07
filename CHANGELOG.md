@@ -1,6 +1,9 @@
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: please, always check what is the current date when you are logging last changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Use this template:
 
+## Version 1.11.2
+- 2025-07-07: Moved chi-squared helpers to chi2_helper module and updated docs (AI assistant)
+
 `- 2025-07-05: short summary (author)`
 ## Version 1.11.1
 - 2025-07-07: Unified SNe data processing and chi-squared helpers (AI assistant)

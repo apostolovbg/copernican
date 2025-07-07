@@ -19,7 +19,7 @@ import sys
 import logging
 from copernican_lib import engine_interface
 from copernican_lib.optim_utils import minimize_with_progress
-from copernican_lib.model_coder import (
+from copernican_lib.chi2_helper import (
     chi_squared_sne,
     chi_squared_bao,
     chi_squared_cmb,
