@@ -9,6 +9,7 @@ Example:
 ## Version 1.8.4-beta (Development Release)
 - 2025-07-07: Restored compatibility of chi_squared_cmb with plugin interface (AI assistant)
 - 2025-07-07: Bumped development version and updated documentation (AI assistant)
+- 2025-07-07: Documented engine-plugin architecture and updated JSON example (AI assistant)
 
 ## Version 1.8.3-beta (Development Release)
 - 2025-07-06: Rewrote combined engine for true joint optimisation (AI assistant)

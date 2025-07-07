@@ -100,6 +100,22 @@ scripts/          - Helper modules
 **Note:** Files in `data/` are treated as read-only reference datasets and
 should not be modified by AI-driven code changes.
 
+## Engine and Plugin Architecture
+The program compiles model equations into Python functions at runtime. When a
+`cosmo_model_*.json` file is selected, `scripts/model_parser.py` validates the
+content and `scripts/model_coder.py` converts the symbolic expressions into
+NumPy-ready callables. `scripts/engine_interface.build_plugin` attaches these
+functions to a lightweight plugin object that exposes a stable API. Every engine
+operates solely through this plugin and decides how parameters are fitted. The
+main workflow simply loads the plugin, selects an engine from `./engines/` and
+invokes its functions. New engines can therefore implement alternate strategies
+—such as SNe-only fits or fully combined optimisations—without modifying the
+rest of the codebase.
+
+`cosmo_engine_1_4b.chi_squared_cmb` now accepts either a plugin and parameter
+vector or a ready CAMB dictionary. This flexibility lets future engines reuse
+the same CMB calculation regardless of their own fitting scheme.
+
 ## Using the Suite
 - The program discovers available models from `models/cosmo_model_*.json`.
  - Data sources for SNe, BAO and CMB are chosen interactively. Once a source is
@@ -182,6 +198,9 @@ When a `cmb.param_map` object is provided, the mapping is stored on the plugin
 as `CMB_PARAM_MAP`. Call `plugin.get_camb_params(values)` to convert a list of
 cosmological parameters into a dictionary for CAMB. Models without a custom
 `compute_cmb_spectrum` automatically use this mapping with the default engine.
+Constant numeric values inside `param_map` are treated as additional fit
+parameters by combined-fit engines so that the CMB spectrum can be adjusted
+independently.
 The fallback wrapper calls the engine and returns a dictionary with keys `TT`,
 `TE` and `EE`. The engine now retrieves unlensed $D_\ell$ spectra directly in
 \(\mu K^2\) units, ensuring consistent scaling with Planck 2018 lite tables.
