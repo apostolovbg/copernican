@@ -58,8 +58,10 @@ Under the hood the program follows a clear pipeline:
    chi-squared statistics are reported.
 6. **CMB Analysis** – similarly, CMB power spectra are generated and the
    chi-squared contribution is calculated.
-7. **Output Generation** – `copernican_lib/logger.py`, `copernican_lib/plotter.py` and `copernican_lib/csv_writer.py` handle logs, plots and tables.
-8. **Loop or Exit** – the user may evaluate another model or quit, at which
+7. **Spectra Caching** – unlensed CAMB spectra are cached using parameter
+   keys rounded to six significant digits.
+8. **Output Generation** – `copernican_lib/logger.py`, `copernican_lib/plotter.py` and `copernican_lib/csv_writer.py` handle logs, plots and tables.
+9. **Loop or Exit** – the user may evaluate another model or quit, at which
    point temporary cache files are cleaned automatically.
 
 ## Quick Start

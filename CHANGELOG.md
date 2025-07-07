@@ -6,6 +6,7 @@ Add one line for each substantive commit or pull request directly under the late
 ## Version 1.9.3-beta (Development Release)
 - 2025-07-07: Fixed parameter list mutation in combined engine and bumped version (AI assistant)
 - 2025-07-07: Removed deprecated L-BFGS-B solver options to silence SciPy warnings (AI assistant)
+- 2025-07-07: Increased CMB cache precision to six significant digits (AI assistant)
 
 ## Version 1.9.2-beta (Development Release)
 - 2025-07-07: Bumped version to 1.9.2-beta and expanded code comments (AI assistant)

@@ -71,6 +71,12 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertIn('chi2_total', result)
         self.assertTrue(np.isfinite(result['chi2_total']))
 
+    def test_chi_squared_cmb_planck2018lite(self):
+        cmb_df = data_loaders.load_cmb_data('planck2018lite_v1')
+        params = self.plugin.INITIAL_GUESSES
+        chi2 = engine_comb.chi_squared_cmb(params, cmb_df, self.plugin)
+        self.assertTrue(np.isfinite(chi2))
+
 
 if __name__ == '__main__':
     unittest.main()
