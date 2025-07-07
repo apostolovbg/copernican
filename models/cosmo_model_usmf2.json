@@ -1,117 +1,48 @@
 {
   "model_name": "USMFv2",
   "version": "2.0",
-  "description": "### 1. Introduction\nModern cosmology, while r...JSON would follow here, formatted with Markdown headings ...)*",
-  "abstract": "The Unified Shrinking Matter Framework (USMF) is ... without invoking new undiscovered particles or energy fields.",
-  "parameters": [
-    {
-      "name": "H_A",
-      "python_var": "H_A",
-      "bounds": [50.0, 100.0],
-      "unit": "",
-      "latex_name": "$H_A$"
-    },
-    {
-      "name": "p_alpha",
-      "python_var": "p_alpha",
-      "bounds": [0.1, 1.5],
-      "unit": "",
-      "latex_name": "$p_{\\alpha}$"
-    },
-    {
-      "name": "k_exp",
-      "python_var": "k_exp",
-      "bounds": [-2.0, 2.0],
-      "unit": "",
-      "latex_name": "$k_{exp}$"
-    },
-    {
-      "name": "s_exp",
-      "python_var": "s_exp",
-      "bounds": [0.5, 2.0],
-      "unit": "",
-      "latex_name": "$s_{exp}$"
-    },
-    {
-      "name": "t0_age_Gyr",
-      "python_var": "t0_age_Gyr",
-      "bounds": [10.0, 20.0],
-      "unit": "Gyr",
-      "latex_name": "$t_{0,age}$"
-    },
-    {
-      "name": "A_osc",
-      "python_var": "A_osc",
-      "bounds": [0.0, 0.05],
-      "unit": "",
-      "latex_name": "$A_{osc}$"
-    },
-    {
-      "name": "omega_osc",
-      "python_var": "omega_osc",
-      "bounds": [0.1, 10.0],
-      "unit": "rad/log(time_ratio)",
-      "latex_name": "$\\omega_{osc}$"
-    },
-    {
-      "name": "ti_osc_Gyr",
-      "python_var": "ti_osc_Gyr",
-      "bounds": [1.0, 20.0],
-      "unit": "Gyr",
-      "latex_name": "$t_{i,osc}$"
-    },
-    {
-      "name": "phi_osc",
-      "python_var": "phi_osc",
-      "bounds": [-3.1416, 3.1416],
-      "unit": "rad",
-      "latex_name": "$\\phi_{osc}$"
-    },
-    {
-      "name": "Ob",
-      "python_var": "Ob",
-      "bounds": [0.01, 0.1]
-    },
-    {
-      "name": "Og",
-      "python_var": "Og",
-      "bounds": [1e-05, 0.0001]
-    },
-    {
-      "name": "z_recomb",
-      "python_var": "z_recomb",
-      "bounds": [1000, 1200]
-    }
-  ],
+  "description": "### 1. Introduction\nModern cosmology, while remarkably successful, faces fundamental challenges centered around dark energy and dark matter. USMF posits that these phenomena arise as observational artefacts of continuous, inhomogeneous shrinking of dense regions relative to a static universal frame. This updated version elaborates on early-universe compatibility, environmental modulation of shrinking, and unique predictions without invoking unseen components.",
+  "abstract": "The Unified Shrinking Matter Framework (USMF) is a cosmological model proposing that apparent accelerated expansion and dark-matter–like effects emerge from observations made within locally shrinking structures. It provides a self-consistent mathematical formulation—including early-universe evolution and inhomogeneous shrinking—and predicts SNe Ia, BAO and CMB observables without new particles or fields.",
   "Hz_expression": "H_A*(1+z)",
+  "parameters": [
+    { "name": "Universal Hubble parameter", "python_var": "H_A", "bounds": [50.0, 100.0], "unit": "km/s/Mpc", "latex_name": "$H_A$" },
+    { "name": "Alpha exponent",           "python_var": "p_alpha", "bounds": [0.1, 1.5],    "unit": "",               "latex_name": "$p_{\\alpha}$" },
+    { "name": "Exponential index",        "python_var": "k_exp",    "bounds": [-2.0, 2.0],   "unit": "",               "latex_name": "$k_{exp}$" },
+    { "name": "Shrinkage scale",          "python_var": "s_exp",    "bounds": [0.5, 2.0],    "unit": "",               "latex_name": "$s_{exp}$" },
+    { "name": "Universe age today",       "python_var": "t0_age_Gyr","bounds": [10.0, 20.0],  "unit": "Gyr",            "latex_name": "$t_{0,age}$" },
+    { "name": "Oscillation amplitude",    "python_var": "A_osc",    "bounds": [0.0, 0.05],   "unit": "",               "latex_name": "$A_{osc}$" },
+    { "name": "Oscillation frequency",    "python_var": "omega_osc","bounds": [0.1, 10.0],   "unit": "rad/log(time_ratio)", "latex_name": "$\\omega_{osc}$" },
+    { "name": "Oscillation start time",   "python_var": "ti_osc_Gyr","bounds": [1.0, 20.0],  "unit": "Gyr",            "latex_name": "$t_{i,osc}$" },
+    { "name": "Oscillation phase",        "python_var": "phi_osc",  "bounds": [-3.1416, 3.1416], "unit": "rad",         "latex_name": "$\\phi_{osc}$" },
+    { "name": "Baryon density today",     "python_var": "Ob",       "bounds": [0.01, 0.1],   "unit": "",               "latex_name": "$\\Omega_b$" },
+    { "name": "Photon density today",     "python_var": "Og",       "bounds": [1e-05, 0.0001],"unit": "",               "latex_name": "$\\Omega_\\gamma$" },
+    { "name": "Recombination redshift",   "python_var": "z_recomb","bounds": [1000, 1200],  "unit": "",               "latex_name": "$z_{\\rm recomb}$" }
+  ],
   "equations": {
     "sne": [
       "$$1+z = \\frac{\\alpha(t_e)}{\\alpha(t_0)}$$",
-      "$$r = \\int_{t_e}^{t_0} \\frac{c}{\\alpha(t')} dt'$$",
-      "$$d_L(z) = |r| \\cdot (1+z)^2 \\cdot \\frac{70.0}{H_A}$$",
-      "$$\\mu = 5 \\log_{10}(d_L) + 25$$"
+      "$$r = \\int_{t_e}^{t_0} \\frac{c}{\\alpha(t')}\\,dt'$$",
+      "$$d_L(z) = |r|(1+z)^2 \\frac{70.0}{H_A}$$",
+      "$$\\mu = 5\\log_{10}(d_L) + 25$$"
     ],
     "bao": [
-      "$$D_A(z) = |r| \\cdot \\frac{70.0}{H_A}$$",
-      "$$H_{USMF}(z) = - \\frac{1}{\\alpha(t_e)} \\left. \\frac{d\\alpha}{dt} \\right|_{t_e}$$",
-      "$$D_V(z) = \\left[ (1+z)^2 D_A(z)^2 \\frac{cz}{H(z)} \\right]^{1/3}$$"
+      "$$D_A(z) = |r|\\frac{70.0}{H_A}$$",
+      "$$H_{USMF}(z) = -\\frac{1}{\\alpha(t_e)}\\left.\\frac{d\\alpha}{dt}\\right|_{t_e}$$",
+      "$$D_V(z) = \\bigl[(1+z)^2D_A(z)^2\\frac{cz}{H(z)}\\bigr]^{1/3}$$"
     ]
   },
   "predicts_bao": true,
   "valid_for_cmb": true,
   "cmb": {
     "param_map": {
-      "H0": "H_A",
+      "H0":    "H_A",
       "ombh2": "Ob * (H_A/100)**2",
       "omch2": 0.0,
-      "omnuh2": "Og * (H_A/100)**2",
-      "tau": 0.054,
-      "As": 2.1e-9,
-      "ns": 0.965
+      "omnuh2":"Og * (H_A/100)**2",
+      "tau":   0.054,
+      "As":    2.1e-9,
+      "ns":    0.965
     }
   },
-  "notes": "Detailed theory embedded in this JSON.",
-  "title": "The Unified Shrinking Matter Framework (USMF) Version 2",
-  "date": "2025-05-26",
-  "example_results": "-   **Dataset:** UniStra_FixedNuis_h1\n-   **Best-fit $\\chi^2$:** 1662.54"
+  "notes": "Detailed theory embedded in this JSON; example fit on UniStra_FixedNuis_h1 yields χ²=1662.54 (2025-05-26)."
 }
