@@ -1,0 +1,106 @@
+2025-07-07 18:43:29,004 - INFO - Logging initialized. Log file: /Users/apostolov/Documents/GitHub/copernican/output/copernican-run_20250707_184329.txt
+2025-07-07 18:43:29,004 - INFO - Copernican 1.9.3-beta has initialized! Current timestamp is 250707_184329. Log file: /Users/apostolov/Documents/GitHub/copernican/output/copernican-run_20250707_184329.txt
+2025-07-07 18:43:29,004 - INFO - Using standard CPU (SciPy) computational backend with multiprocessing.
+2025-07-07 18:43:29,004 - INFO - Running from base directory: /Users/apostolov/Documents/GitHub/copernican
+2025-07-07 18:43:29,004 - INFO - All outputs will be saved to: /Users/apostolov/Documents/GitHub/copernican/output
+2025-07-07 18:43:29,004 - INFO - 
+--- Stage 1: Configuration ---
+2025-07-07 18:43:32,693 - INFO - Derived distance functions from symbolic Hz_expression in model JSON.
+2025-07-07 18:43:32,693 - INFO - Derived r_s using fallback integral from Hz_expression.
+2025-07-07 18:43:32,693 - INFO - Derived distance_modulus_model from luminosity distance.
+2025-07-07 18:43:32,694 - INFO - Loaded JSON model: USMFv2
+2025-07-07 18:43:36,836 - INFO - 
+Available SNe data sources:
+2025-07-07 18:43:39,076 - INFO - Attempting to load SNe data from source 'University of Strassbourg dataset'
+2025-07-07 18:43:39,101 - INFO - Successfully loaded 740 SNe data points.
+2025-07-07 18:43:39,101 - INFO - 
+Available BAO data sources:
+2025-07-07 18:43:40,172 - INFO - Attempting to load BAO data from source 'Basic BAO testing dataset'
+2025-07-07 18:43:40,178 - INFO - Successfully loaded 25 BAO data points.
+2025-07-07 18:43:40,178 - INFO - 
+Available CMB data sources:
+2025-07-07 18:43:42,100 - INFO - Attempting to load CMB data from source 'planck2018lite_v1'
+2025-07-07 18:43:42,129 - INFO - Successfully loaded 215 CMB data points.
+2025-07-07 18:43:42,129 - INFO - 
+--- Stage 2: Supernovae Ia Fitting ---
+2025-07-07 18:43:42,129 - INFO - 
+--- Fitting SNe Ia (SNe_University_of_Strassbourg_dataset, Style: h1_fixed_nuisance) for Model: LambdaCDM ---
+2025-07-07 18:43:42,129 - INFO - Using standard Python (SciPy) function for 'LambdaCDM'.
+2025-07-07 18:43:42,130 - INFO - Fitting cosmological parameters using mu_obs with diagonal errors (H1-style).
+2025-07-07 18:43:42,130 - INFO - Starting SNe optimization for LambdaCDM using 6 parameters...
+2025-07-07 18:43:45,579 - INFO - SNe Fit optimization finished. Total evals: 126.
+2025-07-07 18:43:45,580 - INFO - SNe Fitting Results for LambdaCDM:
+2025-07-07 18:43:45,580 - INFO -   - Best-fit Cosmological Parameters:
+2025-07-07 18:43:45,580 - INFO -     - H0: 63.434
+2025-07-07 18:43:45,580 - INFO -     - Omega_m0: 0.27343
+2025-07-07 18:43:45,580 - INFO -     - Omega_b0: 0.055
+2025-07-07 18:43:45,580 - INFO -     - Ob: 0.055
+2025-07-07 18:43:45,580 - INFO -     - Og: 5.5e-05
+2025-07-07 18:43:45,580 - INFO -     - z_recomb: 1100
+2025-07-07 18:43:45,580 - INFO -   - Final Chi-squared: 1673.4663
+2025-07-07 18:43:45,580 - INFO -   - Degrees of Freedom (DoF): 734
+2025-07-07 18:43:45,580 - INFO -   - Reduced Chi-squared: 2.2799
+2025-07-07 18:43:45,580 - INFO -   - Optimizer Success: True, Message: CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH
+2025-07-07 18:43:45,581 - INFO - 
+--- Fitting SNe Ia (SNe_University_of_Strassbourg_dataset, Style: h1_fixed_nuisance) for Model: USMFv2 ---
+2025-07-07 18:43:45,581 - INFO - Using standard Python (SciPy) function for 'USMFv2'.
+2025-07-07 18:43:45,581 - INFO - Fitting cosmological parameters using mu_obs with diagonal errors (H1-style).
+2025-07-07 18:43:45,581 - INFO - Starting SNe optimization for USMFv2 using 12 parameters...
+2025-07-07 18:43:46,601 - INFO - SNe Fit optimization finished. Total evals: 104.
+2025-07-07 18:43:46,601 - INFO - SNe Fitting Results for USMFv2:
+2025-07-07 18:43:46,602 - INFO -   - Best-fit Cosmological Parameters:
+2025-07-07 18:43:46,602 - INFO -     - H_A: 59.32
+2025-07-07 18:43:46,602 - INFO -     - p_alpha: 0.8
+2025-07-07 18:43:46,602 - INFO -     - k_exp: 0
+2025-07-07 18:43:46,602 - INFO -     - s_exp: 1.25
+2025-07-07 18:43:46,602 - INFO -     - t0_age_Gyr: 15
+2025-07-07 18:43:46,602 - INFO -     - A_osc: 0.025
+2025-07-07 18:43:46,602 - INFO -     - omega_osc: 5.05
+2025-07-07 18:43:46,602 - INFO -     - ti_osc_Gyr: 10.5
+2025-07-07 18:43:46,602 - INFO -     - phi_osc: 0
+2025-07-07 18:43:46,602 - INFO -     - Ob: 0.055
+2025-07-07 18:43:46,602 - INFO -     - Og: 5.5e-05
+2025-07-07 18:43:46,602 - INFO -     - z_recomb: 1100
+2025-07-07 18:43:46,602 - INFO -   - Final Chi-squared: 2017.5187
+2025-07-07 18:43:46,602 - INFO -   - Degrees of Freedom (DoF): 728
+2025-07-07 18:43:46,603 - INFO -   - Reduced Chi-squared: 2.7713
+2025-07-07 18:43:46,603 - INFO -   - Optimizer Success: True, Message: CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH
+2025-07-07 18:43:46,603 - INFO - 
+--- Stage 3: BAO Analysis ---
+2025-07-07 18:43:46,604 - INFO - Calculating BAO observables for LambdaCDM with parameters: [63.43, 0.2734, 0.055, 0.055, 5.5e-05, 1100]
+2025-07-07 18:43:46,604 - INFO - Successfully calculated r_s for LambdaCDM: 159.357 Mpc
+2025-07-07 18:43:46,665 - INFO - LambdaCDM BAO: r_s = 159.36 Mpc, Chi2_BAO = 5835.03
+2025-07-07 18:43:46,665 - INFO - Calculating BAO observables for USMFv2 with parameters: [59.32, 0.8, 0, 1.25, 15, 0.025, 5.05, 10.5, 0, 0.055, 5.5e-05, 1100]
+2025-07-07 18:43:46,666 - INFO - Successfully calculated r_s for USMFv2: 310.469 Mpc
+2025-07-07 18:43:46,679 - INFO - USMFv2 BAO: r_s = 310.47 Mpc, Chi2_BAO = 13378.81
+2025-07-07 18:43:46,679 - INFO - 
+--- Stage 4: CMB Analysis ---
+2025-07-07 18:43:49,819 - INFO - LambdaCDM CMB chi2 = 21279.38
+2025-07-07 18:43:54,116 - INFO - USMFv2 CMB chi2 = 1273093.11
+2025-07-07 18:43:54,116 - INFO - 
+--- Stage 5: Generating Outputs ---
+2025-07-07 18:43:54,116 - INFO - LambdaCDM CMB chi2 = 21279.38
+2025-07-07 18:43:54,117 - INFO - USMFv2 CMB chi2 = 1273093.11
+2025-07-07 18:43:54,117 - INFO - Generating Hubble Diagram for SNe_University_of_Strassbourg_dataset...
+2025-07-07 18:43:57,615 - INFO - Hubble diagram saved to hubble-plot-LambdaCDM-vs-USMFv2-SNe-University-of-Strassbourg-dataset_20250707_184354.png
+2025-07-07 18:43:57,615 - INFO - Generating BAO Plot for BAO_bao1.json...
+2025-07-07 18:44:00,032 - INFO - BAO plot saved to bao-plot-LambdaCDM-vs-USMFv2-BAO-bao1_20250707_184357.png
+2025-07-07 18:44:00,033 - INFO - Generating CMB Spectrum Plot for CMB_Planck2018lite...
+2025-07-07 18:44:04,455 - INFO - CMB plot saved to cmb-plot-LambdaCDM-vs-USMFv2-CMB-Planck2018lite_20250707_184400.png
+2025-07-07 18:44:04,527 - INFO - SNe detailed results CSV saved to sne-detailed-data-LCDM-vs-USMFv2-SNe-University-of-Strassbourg-dataset_20250707_184404.csv
+2025-07-07 18:44:04,531 - INFO - BAO detailed results CSV saved to bao-detailed-data-LCDM-vs-USMFv2-BAO-bao1_20250707_184404.csv
+2025-07-07 18:44:04,544 - INFO - CMB detailed results CSV saved to cmb-detailed-data-LCDM-vs-USMFv2-CMB-Planck2018lite_20250707_184404.csv
+2025-07-07 18:44:04,544 - INFO - Run completed at 250707_184404.
+2025-07-07 18:44:26,200 - INFO - --- Cleaning up cache files ---
+2025-07-07 18:44:26,201 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/__pycache__
+2025-07-07 18:44:26,203 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/engines/__pycache__
+2025-07-07 18:44:26,204 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/copernican_lib/__pycache__
+2025-07-07 18:44:26,252 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/data/cmb/planck2018lite/__pycache__
+2025-07-07 18:44:26,252 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/data/sirens/placeholder/__pycache__
+2025-07-07 18:44:26,253 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/data/gw/placeholder/__pycache__
+2025-07-07 18:44:26,253 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/data/sne/unistra/__pycache__
+2025-07-07 18:44:26,254 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/data/sne/pantheon/__pycache__
+2025-07-07 18:44:26,254 - INFO - Removed cache directory: /Users/apostolov/Documents/GitHub/copernican/data/bao/basic/__pycache__
+2025-07-07 18:44:26,254 - INFO - Removed cache file: /Users/apostolov/Documents/GitHub/copernican/models/cache/cache_cosmo_model_usmf2.json
+2025-07-07 18:44:26,255 - INFO - Removed cache file: /Users/apostolov/Documents/GitHub/copernican/models/cache/cache_cosmo_model_lcdm.json
+2025-07-07 18:44:26,255 - INFO - Exiting Copernican Suite. Goodbye!
