@@ -4,7 +4,7 @@ Development notes were previously kept at the top of this file. That history now
 lives in `CHANGELOG.md`. New modifications must update the changelog, and legacy
 `dev_note` headers embedded in source files have been fully phased out.
 
-This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.11.3**.
+This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.11.4**.
 
 ## 1. Program Overview
 The helper modules previously stored under `scripts/` now live in the `copernican_lib/` package.
@@ -18,7 +18,7 @@ sources. Parsers reside alongside their data. Results are saved under
 The default engine is `engines/cosmo_engine_1_4b.py`. All model plugins are validated
 through `copernican_lib/engine_interface.py` before being passed to the engine. This
 ensures the expected functions are present and callable. Starting with
-version 1.11.3 the test suite no longer runs automatically. Execute
+version 1.11.4 the test suite no longer runs automatically. Execute
 `copernican.py --run-tests` or run `python -m unittest discover` to verify that
 the reference LCDM model and data parsers operate correctly. The `--run-tests`
 flag now uses Python's built-in discovery to gather all tests from the `tests`
@@ -67,6 +67,7 @@ file. Markdown files may mirror the JSON for readability, but models are
 distributed only as JSON. No permanent Python plugins exist in the repository.
 Models are automatically discovered
 by scanning for `cosmo_model_*.json` files in the `models/` directory.
+All expressions inside these JSON files must be written in LaTeX math form; raw Python code is not permitted.
 
 ### 4.1 JSON Model File
 The schema requires `model_name`, `version`, `parameters`, `equations`, `abstract` and `description`.
