@@ -6,6 +6,7 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Version 1.11.5
 - 2025-07-08: Added SNe pre-fit step to combined engine to improve convergence and updated documentation (AI assistant)
+- 2025-07-08: Updated minimum Python version to 3.12 and synced README (AI assistant)
 
 ## Version 1.11.3
 - 2025-07-07: Fixed missing extra CMB parameters in run_cmb_analysis and bumped version (AI assistant)
