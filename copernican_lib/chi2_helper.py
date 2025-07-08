@@ -8,7 +8,6 @@ NumPy, CAMB and the engine interface.
 """
 
 import logging
-from functools import lru_cache
 from typing import Sequence, Iterable, Optional, Dict
 
 import numpy as np
@@ -169,52 +168,6 @@ def chi_squared_bao(
         return np.inf
 
     return total if np.isfinite(total) else np.inf
-
-
-@lru_cache(maxsize=64)
-def compute_rs_camb(param_key: tuple) -> float:
-    """Return the sound horizon at the baryon drag epoch using CAMB.
-
-    This helper mirrors CAMB's internal calculation so BAO scaling
-    uses the same physics as the CMB spectrum generation. The parameter
-    dictionary accepts the standard CAMB keys ``H0``, ``ombh2`` and
-    ``omch2``. Optional values such as ``tau``, ``As`` and ``ns`` are
-    ignored. If CAMB fails the function returns ``np.nan``.
-    """
-
-    logger = logging.getLogger()
-    try:
-        param_dict = dict(param_key)
-        params = camb.CAMBparams()
-        params.set_cosmology(
-            H0=float(param_dict.get("H0", 67.0)),
-            ombh2=float(param_dict.get("ombh2", 0.02237)),
-            omch2=float(param_dict.get("omch2", 0.12)),
-            tau=float(param_dict.get("tau", 0.054)),
-        )
-        params.omnuh2 = float(param_dict.get("omnuh2", 0.0))
-        params.set_for_lmax(10)
-        results = camb.get_results(params)
-        return float(results.get_derived_params()["rdrag"])
-    except Exception as exc:
-        logger.error(f"(compute_rs_camb): CAMB failed: {exc}")
-        return np.nan
-
-
-def compute_rs_from_plugin(plugin, cosmo_params) -> float:
-    """Return ``r_s`` using ``plugin.get_camb_params`` if available."""
-
-    if plugin is None or not hasattr(plugin, "get_camb_params"):
-        return np.nan
-    try:
-        camb_params = plugin.get_camb_params(cosmo_params)
-    except Exception as exc:
-        logging.getLogger().error(
-            f"(compute_rs_from_plugin): failed to map parameters: {exc}"
-        )
-        return np.nan
-    key = tuple((k, float(f"{float(v):.6g}")) for k, v in sorted(camb_params.items()))
-    return compute_rs_camb(key)
 
 
 def compute_cmb_spectrum(
