@@ -32,11 +32,11 @@ from copernican_lib.chi2_helper import (
 
 @lru_cache(maxsize=128)
 def _cached_cmb(key):
-    """Return unlensed CAMB spectra for a given parameter key.
+    """Return lensed CAMB spectra for a given parameter key.
 
-    The cache key contains the model name, cosmology parameters rounded to six
-    significant digits using ``float(f"{float(v):.6g}")``, the maximum
-    multipole ``lmax`` and the requested spectra.
+    The cache key contains the model name, cosmological parameters rounded to
+    six significant digits using ``float(f"{float(v):.6g}")`` alongside the
+    maximum multipole ``lmax`` and the requested spectra.
     """
     _, param_tuple, lmax, spectra = key
     param_dict = dict(param_tuple)
@@ -49,9 +49,12 @@ def _cached_cmb(key):
     )
     params.omnuh2 = param_dict.get("omnuh2", 0.0)
     params.InitPower.set_params(As=param_dict["As"], ns=param_dict["ns"])
-    params.set_for_lmax(lmax + 300, lens_potential_accuracy=0)
+    # Use lensed spectra since the Planck 2018 lite dataset is lensed.
+    params.set_for_lmax(lmax + 300, lens_potential_accuracy=1)
     results = camb.get_results(params)
-    cls = results.get_unlensed_scalar_cls(lmax=lmax, CMB_unit="muK")
+    cls = results.get_cmb_power_spectra(params, lmax=lmax, CMB_unit="muK")[
+        "total"
+    ]
     out = {}
     if "TT" in spectra:
         out["TT"] = cls[:, 0]

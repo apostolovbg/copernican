@@ -203,12 +203,19 @@ def compute_cmb_spectrum(
     params.set_cosmology(H0=H0, ombh2=ombh2, omch2=omch2, tau=tau)
     params.omnuh2 = omnuh2
     params.InitPower.set_params(As=As, ns=ns)
-    params.set_for_lmax(int(np.max(ells)) + 300, lens_potential_accuracy=0)
+    # Enable lensing for a more accurate comparison with Planck data. The
+    # ``lens_potential_accuracy`` flag controls how CAMB computes the lensing
+    # potential. A value of ``1`` is sufficient here and avoids excessive run
+    # time while still producing lensed spectra.
+    params.set_for_lmax(int(np.max(ells)) + 300, lens_potential_accuracy=1)
     try:
         results = camb.get_results(params)
-        full_dls = results.get_unlensed_scalar_cls(
-            lmax=int(np.max(ells)), CMB_unit="muK"
+        # Planck 2018 lite provides lensed spectra.  Use the same here so the
+        # theoretical prediction is directly comparable to the observations.
+        cmb_dict = results.get_cmb_power_spectra(
+            params, lmax=int(np.max(ells)), CMB_unit="muK"
         )
+        full_dls = cmb_dict.get("total")
 
         ell_arr = np.asarray(ells, dtype=int)
         result = {}

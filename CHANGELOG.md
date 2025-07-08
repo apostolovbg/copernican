@@ -4,6 +4,9 @@ Add one line for each substantive commit or pull request directly under the late
 ## Version 1.11.3
 - 2025-07-07: Fixed missing extra CMB parameters in run_cmb_analysis and bumped version (AI assistant)
 
+## Version 1.11.4
+- 2025-07-08: Switched to lensed CAMB spectra, updated docs, and bumped version (AI assistant)
+
 ## Version 1.11.2
 - 2025-07-07: Moved chi-squared helpers to chi2_helper module and updated docs (AI assistant)
 
