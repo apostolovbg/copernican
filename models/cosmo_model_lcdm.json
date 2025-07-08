@@ -54,7 +54,7 @@
       ]
     }
   ],
-  "Hz_expression": "H0*sympy.sqrt(Omega_m0*(1+z)**3 + (1 - Omega_m0))",
+  "Hz_expression": "$$H(z) = H0 * \\sqrt{\\Omega_{m0}*(1+z)^3 + (1 - \\Omega_{m0})}$$",
   "equations": {
     "sne": [
       "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
@@ -66,7 +66,7 @@
       "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
     ]
   },
-  "rs_expression": "44.5*sympy.log(9.83/(Omega_m0*(H0/100)**2))/sympy.sqrt(1 + 10*(Omega_b0*(H0/100)**2)**0.75)",
+  "rs_expression": "$$r_s = 44.5 * \\ln\\left(\\frac{9.83}{\\Omega_{m0}*(H0/100)^2}\\right) / \\sqrt{1 + 10*(\\Omega_{b0}*(H0/100)^2)^{0.75}}$$",
   "predicts_bao": true,
   "valid_for_cmb": true,
   "cmb": {

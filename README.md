@@ -1,4 +1,4 @@
-**Version:** 1.11.3
+**Version:** 1.11.4
 **Last Updated:** 2025-07-07
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -147,16 +147,17 @@ See `cosmo_model_guide.json` for a detailed template.
    your theory.
 2. *(Optional)* Create `cosmo_model_name.md` if you want a human-friendly
    summary of the same content. The suite does not read this file.
-3. Include an `Hz_expression` string defining `H(z)` in terms of your model
-   parameters. This enables BAO and distance-based predictions.
-4. Optionally provide an `rs_expression` for the sound horizon at recombination
-   or include the parameters `Ob`, `Og` and `z_recomb`. The suite will then
+3. Include an `Hz_expression` written in LaTeX math form defining `H(z)` using
+   your model parameters. This enables BAO and distance-based predictions.
+4. Optionally provide an `rs_expression` in LaTeX for the sound horizon at
+ recombination or include the parameters `Ob`, `Og` and `z_recomb`. The suite will then
    derive `r_s` automatically using a numerical integral.
-5. Expressions may include `Integral(...)` terms. These are evaluated
+5. Python code must never appear in `cosmo_model_*.json`; all expressions are written in LaTeX.
+6. Expressions may include `Integral(...)` terms. These are evaluated
    numerically with SciPy's `quad` when the model is loaded.
-6. Parameter initial guesses are calculated automatically as the midpoint of
+7. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
-7. `latex_name` values do not require `$` delimiters. Plots automatically wrap
+8. `latex_name` values do not require `$` delimiters. Plots automatically wrap
    parameter names in math mode.
 The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
 auto-generates the necessary Python functions.
@@ -172,8 +173,8 @@ The required top-level keys are `model_name`, `version`, `parameters`,
     {"name": "H0", "python_var": "H0", "bounds": [50, 100], "latex_name": "H_0"},
     {"name": "Omega_m0", "python_var": "Om0", "bounds": [0.1, 0.5], "latex_name": "\\Omega_{m0}"}
   ],
-  "Hz_expression": "H0 * sympy.sqrt(Om0*(1+z)**3 + Ol0)",
-  "rs_expression": "custom_expression",
+  "Hz_expression": "$$H(z) = H_0 * \\sqrt{Om0*(1+z)^3 + Ol0}$$",
+ "rs_expression": "$$r_s = custom\_expression$$",
   "equations": {
     "sne": [
       "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
@@ -222,7 +223,7 @@ shows cosmic-variance and observational uncertainty bands.
 cache. This allows the domain-specific JSON language to evolve while remaining
 compatible with older models.
 `model_parser.py` validates this structure and `model_coder.py` translates the
-equations into NumPy-ready callables. When `Hz_expression` is present it is
+LaTeX expressions into NumPy-ready callables. When `Hz_expression` is present it is
 compiled into `get_Hz_per_Mpc` and related distance functions used by
 `engine_interface.py`. If an `rs_expression` or the parameters `Ob`, `Og` and
 `z_recomb` are provided, a callable `get_sound_horizon_rs_Mpc` is also generated.

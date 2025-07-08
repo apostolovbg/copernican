@@ -83,7 +83,7 @@
       "bounds": [1000, 1200]
     }
   ],
-  "Hz_expression": "H_A*(1+z)",
+  "Hz_expression": "$$H(z) = H_A*(1+z)$$",
   "equations": {
     "sne": [
       "$$1+z = \\frac{\\alpha(t_e)}{\\alpha(t_0)}$$",
