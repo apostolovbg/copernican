@@ -1,5 +1,5 @@
-**Version:** 1.11.4
-**Last Updated:** 2025-07-08
+**Version:** 1.11.3
+**Last Updated:** 2025-07-07
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
 Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and Cosmic Microwave Background (CMB) data.
@@ -254,10 +254,6 @@ Python interpreter. Model JSON files are validated with `jsonschema` only in the
 main process; child processes simply read the sanitized cache.
 All engines import progress helpers from `copernican_lib/optim_utils.py` so that
 evaluation counting and reporting remain consistent across backends.
-As of version 1.11.4 the optimizer automatically scales its finite
-difference step sizes relative to each parameter value. This prevents
-instabilities when fitting small quantities such as the CMB amplitude
-`A_s`.
 
 New models are described entirely by JSON. Copy an existing file from `models/`
 and consult `cosmo_model_guide.json` for the full schema. Additional engines may
