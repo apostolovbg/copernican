@@ -24,6 +24,7 @@ from copernican_lib.chi2_helper import (
     chi_squared_bao,
     chi_squared_cmb,
     compute_cmb_spectrum,
+    compute_rs_from_plugin,
 )
 
 
@@ -197,7 +198,10 @@ def chi_squared_combined(
         chi2_total += chi_squared_sne(cosmo_params, plugin.distance_modulus_model, sne_df)
 
     if bao_df is not None and getattr(plugin, "valid_for_bao", True):
-        rs_val = plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
+        if getattr(plugin, "valid_for_cmb", True) and hasattr(plugin, "get_camb_params"):
+            rs_val = compute_rs_from_plugin(plugin, cosmo_params)
+        else:
+            rs_val = plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
         chi2_total += chi_squared_bao(bao_df, plugin, cosmo_params, rs_val)
 
     if cmb_df is not None and getattr(plugin, "valid_for_cmb", True):
@@ -360,7 +364,10 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
     chi2_bao = np.nan
     if bao_data_df is not None and getattr(model_plugin, 'valid_for_bao', True):
         cosmo_subset = final_params[:num_cosmo_params]
-        rs_val = model_plugin.get_sound_horizon_rs_Mpc(*cosmo_subset)
+        if getattr(model_plugin, 'valid_for_cmb', True) and hasattr(model_plugin, 'get_camb_params'):
+            rs_val = compute_rs_from_plugin(model_plugin, cosmo_subset)
+        else:
+            rs_val = model_plugin.get_sound_horizon_rs_Mpc(*cosmo_subset)
         chi2_bao = chi_squared_bao(bao_data_df, model_plugin, cosmo_subset, rs_val)
     chi2_cmb = np.nan
     if cmb_data_df is not None and getattr(model_plugin, 'valid_for_cmb', True):
@@ -434,9 +441,14 @@ def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params, z_smooth=
     logger.info(f"Calculating BAO observables for {model_name} with parameters: [{param_str}]")
 
     try:
-        model_rs_Mpc = model_plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
+        if getattr(model_plugin, "valid_for_cmb", True) and hasattr(model_plugin, "get_camb_params"):
+            model_rs_Mpc = compute_rs_from_plugin(model_plugin, cosmo_params)
+        else:
+            model_rs_Mpc = model_plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
         if not (np.isfinite(model_rs_Mpc) and model_rs_Mpc > 0):
-            logger.warning(f"Model '{model_name}' returned invalid r_s ({model_rs_Mpc:.3f} Mpc). BAO calculations will be NaN.")
+            logger.warning(
+                f"Model '{model_name}' returned invalid r_s ({model_rs_Mpc:.3f} Mpc). BAO calculations will be NaN."
+            )
             return bao_pred_df, np.nan, None
     except Exception as e:
         logger.error(f"Failed to calculate r_s for model '{model_name}': {e}", exc_info=True)

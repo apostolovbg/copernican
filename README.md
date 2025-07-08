@@ -1,4 +1,4 @@
-**Version:** 1.11.3
+**Version:** 1.11.4
 **Last Updated:** 2025-07-07
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -151,7 +151,9 @@ See `cosmo_model_guide.json` for a detailed template.
    parameters. This enables BAO and distance-based predictions.
 4. Optionally provide an `rs_expression` for the sound horizon at recombination
    or include the parameters `Ob`, `Og` and `z_recomb`. The suite will then
-   derive `r_s` automatically using a numerical integral.
+   derive `r_s` automatically using a numerical integral. When a model also
+   defines a `cmb.param_map` the BAO module evaluates `r_s` through CAMB so the
+   same physics is used for both BAO and CMB predictions.
 5. Expressions may include `Integral(...)` terms. These are evaluated
    numerically with SciPy's `quad` when the model is loaded.
 6. Parameter initial guesses are calculated automatically as the midpoint of
