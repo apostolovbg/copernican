@@ -5,8 +5,8 @@
   "requirements": "Every cosmo_model JSON must include these top-level keys: model_name (string), version (string), description (string), abstract (string), parameters (array), equations (object). If you supply r_s, include rs_expression (string) and set predicts_bao to true. Models that support CMB predictions must provide a cmb.param_map describing how variables map to CAMB parameters. Set valid_for_cmb to false when a CMB spectrum is unavailable.",
   "parameter_definition": "The parameters array contains objects with these fields: name (human-readable string), python_var (valid Python identifier), bounds ([min, max]), and optional unit (string) and latex_name (string).  All symbols used in Hz_expression and rs_expression must be declared here.  To define a fixed constant (e.g. c), give identical bounds. Parameter latex_name values are automatically wrapped in math mode when displayed.",
   "expressions": {
-    "Hz_expression": "A Python-syntax string for H(z), referencing only declared parameters and the variable z.  Use numeric operations and functions exp(), cos(), log(), sqrt().  Do not use Python lists or comments.",
-    "rs_expression": "A Python-syntax string for the sound horizon r_s at drag epoch.  It may reference only declared parameters (no z).  If omitted or if predicts_bao=false, BAO predictions are disabled."
+    "Hz_expression": "A LaTeX math expression for H(z). Include explicit * for multiplication and use only declared parameters and z.",
+    "rs_expression": "A LaTeX expression for the sound horizon r_s. Reference only declared parameters (no z). If omitted or predicts_bao=false, BAO predictions are disabled."
   },
   "display_equations": {
     "sne": [
@@ -46,7 +46,7 @@
         "latex_name": "\\Omega_{m0}"
       }
     ],
-    "Hz_expression": "H0 * sqrt(Omega_m0*(1+z)**3 + /* additional model terms */)",
+    "Hz_expression": "$$H(z) = H_0 * \\sqrt{\\Omega_{m0}*(1+z)^3 + /* additional model terms */}$$",
     "equations": {
       "sne": [
         "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",

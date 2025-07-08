@@ -5,6 +5,7 @@
 # NumPy-friendly functions.
 
 import json
+import re
 from pathlib import Path
 import sympy as sp
 import numpy as np
@@ -27,6 +28,53 @@ class QuadPrinter(NumPyPrinter):
         b_code = self._print(b)
         integrand_code = self._print(integrand)
         return f"quad(lambda {var_code}: {integrand_code}, {a_code}, {b_code})[0]"
+
+
+def _latex_to_sympy_str(expr: str) -> str:
+    """Convert a LaTeX-style expression to a SymPy-friendly string."""
+    expr = expr.strip()
+    if expr.startswith("$$") and expr.endswith("$$"):
+        expr = expr[2:-2]
+    if "=" in expr:
+        expr = expr.split("=", 1)[1]
+
+    replacements = [
+        (r"\\left", ""),
+        (r"\\right", ""),
+        (r"\\Omega_{m0}", "Omega_m0"),
+        (r"\\Omega_{b0}", "Omega_b0"),
+        (r"\\Omega_{r0}", "Omega_r0"),
+        (r"\\alpha", "alpha"),
+        (r"\\beta", "beta"),
+        (r"\\gamma", "gamma"),
+        (r"\\omega", "omega"),
+        (r"\\phi", "phi"),
+        (r"\\tau", "tau"),
+    ]
+    for pat, repl in replacements:
+        expr = re.sub(pat, repl, expr)
+
+    func_replacements = {
+        r"\\log": "log",
+        r"\\ln": "log",
+        r"\\exp": "exp",
+        r"\\sin": "sin",
+        r"\\cos": "cos",
+        r"\\tan": "tan",
+        r"\\sqrt": "sqrt",
+    }
+    for pat, repl in func_replacements.items():
+        expr = re.sub(pat, repl, expr)
+
+    while "\\frac" in expr:
+        expr = re.sub(r"\\frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1)/(\2)", expr)
+
+    expr = re.sub(r"_{([^{}]+)}", r"_\1", expr)
+    expr = re.sub(r"\^\{([^{}]+)\}", r"**(\1)", expr)
+    expr = re.sub(r"\^([\w\.]+)", r"**\1", expr)
+    expr = expr.replace("\\", "")
+    expr = expr.replace("{", "(").replace("}", ")")
+    return expr.strip()
 
 
 def _compile_sympy_expr(sym_expr, args):
@@ -75,7 +123,8 @@ def generate_callables(cache_path):
     hz_expr_str = model_data.get('Hz_expression')
     if hz_expr_str:
         try:
-            hz_sym = sp.sympify(hz_expr_str, locals=local_dict)
+            parsed_hz = _latex_to_sympy_str(hz_expr_str)
+            hz_sym = sp.sympify(parsed_hz, locals=local_dict)
             used_syms = {str(s) for s in hz_sym.free_symbols if s != z}
             param_names = {p['python_var'] for p in model_data['parameters']}
             missing = used_syms - param_names
@@ -142,7 +191,8 @@ def generate_callables(cache_path):
 
             if rs_expr_str:
                 try:
-                    rs_sym = sp.sympify(rs_expr_str, locals=local_dict)
+                    parsed_rs = _latex_to_sympy_str(rs_expr_str)
+                    rs_sym = sp.sympify(parsed_rs, locals=local_dict)
                     used = {str(s) for s in rs_sym.free_symbols} - {'z'}
                     missing_rs = used - param_names
                     if missing_rs:
