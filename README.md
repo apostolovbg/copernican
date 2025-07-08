@@ -1,4 +1,4 @@
-**Version:** 1.11.3
+**Version:** 1.11.4
 **Last Updated:** 2025-07-07
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -59,8 +59,9 @@ Under the hood the program follows a clear pipeline:
 6. **CMB Analysis** – CMB power spectra are generated using the fitted
    cosmological parameters **and** any extra CMB-specific values from a
    combined optimisation. The chi-squared contribution is then calculated.
-7. **Spectra Caching** – unlensed CAMB spectra are cached using parameter
-   keys rounded to six significant digits.
+7. **Spectra Caching** – lensed CAMB spectra are cached using parameter
+   keys rounded to six significant digits to ensure compatibility with the
+   Planck 2018 lite data.
 8. **Output Generation** – `copernican_lib/logger.py`, `copernican_lib/plotter.py` and `copernican_lib/csv_writer.py` handle logs, plots and tables.
 9. **Loop or Exit** – the user may evaluate another model or quit, at which
    point temporary cache files are cleaned automatically.
