@@ -68,7 +68,9 @@ Under the hood the program follows a clear pipeline:
 ## Quick Start
 1. Ensure Python 3.12 or later is available. The suite requires `numpy`, `scipy`,
    `matplotlib`, `pandas`, `sympy` and `jsonschema`. If any package is
-   missing the program will print the command to install them.
+   missing the program will print the command to install them. If you attempt
+   to run the suite with an older interpreter the launcher now prints an error
+   and exits immediately.
 2. Run `python3 copernican.py` and follow the prompts to choose a model,
    preferred data sources and computation engine.
 3. Execute `python3 copernican.py --run-tests` or run `python -m unittest discover`
@@ -81,6 +83,7 @@ Under the hood the program follows a clear pipeline:
 This project requires **Python 3.12 or later** and relies on `numpy`, `scipy`, `matplotlib`,
 `pandas`, `sympy`, `jsonschema` and `camb`. If any of these are missing the dependency check
 will print the full installation command `pip install numpy scipy matplotlib pandas sympy jsonschema camb`.
+Running under an older Python version will result in an immediate error and exit code 1.
 Future engines may also depend on `numba` or GPU libraries.
  
 ## Building & Installation

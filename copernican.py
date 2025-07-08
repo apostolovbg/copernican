@@ -14,6 +14,15 @@ import subprocess
 import time
 import argparse
 
+# Verify interpreter version early so users see clear feedback
+MIN_PYTHON = (3, 12)
+if sys.version_info < MIN_PYTHON:
+    print(
+        f"ERROR: Copernican Suite requires Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]} or later.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
 # Delay heavy third-party imports until after the dependency check
 np = None
 plt = None
