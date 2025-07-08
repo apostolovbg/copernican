@@ -1,7 +1,7 @@
 # Copernican Suite Architecture
 
 This short document explains the updated folder layout introduced in
-version 1.10.1-beta.  The `copernican_lib` package now collects all
+version 1.11.3.  The `copernican_lib` package now collects all
 reusable modules that were previously found under `scripts/`.  Engines
 and data parsers import utilities from this package so they can remain
 focused on numerical work.

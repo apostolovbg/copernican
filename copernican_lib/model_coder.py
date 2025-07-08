@@ -12,6 +12,7 @@ from scipy.integrate import quad
 import logging
 from sympy.printing.numpy import NumPyPrinter
 from . import error_handler
+from . import engine_interface
 
 
 class QuadPrinter(NumPyPrinter):
@@ -244,3 +245,5 @@ def generate_callables(cache_path):
         json.dump(model_data, f, indent=2)
 
     return funcs, model_data
+
+

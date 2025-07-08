@@ -28,7 +28,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.10.1-beta"
+COPERNICAN_VERSION = "1.11.3"
 
 # The high-level workflow is broken into small helper functions below. Each
 # helper is documented in plain language so non-programmers can follow the
@@ -406,7 +406,7 @@ def main_workflow():
                 
             return {'sne_fit_results': sne_fit_results, 'pred_df': pred_df, 'rs_Mpc': rs_Mpc, 'chi2_bao': chi2_bao, 'smooth_predictions': smooth_preds}
 
-        def run_cmb_analysis(cmb_df, model_plugin, cosmo_params):
+        def run_cmb_analysis(cmb_df, model_plugin, cosmo_params, cmb_extras=None):
             """Run CMB analysis for a given model."""
             # Skip the CMB step entirely when the model declares it is invalid
             # for such data. This prevents misleading chi-squared calculations
@@ -424,6 +424,11 @@ def main_workflow():
             # Convert the fitted cosmological parameters to CAMB's expected
             # dictionary format using the helper provided by the model plugin.
             camb_params = model_plugin.get_camb_params(cosmo_params)
+            # Append any additional CMB parameters recovered from a combined
+            # fit so that the theoretical spectrum reflects the actual
+            # optimisation result instead of falling back to defaults.
+            if cmb_extras:
+                camb_params.update(cmb_extras)
 
             components = ["TT"]
             if "Dl_te_obs" in cmb_df.columns:
@@ -432,12 +437,15 @@ def main_workflow():
                 components.append("EE")
 
             theory = cosmo_engine_selected.compute_cmb_spectrum(
-                camb_params, cmb_df['ell'].values, spectra=tuple(components)
+                camb_params,
+                cmb_df['ell'].values,
+                spectra=tuple(components),
             )
             chi2_val = cosmo_engine_selected.chi_squared_cmb(
                 cosmo_params,
                 cmb_df,
                 model_plugin,
+                cmb_extras,
             )
             logger.info(f"{model_plugin.MODEL_NAME} CMB chi2 = {chi2_val:.2f}")
             return {'chi2_cmb': chi2_val, 'theory_spectrum': theory}
@@ -451,11 +459,13 @@ def main_workflow():
             cmb_data_df,
             lcdm,
             list(lcdm_sne_fit_results['fitted_cosmological_params'].values()),
+            lcdm_sne_fit_results.get('fitted_cmb_params'),
         )
         alt_cmb = run_cmb_analysis(
             cmb_data_df,
             alt_model_plugin,
             list(alt_model_sne_fit_results['fitted_cosmological_params'].values()),
+            alt_model_sne_fit_results.get('fitted_cmb_params'),
         )
 
         logger.info("\n--- Stage 5: Generating Outputs ---")

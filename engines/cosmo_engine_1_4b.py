@@ -14,331 +14,15 @@ import sys
 import logging
 from copernican_lib import engine_interface
 from copernican_lib.optim_utils import minimize_with_progress
-
-# --- Constants for SNe H2-style (SALT2 nuisance parameter fitting) ---
-SALT2_NUISANCE_PARAMS_INIT = {
-    "M_B": -19.3,
-    "alpha_salt2": 0.14,
-    "beta_salt2": 3.1
-}
-SALT2_NUISANCE_PARAMS_BOUNDS = {
-    "M_B": (-20.5, -18.0),
-    "alpha_salt2": (-0.5, 0.5),
-    "beta_salt2": (0.0, 5.0)
-}
-SIGMA_INT_SQ_DEFAULT = 0.1**2
+from copernican_lib.chi2_helper import (
+    chi_squared_sne,
+    chi_squared_bao,
+    chi_squared_cmb,
+    compute_cmb_spectrum,
+)
 
 
-# ==============================================================================
-# --- CHI-SQUARED HELPER FUNCTIONS ---
-# ==============================================================================
 
-def chi_squared_sne_h1_fixed_nuisance(cosmo_params, mu_model_func, sne_data_df):
-    r"""
-    Calculates chi-squared for SNe Ia: H1-style (fixed nuisance).
-    This uses pre-calculated mu_obs and diagonal errors e_mu_obs.
-    $\chi^2 = \sum ((mu_data - mu_model) / e_mu_obs)^2$.
-    """
-    logger = logging.getLogger()
-    if not all(col in sne_data_df.columns for col in ['zcmb', 'mu_obs', 'e_mu_obs']):
-        logger.error("(chi2_h1): sne_data_df missing required columns 'zcmb', 'mu_obs', 'e_mu_obs'.")
-        return np.inf
-
-    z_data = sne_data_df['zcmb'].values
-    mu_data = sne_data_df['mu_obs'].values
-    mu_err_diag = sne_data_df['e_mu_obs'].values
-
-    try:
-        mu_model = mu_model_func(z_data, *cosmo_params)
-    except Exception as e:
-        return np.inf # Fitter will handle this
-
-    if not isinstance(mu_model, np.ndarray) or mu_model.shape != mu_data.shape:
-        return np.inf
-    if np.any(~np.isfinite(mu_model)):
-        return np.inf
-
-    residuals = mu_data - mu_model
-    safe_mu_err = np.where(np.abs(mu_err_diag) < 1e-12, 1e-12, np.abs(mu_err_diag))
-    if np.any(safe_mu_err <= 0):
-        return np.inf
-
-    chi2 = np.sum((residuals / safe_mu_err)**2)
-    return chi2 if np.isfinite(chi2) else np.inf
-
-
-def chi_squared_sne_h2_salt2_fitting(params_full, mu_model_func, sne_data_df, num_cosmo_params):
-    r"""
-    Calculates chi-squared for SNe Ia: H2-style (SALT2 m_b, x1, c fitting).
-    """
-    logger = logging.getLogger()
-    req_cols = ['zcmb', 'mb', 'x1', 'c', 'e_mb', 'e_x1', 'e_c']
-    if not all(col in sne_data_df.columns for col in req_cols):
-        logger.error(f"(chi2_h2_salt2): sne_data_df missing one of required columns: {req_cols}.")
-        return np.inf
-
-    z_data = sne_data_df['zcmb'].values; mb_data = sne_data_df['mb'].values
-    x1_data = sne_data_df['x1'].values; c_data = sne_data_df['c'].values
-    err_mb_data = sne_data_df['e_mb'].values; err_x1_data = sne_data_df['e_x1'].values
-    err_c_data = sne_data_df['e_c'].values
-    
-    if not all(len(arr) == len(z_data) for arr in [mb_data,x1_data,c_data,err_mb_data,err_x1_data,err_c_data]):
-        logger.error("(chi2_h2_salt2): Data array length mismatch.")
-        return np.inf
-
-    cosmo_params = params_full[:num_cosmo_params]
-    M_B_fit, alpha_salt2_fit, beta_salt2_fit = params_full[num_cosmo_params : num_cosmo_params+3]
-
-    try:
-        mu_cosmo_model = mu_model_func(z_data, *cosmo_params)
-    except Exception:
-        return np.inf
-
-    if not isinstance(mu_cosmo_model, np.ndarray) or mu_cosmo_model.shape != z_data.shape or np.any(~np.isfinite(mu_cosmo_model)):
-        return np.inf
-
-    mb_model = M_B_fit - alpha_salt2_fit * x1_data + beta_salt2_fit * c_data + mu_cosmo_model
-    residuals = mb_data - mb_model
-    
-    sigma_eff_sq = (err_mb_data**2) + (alpha_salt2_fit * err_x1_data)**2 + (beta_salt2_fit * err_c_data)**2 + SIGMA_INT_SQ_DEFAULT
-    safe_sigma_eff_sq = np.where(sigma_eff_sq < 1e-12, 1e-12, sigma_eff_sq)
-    if np.any(safe_sigma_eff_sq <= 0): return np.inf
-        
-    chi2 = np.sum(residuals**2 / safe_sigma_eff_sq)
-    return chi2 if np.isfinite(chi2) else np.inf
-
-
-def chi_squared_sne_mu_covariance(cosmo_params, mu_model_func, sne_data_df):
-    r"""
-    Calculates chi-squared for SNe Ia: H2-style (mu_obs with full covariance matrix).
-    """
-    logger = logging.getLogger()
-    if not all(col in sne_data_df.columns for col in ['zcmb', 'mu_obs']):
-        logger.error("(chi2_mu_cov): sne_data_df missing 'zcmb' or 'mu_obs'.")
-        return np.inf
-    if 'covariance_matrix_inv' not in sne_data_df.attrs or sne_data_df.attrs['covariance_matrix_inv'] is None:
-        logger.error("(chi2_mu_cov): Inverse covariance matrix 'covariance_matrix_inv' missing.")
-        return np.inf
-
-    z_data = sne_data_df['zcmb'].values; mu_data = sne_data_df['mu_obs'].values
-    C_inv = sne_data_df.attrs['covariance_matrix_inv']
-
-    try:
-        mu_model = mu_model_func(z_data, *cosmo_params)
-    except Exception:
-        return np.inf
-
-    if not isinstance(mu_model, np.ndarray) or mu_model.shape != mu_data.shape or np.any(~np.isfinite(mu_model)):
-        return np.inf
-
-    residuals = (mu_data - mu_model).flatten()
-
-    try:
-        if C_inv.ndim != 2 or C_inv.shape[0] != C_inv.shape[1] or C_inv.shape[0] != len(residuals):
-            logger.error("(chi2_mu_cov): Covariance matrix dimension mismatch.")
-            return np.inf
-        
-        term1 = np.dot(residuals, C_inv)
-        chi2 = np.dot(term1, residuals)
-    except (LinAlgError, ValueError) as e: 
-        logger.warning(f"(chi2_mu_cov): Linear algebra error during chi2 calculation: {e}")
-        return np.inf
-        
-    return chi2 if np.isfinite(chi2) else np.inf
-
-
-def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
-    r"""
-    Calculates chi-squared for BAO data against model predictions.
-    """
-    logger = logging.getLogger()
-    engine_interface.validate_plugin(model_plugin)
-    if getattr(model_plugin, 'valid_for_bao', True) is False:
-        logger.warning("(chi2_bao): Model flagged as invalid for BAO. Skipping calculation.")
-        return np.inf
-    if bao_data_df is None or bao_data_df.empty:
-        logger.error("(chi2_bao): BAO data is empty.")
-        return np.inf
-    if not (np.isfinite(model_rs_Mpc) and model_rs_Mpc > 0):
-        return np.inf # Invalid r_s, cannot calculate chi2
-
-    total_chi2 = 0.0
-    num_valid_points = 0
-
-    try:
-        get_DM_model = getattr(model_plugin, "get_comoving_distance_Mpc")
-        get_Hz_model = getattr(model_plugin, "get_Hz_per_Mpc")
-        get_DV_model_specific = getattr(model_plugin, "get_DV_Mpc", None)
-        C_LIGHT = model_plugin.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458) 
-    except AttributeError as e:
-        logger.error(f"(chi2_bao): Model plugin '{model_plugin.MODEL_NAME}' missing required function: {e}")
-        return np.inf
-
-    for index, row in bao_data_df.iterrows():
-        z_val = row['redshift']
-        obs_type = row['observable_type']
-        obs_value = row['value']
-        obs_error = row['error']
-
-        if obs_error == 0 or not np.isfinite(obs_error) or obs_error < 1e-9: continue
-
-        model_pred_numerator = np.nan
-        try:
-            if obs_type == "DM_over_rs": 
-                model_pred_numerator = get_DM_model(z_val, *cosmo_params)
-            elif obs_type == "DH_over_rs":
-                hz_val = get_Hz_model(z_val, *cosmo_params)
-                if np.isfinite(hz_val) and abs(hz_val) > 1e-9:
-                    model_pred_numerator = C_LIGHT / hz_val
-            elif obs_type == "DV_over_rs": 
-                if get_DV_model_specific:
-                    model_pred_numerator = get_DV_model_specific(z_val, *cosmo_params)
-                else: # Fallback to calculating from DM and Hz
-                    dm_val = get_DM_model(z_val, *cosmo_params)
-                    hz_val = get_Hz_model(z_val, *cosmo_params)
-                    if np.isfinite(dm_val) and dm_val >=0 and np.isfinite(hz_val) and abs(hz_val) > 1e-9 and z_val > 1e-9:
-                        term_in_bracket = (dm_val**2) * C_LIGHT * z_val / hz_val
-                        model_pred_numerator = term_in_bracket**(1.0/3.0) if term_in_bracket >=0 else np.nan
-                    elif abs(z_val) < 1e-9 : model_pred_numerator = 0.0
-            else:
-                continue
-            
-            if not np.isfinite(model_pred_numerator): continue
-            
-            model_value_ratio = model_pred_numerator / model_rs_Mpc
-            total_chi2 += ((obs_value - model_value_ratio) / obs_error)**2
-            num_valid_points += 1
-        
-        except Exception:
-            continue
-            
-    if num_valid_points == 0:
-        logger.warning("(chi2_bao): No valid BAO points to calculate chi-squared.")
-        return np.inf
-        
-    return total_chi2 if np.isfinite(total_chi2) else np.inf
-
-
-def compute_cmb_spectrum(param_dict, ells, spectra=("TT",)):
-    """Return theoretical D_ell spectra using CAMB.
-
-    Parameters
-    ----------
-    param_dict : dict
-        Dictionary of CAMB parameters.
-    ells : array-like
-        Multipole moments to evaluate.
-    spectra : tuple of str, optional
-        Which spectra to return. Options include ``"TT"``, ``"TE"`` and
-        ``"EE"``. The default is ``("TT",)`` for backward compatibility.
-
-    Returns
-    -------
-    array or dict
-        If ``spectra`` contains a single entry, a NumPy array for that
-        component is returned. Otherwise a dictionary mapping component name
-        to its array is returned.
-    """
-    logger = logging.getLogger()
-    try:
-        H0 = float(param_dict.get("H0", 67.0))
-        ombh2 = float(param_dict.get("ombh2", 0.02237))
-        omch2 = float(param_dict.get("omch2", 0.12))
-        tau = float(param_dict.get("tau", 0.054))
-        As = float(param_dict.get("As", 2.1e-9))
-        ns = float(param_dict.get("ns", 0.965))
-        omnuh2 = float(param_dict.get("omnuh2", 0.0))
-    except Exception as exc:
-        logger.error(f"(compute_cmb_spectrum): Invalid parameter mapping: {exc}")
-        return np.full_like(ells, np.nan, dtype=float)
-
-    params = camb.CAMBparams()
-    params.set_cosmology(H0=H0, ombh2=ombh2, omch2=omch2, tau=tau)
-    # CAMB does not accept ``omnuh2`` directly in ``set_cosmology`` so assign
-    # it explicitly on the params object after calling the routine.
-    params.omnuh2 = omnuh2
-    params.InitPower.set_params(As=As, ns=ns)
-    params.set_for_lmax(int(np.max(ells)) + 300, lens_potential_accuracy=0)
-    try:
-        results = camb.get_results(params)
-        # Obtain unlensed D_\ell spectra directly in \u03bcK^2
-        full_dls = results.get_unlensed_scalar_cls(
-            lmax=int(np.max(ells)), CMB_unit="muK"
-        )
-
-        ell_arr = np.asarray(ells, dtype=int)
-
-        result = {}
-        if "TT" in spectra:
-            result["TT"] = full_dls[ell_arr, 0]
-        if "EE" in spectra:
-            result["EE"] = full_dls[ell_arr, 1]
-        if "TE" in spectra:
-            result["TE"] = full_dls[ell_arr, 3]
-
-        if len(result) == 1:
-            return next(iter(result.values()))
-        return result
-    except Exception as exc:
-        logger.error(f"(compute_cmb_spectrum): CAMB failed: {exc}")
-        return np.full_like(ells, np.nan, dtype=float)
-
-
-def chi_squared_cmb(cosmo_params, cmb_data_df, plugin=None, extra_params=None):
-    """Calculate chi-squared for CMB data using full covariance.
-
-    Parameters
-    ----------
-    cosmo_params : sequence or dict
-        Cosmological parameter vector or direct CAMB parameter dictionary.
-    cmb_data_df : DataFrame
-        Observed CMB spectrum with inverse covariance attached.
-    plugin : object, optional
-        Model plugin providing ``get_camb_params``.  When ``None`` the
-        ``cosmo_params`` argument must already be a CAMB parameter mapping.
-    extra_params : dict, optional
-        Additional CAMB parameters to merge into the evaluation.
-    """
-    logger = logging.getLogger()
-    if cmb_data_df is None or cmb_data_df.empty:
-        logger.error("(chi2_cmb): CMB data is empty.")
-        return np.inf
-    if 'covariance_matrix_inv' not in cmb_data_df.attrs:
-        logger.error("(chi2_cmb): Inverse covariance matrix missing in attrs.")
-        return np.inf
-
-    ells = cmb_data_df['ell'].values
-    obs = cmb_data_df['Dl_obs'].values
-
-    if plugin is not None:
-        try:
-            param_dict = plugin.get_camb_params(cosmo_params)
-        except Exception as exc:
-            logger.error(f"(chi2_cmb): failed to map parameters: {exc}")
-            return np.inf
-    else:
-        if isinstance(cosmo_params, dict):
-            param_dict = dict(cosmo_params)
-        else:
-            names = cmb_data_df.attrs.get('param_names', [])
-            param_dict = {n: v for n, v in zip(names, cosmo_params)}
-
-    if extra_params:
-        param_dict.update(extra_params)
-
-    th = compute_cmb_spectrum(param_dict, ells, spectra=("TT",))
-    if th.shape != obs.shape or np.any(~np.isfinite(th)):
-        return np.inf
-
-    resid = obs - th
-    C_inv = cmb_data_df.attrs['covariance_matrix_inv']
-    try:
-        chi2 = float(resid @ C_inv @ resid)
-    except Exception as exc:
-        logger.error(f"(chi2_cmb): Linear algebra failure: {exc}")
-        return np.inf
-
-    return chi2 if np.isfinite(chi2) else np.inf
 
 
 # ==============================================================================
@@ -346,74 +30,31 @@ def chi_squared_cmb(cosmo_params, cmb_data_df, plugin=None, extra_params=None):
 # ==============================================================================
 
 def fit_sne_parameters(sne_data_df, model_plugin):
-    """
-    Fits cosmological (and optionally SNe nuisance) parameters to SNe Ia data.
-    """
+    """Fit cosmological parameters to SNe Ia data."""
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)
-    fit_style = sne_data_df.attrs.get('fit_style', 'unknown')
     dataset_name = sne_data_df.attrs.get('dataset_name_attr', 'UnknownSNeDataset')
     model_name_str = getattr(model_plugin, 'MODEL_NAME', 'UnknownModel')
 
-    logger.info(f"\n--- Fitting SNe Ia ({dataset_name}, Style: {fit_style}) for Model: {model_name_str} ---")
+    logger.info(f"\n--- Fitting SNe Ia ({dataset_name}) for Model: {model_name_str} ---")
 
-    cosmo_param_names = getattr(model_plugin, 'PARAMETER_NAMES', [])
-    initial_cosmo_params = list(getattr(model_plugin, 'INITIAL_GUESSES', []))
-    cosmo_param_bounds = list(getattr(model_plugin, 'PARAMETER_BOUNDS', []))
-    num_cosmo_params = len(initial_cosmo_params)
+    names = getattr(model_plugin, 'PARAMETER_NAMES', [])
+    initial = list(getattr(model_plugin, 'INITIAL_GUESSES', []))
+    bounds = list(getattr(model_plugin, 'PARAMETER_BOUNDS', []))
 
-    if not (cosmo_param_names and initial_cosmo_params and cosmo_param_bounds and len(cosmo_param_names) == num_cosmo_params and len(cosmo_param_bounds) == num_cosmo_params):
+    if not (names and initial and bounds and len(names) == len(initial) == len(bounds)):
         logger.error(f"Model plugin {model_name_str} missing or has inconsistent parameter definitions.")
-        return {'success': False, 'message': "Model parameter definition error.", 'chi2_min': np.inf}
+        return {'success': False, 'message': 'Model parameter definition error.', 'chi2_min': np.inf}
 
-    logger.info(f"Using standard Python (SciPy) function for '{model_name_str}'.")
-    selected_mu_func = model_plugin.distance_modulus_model
-
-    current_initial_params = list(initial_cosmo_params)
-    current_param_bounds = list(cosmo_param_bounds)
-    chi2_function_to_call = None
-    args_for_chi2_func = ()
-    
-    fit_nuisance_params_flag = sne_data_df.attrs.get('fit_nuisance_params', False)
-
-    if fit_style == 'h2_fit_nuisance' and fit_nuisance_params_flag:
-        logger.info("Fitting cosmological parameters + SNe nuisance parameters (M_B, alpha, beta).")
-        chi2_function_to_call = chi_squared_sne_h2_salt2_fitting
-        
-        current_initial_params.extend([SALT2_NUISANCE_PARAMS_INIT["M_B"], SALT2_NUISANCE_PARAMS_INIT["alpha_salt2"], SALT2_NUISANCE_PARAMS_INIT["beta_salt2"]])
-        current_param_bounds.extend([SALT2_NUISANCE_PARAMS_BOUNDS["M_B"], SALT2_NUISANCE_PARAMS_BOUNDS["alpha_salt2"], SALT2_NUISANCE_PARAMS_BOUNDS["beta_salt2"]])
-        args_for_chi2_func = (selected_mu_func, sne_data_df, num_cosmo_params)
-        
-    elif fit_style == 'h2_mu_covariance' and sne_data_df.attrs.get('covariance_matrix_inv') is not None:
-        logger.info("Fitting cosmological parameters using mu_obs with full covariance matrix.")
-        chi2_function_to_call = chi_squared_sne_mu_covariance
-        args_for_chi2_func = (selected_mu_func, sne_data_df)
-        
-    elif fit_style == 'h1_fixed_nuisance' or (fit_style == 'h2_mu_covariance' and sne_data_df.attrs.get('covariance_matrix_inv') is None):
-        if fit_style == 'h2_mu_covariance':
-            logger.warning("Covariance matrix not available/invertible. Falling back to diagonal errors.")
-        else:
-            logger.info("Fitting cosmological parameters using mu_obs with diagonal errors (H1-style).")
-        chi2_function_to_call = chi_squared_sne_h1_fixed_nuisance
-        args_for_chi2_func = (selected_mu_func, sne_data_df)
-    else:
-        message = f"Error: Undetermined SNe fitting type or inconsistent data attributes for fit_style '{fit_style}'."
-        logger.error(message)
-        return {'success': False, 'message': message, 'chi2_min': np.inf, 'model_name': model_name_str}
-
-    # Avoid deprecated 'disp' option in SciPy 1.10+. Default settings already
-    # suppress solver output, so we omit 'disp' entirely.
     options = {'maxiter': 2000, 'ftol': 1e-10, 'gtol': 1e-7, 'eps': 1e-9}
 
-    logger.info(
-        f"Starting SNe optimization for {model_name_str} using {len(current_initial_params)} parameters..."
-    )
+    logger.info(f"Starting SNe optimization for {model_name_str} using {len(initial)} parameters...")
 
     result_obj, eval_total, best_chi2_so_far, best_params_so_far = minimize_with_progress(
-        chi2_function_to_call,
-        current_initial_params,
-        bounds=current_param_bounds,
-        args=args_for_chi2_func,
+        chi_squared_sne,
+        initial,
+        bounds=bounds,
+        args=(model_plugin.distance_modulus_model, sne_data_df),
         options=options,
         label="SNe Fit",
     )
@@ -426,54 +67,34 @@ def fit_sne_parameters(sne_data_df, model_plugin):
     else:
         final_params = np.array(best_params_so_far)
         final_chi2 = best_chi2_so_far
-        message = "Optimizer failed or did not improve; using best parameters found during search."
+        message = "Optimizer failed or did not improve"
         if result_obj and hasattr(result_obj, 'message') and result_obj.message:
-             message += f" (Optimizer msg: {result_obj.message})"
+            message += f" (Optimizer msg: {result_obj.message})"
         success_flag = np.isfinite(final_chi2)
 
     fitted_cosmo_params_dict = None
-    fitted_nuisance_params_dict = None
-    
-    if np.isfinite(final_chi2):
-        fitted_cosmo_values = final_params[:num_cosmo_params]
-        fitted_cosmo_params_dict = {name: val for name, val in zip(cosmo_param_names, fitted_cosmo_values)}
 
-        if fit_nuisance_params_flag and len(final_params) == num_cosmo_params + 3:
-            M_B_f, alpha_s2_f, beta_s2_f = final_params[num_cosmo_params:]
-            fitted_nuisance_params_dict = {"M_B": M_B_f, "alpha_salt2": alpha_s2_f, "beta_salt2": beta_s2_f}
-        
-        num_data_points = len(sne_data_df)
-        num_params_fitted_total = len(final_params)
-        dof = num_data_points - num_params_fitted_total
+    if np.isfinite(final_chi2):
+        fitted_cosmo_params_dict = {n: v for n, v in zip(names, final_params)}
+        dof = len(sne_data_df) - len(final_params)
         reduced_chi2 = final_chi2 / dof if dof > 0 else np.nan
-        
-        logger.info(f"SNe Fitting Results for {model_name_str}:")
-        logger.info(f"  - Best-fit Cosmological Parameters:")
-        for name, val in fitted_cosmo_params_dict.items():
-            logger.info(f"    - {name}: {val:.5g}")
-        if fitted_nuisance_params_dict:
-            logger.info(f"  - Best-fit SNe Nuisance Parameters:")
-            for name, val in fitted_nuisance_params_dict.items():
-                logger.info(f"    - {name}: {val:.5g}")
-        logger.info(f"  - Final Chi-squared: {final_chi2:.4f}")
-        logger.info(f"  - Degrees of Freedom (DoF): {dof}")
-        logger.info(f"  - Reduced Chi-squared: {reduced_chi2:.4f}" if np.isfinite(reduced_chi2) else "N/A")
-        logger.info(f"  - Optimizer Success: {success_flag}, Message: {message}")
+        logger.info(f"SNe results for {model_name_str}: chi2={final_chi2:.4f}, DoF={dof}, reduced={reduced_chi2:.4f}")
     else:
-        logger.error(f"SNe Fitting for {model_name_str} FAILED catastrophically (Chi2 is Inf or NaN).")
-        dof = np.nan; reduced_chi2 = np.nan
+        logger.error(f"SNe fitting for {model_name_str} failed: chi2 is NaN/Inf")
+        dof = np.nan
+        reduced_chi2 = np.nan
 
     return {
         'model_name': model_name_str,
-        'fit_style_used': fit_style,
+        'fit_style_used': 'covariance' if sne_data_df.attrs.get('covariance_matrix_inv') is not None else 'diagonal',
         'fitted_cosmological_params': fitted_cosmo_params_dict,
-        'fitted_nuisance_params': fitted_nuisance_params_dict,
+        'fitted_nuisance_params': None,
         'chi2_min': final_chi2,
         'dof': dof,
         'reduced_chi2': reduced_chi2,
         'success': success_flag and np.isfinite(final_chi2),
         'message': message,
-        'n_evals_wrapper': eval_total
+        'n_evals_wrapper': eval_total,
     }
 
 
