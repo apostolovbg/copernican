@@ -303,6 +303,24 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
                 param_names.append(key)
     num_cmb_extra = len(cmb_extra_names)
 
+    # --- Optional Pre-fit: refine cosmological parameters using SNe only ---
+    if sne_data_df is not None:
+        logger.info("Running SNe pre-fit to obtain better starting values...")
+
+        def _chi2_sne_only(p):
+            return chi_squared_sne(p, model_plugin.distance_modulus_model, sne_data_df)
+
+        pre_res, _, pre_best, pre_params = minimize_with_progress(
+            _chi2_sne_only,
+            init_params[:num_cosmo_params],
+            bounds=bounds[:num_cosmo_params],
+            options={'maxiter': 300},
+            label='SNe Prefit',
+        )
+
+        if np.isfinite(pre_best):
+            init_params[:num_cosmo_params] = list(pre_params)
+
     logger.info(
         f"Starting combined optimization for {model_plugin.MODEL_NAME} using {len(init_params)} parameters..."
     )
