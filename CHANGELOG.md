@@ -4,6 +4,9 @@ Add one line for each substantive commit or pull request directly under the late
 ## Version 1.11.4
 - 2025-07-08: Expressions in all cosmo_model JSON files converted to LaTeX and parser updated (AI assistant)
 
+## Version 1.11.5
+- 2025-07-08: Added SNe pre-fit step to combined engine to improve convergence and updated documentation (AI assistant)
+
 ## Version 1.11.3
 - 2025-07-07: Fixed missing extra CMB parameters in run_cmb_analysis and bumped version (AI assistant)
 
