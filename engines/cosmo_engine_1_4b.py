@@ -19,7 +19,6 @@ from copernican_lib.chi2_helper import (
     chi_squared_bao,
     chi_squared_cmb,
     compute_cmb_spectrum,
-    compute_rs_from_plugin,
 )
 
 
@@ -119,14 +118,9 @@ def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params, z_smooth=
     logger.info(f"Calculating BAO observables for {model_name} with parameters: [{param_str}]")
 
     try:
-        if getattr(model_plugin, "valid_for_cmb", True) and hasattr(model_plugin, "get_camb_params"):
-            model_rs_Mpc = compute_rs_from_plugin(model_plugin, cosmo_params)
-        else:
-            model_rs_Mpc = model_plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
+        model_rs_Mpc = model_plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
         if not (np.isfinite(model_rs_Mpc) and model_rs_Mpc > 0):
-            logger.warning(
-                f"Model '{model_name}' returned invalid r_s ({model_rs_Mpc:.3f} Mpc). BAO calculations will be NaN."
-            )
+            logger.warning(f"Model '{model_name}' returned invalid r_s ({model_rs_Mpc:.3f} Mpc). BAO calculations will be NaN.")
             return bao_pred_df, np.nan, None
     except Exception as e:
         logger.error(f"Failed to calculate r_s for model '{model_name}': {e}", exc_info=True)

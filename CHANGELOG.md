@@ -1,9 +1,6 @@
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: please, always check what is the current date when you are logging last changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Use this template:
 
-## Version 1.11.4
-- 2025-07-08: BAO calculations now use CAMB to derive the sound horizon when a CMB parameter map is available (AI assistant)
-
 ## Version 1.11.3
 - 2025-07-07: Fixed missing extra CMB parameters in run_cmb_analysis and bumped version (AI assistant)
 
