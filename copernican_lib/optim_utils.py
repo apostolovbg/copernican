@@ -87,6 +87,11 @@ def minimize_with_progress(
         return val if np.isfinite(val) else 1e12
 
     result = None
+    if options is None:
+        options = {}
+    if 'eps' not in options:
+        eps = np.maximum(1e-8, np.abs(x0) * 1e-4)
+        options['eps'] = eps
     try:
         result = minimize(
             wrapped,
@@ -94,7 +99,7 @@ def minimize_with_progress(
             args=args,
             method=method,
             bounds=bounds,
-            options=options or {},
+            options=options,
         )
     except Exception as exc:  # pragma: no cover - hard to trigger in tests
         logger.error(f"Exception during {label.lower()} minimize call: {exc}", exc_info=True)
