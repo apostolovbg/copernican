@@ -1,5 +1,5 @@
 
-"""Parser for the Pantheon+ supernova sample."""
+"""Parser for the Pantheon+SH0ES 2022 supernova sample."""
 
 import os
 import pandas as pd
@@ -10,8 +10,8 @@ from copernican_lib.data_loaders import register_sne_parser
 
 
 @register_sne_parser(
-    "Pantheon+ dataset (distance modulus with covariance; SALT2 fixed)",
-    "Distance moduli using the published covariance matrix and fixed SALT2 parameters.",
+    "Pantheon+ 2022 (Scolnic et al.)",
+    "Pantheon+SH0ES supernova distances with the full covariance matrix.",
     data_dir=os.path.dirname(__file__),
 )
 def parse_pantheon_plus(data_dir, **kwargs):
@@ -87,6 +87,7 @@ def parse_pantheon_plus(data_dir, **kwargs):
             logger.warning("Could not invert Pantheon+ covariance matrix. Chi2 will fallback to diagonal errors.")
             output_df.attrs['covariance_matrix_inv'] = None
             output_df.attrs['diag_errors_for_plot'] = output_df['e_mu_obs'].values
+        output_df.attrs['dataset_name_attr'] = 'PantheonPlus2022'
         return output_df
     except Exception as e:
         logger.error(f"Error processing Pantheon+ data: {e}", exc_info=True); return None

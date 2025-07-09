@@ -223,11 +223,8 @@ def plot_hubble_diagram(
     )
 
     footer = (
-        f"\u039bCDM against {alt_model_plugin.MODEL_NAME} "
-        f"{alt_model_plugin.MODEL_FILENAME}, {dataset_name}, "
-        f"{sne_data_df.attrs.get('source_key')}, "
-        f"created with Copernican Suite {COPERNICAN_VERSION}, "
-        f"{get_timestamp()}"
+        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | {dataset_name} | "
+        f"Copernican Suite {COPERNICAN_VERSION} | {get_timestamp()}"
     )
     fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"])
 
@@ -363,11 +360,8 @@ def plot_bao_observables(
     )
 
     footer = (
-        f"\u039bCDM against {alt_model_plugin.MODEL_NAME} "
-        f"{alt_model_plugin.MODEL_FILENAME}, {dataset_name}, "
-        f"{sne_data_df.attrs.get('source_key')}, "
-        f"created with Copernican Suite {COPERNICAN_VERSION}, "
-        f"{get_timestamp()}"
+        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | {dataset_name} | "
+        f"Copernican Suite {COPERNICAN_VERSION} | {get_timestamp()}"
     )
     fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"])
 
@@ -612,10 +606,8 @@ def plot_cmb_spectrum(
     )
 
     footer = (
-        f"\u039bCDM against {alt_model_plugin.MODEL_NAME} "
-        f"{alt_model_plugin.MODEL_FILENAME}, {dataset_name}, "
-        f"created with Copernican Suite {COPERNICAN_VERSION}, "
-        f"{get_timestamp()}"
+        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | {dataset_name} | "
+        f"Copernican Suite {COPERNICAN_VERSION} | {get_timestamp()}"
     )
     fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"])
 
