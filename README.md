@@ -45,14 +45,17 @@ Under the hood the program follows a clear pipeline:
 2. **Initialization** – the output directory is created and logging begins.
 3. **Configuration** – the user chooses a model and a computation engine
    from `./engines/`.  The default `cosmo_engine_1_4b.py` performs an
-   SNe-only fit, while `cosmo_engine_comb.py` performs a true joint optimisation
+   SNe-only fit. `cosmo_engine_comb.py` first refines the cosmological
+   parameters using SNe data before launching a full joint optimisation
    across SNe, BAO and CMB, including optional SALT2 nuisance parameters when
    available. Constant values in a model's `cmb.param_map` are treated as
    additional fit parameters so CMB spectra can be matched precisely. Data parsers are discovered automatically under
    `data/<type>/<source>` and models are loaded from `cosmo_model_*.json`.
 4. **Parameter Fitting** – depending on the chosen engine either a pure
-   SNe fit is performed or a combined optimisation over all datasets.  Both
-   the ΛCDM reference and the alternative model are fitted in turn.
+   SNe fit is performed or a combined optimisation over all datasets.  For
+   the combined engine this optimisation begins with the SNe refinement
+   step described above. Both the ΛCDM reference and the alternative model
+   are fitted in turn.
 5. **BAO Analysis** – BAO observables are computed using the fitted
    parameters (from the combined fit if that engine was selected) and
    chi-squared statistics are reported.
@@ -300,9 +303,9 @@ altering `MAJOR.MINOR`.
     as expected. This flag performs unittest discovery over the `tests` package.
 3.  **Initialization**: The script starts and creates the `./output/` directory for all results.
 4.  **Configuration**: The user specifies the file paths for the model and data files.
-5.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data.
+5.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data. When `cosmo_engine_comb.py` is selected this step refines the parameters before the full joint optimisation.
 6.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
-7.  **CMB Analysis**: Each model's CMB spectrum is evaluated against the selected dataset.
+7.  **CMB Analysis**: Each model's CMB spectrum is evaluated against the selected dataset. The combined engine performs this after completing the joint optimisation.
 8.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots, tables and logs using a consistent format.
 9.  **Loop or Exit**: The user is prompted to run another evaluation or exit.
 
