@@ -4,7 +4,7 @@ Development notes were previously kept at the top of this file. That history now
 lives in `CHANGELOG.md`. New modifications must update the changelog, and legacy
 `dev_note` headers embedded in source files have been fully phased out.
 
-This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.11.5**.
+This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.11.7**.
 
 ## 1. Program Overview
 The helper modules previously stored under `scripts/` now live in the `copernican_lib/` package.
@@ -15,7 +15,7 @@ being prepared. Users interact with `copernican.py`, choose a model from
 sources. Parsers reside alongside their data. Results are saved under
 `./output/`.
 
-The default engine is `engines/cosmo_engine_1_4b.py`. All model plugins are validated
+The default engine is `engines/cosmo_engine_comb.py`. All model plugins are validated
 through `copernican_lib/engine_interface.py` before being passed to the engine. This
 ensures the expected functions are present and callable. Starting with
 version 1.11.4 the test suite no longer runs automatically. Execute

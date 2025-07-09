@@ -37,7 +37,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.11.5"
+COPERNICAN_VERSION = "1.11.7"
 
 # The high-level workflow is broken into small helper functions below. Each
 # helper is documented in plain language so non-programmers can follow the

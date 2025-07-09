@@ -6,8 +6,7 @@ from pathlib import Path
 import numpy as np
 
 from copernican_lib import model_parser, model_coder, engine_interface, data_loaders
-import engines.cosmo_engine_1_4b as engine
-import engines.cosmo_engine_comb as engine_comb
+import engines.cosmo_engine_comb as engine
 
 
 class FunctionalTestCase(unittest.TestCase):
@@ -66,7 +65,7 @@ class FunctionalTestCase(unittest.TestCase):
         cmb_df = cmb_df.head(10)
         cmb_df.attrs['covariance_matrix_inv'] = cmb_df.attrs['covariance_matrix_inv'][:10, :10]
 
-        result = engine_comb.fit_combined_parameters(sne_df, bao_df, cmb_df, self.plugin)
+        result = engine.fit_combined_parameters(sne_df, bao_df, cmb_df, self.plugin)
         self.assertTrue(result['success'])
         self.assertIn('chi2_total', result)
         self.assertTrue(np.isfinite(result['chi2_total']))
@@ -74,7 +73,7 @@ class FunctionalTestCase(unittest.TestCase):
     def test_chi_squared_cmb_planck2018lite(self):
         cmb_df = data_loaders.load_cmb_data('planck2018lite_v1')
         params = self.plugin.INITIAL_GUESSES
-        chi2 = engine_comb.chi_squared_cmb(params, cmb_df, self.plugin)
+        chi2 = engine.chi_squared_cmb(params, cmb_df, self.plugin)
         self.assertTrue(np.isfinite(chi2))
 
 
