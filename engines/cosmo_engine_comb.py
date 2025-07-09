@@ -11,12 +11,46 @@ correlations are treated consistently.
 
 import numpy as np
 from scipy.linalg import LinAlgError
-import camb
 from functools import lru_cache
+import subprocess
 import sys
 import logging
 from copernican_lib import engine_interface
 from copernican_lib.optim_utils import minimize_with_progress
+
+camb = None
+
+
+def _ensure_camb():
+    """Safely import CAMB or raise a helpful error message."""
+    global camb
+    if camb is not None:
+        return camb
+
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", "import camb"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            if "No module named" in result.stderr:
+                raise RuntimeError(
+                    "CAMB is not installed in this Python environment. "
+                    "Install it with 'pip install camb' (avoid pipx)."
+                )
+            raise RuntimeError(
+                "CAMB failed to import. The wheel may require CPU features "
+                "not supported on this system. Reinstall from source using "
+                "'pip install --no-binary=:all: camb'."
+            )
+
+        import camb as _camb
+        camb = _camb
+    except Exception as exc:  # pragma: no cover - platform specific
+        raise RuntimeError(f"CAMB not available: {exc}") from exc
+
+    return camb
 
 
 # ==============================================================================
@@ -152,6 +186,7 @@ def _cached_cmb(key):
     significant digits using ``float(f"{float(v):.6g}")``, the maximum
     multipole ``lmax`` and the requested spectra.
     """
+    _ensure_camb()
     _, param_tuple, lmax, spectra = key
     param_dict = dict(param_tuple)
     params = camb.CAMBparams()
@@ -191,6 +226,7 @@ def compute_cmb_spectrum_from_dict(param_dict, ells, spectra=("TT",)):
         Spectra to return (``"TT"``, ``"TE"`` and/or ``"EE"``).
     """
     logger = logging.getLogger()
+    _ensure_camb()
     try:
         key_tuple = tuple(
             (k, float(f"{float(v):.6g}")) for k, v in sorted(param_dict.items())
@@ -224,6 +260,7 @@ def compute_cmb_spectrum_cached(plugin, cosmo_params, ells, spectra=("TT",)):
         Spectra to return (``"TT"``, ``"TE"`` and/or ``"EE"``).
     """
     logger = logging.getLogger()
+    _ensure_camb()
     try:
         camb_params = plugin.get_camb_params(cosmo_params)
     except Exception as exc:
@@ -235,6 +272,7 @@ def compute_cmb_spectrum_cached(plugin, cosmo_params, ells, spectra=("TT",)):
 
 def compute_cmb_spectrum(param_dict, ells, spectra=("TT",)):
     """Backward compatible wrapper expecting a CAMB parameter dictionary."""
+    _ensure_camb()
     dummy = type(
         "_Dummy", (), {"MODEL_NAME": "direct", "get_camb_params": lambda self, _: param_dict}
     )()
@@ -244,6 +282,7 @@ def compute_cmb_spectrum(param_dict, ells, spectra=("TT",)):
 def chi_squared_cmb(cosmo_params, cmb_data_df, plugin, extra_params=None):
     """Calculate chi-squared for CMB data using full covariance."""
     logger = logging.getLogger()
+    _ensure_camb()
     if cmb_data_df is None or cmb_data_df.empty:
         logger.error("(chi2_cmb): CMB data is empty.")
         return np.inf
