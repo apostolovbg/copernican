@@ -1,4 +1,4 @@
-**Version:** 1.11.8
+**Version:** 1.11.9
 **Last Updated:** 2025-07-09
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -73,6 +73,9 @@ Under the hood the program follows a clear pipeline:
    missing the program will print the command to install them. If you attempt
    to run the suite with an older interpreter the launcher now prints an error
    and exits immediately.
+   The launcher also verifies that the optional `camb` library can be imported
+   in a subprocess. If this check fails (often due to missing CPU features) the
+   program will advise reinstalling CAMB from source and exit cleanly.
 2. Run `python3 copernican.py` and follow the prompts to choose a model,
    preferred data sources and computation engine.
 3. Execute `python3 copernican.py --run-tests` or run `python -m unittest discover`
@@ -85,6 +88,9 @@ Under the hood the program follows a clear pipeline:
 This project requires **Python 3.12 or later** and relies on `numpy`, `scipy`, `matplotlib`,
 `pandas`, `sympy`, `jsonschema` and `camb`. If any of these are missing the dependency check
 will print the full installation command `pip install numpy scipy matplotlib pandas sympy jsonschema camb`.
+On some older CPUs the precompiled CAMB wheel may trigger an `Illegal instruction`
+error. The program now detects this case and advises reinstalling CAMB using
+`pip install --no-binary=:all: camb`.
 Running under an older Python version will result in an immediate error and exit code 1.
 Future engines may also depend on `numba` or GPU libraries.
  
