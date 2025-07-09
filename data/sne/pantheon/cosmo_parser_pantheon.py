@@ -17,8 +17,19 @@ from copernican_lib.data_loaders import register_sne_parser
 def parse_pantheon_plus(data_dir, **kwargs):
     """Parse Pantheon+ data and its covariance matrix."""
     logger = logging.getLogger()
-    filepath = os.path.join(data_dir, "Pan.dat")
-    cov_filepath = os.path.join(data_dir, "Pancm.cov")
+    # Dynamically resolve the dataset file names so the parser does not
+    # depend on a specific release naming convention. Expect exactly one
+    # ``*.dat`` file for the supernova data and one ``*.cov`` file for the
+    # covariance matrix inside ``data_dir``.
+    dat_files = [f for f in os.listdir(data_dir) if f.lower().endswith('.dat')]
+    cov_files = [f for f in os.listdir(data_dir) if f.lower().endswith('.cov')]
+    if not dat_files or not cov_files:
+        logger.error("Pantheon+ directory must contain .dat and .cov files")
+        return None
+    if len(dat_files) > 1 or len(cov_files) > 1:
+        logger.warning("Multiple data/covariance files found; using first match")
+    filepath = os.path.join(data_dir, sorted(dat_files)[0])
+    cov_filepath = os.path.join(data_dir, sorted(cov_files)[0])
 
     try:
         temp_df = pd.read_csv(filepath, sep=r'\s+', engine='python', comment='#')
