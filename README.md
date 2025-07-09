@@ -1,4 +1,4 @@
-**Version:** 1.11.5
+**Version:** 1.11.6
 **Last Updated:** 2025-07-07
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -44,11 +44,10 @@ Under the hood the program follows a clear pipeline:
    prints a `pip install` command if any are missing.
 2. **Initialization** – the output directory is created and logging begins.
 3. **Configuration** – the user chooses a model and a computation engine
-   from `./engines/`.  The default `cosmo_engine_1_4b.py` performs an
-   SNe-only fit. `cosmo_engine_comb.py` first refines the cosmological
-   parameters using SNe data before launching a full joint optimisation
-   across SNe, BAO and CMB, including optional SALT2 nuisance parameters when
-   available. Constant values in a model's `cmb.param_map` are treated as
+   from `./engines/`.  The default `cosmo_engine_comb.py` performs a
+   combined optimisation across SNe, BAO and CMB, including optional
+   SALT2 nuisance parameters when available. Constant values in a model's
+   `cmb.param_map` are treated as
    additional fit parameters so CMB spectra can be matched precisely. Data parsers are discovered automatically under
    `data/<type>/<source>` and models are loaded from `cosmo_model_*.json`.
 4. **Parameter Fitting** – depending on the chosen engine either a pure
@@ -97,7 +96,7 @@ Run `pip install .` from the repository root to build and install the `copernica
 models/           - JSON model definitions containing all theory text and
                     equations. Optional `.md` files may provide human-readable
                     summaries but are not required.
-engines/          - Computational backends (e.g. `cosmo_engine_1_4b.py` for SNe-only fits and `cosmo_engine_comb.py` for combined fits)
+engines/          - Computational backends (e.g. `cosmo_engine_comb.py` for combined fits)
 data/             - Observation data organized as ``data/<type>/<source>/``
   cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance
                          (binary Fortran matrix)
@@ -128,7 +127,7 @@ invokes its functions. New engines can therefore implement alternate strategies
 rest of the codebase.
 Generic chi-squared helpers now live in `copernican_lib/chi2_helper.py`, keeping `model_coder.py` focused on translating models.
 
-`cosmo_engine_1_4b.chi_squared_cmb` now accepts either a plugin and parameter
+The helper `chi_squared_cmb` now accepts either a plugin and parameter
 vector or a ready CAMB dictionary. This flexibility lets future engines reuse
 the same CMB calculation regardless of their own fitting scheme.
 
