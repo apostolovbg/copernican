@@ -1,6 +1,9 @@
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: please, always check what is the current date when you are logging last changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Use this template:
 
+## Version 1.11.7
+- 2025-07-09: Moved chi-squared helpers back into the engine and removed chi2_helper module (AI assistant)
+
 ## Version 1.11.6
 - 2025-07-09: Removed deprecated 1.4b and numba engines and set combined engine as default (AI assistant)
 

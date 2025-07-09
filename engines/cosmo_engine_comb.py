@@ -17,16 +17,132 @@ import sys
 import logging
 from copernican_lib import engine_interface
 from copernican_lib.optim_utils import minimize_with_progress
-from copernican_lib.chi2_helper import (
-    chi_squared_sne,
-    chi_squared_bao,
-    chi_squared_cmb,
-    compute_cmb_spectrum,
-)
 
 
+# ==============================================================================
+# --- CHI-SQUARED HELPER FUNCTIONS ---
+# ==============================================================================
 
 
+def chi_squared_sne(cosmo_params, mu_model_func, sne_data_df):
+    """Calculate chi-squared for supernovae Ia distance modulus data."""
+    logger = logging.getLogger()
+    if not all(col in sne_data_df.columns for col in ("zcmb", "mu_obs")):
+        logger.error("SNe DataFrame missing required columns 'zcmb' or 'mu_obs'.")
+        return np.inf
+
+    z_data = sne_data_df["zcmb"].values
+    mu_obs = sne_data_df["mu_obs"].values
+
+    try:
+        mu_model = mu_model_func(z_data, *cosmo_params)
+    except Exception:
+        return np.inf
+
+    if (
+        not isinstance(mu_model, np.ndarray)
+        or mu_model.shape != mu_obs.shape
+        or np.any(~np.isfinite(mu_model))
+    ):
+        return np.inf
+
+    resid = mu_obs - mu_model
+    C_inv = sne_data_df.attrs.get("covariance_matrix_inv")
+
+    if C_inv is not None:
+        try:
+            if C_inv.shape[0] != len(resid):
+                logger.error("Covariance matrix dimension mismatch for SNe data.")
+                return np.inf
+            chi2 = float(resid @ C_inv @ resid)
+        except Exception as exc:
+            logger.warning(
+                f"Falling back to diagonal errors due to covariance issue: {exc}"
+            )
+            C_inv = None
+
+    if C_inv is None:
+        if "e_mu_obs" not in sne_data_df.columns:
+            logger.error("No diagonal errors available for SNe data.")
+            return np.inf
+        err = sne_data_df["e_mu_obs"].values
+        err = np.where(err <= 0, 1e-12, err)
+        chi2 = np.sum((resid / err) ** 2)
+
+    return chi2 if np.isfinite(chi2) else np.inf
+
+
+def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
+    """Return chi-squared for BAO observables."""
+    logger = logging.getLogger()
+    engine_interface.validate_plugin(model_plugin)
+    if getattr(model_plugin, "valid_for_bao", True) is False:
+        logger.warning("(chi2_bao): Model flagged as invalid for BAO. Skipping calculation.")
+        return np.inf
+    if bao_data_df is None or bao_data_df.empty:
+        logger.error("(chi2_bao): BAO data is empty.")
+        return np.inf
+    if not (np.isfinite(model_rs_Mpc) and model_rs_Mpc > 0):
+        return np.inf
+
+    total = 0.0
+    n_valid = 0
+
+    try:
+        get_DM = getattr(model_plugin, "get_comoving_distance_Mpc")
+        get_Hz = getattr(model_plugin, "get_Hz_per_Mpc")
+        get_DV = getattr(model_plugin, "get_DV_Mpc", None)
+        C_LIGHT = model_plugin.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458)
+    except AttributeError as e:
+        logger.error(f"(chi2_bao): Model plugin missing required function: {e}")
+        return np.inf
+
+    for _, row in bao_data_df.iterrows():
+        z_val = row["redshift"]
+        obs_type = row["observable_type"]
+        obs_val = row["value"]
+        obs_err = row["error"]
+
+        if obs_err == 0 or not np.isfinite(obs_err) or obs_err < 1e-9:
+            continue
+
+        mod_num = np.nan
+        try:
+            if obs_type == "DM_over_rs":
+                mod_num = get_DM(z_val, *cosmo_params)
+            elif obs_type == "DH_over_rs":
+                hz_val = get_Hz(z_val, *cosmo_params)
+                if np.isfinite(hz_val) and abs(hz_val) > 1e-9:
+                    mod_num = C_LIGHT / hz_val
+            elif obs_type == "DV_over_rs":
+                if get_DV:
+                    mod_num = get_DV(z_val, *cosmo_params)
+                else:
+                    dm_val = get_DM(z_val, *cosmo_params)
+                    hz_val = get_Hz(z_val, *cosmo_params)
+                    if (
+                        np.isfinite(dm_val)
+                        and dm_val >= 0
+                        and np.isfinite(hz_val)
+                        and abs(hz_val) > 1e-9
+                        and z_val > 1e-9
+                    ):
+                        term = (dm_val ** 2) * C_LIGHT * z_val / hz_val
+                        mod_num = term ** (1.0 / 3.0) if term >= 0 else np.nan
+                    elif abs(z_val) < 1e-9:
+                        mod_num = 0.0
+        except Exception:
+            continue
+
+        if np.isfinite(mod_num):
+            total += ((obs_val - mod_num / model_rs_Mpc) / obs_err) ** 2
+            n_valid += 1
+
+    if n_valid == 0:
+        logger.warning("(chi2_bao): No valid BAO points to calculate chi-squared.")
+        return np.inf
+
+    return total if np.isfinite(total) else np.inf
 
 @lru_cache(maxsize=128)
 def _cached_cmb(key):
@@ -209,71 +325,71 @@ def chi_squared_combined(
 # ==============================================================================
 
 
-    def fit_sne_parameters(sne_data_df, model_plugin):
-        """Fit cosmological parameters to SNe Ia data."""
-        logger = logging.getLogger()
-        engine_interface.validate_plugin(model_plugin)
-        dataset_name = sne_data_df.attrs.get('dataset_name_attr', 'UnknownSNeDataset')
-        model_name_str = getattr(model_plugin, 'MODEL_NAME', 'UnknownModel')
+def fit_sne_parameters(sne_data_df, model_plugin):
+    """Fit cosmological parameters to SNe Ia data."""
+    logger = logging.getLogger()
+    engine_interface.validate_plugin(model_plugin)
+    dataset_name = sne_data_df.attrs.get('dataset_name_attr', 'UnknownSNeDataset')
+    model_name_str = getattr(model_plugin, 'MODEL_NAME', 'UnknownModel')
 
-        logger.info(f"\n--- Fitting SNe Ia ({dataset_name}) for Model: {model_name_str} ---")
+    logger.info(f"\n--- Fitting SNe Ia ({dataset_name}) for Model: {model_name_str} ---")
 
-        names = getattr(model_plugin, 'PARAMETER_NAMES', [])
-        initial = list(getattr(model_plugin, 'INITIAL_GUESSES', []))
-        bounds = list(getattr(model_plugin, 'PARAMETER_BOUNDS', []))
+    names = getattr(model_plugin, 'PARAMETER_NAMES', [])
+    initial = list(getattr(model_plugin, 'INITIAL_GUESSES', []))
+    bounds = list(getattr(model_plugin, 'PARAMETER_BOUNDS', []))
 
-        if not (names and initial and bounds and len(names) == len(initial) == len(bounds)):
-            logger.error(f"Model plugin {model_name_str} missing or has inconsistent parameter definitions.")
-            return {'success': False, 'message': 'Model parameter definition error.', 'chi2_min': np.inf}
+    if not (names and initial and bounds and len(names) == len(initial) == len(bounds)):
+        logger.error(f"Model plugin {model_name_str} missing or has inconsistent parameter definitions.")
+        return {'success': False, 'message': 'Model parameter definition error.', 'chi2_min': np.inf}
 
-        options = {'maxiter': 2000, 'ftol': 1e-10, 'gtol': 1e-7, 'eps': 1e-9}
-        logger.info(f"Starting SNe optimization for {model_name_str} using {len(initial)} parameters...")
+    options = {'maxiter': 2000, 'ftol': 1e-10, 'gtol': 1e-7, 'eps': 1e-9}
+    logger.info(f"Starting SNe optimization for {model_name_str} using {len(initial)} parameters...")
 
-        result_obj, eval_total, best_chi2, best_params = minimize_with_progress(
-            chi_squared_sne,
-            initial,
-            bounds=bounds,
-            args=(model_plugin.distance_modulus_model, sne_data_df),
-            options=options,
-            label='SNe Fit',
-        )
+    result_obj, eval_total, best_chi2, best_params = minimize_with_progress(
+        chi_squared_sne,
+        initial,
+        bounds=bounds,
+        args=(model_plugin.distance_modulus_model, sne_data_df),
+        options=options,
+        label='SNe Fit',
+    )
 
-        if result_obj and result_obj.success and np.isfinite(result_obj.fun):
-            final_params = result_obj.x
-            final_chi2 = result_obj.fun
-            message = result_obj.message
-            success = True
-        else:
-            final_params = np.array(best_params)
-            final_chi2 = best_chi2
-            message = 'Optimizer failed or did not improve'
-            if result_obj and hasattr(result_obj, 'message') and result_obj.message:
-                message += f" (Optimizer msg: {result_obj.message})"
-            success = np.isfinite(final_chi2)
+    if result_obj and result_obj.success and np.isfinite(result_obj.fun):
+        final_params = result_obj.x
+        final_chi2 = result_obj.fun
+        message = result_obj.message
+        success = True
+    else:
+        final_params = np.array(best_params)
+        final_chi2 = best_chi2
+        message = 'Optimizer failed or did not improve'
+        if result_obj and hasattr(result_obj, 'message') and result_obj.message:
+            message += f" (Optimizer msg: {result_obj.message})"
+        success = np.isfinite(final_chi2)
 
-        if np.isfinite(final_chi2):
-            fitted = {n: v for n, v in zip(names, final_params)}
-            dof = len(sne_data_df) - len(final_params)
-            red = final_chi2 / dof if dof > 0 else np.nan
-        else:
-            fitted = None
-            dof = np.nan
-            red = np.nan
+    if np.isfinite(final_chi2):
+        fitted = {n: v for n, v in zip(names, final_params)}
+        dof = len(sne_data_df) - len(final_params)
+        red = final_chi2 / dof if dof > 0 else np.nan
+    else:
+        fitted = None
+        dof = np.nan
+        red = np.nan
 
-        return {
-            'model_name': model_name_str,
-            'fit_style_used': 'covariance' if sne_data_df.attrs.get('covariance_matrix_inv') is not None else 'diagonal',
-            'fitted_cosmological_params': fitted,
-            'fitted_nuisance_params': None,
+    return {
+        'model_name': model_name_str,
+        'fit_style_used': 'covariance' if sne_data_df.attrs.get('covariance_matrix_inv') is not None else 'diagonal',
+        'fitted_cosmological_params': fitted,
+        'fitted_nuisance_params': None,
 
-            'chi2_min': final_chi2,
-            'dof': dof,
-            'reduced_chi2': red,
-            'success': success and np.isfinite(final_chi2),
-            'message': message,
-            'n_evals_wrapper': eval_total,
+        'chi2_min': final_chi2,
+        'dof': dof,
+        'reduced_chi2': red,
+        'success': success and np.isfinite(final_chi2),
+        'message': message,
+        'n_evals_wrapper': eval_total,
 
-        }
+    }
 def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin):
     r"""Fit a model to SNe, BAO and CMB simultaneously."""
     logger = logging.getLogger()
