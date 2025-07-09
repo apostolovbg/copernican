@@ -66,7 +66,6 @@
       "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
     ]
   },
-  "rs_expression": "$$r_s = 44.5 * \\ln\\left(\\frac{9.83}{\\Omega_{m0}*(H0/100)^2}\\right) / \\sqrt{1 + 10*(\\Omega_{b0}*(H0/100)^2)^{0.75}}$$",
   "predicts_bao": true,
   "valid_for_cmb": true,
   "cmb": {

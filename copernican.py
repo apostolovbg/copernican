@@ -14,6 +14,15 @@ import subprocess
 import time
 import argparse
 
+# Verify interpreter version early so users see clear feedback
+MIN_PYTHON = (3, 12)
+if sys.version_info < MIN_PYTHON:
+    print(
+        f"ERROR: Copernican Suite requires Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]} or later.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
 # Delay heavy third-party imports until after the dependency check
 np = None
 plt = None
@@ -28,7 +37,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.11.4"
+COPERNICAN_VERSION = "1.11.5"
 
 # The high-level workflow is broken into small helper functions below. Each
 # helper is documented in plain language so non-programmers can follow the
