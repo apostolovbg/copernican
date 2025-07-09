@@ -1,5 +1,5 @@
 
-"""Parser for the University of Strasbourg SNe dataset."""
+"""Parser for the JLA supernova sample (Betoule et al. 2014)."""
 
 import os
 import pandas as pd
@@ -12,8 +12,10 @@ DEFAULT_SALT2_ALPHA_FIXED = 0.14
 DEFAULT_SALT2_BETA_FIXED = 3.1
 
 @register_sne_parser(
-    "University of Strasbourg dataset (distance modulus, diagonal errors; SALT2 fixed)",
-    "Distance moduli computed from SALT2-corrected magnitudes. No covariance matrix.",
+    "JLA Betoule+2014 (UniStra)",
+    "Joint SDSS-II and SNLS sample from Betoule et al. 2014, University of Strasbourg."
+    " Light-curve parameters are converted to distance moduli with fixed SALT2"
+    " nuisance parameters.",
     data_dir=os.path.dirname(__file__),
 )
 def parse_unistra_standard(data_dir, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED,
@@ -67,4 +69,5 @@ def parse_unistra_standard(data_dir, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED
     parsed_data_filtered.attrs['salt2_m_abs_fixed'] = salt2_m_abs_fixed
     parsed_data_filtered.attrs['salt2_alpha_fixed'] = salt2_alpha_fixed
     parsed_data_filtered.attrs['salt2_beta_fixed'] = salt2_beta_fixed
+    parsed_data_filtered.attrs['dataset_name_attr'] = 'UniStra2014'
     return parsed_data_filtered
