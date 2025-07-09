@@ -1,5 +1,5 @@
-**Version:** 1.11.6
-**Last Updated:** 2025-07-07
+**Version:** 1.11.7
+**Last Updated:** 2025-07-09
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
 Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and Cosmic Microwave Background (CMB) data.
@@ -125,7 +125,8 @@ main workflow simply loads the plugin, selects an engine from `./engines/` and
 invokes its functions. New engines can therefore implement alternate strategies
 —such as SNe-only fits or fully combined optimisations—without modifying the
 rest of the codebase.
-Generic chi-squared helpers now live in `copernican_lib/chi2_helper.py`, keeping `model_coder.py` focused on translating models.
+Generic chi-squared helpers are now part of `engines/cosmo_engine_comb.py` under
+a dedicated helper block, keeping `model_coder.py` focused on translating models.
 
 The helper `chi_squared_cmb` now accepts either a plugin and parameter
 vector or a ready CAMB dictionary. This flexibility lets future engines reuse
