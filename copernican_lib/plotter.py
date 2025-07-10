@@ -9,6 +9,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import re
+import textwrap
 
 from .utils import generate_filename, ensure_dir_exists, get_timestamp
 from .logger import get_logger
@@ -21,6 +22,16 @@ def _wrap_math(text: str) -> str:
         return ""
     cleaned = re.sub(r'^\$+|\$+$', '', str(text).strip())
     return f"${cleaned}$" if cleaned else ""
+
+
+def compose_footer(base_line: str, data_attrs: dict) -> str:
+    """Return a multi-line footer string with dataset information."""
+    long_name = data_attrs.get("dataset_long_name", data_attrs.get("dataset_name_attr", ""))
+    notes = data_attrs.get("notes", "")
+    citation = data_attrs.get("citation", "")
+    second_line = f"{_wrap_math(long_name)}: {notes} {citation}".strip()
+    wrapped = textwrap.fill(second_line, width=110)
+    return base_line + "\n" + wrapped
 
 
 def format_model_summary_text(model_plugin: Any, is_sne_summary: bool,
@@ -128,7 +139,7 @@ def plot_hubble_diagram(
             return np.array([]), np.array([])
 
     fig, axs = plt.subplots(2, 1, figsize=(17, 12), sharex=True, gridspec_kw={"height_ratios": [3, 1.5], "hspace": 0.05})
-    plt.subplots_adjust(left=0.08, bottom=0.08, right=0.75, top=0.92)
+    plt.subplots_adjust(left=0.08, bottom=0.12, right=0.75, top=0.92)
     try:
         plt.style.use("seaborn-v0_8-darkgrid")
     except Exception:
@@ -222,11 +233,12 @@ def plot_hubble_diagram(
         bbox=bbox_alt,
     )
 
-    footer = (
-        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | {dataset_name} | "
+    base_line = (
+        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | "
         f"Copernican Suite {COPERNICAN_VERSION} | {get_timestamp()}"
     )
-    fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"])
+    footer = compose_footer(base_line, sne_data_df.attrs)
+    fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"], wrap=True)
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
     filename = generate_filename("hubble-plot", dataset_name, "png", model_name=model_comparison_name)
@@ -263,7 +275,7 @@ def plot_bao_observables(
     }
 
     fig, ax = plt.subplots(figsize=(17, 10))
-    plt.subplots_adjust(left=0.08, bottom=0.1, right=0.75, top=0.90)
+    plt.subplots_adjust(left=0.08, bottom=0.13, right=0.75, top=0.90)
     try:
         plt.style.use("seaborn-v0_8-darkgrid")
     except Exception:
@@ -359,11 +371,12 @@ def plot_bao_observables(
         bbox=bbox_alt,
     )
 
-    footer = (
-        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | {dataset_name} | "
+    base_line = (
+        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | "
         f"Copernican Suite {COPERNICAN_VERSION} | {get_timestamp()}"
     )
-    fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"])
+    footer = compose_footer(base_line, bao_data_df.attrs)
+    fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"], wrap=True)
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
     filename = generate_filename("bao-plot", dataset_name, "png", model_name=model_comparison_name)
@@ -457,7 +470,7 @@ def plot_cmb_spectrum(
         sharex=True,
         gridspec_kw={"height_ratios": [3, 1.5] * len(components), "hspace": 0.05},
     )
-    plt.subplots_adjust(left=0.08, bottom=0.08, right=0.75, top=0.92)
+    plt.subplots_adjust(left=0.08, bottom=0.12, right=0.75, top=0.92)
     try:
         plt.style.use("seaborn-v0_8-darkgrid")
     except Exception:
@@ -605,11 +618,12 @@ def plot_cmb_spectrum(
         bbox=bbox_alt,
     )
 
-    footer = (
-        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | {dataset_name} | "
+    base_line = (
+        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | "
         f"Copernican Suite {COPERNICAN_VERSION} | {get_timestamp()}"
     )
-    fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"])
+    footer = compose_footer(base_line, cmb_data_df.attrs)
+    fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"], wrap=True)
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
     filename = generate_filename("cmb-plot", dataset_name, "png", model_name=model_comparison_name)

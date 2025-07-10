@@ -13,7 +13,7 @@ data/
 
 Each subdirectory contains one or more dataset sources. A Python file named `cosmo_parser_*.py` lives inside each source folder and registers a parser function via decorators from `copernican_lib.data_loaders`.
 
-The parsers convert raw text or binary files into Pandas DataFrames with metadata stored on the `.attrs` property. These files remain read-only so that reference data is never overwritten.
+Every dataset folder also provides a `metadata_*.json` describing the source. The fields `dataset_name`, `description`, `citation` and optional `notes` are loaded dynamically so no parser hard-codes them. Parsed DataFrames expose the same information on their `.attrs` property. The reference files remain read-only.
 
 ## Supernovae Datasets
 

@@ -21,6 +21,7 @@ Example `metadata_bao1.json`:
 ```json
 {
   "dataset_name": "Compound BAO dataset",
+  "description": "Compilation of BAO distance measurements from multiple surveys",
   "citation": "Reference string with survey citations",
   "notes": "Any extra comments"
 }
@@ -29,4 +30,6 @@ Example `metadata_bao1.json`:
 All observable types use the naming convention `DV_over_rs`, `DM_over_rs` or
 `DH_over_rs` to indicate $D_V$, $D_M$ or $D_H$ divided by the sound horizon. The
 parser converts the JSON to a Pandas `DataFrame` and attaches the metadata to the
-`.attrs` attribute.
+`.attrs` attribute. This `metadata_*.json` with `dataset_name`, `description`,
+`citation` and optional `notes` is used for **all** datasets so plot footers
+can display consistent source information.
