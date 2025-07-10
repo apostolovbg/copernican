@@ -1,4 +1,4 @@
-**Version:** 1.11.9
+**Version:** 1.12.1
 **Last Updated:** 2025-07-10
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -17,12 +17,14 @@ plugged in with minimal effort.
 
 4. [Design Overview](docs/design_overview.md)
 5. [Data Directory Overview](docs/data_overview.md)
-6. [Using the Suite](#using-the-suite)
-7. [Creating New Models](#creating-new-models)
-8. [Developer Guide](#developer-guide)
-9. [AI Development Laws](#ai-development-laws)
-10. [License](#license)
-11. [Versioning Policy](#versioning-policy)
+6. [BAO Dataset Format](docs/bao_dataset_format.md)
+7. [Using the Suite](#using-the-suite)
+8. [Creating New Models](#creating-new-models)
+9. [Developer Guide](#developer-guide)
+10. [AI Development Laws](#ai-development-laws)
+11. [License](#license)
+12. [Versioning Policy](#versioning-policy)
+13. [API Overview](docs/api_overview.md)
 
 ---
 
@@ -90,7 +92,29 @@ results in an immediate error and exit code 1. Future engines may also depend on
 or GPU libraries.
  
 ## Building & Installation
-Run `pip install .` from the repository root to build and install the `copernican` command. Use `pip install -e .` for editable installs.
+Windows users should open `start.bat`, macOS users should run `start.command`,
+and Linux users can execute `start.sh`.  These helpers create a Python virtual
+environment in `./venv` and install all required packages.  You may then run the
+suite with:
+
+```bash
+python copernican.py
+```
+
+To install the package system-wide run:
+
+```bash
+pip install .    # regular install
+pip install -e . # editable for development
+```
+
+To remove the suite simply delete the `venv` directory and any installed
+`copernican` package:
+
+```bash
+rm -rf venv
+pip uninstall copernican-suite
+```
 
 ## Directory Layout
 ```
@@ -144,6 +168,9 @@ the same CMB calculation regardless of their own fitting scheme.
   discovered automatically when their source folders are imported.
 - After each run you may choose to evaluate another model or exit. Cache files
   are cleaned automatically.
+- When a run finishes the suite prints the abstract text from each model along
+  with a summary of the best-fit parameters and individual chi-squared values for
+  SNe, BAO and CMB.
 
 ## Creating New Models
 All model details, including theory text and equations, must be stored in a
@@ -328,3 +355,4 @@ See `CHANGELOG.md` for complete version history.
 > 3.  **Update this README file and `AGENTS.md`**. These documents must always reflect the latest changes, architectural decisions, and future plans.
 >
 > Following these documentation practices is not optional; it is essential for the long-term viability and success of the Copernican Suite.
+\nSee [docs/api_overview.md](docs/api_overview.md) for the scripting API.
