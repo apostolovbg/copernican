@@ -10,12 +10,22 @@ import numpy as np
 import pandas as pd
 
 from copernican_lib.data_loaders import register_cmb_parser
+from copernican_lib.utils import load_metadata_from_dir
+
+DATA_DIR = os.path.dirname(__file__)
+META = load_metadata_from_dir(DATA_DIR)
+
+DATASET_NAME = META.get("dataset_name", "Planck2018lite")
+DESCRIPTION = META.get(
+    "description",
+    "Planck 2018 lite TT/TE/EE spectra.",
+)
 
 
 @register_cmb_parser(
-    "planck2018lite_v1",
-    "Planck 2018 lite TT/TE/EE spectra.",
-    data_dir=os.path.dirname(__file__),
+    DATASET_NAME,
+    DESCRIPTION,
+    data_dir=DATA_DIR,
 )
 def parse_planck2018lite(data_dir, **kwargs):
     """Parse Planck 2018 lite power spectrum and covariance."""
@@ -129,7 +139,12 @@ def parse_planck2018lite(data_dir, **kwargs):
 
         df.attrs["covariance_matrix_inv"] = cov_inv
         df.attrs["diag_errors_for_plot"] = diag_errors
-        df.attrs["dataset_name_attr"] = "CMB_Planck2018lite"
+        dataset_long = META.get("dataset_name", "CMB_Planck2018lite")
+        df.attrs["dataset_long_name"] = dataset_long
+        df.attrs["dataset_name_attr"] = dataset_long.replace(" ", "_")
+        df.attrs["citation"] = META.get("citation", "")
+        df.attrs["notes"] = META.get("notes", "")
+        df.attrs["description"] = META.get("description", "")
         df.attrs["is_cmb"] = True
         # Map the order of CAMB parameters used by the engine
         df.attrs["param_names"] = [

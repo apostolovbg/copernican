@@ -14,12 +14,22 @@ import json
 import logging
 
 from copernican_lib.data_loaders import register_bao_parser
+from copernican_lib.utils import load_metadata_from_dir
+
+DATA_DIR = os.path.dirname(__file__)
+META = load_metadata_from_dir(DATA_DIR)
+
+DATASET_NAME = META.get("dataset_name", "BAO dataset")
+DESCRIPTION = META.get(
+    "description",
+    "Compilation of baryon acoustic oscillation measurements.",
+)
 
 
 @register_bao_parser(
-    "Compound BAO dataset",
-    "Compilation of BAO measurements from multiple surveys.",
-    data_dir=os.path.dirname(__file__),
+    DATASET_NAME,
+    DESCRIPTION,
+    data_dir=DATA_DIR,
 )
 def parse_bao_json_v1(data_dir, **kwargs):
     """Parse a BAO dataset and attach metadata."""
@@ -49,19 +59,14 @@ def parse_bao_json_v1(data_dir, **kwargs):
         if df.empty:
             logger.error(f"No valid BAO data points after parsing {filepath}."); return None
 
-        meta_files = [
-            f
-            for f in os.listdir(data_dir)
-            if f.startswith("metadata") and f.lower().endswith(".json")
-        ]
-        meta = {}
-        if meta_files:
-            with open(os.path.join(data_dir, sorted(meta_files)[0]), "r") as mf:
-                meta = json.load(mf)
+        meta = META
 
+        dataset_long = meta.get('dataset_name', data_json.get('name', f"BAO_{os.path.basename(filepath)}"))
         df.attrs['citation'] = meta.get('citation', data_json.get('citation', 'N/A'))
         df.attrs['notes'] = meta.get('notes', data_json.get('notes', 'N/A'))
-        df.attrs['dataset_name_attr'] = meta.get('dataset_name', data_json.get('name', f"BAO_{os.path.basename(filepath)}"))
+        df.attrs['description'] = meta.get('description', '')
+        df.attrs['dataset_long_name'] = dataset_long
+        df.attrs['dataset_name_attr'] = dataset_long.replace(' ', '_')
         return df
     except Exception as e:
         logger.error(f"Error reading or parsing BAO JSON file {filepath}: {e}", exc_info=True); return None
