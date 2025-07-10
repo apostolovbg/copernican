@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import time
 import argparse
+from getpass import getpass
 
 # Verify interpreter version early so users see clear feedback
 MIN_PYTHON = (3, 12)
@@ -37,7 +38,27 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.11.8"
+COPERNICAN_VERSION = "1.11.9"
+
+# Local virtual environment used when dependencies are missing
+VENV_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'venv')
+CURRENT_LOG_FILE = None
+
+
+def _venv_bin(name: str) -> str:
+    """Return the path to a binary inside the virtual environment."""
+    folder = 'Scripts' if os.name == 'nt' else 'bin'
+    return os.path.join(VENV_DIR, folder, name)
+
+
+def _delete_log_file(path: str) -> None:
+    """Remove the given log file if it exists."""
+    if path and os.path.isfile(path):
+        try:
+            os.remove(path)
+            print(f"Removed log file {path}")
+        except OSError:
+            pass
 
 # The high-level workflow is broken into small helper functions below. Each
 # helper is documented in plain language so non-programmers can follow the
@@ -134,22 +155,32 @@ def _gather_required_packages():
 
 
 def check_dependencies():
-    """Ensure all required packages are installed."""
-    # Before importing heavy third-party libraries we verify that everything
-    # needed by the project is available.  If something is missing the user is
-    # shown the exact ``pip install`` command to resolve it and the program
-    # exits early.
+    """Ensure all required packages are installed and activate venv if needed."""
     print("--- Running System Dependency Check ---")
     required = sorted(_gather_required_packages())
     missing = [pkg for pkg in required if importlib.util.find_spec(pkg) is None]
+
+    inside_venv = os.environ.get('COPERNICAN_VENV_ACTIVE') == '1'
+
     if missing:
-        print(f"Missing packages detected: {', '.join(missing)}")
-        print(
-            "To install all project dependencies, run:\n"
-            f"  pip install {' '.join(required)}\n"
-        )
-        sys.exit(1)
+        if not inside_venv:
+            print(f"Missing packages detected: {', '.join(missing)}")
+            print("Installing into local virtual environment. You may be asked for your password.")
+            if not os.path.isdir(VENV_DIR):
+                subprocess.check_call([sys.executable, '-m', 'venv', VENV_DIR])
+            pip_exe = _venv_bin('pip')
+            subprocess.check_call([pip_exe, 'install', *required])
+            python_exe = _venv_bin('python')
+            os.environ['COPERNICAN_VENV_ACTIVE'] = '1'
+            os.execv(python_exe, [python_exe] + sys.argv)
+        else:
+            print("Dependency installation failed inside virtual environment.")
+            sys.exit(1)
     else:
+        if not inside_venv and os.path.isdir(VENV_DIR):
+            python_exe = _venv_bin('python')
+            os.environ['COPERNICAN_VENV_ACTIVE'] = '1'
+            os.execv(python_exe, [python_exe] + sys.argv)
         print("✅ System Dependency Check Passed. Continuing...\n")
 
 
@@ -299,7 +330,9 @@ def main_workflow():
     engine_interface.validate_plugin(lcdm)
 
     while True:
+        global CURRENT_LOG_FILE
         log_file = log_mod.setup_logging(log_dir=OUTPUT_DIR)
+        CURRENT_LOG_FILE = log_file
         logger = log_mod.get_logger()
         start_ts = time.strftime("%y%m%d_%H%M%S")
         logger.info(
@@ -318,7 +351,9 @@ def main_workflow():
         ])
         selected_model = select_from_list(model_files, 'Select cosmological model')
         if not selected_model:
-            break
+            _delete_log_file(log_file)
+            cleanup_cache(SCRIPT_DIR)
+            return
         if selected_model.endswith('.json'):
             json_path = os.path.join(models_dir, selected_model)
             cache_dir = os.path.join(models_dir, 'cache')
@@ -355,7 +390,9 @@ def main_workflow():
         engine_files = sorted([f for f in os.listdir(engines_dir) if f.startswith('cosmo_engine_') and f.endswith('.py')])
         engine_choice = select_from_list(engine_files, 'Select computation engine')
         if not engine_choice:
-            break
+            _delete_log_file(log_file)
+            cleanup_cache(SCRIPT_DIR)
+            return
         engine_module = importlib.import_module(f"engines.{engine_choice[:-3]}")
         cosmo_engine_selected = engine_module
 
