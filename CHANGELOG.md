@@ -3,6 +3,7 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Version 1.12.2
 - 2025-07-10: Unified dataset metadata files and expanded plot footers (AI assistant)
+- 2025-07-10: Fixed file name sanitization for Planck dataset (AI assistant)
 
 ## Version 1.12.1
 - 2025-07-10: Dynamic BAO metadata parsing and verbose fit summaries (AI assistant)
