@@ -38,7 +38,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.11.9"
+COPERNICAN_VERSION = "1.12.1"
 
 # Local virtual environment used when dependencies are missing
 VENV_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'venv')
@@ -546,6 +546,24 @@ def main_workflow():
                 alt_model_plugin,
                 plot_dir=OUTPUT_DIR,
             )
+
+        print("\n--- Final Theory Summaries ---")
+        print(f"ΛCDM Abstract:\n{lcdm.MODEL_ABSTRACT}\n")
+        print(f"{alt_model_plugin.MODEL_NAME} Abstract:\n{alt_model_plugin.MODEL_ABSTRACT}\n")
+
+        def _print_fit(label, sne_res, bao_res, cmb_res):
+            print(f"--- {label} Fit Report ---")
+            if sne_res:
+                for name, val in sne_res.get('fitted_cosmological_params', {}).items():
+                    print(f"  {name} = {val:.5g}")
+                print(f"  χ²_SNe = {sne_res.get('chi2_min', float('nan')):.2f}")
+            if bao_res:
+                print(f"  χ²_BAO = {bao_res.get('chi2_bao', float('nan')):.2f}")
+            if cmb_res:
+                print(f"  χ²_CMB = {cmb_res.get('chi2_cmb', float('nan')):.2f}")
+
+        _print_fit('ΛCDM', lcdm_sne_fit_results, lcdm_full_results, lcdm_cmb)
+        _print_fit(alt_model_plugin.MODEL_NAME, alt_model_sne_fit_results, alt_model_full_results, alt_cmb)
         
         # The call to the redundant summary CSV has been removed.
         # csv_writer.save_sne_fit_results_csv(...)

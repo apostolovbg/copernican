@@ -23,6 +23,7 @@ REQUIRED_FUNCTIONS = [
 REQUIRED_ATTRIBUTES = [
     "MODEL_NAME",
     "MODEL_DESCRIPTION",
+    "MODEL_ABSTRACT",
     "PARAMETER_NAMES",
     "PARAMETER_LATEX_NAMES",
     "PARAMETER_UNITS",
@@ -37,6 +38,7 @@ def build_plugin(model_data, func_dict):
     plugin = SimpleNamespace()
     plugin.MODEL_NAME = model_data.get('model_name', 'GeneratedModel')
     plugin.MODEL_DESCRIPTION = model_data.get('description', '')
+    plugin.MODEL_ABSTRACT = model_data.get('abstract', '')
     plugin.PARAMETER_NAMES = [p['python_var'] for p in model_data['parameters']]
     plugin.PARAMETER_LATEX_NAMES = [p.get('latex_name', p['name']) for p in model_data['parameters']]
     plugin.PARAMETER_UNITS = [p.get('unit', '') for p in model_data['parameters']]
