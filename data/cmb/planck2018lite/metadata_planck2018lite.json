@@ -1,0 +1,6 @@
+{
+  "dataset_name": "Planck 2018 Lite TT/TE/EE",
+  "description": "Temperature and polarization power spectra from the Planck satellite reduced covariance release",
+  "citation": "Planck Collaboration 2020, A&A 641, A6",
+  "notes": "Multipole spectra Dl with covariance for TT, TE and EE components"
+}

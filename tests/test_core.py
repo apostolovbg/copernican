@@ -26,15 +26,15 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertTrue(hasattr(self.plugin, 'distance_modulus_model'))
 
     def test_engine_routines(self):
-        sne_df = data_loaders.load_sne_data('JLA Betoule+2014 (UniStra)')
+        sne_df = data_loaders.load_sne_data('JLA 2014 (Betoule et al.)')
         self.assertIsNotNone(sne_df)
         sne_df = sne_df.head(3)
 
-        bao_df = data_loaders.load_bao_data('Basic BAO testing dataset')
+        bao_df = data_loaders.load_bao_data('Compound BAO dataset')
         self.assertIsNotNone(bao_df)
         bao_df = bao_df.head(3)
 
-        cmb_df = data_loaders.load_cmb_data('planck2018lite_v1')
+        cmb_df = data_loaders.load_cmb_data('Planck 2018 Lite TT/TE/EE')
         self.assertIsNotNone(cmb_df)
 
         params = self.plugin.INITIAL_GUESSES
@@ -59,9 +59,9 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertEqual(len(spec["TT"]), len(cmb_df))
 
     def test_combined_fit(self):
-        sne_df = data_loaders.load_sne_data('JLA Betoule+2014 (UniStra)').head(2)
-        bao_df = data_loaders.load_bao_data('Basic BAO testing dataset').head(2)
-        cmb_df = data_loaders.load_cmb_data('planck2018lite_v1')
+        sne_df = data_loaders.load_sne_data('JLA 2014 (Betoule et al.)').head(2)
+        bao_df = data_loaders.load_bao_data('Compound BAO dataset').head(2)
+        cmb_df = data_loaders.load_cmb_data('Planck 2018 Lite TT/TE/EE')
         cmb_df = cmb_df.head(10)
         cmb_df.attrs['covariance_matrix_inv'] = cmb_df.attrs['covariance_matrix_inv'][:10, :10]
 
@@ -71,7 +71,7 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertTrue(np.isfinite(result['chi2_total']))
 
     def test_chi_squared_cmb_planck2018lite(self):
-        cmb_df = data_loaders.load_cmb_data('planck2018lite_v1')
+        cmb_df = data_loaders.load_cmb_data('Planck 2018 Lite TT/TE/EE')
         params = self.plugin.INITIAL_GUESSES
         chi2 = engine.chi_squared_cmb(params, cmb_df, self.plugin)
         self.assertTrue(np.isfinite(chi2))

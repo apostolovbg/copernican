@@ -1,6 +1,13 @@
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: please, always check what is the current date when you are logging last changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Use this template:
 
+## Version 1.12.2
+- 2025-07-10: Unified dataset metadata files and expanded plot footers (AI assistant)
+- 2025-07-10: Fixed file name sanitization for Planck dataset (AI assistant)
+
+## Version 1.12.1
+- 2025-07-10: Dynamic BAO metadata parsing and verbose fit summaries (AI assistant)
+
 ## Version 1.11.9
 - 2025-07-10: Automatic virtual environment setup and start scripts for Windows, macOS and Linux. Cancelling a run now removes its log file (AI assistant)
 
