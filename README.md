@@ -43,6 +43,8 @@ Copernican Suite version and a timestamp.
 Dataset names, descriptions and citations are read from `metadata_*.json` files stored
 next to each dataset. The program never hard-codes these values; instead the metadata
 is attached to the parsed DataFrame and used for plot footers and CSV headers.
+When generating file names the suite sanitizes dataset names, replacing spaces and
+characters like `/` with hyphens so output paths remain valid on all platforms.
 
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages and
