@@ -1,5 +1,5 @@
-**Version:** 1.11.8
-**Last Updated:** 2025-07-09
+**Version:** 1.11.9
+**Last Updated:** 2025-07-10
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
 Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and Cosmic Microwave Background (CMB) data.
@@ -68,13 +68,14 @@ Under the hood the program follows a clear pipeline:
    point temporary cache files are cleaned automatically.
 
 ## Quick Start
-1. Ensure Python 3.12 or later is available. The suite requires `numpy`, `scipy`,
-   `matplotlib`, `pandas`, `sympy` and `jsonschema`. If any package is
-   missing the program will print the command to install them. If you attempt
-   to run the suite with an older interpreter the launcher now prints an error
-   and exits immediately.
-2. Run `python3 copernican.py` and follow the prompts to choose a model,
-   preferred data sources and computation engine.
+1. Ensure Python 3.12 or later is available. Launch the suite via the `start`
+   script for your platform (`start.command`, `start.bat` or `start.sh`). On the
+   first run the program will create a local virtual environment and install all
+   required packages if they are missing. You may be prompted for your password
+   during this step. Running with an older Python version will print an error
+   and exit immediately.
+2. Follow the interactive prompts to choose a model, preferred data sources and
+   computation engine.
 3. Execute `python3 copernican.py --run-tests` or run `python -m unittest discover`
    to verify the reference model and parsers. The `--run-tests` flag now leverages
    unittest discovery to gather all modules under `tests/`.
@@ -83,10 +84,10 @@ Under the hood the program follows a clear pipeline:
 
 ## Dependencies
 This project requires **Python 3.12 or later** and relies on `numpy`, `scipy`, `matplotlib`,
-`pandas`, `sympy`, `jsonschema` and `camb`. If any of these are missing the dependency check
-will print the full installation command `pip install numpy scipy matplotlib pandas sympy jsonschema camb`.
-Running under an older Python version will result in an immediate error and exit code 1.
-Future engines may also depend on `numba` or GPU libraries.
+`pandas`, `sympy`, `jsonschema` and `camb`. Missing packages are installed automatically
+into the local virtual environment on first launch. Running under an older Python version
+results in an immediate error and exit code 1. Future engines may also depend on `numba`
+or GPU libraries.
  
 ## Building & Installation
 Run `pip install .` from the repository root to build and install the `copernican` command. Use `pip install -e .` for editable installs.
