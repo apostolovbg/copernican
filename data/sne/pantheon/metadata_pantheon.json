@@ -1,0 +1,6 @@
+{
+  "dataset_name": "Pantheon+SH0ES 2022",
+  "description": "Combined sample of 1701 Type Ia supernovae distances with full covariance matrix",
+  "citation": "Scolnic et al. 2022, ApJ 938, 113; Riess et al. 2022, ApJ 934, L7",
+  "notes": "Distance moduli for supernovae with full statistical and systematic covariance"
+}

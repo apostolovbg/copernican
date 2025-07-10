@@ -5,6 +5,7 @@
 
 import os
 import time
+import json
 
 
 def get_timestamp():
@@ -27,3 +28,19 @@ def generate_filename(file_type, dataset_name, ext, model_name=""):
 def ensure_dir_exists(directory):
     """Creates the specified directory if it does not already exist."""
     os.makedirs(directory, exist_ok=True)
+
+
+def load_metadata_from_dir(data_dir: str) -> dict:
+    """Return dataset metadata from ``data_dir`` if available."""
+    try:
+        meta_files = [
+            f
+            for f in os.listdir(data_dir)
+            if f.startswith("metadata") and f.lower().endswith(".json")
+        ]
+        if meta_files:
+            with open(os.path.join(data_dir, sorted(meta_files)[0]), "r") as fh:
+                return json.load(fh)
+    except Exception:
+        pass
+    return {}
