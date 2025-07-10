@@ -6,17 +6,25 @@ import pandas as pd
 import logging
 
 from copernican_lib.data_loaders import register_sne_parser
+from copernican_lib.utils import load_metadata_from_dir
+
+DATA_DIR = os.path.dirname(__file__)
+META = load_metadata_from_dir(DATA_DIR)
+
+DATASET_NAME = META.get("dataset_name", "JLA sample")
+DESCRIPTION = META.get(
+    "description",
+    "Supernova sample from Betoule et al. 2014.",
+)
 
 DEFAULT_SALT2_M_ABS_FIXED = -19.3
 DEFAULT_SALT2_ALPHA_FIXED = 0.14
 DEFAULT_SALT2_BETA_FIXED = 3.1
 
 @register_sne_parser(
-    "JLA Betoule+2014 (UniStra)",
-    "Joint SDSS-II and SNLS sample from Betoule et al. 2014, University of Strasbourg."
-    " Light-curve parameters are converted to distance moduli with fixed SALT2"
-    " nuisance parameters.",
-    data_dir=os.path.dirname(__file__),
+    DATASET_NAME,
+    DESCRIPTION,
+    data_dir=DATA_DIR,
 )
 def parse_unistra_standard(data_dir, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED,
                            salt2_alpha_fixed=DEFAULT_SALT2_ALPHA_FIXED,
@@ -69,5 +77,9 @@ def parse_unistra_standard(data_dir, salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED
     parsed_data_filtered.attrs['salt2_m_abs_fixed'] = salt2_m_abs_fixed
     parsed_data_filtered.attrs['salt2_alpha_fixed'] = salt2_alpha_fixed
     parsed_data_filtered.attrs['salt2_beta_fixed'] = salt2_beta_fixed
-    parsed_data_filtered.attrs['dataset_name_attr'] = 'UniStra2014'
+    parsed_data_filtered.attrs['dataset_long_name'] = META.get('dataset_name', 'UniStra2014')
+    parsed_data_filtered.attrs['dataset_name_attr'] = parsed_data_filtered.attrs['dataset_long_name'].replace(' ', '_')
+    parsed_data_filtered.attrs['citation'] = META.get('citation', '')
+    parsed_data_filtered.attrs['notes'] = META.get('notes', '')
+    parsed_data_filtered.attrs['description'] = META.get('description', '')
     return parsed_data_filtered

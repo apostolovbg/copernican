@@ -1,4 +1,4 @@
-**Version:** 1.12.1
+**Version:** 1.12.2
 **Last Updated:** 2025-07-10
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
@@ -40,6 +40,9 @@ simple command line interface. Results are saved as plots and CSV files in the
 `./output/` directory.
 Each generated plot now includes a footer noting the comparison details,
 Copernican Suite version and a timestamp.
+Dataset names, descriptions and citations are read from `metadata_*.json` files stored
+next to each dataset. The program never hard-codes these values; instead the metadata
+is attached to the parsed DataFrame and used for plot footers and CSV headers.
 
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages and
