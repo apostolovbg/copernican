@@ -1,0 +1,7 @@
+numpy
+scipy
+matplotlib
+pandas
+sympy
+jsonschema
+camb
