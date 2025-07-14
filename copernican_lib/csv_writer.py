@@ -18,6 +18,7 @@ def save_sne_results_detailed_csv(
     lcdm_plugin: Any,
     alt_model_plugin: Any,
     csv_dir: str = ".",
+    timestamp: str | None = None,
 ) -> None:
     """Save a detailed, point-by-point breakdown of the SNe Ia fitting results."""
     ensure_dir_exists(csv_dir)
@@ -50,7 +51,13 @@ def save_sne_results_detailed_csv(
 
     dataset_name = sne_data_df.attrs.get("dataset_name_attr", "SNe_data")
     model_comparison_name = f"LCDM-vs-{alt_model_name}"
-    filename = generate_filename("sne-detailed-data", dataset_name, "csv", model_name=model_comparison_name)
+    filename = generate_filename(
+        "sne-detailed-data",
+        dataset_name,
+        "csv",
+        model_name=model_comparison_name,
+        timestamp=timestamp,
+    )
     try:
         df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.8g")
         logger.info(f"SNe detailed results CSV saved to {filename}")
@@ -64,6 +71,7 @@ def save_bao_results_csv(
     alt_model_results: Any,
     alt_model_name: str,
     csv_dir: str = ".",
+    timestamp: str | None = None,
 ) -> None:
     """Save a detailed breakdown of the BAO results to a CSV file."""
     ensure_dir_exists(csv_dir)
@@ -85,7 +93,13 @@ def save_bao_results_csv(
 
     dataset_name = bao_data_df.attrs.get("dataset_name_attr", "BAO_data")
     model_comparison_name = f"LCDM-vs-{alt_model_name}"
-    filename = generate_filename("bao-detailed-data", dataset_name, "csv", model_name=model_comparison_name)
+    filename = generate_filename(
+        "bao-detailed-data",
+        dataset_name,
+        "csv",
+        model_name=model_comparison_name,
+        timestamp=timestamp,
+    )
     try:
         df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.6g")
         logger.info(f"BAO detailed results CSV saved to {filename}")
@@ -99,6 +113,7 @@ def save_cmb_results_csv(
     alt_model_results: Any,
     alt_model_name: str,
     csv_dir: str = ".",
+    timestamp: str | None = None,
 ) -> None:
     """Save CMB spectrum predictions and residuals to a CSV file."""
     ensure_dir_exists(csv_dir)
@@ -165,7 +180,13 @@ def save_cmb_results_csv(
 
     dataset_name = cmb_data_df.attrs.get("dataset_name_attr", "CMB_data")
     model_comparison_name = f"LCDM-vs-{alt_name_safe}"
-    filename = generate_filename("cmb-detailed-data", dataset_name, "csv", model_name=model_comparison_name)
+    filename = generate_filename(
+        "cmb-detailed-data",
+        dataset_name,
+        "csv",
+        model_name=model_comparison_name,
+        timestamp=timestamp,
+    )
     try:
         df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.6g")
         logger.info(f"CMB detailed results CSV saved to {filename}")

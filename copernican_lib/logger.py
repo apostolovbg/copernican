@@ -27,7 +27,7 @@ def setup_logging(log_dir="."):
 
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(logging.INFO)
-    ch.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+    ch.setFormatter(logging.Formatter('%(message)s'))
     logger.addHandler(ch)
 
     logging.info(f"Logging initialized. Log file: {log_filename}")

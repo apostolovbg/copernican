@@ -90,6 +90,7 @@ def plot_hubble_diagram(
     lcdm_plugin: Any,
     alt_model_plugin: Any,
     plot_dir: str = ".",
+    timestamp: str | None = None,
 ) -> None:
     """Generate and save a Hubble diagram and residuals plot."""
     ensure_dir_exists(plot_dir)
@@ -233,15 +234,22 @@ def plot_hubble_diagram(
         bbox=bbox_alt,
     )
 
+    ts = timestamp or get_timestamp()
     base_line = (
         f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | "
-        f"Copernican Suite {COPERNICAN_VERSION} | {get_timestamp()}"
+        f"Copernican Suite {COPERNICAN_VERSION} | {ts}"
     )
     footer = compose_footer(base_line, sne_data_df.attrs)
     fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"], wrap=True)
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
-    filename = generate_filename("hubble-plot", dataset_name, "png", model_name=model_comparison_name)
+    filename = generate_filename(
+        "hubble-plot",
+        dataset_name,
+        "png",
+        model_name=model_comparison_name,
+        timestamp=timestamp,
+    )
     try:
         plt.savefig(os.path.join(plot_dir, filename), dpi=300)
         logger.info(f"Hubble diagram saved to {filename}")
@@ -259,6 +267,7 @@ def plot_bao_observables(
     alt_model_plugin: Any,
     sne_data_df: Any,
     plot_dir: str = ".",
+    timestamp: str | None = None,
 ) -> None:
     """Generate and save a plot of BAO observables versus redshift."""
     ensure_dir_exists(plot_dir)
@@ -371,15 +380,22 @@ def plot_bao_observables(
         bbox=bbox_alt,
     )
 
+    ts = timestamp or get_timestamp()
     base_line = (
         f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | "
-        f"Copernican Suite {COPERNICAN_VERSION} | {get_timestamp()}"
+        f"Copernican Suite {COPERNICAN_VERSION} | {ts}"
     )
     footer = compose_footer(base_line, bao_data_df.attrs)
     fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"], wrap=True)
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
-    filename = generate_filename("bao-plot", dataset_name, "png", model_name=model_comparison_name)
+    filename = generate_filename(
+        "bao-plot",
+        dataset_name,
+        "png",
+        model_name=model_comparison_name,
+        timestamp=timestamp,
+    )
     try:
         plt.savefig(os.path.join(plot_dir, filename), dpi=300)
         logger.info(f"BAO plot saved to {filename}")
@@ -429,6 +445,7 @@ def plot_cmb_spectrum(
     lcdm_plugin: Any,
     alt_model_plugin: Any,
     plot_dir: str = ".",
+    timestamp: str | None = None,
 ) -> None:
     """Generate and save a CMB power spectrum plot with residuals."""
     ensure_dir_exists(plot_dir)
@@ -618,15 +635,22 @@ def plot_cmb_spectrum(
         bbox=bbox_alt,
     )
 
+    ts = timestamp or get_timestamp()
     base_line = (
         f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | "
-        f"Copernican Suite {COPERNICAN_VERSION} | {get_timestamp()}"
+        f"Copernican Suite {COPERNICAN_VERSION} | {ts}"
     )
     footer = compose_footer(base_line, cmb_data_df.attrs)
     fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"], wrap=True)
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
-    filename = generate_filename("cmb-plot", dataset_name, "png", model_name=model_comparison_name)
+    filename = generate_filename(
+        "cmb-plot",
+        dataset_name,
+        "png",
+        model_name=model_comparison_name,
+        timestamp=timestamp,
+    )
     try:
         plt.savefig(os.path.join(plot_dir, filename), dpi=300)
         logger.info(f"CMB plot saved to {filename}")

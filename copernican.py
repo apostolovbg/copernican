@@ -12,6 +12,7 @@ import platform
 import shutil
 import subprocess
 import time
+import datetime
 import argparse
 from getpass import getpass
 
@@ -38,7 +39,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.12.2"
+COPERNICAN_VERSION = "1.12.3"
 
 # Local virtual environment used when dependencies are missing
 VENV_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'venv')
@@ -59,6 +60,30 @@ def _delete_log_file(path: str) -> None:
             print(f"Removed log file {path}")
         except OSError:
             pass
+
+def _get_cpu_info() -> tuple[str, str]:
+    """Return CPU model and current clock speed."""
+    cpu = platform.processor() or platform.uname().processor or "Unknown CPU"
+    freq = None
+    try:
+        import psutil  # type: ignore
+        freq_info = psutil.cpu_freq()
+        if freq_info:
+            freq = freq_info.current / 1000.0
+    except Exception:
+        pass
+    if freq is None and platform.system() == "Linux":
+        try:
+            with open("/proc/cpuinfo", "r") as fh:
+                for line in fh:
+                    if line.startswith("model name") and cpu == "Unknown CPU":
+                        cpu = line.split(":", 1)[1].strip()
+                    if line.startswith("cpu MHz") and freq is None:
+                        freq = float(line.split(":", 1)[1]) / 1000.0
+        except Exception:
+            pass
+    freq_str = f"{freq:.2f} GHz" if freq else "Unknown GHz"
+    return cpu, freq_str
 
 # The high-level workflow is broken into small helper functions below. Each
 # helper is documented in plain language so non-programmers can follow the
@@ -335,6 +360,8 @@ def main_workflow():
         CURRENT_LOG_FILE = log_file
         logger = log_mod.get_logger()
         start_ts = time.strftime("%y%m%d_%H%M%S")
+        run_start_dt = datetime.datetime.now()
+        run_start_pc = time.perf_counter()
         logger.info(
             f"Copernican {COPERNICAN_VERSION} has initialized! Current timestamp is {start_ts}. Log file: {log_file}"
         )
@@ -408,18 +435,28 @@ def main_workflow():
         if cmb_data_df is None:
             continue
 
+        lcdm_time = 0.0
+        alt_time = 0.0
         if hasattr(cosmo_engine_selected, 'fit_combined_parameters'):
             logger.info("\n--- Stage 2: Combined Fit (SNe + BAO + CMB) ---")
+            t0 = time.perf_counter()
             lcdm_sne_fit_results = cosmo_engine_selected.fit_combined_parameters(
                 sne_data_df, bao_data_df, cmb_data_df, lcdm
             )
+            lcdm_time += time.perf_counter() - t0
+            t0 = time.perf_counter()
             alt_model_sne_fit_results = cosmo_engine_selected.fit_combined_parameters(
                 sne_data_df, bao_data_df, cmb_data_df, alt_model_plugin
             )
+            alt_time += time.perf_counter() - t0
         else:
             logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
+            t0 = time.perf_counter()
             lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, lcdm)
+            lcdm_time += time.perf_counter() - t0
+            t0 = time.perf_counter()
             alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, alt_model_plugin)
+            alt_time += time.perf_counter() - t0
         
         logger.info("\n--- Stage 3: BAO Analysis ---")
         
@@ -496,27 +533,39 @@ def main_workflow():
             logger.info(f"{model_plugin.MODEL_NAME} CMB chi2 = {chi2_val:.2f}")
             return {'chi2_cmb': chi2_val, 'theory_spectrum': theory}
 
+        t0 = time.perf_counter()
         lcdm_full_results = run_bao_analysis(lcdm, lcdm_sne_fit_results, z_plot_smooth)
+        lcdm_time += time.perf_counter() - t0
+        t0 = time.perf_counter()
         alt_model_full_results = run_bao_analysis(alt_model_plugin, alt_model_sne_fit_results, z_plot_smooth)
+        alt_time += time.perf_counter() - t0
 
         logger.info("\n--- Stage 4: CMB Analysis ---")
 
+        t0 = time.perf_counter()
         lcdm_cmb = run_cmb_analysis(
             cmb_data_df,
             lcdm,
             list(lcdm_sne_fit_results['fitted_cosmological_params'].values()),
             lcdm_sne_fit_results.get('fitted_cmb_params'),
         )
+        lcdm_time += time.perf_counter() - t0
+        t0 = time.perf_counter()
         alt_cmb = run_cmb_analysis(
             cmb_data_df,
             alt_model_plugin,
             list(alt_model_sne_fit_results['fitted_cosmological_params'].values()),
             alt_model_sne_fit_results.get('fitted_cmb_params'),
         )
+        alt_time += time.perf_counter() - t0
 
         logger.info("\n--- Stage 5: Generating Outputs ---")
         logger.info(f"{lcdm.MODEL_NAME} CMB chi2 = {lcdm_cmb['chi2_cmb']:.2f}")
         logger.info(f"{alt_model_plugin.MODEL_NAME} CMB chi2 = {alt_cmb['chi2_cmb']:.2f}")
+
+        run_end_dt = datetime.datetime.now()
+        end_ts = run_end_dt.strftime("%Y%m%d_%H%M%S")
+
         plotter.plot_hubble_diagram(
             sne_data_df,
             lcdm_sne_fit_results,
@@ -524,6 +573,7 @@ def main_workflow():
             lcdm,
             alt_model_plugin,
             plot_dir=OUTPUT_DIR,
+            timestamp=end_ts,
         )
         if bao_data_df is not None:
             plotter.plot_bao_observables(
@@ -534,6 +584,7 @@ def main_workflow():
                 alt_model_plugin,
                 sne_data_df,
                 plot_dir=OUTPUT_DIR,
+                timestamp=end_ts,
             )
         if cmb_data_df is not None:
             plotter.plot_cmb_spectrum(
@@ -545,6 +596,7 @@ def main_workflow():
                 lcdm,
                 alt_model_plugin,
                 plot_dir=OUTPUT_DIR,
+                timestamp=end_ts,
             )
 
         print("\n--- Final Theory Summaries ---")
@@ -576,6 +628,7 @@ def main_workflow():
             lcdm,
             alt_model_plugin,
             csv_dir=OUTPUT_DIR,
+            timestamp=end_ts,
         )
         
         if bao_data_df is not None:
@@ -585,6 +638,7 @@ def main_workflow():
                 alt_model_full_results,
                 alt_model_name=alt_model_plugin.MODEL_NAME,
                 csv_dir=OUTPUT_DIR,
+                timestamp=end_ts,
             )
         if cmb_data_df is not None:
             csv_writer.save_cmb_results_csv(
@@ -593,14 +647,26 @@ def main_workflow():
                 alt_cmb,
                 alt_model_name=alt_model_plugin.MODEL_NAME,
                 csv_dir=OUTPUT_DIR,
+                timestamp=end_ts,
             )
 
         print("\n" + "="*50)
         print("Evaluation complete. All files saved to the 'output' directory.")
         print("="*50 + "\n")
 
-        end_ts = time.strftime("%y%m%d_%H%M%S")
+        total_time = time.perf_counter() - run_start_pc
+        cpu_model, cpu_freq = _get_cpu_info()
+        os_info = platform.platform()
+
         logger.info(f"Run completed at {end_ts}.")
+
+        print(f"Run started on {run_start_dt.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"Run ended on {run_end_dt.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(
+            f"Run took {lcdm_time:.2f}s for LCDM and {alt_time:.2f}s for {alt_model_plugin.MODEL_NAME}, "
+            f"or {total_time:.2f}s in total, on a system with a {cpu_model} {cpu_freq}, "
+            f"under {os_info}"
+        )
 
         while True:
             another_run = input("Would you like to run another evaluation? (yes/no): ").strip().lower()
