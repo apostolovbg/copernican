@@ -13,8 +13,23 @@ def get_timestamp():
     return time.strftime("%Y%m%d_%H%M%S")
 
 
-def generate_filename(file_type, dataset_name, ext, model_name=""):
-    """Generates a harmonized filename for all outputs."""
+def generate_filename(file_type, dataset_name, ext, model_name="", timestamp=None):
+    """Generates a harmonized filename for all outputs.
+
+    Parameters
+    ----------
+    file_type : str
+        Short descriptor of the file's contents.
+    dataset_name : str
+        Human readable dataset identifier.
+    ext : str
+        File extension without the leading period.
+    model_name : str, optional
+        Name of the cosmological model, used when comparing multiple models.
+    timestamp : str, optional
+        Timestamp string applied to the filename. When ``None`` the current
+        timestamp is generated.
+    """
     sanitized_type = file_type.replace('_', '-').lower()
     sanitized_model = model_name.replace('_', '-').replace('.', '')
     sanitized_dataset = (
@@ -24,8 +39,13 @@ def generate_filename(file_type, dataset_name, ext, model_name=""):
         .replace('.json', '')
         .replace('.dat', '')
     )
-    base_name = f"{sanitized_type}-{sanitized_model}-{sanitized_dataset}" if sanitized_model else f"{sanitized_type}-{sanitized_dataset}"
-    return f"{base_name}_{get_timestamp()}.{ext}"
+    base_name = (
+        f"{sanitized_type}-{sanitized_model}-{sanitized_dataset}"
+        if sanitized_model
+        else f"{sanitized_type}-{sanitized_dataset}"
+    )
+    ts = timestamp or get_timestamp()
+    return f"{base_name}_{ts}.{ext}"
 
 
 def ensure_dir_exists(directory):
