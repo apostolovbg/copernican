@@ -3,35 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Copernican Suite 1.12.6</title>
+    <title>Copernican Suite 1.12.7</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
-        <h1>Copernican Suite 1.12.6</h1>
+        <h1>Copernican Suite 1.12.7</h1>
     </header>
     <main>
         <section id="config">
             <h2>Configuration</h2>
             <div class="field">
-                <label for="modelFile">Upload Model JSON:</label>
+                <p>Select alternative cosmological theory definition file:</p>
+                <label><input type="radio" id="uploadRadio" name="modelSource" value="upload" checked> Upload Model JSON:</label>
                 <input type="file" id="modelFile" accept="application/json">
             </div>
             <div class="field">
-                <p>Select Model from server:</p>
-                <div id="modelList"></div>
+                <label><input type="radio" id="serverRadio" name="modelSource" value="server"> Select JSON from models/ folder:</label>
+                <select id="modelSelect"></select>
             </div>
             <div class="field">
-                <p>Select SNe Dataset:</p>
-                <div id="sneList"></div>
+                <label for="sneSelect">Select SNe Ia Dataset:</label>
+                <select id="sneSelect"></select>
             </div>
             <div class="field">
-                <p>Select BAO Dataset:</p>
-                <div id="baoList"></div>
+                <label for="baoSelect">Select BAO Dataset:</label>
+                <select id="baoSelect"></select>
             </div>
             <div class="field">
-                <p>Select CMB Dataset:</p>
-                <div id="cmbList"></div>
+                <label for="cmbSelect">Select CMB Dataset:</label>
+                <select id="cmbSelect"></select>
             </div>
             <button id="runBtn">Run Evaluation</button>
         </section>
