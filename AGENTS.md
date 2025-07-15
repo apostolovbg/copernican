@@ -134,7 +134,7 @@ To keep the project maintainable all contributors, human or AI, must follow thes
 3. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behavior or structure changes.
 4. **Do not change the project version number unless explicitly requested by a human contributor.**
 5. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.**
-6. **Use raw string literals for regular expressions and Windows paths** to avoid Python's "invalid escape sequence" warnings.
+6. **Use raw string literals for regular expressions, docstrings with LaTeX or backslashes, and Windows paths** to avoid Python's "invalid escape sequence" warnings.
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 
