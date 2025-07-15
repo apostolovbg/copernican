@@ -89,10 +89,11 @@ Under the hood the program follows a clear pipeline:
 4. Plots and CSV results will appear in the `output/` folder when the run
    completes.
 5. To experiment with the browser-based interface run `python web/serve_web.py`
-   and open `http://localhost:5000` in a browser. The web UI now lets you upload
-   a JSON model or pick one from the server via dropdown along with dataset
-   selectors for SNe, BAO and CMB. Results can be viewed and downloaded
-   interactively.
+   and open `http://localhost:5000` in a browser. The server now adjusts
+   `PYTHONPATH` automatically so it can be launched from any directory. The web
+   UI lets you upload a JSON model or pick one from the server via dropdown
+   along with dataset selectors for SNe, BAO and CMB. Results can be viewed and
+   downloaded interactively.
 
 ## Dependencies
 This project requires **Python 3.12 or later** and relies on `numpy`, `scipy`, `matplotlib`,
