@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Copernican Suite 1.12.7</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="web/style.css">
 </head>
 <body>
     <header>
@@ -21,18 +21,22 @@
             <div class="field">
                 <label><input type="radio" id="serverRadio" name="modelSource" value="server"> Select JSON from models/ folder:</label>
                 <select id="modelSelect"></select>
+                <button id="confirmModelBtn">Confirm Model</button>
             </div>
             <div class="field">
                 <label for="sneSelect">Select SNe Ia Dataset:</label>
                 <select id="sneSelect"></select>
+                <button id="confirmSneBtn">Confirm SNe</button>
             </div>
             <div class="field">
                 <label for="baoSelect">Select BAO Dataset:</label>
                 <select id="baoSelect"></select>
+                <button id="confirmBaoBtn">Confirm BAO</button>
             </div>
             <div class="field">
                 <label for="cmbSelect">Select CMB Dataset:</label>
                 <select id="cmbSelect"></select>
+                <button id="confirmCmbBtn">Confirm CMB</button>
             </div>
             <button id="runBtn">Run Evaluation</button>
         </section>
@@ -69,6 +73,6 @@
             <a id="downloadZip" href="#" download>Download All Results</a>
         </section>
     </main>
-    <script src="app.js"></script>
+    <script src="web/app.js"></script>
 </body>
 </html>

@@ -1,24 +1,29 @@
-from flask import Flask, send_from_directory, jsonify, request, send_file
+from flask import Flask, send_from_directory, jsonify, request
 import os
 import json
 import subprocess
 import tempfile
 import shutil
-from copernican_lib import data_loaders
-
-app = Flask(__name__, static_folder='.')
+import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(BASE_DIR)
+
+# Ensure the project root is in ``sys.path`` so the local package imports work
+# even when ``serve_web.py`` is launched from the ``web`` directory.
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+from copernican_lib import data_loaders
+
+app = Flask(__name__, static_folder=os.path.join(REPO_ROOT, 'web'), static_url_path='/web')
+
 OUTPUT_DIR = os.path.join(REPO_ROOT, 'output')
 
 @app.route('/')
 def index():
-    return send_from_directory(BASE_DIR, 'index.html')
+    return send_from_directory(REPO_ROOT, 'index.html')
 
-@app.route('/<path:path>')
-def static_proxy(path):
-    return send_from_directory(BASE_DIR, path)
 
 @app.route('/api/models')
 def models():
