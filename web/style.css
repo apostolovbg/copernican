@@ -7,5 +7,7 @@ button:hover { background: #303f9f; }
 .tabs { margin-top: 20px; }
 .tab { margin-right: 5px; }
 .tabContent { border: 1px solid #ccc; padding: 10px; height: 300px; overflow: auto; }
+.viewer { text-align: center; }
+.viewer img { max-width: 100%; height: auto; }
 .hidden { display: none; }
 .active { background: #303f9f; }

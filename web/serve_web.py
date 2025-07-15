@@ -64,12 +64,41 @@ def run_eval():
             return 'Invalid dataset selection', 400
 
     inputs.append('no')
-    proc = subprocess.Popen(['python', os.path.join(REPO_ROOT, 'copernican.py')], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=REPO_ROOT)
-    proc.communicate('\n'.join(inputs) + '\n')
+    proc = subprocess.Popen(
+        ['python', os.path.join(REPO_ROOT, 'copernican.py')],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        cwd=REPO_ROOT,
+    )
+    console_out, _ = proc.communicate('\n'.join(inputs) + '\n')
     proc.wait()
 
+    files = sorted(os.listdir(OUTPUT_DIR))
+    plots = [f for f in files if f.lower().endswith('.png')]
+    tables = [f for f in files if f.lower().endswith('.csv')]
+    logs = [f for f in files if f.lower().endswith('.txt')]
+    log_file = logs[0] if logs else ''
+
     zip_path = shutil.make_archive(os.path.join(BASE_DIR, 'results'), 'zip', OUTPUT_DIR)
-    return send_file(zip_path, mimetype='application/zip', as_attachment=True, download_name='results.zip')
+    return jsonify({
+        'console': console_out,
+        'plots': plots,
+        'tables': tables,
+        'log': log_file,
+        'zip': '/api/download/results.zip'
+    })
+
+
+@app.route('/api/file/<path:filename>')
+def get_file(filename: str):
+    return send_from_directory(OUTPUT_DIR, filename, as_attachment=False)
+
+
+@app.route('/api/download/<path:filename>')
+def download(filename: str):
+    return send_from_directory(BASE_DIR, filename, as_attachment=True)
 
 if __name__ == '__main__':
     app.run(debug=True)

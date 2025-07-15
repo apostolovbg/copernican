@@ -21,6 +21,40 @@ function switchTab(evt) {
     document.getElementById(evt.target.dataset.tab).classList.remove('hidden');
 }
 
+let plots = [];
+let tables = [];
+let logFile = '';
+let plotIdx = 0;
+let tableIdx = 0;
+
+function updatePlotViewer() {
+    if (plots.length === 0) {
+        document.getElementById('plotImg').src = '';
+        document.getElementById('plotName').textContent = 'No plots';
+        document.getElementById('downloadPlot').href = '#';
+        return;
+    }
+    const file = plots[plotIdx];
+    document.getElementById('plotImg').src = `/api/file/${file}`;
+    document.getElementById('plotName').textContent = file;
+    document.getElementById('downloadPlot').href = `/api/file/${file}`;
+}
+
+function updateTableViewer() {
+    if (tables.length === 0) {
+        document.getElementById('tableText').textContent = 'No tables';
+        document.getElementById('tableName').textContent = '';
+        document.getElementById('downloadTable').href = '#';
+        return;
+    }
+    const file = tables[tableIdx];
+    document.getElementById('tableName').textContent = file;
+    document.getElementById('downloadTable').href = `/api/file/${file}`;
+    fetch(`/api/file/${file}`).then(r => r.text()).then(t => {
+        document.getElementById('tableText').textContent = t;
+    });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     const models = await fetchData('/api/models');
     renderList('modelList', models, 'model');
@@ -30,6 +64,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderList('cmbList', data.cmb, 'cmb');
 
     document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', switchTab));
+
+    document.getElementById('prevPlot').addEventListener('click', () => {
+        plotIdx = (plotIdx - 1 + plots.length) % plots.length;
+        updatePlotViewer();
+    });
+    document.getElementById('nextPlot').addEventListener('click', () => {
+        plotIdx = (plotIdx + 1) % plots.length;
+        updatePlotViewer();
+    });
+    document.getElementById('prevTable').addEventListener('click', () => {
+        tableIdx = (tableIdx - 1 + tables.length) % tables.length;
+        updateTableViewer();
+    });
+    document.getElementById('nextTable').addEventListener('click', () => {
+        tableIdx = (tableIdx + 1) % tables.length;
+        updateTableViewer();
+    });
 
     document.getElementById('runBtn').addEventListener('click', async () => {
         const body = {
@@ -44,8 +95,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (file) formData.append('file', file);
 
         const resp = await fetch('/api/run', { method: 'POST', body: formData });
-        const blob = await resp.blob();
-        document.getElementById('downloadZip').href = URL.createObjectURL(blob);
+        const result = await resp.json();
+
+        document.getElementById('console').textContent = result.console;
+        document.getElementById('downloadZip').href = result.zip;
+
+        plots = result.plots;
+        tables = result.tables;
+        logFile = result.log;
+        plotIdx = 0;
+        tableIdx = 0;
+        updatePlotViewer();
+        updateTableViewer();
+
+        if (logFile) {
+            fetch(`/api/file/${logFile}`).then(r => r.text()).then(t => {
+                document.getElementById('logText').textContent = t;
+                document.getElementById('downloadLog').href = `/api/file/${logFile}`;
+            });
+        }
+
         document.getElementById('results').classList.remove('hidden');
     });
 });

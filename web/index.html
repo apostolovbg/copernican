@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Copernican Suite 1.12.5</title>
+    <title>Copernican Suite 1.12.6</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
-        <h1>Copernican Suite 1.12.5</h1>
+        <h1>Copernican Suite 1.12.6</h1>
     </header>
     <main>
         <section id="config">
@@ -40,10 +40,31 @@
                 <button class="tab active" data-tab="console">Console</button>
                 <button class="tab" data-tab="plots">Plots</button>
                 <button class="tab" data-tab="tables">Tables</button>
+                <button class="tab" data-tab="logFile">Log File</button>
             </div>
             <div id="console" class="tabContent"></div>
-            <div id="plots" class="tabContent hidden"></div>
-            <div id="tables" class="tabContent hidden"></div>
+            <div id="plots" class="tabContent hidden">
+                <div class="viewer">
+                    <button id="prevPlot">Previous</button>
+                    <span id="plotName"></span>
+                    <button id="nextPlot">Next</button>
+                    <div><img id="plotImg" src="" alt="plot" /></div>
+                    <a id="downloadPlot" href="#" download>Download</a>
+                </div>
+            </div>
+            <div id="tables" class="tabContent hidden">
+                <div class="viewer">
+                    <button id="prevTable">Previous</button>
+                    <span id="tableName"></span>
+                    <button id="nextTable">Next</button>
+                    <pre id="tableText"></pre>
+                    <a id="downloadTable" href="#" download>Download</a>
+                </div>
+            </div>
+            <div id="logFile" class="tabContent hidden">
+                <pre id="logText"></pre>
+                <a id="downloadLog" href="#" download>Download Log</a>
+            </div>
             <a id="downloadZip" href="#" download>Download All Results</a>
         </section>
     </main>
