@@ -1,6 +1,10 @@
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: please, always check what is the current date when you are logging last changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Use this template:
 
+## Version 1.12.4
+- 2025-07-15: Fixed CMB spectrum scaling bug and added Dl verification test (AI assistant)
+- 2025-07-15: Updated documentation and developer guide with raw string rule (AI assistant)
+
 ## Version 1.12.3
 - 2025-07-13: Unified timestamp handling and console output format updated (AI assistant)
 

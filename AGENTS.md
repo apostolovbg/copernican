@@ -4,7 +4,7 @@ Development notes were previously kept at the top of this file. That history now
 lives in `CHANGELOG.md`. New modifications must update the changelog, and legacy
 `dev_note` headers embedded in source files have been fully phased out.
 
-This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.11.9**.
+This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.12.4**.
 
 ## 1. Program Overview
 The helper modules previously stored under `scripts/` now live in the `copernican_lib/` package.
@@ -134,6 +134,7 @@ To keep the project maintainable all contributors, human or AI, must follow thes
 3. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behavior or structure changes.
 4. **Do not change the project version number unless explicitly requested by a human contributor.**
 5. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.**
+6. **Use raw string literals for regular expressions and Windows paths** to avoid Python's "invalid escape sequence" warnings.
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 

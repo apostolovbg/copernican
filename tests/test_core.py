@@ -4,6 +4,7 @@ import unittest
 import importlib
 from pathlib import Path
 import numpy as np
+import camb
 
 from copernican_lib import model_parser, model_coder, engine_interface, data_loaders
 import engines.cosmo_engine_comb as engine
@@ -75,6 +76,21 @@ class FunctionalTestCase(unittest.TestCase):
         params = self.plugin.INITIAL_GUESSES
         chi2 = engine.chi_squared_cmb(params, cmb_df, self.plugin)
         self.assertTrue(np.isfinite(chi2))
+
+    def test_cmb_spectrum_is_d_ell(self):
+        """Ensure cached CAMB spectra match Dl convention."""
+        cmb_df = data_loaders.load_cmb_data('Planck 2018 Lite TT/TE/EE')
+        ells = cmb_df['ell'].values[:5]
+        camb_params = self.plugin.get_camb_params(self.plugin.INITIAL_GUESSES)
+        result = engine.compute_cmb_spectrum_from_dict(camb_params, ells, spectra=("TT",))
+
+        params = camb.CAMBparams()
+        params.set_cosmology(H0=camb_params['H0'], ombh2=camb_params['ombh2'], omch2=camb_params['omch2'], tau=camb_params['tau'])
+        params.omnuh2 = camb_params.get('omnuh2', 0.0)
+        params.InitPower.set_params(As=camb_params['As'], ns=camb_params['ns'])
+        params.set_for_lmax(int(np.max(ells)) + 300, lens_potential_accuracy=0)
+        ref = camb.get_results(params).get_unlensed_scalar_cls(lmax=int(np.max(ells)), CMB_unit="muK")
+        np.testing.assert_allclose(result, ref[:,0][ells], rtol=1e-7)
 
 
 if __name__ == '__main__':
