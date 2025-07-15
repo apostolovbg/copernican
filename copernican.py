@@ -39,7 +39,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.12.4"
+COPERNICAN_VERSION = "1.12.3"
 
 # Local virtual environment used when dependencies are missing
 VENV_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'venv')

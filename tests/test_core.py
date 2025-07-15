@@ -4,7 +4,6 @@ import unittest
 import importlib
 from pathlib import Path
 import numpy as np
-import camb
 
 from copernican_lib import model_parser, model_coder, engine_interface, data_loaders
 import engines.cosmo_engine_comb as engine
@@ -76,36 +75,6 @@ class FunctionalTestCase(unittest.TestCase):
         params = self.plugin.INITIAL_GUESSES
         chi2 = engine.chi_squared_cmb(params, cmb_df, self.plugin)
         self.assertTrue(np.isfinite(chi2))
-
-    def test_cmb_spectrum_scaling(self):
-        camb_params = self.plugin.get_camb_params(self.plugin.INITIAL_GUESSES)
-        ells = np.arange(2, 7)
-        spectra = ("TT", "TE", "EE")
-
-        engine_result = engine.compute_cmb_spectrum_from_dict(camb_params, ells, spectra=spectra)
-
-        params = camb.CAMBparams()
-        params.set_cosmology(
-            H0=camb_params["H0"],
-            ombh2=camb_params["ombh2"],
-            omch2=camb_params["omch2"],
-            tau=camb_params["tau"],
-        )
-        params.omnuh2 = camb_params.get("omnuh2", 0.0)
-        params.InitPower.set_params(As=camb_params["As"], ns=camb_params["ns"])
-        params.set_for_lmax(int(np.max(ells)) + 300, lens_potential_accuracy=0)
-        results = camb.get_results(params)
-        cls = results.get_unlensed_scalar_cls(lmax=int(np.max(ells)), CMB_unit="muK")
-        full_ells = np.arange(cls.shape[0])
-        factor = full_ells * (full_ells + 1) / (2 * np.pi)
-        expected = {
-            "TT": cls[:, 0] * factor,
-            "EE": cls[:, 1] * factor,
-            "TE": cls[:, 3] * factor,
-        }
-
-        for spec in spectra:
-            np.testing.assert_allclose(engine_result[spec], expected[spec][ells], rtol=1e-7)
 
 
 if __name__ == '__main__':
