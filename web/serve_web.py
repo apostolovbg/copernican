@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory, jsonify, request, send_file
+from flask import Flask, send_from_directory, jsonify, request
 import os
 import json
 import subprocess
@@ -16,17 +16,14 @@ if REPO_ROOT not in sys.path:
 
 from copernican_lib import data_loaders
 
-app = Flask(__name__, static_folder='.')
+app = Flask(__name__, static_folder=os.path.join(REPO_ROOT, 'web'), static_url_path='/web')
 
 OUTPUT_DIR = os.path.join(REPO_ROOT, 'output')
 
 @app.route('/')
 def index():
-    return send_from_directory(BASE_DIR, 'index.html')
+    return send_from_directory(REPO_ROOT, 'index.html')
 
-@app.route('/<path:path>')
-def static_proxy(path):
-    return send_from_directory(BASE_DIR, path)
 
 @app.route('/api/models')
 def models():

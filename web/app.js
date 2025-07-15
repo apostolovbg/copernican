@@ -64,6 +64,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     fillSelect('baoSelect', data.bao);
     fillSelect('cmbSelect', data.cmb);
 
+    // Disable all steps except model selection at first
+    ['sneSelect', 'baoSelect', 'cmbSelect', 'confirmSneBtn', 'confirmBaoBtn', 'confirmCmbBtn', 'runBtn']
+        .forEach(id => document.getElementById(id).disabled = true);
+
     // Toggle between file upload and dropdown based on the selected radio
     function updateModelInputs() {
         const useUpload = document.getElementById('uploadRadio').checked;
@@ -74,6 +78,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('uploadRadio').addEventListener('change', updateModelInputs);
     document.getElementById('serverRadio').addEventListener('change', updateModelInputs);
     updateModelInputs();
+
+    document.getElementById('confirmModelBtn').addEventListener('click', () => {
+        document.getElementById('uploadRadio').disabled = true;
+        document.getElementById('serverRadio').disabled = true;
+        document.getElementById('modelFile').disabled = true;
+        document.getElementById('modelSelect').disabled = true;
+        document.getElementById('confirmModelBtn').disabled = true;
+        document.getElementById('sneSelect').disabled = false;
+        document.getElementById('confirmSneBtn').disabled = false;
+    });
+
+    document.getElementById('confirmSneBtn').addEventListener('click', () => {
+        document.getElementById('sneSelect').disabled = true;
+        document.getElementById('confirmSneBtn').disabled = true;
+        document.getElementById('baoSelect').disabled = false;
+        document.getElementById('confirmBaoBtn').disabled = false;
+    });
+
+    document.getElementById('confirmBaoBtn').addEventListener('click', () => {
+        document.getElementById('baoSelect').disabled = true;
+        document.getElementById('confirmBaoBtn').disabled = true;
+        document.getElementById('cmbSelect').disabled = false;
+        document.getElementById('confirmCmbBtn').disabled = false;
+    });
+
+    document.getElementById('confirmCmbBtn').addEventListener('click', () => {
+        document.getElementById('cmbSelect').disabled = true;
+        document.getElementById('confirmCmbBtn').disabled = true;
+        document.getElementById('runBtn').disabled = false;
+    });
 
     document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', switchTab));
 
