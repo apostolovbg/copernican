@@ -26,7 +26,7 @@ package and will exit cleanly even when Matplotlib has not yet been imported.
 
 ## 2. Directory Layout
 ```
-models/           - JSON model definitions with embedded theory text and equations. Optional `.md` files may accompany a model for readability.
+models/           - JSON model definitions with embedded theory text and equations.
 engines/          - Computational backends (SciPy CPU by default)
 data/             - Observation files under ``data/<type>/<source>/``
   cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance

@@ -185,6 +185,10 @@ def compute_cmb_spectrum_from_dict(param_dict, ells, spectra=("TT",)):
     units, so this helper merely selects the requested multipoles from the
     cached arrays.
 
+    The internal CAMB call already provides spectra in :math:`D_\ell`
+    units, so this helper merely selects the requested multipoles from the
+    cached arrays.
+
     Parameters
     ----------
     plugin : object
