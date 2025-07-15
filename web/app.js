@@ -1,16 +1,17 @@
+// Simple helper to fetch JSON from the Flask backend
 async function fetchData(url) {
     const resp = await fetch(url);
     return resp.json();
 }
 
-function renderList(containerId, items, name) {
-    const div = document.getElementById(containerId);
-    items.forEach((item, idx) => {
-        const id = `${name}-${idx}`;
-        const lbl = document.createElement('label');
-        lbl.innerHTML = `<input type="radio" name="${name}" value="${item}"> ${item}`;
-        div.appendChild(lbl);
-        div.appendChild(document.createElement('br'));
+// Populate a <select> element with option tags from an array of strings
+function fillSelect(id, items) {
+    const sel = document.getElementById(id);
+    items.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item;
+        opt.textContent = item;
+        sel.appendChild(opt);
     });
 }
 
@@ -57,11 +58,22 @@ function updateTableViewer() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     const models = await fetchData('/api/models');
-    renderList('modelList', models, 'model');
+    fillSelect('modelSelect', models);
     const data = await fetchData('/api/datasets');
-    renderList('sneList', data.sne, 'sne');
-    renderList('baoList', data.bao, 'bao');
-    renderList('cmbList', data.cmb, 'cmb');
+    fillSelect('sneSelect', data.sne);
+    fillSelect('baoSelect', data.bao);
+    fillSelect('cmbSelect', data.cmb);
+
+    // Toggle between file upload and dropdown based on the selected radio
+    function updateModelInputs() {
+        const useUpload = document.getElementById('uploadRadio').checked;
+        document.getElementById('modelFile').disabled = !useUpload;
+        document.getElementById('modelSelect').disabled = useUpload;
+    }
+
+    document.getElementById('uploadRadio').addEventListener('change', updateModelInputs);
+    document.getElementById('serverRadio').addEventListener('change', updateModelInputs);
+    updateModelInputs();
 
     document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', switchTab));
 
@@ -82,14 +94,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateTableViewer();
     });
 
+    // Kick off a run when the user presses the button. Configuration data is
+    // sent to the backend as JSON and the optional file upload is included as
+    // multipart form data.
     document.getElementById('runBtn').addEventListener('click', async () => {
+        const useUpload = document.getElementById('uploadRadio').checked;
         const body = {
-            model: document.querySelector('input[name="model"]:checked')?.value,
-            sne: document.querySelector('input[name="sne"]:checked')?.value,
-            bao: document.querySelector('input[name="bao"]:checked')?.value,
-            cmb: document.querySelector('input[name="cmb"]:checked')?.value,
+            model: useUpload ? null : document.getElementById('modelSelect').value,
+            sne: document.getElementById('sneSelect').value,
+            bao: document.getElementById('baoSelect').value,
+            cmb: document.getElementById('cmbSelect').value,
         };
-        const file = document.getElementById('modelFile').files[0];
+        const file = useUpload ? document.getElementById('modelFile').files[0] : null;
         const formData = new FormData();
         formData.append('config', JSON.stringify(body));
         if (file) formData.append('file', file);
