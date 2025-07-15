@@ -4,7 +4,7 @@ Development notes were previously kept at the top of this file. That history now
 lives in `CHANGELOG.md`. New modifications must update the changelog, and legacy
 `dev_note` headers embedded in source files have been fully phased out.
 
-This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.12.4**.
+This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 2.1.1**.
 
 ## 1. Program Overview
 The helper modules previously stored under `scripts/` now live in the `copernican_lib/` package.
@@ -14,6 +14,9 @@ being prepared. Users interact with `copernican.py`, choose a model from
 `./models/`, pick a computational engine from `./engines/` and choose data
 sources. Parsers reside alongside their data. Results are saved under
 `./output/`.
+
+An experimental browser-based interface lives in the `web/` directory. It
+leverages Pyodide to run a trimmed-down workflow entirely in WebAssembly.
 
 The default engine is `engines/cosmo_engine_comb.py`. All model plugins are validated
 through `copernican_lib/engine_interface.py` before being passed to the engine. This
@@ -34,6 +37,7 @@ output/           - Generated plots and CSV tables (created automatically)
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
 copernican_lib/optim_utils.py - Shared optimisation helpers used by engines
+web/              - Experimental Pyodide-powered interface
 ```
 Files in `data/` are read-only and must not be modified by AI-driven changes.
 
