@@ -96,10 +96,12 @@ class FunctionalTestCase(unittest.TestCase):
         params.set_for_lmax(int(np.max(ells)) + 300, lens_potential_accuracy=0)
         results = camb.get_results(params)
         cls = results.get_unlensed_scalar_cls(lmax=int(np.max(ells)), CMB_unit="muK")
+        full_ells = np.arange(cls.shape[0])
+        factor = full_ells * (full_ells + 1) / (2 * np.pi)
         expected = {
-            "TT": cls[:, 0],
-            "EE": cls[:, 1],
-            "TE": cls[:, 3],
+            "TT": cls[:, 0] * factor,
+            "EE": cls[:, 1] * factor,
+            "TE": cls[:, 3] * factor,
         }
 
         for spec in spectra:
