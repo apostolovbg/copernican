@@ -146,11 +146,12 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
 
 @lru_cache(maxsize=128)
 def _cached_cmb(key):
-    """Return unlensed CAMB spectra for a given parameter key.
+    r"""Return unlensed CAMB spectra for a given parameter key.
 
     The cache key contains the model name, cosmology parameters rounded to six
     significant digits using ``float(f"{float(v):.6g}")``, the maximum
-    multipole ``lmax`` and the requested spectra.
+    multipole ``lmax`` and the requested spectra.  The returned arrays are
+    converted to :math:`D_\ell = \ell(\ell+1)C_\ell/(2\pi)`.
     """
     _, param_tuple, lmax, spectra = key
     param_dict = dict(param_tuple)
@@ -166,13 +167,15 @@ def _cached_cmb(key):
     params.set_for_lmax(lmax + 300, lens_potential_accuracy=0)
     results = camb.get_results(params)
     cls = results.get_unlensed_scalar_cls(lmax=lmax, CMB_unit="muK")
+    ells = np.arange(cls.shape[0])
+    factor = ells * (ells + 1) / (2 * np.pi)
     out = {}
     if "TT" in spectra:
-        out["TT"] = cls[:, 0]
+        out["TT"] = cls[:, 0] * factor
     if "EE" in spectra:
-        out["EE"] = cls[:, 1]
+        out["EE"] = cls[:, 1] * factor
     if "TE" in spectra:
-        out["TE"] = cls[:, 3]
+        out["TE"] = cls[:, 3] * factor
     return out
 
 
