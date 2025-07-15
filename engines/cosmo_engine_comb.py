@@ -146,11 +146,13 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
 
 @lru_cache(maxsize=128)
 def _cached_cmb(key):
-    """Return unlensed CAMB spectra for a given parameter key.
+    r"""Return unlensed CAMB spectra for a given parameter key.
 
     The cache key contains the model name, cosmology parameters rounded to six
     significant digits using ``float(f"{float(v):.6g}")``, the maximum
-    multipole ``lmax`` and the requested spectra.
+    multipole ``lmax`` and the requested spectra. CAMB returns spectra as
+    :math:`D_\ell = \ell(\ell+1)C_\ell/(2\pi)` when ``raw_cl`` is ``False``,
+    which matches the units of the Planck lite dataset used by the parsers.
     """
     _, param_tuple, lmax, spectra = key
     param_dict = dict(param_tuple)
@@ -177,7 +179,15 @@ def _cached_cmb(key):
 
 
 def compute_cmb_spectrum_from_dict(param_dict, ells, spectra=("TT",)):
-    """Return theoretical D_ell spectra using CAMB with caching.
+    r"""Return theoretical D_ell spectra using CAMB with caching.
+
+    The internal CAMB call already provides spectra in :math:`D_\ell`
+    units, so this helper merely selects the requested multipoles from the
+    cached arrays.
+
+    The internal CAMB call already provides spectra in :math:`D_\ell`
+    units, so this helper merely selects the requested multipoles from the
+    cached arrays.
 
     Parameters
     ----------
