@@ -3,7 +3,6 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Version 1.12.4
 - 2025-07-15: Converted cached CMB spectra to D_\ell and added scaling test (AI assistant)
-- 2025-07-15: Fixed escape sequences in `_cached_cmb` docstring (AI assistant)
 
 ## Version 1.12.3
 - 2025-07-13: Unified timestamp handling and console output format updated (AI assistant)
