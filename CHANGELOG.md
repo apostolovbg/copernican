@@ -5,6 +5,7 @@ Add one line for each substantive commit or pull request directly under the late
 - 2025-07-15: Web server now adjusts PYTHONPATH to import local packages (AI assistant)
 - 2025-07-15: Improved web UI with dropdown selection and upload options (AI assistant)
 - 2025-07-15: Moved index.html to repo root and added sequential dataset selection in web UI (AI assistant)
+- 2025-07-15: Web server performs dependency check on startup (AI assistant)
 
 ## Version 1.12.6
 - 2025-07-15: Expanded web UI with interactive result viewer and per-file downloads (AI assistant)

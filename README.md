@@ -95,6 +95,9 @@ Under the hood the program follows a clear pipeline:
    JavaScript and CSS live under `web/`. The web UI lets you upload a JSON model
    or pick one from the server via dropdown along with dataset selectors for
    SNe, BAO and CMB. Results can be viewed and downloaded interactively.
+   All Python dependencies are checked when the server starts and will be
+   installed into `./venv` if missing so the interface works even on a fresh
+   system.
 
 ## Dependencies
 This project requires **Python 3.12 or later** and relies on `numpy`, `scipy`, `matplotlib`,

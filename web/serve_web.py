@@ -14,6 +14,12 @@ REPO_ROOT = os.path.dirname(BASE_DIR)
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
+# Verify required Python packages before importing project modules. This mirrors
+# the dependency check in ``copernican.py`` so the web interface can be started
+# on a clean system without manual setup.
+from copernican import check_dependencies
+check_dependencies()
+
 from copernican_lib import data_loaders
 
 app = Flask(__name__, static_folder=os.path.join(REPO_ROOT, 'web'), static_url_path='/web')
