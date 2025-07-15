@@ -4,12 +4,20 @@ import json
 import subprocess
 import tempfile
 import shutil
+import sys
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.dirname(BASE_DIR)
+
+# Ensure the project root is in ``sys.path`` so the local package imports work
+# even when ``serve_web.py`` is launched from the ``web`` directory.
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
 from copernican_lib import data_loaders
 
 app = Flask(__name__, static_folder='.')
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT = os.path.dirname(BASE_DIR)
 OUTPUT_DIR = os.path.join(REPO_ROOT, 'output')
 
 @app.route('/')
