@@ -356,7 +356,9 @@ def main_workflow():
 
     while True:
         global CURRENT_LOG_FILE
-        log_file = log_mod.setup_logging(log_dir=OUTPUT_DIR)
+        log_file, log_fh = log_mod.setup_logging(log_dir=OUTPUT_DIR)
+        console = log_mod.ConsoleCapture(log_fh)
+        console.start()
         CURRENT_LOG_FILE = log_file
         logger = log_mod.get_logger()
         start_ts = time.strftime("%y%m%d_%H%M%S")
@@ -379,6 +381,8 @@ def main_workflow():
         selected_model = select_from_list(model_files, 'Select cosmological model')
         if not selected_model:
             _delete_log_file(log_file)
+            console.stop()
+            log_fh.close()
             cleanup_cache(SCRIPT_DIR)
             return
         if selected_model.endswith('.json'):
@@ -418,6 +422,8 @@ def main_workflow():
         engine_choice = select_from_list(engine_files, 'Select computation engine')
         if not engine_choice:
             _delete_log_file(log_file)
+            console.stop()
+            log_fh.close()
             cleanup_cache(SCRIPT_DIR)
             return
         engine_module = importlib.import_module(f"engines.{engine_choice[:-3]}")
@@ -675,11 +681,15 @@ def main_workflow():
             elif another_run in ["no", "n", "2"]:
                 cleanup_cache(SCRIPT_DIR)
                 logger.info("Exiting Copernican Suite. Goodbye!")
+                console.stop()
+                log_fh.close()
                 return
             else:
                 print("Invalid input. Please enter 'yes' or 'no'.")
         
         cleanup_cache(SCRIPT_DIR)
+        console.stop()
+        log_fh.close()
 
 if __name__ == "__main__":
     # Multiprocessing start method must be 'spawn' so that each child process

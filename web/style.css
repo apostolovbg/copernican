@@ -1,0 +1,11 @@
+body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+header { background: #1a237e; color: white; padding: 10px; }
+main { padding: 20px; }
+.field { margin-bottom: 15px; }
+button { padding: 8px 16px; background: #3949ab; color: white; border: none; cursor: pointer; }
+button:hover { background: #303f9f; }
+.tabs { margin-top: 20px; }
+.tab { margin-right: 5px; }
+.tabContent { border: 1px solid #ccc; padding: 10px; height: 300px; overflow: auto; }
+.hidden { display: none; }
+.active { background: #303f9f; }
