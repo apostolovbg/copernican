@@ -48,7 +48,7 @@ characters like `/` with hyphens so output paths remain valid on all platforms.
 
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages and
-   prints a `pip install` command listing only the missing packages if any are absent.
+   prints an install command tailored to your OS listing only the missing packages.
 2. **Initialization** – the output directory is created and logging begins.
 3. **Configuration** – the user chooses a model and a computation engine
    from `./engines/`.  The default `cosmo_engine_comb.py` performs a
@@ -77,8 +77,8 @@ Under the hood the program follows a clear pipeline:
 ## Quick Start
 1. Ensure Python 3.12 or later is available. Launch the suite via the `start`
    script for your platform (`start.command`, `start.bat` or `start.sh`). The
-   program checks for required Python packages at startup and prints a
-   `pip install` command listing only the missing packages if any are absent. Running with an older Python
+   program checks for required Python packages at startup and prints an install
+   command appropriate for your OS listing only the missing packages. Running with an older Python
    version will print an error and exit immediately.
 2. Follow the interactive prompts to choose a model, preferred data sources and
    computation engine.
@@ -91,7 +91,7 @@ Under the hood the program follows a clear pipeline:
 ## Dependencies
 This project requires **Python 3.12 or later** and relies on `numpy`, `scipy`, `matplotlib`,
 `pandas`, `sympy`, `jsonschema` and `camb`. If any packages are missing the
-program prints a `pip install` command listing only those missing packages and exits so you can install them
+program prints an OS-specific install command listing only those missing packages and exits so you can install them
 manually. Running under an older Python version results in an immediate error
 and exit code 1. Future engines may also depend on `numba` or GPU libraries.
  
@@ -322,7 +322,7 @@ altering `MAJOR.MINOR`.
 ## 4. Workflow Overview
 
 1.  **Dependency Check**: `copernican.py` scans for missing packages and
-    instructs you to run a `pip install` command containing only those packages if any are absent.
+    prints an OS-specific install command containing only those packages if any are absent.
 2.  **Optional Tests**: Run `copernican.py --run-tests` to execute the
     functional test suite and verify that the LCDM model and data parsers work
     as expected. This flag performs unittest discovery over the `tests` package.
