@@ -52,8 +52,8 @@ by the engines instead of being reimplemented inside each backend.
 
 ## 3. Dependency Installation
 `copernican.py` scans all project files for imported modules. If any required
-package is missing, the program prints a `pip install` command listing **all**
-detected dependencies and then exits. Run that command manually to install or
+package is missing, the program prints a `pip install` command listing only the
+missing packages and then exits. Run that command manually to install or
 upgrade packages (already installed libraries will be skipped). This
 lightweight approach works across Windows, macOS and Linux while allowing new
 engines to introduce additional dependencies without manual updates to the

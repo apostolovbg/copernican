@@ -11,6 +11,7 @@ Add one line for each substantive commit or pull request directly under the late
 - 2025-07-16: Removed automatic dependency installation and virtual environment logic (AI assistant)
 - 2025-07-16: Implemented BAO residual plots with smoothed averages (AI assistant)
 - 2025-07-16: Added smoothed residual averages to all plots and extended footer wrapping (AI assistant)
+- 2025-07-16: Dependency check now prints install command with only missing packages (AI assistant)
 
 ## Version 1.12.3
 - 2025-07-13: Unified timestamp handling and console output format updated (AI assistant)
