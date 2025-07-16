@@ -59,12 +59,14 @@ def _delete_log_file(path: str) -> None:
         except OSError:
             pass
 
+
 def _get_cpu_info() -> tuple[str, str]:
     """Return CPU model and current clock speed."""
     cpu = platform.processor() or platform.uname().processor or "Unknown CPU"
     freq = None
     try:
         import psutil  # type: ignore
+
         freq_info = psutil.cpu_freq()
         if freq_info:
             freq = freq_info.current / 1000.0
@@ -83,9 +85,11 @@ def _get_cpu_info() -> tuple[str, str]:
     freq_str = f"{freq:.2f} GHz" if freq else "Unknown GHz"
     return cpu, freq_str
 
+
 # The high-level workflow is broken into small helper functions below. Each
 # helper is documented in plain language so non-programmers can follow the
 # logic of the program.
+
 
 def run_startup_tests():
     """Discover and execute functional tests within the ``tests`` package."""
@@ -94,24 +98,25 @@ def run_startup_tests():
     # under the ``tests`` folder. The boolean return value determines whether
     # the suite ran successfully.
     import unittest
+
     try:
-        suite = unittest.defaultTestLoader.discover('tests')
+        suite = unittest.defaultTestLoader.discover("tests")
     except Exception as exc:
         print(f"Error discovering startup tests: {exc}")
         return False
     result = unittest.TextTestRunner(verbosity=1).run(suite)
     return result.wasSuccessful()
 
+
 def parse_args():
     """Parse command line flags provided by the user."""
     parser = argparse.ArgumentParser(description="Copernican Suite")
     # ``--run-tests`` triggers the functional test suite and then exits.
     parser.add_argument(
-        '--run-tests',
-        action='store_true',
-        help='execute functional tests and exit'
+        "--run-tests", action="store_true", help="execute functional tests and exit"
     )
     return parser.parse_args()
+
 
 def show_splash_screen():
     """Displays the startup banner once at launch."""
@@ -132,49 +137,89 @@ def show_splash_screen():
     for line in banner:
         print(line)
     time.sleep(1)
-    print("Follow the prompts to configure a run. Results are saved in the 'output' directory.\n\n")
+    print(
+        "Follow the prompts to configure a run. Results are saved in the 'output' directory.\n\n"
+    )
+
 
 # --- System Dependency and Sanity Checker ---
 
+
 def _gather_required_packages():
-    """Scan project files for imported modules."""
-    # The dependency check looks through all *.py files and extracts the names
-    # of imported modules. Any package not part of the standard library is
-    # collected so we can warn the user when dependencies are missing.
+    """Return external packages imported across project modules."""
     pkg_names = set()
-    search_dirs = ['.', 'copernican_lib', 'engines', 'parsers']
+    search_dirs = ["copernican_lib", "engines", "tests", "."]
     for base in search_dirs:
+        if not os.path.isdir(base):
+            continue
         for root, _, files in os.walk(base):
             for fname in files:
-                if fname.endswith('.py'):
-                    with open(os.path.join(root, fname), 'r', encoding='utf-8') as f:
-                        for line in f:
-                            line = line.strip()
-                            if line.startswith('import '):
-                                parts = line.split()
-                                if len(parts) >= 2:
-                                    mod = parts[1].split('.')[0]
-                                    if mod and not mod.startswith('.'):
-                                        pkg_names.add(mod)
-                            elif line.startswith('from '):
-                                parts = line.split()
-                                if len(parts) >= 2:
-                                    mod = parts[1].split('.')[0]
-                                    if mod and not mod.startswith('.'):
-                                        pkg_names.add(mod)
+                if not fname.endswith(".py"):
+                    continue
+                path = os.path.join(root, fname)
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        tree = ast.parse(f.read(), filename=path)
+                except SyntaxError:
+                    continue
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Import):
+                        for alias in node.names:
+                            pkg_names.add(alias.name.split(".")[0])
+                    elif isinstance(node, ast.ImportFrom):
+                        if node.level == 0 and node.module:
+                            pkg_names.add(node.module.split(".")[0])
     ignore = {
         # Standard library modules or local packages that should not trigger
         # the dependency installer
-        'os', 'sys', 'time', 'json', 'logging', 'subprocess', 'importlib',
-        'multiprocessing', 'glob', 'shutil', 'platform', 'inspect', 'types',
-        'pathlib', 'builtins', 'traceback', 'typing',
+        "os",
+        "sys",
+        "time",
+        "json",
+        "logging",
+        "subprocess",
+        "importlib",
+        "multiprocessing",
+        "glob",
+        "shutil",
+        "platform",
+        "inspect",
+        "types",
+        "pathlib",
+        "builtins",
+        "traceback",
+        "typing",
         # Local modules within this repository (under ``copernican_lib``)
-        'data_loaders', 'csv_writer', 'plotter', 'logger',
-        'utils'
+        "data_loaders",
+        "csv_writer",
+        "plotter",
+        "logger",
+        "utils",
     }
-    return {pkg for pkg in pkg_names if not pkg.startswith(('copernican_lib', 'engines', 'parsers')) and pkg not in ignore}
+    return {
+        pkg
+        for pkg in pkg_names
+        if pkg not in ignore and not pkg.startswith(("copernican_lib", "engines"))
+    }
 
 
+def _print_install_instructions(missing: list[str]) -> None:
+    """Show platform-specific commands to install missing packages."""
+    pkgs = " ".join(sorted(set(missing)))
+    pip_cmd = f"{Path(sys.executable).name} -m pip install {pkgs}"
+    print("Please install them with:")
+    print(f"  {pip_cmd}")
+
+    sys_name = platform.system()
+    if sys_name == "Darwin" and shutil.which("brew"):
+        print(f"  brew install python && {pip_cmd}")
+    elif sys_name == "Linux":
+        if shutil.which("apt"):
+            print(f"  sudo apt install python3-pip && {pip_cmd}")
+        elif shutil.which("apt-get"):
+            print(f"  sudo apt-get install python3-pip && {pip_cmd}")
+    if shutil.which("pipx"):
+        print(f"  pipx install {pkgs}")
 
 
 def check_dependencies():
@@ -196,9 +241,7 @@ def check_dependencies():
 
     if missing:
         print(f"Missing packages detected: {', '.join(missing)}")
-        cmd = f"{Path(sys.executable).name} -m pip install {' '.join(sorted(set(missing)))}"
-        print("Please install them with:")
-        print(f"  {cmd}")
+        _print_install_instructions(missing)
         exit_clean(1)
     else:
         print("✅ System Dependency Check Passed. Continuing...\n")
@@ -208,17 +251,19 @@ def check_dependencies():
 
 lcdm = None
 
+
 def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
     """Prompts the user for a filepath and validates it."""
     while True:
         filename = input(f"{prompt_message} (or 'c' to cancel): ").strip()
-        if filename.lower() == 'c':
+        if filename.lower() == "c":
             return None
         filepath = os.path.join(base_dir, filename)
         if os.path.isfile(filepath):
             return filepath
         else:
             print(f"Error: File not found at '{filepath}'. Please try again.")
+
 
 def load_alternative_model_plugin(model_filepath):
     """Dynamically loads an alternative cosmological model plugin."""
@@ -234,49 +279,59 @@ def load_alternative_model_plugin(model_filepath):
         alt_model_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(alt_model_module)
         if not engine_interface.validate_plugin(alt_model_module):
-            logger.error(f"Model plugin '{os.path.basename(model_filepath)}' failed validation.")
+            logger.error(
+                f"Model plugin '{os.path.basename(model_filepath)}' failed validation."
+            )
             return None
-        logger.info(f"Successfully loaded alternative model: {alt_model_module.MODEL_NAME}")
+        logger.info(
+            f"Successfully loaded alternative model: {alt_model_module.MODEL_NAME}"
+        )
         return alt_model_module
     except Exception as e:
-        logger.error(f"Error loading model plugin '{os.path.basename(model_filepath)}': {e}", exc_info=True)
+        logger.error(
+            f"Error loading model plugin '{os.path.basename(model_filepath)}': {e}",
+            exc_info=True,
+        )
         return None
+
 
 def select_from_list(options, prompt):
     """Utility to allow user selection from a list."""
     if not options:
         return None
-    header = prompt.replace('Select ', '').strip()
-    if not header.endswith('s'):
-        header += 's'
+    header = prompt.replace("Select ", "").strip()
+    if not header.endswith("s"):
+        header += "s"
     print(f"\nAvailable {header}:")
     for i, opt in enumerate(options, 1):
         print(f"  {i}. {opt}")
     print("Write the number of your preferred choice or 'c' to cancel:")
     while True:
         choice = input("> ").strip()
-        if choice.lower() == 'c':
+        if choice.lower() == "c":
             return None
         if choice.isdigit() and 1 <= int(choice) <= len(options):
             return options[int(choice) - 1]
         print("Invalid selection. Try again.")
 
+
 def parse_model_header(md_path):
     """Read minimal YAML front matter for plugin lookup."""
     data = {}
     try:
-        with open(md_path, 'r') as f:
+        with open(md_path, "r") as f:
             lines = f.readlines()
-        if lines and lines[0].strip() == '---':
+        if lines and lines[0].strip() == "---":
             for line in lines[1:]:
-                if line.strip() == '---':
+                if line.strip() == "---":
                     break
-                if ':' in line:
-                    k, v = line.split(':', 1)
+                if ":" in line:
+                    k, v = line.split(":", 1)
                     data[k.strip()] = v.strip().strip('"').strip("'")
     except Exception:
         pass
     return data
+
 
 def cleanup_cache(base_dir):
     """Finds and removes all __pycache__ directories."""
@@ -290,16 +345,17 @@ def cleanup_cache(base_dir):
                 logger.info(f"Removed cache directory: {pycache_path}")
             except OSError as e:
                 logger.error(f"Error removing cache directory {pycache_path}: {e}")
-    cache_dir = os.path.join(base_dir, 'models', 'cache')
+    cache_dir = os.path.join(base_dir, "models", "cache")
     if os.path.isdir(cache_dir):
         for fname in os.listdir(cache_dir):
-            if fname.startswith('cache_') and fname.endswith('.json'):
+            if fname.startswith("cache_") and fname.endswith(".json"):
                 path = os.path.join(cache_dir, fname)
                 try:
                     os.remove(path)
                     logger.info(f"Removed cache file: {path}")
                 except OSError as e:
                     logger.error(f"Error removing cache file {path}: {e}")
+
 
 def main_workflow():
     """Main workflow for the Copernican Suite."""
@@ -328,16 +384,16 @@ def main_workflow():
     except NameError:
         SCRIPT_DIR = os.getcwd()
 
-    OUTPUT_DIR = os.path.join(SCRIPT_DIR, 'output')
+    OUTPUT_DIR = os.path.join(SCRIPT_DIR, "output")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     show_splash_screen()
 
     # Load the baseline LCDM model from JSON and validate it
     def _load_lcdm_from_json():
-        models_dir = os.path.join(SCRIPT_DIR, 'models')
-        json_path = os.path.join(models_dir, 'cosmo_model_lcdm.json')
-        cache_dir = os.path.join(models_dir, 'cache')
+        models_dir = os.path.join(SCRIPT_DIR, "models")
+        json_path = os.path.join(models_dir, "cosmo_model_lcdm.json")
+        cache_dir = os.path.join(models_dir, "cache")
         cache_path = model_parser.parse_model_json(json_path, cache_dir)
         func_dict, parsed = model_coder.generate_callables(cache_path)
         plugin = engine_interface.build_plugin(parsed, func_dict)
@@ -360,26 +416,32 @@ def main_workflow():
         logger.info(
             f"Copernican {COPERNICAN_VERSION} has initialized! Current timestamp is {start_ts}. Log file: {log_file}"
         )
-        logger.info("Using standard CPU (SciPy) computational backend with multiprocessing.")
+        logger.info(
+            "Using standard CPU (SciPy) computational backend with multiprocessing."
+        )
         logger.info(f"Running from base directory: {SCRIPT_DIR}")
         logger.info(f"All outputs will be saved to: {OUTPUT_DIR}")
 
         logger.info("\n--- Stage 1: Configuration ---")
 
-        models_dir = os.path.join(SCRIPT_DIR, 'models')
-        model_files = sorted([
-            f for f in os.listdir(models_dir)
-            if f.startswith('cosmo_model_') and (f.endswith('.md') or f.endswith('.json'))
-        ])
-        selected_model = select_from_list(model_files, 'Select cosmological model')
+        models_dir = os.path.join(SCRIPT_DIR, "models")
+        model_files = sorted(
+            [
+                f
+                for f in os.listdir(models_dir)
+                if f.startswith("cosmo_model_")
+                and (f.endswith(".md") or f.endswith(".json"))
+            ]
+        )
+        selected_model = select_from_list(model_files, "Select cosmological model")
         if not selected_model:
             _delete_log_file(log_file)
             cleanup_cache(SCRIPT_DIR)
             print()
             return
-        if selected_model.endswith('.json'):
+        if selected_model.endswith(".json"):
             json_path = os.path.join(models_dir, selected_model)
-            cache_dir = os.path.join(models_dir, 'cache')
+            cache_dir = os.path.join(models_dir, "cache")
             try:
                 cache_path = model_parser.parse_model_json(json_path, cache_dir)
             except Exception as e:
@@ -397,9 +459,11 @@ def main_workflow():
         else:
             md_path = os.path.join(models_dir, selected_model)
             meta = parse_model_header(md_path)
-            plugin_name = meta.get('model_plugin')
+            plugin_name = meta.get("model_plugin")
             if not plugin_name:
-                logger.error(f"Model file {selected_model} missing 'model_plugin' entry.")
+                logger.error(
+                    f"Model file {selected_model} missing 'model_plugin' entry."
+                )
                 continue
             alt_model_filepath = os.path.join(SCRIPT_DIR, plugin_name)
             if not os.path.isfile(alt_model_filepath):
@@ -409,9 +473,15 @@ def main_workflow():
         if not alt_model_plugin:
             continue
 
-        engines_dir = os.path.join(SCRIPT_DIR, 'engines')
-        engine_files = sorted([f for f in os.listdir(engines_dir) if f.startswith('cosmo_engine_') and f.endswith('.py')])
-        engine_choice = select_from_list(engine_files, 'Select computation engine')
+        engines_dir = os.path.join(SCRIPT_DIR, "engines")
+        engine_files = sorted(
+            [
+                f
+                for f in os.listdir(engines_dir)
+                if f.startswith("cosmo_engine_") and f.endswith(".py")
+            ]
+        )
+        engine_choice = select_from_list(engine_files, "Select computation engine")
         if not engine_choice:
             _delete_log_file(log_file)
             cleanup_cache(SCRIPT_DIR)
@@ -434,7 +504,7 @@ def main_workflow():
 
         lcdm_time = 0.0
         alt_time = 0.0
-        if hasattr(cosmo_engine_selected, 'fit_combined_parameters'):
+        if hasattr(cosmo_engine_selected, "fit_combined_parameters"):
             logger.info("\n--- Stage 2: Combined Fit (SNe + BAO + CMB) ---")
             t0 = time.perf_counter()
             lcdm_sne_fit_results = cosmo_engine_selected.fit_combined_parameters(
@@ -449,42 +519,64 @@ def main_workflow():
         else:
             logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
             t0 = time.perf_counter()
-            lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, lcdm)
+            lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(
+                sne_data_df, lcdm
+            )
             lcdm_time += time.perf_counter() - t0
             t0 = time.perf_counter()
-            alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(sne_data_df, alt_model_plugin)
+            alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(
+                sne_data_df, alt_model_plugin
+            )
             alt_time += time.perf_counter() - t0
-        
+
         logger.info("\n--- Stage 3: BAO Analysis ---")
-        
-        min_z, max_z = bao_data_df['redshift'].min(), bao_data_df['redshift'].max()
+
+        min_z, max_z = bao_data_df["redshift"].min(), bao_data_df["redshift"].max()
         z_plot_smooth = np.geomspace(max(min_z * 0.8, 0.01), max_z * 1.2, 100)
-        
+
         def run_bao_analysis(model_plugin, sne_fit_results, z_smooth_arr):
             """Helper to run BAO analysis for a given model."""
-            if not (sne_fit_results and sne_fit_results.get('success')):
+            if not (sne_fit_results and sne_fit_results.get("success")):
                 logger.warning(
                     f"{model_plugin.MODEL_NAME} fit failed; skipping BAO analysis."
                 )
                 return {
-                    'sne_fit_results': sne_fit_results,
-                    'pred_df': None,
-                    'rs_Mpc': np.nan,
-                    'chi2_bao': np.inf,
-                    'smooth_predictions': None,
+                    "sne_fit_results": sne_fit_results,
+                    "pred_df": None,
+                    "rs_Mpc": np.nan,
+                    "chi2_bao": np.inf,
+                    "smooth_predictions": None,
                 }
 
-            fitted_cosmo_p = list(sne_fit_results['fitted_cosmological_params'].values())
-            pred_df, rs_Mpc, smooth_preds = cosmo_engine_selected.calculate_bao_observables(bao_data_df, model_plugin, fitted_cosmo_p, z_smooth=z_smooth_arr)
-            
+            fitted_cosmo_p = list(
+                sne_fit_results["fitted_cosmological_params"].values()
+            )
+            pred_df, rs_Mpc, smooth_preds = (
+                cosmo_engine_selected.calculate_bao_observables(
+                    bao_data_df, model_plugin, fitted_cosmo_p, z_smooth=z_smooth_arr
+                )
+            )
+
             chi2_bao = np.inf
             if pred_df is not None and np.isfinite(rs_Mpc):
-                chi2_bao = cosmo_engine_selected.chi_squared_bao(bao_data_df, model_plugin, fitted_cosmo_p, rs_Mpc)
-                logger.info(f"{model_plugin.MODEL_NAME} BAO: r_s = {rs_Mpc:.2f} Mpc, Chi2_BAO = {chi2_bao:.2f}")
+                chi2_bao = cosmo_engine_selected.chi_squared_bao(
+                    bao_data_df, model_plugin, fitted_cosmo_p, rs_Mpc
+                )
+                logger.info(
+                    f"{model_plugin.MODEL_NAME} BAO: r_s = {rs_Mpc:.2f} Mpc, Chi2_BAO = {chi2_bao:.2f}"
+                )
             else:
-                logger.warning(f"{model_plugin.MODEL_NAME} BAO calculation failed or produced invalid r_s.")
-                
-            return {'sne_fit_results': sne_fit_results, 'pred_df': pred_df, 'rs_Mpc': rs_Mpc, 'chi2_bao': chi2_bao, 'smooth_predictions': smooth_preds}
+                logger.warning(
+                    f"{model_plugin.MODEL_NAME} BAO calculation failed or produced invalid r_s."
+                )
+
+            return {
+                "sne_fit_results": sne_fit_results,
+                "pred_df": pred_df,
+                "rs_Mpc": rs_Mpc,
+                "chi2_bao": chi2_bao,
+                "smooth_predictions": smooth_preds,
+            }
 
         def run_cmb_analysis(cmb_df, model_plugin, cosmo_params, cmb_extras=None):
             """Run CMB analysis for a given model."""
@@ -492,14 +584,14 @@ def main_workflow():
             # for such data. This prevents misleading chi-squared calculations
             # and ensures plugin validation does not fail for missing CMB
             # functions.
-            if getattr(model_plugin, 'valid_for_cmb', True) is False:
+            if getattr(model_plugin, "valid_for_cmb", True) is False:
                 logger.info(
                     f"{model_plugin.MODEL_NAME} does not support CMB; skipping analysis."
                 )
-                return {'chi2_cmb': np.inf, 'theory_spectrum': None}
+                return {"chi2_cmb": np.inf, "theory_spectrum": None}
 
             if cmb_df is None or cmb_df.empty:
-                return {'chi2_cmb': np.inf, 'theory_spectrum': None}
+                return {"chi2_cmb": np.inf, "theory_spectrum": None}
 
             # Convert the fitted cosmological parameters to CAMB's expected
             # dictionary format using the helper provided by the model plugin.
@@ -518,7 +610,7 @@ def main_workflow():
 
             theory = cosmo_engine_selected.compute_cmb_spectrum(
                 camb_params,
-                cmb_df['ell'].values,
+                cmb_df["ell"].values,
                 spectra=tuple(components),
             )
             chi2_val = cosmo_engine_selected.chi_squared_cmb(
@@ -528,13 +620,15 @@ def main_workflow():
                 cmb_extras,
             )
             logger.info(f"{model_plugin.MODEL_NAME} CMB chi2 = {chi2_val:.2f}")
-            return {'chi2_cmb': chi2_val, 'theory_spectrum': theory}
+            return {"chi2_cmb": chi2_val, "theory_spectrum": theory}
 
         t0 = time.perf_counter()
         lcdm_full_results = run_bao_analysis(lcdm, lcdm_sne_fit_results, z_plot_smooth)
         lcdm_time += time.perf_counter() - t0
         t0 = time.perf_counter()
-        alt_model_full_results = run_bao_analysis(alt_model_plugin, alt_model_sne_fit_results, z_plot_smooth)
+        alt_model_full_results = run_bao_analysis(
+            alt_model_plugin, alt_model_sne_fit_results, z_plot_smooth
+        )
         alt_time += time.perf_counter() - t0
 
         logger.info("\n--- Stage 4: CMB Analysis ---")
@@ -543,22 +637,24 @@ def main_workflow():
         lcdm_cmb = run_cmb_analysis(
             cmb_data_df,
             lcdm,
-            list(lcdm_sne_fit_results['fitted_cosmological_params'].values()),
-            lcdm_sne_fit_results.get('fitted_cmb_params'),
+            list(lcdm_sne_fit_results["fitted_cosmological_params"].values()),
+            lcdm_sne_fit_results.get("fitted_cmb_params"),
         )
         lcdm_time += time.perf_counter() - t0
         t0 = time.perf_counter()
         alt_cmb = run_cmb_analysis(
             cmb_data_df,
             alt_model_plugin,
-            list(alt_model_sne_fit_results['fitted_cosmological_params'].values()),
-            alt_model_sne_fit_results.get('fitted_cmb_params'),
+            list(alt_model_sne_fit_results["fitted_cosmological_params"].values()),
+            alt_model_sne_fit_results.get("fitted_cmb_params"),
         )
         alt_time += time.perf_counter() - t0
 
         logger.info("\n--- Stage 5: Generating Outputs ---")
         logger.info(f"{lcdm.MODEL_NAME} CMB chi2 = {lcdm_cmb['chi2_cmb']:.2f}")
-        logger.info(f"{alt_model_plugin.MODEL_NAME} CMB chi2 = {alt_cmb['chi2_cmb']:.2f}")
+        logger.info(
+            f"{alt_model_plugin.MODEL_NAME} CMB chi2 = {alt_cmb['chi2_cmb']:.2f}"
+        )
 
         run_end_dt = datetime.datetime.now()
         end_ts = run_end_dt.strftime("%Y%m%d_%H%M%S")
@@ -598,12 +694,14 @@ def main_workflow():
 
         print("\n--- Final Theory Summaries ---")
         print(f"ΛCDM Abstract:\n{lcdm.MODEL_ABSTRACT}\n")
-        print(f"{alt_model_plugin.MODEL_NAME} Abstract:\n{alt_model_plugin.MODEL_ABSTRACT}\n")
+        print(
+            f"{alt_model_plugin.MODEL_NAME} Abstract:\n{alt_model_plugin.MODEL_ABSTRACT}\n"
+        )
 
         def _print_fit(label, sne_res, bao_res, cmb_res):
             print(f"--- {label} Fit Report ---")
             if sne_res:
-                for name, val in sne_res.get('fitted_cosmological_params', {}).items():
+                for name, val in sne_res.get("fitted_cosmological_params", {}).items():
                     print(f"  {name} = {val:.5g}")
                 print(f"  χ²_SNe = {sne_res.get('chi2_min', float('nan')):.2f}")
             if bao_res:
@@ -611,12 +709,17 @@ def main_workflow():
             if cmb_res:
                 print(f"  χ²_CMB = {cmb_res.get('chi2_cmb', float('nan')):.2f}")
 
-        _print_fit('ΛCDM', lcdm_sne_fit_results, lcdm_full_results, lcdm_cmb)
-        _print_fit(alt_model_plugin.MODEL_NAME, alt_model_sne_fit_results, alt_model_full_results, alt_cmb)
-        
+        _print_fit("ΛCDM", lcdm_sne_fit_results, lcdm_full_results, lcdm_cmb)
+        _print_fit(
+            alt_model_plugin.MODEL_NAME,
+            alt_model_sne_fit_results,
+            alt_model_full_results,
+            alt_cmb,
+        )
+
         # The call to the redundant summary CSV has been removed.
         # csv_writer.save_sne_fit_results_csv(...)
-        
+
         # Save the detailed point-by-point SNe results CSV
         csv_writer.save_sne_results_detailed_csv(
             sne_data_df,
@@ -627,7 +730,7 @@ def main_workflow():
             csv_dir=OUTPUT_DIR,
             timestamp=end_ts,
         )
-        
+
         if bao_data_df is not None:
             csv_writer.save_bao_results_csv(
                 bao_data_df,
@@ -647,9 +750,9 @@ def main_workflow():
                 timestamp=end_ts,
             )
 
-        print("\n" + "="*50)
+        print("\n" + "=" * 50)
         print("Evaluation complete. All files saved to the 'output' directory.")
-        print("="*50 + "\n")
+        print("=" * 50 + "\n")
 
         total_time = time.perf_counter() - run_start_pc
         cpu_model, cpu_freq = _get_cpu_info()
@@ -666,9 +769,13 @@ def main_workflow():
         )
 
         while True:
-            another_run = input("Would you like to run another evaluation? (yes/no): ").strip().lower()
+            another_run = (
+                input("Would you like to run another evaluation? (yes/no): ")
+                .strip()
+                .lower()
+            )
             if another_run in ["yes", "y", "1"]:
-                break 
+                break
             elif another_run in ["no", "n", "2"]:
                 cleanup_cache(SCRIPT_DIR)
                 logger.info("Exiting Copernican Suite. Goodbye!")
@@ -676,14 +783,16 @@ def main_workflow():
                 return
             else:
                 print("Invalid input. Please enter 'yes' or 'no'.")
-        
+
         cleanup_cache(SCRIPT_DIR)
+
 
 if __name__ == "__main__":
     # Multiprocessing start method must be 'spawn' so that each child process
     # inherits a pristine interpreter state. This avoids subtle issues when
     # worker processes import project modules that expect to run only once.
     import multiprocessing as _mp
+
     _mp.freeze_support()
     try:
         _mp.set_start_method("spawn", force=True)
@@ -701,6 +810,7 @@ if __name__ == "__main__":
         else:
             print("CRITICAL UNHANDLED EXCEPTION IN MAIN WORKFLOW:")
             import traceback
+
             traceback.print_exc()
     finally:
         # Ensure that any generated plot windows are displayed at the very end
