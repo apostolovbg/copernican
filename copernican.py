@@ -47,7 +47,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.12.5"
+COPERNICAN_VERSION = "1.12.6"
 CURRENT_LOG_FILE = None
 
 
@@ -166,7 +166,9 @@ def _gather_required_packages():
             dirs[:] = [
                 d
                 for d in dirs
-                if d not in ignore_dirs and not d.startswith(".") and "site-packages" not in d
+                if d not in ignore_dirs
+                and not d.startswith(".")
+                and "site-packages" not in d
             ]
             for fname in files:
                 if not fname.endswith(".py"):
@@ -821,9 +823,7 @@ if __name__ == "__main__":
     except Exception:
         logger_obj = log_mod.get_logger() if log_mod else None
         if logger_obj and logger_obj.hasHandlers():
-            logger_obj.critical(
-                "Unhandled exception in main_workflow!", exc_info=True
-            )
+            logger_obj.critical("Unhandled exception in main_workflow!", exc_info=True)
         else:
             print("CRITICAL UNHANDLED EXCEPTION IN MAIN WORKFLOW:")
             import traceback
