@@ -47,7 +47,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.12.6"
+COPERNICAN_VERSION = "1.12.7"
 CURRENT_LOG_FILE = None
 
 
@@ -424,7 +424,7 @@ def main_workflow():
 
     while True:
         global CURRENT_LOG_FILE
-        log_file = log_mod.setup_logging(log_dir=OUTPUT_DIR)
+        log_file = log_mod.setup_logging(log_dir=OUTPUT_DIR, base_dir=SCRIPT_DIR)
         CURRENT_LOG_FILE = log_file
         logger = log_mod.get_logger()
         start_ts = time.strftime("%y%m%d_%H%M%S")
