@@ -183,7 +183,18 @@ def check_dependencies():
     """Ensure all required packages are installed and activate venv if needed."""
     print("--- Running System Dependency Check ---")
     required = sorted(_gather_required_packages())
-    missing = [pkg for pkg in required if importlib.util.find_spec(pkg) is None]
+    missing = []
+    for pkg in required:
+        try:
+            if importlib.util.find_spec(pkg) is None:
+                missing.append(pkg)
+        except ValueError:
+            # Python 3.13 may raise ValueError when __main__.__spec__ is None.
+            # Fallback to a simple import attempt in that case.
+            try:
+                importlib.import_module(pkg)
+            except Exception:
+                missing.append(pkg)
 
     inside_venv = os.environ.get('COPERNICAN_VENV_ACTIVE') == '1'
 
