@@ -150,10 +150,24 @@ def _gather_required_packages():
     """Return external packages imported across project modules."""
     pkg_names = set()
     search_dirs = ["copernican_lib", "engines", "tests", "."]
+    ignore_dirs = {
+        "venv",
+        ".venv",
+        "env",
+        "build",
+        "dist",
+        "__pycache__",
+        "copernican_suite.egg-info",
+    }
     for base in search_dirs:
         if not os.path.isdir(base):
             continue
-        for root, _, files in os.walk(base):
+        for root, dirs, files in os.walk(base):
+            dirs[:] = [
+                d
+                for d in dirs
+                if d not in ignore_dirs and not d.startswith(".") and "site-packages" not in d
+            ]
             for fname in files:
                 if not fname.endswith(".py"):
                     continue
