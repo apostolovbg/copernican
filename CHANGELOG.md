@@ -7,6 +7,11 @@ Add one line for each substantive commit or pull request directly under the late
 - 2025-07-15: Converted math docstrings to raw strings to silence escape warnings (AI assistant)
 - 2025-07-15: Fixed dependency check for Python 3.13 `find_spec` ValueError (AI assistant)
 
+## Version 1.12.5
+- 2025-07-16: Removed automatic dependency installation and virtual environment logic (AI assistant)
+- 2025-07-16: Implemented BAO residual plots with smoothed averages (AI assistant)
+- 2025-07-16: Added smoothed residual averages to all plots and extended footer wrapping (AI assistant)
+
 ## Version 1.12.3
 - 2025-07-13: Unified timestamp handling and console output format updated (AI assistant)
 

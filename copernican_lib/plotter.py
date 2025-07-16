@@ -24,13 +24,52 @@ def _wrap_math(text: str) -> str:
     return f"${cleaned}$" if cleaned else ""
 
 
+def _smooth_line(x: np.ndarray, y: np.ndarray, points: int = 200) -> tuple[np.ndarray, np.ndarray]:
+    """Return a smooth interpolation of ``y`` over ``x``."""
+    if len(x) < 4:
+        return x, y
+    try:
+        from scipy.interpolate import make_interp_spline
+
+        idx = np.argsort(x)
+        x_sorted = x[idx]
+        y_sorted = y[idx]
+        order = 3 if len(x_sorted) > 3 else 1
+        spline = make_interp_spline(x_sorted, y_sorted, k=order)
+        x_new = np.linspace(x_sorted[0], x_sorted[-1], points)
+        y_new = spline(x_new)
+        return x_new, y_new
+    except Exception as exc:
+        get_logger().warning(f"Could not smooth line: {exc}")
+        return x, y
+
+
+def get_binned_average(z: np.ndarray, residuals: np.ndarray, n_bins: int = 20) -> tuple[np.ndarray, np.ndarray]:
+    """Return binned average residuals or empty arrays when unavailable."""
+    if len(z) < n_bins:
+        return np.array([]), np.array([])
+    try:
+        from scipy.stats import binned_statistic
+
+        mean_stat, bin_edges, _ = binned_statistic(z, residuals, statistic="mean", bins=n_bins)
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+        valid_indices = ~np.isnan(mean_stat)
+        return bin_centers[valid_indices], mean_stat[valid_indices]
+    except ImportError:
+        get_logger().warning("Scipy not found, cannot plot binned residual averages.")
+        return np.array([]), np.array([])
+    except Exception as exc:
+        get_logger().warning(f"Could not calculate binned average due to an error: {exc}")
+        return np.array([]), np.array([])
+
+
 def compose_footer(base_line: str, data_attrs: dict) -> str:
     """Return a multi-line footer string with dataset information."""
     long_name = data_attrs.get("dataset_long_name", data_attrs.get("dataset_name_attr", ""))
     notes = data_attrs.get("notes", "")
     citation = data_attrs.get("citation", "")
     second_line = f"{_wrap_math(long_name)}: {notes} {citation}".strip()
-    wrapped = textwrap.fill(second_line, width=110)
+    wrapped = textwrap.fill(second_line, width=150)
     return base_line + "\n" + wrapped
 
 
@@ -121,24 +160,6 @@ def plot_hubble_diagram(
     diag_errors_plot = sne_data_df.attrs.get("diag_errors_for_plot", np.ones_like(z_data) * 0.2)
     z_plot_smooth = np.geomspace(max(np.min(z_data) * 0.9, 0.001), np.max(z_data) * 1.05, 200)
 
-    def get_binned_average(z: np.ndarray, residuals: np.ndarray, n_bins: int = 20) -> tuple[np.ndarray, np.ndarray]:
-        """Return binned average residuals for plotting or an empty array if unavailable."""
-        if len(z) < n_bins:
-            return np.array([]), np.array([])
-        try:
-            from scipy.stats import binned_statistic
-
-            mean_stat, bin_edges, _ = binned_statistic(z, residuals, statistic="mean", bins=n_bins)
-            bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-            valid_indices = ~np.isnan(mean_stat)
-            return bin_centers[valid_indices], mean_stat[valid_indices]
-        except ImportError:
-            logger.warning("Scipy not found, cannot plot binned residual averages.")
-            return np.array([]), np.array([])
-        except Exception as exc:
-            logger.warning(f"Could not calculate binned average due to an error: {exc}")
-            return np.array([]), np.array([])
-
     fig, axs = plt.subplots(2, 1, figsize=(17, 12), sharex=True, gridspec_kw={"height_ratios": [3, 1.5], "hspace": 0.05})
     plt.subplots_adjust(left=0.08, bottom=0.12, right=0.75, top=0.92)
     try:
@@ -170,6 +191,7 @@ def plot_hubble_diagram(
         axs[0].plot(z_plot_smooth, mu_model_lcdm_smooth, color="red", ls="-", label=fr"$\Lambda$CDM ($\chi^2$={chi2_lcdm})", lw=2.5)
         axs[1].errorbar(z_data, res_lcdm, yerr=diag_errors_plot, fmt=".", color="red", alpha=0.5, label=r"$\Lambda$CDM Res.", elinewidth=1, capsize=2, ms=4)
         z_lcdm_avg, res_lcdm_avg = get_binned_average(z_data, res_lcdm)
+        z_lcdm_avg, res_lcdm_avg = _smooth_line(z_lcdm_avg, res_lcdm_avg)
         axs[1].plot(z_lcdm_avg, res_lcdm_avg, color="darkred", ls="-", lw=2, zorder=10, label=r"Avg. $\Lambda$CDM Res.")
 
     alt_name_raw = getattr(alt_model_plugin, "MODEL_NAME", "AltModel")
@@ -196,6 +218,7 @@ def plot_hubble_diagram(
             ms=4,
         )
         z_alt_avg, res_alt_avg = get_binned_average(z_data, res_alt)
+        z_alt_avg, res_alt_avg = _smooth_line(z_alt_avg, res_alt_avg)
         axs[1].plot(z_alt_avg, res_alt_avg, color="darkblue", ls="--", lw=2, zorder=11, label=f"Avg. {alt_name_latex} Res.")
 
     axs[0].set_ylabel(r"Distance Modulus ($\mu$)", fontsize=font_sizes["label"])
@@ -283,7 +306,15 @@ def plot_bao_observables(
         "ticks": 12,
     }
 
-    fig, ax = plt.subplots(figsize=(17, 10))
+    fig, axs = plt.subplots(
+        2,
+        1,
+        figsize=(17, 12),
+        sharex=True,
+        gridspec_kw={"height_ratios": [3, 1.5], "hspace": 0.05},
+    )
+    ax = axs[0]
+    res_ax = axs[1]
     plt.subplots_adjust(left=0.08, bottom=0.13, right=0.75, top=0.90)
     try:
         plt.style.use("seaborn-v0_8-darkgrid")
@@ -339,13 +370,61 @@ def plot_bao_observables(
     alt_name_latex = alt_name_raw.replace("_", r"\_")
     plot_model_bao(alt_model_full_results, "blue", line_styles, alt_name_latex, alpha=0.25)
 
-    ax.set_xlabel("Redshift (z)", fontsize=font_sizes["label"])
+    # --- Residuals ---
+    lcdm_pred = lcdm_full_results.get("pred_df")
+    if lcdm_pred is not None:
+        res_lcdm = bao_data_df["value"].values - lcdm_pred["model_prediction"].values
+        res_ax.errorbar(
+            bao_data_df["redshift"],
+            res_lcdm,
+            yerr=bao_data_df["error"],
+            fmt=".",
+            color="red",
+            alpha=0.5,
+            label=r"$\Lambda$CDM Res.",
+            elinewidth=1,
+            capsize=2,
+            ms=4,
+        )
+        z_avg, r_avg = get_binned_average(bao_data_df["redshift"].values, res_lcdm)
+        z_avg, r_avg = _smooth_line(z_avg, r_avg)
+        res_ax.plot(z_avg, r_avg, color="darkred", ls="-", lw=2, zorder=10, label=r"Avg. $\Lambda$CDM Res.")
+
+    alt_pred = alt_model_full_results.get("pred_df")
+    if alt_pred is not None:
+        res_alt = bao_data_df["value"].values - alt_pred["model_prediction"].values
+        res_ax.errorbar(
+            bao_data_df["redshift"],
+            res_alt,
+            yerr=bao_data_df["error"],
+            fmt=".",
+            mfc="none",
+            mec="blue",
+            ecolor="lightblue",
+            alpha=0.5,
+            label=fr"{alt_name_latex} Res.",
+            elinewidth=1,
+            capsize=2,
+            ms=4,
+        )
+        z_avg, r_avg = get_binned_average(bao_data_df["redshift"].values, res_alt)
+        z_avg, r_avg = _smooth_line(z_avg, r_avg)
+        res_ax.plot(z_avg, r_avg, color="darkblue", ls="--", lw=2, zorder=11, label=f"Avg. {alt_name_latex} Res.")
+
     ax.set_ylabel(r"$D_X/r_s$", fontsize=font_sizes["label"])
     ax.set_title(f"BAO Observables vs. Redshift: {dataset_name}", fontsize=font_sizes["title"])
     ax.legend(fontsize=font_sizes["legend"], loc="best")
     ax.minorticks_on()
     ax.tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
     ax.grid(True, which="both", linestyle="--", linewidth=0.5)
+
+    res_ax.axhline(0, color="black", ls="--", lw=1)
+    res_ax.set_xlabel("Redshift (z)", fontsize=font_sizes["label"])
+    res_ax.set_ylabel(r"$D_X/r_s^{obs} - D_X/r_s^{th}$", fontsize=font_sizes["label"])
+    res_ax.legend(fontsize=font_sizes["legend"], loc="best")
+    res_ax.minorticks_on()
+    res_ax.tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
+    res_ax.grid(True, which="both", linestyle="--", linewidth=0.5)
 
     bbox_lcdm = dict(boxstyle="round,pad=0.5", fc="#FFEEEE", ec="darkred", alpha=0.8)
     bbox_alt = dict(boxstyle="round,pad=0.5", fc="#EEF2FF", ec="darkblue", alpha=0.8)
@@ -564,10 +643,21 @@ def plot_cmb_spectrum(
                     fmt=".",
                     color="red",
                     alpha=0.5,
-                    label=r"$\Lambda$CDM Res.",
+                    label=r"$\Lambda$CDM Res." if i == 0 else None,
                     elinewidth=1,
                     capsize=2,
                     ms=4,
+                )
+                z_avg, r_avg = get_binned_average(ells, res)
+                z_avg, r_avg = _smooth_line(z_avg, r_avg)
+                axs[idx_res].plot(
+                    z_avg,
+                    r_avg,
+                    color="darkred",
+                    ls="-",
+                    lw=2,
+                    zorder=10,
+                    label=r"Avg. $\Lambda$CDM Res." if i == 0 else None,
                 )
 
         if alt_theory is not None:
@@ -588,10 +678,21 @@ def plot_cmb_spectrum(
                     mec="blue",
                     ecolor="lightblue",
                     alpha=0.5,
-                    label=fr"{alt_name_latex} Res.",
+                    label=fr"{alt_name_latex} Res." if i == 0 else None,
                     elinewidth=1,
                     capsize=2,
                     ms=4,
+                )
+                z_avg, r_avg = get_binned_average(ells, res)
+                z_avg, r_avg = _smooth_line(z_avg, r_avg)
+                axs[idx_res].plot(
+                    z_avg,
+                    r_avg,
+                    color="darkblue",
+                    ls="--",
+                    lw=2,
+                    zorder=11,
+                    label=f"Avg. {alt_name_latex} Res." if i == 0 else None,
                 )
 
         axs[idx_main].set_ylabel(r"$D_\ell\ (\mu K^2)$", fontsize=font_sizes["label"])
