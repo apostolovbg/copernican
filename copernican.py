@@ -6,6 +6,7 @@ Copernican Suite - Main Orchestrator.
 
 import importlib.util
 import importlib
+import ast
 import os
 import sys
 import platform
@@ -804,9 +805,11 @@ if __name__ == "__main__":
     try:
         main_workflow()
     except Exception:
-        logger = log_mod.get_logger()
-        if logger.hasHandlers():
-            logger.critical("Unhandled exception in main_workflow!", exc_info=True)
+        logger_obj = log_mod.get_logger() if log_mod else None
+        if logger_obj and logger_obj.hasHandlers():
+            logger_obj.critical(
+                "Unhandled exception in main_workflow!", exc_info=True
+            )
         else:
             print("CRITICAL UNHANDLED EXCEPTION IN MAIN WORKFLOW:")
             import traceback

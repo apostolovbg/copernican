@@ -7,6 +7,7 @@ Add one line for each substantive commit or pull request directly under the late
 - 2025-07-16: Added smoothed residual averages to all plots and extended footer wrapping (AI assistant)
 - 2025-07-16: Dependency check now prints install command with only missing packages (AI assistant)
 - 2025-07-16: Dependency checker parses imports via AST and prints OS-aware install instructions (AI assistant)
+- 2025-07-16: Fixed logger crash and missing AST import in dependency check (AI assistant)
 
 ## Version 1.12.4
 - 2025-07-15: Fixed CMB spectrum scaling bug and added Dl verification test (AI assistant)
