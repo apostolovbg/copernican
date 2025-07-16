@@ -10,20 +10,26 @@ import os
 import sys
 import platform
 import shutil
-import subprocess
 import time
 import datetime
 import argparse
-from getpass import getpass
 
 # Verify interpreter version early so users see clear feedback
 MIN_PYTHON = (3, 12)
+
+
+def exit_clean(code: int = 0) -> None:
+    """Exit the program after printing a newline."""
+    print()
+    sys.exit(code)
+
+
 if sys.version_info < MIN_PYTHON:
     print(
         f"ERROR: Copernican Suite requires Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]} or later.",
         file=sys.stderr,
     )
-    sys.exit(1)
+    exit_clean(1)
 
 # Delay heavy third-party imports until after the dependency check
 np = None
@@ -39,17 +45,8 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.12.4"
-
-# Local virtual environment used when dependencies are missing
-VENV_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'venv')
+COPERNICAN_VERSION = "1.12.5"
 CURRENT_LOG_FILE = None
-
-
-def _venv_bin(name: str) -> str:
-    """Return the path to a binary inside the virtual environment."""
-    folder = 'Scripts' if os.name == 'nt' else 'bin'
-    return os.path.join(VENV_DIR, folder, name)
 
 
 def _delete_log_file(path: str) -> None:
@@ -196,27 +193,12 @@ def check_dependencies():
             except Exception:
                 missing.append(pkg)
 
-    inside_venv = os.environ.get('COPERNICAN_VENV_ACTIVE') == '1'
-
     if missing:
-        if not inside_venv:
-            print(f"Missing packages detected: {', '.join(missing)}")
-            print("Installing into local virtual environment. You may be asked for your password.")
-            if not os.path.isdir(VENV_DIR):
-                subprocess.check_call([sys.executable, '-m', 'venv', VENV_DIR])
-            pip_exe = _venv_bin('pip')
-            subprocess.check_call([pip_exe, 'install', *required])
-            python_exe = _venv_bin('python')
-            os.environ['COPERNICAN_VENV_ACTIVE'] = '1'
-            os.execv(python_exe, [python_exe] + sys.argv)
-        else:
-            print("Dependency installation failed inside virtual environment.")
-            sys.exit(1)
+        print(f"Missing packages detected: {', '.join(missing)}")
+        print("Please install them with:")
+        print(f"  pip install {' '.join(sorted(missing))}")
+        exit_clean(1)
     else:
-        if not inside_venv and os.path.isdir(VENV_DIR):
-            python_exe = _venv_bin('python')
-            os.environ['COPERNICAN_VENV_ACTIVE'] = '1'
-            os.execv(python_exe, [python_exe] + sys.argv)
         print("✅ System Dependency Check Passed. Continuing...\n")
 
 
@@ -329,7 +311,7 @@ def main_workflow():
     check_dependencies()
     if args.run_tests:
         success = run_startup_tests()
-        sys.exit(0 if success else 1)
+        exit_clean(0 if success else 1)
 
     # Import optional third-party packages after confirming they are installed
     global np, plt, mp, model_parser, model_coder, engine_interface, data_loaders, plotter, csv_writer, log_mod, logger
@@ -391,6 +373,7 @@ def main_workflow():
         if not selected_model:
             _delete_log_file(log_file)
             cleanup_cache(SCRIPT_DIR)
+            print()
             return
         if selected_model.endswith('.json'):
             json_path = os.path.join(models_dir, selected_model)
@@ -430,6 +413,7 @@ def main_workflow():
         if not engine_choice:
             _delete_log_file(log_file)
             cleanup_cache(SCRIPT_DIR)
+            print()
             return
         engine_module = importlib.import_module(f"engines.{engine_choice[:-3]}")
         cosmo_engine_selected = engine_module
@@ -686,6 +670,7 @@ def main_workflow():
             elif another_run in ["no", "n", "2"]:
                 cleanup_cache(SCRIPT_DIR)
                 logger.info("Exiting Copernican Suite. Goodbye!")
+                print()
                 return
             else:
                 print("Invalid input. Please enter 'yes' or 'no'.")
@@ -723,3 +708,4 @@ if __name__ == "__main__":
                 plt.show(block=True)
             except Exception as e_show:
                 print(f"Error during final plt.show(): {e_show}")
+        print()

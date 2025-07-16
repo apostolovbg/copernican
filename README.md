@@ -1,5 +1,5 @@
-**Version:** 1.12.4
-**Last Updated:** 2025-07-10
+**Version:** 1.12.5
+**Last Updated:** 2025-07-16
 
 The Copernican Suite is a Python toolkit for testing cosmological models against
 Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and Cosmic Microwave Background (CMB) data.
@@ -76,11 +76,10 @@ Under the hood the program follows a clear pipeline:
 
 ## Quick Start
 1. Ensure Python 3.12 or later is available. Launch the suite via the `start`
-   script for your platform (`start.command`, `start.bat` or `start.sh`). On the
-   first run the program will create a local virtual environment and install all
-   required packages if they are missing. You may be prompted for your password
-   during this step. Running with an older Python version will print an error
-   and exit immediately.
+   script for your platform (`start.command`, `start.bat` or `start.sh`). The
+   program checks for required Python packages at startup and prints a
+   `pip install` command if any are missing. Running with an older Python
+   version will print an error and exit immediately.
 2. Follow the interactive prompts to choose a model, preferred data sources and
    computation engine.
 3. Execute `python3 copernican.py --run-tests` or run `python -m unittest discover`
@@ -91,16 +90,16 @@ Under the hood the program follows a clear pipeline:
 
 ## Dependencies
 This project requires **Python 3.12 or later** and relies on `numpy`, `scipy`, `matplotlib`,
-`pandas`, `sympy`, `jsonschema` and `camb`. Missing packages are installed automatically
-into the local virtual environment on first launch. Running under an older Python version
-results in an immediate error and exit code 1. Future engines may also depend on `numba`
-or GPU libraries.
+`pandas`, `sympy`, `jsonschema` and `camb`. If any packages are missing the
+program prints a `pip install` command and exits so you can install them
+manually. Running under an older Python version results in an immediate error
+and exit code 1. Future engines may also depend on `numba` or GPU libraries.
  
 ## Building & Installation
 Windows users should open `start.bat`, macOS users should run `start.command`,
-and Linux users can execute `start.sh`.  These helpers create a Python virtual
-environment in `./venv` and install all required packages.  You may then run the
-suite with:
+and Linux users can execute `start.sh`.  These helpers simply run
+`python copernican.py` from the repository root. Make sure the required
+dependencies are installed using `pip` before launching the suite:
 
 ```bash
 python copernican.py
@@ -113,13 +112,6 @@ pip install .    # regular install
 pip install -e . # editable for development
 ```
 
-To remove the suite simply delete the `venv` directory and any installed
-`copernican` package:
-
-```bash
-rm -rf venv
-pip uninstall copernican-suite
-```
 
 ## Directory Layout
 ```
