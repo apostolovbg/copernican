@@ -13,6 +13,7 @@ import shutil
 import time
 import datetime
 import argparse
+from pathlib import Path
 
 # Verify interpreter version early so users see clear feedback
 MIN_PYTHON = (3, 12)
@@ -195,8 +196,9 @@ def check_dependencies():
 
     if missing:
         print(f"Missing packages detected: {', '.join(missing)}")
+        cmd = f"{Path(sys.executable).name} -m pip install {' '.join(sorted(set(missing)))}"
         print("Please install them with:")
-        print(f"  pip install {' '.join(sorted(missing))}")
+        print(f"  {cmd}")
         exit_clean(1)
     else:
         print("✅ System Dependency Check Passed. Continuing...\n")
