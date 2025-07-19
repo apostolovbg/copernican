@@ -1,8 +1,10 @@
 # Copernican Suite Logger
-"""Logging utilities for the Copernican Suite."""
-# The application writes human-readable logs both to the console and to a file
-# in the output directory. This module centralises the setup so every module can
-# retrieve the same logger instance.
+"""Logging utilities for the Copernican Suite.
+
+The logger records all console input and output verbatim while also emitting
+standard log messages. ``print`` and ``input`` are patched so their text is
+captured to the log file without being echoed twice on the console.
+"""
 
 import logging
 import os
@@ -27,6 +29,17 @@ class _PathFilter(logging.Filter):
         return True
 
 
+class _ConsoleFilter(logging.Filter):
+    """Filter to exclude captured console messages from the StreamHandler."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        # When ``console_capture`` is True the message originated from
+        # ``print`` or ``input``. Those messages are already displayed on the
+        # console via the original call, so the stream handler should ignore
+        # them to avoid duplicate lines.
+        return not getattr(record, "console_capture", False)
+
+
 def _patch_builtins(base_dir: str) -> None:
     """Mirror print and input to the logger with path sanitisation."""
 
@@ -49,11 +62,17 @@ def _patch_builtins(base_dir: str) -> None:
             message = sep.join(str(a) for a in args)
             if end != "\n":
                 message += end
-            logger.info(_shorten(message))
+            logger.info(
+                _shorten(message),
+                extra={"console_capture": True},
+            )
 
     def input_patch(prompt: str = ""):
         response = orig_input(prompt)
-        logger.info(_shorten(f"{prompt}{response}"))
+        logger.info(
+            _shorten(f"{prompt}{response}"),
+            extra={"console_capture": True},
+        )
         return response
 
     print_patch.__copernican_patched__ = True
@@ -83,6 +102,9 @@ def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(logging.INFO)
     ch.setFormatter(logging.Formatter("%(message)s"))
+    # Exclude messages that already appeared on the console via patched
+    # ``print``/``input`` calls.
+    ch.addFilter(_ConsoleFilter())
     logger.addHandler(ch)
 
     logging.info(f"Logging initialized. Log file: {log_filename}")
