@@ -71,16 +71,22 @@ def get_binned_average(
         return np.array([]), np.array([])
 
 
-def compose_footer(base_line: str, data_attrs: dict) -> str:
-    """Return a multi-line footer string with dataset information."""
+def compose_footer(base_line: str, data_attrs: dict) -> list[str]:
+    """Return footer lines with dataset information."""
+
     long_name = data_attrs.get(
         "dataset_long_name", data_attrs.get("dataset_name_attr", "")
     )
     notes = data_attrs.get("notes", "")
     citation = data_attrs.get("citation", "")
     second_line = f"{_wrap_math(long_name)}: {notes} {citation}".strip()
-    wrapped = textwrap.fill(second_line, width=185)
-    return base_line + "\n" + wrapped
+    # Allow more characters per line so lengthy citations do not wrap
+    # excessively. Each wrapped line will be drawn separately with a
+    # slightly smaller font size by the caller.
+    if second_line:
+        wrapped_lines = textwrap.wrap(second_line, width=200)
+        return [base_line] + wrapped_lines
+    return [base_line]
 
 
 def format_model_summary_text(
@@ -368,8 +374,12 @@ def plot_hubble_diagram(
         f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | "
         f"Copernican Suite {COPERNICAN_VERSION} | {ts}"
     )
-    footer = compose_footer(base_line, sne_data_df.attrs)
-    fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"], wrap=True)
+    footer_lines = compose_footer(base_line, sne_data_df.attrs)
+    y = 0.02
+    for idx, line in enumerate(footer_lines):
+        fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
+        fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
+        y -= 0.015
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
     filename = generate_filename(
@@ -632,8 +642,12 @@ def plot_bao_observables(
         f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | "
         f"Copernican Suite {COPERNICAN_VERSION} | {ts}"
     )
-    footer = compose_footer(base_line, bao_data_df.attrs)
-    fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"], wrap=True)
+    footer_lines = compose_footer(base_line, bao_data_df.attrs)
+    y = 0.02
+    for idx, line in enumerate(footer_lines):
+        fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
+        fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
+        y -= 0.015
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
     filename = generate_filename(
@@ -949,8 +963,12 @@ def plot_cmb_spectrum(
         f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | "
         f"Copernican Suite {COPERNICAN_VERSION} | {ts}"
     )
-    footer = compose_footer(base_line, cmb_data_df.attrs)
-    fig.text(0.5, 0.02, footer, ha="center", fontsize=font_sizes["ticks"], wrap=True)
+    footer_lines = compose_footer(base_line, cmb_data_df.attrs)
+    y = 0.02
+    for idx, line in enumerate(footer_lines):
+        fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
+        fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
+        y -= 0.015
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
     filename = generate_filename(
