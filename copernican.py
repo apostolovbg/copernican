@@ -47,7 +47,7 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.12.8"
+COPERNICAN_VERSION = "1.12.9"
 CURRENT_LOG_FILE = None
 
 
