@@ -1,12 +1,10 @@
-**Version:** 1.12.4
-**Last Updated:** 2025-07-10
+**Version:** 1.12.9
+**Last Updated:** 2025-07-19
 
-The Copernican Suite is a Python toolkit for testing cosmological models against
-Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and Cosmic Microwave Background (CMB) data.
-Support for gravitational waves and standard siren events is planned for future releases. The suite provides a modular
-architecture so new models, data parsers and computational engines can be
+The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
+Support for gravitational waves and standard siren events is planned for future releases.
+The suite provides a modular architecture so new models, data parsers and computational engines can be plugged in with minimal effort.
 Additional design notes can be found under the `docs/` directory.
-plugged in with minimal effort.
 
 ---
 
@@ -48,7 +46,7 @@ characters like `/` with hyphens so output paths remain valid on all platforms.
 
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages and
-   prints a `pip install` command if any are missing.
+   prints an install command tailored to your OS listing only the missing packages.
 2. **Initialization** – the output directory is created and logging begins.
 3. **Configuration** – the user chooses a model and a computation engine
    from `./engines/`.  The default `cosmo_engine_comb.py` performs a
@@ -76,11 +74,10 @@ Under the hood the program follows a clear pipeline:
 
 ## Quick Start
 1. Ensure Python 3.12 or later is available. Launch the suite via the `start`
-   script for your platform (`start.command`, `start.bat` or `start.sh`). On the
-   first run the program will create a local virtual environment and install all
-   required packages if they are missing. You may be prompted for your password
-   during this step. Running with an older Python version will print an error
-   and exit immediately.
+   script for your platform (`start.command`, `start.bat` or `start.sh`). The
+   program checks for required Python packages at startup and prints an install
+   command appropriate for your OS listing only the missing packages. Running with an older Python
+   version will print an error and exit immediately.
 2. Follow the interactive prompts to choose a model, preferred data sources and
    computation engine.
 3. Execute `python3 copernican.py --run-tests` or run `python -m unittest discover`
@@ -91,16 +88,16 @@ Under the hood the program follows a clear pipeline:
 
 ## Dependencies
 This project requires **Python 3.12 or later** and relies on `numpy`, `scipy`, `matplotlib`,
-`pandas`, `sympy`, `jsonschema` and `camb`. Missing packages are installed automatically
-into the local virtual environment on first launch. Running under an older Python version
-results in an immediate error and exit code 1. Future engines may also depend on `numba`
-or GPU libraries.
+`pandas`, `sympy`, `jsonschema` and `camb`. If any packages are missing the
+program prints an OS-specific install command listing only those missing packages and exits so you can install them
+manually. Running under an older Python version results in an immediate error
+and exit code 1. Future engines may also depend on `numba` or GPU libraries.
  
 ## Building & Installation
 Windows users should open `start.bat`, macOS users should run `start.command`,
-and Linux users can execute `start.sh`.  These helpers create a Python virtual
-environment in `./venv` and install all required packages.  You may then run the
-suite with:
+and Linux users can execute `start.sh`.  These helpers simply run
+`python copernican.py` from the repository root. Make sure the required
+dependencies are installed using `pip` before launching the suite:
 
 ```bash
 python copernican.py
@@ -113,13 +110,11 @@ pip install .    # regular install
 pip install -e . # editable for development
 ```
 
-To remove the suite simply delete the `venv` directory and any installed
-`copernican` package:
+Installing the suite with `pip` creates a `copernican_suite.egg-info` directory.
+This folder contains package metadata such as the version number, dependency
+list and entry points used by Python's packaging tools. It is generated
+automatically and does not need to be tracked in version control.
 
-```bash
-rm -rf venv
-pip uninstall copernican-suite
-```
 
 ## Directory Layout
 ```
@@ -132,6 +127,7 @@ data/             - Observation data organized as ``data/<type>/<source>/``
                          (binary Fortran matrix)
 output/           - All generated results
 AGENTS.md         - Development specification and contributor rules
+CONTRIBUTING.md   - Quick checklist for pull requests
 CHANGELOG.md      - Release history
 copernican_lib/          - Helper modules
   logger.py         - Logging setup and helpers
@@ -274,6 +270,8 @@ Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md` and
 `AGENTS.md` must be updated whenever behavior or structure changes.
 See `CHANGELOG.md` for the complete project history.
+The short file `CONTRIBUTING.md` summarises the basic workflow for submitting
+patches and links back to these guidelines.
 
 To start developing, install the suite in editable mode:
 
@@ -330,7 +328,7 @@ altering `MAJOR.MINOR`.
 ## 4. Workflow Overview
 
 1.  **Dependency Check**: `copernican.py` scans for missing packages and
-    instructs you to run a `pip install` command if any are absent.
+    prints an OS-specific install command containing only those packages if any are absent.
 2.  **Optional Tests**: Run `copernican.py --run-tests` to execute the
     functional test suite and verify that the LCDM model and data parsers work
     as expected. This flag performs unittest discovery over the `tests` package.

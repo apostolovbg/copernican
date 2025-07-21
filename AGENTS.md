@@ -4,7 +4,7 @@ Development notes were previously kept at the top of this file. That history now
 lives in `CHANGELOG.md`. New modifications must update the changelog, and legacy
 `dev_note` headers embedded in source files have been fully phased out.
 
-This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.12.4**.
+This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.12.9**.
 
 ## 1. Program Overview
 The helper modules previously stored under `scripts/` now live in the `copernican_lib/` package.
@@ -35,6 +35,9 @@ AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
 copernican_lib/optim_utils.py - Shared optimisation helpers used by engines
 ```
+Installing the suite with `pip` produces a `copernican_suite.egg-info` directory
+containing build metadata. This folder can be safely removed and should not be
+edited manually.
 Files in `data/` are read-only and must not be modified by AI-driven changes.
 
 The current plotting style and algorithms are considered stable. Do not alter
@@ -51,10 +54,11 @@ evaluation counters now live in ``copernican_lib/optim_utils.py`` and are import
 by the engines instead of being reimplemented inside each backend.
 
 ## 3. Dependency Installation
-`copernican.py` scans all project files for imported modules. If any required
-package is missing, the program prints a `pip install` command listing **all**
-detected dependencies and then exits. Run that command manually to install or
-upgrade packages (already installed libraries will be skipped). This
+`copernican.py` scans all project files for imported modules using Python's AST
+parser to avoid false positives from comments. If any required package is
+missing, the program prints an install command tailored to the current operating
+system and lists only the missing packages. Run that command manually to install
+or upgrade packages (already installed libraries will be skipped). This
 lightweight approach works across Windows, macOS and Linux while allowing new
 engines to introduce additional dependencies without manual updates to the
 documentation.
