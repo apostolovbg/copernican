@@ -6,6 +6,7 @@ Copernican Suite - Main Orchestrator.
 
 import importlib.util
 import importlib
+from importlib.metadata import version as package_version, PackageNotFoundError
 import ast
 import os
 import sys
@@ -47,7 +48,10 @@ log_mod = None
 logger = None
 data_loaders = None
 
-COPERNICAN_VERSION = "1.12.9"
+try:
+    COPERNICAN_VERSION = package_version("copernican-suite")
+except PackageNotFoundError:
+    COPERNICAN_VERSION = "1.13.0"
 CURRENT_LOG_FILE = None
 
 
