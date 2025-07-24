@@ -4,7 +4,7 @@ Development notes were previously kept at the top of this file. That history now
 lives in `CHANGELOG.md`. New modifications must update the changelog, and legacy
 `dev_note` headers embedded in source files have been fully phased out.
 
-This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.12.9**.
+This document is the authoritative reference for contributors and AI systems working on the Copernican Suite. It replaces all previous specifications. The current development release is **version 1.13.0**.
 
 ## 1. Program Overview
 The helper modules previously stored under `scripts/` now live in the `copernican_lib/` package.
@@ -136,7 +136,7 @@ To keep the project maintainable all contributors, human or AI, must follow thes
 1. **Summarize every change in `CHANGELOG.md`.** Use the template `- YYYY-MM-DD: short summary (author)` for each entry. Legacy `dev_note` headers should be migrated to the changelog when touched.
 2. **Comment code extensively** to explain non-obvious logic or algorithms.
 3. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behavior or structure changes.
-4. **Do not change the project version number unless explicitly requested by a human contributor.**
+4. **Bump the project version according to Semantic Versioning whenever changes introduce new features, fixes or breaking changes.**
 5. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.**
 6. **Use raw string literals for regular expressions, docstrings with LaTeX or backslashes, and Windows paths** to avoid Python's "invalid escape sequence" warnings.
 
@@ -146,4 +146,5 @@ Failure to follow these guidelines will compromise the Copernican Suite.
 The project follows Semantic Versioning (`MAJOR.MINOR.PATCH`). Increment the
 `MAJOR` number for breaking changes, the `MINOR` for new backward-compatible
 features and the `PATCH` for bug fixes. Package versions are derived from Git
-tags using `setuptools_scm`.
+tags using `setuptools_scm`. Contributors must update the version whenever
+a pull request introduces a change covered by these rules.
