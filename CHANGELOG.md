@@ -1,11 +1,11 @@
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: please, always check what is the current date when you are logging last changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Use this template:
 
-## Version 1.13.0
-- 2025-07-24: Enforced automatic SemVer bumps and updated version references (AI assistant)
-
 ## Version 1.13.1
 - 2025-07-25: Renamed test BAO dataset and updated documentation (AI assistant)
+
+## Version 1.13.0
+- 2025-07-24: Enforced automatic SemVer bumps and updated version references (AI assistant)
 
 ## Version 1.12.9
 - 2025-07-19: Expanded and clarified documentation; explained `.egg-info` folder and added CONTRIBUTING guide (AI assistant)
