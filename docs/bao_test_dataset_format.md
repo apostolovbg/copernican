@@ -1,9 +1,14 @@
-# BAO JSON Dataset Format
+# BAO Test Dataset Format
 
-Each BAO dataset is stored in a folder under `data/bao/<source>/`. The JSON file
-contains a single object with a `data_points` array. The parser also looks for an
-optional `metadata_*.json` file in the same folder which provides a dataset name
-and citation.
+This document describes the JSON format used for the **test** BAO dataset
+shipped with the Copernican Suite. The folder is located under
+`data/bao/test/` and mirrors the structure expected for real BAO sources.
+
+Each dataset is stored in its own directory and contains a single JSON file
+with a `data_points` array. The parser also looks for an optional
+`metadata_*.json` file which provides a dataset name and citation.  The test
+dataset lets developers exercise the BAO pipeline without downloading large
+public releases.
 
 Example `bao1.json`:
 ```json
@@ -20,8 +25,8 @@ Example `bao1.json`:
 Example `metadata_bao1.json`:
 ```json
 {
-  "dataset_name": "Compound BAO dataset",
-  "description": "Compilation of BAO distance measurements from multiple surveys",
+  "dataset_name": "Test BAO dataset",
+  "description": "Mock compilation of BAO distance measurements from multiple surveys",
   "citation": "Reference string with survey citations",
   "notes": "Any extra comments"
 }

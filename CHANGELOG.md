@@ -4,6 +4,9 @@ Add one line for each substantive commit or pull request directly under the late
 ## Version 1.13.0
 - 2025-07-24: Enforced automatic SemVer bumps and updated version references (AI assistant)
 
+## Version 1.13.1
+- 2025-07-25: Renamed test BAO dataset and updated documentation (AI assistant)
+
 ## Version 1.12.9
 - 2025-07-19: Expanded and clarified documentation; explained `.egg-info` folder and added CONTRIBUTING guide (AI assistant)
 
