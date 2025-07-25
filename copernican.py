@@ -51,7 +51,7 @@ data_loaders = None
 try:
     COPERNICAN_VERSION = package_version("copernican-suite")
 except PackageNotFoundError:
-    COPERNICAN_VERSION = "1.13.0"
+    COPERNICAN_VERSION = "1.13.1"
 CURRENT_LOG_FILE = None
 
 
