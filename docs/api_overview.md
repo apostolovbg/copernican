@@ -10,8 +10,10 @@ The suite exposes a small API intended for advanced scripting. The
 - `engine_interface.build_plugin(parsed_json, funcs)` – construct a plugin object
   with attributes `MODEL_NAME`, `MODEL_DESCRIPTION`, `MODEL_ABSTRACT` and the
   distance and CMB functions required by engines.
-- `data_loaders.load_sne_data(name)`, `load_bao_data(name)`,
-  `load_cmb_data(name)` – load datasets by their registered names.
+  - `data_loaders.load_sne_data(name)`, `load_bao_data(name)`,
+    `load_cmb_data(name)` – load datasets by their registered names. Each loader
+    logs a short summary describing the dataset and whether its covariance matrix
+    was used or diagonal errors were applied.
 - `engines.cosmo_engine_comb` – reference engine providing
   `fit_sne_parameters`, `fit_combined_parameters`, `calculate_bao_observables`
   and `chi_squared_*` helpers.

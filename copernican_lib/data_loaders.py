@@ -130,6 +130,19 @@ def _select_source(parser_registry, data_type_name):
         except ValueError:
             print("Invalid input. Please enter a number or 'c'.")
 
+# --- Verbose dataset info helper ---
+def _log_dataset_info(df, data_type, logger):
+    """Log summary and covariance usage for ``df``."""
+    if df is None or df.empty:
+        return
+    name = df.attrs.get("dataset_long_name", df.attrs.get("dataset_name_attr", ""))
+    logger.info(f"Loaded {data_type} dataset '{name}' with {len(df)} rows.")
+    if "covariance_matrix_inv" in df.attrs:
+        if df.attrs["covariance_matrix_inv"] is not None:
+            logger.info(f"{data_type} covariance matrix inverted successfully.")
+        else:
+            logger.info(f"{data_type} parser provided no usable covariance matrix; using diagonal errors only.")
+
 # --- Main Loading Functions ---
 def load_sne_data(source_key=None, **kwargs):
     """Loads SNe data for the chosen source."""
@@ -155,6 +168,7 @@ def load_sne_data(source_key=None, **kwargs):
             if 'dataset_name_attr' not in data_df.attrs:
                 data_df.attrs['dataset_name_attr'] = f"SNe_{source_key.replace(' ', '_')}"
             logger.info(f"Successfully loaded {len(data_df)} SNe data points.")
+            _log_dataset_info(data_df, "SNe", logger)
         elif data_df is None:
              logger.error(f"SNe parser '{source_key}' returned None.")
         else:
@@ -188,6 +202,7 @@ def load_bao_data(source_key=None, **kwargs):
             if 'dataset_name_attr' not in data_df.attrs:
                 data_df.attrs['dataset_name_attr'] = f"BAO_{source_key.replace(' ', '_')}"
             logger.info(f"Successfully loaded {len(data_df)} BAO data points.")
+            _log_dataset_info(data_df, "BAO", logger)
         elif data_df is None:
             logger.error(f"BAO parser '{source_key}' returned None.")
         else:
@@ -221,6 +236,7 @@ def load_cmb_data(source_key=None, **kwargs):
             if 'dataset_name_attr' not in data_df.attrs:
                 data_df.attrs['dataset_name_attr'] = f"CMB_{source_key.replace(' ', '_')}"
             logger.info(f"Successfully loaded {len(data_df)} CMB data points.")
+            _log_dataset_info(data_df, "CMB", logger)
         elif data_df is None:
             logger.error(f"CMB parser '{source_key}' returned None.")
         else:
@@ -254,6 +270,7 @@ def load_gw_data(source_key=None, **kwargs):
             if 'dataset_name_attr' not in data_df.attrs:
                 data_df.attrs['dataset_name_attr'] = f"GW_{source_key.replace(' ', '_')}"
             logger.info(f"Successfully loaded {len(data_df)} GW data points.")
+            _log_dataset_info(data_df, "GW", logger)
         elif data_df is None:
             logger.error(f"GW parser '{source_key}' returned None.")
         else:
@@ -287,6 +304,7 @@ def load_siren_data(source_key=None, **kwargs):
             if 'dataset_name_attr' not in data_df.attrs:
                 data_df.attrs['dataset_name_attr'] = f"SIREN_{source_key.replace(' ', '_')}"
             logger.info(f"Successfully loaded {len(data_df)} standard siren data points.")
+            _log_dataset_info(data_df, "SIREN", logger)
         elif data_df is None:
             logger.error(f"Standard siren parser '{source_key}' returned None.")
         else:

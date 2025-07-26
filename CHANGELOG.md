@@ -11,6 +11,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes below and keep the line after this one empty:
 
+## Version 1.14.8
+- 2025-07-26: Improved footer spacing, unified CMB legends and added verbose dataset summaries (AI assistant)
+
 ## Version 1.14.7
 - 2025-07-26: Combined JLA systematic and statistical covariances and updated parser logic (AI assistant)
 
