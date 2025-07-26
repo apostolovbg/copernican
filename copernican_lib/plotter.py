@@ -241,6 +241,12 @@ def plot_hubble_diagram(
         max(np.min(z_data) * 0.9, 0.001), np.max(z_data) * 1.05, 200
     )
 
+    info_gap = 0.02
+    left = 0.08
+    right = 0.75
+    top = 0.92
+    box_height = 0.33
+
     fig, axs = plt.subplots(
         2,
         1,
@@ -248,7 +254,19 @@ def plot_hubble_diagram(
         sharex=True,
         gridspec_kw={"height_ratios": [4, 1.5], "hspace": 0.05},
     )
-    plt.subplots_adjust(left=0.08, bottom=0.24, right=0.75, top=0.92)
+
+    footer_lines = compose_footer(
+        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | Copernican Suite {COPERNICAN_VERSION} | {timestamp or get_timestamp()}",
+        sne_data_df.attrs,
+    )
+    line_height = 0.015
+    footer_height = len(footer_lines) * line_height
+    plt.subplots_adjust(
+        left=left,
+        right=right,
+        top=top,
+        bottom=left + footer_height + info_gap,
+    )
 
     axs[0].errorbar(
         z_data,
@@ -366,9 +384,11 @@ def plot_hubble_diagram(
 
     bbox_lcdm = dict(boxstyle="round,pad=0.5", fc="#FFEEEE", ec="darkred", alpha=0.8)
     bbox_alt = dict(boxstyle="round,pad=0.5", fc="#EEF2FF", ec="darkblue", alpha=0.8)
+    red_y = top - info_gap
+    blue_y = red_y - box_height - info_gap
     fig.text(
         0.77,
-        0.90,
+        red_y,
         format_model_summary_text(
             lcdm_plugin,
             "sne",
@@ -382,7 +402,7 @@ def plot_hubble_diagram(
     )
     fig.text(
         0.77,
-        0.52,
+        blue_y,
         format_model_summary_text(
             alt_model_plugin,
             "sne",
@@ -395,17 +415,11 @@ def plot_hubble_diagram(
         bbox=bbox_alt,
     )
 
-    ts = timestamp or get_timestamp()
-    base_line = (
-        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | "
-        f"Copernican Suite {COPERNICAN_VERSION} | {ts}"
-    )
-    footer_lines = compose_footer(base_line, sne_data_df.attrs)
-    y = 0.07
+    y = left + footer_height
     for idx, line in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
         fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
-        y -= 0.015
+        y -= line_height
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
     filename = generate_filename(
@@ -450,6 +464,12 @@ def plot_bao_observables(
         "ticks": 12,
     }
 
+    info_gap = 0.02
+    left = 0.08
+    right = 0.75
+    top = 0.90
+    box_height = 0.33
+
     fig, axs = plt.subplots(
         2,
         1,
@@ -459,7 +479,16 @@ def plot_bao_observables(
     )
     ax = axs[0]
     res_ax = axs[1]
-    plt.subplots_adjust(left=0.08, bottom=0.24, right=0.75, top=0.90)
+
+    footer_lines = compose_footer(
+        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | Copernican Suite {COPERNICAN_VERSION} | {timestamp or get_timestamp()}",
+        bao_data_df.attrs,
+    )
+    line_height = 0.015
+    footer_height = len(footer_lines) * line_height
+    plt.subplots_adjust(
+        left=left, right=right, top=top, bottom=left + footer_height + info_gap
+    )
 
     obs_types = bao_data_df["observable_type"].unique()
     cmap = plt.get_cmap("viridis")
@@ -630,9 +659,11 @@ def plot_bao_observables(
 
     bbox_lcdm = dict(boxstyle="round,pad=0.5", fc="#FFEEEE", ec="darkred", alpha=0.8)
     bbox_alt = dict(boxstyle="round,pad=0.5", fc="#EEF2FF", ec="darkblue", alpha=0.8)
+    red_y = top - info_gap
+    blue_y = red_y - box_height - info_gap
     fig.text(
         0.77,
-        0.90,
+        red_y,
         format_model_summary_text(
             lcdm_plugin,
             "bao",
@@ -647,7 +678,7 @@ def plot_bao_observables(
     )
     fig.text(
         0.77,
-        0.55,
+        blue_y,
         format_model_summary_text(
             alt_model_plugin,
             "bao",
@@ -661,17 +692,11 @@ def plot_bao_observables(
         bbox=bbox_alt,
     )
 
-    ts = timestamp or get_timestamp()
-    base_line = (
-        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | "
-        f"Copernican Suite {COPERNICAN_VERSION} | {ts}"
-    )
-    footer_lines = compose_footer(base_line, bao_data_df.attrs)
-    y = 0.07
+    y = left + footer_height
     for idx, line in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
         fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
-        y -= 0.015
+        y -= line_height
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
     filename = generate_filename(
@@ -688,8 +713,6 @@ def plot_bao_observables(
         logger.error(f"Error saving BAO plot: {exc}")
     finally:
         plt.close(fig)
-
-
 
 
 def plot_cmb_spectrum(
@@ -738,14 +761,29 @@ def plot_cmb_spectrum(
     if "Dl_ee_obs" in cmb_data_df.columns:
         components.append("EE")
 
+    info_gap = 0.02
+    left = 0.08
+    right = 0.75
+    top = 0.92
+    box_height = 0.33
+
     fig, axs = plt.subplots(
         len(components) * 2,
         1,
         figsize=(17, 6 * len(components)),
         sharex=True,
-        gridspec_kw={"height_ratios": [3, 1.5] * len(components), "hspace": 0.05},
+        gridspec_kw={"height_ratios": [4, 1.5] * len(components), "hspace": 0.05},
     )
-    plt.subplots_adjust(left=0.08, bottom=0.24, right=0.75, top=0.92)
+
+    footer_lines = compose_footer(
+        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | Copernican Suite {COPERNICAN_VERSION} | {timestamp or get_timestamp()}",
+        cmb_data_df.attrs,
+    )
+    line_height = 0.015
+    footer_height = len(footer_lines) * line_height
+    plt.subplots_adjust(
+        left=left, right=right, top=top, bottom=left + footer_height + info_gap
+    )
 
     lcdm_theory = None
     alt_theory = None
@@ -890,14 +928,19 @@ def plot_cmb_spectrum(
         if comp in ("TT", "EE"):
             axs[idx_main].set_yscale("log")
         axs[idx_main].legend(fontsize=font_sizes["legend"], loc="best")
+        title_pad = 20 if i > 0 else 10
         axs[idx_main].set_title(
-            f"CMB {comp} Power Spectrum: {dataset_name}", fontsize=font_sizes["title"]
+            f"CMB {comp} Power Spectrum: {dataset_name}",
+            fontsize=font_sizes["title"],
+            pad=title_pad,
         )
         axs[idx_main].minorticks_on()
         axs[idx_main].tick_params(
             axis="both", which="major", labelsize=font_sizes["ticks"]
         )
-        axs[idx_main].grid(True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5)
+        axs[idx_main].grid(
+            True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5
+        )
 
         axs[idx_res].axhline(0, color="black", ls="--", lw=1)
         if i == len(components) - 1:
@@ -911,13 +954,17 @@ def plot_cmb_spectrum(
         axs[idx_res].tick_params(
             axis="both", which="major", labelsize=font_sizes["ticks"]
         )
-        axs[idx_res].grid(True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5)
+        axs[idx_res].grid(
+            True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5
+        )
 
     bbox_lcdm = dict(boxstyle="round,pad=0.5", fc="#FFEEEE", ec="darkred", alpha=0.8)
     bbox_alt = dict(boxstyle="round,pad=0.5", fc="#EEF2FF", ec="darkblue", alpha=0.8)
+    red_y = top - info_gap
+    blue_y = red_y - box_height - info_gap
     fig.text(
         0.77,
-        0.90,
+        red_y,
         format_model_summary_text(
             lcdm_plugin,
             "cmb",
@@ -933,7 +980,7 @@ def plot_cmb_spectrum(
     )
     fig.text(
         0.77,
-        0.55,
+        blue_y,
         format_model_summary_text(
             alt_model_plugin,
             "cmb",
@@ -948,17 +995,11 @@ def plot_cmb_spectrum(
         bbox=bbox_alt,
     )
 
-    ts = timestamp or get_timestamp()
-    base_line = (
-        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | "
-        f"Copernican Suite {COPERNICAN_VERSION} | {ts}"
-    )
-    footer_lines = compose_footer(base_line, cmb_data_df.attrs)
-    y = 0.07
+    y = left + footer_height
     for idx, line in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
         fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
-        y -= 0.015
+        y -= line_height
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
     filename = generate_filename(

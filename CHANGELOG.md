@@ -11,6 +11,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes below and keep the line after this one empty:
 
+## Version 1.14.5
+- 2025-07-26: Documented JLA covariance fallback and tightened info box layout (AI assistant)
+
 ## Version 1.14.4
 - 2025-07-27: Handled near-singular JLA covariance by falling back to diagonal errors (AI assistant)
 
