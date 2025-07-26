@@ -18,3 +18,14 @@ The suite exposes a small API intended for advanced scripting. The
 
 Plugins are validated through `engine_interface.validate_plugin` before use.
 Engines expect the attributes listed in `engine_interface.REQUIRED_ATTRIBUTES`.
+
+## Standardised Dataset Format
+
+All data parsers return a `pandas.DataFrame` with common columns and
+metadata so that the engines remain agnostic to the origin of the data.
+For supernovae datasets the table contains at minimum `Name`, `zcmb`,
+`mu_obs` and `e_mu_obs`.  Attributes such as `covariance_matrix_inv`,
+`diag_errors_for_plot` and `dataset_name_attr` are attached via the
+``DataFrame.attrs`` dictionary.  BAO and CMB loaders follow the same
+pattern.  New datasets can therefore be added simply by placing them
+under ``data/<type>/<source>/`` and providing a compatible parser.

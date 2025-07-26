@@ -11,6 +11,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes below and keep the line after this one empty:
 
+## Version 1.14.4
+- 2025-07-27: Handled near-singular JLA covariance by falling back to diagonal errors (AI assistant)
+
 ## Version 1.14.3
 - 2025-07-27: Removed deprecated UniStra SNe data and fixed JLA covariance handling (AI assistant)
 - 2025-07-27: Improved fit report outputs and enlarged plot dimensions (AI assistant)
