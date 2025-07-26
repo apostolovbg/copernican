@@ -941,7 +941,9 @@ def plot_cmb_spectrum(
             axs[idx_main].set_yscale("log")
         if i == 0:
             axs[idx_main].legend(fontsize=font_sizes["legend"], loc="best")
-        title_pad = 20
+        # Reduce padding so titles fit in the vertical gaps between
+        # spectrum and residual panels without overlapping.
+        title_pad = 6
         axs[idx_main].set_title(
             f"CMB {comp} Power Spectrum: {dataset_name}",
             fontsize=font_sizes["title"],
