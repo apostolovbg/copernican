@@ -9,7 +9,10 @@ Add one line for each substantive commit or pull request directly under the late
 - 2025-05-26: Created copernican.py (Apostol Apostolov)
 
 ```
-## Log changes below and keep the line after this one empty: 
+## Log changes below and keep the line after this one empty:
+
+## Version 1.14.2
+- 2025-07-26: Lightened grid lines, widened plot margins and fixed BAO info box equation parsing (AI assistant)
 
 ## Version 1.14.1
 - 2025-07-26: Human intervention in CHANGELOG.md due to messed up order, dates and lack of template (Apostol Apostolov)
