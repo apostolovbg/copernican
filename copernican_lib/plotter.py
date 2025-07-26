@@ -95,9 +95,9 @@ def _apply_common_style() -> None:
     plt.rcParams.update(
         {
             "axes.facecolor": "white",
-            "grid.color": "lightgray",
-            "grid.linestyle": "--",
-            "grid.linewidth": 0.8,
+            "grid.color": "#E0E0E0",
+            "grid.linestyle": "-",
+            "grid.linewidth": 0.5,
         }
     )
 
@@ -248,7 +248,7 @@ def plot_hubble_diagram(
         sharex=True,
         gridspec_kw={"height_ratios": [3, 1.5], "hspace": 0.05},
     )
-    plt.subplots_adjust(left=0.08, bottom=0.12, right=0.75, top=0.92)
+    plt.subplots_adjust(left=0.08, bottom=0.16, right=0.75, top=0.92)
 
     axs[0].errorbar(
         z_data,
@@ -354,7 +354,7 @@ def plot_hubble_diagram(
     axs[0].set_title(f"Hubble Diagram: {dataset_name}", fontsize=font_sizes["title"])
     axs[0].minorticks_on()
     axs[0].tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
-    axs[0].grid(True, which="both", color="lightgray", linestyle="--", linewidth=0.8)
+    axs[0].grid(True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5)
 
     axs[1].axhline(0, color="black", ls="--", lw=1)
     axs[1].set_xlabel("Redshift (z)", fontsize=font_sizes["label"])
@@ -362,7 +362,7 @@ def plot_hubble_diagram(
     axs[1].legend(fontsize=font_sizes["legend"], loc="lower right")
     axs[1].minorticks_on()
     axs[1].tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
-    axs[1].grid(True, which="both", color="lightgray", linestyle="--", linewidth=0.8)
+    axs[1].grid(True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5)
 
     bbox_lcdm = dict(boxstyle="round,pad=0.5", fc="#FFEEEE", ec="darkred", alpha=0.8)
     bbox_alt = dict(boxstyle="round,pad=0.5", fc="#EEF2FF", ec="darkblue", alpha=0.8)
@@ -377,7 +377,7 @@ def plot_hubble_diagram(
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
-        wrap=True,
+        wrap=False,
         bbox=bbox_lcdm,
     )
     fig.text(
@@ -391,7 +391,7 @@ def plot_hubble_diagram(
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
-        wrap=True,
+        wrap=False,
         bbox=bbox_alt,
     )
 
@@ -459,7 +459,7 @@ def plot_bao_observables(
     )
     ax = axs[0]
     res_ax = axs[1]
-    plt.subplots_adjust(left=0.08, bottom=0.13, right=0.75, top=0.90)
+    plt.subplots_adjust(left=0.08, bottom=0.17, right=0.75, top=0.90)
 
     obs_types = bao_data_df["observable_type"].unique()
     cmap = plt.get_cmap("viridis")
@@ -618,7 +618,7 @@ def plot_bao_observables(
     ax.legend(fontsize=font_sizes["legend"], loc="best")
     ax.minorticks_on()
     ax.tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
-    ax.grid(True, which="both", color="lightgray", linestyle="--", linewidth=0.8)
+    ax.grid(True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5)
 
     res_ax.axhline(0, color="black", ls="--", lw=1)
     res_ax.set_xlabel("Redshift (z)", fontsize=font_sizes["label"])
@@ -626,7 +626,7 @@ def plot_bao_observables(
     res_ax.legend(fontsize=font_sizes["legend"], loc="best")
     res_ax.minorticks_on()
     res_ax.tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
-    res_ax.grid(True, which="both", color="lightgray", linestyle="--", linewidth=0.8)
+    res_ax.grid(True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5)
 
     bbox_lcdm = dict(boxstyle="round,pad=0.5", fc="#FFEEEE", ec="darkred", alpha=0.8)
     bbox_alt = dict(boxstyle="round,pad=0.5", fc="#EEF2FF", ec="darkblue", alpha=0.8)
@@ -642,7 +642,7 @@ def plot_bao_observables(
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
-        wrap=True,
+        wrap=False,
         bbox=bbox_lcdm,
     )
     fig.text(
@@ -657,7 +657,7 @@ def plot_bao_observables(
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
-        wrap=True,
+        wrap=False,
         bbox=bbox_alt,
     )
 
@@ -745,7 +745,7 @@ def plot_cmb_spectrum(
         sharex=True,
         gridspec_kw={"height_ratios": [3, 1.5] * len(components), "hspace": 0.05},
     )
-    plt.subplots_adjust(left=0.08, bottom=0.12, right=0.75, top=0.92)
+    plt.subplots_adjust(left=0.08, bottom=0.16, right=0.75, top=0.92)
 
     lcdm_theory = None
     alt_theory = None
@@ -897,7 +897,7 @@ def plot_cmb_spectrum(
         axs[idx_main].tick_params(
             axis="both", which="major", labelsize=font_sizes["ticks"]
         )
-        axs[idx_main].grid(True, which="both", color="lightgray", linestyle="--", linewidth=0.8)
+        axs[idx_main].grid(True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5)
 
         axs[idx_res].axhline(0, color="black", ls="--", lw=1)
         if i == len(components) - 1:
@@ -911,7 +911,7 @@ def plot_cmb_spectrum(
         axs[idx_res].tick_params(
             axis="both", which="major", labelsize=font_sizes["ticks"]
         )
-        axs[idx_res].grid(True, which="both", color="lightgray", linestyle="--", linewidth=0.8)
+        axs[idx_res].grid(True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5)
 
     bbox_lcdm = dict(boxstyle="round,pad=0.5", fc="#FFEEEE", ec="darkred", alpha=0.8)
     bbox_alt = dict(boxstyle="round,pad=0.5", fc="#EEF2FF", ec="darkblue", alpha=0.8)
@@ -928,7 +928,7 @@ def plot_cmb_spectrum(
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
-        wrap=True,
+        wrap=False,
         bbox=bbox_lcdm,
     )
     fig.text(
@@ -944,7 +944,7 @@ def plot_cmb_spectrum(
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
-        wrap=True,
+        wrap=False,
         bbox=bbox_alt,
     )
 
