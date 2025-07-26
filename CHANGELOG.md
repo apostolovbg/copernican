@@ -1,12 +1,23 @@
 ## How to Log Changes
-Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: please, always check what is the current date when you are logging last changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Use this template:
+Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: please, always check the current date when logging new changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Follow this template: 
+```
+## Version 1.1.0
+- 2025-05-27: Added plotting and CSV (Apostol Apostolov) 
+
+## Version 1.0.0
+- 2025-05-26: Debugged copernican.py script (AI assistant)
+- 2025-05-26: Created copernican.py (Apostol Apostolov)
+
+```
+## Log changes below and keep the line after this one empty: 
 
 ## Version 1.14.1
+- 2025-07-26: Human intervention in CHANGELOG.md due to messed up order, dates and lack of template (Apostol Apostolov)
 - 2025-07-26: Unified plot style and improved info boxes across all data types (AI assistant)
 
 ## Version 1.14.0
-- 2025-07-27: Added JLA 2014 dataset with full covariance matrix and new metadata field `authors_all` (AI assistant)
-- 2025-07-27: Fixed version string handling and updated documentation (AI assistant)
+- 2025-07-25: Added JLA 2014 dataset with full covariance matrix and new metadata field `authors_all` (AI assistant)
+- 2025-07-25: Fixed version string handling and updated documentation (AI assistant)
 
 ## Version 1.13.1
 - 2025-07-25: Renamed test BAO dataset and updated documentation (AI assistant)
