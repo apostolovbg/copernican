@@ -48,10 +48,9 @@ log_mod = None
 logger = None
 data_loaders = None
 
-try:
-    COPERNICAN_VERSION = package_version("copernican-suite")
-except PackageNotFoundError:
-    COPERNICAN_VERSION = "1.13.1"
+# Use a fixed version string to avoid confusion when the package metadata is
+# outdated. Automatic releases are not yet enabled.
+COPERNICAN_VERSION = "1.14.0"
 CURRENT_LOG_FILE = None
 
 
