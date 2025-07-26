@@ -50,7 +50,7 @@ data_loaders = None
 
 # Use a fixed version string to avoid confusion when the package metadata is
 # outdated. Automatic releases are not yet enabled.
-COPERNICAN_VERSION = "1.14.4"
+COPERNICAN_VERSION = "1.14.5"
 CURRENT_LOG_FILE = None
 
 
@@ -723,8 +723,8 @@ def main_workflow():
             if sne_res:
                 for name, val in sne_res.get("fitted_cosmological_params", {}).items():
                     print(f"  {name} = {val:.5g}")
-            chi2_sne = sne_res.get('chi2_sne', sne_res.get('chi2_min', float('nan')))
-            chi2_total = sne_res.get('chi2_total', float('nan'))
+            chi2_sne = sne_res.get("chi2_sne", sne_res.get("chi2_min", float("nan")))
+            chi2_total = sne_res.get("chi2_total", float("nan"))
             print(f"  χ²_Total = {chi2_total:.2f}")
             print(f"  χ²_SNe = {chi2_sne:.2f}")
             if bao_res:

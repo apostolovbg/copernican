@@ -20,10 +20,10 @@ Every dataset folder also provides a `metadata_*.json` describing the source. Th
 ### JLA Betoule+2014
 *Source:* "Improved cosmological constraints from a joint analysis of the SDSS-II and SNLS supernova samples" (Betoule et al. 2014).
 *Location:* `data/sne/jla2014/`.
-*Parser:* `cosmo_parser_jla2014.py` reads `tablef3.dat` together with the full covariance matrix in `tablef4.fit` to provide distance moduli with systematic uncertainties.
-If the covariance matrix is nearly singular the parser logs a warning and
-falls back to the diagonal errors only. This ensures chi-squared values remain
-well-behaved when the full matrix cannot be inverted reliably.
+*Parser:* `cosmo_parser_jla2014.py` reads `tablef3.dat` and attempts to use the full covariance matrix from `tablef4.fit`.
+However the matrix is almost singular. The parser therefore logs a warning and
+discards it, returning only diagonal uncertainties. The loaded matrix is kept on
+disk for reference but is not used in fits or plots.
 
 ### Pantheon+ 2022 (Scolnic et al.)
 *Source:* Pantheon+SH0ES data release (Scolnic et al. 2022).
