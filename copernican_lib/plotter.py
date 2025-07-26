@@ -241,11 +241,12 @@ def plot_hubble_diagram(
         max(np.min(z_data) * 0.9, 0.001), np.max(z_data) * 1.05, 200
     )
 
-    info_gap = 0.02
     left = 0.08
     right = 0.75
     top = 0.92
     box_height = 0.33
+    info_x = 0.77
+    info_gap = info_x - right
 
     fig, axs = plt.subplots(
         2,
@@ -260,12 +261,12 @@ def plot_hubble_diagram(
         sne_data_df.attrs,
     )
     line_height = 0.015
-    footer_height = len(footer_lines) * line_height
+    start_y = left + (len(footer_lines) - 1) * line_height
     plt.subplots_adjust(
         left=left,
         right=right,
         top=top,
-        bottom=left + footer_height + info_gap,
+        bottom=start_y + info_gap,
     )
 
     axs[0].errorbar(
@@ -387,7 +388,7 @@ def plot_hubble_diagram(
     red_y = top - info_gap
     blue_y = red_y - box_height - info_gap
     fig.text(
-        0.77,
+        info_x,
         red_y,
         format_model_summary_text(
             lcdm_plugin,
@@ -401,7 +402,7 @@ def plot_hubble_diagram(
         bbox=bbox_lcdm,
     )
     fig.text(
-        0.77,
+        info_x,
         blue_y,
         format_model_summary_text(
             alt_model_plugin,
@@ -415,7 +416,7 @@ def plot_hubble_diagram(
         bbox=bbox_alt,
     )
 
-    y = left + footer_height
+    y = start_y
     for idx, line in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
         fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
@@ -464,11 +465,12 @@ def plot_bao_observables(
         "ticks": 12,
     }
 
-    info_gap = 0.02
     left = 0.08
     right = 0.75
     top = 0.90
     box_height = 0.33
+    info_x = 0.77
+    info_gap = info_x - right
 
     fig, axs = plt.subplots(
         2,
@@ -485,9 +487,12 @@ def plot_bao_observables(
         bao_data_df.attrs,
     )
     line_height = 0.015
-    footer_height = len(footer_lines) * line_height
+    start_y = left + (len(footer_lines) - 1) * line_height
     plt.subplots_adjust(
-        left=left, right=right, top=top, bottom=left + footer_height + info_gap
+        left=left,
+        right=right,
+        top=top,
+        bottom=start_y + info_gap,
     )
 
     obs_types = bao_data_df["observable_type"].unique()
@@ -662,7 +667,7 @@ def plot_bao_observables(
     red_y = top - info_gap
     blue_y = red_y - box_height - info_gap
     fig.text(
-        0.77,
+        info_x,
         red_y,
         format_model_summary_text(
             lcdm_plugin,
@@ -677,7 +682,7 @@ def plot_bao_observables(
         bbox=bbox_lcdm,
     )
     fig.text(
-        0.77,
+        info_x,
         blue_y,
         format_model_summary_text(
             alt_model_plugin,
@@ -692,7 +697,7 @@ def plot_bao_observables(
         bbox=bbox_alt,
     )
 
-    y = left + footer_height
+    y = start_y
     for idx, line in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
         fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
@@ -761,11 +766,12 @@ def plot_cmb_spectrum(
     if "Dl_ee_obs" in cmb_data_df.columns:
         components.append("EE")
 
-    info_gap = 0.02
     left = 0.08
     right = 0.75
     top = 0.92
     box_height = 0.33
+    info_x = 0.77
+    info_gap = info_x - right
 
     fig, axs = plt.subplots(
         len(components) * 2,
@@ -780,9 +786,12 @@ def plot_cmb_spectrum(
         cmb_data_df.attrs,
     )
     line_height = 0.015
-    footer_height = len(footer_lines) * line_height
+    start_y = left + (len(footer_lines) - 1) * line_height
     plt.subplots_adjust(
-        left=left, right=right, top=top, bottom=left + footer_height + info_gap
+        left=left,
+        right=right,
+        top=top,
+        bottom=start_y + info_gap,
     )
 
     lcdm_theory = None
@@ -928,7 +937,7 @@ def plot_cmb_spectrum(
         if comp in ("TT", "EE"):
             axs[idx_main].set_yscale("log")
         axs[idx_main].legend(fontsize=font_sizes["legend"], loc="best")
-        title_pad = 20 if i > 0 else 10
+        title_pad = 35 if i > 0 else 10
         axs[idx_main].set_title(
             f"CMB {comp} Power Spectrum: {dataset_name}",
             fontsize=font_sizes["title"],
@@ -963,7 +972,7 @@ def plot_cmb_spectrum(
     red_y = top - info_gap
     blue_y = red_y - box_height - info_gap
     fig.text(
-        0.77,
+        info_x,
         red_y,
         format_model_summary_text(
             lcdm_plugin,
@@ -979,7 +988,7 @@ def plot_cmb_spectrum(
         bbox=bbox_lcdm,
     )
     fig.text(
-        0.77,
+        info_x,
         blue_y,
         format_model_summary_text(
             alt_model_plugin,
@@ -995,7 +1004,7 @@ def plot_cmb_spectrum(
         bbox=bbox_alt,
     )
 
-    y = left + footer_height
+    y = start_y
     for idx, line in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
         fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
