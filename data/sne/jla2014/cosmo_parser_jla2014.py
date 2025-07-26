@@ -145,18 +145,21 @@ def parse_jla2014(
                 A[i, idx] = 1.0
                 A[i, idx + 1] = salt2_alpha_fixed
                 A[i, idx + 2] = -salt2_beta_fixed
-            mu_cov = A @ cov_params @ A.T
-            diag_errors_for_plot = np.sqrt(np.diag(mu_cov))
-            cond = np.linalg.cond(mu_cov)
+            mu_cov_sys = A @ cov_params @ A.T
+            stat_cov = np.diag(parsed["e_mu_obs"].values ** 2)
+            mu_cov_total = mu_cov_sys + stat_cov
+            cond = np.linalg.cond(mu_cov_total)
             if np.isfinite(cond) and cond < 1e8:
-                covariance_matrix_inv = np.linalg.inv(mu_cov)
+                covariance_matrix_inv = np.linalg.inv(mu_cov_total)
+                diag_errors_for_plot = np.sqrt(np.diag(mu_cov_total))
             else:
-                logger.warning(
-                    "JLA covariance matrix nearly singular; falling back to diagonal errors"
+                logger.error(
+                    "JLA total covariance matrix is ill-conditioned; using diagonal errors only."
                 )
                 covariance_matrix_inv = None
+                diag_errors_for_plot = parsed["e_mu_obs"].values
         except Exception as e:
-            logger.warning(f"Could not process JLA covariance matrix: {e}")
+            logger.error(f"Could not process JLA covariance matrix: {e}")
             covariance_matrix_inv = None
 
     sort_idx = np.argsort(parsed["zcmb"].values)
