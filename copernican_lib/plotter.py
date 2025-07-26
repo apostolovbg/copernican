@@ -262,11 +262,12 @@ def plot_hubble_diagram(
     )
     line_height = 0.015
     start_y = left + (len(footer_lines) - 1) * line_height
+    footer_pad = 0.03
     plt.subplots_adjust(
         left=left,
         right=right,
         top=top,
-        bottom=start_y + info_gap,
+        bottom=start_y + info_gap + footer_pad,
     )
 
     axs[0].errorbar(
@@ -488,11 +489,12 @@ def plot_bao_observables(
     )
     line_height = 0.015
     start_y = left + (len(footer_lines) - 1) * line_height
+    footer_pad = 0.03
     plt.subplots_adjust(
         left=left,
         right=right,
         top=top,
-        bottom=start_y + info_gap,
+        bottom=start_y + info_gap + footer_pad,
     )
 
     obs_types = bao_data_df["observable_type"].unique()
@@ -778,7 +780,7 @@ def plot_cmb_spectrum(
         1,
         figsize=(17, 6 * len(components)),
         sharex=True,
-        gridspec_kw={"height_ratios": [4, 1.5] * len(components), "hspace": 0.05},
+        gridspec_kw={"height_ratios": [4, 1.5] * len(components), "hspace": 0.25},
     )
 
     footer_lines = compose_footer(
@@ -787,11 +789,12 @@ def plot_cmb_spectrum(
     )
     line_height = 0.015
     start_y = left + (len(footer_lines) - 1) * line_height
+    footer_pad = 0.03
     plt.subplots_adjust(
         left=left,
         right=right,
         top=top,
-        bottom=start_y + info_gap,
+        bottom=start_y + info_gap + footer_pad,
     )
 
     lcdm_theory = None
@@ -936,8 +939,9 @@ def plot_cmb_spectrum(
         axs[idx_main].set_ylabel(r"$D_\ell\ (\mu K^2)$", fontsize=font_sizes["label"])
         if comp in ("TT", "EE"):
             axs[idx_main].set_yscale("log")
-        axs[idx_main].legend(fontsize=font_sizes["legend"], loc="best")
-        title_pad = 35 if i > 0 else 10
+        if i == 0:
+            axs[idx_main].legend(fontsize=font_sizes["legend"], loc="best")
+        title_pad = 20
         axs[idx_main].set_title(
             f"CMB {comp} Power Spectrum: {dataset_name}",
             fontsize=font_sizes["title"],
