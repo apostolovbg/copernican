@@ -11,6 +11,10 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes below and keep the line after this one empty:
 
+## Version 1.14.3
+- 2025-07-27: Removed deprecated UniStra SNe data and fixed JLA covariance handling (AI assistant)
+- 2025-07-27: Improved fit report outputs and enlarged plot dimensions (AI assistant)
+
 ## Version 1.14.2
 - 2025-07-26: Lightened grid lines, widened plot margins and fixed BAO info box equation parsing (AI assistant)
 

@@ -78,8 +78,6 @@ def parse_jla2014(
         logger.error("No valid SNe after parsing JLA data")
         return None
 
-    parsed = parsed.sort_values(by='zcmb').reset_index(drop=True)
-
     # --- covariance matrix ---
     try:
         cov_params = fits.getdata(covpath)
@@ -104,6 +102,12 @@ def parse_jla2014(
         except Exception as e:
             logger.warning(f"Could not process JLA covariance matrix: {e}")
             covariance_matrix_inv = None
+
+    sort_idx = np.argsort(parsed['zcmb'].values)
+    parsed = parsed.iloc[sort_idx].reset_index(drop=True)
+    diag_errors_for_plot = diag_errors_for_plot[sort_idx]
+    if covariance_matrix_inv is not None:
+        covariance_matrix_inv = covariance_matrix_inv[sort_idx][:, sort_idx]
 
     parsed.attrs['covariance_matrix_inv'] = covariance_matrix_inv
     parsed.attrs['diag_errors_for_plot'] = diag_errors_for_plot
