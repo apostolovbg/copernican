@@ -244,11 +244,11 @@ def plot_hubble_diagram(
     fig, axs = plt.subplots(
         2,
         1,
-        figsize=(17, 12),
+        figsize=(17, 16),
         sharex=True,
-        gridspec_kw={"height_ratios": [3, 1.5], "hspace": 0.05},
+        gridspec_kw={"height_ratios": [4, 1.5], "hspace": 0.05},
     )
-    plt.subplots_adjust(left=0.08, bottom=0.16, right=0.75, top=0.92)
+    plt.subplots_adjust(left=0.08, bottom=0.24, right=0.75, top=0.92)
 
     axs[0].errorbar(
         z_data,
@@ -401,7 +401,7 @@ def plot_hubble_diagram(
         f"Copernican Suite {COPERNICAN_VERSION} | {ts}"
     )
     footer_lines = compose_footer(base_line, sne_data_df.attrs)
-    y = 0.04
+    y = 0.07
     for idx, line in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
         fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
@@ -453,13 +453,13 @@ def plot_bao_observables(
     fig, axs = plt.subplots(
         2,
         1,
-        figsize=(17, 12),
+        figsize=(17, 16),
         sharex=True,
-        gridspec_kw={"height_ratios": [3, 1.5], "hspace": 0.05},
+        gridspec_kw={"height_ratios": [4, 1.5], "hspace": 0.05},
     )
     ax = axs[0]
     res_ax = axs[1]
-    plt.subplots_adjust(left=0.08, bottom=0.17, right=0.75, top=0.90)
+    plt.subplots_adjust(left=0.08, bottom=0.24, right=0.75, top=0.90)
 
     obs_types = bao_data_df["observable_type"].unique()
     cmap = plt.get_cmap("viridis")
@@ -667,7 +667,7 @@ def plot_bao_observables(
         f"Copernican Suite {COPERNICAN_VERSION} | {ts}"
     )
     footer_lines = compose_footer(base_line, bao_data_df.attrs)
-    y = 0.04
+    y = 0.07
     for idx, line in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
         fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
@@ -745,7 +745,7 @@ def plot_cmb_spectrum(
         sharex=True,
         gridspec_kw={"height_ratios": [3, 1.5] * len(components), "hspace": 0.05},
     )
-    plt.subplots_adjust(left=0.08, bottom=0.16, right=0.75, top=0.92)
+    plt.subplots_adjust(left=0.08, bottom=0.24, right=0.75, top=0.92)
 
     lcdm_theory = None
     alt_theory = None
@@ -954,7 +954,7 @@ def plot_cmb_spectrum(
         f"Copernican Suite {COPERNICAN_VERSION} | {ts}"
     )
     footer_lines = compose_footer(base_line, cmb_data_df.attrs)
-    y = 0.04
+    y = 0.07
     for idx, line in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
         fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)

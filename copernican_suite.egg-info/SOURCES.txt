@@ -39,9 +39,6 @@ data/sne/pantheon/Pantheon+SH0ES.dat
 data/sne/pantheon/Pantheon+SH0ES_STAT+SYS.cov
 data/sne/pantheon/README.txt
 data/sne/pantheon/cosmo_parser_pantheon.py
-data/sne/unistra/ReadMe.txt
-data/sne/unistra/cosmo_parser_h1_unistra.py
-data/sne/unistra/tablef3.dat
 docs/data_overview.md
 docs/design_overview.md
 engines/__init__.py

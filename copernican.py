@@ -442,7 +442,7 @@ def main_workflow():
         logger.info(f"Running from base directory: {SCRIPT_DIR}")
         logger.info(f"All outputs will be saved to: {OUTPUT_DIR}")
 
-        logger.info("\n--- Stage 1: Configuration ---")
+        logger.info("\n--- Stage 1: Configuration ---\n")
 
         models_dir = os.path.join(SCRIPT_DIR, "models")
         model_files = sorted(
@@ -525,7 +525,7 @@ def main_workflow():
         lcdm_time = 0.0
         alt_time = 0.0
         if hasattr(cosmo_engine_selected, "fit_combined_parameters"):
-            logger.info("\n--- Stage 2: Combined Fit (SNe + BAO + CMB) ---")
+            logger.info("\n--- Stage 2: Combined Fit (SNe + BAO + CMB) ---\n")
             t0 = time.perf_counter()
             lcdm_sne_fit_results = cosmo_engine_selected.fit_combined_parameters(
                 sne_data_df, bao_data_df, cmb_data_df, lcdm
@@ -537,7 +537,7 @@ def main_workflow():
             )
             alt_time += time.perf_counter() - t0
         else:
-            logger.info("\n--- Stage 2: Supernovae Ia Fitting ---")
+            logger.info("\n--- Stage 2: Supernovae Ia Fitting ---\n")
             t0 = time.perf_counter()
             lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(
                 sne_data_df, lcdm
@@ -549,7 +549,7 @@ def main_workflow():
             )
             alt_time += time.perf_counter() - t0
 
-        logger.info("\n--- Stage 3: BAO Analysis ---")
+        logger.info("\n--- Stage 3: BAO Analysis ---\n")
 
         min_z, max_z = bao_data_df["redshift"].min(), bao_data_df["redshift"].max()
         z_plot_smooth = np.geomspace(max(min_z * 0.8, 0.01), max_z * 1.2, 100)
@@ -651,7 +651,7 @@ def main_workflow():
         )
         alt_time += time.perf_counter() - t0
 
-        logger.info("\n--- Stage 4: CMB Analysis ---")
+        logger.info("\n--- Stage 4: CMB Analysis ---\n")
 
         t0 = time.perf_counter()
         lcdm_cmb = run_cmb_analysis(
@@ -670,7 +670,7 @@ def main_workflow():
         )
         alt_time += time.perf_counter() - t0
 
-        logger.info("\n--- Stage 5: Generating Outputs ---")
+        logger.info("\n--- Stage 5: Generating Outputs ---\n")
         logger.info(f"{lcdm.MODEL_NAME} CMB chi2 = {lcdm_cmb['chi2_cmb']:.2f}")
         logger.info(
             f"{alt_model_plugin.MODEL_NAME} CMB chi2 = {alt_cmb['chi2_cmb']:.2f}"
@@ -712,22 +712,26 @@ def main_workflow():
                 timestamp=end_ts,
             )
 
-        print("\n--- Final Theory Summaries ---")
+        print("\n--- Theory Abstracts ---\n")
         print(f"ΛCDM Abstract:\n{lcdm.MODEL_ABSTRACT}\n")
         print(
             f"{alt_model_plugin.MODEL_NAME} Abstract:\n{alt_model_plugin.MODEL_ABSTRACT}\n"
         )
 
         def _print_fit(label, sne_res, bao_res, cmb_res):
-            print(f"--- {label} Fit Report ---")
+            print(f"--- {label} Fit Report ---\n")
             if sne_res:
                 for name, val in sne_res.get("fitted_cosmological_params", {}).items():
                     print(f"  {name} = {val:.5g}")
-                print(f"  χ²_SNe = {sne_res.get('chi2_min', float('nan')):.2f}")
+            chi2_sne = sne_res.get('chi2_sne', sne_res.get('chi2_min', float('nan')))
+            chi2_total = sne_res.get('chi2_total', float('nan'))
+            print(f"  χ²_Total = {chi2_total:.2f}")
+            print(f"  χ²_SNe = {chi2_sne:.2f}")
             if bao_res:
                 print(f"  χ²_BAO = {bao_res.get('chi2_bao', float('nan')):.2f}")
             if cmb_res:
                 print(f"  χ²_CMB = {cmb_res.get('chi2_cmb', float('nan')):.2f}")
+            print()
 
         _print_fit("ΛCDM", lcdm_sne_fit_results, lcdm_full_results, lcdm_cmb)
         _print_fit(

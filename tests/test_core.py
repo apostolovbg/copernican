@@ -30,6 +30,9 @@ class FunctionalTestCase(unittest.TestCase):
         sne_df = data_loaders.load_sne_data('JLA 2014 (Betoule et al.)')
         self.assertIsNotNone(sne_df)
         sne_df = sne_df.head(3)
+        if 'covariance_matrix_inv' in sne_df.attrs:
+            sne_df.attrs['covariance_matrix_inv'] = sne_df.attrs['covariance_matrix_inv'][:3, :3]
+            sne_df.attrs['diag_errors_for_plot'] = sne_df.attrs['diag_errors_for_plot'][:3]
 
         bao_df = data_loaders.load_bao_data('Test BAO dataset')
         self.assertIsNotNone(bao_df)
@@ -61,6 +64,9 @@ class FunctionalTestCase(unittest.TestCase):
 
     def test_combined_fit(self):
         sne_df = data_loaders.load_sne_data('JLA 2014 (Betoule et al.)').head(2)
+        if 'covariance_matrix_inv' in sne_df.attrs:
+            sne_df.attrs['covariance_matrix_inv'] = sne_df.attrs['covariance_matrix_inv'][:2, :2]
+            sne_df.attrs['diag_errors_for_plot'] = sne_df.attrs['diag_errors_for_plot'][:2]
         bao_df = data_loaders.load_bao_data('Test BAO dataset').head(2)
         cmb_df = data_loaders.load_cmb_data('Planck 2018 Lite TT/TE/EE')
         cmb_df = cmb_df.head(10)
