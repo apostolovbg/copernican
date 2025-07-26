@@ -1,6 +1,9 @@
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: please, always check what is the current date when you are logging last changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Use this template:
 
+## Version 1.14.1
+- 2025-07-26: Unified plot style and improved info boxes across all data types (AI assistant)
+
 ## Version 1.14.0
 - 2025-07-27: Added JLA 2014 dataset with full covariance matrix and new metadata field `authors_all` (AI assistant)
 - 2025-07-27: Fixed version string handling and updated documentation (AI assistant)

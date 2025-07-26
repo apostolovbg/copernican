@@ -1,4 +1,4 @@
-**Version:** 1.14.0
+**Version:** 1.14.1
 **Last Updated:** 2025-07-25
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
@@ -337,7 +337,7 @@ altering `MAJOR.MINOR`.
 5.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data. When `cosmo_engine_comb.py` is selected this step refines the parameters before the full joint optimisation.
 6.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
 7.  **CMB Analysis**: Each model's CMB spectrum is evaluated against the selected dataset. The combined engine performs this after completing the joint optimisation.
-8.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots, tables and logs using a consistent format.
+8.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots, tables and logs using a consistent format. Plots now use a white background with light grey grid lines for clarity.
 9.  **Loop or Exit**: The user is prompted to run another evaluation or exit.
 
 ---

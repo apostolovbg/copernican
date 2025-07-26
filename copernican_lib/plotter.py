@@ -89,21 +89,37 @@ def compose_footer(base_line: str, data_attrs: dict) -> list[str]:
     return [base_line]
 
 
+def _apply_common_style() -> None:
+    """Apply a consistent white background and grey grid style."""
+    plt.style.use("default")
+    plt.rcParams.update(
+        {
+            "axes.facecolor": "white",
+            "grid.color": "lightgray",
+            "grid.linestyle": "--",
+            "grid.linewidth": 0.8,
+        }
+    )
+
+
 def format_model_summary_text(
-    model_plugin: Any, is_sne_summary: bool, fit_results: Any, **kwargs: Any
+    model_plugin: Any,
+    dataset_type: str,
+    fit_results: Any,
+    **kwargs: Any,
 ) -> str:
     """Return a formatted text block with model details and fit statistics."""
+
     lines: list[str] = []
     model_name_raw = getattr(model_plugin, "MODEL_NAME", "N/A")
     model_name_latex = model_name_raw.replace("_", r"\_")
     lines.append(rf"**Model: {model_name_latex}**")
 
-    eq_attr = (
-        "MODEL_EQUATIONS_LATEX_SN" if is_sne_summary else "MODEL_EQUATIONS_LATEX_BAO"
-    )
-    if hasattr(model_plugin, eq_attr):
-        lines.append("$\\mathbf{Mathematical\\ Form:}$")
-        for eq_line in getattr(model_plugin, eq_attr):
+    lines.append("$\\mathbf{Mathematical\\ Form:}$")
+    for eq_line in getattr(model_plugin, "MODEL_EQUATIONS_LATEX_SN", []):
+        lines.append(f"  {_wrap_math(eq_line)}")
+    if dataset_type == "bao":
+        for eq_line in getattr(model_plugin, "MODEL_EQUATIONS_LATEX_BAO", []):
             lines.append(f"  {_wrap_math(eq_line)}")
 
     lines.append("$\\mathbf{Cosmological\\ Parameters:}$")
@@ -123,7 +139,7 @@ def format_model_summary_text(
     else:
         lines.append("  (Fit failed or parameters unavailable)")
 
-    if is_sne_summary and fit_results.get("fitted_nuisance_params"):
+    if dataset_type == "sne" and fit_results.get("fitted_nuisance_params"):
         lines.append("$\\mathbf{SNe\\ Nuisance\\ Parameters:}$")
         for name, val in fit_results["fitted_nuisance_params"].items():
             name_latex = {
@@ -133,7 +149,7 @@ def format_model_summary_text(
             }.get(name, name)
             lines.append(rf"  {_wrap_math(name_latex)} = ${val:.4g}$")
 
-    if is_sne_summary:
+    if dataset_type == "sne":
         lines.append("$\\mathbf{SNe\\ Fit\\ Statistics:}$")
         lines.append(
             rf"  $\chi^2_{{SNe}}$ = {fit_results.get('chi2_sne', fit_results.get('chi2_min', np.nan)):.2f}"
@@ -142,11 +158,17 @@ def format_model_summary_text(
             lines.append(
                 rf"  $\chi^2_{{tot}}$ = {fit_results.get('chi2_total', np.nan):.2f}"
             )
-    else:
-        # Display BAO fit statistics in the info box
+    elif dataset_type == "bao":
         lines.append("$\\mathbf{BAO\\ Fit\\ Results:}$")
         lines.append(rf"  $r_s$ = {kwargs.get('rs_Mpc', np.nan):.2f} Mpc")
         lines.append(rf"  $\chi^2_{{BAO}}$ = {kwargs.get('chi2_bao', np.nan):.2f}")
+        if "chi2_total" in kwargs:
+            lines.append(
+                rf"  $\chi^2_{{tot}}$ = {kwargs.get('chi2_total', np.nan):.2f}"
+            )
+    elif dataset_type == "cmb":
+        lines.append("$\\mathbf{CMB\\ Fit\\ Statistics:}$")
+        lines.append(rf"  $\chi^2_{{CMB}}$ = {kwargs.get('chi2_cmb', np.nan):.2f}")
         if "chi2_total" in kwargs:
             lines.append(
                 rf"  $\chi^2_{{tot}}$ = {kwargs.get('chi2_total', np.nan):.2f}"
@@ -169,6 +191,8 @@ def plot_hubble_diagram(
     logger = get_logger()
     dataset_name = sne_data_df.attrs.get("dataset_name_attr", "SNe_data")
     logger.info(f"Generating Hubble Diagram for {dataset_name}...")
+
+    _apply_common_style()
 
     font_sizes = {
         "title": 22,
@@ -225,10 +249,6 @@ def plot_hubble_diagram(
         gridspec_kw={"height_ratios": [3, 1.5], "hspace": 0.05},
     )
     plt.subplots_adjust(left=0.08, bottom=0.12, right=0.75, top=0.92)
-    try:
-        plt.style.use("seaborn-v0_8-darkgrid")
-    except Exception:
-        logger.warning("Seaborn-v0_8-darkgrid style not found, using default.")
 
     axs[0].errorbar(
         z_data,
@@ -334,6 +354,7 @@ def plot_hubble_diagram(
     axs[0].set_title(f"Hubble Diagram: {dataset_name}", fontsize=font_sizes["title"])
     axs[0].minorticks_on()
     axs[0].tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
+    axs[0].grid(True, which="both", color="lightgray", linestyle="--", linewidth=0.8)
 
     axs[1].axhline(0, color="black", ls="--", lw=1)
     axs[1].set_xlabel("Redshift (z)", fontsize=font_sizes["label"])
@@ -341,6 +362,7 @@ def plot_hubble_diagram(
     axs[1].legend(fontsize=font_sizes["legend"], loc="lower right")
     axs[1].minorticks_on()
     axs[1].tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
+    axs[1].grid(True, which="both", color="lightgray", linestyle="--", linewidth=0.8)
 
     bbox_lcdm = dict(boxstyle="round,pad=0.5", fc="#FFEEEE", ec="darkred", alpha=0.8)
     bbox_alt = dict(boxstyle="round,pad=0.5", fc="#EEF2FF", ec="darkblue", alpha=0.8)
@@ -348,7 +370,9 @@ def plot_hubble_diagram(
         0.77,
         0.90,
         format_model_summary_text(
-            lcdm_plugin, is_sne_summary=True, fit_results=lcdm_fit_results
+            lcdm_plugin,
+            "sne",
+            lcdm_fit_results,
         ),
         fontsize=font_sizes["infobox"],
         va="top",
@@ -360,7 +384,9 @@ def plot_hubble_diagram(
         0.77,
         0.52,
         format_model_summary_text(
-            alt_model_plugin, is_sne_summary=True, fit_results=alt_model_fit_results
+            alt_model_plugin,
+            "sne",
+            alt_model_fit_results,
         ),
         fontsize=font_sizes["infobox"],
         va="top",
@@ -375,7 +401,7 @@ def plot_hubble_diagram(
         f"Copernican Suite {COPERNICAN_VERSION} | {ts}"
     )
     footer_lines = compose_footer(base_line, sne_data_df.attrs)
-    y = 0.02
+    y = 0.04
     for idx, line in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
         fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
@@ -414,6 +440,8 @@ def plot_bao_observables(
     dataset_name = bao_data_df.attrs.get("dataset_name_attr", "BAO_data")
     logger.info(f"Generating BAO Plot for {dataset_name}...")
 
+    _apply_common_style()
+
     font_sizes = {
         "title": 22,
         "label": 18,
@@ -432,10 +460,6 @@ def plot_bao_observables(
     ax = axs[0]
     res_ax = axs[1]
     plt.subplots_adjust(left=0.08, bottom=0.13, right=0.75, top=0.90)
-    try:
-        plt.style.use("seaborn-v0_8-darkgrid")
-    except Exception:
-        logger.warning("Seaborn-v0_8-darkgrid style not found, using default.")
 
     obs_types = bao_data_df["observable_type"].unique()
     cmap = plt.get_cmap("viridis")
@@ -594,7 +618,7 @@ def plot_bao_observables(
     ax.legend(fontsize=font_sizes["legend"], loc="best")
     ax.minorticks_on()
     ax.tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
-    ax.grid(True, which="both", linestyle="--", linewidth=0.5)
+    ax.grid(True, which="both", color="lightgray", linestyle="--", linewidth=0.8)
 
     res_ax.axhline(0, color="black", ls="--", lw=1)
     res_ax.set_xlabel("Redshift (z)", fontsize=font_sizes["label"])
@@ -602,7 +626,7 @@ def plot_bao_observables(
     res_ax.legend(fontsize=font_sizes["legend"], loc="best")
     res_ax.minorticks_on()
     res_ax.tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
-    res_ax.grid(True, which="both", linestyle="--", linewidth=0.5)
+    res_ax.grid(True, which="both", color="lightgray", linestyle="--", linewidth=0.8)
 
     bbox_lcdm = dict(boxstyle="round,pad=0.5", fc="#FFEEEE", ec="darkred", alpha=0.8)
     bbox_alt = dict(boxstyle="round,pad=0.5", fc="#EEF2FF", ec="darkblue", alpha=0.8)
@@ -611,8 +635,8 @@ def plot_bao_observables(
         0.90,
         format_model_summary_text(
             lcdm_plugin,
-            is_sne_summary=False,
-            fit_results=lcdm_full_results.get("sne_fit_results", {}),
+            "bao",
+            lcdm_full_results.get("sne_fit_results", {}),
             **lcdm_full_results,
         ),
         fontsize=font_sizes["infobox"],
@@ -626,8 +650,8 @@ def plot_bao_observables(
         0.55,
         format_model_summary_text(
             alt_model_plugin,
-            is_sne_summary=False,
-            fit_results=alt_model_full_results.get("sne_fit_results", {}),
+            "bao",
+            alt_model_full_results.get("sne_fit_results", {}),
             **alt_model_full_results,
         ),
         fontsize=font_sizes["infobox"],
@@ -643,7 +667,7 @@ def plot_bao_observables(
         f"Copernican Suite {COPERNICAN_VERSION} | {ts}"
     )
     footer_lines = compose_footer(base_line, bao_data_df.attrs)
-    y = 0.02
+    y = 0.04
     for idx, line in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
         fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
@@ -666,42 +690,6 @@ def plot_bao_observables(
         plt.close(fig)
 
 
-def format_cmb_summary_text(
-    model_plugin: Any,
-    sne_results: Any,
-    chi2_cmb: float,
-    chi2_total: float | None = None,
-) -> str:
-    """Return formatted summary text for CMB plots."""
-    lines: list[str] = []
-    model_name_raw = getattr(model_plugin, "MODEL_NAME", "N/A")
-    model_name_latex = model_name_raw.replace("_", r"\_")
-    lines.append(rf"**Model: {model_name_latex}**")
-
-    lines.append(r"$\mathbf{Cosmological\ Parameters:}$")
-    param_names = getattr(model_plugin, "PARAMETER_NAMES", [])
-    param_latex_names = getattr(model_plugin, "PARAMETER_LATEX_NAMES", [])
-    fitted_cosmo_params = sne_results.get("fitted_cosmological_params", {})
-    if fitted_cosmo_params:
-        for i, name in enumerate(param_names):
-            val = fitted_cosmo_params.get(name)
-            latex_name = param_latex_names[i] if i < len(param_latex_names) else name
-            if val is not None:
-                lines.append(rf"  {latex_name} = ${val:.4g}$")
-            else:
-                lines.append(f"  {latex_name} = N/A")
-    else:
-        lines.append("  (Parameters unavailable)")
-
-    lines.append(r"$\mathbf{CMB\ Fit\ Statistics:}$")
-    if chi2_cmb is not None and np.isfinite(chi2_cmb):
-        lines.append(rf"  $\chi^2_{{CMB}}$ = {chi2_cmb:.2f}")
-    else:
-        lines.append("  $\\chi^2_{CMB}$ = N/A")
-    if chi2_total is not None and np.isfinite(chi2_total):
-        lines.append(rf"  $\chi^2_{{tot}}$ = {chi2_total:.2f}")
-
-    return "\n".join(lines)
 
 
 def plot_cmb_spectrum(
@@ -720,6 +708,8 @@ def plot_cmb_spectrum(
     logger = get_logger()
     dataset_name = cmb_data_df.attrs.get("dataset_name_attr", "CMB_data")
     logger.info(f"Generating CMB Spectrum Plot for {dataset_name}...")
+
+    _apply_common_style()
 
     font_sizes = {
         "title": 22,
@@ -756,10 +746,6 @@ def plot_cmb_spectrum(
         gridspec_kw={"height_ratios": [3, 1.5] * len(components), "hspace": 0.05},
     )
     plt.subplots_adjust(left=0.08, bottom=0.12, right=0.75, top=0.92)
-    try:
-        plt.style.use("seaborn-v0_8-darkgrid")
-    except Exception:
-        logger.warning("Seaborn-v0_8-darkgrid style not found, using default.")
 
     lcdm_theory = None
     alt_theory = None
@@ -911,6 +897,7 @@ def plot_cmb_spectrum(
         axs[idx_main].tick_params(
             axis="both", which="major", labelsize=font_sizes["ticks"]
         )
+        axs[idx_main].grid(True, which="both", color="lightgray", linestyle="--", linewidth=0.8)
 
         axs[idx_res].axhline(0, color="black", ls="--", lw=1)
         if i == len(components) - 1:
@@ -924,17 +911,19 @@ def plot_cmb_spectrum(
         axs[idx_res].tick_params(
             axis="both", which="major", labelsize=font_sizes["ticks"]
         )
+        axs[idx_res].grid(True, which="both", color="lightgray", linestyle="--", linewidth=0.8)
 
     bbox_lcdm = dict(boxstyle="round,pad=0.5", fc="#FFEEEE", ec="darkred", alpha=0.8)
     bbox_alt = dict(boxstyle="round,pad=0.5", fc="#EEF2FF", ec="darkblue", alpha=0.8)
     fig.text(
         0.77,
         0.90,
-        format_cmb_summary_text(
+        format_model_summary_text(
             lcdm_plugin,
+            "cmb",
             lcdm_sne_results,
-            lcdm_cmb_results.get("chi2_cmb"),
-            lcdm_sne_results.get("chi2_total"),
+            chi2_cmb=lcdm_cmb_results.get("chi2_cmb"),
+            chi2_total=lcdm_sne_results.get("chi2_total"),
         ),
         fontsize=font_sizes["infobox"],
         va="top",
@@ -945,11 +934,12 @@ def plot_cmb_spectrum(
     fig.text(
         0.77,
         0.55,
-        format_cmb_summary_text(
+        format_model_summary_text(
             alt_model_plugin,
+            "cmb",
             alt_sne_results,
-            alt_cmb_results.get("chi2_cmb"),
-            alt_sne_results.get("chi2_total"),
+            chi2_cmb=alt_cmb_results.get("chi2_cmb"),
+            chi2_total=alt_sne_results.get("chi2_total"),
         ),
         fontsize=font_sizes["infobox"],
         va="top",
@@ -964,7 +954,7 @@ def plot_cmb_spectrum(
         f"Copernican Suite {COPERNICAN_VERSION} | {ts}"
     )
     footer_lines = compose_footer(base_line, cmb_data_df.attrs)
-    y = 0.02
+    y = 0.04
     for idx, line in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
         fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
