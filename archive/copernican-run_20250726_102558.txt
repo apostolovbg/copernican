@@ -1,0 +1,168 @@
+2025-07-26 10:25:58,229 - INFO - Logging initialized. Log file: output/copernican-run_20250726_102558.txt
+2025-07-26 10:25:58,229 - INFO - Copernican 1.14.2 has initialized! Current timestamp is 250726_102558. Log file: output/copernican-run_20250726_102558.txt
+2025-07-26 10:25:58,229 - INFO - Using standard CPU (SciPy) computational backend with multiprocessing.
+2025-07-26 10:25:58,229 - INFO - Running from base directory: .
+2025-07-26 10:25:58,230 - INFO - All outputs will be saved to: output
+2025-07-26 10:25:58,230 - INFO - 
+--- Stage 1: Configuration ---
+2025-07-26 10:25:58,230 - INFO - 
+Available cosmological models:
+2025-07-26 10:25:58,230 - INFO -   1. cosmo_model_cfsc.json
+2025-07-26 10:25:58,230 - INFO -   2. cosmo_model_cpc.json
+2025-07-26 10:25:58,230 - INFO -   3. cosmo_model_lcdm.json
+2025-07-26 10:25:58,230 - INFO -   4. cosmo_model_qauc.json
+2025-07-26 10:25:58,230 - INFO -   5. cosmo_model_usmf2.json
+2025-07-26 10:25:58,230 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-07-26 10:26:51,316 - INFO - > 5
+2025-07-26 10:26:51,333 - INFO - Derived distance functions from symbolic Hz_expression in model JSON.
+2025-07-26 10:26:51,333 - INFO - Derived r_s using fallback integral from Hz_expression.
+2025-07-26 10:26:51,333 - INFO - Derived distance_modulus_model from luminosity distance.
+2025-07-26 10:26:51,334 - INFO - Loaded JSON model: USMFv2
+2025-07-26 10:26:51,334 - INFO - 
+Available computation engines:
+2025-07-26 10:26:51,334 - INFO -   1. cosmo_engine_comb.py
+2025-07-26 10:26:51,334 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-07-26 10:26:52,317 - INFO - > 1
+2025-07-26 10:26:52,461 - INFO - 
+Available SNe data sources:
+2025-07-26 10:26:52,461 - INFO -   1. JLA 2014 (Betoule et al.) (Joint SDSS-II and SNLS supernova sample providing 740 standardized SNe Ia with full covariance matrix)
+2025-07-26 10:26:52,461 - INFO -   2. Pantheon+SH0ES 2022 (Combined sample of 1701 Type Ia supernovae distances with full covariance matrix)
+2025-07-26 10:26:52,461 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-07-26 10:26:54,004 - INFO - > 1
+2025-07-26 10:26:54,005 - INFO - Attempting to load SNe data from source 'JLA 2014 (Betoule et al.)'
+2025-07-26 10:26:54,335 - INFO - Successfully loaded 740 SNe data points.
+2025-07-26 10:26:54,336 - INFO - 
+Available BAO data sources:
+2025-07-26 10:26:54,336 - INFO -   1. Test BAO dataset (Synthetic compilation of distance measurements used only for unit testing)
+2025-07-26 10:26:54,336 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-07-26 10:26:55,148 - INFO - > 1
+2025-07-26 10:26:55,149 - INFO - Attempting to load BAO data from source 'Test BAO dataset'
+2025-07-26 10:26:55,156 - INFO - Successfully loaded 25 BAO data points.
+2025-07-26 10:26:55,156 - INFO - 
+Available CMB data sources:
+2025-07-26 10:26:55,156 - INFO -   1. Planck 2018 Lite TT/TE/EE (Temperature and polarization power spectra from the Planck satellite reduced covariance release)
+2025-07-26 10:26:55,156 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-07-26 10:26:55,814 - INFO - > 1
+2025-07-26 10:26:55,814 - INFO - Attempting to load CMB data from source 'Planck 2018 Lite TT/TE/EE'
+2025-07-26 10:26:55,848 - INFO - Successfully loaded 215 CMB data points.
+2025-07-26 10:26:55,848 - INFO - 
+--- Stage 2: Combined Fit (SNe + BAO + CMB) ---
+2025-07-26 10:26:55,848 - INFO - Running SNe pre-fit to obtain better starting values...
+2025-07-26 10:26:57,738 - INFO - SNe Prefit optimization finished. Total evals: 63.
+2025-07-26 10:26:57,739 - INFO - Starting combined optimization for LambdaCDM using 9 parameters...
+2025-07-26 10:27:19,869 - INFO - Combined Fit optimization finished. Total evals: 110.
+2025-07-26 10:27:19,904 - INFO - Combined fit results for LambdaCDM:
+2025-07-26 10:27:19,904 - INFO -   - H0: 100
+2025-07-26 10:27:19,904 - INFO -   - Omega_m0: 0.28925
+2025-07-26 10:27:19,904 - INFO -   - Omega_b0: 0.055
+2025-07-26 10:27:19,904 - INFO -   - Ob: 0.055
+2025-07-26 10:27:19,904 - INFO -   - Og: 5.5e-05
+2025-07-26 10:27:19,905 - INFO -   - z_recomb: 1100
+2025-07-26 10:27:19,905 - INFO -   - tau: 0.054
+2025-07-26 10:27:19,905 - INFO -   - As: 2.1e-09
+2025-07-26 10:27:19,905 - INFO -   - ns: 0.965
+2025-07-26 10:27:19,905 - INFO -   - Chi2 Total: 67179141.1274 (SNe=67130687.5642, BAO=4523.8000, CMB=43929.7632)
+2025-07-26 10:27:19,905 - INFO - Running SNe pre-fit to obtain better starting values...
+2025-07-26 10:27:20,182 - INFO - SNe Prefit optimization finished. Total evals: 26.
+2025-07-26 10:27:20,183 - INFO - Starting combined optimization for USMFv2 using 16 parameters...
+2025-07-26 10:27:37,147 - INFO - Combined Fit optimization finished. Total evals: 408.
+2025-07-26 10:27:37,161 - INFO - Combined fit results for USMFv2:
+2025-07-26 10:27:37,161 - INFO -   - H_A: 100
+2025-07-26 10:27:37,162 - INFO -   - p_alpha: 0.8
+2025-07-26 10:27:37,162 - INFO -   - k_exp: 0
+2025-07-26 10:27:37,162 - INFO -   - s_exp: 1.25
+2025-07-26 10:27:37,162 - INFO -   - t0_age_Gyr: 15
+2025-07-26 10:27:37,162 - INFO -   - A_osc: 0.025
+2025-07-26 10:27:37,162 - INFO -   - omega_osc: 5.05
+2025-07-26 10:27:37,162 - INFO -   - ti_osc_Gyr: 10.5
+2025-07-26 10:27:37,162 - INFO -   - phi_osc: 0
+2025-07-26 10:27:37,162 - INFO -   - Ob: 0.1
+2025-07-26 10:27:37,162 - INFO -   - Og: 0.0001
+2025-07-26 10:27:37,162 - INFO -   - z_recomb: 1200
+2025-07-26 10:27:37,162 - INFO -   - omch2: 1
+2025-07-26 10:27:37,162 - INFO -   - tau: 0.054
+2025-07-26 10:27:37,162 - INFO -   - As: 1.05e-09
+2025-07-26 10:27:37,162 - INFO -   - ns: 0.965
+2025-07-26 10:27:37,163 - INFO -   - Chi2 Total: 70883694.7777 (SNe=70821877.6992, BAO=5636.8920, CMB=56180.1864)
+2025-07-26 10:27:37,163 - INFO - 
+--- Stage 3: BAO Analysis ---
+2025-07-26 10:27:37,163 - INFO - Calculating BAO observables for LambdaCDM with parameters: [100, 0.2893, 0.055, 0.055, 5.5e-05, 1100]
+2025-07-26 10:27:37,165 - INFO - Successfully calculated r_s for LambdaCDM: 110.468 Mpc
+2025-07-26 10:27:37,189 - INFO - LambdaCDM BAO: r_s = 110.47 Mpc, Chi2_BAO = 4523.80
+2025-07-26 10:27:37,190 - INFO - Calculating BAO observables for USMFv2 with parameters: [100, 0.8, 0, 1.25, 15, 0.025, 5.05, 10.5, 0, 0.1, 0.0001, 1200]
+2025-07-26 10:27:37,191 - INFO - Successfully calculated r_s for USMFv2: 126.584 Mpc
+2025-07-26 10:27:37,204 - INFO - USMFv2 BAO: r_s = 126.58 Mpc, Chi2_BAO = 5636.89
+2025-07-26 10:27:37,204 - INFO - 
+--- Stage 4: CMB Analysis ---
+2025-07-26 10:27:38,079 - INFO - LambdaCDM CMB chi2 = 43929.76
+2025-07-26 10:27:38,699 - INFO - USMFv2 CMB chi2 = 56180.19
+2025-07-26 10:27:38,699 - INFO - 
+--- Stage 5: Generating Outputs ---
+2025-07-26 10:27:38,699 - INFO - LambdaCDM CMB chi2 = 43929.76
+2025-07-26 10:27:38,700 - INFO - USMFv2 CMB chi2 = 56180.19
+2025-07-26 10:27:38,700 - INFO - Generating Hubble Diagram for JLA_2014_(Betoule_et_al.)...
+2025-07-26 10:27:42,310 - INFO - Hubble diagram saved to hubble-plot-LambdaCDM-vs-USMFv2-JLA-2014-(Betoule-et-al.)_20250726_102738.png
+2025-07-26 10:27:42,311 - INFO - Generating BAO Plot for Test_BAO_dataset...
+2025-07-26 10:27:45,658 - INFO - BAO plot saved to bao-plot-LambdaCDM-vs-USMFv2-Test-BAO-dataset_20250726_102738.png
+2025-07-26 10:27:45,663 - INFO - Generating CMB Spectrum Plot for Planck_2018_Lite_TT/TE/EE...
+2025-07-26 10:27:50,597 - INFO - CMB plot saved to cmb-plot-LambdaCDM-vs-USMFv2-Planck-2018-Lite-TT-TE-EE_20250726_102738.png
+2025-07-26 10:27:50,598 - INFO - 
+--- Final Theory Summaries ---
+2025-07-26 10:27:50,598 - INFO - ΛCDM Abstract:
+LambdaCDM model describes a flat universe dominated by cold dark matter and a cosmological constant serving as the reference model
+
+2025-07-26 10:27:50,598 - INFO - USMFv2 Abstract:
+The Unified Shrinking Matter Framework (USMF) is a cosmological model proposing that the observed accelerated expansion of the Universe and phenomena attributed to dark matter and dark energy are apparent effects. These arise from observations made from within dense cosmic structures (like galaxies) that are themselves shrinking over cosmic time relative to a static universal coordinate system. This paper details the core concepts of USMF, its refined mathematical formulation including considerations for early universe evolution, the mechanisms for inhomogeneous shrinking, its implications for key cosmological observations such as Type Ia supernovae, Big Bang Nucleosynthesis, Baryon Acoustic Oscillations, and the matter-antimatter asymmetry. The framework suggests a dynamic evolution of fundamental scales and the effective gravitational constant ($G_{univ}(t)$), proposing specific modifications to gravitational field equations and offering novel explanations and unique testable predictions for cosmic puzzles without invoking new undiscovered particles or energy fields.
+
+2025-07-26 10:27:50,598 - INFO - --- ΛCDM Fit Report ---
+2025-07-26 10:27:50,598 - INFO -   H0 = 100
+2025-07-26 10:27:50,598 - INFO -   Omega_m0 = 0.28925
+2025-07-26 10:27:50,598 - INFO -   Omega_b0 = 0.055
+2025-07-26 10:27:50,598 - INFO -   Ob = 0.055
+2025-07-26 10:27:50,598 - INFO -   Og = 5.5e-05
+2025-07-26 10:27:50,599 - INFO -   z_recomb = 1100
+2025-07-26 10:27:50,599 - INFO -   χ²_SNe = 67179141.13
+2025-07-26 10:27:50,599 - INFO -   χ²_BAO = 4523.80
+2025-07-26 10:27:50,599 - INFO -   χ²_CMB = 43929.76
+2025-07-26 10:27:50,599 - INFO - --- USMFv2 Fit Report ---
+2025-07-26 10:27:50,599 - INFO -   H_A = 100
+2025-07-26 10:27:50,599 - INFO -   p_alpha = 0.8
+2025-07-26 10:27:50,599 - INFO -   k_exp = 0
+2025-07-26 10:27:50,599 - INFO -   s_exp = 1.25
+2025-07-26 10:27:50,599 - INFO -   t0_age_Gyr = 15
+2025-07-26 10:27:50,599 - INFO -   A_osc = 0.025
+2025-07-26 10:27:50,599 - INFO -   omega_osc = 5.05
+2025-07-26 10:27:50,599 - INFO -   ti_osc_Gyr = 10.5
+2025-07-26 10:27:50,599 - INFO -   phi_osc = 0
+2025-07-26 10:27:50,599 - INFO -   Ob = 0.1
+2025-07-26 10:27:50,599 - INFO -   Og = 0.0001
+2025-07-26 10:27:50,599 - INFO -   z_recomb = 1200
+2025-07-26 10:27:50,599 - INFO -   χ²_SNe = 70883694.78
+2025-07-26 10:27:50,599 - INFO -   χ²_BAO = 5636.89
+2025-07-26 10:27:50,599 - INFO -   χ²_CMB = 56180.19
+2025-07-26 10:27:50,903 - INFO - SNe detailed results CSV saved to sne-detailed-data-LCDM-vs-USMFv2-JLA-2014-(Betoule-et-al.)_20250726_102738.csv
+2025-07-26 10:27:50,911 - INFO - BAO detailed results CSV saved to bao-detailed-data-LCDM-vs-USMFv2-Test-BAO-dataset_20250726_102738.csv
+2025-07-26 10:27:50,924 - INFO - CMB detailed results CSV saved to cmb-detailed-data-LCDM-vs-USMFv2-Planck-2018-Lite-TT-TE-EE_20250726_102738.csv
+2025-07-26 10:27:50,925 - INFO - 
+==================================================
+2025-07-26 10:27:50,925 - INFO - Evaluation complete. All files saved to the 'output' directory.
+2025-07-26 10:27:50,925 - INFO - ==================================================
+
+2025-07-26 10:27:51,015 - INFO - Run completed at 20250726_102738.
+2025-07-26 10:27:51,015 - INFO - Run started on 2025-07-26 10:25:58
+2025-07-26 10:27:51,016 - INFO - Run ended on 2025-07-26 10:27:38
+2025-07-26 10:27:51,016 - INFO - Run took 24.96s for LCDM and 17.89s for USMFv2, or 112.69s in total, on a system with a i386 3.50 GHz, under macOS-15.0.1-x86_64-i386-64bit-Mach-O
+2025-07-26 10:40:02,226 - INFO - Would you like to run another evaluation? (yes/no): y
+2025-07-26 10:40:02,229 - INFO - --- Cleaning up cache files ---
+2025-07-26 10:40:02,233 - INFO - Removed cache directory: __pycache__
+2025-07-26 10:40:02,244 - INFO - Removed cache directory: engines/__pycache__
+2025-07-26 10:40:02,257 - INFO - Removed cache directory: copernican_lib/__pycache__
+2025-07-26 10:40:02,299 - INFO - Removed cache directory: data/cmb/planck2018lite/__pycache__
+2025-07-26 10:40:02,299 - INFO - Removed cache directory: data/sirens/placeholder/__pycache__
+2025-07-26 10:40:02,300 - INFO - Removed cache directory: data/gw/placeholder/__pycache__
+2025-07-26 10:40:02,300 - INFO - Removed cache directory: data/sne/unistra/__pycache__
+2025-07-26 10:40:02,301 - INFO - Removed cache directory: data/sne/jla2014/__pycache__
+2025-07-26 10:40:02,302 - INFO - Removed cache directory: data/sne/pantheon/__pycache__
+2025-07-26 10:40:02,303 - INFO - Removed cache directory: data/bao/test/__pycache__
+2025-07-26 10:40:02,304 - INFO - Removed cache file: models/cache/cache_cosmo_model_usmf2.json
+2025-07-26 10:40:02,305 - INFO - Removed cache file: models/cache/cache_cosmo_model_lcdm.json
