@@ -80,11 +80,12 @@ def compose_footer(base_line: str, data_attrs: dict) -> list[str]:
     notes = data_attrs.get("notes", "")
     citation = data_attrs.get("citation", "")
     second_line = f"{_wrap_math(long_name)}: {notes} {citation}".strip()
-    # Allow more characters per line so lengthy citations do not wrap
-    # excessively. Each wrapped line will be drawn separately with a
-    # slightly smaller font size by the caller.
+    # Wrap citation lines so they stay within the plotting margins.
+    # Each wrapped line is rendered separately with a slightly smaller
+    # font size by the caller. 110 characters keeps text inside the
+    # axes width on most figure sizes.
     if second_line:
-        wrapped_lines = textwrap.wrap(second_line, width=200)
+        wrapped_lines = textwrap.wrap(second_line, width=110)
         return [base_line] + wrapped_lines
     return [base_line]
 
@@ -242,11 +243,11 @@ def plot_hubble_diagram(
     )
 
     left = 0.08
-    right = 0.75
+    right = 1 - left
     top = 0.92
     box_height = 0.33
-    info_x = 0.77
-    info_gap = info_x - right
+    info_gap = 0.02
+    info_x = right + info_gap
 
     fig, axs = plt.subplots(
         2,
@@ -261,8 +262,8 @@ def plot_hubble_diagram(
         sne_data_df.attrs,
     )
     line_height = 0.015
-    start_y = left + (len(footer_lines) - 1) * line_height
-    footer_pad = 0.03
+    start_y = left + 0.01 + (len(footer_lines) - 1) * line_height
+    footer_pad = left
     plt.subplots_adjust(
         left=left,
         right=right,
@@ -420,7 +421,10 @@ def plot_hubble_diagram(
     y = start_y
     for idx, line in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
-        fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
+        if idx == 0:
+            fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
+        else:
+            fig.text(left, y, line, ha="left", fontsize=fs, wrap=True)
         y -= line_height
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
@@ -467,11 +471,11 @@ def plot_bao_observables(
     }
 
     left = 0.08
-    right = 0.75
+    right = 1 - left
     top = 0.90
     box_height = 0.33
-    info_x = 0.77
-    info_gap = info_x - right
+    info_gap = 0.02
+    info_x = right + info_gap
 
     fig, axs = plt.subplots(
         2,
@@ -488,8 +492,8 @@ def plot_bao_observables(
         bao_data_df.attrs,
     )
     line_height = 0.015
-    start_y = left + (len(footer_lines) - 1) * line_height
-    footer_pad = 0.03
+    start_y = left + 0.01 + (len(footer_lines) - 1) * line_height
+    footer_pad = left
     plt.subplots_adjust(
         left=left,
         right=right,
@@ -702,7 +706,10 @@ def plot_bao_observables(
     y = start_y
     for idx, line in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
-        fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
+        if idx == 0:
+            fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
+        else:
+            fig.text(left, y, line, ha="left", fontsize=fs, wrap=True)
         y -= line_height
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
@@ -769,18 +776,18 @@ def plot_cmb_spectrum(
         components.append("EE")
 
     left = 0.08
-    right = 0.75
+    right = 1 - left
     top = 0.92
     box_height = 0.33
-    info_x = 0.77
-    info_gap = info_x - right
+    info_gap = 0.02
+    info_x = right + info_gap
 
     fig, axs = plt.subplots(
         len(components) * 2,
         1,
         figsize=(17, 6 * len(components)),
         sharex=True,
-        gridspec_kw={"height_ratios": [4, 1.5] * len(components), "hspace": 0.25},
+        gridspec_kw={"height_ratios": [4, 1.5] * len(components), "hspace": 0.08},
     )
 
     footer_lines = compose_footer(
@@ -788,8 +795,8 @@ def plot_cmb_spectrum(
         cmb_data_df.attrs,
     )
     line_height = 0.015
-    start_y = left + (len(footer_lines) - 1) * line_height
-    footer_pad = 0.03
+    start_y = left + 0.01 + (len(footer_lines) - 1) * line_height
+    footer_pad = left
     plt.subplots_adjust(
         left=left,
         right=right,
@@ -941,7 +948,7 @@ def plot_cmb_spectrum(
             axs[idx_main].set_yscale("log")
         if i == 0:
             axs[idx_main].legend(fontsize=font_sizes["legend"], loc="best")
-        title_pad = 20
+        title_pad = 5
         axs[idx_main].set_title(
             f"CMB {comp} Power Spectrum: {dataset_name}",
             fontsize=font_sizes["title"],
@@ -1011,7 +1018,10 @@ def plot_cmb_spectrum(
     y = start_y
     for idx, line in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
-        fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
+        if idx == 0:
+            fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
+        else:
+            fig.text(left, y, line, ha="left", fontsize=fs, wrap=True)
         y -= line_height
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"

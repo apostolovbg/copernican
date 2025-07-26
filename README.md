@@ -1,4 +1,4 @@
-**Version:** 1.14.8
+**Version:** 1.14.9
 **Last Updated:** 2025-07-26
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.

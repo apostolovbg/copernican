@@ -11,6 +11,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes below and keep the line after this one empty:
 
+## Version 1.14.9
+- 2025-07-26: Tweaked plot margins and info box spacing; improved footer layout and tightened CMB subplot padding (AI assistant)
+
 ## Version 1.14.8
 - 2025-07-26: Improved footer spacing, unified CMB legends and added verbose dataset summaries (AI assistant)
 
