@@ -1,4 +1,4 @@
-**Version:** 1.14.8
+**Version:** 1.14.9
 **Last Updated:** 2025-07-26
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
@@ -258,7 +258,8 @@ listing the CAMB parameter order—including `omnuh2` when relevant. The engine
 combines this list with `get_camb_params` to evaluate the power spectrum and
 chi-squared. The CMB plotter draws separate TT, TE and EE panels with
 residuals, uses a logarithmic scale for temperature and $E$-mode spectra and
-shows cosmic-variance and observational uncertainty bands.
+shows cosmic-variance and observational uncertainty bands. Titles now use
+minimal padding so each label fits neatly between CMB subplots.
 `model_parser.py` accepts unknown keys and simply copies them to the sanitized
 cache. This allows the domain-specific JSON language to evolve while remaining
 compatible with older models.
