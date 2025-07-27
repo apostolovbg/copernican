@@ -1,35 +1,37 @@
 {
   "model_name": "USMFv3",
   "version": "3.0",
-  "description": "### 1. Introduction\nThis version extends the Unified Shrinking Matter Framework by introducing a flexible expansion history and an emergent clustering term, allowing the model to fit CMB and BAO without a cosmological constant or exotic dark components.\n\n### 2. Key Modifications\n- **Flexible H(z):** a two-term law with a tunable power-law and exponential component.\n- **Effective clustering:** an emergent Ω_eff term replaces traditional cold dark matter.\n- **Improved sound horizon:** includes the baryon–photon sound speed integral for realistic r_s.\n\n### 3. Implications\nThese changes enable the correct radiation→matter→late-time sequence, bringing the sound horizon, BAO scales, and CMB peaks into agreement with observations while preserving USMF’s purely geometric/quantum interpretation.",
-  "abstract": "USMF v3 builds on the shrinking-frame paradigm to reproduce all major cosmological probes—SNe Ia, BAO, and the CMB—without invoking a fundamental cosmological constant or new particle species. Key innovations include a generalized expansion law with tunable power-law and exponential components, an emergent clustering parameter Ω_eff that mimics pressureless matter, and an improved calculation of the baryon–photon sound horizon. These allow USMF v3 to achieve Planck, BAO, and Pantheon+SH0ES–level fits while retaining a purely geometric/quantum origin of accelerated expansion.",
+  "title": "The Unified Shrinking Matter Framework (USMF) Version 3",
+  "date": "2025-07-26",
+  "abstract": "USMF v3 is a purely geometric–quantum cosmology that explains the observed expansion history, supernova distances, baryon acoustic oscillations, and the cosmic microwave background without invoking a cosmological constant or new particle species. In this picture, cosmic redshift arises from a universal “shrinking” of local ruler scales (driven by quantum-geometry effects) rather than an external dark energy. An emergent clustering parameter Ω_eff provides the effective gravitating mass needed to form CMB acoustic peaks and large-scale structure. A flexible expansion law—combining a tunable power-law and an extra exponential term—naturally reproduces radiation-, matter-, and late-time–dominated eras and yields the correct sound horizon for BAO and CMB.",
+  "description": "USMF v3 builds on the idea that all rulers and clocks slowly shrink over cosmic time due to an underlying quantum-geometric connection. Key features:\n\n1. **Generalized expansion law**:  \n   $H(z)=H_A(1+z)^{p_α}[1 + k_{exp}(1+z)^{s_{exp}}]$, which at high redshift mimics radiation and matter scaling, and at low redshift produces apparent acceleration without Λ.\n\n2. **Emergent clustering (Ω_eff)**:  \n   A new parameter that behaves like pressureless matter in the CMB and structure formation, but is interpreted as an entanglement-network effect rather than dark particles.\n\n3. **Realistic sound horizon**:  \n   The baryon–photon sound speed integral $r_s=∫c/√{3[1+R(z)]}\\,H(z)^{-1}dz$ is built directly into the model, matching Planck’s measured value without fine-tuned dark components.\n\nTogether, these elements allow USMF v3 to fit Type Ia supernovae, BAO distance ratios, and the Planck TT/TE/EE spectra at the same precision as ΛCDM—yet with no fundamental vacuum energy or exotic matter, only quantum-shrinking rulers and emergent geometry.",
   "parameters": [
-    { "name": "H_A",        "python_var": "H_A",       "bounds": [50.0, 100.0], "unit": "km/s/Mpc", "latex_name": "$H_A$" },
-    { "name": "p_alpha",    "python_var": "p_alpha",   "bounds": [0.5, 1.5],     "unit": "",           "latex_name": "$p_\\alpha$" },
-    { "name": "k_exp",      "python_var": "k_exp",     "bounds": [0.0, 5.0],     "unit": "",           "latex_name": "$k_{\\rm exp}$" },
-    { "name": "s_exp",      "python_var": "s_exp",     "bounds": [0.0, 3.0],     "unit": "",           "latex_name": "$s_{\\rm exp}$" },
-    { "name": "t0_age_Gyr", "python_var": "t0_age_Gyr","bounds": [10.0, 20.0],   "unit": "Gyr",        "latex_name": "$t_{0,\\rm age}$" },
-    { "name": "A_osc",      "python_var": "A_osc",     "bounds": [0.0, 0.1],     "unit": "",           "latex_name": "$A_{\\rm osc}$" },
-    { "name": "w_osc",      "python_var": "w_osc",     "bounds": [0.0, 10.0],    "unit": "",           "latex_name": "$w_{\\rm osc}$" },
-    { "name": "ti_osc_Gyr", "python_var": "ti_osc_Gyr","bounds": [0.0, 20.0],    "unit": "Gyr",        "latex_name": "$t_{i,\\rm osc}$" },
-    { "name": "phi_osc",    "python_var": "phi_osc",   "bounds": [-3.1416, 3.1416],"unit": "rad",       "latex_name": "$\\phi_{\\rm osc}$" },
-    { "name": "Ob",         "python_var": "Ob",        "bounds": [0.01, 0.1],    "unit": "",           "latex_name": "$\\Omega_b$" },
-    { "name": "Og",         "python_var": "Og",        "bounds": [1e-05, 1e-03], "unit": "",           "latex_name": "$\\Omega_\\gamma$" },
-    { "name": "z_recomb",   "python_var": "z_recomb",  "bounds": [1000, 1200],   "unit": "",           "latex_name": "$z_{\\rm rec}$" },
-    { "name": "O_eff",      "python_var": "O_eff",     "bounds": [0.0, 0.5],     "unit": "",           "latex_name": "$\\Omega_{\\rm eff}$" }
+    { "name": "H_A",        "python_var": "H_A",        "bounds": [50.0,   100.0], "unit": "km/s/Mpc", "latex_name": "$H_A$" },
+    { "name": "p_alpha",    "python_var": "p_alpha",    "bounds": [0.5,    1.5],   "unit": "",          "latex_name": "$p_{\\\\alpha}$" },
+    { "name": "k_exp",      "python_var": "k_exp",      "bounds": [0.0,    5.0],   "unit": "",          "latex_name": "$k_{\\\\rm exp}$" },
+    { "name": "s_exp",      "python_var": "s_exp",      "bounds": [0.0,    3.0],   "unit": "",          "latex_name": "$s_{\\\\rm exp}$" },
+    { "name": "t0_age_Gyr", "python_var": "t0_age_Gyr", "bounds": [10.0,   20.0],  "unit": "Gyr",       "latex_name": "$t_{0,\\\\rm age}$" },
+    { "name": "A_osc",      "python_var": "A_osc",      "bounds": [0.0,    0.1],   "unit": "",          "latex_name": "$A_{\\\\rm osc}$" },
+    { "name": "w_osc",      "python_var": "w_osc",      "bounds": [0.0,   10.0],   "unit": "",          "latex_name": "$\\\\omega_{\\\\rm osc}$" },
+    { "name": "ti_osc_Gyr", "python_var": "ti_osc_Gyr", "bounds": [0.0,   20.0],   "unit": "Gyr",       "latex_name": "$t_{i,\\\\rm osc}$" },
+    { "name": "phi_osc",    "python_var": "phi_osc",    "bounds": [-3.1416, 3.1416],"unit": "rad",       "latex_name": "$\\\\phi_{\\\\rm osc}$" },
+    { "name": "Ob",         "python_var": "Ob",         "bounds": [0.01,   0.1],    "unit": "",          "latex_name": "$\\\\Omega_b$" },
+    { "name": "Og",         "python_var": "Og",         "bounds": [1e-05, 1e-03],  "unit": "",          "latex_name": "$\\\\Omega_\\\\gamma$" },
+    { "name": "z_recomb",   "python_var": "z_recomb",   "bounds": [1000,   1200],  "unit": "",          "latex_name": "$z_{\\\\rm rec}$" },
+    { "name": "O_eff",      "python_var": "O_eff",      "bounds": [0.0,    0.5],   "unit": "",          "latex_name": "$\\\\Omega_{\\\\rm eff}$" }
   ],
-  "Hz_expression": "$$H(z)=H_A\\,(1+z)^{p_\\alpha}\\bigl[1 + k_{\\rm exp}\\,(1+z)^{s_{\\rm exp}}\\bigr]$$",
+  "Hz_expression": "$$H(z) = H_A\\\\,(1+z)^{p_{\\\\alpha}}\\\\bigl[1 + k_{\\\\rm exp}\\\\,(1+z)^{s_{\\\\rm exp}}\\\\bigr]$$",
   "equations": {
     "sne": [
-      "$$1+z = \\frac{\\alpha(t_e)}{\\alpha(t_0)}$$",
-      "$$r = \\int_{t_e}^{t_0} \\frac{c}{\\alpha(t')} dt'$$",
-      "$$d_L(z) = |r|\\,(1+z)^2\\,\\frac{70.0}{H_A}$$",
-      "$$\\mu = 5\\log_{10}(d_L) + 25$$"
+      "$$1+z = \\\\frac{\\\\alpha(t_e)}{\\\\alpha(t_0)}$$",
+      "$$r = \\\\int_{t_e}^{t_0} \\\\dfrac{c}{\\\\alpha(t')}\\\\,dt'$$",
+      "$$d_L(z) = |r|\\\\,(1+z)^2\\\\,\\dfrac{70.0}{H_A}$$",
+      "$$\\\\mu = 5\\\\log_{10}(d_L) + 25$$"
     ],
     "bao": [
-      "$$D_A(z) = |r|\\,\\frac{70.0}{H_A}$$",
+      "$$D_A(z) = |r|\\\\,\\dfrac{70.0}{H_A}$$",
       "$$H_{USMF}(z) = H(z)$$",
-      "$$D_V(z) = \\bigl[(1+z)^2\,D_A(z)^2\,\\frac{cz}{H(z)}\\bigr]^{1/3}$$"
+      "$$D_V(z) = \\\\bigl[(1+z)^2 D_A^2(z) \\\\dfrac{cz}{H(z)}\\\\bigr]^{1/3}$$"
     ]
   },
   "predicts_bao": true,
@@ -37,15 +39,13 @@
   "cmb": {
     "param_map": {
       "H0":     "H_A",
-      "ombh2":  "Ob*(H_A/100)**2",
-      "omch2":  "O_eff*(H_A/100)**2",
-      "omnuh2": "Og*(H_A/100)**2",
+      "ombh2":  "Ob * (H_A/100)**2",
+      "omch2":  "O_eff * (H_A/100)**2",
+      "omnuh2": "Og * (H_A/100)**2",
       "tau":    0.054,
       "As":     2.1e-9,
       "ns":     0.965
     }
   },
-  "notes": "USMF v3: Flexible expansion law and emergent clustering parameter included.",
-  "title": "The Unified Shrinking Matter Framework (USMF) Version 3",
-  "date": "2025-07-26"
+  "notes": "USMF v3: Flexible expansion law and emergent clustering parameter included."
 }
