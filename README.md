@@ -193,11 +193,13 @@ See `cosmo_model_guide.json` for a detailed template.
  recombination or include the parameters `Ob`, `Og` and `z_recomb`. The suite will then
    derive `r_s` automatically using a numerical integral.
 5. Python code must never appear in `cosmo_model_*.json`; all expressions are written in LaTeX.
-6. Expressions may include `Integral(...)` terms. These are evaluated
+6. Backslashes must be doubled inside JSON strings. Use `\\` to escape a single `\` so
+   macros like `\frac` remain valid.
+7. Expressions may include `Integral(...)` terms. These are evaluated
    numerically with SciPy's `quad` when the model is loaded.
-7. Parameter initial guesses are calculated automatically as the midpoint of
+8. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
-8. `latex_name` values do not require `$` delimiters. Plots automatically wrap
+9. `latex_name` values do not require `$` delimiters. Plots automatically wrap
    parameter names in math mode.
    
 The LaTeX parser supports a subset of math syntax including `\frac`,

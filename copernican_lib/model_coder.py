@@ -78,6 +78,8 @@ def _latex_to_sympy_str(expr: str) -> str:
     expr = re.sub(r"\^([\w\.]+)", r"**\1", expr)
     expr = expr.replace("\\", "")
     expr = expr.replace("{", "(").replace("}", ")")
+    # Convert bracketed groups like [a+b] to parentheses for SymPy
+    expr = expr.replace("[", "(").replace("]", ")")
     expr = re.sub(r"\s{2,}", " ", expr)
     return expr.strip()
 
