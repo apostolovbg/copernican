@@ -199,6 +199,13 @@ See `cosmo_model_guide.json` for a detailed template.
    each parameter's bounds.
 8. `latex_name` values do not require `$` delimiters. Plots automatically wrap
    parameter names in math mode.
+   
+The LaTeX parser supports a subset of math syntax including `\frac`,
+subscripts and superscripts, common functions (`\log`, `\ln`, `\exp`, `\sin`,
+`\cos`, `\tan`, `\sqrt`), Greek letters such as `\alpha` and `\beta`, and
+macros that adjust bracket size like `\left`, `\right`, `\bigl` and `\bigr`.
+Thin spaces (`\,`) and font switches (`\rm`) are ignored. Expressions may also
+contain `Integral` constructs which are numerically evaluated with SciPy.
 The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
 auto-generates the necessary Python functions.
 
