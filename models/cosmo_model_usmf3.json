@@ -29,7 +29,7 @@
     "bao": [
       "$$D_A(z) = |r|\\,\\frac{70.0}{H_A}$$",
       "$$H_{USMF}(z) = H(z)$$",
-      "$$D_V(z) = \\bigl[(1+z)^2\,D_A(z)^2\,\\frac{cz}{H(z)}\\bigr]^{1/3}$$"
+      "$$D_V(z) = \\bigl[(1+z)^2\\,D_A(z)^2\\,\\frac{cz}{H(z)}\\bigr]^{1/3}$$"
     ]
   },
   "predicts_bao": true,
