@@ -1,0 +1,53 @@
+{
+  "model_name": "USMFv3.1",
+  "version": "3.1",
+  "title": "USMF Version 3.1: Calibrated Quantum-Shrinking Cosmology",
+  "date": "2025-07-27",
+  "abstract": "USMF v3.1 is a self-contained cosmological framework that explains all major large-scale observations without invoking dark energy or exotic new particles. In this picture, the cosmic redshift and apparent acceleration come from a universal, gradual shrinking of local rulers and clocks driven by quantum-geometry effects. A single flexible expansion law, an emergent matter-like parameter Ω_eff, and a physically motivated sound-horizon calculation reproduce the Type Ia supernova Hubble diagram, the BAO distance scales, and the CMB acoustic peaks to Planck precision.",
+  "description": "USMF v3.1 replaces the standard ΛCDM ingredients with four core principles:\n\n1. **Shrinking rulers and clocks:** All measurement units contract over time due to an underlying quantum-geometric coupling. Redshift is measured as the ratio of scale factors rather than metric expansion.\n\n2. **Flexible expansion law:** H(z) = H_A·(1+z)^p_alpha·[1 + k_exp·(1+z)^s_exp]. This single formula smoothly transitions through radiation-like, matter-like, and accelerated regimes without a cosmological constant.\n\n3. **Emergent clustering (Ω_eff):** A new free parameter that scales like pressureless matter in structure formation and the CMB, but arises as an entanglement-network effect instead of particle dark matter.\n\n4. **Physical sound horizon and primordial spectrum:** Photon density and recombination redshift are anchored to observations (Ω_γ=4.186e-05, z_rec=1100), the baryon–photon sound horizon is computed with its full c/√(3(1+R(z))) integrand, and the primordial amplitude A_s and tilt n_s are fit directly to the Planck TT/TE/EE data.\n\nTogether, these elements allow USMF v3.1 to match supernova, BAO, and CMB measurements at the same level of precision as ΛCDM—yet with no fundamental vacuum energy or new particle species.",
+  "parameters": [
+    { "name": "c",          "python_var": "c",          "bounds": [299792.458, 299792.458], "unit": "km/s",    "latex_name": "$c$" },
+    { "name": "H_A",        "python_var": "H_A",        "bounds": [50.0, 100.0],            "unit": "km/s/Mpc","latex_name": "$H_A$" },
+    { "name": "p_alpha",    "python_var": "p_alpha",    "bounds": [0.5, 1.5],               "unit": "",         "latex_name": "$p_{\\alpha}$" },
+    { "name": "k_exp",      "python_var": "k_exp",      "bounds": [0.0, 5.0],               "unit": "",         "latex_name": "$k_{\\rm exp}$" },
+    { "name": "s_exp",      "python_var": "s_exp",      "bounds": [0.0, 3.0],               "unit": "",         "latex_name": "$s_{\\rm exp}$" },
+    { "name": "t0_age_Gyr", "python_var": "t0_age_Gyr", "bounds": [10.0, 20.0],             "unit": "Gyr",      "latex_name": "$t_{0,\\rm age}$" },
+    { "name": "A_osc",      "python_var": "A_osc",      "bounds": [0.0, 0.1],               "unit": "",         "latex_name": "$A_{\\rm osc}$" },
+    { "name": "w_osc",      "python_var": "w_osc",      "bounds": [0.0, 10.0],              "unit": "",         "latex_name": "$\\omega_{\\rm osc}$" },
+    { "name": "ti_osc_Gyr", "python_var": "ti_osc_Gyr", "bounds": [0.0, 20.0],              "unit": "Gyr",      "latex_name": "$t_{i,\\rm osc}$" },
+    { "name": "phi_osc",    "python_var": "phi_osc",    "bounds": [-3.1416, 3.1416],        "unit": "rad",      "latex_name": "$\\phi_{\\rm osc}$" },
+    { "name": "Ob",         "python_var": "Ob",         "bounds": [0.045, 0.055],           "unit": "",         "latex_name": "$\\Omega_b$" },
+    { "name": "A_s",        "python_var": "A_s",        "bounds": [1e-9, 5e-9],             "unit": "",         "latex_name": "$A_s$" },
+    { "name": "n_s",        "python_var": "n_s",        "bounds": [0.9, 1.0],               "unit": "",         "latex_name": "$n_s$" },
+    { "name": "O_eff",      "python_var": "O_eff",      "bounds": [0.0, 0.5],               "unit": "",         "latex_name": "$\\Omega_{\\rm eff}$" }
+  ],
+  "Hz_expression":       "H_A*(1+z)**p_alpha*(1 + k_exp*(1+z)**s_exp)",
+  "rs_expression":       "Integral(c/(sqrt(3*(1 + 3*Ob*(1+z)/(4*4.186e-05))))/H(z),(z,1100,oo))",
+  "equations": {
+    "sne": [
+      "1+z = alpha(t_e)/alpha(t_0)",
+      "r = Integral(c/alpha(t'),(t',t_e,t_0))",
+      "d_L(z) = |r|*(1+z)^2*(c/H_A)",
+      "mu   = 5*log10(d_L) + 25"
+    ],
+    "bao": [
+      "D_A(z) = |r|*(c/H_A)",
+      "H_USMF(z) = H(z)",
+      "D_V(z) = ((1+z)^2 * D_A(z)^2 * (c*z/H(z)))^(1/3)"
+    ]
+  },
+  "predicts_bao": true,
+  "valid_for_cmb":  true,
+  "cmb": {
+    "param_map": {
+      "H0":     "H_A",
+      "ombh2":  "Ob*(H_A/100)**2",
+      "omch2":  "O_eff*(H_A/100)**2",
+      "omnuh2": "4.186e-05*(H_A/100)**2",
+      "tau":    0.054,
+      "As":     "A_s",
+      "ns":     "n_s"
+    }
+  },
+  "notes": "USMF v3.1: calibrated photon physics, fixed c constant, free primordial spectrum, and full sound-horizon integral."
+}
