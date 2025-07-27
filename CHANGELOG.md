@@ -13,6 +13,7 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Version 1.14.9
 - 2025-07-26: Reduced CMB title padding to avoid overlap with residual plots (AI assistant)
+- 2025-07-27: Improved LaTeX parsing for additional macros (AI assistant)
 
 ## Version 1.14.8
 - 2025-07-26: Improved footer spacing, unified CMB legends and added verbose dataset summaries (AI assistant)
