@@ -99,5 +99,21 @@ class FunctionalTestCase(unittest.TestCase):
         np.testing.assert_allclose(result, ref[:,0][ells], rtol=1e-7)
 
 
+class PlotterUtilTestCase(unittest.TestCase):
+    """Test helper utilities in ``plotter``."""
+
+    def test_wrap_math_removes_size_macros(self):
+        import sys
+        import importlib
+        from types import SimpleNamespace
+
+        sys.modules['copernican'] = SimpleNamespace(COPERNICAN_VERSION='test')
+        plotter = importlib.import_module('copernican_lib.plotter')
+
+        expr = r"\mu(z) = 5\log_{10}\bigl[d_L(z)/\mathrm{Mpc}\bigr] + 25"
+        expected = r"$\mu(z) = 5\log_{10}[d_L(z)/\mathrm{Mpc}] + 25$"
+        self.assertEqual(plotter._wrap_math(expr), expected)
+
+
 if __name__ == '__main__':
     unittest.main()
