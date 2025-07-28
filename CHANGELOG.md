@@ -11,6 +11,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes below and keep the line after this one empty:
 
+## Version 1.14.11
+- 2025-07-28: Stripped size macros from plot labels and bumped version to 1.14.11 (AI assistant)
+
 ## Version 1.14.10
 - 2025-07-28: Expanded model JSON guide with supported functions and common mistakes (AI assistant)
 
