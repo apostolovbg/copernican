@@ -23,7 +23,8 @@ def _wrap_math(text: str) -> str:
     cleaned = re.sub(r"^\$+|\$+$", "", str(text).strip())
     # Matplotlib's MathText does not understand sizing macros like ``\bigl``
     # or ``\bigr``. Remove them to avoid parse errors when rendering.
-    cleaned = re.sub(r"\\(bigl|bigr|Bigl|Bigr|biggl|biggr|left|right)", "", cleaned)
+    cleaned = re.sub(r"\\(bigl|bigr|Bigl|Bigr|biggl|biggr|Biggl|Biggr|left|right)", "", cleaned)
+    cleaned = re.sub(r"\\!", "", cleaned)
     cleaned = re.sub(r"\\,", "", cleaned)
     cleaned = re.sub(r"\\rm\s*", "", cleaned)
     cleaned = re.sub(r"\s{2,}", " ", cleaned)

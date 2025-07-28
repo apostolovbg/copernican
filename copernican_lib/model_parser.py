@@ -5,10 +5,37 @@
 # processes so that validation only happens once in the main process.
 
 import json
+import re
 from jsonschema import validate, ValidationError
 from pathlib import Path
 import multiprocessing as _mp
 from . import error_handler
+
+
+def _sanitise_name_to_var(name: str) -> str:
+    """Return a valid Python identifier derived from a LaTeX name."""
+    text = str(name)
+    text = re.sub(r"^\$+|\$+$", "", text)
+    replacements = {
+        r"\\alpha": "alpha",
+        r"\\beta": "beta",
+        r"\\gamma": "gamma",
+        r"\\delta": "delta",
+        r"\\omega": "omega",
+        r"\\Omega": "Omega",
+        r"\\phi": "phi",
+        r"\\tau": "tau",
+    }
+    for pat, repl in replacements.items():
+        text = re.sub(pat, repl, text)
+    text = re.sub(r"\\[a-zA-Z]+", "", text)
+    text = text.replace("{", "").replace("}", "")
+    text = text.replace("-", "_")
+    text = re.sub(r"[^0-9a-zA-Z_]+", "_", text)
+    text = re.sub(r"__+", "_", text).strip("_")
+    if not re.match(r"[A-Za-z_]", text):
+        text = f"pyvar_{text}" if text else "pyvar"
+    return text
 
 MODEL_SCHEMA = {
     "type": "object",
@@ -20,7 +47,7 @@ MODEL_SCHEMA = {
             "type": "array",
             "items": {
                 "type": "object",
-                "required": ["name", "python_var", "bounds"],
+                "required": ["name", "bounds"],
                 "properties": {
                     "name": {"type": "string"},
                     "python_var": {"type": "string"},
@@ -89,6 +116,19 @@ def parse_model_json(path, cache_dir):
             raise ValueError(
                 f"Model JSON validation error: {e.message}"
             ) from e
+
+    # Auto-generate missing python_var fields from LaTeX names or plain names
+    used_vars = {p.get("python_var") for p in data.get("parameters", []) if p.get("python_var")}
+    for param in data.get("parameters", []):
+        if not param.get("python_var"):
+            base = _sanitise_name_to_var(param.get("latex_name", param.get("name", "param")))
+            candidate = base
+            idx = 2
+            while candidate in used_vars:
+                candidate = f"{base}_{idx}"
+                idx += 1
+            param["python_var"] = candidate
+            used_vars.add(candidate)
 
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
