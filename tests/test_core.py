@@ -114,6 +114,15 @@ class PlotterUtilTestCase(unittest.TestCase):
         expected = r"$\mu(z) = 5\log_{10}[d_L(z)/\mathrm{Mpc}] + 25$"
         self.assertEqual(plotter._wrap_math(expr), expected)
 
+    def test_latex_utils_conversions(self):
+        """Ensure LaTeX mappings are applied consistently."""
+        from copernican_lib import latex_utils
+
+        self.assertEqual(latex_utils.sanitize_name(r"\alpha_1"), "alpha_1")
+        self.assertEqual(
+            latex_utils.latex_to_sympy(r"\frac{1}{\infty}"), "(1)/(sympy.oo)"
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
