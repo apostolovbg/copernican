@@ -1,4 +1,4 @@
-**Version:** 1.14.11
+**Version:** 1.15.0
 **Last Updated:** 2025-07-28
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
@@ -192,7 +192,7 @@ See `cosmo_model_guide.json` for a detailed template.
    otherwise SymPy will treat the expression as a function call.
 4. Optionally provide an `rs_expression` in LaTeX for the sound horizon at
    recombination or include the parameters `Ob`, `Og` and `z_recomb`. The suite will then
-   derive `r_s` automatically using a numerical integral. Use `sympy.oo` when an
+   derive `r_s` automatically using a numerical integral. Use `\infty` when an
    integral extends to infinity.
 5. Python code must never appear in `cosmo_model_*.json`; all expressions are written in LaTeX.
 6. Backslashes must be doubled inside JSON strings. Use `\\` to escape a single `\` so
@@ -201,12 +201,14 @@ See `cosmo_model_guide.json` for a detailed template.
    evaluated numerically with SciPy's `quad` when the model is loaded.
 8. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
-9. `latex_name` values do not require `$` delimiters. Plots automatically wrap
+9. When a parameter lacks a `python_var` field, a valid identifier is derived
+   automatically from its LaTeX name.
+10. `latex_name` values do not require `$` delimiters. Plots automatically wrap
    parameter names in math mode.
 
 **Common mistakes**
 * Missing `*` between variables and parentheses results in a `'Symbol' object is not callable` error.
-* Using `oo` for infinite limits fails; write `sympy.oo` instead.
+* Using `oo` for infinite limits fails; write `\infty` instead.
 * Referencing `H(z)` inside `rs_expression` is unsupported—repeat the formula or rely on the fallback parameters.
    
 The LaTeX parser supports a subset of math syntax including `\frac`,
@@ -217,7 +219,7 @@ Thin spaces (`\,`) and font switches (`\rm`) are ignored. Unsupported sizing
 macros such as `\bigl` and `\bigr` are removed from plot labels to keep
 Matplotlib's MathText parser happy. Expressions may also
 contain `Integral` constructs with explicit limits which are numerically
-evaluated with SciPy. Use `sympy.oo` for an infinite upper bound and avoid
+evaluated with SciPy. Use `\infty` for an infinite upper bound and avoid
 referencing `H(z)` inside other expressions—repeat the formula instead.
 The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
 auto-generates the necessary Python functions.
@@ -230,8 +232,8 @@ The required top-level keys are `model_name`, `version`, `parameters`,
   "model_name": "My Model",
   "version": "1.0",
   "parameters": [
-    {"name": "H0", "python_var": "H0", "bounds": [50, 100], "latex_name": "H_0"},
-    {"name": "Omega_m0", "python_var": "Om0", "bounds": [0.1, 0.5], "latex_name": "\\Omega_{m0}"}
+    {"name": "H0", "bounds": [50, 100], "latex_name": "H_0"},
+    {"name": "Omega_m0", "bounds": [0.1, 0.5], "latex_name": "\\Omega_{m0}"}
   ],
   "Hz_expression": "$$H(z) = H_0 * \\sqrt{Om0*(1+z)^3 + Ol0}$$",
  "rs_expression": "$$r_s = custom\_expression$$",

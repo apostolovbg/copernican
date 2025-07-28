@@ -6,81 +6,105 @@
   "parameters": [
     {
       "name": "H_A",
-      "python_var": "H_A",
-      "bounds": [50.0, 100.0],
+      "bounds": [
+        50.0,
+        100.0
+      ],
       "unit": "",
       "latex_name": "$H_A$"
     },
     {
       "name": "p_alpha",
-      "python_var": "p_alpha",
-      "bounds": [0.1, 1.5],
+      "bounds": [
+        0.1,
+        1.5
+      ],
       "unit": "",
       "latex_name": "$p_{\\alpha}$"
     },
     {
       "name": "k_exp",
-      "python_var": "k_exp",
-      "bounds": [-2.0, 2.0],
+      "bounds": [
+        -2.0,
+        2.0
+      ],
       "unit": "",
       "latex_name": "$k_{exp}$"
     },
     {
       "name": "s_exp",
-      "python_var": "s_exp",
-      "bounds": [0.5, 2.0],
+      "bounds": [
+        0.5,
+        2.0
+      ],
       "unit": "",
       "latex_name": "$s_{exp}$"
     },
     {
       "name": "t0_age_Gyr",
-      "python_var": "t0_age_Gyr",
-      "bounds": [10.0, 20.0],
+      "bounds": [
+        10.0,
+        20.0
+      ],
       "unit": "Gyr",
       "latex_name": "$t_{0,age}$"
     },
     {
       "name": "A_osc",
-      "python_var": "A_osc",
-      "bounds": [0.0, 0.05],
+      "bounds": [
+        0.0,
+        0.05
+      ],
       "unit": "",
       "latex_name": "$A_{osc}$"
     },
     {
       "name": "omega_osc",
-      "python_var": "omega_osc",
-      "bounds": [0.1, 10.0],
+      "bounds": [
+        0.1,
+        10.0
+      ],
       "unit": "rad/log(time_ratio)",
       "latex_name": "$\\omega_{osc}$"
     },
     {
       "name": "ti_osc_Gyr",
-      "python_var": "ti_osc_Gyr",
-      "bounds": [1.0, 20.0],
+      "bounds": [
+        1.0,
+        20.0
+      ],
       "unit": "Gyr",
       "latex_name": "$t_{i,osc}$"
     },
     {
       "name": "phi_osc",
-      "python_var": "phi_osc",
-      "bounds": [-3.1416, 3.1416],
+      "bounds": [
+        -3.1416,
+        3.1416
+      ],
       "unit": "rad",
       "latex_name": "$\\phi_{osc}$"
     },
     {
       "name": "Ob",
-      "python_var": "Ob",
-      "bounds": [0.01, 0.1]
+      "bounds": [
+        0.01,
+        0.1
+      ]
     },
     {
       "name": "Og",
-      "python_var": "Og",
-      "bounds": [1e-05, 0.0001]
+      "bounds": [
+        0.00001,
+        0.0001
+      ]
     },
     {
       "name": "z_recomb",
-      "python_var": "z_recomb",
-      "bounds": [1000, 1200]
+      "bounds": [
+        1000,
+        1200
+      ]
     }
   ],
   "Hz_expression": "$$H(z) = H_A*(1+z)$$",
@@ -106,7 +130,7 @@
       "omch2": 0.0,
       "omnuh2": "Og * (H_A/100)**2",
       "tau": 0.054,
-      "As": 2.1e-9,
+      "As": 2.1E-9,
       "ns": 0.965
     }
   },

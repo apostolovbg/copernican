@@ -6,78 +6,100 @@
   "parameters": [
     {
       "name": "Hubble constant",
-      "python_var": "H0",
-      "bounds": [50.0, 80.0],
+      "bounds": [
+        50.0,
+        80.0
+      ],
       "unit": "km/s/Mpc",
       "latex_name": "$H_0$"
     },
     {
       "name": "Matter density",
-      "python_var": "Omega_m0",
-      "bounds": [0.1, 0.5],
+      "bounds": [
+        0.1,
+        0.5
+      ],
       "unit": "",
       "latex_name": "$\\Omega_{m0}$"
     },
     {
       "name": "Radiation density",
-      "python_var": "Omega_r0",
-      "bounds": [1e-6, 1e-3],
+      "bounds": [
+        0.000001,
+        0.001
+      ],
       "unit": "",
       "latex_name": "$\\Omega_{r0}$"
     },
     {
       "name": "Baryon density",
-      "python_var": "Omega_b0",
-      "bounds": [0.01, 0.1],
+      "bounds": [
+        0.01,
+        0.1
+      ],
       "unit": "",
       "latex_name": "$\\Omega_{b0}$"
     },
     {
       "name": "Photon density",
-      "python_var": "Omega_g0",
-      "bounds": [1e-6, 1e-4],
+      "bounds": [
+        0.000001,
+        0.0001
+      ],
       "unit": "",
       "latex_name": "$\\Omega_{\\gamma0}$"
     },
     {
       "name": "Recombination redshift",
-      "python_var": "z_recomb",
-      "bounds": [800, 1500],
+      "bounds": [
+        800,
+        1500
+      ],
       "unit": "",
       "latex_name": "$z_{\\rm recomb}$"
     },
     {
       "name": "Sound horizon at drag epoch",
-      "python_var": "rs",
-      "bounds": [147.0, 147.0],
+      "bounds": [
+        147.0,
+        147.0
+      ],
       "unit": "Mpc",
       "latex_name": "$r_s$"
     },
     {
       "name": "Envelope amplitude",
-      "python_var": "A",
-      "bounds": [0.0, 0.5],
+      "bounds": [
+        0.0,
+        0.5
+      ],
       "unit": "",
       "latex_name": "$A$"
     },
     {
       "name": "Envelope steepness",
-      "python_var": "alpha",
-      "bounds": [0.1, 10.0],
+      "bounds": [
+        0.1,
+        10.0
+      ],
       "unit": "",
       "latex_name": "$\\alpha$"
     },
     {
       "name": "Oscillation frequency",
-      "python_var": "omega",
-      "bounds": [0.0, 20.0],
+      "bounds": [
+        0.0,
+        20.0
+      ],
       "unit": "",
       "latex_name": "$\\omega$"
     },
     {
       "name": "Phase offset",
-      "python_var": "phi0",
-      "bounds": [0.0, 6.283],
+      "bounds": [
+        0.0,
+        6.283
+      ],
       "unit": "rad",
       "latex_name": "$\\varphi_0$"
     }
@@ -102,7 +124,7 @@
       "ombh2": "Omega_b0 * (H0/100)**2",
       "omch2": "(Omega_m0 - Omega_b0) * (H0/100)**2",
       "tau": 0.054,
-      "As": 2.1e-9,
+      "As": 2.1E-9,
       "ns": 0.965
     }
   },
