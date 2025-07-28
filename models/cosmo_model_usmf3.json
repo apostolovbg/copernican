@@ -20,7 +20,7 @@
         1.5
       ],
       "unit": "",
-      "latex_name": "$p_\\alpha$"
+      "latex_name": "$p_\alpha$"
     },
     {
       "name": "k_exp",
@@ -29,7 +29,7 @@
         5.0
       ],
       "unit": "",
-      "latex_name": "$k_{\\rm exp}$"
+      "latex_name": "$k_{\rm exp}$"
     },
     {
       "name": "s_exp",
@@ -38,7 +38,7 @@
         3.0
       ],
       "unit": "",
-      "latex_name": "$s_{\\rm exp}$"
+      "latex_name": "$s_{\rm exp}$"
     },
     {
       "name": "t0_age_Gyr",
@@ -47,7 +47,7 @@
         20.0
       ],
       "unit": "Gyr",
-      "latex_name": "$t_{0,\\rm age}$"
+      "latex_name": "$t_{0,\rm age}$"
     },
     {
       "name": "A_osc",
@@ -56,7 +56,7 @@
         0.1
       ],
       "unit": "",
-      "latex_name": "$A_{\\rm osc}$"
+      "latex_name": "$A_{\rm osc}$"
     },
     {
       "name": "w_osc",
@@ -65,7 +65,7 @@
         10.0
       ],
       "unit": "",
-      "latex_name": "$w_{\\rm osc}$"
+      "latex_name": "$w_{\rm osc}$"
     },
     {
       "name": "ti_osc_Gyr",
@@ -74,7 +74,7 @@
         20.0
       ],
       "unit": "Gyr",
-      "latex_name": "$t_{i,\\rm osc}$"
+      "latex_name": "$t_{i,\rm osc}$"
     },
     {
       "name": "phi_osc",
@@ -83,7 +83,7 @@
         3.1416
       ],
       "unit": "rad",
-      "latex_name": "$\\phi_{\\rm osc}$"
+      "latex_name": "$\phi_{\rm osc}$"
     },
     {
       "name": "Ob",
@@ -92,7 +92,7 @@
         0.1
       ],
       "unit": "",
-      "latex_name": "$\\Omega_b$"
+      "latex_name": "$\Omega_b$"
     },
     {
       "name": "Og",
@@ -101,7 +101,7 @@
         0.001
       ],
       "unit": "",
-      "latex_name": "$\\Omega_\\gamma$"
+      "latex_name": "$\Omega_\gamma$"
     },
     {
       "name": "z_recomb",
@@ -110,7 +110,7 @@
         1200
       ],
       "unit": "",
-      "latex_name": "$z_{\\rm rec}$"
+      "latex_name": "$z_{\rm rec}$"
     },
     {
       "name": "O_eff",
@@ -119,21 +119,21 @@
         0.5
       ],
       "unit": "",
-      "latex_name": "$\\Omega_{\\rm eff}$"
+      "latex_name": "$\Omega_{\rm eff}$"
     }
   ],
-  "Hz_expression": "$$H(z)=H_A\\,(1+z)^{p_\\alpha}\\bigl[1 + k_{\\rm exp}\\,(1+z)^{s_{\\rm exp}}\\bigr]$$",
+  "Hz_expression": "H(z)=H_A\,(1+z)^{p_\alpha}\bigl[1 + k_{\rm exp}\,(1+z)^{s_{\rm exp}}\bigr]",
   "equations": {
     "sne": [
-      "$$1+z = \\frac{\\alpha(t_e)}{\\alpha(t_0)}$$",
-      "$$r = \\int_{t_e}^{t_0} \\frac{c}{\\alpha(t')} dt'$$",
-      "$$d_L(z) = |r|\\,(1+z)^2\\,\\frac{70.0}{H_A}$$",
-      "$$\\mu = 5\\log_{10}(d_L) + 25$$"
+      "1+z = \frac{\alpha(t_e)}{\alpha(t_0)}",
+      "r = \int_{t_e}^{t_0} \frac{c}{\alpha(t')} dt'",
+      "d_L(z) = |r|\,(1+z)^2\,\frac{70.0}{H_A}",
+      "\mu = 5\log_{10}(d_L) + 25"
     ],
     "bao": [
-      "$$D_A(z) = |r|\\,\\frac{70.0}{H_A}$$",
-      "$$H_{USMF}(z) = H(z)$$",
-      "$$D_V(z) = \\bigl[(1+z)^2\\,D_A(z)^2\\,\\frac{cz}{H(z)}\\bigr]^{1/3}$$"
+      "D_A(z) = |r|\,\frac{70.0}{H_A}",
+      "H_{USMF}(z) = H(z)",
+      "D_V(z) = \bigl[(1+z)^2\,D_A(z)^2\,\frac{cz}{H(z)}\bigr]^{1/3}"
     ]
   },
   "predicts_bao": true,

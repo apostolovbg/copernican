@@ -75,9 +75,15 @@ def parse_model_json(path, cache_dir):
         Path to the sanitized cache file.
     """
     path = Path(path)
+    def _escape_loose_backslashes(text: str) -> str:
+        """Double unescaped backslashes so ``json.loads`` accepts LaTeX strings."""
+        pattern = re.compile(r"(?<!\\)\\(?![\\\"/bfnrtu])")
+        return pattern.sub(r"\\\\", text)
+
     try:
-        with path.open("r") as f:
-            data = json.load(f)
+        raw_text = path.read_text()
+        raw_text = _escape_loose_backslashes(raw_text)
+        data = json.loads(raw_text)
     except (OSError, json.JSONDecodeError) as e:
         error_handler.report_error(f"Failed to read model JSON '{path}': {e}")
         raise
@@ -113,6 +119,25 @@ def parse_model_json(path, cache_dir):
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache_path = cache_dir / f"cache_{path.name}"
+    def _wrap(expr: str | None) -> str | None:
+        if expr is None:
+            return expr
+        expr = expr.strip()
+        if not expr.startswith("$"):
+            return f"$${expr}$$"
+        return expr
+
+    if isinstance(data.get("equations"), dict):
+        for key, val in data["equations"].items():
+            if isinstance(val, list):
+                data["equations"][key] = [_wrap(v) for v in val]
+            elif isinstance(val, str):
+                data["equations"][key] = _wrap(val)
+    if "Hz_expression" in data:
+        data["Hz_expression"] = _wrap(data["Hz_expression"])
+    if "rs_expression" in data:
+        data["rs_expression"] = _wrap(data["rs_expression"])
+
     with cache_path.open("w") as f:
         json.dump(data, f, indent=2)
     return str(cache_path)

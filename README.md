@@ -1,4 +1,4 @@
-**Version:** 1.17.0
+**Version:** 1.18.0
 **Last Updated:** 2025-07-28
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
@@ -195,8 +195,8 @@ See `cosmo_model_guide.json` for a detailed template.
    derive `r_s` automatically using a numerical integral. Use `\infty` when an
    integral extends to infinity.
 5. Python code must never appear in `cosmo_model_*.json`; all expressions are written in LaTeX.
-6. Backslashes must be doubled inside JSON strings. Use `\\` to escape a single `\` so
-   macros like `\frac` remain valid.
+6. LaTeX in `cosmo_model_*.json` may use single backslashes. The parser
+   automatically escapes them when sanitizing the JSON.
 7. Expressions may include `Integral(...)` terms with explicit limits. They are
    evaluated numerically with SciPy's `quad` when the model is loaded.
 8. Parameter initial guesses are calculated automatically as the midpoint of
@@ -235,17 +235,17 @@ The required top-level keys are `model_name`, `version`, `parameters`,
     {"name": "H0", "bounds": [50, 100], "latex_name": "H_0"},
     {"name": "Omega_m0", "bounds": [0.1, 0.5], "latex_name": "\\Omega_{m0}"}
   ],
-  "Hz_expression": "$$H(z) = H_0 * \\sqrt{Om0*(1+z)^3 + Ol0}$$",
- "rs_expression": "$$r_s = custom\_expression$$",
+  "Hz_expression": "H(z) = H_0 * \sqrt{Om0*(1+z)^3 + Ol0}",
+ "rs_expression": "r_s = custom_expression",
   "equations": {
     "sne": [
-      "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
-      "$$\\mu(z) = 5\\log_{10}[d_L(z)/{\\rm Mpc}] + 25$$"
+      "d_L(z) = (1+z) \int_0^z \frac{c\,dz'}{H(z')}",
+      "\mu(z) = 5\log_{10}[d_L(z)/{\rm Mpc}] + 25"
     ],
     "bao": [
-      "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
-      "$$D_H(z) = \\frac{c}{H(z)}$$",
-      "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
+      "D_M(z) = \int_0^z \frac{c\,dz'}{H(z')}",
+      "D_H(z) = \frac{c}{H(z)}",
+      "D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}"
     ]
   },
   "valid_for_cmb": true,
