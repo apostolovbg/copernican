@@ -1,6 +1,0 @@
-{
-  "dataset_name": "JLA 2014 (Betoule et al.)",
-  "description": "Joint SDSS-II and SNLS supernova sample providing 740 standardized SNe Ia",
-  "citation": "Betoule et al. 2014, A&A 568, A22",
-  "notes": "Light-curve parameters converted to distance moduli using fixed SALT2 nuisance parameters"
-}

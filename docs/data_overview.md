@@ -13,13 +13,14 @@ data/
 
 Each subdirectory contains one or more dataset sources. A Python file named `cosmo_parser_*.py` lives inside each source folder and registers a parser function via decorators from `copernican_lib.data_loaders`.
 
-Every dataset folder also provides a `metadata_*.json` describing the source. The fields `dataset_name`, `description`, `citation` and optional `notes` are loaded dynamically so no parser hard-codes them. Parsed DataFrames expose the same information on their `.attrs` property. The reference files remain read-only.
+Every dataset folder also provides a `metadata_*.json` describing the source. The fields `dataset_name`, `description`, `citation`, optional `notes` and `authors_all` are loaded dynamically so no parser hard-codes them. Parsed DataFrames expose the same information on their `.attrs` property. The reference files remain read-only.
 
 ## Supernovae Datasets
 
-### JLA Betoule+2014 (UniStra)
-*Source:* "Improved cosmological constraints from a joint analysis of the SDSS-II and SNLS supernova samples" (Betoule et al. 2014) hosted by the Centre de Données astronomiques de Strasbourg.
-*Parser:* `cosmo_parser_h1_unistra.py` reads `tablef3.dat` and reconstructs distance moduli using fixed SALT2 nuisance parameters. Covariance matrices in `tablef4.fit` are currently ignored.
+### JLA Betoule+2014
+*Source:* "Improved cosmological constraints from a joint analysis of the SDSS-II and SNLS supernova samples" (Betoule et al. 2014).
+*Location:* `data/sne/jla2014/`.
+*Parser:* `cosmo_parser_jla2014.py` reads `tablef3.dat`, projects the SALT2 parameter covariance from `tablef4.fit` to distance-modulus space and adds the diagonal statistical errors. The total covariance is inverted when well-conditioned; otherwise diagonal errors are used.
 
 ### Pantheon+ 2022 (Scolnic et al.)
 *Source:* Pantheon+SH0ES data release (Scolnic et al. 2022).

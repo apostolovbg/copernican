@@ -1,0 +1,48 @@
+{
+  "model_name": "USMFv4.0",
+  "version": "4.0",
+  "title": "USMF Version 4.0: Radiation-Calibrated Quantum-Shrinking Cosmology",
+  "date": "2025-07-28",
+  "abstract": "USMF v4.0 is a cosmological model that matches supernova distances, BAO measurements, and the CMB acoustic spectra to Planck-level precision without introducing a cosmological constant or dark-matter particles. Instead, it interprets cosmic redshift and acceleration as emerging from a universal, gradual shrinking of all rulers and clocks driven by quantum-geometry. A single expansion function with an embedded photon-density term enforces the correct early-time H(z)∝(1+z)² behavior, and an emergent clustering parameter provides the necessary matter-like gravitational effects.",
+  "description": "USMF v4.0 is built on five clear principles:\n\n1. Radius and clock shrinkage: all measurement units contract over cosmic time via quantum-geometry effects, so observed redshift arises from changing local scales rather than new energies.\n\n2. Unified expansion law: H(z) is given by a single function that includes both a flexible shrinkage term and the photon-density term, so it transitions automatically from radiation-dominated (H∝(1+z)²) to matter-like to late-time acceleration.\n\n3. Emergent clustering (Ω_eff): a free parameter that behaves like pressureless matter in structure formation and the CMB, but without invoking particle dark matter.\n\n4. Anchored early-universe inputs: the photon density (Ω_γ) and recombination redshift (z_rec) are fixed to observations, and the baryon density (Ω_b) is constrained by BBN priors.\n\n5. Automatic sound horizon: with these inputs declared, the suite’s built-in integral computes the baryon–photon sound horizon and restores the correct BAO and CMB peak scale without any manual tuning.\n\nTogether, these elements let USMF v4.0 reproduce all key cosmological probes on equal footing with ΛCDM, yet maintain a purely geometric–quantum origin for the apparent acceleration.",
+  "parameters": [
+    { "name": "Speed of light",         "python_var": "c",         "bounds": [299792.458, 299792.458], "unit": "km/s",        "latex_name": "c" },
+    { "name": "Expansion scale H_A",    "python_var": "H_A",       "bounds": [50.0, 100.0],           "unit": "km/s/Mpc",   "latex_name": "H_A" },
+    { "name": "Late-time exponent",     "python_var": "p_alpha",   "bounds": [0.5, 1.5],              "unit": "",            "latex_name": "p_{\\alpha}" },
+    { "name": "Extra-term amplitude",   "python_var": "k_exp",     "bounds": [0.0, 5.0],              "unit": "",            "latex_name": "k_{\\rm exp}" },
+    { "name": "Extra-term slope",       "python_var": "s_exp",     "bounds": [0.0, 3.0],              "unit": "",            "latex_name": "s_{\\rm exp}" },
+    { "name": "Present-day age",        "python_var": "t0_age_Gyr","bounds": [10.0, 20.0],            "unit": "Gyr",         "latex_name": "t_{0,\\rm age}" },
+    { "name": "Baryon density Ω_b",     "python_var": "Ob",        "bounds": [0.045, 0.055],          "unit": "",            "latex_name": "\\Omega_b" },
+    { "name": "Photon density Ω_γ",     "python_var": "Og",        "bounds": [4.186e-05, 4.186e-05],  "unit": "",            "latex_name": "\\Omega_{\\gamma}" },
+    { "name": "Recombination redshift", "python_var": "z_recomb",  "bounds": [1100, 1100],            "unit": "",            "latex_name": "z_{\\rm rec}" },
+    { "name": "Primordial amplitude A_s","python_var": "A_s",       "bounds": [1e-9, 5e-9],            "unit": "",            "latex_name": "A_s" },
+    { "name": "Primordial tilt n_s",    "python_var": "n_s",       "bounds": [0.9, 1.1],              "unit": "",            "latex_name": "n_s" },
+    { "name": "Emergent clustering Ω_eff","python_var": "O_eff",   "bounds": [0.0, 0.5],              "unit": "",            "latex_name": "\\Omega_{\\rm eff}" }
+  ],
+  "Hz_expression": "$$H(z) = H_A * \\sqrt{ \\left((1+z)^{p_{\\alpha}} * \\left(1 + k_{\\rm exp} * (1+z)^{s_{\\rm exp}}\\right)\\right)^2 + Og * (1+z)^4 }$$",
+  "predicts_bao": true,
+  "valid_for_cmb": true,
+  "equations": {
+    "sne": [
+      "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$\\mu(z) = 5\\log_{10}\\bigl(d_L(z)/\\mathrm{Mpc}\\bigr) + 25$$"
+    ],
+    "bao": [
+      "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$D_H(z) = \\frac{c}{H(z)}$$",
+      "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
+    ]
+  },
+  "cmb": {
+    "param_map": {
+      "H0":     "H_A",
+      "ombh2":  "Ob*(H_A/100)**2",
+      "omch2":  "O_eff*(H_A/100)**2",
+      "omnuh2": "Og*(H_A/100)**2",
+      "tau":    0.054,
+      "As":     "A_s",
+      "ns":     "n_s"
+    }
+  },
+  "notes": "Fixed JSON escaping in abstract/description; removed all invalid backslashes; made abstract/description fully self-contained for new readers."
+}

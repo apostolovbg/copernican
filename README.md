@@ -1,5 +1,5 @@
-**Version:** 1.13.1
-**Last Updated:** 2025-07-25
+**Version:** 1.14.11
+**Last Updated:** 2025-07-28
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
 Support for gravitational waves and standard siren events is planned for future releases.
@@ -37,10 +37,15 @@ Users select models, datasets, and computational engines at runtime through a
 simple command line interface. Results are saved as plots and CSV files in the
 `./output/` directory.
 Each generated plot now includes a footer noting the comparison details,
-Copernican Suite version and a timestamp.
+Copernican Suite version and a timestamp. Footer text is positioned
+dynamically so the canvas height grows when needed and never overlaps the
+plots.
 Dataset names, descriptions and citations are read from `metadata_*.json` files stored
 next to each dataset. The program never hard-codes these values; instead the metadata
 is attached to the parsed DataFrame and used for plot footers and CSV headers.
+During configuration each loader prints a short summary including whether the
+dataset's covariance matrix was inverted successfully or if diagonal errors are
+being used.
 When generating file names the suite sanitizes dataset names, replacing spaces and
 characters like `/` with hyphens so output paths remain valid on all platforms.
 
@@ -183,17 +188,37 @@ See `cosmo_model_guide.json` for a detailed template.
 2. *(Optional)* Create `cosmo_model_name.md` if you want a human-friendly
    summary of the same content. The suite does not read this file.
 3. Include an `Hz_expression` written in LaTeX math form defining `H(z)` using
-   your model parameters. This enables BAO and distance-based predictions.
+   your model parameters. Always place `*` between symbols (e.g. `H0*(1+z)`),
+   otherwise SymPy will treat the expression as a function call.
 4. Optionally provide an `rs_expression` in LaTeX for the sound horizon at
- recombination or include the parameters `Ob`, `Og` and `z_recomb`. The suite will then
-   derive `r_s` automatically using a numerical integral.
+   recombination or include the parameters `Ob`, `Og` and `z_recomb`. The suite will then
+   derive `r_s` automatically using a numerical integral. Use `sympy.oo` when an
+   integral extends to infinity.
 5. Python code must never appear in `cosmo_model_*.json`; all expressions are written in LaTeX.
-6. Expressions may include `Integral(...)` terms. These are evaluated
-   numerically with SciPy's `quad` when the model is loaded.
-7. Parameter initial guesses are calculated automatically as the midpoint of
+6. Backslashes must be doubled inside JSON strings. Use `\\` to escape a single `\` so
+   macros like `\frac` remain valid.
+7. Expressions may include `Integral(...)` terms with explicit limits. They are
+   evaluated numerically with SciPy's `quad` when the model is loaded.
+8. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
-8. `latex_name` values do not require `$` delimiters. Plots automatically wrap
+9. `latex_name` values do not require `$` delimiters. Plots automatically wrap
    parameter names in math mode.
+
+**Common mistakes**
+* Missing `*` between variables and parentheses results in a `'Symbol' object is not callable` error.
+* Using `oo` for infinite limits fails; write `sympy.oo` instead.
+* Referencing `H(z)` inside `rs_expression` is unsupported—repeat the formula or rely on the fallback parameters.
+   
+The LaTeX parser supports a subset of math syntax including `\frac`,
+subscripts and superscripts, common functions (`\log`, `\ln`, `\exp`, `\sin`,
+`\cos`, `\tan`, `\sqrt`), Greek letters such as `\alpha` and `\beta`, and
+macros that adjust bracket size like `\left`, `\right`, `\bigl` and `\bigr`.
+Thin spaces (`\,`) and font switches (`\rm`) are ignored. Unsupported sizing
+macros such as `\bigl` and `\bigr` are removed from plot labels to keep
+Matplotlib's MathText parser happy. Expressions may also
+contain `Integral` constructs with explicit limits which are numerically
+evaluated with SciPy. Use `sympy.oo` for an infinite upper bound and avoid
+referencing `H(z)` inside other expressions—repeat the formula instead.
 The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
 auto-generates the necessary Python functions.
 
@@ -253,7 +278,8 @@ listing the CAMB parameter order—including `omnuh2` when relevant. The engine
 combines this list with `get_camb_params` to evaluate the power spectrum and
 chi-squared. The CMB plotter draws separate TT, TE and EE panels with
 residuals, uses a logarithmic scale for temperature and $E$-mode spectra and
-shows cosmic-variance and observational uncertainty bands.
+shows cosmic-variance and observational uncertainty bands. Titles now use
+minimal padding so each label fits neatly between CMB subplots.
 `model_parser.py` accepts unknown keys and simply copies them to the sanitized
 cache. This allows the domain-specific JSON language to evolve while remaining
 compatible with older models.
@@ -337,7 +363,7 @@ altering `MAJOR.MINOR`.
 5.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data. When `cosmo_engine_comb.py` is selected this step refines the parameters before the full joint optimisation.
 6.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
 7.  **CMB Analysis**: Each model's CMB spectrum is evaluated against the selected dataset. The combined engine performs this after completing the joint optimisation.
-8.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots, tables and logs using a consistent format.
+8.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots, tables and logs using a consistent format. Plots now use a white background with very light grey, solid grid lines for clarity.
 9.  **Loop or Exit**: The user is prompted to run another evaluation or exit.
 
 ---

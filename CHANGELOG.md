@@ -1,11 +1,63 @@
 ## How to Log Changes
-Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: please, always check what is the current date when you are logging last changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Use this template:
+Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: please, always check the current date when logging new changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Follow this template: 
+```
+## Version 1.1.0
+- 2025-05-27: Added plotting and CSV (Apostol Apostolov) 
 
-## Version 1.13.0
-- 2025-07-24: Enforced automatic SemVer bumps and updated version references (AI assistant)
+## Version 1.0.0
+- 2025-05-26: Debugged copernican.py script (AI assistant)
+- 2025-05-26: Created copernican.py (Apostol Apostolov)
+
+```
+## Log changes below and keep the line after this one empty:
+
+## Version 1.14.11
+- 2025-07-28: Stripped size macros from plot labels and bumped version to 1.14.11 (AI assistant)
+
+## Version 1.14.10
+- 2025-07-28: Expanded model JSON guide with supported functions and common mistakes (AI assistant)
+
+## Version 1.14.9
+- 2025-07-26: Reduced CMB title padding to avoid overlap with residual plots (AI assistant)
+- 2025-07-27: Improved LaTeX parsing for additional macros (AI assistant)
+- 2025-07-27: Fixed bracket handling in LaTeX parser to avoid parse failures (AI assistant)
+- 2025-07-27: Documented JSON escape requirement for LaTeX macros (AI assistant)
+
+## Version 1.14.8
+- 2025-07-26: Improved footer spacing, unified CMB legends and added verbose dataset summaries (AI assistant)
+
+## Version 1.14.7
+- 2025-07-26: Combined JLA systematic and statistical covariances and updated parser logic (AI assistant)
+
+## Version 1.14.6
+- 2025-07-26: Unified info box spacing with margins, adjusted footer placement and fixed CMB title overlap (AI assistant)
+
+## Version 1.14.5
+- 2025-07-26: Documented JLA covariance fallback and tightened info box layout (AI assistant)
+
+## Version 1.14.4
+- 2025-07-27: Handled near-singular JLA covariance by falling back to diagonal errors (AI assistant)
+
+## Version 1.14.3
+- 2025-07-27: Removed deprecated UniStra SNe data and fixed JLA covariance handling (AI assistant)
+- 2025-07-27: Improved fit report outputs and enlarged plot dimensions (AI assistant)
+
+## Version 1.14.2
+- 2025-07-26: Lightened grid lines, widened plot margins and fixed BAO info box equation parsing (AI assistant)
+
+## Version 1.14.1
+- 2025-07-26: Human intervention in CHANGELOG.md due to messed up order, dates and lack of template (Apostol Apostolov)
+- 2025-07-26: Unified plot style and improved info boxes across all data types (AI assistant)
+
+## Version 1.14.0
+- 2025-07-25: Added JLA 2014 dataset with full covariance matrix and new metadata field `authors_all` (AI assistant)
+- 2025-07-25: Fixed version string handling and updated documentation (AI assistant)
 
 ## Version 1.13.1
 - 2025-07-25: Renamed test BAO dataset and updated documentation (AI assistant)
+
+## Version 1.13.0
+- 2025-07-24: Enforced automatic SemVer bumps and updated version references (AI assistant)
 
 ## Version 1.12.9
 - 2025-07-19: Expanded and clarified documentation; explained `.egg-info` folder and added CONTRIBUTING guide (AI assistant)

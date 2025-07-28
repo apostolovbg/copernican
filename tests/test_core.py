@@ -30,6 +30,9 @@ class FunctionalTestCase(unittest.TestCase):
         sne_df = data_loaders.load_sne_data('JLA 2014 (Betoule et al.)')
         self.assertIsNotNone(sne_df)
         sne_df = sne_df.head(3)
+        if sne_df.attrs.get('covariance_matrix_inv') is not None:
+            sne_df.attrs['covariance_matrix_inv'] = sne_df.attrs['covariance_matrix_inv'][:3, :3]
+            sne_df.attrs['diag_errors_for_plot'] = sne_df.attrs['diag_errors_for_plot'][:3]
 
         bao_df = data_loaders.load_bao_data('Test BAO dataset')
         self.assertIsNotNone(bao_df)
@@ -61,6 +64,9 @@ class FunctionalTestCase(unittest.TestCase):
 
     def test_combined_fit(self):
         sne_df = data_loaders.load_sne_data('JLA 2014 (Betoule et al.)').head(2)
+        if sne_df.attrs.get('covariance_matrix_inv') is not None:
+            sne_df.attrs['covariance_matrix_inv'] = sne_df.attrs['covariance_matrix_inv'][:2, :2]
+            sne_df.attrs['diag_errors_for_plot'] = sne_df.attrs['diag_errors_for_plot'][:2]
         bao_df = data_loaders.load_bao_data('Test BAO dataset').head(2)
         cmb_df = data_loaders.load_cmb_data('Planck 2018 Lite TT/TE/EE')
         cmb_df = cmb_df.head(10)
@@ -91,6 +97,22 @@ class FunctionalTestCase(unittest.TestCase):
         params.set_for_lmax(int(np.max(ells)) + 300, lens_potential_accuracy=0)
         ref = camb.get_results(params).get_unlensed_scalar_cls(lmax=int(np.max(ells)), CMB_unit="muK")
         np.testing.assert_allclose(result, ref[:,0][ells], rtol=1e-7)
+
+
+class PlotterUtilTestCase(unittest.TestCase):
+    """Test helper utilities in ``plotter``."""
+
+    def test_wrap_math_removes_size_macros(self):
+        import sys
+        import importlib
+        from types import SimpleNamespace
+
+        sys.modules['copernican'] = SimpleNamespace(COPERNICAN_VERSION='test')
+        plotter = importlib.import_module('copernican_lib.plotter')
+
+        expr = r"\mu(z) = 5\log_{10}\bigl[d_L(z)/\mathrm{Mpc}\bigr] + 25"
+        expected = r"$\mu(z) = 5\log_{10}[d_L(z)/\mathrm{Mpc}] + 25$"
+        self.assertEqual(plotter._wrap_math(expr), expected)
 
 
 if __name__ == '__main__':
