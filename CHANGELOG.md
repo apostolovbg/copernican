@@ -11,6 +11,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes below and keep the line after this one empty:
 
+## Version 1.14.10
+- 2025-07-28: Expanded model JSON guide with supported functions and common mistakes (AI assistant)
+
 ## Version 1.14.9
 - 2025-07-26: Reduced CMB title padding to avoid overlap with residual plots (AI assistant)
 - 2025-07-27: Improved LaTeX parsing for additional macros (AI assistant)

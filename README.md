@@ -1,5 +1,5 @@
-**Version:** 1.14.9
-**Last Updated:** 2025-07-26
+**Version:** 1.14.10
+**Last Updated:** 2025-07-28
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
 Support for gravitational waves and standard siren events is planned for future releases.
@@ -188,26 +188,35 @@ See `cosmo_model_guide.json` for a detailed template.
 2. *(Optional)* Create `cosmo_model_name.md` if you want a human-friendly
    summary of the same content. The suite does not read this file.
 3. Include an `Hz_expression` written in LaTeX math form defining `H(z)` using
-   your model parameters. This enables BAO and distance-based predictions.
+   your model parameters. Always place `*` between symbols (e.g. `H0*(1+z)`),
+   otherwise SymPy will treat the expression as a function call.
 4. Optionally provide an `rs_expression` in LaTeX for the sound horizon at
- recombination or include the parameters `Ob`, `Og` and `z_recomb`. The suite will then
-   derive `r_s` automatically using a numerical integral.
+   recombination or include the parameters `Ob`, `Og` and `z_recomb`. The suite will then
+   derive `r_s` automatically using a numerical integral. Use `sympy.oo` when an
+   integral extends to infinity.
 5. Python code must never appear in `cosmo_model_*.json`; all expressions are written in LaTeX.
 6. Backslashes must be doubled inside JSON strings. Use `\\` to escape a single `\` so
    macros like `\frac` remain valid.
-7. Expressions may include `Integral(...)` terms. These are evaluated
-   numerically with SciPy's `quad` when the model is loaded.
+7. Expressions may include `Integral(...)` terms with explicit limits. They are
+   evaluated numerically with SciPy's `quad` when the model is loaded.
 8. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
 9. `latex_name` values do not require `$` delimiters. Plots automatically wrap
    parameter names in math mode.
+
+**Common mistakes**
+* Missing `*` between variables and parentheses results in a `'Symbol' object is not callable` error.
+* Using `oo` for infinite limits fails; write `sympy.oo` instead.
+* Referencing `H(z)` inside `rs_expression` is unsupported—repeat the formula or rely on the fallback parameters.
    
 The LaTeX parser supports a subset of math syntax including `\frac`,
 subscripts and superscripts, common functions (`\log`, `\ln`, `\exp`, `\sin`,
 `\cos`, `\tan`, `\sqrt`), Greek letters such as `\alpha` and `\beta`, and
 macros that adjust bracket size like `\left`, `\right`, `\bigl` and `\bigr`.
 Thin spaces (`\,`) and font switches (`\rm`) are ignored. Expressions may also
-contain `Integral` constructs which are numerically evaluated with SciPy.
+contain `Integral` constructs with explicit limits which are numerically
+evaluated with SciPy. Use `sympy.oo` for an infinite upper bound and avoid
+referencing `H(z)` inside other expressions—repeat the formula instead.
 The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
 auto-generates the necessary Python functions.
 
