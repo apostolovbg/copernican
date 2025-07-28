@@ -14,7 +14,12 @@ from typing import Dict
 _mapping_path = Path(__file__).with_name("latex_mappings.json")
 try:
     with _mapping_path.open("r") as _fh:
-        _MAPPINGS: Dict[str, Dict[str, str]] = json.load(_fh)
+        _raw = _fh.read()
+        try:
+            _MAPPINGS: Dict[str, Dict[str, str]] = json.loads(_raw)
+        except json.JSONDecodeError:
+            # Allow single backslashes by escaping them automatically
+            _MAPPINGS = json.loads(_raw.replace("\\", "\\\\"))
 except OSError as exc:  # pragma: no cover - only fails if repo is corrupted
     raise RuntimeError(f"Cannot read LaTeX mappings: {_mapping_path}") from exc
 
@@ -44,8 +49,7 @@ def sanitize_name(latex: str) -> str:
 def latex_to_sympy(expr: str) -> str:
     r"""Convert a LaTeX expression to a SymPy-friendly string."""
     expr = expr.strip()
-    if expr.startswith("$$") and expr.endswith("$$"):
-        expr = expr[2:-2]
+    expr = re.sub(r"^\$+|\$+$", "", expr)
     if "=" in expr:
         expr = expr.split("=", 1)[1]
 

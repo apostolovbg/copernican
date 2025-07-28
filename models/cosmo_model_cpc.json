@@ -1,8 +1,8 @@
 {
   "model_name": "CPCfRGravityCosmology",
   "version": "1.0",
-  "description": "CPC-f(R) Gravity Cosmology combines a modified gravity action f(R)=R+αR²−βR^{−n} with a CP-violating curvature coupling ξR F\\tilde F in the Standard Model gauge sector. This framework recovers standard radiation-dominated expansion (R→0→f(R)≈R) for BBN, features late-time cosmic acceleration from the R^{-n} term without a cosmological constant, and mediates Newtonian gravity plus Yukawa corrections at galactic scales. The CP term generates baryon asymmetry during the QCD phase transition, eliminating the need for extra baryogenesis fields.",
-  "abstract": "We propose a CP-coupled f(R) gravity model: S⊃∫d⁴x√−g [M_{Pl}²/2 f(R) + (ξ/4)R F\\tilde F + L_{SM}], with f(R)=R+αR²−βR^{−n}. In the radiation era R→0, yielding standard H∝√ρ behavior for BBN. At late times the −βR^{−n} term drives self-acceleration without Λ. We include a CP-violating term ξR F\\tilde F to generate n_B/s∼10^{−10} at T∼150 MeV. This model unifies cosmic acceleration, baryogenesis, and structure formation in a pure gravitational framework.",
+  "description": "CPC-f(R) Gravity Cosmology combines a modified gravity action f(R)=R+αR²−βR^{−n} with a CP-violating curvature coupling ξR F\tilde F in the Standard Model gauge sector. This framework recovers standard radiation-dominated expansion (R→0→f(R)≈R) for BBN, features late-time cosmic acceleration from the R^{-n} term without a cosmological constant, and mediates Newtonian gravity plus Yukawa corrections at galactic scales. The CP term generates baryon asymmetry during the QCD phase transition, eliminating the need for extra baryogenesis fields.",
+  "abstract": "We propose a CP-coupled f(R) gravity model: S⊃∫d⁴x√−g [M_{Pl}²/2 f(R) + (ξ/4)R F\tilde F + L_{SM}], with f(R)=R+αR²−βR^{−n}. In the radiation era R→0, yielding standard H∝√ρ behavior for BBN. At late times the −βR^{−n} term drives self-acceleration without Λ. We include a CP-violating term ξR F\tilde F to generate n_B/s∼10^{−10} at T∼150 MeV. This model unifies cosmic acceleration, baryogenesis, and structure formation in a pure gravitational framework.",
   "parameters": [
     {
       "name": "Hubble constant",
@@ -20,7 +20,7 @@
         0.5
       ],
       "unit": "",
-      "latex_name": "\\Omega_{m0}"
+      "latex_name": "\Omega_{m0}"
     },
     {
       "name": "Radiation density",
@@ -29,7 +29,7 @@
         0.0001
       ],
       "unit": "",
-      "latex_name": "\\Omega_{r0}"
+      "latex_name": "\Omega_{r0}"
     },
     {
       "name": "R² coefficient",
@@ -38,7 +38,7 @@
         1E+6
       ],
       "unit": "",
-      "latex_name": "\\alpha"
+      "latex_name": "\alpha"
     },
     {
       "name": "Inverse-power coefficient",
@@ -47,7 +47,7 @@
         1.0
       ],
       "unit": "",
-      "latex_name": "\\beta"
+      "latex_name": "\beta"
     },
     {
       "name": "Inverse-power exponent",
@@ -65,7 +65,7 @@
         1.0
       ],
       "unit": "",
-      "latex_name": "\\xi"
+      "latex_name": "\xi"
     },
     {
       "name": "Sound horizon base",
@@ -83,7 +83,7 @@
         1500
       ],
       "unit": "",
-      "latex_name": "z_{\\rm drag}"
+      "latex_name": "z_{\rm drag}"
     },
     {
       "name": "Speed of light",
@@ -95,18 +95,18 @@
       "latex_name": "c"
     }
   ],
-  "Hz_expression": "$$H(z) = H0 * \\sqrt{\\Omega_{m0}*(1+z)^3 + \\Omega_{r0}*(1+z)^4 + \\beta*(1+z)^{-n}}$$",
+  "Hz_expression": "H(z) = H0 * \sqrt{\Omega_{m0}*(1+z)^3 + \Omega_{r0}*(1+z)^4 + \beta*(1+z)^{-n}}",
   "equations": {
     "sne": [
-      "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
-      "$$\\mu(z) = 5\\log_{10}[d_L(z)/{\\rm Mpc}] + 25$$"
+      "d_L(z) = (1+z) \int_0^z \frac{c\,dz'}{H(z')}",
+      "\mu(z) = 5\log_{10}[d_L(z)/{\rm Mpc}] + 25"
     ],
     "bao": [
-      "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
-      "$$D_H(z) = \\frac{c}{H(z)}$$",
-      "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
+      "D_M(z) = \int_0^z \frac{c\,dz'}{H(z')}",
+      "D_H(z) = \frac{c}{H(z)}",
+      "D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}"
     ]
   },
-  "rs_expression": "$$r_s = rs0$$",
+  "rs_expression": "r_s = rs0",
   "predicts_bao": true
 }

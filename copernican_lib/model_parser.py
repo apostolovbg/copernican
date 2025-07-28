@@ -17,6 +17,16 @@ def _sanitise_name_to_var(name: str) -> str:
     """Return a valid Python identifier derived from a LaTeX name."""
     return latex_utils.sanitize_name(name)
 
+
+def _ensure_delim(expr: str | None) -> str | None:
+    """Wrap math expressions with ``$$`` if not already present."""
+    if expr is None:
+        return None
+    cleaned = str(expr).strip()
+    if not cleaned.startswith("$$"):
+        cleaned = f"$${cleaned}$$"
+    return cleaned
+
 MODEL_SCHEMA = {
     "type": "object",
     "required": ["model_name", "version", "parameters", "equations"],
@@ -77,7 +87,12 @@ def parse_model_json(path, cache_dir):
     path = Path(path)
     try:
         with path.open("r") as f:
-            data = json.load(f)
+            raw = f.read()
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            # Allow single backslashes by escaping them automatically
+            data = json.loads(raw.replace("\\", "\\\\"))
     except (OSError, json.JSONDecodeError) as e:
         error_handler.report_error(f"Failed to read model JSON '{path}': {e}")
         raise
@@ -109,6 +124,14 @@ def parse_model_json(path, cache_dir):
                 idx += 1
             param["python_var"] = candidate
             used_vars.add(candidate)
+
+    # Ensure mathematical fields are wrapped with '$$' for downstream tools
+    data['Hz_expression'] = _ensure_delim(data.get('Hz_expression'))
+    data['rs_expression'] = _ensure_delim(data.get('rs_expression'))
+    eq_sections = data.get('equations', {})
+    for key, arr in eq_sections.items():
+        if isinstance(arr, list):
+            eq_sections[key] = [_ensure_delim(e) for e in arr]
 
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
