@@ -31,7 +31,7 @@
         1.5
       ],
       "unit": "",
-      "latex_name": "p_{\alpha}"
+      "latex_name": "p_{\\alpha}"
     },
     {
       "name": "Extra-term amplitude",
@@ -40,7 +40,7 @@
         5.0
       ],
       "unit": "",
-      "latex_name": "k_{\rm exp}"
+      "latex_name": "k_{\\rm exp}"
     },
     {
       "name": "Extra-term slope",
@@ -49,7 +49,7 @@
         3.0
       ],
       "unit": "",
-      "latex_name": "s_{\rm exp}"
+      "latex_name": "s_{\\rm exp}"
     },
     {
       "name": "Present-day age",
@@ -58,7 +58,7 @@
         20.0
       ],
       "unit": "Gyr",
-      "latex_name": "t_{0,\rm age}"
+      "latex_name": "t_{0,\\rm age}"
     },
     {
       "name": "Baryon density Ω_b",
@@ -67,7 +67,7 @@
         0.055
       ],
       "unit": "",
-      "latex_name": "\Omega_b"
+      "latex_name": "\\Omega_b"
     },
     {
       "name": "Photon density Ω_γ",
@@ -76,7 +76,7 @@
         0.00004186
       ],
       "unit": "",
-      "latex_name": "\Omega_{\gamma}"
+      "latex_name": "\\Omega_{\\gamma}"
     },
     {
       "name": "Recombination redshift",
@@ -85,7 +85,7 @@
         1100
       ],
       "unit": "",
-      "latex_name": "z_{\rm rec}"
+      "latex_name": "z_{\\rm rec}"
     },
     {
       "name": "Primordial amplitude A_s",
@@ -112,21 +112,21 @@
         0.5
       ],
       "unit": "",
-      "latex_name": "\Omega_{\rm eff}"
+      "latex_name": "\\Omega_{\\rm eff}"
     }
   ],
-  "Hz_expression": "H(z) = H_A * \sqrt{ \left((1+z)^{p_{\alpha}} * \left(1 + k_{\rm exp} * (1+z)^{s_{\rm exp}}\right)\right)^2 + Og * (1+z)^4 }",
+  "Hz_expression": "$$H(z) = H_A * \\sqrt{ \\left((1+z)^{p_{\\alpha}} * \\left(1 + k_{\\rm exp} * (1+z)^{s_{\\rm exp}}\\right)\\right)^2 + Og * (1+z)^4 }$$",
   "predicts_bao": true,
   "valid_for_cmb": true,
   "equations": {
     "sne": [
-      "d_L(z) = (1+z) \int_0^z \frac{c\,dz'}{H(z')}",
-      "\mu(z) = 5\log_{10}\bigl(d_L(z)/\mathrm{Mpc}\bigr) + 25"
+      "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$\\mu(z) = 5\\log_{10}\\bigl(d_L(z)/\\mathrm{Mpc}\\bigr) + 25$$"
     ],
     "bao": [
-      "D_M(z) = \int_0^z \frac{c\,dz'}{H(z')}",
-      "D_H(z) = \frac{c}{H(z)}",
-      "D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}"
+      "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
+      "$$D_H(z) = \\frac{c}{H(z)}$$",
+      "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
     ]
   },
   "cmb": {

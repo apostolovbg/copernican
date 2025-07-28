@@ -46,8 +46,6 @@ def latex_to_sympy(expr: str) -> str:
     expr = expr.strip()
     if expr.startswith("$$") and expr.endswith("$$"):
         expr = expr[2:-2]
-    elif expr.startswith("$") and expr.endswith("$"):
-        expr = expr[1:-1]
     if "=" in expr:
         expr = expr.split("=", 1)[1]
 
