@@ -17,6 +17,9 @@ Add one line for each substantive commit or pull request directly under the late
 ## Version 1.17.0
 - 2025-07-28: Extended latex_mappings with extra symbols, functions and macros; bumped version (AI assistant)
 
+## Version 1.18.0
+- 2025-07-28: Added implicit multiplication, optional math delimiters and automatic backslash escaping (AI assistant)
+
 ## Version 1.16.0
 
 - 2025-07-28: Centralized LaTeX mappings and added latex_utils module (AI assistant)

@@ -11,6 +11,11 @@ import numpy as np
 from scipy.integrate import quad
 import logging
 from sympy.printing.numpy import NumPyPrinter
+from sympy.parsing.sympy_parser import (
+    parse_expr,
+    standard_transformations,
+    implicit_multiplication_application,
+)
 from . import error_handler
 from . import engine_interface
 from . import latex_utils
@@ -33,6 +38,9 @@ class QuadPrinter(NumPyPrinter):
 def _latex_to_sympy_str(expr: str) -> str:
     """Convert a LaTeX-style expression to a SymPy-friendly string."""
     return latex_utils.latex_to_sympy(expr)
+
+
+_TRANSFORMS = standard_transformations + (implicit_multiplication_application,)
 
 
 def _compile_sympy_expr(sym_expr, args):
@@ -82,7 +90,7 @@ def generate_callables(cache_path):
     if hz_expr_str:
         try:
             parsed_hz = _latex_to_sympy_str(hz_expr_str)
-            hz_sym = sp.sympify(parsed_hz, locals=local_dict)
+            hz_sym = parse_expr(parsed_hz, local_dict=local_dict, transformations=_TRANSFORMS)
             used_syms = {str(s) for s in hz_sym.free_symbols if s != z}
             param_names = {p['python_var'] for p in model_data['parameters']}
             missing = used_syms - param_names
@@ -150,7 +158,7 @@ def generate_callables(cache_path):
             if rs_expr_str:
                 try:
                     parsed_rs = _latex_to_sympy_str(rs_expr_str)
-                    rs_sym = sp.sympify(parsed_rs, locals=local_dict)
+                    rs_sym = parse_expr(parsed_rs, local_dict=local_dict, transformations=_TRANSFORMS)
                     used = {str(s) for s in rs_sym.free_symbols} - {'z'}
                     missing_rs = used - param_names
                     if missing_rs:
@@ -214,7 +222,11 @@ def generate_callables(cache_path):
             # Textual equations are preserved but not parsed into functions
             continue
         try:
-            sym_expr = sp.sympify(expr, locals=local_dict)
+            sym_expr = parse_expr(
+                _latex_to_sympy_str(expr),
+                local_dict=local_dict,
+                transformations=_TRANSFORMS,
+            )
             # Convert SymPy expression to a callable, numerically evaluating
             # ``Integral`` constructs if present.
             fn = _compile_sympy_expr(sym_expr, (z, *param_syms))
