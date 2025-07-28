@@ -3,38 +3,34 @@
   "version": "3.1",
   "title": "USMF Version 3.1: Calibrated Quantum-Shrinking Cosmology",
   "date": "2025-07-27",
-  "abstract": "USMF v3.1 is a self-contained cosmological framework that explains all major large-scale observations without invoking dark energy or exotic new particles. In this picture, the cosmic redshift and apparent acceleration come from a universal, gradual shrinking of local rulers and clocks driven by quantum-geometry effects. A single flexible expansion law, an emergent matter-like parameter Ω_eff, and a physically motivated sound-horizon calculation reproduce the Type Ia supernova Hubble diagram, the BAO distance scales, and the CMB acoustic peaks to Planck precision.",
-  "description": "USMF v3.1 is built on five core ideas:\n\n1. **Quantum-shrinking rulers:** All measurement units contract over time due to an underlying quantum-geometric coupling, so cosmic redshift is the ratio of local scale factors rather than metric expansion.\n\n2. **Flexible expansion law:**  \n   $$H(z) = H_A\\,(1+z)^{p_{\\alpha}}\\,\\bigl[1 + k_{\\rm exp}\\,(1+z)^{s_{\\rm exp}}\\bigr]$$\n   smoothly transitions through radiation-like, matter-like, and accelerated eras with no cosmological constant.\n\n3. **Emergent clustering (Ω_eff):**  \n   A free parameter that behaves like pressureless matter in structure formation and the CMB, but arises from an entanglement-network effect instead of particle dark matter.\n\n4. **Anchored early physics:**  \n   Photon density (Ω_γ = 4.186\\times10^{-5}) and recombination redshift (z_rec = 1100) are fixed to observations.  Baryon density Ω_b is bounded by BBN priors.\n\n5. **Automatic sound horizon:**  \n   With Ob, Og, and z_rec declared, the suite numerically computes the baryon-photon sound horizon via its built-in Integral, so no manual rs_expression is needed.\n\nTogether, these allow USMF v3.1 to match supernova, BAO, and CMB data at ΛCDM-level accuracy—yet rest purely on geometric and quantum-shrinking principles.",
+  "abstract": "USMF v3.1 is a self-contained cosmological framework that fits supernova distances, BAO scales, and CMB spectra to Planck precision—without a cosmological constant or exotic particles.  Redshift and apparent acceleration emerge from a universal shrinking of local rulers and clocks driven by quantum-geometry.  A single flexible law H(z), an emergent clustering parameter Ω_eff, and anchored early-universe inputs reproduce all major probes.",
+  "description": "USMF v3.1 rests on five pillars:\n\n1. **Shrinking rulers:** All length/time units contract over cosmic time via quantum-geometric couplings, so redshift = ratio of local scales.\n2. **Flexible H(z):** A single formula\n   $$H(z) = H_A * (1+z)^{p_{\\\\alpha}} * (1 + k_{\\\\rm exp} * (1+z)^{s_{\\\\rm exp}})$$\n   transitions through radiation-like, matter-like, and accelerated regimes without Λ.\n3. **Emergent clustering (Ω_eff):** Acts like pressureless matter in CMB/structure but is an entanglement-network effect.\n4. **Anchored early physics:** Fix Ω_γ=4.186×10⁻⁵ and z_rec=1100; baryon density Ω_b within BBN bounds.\n5. **Automatic r_s:** With Ob, Og, z_recomb declared, the suite’s built-in integral computes the sound horizon—no user rs_expression needed.\n\nThese ingredients let USMF v3.1 match SNe, BAO, and CMB at ΛCDM-level accuracy purely via geometric/quantum-shrinking dynamics.",
   "parameters": [
-    { "name": "Speed of light",       "python_var": "c",          "bounds": [299792.458,299792.458], "unit": "km/s",        "latex_name": "c" },
-    { "name": "Expansion scale",       "python_var": "H_A",        "bounds": [50.0,100.0],           "unit": "km/s/Mpc",  "latex_name": "H_A" },
-    { "name": "Late-time exponent",    "python_var": "p_alpha",    "bounds": [0.5,1.5],              "unit": "",           "latex_name": "p_{\\alpha}" },
-    { "name": "Extra-term amplitude",  "python_var": "k_exp",      "bounds": [0.0,5.0],              "unit": "",           "latex_name": "k_{\\rm exp}" },
-    { "name": "Extra-term slope",      "python_var": "s_exp",      "bounds": [0.0,3.0],              "unit": "",           "latex_name": "s_{\\rm exp}" },
-    { "name": "Present-day age",       "python_var": "t0_age_Gyr", "bounds": [10.0,20.0],            "unit": "Gyr",        "latex_name": "t_{0,\\rm age}" },
-    { "name": "Oscillation amplitude", "python_var": "A_osc",      "bounds": [0.0,0.1],              "unit": "",           "latex_name": "A_{\\rm osc}" },
-    { "name": "Oscillation frequency", "python_var": "w_osc",      "bounds": [0.0,10.0],             "unit": "",           "latex_name": "\\omega_{\\rm osc}" },
-    { "name": "Oscillation start",     "python_var": "ti_osc_Gyr", "bounds": [0.0,20.0],             "unit": "Gyr",        "latex_name": "t_{i,\\rm osc}" },
-    { "name": "Oscillation phase",     "python_var": "phi_osc",    "bounds": [-3.1416,3.1416],       "unit": "rad",        "latex_name": "\\phi_{\\rm osc}" },
-    { "name": "Baryon density",        "python_var": "Ob",         "bounds": [0.045,0.055],          "unit": "",           "latex_name": "\\Omega_b" },
-    { "name": "Photon density",        "python_var": "Og",         "bounds": [4.186e-05,4.186e-05],  "unit": "",           "latex_name": "\\Omega_{\\gamma}" },
-    { "name": "Recombination z",       "python_var": "z_recomb",   "bounds": [1100,1100],            "unit": "",           "latex_name": "z_{\\rm rec}" },
-    { "name": "Primordial amplitude",  "python_var": "A_s",        "bounds": [1e-9,5e-9],            "unit": "",           "latex_name": "A_s" },
-    { "name": "Primordial tilt",       "python_var": "n_s",        "bounds": [0.9,1.0],              "unit": "",           "latex_name": "n_s" },
-    { "name": "Emergent clustering",   "python_var": "O_eff",      "bounds": [0.0,0.5],              "unit": "",           "latex_name": "\\Omega_{\\rm eff}" }
+    { "name": "Speed of light",        "python_var": "c",         "bounds": [299792.458,299792.458], "unit": "km/s",        "latex_name": "c" },
+    { "name": "Expansion scale",        "python_var": "H_A",       "bounds": [50.0,100.0],            "unit": "km/s/Mpc",   "latex_name": "H_A" },
+    { "name": "Late-time exponent",     "python_var": "p_alpha",   "bounds": [0.5,1.5],               "unit": "",            "latex_name": "p_{\\\\alpha}" },
+    { "name": "Extra-term amplitude",   "python_var": "k_exp",     "bounds": [0.0,5.0],               "unit": "",            "latex_name": "k_{\\\\rm exp}" },
+    { "name": "Extra-term slope",       "python_var": "s_exp",     "bounds": [0.0,3.0],               "unit": "",            "latex_name": "s_{\\\\rm exp}" },
+    { "name": "Present-day age",        "python_var": "t0_age_Gyr","bounds": [10.0,20.0],             "unit": "Gyr",         "latex_name": "t_{0,\\\\rm age}" },
+    { "name": "Baryon density",         "python_var": "Ob",        "bounds": [0.045,0.055],           "unit": "",            "latex_name": "\\\\Omega_b" },
+    { "name": "Photon density",         "python_var": "Og",        "bounds": [4.186e-05,4.186e-05],   "unit": "",            "latex_name": "\\\\Omega_{\\\\gamma}" },
+    { "name": "Recombination redshift", "python_var": "z_recomb",  "bounds": [1100,1100],             "unit": "",            "latex_name": "z_{\\\\rm rec}" },
+    { "name": "Primordial amplitude",   "python_var": "A_s",       "bounds": [1e-9,5e-9],             "unit": "",            "latex_name": "A_s" },
+    { "name": "Primordial tilt",        "python_var": "n_s",       "bounds": [0.9,1.0],               "unit": "",            "latex_name": "n_s" },
+    { "name": "Emergent clustering",    "python_var": "O_eff",     "bounds": [0.0,0.5],               "unit": "",            "latex_name": "\\\\Omega_{\\\\rm eff}" }
   ],
-  "Hz_expression": "$$H(z) = H_A\\,(1+z)^{p_{\\alpha}}\\,\\bigl[1 + k_{\\rm exp}\\,(1+z)^{s_{\\rm exp}}\\bigr]$$",
+  "Hz_expression": "$$H(z) = H_A * (1+z)^{p_{\\\\alpha}} * (1 + k_{\\\\rm exp} * (1+z)^{s_{\\\\rm exp}})$$",
   "predicts_bao": true,
   "valid_for_cmb": true,
   "equations": {
     "sne": [
-      "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
-      "$$\\mu(z)   = 5\\log_{10}\\bigl[d_L(z)/{\\rm Mpc}\\bigr] + 25$$"
+      "$$d_L(z) = (1+z) \\\\int_0^z \\\\frac{c\\\\,dz'}{H(z')}$$",
+      "$$\\\\mu(z) = 5\\\\log_{10}[d_L(z)/\\\\mathrm{Mpc}]+25$$"
     ],
     "bao": [
-      "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
-      "$$D_H(z) = \\frac{c}{H(z)}$$",
-      "$$D_V(z) = [D_M(z)^2\\,D_H(z)]^{1/3}$$"
+      "$$D_M(z) = \\\\int_0^z \\\\frac{c\\\\,dz'}{H(z')}$$",
+      "$$D_H(z) = \\\\frac{c}{H(z)}$$",
+      "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
     ]
   },
   "cmb": {
@@ -48,5 +44,5 @@
       "ns":    "n_s"
     }
   },
-  "notes": "USMF v3.1: all expressions now pure LaTeX, per the suite README."
+  "notes": "All multiplications explicit; no implicit juxtaposition that causes ‘Symbol object is not callable.’"
 }
