@@ -11,6 +11,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes below and keep the line after this one empty:
 
+## Version 1.18.0
+- 2025-07-28: Removed math delimiters and double backslash requirement in model files; added implicit multiplication (AI assistant)
+
 ## Version 1.15.0
 - 2025-07-28: Added automatic python_var generation and improved LaTeX handling (AI assistant)
 
