@@ -37,7 +37,18 @@
     "\\Omega_{m0}": "Omega_m0",
     "\\Omega_{b0}": "Omega_b0",
     "\\Omega_{r0}": "Omega_r0",
-    "\\infty": "sympy.oo"
+    "\\infty": "sympy.oo",
+    "\\varepsilon": "varepsilon",
+    "\\vartheta": "vartheta",
+    "\\varpi": "varpi",
+    "\\varrho": "varrho",
+    "\\varsigma": "varsigma",
+    "\\Upsilon": "Upsilon",
+    "\\omicron": "omicron",
+    "\\Omega_{k0}": "Omega_k0",
+    "\\Omega_{\\Lambda0}": "Omega_Lambda0",
+    "\\Omega_{\\gamma}": "Omega_gamma",
+    "\\Omega_{c0}": "Omega_c0"
   },
   "function_replacements": {
     "\\log": "log",
@@ -46,7 +57,25 @@
     "\\sin": "sin",
     "\\cos": "cos",
     "\\tan": "tan",
-    "\\sqrt": "sqrt"
+    "\\sqrt": "sqrt",
+    "\\csc": "csc",
+    "\\sec": "sec",
+    "\\cot": "cot",
+    "\\arcsin": "asin",
+    "\\arccos": "acos",
+    "\\arctan": "atan",
+    "\\sinh": "sinh",
+    "\\cosh": "cosh",
+    "\\tanh": "tanh",
+    "\\coth": "coth",
+    "\\sech": "sech",
+    "\\csch": "csch",
+    "\\arcsinh": "asinh",
+    "\\arccosh": "acosh",
+    "\\arctanh": "atanh",
+    "\\abs": "Abs",
+    "\\floor": "floor",
+    "\\ceil": "ceiling"
   },
   "macros_remove": [
     "\\left",
@@ -61,6 +90,14 @@
     "\\Biggr",
     "\\,",
     "\\!",
-    "\\rm\\s*"
+    "\\rm\\s*",
+    "\\mathrm",
+    "\\mathbf",
+    "\\text",
+    "\\cdot",
+    "\\tfrac",
+    "\\tilde",
+    "\\hat",
+    "\\bar"
   ]
 }

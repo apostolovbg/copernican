@@ -1,4 +1,4 @@
-**Version:** 1.16.0
+**Version:** 1.17.0
 **Last Updated:** 2025-07-28
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
@@ -212,8 +212,7 @@ See `cosmo_model_guide.json` for a detailed template.
 * Referencing `H(z)` inside `rs_expression` is unsupported—repeat the formula or rely on the fallback parameters.
    
 The LaTeX parser supports a subset of math syntax including `\frac`,
-subscripts and superscripts, common functions (`\log`, `\ln`, `\exp`, `\sin`,
-`\cos`, `\tan`, `\sqrt`), Greek letters such as `\alpha` and `\beta`, and
+subscripts and superscripts, common functions (`\log`, `\ln`, `\exp`, `\sin`, `\cos`, `\tan`, `\csc`, `\sec`, `\cot`, `\arcsin`, `\arccos`, `\arctan`, `\sinh`, `\cosh`, `\tanh`, `\coth`, `\sech`, `\csch`, `\arcsinh`, `\arccosh`, `\arctanh`, `\sqrt`, `\abs`, `\floor`, `\ceil`), Greek letters such as `\alpha` and `\beta`, and
 macros that adjust bracket size like `\left`, `\right`, `\bigl` and `\bigr`.
 Thin spaces (`\,`) and font switches (`\rm`) are ignored. Unsupported sizing
 macros are removed from plot labels to keep Matplotlib's MathText parser happy.

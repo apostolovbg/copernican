@@ -111,7 +111,7 @@ class PlotterUtilTestCase(unittest.TestCase):
         plotter = importlib.import_module('copernican_lib.plotter')
 
         expr = r"\mu(z) = 5\log_{10}\bigl[d_L(z)/\mathrm{Mpc}\bigr] + 25"
-        expected = r"$\mu(z) = 5\log_{10}[d_L(z)/\mathrm{Mpc}] + 25$"
+        expected = r"$\mu(z) = 5\log_{10}[d_L(z)/{Mpc}] + 25$"
         self.assertEqual(plotter._wrap_math(expr), expected)
 
     def test_latex_utils_conversions(self):
