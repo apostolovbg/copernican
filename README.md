@@ -1,4 +1,4 @@
-**Version:** 1.15.0
+**Version:** 1.16.0
 **Last Updated:** 2025-07-28
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
@@ -216,8 +216,9 @@ subscripts and superscripts, common functions (`\log`, `\ln`, `\exp`, `\sin`,
 `\cos`, `\tan`, `\sqrt`), Greek letters such as `\alpha` and `\beta`, and
 macros that adjust bracket size like `\left`, `\right`, `\bigl` and `\bigr`.
 Thin spaces (`\,`) and font switches (`\rm`) are ignored. Unsupported sizing
-macros such as `\bigl` and `\bigr` are removed from plot labels to keep
-Matplotlib's MathText parser happy. Expressions may also
+macros are removed from plot labels to keep Matplotlib's MathText parser happy.
+All sanitisation rules now live in `copernican_lib/latex_utils.py` with
+extensible mappings stored in `latex_mappings.json`. Expressions may also
 contain `Integral` constructs with explicit limits which are numerically
 evaluated with SciPy. Use `\infty` for an infinite upper bound and avoid
 referencing `H(z)` inside other expressions—repeat the formula instead.

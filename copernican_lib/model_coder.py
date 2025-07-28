@@ -5,7 +5,6 @@
 # NumPy-friendly functions.
 
 import json
-import re
 from pathlib import Path
 import sympy as sp
 import numpy as np
@@ -14,6 +13,7 @@ import logging
 from sympy.printing.numpy import NumPyPrinter
 from . import error_handler
 from . import engine_interface
+from . import latex_utils
 
 
 class QuadPrinter(NumPyPrinter):
@@ -32,63 +32,7 @@ class QuadPrinter(NumPyPrinter):
 
 def _latex_to_sympy_str(expr: str) -> str:
     """Convert a LaTeX-style expression to a SymPy-friendly string."""
-    expr = expr.strip()
-    if expr.startswith("$$") and expr.endswith("$$"):
-        expr = expr[2:-2]
-    if "=" in expr:
-        expr = expr.split("=", 1)[1]
-
-    replacements = [
-        (r"\\left", ""),
-        (r"\\right", ""),
-        (r"\\bigl", ""),
-        (r"\\bigr", ""),
-        (r"\\Bigl", ""),
-        (r"\\Bigr", ""),
-        (r"\\biggl", ""),
-        (r"\\biggr", ""),
-        (r"\\Biggl", ""),
-        (r"\\Biggr", ""),
-        (r"\\,", ""),
-        (r"\\rm\s*", ""),
-        (r"\\infty", "sympy.oo"),
-        (r"\\Omega_{m0}", "Omega_m0"),
-        (r"\\Omega_{b0}", "Omega_b0"),
-        (r"\\Omega_{r0}", "Omega_r0"),
-        (r"\\alpha", "alpha"),
-        (r"\\beta", "beta"),
-        (r"\\gamma", "gamma"),
-        (r"\\omega", "omega"),
-        (r"\\phi", "phi"),
-        (r"\\tau", "tau"),
-    ]
-    for pat, repl in replacements:
-        expr = re.sub(pat, repl, expr)
-
-    func_replacements = {
-        r"\\log": "log",
-        r"\\ln": "log",
-        r"\\exp": "exp",
-        r"\\sin": "sin",
-        r"\\cos": "cos",
-        r"\\tan": "tan",
-        r"\\sqrt": "sqrt",
-    }
-    for pat, repl in func_replacements.items():
-        expr = re.sub(pat, repl, expr)
-
-    while "\\frac" in expr:
-        expr = re.sub(r"\\frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1)/(\2)", expr)
-
-    expr = re.sub(r"_{([^{}]+)}", r"_\1", expr)
-    expr = re.sub(r"\^\{([^{}]+)\}", r"**(\1)", expr)
-    expr = re.sub(r"\^([\w\.]+)", r"**\1", expr)
-    expr = expr.replace("\\", "")
-    expr = expr.replace("{", "(").replace("}", ")")
-    # Convert bracketed groups like [a+b] to parentheses for SymPy
-    expr = expr.replace("[", "(").replace("]", ")")
-    expr = re.sub(r"\s{2,}", " ", expr)
-    return expr.strip()
+    return latex_utils.latex_to_sympy(expr)
 
 
 def _compile_sympy_expr(sym_expr, args):

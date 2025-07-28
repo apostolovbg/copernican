@@ -14,6 +14,9 @@ Add one line for each substantive commit or pull request directly under the late
 ## Version 1.15.0
 - 2025-07-28: Added automatic python_var generation and improved LaTeX handling (AI assistant)
 
+## Version 1.16.0
+- 2025-07-28: Centralized LaTeX mappings and added latex_utils module (AI assistant)
+
 ## Version 1.14.11
 - 2025-07-28: Stripped size macros from plot labels and bumped version to 1.14.11 (AI assistant)
 

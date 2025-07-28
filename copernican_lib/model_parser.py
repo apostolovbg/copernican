@@ -10,32 +10,12 @@ from jsonschema import validate, ValidationError
 from pathlib import Path
 import multiprocessing as _mp
 from . import error_handler
+from . import latex_utils
 
 
 def _sanitise_name_to_var(name: str) -> str:
     """Return a valid Python identifier derived from a LaTeX name."""
-    text = str(name)
-    text = re.sub(r"^\$+|\$+$", "", text)
-    replacements = {
-        r"\\alpha": "alpha",
-        r"\\beta": "beta",
-        r"\\gamma": "gamma",
-        r"\\delta": "delta",
-        r"\\omega": "omega",
-        r"\\Omega": "Omega",
-        r"\\phi": "phi",
-        r"\\tau": "tau",
-    }
-    for pat, repl in replacements.items():
-        text = re.sub(pat, repl, text)
-    text = re.sub(r"\\[a-zA-Z]+", "", text)
-    text = text.replace("{", "").replace("}", "")
-    text = text.replace("-", "_")
-    text = re.sub(r"[^0-9a-zA-Z_]+", "_", text)
-    text = re.sub(r"__+", "_", text).strip("_")
-    if not re.match(r"[A-Za-z_]", text):
-        text = f"pyvar_{text}" if text else "pyvar"
-    return text
+    return latex_utils.sanitize_name(name)
 
 MODEL_SCHEMA = {
     "type": "object",
