@@ -18,3 +18,5 @@ focused on numerical work.
 selection, data loading, optimisation and result generation.  The new
 package name emphasises that these modules are part of the suite's core
 library and not mere scripts.
+
+LaTeX translations rely on `copernican_lib/latex_utils.py` which reads symbol and function mappings from `latex_mappings.json`. New commands can be added there without touching the code.
