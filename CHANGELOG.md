@@ -9,22 +9,22 @@ Add one line for each substantive commit or pull request directly under the late
 - 2025-05-26: Created copernican.py (Apostol Apostolov)
 
 ```
-## Log changes below and keep the line after this one empty:
+## Log changes here (newest versions on top, newest changes on top within a version) and keep the line after this one empty:
 
-## Version 1.18.1
-- 2025-07-29: Replaced legacy parameter aliases with full LaTeX names across models and documentation (AI assistant)
-
-## Version 1.18.2
-- 2025-07-29: Fixed parsing failures by removing \rm from parameter names in expressions and bumped versions (AI assistant)
-
-## Version 1.18.3
-- 2025-07-29: Fallback sound-horizon integral now looks for `Omega_b`, `Omega_gamma` and `z_rec`/`z_recomb` instead of legacy aliases (AI assistant)
+## Version 1.19.1
+- 2025-07-29: Added missing LaTeX names to LCDM parameters and bumped version (AI assistant)
 
 ## Version 1.19.0
 - 2025-07-29: Removed parameter-name fallback and made `latex_name` mandatory in all models (AI assistant)
 
-## Version 1.19.1
-- 2025-07-29: Added missing LaTeX names to LCDM parameters and bumped version (AI assistant)
+## Version 1.18.3
+- 2025-07-29: Fallback sound-horizon integral now looks for `Omega_b`, `Omega_gamma` and `z_rec`/`z_recomb` instead of legacy aliases (AI assistant)
+
+## Version 1.18.2
+- 2025-07-29: Fixed parsing failures by removing \rm from parameter names in expressions and bumped versions (AI assistant)
+
+## Version 1.18.1
+- 2025-07-29: Replaced legacy parameter aliases with full LaTeX names across models and documentation (AI assistant)
 
 ## Version 1.18.0
 - 2025-07-28: Removed math delimiters and double backslash requirement in model files; added implicit multiplication (AI assistant)
