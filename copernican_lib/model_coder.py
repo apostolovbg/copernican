@@ -181,10 +181,16 @@ def generate_callables(cache_path):
                 except Exception as e:
                     error_handler.report_error(f"Failed to parse rs_expression: {e}")
                     raise ValueError(f"Failed to parse rs_expression: {e}") from e
-            elif {'Ob', 'Og', 'z_recomb'}.issubset(param_names) and 'get_Hz_per_Mpc' in funcs:
-                ob_i = param_index['Ob']
-                og_i = param_index['Og']
-                zr_i = param_index['z_recomb']
+            elif (
+                'Omega_b' in param_names
+                and 'Omega_gamma' in param_names
+                and ('z_rec' in param_names or 'z_recomb' in param_names)
+                and 'get_Hz_per_Mpc' in funcs
+            ):
+                ob_i = param_index['Omega_b']
+                og_i = param_index['Omega_gamma']
+                zr_key = 'z_rec' if 'z_rec' in param_names else 'z_recomb'
+                zr_i = param_index[zr_key]
 
                 def _rs(*params):
                     """Numerically compute the sound horizon r_s in Mpc."""
