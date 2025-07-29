@@ -11,7 +11,7 @@
         100.0
       ],
       "unit": "km/s/Mpc",
-      "latex_name": "H_0"
+      "latex_name": "$H_0$"
     },
     {
       "name": "Matter density",
@@ -19,7 +19,7 @@
         0.05,
         0.7
       ],
-      "latex_name": "\\Omega_{m0}"
+      "latex_name": "$\Omega_{m0}$"
     },
     {
       "name": "Baryon density",
@@ -27,7 +27,7 @@
         0.01,
         0.1
       ],
-      "latex_name": "\\Omega_b"
+      "latex_name": "$\Omega_b$"
     },
     {
       "name": "Photon density",
@@ -35,7 +35,7 @@
         0.00001,
         0.0001
       ],
-      "latex_name": "\\Omega_{\\gamma}"
+      "latex_name": "$\Omega_{\gamma}$"
     },
     {
       "name": "Recombination redshift",
@@ -43,7 +43,7 @@
         1000,
         1200
       ],
-      "latex_name": "z_{\\rm rec}"
+      "latex_name": "$z_{\rm rec}$"
     }
   ],
   "Hz_expression": "H(z) = H0 * \sqrt{\Omega_{m0}*(1+z)^3 + (1 - \Omega_{m0})}",
