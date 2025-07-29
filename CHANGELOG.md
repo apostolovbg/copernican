@@ -23,6 +23,9 @@ Add one line for each substantive commit or pull request directly under the late
 ## Version 1.19.0
 - 2025-07-29: Removed parameter-name fallback and made `latex_name` mandatory in all models (AI assistant)
 
+## Version 1.19.1
+- 2025-07-29: Added missing LaTeX names to LCDM parameters and bumped version (AI assistant)
+
 ## Version 1.18.0
 - 2025-07-28: Removed math delimiters and double backslash requirement in model files; added implicit multiplication (AI assistant)
 
