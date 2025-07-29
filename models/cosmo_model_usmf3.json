@@ -5,7 +5,7 @@
   "abstract": "USMF v3 builds on the shrinking-frame paradigm to reproduce all major cosmological probes—SNe Ia, BAO, and the CMB—without invoking a fundamental cosmological constant or new particle species. Key innovations include a generalized expansion law with tunable power-law and exponential components, an emergent clustering parameter Ω_eff that mimics pressureless matter, and an improved calculation of the baryon–photon sound horizon. These allow USMF v3 to achieve Planck, BAO, and Pantheon+SH0ES–level fits while retaining a purely geometric/quantum origin of accelerated expansion.",
   "parameters": [
     {
-      "name": "H_A",
+      "name": "Hubble scale today",
       "bounds": [
         50.0,
         100.0
@@ -14,7 +14,7 @@
       "latex_name": "$H_A$"
     },
     {
-      "name": "p_alpha",
+      "name": "Quantum exponent",
       "bounds": [
         0.5,
         1.5
@@ -23,7 +23,7 @@
       "latex_name": "$p_\alpha$"
     },
     {
-      "name": "k_exp",
+      "name": "Quantum amplitude",
       "bounds": [
         0.0,
         5.0
@@ -32,7 +32,7 @@
       "latex_name": "$k_{\rm exp}$"
     },
     {
-      "name": "s_exp",
+      "name": "Quantum slope",
       "bounds": [
         0.0,
         3.0
@@ -41,7 +41,7 @@
       "latex_name": "$s_{\rm exp}$"
     },
     {
-      "name": "t0_age_Gyr",
+      "name": "Present-day age",
       "bounds": [
         10.0,
         20.0
@@ -50,7 +50,7 @@
       "latex_name": "$t_{0,\rm age}$"
     },
     {
-      "name": "A_osc",
+      "name": "Oscillation amplitude",
       "bounds": [
         0.0,
         0.1
@@ -59,7 +59,7 @@
       "latex_name": "$A_{\rm osc}$"
     },
     {
-      "name": "w_osc",
+      "name": "Oscillation frequency",
       "bounds": [
         0.0,
         10.0
@@ -68,7 +68,7 @@
       "latex_name": "$w_{\rm osc}$"
     },
     {
-      "name": "ti_osc_Gyr",
+      "name": "Oscillation onset time",
       "bounds": [
         0.0,
         20.0
@@ -77,7 +77,7 @@
       "latex_name": "$t_{i,\rm osc}$"
     },
     {
-      "name": "phi_osc",
+      "name": "Oscillation phase",
       "bounds": [
         -3.1416,
         3.1416
@@ -86,7 +86,7 @@
       "latex_name": "$\phi_{\rm osc}$"
     },
     {
-      "name": "Ob",
+      "name": "Baryon density",
       "bounds": [
         0.01,
         0.1
@@ -95,7 +95,7 @@
       "latex_name": "$\Omega_b$"
     },
     {
-      "name": "Og",
+      "name": "Photon density",
       "bounds": [
         0.00001,
         0.001
@@ -104,7 +104,7 @@
       "latex_name": "$\Omega_\gamma$"
     },
     {
-      "name": "z_recomb",
+      "name": "Recombination redshift",
       "bounds": [
         1000,
         1200
@@ -113,7 +113,7 @@
       "latex_name": "$z_{\rm rec}$"
     },
     {
-      "name": "O_eff",
+      "name": "Emergent clustering density",
       "bounds": [
         0.0,
         0.5

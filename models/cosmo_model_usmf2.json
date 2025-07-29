@@ -5,16 +5,16 @@
   "abstract": "The Unified Shrinking Matter Framework (USMF) is a cosmological model proposing that the observed accelerated expansion of the Universe and phenomena attributed to dark matter and dark energy are apparent effects. These arise from observations made from within dense cosmic structures (like galaxies) that are themselves shrinking over cosmic time relative to a static universal coordinate system. This paper details the core concepts of USMF, its refined mathematical formulation including considerations for early universe evolution, the mechanisms for inhomogeneous shrinking, its implications for key cosmological observations such as Type Ia supernovae, Big Bang Nucleosynthesis, Baryon Acoustic Oscillations, and the matter-antimatter asymmetry. The framework suggests a dynamic evolution of fundamental scales and the effective gravitational constant ($G_{univ}(t)$), proposing specific modifications to gravitational field equations and offering novel explanations and unique testable predictions for cosmic puzzles without invoking new undiscovered particles or energy fields.",
   "parameters": [
     {
-      "name": "H_A",
+      "name": "Hubble scale today",
       "bounds": [
         50.0,
         100.0
       ],
-      "unit": "",
+      "unit": "km/s/Mpc",
       "latex_name": "$H_A$"
     },
     {
-      "name": "p_alpha",
+      "name": "Quantum exponent",
       "bounds": [
         0.1,
         1.5
@@ -23,7 +23,7 @@
       "latex_name": "$p_{\alpha}$"
     },
     {
-      "name": "k_exp",
+      "name": "Quantum amplitude",
       "bounds": [
         -2.0,
         2.0
@@ -32,7 +32,7 @@
       "latex_name": "$k_{exp}$"
     },
     {
-      "name": "s_exp",
+      "name": "Quantum slope",
       "bounds": [
         0.5,
         2.0
@@ -41,7 +41,7 @@
       "latex_name": "$s_{exp}$"
     },
     {
-      "name": "t0_age_Gyr",
+      "name": "Present-day age",
       "bounds": [
         10.0,
         20.0
@@ -50,7 +50,7 @@
       "latex_name": "$t_{0,age}$"
     },
     {
-      "name": "A_osc",
+      "name": "Oscillation amplitude",
       "bounds": [
         0.0,
         0.05
@@ -59,7 +59,7 @@
       "latex_name": "$A_{osc}$"
     },
     {
-      "name": "omega_osc",
+      "name": "Oscillation frequency",
       "bounds": [
         0.1,
         10.0
@@ -68,7 +68,7 @@
       "latex_name": "$\omega_{osc}$"
     },
     {
-      "name": "ti_osc_Gyr",
+      "name": "Oscillation onset time",
       "bounds": [
         1.0,
         20.0
@@ -77,7 +77,7 @@
       "latex_name": "$t_{i,osc}$"
     },
     {
-      "name": "phi_osc",
+      "name": "Oscillation phase",
       "bounds": [
         -3.1416,
         3.1416
@@ -86,7 +86,7 @@
       "latex_name": "$\phi_{osc}$"
     },
     {
-      "name": "Ob",
+      "name": "Baryon density",
       "bounds": [
         0.01,
         0.1
@@ -95,7 +95,7 @@
       "latex_name": "\\Omega_b"
     },
     {
-      "name": "Og",
+      "name": "Photon density",
       "bounds": [
         0.00001,
         0.0001
@@ -104,7 +104,7 @@
       "latex_name": "\\Omega_{\\gamma}"
     },
     {
-      "name": "z_recomb",
+      "name": "Recombination redshift",
       "bounds": [
         1000,
         1200

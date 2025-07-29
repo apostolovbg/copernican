@@ -112,11 +112,13 @@ def parse_model_json(path, cache_dir):
                 f"Model JSON validation error: {e.message}"
             ) from e
 
-    # Auto-generate missing python_var fields from LaTeX names or plain names
+    # Auto-generate missing python_var fields from LaTeX names
     used_vars = {p.get("python_var") for p in data.get("parameters", []) if p.get("python_var")}
     for param in data.get("parameters", []):
+        if "latex_name" not in param:
+            raise ValueError("Missing required latex_name for parameter")
         if not param.get("python_var"):
-            base = _sanitise_name_to_var(param.get("latex_name", param.get("name", "param")))
+            base = _sanitise_name_to_var(param["latex_name"])
             candidate = base
             idx = 2
             while candidate in used_vars:
