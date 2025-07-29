@@ -11,7 +11,7 @@
         100.0
       ],
       "unit": "km/s/Mpc",
-      "latex_name": "$H_A$"
+      "latex_name": "H_A"
     },
     {
       "name": "Quantum exponent",
@@ -20,7 +20,7 @@
         1.5
       ],
       "unit": "",
-      "latex_name": "$p_{\alpha}$"
+      "latex_name": "p_{\alpha}"
     },
     {
       "name": "Quantum amplitude",
@@ -29,7 +29,7 @@
         2.0
       ],
       "unit": "",
-      "latex_name": "$k_{exp}$"
+      "latex_name": "k_{exp}"
     },
     {
       "name": "Quantum slope",
@@ -38,7 +38,7 @@
         2.0
       ],
       "unit": "",
-      "latex_name": "$s_{exp}$"
+      "latex_name": "s_{exp}"
     },
     {
       "name": "Present-day age",
@@ -47,7 +47,7 @@
         20.0
       ],
       "unit": "Gyr",
-      "latex_name": "$t_{0,age}$"
+      "latex_name": "t_{0,age}"
     },
     {
       "name": "Oscillation amplitude",
@@ -56,7 +56,7 @@
         0.05
       ],
       "unit": "",
-      "latex_name": "$A_{osc}$"
+      "latex_name": "A_{osc}"
     },
     {
       "name": "Oscillation frequency",
@@ -65,7 +65,7 @@
         10.0
       ],
       "unit": "rad/log(time_ratio)",
-      "latex_name": "$\omega_{osc}$"
+      "latex_name": "\omega_{osc}"
     },
     {
       "name": "Oscillation onset time",
@@ -74,7 +74,7 @@
         20.0
       ],
       "unit": "Gyr",
-      "latex_name": "$t_{i,osc}$"
+      "latex_name": "t_{i,osc}"
     },
     {
       "name": "Oscillation phase",
@@ -83,7 +83,7 @@
         3.1416
       ],
       "unit": "rad",
-      "latex_name": "$\phi_{osc}$"
+      "latex_name": "\phi_{osc}"
     },
     {
       "name": "Baryon density",
@@ -132,9 +132,9 @@
   "cmb": {
     "param_map": {
       "H0": "H_A",
-      "ombh2": "Omega_b*(H_A/100)**2",
+      "ombh2": "\Omega_b*(H_A/100)**2",
       "omch2": 0.0,
-      "omnuh2": "Omega_gamma*(H_A/100)**2",
+      "omnuh2": "\Omega_{\gamma}*(H_A/100)**2",
       "tau": 0.054,
       "As": 2.1E-9,
       "ns": 0.965
