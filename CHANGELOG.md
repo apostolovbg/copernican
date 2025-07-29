@@ -9,13 +9,13 @@ Add one line for each substantive commit or pull request directly under the late
 - 2025-05-26: Created copernican.py (Apostol Apostolov)
 
 ```
-## Log changes here (newest versions on top, newest changes on top within a version) and keep the line after this one empty:
-
-## Version 1.19.2
-- 2025-07-29: Normalized LaTeX parameter names in all models and updated example docs (AI assistant)
+## Log changes here (newest versions ABOVE older, newest changes ABOVE older within a version) and keep the line after this one empty:
 
 ## Version 1.19.3
 - 2025-07-29: Fixed parsing of LaTeX names containing `\rm` and bumped version (AI assistant)
+
+## Version 1.19.2
+- 2025-07-29: Normalized LaTeX parameter names in all models and updated example docs (AI assistant)
 
 ## Version 1.19.1
 - 2025-07-29: Added missing LaTeX names to LCDM parameters and bumped version (AI assistant)
