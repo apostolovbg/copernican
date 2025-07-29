@@ -16,7 +16,7 @@
       "latex_name": "c"
     },
     {
-      "name": "Expansion scale H_A",
+      "name": "Hubble scale today",
       "bounds": [
         50.0,
         100.0
@@ -61,7 +61,7 @@
       "latex_name": "t_{0,\rm age}"
     },
     {
-      "name": "Baryon density Ω_b",
+      "name": "Baryon density",
       "bounds": [
         0.045,
         0.055
@@ -70,7 +70,7 @@
       "latex_name": "\Omega_b"
     },
     {
-      "name": "Photon density Ω_γ",
+      "name": "Photon density",
       "bounds": [
         0.00004186,
         0.00004186
@@ -88,7 +88,7 @@
       "latex_name": "z_{\rm rec}"
     },
     {
-      "name": "Primordial amplitude A_s",
+      "name": "Primordial amplitude",
       "bounds": [
         1E-9,
         5E-9
@@ -97,7 +97,7 @@
       "latex_name": "A_s"
     },
     {
-      "name": "Primordial tilt n_s",
+      "name": "Primordial tilt",
       "bounds": [
         0.9,
         1.1
@@ -106,7 +106,7 @@
       "latex_name": "n_s"
     },
     {
-      "name": "Emergent clustering Ω_eff",
+      "name": "Emergent clustering density",
       "bounds": [
         0.0,
         0.5

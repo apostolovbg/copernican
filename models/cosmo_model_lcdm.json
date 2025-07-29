@@ -5,40 +5,45 @@
   "abstract": "LambdaCDM model describes a flat universe dominated by cold dark matter and a cosmological constant serving as the reference model",
   "parameters": [
     {
-      "name": "H0",
+      "name": "Hubble constant",
       "bounds": [
         50.0,
         100.0
       ],
-      "unit": "km/s/Mpc"
+      "unit": "km/s/Mpc",
+      "latex_name": "H_0"
     },
     {
-      "name": "Omega_m0",
+      "name": "Matter density",
       "bounds": [
         0.05,
         0.7
-      ]
+      ],
+      "latex_name": "\\Omega_{m0}"
     },
     {
-      "name": "Omega_b",
+      "name": "Baryon density",
       "bounds": [
         0.01,
         0.1
-      ]
+      ],
+      "latex_name": "\\Omega_b"
     },
     {
-      "name": "Omega_gamma",
+      "name": "Photon density",
       "bounds": [
         0.00001,
         0.0001
-      ]
+      ],
+      "latex_name": "\\Omega_{\\gamma}"
     },
     {
-      "name": "z_recomb",
+      "name": "Recombination redshift",
       "bounds": [
         1000,
         1200
-      ]
+      ],
+      "latex_name": "z_{\\rm rec}"
     }
   ],
   "Hz_expression": "H(z) = H0 * \sqrt{\Omega_{m0}*(1+z)^3 + (1 - \Omega_{m0})}",
