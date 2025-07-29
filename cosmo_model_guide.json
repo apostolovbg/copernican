@@ -1,6 +1,6 @@
 {
   "guide_title": "Copernican Suite cosmo_model_*.json Definition Guide",
-  "guide_version": "1.3",
+  "guide_version": "1.5",
   "overview": "This guide explains how to create valid cosmo_model JSON files for the Copernican Suite. Every cosmo_model_*.json fully describes a cosmological theory using metadata, parameters, LaTeX expressions for H(z) and the sound horizon, and optional display equations for SNe Ia and BAO.  All information required to build a working model is contained here and in README.md.",
   "requirements": "Every cosmo_model JSON must include these top-level keys: model_name (string), version (string), description (string), abstract (string), parameters (array), equations (object). If you supply r_s, include rs_expression (string) and set predicts_bao to true. Models that support CMB predictions must provide a cmb.param_map describing how variables map to CAMB parameters. Set valid_for_cmb to false when a CMB spectrum is unavailable.",
   "parameter_definition": "The parameters array contains objects with these fields: name (human-readable string), bounds ([min, max]), and optional unit (string) and latex_name (string).  When python_var is omitted, a valid identifier is generated from the LaTeX name. All symbols used in Hz_expression and rs_expression must be declared here. To define a fixed constant (e.g. c), give identical bounds. Parameter latex_name values are automatically wrapped in math mode when displayed.",
@@ -23,7 +23,7 @@
   "edge_cases": [
     "Use \infty for infinite integral limits; a bare 'oo' will fail to parse.",
     "Always include * between variables and parentheses. Omitting it turns symbols into function calls.",
-    "Do not reference H(z) inside rs_expression; replicate the formula instead or rely on the Ob/Og/z_recomb fallback.",
+    "Do not reference H(z) inside rs_expression; replicate the formula instead or rely on the \Omega_b/\Omega_{\gamma}/z_{rec} fallback.",
     "Avoid Python list syntax in expressions; use parentheses for grouping.",
     "LaTeX in description and abstract may include math (double-escaped backslashes).",
     "All parameter names in expressions must exactly match the derived python_var names."
@@ -59,7 +59,7 @@
         "D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}"
       ]
     },
-    "rs_expression": "rs0*(1 + B*z_recomb*exp(-gamma*z_recomb))",
+    "rs_expression": "rs0*(1 + B*z_{rec}*exp(-gamma*z_{rec}))",
     "predicts_bao": true,
     // set to false if the model lacks CMB support
     "valid_for_cmb": true,
@@ -67,9 +67,9 @@
       // required when valid_for_cmb is true
       "param_map": {
         "H0": "H0",
-        "ombh2": "Ob * (H0/100)**2",
-      "omch2": "(Omega_m0 - Ob) * (H0/100)**2",
-      "omnuh2": "Og * (H0/100)**2",
+        "ombh2": "Omega_b * (H0/100)**2",
+      "omch2": "(Omega_m0 - Omega_b) * (H0/100)**2",
+      "omnuh2": "Omega_{\gamma} * (H0/100)**2",
       "tau": 0.054,
         "As": 2.1e-9,
       "ns": 0.965

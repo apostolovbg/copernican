@@ -11,6 +11,12 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes below and keep the line after this one empty:
 
+## Version 1.18.1
+- 2025-07-29: Replaced legacy parameter aliases with full LaTeX names across models and documentation (AI assistant)
+
+## Version 1.18.2
+- 2025-07-29: Fixed parsing failures by removing \rm from parameter names in expressions and bumped versions (AI assistant)
+
 ## Version 1.18.0
 - 2025-07-28: Removed math delimiters and double backslash requirement in model files; added implicit multiplication (AI assistant)
 
