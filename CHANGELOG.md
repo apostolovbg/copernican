@@ -20,15 +20,14 @@ Add one line for each substantive commit or pull request directly under the late
 ## Version 1.18.0
 - 2025-07-28: Removed math delimiters and double backslash requirement in model files; added implicit multiplication (AI assistant)
 
-## Version 1.15.0
-- 2025-07-28: Added automatic python_var generation and improved LaTeX handling (AI assistant)
-
 ## Version 1.17.0
 - 2025-07-28: Extended latex_mappings with extra symbols, functions and macros; bumped version (AI assistant)
 
 ## Version 1.16.0
-
 - 2025-07-28: Centralized LaTeX mappings and added latex_utils module (AI assistant)
+
+## Version 1.15.0
+- 2025-07-28: Added automatic python_var generation and improved LaTeX handling (AI assistant)
 
 ## Version 1.14.11
 - 2025-07-28: Stripped size macros from plot labels and bumped version to 1.14.11 (AI assistant)
@@ -145,7 +144,6 @@ Add one line for each substantive commit or pull request directly under the late
 ## Version 1.11.2
 - 2025-07-07: Moved chi-squared helpers to chi2_helper module and updated docs (AI assistant)
 
-`- 2025-07-05: short summary (author)`
 ## Version 1.11.1
 - 2025-07-07: Unified SNe data processing and chi-squared helpers (AI assistant)
 
@@ -163,9 +161,6 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Version 1.9.1-beta (Development Release)
 - 2025-07-07: Renamed scripts package to copernican_lib and updated documentation (AI assistant)
-
-Example:
-`- 2025-07-15: Improved BAO solver stability (Alice Doe)`
 
 ## Version 1.9.0-beta (Development Release)
 - 2025-07-07: Centralized optimization wrappers and updated documentation (AI assistant)
