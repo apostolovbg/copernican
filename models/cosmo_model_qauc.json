@@ -2,7 +2,7 @@
   "model_name": "QuantumAttractorUnifiedCosmology",
   "version": "1.0",
   "description": "Quantum Attractor Unified Cosmology (QAUC) enhances ΛCDM with a scalar–tensor attractor whose exponential envelope and sinusoidal modulation alter the dark-energy sector. Ordinary matter and radiation follow their standard evolution while the oscillating dark-energy wave hints at a link between acceleration and quantum topology.",
-  "Hz_expression": "H(z) = H0 * \sqrt{\Omega_{m0}*(1+z)^3 + \Omega_{r0}*(1+z)^4 + (1 - \Omega_{m0} - \Omega_{r0})*(1 + A*\exp(-alpha*z)*\cos(omega*z + phi0))}",
+  "Hz_expression": "H(z) = H_0 * \sqrt{\Omega_{m0}*(1+z)^3 + \Omega_{r0}*(1+z)^4 + (1 - \Omega_{m0} - \Omega_{r0})*(1 + A*\exp(-alpha*z)*\cos(omega*z + phi0))}",
   "parameters": [
     {
       "name": "Hubble constant",
@@ -11,7 +11,7 @@
         80.0
       ],
       "unit": "km/s/Mpc",
-      "latex_name": "$H_0$"
+      "latex_name": "H_0"
     },
     {
       "name": "Matter density",
@@ -20,7 +20,7 @@
         0.5
       ],
       "unit": "",
-      "latex_name": "$\Omega_{m0}$"
+      "latex_name": "\Omega_{m0}"
     },
     {
       "name": "Radiation density",
@@ -29,7 +29,7 @@
         0.001
       ],
       "unit": "",
-      "latex_name": "$\Omega_{r0}$"
+      "latex_name": "\Omega_{r0}"
     },
     {
       "name": "Baryon density",
@@ -38,7 +38,7 @@
         0.1
       ],
       "unit": "",
-      "latex_name": "$\Omega_{b0}$"
+      "latex_name": "\Omega_{b0}"
     },
     {
       "name": "Photon density",
@@ -47,7 +47,7 @@
         0.0001
       ],
       "unit": "",
-      "latex_name": "$\Omega_{\gamma0}$"
+      "latex_name": "\Omega_{\gamma0}"
     },
     {
       "name": "Recombination redshift",
@@ -56,7 +56,7 @@
         1500
       ],
       "unit": "",
-      "latex_name": "$z_{\rm recomb}$"
+      "latex_name": "z_{\rm recomb}"
     },
     {
       "name": "Sound horizon at drag epoch",
@@ -65,7 +65,7 @@
         147.0
       ],
       "unit": "Mpc",
-      "latex_name": "$r_s$"
+      "latex_name": "r_s"
     },
     {
       "name": "Envelope amplitude",
@@ -74,7 +74,7 @@
         0.5
       ],
       "unit": "",
-      "latex_name": "$A$"
+      "latex_name": "A"
     },
     {
       "name": "Envelope steepness",
@@ -83,7 +83,7 @@
         10.0
       ],
       "unit": "",
-      "latex_name": "$\alpha$"
+      "latex_name": "\alpha"
     },
     {
       "name": "Oscillation frequency",
@@ -92,7 +92,7 @@
         20.0
       ],
       "unit": "",
-      "latex_name": "$\omega$"
+      "latex_name": "\omega"
     },
     {
       "name": "Phase offset",
@@ -101,7 +101,7 @@
         6.283
       ],
       "unit": "rad",
-      "latex_name": "$\varphi_0$"
+      "latex_name": "\varphi_0"
     }
   ],
   "equations": {
@@ -120,9 +120,9 @@
   "valid_for_cmb": true,
   "cmb": {
     "param_map": {
-      "H0": "H0",
-      "ombh2": "Omega_b0 * (H0/100)**2",
-      "omch2": "(Omega_m0 - Omega_b0) * (H0/100)**2",
+      "H0": "H_0",
+      "ombh2": "\Omega_{b0} * (H_0/100)**2",
+      "omch2": "(\Omega_{m0} - \Omega_{b0}) * (H_0/100)**2",
       "tau": 0.054,
       "As": 2.1E-9,
       "ns": 0.965
