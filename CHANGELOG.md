@@ -20,6 +20,9 @@ Add one line for each substantive commit or pull request directly under the late
 ## Version 1.18.3
 - 2025-07-29: Fallback sound-horizon integral now looks for `Omega_b`, `Omega_gamma` and `z_rec`/`z_recomb` instead of legacy aliases (AI assistant)
 
+## Version 1.19.0
+- 2025-07-29: Removed parameter-name fallback and made `latex_name` mandatory in all models (AI assistant)
+
 ## Version 1.18.0
 - 2025-07-28: Removed math delimiters and double backslash requirement in model files; added implicit multiplication (AI assistant)
 

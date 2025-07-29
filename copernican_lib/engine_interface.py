@@ -40,7 +40,7 @@ def build_plugin(model_data, func_dict):
     plugin.MODEL_DESCRIPTION = model_data.get('description', '')
     plugin.MODEL_ABSTRACT = model_data.get('abstract', '')
     plugin.PARAMETER_NAMES = [p['python_var'] for p in model_data['parameters']]
-    plugin.PARAMETER_LATEX_NAMES = [p.get('latex_name', p['name']) for p in model_data['parameters']]
+    plugin.PARAMETER_LATEX_NAMES = [p['latex_name'] for p in model_data['parameters']]
     plugin.PARAMETER_UNITS = [p.get('unit', '') for p in model_data['parameters']]
     plugin.INITIAL_GUESSES = [
         sum(p['bounds']) / 2.0 for p in model_data['parameters']

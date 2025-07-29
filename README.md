@@ -1,4 +1,4 @@
-**Version:** 1.18.3
+**Version:** 1.19.0
 **Last Updated:** 2025-07-29
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
@@ -202,8 +202,8 @@ See `cosmo_model_guide.json` for a detailed template.
    evaluated numerically with SciPy's `quad` when the model is loaded.
 8. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
-9. When a parameter lacks a `python_var` field, a valid identifier is derived
-   automatically from its LaTeX name.
+9. Every parameter must define a `latex_name`. When a `python_var` field is
+   omitted, a valid identifier is derived automatically from this LaTeX name.
 10. `latex_name` values do not require `$` delimiters. Plots automatically wrap
    parameter names in math mode.
 
