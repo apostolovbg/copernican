@@ -20,21 +20,14 @@
       ]
     },
     {
-      "name": "Omega_b0",
+      "name": "Omega_b",
       "bounds": [
         0.01,
         0.1
       ]
     },
     {
-      "name": "Ob",
-      "bounds": [
-        0.01,
-        0.1
-      ]
-    },
-    {
-      "name": "Og",
+      "name": "Omega_gamma",
       "bounds": [
         0.00001,
         0.0001
@@ -65,9 +58,9 @@
   "cmb": {
     "param_map": {
       "H0": "H0",
-      "ombh2": "Omega_b0 * (H0/100)**2",
-      "omch2": "(Omega_m0 - Omega_b0) * (H0/100)**2",
-      "omnuh2": "Og * (H0/100)**2",
+      "ombh2": "Omega_b * (H0/100)**2",
+      "omch2": "(Omega_m0 - Omega_b) * (H0/100)**2",
+      "omnuh2": "Omega_gamma * (H0/100)**2",
       "tau": 0.054,
       "As": 2.1E-9,
       "ns": 0.965

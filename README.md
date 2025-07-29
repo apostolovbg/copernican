@@ -1,5 +1,5 @@
-**Version:** 1.18.2
-**Last Updated:** 2025-07-28
+**Version:** 1.18.3
+**Last Updated:** 2025-07-29
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
 Support for gravitational waves and standard siren events is planned for future releases.
@@ -191,7 +191,8 @@ See `cosmo_model_guide.json` for a detailed template.
    your model parameters. Explicit `*` is optional since implicit multiplication
    is now supported, though adding it can improve readability.
 4. Optionally provide an `rs_expression` in LaTeX for the sound horizon at
-   recombination or include the parameters `Ob`, `Og` and `z_recomb`. The suite will then
+   recombination or include the parameters `Omega_b`, `Omega_gamma` and either
+   `z_rec` or `z_recomb`. The suite will then
    derive `r_s` automatically using a numerical integral. Use `\infty` when an
    integral extends to infinity.
 5. Python code must never appear in `cosmo_model_*.json`; all expressions are written in LaTeX.
@@ -252,8 +253,8 @@ The required top-level keys are `model_name`, `version`, `parameters`,
   "cmb": {
     "param_map": {
       "H0": "H0",
-      "ombh2": "Ob * (H0/100)**2",
-      "omch2": "(Om - Ob) * (H0/100)**2",
+      "ombh2": "Omega_b0 * (H0/100)**2",
+      "omch2": "(Omega_m0 - Omega_b0) * (H0/100)**2",
       "tau": 0.054,
       "As": 2.1e-9,
       "ns": 0.965
@@ -288,8 +289,9 @@ compatible with older models.
 `model_parser.py` validates this structure and `model_coder.py` translates the
 LaTeX expressions into NumPy-ready callables. When `Hz_expression` is present it is
 compiled into `get_Hz_per_Mpc` and related distance functions used by
-`engine_interface.py`. If an `rs_expression` or the parameters `Ob`, `Og` and
-`z_recomb` are provided, a callable `get_sound_horizon_rs_Mpc` is also generated.
+`engine_interface.py`. If an `rs_expression` or the parameters `Omega_b`,
+`Omega_gamma` and either `z_rec` or `z_recomb` are provided, a callable
+`get_sound_horizon_rs_Mpc` is also generated.
 
 ## Developer Guide
 Document every change in `CHANGELOG.md`. Each substantive update must add an entry using the template `- YYYY-MM-DD: short summary (author)`.
