@@ -252,9 +252,9 @@ The required top-level keys are `model_name`, `version`, `parameters`,
   "valid_for_cmb": true,
   "cmb": {
     "param_map": {
-      "H0": "H0",
-      "ombh2": "Omega_b0 * (H0/100)**2",
-      "omch2": "(Omega_m0 - Omega_b0) * (H0/100)**2",
+      "H0": "H_0",
+      "ombh2": "\Omega_{b0} * (H_0/100)**2",
+      "omch2": "(\Omega_{m0} - \Omega_{b0}) * (H_0/100)**2",
       "tau": 0.054,
       "As": 2.1e-9,
       "ns": 0.965

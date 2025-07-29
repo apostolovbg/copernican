@@ -46,7 +46,7 @@
       "latex_name": "z_{\rm rec}"
     }
   ],
-  "Hz_expression": "H(z) = H0 * \sqrt{\Omega_{m0}*(1+z)^3 + (1 - \Omega_{m0})}",
+  "Hz_expression": "H(z) = H_0 * \sqrt{\Omega_{m0}*(1+z)^3 + (1 - \Omega_{m0})}",
   "equations": {
     "sne": [
       "d_L(z) = (1+z) \int_0^z \frac{c\,dz'}{H(z')}",
@@ -62,10 +62,10 @@
   "valid_for_cmb": true,
   "cmb": {
     "param_map": {
-      "H0": "H0",
-      "ombh2": "Omega_b * (H0/100)**2",
-      "omch2": "(Omega_m0 - Omega_b) * (H0/100)**2",
-      "omnuh2": "Omega_gamma * (H0/100)**2",
+      "H0": "H_0",
+      "ombh2": "\Omega_b * (H_0/100)**2",
+      "omch2": "(\Omega_{m0} - \Omega_b) * (H_0/100)**2",
+      "omnuh2": "\Omega_{\gamma} * (H_0/100)**2",
       "tau": 0.054,
       "As": 2.1E-9,
       "ns": 0.965

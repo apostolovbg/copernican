@@ -11,7 +11,7 @@
         100.0
       ],
       "unit": "km/s/Mpc",
-      "latex_name": "$H_A$"
+      "latex_name": "H_A"
     },
     {
       "name": "Quantum exponent",
@@ -20,7 +20,7 @@
         1.5
       ],
       "unit": "",
-      "latex_name": "$p_\alpha$"
+      "latex_name": "p_\alpha"
     },
     {
       "name": "Quantum amplitude",
@@ -29,7 +29,7 @@
         5.0
       ],
       "unit": "",
-      "latex_name": "$k_{\rm exp}$"
+      "latex_name": "k_{\rm exp}"
     },
     {
       "name": "Quantum slope",
@@ -38,7 +38,7 @@
         3.0
       ],
       "unit": "",
-      "latex_name": "$s_{\rm exp}$"
+      "latex_name": "s_{\rm exp}"
     },
     {
       "name": "Present-day age",
@@ -47,7 +47,7 @@
         20.0
       ],
       "unit": "Gyr",
-      "latex_name": "$t_{0,\rm age}$"
+      "latex_name": "t_{0,\rm age}"
     },
     {
       "name": "Oscillation amplitude",
@@ -56,7 +56,7 @@
         0.1
       ],
       "unit": "",
-      "latex_name": "$A_{\rm osc}$"
+      "latex_name": "A_{\rm osc}"
     },
     {
       "name": "Oscillation frequency",
@@ -65,7 +65,7 @@
         10.0
       ],
       "unit": "",
-      "latex_name": "$w_{\rm osc}$"
+      "latex_name": "w_{\rm osc}"
     },
     {
       "name": "Oscillation onset time",
@@ -74,7 +74,7 @@
         20.0
       ],
       "unit": "Gyr",
-      "latex_name": "$t_{i,\rm osc}$"
+      "latex_name": "t_{i,\rm osc}"
     },
     {
       "name": "Oscillation phase",
@@ -83,7 +83,7 @@
         3.1416
       ],
       "unit": "rad",
-      "latex_name": "$\phi_{\rm osc}$"
+      "latex_name": "\phi_{\rm osc}"
     },
     {
       "name": "Baryon density",
@@ -92,7 +92,7 @@
         0.1
       ],
       "unit": "",
-      "latex_name": "$\Omega_b$"
+      "latex_name": "\Omega_b"
     },
     {
       "name": "Photon density",
@@ -101,7 +101,7 @@
         0.001
       ],
       "unit": "",
-      "latex_name": "$\Omega_\gamma$"
+      "latex_name": "\Omega_\gamma"
     },
     {
       "name": "Recombination redshift",
@@ -110,7 +110,7 @@
         1200
       ],
       "unit": "",
-      "latex_name": "$z_{\rm rec}$"
+      "latex_name": "z_{\rm rec}"
     },
     {
       "name": "Emergent clustering density",
@@ -119,7 +119,7 @@
         0.5
       ],
       "unit": "",
-      "latex_name": "$\Omega_{\rm eff}$"
+      "latex_name": "\Omega_{\rm eff}"
     }
   ],
   "Hz_expression": "H(z)=H_A\,(1+z)^{p_\alpha}\bigl[1 + k_{\rm exp}\,(1+z)^{s_{\rm exp}}\bigr]",
@@ -141,9 +141,9 @@
   "cmb": {
     "param_map": {
       "H0": "H_A",
-      "ombh2": "Omega_b*(H_A/100)**2",
-      "omch2": "Omega_eff*(H_A/100)**2",
-      "omnuh2": "Omega_gamma*(H_A/100)**2",
+      "ombh2": "\Omega_b*(H_A/100)**2",
+      "omch2": "\Omega_{\rm eff}*(H_A/100)**2",
+      "omnuh2": "\Omega_\gamma*(H_A/100)**2",
       "tau": 0.054,
       "As": 2.1E-9,
       "ns": 0.965

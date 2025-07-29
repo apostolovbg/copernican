@@ -62,11 +62,18 @@ def build_plugin(model_data, func_dict):
         logger = logging.getLogger()
         env = {name: val for name, val in zip(plugin.PARAMETER_NAMES, values)}
         env['np'] = np
+        replacements = dict(zip(
+            [ln.strip('$') for ln in plugin.PARAMETER_LATEX_NAMES],
+            plugin.PARAMETER_NAMES,
+        ))
         camb_params = {}
         for key, expr in plugin.CMB_PARAM_MAP.items():
             if isinstance(expr, str):
+                clean_expr = expr
+                for latex, var in replacements.items():
+                    clean_expr = clean_expr.replace(latex, var)
                 try:
-                    val = eval(expr, {"__builtins__": {}}, env)
+                    val = eval(clean_expr, {"__builtins__": {}}, env)
                 except Exception as exc:
                     logger.error(
                         f"(get_camb_params): failed to evaluate '{expr}' for '{key}': {exc}"

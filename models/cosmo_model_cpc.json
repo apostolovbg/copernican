@@ -95,7 +95,7 @@
       "latex_name": "c"
     }
   ],
-  "Hz_expression": "H(z) = H0 * \sqrt{\Omega_{m0}*(1+z)^3 + \Omega_{r0}*(1+z)^4 + \beta*(1+z)^{-n}}",
+  "Hz_expression": "H(z) = H_0 * \sqrt{\Omega_{m0}*(1+z)^3 + \Omega_{r0}*(1+z)^4 + \beta*(1+z)^{-n}}",
   "equations": {
     "sne": [
       "d_L(z) = (1+z) \int_0^z \frac{c\,dz'}{H(z')}",
