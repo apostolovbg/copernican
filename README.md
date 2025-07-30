@@ -206,6 +206,8 @@ See `cosmo_model_template.yml` for a detailed template.
    omitted, a valid identifier is derived automatically from this LaTeX name.
 10. `latex_name` values do not require `$` delimiters. Plots automatically wrap
    parameter names in math mode.
+11. Console and log outputs display parameter names with Greek letters,
+    subscripts and superscripts when possible for easier reading.
 
 **Common mistakes**
 * Missing `*` between variables and parentheses results in a `'Symbol' object is not callable` error.

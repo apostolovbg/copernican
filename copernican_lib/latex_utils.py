@@ -91,3 +91,142 @@ def wrap_math(text: str) -> str:
     cleaned = re.sub(r"\\rm\s*", "", cleaned)
     cleaned = re.sub(r"\s{2,}", " ", cleaned)
     return f"${cleaned}$" if cleaned else ""
+
+
+_UNICODE_SYMBOLS = {
+    r"\alpha": "α",
+    "alpha": "α",
+    r"\beta": "β",
+    "beta": "β",
+    r"\gamma": "γ",
+    "gamma": "γ",
+    r"\delta": "δ",
+    "delta": "δ",
+    r"\epsilon": "ε",
+    r"\zeta": "ζ",
+    r"\eta": "η",
+    r"\theta": "θ",
+    r"\iota": "ι",
+    r"\kappa": "κ",
+    r"\lambda": "λ",
+    r"\mu": "μ",
+    r"\nu": "ν",
+    r"\xi": "ξ",
+    r"\pi": "π",
+    r"\rho": "ρ",
+    r"\sigma": "σ",
+    r"\tau": "τ",
+    r"\upsilon": "υ",
+    r"\phi": "φ",
+    r"\varphi": "φ",
+    r"\chi": "χ",
+    r"\psi": "ψ",
+    r"\omega": "ω",
+    "omega": "ω",
+    r"\Gamma": "Γ",
+    "Gamma": "Γ",
+    r"\Delta": "Δ",
+    "Delta": "Δ",
+    r"\Theta": "Θ",
+    "Theta": "Θ",
+    r"\Lambda": "Λ",
+    "Lambda": "Λ",
+    r"\Xi": "Ξ",
+    "Xi": "Ξ",
+    r"\Pi": "Π",
+    "Pi": "Π",
+    r"\Sigma": "Σ",
+    "Sigma": "Σ",
+    r"\Phi": "Φ",
+    "Phi": "Φ",
+    r"\Psi": "Ψ",
+    "Psi": "Ψ",
+    r"\Omega": "Ω",
+    "Omega": "Ω",
+}
+
+_SUB_MAP = {
+    "0": "₀",
+    "1": "₁",
+    "2": "₂",
+    "3": "₃",
+    "4": "₄",
+    "5": "₅",
+    "6": "₆",
+    "7": "₇",
+    "8": "₈",
+    "9": "₉",
+    "+": "₊",
+    "-": "₋",
+    "=": "₌",
+    "(": "₍",
+    ")": "₎",
+    "a": "ₐ",
+    "e": "ₑ",
+    "h": "ₕ",
+    "i": "ᵢ",
+    "k": "ₖ",
+    "l": "ₗ",
+    "m": "ₘ",
+    "n": "ₙ",
+    "o": "ₒ",
+    "p": "ₚ",
+    "r": "ᵣ",
+    "s": "ₛ",
+    "t": "ₜ",
+    "u": "ᵤ",
+    "v": "ᵥ",
+    "x": "ₓ",
+    "β": "ᵦ",
+    "γ": "ᵧ",
+    "ρ": "ᵨ",
+    "φ": "ᵩ",
+    "χ": "ᵪ",
+}
+
+_SUP_MAP = {
+    "0": "⁰",
+    "1": "¹",
+    "2": "²",
+    "3": "³",
+    "4": "⁴",
+    "5": "⁵",
+    "6": "⁶",
+    "7": "⁷",
+    "8": "⁸",
+    "9": "⁹",
+    "+": "⁺",
+    "-": "⁻",
+    "=": "⁼",
+    "(": "⁽",
+    ")": "⁾",
+    "i": "ⁱ",
+    "n": "ⁿ",
+}
+
+
+def latex_to_unicode(text: str) -> str:
+    r"""Return ``text`` converted to basic Unicode math symbols."""
+    cleaned = re.sub(r"^\$+|\$+$", "", str(text).strip())
+    for pat, repl in _UNICODE_SYMBOLS.items():
+        cleaned = re.sub(re.escape(pat), repl, cleaned)
+
+    def _sub_repl(match: re.Match[str]) -> str:
+        inner = match.group(1)
+        inner = re.sub(r"\\rm\s*", "", inner)
+        inner = inner.replace(" ", "")
+        if inner in _UNICODE_SYMBOLS:
+            inner_char = _UNICODE_SYMBOLS[inner]
+            return _SUB_MAP.get(inner_char, inner_char)
+        return "".join(_SUB_MAP.get(ch, ch) for ch in inner)
+
+    def _sup_repl(match: re.Match[str]) -> str:
+        inner = match.group(1)
+        inner = inner.replace(" ", "")
+        return "".join(_SUP_MAP.get(ch, ch) for ch in inner)
+
+    cleaned = re.sub(r"_\{([^{}]+)\}", _sub_repl, cleaned)
+    cleaned = re.sub(r"\^\{([^{}]+)\}", _sup_repl, cleaned)
+    cleaned = re.sub(r"_([A-Za-z0-9])", lambda m: _SUB_MAP.get(m.group(1), m.group(1)), cleaned)
+    cleaned = re.sub(r"\^([A-Za-z0-9+-])", lambda m: _SUP_MAP.get(m.group(1), m.group(1)), cleaned)
+    return cleaned
