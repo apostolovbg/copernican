@@ -11,6 +11,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
+## Version 3.0.1
+- 2025-07-31: Fixed CAMB parameter map exponent syntax in cosmo_model_usmf2.yml to prevent runtime errors (AI assistant)
+
 ## Version 3.0.0
 - 2025-07-30: Dropped all remaining JSON dataset support and expanded documentation (AI assistant)
 
