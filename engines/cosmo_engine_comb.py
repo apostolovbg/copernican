@@ -216,6 +216,9 @@ def compute_cmb_spectrum_from_dict(param_dict, ells, spectra=("TT",)):
         Spectra to return (``"TT"``, ``"TE"`` and/or ``"EE"``).
     """
     logger = logging.getLogger()
+    # ``camb`` calls can be expensive. Parameters are rounded and combined into
+    # a tuple so the ``lru_cache`` above can reuse results when the same
+    # cosmology is requested again.
     try:
         key_tuple = tuple(
             (k, float(f"{float(v):.6g}")) for k, v in sorted(param_dict.items())
@@ -367,6 +370,9 @@ def fit_sne_parameters(sne_data_df, model_plugin):
         logger.error(f"Model plugin {model_name_str} missing or has inconsistent parameter definitions.")
         return {'success': False, 'message': 'Model parameter definition error.', 'chi2_min': np.inf}
 
+    # ``scipy.optimize.minimize`` is sensitive to its tolerance parameters.
+    # These defaults were tuned so the reference ΛCDM model converges reliably
+    # without excessive runtime on slower machines.
     options = {'maxiter': 2000, 'ftol': 1e-10, 'gtol': 1e-7, 'eps': 1e-9}
     logger.info(f"Starting SNe optimization for {model_name_str} using {len(initial)} parameters...")
 
