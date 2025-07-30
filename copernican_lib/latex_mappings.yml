@@ -13,6 +13,7 @@ symbol_replacements:
   \mu: mu
   \nu: nu
   \xi: xi
+  \omicron: omicron
   \pi: pi
   \rho: rho
   \sigma: sigma
@@ -23,6 +24,12 @@ symbol_replacements:
   \chi: chi
   \psi: psi
   \omega: omega
+  \varepsilon: varepsilon
+  \vartheta: vartheta
+  \varpi: varpi
+  \varrho: varrho
+  \varsigma: varsigma
+  \varkappa: varkappa
   \Gamma: Gamma
   \Delta: Delta
   \Theta: Theta
@@ -30,6 +37,7 @@ symbol_replacements:
   \Xi: Xi
   \Pi: Pi
   \Sigma: Sigma
+  \Upsilon: Upsilon
   \Phi: Phi
   \Psi: Psi
   \Omega: Omega
@@ -115,6 +123,7 @@ unicode_symbols:
   \mu: μ
   \nu: ν
   \xi: ξ
+  \omicron: ο
   \pi: π
   \rho: ρ
   \sigma: σ
@@ -126,6 +135,12 @@ unicode_symbols:
   \psi: ψ
   \omega: ω
   omega: ω
+  \varepsilon: ε
+  \vartheta: θ
+  \varpi: ϖ
+  \varrho: ϱ
+  \varsigma: ς
+  \varkappa: κ
   \Gamma: Γ
   Gamma: Γ
   \Delta: Δ
