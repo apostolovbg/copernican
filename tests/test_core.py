@@ -5,6 +5,7 @@ import importlib
 from pathlib import Path
 import numpy as np
 import camb
+import pandas as pd
 
 from copernican_lib import model_parser, model_coder, engine_interface, data_loaders
 import engines.cosmo_engine_comb as engine
@@ -82,6 +83,20 @@ class FunctionalTestCase(unittest.TestCase):
         params = self.plugin.INITIAL_GUESSES
         chi2 = engine.chi_squared_cmb(params, cmb_df, self.plugin)
         self.assertTrue(np.isfinite(chi2))
+
+    def test_chi_squared_sne_invalid_data(self):
+        """chi_squared_sne should return inf when data is invalid."""
+        bad_df = pd.DataFrame({
+            'zcmb': [0.1, np.nan],
+            'mu_obs': [33.1, 34.5],
+            'e_mu_obs': [0.1, 0.1],
+        })
+        chi2 = engine.chi_squared_sne(
+            self.plugin.INITIAL_GUESSES,
+            self.plugin.distance_modulus_model,
+            bad_df,
+        )
+        self.assertTrue(np.isinf(chi2))
 
     def test_cmb_spectrum_is_d_ell(self):
         """Ensure cached CAMB spectra match Dl convention."""
