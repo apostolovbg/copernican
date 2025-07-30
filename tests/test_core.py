@@ -12,6 +12,8 @@ import engines.cosmo_engine_comb as engine
 
 
 class FunctionalTestCase(unittest.TestCase):
+    """Run a minimal end-to-end check of the public API."""
+
     @classmethod
     def setUpClass(cls):
         # Prepare a validated ΛCDM plugin used by several test cases.

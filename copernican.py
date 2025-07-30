@@ -273,7 +273,10 @@ lcdm = None
 
 
 def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
-    """Prompts the user for a filepath and validates it."""
+    """Prompt for a file path relative to ``base_dir`` and ensure it exists."""
+
+    # The loop continues until a valid path is provided or the user cancels.
+    # This prevents accidental typos from immediately aborting the workflow.
     while True:
         filename = input(f"{prompt_message} (or 'c' to cancel): ").strip()
         if filename.lower() == "c":
@@ -282,6 +285,7 @@ def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
         if os.path.isfile(filepath):
             return filepath
         else:
+            # Inform the user and loop again so they can correct the path.
             print(f"Error: File not found at '{filepath}'. Please try again.")
 
 
@@ -316,7 +320,11 @@ def load_alternative_model_plugin(model_filepath):
 
 
 def select_from_list(options, prompt):
-    """Utility to allow user selection from a list."""
+    """Display ``options`` and return the item chosen by the user."""
+
+    # The caller supplies a short prompt ("Select model").  This helper prints
+    # each option with a number so the user can respond with just an integer.
+    # Returning ``None`` signals that the user cancelled the operation.
     if not options:
         return None
     header = prompt.replace("Select ", "").strip()
@@ -354,7 +362,11 @@ def parse_model_header(md_path):
 
 
 def cleanup_cache(base_dir):
-    """Finds and removes all __pycache__ directories."""
+    """Remove temporary files left behind by previous runs."""
+
+    # Python leaves ``__pycache__`` folders behind when modules are imported.
+    # Removing them ensures that stale bytecode doesn't interfere with
+    # subsequent executions, especially when models are re-generated.
     logger = log_mod.get_logger()
     logger.info("--- Cleaning up cache files ---")
     for root, dirs, files in os.walk(base_dir):
