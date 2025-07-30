@@ -143,6 +143,15 @@ class PlotterUtilTestCase(unittest.TestCase):
         self.assertEqual(latex_utils.latex_to_unicode("H_0"), "H₀")
         self.assertEqual(latex_utils.latex_to_unicode(r"z_{\rm rec}"), "zᵣₑc")
 
+    def test_common_parameter_phi_value(self):
+        """Verify golden ratio is computed from its expression."""
+        from copernican_lib import common_parameters
+
+        phi_param = next(
+            p for p in common_parameters.PARAMETERS if p.get("latex_name") == r"\phi"
+        )
+        self.assertAlmostEqual(phi_param["value"], (1 + 5 ** 0.5) / 2, places=12)
+
 
 if __name__ == '__main__':
     unittest.main()
