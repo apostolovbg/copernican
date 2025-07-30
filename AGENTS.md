@@ -138,6 +138,7 @@ To keep the project maintainable all contributors, human or AI, must follow thes
 6. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.**
 7. **Use raw string literals for regular expressions, docstrings with LaTeX or backslashes, and Windows paths** to avoid Python's "invalid escape sequence" warnings.
 8. **Re-read the "Development laws and protocols for human and AI contributors" section in `README.md` at the start of every development session.** All contributors must implicitly follow those rules without explicit reminders.
+9. **Document every module, function and class with clear "what" and "why" explanations.** Comments and docstrings should describe not only the behaviour but also the rationale behind it.
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 

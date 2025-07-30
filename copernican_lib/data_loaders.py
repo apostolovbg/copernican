@@ -13,11 +13,15 @@ import logging
 import importlib
 
 # --- Parser Registry ---
-SNE_PARSERS = {}
-BAO_PARSERS = {}
-CMB_PARSERS = {}
-GW_PARSERS = {}
-SIREN_PARSERS = {}
+# Each registry maps a short human readable key to a dictionary
+# describing the parser function, its help text and an optional data
+# directory.  Parser modules populate these registries via the
+# decorators below when they are imported.
+SNE_PARSERS: dict = {}
+BAO_PARSERS: dict = {}
+CMB_PARSERS: dict = {}
+GW_PARSERS: dict = {}
+SIREN_PARSERS: dict = {}
 
 
 # --- Decorators to register parsers ---
@@ -79,6 +83,9 @@ def register_siren_parser(name, description="", data_dir=None):
 # --- Dynamic Discovery of Parser Modules ---
 def _discover_parsers():
     """Imports parser modules stored within ``data/<type>/<source>`` directories."""
+    # Parser modules register themselves in the dictionaries above when
+    # imported.  Automatically scanning the data directory keeps the core
+    # code agnostic to the exact set of available sources.
     base_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
     for dtype in ('sne', 'bao', 'cmb', 'gw', 'sirens'):
         type_dir = os.path.join(base_dir, dtype)
@@ -99,7 +106,9 @@ def _discover_parsers():
                     except Exception as e:
                         logging.getLogger().error(f"Failed loading parser module {file_path}: {e}")
 
-# Discover parsers at import time
+# Discover parsers at import time so that functions like
+# ``load_sne_data`` can simply refer to the registries without
+# additional setup.
 _discover_parsers()
 
 # --- Helper to list and select parsers ---
@@ -133,6 +142,10 @@ def _select_source(parser_registry, data_type_name):
 # --- Verbose dataset info helper ---
 def _log_dataset_info(df, data_type, logger):
     """Log summary and covariance usage for ``df``."""
+    # Centralised helper so that every loader reports consistent
+    # information about the dataset and whether a covariance matrix was
+    # actually used.  The attributes are attached by the individual
+    # parser modules.
     if df is None or df.empty:
         return
     name = df.attrs.get("dataset_long_name", df.attrs.get("dataset_name_attr", ""))

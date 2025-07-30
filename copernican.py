@@ -34,7 +34,10 @@ if sys.version_info < MIN_PYTHON:
     )
     exit_clean(1)
 
-# Delay heavy third-party imports until after the dependency check
+# Delay heavy third-party imports until after the dependency check.
+# Doing so keeps startup quick and lets ``check_dependencies`` provide a
+# clean error message before the interpreter tries to import missing
+# modules.
 np = None
 plt = None
 mp = None
@@ -50,7 +53,7 @@ data_loaders = None
 
 # Use a fixed version string to avoid confusion when the package metadata is
 # outdated. Automatic releases are not yet enabled.
-COPERNICAN_VERSION = "2.0.6"
+COPERNICAN_VERSION = "2.0.7"
 CURRENT_LOG_FILE = None
 
 
@@ -151,6 +154,10 @@ def show_splash_screen():
 
 def _gather_required_packages():
     """Return external packages imported across project modules."""
+    # Rather than rely on ``pip freeze`` or manual lists this function
+    # walks through the source tree and parses each ``import`` statement
+    # with :mod:`ast`.  This keeps the dependency check accurate even
+    # when new optional modules are added.
     pkg_names = set()
     search_dirs = ["copernican_lib", "engines", "tests", "."]
     ignore_dirs = {
@@ -225,6 +232,10 @@ def _gather_required_packages():
 
 def _print_install_instructions(missing: list[str]) -> None:
     """Show platform-specific commands to install missing packages."""
+    # The messages here intentionally rely on plain ``pip`` so users on
+    # any platform can copy & paste them directly.  Additional hints for
+    # Homebrew, APT or pipx are printed when those tools are available
+    # to guide less experienced users.
     pkgs = " ".join(sorted(set(missing)))
     pip_cmd = f"{Path(sys.executable).name} -m pip install {pkgs}"
     print("Please install them with:")
@@ -345,6 +356,9 @@ def select_from_list(options, prompt):
 
 def parse_model_header(md_path):
     """Read minimal YAML front matter for plugin lookup."""
+    # Only the YAML block at the start of the Markdown file is needed in
+    # order to locate the generated Python module.  This keeps startup
+    # snappy and avoids parsing the entire document.
     data = {}
     try:
         with open(md_path, "r") as f:
