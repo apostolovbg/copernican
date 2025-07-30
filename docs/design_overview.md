@@ -14,6 +14,10 @@ focused on numerical work.
 /tests/            - Unit and functional tests
 ```
 
+All observational data and accompanying metadata are stored exclusively
+as YAML files.  Legacy JSON support was removed in version 3.0.0 so that
+all parsers operate on a single consistent format.
+
 `copernican.py` is the command-line entry point that orchestrates model
 selection, data loading, optimisation and result generation.  The new
 package name emphasises that these modules are part of the suite's core

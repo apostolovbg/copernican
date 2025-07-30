@@ -3,6 +3,8 @@
 This document describes the YAML format used for the **test** BAO dataset
 shipped with the Copernican Suite. The folder is located under
 `data/bao/test/` and mirrors the structure expected for real BAO sources.
+JSON files were supported in early versions but have now been removed so
+that all datasets use a single YAML representation.
 
 Each dataset is stored in its own directory and contains a single YAML file
 with a `data_points` array. The parser also looks for an optional

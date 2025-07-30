@@ -1,5 +1,11 @@
 # utils.py
-"""Common utility functions for the Copernican Suite."""
+"""Common utility functions for the Copernican Suite.
+
+This module centralises a handful of small helpers used across the project
+so that engines and parsers remain lightweight.  All dataset metadata and
+tables are now provided in YAML format only; any legacy JSON handling has
+been removed.
+"""
 # These helpers are intentionally tiny but keep repetitive tasks such as
 # timestamp generation and directory creation in one place.
 
@@ -34,11 +40,12 @@ def generate_filename(file_type, dataset_name, ext, model_name="", timestamp=Non
     """
     sanitized_type = file_type.replace('_', '-').lower()
     sanitized_model = model_name.replace('_', '-').replace('.', '')
+    # Remove whitespace, file extensions and unsafe path characters so the
+    # resulting filename is portable across platforms.
     sanitized_dataset = (
         dataset_name.replace('_', '-')
         .replace(' ', '')
         .replace('/', '-')
-        .replace('.json', '')
         .replace('.yml', '')
         .replace('.yaml', '')
         .replace('.dat', '')
@@ -58,13 +65,18 @@ def ensure_dir_exists(directory):
 
 
 def load_metadata_from_dir(data_dir: str) -> dict:
-    """Return dataset metadata from ``data_dir`` if available."""
+    """Return dataset metadata from ``data_dir`` if available.
+
+    The loader looks for a file starting with ``metadata`` and ending in
+    ``.yml`` or ``.yaml``. JSON files were supported in earlier versions but
+    have been removed to keep the format consistent across the project.
+    """
     try:
         meta_files = [
             f
             for f in os.listdir(data_dir)
             if f.startswith("metadata")
-            and f.lower().endswith((".json", ".yml", ".yaml"))
+            and f.lower().endswith((".yml", ".yaml"))
         ]
         if meta_files:
             with open(os.path.join(data_dir, sorted(meta_files)[0]), "r") as fh:
@@ -75,6 +87,10 @@ def load_metadata_from_dir(data_dir: str) -> dict:
 
 
 def set_random_seed(seed: int = 0) -> None:
-    """Seed NumPy's global RNG and log the selected value."""
+    """Seed NumPy's global RNG and log the selected value.
+
+    Engines call this helper so that optimisation results can be
+    reproduced exactly when the same seed is provided.
+    """
     np.random.seed(seed)
     logging.getLogger().info("Global RNG seed set to %s", seed)
