@@ -202,7 +202,6 @@ def _gather_required_packages():
         "os",
         "sys",
         "time",
-        "json",
         "logging",
         "subprocess",
         "importlib",
@@ -394,7 +393,7 @@ def cleanup_cache(base_dir):
     cache_dir = os.path.join(base_dir, "models", "cache")
     if os.path.isdir(cache_dir):
         for fname in os.listdir(cache_dir):
-            if fname.startswith("cache_") and fname.endswith(".json"):
+            if fname.startswith("cache_") and fname.endswith(".yml"):
                 path = os.path.join(cache_dir, fname)
                 try:
                     os.remove(path)

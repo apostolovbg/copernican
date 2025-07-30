@@ -5,7 +5,7 @@
 
 import os
 import time
-import json
+import yaml
 import logging
 import numpy as np
 
@@ -61,11 +61,12 @@ def load_metadata_from_dir(data_dir: str) -> dict:
         meta_files = [
             f
             for f in os.listdir(data_dir)
-            if f.startswith("metadata") and f.lower().endswith(".json")
+            if f.startswith("metadata")
+            and f.lower().endswith((".json", ".yml", ".yaml"))
         ]
         if meta_files:
             with open(os.path.join(data_dir, sorted(meta_files)[0]), "r") as fh:
-                return json.load(fh)
+                return yaml.safe_load(fh)
     except Exception:
         pass
     return {}

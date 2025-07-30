@@ -1,16 +1,17 @@
 
-"""Generic parser for BAO JSON datasets.
+"""Generic parser for BAO datasets stored in JSON or YAML files.
 
-This parser looks for a ``*.json`` file containing the ``data_points``
-array and optionally reads a ``metadata_*.json`` file for additional
-information such as the dataset name and citation.  Any JSON file not
-starting with ``metadata`` is treated as the data container so multiple
-datasets can coexist in the same folder.
+The parser searches ``data_dir`` for a file ending in ``.json`` or ``.yml``
+that contains a ``data_points`` array. A companion ``metadata_*`` file is
+read via :func:`copernican_lib.utils.load_metadata_from_dir` to obtain the
+dataset name and citation. Any data file not starting with ``metadata`` is
+treated as the measurement table so multiple datasets can coexist in the same
+folder.
 """
 
 import os
 import pandas as pd
-import json
+import yaml
 import logging
 
 from copernican_lib.data_loaders import register_bao_parser
@@ -34,23 +35,27 @@ DESCRIPTION = META.get(
 def parse_bao_json_v1(data_dir, **kwargs):
     """Parse a BAO dataset and attach metadata."""
     logger = logging.getLogger()
-    json_files = [
+    data_files = [
         f
         for f in os.listdir(data_dir)
-        if f.lower().endswith(".json") and not f.startswith("metadata")
+        if f.lower().endswith((".json", ".yml", ".yaml"))
+        and not f.startswith("metadata")
     ]
-    if not json_files:
-        logger.error(f"No BAO JSON file found in {data_dir}.")
+    if not data_files:
+        logger.error(f"No BAO data file found in {data_dir}.")
         return None
-    filepath = os.path.join(data_dir, sorted(json_files)[0])
+    filepath = os.path.join(data_dir, sorted(data_files)[0])
     try:
         with open(filepath, 'r') as f:
-            data_json = json.load(f)
+            data_json = yaml.safe_load(f)
 
         df = pd.DataFrame(data_json['data_points'])
         required_cols = ['redshift', 'observable_type', 'value', 'error']
         if not all(col in df.columns for col in required_cols):
-            logger.error(f"BAO JSON file {filepath} missing one or more required columns: {required_cols}"); return None
+            logger.error(
+                f"BAO data file {filepath} missing one or more required columns: {required_cols}"
+            );
+            return None
 
         for col in ['redshift', 'value', 'error']:
             df[col] = pd.to_numeric(df[col], errors='coerce')
@@ -69,4 +74,8 @@ def parse_bao_json_v1(data_dir, **kwargs):
         df.attrs['dataset_name_attr'] = dataset_long.replace(' ', '_')
         return df
     except Exception as e:
-        logger.error(f"Error reading or parsing BAO JSON file {filepath}: {e}", exc_info=True); return None
+        logger.error(
+            f"Error reading or parsing BAO data file {filepath}: {e}",
+            exc_info=True,
+        );
+        return None
