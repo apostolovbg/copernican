@@ -1,4 +1,4 @@
-**Version:** 2.0.7
+**Version:** 2.1.0
 **Last Updated:** 2025-07-30
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
@@ -40,7 +40,7 @@ Each generated plot now includes a footer noting the comparison details,
 Copernican Suite version and a timestamp. Footer text is positioned
 dynamically so the canvas height grows when needed and never overlaps the
 plots.
-Dataset names, descriptions and citations are read from `metadata_*.json` files stored
+Dataset names, descriptions and citations are read from `metadata_*.yml` files stored
 next to each dataset. The program never hard-codes these values; instead the metadata
 is attached to the parsed DataFrame and used for plot footers and CSV headers.
 During configuration each loader prints a short summary including whether the
@@ -220,56 +220,52 @@ macros that adjust bracket size like `\left`, `\right`, `\bigl` and `\bigr`.
 Thin spaces (`\,`) and font switches (`\rm`) are ignored. Unsupported sizing
 macros are removed from plot labels to keep Matplotlib's MathText parser happy.
 All sanitisation rules now live in `copernican_lib/latex_utils.py` with
-extensible mappings stored in `latex_mappings.json`. Expressions may also
+extensible mappings stored in `latex_mappings.yml`. Expressions may also
 contain `Integral` constructs with explicit limits which are numerically
 evaluated with SciPy. Use `\infty` for an infinite upper bound and avoid
 referencing `H(z)` inside other expressions—repeat the formula instead.
-The suite validates the YAML, stores a sanitized copy under `models/cache/`, and
-auto-generates the necessary Python functions.
+The suite validates the YAML, stores a sanitized copy under `models/cache/` as
+YAML, and auto-generates the necessary Python functions.
 
-### JSON Schema
+Initial guesses are derived automatically from each parameter's bounds.
+### YAML Schema
 The required top-level keys are `model_name`, `version`, `parameters`,
 `equations`, `abstract` and `description`.
-```json
-{
-  "model_name": "My Model",
-  "version": "1.0",
-  "parameters": [
-    {"name": "H0", "bounds": [50, 100], "latex_name": "H_0"},
-    {"name": "Omega_m0", "bounds": [0.1, 0.5], "latex_name": "\Omega_{m0}"}
-  ],
-  "Hz_expression": "H(z) = H_0 * \sqrt{Om0*(1+z)^3 + Ol0}",
- "rs_expression": "r_s = custom_expression",
-  "equations": {
-    "sne": [
-      "d_L(z) = (1+z) \int_0^z \frac{c\,dz'}{H(z')}",
-      "\mu(z) = 5\log_{10}[d_L(z)/{\rm Mpc}] + 25"
-    ],
-    "bao": [
-      "D_M(z) = \int_0^z \frac{c\,dz'}{H(z')}",
-      "D_H(z) = \frac{c}{H(z)}",
-      "D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}"
-    ]
-  },
-  "valid_for_cmb": true,
-  "cmb": {
-    "param_map": {
-      "H0": "H_0",
-      "ombh2": "\Omega_{b0} * (H_0/100)**2",
-      "omch2": "(\Omega_{m0} - \Omega_{b0}) * (H_0/100)**2",
-      "tau": 0.054,
-      "As": 2.1e-9,
-      "ns": 0.965
-    }
-  },
-  "gravitational_waves": {},
-  "standard_sirens": {},
-  "abstract": "short overview text",
-  "description": "longer explanation",
-  "notes": "any additional remarks"
-}
+```yaml
+model_name: My Model
+version: "1.0"
+parameters:
+  - name: H0
+    bounds: [50, 100]
+    latex_name: H_0
+  - name: Omega_m0
+    bounds: [0.1, 0.5]
+    latex_name: \Omega_{m0}
+Hz_expression: "H(z) = H_0 * \sqrt{Om0*(1+z)^3 + Ol0}"
+rs_expression: "r_s = custom_expression"
+equations:
+  sne:
+    - "d_L(z) = (1+z) \int_0^z \frac{c\,dz'}{H(z')}"
+    - "\mu(z) = 5\log_{10}[d_L(z)/{\rm Mpc}] + 25"
+  bao:
+    - "D_M(z) = \int_0^z \frac{c\,dz'}{H(z')}"
+    - "D_H(z) = \frac{c}{H(z)}"
+    - "D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}"
+valid_for_cmb: true
+cmb:
+  param_map:
+    H0: H_0
+    ombh2: "\Omega_{b0} * (H_0/100)**2"
+    omch2: "(\Omega_{m0} - \Omega_{b0}) * (H_0/100)**2"
+    tau: 0.054
+    As: 2.1e-9
+    ns: 0.965
+gravitational_waves: {}
+standard_sirens: {}
+abstract: short overview text
+description: longer explanation
+notes: any additional remarks
 ```
-Initial guesses are derived automatically from each parameter's bounds.
 When a `cmb.param_map` object is provided, the mapping is stored on the plugin
 as `CMB_PARAM_MAP`. Call `plugin.get_camb_params(values)` to convert a list of
 cosmological parameters into a dictionary for CAMB. Constant numeric values in

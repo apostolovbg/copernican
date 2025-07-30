@@ -25,7 +25,7 @@ package and will exit cleanly even when Matplotlib has not yet been imported.
 
 ## 2. Directory Layout
 ```
-models/           - JSON model definitions with embedded theory text and equations.
+models/           - YAML model definitions with embedded theory text and equations.
 engines/          - Computational backends (SciPy CPU by default)
 data/             - Observation files under ``data/<type>/<source>/``
   cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance
@@ -33,7 +33,7 @@ output/           - Generated plots and CSV tables (created automatically)
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
 copernican_lib/optim_utils.py - Shared optimisation helpers used by engines
-copernican_lib/latex_utils.py - LaTeX translation helpers using latex_mappings.json
+copernican_lib/latex_utils.py - LaTeX translation helpers using latex_mappings.yml
 ```
 Installing the suite with `pip` produces a `copernican_suite.egg-info` directory
 containing build metadata. This folder can be safely removed and should not be

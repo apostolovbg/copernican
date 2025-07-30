@@ -4,7 +4,7 @@
 # YAML and uses SymPy to translate mathematical expressions into efficient
 # NumPy-friendly functions.
 
-import json
+import yaml
 from pathlib import Path
 import sympy as sp
 from sympy.parsing.sympy_parser import (
@@ -69,7 +69,7 @@ def generate_callables(cache_path):
     """
     cache_path = Path(cache_path)
     with cache_path.open("r") as f:
-        model_data = json.load(f)
+        model_data = yaml.safe_load(f)
 
     logger = logging.getLogger()
 
@@ -276,7 +276,7 @@ def generate_callables(cache_path):
 
     model_data['generated_code'] = code_dict
     with cache_path.open("w") as f:
-        json.dump(model_data, f, indent=2)
+        yaml.safe_dump(model_data, f, sort_keys=False, allow_unicode=True)
 
     return funcs, model_data
 

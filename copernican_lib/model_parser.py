@@ -4,7 +4,6 @@
 # a sanitized copy to ``models/cache/``. The sanitized file is used by child
 # processes so that validation only happens once in the main process.
 
-import json
 import yaml
 import re
 from jsonschema import validate, ValidationError
@@ -20,12 +19,17 @@ def _sanitise_name_to_var(name: str) -> str:
 
 
 def _ensure_delim(expr: str | None) -> str | None:
-    """Wrap math expressions with ``$$`` if not already present."""
+    """Wrap math expressions with ``$$`` when missing.
+
+    Existing ``$...$`` or ``$$...$$`` delimiters are preserved so authors may
+    choose their preferred style.
+    """
     if expr is None:
         return None
     cleaned = str(expr).strip()
-    if not cleaned.startswith("$$"):
-        cleaned = f"$${cleaned}$$"
+    if cleaned.startswith("$") and cleaned.endswith("$"):
+        return cleaned
+    cleaned = f"$${cleaned}$$"
     return cleaned
 
 MODEL_SCHEMA = {
@@ -135,5 +139,5 @@ def parse_model(path, cache_dir):
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache_path = cache_dir / f"cache_{path.name}"
     with cache_path.open("w") as f:
-        json.dump(data, f, indent=2)
+        yaml.safe_dump(data, f, sort_keys=False, allow_unicode=True)
     return str(cache_path)

@@ -2,24 +2,18 @@
 
 from __future__ import annotations
 
-import json
+import yaml
 import re
 from pathlib import Path
 from typing import Dict
 
 
-# Load replacement dictionaries from ``latex_mappings.json`` once at import.
-# Keeping the mappings in a JSON file allows contributors to extend the
-# supported LaTeX commands without touching the code.
-_mapping_path = Path(__file__).with_name("latex_mappings.json")
+# Load replacement dictionaries from ``latex_mappings.yml`` once at import.
+# YAML is more readable than JSON and avoids backslash escaping issues.
+_mapping_path = Path(__file__).with_name("latex_mappings.yml")
 try:
     with _mapping_path.open("r") as _fh:
-        _raw = _fh.read()
-        try:
-            _MAPPINGS: Dict[str, Dict[str, str]] = json.loads(_raw)
-        except json.JSONDecodeError:
-            # Allow single backslashes by escaping them automatically
-            _MAPPINGS = json.loads(_raw.replace("\\", "\\\\"))
+        _MAPPINGS: Dict[str, Dict[str, str]] = yaml.safe_load(_fh)
 except OSError as exc:  # pragma: no cover - only fails if repo is corrupted
     raise RuntimeError(f"Cannot read LaTeX mappings: {_mapping_path}") from exc
 
@@ -56,7 +50,7 @@ def latex_to_sympy(expr: str) -> str:
     for pat in _MACROS_REMOVE:
         pattern = pat if "\\s" in pat else re.escape(pat)
         expr = re.sub(pattern, "", expr)
-    # ``\\rm`` occasionally survives the initial cleanup when loaded from JSON.
+    # ``\\rm`` occasionally survives the initial cleanup when loaded from YAML.
     # Remove it explicitly so parameters like ``\Omega_{\rm eff}`` parse
     # correctly into ``Omega_eff`` instead of ``Omega_rm eff``.
     expr = re.sub(r"\\rm\s*", "", expr)
@@ -92,58 +86,10 @@ def wrap_math(text: str) -> str:
     cleaned = re.sub(r"\s{2,}", " ", cleaned)
     return f"${cleaned}$" if cleaned else ""
 
-
-_UNICODE_SYMBOLS = {
-    r"\alpha": "α",
-    "alpha": "α",
-    r"\beta": "β",
-    "beta": "β",
-    r"\gamma": "γ",
-    "gamma": "γ",
-    r"\delta": "δ",
-    "delta": "δ",
-    r"\epsilon": "ε",
-    r"\zeta": "ζ",
-    r"\eta": "η",
-    r"\theta": "θ",
-    r"\iota": "ι",
-    r"\kappa": "κ",
-    r"\lambda": "λ",
-    r"\mu": "μ",
-    r"\nu": "ν",
-    r"\xi": "ξ",
-    r"\pi": "π",
-    r"\rho": "ρ",
-    r"\sigma": "σ",
-    r"\tau": "τ",
-    r"\upsilon": "υ",
-    r"\phi": "φ",
-    r"\varphi": "φ",
-    r"\chi": "χ",
-    r"\psi": "ψ",
-    r"\omega": "ω",
-    "omega": "ω",
-    r"\Gamma": "Γ",
-    "Gamma": "Γ",
-    r"\Delta": "Δ",
-    "Delta": "Δ",
-    r"\Theta": "Θ",
-    "Theta": "Θ",
-    r"\Lambda": "Λ",
-    "Lambda": "Λ",
-    r"\Xi": "Ξ",
-    "Xi": "Ξ",
-    r"\Pi": "Π",
-    "Pi": "Π",
-    r"\Sigma": "Σ",
-    "Sigma": "Σ",
-    r"\Phi": "Φ",
-    "Phi": "Φ",
-    r"\Psi": "Ψ",
-    "Psi": "Ψ",
-    r"\Omega": "Ω",
-    "Omega": "Ω",
-}
+# Unicode translation table used by :func:`latex_to_unicode` for prettier
+# console output. The mappings are stored in the YAML file so new symbols can be
+# added without modifying this module.
+_UNICODE_SYMBOLS = _MAPPINGS.get("unicode_symbols", {})
 
 _SUB_MAP = {
     "0": "₀",

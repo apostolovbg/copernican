@@ -53,7 +53,7 @@ data_loaders = None
 
 # Use a fixed version string to avoid confusion when the package metadata is
 # outdated. Automatic releases are not yet enabled.
-COPERNICAN_VERSION = "2.0.7"
+COPERNICAN_VERSION = "2.1.0"
 CURRENT_LOG_FILE = None
 
 
@@ -202,7 +202,6 @@ def _gather_required_packages():
         "os",
         "sys",
         "time",
-        "json",
         "logging",
         "subprocess",
         "importlib",
@@ -394,7 +393,7 @@ def cleanup_cache(base_dir):
     cache_dir = os.path.join(base_dir, "models", "cache")
     if os.path.isdir(cache_dir):
         for fname in os.listdir(cache_dir):
-            if fname.startswith("cache_") and fname.endswith(".json"):
+            if fname.startswith("cache_") and fname.endswith(".yml"):
                 path = os.path.join(cache_dir, fname)
                 try:
                     os.remove(path)
