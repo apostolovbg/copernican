@@ -130,14 +130,14 @@ derived from the model's variables or constants.
 
 ## 6. Development Protocol
 To keep the project maintainable all contributors, human or AI, must follow these rules:
-1. **Summarize every change in `CHANGELOG.md`.** Use the template `- YYYY-MM-DD: short summary (author)` for each entry. Legacy `dev_note` headers should be migrated to the changelog when touched.
-2. **Comment code extensively** to explain non-obvious logic or algorithms.
-3. **Keep comments synchronized with the actual code.** Whenever behaviour changes, update all nearby comments immediately so future contributors can rely on them. Both AI and human developers must actively check that comments stay accurate.
-4. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behavior or structure changes.
-5. **Bump the project version according to Semantic Versioning whenever changes introduce new features, fixes or breaking changes.**
-6. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.**
-7. **Use raw string literals for regular expressions, docstrings with LaTeX or backslashes, and Windows paths** to avoid Python's "invalid escape sequence" warnings.
-8. **Re-read the "Development laws and protocols for human and AI contributors" section in `README.md` at the start of every development session.** All contributors must implicitly follow those rules without explicit reminders.
+1. **Summarize every change in `CHANGELOG.md` using the changelog template.** Legacy `dev_note` headers should be migrated to the changelog when touched.
+2. **Comment the code extensively.** Explain the "why" as well as the "what", clarifying both obvious and non-obvious, simple or complex logic or algorithms.
+3. **Keep comments synchronized with the actual code.** Whenever behaviour changes, update all nearby comments immediately so future contributors can rely on them.
+4. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behaviour or structure changes.
+5. **Keep these laws synchronized across `README.md` and `AGENTS.md`.** Amendments to any rule require an explicit human request.
+6. **Bump the project version according to Semantic Versioning whenever changes introduce new features, fixes or breaking changes.**
+7. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.**
+8. **Re-read the "Development laws and protocols for human and AI contributors" section in `README.md` at the start of every development session.**
 9. **Document every module, function and class with clear "what" and "why" explanations.** Comments and docstrings should describe not only the behaviour but also the rationale behind it.
 
 Failure to follow these guidelines will compromise the Copernican Suite.

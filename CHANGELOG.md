@@ -13,6 +13,7 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Version 2.0.7
 - 2025-07-30: Expanded inline comments and documentation to clarify workflow logic (AI assistant)
+- 2025-07-30: Synchronized development laws between README.md and AGENTS.md (AI assistant)
 
 ## Version 2.0.6
 - 2025-07-30: Expanded comments across the codebase and added a session-start reminder in AGENTS (AI assistant)
