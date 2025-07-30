@@ -1,4 +1,4 @@
-**Version:** 2.1.0
+**Version:** 3.0.0
 **Last Updated:** 2025-07-30
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
@@ -16,13 +16,14 @@ Additional design notes can be found under the `docs/` directory.
 4. [Design Overview](docs/design_overview.md)
 5. [Data Directory Overview](docs/data_overview.md)
 6. [BAO Test Dataset Format](docs/bao_test_dataset_format.md)
-7. [Using the Suite](#using-the-suite)
-8. [Creating New Models](#creating-new-models)
-9. [Developer Guide](#developer-guide)
-10. [AI-driven and human development laws and protocols](#6-ai-driven-and-human-development-laws-and-protocols)
-11. [License](#license)
-12. [Versioning Policy](#versioning-policy)
-13. [API Overview](docs/api_overview.md)
+7. [Dataset Metadata Fields](docs/dataset_metadata.md)
+8. [Using the Suite](#using-the-suite)
+9. [Creating New Models](#creating-new-models)
+10. [Developer Guide](#developer-guide)
+11. [AI-driven and human development laws and protocols](#6-ai-driven-and-human-development-laws-and-protocols)
+12. [License](#license)
+13. [Versioning Policy](#versioning-policy)
+14. [API Overview](docs/api_overview.md)
 
 ---
 
@@ -142,6 +143,8 @@ copernican_lib/          - Helper modules
   utils.py          - Common helpers
   optim_utils.py    - Shared optimisation wrappers used by engines
 ```
+All dataset tables and metadata are provided **only** as YAML files. JSON
+input is no longer supported as of version 3.0.0.
 **Note:** Files in `data/` are treated as read-only reference datasets and
 should not be modified by AI-driven code changes.
 

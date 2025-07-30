@@ -1,7 +1,9 @@
 # Copernican Suite API Overview
 
-The suite exposes a small API intended for advanced scripting. The
-`copernican_lib` package contains the following key modules:
+The suite exposes a lightweight API intended for advanced scripting.
+Most functionality lives in the ``copernican_lib`` package which can be
+imported directly without using the command-line interface.  The core
+modules are:
 
 - `model_parser.parse_model(path, cache_dir)` – validate and clean a
   `cosmo_model_*.yml` file.
@@ -14,20 +16,28 @@ The suite exposes a small API intended for advanced scripting. The
     `load_cmb_data(name)` – load datasets by their registered names. Each loader
     logs a short summary describing the dataset and whether its covariance matrix
     was used or diagonal errors were applied.
-- `engines.cosmo_engine_comb` – reference engine providing
-  `fit_sne_parameters`, `fit_combined_parameters`, `calculate_bao_observables`
-  and `chi_squared_*` helpers.
+- `engines.cosmo_engine_comb` – reference engine providing high level
+  optimisation routines such as ``fit_sne_parameters``,
+  ``fit_combined_parameters``, ``calculate_bao_observables`` and generic
+  ``chi_squared_*`` helpers.  Engines are regular Python modules that
+  operate purely on data frames and plugin callables so alternative
+  backends can be developed without modifying the rest of the codebase.
 
-Plugins are validated through `engine_interface.validate_plugin` before use.
-Engines expect the attributes listed in `engine_interface.REQUIRED_ATTRIBUTES`.
+Plugins are validated through ``engine_interface.validate_plugin`` before
+use. Engines expect the attributes listed in
+``engine_interface.REQUIRED_ATTRIBUTES``.  The resulting object exposes
+distance functions, CMB helpers and initial parameter guesses derived
+from the model YAML.
 
 ## Standardised Dataset Format
 
-All data parsers return a `pandas.DataFrame` with common columns and
-metadata so that the engines remain agnostic to the origin of the data.
-For supernovae datasets the table contains at minimum `Name`, `zcmb`,
-`mu_obs` and `e_mu_obs`.  Attributes such as `covariance_matrix_inv`,
-`diag_errors_for_plot` and `dataset_name_attr` are attached via the
-``DataFrame.attrs`` dictionary.  BAO and CMB loaders follow the same
-pattern.  New datasets can therefore be added simply by placing them
-under ``data/<type>/<source>/`` and providing a compatible parser.
+All data parsers return a ``pandas.DataFrame`` with common columns and
+metadata so that engines remain agnostic to the origin of the data.
+Metadata is read from ``metadata_*.yml`` files located next to the
+dataset tables and attached via the ``DataFrame.attrs`` dictionary.  For
+supernovae datasets the table contains at minimum ``Name``, ``zcmb``,
+``mu_obs`` and ``e_mu_obs``. Attributes such as ``covariance_matrix_inv``
+and ``diag_errors_for_plot`` are also attached. BAO and CMB loaders
+follow the same pattern. New datasets can therefore be added simply by
+placing them under ``data/<type>/<source>/`` and providing a compatible
+YAML parser.

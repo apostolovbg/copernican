@@ -11,6 +11,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
+## Version 3.0.0
+- 2025-07-30: Dropped all remaining JSON dataset support and expanded documentation (AI assistant)
+
 ## Version 2.1.0
 - 2025-07-30: Switched cached models and LaTeX mappings to YAML and removed JSON usage across the codebase (AI assistant)
 - 2025-07-30: Converted all dataset metadata and the BAO test dataset to YAML (AI assistant)
