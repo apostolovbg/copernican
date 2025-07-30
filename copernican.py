@@ -52,10 +52,10 @@ logger = None
 data_loaders = None
 
 # Use a fixed version string to avoid confusion when the package metadata is
-# outdated. Automatic releases are not yet enabled. Version 3.0.1 fixes
-# incorrect exponent syntax in the USMFv2 model YAML and drops all
+# outdated. Automatic releases are not yet enabled. Version 3.1.0 adds
+# unified exponent syntax across model YAML files and drops all
 # legacy JSON dataset support in favour of YAML-only inputs.
-COPERNICAN_VERSION = "3.0.1"
+COPERNICAN_VERSION = "3.1.0"
 CURRENT_LOG_FILE = None
 
 

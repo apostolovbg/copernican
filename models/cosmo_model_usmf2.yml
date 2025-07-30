@@ -19,7 +19,7 @@ description: |-
   \rho_{local}$ and potentially its history.
   #### 2.3. The Metric in Dense Regions
   Within a local, dense, shrinking region, the spacetime metric is proposed to take the form:
-  ds^2 = -c^2 dt_{local}^2 + alpha_U(t_{univ}, env)^2 delta_{ij} dx^i dx^j
+  ds**2 = -c**2 dt_{local}**2 + alpha_U(t_{univ}, env)**2 delta_{ij} dx^i dx^j
   where $c$ is the speed of light, $dt_{local}$ is the local time interval, $dx^i$ are local Cartesian spatial coordinate intervals, $delta_{ij}$ is the Kronecker delta, and $alpha_U(t_{univ}, env)$ is the Universal Scaling Factor. This factor $alpha_U$ describes the magnitude of spatial shrinking as a function of universal time $t_{univ}$ and potentially local environmental factors ($env$) such as density $
   ho$. For the background cosmological model, we primarily consider its temporal evolution $alpha_U(t_{univ})$. The shrinking implies that $alpha_U(t_{univ})$ is a decreasing function of cosmic time.
   *(... The rest of the theoretical sections from the JSON would follow here, formatted with Markdown headings ...)*
@@ -114,13 +114,13 @@ Hz_expression: H(z) = H_A*(1+z)
 equations:
   sne:
   - "1+z = \frac{alpha(t_e)}{alpha(t_0)}"
-  - "r = int_{t_e}^{t_0} \frac{c}{alpha(t')} dt'"
-  - "d_L(z) = |r| cdot (1+z)^2 cdot \frac{70.0}{H_A}"
+  - "r = int_{t_e}**{t_0} \frac{c}{alpha(t')} dt'"
+  - "d_L(z) = |r| cdot (1+z)**2 cdot \frac{70.0}{H_A}"
   - mu = 5 log_{10}(d_L) + 25
   bao:
   - "D_A(z) = |r| cdot \frac{70.0}{H_A}"
   - "H_{USMF}(z) = - \frac{1}{alpha(t_e)} left. \frac{dalpha}{dt} \right|_{t_e}"
-  - "D_V(z) = left[ (1+z)^2 D_A(z)^2 \frac{cz}{H(z)} \right]^{1/3}"
+  - "D_V(z) = left[ (1+z)**2 D_A(z)**2 \frac{cz}{H(z)} \right]**{1/3}"
 predicts_bao: true
 valid_for_bao: true
 valid_for_cmb: true
