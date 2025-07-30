@@ -50,7 +50,7 @@ data_loaders = None
 
 # Use a fixed version string to avoid confusion when the package metadata is
 # outdated. Automatic releases are not yet enabled.
-COPERNICAN_VERSION = "2.0.5"
+COPERNICAN_VERSION = "2.0.6"
 CURRENT_LOG_FILE = None
 
 
@@ -397,7 +397,7 @@ def main_workflow():
     import matplotlib.pyplot as plt
     import multiprocessing as mp
     from copernican_lib import model_parser, model_coder, engine_interface
-    from copernican_lib import data_loaders, plotter, csv_writer, logger as log_mod
+    from copernican_lib import data_loaders, plotter, csv_writer, logger as log_mod, utils
 
     try:
         SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -429,6 +429,7 @@ def main_workflow():
         log_file = log_mod.setup_logging(log_dir=OUTPUT_DIR, base_dir=SCRIPT_DIR)
         CURRENT_LOG_FILE = log_file
         logger = log_mod.get_logger()
+        utils.set_random_seed(0)
         start_ts = time.strftime("%y%m%d_%H%M%S")
         run_start_dt = datetime.datetime.now()
         run_start_pc = time.perf_counter()

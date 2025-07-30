@@ -1,5 +1,5 @@
-**Version:** 2.0.5
-**Last Updated:** 2025-07-29
+**Version:** 2.0.6
+**Last Updated:** 2025-07-30
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
 Support for gravitational waves and standard siren events is planned for future releases.
@@ -19,7 +19,7 @@ Additional design notes can be found under the `docs/` directory.
 7. [Using the Suite](#using-the-suite)
 8. [Creating New Models](#creating-new-models)
 9. [Developer Guide](#developer-guide)
-10. [AI Development Laws](#ai-development-laws)
+10. [AI-driven and human development laws and protocols](#6-ai-driven-and-human-development-laws-and-protocols)
 11. [License](#license)
 12. [Versioning Policy](#versioning-policy)
 13. [API Overview](docs/api_overview.md)
@@ -333,15 +333,6 @@ be placed under `engines/` and must follow the interface in
 **Note:** The current plotting style and algorithms are considered stable. Do
 not modify them unless explicitly instructed.
 
-## AI Development Laws
-1. **Record each modification in `CHANGELOG.md` using the changelog template.**
-2. **Comment code extensively** to clarify complex logic or algorithms.
-3. **Update all documentation**, including this `README.md` and `AGENTS.md`,
-   whenever the codebase changes.
-4. **Never add Git conflict markers** (`<<<<<<<`, `=======`, `>>>>>>>`) in any file. These break automated merges and will be rejected.
-
-Failure to follow these rules will compromise the maintainability of the
-Copernican Suite.
 
 ## License
 The Copernican Suite is distributed under the terms of the [Copernican Suite License (CSL)](LICENSE.md).
@@ -365,12 +356,13 @@ altering `MAJOR.MINOR`.
     functional test suite and verify that the LCDM model and data parsers work
     as expected. This flag performs unittest discovery over the `tests` package.
 3.  **Initialization**: The script starts and creates the `./output/` directory for all results.
-4.  **Configuration**: The user specifies the file paths for the model and data files.
-5.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data. When `cosmo_engine_comb.py` is selected this step refines the parameters before the full joint optimisation.
-6.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
-7.  **CMB Analysis**: Each model's CMB spectrum is evaluated against the selected dataset. The combined engine performs this after completing the joint optimisation.
-8.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots, tables and logs using a consistent format. Plots now use a white background with very light grey, solid grid lines for clarity.
-9.  **Loop or Exit**: The user is prompted to run another evaluation or exit.
+4.  **Random Seed Setup**: The global NumPy RNG is seeded so any stochastic algorithms remain reproducible. The chosen seed is written to the log.
+5.  **Configuration**: The user specifies the file paths for the model and data files.
+6.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM model and the alternative model to the SNe Ia data. When `cosmo_engine_comb.py` is selected this step refines the parameters before the full joint optimisation.
+7.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO observables for each model.
+8.  **CMB Analysis**: Each model's CMB spectrum is evaluated against the selected dataset. The combined engine performs this after completing the joint optimisation.
+9.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots, tables and logs using a consistent format. Plots now use a white background with very light grey, solid grid lines for clarity.
+10. **Loop or Exit**: The user is prompted to run another evaluation or exit.
 
 ---
 
@@ -378,16 +370,19 @@ altering `MAJOR.MINOR`.
 
 See `CHANGELOG.md` for complete version history.
 
-## 6. A Note on AI-Driven Development
+## 6. Development laws and protocols for human and AI contributors
 
-> **To any AI, including my future self, that modifies this codebase:**
+> **To any AI or human developer, including my future self, that modifies this codebase:**
 >
 > This project is developed through a combination of human direction and AI implementation. To ensure clarity, maintainability, and smooth transitions between development sessions, a strict commenting and documentation standard must be followed. The `AGENTS.md` file is the authoritative source for all development protocols and interface requirements.
 >
 > **When modifying any file, you are required to:**
 > 1.  **Document all modifications in `CHANGELOG.md` using the changelog template.**
-> 2.  **Comment the code extensively.** Explain the "why" behind your code, not just the "what".
-> 3.  **Update this README file and `AGENTS.md`**. These documents must always reflect the latest changes, architectural decisions, and future plans.
+> 2.  **Comment the code extensively.** Explain the "why" behind your code, not just the "what", and clarify both obvious and non-obvious, simple or complex logic or algorithms.
+> 3.  **Keep comments synchronized with the code.** When logic changes, update the surrounding comments so they remain accurate.
+> 4.  **Update this README file and `AGENTS.md`.** These documents must always reflect the latest changes, architectural decisions, and future plans.
+> 5.  **Never add Git conflict markers** (`<<<<<<<`, `=======`, `>>>>>>>`) in any file. These break automated merges and will be rejected.
 >
-> Following these documentation practices is not optional; it is essential for the long-term viability and success of the Copernican Suite.
-\nSee [docs/api_overview.md](docs/api_overview.md) for the scripting API.
+> Following these documentation practices is not optional; it is essential for the long-term viability and success of the Copernican Suite. Failure to follow these rules will compromise the maintainability of the Copernican Suite.
+
+See [docs/api_overview.md](docs/api_overview.md) for the scripting API.
