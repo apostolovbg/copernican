@@ -19,7 +19,7 @@ Additional design notes can be found under the `docs/` directory.
 7. [Using the Suite](#using-the-suite)
 8. [Creating New Models](#creating-new-models)
 9. [Developer Guide](#developer-guide)
-10. [AI Development Laws](#ai-development-laws)
+10. [AI-driven and human development laws and protocols](#6-ai-driven-and-human-development-laws-and-protocols)
 11. [License](#license)
 12. [Versioning Policy](#versioning-policy)
 13. [API Overview](docs/api_overview.md)
@@ -333,16 +333,6 @@ be placed under `engines/` and must follow the interface in
 **Note:** The current plotting style and algorithms are considered stable. Do
 not modify them unless explicitly instructed.
 
-## AI Development Laws
-1. **Record each modification in `CHANGELOG.md` using the changelog template.**
-2. **Comment code extensively** to clarify complex logic or algorithms.
-3. **Keep comments synchronized with the code.** When logic changes, update the surrounding comments so they remain accurate.
-4. **Update all documentation**, including this `README.md` and `AGENTS.md`,
-   whenever the codebase changes.
-5. **Never add Git conflict markers** (`<<<<<<<`, `=======`, `>>>>>>>`) in any file. These break automated merges and will be rejected.
-
-Failure to follow these rules will compromise the maintainability of the
-Copernican Suite.
 
 ## License
 The Copernican Suite is distributed under the terms of the [Copernican Suite License (CSL)](LICENSE.md).
@@ -380,7 +370,7 @@ altering `MAJOR.MINOR`.
 
 See `CHANGELOG.md` for complete version history.
 
-## 6. A Note on AI-Driven Development
+## 6. AI-driven and human development laws and protocols
 
 > **To any AI, including my future self, that modifies this codebase:**
 >
@@ -388,8 +378,11 @@ See `CHANGELOG.md` for complete version history.
 >
 > **When modifying any file, you are required to:**
 > 1.  **Document all modifications in `CHANGELOG.md` using the changelog template.**
-> 2.  **Comment the code extensively.** Explain the "why" behind your code, not just the "what".
-> 3.  **Update this README file and `AGENTS.md`**. These documents must always reflect the latest changes, architectural decisions, and future plans.
+> 2.  **Comment the code extensively.** Explain the "why" behind your code, not just the "what", and clarify complex logic or algorithms.
+> 3.  **Keep comments synchronized with the code.** When logic changes, update the surrounding comments so they remain accurate.
+> 4.  **Update this README file and `AGENTS.md`.** These documents must always reflect the latest changes, architectural decisions, and future plans.
+> 5.  **Never add Git conflict markers** (`<<<<<<<`, `=======`, `>>>>>>>`) in any file. These break automated merges and will be rejected.
 >
-> Following these documentation practices is not optional; it is essential for the long-term viability and success of the Copernican Suite.
-\nSee [docs/api_overview.md](docs/api_overview.md) for the scripting API.
+> Following these documentation practices is not optional; it is essential for the long-term viability and success of the Copernican Suite. Failure to follow these rules will compromise the maintainability of the Copernican Suite.
+
+See [docs/api_overview.md](docs/api_overview.md) for the scripting API.
