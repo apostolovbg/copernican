@@ -9,21 +9,25 @@ Add one line for each substantive commit or pull request directly under the late
 - 2025-05-26: Created copernican.py (Apostol Apostolov)
 
 ```
-## Log changes here (newest versions ABOVE older, newest changes ABOVE older within a version) and keep the line after this one empty:
-## Version 2.0.0
-- 2025-07-30: Migrated all models to YAML and removed JSON support (AI assistant)
+## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
-## Version 2.0.1
-- 2025-07-30: Vectorised BAO chi-squared and updated YAML documentation (AI assistant)
+## Version 2.0.5
+- 2025-07-30: Verified latex_mappings.json validity and kept fallback; reordered changelog and clarified instructions (AI assistant)
 
-## Version 2.0.2
-- 2025-07-30: Console output now renders parameter names with Unicode Greek letters and subscripts (AI assistant)
+## Version 2.0.4
+- 2025-07-30: Documented stub GW and siren parsers returning None (AI assistant)
 
 ## Version 2.0.3
 - 2025-07-30: Removed Unicode escape sequences from model YAML files and converted abstracts and descriptions to block scalars (AI assistant)
 
-## Version 2.0.4
-- 2025-07-30: Documented stub GW and siren parsers returning None (AI assistant)
+## Version 2.0.2
+- 2025-07-30: Console output now renders parameter names with Unicode Greek letters and subscripts (AI assistant)
+
+## Version 2.0.1
+- 2025-07-30: Vectorised BAO chi-squared and updated YAML documentation (AI assistant)
+
+## Version 2.0.0
+- 2025-07-30: Migrated all models to YAML and removed JSON support (AI assistant)
 
 
 ## Version 1.19.3
@@ -222,17 +226,17 @@ Add one line for each substantive commit or pull request directly under the late
 - 2025-07-06: Bumped version to 1.8.0-beta (AI assistant)
 - 2025-07-06: Integrated combined-fit workflow and updated documentation (AI assistant)
 
-## Version 1.7.10-beta (Development Release)
-- 2025-07-06: Corrected CAMB spectrum scaling and updated docs (AI assistant)
-- 2025-07-06: Bumped version to 1.7.10-beta (AI assistant)
+## Version 1.7.12-beta (Development Release)
+- 2025-07-06: Added TE/EE spectrum handling and improved cosmic variance plotting (AI assistant)
+- 2025-07-06: Bumped version to 1.7.12-beta (AI assistant)
 
 ## Version 1.7.11-beta (Development Release)
 - 2025-07-06: Fixed Planck 2018 lite parser and trimmed covariance to TT block (AI assistant)
 - 2025-07-06: Bumped version to 1.7.11-beta (AI assistant)
 
-## Version 1.7.12-beta (Development Release)
-- 2025-07-06: Added TE/EE spectrum handling and improved cosmic variance plotting (AI assistant)
-- 2025-07-06: Bumped version to 1.7.12-beta (AI assistant)
+## Version 1.7.10-beta (Development Release)
+- 2025-07-06: Corrected CAMB spectrum scaling and updated docs (AI assistant)
+- 2025-07-06: Bumped version to 1.7.10-beta (AI assistant)
 
 ## Version 1.7.9-beta (Development Release)
 - 2025-07-06: Fixed Planck lite scaling and covariance endianness (AI assistant)
