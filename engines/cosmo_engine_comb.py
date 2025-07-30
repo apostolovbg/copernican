@@ -34,6 +34,11 @@ def chi_squared_sne(cosmo_params, mu_model_func, sne_data_df):
     z_data = sne_data_df["zcmb"].values
     mu_obs = sne_data_df["mu_obs"].values
 
+    # Reject datasets containing NaN or infinite values
+    if np.any(~np.isfinite(z_data)) or np.any(~np.isfinite(mu_obs)):
+        logger.error("SNe data contains non-finite zcmb or mu_obs values")
+        return np.inf
+
     try:
         mu_model = mu_model_func(z_data, *cosmo_params)
     except Exception:
@@ -66,7 +71,8 @@ def chi_squared_sne(cosmo_params, mu_model_func, sne_data_df):
             logger.error("No diagonal errors available for SNe data.")
             return np.inf
         err = sne_data_df["e_mu_obs"].values
-        err = np.where(err <= 0, 1e-12, err)
+        # Replace non-finite or non-positive errors with a tiny placeholder
+        err = np.where(~np.isfinite(err) | (err <= 0), 1e-12, err)
         chi2 = np.sum((resid / err) ** 2)
 
     return chi2 if np.isfinite(chi2) else np.inf

@@ -132,10 +132,11 @@ derived from the model's variables or constants.
 To keep the project maintainable all contributors, human or AI, must follow these rules:
 1. **Summarize every change in `CHANGELOG.md`.** Use the template `- YYYY-MM-DD: short summary (author)` for each entry. Legacy `dev_note` headers should be migrated to the changelog when touched.
 2. **Comment code extensively** to explain non-obvious logic or algorithms.
-3. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behavior or structure changes.
-4. **Bump the project version according to Semantic Versioning whenever changes introduce new features, fixes or breaking changes.**
-5. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.**
-6. **Use raw string literals for regular expressions, docstrings with LaTeX or backslashes, and Windows paths** to avoid Python's "invalid escape sequence" warnings.
+3. **Keep comments synchronized with the actual code.** Whenever behaviour changes the surrounding comments must be updated so future contributors can rely on them.
+4. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behavior or structure changes.
+5. **Bump the project version according to Semantic Versioning whenever changes introduce new features, fixes or breaking changes.**
+6. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.**
+7. **Use raw string literals for regular expressions, docstrings with LaTeX or backslashes, and Windows paths** to avoid Python's "invalid escape sequence" warnings.
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 

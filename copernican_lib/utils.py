@@ -6,6 +6,8 @@
 import os
 import time
 import json
+import logging
+import numpy as np
 
 
 def get_timestamp():
@@ -67,3 +69,9 @@ def load_metadata_from_dir(data_dir: str) -> dict:
     except Exception:
         pass
     return {}
+
+
+def set_random_seed(seed: int = 0) -> None:
+    """Seed NumPy's global RNG and log the selected value."""
+    np.random.seed(seed)
+    logging.getLogger().info("Global RNG seed set to %s", seed)
