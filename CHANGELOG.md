@@ -12,6 +12,7 @@ Add one line for each substantive commit or pull request directly under the late
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
 ## Version 2.0.7
+- 2025-07-30: Corrected malformed tab in USMFv2 description to pass YAML parsing (AI assistant)
 - 2025-07-30: Expanded inline comments and documentation to clarify workflow logic (AI assistant)
 - 2025-07-30: Synchronized development laws between README.md and AGENTS.md (AI assistant)
 - 2025-07-30: Removed unused JLA covariance fallback logic (AI assistant)

@@ -13,10 +13,10 @@ description: |-
   Observations made from Earth are inherently from within such a local, shrinking frame.
   #### 2.2. Inhomogeneous Shrinking and its Quantification
   The process of shrinking is not uniform throughout the Universe. It is posited to occur primarily within regions of significant matter density. Cosmic voids, being largely devoid of matter, are assumed to retain their original scales (established at a "Universal Creation Event" or UDE) in the universal coordinate system. As dense regions contract, voids effectively appear to expand or "empty out" relative to these shrinking zones. This inhomogeneity is crucial for explaining the apparent distribution of "dark matter" effects.
-  **Quantifying Inhomogeneous Shrinking**: The Universal Scaling Factor $alpha_U$ becomes a function of local environment: $alpha_U(
-  ho, t_{univ}, mathbf{x}) = alpha_{U,bg}(t_{univ}) cdot f(
-  ho_{local}(mathbf{x}, t_{univ}), 	ext{history})$. Here, $alpha_{U,bg}(t_{univ})$ is the background cosmological shrinking factor, and $f$ describes the modulation due to local density $
-  ho_{local}$ and potentially its history.
+  **Quantifying Inhomogeneous Shrinking**: The Universal Scaling Factor $\alpha_U$ becomes a function of local environment: $\alpha_U(
+  \rho, t_{\text{univ}}, \mathbf{x}) = \alpha_{U,bg}(t_{\text{univ}}) \cdot f(
+  \rho_{local}(\mathbf{x}, t_{\text{univ}}), \text{history})$. Here, \alpha_{U,bg}(t_{\text{univ}})$ is the background cosmological shrinking factor, and $f$ describes the modulation due to local density $
+  \rho_{local}$ and potentially its history.
   #### 2.3. The Metric in Dense Regions
   Within a local, dense, shrinking region, the spacetime metric is proposed to take the form:
   ds^2 = -c^2 dt_{local}^2 + alpha_U(t_{univ}, env)^2 delta_{ij} dx^i dx^j
