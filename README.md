@@ -370,7 +370,7 @@ altering `MAJOR.MINOR`.
 
 See `CHANGELOG.md` for complete version history.
 
-## 6. AI-driven and human development laws and protocols
+## 6. Development laws and protocols for human and AI contributors
 
 > **To any AI, including my future self, that modifies this codebase:**
 >
