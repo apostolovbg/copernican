@@ -1,7 +1,7 @@
-# Copernican Suite License (CSL) v1.4
+# Copernican Suite License (CSL) v1.5
 
 > **Effective Date:** June 22, 2025
-> **Copyright** © 2025 Apostol Apostolov. All rights reserved.
+> **Copyright** © 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of Bulgaria. All rights reserved.
 
 ## Definitions
 
@@ -70,4 +70,4 @@ This License shall be governed by and construed in accordance with the laws of t
 
 ## 6. Acceptance
 
-By downloading, installing, or otherwise using the Software, you acknowledge that you have read, understood, and agree to be bound by the terms of this Copernican Suite License v1.4. If you do not agree, do not download or use the Software.
+By downloading, installing, or otherwise using the Software, you acknowledge that you have read, understood, and agree to be bound by the terms of this Copernican Suite License v1.5. If you do not agree, do not download or use the Software.
