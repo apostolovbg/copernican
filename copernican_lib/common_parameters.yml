@@ -1,0 +1,46 @@
+parameters:
+  - name: Pi
+    definition: Ratio of circle circumference to diameter
+    value: 3.141592653589793
+    unit: ''
+    latex_name: \pi
+  - name: Euler's number
+    definition: Base of natural logarithms
+    value: 2.718281828459045
+    unit: ''
+    latex_name: e
+  - name: Imaginary unit
+    definition: Square root of -1
+    value: null
+    unit: ''
+    latex_name: i
+  - name: Golden ratio
+    definition: (1+\sqrt{5})/2
+    value: (1+\sqrt{5})/2
+    unit: ''
+    latex_name: \phi
+  - name: Speed of light
+    definition: Speed of light in vacuum
+    value: 299792458
+    unit: m/s
+    latex_name: c
+  - name: Planck constant
+    definition: Quantum of action
+    value: 6.62607015e-34
+    unit: J*s
+    latex_name: h
+  - name: Reduced Planck constant
+    definition: h / (2\pi)
+    value: 1.054571817e-34
+    unit: J*s
+    latex_name: \hbar
+  - name: Gravitational constant
+    definition: Newtonian constant of gravitation
+    value: 6.67430e-11
+    unit: m^3/(kg*s^2)
+    latex_name: G
+  - name: Boltzmann constant
+    definition: Relation between energy and temperature
+    value: 1.380649e-23
+    unit: J/K
+    latex_name: k_B
