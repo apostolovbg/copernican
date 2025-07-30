@@ -12,6 +12,7 @@ Add one line for each substantive commit or pull request directly under the late
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
 ## Version 2.0.6
+- 2025-07-30: Expanded comments across the codebase and added a session-start reminder in AGENTS (AI assistant)
 - 2025-07-30: Added RNG seeding, improved SNe chi-squared validation and expanded tests (AI assistant)
 - 2025-07-30: Consolidated AI development guidelines into a single README section (AI assistant)
 
