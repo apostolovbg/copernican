@@ -105,17 +105,17 @@ parameters:
   unit: ''
   latex_name: "Omega_{\rm eff}"
   definition: N/A
-Hz_expression: "H(z)=H_A,(1+z)^{p_alpha}\bigl[1 + k_{\rm exp},(1+z)^{s_{\rm exp}}\bigr]"
+Hz_expression: "H(z)=H_A,(1+z)**{p_alpha}\bigl[1 + k_{\rm exp},(1+z)**{s_{\rm exp}}\bigr]"
 equations:
   sne:
   - "1+z = \frac{alpha(t_e)}{alpha(t_0)}"
-  - "r = int_{t_e}^{t_0} \frac{c}{alpha(t')} dt'"
-  - "d_L(z) = |r|,(1+z)^2,\frac{70.0}{H_A}"
+  - "r = int_{t_e}**{t_0} \frac{c}{alpha(t')} dt'"
+  - "d_L(z) = |r|,(1+z)**2,\frac{70.0}{H_A}"
   - mu = 5log_{10}(d_L) + 25
   bao:
   - "D_A(z) = |r|,\frac{70.0}{H_A}"
   - H_{USMF}(z) = H(z)
-  - "D_V(z) = \bigl[(1+z)^2,D_A(z)^2,\frac{cz}{H(z)}\bigr]^{1/3}"
+  - "D_V(z) = \bigl[(1+z)**2,D_A(z)**2,\frac{cz}{H(z)}\bigr]**{1/3}"
 predicts_bao: true
 valid_for_bao: true
 valid_for_cmb: true
