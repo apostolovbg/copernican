@@ -68,7 +68,7 @@ MODEL_SCHEMA = {
 
 
 def parse_model(path, cache_dir):
-    """Validate ``path`` and write cleaned JSON to ``cache_dir``.
+    """Validate ``path`` and write cleaned YAML to ``cache_dir``.
 
     Validation is performed only in the main process. Worker processes simply
     read the sanitized file produced during program startup.

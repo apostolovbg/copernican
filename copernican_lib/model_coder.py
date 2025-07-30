@@ -1,7 +1,7 @@
-"""Model coder that turns validated JSON into callable Python functions."""
+# """Model coder that turns validated YAML into callable Python functions."""
 
-# Every cosmological model is stored as JSON.  This module reads the sanitized
-# JSON and uses SymPy to translate mathematical expressions into efficient
+# Every cosmological model is stored as YAML.  This module reads the sanitized
+# YAML and uses SymPy to translate mathematical expressions into efficient
 # NumPy-friendly functions.
 
 import json
@@ -60,12 +60,12 @@ def generate_callables(cache_path):
     Parameters
     ----------
     cache_path : str or Path
-        Path to the sanitized model JSON produced by :func:`parse_model`.
+        Path to the sanitized model YAML produced by :func:`parse_model`.
 
     Returns
     -------
     tuple(dict, dict)
-        Dictionary of callables and the loaded JSON data.
+        Dictionary of callables and the loaded YAML data.
     """
     cache_path = Path(cache_path)
     with cache_path.open("r") as f:
@@ -77,7 +77,7 @@ def generate_callables(cache_path):
     param_syms = [sp.symbols(p['python_var']) for p in model_data['parameters']]
     local_dict = {p['python_var']: sym for p, sym in zip(model_data['parameters'], param_syms)}
     local_dict['z'] = z
-    # Allow JSON equations to reference the full 'sympy' prefix as well as shorthand
+    # Allow YAML equations to reference the full 'sympy' prefix as well as shorthand
     local_dict['sympy'] = sp
 
     funcs = {}
@@ -150,7 +150,7 @@ def generate_callables(cache_path):
 
                 funcs['get_DV_Mpc'] = _dv
                 code_dict['get_DV_Mpc'] = '((DC^2 * c*z/H)^1/3)'
-            logger.info("Derived distance functions from symbolic Hz_expression in model JSON.")
+            logger.info("Derived distance functions from symbolic Hz_expression in model YAML.")
 
             # --- Derive sound horizon at recombination (r_s) ---
             rs_expr_str = model_data.get('rs_expression')
@@ -177,7 +177,7 @@ def generate_callables(cache_path):
                     funcs['get_sound_horizon_rs_Mpc'] = lambda *p: float(rs_fn_sym(*p))
                     code_dict['get_sound_horizon_rs_Mpc'] = str(rs_sym)
                     model_data['valid_for_bao'] = True
-                    logger.info("Derived r_s from symbolic rs_expression in model JSON.")
+                    logger.info("Derived r_s from symbolic rs_expression in model YAML.")
                 except Exception as e:
                     error_handler.report_error(f"Failed to parse rs_expression: {e}")
                     raise ValueError(f"Failed to parse rs_expression: {e}") from e

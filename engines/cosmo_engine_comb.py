@@ -73,7 +73,12 @@ def chi_squared_sne(cosmo_params, mu_model_func, sne_data_df):
 
 
 def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
-    """Return chi-squared for BAO observables."""
+    """Return chi-squared for BAO observables.
+
+    The previous implementation iterated row by row which introduced a large
+    Python overhead when evaluating many data points. The calculation is now
+    fully vectorised so that distance functions operate on arrays directly.
+    """
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)
     if getattr(model_plugin, "valid_for_bao", True) is False:
@@ -85,9 +90,6 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
     if not (np.isfinite(model_rs_Mpc) and model_rs_Mpc > 0):
         return np.inf
 
-    total = 0.0
-    n_valid = 0
-
     try:
         get_DM = getattr(model_plugin, "get_comoving_distance_Mpc")
         get_Hz = getattr(model_plugin, "get_Hz_per_Mpc")
@@ -97,52 +99,59 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
         logger.error(f"(chi2_bao): Model plugin missing required function: {e}")
         return np.inf
 
-    for _, row in bao_data_df.iterrows():
-        z_val = row["redshift"]
-        obs_type = row["observable_type"]
-        obs_val = row["value"]
-        obs_err = row["error"]
+    z = bao_data_df["redshift"].to_numpy(dtype=float)
+    obs_type = bao_data_df["observable_type"].to_numpy()
+    obs_val = bao_data_df["value"].to_numpy(dtype=float)
+    obs_err = bao_data_df["error"].to_numpy(dtype=float)
 
-        if obs_err == 0 or not np.isfinite(obs_err) or obs_err < 1e-9:
-            continue
-
-        mod_num = np.nan
-        try:
-            if obs_type == "DM_over_rs":
-                mod_num = get_DM(z_val, *cosmo_params)
-            elif obs_type == "DH_over_rs":
-                hz_val = get_Hz(z_val, *cosmo_params)
-                if np.isfinite(hz_val) and abs(hz_val) > 1e-9:
-                    mod_num = C_LIGHT / hz_val
-            elif obs_type == "DV_over_rs":
-                if get_DV:
-                    mod_num = get_DV(z_val, *cosmo_params)
-                else:
-                    dm_val = get_DM(z_val, *cosmo_params)
-                    hz_val = get_Hz(z_val, *cosmo_params)
-                    if (
-                        np.isfinite(dm_val)
-                        and dm_val >= 0
-                        and np.isfinite(hz_val)
-                        and abs(hz_val) > 1e-9
-                        and z_val > 1e-9
-                    ):
-                        term = (dm_val ** 2) * C_LIGHT * z_val / hz_val
-                        mod_num = term ** (1.0 / 3.0) if term >= 0 else np.nan
-                    elif abs(z_val) < 1e-9:
-                        mod_num = 0.0
-        except Exception:
-            continue
-
-        if np.isfinite(mod_num):
-            total += ((obs_val - mod_num / model_rs_Mpc) / obs_err) ** 2
-            n_valid += 1
-
-    if n_valid == 0:
+    valid = np.isfinite(obs_err) & (obs_err > 1e-9)
+    if not np.any(valid):
         logger.warning("(chi2_bao): No valid BAO points to calculate chi-squared.")
         return np.inf
 
-    return total if np.isfinite(total) else np.inf
+    z = z[valid]
+    obs_type = obs_type[valid]
+    obs_val = obs_val[valid]
+    obs_err = obs_err[valid]
+
+    pred = np.full_like(obs_val, np.nan, dtype=float)
+
+    idx = obs_type == "DM_over_rs"
+    if np.any(idx):
+        pred[idx] = get_DM(z[idx], *cosmo_params) / model_rs_Mpc
+
+    idx = obs_type == "DH_over_rs"
+    if np.any(idx):
+        hz = get_Hz(z[idx], *cosmo_params)
+        dh = np.where(np.isfinite(hz) & (np.abs(hz) > 1e-9), C_LIGHT / hz, np.nan)
+        pred[idx] = dh / model_rs_Mpc
+
+    idx = obs_type == "DV_over_rs"
+    if np.any(idx):
+        if get_DV:
+            dv = get_DV(z[idx], *cosmo_params)
+        else:
+            dm_val = get_DM(z[idx], *cosmo_params)
+            hz_val = get_Hz(z[idx], *cosmo_params)
+            term = dm_val ** 2 * C_LIGHT * z[idx] / hz_val
+            mask = (
+                np.isfinite(dm_val)
+                & (dm_val >= 0)
+                & np.isfinite(hz_val)
+                & (np.abs(hz_val) > 1e-9)
+                & (z[idx] > 1e-9)
+            )
+            dv = np.full_like(dm_val, np.nan, dtype=float)
+            dv[mask] = np.where(term[mask] >= 0, np.power(term[mask], 1.0 / 3.0), np.nan)
+            dv[np.abs(z[idx]) < 1e-9] = 0.0
+        pred[idx] = dv / model_rs_Mpc
+
+    if np.all(~np.isfinite(pred)):
+        logger.warning("(chi2_bao): Model returned no finite BAO predictions.")
+        return np.inf
+
+    chi2 = np.sum(((obs_val - pred) / obs_err) ** 2)
+    return chi2 if np.isfinite(chi2) else np.inf
 
 @lru_cache(maxsize=128)
 def _cached_cmb(key):
