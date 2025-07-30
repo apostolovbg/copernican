@@ -13,6 +13,7 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Version 2.0.6
 - 2025-07-30: Added RNG seeding, improved SNe chi-squared validation and expanded tests (AI assistant)
+- 2025-07-30: Consolidated AI development guidelines into a single README section (AI assistant)
 
 ## Version 2.0.5
 - 2025-07-30: Verified latex_mappings.json validity and kept fallback; reordered changelog and clarified instructions (AI assistant)
