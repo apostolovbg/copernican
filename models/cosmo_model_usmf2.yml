@@ -127,9 +127,9 @@ valid_for_cmb: true
 cmb:
   param_map:
     H0: H_A
-    ombh2: \Omega_b*(H_A/100)ˆ2
+    ombh2: \Omega_b*(H_A/100)^2
     omch2: 0.0
-    omnuh2: \Omega_{\gamma}*(H_A/100)ˆ2
+    omnuh2: \Omega_{\gamma}*(H_A/100)^2
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
