@@ -1,10 +1,11 @@
-"""Model parser for Copernican Suite JSON models."""
+"""Model parser for Copernican Suite YAML models."""
 
 # This module validates model definition files against a JSON schema and writes
 # a sanitized copy to ``models/cache/``. The sanitized file is used by child
 # processes so that validation only happens once in the main process.
 
 import json
+import yaml
 import re
 from jsonschema import validate, ValidationError
 from pathlib import Path
@@ -66,7 +67,7 @@ MODEL_SCHEMA = {
 }
 
 
-def parse_model_json(path, cache_dir):
+def parse_model(path, cache_dir):
     """Validate ``path`` and write cleaned JSON to ``cache_dir``.
 
     Validation is performed only in the main process. Worker processes simply
@@ -75,7 +76,7 @@ def parse_model_json(path, cache_dir):
     Parameters
     ----------
     path : str or Path
-        Source JSON model file.
+        Source YAML model file.
     cache_dir : str or Path
         Directory where the sanitized model will be stored.
 
@@ -87,14 +88,9 @@ def parse_model_json(path, cache_dir):
     path = Path(path)
     try:
         with path.open("r") as f:
-            raw = f.read()
-        try:
-            data = json.loads(raw)
-        except json.JSONDecodeError:
-            # Allow single backslashes by escaping them automatically
-            data = json.loads(raw.replace("\\", "\\\\"))
-    except (OSError, json.JSONDecodeError) as e:
-        error_handler.report_error(f"Failed to read model JSON '{path}': {e}")
+            data = yaml.safe_load(f)
+    except (OSError, yaml.YAMLError) as e:
+        error_handler.report_error(f"Failed to read model YAML '{path}': {e}")
         raise
 
     # Only validate in the main process to avoid random failures when
@@ -106,10 +102,10 @@ def parse_model_json(path, cache_dir):
             validate(instance=data, schema=MODEL_SCHEMA)
         except ValidationError as e:
             error_handler.report_error(
-                f"Model JSON validation error: {e.message}"
+                f"Model YAML validation error: {e.message}"
             )
             raise ValueError(
-                f"Model JSON validation error: {e.message}"
+                f"Model YAML validation error: {e.message}"
             ) from e
 
     # Auto-generate missing python_var fields from LaTeX names

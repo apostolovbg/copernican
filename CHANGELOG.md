@@ -10,6 +10,9 @@ Add one line for each substantive commit or pull request directly under the late
 
 ```
 ## Log changes here (newest versions ABOVE older, newest changes ABOVE older within a version) and keep the line after this one empty:
+## Version 2.0.0
+- 2025-07-30: Migrated all models to YAML and removed JSON support (AI assistant)
+
 
 ## Version 1.19.3
 - 2025-07-29: Fixed parsing of LaTeX names containing `\rm` and bumped version (AI assistant)

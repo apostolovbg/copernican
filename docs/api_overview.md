@@ -3,8 +3,8 @@
 The suite exposes a small API intended for advanced scripting. The
 `copernican_lib` package contains the following key modules:
 
-- `model_parser.parse_model_json(path, cache_dir)` – validate and clean a
-  `cosmo_model_*.json` file.
+- `model_parser.parse_model(path, cache_dir)` – validate and clean a
+  `cosmo_model_*.yml` file.
 - `model_coder.generate_callables(clean_path)` – compile sanitized model JSON
   into Python callables.
 - `engine_interface.build_plugin(parsed_json, funcs)` – construct a plugin object
