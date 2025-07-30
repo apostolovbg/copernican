@@ -1,19 +1,24 @@
-"""Model coder that turns validated JSON into callable Python functions."""
+# """Model coder that turns validated YAML into callable Python functions."""
 
-# Every cosmological model is stored as JSON.  This module reads the sanitized
-# JSON and uses SymPy to translate mathematical expressions into efficient
+# Every cosmological model is stored as YAML.  This module reads the sanitized
+# YAML and uses SymPy to translate mathematical expressions into efficient
 # NumPy-friendly functions.
 
 import json
-import re
 from pathlib import Path
 import sympy as sp
+from sympy.parsing.sympy_parser import (
+    parse_expr,
+    standard_transformations,
+    implicit_multiplication_application,
+)
 import numpy as np
 from scipy.integrate import quad
 import logging
 from sympy.printing.numpy import NumPyPrinter
 from . import error_handler
 from . import engine_interface
+from . import latex_utils
 
 
 class QuadPrinter(NumPyPrinter):
@@ -32,56 +37,7 @@ class QuadPrinter(NumPyPrinter):
 
 def _latex_to_sympy_str(expr: str) -> str:
     """Convert a LaTeX-style expression to a SymPy-friendly string."""
-    expr = expr.strip()
-    if expr.startswith("$$") and expr.endswith("$$"):
-        expr = expr[2:-2]
-    if "=" in expr:
-        expr = expr.split("=", 1)[1]
-
-    replacements = [
-        (r"\\left", ""),
-        (r"\\right", ""),
-        (r"\\bigl", ""),
-        (r"\\bigr", ""),
-        (r"\\,", ""),
-        (r"\\rm\s*", ""),
-        (r"\\Omega_{m0}", "Omega_m0"),
-        (r"\\Omega_{b0}", "Omega_b0"),
-        (r"\\Omega_{r0}", "Omega_r0"),
-        (r"\\alpha", "alpha"),
-        (r"\\beta", "beta"),
-        (r"\\gamma", "gamma"),
-        (r"\\omega", "omega"),
-        (r"\\phi", "phi"),
-        (r"\\tau", "tau"),
-    ]
-    for pat, repl in replacements:
-        expr = re.sub(pat, repl, expr)
-
-    func_replacements = {
-        r"\\log": "log",
-        r"\\ln": "log",
-        r"\\exp": "exp",
-        r"\\sin": "sin",
-        r"\\cos": "cos",
-        r"\\tan": "tan",
-        r"\\sqrt": "sqrt",
-    }
-    for pat, repl in func_replacements.items():
-        expr = re.sub(pat, repl, expr)
-
-    while "\\frac" in expr:
-        expr = re.sub(r"\\frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1)/(\2)", expr)
-
-    expr = re.sub(r"_{([^{}]+)}", r"_\1", expr)
-    expr = re.sub(r"\^\{([^{}]+)\}", r"**(\1)", expr)
-    expr = re.sub(r"\^([\w\.]+)", r"**\1", expr)
-    expr = expr.replace("\\", "")
-    expr = expr.replace("{", "(").replace("}", ")")
-    # Convert bracketed groups like [a+b] to parentheses for SymPy
-    expr = expr.replace("[", "(").replace("]", ")")
-    expr = re.sub(r"\s{2,}", " ", expr)
-    return expr.strip()
+    return latex_utils.latex_to_sympy(expr)
 
 
 def _compile_sympy_expr(sym_expr, args):
@@ -104,12 +60,12 @@ def generate_callables(cache_path):
     Parameters
     ----------
     cache_path : str or Path
-        Path to the sanitized model JSON produced by :func:`parse_model_json`.
+        Path to the sanitized model YAML produced by :func:`parse_model`.
 
     Returns
     -------
     tuple(dict, dict)
-        Dictionary of callables and the loaded JSON data.
+        Dictionary of callables and the loaded YAML data.
     """
     cache_path = Path(cache_path)
     with cache_path.open("r") as f:
@@ -121,7 +77,7 @@ def generate_callables(cache_path):
     param_syms = [sp.symbols(p['python_var']) for p in model_data['parameters']]
     local_dict = {p['python_var']: sym for p, sym in zip(model_data['parameters'], param_syms)}
     local_dict['z'] = z
-    # Allow JSON equations to reference the full 'sympy' prefix as well as shorthand
+    # Allow YAML equations to reference the full 'sympy' prefix as well as shorthand
     local_dict['sympy'] = sp
 
     funcs = {}
@@ -131,7 +87,12 @@ def generate_callables(cache_path):
     if hz_expr_str:
         try:
             parsed_hz = _latex_to_sympy_str(hz_expr_str)
-            hz_sym = sp.sympify(parsed_hz, locals=local_dict)
+            hz_sym = parse_expr(
+                parsed_hz,
+                local_dict,
+                transformations=standard_transformations
+                + (implicit_multiplication_application,),
+            )
             used_syms = {str(s) for s in hz_sym.free_symbols if s != z}
             param_names = {p['python_var'] for p in model_data['parameters']}
             missing = used_syms - param_names
@@ -189,7 +150,7 @@ def generate_callables(cache_path):
 
                 funcs['get_DV_Mpc'] = _dv
                 code_dict['get_DV_Mpc'] = '((DC^2 * c*z/H)^1/3)'
-            logger.info("Derived distance functions from symbolic Hz_expression in model JSON.")
+            logger.info("Derived distance functions from symbolic Hz_expression in model YAML.")
 
             # --- Derive sound horizon at recombination (r_s) ---
             rs_expr_str = model_data.get('rs_expression')
@@ -199,7 +160,12 @@ def generate_callables(cache_path):
             if rs_expr_str:
                 try:
                     parsed_rs = _latex_to_sympy_str(rs_expr_str)
-                    rs_sym = sp.sympify(parsed_rs, locals=local_dict)
+                    rs_sym = parse_expr(
+                        parsed_rs,
+                        local_dict,
+                        transformations=standard_transformations
+                        + (implicit_multiplication_application,),
+                    )
                     used = {str(s) for s in rs_sym.free_symbols} - {'z'}
                     missing_rs = used - param_names
                     if missing_rs:
@@ -211,14 +177,20 @@ def generate_callables(cache_path):
                     funcs['get_sound_horizon_rs_Mpc'] = lambda *p: float(rs_fn_sym(*p))
                     code_dict['get_sound_horizon_rs_Mpc'] = str(rs_sym)
                     model_data['valid_for_bao'] = True
-                    logger.info("Derived r_s from symbolic rs_expression in model JSON.")
+                    logger.info("Derived r_s from symbolic rs_expression in model YAML.")
                 except Exception as e:
                     error_handler.report_error(f"Failed to parse rs_expression: {e}")
                     raise ValueError(f"Failed to parse rs_expression: {e}") from e
-            elif {'Ob', 'Og', 'z_recomb'}.issubset(param_names) and 'get_Hz_per_Mpc' in funcs:
-                ob_i = param_index['Ob']
-                og_i = param_index['Og']
-                zr_i = param_index['z_recomb']
+            elif (
+                'Omega_b' in param_names
+                and 'Omega_gamma' in param_names
+                and ('z_rec' in param_names or 'z_recomb' in param_names)
+                and 'get_Hz_per_Mpc' in funcs
+            ):
+                ob_i = param_index['Omega_b']
+                og_i = param_index['Omega_gamma']
+                zr_key = 'z_rec' if 'z_rec' in param_names else 'z_recomb'
+                zr_i = param_index[zr_key]
 
                 def _rs(*params):
                     """Numerically compute the sound horizon r_s in Mpc."""
@@ -263,7 +235,12 @@ def generate_callables(cache_path):
             # Textual equations are preserved but not parsed into functions
             continue
         try:
-            sym_expr = sp.sympify(expr, locals=local_dict)
+            sym_expr = parse_expr(
+                expr,
+                local_dict,
+                transformations=standard_transformations
+                + (implicit_multiplication_application,),
+            )
             # Convert SymPy expression to a callable, numerically evaluating
             # ``Integral`` constructs if present.
             fn = _compile_sympy_expr(sym_expr, (z, *param_syms))

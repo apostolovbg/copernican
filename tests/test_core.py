@@ -16,9 +16,9 @@ class FunctionalTestCase(unittest.TestCase):
         # Prepare a validated ΛCDM plugin used by several test cases.
         base = Path(__file__).resolve().parents[1]
         models_dir = base / 'models'
-        json_path = models_dir / 'cosmo_model_lcdm.json'
+        yaml_path = models_dir / 'cosmo_model_lcdm.yml'
         cache_dir = models_dir / 'cache'
-        cache_path = model_parser.parse_model_json(json_path, cache_dir)
+        cache_path = model_parser.parse_model(yaml_path, cache_dir)
         funcs, parsed = model_coder.generate_callables(cache_path)
         cls.plugin = engine_interface.build_plugin(parsed, funcs)
         engine_interface.validate_plugin(cls.plugin)
@@ -111,8 +111,20 @@ class PlotterUtilTestCase(unittest.TestCase):
         plotter = importlib.import_module('copernican_lib.plotter')
 
         expr = r"\mu(z) = 5\log_{10}\bigl[d_L(z)/\mathrm{Mpc}\bigr] + 25"
-        expected = r"$\mu(z) = 5\log_{10}[d_L(z)/\mathrm{Mpc}] + 25$"
+        expected = r"$\mu(z) = 5\log_{10}[d_L(z)/{Mpc}] + 25$"
         self.assertEqual(plotter._wrap_math(expr), expected)
+
+    def test_latex_utils_conversions(self):
+        """Ensure LaTeX mappings are applied consistently."""
+        from copernican_lib import latex_utils
+
+        self.assertEqual(latex_utils.sanitize_name(r"\alpha_1"), "alpha_1")
+        self.assertEqual(
+            latex_utils.latex_to_sympy(r"\frac{1}{\infty}"), "(1)/(sympy.oo)"
+        )
+        self.assertEqual(latex_utils.latex_to_unicode(r"\Omega_{gamma}"), "Ωᵧ")
+        self.assertEqual(latex_utils.latex_to_unicode("H_0"), "H₀")
+        self.assertEqual(latex_utils.latex_to_unicode(r"z_{\rm rec}"), "zᵣₑc")
 
 
 if __name__ == '__main__':

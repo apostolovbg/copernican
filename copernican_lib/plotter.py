@@ -8,8 +8,9 @@ import logging
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import re
 import textwrap
+
+from . import latex_utils
 
 from .utils import generate_filename, ensure_dir_exists, get_timestamp
 from .logger import get_logger
@@ -18,16 +19,9 @@ from copernican import COPERNICAN_VERSION
 
 def _wrap_math(text: str) -> str:
     """Return ``text`` wrapped in dollar signs for MathText rendering."""
-    if text is None:
-        return ""
-    cleaned = re.sub(r"^\$+|\$+$", "", str(text).strip())
-    # Matplotlib's MathText does not understand sizing macros like ``\bigl``
-    # or ``\bigr``. Remove them to avoid parse errors when rendering.
-    cleaned = re.sub(r"\\(bigl|bigr|Bigl|Bigr|biggl|biggr|left|right)", "", cleaned)
-    cleaned = re.sub(r"\\,", "", cleaned)
-    cleaned = re.sub(r"\\rm\s*", "", cleaned)
-    cleaned = re.sub(r"\s{2,}", " ", cleaned)
-    return f"${cleaned}$" if cleaned else ""
+    # Delegate the heavy lifting to :mod:`latex_utils` so that the same
+    # sanitisation rules are shared across plotting, parsing and code generation.
+    return latex_utils.wrap_math(text)
 
 
 def _smooth_line(

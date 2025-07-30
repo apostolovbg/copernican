@@ -50,7 +50,7 @@ data_loaders = None
 
 # Use a fixed version string to avoid confusion when the package metadata is
 # outdated. Automatic releases are not yet enabled.
-COPERNICAN_VERSION = "1.14.11"
+COPERNICAN_VERSION = "2.0.2"
 CURRENT_LOG_FILE = None
 
 
@@ -409,20 +409,19 @@ def main_workflow():
 
     show_splash_screen()
 
-    # Load the baseline LCDM model from JSON and validate it
-    def _load_lcdm_from_json():
+    # Load the baseline LCDM model from YAML and validate it
+    def _load_lcdm_model():
         models_dir = os.path.join(SCRIPT_DIR, "models")
-        json_path = os.path.join(models_dir, "cosmo_model_lcdm.json")
+        yaml_path = os.path.join(models_dir, "cosmo_model_lcdm.yml")
         cache_dir = os.path.join(models_dir, "cache")
-        cache_path = model_parser.parse_model_json(json_path, cache_dir)
+        cache_path = model_parser.parse_model(yaml_path, cache_dir)
         func_dict, parsed = model_coder.generate_callables(cache_path)
         plugin = engine_interface.build_plugin(parsed, func_dict)
-        # Record the original model filename for downstream modules and logs.
-        plugin.MODEL_FILENAME = os.path.basename(json_path)
+        plugin.MODEL_FILENAME = os.path.basename(yaml_path)
         return plugin
 
     global lcdm
-    lcdm = _load_lcdm_from_json()
+    lcdm = _load_lcdm_model()
     engine_interface.validate_plugin(lcdm)
 
     while True:
@@ -449,8 +448,7 @@ def main_workflow():
             [
                 f
                 for f in os.listdir(models_dir)
-                if f.startswith("cosmo_model_")
-                and (f.endswith(".md") or f.endswith(".json"))
+                if f.startswith("cosmo_model_") and f.endswith(".yml")
             ]
         )
         selected_model = select_from_list(model_files, "Select cosmological model")
@@ -459,36 +457,21 @@ def main_workflow():
             cleanup_cache(SCRIPT_DIR)
             print()
             return
-        if selected_model.endswith(".json"):
-            json_path = os.path.join(models_dir, selected_model)
-            cache_dir = os.path.join(models_dir, "cache")
-            try:
-                cache_path = model_parser.parse_model_json(json_path, cache_dir)
-            except Exception as e:
-                logger.error(str(e))
-                continue
-            try:
-                func_dict, parsed = model_coder.generate_callables(cache_path)
-                alt_model_plugin = engine_interface.build_plugin(parsed, func_dict)
-                # Keep track of which JSON file produced this plugin.
-                alt_model_plugin.MODEL_FILENAME = os.path.basename(json_path)
-                logger.info(f"Loaded JSON model: {parsed.get('model_name')}")
-            except Exception as e:
-                logger.error(f"Error generating model from JSON: {e}", exc_info=True)
-                continue
-        else:
-            md_path = os.path.join(models_dir, selected_model)
-            meta = parse_model_header(md_path)
-            plugin_name = meta.get("model_plugin")
-            if not plugin_name:
-                logger.error(
-                    f"Model file {selected_model} missing 'model_plugin' entry."
-                )
-                continue
-            alt_model_filepath = os.path.join(SCRIPT_DIR, plugin_name)
-            if not os.path.isfile(alt_model_filepath):
-                alt_model_filepath = os.path.join(models_dir, plugin_name)
-            alt_model_plugin = load_alternative_model_plugin(alt_model_filepath)
+        yaml_path = os.path.join(models_dir, selected_model)
+        cache_dir = os.path.join(models_dir, "cache")
+        try:
+            cache_path = model_parser.parse_model(yaml_path, cache_dir)
+        except Exception as e:
+            logger.error(str(e))
+            continue
+        try:
+            func_dict, parsed = model_coder.generate_callables(cache_path)
+            alt_model_plugin = engine_interface.build_plugin(parsed, func_dict)
+            alt_model_plugin.MODEL_FILENAME = os.path.basename(yaml_path)
+            logger.info(f"Loaded YAML model: {parsed.get('model_name')}")
+        except Exception as e:
+            logger.error(f"Error generating model from YAML: {e}", exc_info=True)
+            continue
 
         if not alt_model_plugin:
             continue
@@ -718,11 +701,17 @@ def main_workflow():
             f"{alt_model_plugin.MODEL_NAME} Abstract:\n{alt_model_plugin.MODEL_ABSTRACT}\n"
         )
 
-        def _print_fit(label, sne_res, bao_res, cmb_res):
+        def _print_fit(label, sne_res, bao_res, cmb_res, plugin):
             print(f"--- {label} Fit Report ---\n")
             if sne_res:
-                for name, val in sne_res.get("fitted_cosmological_params", {}).items():
-                    print(f"  {name} = {val:.5g}")
+                from copernican_lib import latex_utils
+                p_names = getattr(plugin, "PARAMETER_NAMES", [])
+                p_latex = getattr(plugin, "PARAMETER_LATEX_NAMES", [])
+                for name, latex_name in zip(p_names, p_latex):
+                    val = sne_res.get("fitted_cosmological_params", {}).get(name)
+                    if val is not None:
+                        disp = latex_utils.latex_to_unicode(latex_name)
+                        print(f"  {disp} = {val:.5g}")
             chi2_sne = sne_res.get("chi2_sne", sne_res.get("chi2_min", float("nan")))
             chi2_total = sne_res.get("chi2_total", float("nan"))
             print(f"  χ²_Total = {chi2_total:.2f}")
@@ -733,12 +722,13 @@ def main_workflow():
                 print(f"  χ²_CMB = {cmb_res.get('chi2_cmb', float('nan')):.2f}")
             print()
 
-        _print_fit("ΛCDM", lcdm_sne_fit_results, lcdm_full_results, lcdm_cmb)
+        _print_fit("ΛCDM", lcdm_sne_fit_results, lcdm_full_results, lcdm_cmb, lcdm)
         _print_fit(
             alt_model_plugin.MODEL_NAME,
             alt_model_sne_fit_results,
             alt_model_full_results,
             alt_cmb,
+            alt_model_plugin,
         )
 
         # The call to the redundant summary CSV has been removed.

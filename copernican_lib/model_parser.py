@@ -1,14 +1,32 @@
-"""Model parser for Copernican Suite JSON models."""
+"""Model parser for Copernican Suite YAML models."""
 
 # This module validates model definition files against a JSON schema and writes
 # a sanitized copy to ``models/cache/``. The sanitized file is used by child
 # processes so that validation only happens once in the main process.
 
 import json
+import yaml
+import re
 from jsonschema import validate, ValidationError
 from pathlib import Path
 import multiprocessing as _mp
 from . import error_handler
+from . import latex_utils
+
+
+def _sanitise_name_to_var(name: str) -> str:
+    """Return a valid Python identifier derived from a LaTeX name."""
+    return latex_utils.sanitize_name(name)
+
+
+def _ensure_delim(expr: str | None) -> str | None:
+    """Wrap math expressions with ``$$`` if not already present."""
+    if expr is None:
+        return None
+    cleaned = str(expr).strip()
+    if not cleaned.startswith("$$"):
+        cleaned = f"$${cleaned}$$"
+    return cleaned
 
 MODEL_SCHEMA = {
     "type": "object",
@@ -20,7 +38,7 @@ MODEL_SCHEMA = {
             "type": "array",
             "items": {
                 "type": "object",
-                "required": ["name", "python_var", "bounds"],
+                "required": ["name", "bounds"],
                 "properties": {
                     "name": {"type": "string"},
                     "python_var": {"type": "string"},
@@ -49,8 +67,8 @@ MODEL_SCHEMA = {
 }
 
 
-def parse_model_json(path, cache_dir):
-    """Validate ``path`` and write cleaned JSON to ``cache_dir``.
+def parse_model(path, cache_dir):
+    """Validate ``path`` and write cleaned YAML to ``cache_dir``.
 
     Validation is performed only in the main process. Worker processes simply
     read the sanitized file produced during program startup.
@@ -58,7 +76,7 @@ def parse_model_json(path, cache_dir):
     Parameters
     ----------
     path : str or Path
-        Source JSON model file.
+        Source YAML model file.
     cache_dir : str or Path
         Directory where the sanitized model will be stored.
 
@@ -70,9 +88,9 @@ def parse_model_json(path, cache_dir):
     path = Path(path)
     try:
         with path.open("r") as f:
-            data = json.load(f)
-    except (OSError, json.JSONDecodeError) as e:
-        error_handler.report_error(f"Failed to read model JSON '{path}': {e}")
+            data = yaml.safe_load(f)
+    except (OSError, yaml.YAMLError) as e:
+        error_handler.report_error(f"Failed to read model YAML '{path}': {e}")
         raise
 
     # Only validate in the main process to avoid random failures when
@@ -84,11 +102,34 @@ def parse_model_json(path, cache_dir):
             validate(instance=data, schema=MODEL_SCHEMA)
         except ValidationError as e:
             error_handler.report_error(
-                f"Model JSON validation error: {e.message}"
+                f"Model YAML validation error: {e.message}"
             )
             raise ValueError(
-                f"Model JSON validation error: {e.message}"
+                f"Model YAML validation error: {e.message}"
             ) from e
+
+    # Auto-generate missing python_var fields from LaTeX names
+    used_vars = {p.get("python_var") for p in data.get("parameters", []) if p.get("python_var")}
+    for param in data.get("parameters", []):
+        if "latex_name" not in param:
+            raise ValueError("Missing required latex_name for parameter")
+        if not param.get("python_var"):
+            base = _sanitise_name_to_var(param["latex_name"])
+            candidate = base
+            idx = 2
+            while candidate in used_vars:
+                candidate = f"{base}_{idx}"
+                idx += 1
+            param["python_var"] = candidate
+            used_vars.add(candidate)
+
+    # Ensure mathematical fields are wrapped with '$$' for downstream tools
+    data['Hz_expression'] = _ensure_delim(data.get('Hz_expression'))
+    data['rs_expression'] = _ensure_delim(data.get('rs_expression'))
+    eq_sections = data.get('equations', {})
+    for key, arr in eq_sections.items():
+        if isinstance(arr, list):
+            eq_sections[key] = [_ensure_delim(e) for e in arr]
 
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)

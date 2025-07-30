@@ -1,7 +1,7 @@
 """Interface to bridge generated model functions with existing engines."""
 
 # Engines expect models in a specific "plugin" format. This module provides
-# helper functions that take the parsed JSON representation of a model and
+# helper functions that take the parsed YAML representation of a model and
 # turn it into a simple object with the required attributes and callables.
 
 from types import SimpleNamespace
@@ -40,7 +40,7 @@ def build_plugin(model_data, func_dict):
     plugin.MODEL_DESCRIPTION = model_data.get('description', '')
     plugin.MODEL_ABSTRACT = model_data.get('abstract', '')
     plugin.PARAMETER_NAMES = [p['python_var'] for p in model_data['parameters']]
-    plugin.PARAMETER_LATEX_NAMES = [p.get('latex_name', p['name']) for p in model_data['parameters']]
+    plugin.PARAMETER_LATEX_NAMES = [p['latex_name'] for p in model_data['parameters']]
     plugin.PARAMETER_UNITS = [p.get('unit', '') for p in model_data['parameters']]
     plugin.INITIAL_GUESSES = [
         sum(p['bounds']) / 2.0 for p in model_data['parameters']
@@ -62,11 +62,18 @@ def build_plugin(model_data, func_dict):
         logger = logging.getLogger()
         env = {name: val for name, val in zip(plugin.PARAMETER_NAMES, values)}
         env['np'] = np
+        replacements = dict(zip(
+            [ln.strip('$') for ln in plugin.PARAMETER_LATEX_NAMES],
+            plugin.PARAMETER_NAMES,
+        ))
         camb_params = {}
         for key, expr in plugin.CMB_PARAM_MAP.items():
             if isinstance(expr, str):
+                clean_expr = expr
+                for latex, var in replacements.items():
+                    clean_expr = clean_expr.replace(latex, var)
                 try:
-                    val = eval(expr, {"__builtins__": {}}, env)
+                    val = eval(clean_expr, {"__builtins__": {}}, env)
                 except Exception as exc:
                     logger.error(
                         f"(get_camb_params): failed to evaluate '{expr}' for '{key}': {exc}"

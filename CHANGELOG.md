@@ -9,7 +9,62 @@ Add one line for each substantive commit or pull request directly under the late
 - 2025-05-26: Created copernican.py (Apostol Apostolov)
 
 ```
-## Log changes below and keep the line after this one empty:
+## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
+
+## Version 2.0.5
+- 2025-07-30: Verified latex_mappings.json validity and kept fallback; reordered changelog and clarified instructions (AI assistant)
+
+## Version 2.0.4
+- 2025-07-30: Documented stub GW and siren parsers returning None (AI assistant)
+
+## Version 2.0.3
+- 2025-07-30: Removed Unicode escape sequences from model YAML files and converted abstracts and descriptions to block scalars (AI assistant)
+
+## Version 2.0.2
+- 2025-07-30: Console output now renders parameter names with Unicode Greek letters and subscripts (AI assistant)
+
+## Version 2.0.1
+- 2025-07-30: Vectorised BAO chi-squared and updated YAML documentation (AI assistant)
+
+## Version 2.0.0
+- 2025-07-30: Migrated all models to YAML and removed JSON support (AI assistant)
+
+## Version 2.0.3
+- 2025-07-30: Removed Unicode escape sequences from model YAML files and converted abstracts and descriptions to block scalars (AI assistant)
+
+
+## Version 1.19.3
+- 2025-07-29: Fixed parsing of LaTeX names containing `\rm` and bumped version (AI assistant)
+
+## Version 1.19.2
+- 2025-07-29: Normalized LaTeX parameter names in all models and updated example docs (AI assistant)
+
+## Version 1.19.1
+- 2025-07-29: Added missing LaTeX names to LCDM parameters and bumped version (AI assistant)
+
+## Version 1.19.0
+- 2025-07-29: Removed parameter-name fallback and made `latex_name` mandatory in all models (AI assistant)
+
+## Version 1.18.3
+- 2025-07-29: Fallback sound-horizon integral now looks for `Omega_b`, `Omega_gamma` and `z_rec`/`z_recomb` instead of legacy aliases (AI assistant)
+
+## Version 1.18.2
+- 2025-07-29: Fixed parsing failures by removing \rm from parameter names in expressions and bumped versions (AI assistant)
+
+## Version 1.18.1
+- 2025-07-29: Replaced legacy parameter aliases with full LaTeX names across models and documentation (AI assistant)
+
+## Version 1.18.0
+- 2025-07-28: Removed math delimiters and double backslash requirement in model files; added implicit multiplication (AI assistant)
+
+## Version 1.17.0
+- 2025-07-28: Extended latex_mappings with extra symbols, functions and macros; bumped version (AI assistant)
+
+## Version 1.16.0
+- 2025-07-28: Centralized LaTeX mappings and added latex_utils module (AI assistant)
+
+## Version 1.15.0
+- 2025-07-28: Added automatic python_var generation and improved LaTeX handling (AI assistant)
 
 ## Version 1.14.11
 - 2025-07-28: Stripped size macros from plot labels and bumped version to 1.14.11 (AI assistant)
@@ -126,7 +181,6 @@ Add one line for each substantive commit or pull request directly under the late
 ## Version 1.11.2
 - 2025-07-07: Moved chi-squared helpers to chi2_helper module and updated docs (AI assistant)
 
-`- 2025-07-05: short summary (author)`
 ## Version 1.11.1
 - 2025-07-07: Unified SNe data processing and chi-squared helpers (AI assistant)
 
@@ -144,9 +198,6 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Version 1.9.1-beta (Development Release)
 - 2025-07-07: Renamed scripts package to copernican_lib and updated documentation (AI assistant)
-
-Example:
-`- 2025-07-15: Improved BAO solver stability (Alice Doe)`
 
 ## Version 1.9.0-beta (Development Release)
 - 2025-07-07: Centralized optimization wrappers and updated documentation (AI assistant)
@@ -178,17 +229,17 @@ Example:
 - 2025-07-06: Bumped version to 1.8.0-beta (AI assistant)
 - 2025-07-06: Integrated combined-fit workflow and updated documentation (AI assistant)
 
-## Version 1.7.10-beta (Development Release)
-- 2025-07-06: Corrected CAMB spectrum scaling and updated docs (AI assistant)
-- 2025-07-06: Bumped version to 1.7.10-beta (AI assistant)
+## Version 1.7.12-beta (Development Release)
+- 2025-07-06: Added TE/EE spectrum handling and improved cosmic variance plotting (AI assistant)
+- 2025-07-06: Bumped version to 1.7.12-beta (AI assistant)
 
 ## Version 1.7.11-beta (Development Release)
 - 2025-07-06: Fixed Planck 2018 lite parser and trimmed covariance to TT block (AI assistant)
 - 2025-07-06: Bumped version to 1.7.11-beta (AI assistant)
 
-## Version 1.7.12-beta (Development Release)
-- 2025-07-06: Added TE/EE spectrum handling and improved cosmic variance plotting (AI assistant)
-- 2025-07-06: Bumped version to 1.7.12-beta (AI assistant)
+## Version 1.7.10-beta (Development Release)
+- 2025-07-06: Corrected CAMB spectrum scaling and updated docs (AI assistant)
+- 2025-07-06: Bumped version to 1.7.10-beta (AI assistant)
 
 ## Version 1.7.9-beta (Development Release)
 - 2025-07-06: Fixed Planck lite scaling and covariance endianness (AI assistant)

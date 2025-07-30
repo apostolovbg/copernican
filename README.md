@@ -1,5 +1,5 @@
-**Version:** 1.14.11
-**Last Updated:** 2025-07-28
+**Version:** 1.19.1
+**Last Updated:** 2025-07-29
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
 Support for gravitational waves and standard siren events is planned for future releases.
@@ -28,8 +28,8 @@ Additional design notes can be found under the `docs/` directory.
 
 ## Overview
 The suite compares the reference ΛCDM model with alternative theories
-provided by the user. Each model is defined entirely by a JSON file
-`cosmo_model_*.json` under `./models/`. This JSON stores all theory text,
+provided by the user. Each model is defined entirely by a YAML file
+`cosmo_model_*.yml` under `./models/`. This YAML stores all theory text,
 equations and parameters and serves as the sole source of truth. Optional
 Markdown summaries may exist for human readers but are ignored by the
 software.
@@ -57,9 +57,9 @@ Under the hood the program follows a clear pipeline:
    from `./engines/`.  The default `cosmo_engine_comb.py` performs a
    combined optimisation across SNe, BAO and CMB, including optional
    SALT2 nuisance parameters when available. Constant values in a model's
-   `cmb.param_map` are treated as
-   additional fit parameters so CMB spectra can be matched precisely. Data parsers are discovered automatically under
-   `data/<type>/<source>` and models are loaded from `cosmo_model_*.json`.
+  `cmb.param_map` are treated as
+  additional fit parameters so CMB spectra can be matched precisely. Data parsers are discovered automatically under
+  `data/<type>/<source>` and models are loaded from `cosmo_model_*.yml`.
 4. **Parameter Fitting** – depending on the chosen engine either a pure
    SNe fit is performed or a combined optimisation over all datasets.  For
    the combined engine this optimisation begins with the SNe refinement
@@ -123,7 +123,7 @@ automatically and does not need to be tracked in version control.
 
 ## Directory Layout
 ```
-models/           - JSON model definitions containing all theory text and
+models/           - YAML model definitions containing all theory text and
                     equations. Optional `.md` files may provide human-readable
                     summaries but are not required.
 engines/          - Computational backends (e.g. `cosmo_engine_comb.py` for combined fits)
@@ -147,7 +147,7 @@ should not be modified by AI-driven code changes.
 
 ## Engine and Plugin Architecture
 The program compiles model equations into Python functions at runtime. When a
-`cosmo_model_*.json` file is selected, `copernican_lib/model_parser.py` validates the
+`cosmo_model_*.yml` file is selected, `copernican_lib/model_parser.py` validates the
 content and `copernican_lib/model_coder.py` converts the symbolic expressions into
 NumPy-ready callables. `copernican_lib/engine_interface.build_plugin` attaches these
 functions to a lightweight plugin object that exposes a stable API. Every engine
@@ -164,7 +164,7 @@ vector or a ready CAMB dictionary. This flexibility lets future engines reuse
 the same CMB calculation regardless of their own fitting scheme.
 
 ## Using the Suite
-- The program discovers available models from `models/cosmo_model_*.json`.
+- The program discovers available models from `models/cosmo_model_*.yml`.
  - Data sources for SNe, BAO and CMB are chosen interactively. Once a source is
    selected, its parser and files are loaded automatically from
    `data/<type>/<source>/`. The CMB loader now understands TT, TE and EE
@@ -180,46 +180,51 @@ the same CMB calculation regardless of their own fitting scheme.
 
 ## Creating New Models
 All model details, including theory text and equations, must be stored in a
-single JSON file. Markdown summaries are optional and have no effect on the
+single YAML file. Markdown summaries are optional and have no effect on the
 software. To create a new model:
-See `cosmo_model_guide.json` for a detailed template.
-1. Copy an existing `cosmo_model_*.json` file and edit the fields to describe
+See `cosmo_model_template.yml` for a detailed template.
+1. Copy an existing `cosmo_model_*.yml` file and edit the fields to describe
    your theory.
 2. *(Optional)* Create `cosmo_model_name.md` if you want a human-friendly
    summary of the same content. The suite does not read this file.
 3. Include an `Hz_expression` written in LaTeX math form defining `H(z)` using
-   your model parameters. Always place `*` between symbols (e.g. `H0*(1+z)`),
-   otherwise SymPy will treat the expression as a function call.
+   your model parameters. Explicit `*` is optional since implicit multiplication
+   is now supported, though adding it can improve readability.
 4. Optionally provide an `rs_expression` in LaTeX for the sound horizon at
-   recombination or include the parameters `Ob`, `Og` and `z_recomb`. The suite will then
-   derive `r_s` automatically using a numerical integral. Use `sympy.oo` when an
+   recombination or include the parameters `Omega_b`, `Omega_gamma` and either
+   `z_rec` or `z_recomb`. The suite will then
+   derive `r_s` automatically using a numerical integral. Use `\infty` when an
    integral extends to infinity.
-5. Python code must never appear in `cosmo_model_*.json`; all expressions are written in LaTeX.
-6. Backslashes must be doubled inside JSON strings. Use `\\` to escape a single `\` so
-   macros like `\frac` remain valid.
+5. Python code must never appear in `cosmo_model_*.yml`; all expressions are written in LaTeX.
+6. Backslashes may be written normally; the parser automatically escapes them so
+   LaTeX commands like `\frac` work without doubled characters.
 7. Expressions may include `Integral(...)` terms with explicit limits. They are
    evaluated numerically with SciPy's `quad` when the model is loaded.
 8. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
-9. `latex_name` values do not require `$` delimiters. Plots automatically wrap
+9. Every parameter must define a `latex_name`. When a `python_var` field is
+   omitted, a valid identifier is derived automatically from this LaTeX name.
+10. `latex_name` values do not require `$` delimiters. Plots automatically wrap
    parameter names in math mode.
+11. Console and log outputs display parameter names with Greek letters,
+    subscripts and superscripts when possible for easier reading.
 
 **Common mistakes**
 * Missing `*` between variables and parentheses results in a `'Symbol' object is not callable` error.
-* Using `oo` for infinite limits fails; write `sympy.oo` instead.
+* Using `oo` for infinite limits fails; write `\infty` instead.
 * Referencing `H(z)` inside `rs_expression` is unsupported—repeat the formula or rely on the fallback parameters.
    
 The LaTeX parser supports a subset of math syntax including `\frac`,
-subscripts and superscripts, common functions (`\log`, `\ln`, `\exp`, `\sin`,
-`\cos`, `\tan`, `\sqrt`), Greek letters such as `\alpha` and `\beta`, and
+subscripts and superscripts, common functions (`\log`, `\ln`, `\exp`, `\sin`, `\cos`, `\tan`, `\csc`, `\sec`, `\cot`, `\arcsin`, `\arccos`, `\arctan`, `\sinh`, `\cosh`, `\tanh`, `\coth`, `\sech`, `\csch`, `\arcsinh`, `\arccosh`, `\arctanh`, `\sqrt`, `\abs`, `\floor`, `\ceil`), Greek letters such as `\alpha` and `\beta`, and
 macros that adjust bracket size like `\left`, `\right`, `\bigl` and `\bigr`.
 Thin spaces (`\,`) and font switches (`\rm`) are ignored. Unsupported sizing
-macros such as `\bigl` and `\bigr` are removed from plot labels to keep
-Matplotlib's MathText parser happy. Expressions may also
+macros are removed from plot labels to keep Matplotlib's MathText parser happy.
+All sanitisation rules now live in `copernican_lib/latex_utils.py` with
+extensible mappings stored in `latex_mappings.json`. Expressions may also
 contain `Integral` constructs with explicit limits which are numerically
-evaluated with SciPy. Use `sympy.oo` for an infinite upper bound and avoid
+evaluated with SciPy. Use `\infty` for an infinite upper bound and avoid
 referencing `H(z)` inside other expressions—repeat the formula instead.
-The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
+The suite validates the YAML, stores a sanitized copy under `models/cache/`, and
 auto-generates the necessary Python functions.
 
 ### JSON Schema
@@ -230,28 +235,28 @@ The required top-level keys are `model_name`, `version`, `parameters`,
   "model_name": "My Model",
   "version": "1.0",
   "parameters": [
-    {"name": "H0", "python_var": "H0", "bounds": [50, 100], "latex_name": "H_0"},
-    {"name": "Omega_m0", "python_var": "Om0", "bounds": [0.1, 0.5], "latex_name": "\\Omega_{m0}"}
+    {"name": "H0", "bounds": [50, 100], "latex_name": "H_0"},
+    {"name": "Omega_m0", "bounds": [0.1, 0.5], "latex_name": "\Omega_{m0}"}
   ],
-  "Hz_expression": "$$H(z) = H_0 * \\sqrt{Om0*(1+z)^3 + Ol0}$$",
- "rs_expression": "$$r_s = custom\_expression$$",
+  "Hz_expression": "H(z) = H_0 * \sqrt{Om0*(1+z)^3 + Ol0}",
+ "rs_expression": "r_s = custom_expression",
   "equations": {
     "sne": [
-      "$$d_L(z) = (1+z) \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
-      "$$\\mu(z) = 5\\log_{10}[d_L(z)/{\\rm Mpc}] + 25$$"
+      "d_L(z) = (1+z) \int_0^z \frac{c\,dz'}{H(z')}",
+      "\mu(z) = 5\log_{10}[d_L(z)/{\rm Mpc}] + 25"
     ],
     "bao": [
-      "$$D_M(z) = \\int_0^z \\frac{c\\,dz'}{H(z')}$$",
-      "$$D_H(z) = \\frac{c}{H(z)}$$",
-      "$$D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}$$"
+      "D_M(z) = \int_0^z \frac{c\,dz'}{H(z')}",
+      "D_H(z) = \frac{c}{H(z)}",
+      "D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}"
     ]
   },
   "valid_for_cmb": true,
   "cmb": {
     "param_map": {
-      "H0": "H0",
-      "ombh2": "Ob * (H0/100)**2",
-      "omch2": "(Om - Ob) * (H0/100)**2",
+      "H0": "H_0",
+      "ombh2": "\Omega_{b0} * (H_0/100)**2",
+      "omch2": "(\Omega_{m0} - \Omega_{b0}) * (H_0/100)**2",
       "tau": 0.054,
       "As": 2.1e-9,
       "ns": 0.965
@@ -281,13 +286,14 @@ residuals, uses a logarithmic scale for temperature and $E$-mode spectra and
 shows cosmic-variance and observational uncertainty bands. Titles now use
 minimal padding so each label fits neatly between CMB subplots.
 `model_parser.py` accepts unknown keys and simply copies them to the sanitized
-cache. This allows the domain-specific JSON language to evolve while remaining
+cache. This allows the domain-specific YAML language to evolve while remaining
 compatible with older models.
 `model_parser.py` validates this structure and `model_coder.py` translates the
 LaTeX expressions into NumPy-ready callables. When `Hz_expression` is present it is
 compiled into `get_Hz_per_Mpc` and related distance functions used by
-`engine_interface.py`. If an `rs_expression` or the parameters `Ob`, `Og` and
-`z_recomb` are provided, a callable `get_sound_horizon_rs_Mpc` is also generated.
+`engine_interface.py`. If an `rs_expression` or the parameters `Omega_b`,
+`Omega_gamma` and either `z_rec` or `z_recomb` are provided, a callable
+`get_sound_horizon_rs_Mpc` is also generated.
 
 ## Developer Guide
 Document every change in `CHANGELOG.md`. Each substantive update must add an entry using the template `- YYYY-MM-DD: short summary (author)`.
@@ -314,13 +320,13 @@ python copernican.py --run-tests  # uses unittest discovery internally
 
 Multiprocessing is used by several engines. The program enforces the `spawn`
 start method when it launches so that each worker process begins with a fresh
-Python interpreter. Model JSON files are validated with `jsonschema` only in the
+Python interpreter. Model YAML files are validated with `jsonschema` only in the
 main process; child processes simply read the sanitized cache.
 All engines import progress helpers from `copernican_lib/optim_utils.py` so that
 evaluation counting and reporting remain consistent across backends.
 
-New models are described entirely by JSON. Copy an existing file from `models/`
-and consult `cosmo_model_guide.json` for the full schema. Additional engines may
+New models are described entirely by YAML. Copy an existing file from `models/`
+and consult `cosmo_model_template.yml` for the full schema. Additional engines may
 be placed under `engines/` and must follow the interface in
 `copernican_lib/engine_interface.py`.
 

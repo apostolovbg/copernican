@@ -1,0 +1,90 @@
+model_name: CPCfRGravityCosmology
+version: '1.0'
+description: |-
+  CPC-f(R) Gravity Cosmology combines a modified gravity action f(R)=R+αR²−βR^{−n} with a CP-violating curvature coupling ξR F	ilde F in the Standard Model gauge sector. This framework recovers standard radiation-dominated expansion (R→0→f(R)≈R) for BBN, features late-time cosmic acceleration from the R^{-n} term without a cosmological constant, and mediates Newtonian gravity plus Yukawa corrections at galactic scales. The CP term generates baryon asymmetry during the QCD phase transition, eliminating the need for extra baryogenesis fields.
+abstract: |-
+  We propose a CP-coupled f(R) gravity model: S⊃∫d⁴x√−g [M_{Pl}²/2 f(R) + (ξ/4)R F	ilde F + L_{SM}], with f(R)=R+αR²−βR^{−n}. In the radiation era R→0, yielding standard H∝√ρ behavior for BBN. At late times the −βR^{−n} term drives self-acceleration without Λ. We include a CP-violating term ξR F	ilde F to generate n_B/s∼10^{−10} at T∼150 MeV. This model unifies cosmic acceleration, baryogenesis, and structure formation in a pure gravitational framework.
+parameters:
+- name: Hubble constant
+  bounds:
+  - 50.0
+  - 80.0
+  unit: km/s/Mpc
+  latex_name: H_0
+  definition: N/A
+- name: Matter density
+  bounds:
+  - 0.1
+  - 0.5
+  unit: ''
+  latex_name: \Omega_{m0}
+  definition: N/A
+- name: Radiation density
+  bounds:
+  - 1.0e-05
+  - 0.0001
+  unit: ''
+  latex_name: \Omega_{r0}
+  definition: N/A
+- name: R² coefficient
+  bounds:
+  - 0.0
+  - 1000000.0
+  unit: ''
+  latex_name: \alpha
+  definition: N/A
+- name: Inverse-power coefficient
+  bounds:
+  - 0.0
+  - 1.0
+  unit: ''
+  latex_name: "\beta"
+  definition: N/A
+- name: Inverse-power exponent
+  bounds:
+  - 0.0
+  - 2.0
+  unit: ''
+  latex_name: n
+  definition: N/A
+- name: CP-coupling strength
+  bounds:
+  - 0.0
+  - 1.0
+  unit: ''
+  latex_name: \xi
+  definition: N/A
+- name: Sound horizon base
+  bounds:
+  - 140.0
+  - 160.0
+  unit: Mpc
+  latex_name: r_{s,0}
+  definition: N/A
+- name: Drag redshift
+  bounds:
+  - 800
+  - 1500
+  unit: ''
+  latex_name: "z_{\rm drag}"
+  definition: N/A
+- name: Speed of light
+  bounds:
+  - 299792.458
+  - 299792.458
+  unit: km/s
+  latex_name: c
+  definition: N/A
+Hz_expression: "H(z) = H_0 * \\sqrt{\\Omega_{m0}*(1+z)^3 + \\Omega_{r0}*(1+z)^4 +
+  \beta*(1+z)^{-n}}"
+equations:
+  sne:
+  - "d_L(z) = (1+z) \\int_0^z \frac{c\\,dz'}{H(z')}"
+  - "\\mu(z) = 5\\log_{10}[d_L(z)/{\rm Mpc}] + 25"
+  bao:
+  - "D_M(z) = \\int_0^z \frac{c\\,dz'}{H(z')}"
+  - "D_H(z) = \frac{c}{H(z)}"
+  - D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}
+rs_expression: r_s = rs0
+predicts_bao: true
+valid_for_bao: true
