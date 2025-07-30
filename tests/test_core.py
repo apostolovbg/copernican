@@ -16,9 +16,9 @@ class FunctionalTestCase(unittest.TestCase):
         # Prepare a validated ΛCDM plugin used by several test cases.
         base = Path(__file__).resolve().parents[1]
         models_dir = base / 'models'
-        json_path = models_dir / 'cosmo_model_lcdm.json'
+        yaml_path = models_dir / 'cosmo_model_lcdm.yml'
         cache_dir = models_dir / 'cache'
-        cache_path = model_parser.parse_model_json(json_path, cache_dir)
+        cache_path = model_parser.parse_model(yaml_path, cache_dir)
         funcs, parsed = model_coder.generate_callables(cache_path)
         cls.plugin = engine_interface.build_plugin(parsed, funcs)
         engine_interface.validate_plugin(cls.plugin)

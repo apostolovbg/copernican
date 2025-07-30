@@ -28,8 +28,8 @@ Additional design notes can be found under the `docs/` directory.
 
 ## Overview
 The suite compares the reference ΛCDM model with alternative theories
-provided by the user. Each model is defined entirely by a JSON file
-`cosmo_model_*.json` under `./models/`. This JSON stores all theory text,
+provided by the user. Each model is defined entirely by a YAML file
+`cosmo_model_*.yml` under `./models/`. This YAML stores all theory text,
 equations and parameters and serves as the sole source of truth. Optional
 Markdown summaries may exist for human readers but are ignored by the
 software.
@@ -57,9 +57,9 @@ Under the hood the program follows a clear pipeline:
    from `./engines/`.  The default `cosmo_engine_comb.py` performs a
    combined optimisation across SNe, BAO and CMB, including optional
    SALT2 nuisance parameters when available. Constant values in a model's
-   `cmb.param_map` are treated as
-   additional fit parameters so CMB spectra can be matched precisely. Data parsers are discovered automatically under
-   `data/<type>/<source>` and models are loaded from `cosmo_model_*.json`.
+  `cmb.param_map` are treated as
+  additional fit parameters so CMB spectra can be matched precisely. Data parsers are discovered automatically under
+  `data/<type>/<source>` and models are loaded from `cosmo_model_*.yml`.
 4. **Parameter Fitting** – depending on the chosen engine either a pure
    SNe fit is performed or a combined optimisation over all datasets.  For
    the combined engine this optimisation begins with the SNe refinement
@@ -147,7 +147,7 @@ should not be modified by AI-driven code changes.
 
 ## Engine and Plugin Architecture
 The program compiles model equations into Python functions at runtime. When a
-`cosmo_model_*.json` file is selected, `copernican_lib/model_parser.py` validates the
+`cosmo_model_*.yml` file is selected, `copernican_lib/model_parser.py` validates the
 content and `copernican_lib/model_coder.py` converts the symbolic expressions into
 NumPy-ready callables. `copernican_lib/engine_interface.build_plugin` attaches these
 functions to a lightweight plugin object that exposes a stable API. Every engine
@@ -164,7 +164,7 @@ vector or a ready CAMB dictionary. This flexibility lets future engines reuse
 the same CMB calculation regardless of their own fitting scheme.
 
 ## Using the Suite
-- The program discovers available models from `models/cosmo_model_*.json`.
+- The program discovers available models from `models/cosmo_model_*.yml`.
  - Data sources for SNe, BAO and CMB are chosen interactively. Once a source is
    selected, its parser and files are loaded automatically from
    `data/<type>/<source>/`. The CMB loader now understands TT, TE and EE
@@ -180,10 +180,10 @@ the same CMB calculation regardless of their own fitting scheme.
 
 ## Creating New Models
 All model details, including theory text and equations, must be stored in a
-single JSON file. Markdown summaries are optional and have no effect on the
+single YAML file. Markdown summaries are optional and have no effect on the
 software. To create a new model:
-See `cosmo_model_guide.json` for a detailed template.
-1. Copy an existing `cosmo_model_*.json` file and edit the fields to describe
+See `cosmo_model_template.yml` for a detailed template.
+1. Copy an existing `cosmo_model_*.yml` file and edit the fields to describe
    your theory.
 2. *(Optional)* Create `cosmo_model_name.md` if you want a human-friendly
    summary of the same content. The suite does not read this file.
@@ -195,7 +195,7 @@ See `cosmo_model_guide.json` for a detailed template.
    `z_rec` or `z_recomb`. The suite will then
    derive `r_s` automatically using a numerical integral. Use `\infty` when an
    integral extends to infinity.
-5. Python code must never appear in `cosmo_model_*.json`; all expressions are written in LaTeX.
+5. Python code must never appear in `cosmo_model_*.yml`; all expressions are written in LaTeX.
 6. Backslashes may be written normally; the parser automatically escapes them so
    LaTeX commands like `\frac` work without doubled characters.
 7. Expressions may include `Integral(...)` terms with explicit limits. They are
@@ -318,13 +318,13 @@ python copernican.py --run-tests  # uses unittest discovery internally
 
 Multiprocessing is used by several engines. The program enforces the `spawn`
 start method when it launches so that each worker process begins with a fresh
-Python interpreter. Model JSON files are validated with `jsonschema` only in the
+Python interpreter. Model YAML files are validated with `jsonschema` only in the
 main process; child processes simply read the sanitized cache.
 All engines import progress helpers from `copernican_lib/optim_utils.py` so that
 evaluation counting and reporting remain consistent across backends.
 
-New models are described entirely by JSON. Copy an existing file from `models/`
-and consult `cosmo_model_guide.json` for the full schema. Additional engines may
+New models are described entirely by YAML. Copy an existing file from `models/`
+and consult `cosmo_model_template.yml` for the full schema. Additional engines may
 be placed under `engines/` and must follow the interface in
 `copernican_lib/engine_interface.py`.
 

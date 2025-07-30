@@ -9,7 +9,7 @@ focused on numerical work.
 ```
 /engines/          - Computational backends
 /copernican_lib/   - Shared utilities (data loading, plotting, etc.)
-/models/           - JSON model definitions
+/models/           - YAML model definitions
 /data/             - Observational datasets and their parsers
 /tests/            - Unit and functional tests
 ```

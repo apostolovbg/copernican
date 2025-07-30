@@ -1,0 +1,140 @@
+model_name: USMFv3
+version: '3.0'
+description: "### 1. Introduction\nThis version extends the Unified Shrinking Matter\
+  \ Framework by introducing a flexible expansion history and an emergent clustering\
+  \ term, allowing the model to fit CMB and BAO without a cosmological constant or\
+  \ exotic dark components.\n\n### 2. Key Modifications\n- **Flexible H(z):** a two-term\
+  \ law with a tunable power-law and exponential component.\n- **Effective clustering:**\
+  \ an emergent \u03A9_eff term replaces traditional cold dark matter.\n- **Improved\
+  \ sound horizon:** includes the baryon\u2013photon sound speed integral for realistic\
+  \ r_s.\n\n### 3. Implications\nThese changes enable the correct radiation\u2192\
+  matter\u2192late-time sequence, bringing the sound horizon, BAO scales, and CMB\
+  \ peaks into agreement with observations while preserving USMF\u2019s purely geometric/quantum\
+  \ interpretation."
+abstract: "USMF v3 builds on the shrinking-frame paradigm to reproduce all major cosmological\
+  \ probes\u2014SNe Ia, BAO, and the CMB\u2014without invoking a fundamental cosmological\
+  \ constant or new particle species. Key innovations include a generalized expansion\
+  \ law with tunable power-law and exponential components, an emergent clustering\
+  \ parameter \u03A9_eff that mimics pressureless matter, and an improved calculation\
+  \ of the baryon\u2013photon sound horizon. These allow USMF v3 to achieve Planck,\
+  \ BAO, and Pantheon+SH0ES\u2013level fits while retaining a purely geometric/quantum\
+  \ origin of accelerated expansion."
+parameters:
+- name: Hubble scale today
+  bounds:
+  - 50.0
+  - 100.0
+  unit: km/s/Mpc
+  latex_name: H_A
+  definition: N/A
+- name: Quantum exponent
+  bounds:
+  - 0.5
+  - 1.5
+  unit: ''
+  latex_name: p_alpha
+  definition: N/A
+- name: Quantum amplitude
+  bounds:
+  - 0.0
+  - 5.0
+  unit: ''
+  latex_name: "k_{\rm exp}"
+  definition: N/A
+- name: Quantum slope
+  bounds:
+  - 0.0
+  - 3.0
+  unit: ''
+  latex_name: "s_{\rm exp}"
+  definition: N/A
+- name: Present-day age
+  bounds:
+  - 10.0
+  - 20.0
+  unit: Gyr
+  latex_name: "t_{0,\rm age}"
+  definition: N/A
+- name: Oscillation amplitude
+  bounds:
+  - 0.0
+  - 0.1
+  unit: ''
+  latex_name: "A_{\rm osc}"
+  definition: N/A
+- name: Oscillation frequency
+  bounds:
+  - 0.0
+  - 10.0
+  unit: ''
+  latex_name: "w_{\rm osc}"
+  definition: N/A
+- name: Oscillation onset time
+  bounds:
+  - 0.0
+  - 20.0
+  unit: Gyr
+  latex_name: "t_{i,\rm osc}"
+  definition: N/A
+- name: Oscillation phase
+  bounds:
+  - -3.1416
+  - 3.1416
+  unit: rad
+  latex_name: "phi_{\rm osc}"
+  definition: N/A
+- name: Baryon density
+  bounds:
+  - 0.01
+  - 0.1
+  unit: ''
+  latex_name: Omega_b
+  definition: N/A
+- name: Photon density
+  bounds:
+  - 1.0e-05
+  - 0.001
+  unit: ''
+  latex_name: Omega_gamma
+  definition: N/A
+- name: Recombination redshift
+  bounds:
+  - 1000
+  - 1200
+  unit: ''
+  latex_name: "z_{\rm rec}"
+  definition: N/A
+- name: Emergent clustering density
+  bounds:
+  - 0.0
+  - 0.5
+  unit: ''
+  latex_name: "Omega_{\rm eff}"
+  definition: N/A
+Hz_expression: "H(z)=H_A,(1+z)^{p_alpha}\bigl[1 + k_{\rm exp},(1+z)^{s_{\rm exp}}\b\
+  igr]"
+equations:
+  sne:
+  - "1+z = \frac{alpha(t_e)}{alpha(t_0)}"
+  - "r = int_{t_e}^{t_0} \frac{c}{alpha(t')} dt'"
+  - "d_L(z) = |r|,(1+z)^2,\frac{70.0}{H_A}"
+  - mu = 5log_{10}(d_L) + 25
+  bao:
+  - "D_A(z) = |r|,\frac{70.0}{H_A}"
+  - H_{USMF}(z) = H(z)
+  - "D_V(z) = \bigl[(1+z)^2,D_A(z)^2,\frac{cz}{H(z)}\bigr]^{1/3}"
+predicts_bao: true
+valid_for_bao: true
+valid_for_cmb: true
+cmb:
+  param_map:
+    H0: H_A
+    ombh2: Omega_b*(H_A/100)**2
+    omch2: "Omega_{\rm eff}*(H_A/100)**2"
+    omnuh2: Omega_gamma*(H_A/100)**2
+    tau: 0.054
+    As: 2.1e-09
+    ns: 0.965
+notes: 'USMF v3: Flexible expansion law and emergent clustering parameter included.'
+title: The Unified Shrinking Matter Framework (USMF) Version 3
+date: '2025-07-26'

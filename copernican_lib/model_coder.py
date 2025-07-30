@@ -60,7 +60,7 @@ def generate_callables(cache_path):
     Parameters
     ----------
     cache_path : str or Path
-        Path to the sanitized model JSON produced by :func:`parse_model_json`.
+        Path to the sanitized model JSON produced by :func:`parse_model`.
 
     Returns
     -------
