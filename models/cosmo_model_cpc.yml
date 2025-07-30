@@ -1,19 +1,9 @@
 model_name: CPCfRGravityCosmology
 version: '1.0'
-description: "CPC-f(R) Gravity Cosmology combines a modified gravity action f(R)=R+\u03B1\
-  R\xB2\u2212\u03B2R^{\u2212n} with a CP-violating curvature coupling \u03BER F\t\
-  ilde F in the Standard Model gauge sector. This framework recovers standard radiation-dominated\
-  \ expansion (R\u21920\u2192f(R)\u2248R) for BBN, features late-time cosmic acceleration\
-  \ from the R^{-n} term without a cosmological constant, and mediates Newtonian gravity\
-  \ plus Yukawa corrections at galactic scales. The CP term generates baryon asymmetry\
-  \ during the QCD phase transition, eliminating the need for extra baryogenesis fields."
-abstract: "We propose a CP-coupled f(R) gravity model: S\u2283\u222Bd\u2074x\u221A\
-  \u2212g [M_{Pl}\xB2/2 f(R) + (\u03BE/4)R F\tilde F + L_{SM}], with f(R)=R+\u03B1\
-  R\xB2\u2212\u03B2R^{\u2212n}. In the radiation era R\u21920, yielding standard H\u221D\
-  \u221A\u03C1 behavior for BBN. At late times the \u2212\u03B2R^{\u2212n} term drives\
-  \ self-acceleration without \u039B. We include a CP-violating term \u03BER F\tilde\
-  \ F to generate n_B/s\u223C10^{\u221210} at T\u223C150 MeV. This model unifies cosmic\
-  \ acceleration, baryogenesis, and structure formation in a pure gravitational framework."
+description: |-
+  CPC-f(R) Gravity Cosmology combines a modified gravity action f(R)=R+αR²−βR^{−n} with a CP-violating curvature coupling ξR F	ilde F in the Standard Model gauge sector. This framework recovers standard radiation-dominated expansion (R→0→f(R)≈R) for BBN, features late-time cosmic acceleration from the R^{-n} term without a cosmological constant, and mediates Newtonian gravity plus Yukawa corrections at galactic scales. The CP term generates baryon asymmetry during the QCD phase transition, eliminating the need for extra baryogenesis fields.
+abstract: |-
+  We propose a CP-coupled f(R) gravity model: S⊃∫d⁴x√−g [M_{Pl}²/2 f(R) + (ξ/4)R F	ilde F + L_{SM}], with f(R)=R+αR²−βR^{−n}. In the radiation era R→0, yielding standard H∝√ρ behavior for BBN. At late times the −βR^{−n} term drives self-acceleration without Λ. We include a CP-violating term ξR F	ilde F to generate n_B/s∼10^{−10} at T∼150 MeV. This model unifies cosmic acceleration, baryogenesis, and structure formation in a pure gravitational framework.
 parameters:
 - name: Hubble constant
   bounds:
@@ -36,7 +26,7 @@ parameters:
   unit: ''
   latex_name: \Omega_{r0}
   definition: N/A
-- name: "R\xB2 coefficient"
+- name: R² coefficient
   bounds:
   - 0.0
   - 1000000.0
@@ -85,8 +75,8 @@ parameters:
   unit: km/s
   latex_name: c
   definition: N/A
-Hz_expression: "H(z) = H_0 * \\sqrt{\\Omega_{m0}*(1+z)^3 + \\Omega_{r0}*(1+z)^4 +\
-  \ \beta*(1+z)^{-n}}"
+Hz_expression: "H(z) = H_0 * \\sqrt{\\Omega_{m0}*(1+z)^3 + \\Omega_{r0}*(1+z)^4 +
+  \beta*(1+z)^{-n}}"
 equations:
   sne:
   - "d_L(z) = (1+z) \\int_0^z \frac{c\\,dz'}{H(z')}"
