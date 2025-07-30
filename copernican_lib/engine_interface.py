@@ -1,7 +1,7 @@
 """Interface to bridge generated model functions with existing engines."""
 
 # Engines expect models in a specific "plugin" format. This module provides
-# helper functions that take the parsed JSON representation of a model and
+# helper functions that take the parsed YAML representation of a model and
 # turn it into a simple object with the required attributes and callables.
 
 from types import SimpleNamespace

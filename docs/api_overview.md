@@ -5,9 +5,9 @@ The suite exposes a small API intended for advanced scripting. The
 
 - `model_parser.parse_model(path, cache_dir)` – validate and clean a
   `cosmo_model_*.yml` file.
-- `model_coder.generate_callables(clean_path)` – compile sanitized model JSON
+- `model_coder.generate_callables(clean_path)` – compile sanitized model YAML
   into Python callables.
-- `engine_interface.build_plugin(parsed_json, funcs)` – construct a plugin object
+- `engine_interface.build_plugin(parsed_data, funcs)` – construct a plugin object
   with attributes `MODEL_NAME`, `MODEL_DESCRIPTION`, `MODEL_ABSTRACT` and the
   distance and CMB functions required by engines.
   - `data_loaders.load_sne_data(name)`, `load_bao_data(name)`,

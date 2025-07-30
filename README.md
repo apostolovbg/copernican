@@ -123,7 +123,7 @@ automatically and does not need to be tracked in version control.
 
 ## Directory Layout
 ```
-models/           - JSON model definitions containing all theory text and
+models/           - YAML model definitions containing all theory text and
                     equations. Optional `.md` files may provide human-readable
                     summaries but are not required.
 engines/          - Computational backends (e.g. `cosmo_engine_comb.py` for combined fits)
@@ -222,7 +222,7 @@ extensible mappings stored in `latex_mappings.json`. Expressions may also
 contain `Integral` constructs with explicit limits which are numerically
 evaluated with SciPy. Use `\infty` for an infinite upper bound and avoid
 referencing `H(z)` inside other expressions—repeat the formula instead.
-The suite validates the JSON, stores a sanitized copy under `models/cache/`, and
+The suite validates the YAML, stores a sanitized copy under `models/cache/`, and
 auto-generates the necessary Python functions.
 
 ### JSON Schema
@@ -284,7 +284,7 @@ residuals, uses a logarithmic scale for temperature and $E$-mode spectra and
 shows cosmic-variance and observational uncertainty bands. Titles now use
 minimal padding so each label fits neatly between CMB subplots.
 `model_parser.py` accepts unknown keys and simply copies them to the sanitized
-cache. This allows the domain-specific JSON language to evolve while remaining
+cache. This allows the domain-specific YAML language to evolve while remaining
 compatible with older models.
 `model_parser.py` validates this structure and `model_coder.py` translates the
 LaTeX expressions into NumPy-ready callables. When `Hz_expression` is present it is

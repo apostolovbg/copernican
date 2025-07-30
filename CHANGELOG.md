@@ -13,6 +13,9 @@ Add one line for each substantive commit or pull request directly under the late
 ## Version 2.0.0
 - 2025-07-30: Migrated all models to YAML and removed JSON support (AI assistant)
 
+## Version 2.0.1
+- 2025-07-30: Vectorised BAO chi-squared and updated YAML documentation (AI assistant)
+
 
 ## Version 1.19.3
 - 2025-07-29: Fixed parsing of LaTeX names containing `\rm` and bumped version (AI assistant)
