@@ -386,3 +386,4 @@ See `CHANGELOG.md` for complete version history.
 > Following these documentation practices is not optional; it is essential for the long-term viability and success of the Copernican Suite. Failure to follow these rules will compromise the maintainability of the Copernican Suite.
 
 See [docs/api_overview.md](docs/api_overview.md) for the scripting API.
+All contributors must re-read this section at the beginning of every development session. The AGENTS.md file now instructs this explicitly.
