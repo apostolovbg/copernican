@@ -220,12 +220,12 @@ macros that adjust bracket size like `\left`, `\right`, `\bigl` and `\bigr`.
 Thin spaces (`\,`) and font switches (`\rm`) are ignored. Unsupported sizing
 macros are removed from plot labels to keep Matplotlib's MathText parser happy.
 All sanitisation rules now live in `copernican_lib/latex_utils.py` with
-extensible mappings stored in `latex_mappings.json`. Expressions may also
+extensible mappings stored in `latex_mappings.yml`. Expressions may also
 contain `Integral` constructs with explicit limits which are numerically
 evaluated with SciPy. Use `\infty` for an infinite upper bound and avoid
 referencing `H(z)` inside other expressions—repeat the formula instead.
-The suite validates the YAML, stores a sanitized copy under `models/cache/`, and
-auto-generates the necessary Python functions.
+The suite validates the YAML, stores a sanitized copy under `models/cache/` as
+YAML, and auto-generates the necessary Python functions.
 
 ### JSON Schema
 The required top-level keys are `model_name`, `version`, `parameters`,

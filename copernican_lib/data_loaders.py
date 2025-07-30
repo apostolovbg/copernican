@@ -7,7 +7,6 @@ Modular data loading for various cosmological datasets (SNe, BAO, etc.).
 # registered functions after prompting the user.
 import pandas as pd
 import numpy as np
-import json
 import os
 import logging
 import importlib
