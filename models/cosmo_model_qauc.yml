@@ -1,12 +1,9 @@
 model_name: QuantumAttractorUnifiedCosmology
 version: '1.0'
-description: "Quantum Attractor Unified Cosmology (QAUC) enhances \u039BCDM with a\
-  \ scalar\u2013tensor attractor whose exponential envelope and sinusoidal modulation\
-  \ alter the dark-energy sector. Ordinary matter and radiation follow their standard\
-  \ evolution while the oscillating dark-energy wave hints at a link between acceleration\
-  \ and quantum topology."
-Hz_expression: H(z) = H_0 * sqrt{Omega_{m0}*(1+z)^3 + Omega_{r0}*(1+z)^4 + (1 - Omega_{m0}
-  - Omega_{r0})*(1 + A*exp(-alpha*z)*cos(omega*z + phi0))}
+description: |-
+  Quantum Attractor Unified Cosmology (QAUC) enhances ΛCDM with a scalar–tensor attractor whose exponential envelope and sinusoidal modulation alter the dark-energy sector. Ordinary matter and radiation follow their standard evolution while the oscillating dark-energy wave hints at a link between acceleration and quantum topology.
+Hz_expression: H(z) = H_0 * sqrt{Omega_{m0}*(1+z)^3 + Omega_{r0}*(1+z)^4 + (1 - 
+  Omega_{m0} - Omega_{r0})*(1 + A*exp(-alpha*z)*cos(omega*z + phi0))}
 parameters:
 - name: Hubble constant
   bounds:
@@ -105,6 +102,5 @@ cmb:
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
-abstract: A scalar-tensor model with an exponential attractor envelope and oscillatory
-  modulation in the dark-energy sector, designed to fit both SNe Ia and BAO while
-  opening a portal to quantum topological couplings.
+abstract: |-
+  A scalar-tensor model with an exponential attractor envelope and oscillatory modulation in the dark-energy sector, designed to fit both SNe Ia and BAO while opening a portal to quantum topological couplings.
