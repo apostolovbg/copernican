@@ -22,6 +22,9 @@ Add one line for each substantive commit or pull request directly under the late
 ## Version 2.0.3
 - 2025-07-30: Removed Unicode escape sequences from model YAML files and converted abstracts and descriptions to block scalars (AI assistant)
 
+## Version 2.0.4
+- 2025-07-30: Documented stub GW and siren parsers returning None (AI assistant)
+
 
 ## Version 1.19.3
 - 2025-07-29: Fixed parsing of LaTeX names containing `\rm` and bumped version (AI assistant)
