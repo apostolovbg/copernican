@@ -1,9 +1,10 @@
 """Parser for the JLA 2014 supernova sample.
 
-The covariance matrix from `tablef4.fit` is loaded but usually
-discarded because its inversion is ill-conditioned. The parser therefore
-falls back to using only diagonal errors for chi-squared evaluation and
-plots."""
+The systematic covariance matrix from ``tablef4.fit`` is projected to
+distance-modulus space, combined with the diagonal statistical errors
+and inverted. Earlier versions kept a fallback path using only diagonal
+errors when the matrix was nearly singular, but in practice the
+covariance is well behaved so that logic has been removed."""
 
 import os
 import pandas as pd
@@ -132,35 +133,28 @@ def parse_jla2014(
         cov_params = fits.getdata(covpath)
     except Exception as e:
         logger.error(f"Failed reading covariance matrix: {e}")
-        cov_params = None
+        return None
 
-    covariance_matrix_inv = None
-    diag_errors_for_plot = parsed["e_mu_obs"].values
-    if cov_params is not None:
-        try:
-            n_sne = len(parsed)
-            A = np.zeros((n_sne, cov_params.shape[0]))
-            for i in range(n_sne):
-                idx = 3 * i
-                A[i, idx] = 1.0
-                A[i, idx + 1] = salt2_alpha_fixed
-                A[i, idx + 2] = -salt2_beta_fixed
-            mu_cov_sys = A @ cov_params @ A.T
-            stat_cov = np.diag(parsed["e_mu_obs"].values ** 2)
-            mu_cov_total = mu_cov_sys + stat_cov
-            cond = np.linalg.cond(mu_cov_total)
-            if np.isfinite(cond) and cond < 1e8:
-                covariance_matrix_inv = np.linalg.inv(mu_cov_total)
-                diag_errors_for_plot = np.sqrt(np.diag(mu_cov_total))
-            else:
-                logger.error(
-                    "JLA total covariance matrix is ill-conditioned; using diagonal errors only."
-                )
-                covariance_matrix_inv = None
-                diag_errors_for_plot = parsed["e_mu_obs"].values
-        except Exception as e:
-            logger.error(f"Could not process JLA covariance matrix: {e}")
-            covariance_matrix_inv = None
+    try:
+        n_sne = len(parsed)
+        A = np.zeros((n_sne, cov_params.shape[0]))
+        for i in range(n_sne):
+            idx = 3 * i
+            A[i, idx] = 1.0
+            A[i, idx + 1] = salt2_alpha_fixed
+            A[i, idx + 2] = -salt2_beta_fixed
+        mu_cov_sys = A @ cov_params @ A.T
+        stat_cov = np.diag(parsed["e_mu_obs"].values ** 2)
+        mu_cov_total = mu_cov_sys + stat_cov
+        cond = np.linalg.cond(mu_cov_total)
+        if not np.isfinite(cond) or cond >= 1e8:
+            logger.error("JLA total covariance matrix is ill-conditioned")
+            return None
+        covariance_matrix_inv = np.linalg.inv(mu_cov_total)
+        diag_errors_for_plot = np.sqrt(np.diag(mu_cov_total))
+    except Exception as e:
+        logger.error(f"Could not process JLA covariance matrix: {e}")
+        return None
 
     sort_idx = np.argsort(parsed["zcmb"].values)
     parsed = parsed.iloc[sort_idx].reset_index(drop=True)
