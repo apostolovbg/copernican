@@ -378,7 +378,7 @@ See `CHANGELOG.md` for complete version history.
 >
 > **When modifying any file, you are required to:**
 > 1.  **Document all modifications in `CHANGELOG.md` using the changelog template.**
-> 2.  **Comment the code extensively.** Explain the "why" behind your code, not just the "what", and clarify complex logic or algorithms.
+> 2.  **Comment the code extensively.** Explain the "why" behind your code, not just the "what", and clarify both obvious and non-obvious, simple or complex logic or algorithms.
 > 3.  **Keep comments synchronized with the code.** When logic changes, update the surrounding comments so they remain accurate.
 > 4.  **Update this README file and `AGENTS.md`.** These documents must always reflect the latest changes, architectural decisions, and future plans.
 > 5.  **Never add Git conflict markers** (`<<<<<<<`, `=======`, `>>>>>>>`) in any file. These break automated merges and will be rejected.
