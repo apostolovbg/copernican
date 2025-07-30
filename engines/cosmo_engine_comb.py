@@ -522,8 +522,11 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
             {n: final_params[num_cosmo_params + i] for i, n in enumerate(cmb_extra_names)} if cmb_extra_names else None,
         )
     logger.info(f"Combined fit results for {model_plugin.MODEL_NAME}:")
-    for name, val in zip(param_names, final_params):
-        logger.info(f"  - {name}: {val:.5g}")
+    param_latex = getattr(model_plugin, 'PARAMETER_LATEX_NAMES', [])
+    from copernican_lib import latex_utils
+    for name, latex_name, val in zip(param_names, param_latex, final_params):
+        disp = latex_utils.latex_to_unicode(latex_name)
+        logger.info(f"  - {disp}: {val:.5g}")
     logger.info(
         f"  - Chi2 Total: {chi2_tot:.4f} (SNe={chi2_sne:.4f}, BAO={chi2_bao:.4f}, CMB={chi2_cmb:.4f})"
     )

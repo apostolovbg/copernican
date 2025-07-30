@@ -122,6 +122,9 @@ class PlotterUtilTestCase(unittest.TestCase):
         self.assertEqual(
             latex_utils.latex_to_sympy(r"\frac{1}{\infty}"), "(1)/(sympy.oo)"
         )
+        self.assertEqual(latex_utils.latex_to_unicode(r"\Omega_{gamma}"), "Ωᵧ")
+        self.assertEqual(latex_utils.latex_to_unicode("H_0"), "H₀")
+        self.assertEqual(latex_utils.latex_to_unicode(r"z_{\rm rec}"), "zᵣₑc")
 
 
 if __name__ == '__main__':

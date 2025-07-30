@@ -50,7 +50,7 @@ data_loaders = None
 
 # Use a fixed version string to avoid confusion when the package metadata is
 # outdated. Automatic releases are not yet enabled.
-COPERNICAN_VERSION = "2.0.0"
+COPERNICAN_VERSION = "2.0.2"
 CURRENT_LOG_FILE = None
 
 
@@ -701,11 +701,17 @@ def main_workflow():
             f"{alt_model_plugin.MODEL_NAME} Abstract:\n{alt_model_plugin.MODEL_ABSTRACT}\n"
         )
 
-        def _print_fit(label, sne_res, bao_res, cmb_res):
+        def _print_fit(label, sne_res, bao_res, cmb_res, plugin):
             print(f"--- {label} Fit Report ---\n")
             if sne_res:
-                for name, val in sne_res.get("fitted_cosmological_params", {}).items():
-                    print(f"  {name} = {val:.5g}")
+                from copernican_lib import latex_utils
+                p_names = getattr(plugin, "PARAMETER_NAMES", [])
+                p_latex = getattr(plugin, "PARAMETER_LATEX_NAMES", [])
+                for name, latex_name in zip(p_names, p_latex):
+                    val = sne_res.get("fitted_cosmological_params", {}).get(name)
+                    if val is not None:
+                        disp = latex_utils.latex_to_unicode(latex_name)
+                        print(f"  {disp} = {val:.5g}")
             chi2_sne = sne_res.get("chi2_sne", sne_res.get("chi2_min", float("nan")))
             chi2_total = sne_res.get("chi2_total", float("nan"))
             print(f"  χ²_Total = {chi2_total:.2f}")
@@ -716,12 +722,13 @@ def main_workflow():
                 print(f"  χ²_CMB = {cmb_res.get('chi2_cmb', float('nan')):.2f}")
             print()
 
-        _print_fit("ΛCDM", lcdm_sne_fit_results, lcdm_full_results, lcdm_cmb)
+        _print_fit("ΛCDM", lcdm_sne_fit_results, lcdm_full_results, lcdm_cmb, lcdm)
         _print_fit(
             alt_model_plugin.MODEL_NAME,
             alt_model_sne_fit_results,
             alt_model_full_results,
             alt_cmb,
+            alt_model_plugin,
         )
 
         # The call to the redundant summary CSV has been removed.
