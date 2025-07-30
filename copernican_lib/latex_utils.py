@@ -50,7 +50,7 @@ def latex_to_sympy(expr: str) -> str:
     for pat in _MACROS_REMOVE:
         pattern = pat if "\\s" in pat else re.escape(pat)
         expr = re.sub(pattern, "", expr)
-    # ``\\rm`` occasionally survives the initial cleanup when loaded from JSON.
+    # ``\\rm`` occasionally survives the initial cleanup when loaded from YAML.
     # Remove it explicitly so parameters like ``\Omega_{\rm eff}`` parse
     # correctly into ``Omega_eff`` instead of ``Omega_rm eff``.
     expr = re.sub(r"\\rm\s*", "", expr)

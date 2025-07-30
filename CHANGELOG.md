@@ -13,6 +13,7 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Version 2.1.0
 - 2025-07-30: Switched cached models and LaTeX mappings to YAML and removed JSON usage across the codebase (AI assistant)
+- 2025-07-30: Converted all dataset metadata and the BAO test dataset to YAML (AI assistant)
 
 ## Version 2.0.7
 - 2025-07-30: Corrected malformed tab in USMFv2 description to pass YAML parsing (AI assistant)

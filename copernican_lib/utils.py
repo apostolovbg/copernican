@@ -39,6 +39,8 @@ def generate_filename(file_type, dataset_name, ext, model_name="", timestamp=Non
         .replace(' ', '')
         .replace('/', '-')
         .replace('.json', '')
+        .replace('.yml', '')
+        .replace('.yaml', '')
         .replace('.dat', '')
     )
     base_name = (

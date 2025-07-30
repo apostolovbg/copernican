@@ -53,7 +53,7 @@ data_loaders = None
 
 # Use a fixed version string to avoid confusion when the package metadata is
 # outdated. Automatic releases are not yet enabled.
-COPERNICAN_VERSION = "2.0.7"
+COPERNICAN_VERSION = "2.1.0"
 CURRENT_LOG_FILE = None
 
 

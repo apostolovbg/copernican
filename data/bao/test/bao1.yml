@@ -1,0 +1,151 @@
+data_points:
+- name: 6dFGS z=0.106
+  redshift: 0.106
+  observable_type: DV_over_rs
+  value: 2.976
+  error: 0.133
+  rs_fiducial_Mpc: null
+- name: SDSS MGS z=0.15
+  redshift: 0.15
+  observable_type: DV_over_rs
+  value: 4.48
+  error: 0.168
+  rs_fiducial_Mpc: null
+- name: BOSS DR12 Consensus z=0.38
+  redshift: 0.38
+  observable_type: DV_over_rs
+  value: 9.1758
+  error: 0.1453
+  rs_fiducial_Mpc: null
+- name: BOSS DR12 Consensus z=0.51
+  redshift: 0.51
+  observable_type: DV_over_rs
+  value: 12.3631
+  error: 0.1341
+  rs_fiducial_Mpc: null
+- name: BOSS DR12 Consensus z=0.61
+  redshift: 0.61
+  observable_type: DV_over_rs
+  value: 14.3097
+  error: 0.1345
+  rs_fiducial_Mpc: null
+- name: WiggleZ z=0.44
+  redshift: 0.44
+  observable_type: DV_over_rs
+  value: 11.54
+  error: 0.56
+  rs_fiducial_Mpc: null
+- name: WiggleZ z=0.60
+  redshift: 0.6
+  observable_type: DV_over_rs
+  value: 14.94
+  error: 0.68
+  rs_fiducial_Mpc: null
+- name: WiggleZ z=0.73
+  redshift: 0.73
+  observable_type: DV_over_rs
+  value: 16.92
+  error: 0.58
+  rs_fiducial_Mpc: null
+- name: eBOSS DR14 Quasar z=1.52
+  redshift: 1.52
+  observable_type: DV_over_rs
+  value: 25.94
+  error: 1.14
+  rs_fiducial_Mpc: null
+- name: eBOSS DR16 Quasar z=1.48 (DM/rs)
+  redshift: 1.48
+  observable_type: DM_over_rs
+  value: 30.35
+  error: 0.84
+  rs_fiducial_Mpc: null
+- name: eBOSS DR16 Quasar z=1.48 (DH/rs)
+  redshift: 1.48
+  observable_type: DH_over_rs
+  value: 13.26
+  error: 0.53
+  rs_fiducial_Mpc: null
+- name: eBOSS DR16 Lyman-alpha Combined z=2.334 (DM/rs)
+  redshift: 2.334
+  observable_type: DM_over_rs
+  value: 37.5
+  error: 1.1
+  rs_fiducial_Mpc: null
+- name: eBOSS DR16 Lyman-alpha Combined z=2.334 (DH/rs)
+  redshift: 2.334
+  observable_type: DH_over_rs
+  value: 8.88
+  error: 0.19
+  rs_fiducial_Mpc: null
+- name: SDSS DR7 LRG z=0.35
+  redshift: 0.35
+  observable_type: DV_over_rs
+  value: 8.88
+  error: 0.17
+  rs_fiducial_Mpc: null
+- name: SDSS DR7 LRG z=0.2
+  redshift: 0.2
+  observable_type: DV_over_rs
+  value: 5.249
+  error: 0.168
+  rs_fiducial_Mpc: null
+- name: BOSS DR11 LOWZ z=0.32
+  redshift: 0.32
+  observable_type: DV_over_rs
+  value: 8.473
+  error: 0.167
+  rs_fiducial_Mpc: 149.28
+- name: BOSS DR11 CMASS z=0.57
+  redshift: 0.57
+  observable_type: DV_over_rs
+  value: 13.778
+  error: 0.134
+  rs_fiducial_Mpc: 149.28
+- name: BOSS DR11 Quasar-Lyα Cross z=2.36 (DM/rs)
+  redshift: 2.36
+  observable_type: DM_over_rs
+  value: 10.8
+  error: 0.4
+  rs_fiducial_Mpc: null
+- name: BOSS DR11 Quasar-Lyα Cross z=2.36 (DH/rs)
+  redshift: 2.36
+  observable_type: DH_over_rs
+  value: 9.0
+  error: 0.3
+  rs_fiducial_Mpc: null
+- name: eBOSS DR14 Quasar-Lyα Cross z=2.35 (DM/rs)
+  redshift: 2.35
+  observable_type: DM_over_rs
+  value: 36.3
+  error: 1.8
+  rs_fiducial_Mpc: null
+- name: eBOSS DR14 Quasar-Lyα Cross z=2.35 (DH/rs)
+  redshift: 2.35
+  observable_type: DH_over_rs
+  value: 9.2
+  error: 0.36
+  rs_fiducial_Mpc: null
+- name: eBOSS DR14 Lyα Auto z=2.34 (DM/rs)
+  redshift: 2.34
+  observable_type: DM_over_rs
+  value: 37.41
+  error: 1.86
+  rs_fiducial_Mpc: null
+- name: eBOSS DR14 Lyα Auto z=2.34 (DH/rs)
+  redshift: 2.34
+  observable_type: DH_over_rs
+  value: 8.86
+  error: 0.29
+  rs_fiducial_Mpc: null
+- name: eBOSS DR16 ELG z=0.845
+  redshift: 0.845
+  observable_type: DV_over_rs
+  value: 18.23
+  error: 0.58
+  rs_fiducial_Mpc: null
+- name: DES Y1 Angular BAO z=0.81
+  redshift: 0.81
+  observable_type: DM_over_rs
+  value: 10.65
+  error: 0.49
+  rs_fiducial_Mpc: null

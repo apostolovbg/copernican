@@ -1,7 +1,7 @@
 
-"""Generic parser for BAO datasets stored in JSON or YAML files.
+"""Generic parser for BAO datasets stored in YAML or legacy JSON files.
 
-The parser searches ``data_dir`` for a file ending in ``.json`` or ``.yml``
+The parser searches ``data_dir`` for a file ending in ``.yml`` or ``.json``
 that contains a ``data_points`` array. A companion ``metadata_*`` file is
 read via :func:`copernican_lib.utils.load_metadata_from_dir` to obtain the
 dataset name and citation. Any data file not starting with ``metadata`` is
@@ -32,7 +32,7 @@ DESCRIPTION = META.get(
     DESCRIPTION,
     data_dir=DATA_DIR,
 )
-def parse_bao_json_v1(data_dir, **kwargs):
+def parse_bao_v1(data_dir, **kwargs):
     """Parse a BAO dataset and attach metadata."""
     logger = logging.getLogger()
     data_files = [
