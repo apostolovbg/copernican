@@ -376,16 +376,15 @@ See `CHANGELOG.md` for complete version history.
 >
 > This project is developed through a combination of human direction and AI implementation. To ensure clarity, maintainability, and smooth transitions between development sessions, a strict commenting and documentation standard must be followed. The `AGENTS.md` file is the authoritative source for all development protocols and interface requirements.
 >
-> **When modifying any file, you are required to:**
-> 1. **Document all modifications in `CHANGELOG.md` using the changelog template.**
+> 1. **Summarize every change in `CHANGELOG.md` using the changelog template.** Legacy `dev_note` headers should be migrated to the changelog when touched.
 > 2. **Comment the code extensively.** Explain the "why" as well as the "what", clarifying both obvious and non-obvious, simple or complex logic or algorithms.
-> 3. **Keep comments synchronized with the code.** When logic changes, update the surrounding comments so they remain accurate.
-> 4. **Update this README file and `AGENTS.md`.** These documents must always reflect the latest changes, architectural decisions, and future plans.
+> 3. **Keep comments synchronized with the actual code.** Whenever behaviour changes, update all nearby comments immediately so future contributors can rely on them.
+> 4. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behaviour or structure changes. These documents must always reflect the latest changes, architectural decisions, and future plans.
 > 5. **Keep these laws synchronized across `README.md` and `AGENTS.md`.** Amendments to any rule require an explicit human request.
-> 6. **Bump the project version** following Semantic Versioning whenever changes add features, fixes, or breaking alterations.
-> 7. **Never add Git conflict markers** (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.
-> 8. **Re-read this section at the start of every development session.**
-> 9. **Document every module, function and class with clear "what" and "why" explanations.**
+> 6. **Bump the project version according to Semantic Versioning whenever changes introduce new features, fixes or breaking changes.**
+> 7. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.**
+> 8. **Re-read the "Development laws and protocols for human and AI contributors" section in `README.md` at the start of every development session.**
+> 9. **Document every module, function and class with clear "what" and "why" explanations.** Comments and docstrings should describe not only the behaviour but also the rationale behind it.
 >
 > Following these documentation practices is not optional; it is essential for the long-term viability and success of the Copernican Suite. Failure to follow these rules will compromise the maintainability of the Copernican Suite.
 
