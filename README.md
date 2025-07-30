@@ -372,7 +372,7 @@ See `CHANGELOG.md` for complete version history.
 
 ## 6. Development laws and protocols for human and AI contributors
 
-> **To any AI, including my future self, that modifies this codebase:**
+> **To any AI or human developer, including my future self, that modifies this codebase:**
 >
 > This project is developed through a combination of human direction and AI implementation. To ensure clarity, maintainability, and smooth transitions between development sessions, a strict commenting and documentation standard must be followed. The `AGENTS.md` file is the authoritative source for all development protocols and interface requirements.
 >
