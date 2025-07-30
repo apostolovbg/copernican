@@ -133,7 +133,7 @@ To keep the project maintainable all contributors, human or AI, must follow thes
 1. **Summarize every change in `CHANGELOG.md` using the changelog template.** Legacy `dev_note` headers should be migrated to the changelog when touched.
 2. **Comment the code extensively.** Explain the "why" as well as the "what", clarifying both obvious and non-obvious, simple or complex logic or algorithms.
 3. **Keep comments synchronized with the actual code.** Whenever behaviour changes, update all nearby comments immediately so future contributors can rely on them.
-4. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behaviour or structure changes.
+4. **Update documentation**, including this `AGENTS.md` and `README.md`, whenever behaviour or structure changes. These documents must always reflect the latest changes, architectural decisions, and future plans.
 5. **Keep these laws synchronized across `README.md` and `AGENTS.md`.** Amendments to any rule require an explicit human request.
 6. **Bump the project version according to Semantic Versioning whenever changes introduce new features, fixes or breaking changes.**
 7. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.**
