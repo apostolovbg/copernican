@@ -57,7 +57,7 @@ data_loaders = None
 # outdated. Automatic releases are not yet enabled. Version 3.1.0 adds
 # unified exponent syntax across model YAML files and drops all
 # legacy JSON dataset support in favour of YAML-only inputs.
-COPERNICAN_VERSION = "3.2.0"
+COPERNICAN_VERSION = "3.2.1"
 CURRENT_LOG_FILE = None
 
 
@@ -426,7 +426,13 @@ def main_workflow():
     import matplotlib.pyplot as plt
     import multiprocessing as mp
     from copernican_lib import model_parser, model_coder, engine_interface
-    from copernican_lib import data_loaders, plotter, csv_writer, logger as log_mod, utils
+    from copernican_lib import (
+        data_loaders,
+        plotter,
+        csv_writer,
+        logger as log_mod,
+        utils,
+    )
 
     try:
         SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -744,6 +750,7 @@ def main_workflow():
             console.write(f"--- {label} Fit Report ---\n")
             if sne_res:
                 from copernican_lib import latex_utils
+
                 p_names = getattr(plugin, "PARAMETER_NAMES", [])
                 p_latex = getattr(plugin, "PARAMETER_LATEX_NAMES", [])
                 for name, latex_name in zip(p_names, p_latex):
@@ -868,7 +875,9 @@ if __name__ == "__main__":
     finally:
         # Ensure that any generated plot windows are displayed at the very end
         if plt is not None and hasattr(plt, "get_fignums") and plt.get_fignums():
-            console.write("\nDisplaying plot(s). Close plot window(s) to exit script fully.")
+            console.write(
+                "\nDisplaying plot(s). Close plot window(s) to exit script fully."
+            )
             try:
                 plt.show(block=True)
             except Exception as e_show:
