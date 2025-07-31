@@ -19,6 +19,7 @@ from sympy.printing.numpy import NumPyPrinter
 from . import error_handler
 from . import engine_interface
 from . import latex_utils
+from . import common_parameters
 
 
 class QuadPrinter(NumPyPrinter):
@@ -42,6 +43,10 @@ def _latex_to_sympy_str(expr: str) -> str:
 
 def _compile_sympy_expr(sym_expr, args):
     """Compile a SymPy expression into a callable handling ``Integral`` nodes."""
+    # ``sym_expr`` may be a plain number if the equation consists only of a
+    # constant. In that case return a trivial lambda.
+    if not hasattr(sym_expr, "atoms"):
+        return lambda *args: float(sym_expr)
     # SymPy can convert expressions directly to Python functions, but it does
     # not evaluate ``Integral`` objects by default. When an integral is present
     # we expand it into a call to ``scipy.integrate.quad`` so the resulting
@@ -76,6 +81,14 @@ def generate_callables(cache_path):
     z = sp.symbols('z')
     param_syms = [sp.symbols(p['python_var']) for p in model_data['parameters']]
     local_dict = {p['python_var']: sym for p, sym in zip(model_data['parameters'], param_syms)}
+    param_names = set(local_dict)
+    # Populate the namespace with universal constants unless overridden by parameters
+    constants = {
+        latex_utils.sanitize_name(p['latex_name']): p['value']
+        for p in common_parameters.PARAMETERS
+        if latex_utils.sanitize_name(p['latex_name']) not in param_names
+    }
+    local_dict.update(constants)
     local_dict['z'] = z
     # Allow YAML equations to reference the full 'sympy' prefix as well as shorthand
     local_dict['sympy'] = sp
@@ -93,9 +106,13 @@ def generate_callables(cache_path):
                 transformations=standard_transformations
                 + (implicit_multiplication_application,),
             )
-            used_syms = {str(s) for s in hz_sym.free_symbols if s != z}
+            used_syms = {str(s) for s in getattr(hz_sym, "free_symbols", set()) if s != z}
             param_names = {p['python_var'] for p in model_data['parameters']}
-            missing = used_syms - param_names
+            constant_names = {
+                latex_utils.sanitize_name(p['latex_name'])
+                for p in common_parameters.PARAMETERS
+            }
+            missing = used_syms - param_names - constant_names
             if missing:
                 raise ValueError(
                     "Parameter '" + "', '".join(missing) + "' used in Hz_expression is not defined in model parameters."
@@ -109,7 +126,7 @@ def generate_callables(cache_path):
 
             def _dm(z_val, *params):
                 """Comoving distance integral valid for scalars or arrays."""
-                integrand = lambda zp: 299792.458 / hz_fn(zp, *params)
+                integrand = lambda zp: 299792458 / hz_fn(zp, *params)
                 if np.isscalar(z_val):
                     # ``quad`` expects scalar limits; cast to float explicitly.
                     return quad(integrand, 0, float(z_val), limit=100)[0]
@@ -135,7 +152,7 @@ def generate_callables(cache_path):
                     dm_val = _dm(z_val, *params)
                     hz_val = hz_fn(z_val, *params)
 
-                    term = dm_val ** 2 * 299792.458 * z_val / hz_val
+                    term = dm_val ** 2 * 299792458 * z_val / hz_val
 
                     if np.isscalar(z_val):
                         if z_val > 0 and hz_val != 0:
@@ -166,8 +183,12 @@ def generate_callables(cache_path):
                         transformations=standard_transformations
                         + (implicit_multiplication_application,),
                     )
-                    used = {str(s) for s in rs_sym.free_symbols} - {'z'}
-                    missing_rs = used - param_names
+                    used = {str(s) for s in getattr(rs_sym, "free_symbols", set())} - {'z'}
+                    constant_names = {
+                        latex_utils.sanitize_name(p['latex_name'])
+                        for p in common_parameters.PARAMETERS
+                    }
+                    missing_rs = used - param_names - constant_names
                     if missing_rs:
                         raise ValueError(
                             "Parameter '" + "', '".join(missing_rs) + "' used in rs_expression is not defined in model parameters."
@@ -199,7 +220,7 @@ def generate_callables(cache_path):
                     zrec = params[zr_i]
 
                     def sound_speed(zv):
-                        return 299792.458 / np.sqrt(3 * (1 + 3 * Ob_val / (4 * Og_val) / (1 + zv)))
+                        return 299792458 / np.sqrt(3 * (1 + 3 * Ob_val / (4 * Og_val) / (1 + zv)))
 
                     h0_val = hz_fn(0.0, *params)
 

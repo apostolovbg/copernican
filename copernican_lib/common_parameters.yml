@@ -41,6 +41,6 @@ parameters:
     latex_name: G
   - name: Boltzmann constant
     definition: Relation between energy and temperature
-    value: 1.380649e-23
-    unit: J/K
+    value: 8.617333262e-05
+    unit: eV/K
     latex_name: k_B

@@ -152,6 +152,48 @@ class PlotterUtilTestCase(unittest.TestCase):
         )
         self.assertAlmostEqual(phi_param["value"], (1 + 5 ** 0.5) / 2, places=12)
 
+    def test_constants_from_dictionary(self):
+        """Expressions should accept constants from the shared dictionary."""
+        import tempfile
+        import yaml
+
+        model = {
+            "model_name": "ConstModel",
+            "version": "1.0",
+            "parameters": [],
+            "equations": {},
+            "Hz_expression": "H(z) = c"
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "m.yml"
+            with path.open("w") as fh:
+                yaml.safe_dump(model, fh)
+            cache = model_parser.parse_model(path, tmp)
+            funcs, parsed = model_coder.generate_callables(cache)
+            self.assertAlmostEqual(funcs["get_Hz_per_Mpc"](0.0), 299792458, places=6)
+
+    def test_constant_override_by_parameter(self):
+        """Model parameters with matching names override dictionary constants."""
+        import tempfile
+        import yaml
+
+        model = {
+            "model_name": "OverrideModel",
+            "version": "1.0",
+            "parameters": [
+                {"name": "Speed of light", "bounds": [1.0, 1.0], "unit": "m/s", "latex_name": "c"}
+            ],
+            "equations": {},
+            "Hz_expression": "H(z) = c"
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "m.yml"
+            with path.open("w") as fh:
+                yaml.safe_dump(model, fh)
+            cache = model_parser.parse_model(path, tmp)
+            funcs, parsed = model_coder.generate_callables(cache)
+            self.assertAlmostEqual(funcs["get_Hz_per_Mpc"](0.0, 1.0), 1.0, places=6)
+
 
 if __name__ == '__main__':
     unittest.main()

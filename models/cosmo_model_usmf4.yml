@@ -21,9 +21,9 @@ description: |-
 parameters:
 - name: Speed of light
   bounds:
-  - 299792.458
-  - 299792.458
-  unit: km/s
+  - 299792458
+  - 299792458
+  unit: m/s
   latex_name: c
   definition: N/A
 - name: Hubble scale today

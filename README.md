@@ -1,5 +1,5 @@
-**Version:** 3.2.0
-**Last Updated:** 2025-07-30
+**Version:** 3.3.0
+**Last Updated:** 2025-07-31
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
 Support for gravitational waves and standard siren events is planned for future releases.
@@ -148,6 +148,11 @@ copernican_lib/          - Helper modules
 ```
 All dataset tables and metadata are provided **only** as YAML files. JSON
 input is no longer supported as of version 3.0.0.
+All physical quantities are expressed using base SI units (m, s, K, kg, mol,
+cd, A). Constants like the speed of light therefore appear in metres per
+second and the Boltzmann constant is stored in eV/K. Model YAML files must use
+the same convention; prefixes such as km or Gpc are no longer used in parameter
+definitions.
 **Note:** Files in `data/` are treated as read-only reference datasets and
 should not be modified by AI-driven code changes.
 
@@ -227,7 +232,9 @@ Thin spaces (`\,`) and font switches (`\rm`) are ignored. Unsupported sizing
 macros are removed from plot labels to keep Matplotlib's MathText parser happy.
 All sanitisation rules now live in `copernican_lib/latex_utils.py` with
 extensible mappings stored in `latex_mappings.yml`. Standard constants are
-available from `common_parameters.yml` in the same directory. Expressions may also
+loaded automatically from `common_parameters.yml` and may be used in model
+equations without defining them as parameters. If a model declares a parameter
+with the same LaTeX name, that value overrides the dictionary entry. Expressions may also
 contain `Integral` constructs with explicit limits which are numerically
 evaluated with SciPy. Use `\infty` for an infinite upper bound and avoid
 referencing `H(z)` inside other expressions—repeat the formula instead.
