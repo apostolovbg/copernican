@@ -1,4 +1,4 @@
-**Version:** 3.1.1
+**Version:** 3.2.0
 **Last Updated:** 2025-07-31
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
@@ -75,7 +75,7 @@ Under the hood the program follows a clear pipeline:
    combined optimisation. The chi-squared contribution is then calculated.
 7. **Spectra Caching** – unlensed CAMB spectra are cached using parameter
    keys rounded to six significant digits.
-8. **Output Generation** – `copernican_lib/logger.py`, `copernican_lib/plotter.py` and `copernican_lib/csv_writer.py` handle logs, plots and tables.
+8. **Output Generation** – `copernican_lib/logger.py`, `copernican_lib/plotter.py` and `copernican_lib/csv_writer.py` handle logs, plots and tables. The log file is renamed at the end of each run to match the output timestamp.
 9. **Loop or Exit** – the user may evaluate another model or quit, at which
    point temporary cache files are cleaned automatically.
 
@@ -138,6 +138,7 @@ CONTRIBUTING.md   - Quick checklist for pull requests
 CHANGELOG.md      - Release history
 copernican_lib/          - Helper modules
   logger.py         - Logging setup and helpers
+  console_output.py - Console output helpers
   plotter.py        - Plotting functions
   csv_writer.py     - CSV output helpers
   data_loaders.py   - Data loading utilities
