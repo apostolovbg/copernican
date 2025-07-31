@@ -12,6 +12,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes here (Place the newest version directly below this line and keep one blank line after this line and after each version tag. Version headers run newest to oldest, and within each version the newest entries come first):
 
+## Version 3.4.2
+- 2025-07-31: Reverted precision doubling and trimmed constant digits to stabilize SNe fits (AI assistant)
+
 ## Version 3.4.1
 - 2025-07-31: Fixed distance calculations after SI unit conversion to restore correct chi-squared values (AI assistant)
 
