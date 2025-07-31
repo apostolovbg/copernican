@@ -1,4 +1,4 @@
-**Version:** 3.3.0
+**Version:** 3.4.1
 **Last Updated:** 2025-07-31
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
@@ -150,9 +150,13 @@ All dataset tables and metadata are provided **only** as YAML files. JSON
 input is no longer supported as of version 3.0.0.
 All physical quantities are expressed using base SI units (m, s, K, kg, mol,
 cd, A). Constants like the speed of light therefore appear in metres per
-second and the Boltzmann constant is stored in eV/K. Model YAML files must use
+second and the Boltzmann constant is stored in J/K. Model YAML files must use
 the same convention; prefixes such as km or Gpc are no longer used in parameter
 definitions.
+All distance routines still return values in megaparsecs for
+compatibility with existing datasets; the library converts SI integrals
+to Mpc internally.
+Floating-point outputs now print with twice the previous precision to reduce rounding errors.
 **Note:** Files in `data/` are treated as read-only reference datasets and
 should not be modified by AI-driven code changes.
 

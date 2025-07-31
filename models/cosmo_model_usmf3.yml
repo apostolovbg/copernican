@@ -16,9 +16,9 @@ abstract: |-
 parameters:
 - name: Hubble scale today
   bounds:
-  - 50.0
-  - 100.0
-  unit: km/s/Mpc
+  - 1.6203896447221826e-18
+  - 3.240779289444365e-18
+  unit: 1/s
   latex_name: H_A
   definition: N/A
 - name: Quantum exponent
@@ -44,9 +44,9 @@ parameters:
   definition: N/A
 - name: Present-day age
   bounds:
-  - 10.0
-  - 20.0
-  unit: Gyr
+  - 3.15576e+17
+  - 6.31152e+17
+  unit: s
   latex_name: "t_{0,\rm age}"
   definition: N/A
 - name: Oscillation amplitude
@@ -66,8 +66,8 @@ parameters:
 - name: Oscillation onset time
   bounds:
   - 0.0
-  - 20.0
-  unit: Gyr
+  - 6.31152e+17
+  unit: s
   latex_name: "t_{i,\rm osc}"
   definition: N/A
 - name: Oscillation phase
