@@ -133,7 +133,7 @@ def format_model_summary_text(
             latex_name = param_latex_names[i] if i < len(param_latex_names) else name
             latex_name = _wrap_math(latex_name)
             if val is not None:
-                lines.append(rf"  {latex_name} = ${val:.4g}$")
+                lines.append(rf"  {latex_name} = ${val:.8g}$")
             else:
                 lines.append(rf"  {latex_name} = N/A")
     else:
@@ -147,31 +147,31 @@ def format_model_summary_text(
                 "alpha_salt2": r"\alpha",
                 "beta_salt2": r"\beta",
             }.get(name, name)
-            lines.append(rf"  {_wrap_math(name_latex)} = ${val:.4g}$")
+            lines.append(rf"  {_wrap_math(name_latex)} = ${val:.8g}$")
 
     if dataset_type == "sne":
         lines.append("$\\mathbf{SNe\\ Fit\\ Statistics:}$")
         lines.append(
-            rf"  $\chi^2_{{SNe}}$ = {fit_results.get('chi2_sne', fit_results.get('chi2_min', np.nan)):.2f}"
+            rf"  $\chi^2_{{SNe}}$ = {fit_results.get('chi2_sne', fit_results.get('chi2_min', np.nan)):.4f}"
         )
         if "chi2_total" in fit_results:
             lines.append(
-                rf"  $\chi^2_{{tot}}$ = {fit_results.get('chi2_total', np.nan):.2f}"
+                rf"  $\chi^2_{{tot}}$ = {fit_results.get('chi2_total', np.nan):.4f}"
             )
     elif dataset_type == "bao":
         lines.append("$\\mathbf{BAO\\ Fit\\ Results:}$")
-        lines.append(rf"  $r_s$ = {kwargs.get('rs_Mpc', np.nan):.2f} Mpc")
-        lines.append(rf"  $\chi^2_{{BAO}}$ = {kwargs.get('chi2_bao', np.nan):.2f}")
+        lines.append(rf"  $r_s$ = {kwargs.get('rs_Mpc', np.nan):.4f} Mpc")
+        lines.append(rf"  $\chi^2_{{BAO}}$ = {kwargs.get('chi2_bao', np.nan):.4f}")
         if "chi2_total" in kwargs:
             lines.append(
-                rf"  $\chi^2_{{tot}}$ = {kwargs.get('chi2_total', np.nan):.2f}"
+                rf"  $\chi^2_{{tot}}$ = {kwargs.get('chi2_total', np.nan):.4f}"
             )
     elif dataset_type == "cmb":
         lines.append("$\\mathbf{CMB\\ Fit\\ Statistics:}$")
-        lines.append(rf"  $\chi^2_{{CMB}}$ = {kwargs.get('chi2_cmb', np.nan):.2f}")
+        lines.append(rf"  $\chi^2_{{CMB}}$ = {kwargs.get('chi2_cmb', np.nan):.4f}")
         if "chi2_total" in kwargs:
             lines.append(
-                rf"  $\chi^2_{{tot}}$ = {kwargs.get('chi2_total', np.nan):.2f}"
+                rf"  $\chi^2_{{tot}}$ = {kwargs.get('chi2_total', np.nan):.4f}"
             )
 
     return "\n".join(lines)
@@ -292,7 +292,7 @@ def plot_hubble_diagram(
         )
         mu_model_lcdm_points = lcdm_plugin.distance_modulus_model(z_data, *p_lcdm)
         res_lcdm = mu_obs_data - mu_model_lcdm_points
-        chi2_lcdm = f"{lcdm_fit_results.get('chi2_min', np.nan):.2f}"
+        chi2_lcdm = f"{lcdm_fit_results.get('chi2_min', np.nan):.4f}"
         axs[0].plot(
             z_plot_smooth,
             mu_model_lcdm_smooth,
@@ -334,7 +334,7 @@ def plot_hubble_diagram(
         )
         mu_model_alt_points = alt_model_plugin.distance_modulus_model(z_data, *p_alt)
         res_alt = mu_obs_data - mu_model_alt_points
-        chi2_alt = f"{alt_model_fit_results.get('chi2_min', np.nan):.2f}"
+        chi2_alt = f"{alt_model_fit_results.get('chi2_min', np.nan):.4f}"
         axs[0].plot(
             z_plot_smooth,
             mu_model_alt_smooth,
@@ -849,7 +849,7 @@ def plot_cmb_spectrum(
             )
             if th is not None:
                 chi2_lcdm = (
-                    f"{lcdm_cmb_results.get('chi2_cmb', np.nan):.2f}"
+                    f"{lcdm_cmb_results.get('chi2_cmb', np.nan):.4f}"
                     if comp == "TT"
                     else ""
                 )
@@ -901,7 +901,7 @@ def plot_cmb_spectrum(
             )
             if th is not None:
                 chi2_alt = (
-                    f"{alt_cmb_results.get('chi2_cmb', np.nan):.2f}"
+                    f"{alt_cmb_results.get('chi2_cmb', np.nan):.4f}"
                     if comp == "TT"
                     else ""
                 )
