@@ -34,6 +34,7 @@ AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
 copernican_lib/optim_utils.py - Shared optimisation helpers used by engines
 copernican_lib/latex_utils.py - LaTeX translation helpers using latex_mappings.yml
+copernican_lib/console_output.py - Central console output helpers
 ```
 Installing the suite with `pip` produces a `copernican_suite.egg-info` directory
 containing build metadata. This folder can be safely removed and should not be

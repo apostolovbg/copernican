@@ -18,6 +18,7 @@ import logging
 from sympy.printing.numpy import NumPyPrinter
 from . import error_handler
 from . import engine_interface
+from . import console_output as console
 from . import latex_utils
 
 
@@ -217,7 +218,7 @@ def generate_callables(cache_path):
                 model_data['valid_for_bao'] = True
                 logger.info("Derived r_s using fallback integral from Hz_expression.")
             else:
-                print(
+                console.write(
                     "\u26A0\uFE0F  Model does not define all necessary parameters for computing r_s. BAO scaling may be unavailable."
                 )
                 model_data['valid_for_bao'] = False
@@ -225,7 +226,7 @@ def generate_callables(cache_path):
             error_handler.report_error(f"Failed to parse Hz_expression: {e}")
             raise ValueError(f"Failed to parse Hz_expression: {e}") from e
     else:
-        print(
+        console.write(
             "\u26A0\uFE0F  Model does not define H(z). Distance-based observables such as BAO, comoving distances, and luminosity distances will be unavailable."
         )
         model_data['valid_for_distance_metrics'] = False

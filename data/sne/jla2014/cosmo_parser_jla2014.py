@@ -18,7 +18,7 @@ from copernican_lib.utils import load_metadata_from_dir
 DATA_DIR = os.path.dirname(__file__)
 META = load_metadata_from_dir(DATA_DIR)
 
-DATASET_NAME = META.get("dataset_name", "JLA 2014")
+DATASET_NAME = META.get("dataset_name", "JLA 2014").replace("\\", "")
 DESCRIPTION = META.get(
     "description",
     "Joint SDSS-II and SNLS supernova sample (Betoule et al. 2014).",
@@ -172,7 +172,8 @@ def parse_jla2014(
     parsed.attrs["salt2_m_abs_fixed"] = salt2_m_abs_fixed
     parsed.attrs["salt2_alpha_fixed"] = salt2_alpha_fixed
     parsed.attrs["salt2_beta_fixed"] = salt2_beta_fixed
-    parsed.attrs["dataset_long_name"] = META.get("dataset_name", "JLA2014")
+    long_name = META.get("dataset_name", "JLA2014").replace("\\", "")
+    parsed.attrs["dataset_long_name"] = long_name
     parsed.attrs["dataset_name_attr"] = parsed.attrs["dataset_long_name"].replace(
         " ", "_"
     )

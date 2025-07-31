@@ -10,6 +10,7 @@ import numpy as np
 import os
 import logging
 import importlib
+from . import console_output as console
 
 # --- Parser Registry ---
 # Each registry maps a short human readable key to a dictionary
@@ -122,21 +123,21 @@ def _select_source(parser_registry, data_type_name):
     options = list(parser_registry.keys())
     for i, key in enumerate(options):
         desc = parser_registry[key]['description']
-        print(f"  {i+1}. {key} ({desc})" if desc else f"  {i+1}. {key}")
+        console.write(f"  {i+1}. {key} ({desc})" if desc else f"  {i+1}. {key}")
 
-    print("Write the number of your preferred choice or 'c' to cancel:")
+    console.write("Write the number of your preferred choice or 'c' to cancel:")
     while True:
         try:
-            choice = input("> ").strip()
+            choice = console.ask("> ").strip()
             if choice.lower() == 'c':
                 return None
             choice_idx = int(choice) - 1
             if 0 <= choice_idx < len(options):
                 return options[choice_idx]
             else:
-                print("Invalid selection. Please try again.")
+                console.write("Invalid selection. Please try again.")
         except ValueError:
-            print("Invalid input. Please enter a number or 'c'.")
+            console.write("Invalid input. Please enter a number or 'c'.")
 
 # --- Verbose dataset info helper ---
 def _log_dataset_info(df, data_type, logger):

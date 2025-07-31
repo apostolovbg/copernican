@@ -17,20 +17,22 @@ import datetime
 import argparse
 from pathlib import Path
 
+from copernican_lib import console_output as console
+
 # Verify interpreter version early so users see clear feedback
 MIN_PYTHON = (3, 12)
 
 
 def exit_clean(code: int = 0) -> None:
     """Exit the program after printing a newline."""
-    print()
+    console.write("")
     sys.exit(code)
 
 
 if sys.version_info < MIN_PYTHON:
-    print(
+    console.write(
         f"ERROR: Copernican Suite requires Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]} or later.",
-        file=sys.stderr,
+        error=True,
     )
     exit_clean(1)
 
@@ -55,7 +57,7 @@ data_loaders = None
 # outdated. Automatic releases are not yet enabled. Version 3.1.0 adds
 # unified exponent syntax across model YAML files and drops all
 # legacy JSON dataset support in favour of YAML-only inputs.
-COPERNICAN_VERSION = "3.1.1"
+COPERNICAN_VERSION = "3.2.0"
 CURRENT_LOG_FILE = None
 
 
@@ -64,7 +66,7 @@ def _delete_log_file(path: str) -> None:
     if path and os.path.isfile(path):
         try:
             os.remove(path)
-            print(f"Removed log file {path}")
+            console.write(f"Removed log file {path}")
         except OSError:
             pass
 
@@ -111,7 +113,7 @@ def run_startup_tests():
     try:
         suite = unittest.defaultTestLoader.discover("tests")
     except Exception as exc:
-        print(f"Error discovering startup tests: {exc}")
+        console.write(f"Error discovering startup tests: {exc}")
         return False
     result = unittest.TextTestRunner(verbosity=1).run(suite)
     return result.wasSuccessful()
@@ -144,9 +146,9 @@ def show_splash_screen():
         "\n",
     ]
     for line in banner:
-        print(line)
+        console.write(line)
     time.sleep(1)
-    print(
+    console.write(
         "Follow the prompts to configure a run. Results are saved in the 'output' directory.\n\n"
     )
 
@@ -239,24 +241,24 @@ def _print_install_instructions(missing: list[str]) -> None:
     # to guide less experienced users.
     pkgs = " ".join(sorted(set(missing)))
     pip_cmd = f"{Path(sys.executable).name} -m pip install {pkgs}"
-    print("Please install them with:")
-    print(f"  {pip_cmd}")
+    console.write("Please install them with:")
+    console.write(f"  {pip_cmd}")
 
     sys_name = platform.system()
     if sys_name == "Darwin" and shutil.which("brew"):
-        print(f"  brew install python && {pip_cmd}")
+        console.write(f"  brew install python && {pip_cmd}")
     elif sys_name == "Linux":
         if shutil.which("apt"):
-            print(f"  sudo apt install python3-pip && {pip_cmd}")
+            console.write(f"  sudo apt install python3-pip && {pip_cmd}")
         elif shutil.which("apt-get"):
-            print(f"  sudo apt-get install python3-pip && {pip_cmd}")
+            console.write(f"  sudo apt-get install python3-pip && {pip_cmd}")
     if shutil.which("pipx"):
-        print(f"  pipx install {pkgs}")
+        console.write(f"  pipx install {pkgs}")
 
 
 def check_dependencies():
     """Ensure all required packages are installed and activate venv if needed."""
-    print("--- Running System Dependency Check ---")
+    console.write("--- Running System Dependency Check ---")
     required = sorted(_gather_required_packages())
     missing = []
     for pkg in required:
@@ -272,11 +274,11 @@ def check_dependencies():
                 missing.append(pkg)
 
     if missing:
-        print(f"Missing packages detected: {', '.join(missing)}")
+        console.write(f"Missing packages detected: {', '.join(missing)}")
         _print_install_instructions(missing)
         exit_clean(1)
     else:
-        print("✅ System Dependency Check Passed. Continuing...\n")
+        console.write("✅ System Dependency Check Passed. Continuing...\n")
 
 
 # Modules that rely on optional packages will be imported in ``main_workflow``
@@ -290,7 +292,7 @@ def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
     # The loop continues until a valid path is provided or the user cancels.
     # This prevents accidental typos from immediately aborting the workflow.
     while True:
-        filename = input(f"{prompt_message} (or 'c' to cancel): ").strip()
+        filename = console.ask(f"{prompt_message} (or 'c' to cancel): ").strip()
         if filename.lower() == "c":
             return None
         filepath = os.path.join(base_dir, filename)
@@ -298,7 +300,7 @@ def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
             return filepath
         else:
             # Inform the user and loop again so they can correct the path.
-            print(f"Error: File not found at '{filepath}'. Please try again.")
+            console.write(f"Error: File not found at '{filepath}'. Please try again.")
 
 
 def load_alternative_model_plugin(model_filepath):
@@ -342,17 +344,17 @@ def select_from_list(options, prompt):
     header = prompt.replace("Select ", "").strip()
     if not header.endswith("s"):
         header += "s"
-    print(f"\nAvailable {header}:")
+    console.write(f"\nAvailable {header}:")
     for i, opt in enumerate(options, 1):
-        print(f"  {i}. {opt}")
-    print("Write the number of your preferred choice or 'c' to cancel:")
+        console.write(f"  {i}. {opt}")
+    console.write("Write the number of your preferred choice or 'c' to cancel:")
     while True:
-        choice = input("> ").strip()
+        choice = console.ask("> ").strip()
         if choice.lower() == "c":
             return None
         if choice.isdigit() and 1 <= int(choice) <= len(options):
             return options[int(choice) - 1]
-        print("Invalid selection. Try again.")
+        console.write("Invalid selection. Try again.")
 
 
 def parse_model_header(md_path):
@@ -483,7 +485,7 @@ def main_workflow():
         if not selected_model:
             _delete_log_file(log_file)
             cleanup_cache(SCRIPT_DIR)
-            print()
+            console.write("")
             return
         yaml_path = os.path.join(models_dir, selected_model)
         cache_dir = os.path.join(models_dir, "cache")
@@ -516,7 +518,7 @@ def main_workflow():
         if not engine_choice:
             _delete_log_file(log_file)
             cleanup_cache(SCRIPT_DIR)
-            print()
+            console.write("")
             return
         engine_module = importlib.import_module(f"engines.{engine_choice[:-3]}")
         cosmo_engine_selected = engine_module
@@ -689,6 +691,15 @@ def main_workflow():
 
         run_end_dt = datetime.datetime.now()
         end_ts = run_end_dt.strftime("%Y%m%d_%H%M%S")
+        new_log = os.path.join(OUTPUT_DIR, f"copernican-run_{end_ts}.txt")
+        if log_file != new_log:
+            try:
+                os.rename(log_file, new_log)
+                CURRENT_LOG_FILE = new_log
+                logger.info(f"Log file renamed to {os.path.basename(new_log)}")
+                log_file = new_log
+            except OSError as e_ren:
+                logger.error(f"Failed renaming log file: {e_ren}")
 
         plotter.plot_hubble_diagram(
             sne_data_df,
@@ -723,14 +734,14 @@ def main_workflow():
                 timestamp=end_ts,
             )
 
-        print("\n--- Theory Abstracts ---\n")
-        print(f"ΛCDM Abstract:\n{lcdm.MODEL_ABSTRACT}\n")
-        print(
+        console.write("\n--- Theory Abstracts ---\n")
+        console.write(f"ΛCDM Abstract:\n{lcdm.MODEL_ABSTRACT}\n")
+        console.write(
             f"{alt_model_plugin.MODEL_NAME} Abstract:\n{alt_model_plugin.MODEL_ABSTRACT}\n"
         )
 
         def _print_fit(label, sne_res, bao_res, cmb_res, plugin):
-            print(f"--- {label} Fit Report ---\n")
+            console.write(f"--- {label} Fit Report ---\n")
             if sne_res:
                 from copernican_lib import latex_utils
                 p_names = getattr(plugin, "PARAMETER_NAMES", [])
@@ -739,16 +750,16 @@ def main_workflow():
                     val = sne_res.get("fitted_cosmological_params", {}).get(name)
                     if val is not None:
                         disp = latex_utils.latex_to_unicode(latex_name)
-                        print(f"  {disp} = {val:.5g}")
+                        console.write(f"  {disp} = {val:.5g}")
             chi2_sne = sne_res.get("chi2_sne", sne_res.get("chi2_min", float("nan")))
             chi2_total = sne_res.get("chi2_total", float("nan"))
-            print(f"  χ²_Total = {chi2_total:.2f}")
-            print(f"  χ²_SNe = {chi2_sne:.2f}")
+            console.write(f"  χ²_Total = {chi2_total:.2f}")
+            console.write(f"  χ²_SNe = {chi2_sne:.2f}")
             if bao_res:
-                print(f"  χ²_BAO = {bao_res.get('chi2_bao', float('nan')):.2f}")
+                console.write(f"  χ²_BAO = {bao_res.get('chi2_bao', float('nan')):.2f}")
             if cmb_res:
-                print(f"  χ²_CMB = {cmb_res.get('chi2_cmb', float('nan')):.2f}")
-            print()
+                console.write(f"  χ²_CMB = {cmb_res.get('chi2_cmb', float('nan')):.2f}")
+            console.write("")
 
         _print_fit("ΛCDM", lcdm_sne_fit_results, lcdm_full_results, lcdm_cmb, lcdm)
         _print_fit(
@@ -792,9 +803,9 @@ def main_workflow():
                 timestamp=end_ts,
             )
 
-        print("\n" + "=" * 50)
-        print("Evaluation complete. All files saved to the 'output' directory.")
-        print("=" * 50 + "\n")
+        console.write("\n" + "=" * 50)
+        console.write("Evaluation complete. All files saved to the 'output' directory.")
+        console.write("=" * 50 + "\n")
 
         total_time = time.perf_counter() - run_start_pc
         cpu_model, cpu_freq = _get_cpu_info()
@@ -802,9 +813,9 @@ def main_workflow():
 
         logger.info(f"Run completed at {end_ts}.")
 
-        print(f"Run started on {run_start_dt.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"Run ended on {run_end_dt.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(
+        console.write(f"Run started on {run_start_dt.strftime('%Y-%m-%d %H:%M:%S')}")
+        console.write(f"Run ended on {run_end_dt.strftime('%Y-%m-%d %H:%M:%S')}")
+        console.write(
             f"Run took {lcdm_time:.2f}s for LCDM and {alt_time:.2f}s for {alt_model_plugin.MODEL_NAME}, "
             f"or {total_time:.2f}s in total, on a system with a {cpu_model} {cpu_freq}, "
             f"under {os_info}"
@@ -812,7 +823,7 @@ def main_workflow():
 
         while True:
             another_run = (
-                input("Would you like to run another evaluation? (yes/no): ")
+                console.ask("Would you like to run another evaluation? (yes/no): ")
                 .strip()
                 .lower()
             )
@@ -821,10 +832,10 @@ def main_workflow():
             elif another_run in ["no", "n", "2"]:
                 cleanup_cache(SCRIPT_DIR)
                 logger.info("Exiting Copernican Suite. Goodbye!")
-                print()
+                console.write("")
                 return
             else:
-                print("Invalid input. Please enter 'yes' or 'no'.")
+                console.write("Invalid input. Please enter 'yes' or 'no'.")
 
         cleanup_cache(SCRIPT_DIR)
 
@@ -850,16 +861,16 @@ if __name__ == "__main__":
         if logger_obj and logger_obj.hasHandlers():
             logger_obj.critical("Unhandled exception in main_workflow!", exc_info=True)
         else:
-            print("CRITICAL UNHANDLED EXCEPTION IN MAIN WORKFLOW:")
+            console.write("CRITICAL UNHANDLED EXCEPTION IN MAIN WORKFLOW:")
             import traceback
 
             traceback.print_exc()
     finally:
         # Ensure that any generated plot windows are displayed at the very end
         if plt is not None and hasattr(plt, "get_fignums") and plt.get_fignums():
-            print("\nDisplaying plot(s). Close plot window(s) to exit script fully.")
+            console.write("\nDisplaying plot(s). Close plot window(s) to exit script fully.")
             try:
                 plt.show(block=True)
             except Exception as e_show:
-                print(f"Error during final plt.show(): {e_show}")
-        print()
+                console.write(f"Error during final plt.show(): {e_show}")
+        console.write("")
