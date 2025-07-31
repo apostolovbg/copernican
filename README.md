@@ -62,6 +62,8 @@ Under the hood the program follows a clear pipeline:
   `cmb.param_map` are treated as
   additional fit parameters so CMB spectra can be matched precisely. Data parsers are discovered automatically under
   `data/<type>/<source>` and models are loaded from `cosmo_model_*.yml`.
+  Folders named `placeholder` are ignored so unfinished datasets do not appear
+  in the selection menus.
 4. **Parameter Fitting** – depending on the chosen engine either a pure
    SNe fit is performed or a combined optimisation over all datasets.  For
    the combined engine this optimisation begins with the SNe refinement

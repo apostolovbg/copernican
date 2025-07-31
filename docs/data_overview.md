@@ -35,3 +35,10 @@ full covariance matrix.  Unlike JLA, the distance moduli are already provided so
 no SALT2 nuisance parameters are required. The parser sorts the supernovae by
 redshift and reorders the covariance matrix accordingly before inverting it. The
 inverse covariance is stored on the returned DataFrame.
+
+## BAO Datasets
+
+### BOSS DR12 BAO Consensus (Alam et al. 2017)
+*Source:* "The clustering of galaxies in the completed SDSS-III Baryon Oscillation Spectroscopic Survey" (Alam et al. 2017).
+*Location:* `data/bao/bossdr12/`.
+*Parser:* `cosmo_parser_bossdr12.py` reads consensus $D_V/r_s$ and $F_{AP}$ values, converts them to $D_M/r_s$ and $D_H/r_s$, and propagates the published covariance matrix.
