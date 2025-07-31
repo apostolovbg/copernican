@@ -11,9 +11,9 @@ Hz_expression: H(z) = H_0 * sqrt{M_eff*(1+z)**3 + 1 + L*z + D*z**2 +
 parameters:
 - name: Hubble-scale rate
   bounds:
-  - 50
-  - 80
-  unit: km/s/Mpc
+  - 1.6203896447221826e-18
+  - 2.592623431555492e-18
+  unit: 1/s
   latex_name: H_0
   definition: N/A
 - name: Linear redshift term
@@ -95,9 +95,9 @@ parameters:
   definition: N/A
 - name: Sound horizon base
   bounds:
-  - 140
-  - 160
-  unit: Mpc
+  - 4.319949e+24
+  - 4.937084e+24
+  unit: m
   latex_name: r_{s,0}
   definition: N/A
 - name: BAO exp. bump amp.
