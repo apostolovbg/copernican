@@ -1,4 +1,4 @@
-dataset_name: BOSS\ DR12\ BAO\ Consensus
+dataset_name: BOSS DR12 BAO Consensus
 description: BAO-only consensus distance measurements from the final SDSS-III BOSS release
 citation: Alam et al. 2017, MNRAS 470, 2617
 authors_all: |
