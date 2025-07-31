@@ -30,4 +30,8 @@ fields. The reference files remain read-only.
 
 ### Pantheon+ 2022 (Scolnic et al.)
 *Source:* Pantheon+SH0ES data release (Scolnic et al. 2022).
-*Parser:* `cosmo_parser_pantheon.py` loads `Pantheon+SH0ES.dat` together with its full covariance matrix. The inverse covariance is stored on the returned DataFrame.
+*Parser:* `cosmo_parser_pantheon.py` loads `Pantheon+SH0ES.dat` together with its
+full covariance matrix.  Unlike JLA, the distance moduli are already provided so
+no SALT2 nuisance parameters are required. The parser sorts the supernovae by
+redshift and reorders the covariance matrix accordingly before inverting it. The
+inverse covariance is stored on the returned DataFrame.

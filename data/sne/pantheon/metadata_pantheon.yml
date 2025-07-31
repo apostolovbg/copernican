@@ -4,3 +4,6 @@ description: Combined sample of 1701 Type Ia supernovae distances with full cova
 citation: Scolnic et al. 2022, ApJ 938, 113; Riess et al. 2022, ApJ 934, L7
 authors_all: Dan Scolnic, Dillon Brout, Brodie Popovic, Adam G. Riess, Joe Zuntz, Rick Kessler, Anthony Carr, Tamara M. Davis, Samuel Hinton, David Jones, W. D'Arcy Kenworthy, Erik R. Peterson, Khaled Said, Georgie Taylor, Noor Ali, Patrick Armstrong, Pranav Charvu, Arianna Dwomoh, Antonella Palmese, Helen Qu, Benjamin M. Rose, Christopher W. Stubbs, Maria Vincenzi, Charlotte M. Wood, Peter J. Brown, Rebecca Chen, Ken Chambers, David A. Coulter, Mi Dai, Georgios Dimitriadis, Alexei V. Filippenko, Ryan J. Foley, Saurabh W. Jha, Lisa Kelsey, Robert P. Kirshner, Anais Möller, Jessie Muir, Seshadri Nadathur, Yen-Chen Pan, Armin Rest, Cesar Rojas-Bravo, Masao Sako, Matthew R. Siebert, Mat Smith, Benjamin E. Stahl, Phil Wiseman.
 notes: Distance moduli for supernovae with full statistical and systematic covariance.
+  The parser sorts the sample by redshift and reorders the covariance matrix to
+  match. Duplicate entries correspond to alternate calibrations and are
+  intentionally preserved.
