@@ -59,7 +59,10 @@ def save_sne_results_detailed_csv(
         timestamp=timestamp,
     )
     try:
-        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.16g")
+        # Use single precision to avoid overly long numbers in the output CSV
+        # which made some spreadsheet tools unhappy. Eight digits are sufficient
+        # for the available SNe data.
+        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.8g")
         logger.info(f"SNe detailed results CSV saved to {filename}")
     except Exception as exc:
         logger.error(f"Error saving SNe detailed results CSV: {exc}")
@@ -101,7 +104,8 @@ def save_bao_results_csv(
         timestamp=timestamp,
     )
     try:
-        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.12g")
+        # Six digits are enough for BAO values and help keep file sizes small.
+        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.6g")
         logger.info(f"BAO detailed results CSV saved to {filename}")
     except Exception as exc:
         logger.error(f"Error saving BAO detailed results CSV: {exc}")
@@ -188,7 +192,9 @@ def save_cmb_results_csv(
         timestamp=timestamp,
     )
     try:
-        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.12g")
+        # CMB spectra do not require extreme precision in CSV form. Six digits
+        # matches the previous behaviour before precision was doubled.
+        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.6g")
         logger.info(f"CMB detailed results CSV saved to {filename}")
     except Exception as exc:
         logger.error(f"Error saving CMB detailed results CSV: {exc}")

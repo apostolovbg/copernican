@@ -1,12 +1,15 @@
 parameters:
   - name: Pi
     definition: Ratio of circle circumference to diameter
-    value: 3.141592653589793238462643383279
+    # Fifteen decimal digits are enough for all cosmological calculations. The
+    # previous file stored over thirty which cluttered outputs and offered no
+    # real benefit.
+    value: 3.141592653589793
     unit: ''
     latex_name: \pi
   - name: Euler's number
     definition: Base of natural logarithms
-    value: 2.718281828459045235360287471352
+    value: 2.718281828459045
     unit: ''
     latex_name: e
   - name: Imaginary unit
@@ -16,7 +19,7 @@ parameters:
     latex_name: i
   - name: Golden ratio
     definition: (1+\sqrt{5})/2
-    value: 1.618033988749894848204586834365
+    value: 1.618033988749895
     unit: ''
     latex_name: \phi
   - name: Speed of light
