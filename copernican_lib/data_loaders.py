@@ -92,6 +92,10 @@ def _discover_parsers():
         if not os.path.isdir(type_dir):
             continue
         for source in os.listdir(type_dir):
+            # Skip placeholder folders so unfinished datasets do not appear in
+            # the interactive menus.
+            if source.lower() == 'placeholder':
+                continue
             src_dir = os.path.join(type_dir, source)
             if not os.path.isdir(src_dir):
                 continue
