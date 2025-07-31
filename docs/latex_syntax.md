@@ -26,4 +26,3 @@ The parser strips common spacing and sizing commands (`\left`, `\right`, `\!`, `
 - `unicode_symbols` – conversions used by `latex_to_unicode` for log output.
 
 All Greek letters—upper and lower case—and variants such as `\varphi` are included in these tables in alphabetical order.
-Standard constants like `c` and `\hbar` are loaded automatically from `common_parameters.yml`. They may be referenced in expressions without declaring them as parameters unless the model defines its own value.

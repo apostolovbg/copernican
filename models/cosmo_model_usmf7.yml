@@ -10,9 +10,8 @@ description: |-
 
     H(z) = H_A * sqrt(
       (1+z)^(2*p_alpha) * (1 + k_exp*(1+z)^(s_exp))
-  - 299792458
-  - 299792458
-  unit: m/s
+      + Omega_{m eff}*(1+z)^3
+      + Omega_{gamma}*(1+z)^4
     )
 
   where:
