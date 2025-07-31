@@ -1,0 +1,167 @@
+2025-07-31 20:22:47,672 - INFO - Logging initialized. Log file: output/copernican-run_20250731_202247.txt
+2025-07-31 20:22:47,672 - INFO - Global RNG seed set to 0
+2025-07-31 20:22:47,672 - INFO - Copernican 3.3.0 has initialized! Current timestamp is 250731_202247. Log file: output/copernican-run_20250731_202247.txt
+2025-07-31 20:22:47,672 - INFO - Using standard CPU (SciPy) computational backend with multiprocessing.
+2025-07-31 20:22:47,673 - INFO - Running from base directory: .
+2025-07-31 20:22:47,673 - INFO - All outputs will be saved to: output
+2025-07-31 20:22:47,673 - INFO - 
+--- Stage 1: Configuration ---
+
+2025-07-31 20:22:47,673 - INFO - 
+Available cosmological models:
+2025-07-31 20:22:47,673 - INFO -   1. cosmo_model_cfsc.yml
+2025-07-31 20:22:47,673 - INFO -   2. cosmo_model_cpc.yml
+2025-07-31 20:22:47,673 - INFO -   3. cosmo_model_lcdm.yml
+2025-07-31 20:22:47,673 - INFO -   4. cosmo_model_qauc.yml
+2025-07-31 20:22:47,673 - INFO -   5. cosmo_model_usmf2.yml
+2025-07-31 20:22:47,673 - INFO -   6. cosmo_model_usmf3.yml
+2025-07-31 20:22:47,673 - INFO -   7. cosmo_model_usmf4.yml
+2025-07-31 20:22:47,673 - INFO -   8. cosmo_model_usmf5.yml
+2025-07-31 20:22:47,674 - INFO -   9. cosmo_model_usmf6.yml
+2025-07-31 20:22:47,674 - INFO -   10. cosmo_model_usmf7.yml
+2025-07-31 20:22:47,674 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-07-31 20:22:50,191 - INFO - > 3
+2025-07-31 20:22:50,237 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2025-07-31 20:22:50,237 - INFO - Derived r_s using fallback integral from Hz_expression.
+2025-07-31 20:22:50,237 - INFO - Derived distance_modulus_model from luminosity distance.
+2025-07-31 20:22:50,242 - INFO - Loaded YAML model: LambdaCDM
+2025-07-31 20:22:50,242 - INFO - 
+Available computation engines:
+2025-07-31 20:22:50,242 - INFO -   1. cosmo_engine_comb.py
+2025-07-31 20:22:50,242 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-07-31 20:22:52,111 - INFO - > 1
+2025-07-31 20:22:52,199 - INFO - 
+Available SNe data sources:
+2025-07-31 20:22:52,199 - INFO -   1. JLA 2014 (Betoule et al.) (Joint SDSS-II and SNLS supernova sample providing 740 standardized SNe Ia. The systematic covariance is projected to distance-modulus space and combined with statistical errors. The inverse is used when well-conditioned)
+2025-07-31 20:22:52,200 - INFO -   2. Pantheon+SH0ES 2022 (Combined sample of 1701 Type Ia supernovae distances with full covariance matrix)
+2025-07-31 20:22:52,200 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-07-31 20:22:53,311 - INFO - > 2
+2025-07-31 20:22:53,312 - INFO - Attempting to load SNe data from source 'Pantheon+SH0ES 2022'
+2025-07-31 20:22:54,639 - INFO - Successfully loaded 1701 SNe data points.
+2025-07-31 20:22:54,639 - INFO - Loaded SNe dataset 'Pantheon+SH0ES 2022' with 1701 rows.
+2025-07-31 20:22:54,639 - INFO - SNe covariance matrix inverted successfully.
+2025-07-31 20:22:54,639 - INFO - 
+Available BAO data sources:
+2025-07-31 20:22:54,639 - INFO -   1. BOSS DR12 BAO Consensus (BAO-only consensus distance measurements from the final SDSS-III BOSS release)
+2025-07-31 20:22:54,639 - INFO -   2. Test BAO dataset (Synthetic compilation of distance measurements used only for unit testing)
+2025-07-31 20:22:54,640 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-07-31 20:22:56,351 - INFO - > 1
+2025-07-31 20:22:56,351 - INFO - Attempting to load BAO data from source 'BOSS DR12 BAO Consensus'
+2025-07-31 20:22:56,356 - INFO - Successfully loaded 9 BAO data points.
+2025-07-31 20:22:56,356 - INFO - Loaded BAO dataset 'BOSS DR12 BAO Consensus' with 9 rows.
+2025-07-31 20:22:56,356 - INFO - BAO parser provided no usable covariance matrix; using diagonal errors only.
+2025-07-31 20:22:56,356 - INFO - 
+Available CMB data sources:
+2025-07-31 20:22:56,356 - INFO -   1. Planck 2018 Lite TT/TE/EE (Planck 2018 lite TT/TE/EE spectra.)
+2025-07-31 20:22:56,356 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-07-31 20:22:57,907 - INFO - > 1
+2025-07-31 20:22:57,907 - INFO - Attempting to load CMB data from source 'Planck 2018 Lite TT/TE/EE'
+2025-07-31 20:22:57,936 - INFO - Successfully loaded 215 CMB data points.
+2025-07-31 20:22:57,936 - INFO - Loaded CMB dataset 'CMB_Planck2018lite' with 215 rows.
+2025-07-31 20:22:57,936 - INFO - CMB covariance matrix inverted successfully.
+2025-07-31 20:22:57,936 - INFO - 
+--- Stage 2: Combined Fit (SNe + BAO + CMB) ---
+
+2025-07-31 20:22:57,936 - INFO - Running SNe pre-fit to obtain better starting values...
+2025-07-31 20:23:02,073 - INFO - SNe Prefit optimization finished. Total evals: 54.
+2025-07-31 20:23:02,073 - INFO - Starting combined optimization for LambdaCDM using 8 parameters...
+2025-07-31 20:26:33,466 - INFO - Combined Fit optimization finished. Total evals: 792.
+2025-07-31 20:26:33,538 - INFO - Combined fit results for LambdaCDM:
+2025-07-31 20:26:33,538 - INFO -   - H₀: 73.571
+2025-07-31 20:26:33,538 - INFO -   - Ωₘ₀: 0.28516
+2025-07-31 20:26:33,538 - INFO -   - Ωb: 0.042049
+2025-07-31 20:26:33,539 - INFO -   - Ωᵧ: 4.2049e-05
+2025-07-31 20:26:33,539 - INFO -   - zᵣₑc: 1099.7
+2025-07-31 20:26:33,539 - INFO -   - Chi2 Total: 11569.5176 (SNe=2020.2393, BAO=690.4040, CMB=8858.8743)
+2025-07-31 20:26:33,539 - INFO - Running SNe pre-fit to obtain better starting values...
+2025-07-31 20:26:37,192 - INFO - SNe Prefit optimization finished. Total evals: 54.
+2025-07-31 20:26:37,192 - INFO - Starting combined optimization for LambdaCDM using 8 parameters...
+2025-07-31 20:27:30,951 - INFO - Combined Fit optimization finished. Total evals: 792.
+2025-07-31 20:27:31,021 - INFO - Combined fit results for LambdaCDM:
+2025-07-31 20:27:31,021 - INFO -   - H₀: 73.571
+2025-07-31 20:27:31,021 - INFO -   - Ωₘ₀: 0.28516
+2025-07-31 20:27:31,021 - INFO -   - Ωb: 0.042049
+2025-07-31 20:27:31,021 - INFO -   - Ωᵧ: 4.2049e-05
+2025-07-31 20:27:31,022 - INFO -   - zᵣₑc: 1099.7
+2025-07-31 20:27:31,022 - INFO -   - Chi2 Total: 11569.5176 (SNe=2020.2393, BAO=690.4040, CMB=8858.8743)
+2025-07-31 20:27:31,022 - INFO - 
+--- Stage 3: BAO Analysis ---
+
+2025-07-31 20:27:31,023 - INFO - Calculating BAO observables for LambdaCDM with parameters: [73.57, 0.2852, 0.04205, 4.205e-05, 1100]
+2025-07-31 20:27:31,025 - INFO - Successfully calculated r_s for LambdaCDM: 159.348 Mpc
+2025-07-31 20:27:31,038 - INFO - LambdaCDM BAO: r_s = 159.35 Mpc, Chi2_BAO = 690.40
+2025-07-31 20:27:31,039 - INFO - Calculating BAO observables for LambdaCDM with parameters: [73.57, 0.2852, 0.04205, 4.205e-05, 1100]
+2025-07-31 20:27:31,041 - INFO - Successfully calculated r_s for LambdaCDM: 159.348 Mpc
+2025-07-31 20:27:31,056 - INFO - LambdaCDM BAO: r_s = 159.35 Mpc, Chi2_BAO = 690.40
+2025-07-31 20:27:31,056 - INFO - 
+--- Stage 4: CMB Analysis ---
+
+2025-07-31 20:27:32,175 - INFO - LambdaCDM CMB chi2 = 8858.87
+2025-07-31 20:27:32,175 - INFO - LambdaCDM CMB chi2 = 8858.87
+2025-07-31 20:27:32,175 - INFO - 
+--- Stage 5: Generating Outputs ---
+
+2025-07-31 20:27:32,175 - INFO - LambdaCDM CMB chi2 = 8858.87
+2025-07-31 20:27:32,175 - INFO - LambdaCDM CMB chi2 = 8858.87
+2025-07-31 20:27:32,176 - INFO - Log file renamed to copernican-run_20250731_202732.txt
+2025-07-31 20:27:32,176 - INFO - Generating Hubble Diagram for Pantheon+SH0ES_2022...
+2025-07-31 20:27:36,172 - INFO - Hubble diagram saved to hubble-plot-LambdaCDM-vs-LambdaCDM-Pantheon+SH0ES-2022_20250731_202732.png
+2025-07-31 20:27:36,173 - INFO - Generating BAO Plot for BOSS_DR12_BAO_Consensus...
+2025-07-31 20:27:39,606 - INFO - BAO plot saved to bao-plot-LambdaCDM-vs-LambdaCDM-BOSS-DR12-BAO-Consensus_20250731_202732.png
+2025-07-31 20:27:39,607 - INFO - Generating CMB Spectrum Plot for CMB_Planck2018lite...
+2025-07-31 20:27:43,994 - INFO - CMB plot saved to cmb-plot-LambdaCDM-vs-LambdaCDM-CMB-Planck2018lite_20250731_202732.png
+2025-07-31 20:27:43,994 - INFO - 
+--- Theory Abstracts ---
+
+2025-07-31 20:27:43,995 - INFO - ΛCDM Abstract:
+LambdaCDM model describes a flat universe dominated by cold dark matter and a cosmological constant serving as the reference model
+
+2025-07-31 20:27:43,995 - INFO - LambdaCDM Abstract:
+LambdaCDM model describes a flat universe dominated by cold dark matter and a cosmological constant serving as the reference model
+
+2025-07-31 20:27:43,995 - INFO - --- ΛCDM Fit Report ---
+
+2025-07-31 20:27:43,995 - INFO -   H₀ = 73.571
+2025-07-31 20:27:43,995 - INFO -   Ωₘ₀ = 0.28516
+2025-07-31 20:27:43,995 - INFO -   Ωb = 0.042049
+2025-07-31 20:27:43,996 - INFO -   Ωᵧ = 4.2049e-05
+2025-07-31 20:27:43,996 - INFO -   zᵣₑc = 1099.7
+2025-07-31 20:27:43,996 - INFO -   χ²_Total = 11569.52
+2025-07-31 20:27:43,996 - INFO -   χ²_SNe = 2020.24
+2025-07-31 20:27:43,996 - INFO -   χ²_BAO = 690.40
+2025-07-31 20:27:43,996 - INFO -   χ²_CMB = 8858.87
+2025-07-31 20:27:43,996 - INFO - 
+2025-07-31 20:27:43,996 - INFO - --- LambdaCDM Fit Report ---
+
+2025-07-31 20:27:43,996 - INFO -   H₀ = 73.571
+2025-07-31 20:27:43,997 - INFO -   Ωₘ₀ = 0.28516
+2025-07-31 20:27:43,997 - INFO -   Ωb = 0.042049
+2025-07-31 20:27:43,997 - INFO -   Ωᵧ = 4.2049e-05
+2025-07-31 20:27:43,997 - INFO -   zᵣₑc = 1099.7
+2025-07-31 20:27:43,997 - INFO -   χ²_Total = 11569.52
+2025-07-31 20:27:43,997 - INFO -   χ²_SNe = 2020.24
+2025-07-31 20:27:43,997 - INFO -   χ²_BAO = 690.40
+2025-07-31 20:27:43,997 - INFO -   χ²_CMB = 8858.87
+2025-07-31 20:27:43,997 - INFO - 
+2025-07-31 20:27:44,197 - INFO - SNe detailed results CSV saved to sne-detailed-data-LCDM-vs-LambdaCDM-Pantheon+SH0ES-2022_20250731_202732.csv
+2025-07-31 20:27:44,204 - INFO - BAO detailed results CSV saved to bao-detailed-data-LCDM-vs-LambdaCDM-BOSS-DR12-BAO-Consensus_20250731_202732.csv
+2025-07-31 20:27:44,216 - INFO - CMB detailed results CSV saved to cmb-detailed-data-LCDM-vs-LambdaCDM-CMB-Planck2018lite_20250731_202732.csv
+2025-07-31 20:27:44,216 - INFO - 
+==================================================
+2025-07-31 20:27:44,216 - INFO - Evaluation complete. All files saved to the 'output' directory.
+2025-07-31 20:27:44,216 - INFO - ==================================================
+
+2025-07-31 20:27:44,216 - INFO - Run completed at 20250731_202732.
+2025-07-31 20:27:44,216 - INFO - Run started on 2025-07-31 20:22:47
+2025-07-31 20:27:44,216 - INFO - Run ended on 2025-07-31 20:27:32
+2025-07-31 20:27:44,217 - INFO - Run took 216.74s for LCDM and 57.50s for LambdaCDM, or 296.55s in total, on a system with a i386 3.50 GHz, under macOS-15.0.1-x86_64-i386-64bit-Mach-O
+2025-07-31 21:28:56,906 - INFO - Would you like to run another evaluation? (yes/no): н
+2025-07-31 21:28:56,907 - INFO - Invalid input. Please enter 'yes' or 'no'.
+2025-07-31 21:48:54,170 - INFO - Would you like to run another evaluation? (yes/no): н
+2025-07-31 21:48:54,170 - INFO - Invalid input. Please enter 'yes' or 'no'.
+2025-07-31 21:48:55,638 - INFO - Would you like to run another evaluation? (yes/no): n
+2025-07-31 21:48:55,638 - INFO - --- Cleaning up cache files ---
+2025-07-31 21:48:55,652 - INFO - Removed cache file: models/cache/cache_cosmo_model_lcdm.yml
+2025-07-31 21:48:55,652 - INFO - Exiting Copernican Suite. Goodbye!
+2025-07-31 21:48:55,652 - INFO - 
+2025-07-31 21:48:55,653 - INFO - 
