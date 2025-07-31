@@ -61,10 +61,6 @@ def build_plugin(model_data, func_dict):
         """Return a CAMB parameter dictionary from ``values``."""
         logger = logging.getLogger()
         env = {name: val for name, val in zip(plugin.PARAMETER_NAMES, values)}
-        unit_map = dict(zip(plugin.PARAMETER_NAMES, plugin.PARAMETER_UNITS))
-        for n, u in unit_map.items():
-            if u == "1/s":
-                env[n] = env[n] * 3.0856775814913673e19
         env['np'] = np
         replacements = dict(zip(
             [ln.strip('$') for ln in plugin.PARAMETER_LATEX_NAMES],
