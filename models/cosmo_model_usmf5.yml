@@ -13,14 +13,12 @@ description: |-
   - 299792458
   - 299792458
   unit: m/s
-  • **H_A** sets the present-day Hubble scale (1/s).
-  - 299792458
-  - 299792458
-  unit: m/s
-  - 1.6203896447221826e-18
-  - 3.240779289444365e-18
-  unit: 1/s
-m eff}*(1+z)^3 reproduces structure growth and BAO amplitude without new particles.
+  • **Matter-like term** Omega_{m eff}*(1+z)**3 reproduces structure growth and BAO amplitude without new particles.
+  • **Radiation term** Omega_{gamma}*(1+z)**4 enforces the exact early-Universe behaviour.
+
+  • **H_A** sets the present-day Hubble scale (km/s/Mpc).
+  • **Quantum-geometry term** (first line) controls late-time acceleration via exponent p_alpha and shape parameters k_exp, s_exp.
+  • **Matter-like term** Omega_{m eff}*(1+z)^3 reproduces structure growth and BAO amplitude without new particles.
   • **Radiation term** Omega_{gamma}*(1+z)^4 enforces the exact early-Universe behaviour.
   • **Omega_{gamma}** (photon density), **Omega_b** (baryon density), and **z_{m rec}** are fixed to observed values; **Omega_b** obeys BBN constraints.
   • The sound horizon r_s is computed automatically by integrating c/H(z) up to z_{m rec}.

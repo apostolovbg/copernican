@@ -59,7 +59,7 @@ def save_sne_results_detailed_csv(
         timestamp=timestamp,
     )
     try:
-        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.16g")
+        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.8g")
         logger.info(f"SNe detailed results CSV saved to {filename}")
     except Exception as exc:
         logger.error(f"Error saving SNe detailed results CSV: {exc}")
@@ -101,7 +101,7 @@ def save_bao_results_csv(
         timestamp=timestamp,
     )
     try:
-        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.12g")
+        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.6g")
         logger.info(f"BAO detailed results CSV saved to {filename}")
     except Exception as exc:
         logger.error(f"Error saving BAO detailed results CSV: {exc}")
@@ -188,7 +188,7 @@ def save_cmb_results_csv(
         timestamp=timestamp,
     )
     try:
-        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.12g")
+        df_out.to_csv(os.path.join(csv_dir, filename), index=False, float_format="%.6g")
         logger.info(f"CMB detailed results CSV saved to {filename}")
     except Exception as exc:
         logger.error(f"Error saving CMB detailed results CSV: {exc}")

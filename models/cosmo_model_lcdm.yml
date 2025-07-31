@@ -7,9 +7,9 @@ abstract: |-
 parameters:
 - name: Hubble constant
   bounds:
-  - 1.6203896447221826e-18
-  - 3.240779289444365e-18
-  unit: 1/s
+  - 50.0
+  - 100.0
+  unit: km/s/Mpc
   latex_name: H_0
   definition: N/A
 - name: Matter density
