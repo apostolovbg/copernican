@@ -36,6 +36,11 @@ copernican_lib/optim_utils.py - Shared optimisation helpers used by engines
 copernican_lib/latex_utils.py - LaTeX translation helpers using latex_mappings.yml
 copernican_lib/common_parameters.yml - Universal constants shared across models
 ```
+Model equations may reference any constant defined in `common_parameters.yml`
+without declaring it as a parameter. If a parameter shares the same LaTeX name,
+the model-provided value overrides the dictionary entry. All numerical values
+must use base SI units (m, s, K, kg, mol, cd, A). Avoid prefixes such as km or
+Gpc when specifying bounds or constants.
 Installing the suite with `pip` produces a `copernican_suite.egg-info` directory
 containing build metadata. This folder can be safely removed and should not be
 edited manually.
