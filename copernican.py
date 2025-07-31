@@ -55,7 +55,7 @@ data_loaders = None
 # outdated. Automatic releases are not yet enabled. Version 3.2.0 introduces a
 # shared dictionary of common parameters and continues to drop legacy JSON
 # dataset support in favour of YAML-only inputs.
-COPERNICAN_VERSION = "3.4.2"
+COPERNICAN_VERSION = "3.3.0"
 CURRENT_LOG_FILE = None
 
 

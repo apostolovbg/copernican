@@ -100,7 +100,7 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
         get_DM = getattr(model_plugin, "get_comoving_distance_Mpc")
         get_Hz = getattr(model_plugin, "get_Hz_per_Mpc")
         get_DV = getattr(model_plugin, "get_DV_Mpc", None)
-        C_LIGHT = model_plugin.FIXED_PARAMS.get("C_LIGHT_M_S", 299792458)
+        C_LIGHT = model_plugin.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458)
     except AttributeError as e:
         logger.error(f"(chi2_bao): Model plugin missing required function: {e}")
         return np.inf
@@ -163,8 +163,8 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
 def _cached_cmb(key):
     r"""Return unlensed CAMB spectra for a given parameter key.
 
-    The cache key contains the model name, cosmology parameters rounded to twelve
-    significant digits using ``float(f"{float(v):.12g}")``, the maximum
+    The cache key contains the model name, cosmology parameters rounded to six
+    significant digits using ``float(f"{float(v):.6g}")``, the maximum
     multipole ``lmax`` and the requested spectra. CAMB returns spectra as
     :math:`D_\ell = \ell(\ell+1)C_\ell/(2\pi)` when ``raw_cl`` is ``False``,
     which matches the units of the Planck lite dataset used by the parsers.
@@ -221,7 +221,7 @@ def compute_cmb_spectrum_from_dict(param_dict, ells, spectra=("TT",)):
     # cosmology is requested again.
     try:
         key_tuple = tuple(
-            (k, float(f"{float(v):.12g}")) for k, v in sorted(param_dict.items())
+            (k, float(f"{float(v):.6g}")) for k, v in sorted(param_dict.items())
         )
         lmax = int(np.max(ells))
         cache_key = ("dict", key_tuple, lmax, tuple(sorted(spectra)))
@@ -596,7 +596,7 @@ def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params, z_smooth=
         logger.warning("Model flagged as invalid for BAO. Skipping calculations.")
         return bao_pred_df, np.nan, None
     
-    param_str = ", ".join([f"{p:.8g}" for p in cosmo_params])
+    param_str = ", ".join([f"{p:.4g}" for p in cosmo_params])
     logger.info(f"Calculating BAO observables for {model_name} with parameters: [{param_str}]")
 
     try:
@@ -615,7 +615,7 @@ def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params, z_smooth=
         get_Hz_model = getattr(model_plugin, "get_Hz_per_Mpc")
         get_DV_model_specific = getattr(model_plugin, "get_DV_Mpc", None)
         get_DA_model = getattr(model_plugin, "get_angular_diameter_distance_Mpc")
-        C_LIGHT = model_plugin.FIXED_PARAMS.get("C_LIGHT_M_S", 299792458)
+        C_LIGHT = model_plugin.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458)
     except AttributeError as e:
         logger.error(f"Model plugin '{model_name}' missing required function for BAO: {e}")
         return bao_pred_df, model_rs_Mpc, None

@@ -1,9 +1,6 @@
 parameters:
   - name: Pi
     definition: Ratio of circle circumference to diameter
-    # Fifteen decimal digits are enough for all cosmological calculations. The
-    # previous file stored over thirty which cluttered outputs and offered no
-    # real benefit.
     value: 3.141592653589793
     unit: ''
     latex_name: \pi
@@ -19,7 +16,7 @@ parameters:
     latex_name: i
   - name: Golden ratio
     definition: (1+\sqrt{5})/2
-    value: 1.618033988749895
+    value: (1+\sqrt{5})/2
     unit: ''
     latex_name: \phi
   - name: Speed of light
@@ -44,6 +41,6 @@ parameters:
     latex_name: G
   - name: Boltzmann constant
     definition: Relation between energy and temperature
-    value: 1.380649e-23
-    unit: J/K
+    value: 8.617333262e-05
+    unit: eV/K
     latex_name: k_B

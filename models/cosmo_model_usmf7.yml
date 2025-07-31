@@ -16,14 +16,12 @@ description: |-
     )
 
   where:
-  - H_A sets today’s Hubble scale (1/s).
+  - H_A sets today’s Hubble scale (km/s/Mpc).
   - The quantum-shrinkage term (first line) controls late-time acceleration via p_alpha, k_exp, s_exp.
-  - 299792458
-  - 299792458
-  unit: m/s
-  - 1.6203896447221826e-18
-  - 3.240779289444365e-18
-  unit: 1/s
+  - The matter term Omega_{m eff}*(1+z)^3 mimics clustering without new particles.
+  - The radiation term Omega_{gamma}*(1+z)^4 enforces the correct early-Universe scaling, and Omega_{gamma} is now a fit parameter.
+  - The recombination redshift z_{m rec} is also fit, aligning the sound horizon with the observed CMB peaks.
+  - Ω_b is fit within BBN priors.
 
   The baryon–photon sound horizon is computed automatically by integrating c/H(z) up to z_{m rec}.
 parameters:

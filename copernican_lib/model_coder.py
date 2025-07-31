@@ -21,13 +21,6 @@ from . import engine_interface
 from . import latex_utils
 from . import common_parameters
 
-# Conversion factor from metres to megaparsecs used when integrating
-# distances.  The integrals naturally yield a result in metres when
-# both ``c`` and ``H(z)`` are expressed in SI units, but all internal
-# distance-related functions are documented to return values in Mpc so
-# we apply this scale factor explicitly.
-MPC_IN_METERS = 3.0856775814913673e22
-
 
 class QuadPrinter(NumPyPrinter):
     """NumPy printer that expands ``Integral`` nodes into ``scipy`` quad calls."""
@@ -133,7 +126,7 @@ def generate_callables(cache_path):
 
             def _dm(z_val, *params):
                 """Comoving distance integral valid for scalars or arrays."""
-                integrand = lambda zp: 299792458 / hz_fn(zp, *params) / MPC_IN_METERS
+                integrand = lambda zp: 299792458 / hz_fn(zp, *params)
                 if np.isscalar(z_val):
                     # ``quad`` expects scalar limits; cast to float explicitly.
                     return quad(integrand, 0, float(z_val), limit=100)[0]
@@ -159,7 +152,7 @@ def generate_callables(cache_path):
                     dm_val = _dm(z_val, *params)
                     hz_val = hz_fn(z_val, *params)
 
-                    term = dm_val ** 2 * (299792458 / hz_val / MPC_IN_METERS) * z_val
+                    term = dm_val ** 2 * 299792458 * z_val / hz_val
 
                     if np.isscalar(z_val):
                         if z_val > 0 and hz_val != 0:
@@ -238,7 +231,7 @@ def generate_callables(cache_path):
 
                     integrand = lambda zv: sound_speed(zv) / hz_with_radiation(zv)
                     result, _ = quad(integrand, zrec, np.inf, limit=100)
-                    return result / MPC_IN_METERS
+                    return result
 
                 funcs['get_sound_horizon_rs_Mpc'] = _rs
                 code_dict['get_sound_horizon_rs_Mpc'] = 'quad(c_s/H(z))'
