@@ -84,7 +84,7 @@ def compose_footer(base_line: str, data_attrs: dict) -> list[str]:
     # excessively. Each wrapped line will be drawn separately with a
     # slightly smaller font size by the caller.
     if second_line:
-        wrapped_lines = textwrap.wrap(second_line, width=200)
+        wrapped_lines = textwrap.wrap(second_line, width=190)
         return [base_line] + wrapped_lines
     return [base_line]
 
