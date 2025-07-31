@@ -70,9 +70,9 @@ parameters:
   definition: N/A
 - name: Speed of light
   bounds:
-  - 299792458
-  - 299792458
-  unit: m/s
+  - 299792.458
+  - 299792.458
+  unit: km/s
   latex_name: c
   definition: N/A
 Hz_expression: "H(z) = H_0 * \\sqrt{\\Omega_{m0}*(1+z)**3 + \\Omega_{r0}*(1+z)**4 +

@@ -1,4 +1,4 @@
-**Version:** 3.3.0
+**Version:** 3.1.0
 **Last Updated:** 2025-07-31
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
@@ -143,16 +143,9 @@ copernican_lib/          - Helper modules
   data_loaders.py   - Data loading utilities
   utils.py          - Common helpers
   optim_utils.py    - Shared optimisation wrappers used by engines
-  latex_utils.py    - LaTeX helpers using latex_mappings.yml
-  common_parameters.yml - Universal constants shared across models
 ```
 All dataset tables and metadata are provided **only** as YAML files. JSON
 input is no longer supported as of version 3.0.0.
-All physical quantities are expressed using base SI units (m, s, K, kg, mol,
-cd, A). Constants like the speed of light therefore appear in metres per
-second and the Boltzmann constant is stored in eV/K. Model YAML files must use
-the same convention; prefixes such as km or Gpc are no longer used in parameter
-definitions.
 **Note:** Files in `data/` are treated as read-only reference datasets and
 should not be modified by AI-driven code changes.
 
@@ -231,10 +224,7 @@ macros that adjust bracket size like `\left`, `\right`, `\bigl` and `\bigr`.
 Thin spaces (`\,`) and font switches (`\rm`) are ignored. Unsupported sizing
 macros are removed from plot labels to keep Matplotlib's MathText parser happy.
 All sanitisation rules now live in `copernican_lib/latex_utils.py` with
-extensible mappings stored in `latex_mappings.yml`. Standard constants are
-loaded automatically from `common_parameters.yml` and may be used in model
-equations without defining them as parameters. If a model declares a parameter
-with the same LaTeX name, that value overrides the dictionary entry. Expressions may also
+extensible mappings stored in `latex_mappings.yml`. Expressions may also
 contain `Integral` constructs with explicit limits which are numerically
 evaluated with SciPy. Use `\infty` for an infinite upper bound and avoid
 referencing `H(z)` inside other expressions—repeat the formula instead.
