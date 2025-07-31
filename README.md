@@ -156,8 +156,7 @@ definitions.
 All distance routines still return values in megaparsecs for
 compatibility with existing datasets; the library converts SI integrals
 to Mpc internally.
-Floating-point outputs have been restored to their earlier precision because doubling
-the digits produced extremely large numbers in some intermediate calculations.
+Floating-point outputs now print with twice the previous precision to reduce rounding errors.
 **Note:** Files in `data/` are treated as read-only reference datasets and
 should not be modified by AI-driven code changes.
 
