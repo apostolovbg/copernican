@@ -1,5 +1,6 @@
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the latest version header. AI assistant warning: please, always check the current date when logging new changes, and datestamp them with a current date! Don't put dates that are in the future or in the past! Follow this template: 
+
 ```
 ## Version 1.1.0
 - 2025-05-27: Added plotting and CSV (Apostol Apostolov) 
@@ -9,7 +10,8 @@ Add one line for each substantive commit or pull request directly under the late
 - 2025-05-26: Created copernican.py (Apostol Apostolov)
 
 ```
-## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
+## Log changes here (Place the newest version directly below this line and keep one blank line after this line and after each version tag. Version headers run newest to oldest, and within each version the newest entries come first):
+
 ## Version 3.3.0
 - 2025-07-31: Added automatic constant injection and standardized SI units; updated docs and models (AI assistant)
 
@@ -444,4 +446,3 @@ Add one line for each substantive commit or pull request directly under the late
 - Removed GPU code for stability.
 - Implemented robust multiprocessing using `psutil`.
 - Added test mode and cache cleanup loop.
-
