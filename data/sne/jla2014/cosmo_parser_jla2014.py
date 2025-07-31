@@ -24,9 +24,14 @@ DESCRIPTION = META.get(
     "Joint SDSS-II and SNLS supernova sample (Betoule et al. 2014).",
 )
 
-DEFAULT_SALT2_M_ABS_FIXED = -19.3
-DEFAULT_SALT2_ALPHA_FIXED = 0.14
-DEFAULT_SALT2_BETA_FIXED = 3.1
+# SALT2 nuisance parameters used to convert light-curve fits into
+# distance moduli.  The Betoule et al. analysis reports best-fit
+# values M_B = -19.05, \alpha = 0.141 and \beta = 3.101 at H0=70 km/s/Mpc.
+# Earlier versions of the parser used coarser defaults which shifted
+# the resulting distance moduli downward by about 0.25 mag.
+DEFAULT_SALT2_M_ABS_FIXED = -19.05
+DEFAULT_SALT2_ALPHA_FIXED = 0.141
+DEFAULT_SALT2_BETA_FIXED = 3.101
 
 
 @register_sne_parser(

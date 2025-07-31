@@ -26,7 +26,7 @@ fields. The reference files remain read-only.
 ### JLA Betoule+2014
 *Source:* "Improved cosmological constraints from a joint analysis of the SDSS-II and SNLS supernova samples" (Betoule et al. 2014).
 *Location:* `data/sne/jla2014/`.
-*Parser:* `cosmo_parser_jla2014.py` reads `tablef3.dat`, projects the SALT2 parameter covariance from `tablef4.fit` to distance-modulus space, adds the diagonal statistical errors and stores the inverse of the total covariance matrix.
+*Parser:* `cosmo_parser_jla2014.py` reads `tablef3.dat`, projects the SALT2 parameter covariance from `tablef4.fit` to distance-modulus space, adds the diagonal statistical errors and stores the inverse of the total covariance matrix. The parser uses the published nuisance parameters \(M_B=-19.05\), \(\alpha=0.141\) and \(\beta=3.101\) by default.
 
 ### Pantheon+ 2022 (Scolnic et al.)
 *Source:* Pantheon+SH0ES data release (Scolnic et al. 2022).
