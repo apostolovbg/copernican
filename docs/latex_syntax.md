@@ -9,7 +9,7 @@ Use `**` for powers:
 Hz_expression: "H(z) = H_0 * sqrt{\Omega_{m0}*(1+z)**3 + \Omega_{\Lambda0}}"
 ```
 
-The parser also recognises superscripts such as `x^{2}` and converts them to the same form. Care should be taken to preserve `^` only for superscripts like integration limits or coordinate indices.
+The parser also recognises superscripts such as `x^{2}` and converts them to the same form as standard exponentiation notation (superscript) for display purposes, but the right math operator is `**`. Care should be taken to preserve `^` only for superscripts like integration limits or coordinate indices.
 
 ## Functions and Symbols
 Standard functions (`\log`, `\sin`, `\exp`, etc.) are translated according to the `function_replacements` table in `latex_mappings.yml`. Greek letters and their variants are mapped to ASCII names via `symbol_replacements`. The `unicode_symbols` table provides pretty Unicode equivalents for console output.
