@@ -11,6 +11,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
+## Version 3.3.3
+- 2025-08-03: Integrated full BOSS DR12 BAO covariance by combining dM/Hz and D_V/F_AP inputs; updated documentation and version (AI assistant)
+
 ## Version 3.3.2
 - 2025-08-03: Corrected BOSS DR12 BAO conversion to include redshift scaling, fixed compound parser scaling bug and added escape-sequence guideline; bumped version (AI assistant)
 

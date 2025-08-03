@@ -176,7 +176,9 @@ the same CMB calculation regardless of their own fitting scheme.
    selected, its parser and files are loaded automatically from
    `data/<type>/<source>/`. The CMB loader now understands TT, TE and EE
    spectra with full covariance so additional datasets can be dropped in with
-   minimal effort.
+   minimal effort. The BOSS DR12 BAO parser combines the consensus dM, Hz,
+   $D_V$ and $F_{AP}$ measurements with their covariance matrices to yield
+   $D_M/r_s$, $D_H/r_s$ and $D_V/r_s$.
 - Engines are selected interactively from the `engines/` directory. Parsers are
   discovered automatically when their source folders are imported.
 - After each run you may choose to evaluate another model or exit. Cache files
