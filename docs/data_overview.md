@@ -41,5 +41,4 @@ inverse covariance is stored on the returned DataFrame.
 ### BOSS DR12 BAO Consensus (Alam et al. 2017)
 *Source:* "The clustering of galaxies in the completed SDSS-III Baryon Oscillation Spectroscopic Survey" (Alam et al. 2017).
 *Location:* `data/bao/bossdr12/`.
-*Parser:* `cosmo_parser_bossdr12.py` combines the published $dM(rs_{\rm fid}/r_s)$, $Hz(r_s/rs_{\rm fid})$, $D_V/r_s$ and $F_{AP}$ measurements.
-These four inputs are converted to $D_M/r_s$, $D_H/r_s$ and $D_V/r_s$ while propagating their covariance matrices into a single $9\times9$ covariance.
+*Parser:* `cosmo_parser_bossdr12.py` combines the published $dM(rs_{\rm fid}/r_s)$, $Hz(r_s/rs_{\rm fid})$, $D_V/r_s$ and $F_{AP}$ measurements. The public [SDSS DR12 archive](https://data.sdss.org/sas/dr12/boss/) provides separate covariance matrices for the $dM/Hz$ and $D_V/F_{AP}$ sets but no joint covariance. Following the parser's block-diagonal rationale, these are assembled into a $9\times9$ matrix assuming the two inputs are uncorrelated and then converted to $D_M/r_s$, $D_H/r_s$ and $D_V/r_s$.

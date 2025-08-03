@@ -11,6 +11,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
+## Version 3.3.5
+- 2025-08-03: Documented absence of joint covariance for BOSS DR12 data and parser's block-diagonal approach in docs and README (AI assistant)
+
 ## Version 3.3.4
 - 2025-08-03: Added regression test for BOSS DR12 BAO parser validating covariance handling and error paths (AI assistant)
 
