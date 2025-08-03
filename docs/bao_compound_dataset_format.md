@@ -1,18 +1,18 @@
-# BAO Test Dataset Format
+# BAO Compound Dataset Format
 
-This document describes the YAML format used for the **test** BAO dataset
-shipped with the Copernican Suite. The folder is located under
-`data/bao/test/` and mirrors the structure expected for real BAO sources.
+This document describes the YAML format used for the **compound** BAO dataset
+shipped with the Copernican Suite. The folder lives under
+`data/bao/compound/` and mirrors the structure expected for real BAO sources.
 JSON files were supported in early versions but have now been removed so
 that all datasets use a single YAML representation.
 
 Each dataset is stored in its own directory and contains a single YAML file
 with a `data_points` array. The parser also looks for an optional
-`metadata_*.yml` file which provides a dataset name and citation.  The test
+`metadata_*.yml` file which provides a dataset name and citation.  The compound
 dataset lets developers exercise the BAO pipeline without downloading large
-public releases.
-
-Example `bao1.yml`:
+public releases.  A covariance matrix is intentionally omitted; uncertainties
+are treated as uncorrelated.
+Example `compound.yml`:
 ```yaml
 data_points:
   - name: 6dFGS z=0.106
@@ -24,10 +24,10 @@ data_points:
   ...
 ```
 
-Example `metadata_bao1.yml`:
+Example `metadata_compound.yml`:
 ```yaml
-dataset_name: Test BAO dataset
-description: Mock compilation of BAO distance measurements from multiple surveys
+dataset_name: Compound BAO dataset
+description: Compilation of BAO distance measurements from multiple surveys
 citation: Reference string with survey citations
 notes: Any extra comments
 ```

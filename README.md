@@ -15,7 +15,7 @@ Additional design notes can be found under the `docs/` directory.
 
 4. [Design Overview](docs/design_overview.md)
 5. [Data Directory Overview](docs/data_overview.md)
-6. [BAO Test Dataset Format](docs/bao_test_dataset_format.md)
+6. [BAO Compound Dataset Format](docs/bao_compound_dataset_format.md)
 7. [Dataset Metadata Fields](docs/dataset_metadata.md)
 8. [LaTeX Syntax Guide](docs/latex_syntax.md)
 9. [Using the Suite](#using-the-suite)

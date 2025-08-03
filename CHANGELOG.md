@@ -11,6 +11,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
+## Version 3.3.1
+- 2025-08-03: Renamed BAO test dataset to compound dataset, improved BAO parsers and documentation, and bumped version (AI assistant)
+
 ## Version 3.3.0
 - 2025-07-31: Added BOSS DR12 BAO consensus dataset with full covariance and skipped placeholder folders; bumped version (AI assistant)
 
@@ -35,7 +38,7 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Version 2.1.0
 - 2025-07-30: Switched cached models and LaTeX mappings to YAML and removed JSON usage across the codebase (AI assistant)
-- 2025-07-30: Converted all dataset metadata and the BAO test dataset to YAML (AI assistant)
+- 2025-07-30: Converted all dataset metadata and the BAO compound dataset to YAML (AI assistant)
 
 ## Version 2.0.7
 - 2025-07-30: Corrected malformed tab in USMFv2 description to pass YAML parsing (AI assistant)
