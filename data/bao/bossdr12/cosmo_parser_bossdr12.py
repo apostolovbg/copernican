@@ -1,12 +1,13 @@
-"""Parse BOSS DR12 consensus BAO measurements.
+r"""Parse BOSS DR12 consensus BAO measurements.
 
 The public BOSS DR12 release tabulates the spherically averaged distance
 ``D_V/rs`` and the Alcock--Paczyński parameter ``F_AP`` for three redshift
-bins.  This parser converts those quantities into ``D_M/rs``, ``D_H/rs`` and
+bins. This parser converts those quantities into ``D_M/rs``, ``D_H/rs`` and
 ``D_V/rs`` so they can be consumed by the engine's generic BAO routines.
-The accompanying covariance matrix is propagated through the variable
-transformation and the inverse covariance is attached to the resulting
-:class:`pandas.DataFrame`.
+The conversion explicitly accounts for the relation :math:`D_V^3 = D_M^2 D_H z`
+and ``F_AP = D_M / D_H``. The accompanying covariance matrix is propagated
+through the variable transformation and the inverse covariance is attached to
+the resulting :class:`pandas.DataFrame`.
 """
 
 import os
@@ -83,19 +84,21 @@ def parse_boss_dr12(data_dir, **kwargs):
     for i in range(n_z):
         dv = x_vec[2 * i]
         fap = x_vec[2 * i + 1]
+        z = redshifts[i]
+        z_factor = z ** (1.0 / 3.0)
 
         # Recover the transverse and radial distances.  The relationships
-        # follow from :math:`D_V^3 = D_M^2 D_H` and ``F_AP = D_M / D_H``.
-        dm = dv * fap ** (1.0 / 3.0)
-        dh = dv / fap ** (2.0 / 3.0)
+        # follow from :math:`D_V^3 = D_M^2 D_H z` and ``F_AP = D_M / D_H``.
+        dm = dv * fap ** (1.0 / 3.0) / z_factor
+        dh = dv * fap ** (-2.0 / 3.0) / z_factor
         y_vec[3 * i : 3 * i + 3] = [dm, dh, dv]
 
-        # Jacobian for covariance propagation.  Each block maps the original
+        # Jacobian for covariance propagation. Each block maps the original
         # ``[DV, F_AP]`` pair to ``[DM, DH, DV]`` at the same redshift.
-        jac[3 * i, 2 * i] = fap ** (1.0 / 3.0)
-        jac[3 * i, 2 * i + 1] = (1.0 / 3.0) * dv * fap ** (-2.0 / 3.0)
-        jac[3 * i + 1, 2 * i] = fap ** (-2.0 / 3.0)
-        jac[3 * i + 1, 2 * i + 1] = (-2.0 / 3.0) * dv * fap ** (-5.0 / 3.0)
+        jac[3 * i, 2 * i] = fap ** (1.0 / 3.0) / z_factor
+        jac[3 * i, 2 * i + 1] = (1.0 / 3.0) * dv * fap ** (-2.0 / 3.0) / z_factor
+        jac[3 * i + 1, 2 * i] = fap ** (-2.0 / 3.0) / z_factor
+        jac[3 * i + 1, 2 * i + 1] = (-2.0 / 3.0) * dv * fap ** (-5.0 / 3.0) / z_factor
         jac[3 * i + 2, 2 * i] = 1.0
         jac[3 * i + 2, 2 * i + 1] = 0.0
 
