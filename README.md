@@ -176,9 +176,12 @@ the same CMB calculation regardless of their own fitting scheme.
    selected, its parser and files are loaded automatically from
    `data/<type>/<source>/`. The CMB loader now understands TT, TE and EE
    spectra with full covariance so additional datasets can be dropped in with
-   minimal effort. The BOSS DR12 BAO parser combines the consensus dM, Hz,
-   $D_V$ and $F_{AP}$ measurements with their covariance matrices to yield
-   $D_M/r_s$, $D_H/r_s$ and $D_V/r_s$.
+  minimal effort. The BOSS DR12 BAO parser combines the consensus dM, Hz,
+  $D_V$ and $F_{AP}$ measurements with their covariance matrices to yield
+  $D_M/r_s$, $D_H/r_s$ and $D_V/r_s$. The public [SDSS DR12 archive](https://data.sdss.org/sas/dr12/boss/) does not provide a
+  joint covariance matrix for these observables, so `cosmo_parser_bossdr12.py`
+  follows a block-diagonal approach that assumes the $dM/Hz$ and $D_V/F_{AP}$
+  sets are uncorrelated.
 - Engines are selected interactively from the `engines/` directory. Parsers are
   discovered automatically when their source folders are imported.
 - After each run you may choose to evaluate another model or exit. Cache files
