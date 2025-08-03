@@ -1,11 +1,12 @@
-"""Parser for BOSS DR12 BAO consensus measurements.
+"""Parse BOSS DR12 consensus BAO measurements.
 
-This dataset provides D_V/rs and F_AP values at three redshift bins
-including the full covariance matrix. The parser converts these
-measurements into DM/rs, DH/rs and DV/rs points so they can be used
-by the generic BAO chi-squared routine. The full covariance matrix is
-propagated to the new variables and its inverse stored on the returned
-DataFrame.
+The public BOSS DR12 release tabulates the spherically averaged distance
+``D_V/rs`` and the Alcock--Paczyński parameter ``F_AP`` for three redshift
+bins.  This parser converts those quantities into ``D_M/rs``, ``D_H/rs`` and
+``D_V/rs`` so they can be consumed by the engine's generic BAO routines.
+The accompanying covariance matrix is propagated through the variable
+transformation and the inverse covariance is attached to the resulting
+:class:`pandas.DataFrame`.
 """
 
 import os
@@ -45,7 +46,7 @@ def parse_boss_dr12(data_dir, **kwargs):
         logger.error(f"Failed reading BOSS DR12 results file: {exc}")
         return None
 
-    # Extract D_V/rs and F_AP pairs while preserving redshift order.
+    # Extract ``D_V/rs`` and ``F_AP`` pairs while preserving redshift order.
     redshifts = []
     dv_vals = []
     fap_vals = []
@@ -82,11 +83,15 @@ def parse_boss_dr12(data_dir, **kwargs):
     for i in range(n_z):
         dv = x_vec[2 * i]
         fap = x_vec[2 * i + 1]
+
+        # Recover the transverse and radial distances.  The relationships
+        # follow from :math:`D_V^3 = D_M^2 D_H` and ``F_AP = D_M / D_H``.
         dm = dv * fap ** (1.0 / 3.0)
         dh = dv / fap ** (2.0 / 3.0)
         y_vec[3 * i : 3 * i + 3] = [dm, dh, dv]
 
-        # Derivatives for error propagation
+        # Jacobian for covariance propagation.  Each block maps the original
+        # ``[DV, F_AP]`` pair to ``[DM, DH, DV]`` at the same redshift.
         jac[3 * i, 2 * i] = fap ** (1.0 / 3.0)
         jac[3 * i, 2 * i + 1] = (1.0 / 3.0) * dv * fap ** (-2.0 / 3.0)
         jac[3 * i + 1, 2 * i] = fap ** (-2.0 / 3.0)
@@ -138,6 +143,7 @@ def parse_boss_dr12(data_dir, **kwargs):
         )
 
     df = pd.DataFrame.from_records(records)
+    df.sort_values('redshift', inplace=True, ignore_index=True)
     df.attrs["covariance_matrix_inv"] = cov_inv
     df.attrs["diag_errors_for_plot"] = diag
     df.attrs["dataset_long_name"] = META.get("dataset_name", DATASET_NAME)
