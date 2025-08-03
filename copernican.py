@@ -57,7 +57,7 @@ data_loaders = None
 # outdated. Automatic releases are not yet enabled. Version 3.1.0 adds
 # unified exponent syntax across model YAML files and drops all
 # legacy JSON dataset support in favour of YAML-only inputs.
-COPERNICAN_VERSION = "3.3.1"
+COPERNICAN_VERSION = "3.3.2"
 CURRENT_LOG_FILE = None
 
 
