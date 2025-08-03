@@ -1,16 +1,16 @@
 
-"""Parse the *compound* BAO dataset and attach metadata.
+r"""Parse the *compound* BAO dataset and attach metadata.
 
 This parser is intentionally lightweight and makes no assumptions about the
-cosmological model.  It simply reads the YAML table located in ``data_dir``
-and returns a :class:`pandas.DataFrame` with the expected columns.  A matching
+cosmological model. It simply reads the YAML table located in ``data_dir`` and
+returns a :class:`pandas.DataFrame` with the expected columns. A matching
 ``metadata_*.yml`` file supplies the human readable dataset name and
-documentation strings.  The compound dataset does **not** ship with a
+documentation strings. The compound dataset does **not** ship with a
 covariance matrix; uncertainties are therefore treated as uncorrelated and the
 engine falls back to a diagonal covariance during the :math:`\chi^2`
-evaluation.  When a fiducial sound horizon ``rs_fiducial_Mpc`` is provided the
-values are converted to true ``*_over_rs`` observables so the engine remains
-agnostic of any fiducial scaling.
+evaluation. A ``rs_fiducial_Mpc`` column may appear in some entries but is
+retained only for reference—no unit conversion is performed so that published
+values are used directly without risking double scaling.
 """
 
 import os
@@ -61,21 +61,11 @@ def parse_bao_v1(data_dir, **kwargs):
             );
             return None
 
-        # Ensure numeric columns are typed correctly.  ``rs_fiducial_Mpc`` may
+        # Ensure numeric columns are typed correctly. ``rs_fiducial_Mpc`` may
         # be absent or contain ``null`` which converts to ``NaN``.
         for col in ['redshift', 'value', 'error', 'rs_fiducial_Mpc']:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
-
-        # Some literature quotes distances multiplied by ``r_s^fid / r_s``. If
-        # a fiducial sound horizon is specified we divide the measurement and
-        # its uncertainty by that value to recover the dimensionless
-        # ``*_over_rs`` form expected by the engine.  Entries without a fiducial
-        # value are assumed to already be in the correct units.
-        if 'rs_fiducial_Mpc' in df.columns:
-            mask = df['rs_fiducial_Mpc'].notna()
-            df.loc[mask, 'value'] /= df.loc[mask, 'rs_fiducial_Mpc']
-            df.loc[mask, 'error'] /= df.loc[mask, 'rs_fiducial_Mpc']
 
         df.dropna(subset=required_cols, inplace=True)
         if df.empty:
