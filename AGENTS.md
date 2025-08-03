@@ -140,7 +140,6 @@ To keep the project maintainable all contributors, human or AI, must follow thes
 7. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.**
 8. **Re-read the "Development laws and protocols for human and AI contributors" section in `README.md` at the start of every development session.**
 9. **Document every module, function and class with clear "what" and "why" explanations.** Comments and docstrings should describe not only the behaviour but also the rationale behind it.
-10. **Escape backslashes or prefix string literals with `r` to prevent invalid escape sequence warnings.** This is especially important for docstrings containing LaTeX commands or file paths.
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 

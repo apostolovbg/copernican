@@ -41,4 +41,4 @@ inverse covariance is stored on the returned DataFrame.
 ### BOSS DR12 BAO Consensus (Alam et al. 2017)
 *Source:* "The clustering of galaxies in the completed SDSS-III Baryon Oscillation Spectroscopic Survey" (Alam et al. 2017).
 *Location:* `data/bao/bossdr12/`.
-*Parser:* `cosmo_parser_bossdr12.py` ingests the published $dM(r_s^{fid}/r_s)$ and $H(z)(r_s/r_s^{fid})$ values, derives $D_M/r_s$, $D_H/r_s$ and $D_V/r_s$, and propagates the covariance matrix into the transformed space.
+*Parser:* `cosmo_parser_bossdr12.py` reads consensus $D_V/r_s$ and $F_{AP}$ values, converts them to $D_M/r_s$ and $D_H/r_s$, and propagates the published covariance matrix.
