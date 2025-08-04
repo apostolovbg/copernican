@@ -357,7 +357,7 @@ def fit_sne_parameters(sne_data_df, model_plugin):
     """Fit cosmological parameters to SNe Ia data."""
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)
-    dataset_name = sne_data_df.attrs.get('dataset_name_attr', 'UnknownSNeDataset')
+    dataset_name = sne_data_df.attrs.get('dataset_name_sanitized', 'UnknownSNeDataset')
     model_name_str = getattr(model_plugin, 'MODEL_NAME', 'UnknownModel')
 
     logger.info(f"\n--- Fitting SNe Ia ({dataset_name}) for Model: {model_name_str} ---")

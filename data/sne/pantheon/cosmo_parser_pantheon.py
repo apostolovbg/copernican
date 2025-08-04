@@ -128,10 +128,8 @@ def parse_pantheon_plus(data_dir, **kwargs):
             output_df.attrs["covariance_matrix_inv"] = None
             output_df.attrs["diag_errors_for_plot"] = output_df["e_mu_obs"].values
         long_name = META.get("dataset_name", "PantheonPlus2022").replace("\\", "")
-        output_df.attrs["dataset_long_name"] = long_name
-        output_df.attrs["dataset_name_attr"] = output_df.attrs[
-            "dataset_long_name"
-        ].replace(" ", "_")
+        output_df.attrs["dataset_name"] = long_name
+        output_df.attrs["dataset_name_sanitized"] = long_name.replace(" ", "_")
         output_df.attrs["citation"] = META.get("citation", "")
         output_df.attrs["notes"] = META.get("notes", "")
         output_df.attrs["description"] = META.get("description", "")

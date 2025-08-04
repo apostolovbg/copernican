@@ -26,5 +26,7 @@ source. All fields are optional except for `dataset_name` and
 
 The metadata file is loaded automatically by
 `copernican_lib.utils.load_metadata_from_dir` and attached to the parsed
-`DataFrame` through the ``.attrs`` dictionary. Custom fields are preserved
-and can be used by new engines or analysis scripts.
+`DataFrame` through the ``.attrs`` dictionary. Parsers store the original
+`dataset_name` along with a sanitized variant, `dataset_name_sanitized`,
+where spaces are replaced by underscores for safe filenames. Custom fields
+are preserved and can be used by new engines or analysis scripts.

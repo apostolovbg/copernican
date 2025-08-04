@@ -11,6 +11,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
+## Version 3.3.8
+- 2025-08-04: Replaced dataset name attributes with `dataset_name_sanitized`, preserved original `dataset_name`, and refreshed documentation (AI assistant)
+
 ## Version 3.3.7
 - 2025-08-04: Updated metadata key references to use `author` and refreshed documentation; bumped version (AI assistant)
 

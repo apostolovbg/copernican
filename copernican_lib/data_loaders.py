@@ -152,7 +152,11 @@ def _log_dataset_info(df, data_type, logger):
     # parser modules.
     if df is None or df.empty:
         return
-    name = df.attrs.get("dataset_long_name", df.attrs.get("dataset_name_attr", ""))
+    # Prefer the human-readable dataset name but fall back to the sanitized
+    # identifier when only that field is available.  Parsers are expected to
+    # attach both ``dataset_name`` (original string) and
+    # ``dataset_name_sanitized`` (underscored variant).
+    name = df.attrs.get("dataset_name", df.attrs.get("dataset_name_sanitized", ""))
     logger.info(f"Loaded {data_type} dataset '{name}' with {len(df)} rows.")
     if "covariance_matrix_inv" in df.attrs:
         if df.attrs["covariance_matrix_inv"] is not None:
@@ -182,8 +186,8 @@ def load_sne_data(source_key=None, **kwargs):
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
             data_df.attrs['source_key'] = source_key
-            if 'dataset_name_attr' not in data_df.attrs:
-                data_df.attrs['dataset_name_attr'] = f"SNe_{source_key.replace(' ', '_')}"
+            if 'dataset_name_sanitized' not in data_df.attrs:
+                data_df.attrs['dataset_name_sanitized'] = f"SNe_{source_key.replace(' ', '_')}"
             logger.info(f"Successfully loaded {len(data_df)} SNe data points.")
             _log_dataset_info(data_df, "SNe", logger)
         elif data_df is None:
@@ -216,8 +220,8 @@ def load_bao_data(source_key=None, **kwargs):
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
             data_df.attrs['source_key'] = source_key
-            if 'dataset_name_attr' not in data_df.attrs:
-                data_df.attrs['dataset_name_attr'] = f"BAO_{source_key.replace(' ', '_')}"
+            if 'dataset_name_sanitized' not in data_df.attrs:
+                data_df.attrs['dataset_name_sanitized'] = f"BAO_{source_key.replace(' ', '_')}"
             logger.info(f"Successfully loaded {len(data_df)} BAO data points.")
             _log_dataset_info(data_df, "BAO", logger)
         elif data_df is None:
@@ -250,8 +254,8 @@ def load_cmb_data(source_key=None, **kwargs):
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
             data_df.attrs['source_key'] = source_key
-            if 'dataset_name_attr' not in data_df.attrs:
-                data_df.attrs['dataset_name_attr'] = f"CMB_{source_key.replace(' ', '_')}"
+            if 'dataset_name_sanitized' not in data_df.attrs:
+                data_df.attrs['dataset_name_sanitized'] = f"CMB_{source_key.replace(' ', '_')}"
             logger.info(f"Successfully loaded {len(data_df)} CMB data points.")
             _log_dataset_info(data_df, "CMB", logger)
         elif data_df is None:
@@ -284,8 +288,8 @@ def load_gw_data(source_key=None, **kwargs):
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
             data_df.attrs['source_key'] = source_key
-            if 'dataset_name_attr' not in data_df.attrs:
-                data_df.attrs['dataset_name_attr'] = f"GW_{source_key.replace(' ', '_')}"
+            if 'dataset_name_sanitized' not in data_df.attrs:
+                data_df.attrs['dataset_name_sanitized'] = f"GW_{source_key.replace(' ', '_')}"
             logger.info(f"Successfully loaded {len(data_df)} GW data points.")
             _log_dataset_info(data_df, "GW", logger)
         elif data_df is None:
@@ -318,8 +322,8 @@ def load_siren_data(source_key=None, **kwargs):
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
             data_df.attrs['source_key'] = source_key
-            if 'dataset_name_attr' not in data_df.attrs:
-                data_df.attrs['dataset_name_attr'] = f"SIREN_{source_key.replace(' ', '_')}"
+            if 'dataset_name_sanitized' not in data_df.attrs:
+                data_df.attrs['dataset_name_sanitized'] = f"SIREN_{source_key.replace(' ', '_')}"
             logger.info(f"Successfully loaded {len(data_df)} standard siren data points.")
             _log_dataset_info(data_df, "SIREN", logger)
         elif data_df is None:
