@@ -23,7 +23,6 @@ import numpy as np
 import pandas as pd
 
 from copernican_lib.data_loaders import register_bao_parser
-from copernican_lib.utils import load_metadata_from_dir
 
 # Speed of light in km/s used to convert ``H(z)`` into ``D_H``.
 C_LIGHT = 299792.458
@@ -35,16 +34,9 @@ C_LIGHT = 299792.458
 RS_FIDUCIAL_MPC = 147.78
 
 DATA_DIR = os.path.dirname(__file__)
-META = load_metadata_from_dir(DATA_DIR)
-
-DATASET_NAME = META.get("dataset_name", "BOSS DR12 BAO Consensus")
-DESCRIPTION = META.get(
-    "description",
-    "BOSS DR12 consensus BAO distances with full covariance from dM/Hz and D_V/F_AP measurements.",
-)
 
 
-@register_bao_parser(DATASET_NAME, DESCRIPTION, data_dir=DATA_DIR)
+@register_bao_parser(data_dir=DATA_DIR)
 def parse_boss_dr12(data_dir, **kwargs):
     """Return BAO observables and covariance from the BOSS DR12 release."""
 
@@ -246,10 +238,7 @@ def parse_boss_dr12(data_dir, **kwargs):
     df.sort_values("redshift", inplace=True, ignore_index=True)
     df.attrs["covariance_matrix_inv"] = cov_inv
     df.attrs["diag_errors_for_plot"] = diag
-    df.attrs["dataset_name"] = META.get("dataset_name", DATASET_NAME)
-    df.attrs["dataset_name_sanitized"] = df.attrs["dataset_name"].replace(" ", "_")
-    df.attrs["citation"] = META.get("citation", "")
-    df.attrs["notes"] = META.get("notes", "")
-    df.attrs["description"] = META.get("description", "")
+    # Metadata such as dataset name and citation is attached by
+    # ``load_bao_data`` after this function returns.
     return df
 

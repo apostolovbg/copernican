@@ -44,8 +44,10 @@ dynamically so the canvas height grows when needed and never overlaps the
 plots.
 Dataset names, descriptions, author lists and citations are read from
 `metadata_*.yml` files stored next to each dataset. The program never
-hard-codes these values; instead the metadata is attached to the parsed
-DataFrame and used for plot footers and CSV headers.
+hard-codes these values; `copernican_lib/data_loaders.py` reads the metadata
+after invoking each parser and attaches it to the returned DataFrame for plot
+footers and CSV headers. Individual parsers no longer access metadata files
+directly.
 During configuration each loader prints a short summary including whether the
 dataset's covariance matrix was inverted successfully or if diagonal errors are
 being used.

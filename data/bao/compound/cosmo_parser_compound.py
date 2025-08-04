@@ -1,16 +1,17 @@
 
-r"""Parse the *compound* BAO dataset and attach metadata.
+r"""Parse the *compound* BAO dataset.
 
 This parser is intentionally lightweight and makes no assumptions about the
 cosmological model. It simply reads the YAML table located in ``data_dir`` and
 returns a :class:`pandas.DataFrame` with the expected columns. A matching
 ``metadata_*.yml`` file supplies the human readable dataset name and
-documentation strings. The compound dataset does **not** ship with a
-covariance matrix; uncertainties are therefore treated as uncorrelated and the
-engine falls back to a diagonal covariance during the :math:`\chi^2`
-evaluation. A ``rs_fiducial_Mpc`` column may appear in some entries but is
-retained only for reference—no unit conversion is performed so that published
-values are used directly without risking double scaling.
+documentation strings which are attached by
+``copernican_lib.data_loaders.load_bao_data``. The compound dataset does
+**not** ship with a covariance matrix; uncertainties are therefore treated as
+uncorrelated and the engine falls back to a diagonal covariance during the
+:math:`\chi^2` evaluation. A ``rs_fiducial_Mpc`` column may appear in some
+entries but is retained only for reference—no unit conversion is performed so
+that published values are used directly without risking double scaling.
 """
 
 import os
@@ -19,25 +20,13 @@ import yaml
 import logging
 
 from copernican_lib.data_loaders import register_bao_parser
-from copernican_lib.utils import load_metadata_from_dir
 
 DATA_DIR = os.path.dirname(__file__)
-META = load_metadata_from_dir(DATA_DIR)
-
-DATASET_NAME = META.get("dataset_name", "BAO dataset")
-DESCRIPTION = META.get(
-    "description",
-    "Compilation of baryon acoustic oscillation measurements.",
-)
 
 
-@register_bao_parser(
-    DATASET_NAME,
-    DESCRIPTION,
-    data_dir=DATA_DIR,
-)
+@register_bao_parser(data_dir=DATA_DIR)
 def parse_bao_v1(data_dir, **kwargs):
-    """Parse a BAO dataset and attach metadata."""
+    """Parse a BAO dataset defined in a small YAML table."""
     logger = logging.getLogger()
     data_files = [
         f
@@ -71,15 +60,9 @@ def parse_bao_v1(data_dir, **kwargs):
         if df.empty:
             logger.error(f"No valid BAO data points after parsing {filepath}."); return None
 
-        meta = META
-
-        dataset_name = meta.get('dataset_name', data_json.get('name', f"BAO_{os.path.basename(filepath)}"))
-        df.attrs['citation'] = meta.get('citation', data_json.get('citation', 'N/A'))
-        df.attrs['notes'] = meta.get('notes', data_json.get('notes', 'N/A'))
-        df.attrs['description'] = meta.get('description', '')
-        df.attrs['dataset_name'] = dataset_name
-        df.attrs['dataset_name_sanitized'] = dataset_name.replace(' ', '_')
-
+        # Metadata such as dataset name, citation and notes is loaded by
+        # ``load_bao_data`` and attached to the DataFrame after this function
+        # returns.
         return df
     except Exception as e:
         logger.error(

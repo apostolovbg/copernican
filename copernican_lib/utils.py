@@ -70,6 +70,9 @@ def load_metadata_from_dir(data_dir: str) -> dict:
     The loader looks for a file starting with ``metadata`` and ending in
     ``.yml`` or ``.yaml``. JSON files were supported in earlier versions but
     have been removed to keep the format consistent across the project.
+    Some legacy metadata files contain unquoted values with embedded colons,
+    e.g. URLs. ``yaml.safe_load`` rejects such scalars so a simple
+    line-by-line fallback parser is used when the strict loader fails.
     """
     try:
         meta_files = [
@@ -79,8 +82,21 @@ def load_metadata_from_dir(data_dir: str) -> dict:
             and f.lower().endswith((".yml", ".yaml"))
         ]
         if meta_files:
-            with open(os.path.join(data_dir, sorted(meta_files)[0]), "r") as fh:
-                return yaml.safe_load(fh)
+            path = os.path.join(data_dir, sorted(meta_files)[0])
+            try:
+                with open(path, "r") as fh:
+                    return yaml.safe_load(fh)
+            except Exception:
+                # Fallback: parse ``key: value`` pairs manually so that
+                # unquoted URLs or other colon-containing values do not break
+                # metadata loading.
+                meta = {}
+                with open(path, "r") as fh:
+                    for line in fh:
+                        if ":" in line:
+                            key, val = line.strip().split(":", 1)
+                            meta[key.strip()] = val.strip()
+                return meta
     except Exception:
         pass
     return {}

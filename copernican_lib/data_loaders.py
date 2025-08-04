@@ -11,6 +11,7 @@ import os
 import logging
 import importlib
 from . import console_output as console
+from .utils import load_metadata_from_dir
 
 # --- Parser Registry ---
 # Each registry maps a short human readable key to a dictionary
@@ -25,10 +26,17 @@ SIREN_PARSERS: dict = {}
 
 
 # --- Decorators to register parsers ---
-def register_sne_parser(name, description="", data_dir=None):
-    """Decorator to register a SNe data parsing function bound to a data source."""
+def register_sne_parser(name=None, description="", data_dir=None):
+    """Decorator to register a SNe data parsing function bound to a data source.
+
+    The registration no longer requires the human readable dataset name or
+    description up front. When ``name`` is ``None`` the base name of
+    ``data_dir`` is used as a temporary key and replaced with the metadata
+    ``dataset_name`` during discovery.
+    """
     def decorator(func):
-        SNE_PARSERS[name] = {
+        key = name or os.path.basename(data_dir or func.__name__)
+        SNE_PARSERS[key] = {
             'function': func,
             'description': description,
             'data_dir': data_dir,
@@ -36,10 +44,16 @@ def register_sne_parser(name, description="", data_dir=None):
         return func
     return decorator
 
-def register_bao_parser(name, description="", data_dir=None):
-    """Decorator to register a BAO data parsing function bound to a data source."""
+def register_bao_parser(name=None, description="", data_dir=None):
+    """Decorator to register a BAO data parsing function bound to a data source.
+
+    When ``name`` is ``None`` the dataset directory name is used as a temporary
+    key and replaced with the metadata-supplied ``dataset_name`` during
+    discovery.
+    """
     def decorator(func):
-        BAO_PARSERS[name] = {
+        key = name or os.path.basename(data_dir or func.__name__)
+        BAO_PARSERS[key] = {
             'function': func,
             'description': description,
             'data_dir': data_dir,
@@ -47,10 +61,15 @@ def register_bao_parser(name, description="", data_dir=None):
         return func
     return decorator
 
-def register_cmb_parser(name, description="", data_dir=None):
-    """Decorator to register a CMB data parsing function bound to a data source."""
+def register_cmb_parser(name=None, description="", data_dir=None):
+    """Decorator to register a CMB data parsing function bound to a data source.
+
+    When ``name`` is omitted the dataset directory name acts as a temporary key
+    until discovery replaces it with the metadata ``dataset_name``.
+    """
     def decorator(func):
-        CMB_PARSERS[name] = {
+        key = name or os.path.basename(data_dir or func.__name__)
+        CMB_PARSERS[key] = {
             'function': func,
             'description': description,
             'data_dir': data_dir,
@@ -58,10 +77,14 @@ def register_cmb_parser(name, description="", data_dir=None):
         return func
     return decorator
 
-def register_gw_parser(name, description="", data_dir=None):
-    """Decorator to register a gravitational wave data parsing function bound to a data source."""
+def register_gw_parser(name=None, description="", data_dir=None):
+    """Decorator to register a gravitational wave parser bound to a data source.
+
+    Omitting ``name`` defers human-readable naming to metadata discovery.
+    """
     def decorator(func):
-        GW_PARSERS[name] = {
+        key = name or os.path.basename(data_dir or func.__name__)
+        GW_PARSERS[key] = {
             'function': func,
             'description': description,
             'data_dir': data_dir,
@@ -69,10 +92,15 @@ def register_gw_parser(name, description="", data_dir=None):
         return func
     return decorator
 
-def register_siren_parser(name, description="", data_dir=None):
-    """Decorator to register a standard siren data parsing function bound to a data source."""
+def register_siren_parser(name=None, description="", data_dir=None):
+    """Decorator to register a standard siren parser bound to a data source.
+
+    When ``name`` is ``None`` the dataset directory name serves as a temporary
+    key and is replaced with the metadata ``dataset_name`` during discovery.
+    """
     def decorator(func):
-        SIREN_PARSERS[name] = {
+        key = name or os.path.basename(data_dir or func.__name__)
+        SIREN_PARSERS[key] = {
             'function': func,
             'description': description,
             'data_dir': data_dir,
@@ -82,11 +110,21 @@ def register_siren_parser(name, description="", data_dir=None):
 
 # --- Dynamic Discovery of Parser Modules ---
 def _discover_parsers():
-    """Imports parser modules stored within ``data/<type>/<source>`` directories."""
+    """Import parser modules and populate registries with dataset metadata."""
     # Parser modules register themselves in the dictionaries above when
     # imported.  Automatically scanning the data directory keeps the core
-    # code agnostic to the exact set of available sources.
+    # code agnostic to the exact set of available sources.  Metadata is
+    # read here rather than inside the parser modules so that discovery and
+    # user prompts present human readable dataset names without forcing the
+    # parsers to access the metadata files themselves.
     base_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+    registry_map = {
+        'sne': SNE_PARSERS,
+        'bao': BAO_PARSERS,
+        'cmb': CMB_PARSERS,
+        'gw': GW_PARSERS,
+        'sirens': SIREN_PARSERS,
+    }
     for dtype in ('sne', 'bao', 'cmb', 'gw', 'sirens'):
         type_dir = os.path.join(base_dir, dtype)
         if not os.path.isdir(type_dir):
@@ -99,6 +137,8 @@ def _discover_parsers():
             src_dir = os.path.join(type_dir, source)
             if not os.path.isdir(src_dir):
                 continue
+            meta = load_metadata_from_dir(src_dir)
+            placeholder_key = os.path.basename(src_dir)
             for fname in os.listdir(src_dir):
                 if fname.startswith('cosmo_parser_') and fname.endswith('.py'):
                     module_name = f"data.{dtype}.{source}.{fname[:-3]}"
@@ -109,6 +149,21 @@ def _discover_parsers():
                         spec.loader.exec_module(module)
                     except Exception as e:
                         logging.getLogger().error(f"Failed loading parser module {file_path}: {e}")
+                    registry = registry_map[dtype]
+                    if placeholder_key in registry:
+                        entry = registry.pop(placeholder_key)
+                        dataset_name = meta.get('dataset_name', placeholder_key)
+                        entry['description'] = meta.get('description', entry.get('description', ''))
+                        entry['data_dir'] = src_dir
+                        registry[dataset_name] = entry
+                    # If the parser registered with an explicit name, simply
+                    # update the description if metadata provides one.
+                    else:
+                        dataset_name = meta.get('dataset_name')
+                        if dataset_name and dataset_name in registry:
+                            registry[dataset_name]['description'] = meta.get(
+                                'description', registry[dataset_name].get('description', '')
+                            )
 
 # Discover parsers at import time so that functions like
 # ``load_sne_data`` can simply refer to the registries without
@@ -148,14 +203,15 @@ def _log_dataset_info(df, data_type, logger):
     """Log summary and covariance usage for ``df``."""
     # Centralised helper so that every loader reports consistent
     # information about the dataset and whether a covariance matrix was
-    # actually used.  The attributes are attached by the individual
-    # parser modules.
+    # actually used.  ``load_*_data`` attaches all metadata via
+    # :func:`load_metadata_from_dir` so the log entries rely solely on the
+    # DataFrame attributes.
     if df is None or df.empty:
         return
     # Prefer the human-readable dataset name but fall back to the sanitized
-    # identifier when only that field is available.  Parsers are expected to
-    # attach both ``dataset_name`` (original string) and
-    # ``dataset_name_sanitized`` (underscored variant).
+    # identifier when only that field is available.  Loaders attach both
+    # ``dataset_name`` (original string) and ``dataset_name_sanitized``
+    # (underscored variant).
     name = df.attrs.get("dataset_name", df.attrs.get("dataset_name_sanitized", ""))
     logger.info(f"Loaded {data_type} dataset '{name}' with {len(df)} rows.")
     if "covariance_matrix_inv" in df.attrs:
@@ -185,9 +241,13 @@ def load_sne_data(source_key=None, **kwargs):
         logger.info(f"Attempting to load SNe data from source '{source_key}'")
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
+            meta = load_metadata_from_dir(data_dir)
+            if meta:
+                data_df.attrs.update(meta)
             data_df.attrs['source_key'] = source_key
-            if 'dataset_name_sanitized' not in data_df.attrs:
-                data_df.attrs['dataset_name_sanitized'] = f"SNe_{source_key.replace(' ', '_')}"
+            dataset_name = data_df.attrs.get('dataset_name', source_key)
+            data_df.attrs['dataset_name'] = dataset_name
+            data_df.attrs['dataset_name_sanitized'] = dataset_name.replace(' ', '_')
             logger.info(f"Successfully loaded {len(data_df)} SNe data points.")
             _log_dataset_info(data_df, "SNe", logger)
         elif data_df is None:
@@ -219,9 +279,13 @@ def load_bao_data(source_key=None, **kwargs):
         logger.info(f"Attempting to load BAO data from source '{source_key}'")
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
+            meta = load_metadata_from_dir(data_dir)
+            if meta:
+                data_df.attrs.update(meta)
             data_df.attrs['source_key'] = source_key
-            if 'dataset_name_sanitized' not in data_df.attrs:
-                data_df.attrs['dataset_name_sanitized'] = f"BAO_{source_key.replace(' ', '_')}"
+            dataset_name = data_df.attrs.get('dataset_name', source_key)
+            data_df.attrs['dataset_name'] = dataset_name
+            data_df.attrs['dataset_name_sanitized'] = dataset_name.replace(' ', '_')
             logger.info(f"Successfully loaded {len(data_df)} BAO data points.")
             _log_dataset_info(data_df, "BAO", logger)
         elif data_df is None:
@@ -253,9 +317,13 @@ def load_cmb_data(source_key=None, **kwargs):
         logger.info(f"Attempting to load CMB data from source '{source_key}'")
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
+            meta = load_metadata_from_dir(data_dir)
+            if meta:
+                data_df.attrs.update(meta)
             data_df.attrs['source_key'] = source_key
-            if 'dataset_name_sanitized' not in data_df.attrs:
-                data_df.attrs['dataset_name_sanitized'] = f"CMB_{source_key.replace(' ', '_')}"
+            dataset_name = data_df.attrs.get('dataset_name', source_key)
+            data_df.attrs['dataset_name'] = dataset_name
+            data_df.attrs['dataset_name_sanitized'] = dataset_name.replace(' ', '_')
             logger.info(f"Successfully loaded {len(data_df)} CMB data points.")
             _log_dataset_info(data_df, "CMB", logger)
         elif data_df is None:
@@ -287,9 +355,13 @@ def load_gw_data(source_key=None, **kwargs):
         logger.info(f"Attempting to load GW data from source '{source_key}'")
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
+            meta = load_metadata_from_dir(data_dir)
+            if meta:
+                data_df.attrs.update(meta)
             data_df.attrs['source_key'] = source_key
-            if 'dataset_name_sanitized' not in data_df.attrs:
-                data_df.attrs['dataset_name_sanitized'] = f"GW_{source_key.replace(' ', '_')}"
+            dataset_name = data_df.attrs.get('dataset_name', source_key)
+            data_df.attrs['dataset_name'] = dataset_name
+            data_df.attrs['dataset_name_sanitized'] = dataset_name.replace(' ', '_')
             logger.info(f"Successfully loaded {len(data_df)} GW data points.")
             _log_dataset_info(data_df, "GW", logger)
         elif data_df is None:
@@ -321,9 +393,13 @@ def load_siren_data(source_key=None, **kwargs):
         logger.info(f"Attempting to load siren data from source '{source_key}'")
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
+            meta = load_metadata_from_dir(data_dir)
+            if meta:
+                data_df.attrs.update(meta)
             data_df.attrs['source_key'] = source_key
-            if 'dataset_name_sanitized' not in data_df.attrs:
-                data_df.attrs['dataset_name_sanitized'] = f"SIREN_{source_key.replace(' ', '_')}"
+            dataset_name = data_df.attrs.get('dataset_name', source_key)
+            data_df.attrs['dataset_name'] = dataset_name
+            data_df.attrs['dataset_name_sanitized'] = dataset_name.replace(' ', '_')
             logger.info(f"Successfully loaded {len(data_df)} standard siren data points.")
             _log_dataset_info(data_df, "SIREN", logger)
         elif data_df is None:

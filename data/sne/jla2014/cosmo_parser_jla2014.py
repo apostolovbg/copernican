@@ -13,16 +13,8 @@ import logging
 from astropy.io import fits
 
 from copernican_lib.data_loaders import register_sne_parser
-from copernican_lib.utils import load_metadata_from_dir
 
 DATA_DIR = os.path.dirname(__file__)
-META = load_metadata_from_dir(DATA_DIR)
-
-DATASET_NAME = META.get("dataset_name", "JLA 2014").replace("\\", "")
-DESCRIPTION = META.get(
-    "description",
-    "Joint SDSS-II and SNLS supernova sample (Betoule et al. 2014).",
-)
 
 # SALT2 nuisance parameters used to convert light-curve fits into
 # distance moduli.  The Betoule et al. analysis reports best-fit
@@ -34,11 +26,7 @@ DEFAULT_SALT2_ALPHA_FIXED = 0.141
 DEFAULT_SALT2_BETA_FIXED = 3.101
 
 
-@register_sne_parser(
-    DATASET_NAME,
-    DESCRIPTION,
-    data_dir=DATA_DIR,
-)
+@register_sne_parser(data_dir=DATA_DIR)
 def parse_jla2014(
     data_dir,
     salt2_m_abs_fixed=DEFAULT_SALT2_M_ABS_FIXED,
@@ -172,12 +160,6 @@ def parse_jla2014(
     parsed.attrs["salt2_m_abs_fixed"] = salt2_m_abs_fixed
     parsed.attrs["salt2_alpha_fixed"] = salt2_alpha_fixed
     parsed.attrs["salt2_beta_fixed"] = salt2_beta_fixed
-    long_name = META.get("dataset_name", "JLA2014").replace("\\", "")
-    parsed.attrs["dataset_name"] = long_name
-    parsed.attrs["dataset_name_sanitized"] = long_name.replace(
-        " ", "_"
-    )
-    parsed.attrs["citation"] = META.get("citation", "")
-    parsed.attrs["notes"] = META.get("notes", "")
-    parsed.attrs["description"] = META.get("description", "")
+    # Metadata such as dataset name and citation is attached by
+    # ``load_sne_data`` after this function returns.
     return parsed
