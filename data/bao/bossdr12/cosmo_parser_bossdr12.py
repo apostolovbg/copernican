@@ -246,8 +246,8 @@ def parse_boss_dr12(data_dir, **kwargs):
     df.sort_values("redshift", inplace=True, ignore_index=True)
     df.attrs["covariance_matrix_inv"] = cov_inv
     df.attrs["diag_errors_for_plot"] = diag
-    df.attrs["dataset_long_name"] = META.get("dataset_name", DATASET_NAME)
-    df.attrs["dataset_name_attr"] = df.attrs["dataset_long_name"].replace(" ", "_")
+    df.attrs["dataset_name"] = META.get("dataset_name", DATASET_NAME)
+    df.attrs["dataset_name_sanitized"] = df.attrs["dataset_name"].replace(" ", "_")
     df.attrs["citation"] = META.get("citation", "")
     df.attrs["notes"] = META.get("notes", "")
     df.attrs["description"] = META.get("description", "")

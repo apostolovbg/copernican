@@ -49,7 +49,7 @@ def save_sne_results_detailed_csv(
         df_out[f"mu_model_{alt_model_name}"] = np.nan
         df_out[f"residual_{alt_model_name}"] = np.nan
 
-    dataset_name = sne_data_df.attrs.get("dataset_name_attr", "SNe_data")
+    dataset_name = sne_data_df.attrs.get("dataset_name_sanitized", "SNe_data")
     model_comparison_name = f"LCDM-vs-{alt_model_name}"
     filename = generate_filename(
         "sne-detailed-data",
@@ -91,7 +91,7 @@ def save_bao_results_csv(
         df_out[f"pred_{alt_model_name_safe}"] = alt_model_results["pred_df"]["model_prediction"]
         df_out[f"chi2_contrib_{alt_model_name_safe}"] = ((df_out["value"] - df_out[f"pred_{alt_model_name_safe}"]) / df_out["error"]) ** 2
 
-    dataset_name = bao_data_df.attrs.get("dataset_name_attr", "BAO_data")
+    dataset_name = bao_data_df.attrs.get("dataset_name_sanitized", "BAO_data")
     model_comparison_name = f"LCDM-vs-{alt_model_name}"
     filename = generate_filename(
         "bao-detailed-data",
@@ -178,7 +178,7 @@ def save_cmb_results_csv(
             ] if col not in df_out.columns
         ]] = np.nan
 
-    dataset_name = cmb_data_df.attrs.get("dataset_name_attr", "CMB_data")
+    dataset_name = cmb_data_df.attrs.get("dataset_name_sanitized", "CMB_data")
     model_comparison_name = f"LCDM-vs-{alt_name_safe}"
     filename = generate_filename(
         "cmb-detailed-data",

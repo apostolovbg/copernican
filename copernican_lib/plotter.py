@@ -79,7 +79,7 @@ def compose_footer(base_line: str, data_attrs: dict) -> list[str]:
     """
 
     long_name = data_attrs.get(
-        "dataset_long_name", data_attrs.get("dataset_name_attr", "")
+        "dataset_name", data_attrs.get("dataset_name_sanitized", "")
     )
     # Pull the full author list from the ``author`` field so plot footers
     # can display the complete citation details.
@@ -196,7 +196,7 @@ def plot_hubble_diagram(
     """Generate and save a Hubble diagram and residuals plot."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
-    dataset_name = sne_data_df.attrs.get("dataset_name_attr", "SNe_data")
+    dataset_name = sne_data_df.attrs.get("dataset_name_sanitized", "SNe_data")
     logger.info(f"Generating Hubble Diagram for {dataset_name}...")
 
     _apply_common_style()
@@ -460,7 +460,7 @@ def plot_bao_observables(
     """Generate and save a plot of BAO observables versus redshift."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
-    dataset_name = bao_data_df.attrs.get("dataset_name_attr", "BAO_data")
+    dataset_name = bao_data_df.attrs.get("dataset_name_sanitized", "BAO_data")
     logger.info(f"Generating BAO Plot for {dataset_name}...")
 
     _apply_common_style()
@@ -743,7 +743,7 @@ def plot_cmb_spectrum(
     """Generate and save a CMB power spectrum plot with residuals."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
-    dataset_name = cmb_data_df.attrs.get("dataset_name_attr", "CMB_data")
+    dataset_name = cmb_data_df.attrs.get("dataset_name_sanitized", "CMB_data")
     logger.info(f"Generating CMB Spectrum Plot for {dataset_name}...")
 
     _apply_common_style()

@@ -73,12 +73,12 @@ def parse_bao_v1(data_dir, **kwargs):
 
         meta = META
 
-        dataset_long = meta.get('dataset_name', data_json.get('name', f"BAO_{os.path.basename(filepath)}"))
+        dataset_name = meta.get('dataset_name', data_json.get('name', f"BAO_{os.path.basename(filepath)}"))
         df.attrs['citation'] = meta.get('citation', data_json.get('citation', 'N/A'))
         df.attrs['notes'] = meta.get('notes', data_json.get('notes', 'N/A'))
         df.attrs['description'] = meta.get('description', '')
-        df.attrs['dataset_long_name'] = dataset_long
-        df.attrs['dataset_name_attr'] = dataset_long.replace(' ', '_')
+        df.attrs['dataset_name'] = dataset_name
+        df.attrs['dataset_name_sanitized'] = dataset_name.replace(' ', '_')
 
         return df
     except Exception as e:

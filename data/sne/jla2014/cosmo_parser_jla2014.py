@@ -173,8 +173,8 @@ def parse_jla2014(
     parsed.attrs["salt2_alpha_fixed"] = salt2_alpha_fixed
     parsed.attrs["salt2_beta_fixed"] = salt2_beta_fixed
     long_name = META.get("dataset_name", "JLA2014").replace("\\", "")
-    parsed.attrs["dataset_long_name"] = long_name
-    parsed.attrs["dataset_name_attr"] = parsed.attrs["dataset_long_name"].replace(
+    parsed.attrs["dataset_name"] = long_name
+    parsed.attrs["dataset_name_sanitized"] = long_name.replace(
         " ", "_"
     )
     parsed.attrs["citation"] = META.get("citation", "")
