@@ -9,6 +9,7 @@ import pandas as pd
 
 from copernican_lib import model_parser, model_coder, engine_interface, data_loaders
 import engines.cosmo_engine_comb as engine
+import data.bao.compound.cosmo_parser_compound  # ensure compound BAO parser registration
 
 
 class FunctionalTestCase(unittest.TestCase):
@@ -30,7 +31,7 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertTrue(hasattr(self.plugin, 'distance_modulus_model'))
 
     def test_engine_routines(self):
-        sne_df = data_loaders.load_sne_data('JLA 2014 (Betoule et al.)')
+        sne_df = data_loaders.load_sne_data('JLA 2014')
         self.assertIsNotNone(sne_df)
         sne_df = sne_df.head(3)
         if sne_df.attrs.get('covariance_matrix_inv') is not None:
@@ -66,7 +67,7 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertEqual(len(spec["TT"]), len(cmb_df))
 
     def test_combined_fit(self):
-        sne_df = data_loaders.load_sne_data('JLA 2014 (Betoule et al.)').head(2)
+        sne_df = data_loaders.load_sne_data('JLA 2014').head(2)
         if sne_df.attrs.get('covariance_matrix_inv') is not None:
             sne_df.attrs['covariance_matrix_inv'] = sne_df.attrs['covariance_matrix_inv'][:2, :2]
             sne_df.attrs['diag_errors_for_plot'] = sne_df.attrs['diag_errors_for_plot'][:2]
