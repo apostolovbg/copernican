@@ -105,15 +105,19 @@ def compose_footer(base_line: str, data_attrs: dict) -> list[tuple[str, bool]]:
         .replace("{", "\\{")
         .replace("}", "\\}")
         .replace("_", "\\_")
+        .replace(" ", "\\ ")  # Preserve spaces for MathText rendering
     )
     description = data_attrs.get("description", "")
     notes = data_attrs.get("notes", "")
     citation = data_attrs.get("citation", "")
 
+    # ``mathtext`` does not support ``\textbf`` so ``\mathbf`` is used instead
+    # to emphasise the dataset name while keeping the rest of the line in the
+    # default font. Spaces are escaped above to preserve their appearance.
     second_line = (
         "Observational dataset and processing: "
-        f"$\\textbf{{{safe_name}}}$: {description} {notes}"
-    ).strip()
+        f"$\\mathbf{{{safe_name}}}$: {description} {notes}"
+        ).strip()
 
     wrapped: list[tuple[str, bool]] = [(base_line, True)]
     if second_line:
