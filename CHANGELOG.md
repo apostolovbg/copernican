@@ -11,6 +11,12 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
+## Version 3.3.7
+- 2025-08-05: Display full author list in plot footers and update documentation (AI assistant)
+
+## Version 3.3.6
+- 2025-08-04: Added BibTeX metadata fields and updated citations across public datasets; refreshed documentation and version numbers (AI assistant)
+
 ## Version 3.3.5
 - 2025-08-03: Documented absence of joint covariance for BOSS DR12 data and parser's block-diagonal approach in docs and README (AI assistant)
 

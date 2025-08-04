@@ -77,9 +77,13 @@ def compose_footer(base_line: str, data_attrs: dict) -> list[str]:
     long_name = data_attrs.get(
         "dataset_long_name", data_attrs.get("dataset_name_attr", "")
     )
+    author_list = data_attrs.get("author") or data_attrs.get("authors_all", "")
     notes = data_attrs.get("notes", "")
     citation = data_attrs.get("citation", "")
-    second_line = f"{_wrap_math(long_name)}: {notes} {citation}".strip()
+    details = " ".join(part for part in (author_list, notes, citation) if part)
+    second_line = (
+        f"{_wrap_math(long_name)}: {details}" if details else _wrap_math(long_name)
+    )
     # Allow more characters per line so lengthy citations do not wrap
     # excessively. Each wrapped line will be drawn separately with a
     # slightly smaller font size by the caller.
