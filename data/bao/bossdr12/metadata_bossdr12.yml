@@ -1,0 +1,18 @@
+dataset_name: BOSS DR12 BAO Consensus
+description: Consensus BAO distances for three redshift bins providing DM/rs, DH/rs and DV/rs with propagated block-diagonal covariance
+citation: Alam et al. - MNRAS 470 (2017) 2617-2652 - DOI: https://doi.org/10.1093/mnras/stx721
+author: Alam S., Ata M., Bailey S., Beutler F., Bizyaev D., Blazek J.A., Bolton A.S., Brownstein J.R., Burden A., Chuang C., Comparat J., Cuesta A.J., Dawson K.S., Eisenstein D.J., Escoffier S., Gil-Mar'in H., Grieb J.N., Hand N., Ho S., Kinemuchi K., Kirkby D., Kitaura F., Malanushenko E., Malanushenko V., Maraston C., McBride C.K., Nichol R.C., Olmstead M.D., Oravetz D., Padmanabhan N., Palanque-Delabrouille N., Pan K., Pellejero-Ibanez M., Percival W.J., Petitjean P., Prada F., Price-Whelan A.M., Reid B.A., Rodriguez-Torres S.A., Roe N.A., Ross A.J., Ross N.P., Rossi G., Rubino-Martin J.A., Saito S., Salazar-Albornoz S., Samushia L., Sanchez A.G., Satpathy S., Schlegel D.J., Schneider D.P., Scoccola C.G., Seo H., Sheldon E.S., Simmons A., Slosar A., Strauss M.A., Swanson M.E.C., Thomas D., Tinker J.L., Tojeiro R., Vargas Magana M., Vazquez J.A., Verde L., Wake D.A., Wang Y., Weinberg D.H., White M., Wood-Vasey W.M., Yeche C., Zehavi I., Zhai Z., Zhao G.
+title: The clustering of galaxies in the completed SDSS-III Baryon Oscillation Spectroscopic Survey: cosmological analysis of the DR12 galaxy sample
+article: Alam_2017
+volume: 470
+ISSN: 1365-2966
+arXiv: https://arxiv.org/abs/1607.03155
+url: http://dx.doi.org/10.1093/mnras/stx721
+DOI: 10.1093/mnras/stx721
+number: 3
+journal: Monthly Notices of the Royal Astronomical Society
+publisher: Oxford University Press (OUP)
+year: 2017
+month: mar
+pages: 2617-2652
+notes: Published dM(rs_fid/rs) and Hz(rs/rs_fid) measurements are converted to D_M/rs and D_H/rs and combined with D_V/rs results. The dM/Hz and D_V/F_AP covariance matrices are assembled into a block-diagonal matrix, propagated through the transformation and inverted when well conditioned.

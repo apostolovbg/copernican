@@ -16,6 +16,8 @@ modules are:
     `load_cmb_data(name)` – load datasets by their registered names. Each loader
     logs a short summary describing the dataset and whether its covariance matrix
     was used or diagonal errors were applied.
+- `console_output.write(msg)` – unified console printing function that is logged
+  verbatim via `logger`.
 - `engines.cosmo_engine_comb` – reference engine providing high level
   optimisation routines such as ``fit_sne_parameters``,
   ``fit_combined_parameters``, ``calculate_bao_observables`` and generic

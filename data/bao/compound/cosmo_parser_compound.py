@@ -1,12 +1,16 @@
 
-"""Generic parser for BAO datasets stored in YAML or legacy JSON files.
+r"""Parse the *compound* BAO dataset and attach metadata.
 
-The parser searches ``data_dir`` for a file ending in ``.yml`` or ``.json``
-that contains a ``data_points`` array. A companion ``metadata_*`` file is
-read via :func:`copernican_lib.utils.load_metadata_from_dir` to obtain the
-dataset name and citation. Any data file not starting with ``metadata`` is
-treated as the measurement table so multiple datasets can coexist in the same
-folder.
+This parser is intentionally lightweight and makes no assumptions about the
+cosmological model. It simply reads the YAML table located in ``data_dir`` and
+returns a :class:`pandas.DataFrame` with the expected columns. A matching
+``metadata_*.yml`` file supplies the human readable dataset name and
+documentation strings. The compound dataset does **not** ship with a
+covariance matrix; uncertainties are therefore treated as uncorrelated and the
+engine falls back to a diagonal covariance during the :math:`\chi^2`
+evaluation. A ``rs_fiducial_Mpc`` column may appear in some entries but is
+retained only for reference—no unit conversion is performed so that published
+values are used directly without risking double scaling.
 """
 
 import os
@@ -57,8 +61,11 @@ def parse_bao_v1(data_dir, **kwargs):
             );
             return None
 
-        for col in ['redshift', 'value', 'error']:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+        # Ensure numeric columns are typed correctly. ``rs_fiducial_Mpc`` may
+        # be absent or contain ``null`` which converts to ``NaN``.
+        for col in ['redshift', 'value', 'error', 'rs_fiducial_Mpc']:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
 
         df.dropna(subset=required_cols, inplace=True)
         if df.empty:
@@ -72,6 +79,7 @@ def parse_bao_v1(data_dir, **kwargs):
         df.attrs['description'] = meta.get('description', '')
         df.attrs['dataset_long_name'] = dataset_long
         df.attrs['dataset_name_attr'] = dataset_long.replace(' ', '_')
+
         return df
     except Exception as e:
         logger.error(

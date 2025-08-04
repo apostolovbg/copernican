@@ -15,7 +15,7 @@ from copernican_lib.utils import load_metadata_from_dir
 DATA_DIR = os.path.dirname(__file__)
 META = load_metadata_from_dir(DATA_DIR)
 
-DATASET_NAME = META.get("dataset_name", "Planck2018lite")
+DATASET_NAME = META.get("dataset_name", "Planck 2018 Lite TT/TE/EE").replace("\\", "")
 DESCRIPTION = META.get(
     "description",
     "Planck 2018 lite TT/TE/EE spectra.",

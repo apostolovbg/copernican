@@ -26,3 +26,6 @@ library and not mere scripts.
 LaTeX translations rely on `copernican_lib/latex_utils.py` which reads symbol and function mappings from `latex_mappings.yml`. New commands can be added there without touching the code.
 The helper also exposes `latex_to_unicode` for rendering parameter names with
 Greek letters and subscripts in console logs.
+Console messages are emitted through `copernican_lib/console_output.py` so that
+all output passes through a single function. The logger patches `print` and
+`input` to capture these messages verbatim.

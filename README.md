@@ -1,5 +1,5 @@
-**Version:** 3.1.0
-**Last Updated:** 2025-07-31
+**Version:** 3.3.7
+**Last Updated:** 2025-08-04
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
 Support for gravitational waves and standard siren events is planned for future releases.
@@ -15,7 +15,7 @@ Additional design notes can be found under the `docs/` directory.
 
 4. [Design Overview](docs/design_overview.md)
 5. [Data Directory Overview](docs/data_overview.md)
-6. [BAO Test Dataset Format](docs/bao_test_dataset_format.md)
+6. [BAO Compound Dataset Format](docs/bao_compound_dataset_format.md)
 7. [Dataset Metadata Fields](docs/dataset_metadata.md)
 8. [LaTeX Syntax Guide](docs/latex_syntax.md)
 9. [Using the Suite](#using-the-suite)
@@ -42,9 +42,10 @@ Each generated plot now includes a footer noting the comparison details,
 Copernican Suite version and a timestamp. Footer text is positioned
 dynamically so the canvas height grows when needed and never overlaps the
 plots.
-Dataset names, descriptions and citations are read from `metadata_*.yml` files stored
-next to each dataset. The program never hard-codes these values; instead the metadata
-is attached to the parsed DataFrame and used for plot footers and CSV headers.
+Dataset names, descriptions, author lists and citations are read from
+`metadata_*.yml` files stored next to each dataset. The program never
+hard-codes these values; instead the metadata is attached to the parsed
+DataFrame and used for plot footers and CSV headers.
 During configuration each loader prints a short summary including whether the
 dataset's covariance matrix was inverted successfully or if diagonal errors are
 being used.
@@ -62,6 +63,8 @@ Under the hood the program follows a clear pipeline:
   `cmb.param_map` are treated as
   additional fit parameters so CMB spectra can be matched precisely. Data parsers are discovered automatically under
   `data/<type>/<source>` and models are loaded from `cosmo_model_*.yml`.
+  Folders named `placeholder` are ignored so unfinished datasets do not appear
+  in the selection menus.
 4. **Parameter Fitting** – depending on the chosen engine either a pure
    SNe fit is performed or a combined optimisation over all datasets.  For
    the combined engine this optimisation begins with the SNe refinement
@@ -75,7 +78,7 @@ Under the hood the program follows a clear pipeline:
    combined optimisation. The chi-squared contribution is then calculated.
 7. **Spectra Caching** – unlensed CAMB spectra are cached using parameter
    keys rounded to six significant digits.
-8. **Output Generation** – `copernican_lib/logger.py`, `copernican_lib/plotter.py` and `copernican_lib/csv_writer.py` handle logs, plots and tables.
+8. **Output Generation** – `copernican_lib/logger.py`, `copernican_lib/plotter.py` and `copernican_lib/csv_writer.py` handle logs, plots and tables. The log file is renamed at the end of each run to match the output timestamp.
 9. **Loop or Exit** – the user may evaluate another model or quit, at which
    point temporary cache files are cleaned automatically.
 
@@ -138,6 +141,7 @@ CONTRIBUTING.md   - Quick checklist for pull requests
 CHANGELOG.md      - Release history
 copernican_lib/          - Helper modules
   logger.py         - Logging setup and helpers
+  console_output.py - Console output helpers
   plotter.py        - Plotting functions
   csv_writer.py     - CSV output helpers
   data_loaders.py   - Data loading utilities
@@ -173,7 +177,12 @@ the same CMB calculation regardless of their own fitting scheme.
    selected, its parser and files are loaded automatically from
    `data/<type>/<source>/`. The CMB loader now understands TT, TE and EE
    spectra with full covariance so additional datasets can be dropped in with
-   minimal effort.
+  minimal effort. The BOSS DR12 BAO parser combines the consensus dM, Hz,
+  $D_V$ and $F_{AP}$ measurements with their covariance matrices to yield
+  $D_M/r_s$, $D_H/r_s$ and $D_V/r_s$. The public [SDSS DR12 archive](https://data.sdss.org/sas/dr12/boss/) does not provide a
+  joint covariance matrix for these observables, so `cosmo_parser_bossdr12.py`
+  follows a block-diagonal approach that assumes the $dM/Hz$ and $D_V/F_{AP}$
+  sets are uncorrelated.
 - Engines are selected interactively from the `engines/` directory. Parsers are
   discovered automatically when their source folders are imported.
 - After each run you may choose to evaluate another model or exit. Cache files

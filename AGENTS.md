@@ -27,13 +27,14 @@ package and will exit cleanly even when Matplotlib has not yet been imported.
 ```
 models/           - YAML model definitions with embedded theory text and equations.
 engines/          - Computational backends (SciPy CPU by default)
-data/             - Observation files under ``data/<type>/<source>/``
+data/             - Observation files under ``data/<type>/<source>/``. Each dataset directory includes a `metadata_*.yml` file with `dataset_name`, `description`, `citation`, the full `author` list and BibTeX keys such as `title`, `volume`, `journal` and `DOI`.
   cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance
 output/           - Generated plots and CSV tables (created automatically)
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
 copernican_lib/optim_utils.py - Shared optimisation helpers used by engines
 copernican_lib/latex_utils.py - LaTeX translation helpers using latex_mappings.yml
+copernican_lib/console_output.py - Central console output helpers
 ```
 Installing the suite with `pip` produces a `copernican_suite.egg-info` directory
 containing build metadata. This folder can be safely removed and should not be
@@ -139,6 +140,7 @@ To keep the project maintainable all contributors, human or AI, must follow thes
 7. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.**
 8. **Re-read the "Development laws and protocols for human and AI contributors" section in `README.md` at the start of every development session.**
 9. **Document every module, function and class with clear "what" and "why" explanations.** Comments and docstrings should describe not only the behaviour but also the rationale behind it.
+10. **Use raw strings or escape backslashes explicitly to avoid invalid escape sequence warnings in docstrings or string literals.**
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 

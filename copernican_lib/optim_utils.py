@@ -15,6 +15,7 @@ from typing import Iterable, Tuple, Callable, Any, Optional, List
 import sys
 import time
 import logging
+from . import console_output as console
 from scipy.optimize import minimize
 import numpy as np
 
@@ -79,10 +80,10 @@ def minimize_with_progress(
         rate = (
             f"{eval_count['count'] / elapsed:.1f} evals/s" if elapsed > 1e-6 else "--- evals/s"
         )
-        print(
+        console.write(
             f"  {label} Evals: {eval_count['count']:<5} | Best Chi2: {best_val[0]:.4f} | Speed: {rate:<15}",
             end="\r",
-            file=sys.stderr,
+            error=True,
         )
         return val if np.isfinite(val) else 1e12
 
@@ -100,7 +101,7 @@ def minimize_with_progress(
         logger.error(f"Exception during {label.lower()} minimize call: {exc}", exc_info=True)
     finally:
         # Clear the progress line so subsequent prints start on a clean line
-        print(" " * 80, end="\r", file=sys.stderr)
+        console.write(" " * 80, end="\r", error=True)
         logger.info(f"{label} optimization finished. Total evals: {eval_count['count']}.")
 
     return result, eval_count["count"], best_val[0], best_params[0]

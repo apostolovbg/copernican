@@ -1,0 +1,7 @@
+# BAO-only consensus results, Alam et al. 2016
+0.38 dM(rsfid/rs) 1512.39
+0.38 Hz(rs/rsfid) 81.2087
+0.51 dM(rsfid/rs) 1975.22
+0.51 Hz(rs/rsfid) 90.9029
+0.61 dM(rsfid/rs) 2306.68
+0.61 Hz(rs/rsfid) 98.9647

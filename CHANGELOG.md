@@ -11,6 +11,39 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
+## Version 3.3.7
+- 2025-08-04: Updated metadata key references to use `author` and refreshed documentation; bumped version (AI assistant)
+
+## Version 3.3.6
+- 2025-08-04: Added BibTeX metadata fields and updated citations across public datasets; refreshed documentation and version numbers (AI assistant)
+
+## Version 3.3.5
+- 2025-08-03: Documented absence of joint covariance for BOSS DR12 data and parser's block-diagonal approach in docs and README (AI assistant)
+
+## Version 3.3.4
+- 2025-08-03: Added regression test for BOSS DR12 BAO parser validating covariance handling and error paths (AI assistant)
+
+## Version 3.3.3
+- 2025-08-03: Integrated full BOSS DR12 BAO covariance by combining dM/Hz and D_V/F_AP inputs; updated documentation and version (AI assistant)
+
+## Version 3.3.2
+- 2025-08-03: Corrected BOSS DR12 BAO conversion to include redshift scaling, fixed compound parser scaling bug and added escape-sequence guideline; bumped version (AI assistant)
+
+## Version 3.3.1
+- 2025-08-03: Renamed BAO test dataset to compound dataset, improved BAO parsers and documentation, and bumped version (AI assistant)
+
+## Version 3.3.0
+- 2025-07-31: Added BOSS DR12 BAO consensus dataset with full covariance and skipped placeholder folders; bumped version (AI assistant)
+
+## Version 3.2.1
+- 2025-07-31: Reordered Pantheon+ covariance matrix to match sorted data and updated documentation; bumped version (AI assistant)
+
+## Version 3.2.0
+- 2025-07-31: Standardized all console output through `console_output.py`, added automatic log renaming and bumped version (AI assistant)
+
+## Version 3.1.1
+- 2025-07-31: Updated JLA parser to use published SALT2 parameters and documented them; bumped project version (AI assistant)
+
 ## Version 3.1.0
 - 2025-07-31: Reverted project to version 3.1.0 state and removed universal constants (AI assistant)
 - 2025-07-30: Replaced `^` with `**` for exponentiation across all model YAML files and documented LaTeX syntax (AI assistant)
@@ -23,7 +56,7 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Version 2.1.0
 - 2025-07-30: Switched cached models and LaTeX mappings to YAML and removed JSON usage across the codebase (AI assistant)
-- 2025-07-30: Converted all dataset metadata and the BAO test dataset to YAML (AI assistant)
+- 2025-07-30: Converted all dataset metadata and the BAO compound dataset to YAML (AI assistant)
 
 ## Version 2.0.7
 - 2025-07-30: Corrected malformed tab in USMFv2 description to pass YAML parsing (AI assistant)

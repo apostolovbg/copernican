@@ -18,15 +18,20 @@ from copernican_lib.utils import load_metadata_from_dir
 DATA_DIR = os.path.dirname(__file__)
 META = load_metadata_from_dir(DATA_DIR)
 
-DATASET_NAME = META.get("dataset_name", "JLA 2014")
+DATASET_NAME = META.get("dataset_name", "JLA 2014").replace("\\", "")
 DESCRIPTION = META.get(
     "description",
     "Joint SDSS-II and SNLS supernova sample (Betoule et al. 2014).",
 )
 
-DEFAULT_SALT2_M_ABS_FIXED = -19.3
-DEFAULT_SALT2_ALPHA_FIXED = 0.14
-DEFAULT_SALT2_BETA_FIXED = 3.1
+# SALT2 nuisance parameters used to convert light-curve fits into
+# distance moduli.  The Betoule et al. analysis reports best-fit
+# values M_B = -19.05, \alpha = 0.141 and \beta = 3.101 at H0=70 km/s/Mpc.
+# Earlier versions of the parser used coarser defaults which shifted
+# the resulting distance moduli downward by about 0.25 mag.
+DEFAULT_SALT2_M_ABS_FIXED = -19.05
+DEFAULT_SALT2_ALPHA_FIXED = 0.141
+DEFAULT_SALT2_BETA_FIXED = 3.101
 
 
 @register_sne_parser(
@@ -167,7 +172,8 @@ def parse_jla2014(
     parsed.attrs["salt2_m_abs_fixed"] = salt2_m_abs_fixed
     parsed.attrs["salt2_alpha_fixed"] = salt2_alpha_fixed
     parsed.attrs["salt2_beta_fixed"] = salt2_beta_fixed
-    parsed.attrs["dataset_long_name"] = META.get("dataset_name", "JLA2014")
+    long_name = META.get("dataset_name", "JLA2014").replace("\\", "")
+    parsed.attrs["dataset_long_name"] = long_name
     parsed.attrs["dataset_name_attr"] = parsed.attrs["dataset_long_name"].replace(
         " ", "_"
     )

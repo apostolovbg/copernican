@@ -1,6 +1,18 @@
 dataset_name: Pantheon+SH0ES 2022
-description: Combined sample of 1701 Type Ia supernovae distances with full covariance
-  matrix
-citation: Scolnic et al. 2022, ApJ 938, 113; Riess et al. 2022, ApJ 934, L7
-authors_all: Scolnic D.M., Brout D., Carr A. et al.
-notes: Distance moduli for supernovae with full statistical and systematic covariance
+description: Combined sample of 1701 Type Ia supernova distance moduli with full statistical and systematic covariance matrix
+citation: Brout et al. - ApJ 938 (2022) 110 - DOI: https://doi.org/10.3847/1538-4357/ac8e04
+author: Brout D., Scolnic D., Popovic B., Riess A.G., Carr A., Zuntz J., Kessler R., Davis T.M., Hinton S., Jones D., Kenworthy W.D., Peterson E.R., Said K., Taylor G., Ali N., Armstrong P., Charvu P., Dwomoh A., Meldorf C., Palmese A., Qu H., Rose B.M., Sanchez B., Stubbs C.W., Vincenzi M., Wood C.M., Brown P.J., Chen R., Chambers K., Coulter D.A., Dai M., Dimitriadis G., Filippenko A.V., Foley R.J., Jha S.W., Kelsey L., Kirshner R.P., Moller A., Muir J., Nadathur S., Pan Y., Rest A., Rojas-Bravo C., Sako M., Siebert M.R., Smith M., Stahl B.E., Wiseman P.
+title: The Pantheon+ Analysis: Cosmological Constraints
+article: Brout_2022
+volume: 938
+ISSN: 1538-4357
+arXiv: https://arxiv.org/abs/2112.03863v2
+url: http://dx.doi.org/10.3847/1538-4357/ac8e04
+DOI: 10.3847/1538-4357/ac8e04
+number: 2
+journal: The Astrophysical Journal
+publisher: American Astronomical Society
+year: 2022
+month: oct
+pages: 110
+notes: Distance moduli are loaded alongside the full statistical and systematic covariance matrix. The parser identifies the data and covariance files automatically, sorts the sample by redshift and inverts the covariance. Duplicate entries represent alternate calibrations and are intentionally retained.
