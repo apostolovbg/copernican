@@ -11,6 +11,12 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
+## Version 3.4.3
+- 2025-08-04: Dropped HTML tags from plot footers, centralised footer generation and kept dataset names spaced; bumped version (AI assistant)
+
+## Version 3.4.2
+- 2025-08-04: Adopted HTML footer template preserving dataset spacing and bumped version (AI assistant)
+
 ## Version 3.4.1
 - 2025-08-04: Added rule requiring concise, descriptive function and identifier names and synchronized documentation (AI assistant)
 
