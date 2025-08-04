@@ -12,7 +12,12 @@ Support for additional observations such as gravitational waves and standard sir
 being prepared. Users interact with `copernican.py`, choose a model from
 `./models/`, pick a computational engine from `./engines/` and choose data
 sources. Parsers reside alongside their data. Results are saved under
-`./output/`.
+`./output/`. Each plot carries a centered footer with three lines: the
+model comparison, dataset details and the citation. The first and third
+lines are bold, while the dataset name on the second line is bolded
+using Matplotlib's standard text rendering. Dataset names retain their
+original spacing and the second line wraps after 190 characters when
+necessary.
 
 The default engine is `engines/cosmo_engine_comb.py`. All model plugins are validated
 through `copernican_lib/engine_interface.py` before being passed to the engine. This
