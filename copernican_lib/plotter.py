@@ -72,14 +72,21 @@ def get_binned_average(
 
 
 def compose_footer(base_line: str, data_attrs: dict) -> list[str]:
-    """Return footer lines with dataset information."""
+    """Return footer lines with dataset information.
+
+    The footer annotates each plot with the dataset name, optional notes,
+    full author list and a formatted citation.
+    """
 
     long_name = data_attrs.get(
         "dataset_long_name", data_attrs.get("dataset_name_attr", "")
     )
+    # Pull the full author list from the ``author`` field so plot footers
+    # can display the complete citation details.
+    authors = data_attrs.get("author", "")
     notes = data_attrs.get("notes", "")
     citation = data_attrs.get("citation", "")
-    second_line = f"{_wrap_math(long_name)}: {notes} {citation}".strip()
+    second_line = f"{_wrap_math(long_name)}: {notes} {authors} {citation}".strip()
     # Allow more characters per line so lengthy citations do not wrap
     # excessively. Each wrapped line will be drawn separately with a
     # slightly smaller font size by the caller.

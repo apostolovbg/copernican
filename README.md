@@ -1,4 +1,4 @@
-**Version:** 3.3.6
+**Version:** 3.3.7
 **Last Updated:** 2025-08-04
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
@@ -42,9 +42,10 @@ Each generated plot now includes a footer noting the comparison details,
 Copernican Suite version and a timestamp. Footer text is positioned
 dynamically so the canvas height grows when needed and never overlaps the
 plots.
-Dataset names, descriptions and citations are read from `metadata_*.yml` files stored
-next to each dataset. The program never hard-codes these values; instead the metadata
-is attached to the parsed DataFrame and used for plot footers and CSV headers.
+Dataset names, descriptions, author lists and citations are read from
+`metadata_*.yml` files stored next to each dataset. The program never
+hard-codes these values; instead the metadata is attached to the parsed
+DataFrame and used for plot footers and CSV headers.
 During configuration each loader prints a short summary including whether the
 dataset's covariance matrix was inverted successfully or if diagonal errors are
 being used.
