@@ -143,6 +143,8 @@ class PlotterUtilTestCase(unittest.TestCase):
         self.assertEqual(latex_utils.latex_to_unicode(r"\Omega_{gamma}"), "Ωᵧ")
         self.assertEqual(latex_utils.latex_to_unicode("H_0"), "H₀")
         self.assertEqual(latex_utils.latex_to_unicode(r"z_{\rm rec}"), "zᵣₑc")
+        self.assertEqual(latex_utils.latex_to_unicode("x_{(1+2)}"), "x₍₁₊₂₎")
+        self.assertEqual(latex_utils.latex_to_unicode("y^{*}"), "y⁎")
 
 
 if __name__ == '__main__':
