@@ -35,9 +35,10 @@ from the model YAML.
 
 All data parsers return a ``pandas.DataFrame`` with common columns and
 metadata so that engines remain agnostic to the origin of the data.
-Metadata is read from ``metadata_*.yml`` files located next to the
-dataset tables and attached via the ``DataFrame.attrs`` dictionary.  For
-supernovae datasets the table contains at minimum ``Name``, ``zcmb``,
+`copernican_lib/data_loaders.py` reads ``metadata_*.yml`` files located next to
+the dataset tables and attaches the fields via the ``DataFrame.attrs``
+dictionary after the parser returns. For supernovae datasets the table contains
+at minimum ``Name``, ``zcmb``,
 ``mu_obs`` and ``e_mu_obs``. Attributes such as ``covariance_matrix_inv``
 and ``diag_errors_for_plot`` are also attached. BAO and CMB loaders
 follow the same pattern. New datasets can therefore be added simply by

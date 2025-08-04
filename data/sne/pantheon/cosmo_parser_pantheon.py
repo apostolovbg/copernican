@@ -6,23 +6,11 @@ import numpy as np
 import logging
 
 from copernican_lib.data_loaders import register_sne_parser
-from copernican_lib.utils import load_metadata_from_dir
 
 DATA_DIR = os.path.dirname(__file__)
-META = load_metadata_from_dir(DATA_DIR)
-
-DATASET_NAME = META.get("dataset_name", "Pantheon+ dataset").replace("\\", "")
-DESCRIPTION = META.get(
-    "description",
-    "Supernova distances with full covariance matrix.",
-)
 
 
-@register_sne_parser(
-    DATASET_NAME,
-    DESCRIPTION,
-    data_dir=DATA_DIR,
-)
+@register_sne_parser(data_dir=DATA_DIR)
 def parse_pantheon_plus(data_dir, **kwargs):
     """Parse Pantheon+ data and its covariance matrix."""
     logger = logging.getLogger()
@@ -127,12 +115,9 @@ def parse_pantheon_plus(data_dir, **kwargs):
             )
             output_df.attrs["covariance_matrix_inv"] = None
             output_df.attrs["diag_errors_for_plot"] = output_df["e_mu_obs"].values
-        long_name = META.get("dataset_name", "PantheonPlus2022").replace("\\", "")
-        output_df.attrs["dataset_name"] = long_name
-        output_df.attrs["dataset_name_sanitized"] = long_name.replace(" ", "_")
-        output_df.attrs["citation"] = META.get("citation", "")
-        output_df.attrs["notes"] = META.get("notes", "")
-        output_df.attrs["description"] = META.get("description", "")
+        # Metadata such as dataset name and citation is attached later by the
+        # loader. Only the numerical data and covariance information are
+        # handled here.
         return output_df
     except Exception as e:
         logger.error(f"Error processing Pantheon+ data: {e}", exc_info=True)

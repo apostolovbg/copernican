@@ -27,7 +27,7 @@ package and will exit cleanly even when Matplotlib has not yet been imported.
 ```
 models/           - YAML model definitions with embedded theory text and equations.
 engines/          - Computational backends (SciPy CPU by default)
-data/             - Observation files under ``data/<type>/<source>/``. Each dataset directory includes a `metadata_*.yml` file with `dataset_name`, `description`, `citation`, the full `author` list and BibTeX keys such as `title`, `volume`, `journal` and `DOI`.
+data/             - Observation files under ``data/<type>/<source>/``. Each dataset directory includes a `metadata_*.yml` file with `dataset_name`, `description`, `citation`, the full `author` list and BibTeX keys such as `title`, `volume`, `journal` and `DOI`. Metadata is loaded exclusively by `copernican_lib/data_loaders.py` after each parser runs.
   cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance
 output/           - Generated plots and CSV tables (created automatically)
 AGENTS.md         - Development specification and contributor rules
