@@ -91,7 +91,18 @@ def wrap_math(text: str) -> str:
 # added without modifying this module.
 _UNICODE_SYMBOLS = _MAPPINGS.get("unicode_symbols", {})
 
-_SUB_MAP = {
+"""Tables of subscript and superscript characters used by ``latex_to_unicode``."""
+
+# Only a subset of characters have dedicated Unicode glyphs.  The base tables
+# below list those known substitutions.  During map generation we iterate over
+# the full set of required characters—Latin and Greek letters, digits and basic
+# math operators—falling back to the original character whenever no specialised
+# glyph exists.  Ordering follows the user expectation: Latin uppercases, Latin
+# lowercases, Greek uppercases, Greek lowercases, digits, parentheses,
+# brackets/braces and common operators.
+
+_SUBSCRIPT_BASE = {
+    # Digits
     "0": "₀",
     "1": "₁",
     "2": "₂",
@@ -102,15 +113,18 @@ _SUB_MAP = {
     "7": "₇",
     "8": "₈",
     "9": "₉",
+    # Basic operators and grouping
     "+": "₊",
     "-": "₋",
     "=": "₌",
     "(": "₍",
     ")": "₎",
+    # Letters with dedicated subscript forms
     "a": "ₐ",
     "e": "ₑ",
     "h": "ₕ",
     "i": "ᵢ",
+    "j": "ⱼ",
     "k": "ₖ",
     "l": "ₗ",
     "m": "ₘ",
@@ -123,6 +137,7 @@ _SUB_MAP = {
     "u": "ᵤ",
     "v": "ᵥ",
     "x": "ₓ",
+    # Greek letters with subscript variants
     "β": "ᵦ",
     "γ": "ᵧ",
     "ρ": "ᵨ",
@@ -130,7 +145,8 @@ _SUB_MAP = {
     "χ": "ᵪ",
 }
 
-_SUP_MAP = {
+_SUPERSCRIPT_BASE = {
+    # Digits
     "0": "⁰",
     "1": "¹",
     "2": "²",
@@ -141,14 +157,126 @@ _SUP_MAP = {
     "7": "⁷",
     "8": "⁸",
     "9": "⁹",
+    # Basic operators and grouping
     "+": "⁺",
     "-": "⁻",
     "=": "⁼",
     "(": "⁽",
     ")": "⁾",
-    "i": "ⁱ",
+    "*": "⁎",
+    "/": "⁄",
+    # Latin lowercase letters
+    "a": "ᵃ",
+    "b": "ᵇ",
+    "c": "ᶜ",
+    "d": "ᵈ",
+    "e": "ᵉ",
+    "f": "ᶠ",
+    "g": "ᵍ",
+    "h": "ʰ",
+    "i": "ᶦ",
+    "j": "ʲ",
+    "k": "ᵏ",
+    "l": "ˡ",
+    "m": "ᵐ",
     "n": "ⁿ",
+    "o": "ᵒ",
+    "p": "ᵖ",
+    "r": "ʳ",
+    "s": "ˢ",
+    "t": "ᵗ",
+    "u": "ᵘ",
+    "v": "ᵛ",
+    "w": "ʷ",
+    "x": "ˣ",
+    "y": "ʸ",
+    "z": "ᶻ",
+    # Latin uppercase letters
+    "A": "ᴬ",
+    "B": "ᴮ",
+    "C": "ᶜ",
+    "D": "ᴰ",
+    "E": "ᴱ",
+    "F": "ᶠ",
+    "G": "ᴳ",
+    "H": "ᴴ",
+    "I": "ᴵ",
+    "J": "ᴶ",
+    "K": "ᴷ",
+    "L": "ᴸ",
+    "M": "ᴹ",
+    "N": "ᴺ",
+    "O": "ᴼ",
+    "P": "ᴾ",
+    "R": "ᴿ",
+    "T": "ᵀ",
+    "U": "ᵁ",
+    "V": "ⱽ",
+    "W": "ᵂ",
+    # Greek letters with superscript variants
+    "α": "ᵅ",
+    "β": "ᵝ",
+    "γ": "ᵞ",
+    "δ": "ᵟ",
+    "ε": "ᵋ",
+    "θ": "ᶿ",
+    "ι": "ᶥ",
+    "φ": "ᵠ",
+    "χ": "ᵡ",
+    "ρ": "ᵨ",
 }
+
+
+def _build_script_maps() -> tuple[Dict[str, str], Dict[str, str]]:
+    """Generate full sub/superscript lookup tables.
+
+    Characters without specialised Unicode variants map to themselves.  The
+    insertion order matches the alphabetical specification required by the
+    documentation: Latin uppercases, Latin lowercases, Greek uppercases, Greek
+    lowercases, digits, parentheses, brackets, braces and operators.
+    """
+
+    sub_map: Dict[str, str] = {}
+    sup_map: Dict[str, str] = {}
+
+    latin_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    latin_lower = "abcdefghijklmnopqrstuvwxyz"
+    greek_upper = "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ"
+    greek_lower = "αβγδεζηθικλμνξοπρστυφχψω"
+    digits = "0123456789"
+
+    for ch in latin_upper:
+        sub_map[ch] = _SUBSCRIPT_BASE.get(ch.lower(), ch)
+        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, _SUPERSCRIPT_BASE.get(ch.lower(), ch))
+    for ch in latin_lower:
+        sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
+        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
+    for ch in greek_upper:
+        lower = ch.lower()
+        sub_map[ch] = _SUBSCRIPT_BASE.get(lower, _SUBSCRIPT_BASE.get(ch, ch))
+        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, _SUPERSCRIPT_BASE.get(lower, ch))
+    for ch in greek_lower:
+        sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
+        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
+    for ch in digits:
+        sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
+        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
+    for ch in "()":
+        sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
+        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
+    for ch in "[]":
+        sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
+        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
+    for ch in "{}":
+        sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
+        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
+    for ch in "+-*/=":
+        sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
+        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
+    return sub_map, sup_map
+
+
+_SUB_MAP, _SUP_MAP = _build_script_maps()
 
 
 def latex_to_unicode(text: str) -> str:
