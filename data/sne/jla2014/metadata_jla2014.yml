@@ -1,7 +1,7 @@
-dataset_name: JLA\ 2014\ (Betoule\ et\ al.)
+dataset_name: JLA 2014
 description: Joint SDSS-II and SNLS supernova sample providing 740 standardized SNe
   Ia. The systematic covariance is projected to distance-modulus space and combined
-  with statistical errors. The inverse is used when well-conditioned
+  with statistical errors. The inverse is used downstream.
 citation: Betoule M. , Kessler R., Guy J. et.al 2014, J/A+A/568/A22
 authors_all: Betoule M. , Kessler R., Guy J., Mosher J., Hardin D., Biswas R., Astier
   P., El-Hage P., Konig M., Kuhlmann S., Marriner J., Pain R., Regnault N., Balland
@@ -12,6 +12,6 @@ authors_all: Betoule M. , Kessler R., Guy J., Mosher J., Hardin D., Biswas R., A
   G., Lidman C., Marshall J.L., Moller A., Mourao A.M., Neveu J., Nichol R., Olmstead
   M.D., Palanque-Delabrouille N., Perlmutter S., Prieto J.L., Pritchet C.J., Richmond
   M., Riess A.G., Ruhlmann-Kleider V., Sako M., Schahmaneche K., Schneider D.P., Smith
-  M., Sollerman J., Sullivan M., Walton N.A., Wheeler C.J..
+  M., Sollerman J., Sullivan M., Walton N.A., Wheeler C.J.
 notes: Light-curve parameters converted to distance moduli using fixed SALT2 nuisance
   parameters. Systematic and statistical covariance matrices are combined and inverted
