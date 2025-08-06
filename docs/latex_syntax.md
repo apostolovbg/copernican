@@ -26,3 +26,7 @@ The parser strips common spacing and sizing commands (`\left`, `\right`, `\!`, `
 - `unicode_symbols` – conversions used by `latex_to_unicode` for log output.
 
 All Greek letters—upper and lower case—and variants such as `\varphi` are included in these tables in alphabetical order.
+
+### Subscripts and Superscripts
+
+`latex_utils.py` now ships with exhaustive lookup tables covering every Latin and Greek letter in both cases, digits and common math operators. Characters without dedicated Unicode glyphs fall back to their original form.

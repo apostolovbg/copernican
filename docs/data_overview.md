@@ -17,10 +17,13 @@ Each subdirectory contains one or more dataset sources. A Python file named `cos
 Every dataset folder also provides a `metadata_*.yml` describing the
 source. Fields such as `dataset_name`, `description`, `citation`, the full
 `author` list and accompanying BibTeX information (for example `title`,
-`volume`, `journal` and `DOI`) are loaded dynamically so no parser
-hard-codes them. Parsed DataFrames expose the same information on their
-`.attrs` property. See `dataset_metadata.md` for a full description of
-these fields. The reference files remain read-only.
+`volume`, `journal` and `DOI`) are read by
+`copernican_lib/data_loaders.py` after the parser returns so individual
+parsers remain metadata-agnostic. Parsed DataFrames expose the same
+information on their `.attrs` property and include `dataset_name_sanitized`,
+where spaces are replaced by underscores for safe filenames. See
+`dataset_metadata.md` for a full description of these fields. The reference
+files remain read-only.
 
 ## Supernovae Datasets
 

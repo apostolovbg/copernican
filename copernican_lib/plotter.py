@@ -71,29 +71,79 @@ def get_binned_average(
         return np.array([]), np.array([])
 
 
-def compose_footer(base_line: str, data_attrs: dict) -> list[str]:
-    """Return footer lines with dataset information.
+def compose_footer(base_line: str, data_attrs: dict) -> list[tuple[str, bool]]:
+    """Return formatted footer lines.
 
-    The footer annotates each plot with the dataset name, optional notes,
-    full author list and a formatted citation.
+    Parameters
+    ----------
+    base_line:
+        Preformatted first line containing the model comparison,
+        Copernican Suite version and a timestamp. The line is already
+        styled by the caller.
+    data_attrs:
+        Metadata dictionary attached to the parsed dataset. Expected
+        keys include ``dataset_name``, ``description``, ``notes`` and
+        ``citation``.
+
+    Returns
+    -------
+    list[tuple[str, bool]]
+        Iterable of ``(line, is_bold)`` pairs to draw at the bottom of
+        each plot. The first element is ``base_line`` and subsequent
+        lines describe the dataset and citation. Lines are wrapped at
+        190 characters so wide figures remain readable without manual
+        line breaks.
     """
 
-    long_name = data_attrs.get(
-        "dataset_long_name", data_attrs.get("dataset_name_attr", "")
+    dataset_name = data_attrs.get(
+        "dataset_name", data_attrs.get("dataset_name_sanitized", "")
     )
-    # Pull the full author list from the ``author`` field so plot footers
-    # can display the complete citation details.
-    authors = data_attrs.get("author", "")
+    # Escape characters that could break TeX-style formatting used for
+    # bold text while preserving spaces in the displayed name.
+    safe_name = (
+        dataset_name.replace("\\", "\\\\")
+        .replace("{", "\\{")
+        .replace("}", "\\}")
+        .replace("_", "\\_")
+        .replace(" ", "\\ ")  # Preserve spaces for MathText rendering
+    )
+    description = data_attrs.get("description", "")
     notes = data_attrs.get("notes", "")
     citation = data_attrs.get("citation", "")
-    second_line = f"{_wrap_math(long_name)}: {notes} {authors} {citation}".strip()
-    # Allow more characters per line so lengthy citations do not wrap
-    # excessively. Each wrapped line will be drawn separately with a
-    # slightly smaller font size by the caller.
+
+    # ``mathtext`` does not support ``\textbf`` so ``\mathbf`` is used instead
+    # to emphasise the dataset name while keeping the rest of the line in the
+    # default font. Spaces are escaped above to preserve their appearance.
+    second_line = (
+        "Observational dataset and processing: "
+        f"$\\mathbf{{{safe_name}}}$: {description} {notes}"
+        ).strip()
+
+    wrapped: list[tuple[str, bool]] = [(base_line, True)]
     if second_line:
-        wrapped_lines = textwrap.wrap(second_line, width=190)
-        return [base_line] + wrapped_lines
-    return [base_line]
+        wrapped.extend((line, False) for line in textwrap.wrap(second_line, width=190))
+    if citation:
+        wrapped.extend((line, True) for line in textwrap.wrap(citation.strip(), width=190))
+    return wrapped
+
+
+def build_footer_lines(
+    alt_model_plugin: Any, data_attrs: dict, timestamp: str | None = None
+) -> list[tuple[str, bool]]:
+    """Return footer lines for a given dataset and model comparison.
+
+    This helper centralises footer construction so each plotting
+    function draws from the same template without duplicating string
+    formatting logic. ``timestamp`` allows callers to supply a fixed
+    time for reproducible tests; when omitted the current time is
+    generated.
+    """
+
+    base_line = (
+        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | Copernican Suite "
+        f"{COPERNICAN_VERSION} | {timestamp or get_timestamp()}"
+    )
+    return compose_footer(base_line, data_attrs)
 
 
 def _apply_common_style() -> None:
@@ -196,7 +246,7 @@ def plot_hubble_diagram(
     """Generate and save a Hubble diagram and residuals plot."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
-    dataset_name = sne_data_df.attrs.get("dataset_name_attr", "SNe_data")
+    dataset_name = sne_data_df.attrs.get("dataset_name_sanitized", "SNe_data")
     logger.info(f"Generating Hubble Diagram for {dataset_name}...")
 
     _apply_common_style()
@@ -263,9 +313,10 @@ def plot_hubble_diagram(
         gridspec_kw={"height_ratios": [4, 1.5], "hspace": 0.05},
     )
 
-    footer_lines = compose_footer(
-        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | Copernican Suite {COPERNICAN_VERSION} | {timestamp or get_timestamp()}",
+    footer_lines = build_footer_lines(
+        alt_model_plugin,
         sne_data_df.attrs,
+        timestamp,
     )
     line_height = 0.015
     start_y = left + (len(footer_lines) - 1) * line_height
@@ -425,9 +476,10 @@ def plot_hubble_diagram(
     )
 
     y = start_y
-    for idx, line in enumerate(footer_lines):
+    for idx, (line, is_bold) in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
-        fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
+        weight = "bold" if is_bold else "normal"
+        fig.text(0.5, y, line, ha="center", fontsize=fs, fontweight=weight, wrap=True)
         y -= line_height
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
@@ -460,7 +512,7 @@ def plot_bao_observables(
     """Generate and save a plot of BAO observables versus redshift."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
-    dataset_name = bao_data_df.attrs.get("dataset_name_attr", "BAO_data")
+    dataset_name = bao_data_df.attrs.get("dataset_name_sanitized", "BAO_data")
     logger.info(f"Generating BAO Plot for {dataset_name}...")
 
     _apply_common_style()
@@ -490,9 +542,10 @@ def plot_bao_observables(
     ax = axs[0]
     res_ax = axs[1]
 
-    footer_lines = compose_footer(
-        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | Copernican Suite {COPERNICAN_VERSION} | {timestamp or get_timestamp()}",
+    footer_lines = build_footer_lines(
+        alt_model_plugin,
         bao_data_df.attrs,
+        timestamp,
     )
     line_height = 0.015
     start_y = left + (len(footer_lines) - 1) * line_height
@@ -707,9 +760,10 @@ def plot_bao_observables(
     )
 
     y = start_y
-    for idx, line in enumerate(footer_lines):
+    for idx, (line, is_bold) in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
-        fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
+        weight = "bold" if is_bold else "normal"
+        fig.text(0.5, y, line, ha="center", fontsize=fs, fontweight=weight, wrap=True)
         y -= line_height
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
@@ -743,7 +797,7 @@ def plot_cmb_spectrum(
     """Generate and save a CMB power spectrum plot with residuals."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
-    dataset_name = cmb_data_df.attrs.get("dataset_name_attr", "CMB_data")
+    dataset_name = cmb_data_df.attrs.get("dataset_name_sanitized", "CMB_data")
     logger.info(f"Generating CMB Spectrum Plot for {dataset_name}...")
 
     _apply_common_style()
@@ -790,9 +844,10 @@ def plot_cmb_spectrum(
         gridspec_kw={"height_ratios": [4, 1.5] * len(components), "hspace": 0.25},
     )
 
-    footer_lines = compose_footer(
-        f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | Copernican Suite {COPERNICAN_VERSION} | {timestamp or get_timestamp()}",
+    footer_lines = build_footer_lines(
+        alt_model_plugin,
         cmb_data_df.attrs,
+        timestamp,
     )
     line_height = 0.015
     start_y = left + (len(footer_lines) - 1) * line_height
@@ -1018,9 +1073,10 @@ def plot_cmb_spectrum(
     )
 
     y = start_y
-    for idx, line in enumerate(footer_lines):
+    for idx, (line, is_bold) in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
-        fig.text(0.5, y, line, ha="center", fontsize=fs, wrap=True)
+        weight = "bold" if is_bold else "normal"
+        fig.text(0.5, y, line, ha="center", fontsize=fs, fontweight=weight, wrap=True)
         y -= line_height
 
     model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"

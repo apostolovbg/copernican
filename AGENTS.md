@@ -12,7 +12,12 @@ Support for additional observations such as gravitational waves and standard sir
 being prepared. Users interact with `copernican.py`, choose a model from
 `./models/`, pick a computational engine from `./engines/` and choose data
 sources. Parsers reside alongside their data. Results are saved under
-`./output/`.
+`./output/`. Each plot carries a centered footer with three lines: the
+model comparison, dataset details and the citation. The first and third
+lines are bold, while the dataset name on the second line is bolded
+using Matplotlib's standard text rendering. Dataset names retain their
+original spacing and the second line wraps after 190 characters when
+necessary.
 
 The default engine is `engines/cosmo_engine_comb.py`. All model plugins are validated
 through `copernican_lib/engine_interface.py` before being passed to the engine. This
@@ -27,7 +32,7 @@ package and will exit cleanly even when Matplotlib has not yet been imported.
 ```
 models/           - YAML model definitions with embedded theory text and equations.
 engines/          - Computational backends (SciPy CPU by default)
-data/             - Observation files under ``data/<type>/<source>/``. Each dataset directory includes a `metadata_*.yml` file with `dataset_name`, `description`, `citation`, the full `author` list and BibTeX keys such as `title`, `volume`, `journal` and `DOI`.
+data/             - Observation files under ``data/<type>/<source>/``. Each dataset directory includes a `metadata_*.yml` file with `dataset_name`, `description`, `citation`, the full `author` list and BibTeX keys such as `title`, `volume`, `journal` and `DOI`. Metadata is loaded exclusively by `copernican_lib/data_loaders.py` after each parser runs.
   cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance
 output/           - Generated plots and CSV tables (created automatically)
 AGENTS.md         - Development specification and contributor rules
@@ -140,7 +145,8 @@ To keep the project maintainable all contributors, human or AI, must follow thes
 7. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.**
 8. **Re-read the "Development laws and protocols for human and AI contributors" section in `README.md` at the start of every development session.**
 9. **Document every module, function and class with clear "what" and "why" explanations.** Comments and docstrings should describe not only the behaviour but also the rationale behind it.
-10. **Use raw strings or escape backslashes explicitly to avoid invalid escape sequence warnings in docstrings or string literals.**
+10. **Use concise, descriptive function and identifier names that accurately convey their purpose without unnecessary length.**
+11. **Use raw strings or escape backslashes explicitly to avoid invalid escape sequence warnings in docstrings or string literals.**
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 

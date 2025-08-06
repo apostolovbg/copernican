@@ -1,5 +1,5 @@
-**Version:** 3.3.7
-**Last Updated:** 2025-08-04
+**Version:** 3.5.0
+**Last Updated:** 2025-02-14
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
 Support for gravitational waves and standard siren events is planned for future releases.
@@ -38,14 +38,17 @@ software.
 Users select models, datasets, and computational engines at runtime through a
 simple command line interface. Results are saved as plots and CSV files in the
 `./output/` directory.
-Each generated plot now includes a footer noting the comparison details,
-Copernican Suite version and a timestamp. Footer text is positioned
-dynamically so the canvas height grows when needed and never overlaps the
-plots.
-Dataset names, descriptions, author lists and citations are read from
-`metadata_*.yml` files stored next to each dataset. The program never
-hard-codes these values; instead the metadata is attached to the parsed
-DataFrame and used for plot footers and CSV headers.
+Each generated plot now includes a centered footer. The first line shows the
+model comparison, suite version and a timestamp. The second line lists the
+observational dataset and processing notes, and the third line provides the
+citation. The first and third lines are bold, and the dataset name on the
+second line retains its original spacing while appearing in bold via
+MathText's ``\mathbf`` command.
+Metadata values are read from `metadata_*.yml` files stored next to each
+dataset. The program never hard-codes these values; `copernican_lib/data_loaders.py`
+reads the metadata after invoking each parser and attaches it to the returned
+DataFrame for plot footers and CSV headers. Individual parsers no longer
+access metadata files directly.
 During configuration each loader prints a short summary including whether the
 dataset's covariance matrix was inverted successfully or if diagonal errors are
 being used.
@@ -221,6 +224,8 @@ See `cosmo_model_template.yml` for a detailed template.
    parameter names in math mode.
 11. Console and log outputs display parameter names with Greek letters,
     subscripts and superscripts when possible for easier reading.
+    The conversion tables cover every Latin and Greek letter, digits and
+    common operators.
 
 **Common mistakes**
 * Missing `*` between variables and parentheses results in a `'Symbol' object is not callable` error.
@@ -394,6 +399,8 @@ See `CHANGELOG.md` for complete version history.
 > 7. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any file.**
 > 8. **Re-read the "Development laws and protocols for human and AI contributors" section in `README.md` at the start of every development session.**
 > 9. **Document every module, function and class with clear "what" and "why" explanations.** Comments and docstrings should describe not only the behaviour but also the rationale behind it.
+> 10. **Use concise, descriptive function and identifier names that accurately convey their purpose without unnecessary length.**
+> 11. **Use raw strings or escape backslashes explicitly to avoid invalid escape sequence warnings in docstrings or string literals.**
 >
 > Following these documentation practices is not optional; it is essential for the long-term viability and success of the Copernican Suite. Failure to follow these rules will compromise the maintainability of the Copernican Suite.
 
