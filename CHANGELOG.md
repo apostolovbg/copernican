@@ -13,7 +13,7 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Version 3.5.0
 - 2025-08-07: Added comprehensive development plan summarizing project goals (AI assistant)
-- 2025-02-14: Expanded subscript and superscript tables to cover full Latin and Greek alphabets, digits and common operators; updated docs and bumped version (AI assistant)
+- 2025-08-05: Expanded subscript and superscript tables to cover full Latin and Greek alphabets, digits and common operators; updated docs and bumped version (AI assistant)
 
 ## Version 3.4.4
 - 2025-08-04: Replaced unsupported ``\textbf`` footer styling with ``\mathbf`` and preserved spaces to prevent plot save failures (AI assistant)
