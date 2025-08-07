@@ -12,6 +12,7 @@ Add one line for each substantive commit or pull request directly under the late
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
 ## Version 3.5.0
+- 2025-08-07: Added comprehensive development plan summarizing project goals (AI assistant)
 - 2025-02-14: Expanded subscript and superscript tables to cover full Latin and Greek alphabets, digits and common operators; updated docs and bumped version (AI assistant)
 
 ## Version 3.4.4
