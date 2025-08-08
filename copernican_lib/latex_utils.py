@@ -287,6 +287,7 @@ def latex_to_unicode(text: str) -> str:
         cleaned = re.sub(re.escape(pat), repl, cleaned)
 
     def _sub_repl(match: re.Match[str]) -> str:
+        """Translate a ``_{} `` group into Unicode subscripts."""
         inner = match.group(1)
         inner = re.sub(r"\\rm\s*", "", inner)
         inner = inner.replace(" ", "")
@@ -296,6 +297,7 @@ def latex_to_unicode(text: str) -> str:
         return "".join(_SUB_MAP.get(ch, ch) for ch in inner)
 
     def _sup_repl(match: re.Match[str]) -> str:
+        """Translate a ``^{} `` group into Unicode superscripts."""
         inner = match.group(1)
         inner = inner.replace(" ", "")
         return "".join(_SUP_MAP.get(ch, ch) for ch in inner)

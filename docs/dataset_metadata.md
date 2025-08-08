@@ -34,3 +34,12 @@ filenames. Plot footers render the dataset name in bold followed by
 `: description notes` on the second line and the citation on a third
 line. Custom fields are preserved and can be used by new engines or
 analysis scripts.
+
+### Best Practices
+
+- Keep descriptions short yet informative; the second footer line wraps at
+  190 characters, so overly long notes may span several lines.
+- Use the full author list to ensure proper attribution in publications that
+  derive from the suite's outputs.
+- Unknown fields are preserved by the loader, making it safe to add
+  experiment-specific keys for downstream tools.

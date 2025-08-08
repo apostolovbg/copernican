@@ -18,10 +18,12 @@ class _PathFilter(logging.Filter):
     """Filter that strips absolute paths above the project root."""
 
     def __init__(self, base_dir: str):
+        """Store repository root for later path stripping."""
         super().__init__()
         self.base_dir = os.path.abspath(base_dir)
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Remove leading ``base_dir`` segments from log messages."""
         if isinstance(record.msg, str):
             record.msg = record.msg.replace(self.base_dir + os.sep, "").replace(
                 self.base_dir, "."
@@ -33,6 +35,7 @@ class _ConsoleFilter(logging.Filter):
     """Filter to exclude captured console messages from the StreamHandler."""
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Skip records already printed via patched ``print``/``input``."""
         # When ``console_capture`` is True the message originated from
         # ``print`` or ``input``. Those messages are already displayed on the
         # console via the original call, so the stream handler should ignore
@@ -51,10 +54,12 @@ def _patch_builtins(base_dir: str) -> None:
     orig_input = builtins.input
 
     def _shorten(msg: str) -> str:
+        """Replace absolute paths in ``msg`` with project-relative forms."""
         base = os.path.abspath(base_dir)
         return msg.replace(base + os.sep, "").replace(base, ".")
 
     def print_patch(*args, **kwargs):
+        """Proxy ``print`` that mirrors output to the log file."""
         orig_print(*args, **kwargs)
         if kwargs.get("file", sys.stdout) is sys.stdout:
             sep = kwargs.get("sep", " ")
@@ -68,6 +73,7 @@ def _patch_builtins(base_dir: str) -> None:
             )
 
     def input_patch(prompt: str = ""):
+        """Proxy ``input`` that logs the prompt and response."""
         response = orig_input(prompt)
         logger.info(
             _shorten(f"{prompt}{response}"),

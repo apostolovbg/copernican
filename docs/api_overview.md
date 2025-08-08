@@ -38,9 +38,28 @@ metadata so that engines remain agnostic to the origin of the data.
 `copernican_lib/data_loaders.py` reads ``metadata_*.yml`` files located next to
 the dataset tables and attaches the fields via the ``DataFrame.attrs``
 dictionary after the parser returns. For supernovae datasets the table contains
-at minimum ``Name``, ``zcmb``,
-``mu_obs`` and ``e_mu_obs``. Attributes such as ``covariance_matrix_inv``
-and ``diag_errors_for_plot`` are also attached. BAO and CMB loaders
-follow the same pattern. New datasets can therefore be added simply by
-placing them under ``data/<type>/<source>/`` and providing a compatible
-YAML parser.
+at minimum ``Name``, ``zcmb``, ``mu_obs`` and ``e_mu_obs``. Attributes such as
+``covariance_matrix_inv`` and ``diag_errors_for_plot`` are also attached. BAO and
+CMB loaders follow the same pattern. New datasets can therefore be added simply
+by placing them under ``data/<type>/<source>/`` and providing a compatible YAML
+parser.
+
+## Extending the API
+
+Third-party tools may import these modules directly. A typical scripting
+session looks like this:
+
+```python
+from copernican_lib import model_parser, model_coder, engine_interface, data_loaders
+import engines.cosmo_engine_comb as engine
+
+cache = model_parser.parse_model('models/cosmo_model_lcdm.yml', 'models/cache')
+funcs, parsed = model_coder.generate_callables(cache)
+plugin = engine_interface.build_plugin(parsed, funcs)
+sne = data_loaders.load_sne_data('JLA 2014')
+result = engine.fit_sne_parameters(sne, plugin)
+```
+
+Because the API is intentionally thin, advanced users can orchestrate custom
+pipelines or integrate the suite into larger optimisation frameworks without
+relying on the command-line wrapper.

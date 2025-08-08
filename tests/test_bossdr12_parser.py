@@ -19,6 +19,7 @@ class BossDR12ParserTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Import the parser module once for use across all test methods."""
         # Dynamically import the parser directly from the data directory. This
         # avoids mutating ``sys.path`` and keeps the tests self-contained.
         base = Path(__file__).resolve().parents[1]

@@ -453,6 +453,7 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
         logger.info("Running SNe pre-fit to obtain better starting values...")
 
         def _chi2_sne_only(p):
+            """Return χ² for a parameter vector using SNe-only data."""
             return chi_squared_sne(p, model_plugin.distance_modulus_model, sne_data_df)
 
         pre_res, _, pre_best, pre_params = minimize_with_progress(
@@ -475,6 +476,7 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
     options = {'maxiter': 2000}
 
     def combined_chi2(p):
+        """Return combined χ² across SNe, BAO and CMB datasets."""
         return chi_squared_combined(
             p,
             model_plugin,

@@ -13,6 +13,7 @@ data/
 
 Note: The `gw` and `sirens` parsers are stubs that return `None`. Real data support is under development.
 Each subdirectory contains one or more dataset sources. A Python file named `cosmo_parser_*.py` lives inside each source folder and registers a parser function via decorators from `copernican_lib.data_loaders`.
+Folders named `placeholder` are ignored during automatic discovery so work-in-progress datasets do not appear in interactive menus. When a dataset becomes usable simply rename the folder and supply a valid parser and metadata file.
 
 Every dataset folder also provides a `metadata_*.yml` describing the
 source. Fields such as `dataset_name`, `description`, `citation`, the full
@@ -46,3 +47,23 @@ inverse covariance is stored on the returned DataFrame.
 *Source:* "The clustering of galaxies in the completed SDSS-III Baryon Oscillation Spectroscopic Survey" (Alam et al. 2017).
 *Location:* `data/bao/bossdr12/`.
 *Parser:* `cosmo_parser_bossdr12.py` combines the published $dM(rs_{\rm fid}/r_s)$, $Hz(r_s/rs_{\rm fid})$, $D_V/r_s$ and $F_{AP}$ measurements. The public [SDSS DR12 archive](https://data.sdss.org/sas/dr12/boss/) provides separate covariance matrices for the $dM/Hz$ and $D_V/F_{AP}$ sets but no joint covariance. Following the parser's block-diagonal rationale, these are assembled into a $9\times9$ matrix assuming the two inputs are uncorrelated and then converted to $D_M/r_s$, $D_H/r_s$ and $D_V/r_s$.
+
+## CMB Datasets
+
+### Planck 2018 Lite TT/TE/EE
+*Source:* Planck 2018 legacy release.
+*Location:* `data/cmb/planck2018lite/`.
+*Parser:* `cosmo_parser_cmb_planck2018lite.py` loads the temperature and
+polarisation spectra, the compressed covariance matrix and the beam window
+functions. The parser attaches these arrays to `df.attrs` so engines can compute
+likelihoods without invoking external tools like CAMB.
+
+## Adding New Datasets
+
+To add a new dataset create a `data/<type>/<source>/` directory, place your raw
+tables inside and implement `cosmo_parser_<source>.py`. The parser should return
+a `pandas.DataFrame` with observations and attach any auxiliary arrays to
+`df.attrs`. Document the dataset in `metadata_<source>.yml` with a
+`dataset_name`, a plain-language `description` and the full `citation`. Once the
+folder no longer carries the `placeholder` name it will appear automatically in
+the interactive menus.

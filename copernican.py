@@ -57,7 +57,7 @@ data_loaders = None
 # outdated. Automatic releases are not yet enabled. Version 3.1.0 adds
 # unified exponent syntax across model YAML files and drops all
 # legacy JSON dataset support in favour of YAML-only inputs.
-COPERNICAN_VERSION = "3.5.0"
+COPERNICAN_VERSION = "3.5.1"
 CURRENT_LOG_FILE = None
 
 
@@ -446,6 +446,7 @@ def main_workflow():
 
     # Load the baseline LCDM model from YAML and validate it
     def _load_lcdm_model():
+        """Load and validate the reference ΛCDM model from its YAML file."""
         models_dir = os.path.join(SCRIPT_DIR, "models")
         yaml_path = os.path.join(models_dir, "cosmo_model_lcdm.yml")
         cache_dir = os.path.join(models_dir, "cache")
@@ -747,6 +748,7 @@ def main_workflow():
         )
 
         def _print_fit(label, sne_res, bao_res, cmb_res, plugin):
+            """Pretty-print χ² statistics and fitted parameters for a model."""
             console.write(f"--- {label} Fit Report ---\n")
             if sne_res:
                 from copernican_lib import latex_utils

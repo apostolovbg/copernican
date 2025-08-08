@@ -1,8 +1,9 @@
-# """Model coder that turns validated YAML into callable Python functions."""
+"""Translate sanitized model YAML into executable NumPy-aware callables.
 
-# Every cosmological model is stored as YAML.  This module reads the sanitized
-# YAML and uses SymPy to translate mathematical expressions into efficient
-# NumPy-friendly functions.
+Every cosmological model is stored as YAML. This module parses that file,
+converts equations to SymPy expressions and then compiles them into fast
+NumPy functions suitable for evaluation within the engines.
+"""
 
 import yaml
 from pathlib import Path
@@ -26,6 +27,7 @@ class QuadPrinter(NumPyPrinter):
     """NumPy printer that expands ``Integral`` nodes into ``scipy`` quad calls."""
 
     def _print_Integral(self, expr):
+        """Translate SymPy ``Integral`` nodes into ``quad`` expressions."""
         # Currently support single-variable integrals of the form (var, a, b).
         var, a, b = expr.limits[0]
         integrand = expr.function
@@ -200,11 +202,13 @@ def generate_callables(cache_path):
                     zrec = params[zr_i]
 
                     def sound_speed(zv):
+                        """Return baryon-photon sound speed in km/s at redshift ``zv``."""
                         return 299792.458 / np.sqrt(3 * (1 + 3 * Ob_val / (4 * Og_val) / (1 + zv)))
 
                     h0_val = hz_fn(0.0, *params)
 
                     def hz_with_radiation(zv):
+                        """Return H(z) including a simple radiation density term."""
                         base = hz_fn(zv, *params)
                         rad_sq = (h0_val ** 2) * Og_val * (1 + zv) ** 4
                         return np.sqrt(base ** 2 + rad_sq)
@@ -265,6 +269,7 @@ def generate_callables(cache_path):
         and 'get_luminosity_distance_Mpc' in funcs
     ):
         def _mu(zv, *params):
+            """Compute distance modulus from luminosity distance in Mpc."""
             dl = funcs['get_luminosity_distance_Mpc'](zv, *params)
             with np.errstate(divide='ignore', invalid='ignore'):
                 mu = 5 * np.log10(dl) + 25.0

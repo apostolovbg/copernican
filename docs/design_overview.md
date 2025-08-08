@@ -29,3 +29,18 @@ Greek letters and subscripts in console logs.
 Console messages are emitted through `copernican_lib/console_output.py` so that
 all output passes through a single function. The logger patches `print` and
 `input` to capture these messages verbatim.
+
+Engines follow a strict interface. `engine_interface.validate_plugin` ensures
+that any model plugin supplies the callable hooks required by a backend. This
+allows alternative engines—GPU-accelerated solvers, for example—to be swapped in
+without touching the high-level orchestration in `copernican.py`.
+
+To keep multiprocessing predictable, the suite sets the start method to
+``spawn`` and validates model YAML only in the main process. Worker processes
+operate on sanitised cached models which avoids repeated schema checks and
+keeps startup costs low.
+
+Caching is deliberately explicit. Parsed models are written to
+`models/cache/` and cleared only when the user exits the program. This approach
+allows repeated runs with different datasets without re-parsing YAML files,
+while still letting contributors inspect the generated intermediate files.

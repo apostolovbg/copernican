@@ -35,6 +35,7 @@ def register_sne_parser(name=None, description="", data_dir=None):
     ``dataset_name`` during discovery.
     """
     def decorator(func):
+        """Store ``func`` in the SNe parser registry under a temporary key."""
         key = name or os.path.basename(data_dir or func.__name__)
         SNE_PARSERS[key] = {
             'function': func,
@@ -52,6 +53,7 @@ def register_bao_parser(name=None, description="", data_dir=None):
     discovery.
     """
     def decorator(func):
+        """Store ``func`` in the BAO parser registry under a temporary key."""
         key = name or os.path.basename(data_dir or func.__name__)
         BAO_PARSERS[key] = {
             'function': func,
@@ -68,6 +70,7 @@ def register_cmb_parser(name=None, description="", data_dir=None):
     until discovery replaces it with the metadata ``dataset_name``.
     """
     def decorator(func):
+        """Store ``func`` in the CMB parser registry under a temporary key."""
         key = name or os.path.basename(data_dir or func.__name__)
         CMB_PARSERS[key] = {
             'function': func,
@@ -83,6 +86,7 @@ def register_gw_parser(name=None, description="", data_dir=None):
     Omitting ``name`` defers human-readable naming to metadata discovery.
     """
     def decorator(func):
+        """Store ``func`` in the GW parser registry under a temporary key."""
         key = name or os.path.basename(data_dir or func.__name__)
         GW_PARSERS[key] = {
             'function': func,
@@ -99,6 +103,7 @@ def register_siren_parser(name=None, description="", data_dir=None):
     key and is replaced with the metadata ``dataset_name`` during discovery.
     """
     def decorator(func):
+        """Store ``func`` in the standard siren parser registry."""
         key = name or os.path.basename(data_dir or func.__name__)
         SIREN_PARSERS[key] = {
             'function': func,
