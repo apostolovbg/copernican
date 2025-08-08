@@ -17,6 +17,7 @@ class FunctionalTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Prepare a validated ΛCDM plugin used by several test cases."""
         # Prepare a validated ΛCDM plugin used by several test cases.
         base = Path(__file__).resolve().parents[1]
         models_dir = base / 'models'
@@ -28,9 +29,11 @@ class FunctionalTestCase(unittest.TestCase):
         engine_interface.validate_plugin(cls.plugin)
 
     def test_plugin_validation(self):
+        """Ensure the constructed plugin exposes the expected API."""
         self.assertTrue(hasattr(self.plugin, 'distance_modulus_model'))
 
     def test_engine_routines(self):
+        """Run a smoke test across the main engine routines."""
         sne_df = data_loaders.load_sne_data('JLA 2014')
         self.assertIsNotNone(sne_df)
         sne_df = sne_df.head(3)
@@ -67,6 +70,7 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertEqual(len(spec["TT"]), len(cmb_df))
 
     def test_combined_fit(self):
+        """Check that the combined fit pipeline returns finite χ² values."""
         sne_df = data_loaders.load_sne_data('JLA 2014').head(2)
         if sne_df.attrs.get('covariance_matrix_inv') is not None:
             sne_df.attrs['covariance_matrix_inv'] = sne_df.attrs['covariance_matrix_inv'][:2, :2]
@@ -82,6 +86,7 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertTrue(np.isfinite(result['chi2_total']))
 
     def test_chi_squared_cmb_planck2018lite(self):
+        """Verify that the Planck 2018 lite dataset yields finite χ²."""
         cmb_df = data_loaders.load_cmb_data('Planck 2018 Lite TT/TE/EE')
         params = self.plugin.INITIAL_GUESSES
         chi2 = engine.chi_squared_cmb(params, cmb_df, self.plugin)
@@ -121,6 +126,7 @@ class PlotterUtilTestCase(unittest.TestCase):
     """Test helper utilities in ``plotter``."""
 
     def test_wrap_math_removes_size_macros(self):
+        """Ensure size macros are stripped when wrapping math expressions."""
         import sys
         import importlib
         from types import SimpleNamespace

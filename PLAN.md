@@ -23,7 +23,7 @@ Copernican Suite has grown from a single script into a modular, cross-platform c
 - For now, macOS builds are left unsigned. When desired, an Apple Developer ID certificate will be used to sign and notarize each build. A qualified electronic signature (QES) is insufficient for Gatekeeper; signing must be repeated for every newly produced binary.
 
 ## Version Management
-- The runtime version will ultimately be derived from package metadata using `importlib.metadata`. Hard-coded version strings (e.g. `COPERNICAN_VERSION = "3.5.0"`) will be replaced with a helper function that returns the installed package version and falls back to `"0+unknown"` when metadata is unavailable.
+- The runtime version will ultimately be derived from package metadata using `importlib.metadata`. Hard-coded version strings (e.g. `COPERNICAN_VERSION = "3.5.1"`) will be replaced with a helper function that returns the installed package version and falls back to `"0+unknown"` when metadata is unavailable.
 - `setuptools_scm` reads Git tags to embed accurate version numbers during packaging. When a commit on `main` is tagged (e.g. `v3.6.0`), future builds will report that version automatically.
 - Version bumps follow semantic rules: increment **MAJOR** for breaking changes, **MINOR** for backward-compatible features and **PATCH** for fixes. Documentation-only commits may omit a version change.
 

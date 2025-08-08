@@ -1,5 +1,5 @@
-**Version:** 3.5.0
-**Last Updated:** 2025-02-14
+**Version:** 3.5.1
+**Last Updated:** 2025-08-08
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
 Support for gravitational waves and standard siren events is planned for future releases.
@@ -19,12 +19,13 @@ Additional design notes can be found under the `docs/` directory.
 7. [Dataset Metadata Fields](docs/dataset_metadata.md)
 8. [LaTeX Syntax Guide](docs/latex_syntax.md)
 9. [Using the Suite](#using-the-suite)
-10. [Creating New Models](#creating-new-models)
-11. [Developer Guide](#developer-guide)
-12. [AI-driven and human development laws and protocols](#6-ai-driven-and-human-development-laws-and-protocols)
-13. [License](#license)
-14. [Versioning Policy](#versioning-policy)
-15. [API Overview](docs/api_overview.md)
+10. [Plot Footers and Metadata](#plot-footers-and-metadata)
+11. [Creating New Models](#creating-new-models)
+12. [Developer Guide](#developer-guide)
+13. [AI-driven and human development laws and protocols](#6-ai-driven-and-human-development-laws-and-protocols)
+14. [License](#license)
+15. [Versioning Policy](#versioning-policy)
+16. [API Overview](docs/api_overview.md)
 
 ---
 
@@ -38,23 +39,6 @@ software.
 Users select models, datasets, and computational engines at runtime through a
 simple command line interface. Results are saved as plots and CSV files in the
 `./output/` directory.
-Each generated plot now includes a centered footer. The first line shows the
-model comparison, suite version and a timestamp. The second line lists the
-observational dataset and processing notes, and the third line provides the
-citation. The first and third lines are bold, and the dataset name on the
-second line retains its original spacing while appearing in bold via
-MathText's ``\mathbf`` command.
-Metadata values are read from `metadata_*.yml` files stored next to each
-dataset. The program never hard-codes these values; `copernican_lib/data_loaders.py`
-reads the metadata after invoking each parser and attaches it to the returned
-DataFrame for plot footers and CSV headers. Individual parsers no longer
-access metadata files directly.
-During configuration each loader prints a short summary including whether the
-dataset's covariance matrix was inverted successfully or if diagonal errors are
-being used.
-When generating file names the suite sanitizes dataset names, replacing spaces and
-characters like `/` with hyphens so output paths remain valid on all platforms.
-
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages and
    prints an install command tailored to your OS listing only the missing packages.
@@ -193,6 +177,26 @@ the same CMB calculation regardless of their own fitting scheme.
 - When a run finishes the suite prints the abstract text from each model along
   with a summary of the best-fit parameters and individual chi-squared values for
   SNe, BAO and CMB.
+
+## Plot Footers and Metadata
+Each generated plot includes a centered footer that documents the run.
+The first line shows the model comparison, Copernican Suite version and a
+timestamp. The second line lists the observational dataset and processing
+notes, and the third line provides the citation. The first and third lines are
+bold, while the dataset name on the second line retains its original spacing
+via MathText's ``\mathbf`` command.
+
+Metadata values are read from ``metadata_*.yml`` files stored next to each
+dataset. ``copernican_lib/data_loaders.py`` attaches this metadata to the
+DataFrame returned by each parser so both plot footers and CSV headers reflect
+the official dataset description and citation. Individual parsers never access
+metadata files directly.
+
+During configuration each loader prints a summary indicating whether the
+dataset's covariance matrix was inverted successfully or if diagonal errors are
+being used. When generating file names the suite sanitizes dataset names,
+replacing spaces and characters like ``/`` with hyphens so output paths remain
+portable across operating systems.
 
 ## Creating New Models
 All model details, including theory text and equations, must be stored in a

@@ -30,3 +30,13 @@ All Greek letters—upper and lower case—and variants such as `\varphi` are in
 ### Subscripts and Superscripts
 
 `latex_utils.py` now ships with exhaustive lookup tables covering every Latin and Greek letter in both cases, digits and common math operators. Characters without dedicated Unicode glyphs fall back to their original form.
+
+## Tips for Writing Equations
+
+- Always enclose multi-character subscripts or superscripts in braces, e.g.
+  `H_{\rm 0}` or `x^{(1+z)}`. This ensures the parser interprets the entire
+  group correctly.
+- Use raw strings in YAML where possible to avoid accidental escape sequences.
+- Avoid vendor-specific macros; if a symbol is missing from
+  `latex_mappings.yml`, consider extending the mapping rather than embedding
+  raw Unicode characters in the YAML file.
