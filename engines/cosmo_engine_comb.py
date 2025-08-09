@@ -9,26 +9,29 @@ calculation of chi-squared values in a single unified step so that parameter
 correlations are treated consistently.
 """
 
-import numpy as np
-from scipy.linalg import LinAlgError
-import camb
-from functools import lru_cache
-import sys
 import logging
+from functools import lru_cache
+
+import camb
+import numpy as np
+
 from copernican_lib import engine_interface
 from copernican_lib.optim_utils import minimize_with_progress
 
-
-# ==============================================================================
+# ===========================================================================
 # --- CHI-SQUARED HELPER FUNCTIONS ---
-# ==============================================================================
+# ===========================================================================
 
 
 def chi_squared_sne(cosmo_params, mu_model_func, sne_data_df):
     """Calculate chi-squared for supernovae Ia distance modulus data."""
     logger = logging.getLogger()
     if not all(col in sne_data_df.columns for col in ("zcmb", "mu_obs")):
-        logger.error("SNe DataFrame missing required columns 'zcmb' or 'mu_obs'.")
+        logger.error(
+            "SNe DataFrame missing required columns '%s' or '%s'.",
+            "zcmb",
+            "mu_obs",
+        )
         return np.inf
 
     z_data = sne_data_df["zcmb"].values
@@ -57,12 +60,13 @@ def chi_squared_sne(cosmo_params, mu_model_func, sne_data_df):
     if C_inv is not None:
         try:
             if C_inv.shape[0] != len(resid):
-                logger.error("Covariance matrix dimension mismatch for SNe data.")
+                logger.error("Covariance mismatch for SNe data.")
                 return np.inf
             chi2 = float(resid @ C_inv @ resid)
         except Exception as exc:
             logger.warning(
-                f"Falling back to diagonal errors due to covariance issue: {exc}"
+                "Falling back to diagonal errors due to covariance issue: %s",
+                exc,
             )
             C_inv = None
 
@@ -88,7 +92,7 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)
     if getattr(model_plugin, "valid_for_bao", True) is False:
-        logger.warning("(chi2_bao): Model flagged as invalid for BAO. Skipping calculation.")
+        logger.warning("(chi2_bao): Model invalid for BAO; skipping.")
         return np.inf
     if bao_data_df is None or bao_data_df.empty:
         logger.error("(chi2_bao): BAO data is empty.")
@@ -102,7 +106,10 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
         get_DV = getattr(model_plugin, "get_DV_Mpc", None)
         C_LIGHT = model_plugin.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458)
     except AttributeError as e:
-        logger.error(f"(chi2_bao): Model plugin missing required function: {e}")
+        logger.error(
+            "(chi2_bao): Model plugin missing required function: %s",
+            e,
+        )
         return np.inf
 
     z = bao_data_df["redshift"].to_numpy(dtype=float)
@@ -112,7 +119,7 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
 
     valid = np.isfinite(obs_err) & (obs_err > 1e-9)
     if not np.any(valid):
-        logger.warning("(chi2_bao): No valid BAO points to calculate chi-squared.")
+        logger.warning("(chi2_bao): No valid BAO points for chi-squared.")
         return np.inf
 
     z = z[valid]
@@ -129,7 +136,11 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
     idx = obs_type == "DH_over_rs"
     if np.any(idx):
         hz = get_Hz(z[idx], *cosmo_params)
-        dh = np.where(np.isfinite(hz) & (np.abs(hz) > 1e-9), C_LIGHT / hz, np.nan)
+        dh = np.where(
+            np.isfinite(hz) & (np.abs(hz) > 1e-9),
+            C_LIGHT / hz,
+            np.nan,
+        )
         pred[idx] = dh / model_rs_Mpc
 
     idx = obs_type == "DV_over_rs"
@@ -139,7 +150,7 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
         else:
             dm_val = get_DM(z[idx], *cosmo_params)
             hz_val = get_Hz(z[idx], *cosmo_params)
-            term = dm_val ** 2 * C_LIGHT * z[idx] / hz_val
+            term = dm_val**2 * C_LIGHT * z[idx] / hz_val
             mask = (
                 np.isfinite(dm_val)
                 & (dm_val >= 0)
@@ -148,7 +159,11 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
                 & (z[idx] > 1e-9)
             )
             dv = np.full_like(dm_val, np.nan, dtype=float)
-            dv[mask] = np.where(term[mask] >= 0, np.power(term[mask], 1.0 / 3.0), np.nan)
+            dv[mask] = np.where(
+                term[mask] >= 0,
+                np.power(term[mask], 1.0 / 3.0),
+                np.nan,
+            )
             dv[np.abs(z[idx]) < 1e-9] = 0.0
         pred[idx] = dv / model_rs_Mpc
 
@@ -158,6 +173,7 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
 
     chi2 = np.sum(((obs_val - pred) / obs_err) ** 2)
     return chi2 if np.isfinite(chi2) else np.inf
+
 
 @lru_cache(maxsize=128)
 def _cached_cmb(key):
@@ -220,9 +236,10 @@ def compute_cmb_spectrum_from_dict(param_dict, ells, spectra=("TT",)):
     # a tuple so the ``lru_cache`` above can reuse results when the same
     # cosmology is requested again.
     try:
-        key_tuple = tuple(
-            (k, float(f"{float(v):.6g}")) for k, v in sorted(param_dict.items())
-        )
+        pairs = []
+        for k, v in sorted(param_dict.items()):
+            pairs.append((k, float(f"{float(v):.6g}")))
+        key_tuple = tuple(pairs)
         lmax = int(np.max(ells))
         cache_key = ("dict", key_tuple, lmax, tuple(sorted(spectra)))
         full = _cached_cmb(cache_key)
@@ -264,7 +281,12 @@ def compute_cmb_spectrum_cached(plugin, cosmo_params, ells, spectra=("TT",)):
 def compute_cmb_spectrum(param_dict, ells, spectra=("TT",)):
     """Backward compatible wrapper expecting a CAMB parameter dictionary."""
     dummy = type(
-        "_Dummy", (), {"MODEL_NAME": "direct", "get_camb_params": lambda self, _: param_dict}
+        "_Dummy",
+        (),
+        {
+            "MODEL_NAME": "direct",
+            "get_camb_params": lambda self, _: param_dict,
+        },
     )()
     return compute_cmb_spectrum_cached(dummy, [], ells, spectra)
 
@@ -275,12 +297,12 @@ def chi_squared_cmb(cosmo_params, cmb_data_df, plugin, extra_params=None):
     if cmb_data_df is None or cmb_data_df.empty:
         logger.error("(chi2_cmb): CMB data is empty.")
         return np.inf
-    if 'covariance_matrix_inv' not in cmb_data_df.attrs:
+    if "covariance_matrix_inv" not in cmb_data_df.attrs:
         logger.error("(chi2_cmb): Inverse covariance matrix missing in attrs.")
         return np.inf
 
-    ells = cmb_data_df['ell'].values
-    obs = cmb_data_df['Dl_obs'].values
+    ells = cmb_data_df["ell"].values
+    obs = cmb_data_df["Dl_obs"].values
     camb_params = plugin.get_camb_params(cosmo_params)
     if extra_params:
         camb_params.update(extra_params)
@@ -290,7 +312,7 @@ def chi_squared_cmb(cosmo_params, cmb_data_df, plugin, extra_params=None):
         return np.inf
 
     resid = obs - th
-    C_inv = cmb_data_df.attrs['covariance_matrix_inv']
+    C_inv = cmb_data_df.attrs["covariance_matrix_inv"]
     try:
         chi2 = float(resid @ C_inv @ resid)
     except Exception as exc:
@@ -298,6 +320,7 @@ def chi_squared_cmb(cosmo_params, cmb_data_df, plugin, extra_params=None):
         return np.inf
 
     return chi2 if np.isfinite(chi2) else np.inf
+
 
 def chi_squared_combined(
     params,
@@ -313,8 +336,8 @@ def chi_squared_combined(
     Parameters
     ----------
     params : array-like
-        Parameter vector containing cosmological parameters followed by optional
-        SNe nuisance parameters.
+        Parameter vector containing cosmological parameters followed by
+        optional SNe nuisance parameters.
     plugin : object
         Model plugin implementing the required distance and CMB functions.
     sne_df, bao_df, cmb_df : DataFrame, optional
@@ -326,55 +349,101 @@ def chi_squared_combined(
         CAMB parameter names appended after any nuisance parameters.
     """
 
-    cosmo_params = params[:num_cosmo_params] if num_cosmo_params is not None else params
+    if num_cosmo_params is not None:
+        cosmo_params = params[:num_cosmo_params]
+    else:
+        cosmo_params = params
     extra_params = None
     if cmb_extra_names:
-        start = num_cosmo_params if num_cosmo_params is not None else len(cosmo_params)
-        extra_slice = params[start : start + len(cmb_extra_names)]
+        if num_cosmo_params is not None:
+            start = num_cosmo_params
+        else:
+            start = len(cosmo_params)
+        end = start + len(cmb_extra_names)
+        extra_slice = params[start:end]
         extra_params = {n: v for n, v in zip(cmb_extra_names, extra_slice)}
 
     chi2_total = 0.0
 
-    if sne_df is not None and getattr(plugin, "valid_for_distance_metrics", True):
-        chi2_total += chi_squared_sne(cosmo_params, plugin.distance_modulus_model, sne_df)
+    if sne_df is not None and getattr(
+        plugin,
+        "valid_for_distance_metrics",
+        True,
+    ):
+        chi2_total += chi_squared_sne(
+            cosmo_params,
+            plugin.distance_modulus_model,
+            sne_df,
+        )
 
     if bao_df is not None and getattr(plugin, "valid_for_bao", True):
         rs_val = plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
-        chi2_total += chi_squared_bao(bao_df, plugin, cosmo_params, rs_val)
+        chi2_total += chi_squared_bao(
+            bao_df,
+            plugin,
+            cosmo_params,
+            rs_val,
+        )
 
     if cmb_df is not None and getattr(plugin, "valid_for_cmb", True):
-        chi2_total += chi_squared_cmb(cosmo_params, cmb_df, plugin, extra_params)
+        chi2_total += chi_squared_cmb(
+            cosmo_params,
+            cmb_df,
+            plugin,
+            extra_params,
+        )
 
     return chi2_total if np.isfinite(chi2_total) else np.inf
 
 
-# ==============================================================================
+# ===========================================================================
 # --- MAIN ENGINE FUNCTIONS ---
-# ==============================================================================
+# ===========================================================================
 
 
 def fit_sne_parameters(sne_data_df, model_plugin):
     """Fit cosmological parameters to SNe Ia data."""
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)
-    dataset_name = sne_data_df.attrs.get('dataset_name_sanitized', 'UnknownSNeDataset')
-    model_name_str = getattr(model_plugin, 'MODEL_NAME', 'UnknownModel')
+    dataset_name = sne_data_df.attrs.get(
+        "dataset_name_sanitized",
+        "UnknownSNeDataset",
+    )
+    model_name_str = getattr(model_plugin, "MODEL_NAME", "UnknownModel")
 
-    logger.info(f"\n--- Fitting SNe Ia ({dataset_name}) for Model: {model_name_str} ---")
+    logger.info(
+        "\n--- Fitting SNe Ia (%s) for Model: %s ---",
+        dataset_name,
+        model_name_str,
+    )
 
-    names = getattr(model_plugin, 'PARAMETER_NAMES', [])
-    initial = list(getattr(model_plugin, 'INITIAL_GUESSES', []))
-    bounds = list(getattr(model_plugin, 'PARAMETER_BOUNDS', []))
+    names = getattr(model_plugin, "PARAMETER_NAMES", [])
+    initial = list(getattr(model_plugin, "INITIAL_GUESSES", []))
+    bounds = list(getattr(model_plugin, "PARAMETER_BOUNDS", []))
 
-    if not (names and initial and bounds and len(names) == len(initial) == len(bounds)):
-        logger.error(f"Model plugin {model_name_str} missing or has inconsistent parameter definitions.")
-        return {'success': False, 'message': 'Model parameter definition error.', 'chi2_min': np.inf}
+    params_present = names and initial and bounds
+    sizes_match = len(names) == len(initial) == len(bounds)
+    valid_params = params_present and sizes_match
+    if not valid_params:
+        logger.error(
+            f"Model plugin {model_name_str} missing or has inconsistent "
+            "parameter definitions."
+        )
+        return {
+            "success": False,
+            "message": "Model parameter definition error.",
+            "chi2_min": np.inf,
+        }
 
     # ``scipy.optimize.minimize`` is sensitive to its tolerance parameters.
     # These defaults were tuned so the reference ΛCDM model converges reliably
     # without excessive runtime on slower machines.
-    options = {'maxiter': 2000, 'ftol': 1e-10, 'gtol': 1e-7, 'eps': 1e-9}
-    logger.info(f"Starting SNe optimization for {model_name_str} using {len(initial)} parameters...")
+    options = {"maxiter": 2000, "ftol": 1e-10, "gtol": 1e-7, "eps": 1e-9}
+    logger.info(
+        "Starting SNe optimization for %s using %d parameters...",
+        model_name_str,
+        len(initial),
+    )
 
     result_obj, eval_total, best_chi2, best_params = minimize_with_progress(
         chi_squared_sne,
@@ -382,7 +451,7 @@ def fit_sne_parameters(sne_data_df, model_plugin):
         bounds=bounds,
         args=(model_plugin.distance_modulus_model, sne_data_df),
         options=options,
-        label='SNe Fit',
+        label="SNe Fit",
     )
 
     if result_obj and result_obj.success and np.isfinite(result_obj.fun):
@@ -393,8 +462,15 @@ def fit_sne_parameters(sne_data_df, model_plugin):
     else:
         final_params = np.array(best_params)
         final_chi2 = best_chi2
-        message = 'Optimizer failed or did not improve'
-        if result_obj and hasattr(result_obj, 'message') and result_obj.message:
+        message = "Optimizer failed or did not improve"
+        # fmt: off
+        temp_msg = (
+            result_obj
+            and hasattr(result_obj, "message")
+            and result_obj.message
+        )
+        # fmt: on
+        if temp_msg:
             message += f" (Optimizer msg: {result_obj.message})"
         success = np.isfinite(final_chi2)
 
@@ -408,45 +484,64 @@ def fit_sne_parameters(sne_data_df, model_plugin):
         red = np.nan
 
     return {
-        'model_name': model_name_str,
-        'fit_style_used': 'covariance' if sne_data_df.attrs.get('covariance_matrix_inv') is not None else 'diagonal',
-        'fitted_cosmological_params': fitted,
-        'fitted_nuisance_params': None,
-
-        'chi2_min': final_chi2,
-        'dof': dof,
-        'reduced_chi2': red,
-        'success': success and np.isfinite(final_chi2),
-        'message': message,
-        'n_evals_wrapper': eval_total,
-
+        "model_name": model_name_str,
+        "fit_style_used": (
+            "covariance"
+            if sne_data_df.attrs.get("covariance_matrix_inv") is not None
+            else "diagonal"
+        ),
+        "fitted_cosmological_params": fitted,
+        "fitted_nuisance_params": None,
+        "chi2_min": final_chi2,
+        "dof": dof,
+        "reduced_chi2": red,
+        "success": success and np.isfinite(final_chi2),
+        "message": message,
+        "n_evals_wrapper": eval_total,
     }
-def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin):
+
+
+def fit_combined_parameters(
+    sne_data_df,
+    bao_data_df,
+    cmb_data_df,
+    model_plugin,
+):
     r"""Fit a model to SNe, BAO and CMB simultaneously."""
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)
     # Copy the model's parameter list so modifications for nuisance/CMB
     # parameters do not alter the plugin in-place. Mutating the original list
     # caused inconsistent parameter definitions on subsequent runs.
-    param_names = list(getattr(model_plugin, 'PARAMETER_NAMES', []))
-    init_params = list(getattr(model_plugin, 'INITIAL_GUESSES', []))
-    bounds = list(getattr(model_plugin, 'PARAMETER_BOUNDS', []))
-    if not (param_names and init_params and bounds and len(param_names) == len(init_params)):
-        logger.error(f"Model plugin {model_plugin.MODEL_NAME} has inconsistent parameter definitions.")
-        return {'success': False, 'chi2_total': np.inf}
+    param_names = list(getattr(model_plugin, "PARAMETER_NAMES", []))
+    init_params = list(getattr(model_plugin, "INITIAL_GUESSES", []))
+    bounds = list(getattr(model_plugin, "PARAMETER_BOUNDS", []))
+
+    params_present = param_names and init_params and bounds
+    sizes_match = len(param_names) == len(init_params)
+    defs_ok = params_present and sizes_match
+    if not defs_ok:
+        logger.error(
+            f"Model plugin {model_plugin.MODEL_NAME} has inconsistent "
+            "parameter definitions."
+        )
+        return {"success": False, "chi2_total": np.inf}
 
     num_cosmo_params = len(init_params)
 
     cmb_extra_names = []
-    if cmb_data_df is not None and getattr(model_plugin, 'valid_for_cmb', True):
-        for key, val in getattr(model_plugin, 'CMB_PARAM_MAP', {}).items():
+    if cmb_data_df is not None and getattr(
+        model_plugin,
+        "valid_for_cmb",
+        True,
+    ):
+        for key, val in getattr(model_plugin, "CMB_PARAM_MAP", {}).items():
             if not isinstance(val, str):
                 cmb_extra_names.append(key)
                 init_params.append(float(val))
                 spread = abs(float(val)) * 0.5 if val != 0 else 1.0
                 bounds.append((float(val) - spread, float(val) + spread))
                 param_names.append(key)
-    num_cmb_extra = len(cmb_extra_names)
 
     # --- Optional Pre-fit: refine cosmological parameters using SNe only ---
     if sne_data_df is not None:
@@ -454,26 +549,31 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
 
         def _chi2_sne_only(p):
             """Return χ² for a parameter vector using SNe-only data."""
-            return chi_squared_sne(p, model_plugin.distance_modulus_model, sne_data_df)
+            return chi_squared_sne(
+                p,
+                model_plugin.distance_modulus_model,
+                sne_data_df,
+            )
 
         pre_res, _, pre_best, pre_params = minimize_with_progress(
             _chi2_sne_only,
             init_params[:num_cosmo_params],
             bounds=bounds[:num_cosmo_params],
-            options={'maxiter': 300},
-            label='SNe Prefit',
+            options={"maxiter": 300},
+            label="SNe Prefit",
         )
 
         if np.isfinite(pre_best):
             init_params[:num_cosmo_params] = list(pre_params)
 
     logger.info(
-        f"Starting combined optimization for {model_plugin.MODEL_NAME} using {len(init_params)} parameters..."
+        f"Starting combined optimization for {model_plugin.MODEL_NAME} using "
+        f"{len(init_params)} parameters..."
     )
 
     # Do not pass deprecated L-BFGS-B options; default configuration already
     # keeps the solver quiet.
-    options = {'maxiter': 2000}
+    options = {"maxiter": 2000}
 
     def combined_chi2(p):
         """Return combined χ² across SNe, BAO and CMB datasets."""
@@ -512,37 +612,63 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
             cmb_extra_names=cmb_extra_names,
         )
         message = "Optimizer failed or did not converge"
-        if result and hasattr(result, 'message') and result.message:
+        if result and hasattr(result, "message") and result.message:
             message += f" (Optimizer msg: {result.message})"
         success_flag = np.isfinite(chi2_tot)
     chi2_sne = np.nan
-    if sne_data_df is not None and getattr(model_plugin, 'valid_for_distance_metrics', True):
+    if sne_data_df is not None and getattr(
+        model_plugin,
+        "valid_for_distance_metrics",
+        True,
+    ):
         chi2_sne = chi_squared_sne(
             final_params[:num_cosmo_params],
             model_plugin.distance_modulus_model,
             sne_data_df,
         )
     chi2_bao = np.nan
-    if bao_data_df is not None and getattr(model_plugin, 'valid_for_bao', True):
+    if bao_data_df is not None and getattr(
+        model_plugin,
+        "valid_for_bao",
+        True,
+    ):
         cosmo_subset = final_params[:num_cosmo_params]
         rs_val = model_plugin.get_sound_horizon_rs_Mpc(*cosmo_subset)
-        chi2_bao = chi_squared_bao(bao_data_df, model_plugin, cosmo_subset, rs_val)
+        chi2_bao = chi_squared_bao(
+            bao_data_df,
+            model_plugin,
+            cosmo_subset,
+            rs_val,
+        )
     chi2_cmb = np.nan
-    if cmb_data_df is not None and getattr(model_plugin, 'valid_for_cmb', True):
+    if cmb_data_df is not None and getattr(
+        model_plugin,
+        "valid_for_cmb",
+        True,
+    ):
         chi2_cmb = chi_squared_cmb(
             final_params[:num_cosmo_params],
             cmb_data_df,
             model_plugin,
-            {n: final_params[num_cosmo_params + i] for i, n in enumerate(cmb_extra_names)} if cmb_extra_names else None,
+            (
+                {
+                    n: final_params[num_cosmo_params + i]
+                    for i, n in enumerate(cmb_extra_names)
+                }
+                if cmb_extra_names
+                else None
+            ),
         )
     logger.info(f"Combined fit results for {model_plugin.MODEL_NAME}:")
-    param_latex = getattr(model_plugin, 'PARAMETER_LATEX_NAMES', [])
+    param_latex = getattr(model_plugin, "PARAMETER_LATEX_NAMES", [])
     from copernican_lib import latex_utils
+
     for name, latex_name, val in zip(param_names, param_latex, final_params):
         disp = latex_utils.latex_to_unicode(latex_name)
         logger.info(f"  - {disp}: {val:.5g}")
     logger.info(
-        f"  - Chi2 Total: {chi2_tot:.4f} (SNe={chi2_sne:.4f}, BAO={chi2_bao:.4f}, CMB={chi2_cmb:.4f})"
+        f"  - Chi2 Total: {chi2_tot:.4f} (SNe={chi2_sne:.4f},"
+        f" BAO={chi2_bao:.4f}, CMB={chi2_cmb:.4f})"
     )
 
     dof = 0
@@ -555,34 +681,42 @@ def fit_combined_parameters(sne_data_df, bao_data_df, cmb_data_df, model_plugin)
     dof -= len(final_params)
     reduced = chi2_tot / dof if dof > 0 else np.nan
 
-    fitted_cosmo_dict = {n: v for n, v in zip(param_names, final_params[:num_cosmo_params])}
+    fitted_cosmo_dict = {
+        n: v for n, v in zip(param_names, final_params[:num_cosmo_params])
+    }
     idx = num_cosmo_params
     nuisance_dict = None
     cmb_extra_dict = None
     if cmb_extra_names:
-        extra_vals = final_params[idx: idx + len(cmb_extra_names)]
+        end = idx + len(cmb_extra_names)
+        extra_vals = final_params[idx:end]
         cmb_extra_dict = {n: v for n, v in zip(cmb_extra_names, extra_vals)}
 
     return {
-        'success': success_flag and np.isfinite(chi2_tot),
-        'fit_style_used': 'combined',
-        'fitted_cosmological_params': fitted_cosmo_dict,
-        'fitted_nuisance_params': nuisance_dict,
-        'fitted_cmb_params': cmb_extra_dict,
+        "success": success_flag and np.isfinite(chi2_tot),
+        "fit_style_used": "combined",
+        "fitted_cosmological_params": fitted_cosmo_dict,
+        "fitted_nuisance_params": nuisance_dict,
+        "fitted_cmb_params": cmb_extra_dict,
         # chi2_min is kept for compatibility with existing plotters
-        'chi2_min': chi2_tot,
-        'chi2_total': chi2_tot,
-        'chi2_sne': chi2_sne,
-        'chi2_bao': chi2_bao,
-        'chi2_cmb': chi2_cmb,
-        'dof': dof,
-        'reduced_chi2': reduced,
-        'message': message,
-        'n_evals_wrapper': eval_total,
+        "chi2_min": chi2_tot,
+        "chi2_total": chi2_tot,
+        "chi2_sne": chi2_sne,
+        "chi2_bao": chi2_bao,
+        "chi2_cmb": chi2_cmb,
+        "dof": dof,
+        "reduced_chi2": reduced,
+        "message": message,
+        "n_evals_wrapper": eval_total,
     }
 
 
-def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params, z_smooth=None):
+def calculate_bao_observables(
+    bao_data_df,
+    model_plugin,
+    cosmo_params,
+    z_smooth=None,
+):
     """
     Calculates BAO observable predictions for a given model and its parameters.
     Also calculates smooth curves for plotting if z_smooth is provided.
@@ -593,59 +727,102 @@ def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params, z_smooth=
 
     # --- Part 1: Calculate for BAO data points ---
     bao_pred_df = bao_data_df.copy()
-    bao_pred_df['model_prediction'] = np.nan
-    if getattr(model_plugin, 'valid_for_bao', True) is False:
-        logger.warning("Model flagged as invalid for BAO. Skipping calculations.")
+    bao_pred_df["model_prediction"] = np.nan
+    if getattr(model_plugin, "valid_for_bao", True) is False:
+        logger.warning("Model invalid for BAO; skipping.")
         return bao_pred_df, np.nan, None
-    
+
     param_str = ", ".join([f"{p:.4g}" for p in cosmo_params])
-    logger.info(f"Calculating BAO observables for {model_name} with parameters: [{param_str}]")
+    logger.info(
+        f"Calculating BAO observables for {model_name} with parameters: "
+        f"[{param_str}]"
+    )
 
     try:
         model_rs_Mpc = model_plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
         if not (np.isfinite(model_rs_Mpc) and model_rs_Mpc > 0):
-            logger.warning(f"Model '{model_name}' returned invalid r_s ({model_rs_Mpc:.3f} Mpc). BAO calculations will be NaN.")
+            logger.warning(
+                f"Model '{model_name}' returned invalid r_s "
+                f"({model_rs_Mpc:.3f} Mpc). BAO calculations will be NaN."
+            )
             return bao_pred_df, np.nan, None
     except Exception as e:
-        logger.error(f"Failed to calculate r_s for model '{model_name}': {e}", exc_info=True)
+        logger.error(
+            f"Failed to calculate r_s for model '{model_name}': {e}",
+            exc_info=True,
+        )
         return bao_pred_df, np.nan, None
 
-    logger.info(f"Successfully calculated r_s for {model_name}: {model_rs_Mpc:.3f} Mpc")
-    
+    logger.info(
+        "Successfully calculated r_s for %s: %.3f Mpc",
+        model_name,
+        model_rs_Mpc,
+    )
+
     try:
         get_DM_model = getattr(model_plugin, "get_comoving_distance_Mpc")
         get_Hz_model = getattr(model_plugin, "get_Hz_per_Mpc")
         get_DV_model_specific = getattr(model_plugin, "get_DV_Mpc", None)
-        get_DA_model = getattr(model_plugin, "get_angular_diameter_distance_Mpc")
+        get_DA_model = getattr(
+            model_plugin,
+            "get_angular_diameter_distance_Mpc",
+        )
         C_LIGHT = model_plugin.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458)
     except AttributeError as e:
-        logger.error(f"Model plugin '{model_name}' missing required function for BAO: {e}")
+        logger.error(
+            "Model plugin '%s' missing required function for BAO: %s",
+            model_name,
+            e,
+        )
         return bao_pred_df, model_rs_Mpc, None
 
     for index, row in bao_pred_df.iterrows():
-        z_val = row['redshift']
-        obs_type = row['observable_type']
-        
+        z_val = row["redshift"]
+        obs_type = row["observable_type"]
+
         model_pred_numerator = np.nan
         try:
             if obs_type == "DM_over_rs":
                 model_pred_numerator = get_DM_model(z_val, *cosmo_params)
             elif obs_type == "DH_over_rs":
                 hz_val = get_Hz_model(z_val, *cosmo_params)
-                if np.isfinite(hz_val) and abs(hz_val) > 1e-9: model_pred_numerator = C_LIGHT / hz_val
+                if np.isfinite(hz_val) and abs(hz_val) > 1e-9:
+                    model_pred_numerator = C_LIGHT / hz_val
             elif obs_type == "DV_over_rs":
-                if get_DV_model_specific: model_pred_numerator = get_DV_model_specific(z_val, *cosmo_params)
-                else: 
-                    dm_val = get_DM_model(z_val, *cosmo_params); hz_val = get_Hz_model(z_val, *cosmo_params)
-                    if np.isfinite(dm_val) and dm_val >=0 and np.isfinite(hz_val) and abs(hz_val) > 1e-9 and z_val > 1e-9:
-                        term = (dm_val**2) * C_LIGHT * z_val / hz_val; model_pred_numerator = term**(1.0/3.0) if term >=0 else np.nan
-                    elif abs(z_val) < 1e-9: model_pred_numerator = 0.0
+                if get_DV_model_specific:
+                    model_pred_numerator = get_DV_model_specific(
+                        z_val,
+                        *cosmo_params,
+                    )
+                else:
+                    dm_val = get_DM_model(z_val, *cosmo_params)
+                    hz_val = get_Hz_model(z_val, *cosmo_params)
+                    if (
+                        np.isfinite(dm_val)
+                        and dm_val >= 0
+                        and np.isfinite(hz_val)
+                        and abs(hz_val) > 1e-9
+                        and z_val > 1e-9
+                    ):
+                        term = (dm_val**2) * C_LIGHT * z_val / hz_val
+                        model_pred_numerator = (
+                            term ** (1.0 / 3.0) if term >= 0 else np.nan
+                        )
+                    elif abs(z_val) < 1e-9:
+                        model_pred_numerator = 0.0
 
             if np.isfinite(model_pred_numerator):
-                bao_pred_df.loc[index, 'model_prediction'] = model_pred_numerator / model_rs_Mpc
-        except Exception: pass 
-            
-    logger.debug(f"BAO predictions for {model_name}:\n{bao_pred_df.head().to_string()}")
+                bao_pred_df.loc[index, "model_prediction"] = (
+                    model_pred_numerator / model_rs_Mpc
+                )
+        except Exception:
+            pass
+
+    logger.debug(
+        "BAO predictions for %s:\n%s",
+        model_name,
+        bao_pred_df.head().to_string(),
+    )
 
     # --- Part 2: Calculate for smooth plotting curves ---
     smooth_predictions = None
@@ -654,20 +831,35 @@ def calculate_bao_observables(bao_data_df, model_plugin, cosmo_params, z_smooth=
             dm_smooth = get_DM_model(z_smooth, *cosmo_params)
             hz_smooth = get_Hz_model(z_smooth, *cosmo_params)
             dh_smooth = np.where(hz_smooth > 0, C_LIGHT / hz_smooth, np.nan)
-            
-            if get_DV_model_specific: dv_smooth = get_DV_model_specific(z_smooth, *cosmo_params)
+
+            if get_DV_model_specific:
+                dv_smooth = get_DV_model_specific(z_smooth, *cosmo_params)
             else:
                 da_smooth = get_DA_model(z_smooth, *cosmo_params)
-                term = np.power(1+z_smooth, 2) * np.power(da_smooth, 2) * C_LIGHT * z_smooth / hz_smooth
-                dv_smooth = np.power(term, 1/3, where=term>=0, out=np.full_like(z_smooth, np.nan))
+                term = (
+                    np.power(1 + z_smooth, 2)
+                    * np.power(da_smooth, 2)
+                    * C_LIGHT
+                    * z_smooth
+                    / hz_smooth
+                )
+                dv_smooth = np.power(
+                    term,
+                    1 / 3,
+                    where=term >= 0,
+                    out=np.full_like(z_smooth, np.nan),
+                )
 
             smooth_predictions = {
-                'z': z_smooth,
-                'dm_over_rs': dm_smooth / model_rs_Mpc,
-                'dh_over_rs': dh_smooth / model_rs_Mpc,
-                'dv_over_rs': dv_smooth / model_rs_Mpc
+                "z": z_smooth,
+                "dm_over_rs": dm_smooth / model_rs_Mpc,
+                "dh_over_rs": dh_smooth / model_rs_Mpc,
+                "dv_over_rs": dv_smooth / model_rs_Mpc,
             }
         except Exception as e:
-            logger.error(f"Failed to calculate smooth BAO curves for {model_name}: {e}", exc_info=True)
+            logger.error(
+                f"Failed to calculate smooth BAO curves for {model_name}: {e}",
+                exc_info=True,
+            )
 
     return bao_pred_df, model_rs_Mpc, smooth_predictions
