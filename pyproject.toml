@@ -19,6 +19,7 @@ dependencies = [
     "camb==1.6.2", # pin to ensure Python 3.11 wheels
     "PyYAML",
     "astropy",
+    "psutil",
 ]
 
 [project.scripts]
