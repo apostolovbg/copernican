@@ -6,5 +6,5 @@
 from . import cosmo_engine_comb
 
 __all__ = [
-    'cosmo_engine_comb',
+    "cosmo_engine_comb",
 ]
