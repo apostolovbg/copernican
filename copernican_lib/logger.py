@@ -6,12 +6,12 @@ standard log messages. ``print`` and ``input`` are patched so their text is
 captured to the log file without being echoed twice on the console.
 """
 
+import builtins
 import logging
 import os
 import sys
-import builtins
-import datetime
-from .utils import get_timestamp, ensure_dir_exists
+
+from .utils import ensure_dir_exists, get_timestamp
 
 
 class _PathFilter(logging.Filter):
@@ -25,9 +25,9 @@ class _PathFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         """Remove leading ``base_dir`` segments from log messages."""
         if isinstance(record.msg, str):
-            record.msg = record.msg.replace(self.base_dir + os.sep, "").replace(
-                self.base_dir, "."
-            )
+            # Replace absolute base paths with project-relative forms
+            clean = record.msg.replace(self.base_dir + os.sep, "")
+            record.msg = clean.replace(self.base_dir, ".")
         return True
 
 
@@ -96,11 +96,14 @@ def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
 
-    log_filename = os.path.join(log_dir, f"copernican-run_{get_timestamp()}.txt")
+    # Name log file using an execution timestamp
+    run_tag = f"copernican-run_{get_timestamp()}.txt"
+    log_filename = os.path.join(log_dir, run_tag)
 
     fh = logging.FileHandler(log_filename)
     fh.setLevel(logging.INFO)
-    fh.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    fh.setFormatter(formatter)
     if base_dir:
         fh.addFilter(_PathFilter(base_dir))
     logger.addHandler(fh)
