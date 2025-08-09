@@ -31,3 +31,4 @@ py-modules = ["copernican"]
 
 [tool.setuptools_scm]
 version_scheme = "no-guess-dev"
+fallback_version = "0+unknown"

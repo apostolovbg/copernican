@@ -11,6 +11,14 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
+### Version Bump Rules
+- **MAJOR**: incompatible API changes.
+- **MINOR**: backward-compatible feature additions.
+- **PATCH**: backward-compatible bug fixes and documentation updates.
+
+## Version 3.6.0
+- 2025-08-09: Centralised version handling via `copernican_lib.version`, routed modules through the helper, configured `setuptools_scm` fallback and documented SemVer bump rules (AI assistant)
+
 ## Version 3.5.3
 - 2025-08-09: Added PyInstaller build specifications for Windows, macOS and Linux, bundled project sources and documented macOS signing (AI assistant)
 

@@ -6,7 +6,6 @@ Copernican Suite - Main Orchestrator.
 
 import importlib.util
 import importlib
-from importlib.metadata import version as package_version, PackageNotFoundError
 import ast
 import os
 import sys
@@ -18,6 +17,7 @@ import argparse
 from pathlib import Path
 
 from copernican_lib import console_output as console
+from copernican_lib.version import get_version
 
 # Verify interpreter version early so users see clear feedback
 MIN_PYTHON = (3, 12)
@@ -53,11 +53,10 @@ log_mod = None
 logger = None
 data_loaders = None
 
-# Use a fixed version string to avoid confusion when the package metadata is
-# outdated. Automatic releases are not yet enabled. Version 3.1.0 adds
-# unified exponent syntax across model YAML files and drops all
-# legacy JSON dataset support in favour of YAML-only inputs.
-COPERNICAN_VERSION = "3.5.1"
+# Retrieve the runtime version from installed package metadata. When the
+# distribution is not installed, ``get_version`` supplies ``"0+unknown"`` so
+# logs and plot footers still carry a version-like identifier.
+COPERNICAN_VERSION = get_version()
 CURRENT_LOG_FILE = None
 
 

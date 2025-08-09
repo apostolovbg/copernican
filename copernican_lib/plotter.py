@@ -14,7 +14,10 @@ from . import latex_utils
 
 from .utils import generate_filename, ensure_dir_exists, get_timestamp
 from .logger import get_logger
-from copernican import COPERNICAN_VERSION
+from .version import get_version
+
+# Query package metadata once so every plot records the same version string.
+COPERNICAN_VERSION = get_version()
 
 
 def _wrap_math(text: str) -> str:
