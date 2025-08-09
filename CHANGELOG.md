@@ -12,6 +12,13 @@ Add one line for each substantive commit or pull request directly under the late
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
 ## Unreleased
+
+### Version Bump Rules
+- **MAJOR**: incompatible API changes.
+- **MINOR**: backward-compatible feature additions.
+- **PATCH**: backward-compatible bug fixes and documentation updates.
+
+## Version 3.6.7
 - 2025-08-09: Refactored `model_coder` to replace lambda assignments,
   aligned Flake8 line length with Black and shortened long lines for
   lint compliance (AI assistant)
@@ -19,11 +26,6 @@ Add one line for each substantive commit or pull request directly under the late
   `model_coder.py`, `model_parser.py`, `optim_utils.py` and `utils.py`
   for 79-column compliance (AI assistant)
 - 2025-08-09: Wrapped `generate_filename` for 79-char limit (AI assistant)
-
-### Version Bump Rules
-- **MAJOR**: incompatible API changes.
-- **MINOR**: backward-compatible feature additions.
-- **PATCH**: backward-compatible bug fixes and documentation updates.
 
 ## Version 3.6.6
 - 2025-08-09: Wrapped long lines in `copernican_lib/optim_utils.py` for
