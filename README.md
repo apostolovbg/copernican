@@ -1,4 +1,4 @@
-**Version:** 3.5.2
+**Version:** 3.5.3
 **Last Updated:** 2025-08-09
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
@@ -26,6 +26,7 @@ Additional design notes can be found under the `docs/` directory.
 14. [License](#license)
 15. [Versioning Policy](#versioning-policy)
 16. [API Overview](docs/api_overview.md)
+17. [Packaging Guide](docs/packaging.md)
 
 ---
 
@@ -111,6 +112,10 @@ Installing the suite with `pip` creates a `copernican_suite.egg-info` directory.
 This folder contains package metadata such as the version number, dependency
 list and entry points used by Python's packaging tools. It is generated
 automatically and does not need to be tracked in version control.
+
+Standalone executables can be created with the PyInstaller spec files included
+at the repository root. See [docs/packaging.md](docs/packaging.md) for platform
+specific build commands and macOS signing instructions.
 
 
 ## Directory Layout
