@@ -18,6 +18,10 @@ Add one line for each substantive commit or pull request directly under the late
 - **MINOR**: backward-compatible feature additions.
 - **PATCH**: backward-compatible bug fixes and documentation updates.
 
+## Version 3.6.6
+- 2025-08-09: Wrapped long lines in `copernican_lib/optim_utils.py` for
+  79-column compliance (AI assistant)
+
 ## Version 3.6.5
 - 2025-08-09: Wrapped long line in `copernican_lib/model_parser.py` to
   enforce 79-character limit (AI assistant)
