@@ -12,6 +12,7 @@ Add one line for each substantive commit or pull request directly under the late
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
 ## Unreleased
+- 2025-08-09: Wrapped long lines in `copernican_lib/error_handler.py` for 79-column compliance (AI assistant)
 - 2025-08-09: Shortened long comment in `copernican_lib/__init__.py` (AI assistant)
 - 2025-08-09: Wrapped long lines in `copernican_lib/data_loaders.py` for 79-column compliance (AI assistant)
 - 2025-08-09: Wrapped long lines in `logger.py` for 79-column compliance (AI assistant)
