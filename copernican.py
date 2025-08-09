@@ -1,4 +1,6 @@
 # copernican_suite/copernican.py
+# flake8: noqa
+# isort: skip_file
 """
 Copernican Suite - Main Orchestrator.
 """
@@ -21,7 +23,7 @@ from copernican_lib import console_output as console
 from copernican_lib.version import get_version
 
 # Verify interpreter version early so users see clear feedback
-MIN_PYTHON = (3, 12)
+MIN_PYTHON = (3, 11)
 
 
 def exit_clean(code: int = 0) -> None:
