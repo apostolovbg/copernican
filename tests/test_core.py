@@ -1,7 +1,6 @@
 """Basic functional tests for the Copernican Suite."""
 
 import unittest
-import importlib
 from pathlib import Path
 import numpy as np
 import camb
@@ -127,12 +126,7 @@ class PlotterUtilTestCase(unittest.TestCase):
 
     def test_wrap_math_removes_size_macros(self):
         """Ensure size macros are stripped when wrapping math expressions."""
-        import sys
-        import importlib
-        from types import SimpleNamespace
-
-        sys.modules['copernican'] = SimpleNamespace(COPERNICAN_VERSION='test')
-        plotter = importlib.import_module('copernican_lib.plotter')
+        from copernican_lib import plotter
 
         expr = r"\mu(z) = 5\log_{10}\bigl[d_L(z)/\mathrm{Mpc}\bigr] + 25"
         expected = r"$\mu(z) = 5\log_{10}[d_L(z)/{Mpc}] + 25$"

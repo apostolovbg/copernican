@@ -154,5 +154,7 @@ Failure to follow these guidelines will compromise the Copernican Suite.
 The project follows Semantic Versioning (`MAJOR.MINOR.PATCH`). Increment the
 `MAJOR` number for breaking changes, the `MINOR` for new backward-compatible
 features and the `PATCH` for bug fixes. Package versions are derived from Git
-tags using `setuptools_scm`. Contributors must update the version whenever
-a pull request introduces a change covered by these rules.
+tags using `setuptools_scm`. Runtime code should obtain the current version
+via ``copernican_lib.version.get_version`` rather than hard-coded strings.
+Contributors must update the version whenever a pull request introduces a
+change covered by these rules.
