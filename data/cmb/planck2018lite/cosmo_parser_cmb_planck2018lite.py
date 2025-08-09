@@ -1,11 +1,13 @@
 """Parse the Planck 2018 lite TT/TE/EE spectra with covariance."""
+
 # The Planck team provides the data in a simple text format accompanied by a
 # Fortran-style binary covariance matrix. This parser converts those files into
 # a convenient Pandas DataFrame with the inverse covariance stored in
 # ``.attrs``.
 
-import os
 import logging
+import os
+
 import numpy as np
 import pandas as pd
 
@@ -86,16 +88,21 @@ def parse_planck2018lite(data_dir, **kwargs):
                 header = header_be
             else:
                 logger.error(
-                    "Planck2018lite covariance matrix header mismatch or size error."
+                    "Planck2018lite covariance matrix header mismatch or " "size error."
                 )
                 return None
             n_full = int(np.sqrt(header / 8))
-            cov_arr = np.fromfile(fh, dtype=f"{endian}f8", count=n_full * n_full)
+            cov_arr = np.fromfile(
+                fh,
+                dtype=f"{endian}f8",
+                count=n_full * n_full,
+            )
             trailer = np.fromfile(fh, dtype=f"{endian}i4", count=1)[0]
 
         if cov_arr.size != n_full * n_full or trailer != header:
             logger.error(
-                "Planck2018lite covariance matrix trailer mismatch or incomplete read."
+                "Planck2018lite covariance matrix trailer mismatch or "
+                "incomplete read."
             )
             return None
 
@@ -112,13 +119,14 @@ def parse_planck2018lite(data_dir, **kwargs):
             # Check for NaNs or infinities after inversion
             if not np.all(np.isfinite(cov_inv)):
                 raise ValueError(
-                    "Inverted Planck2018lite covariance contains non-finite values."
+                    "Inverted Planck2018lite covariance contains non-finite " "values."
                 )
 
             cond_num = np.linalg.cond(cov_matrix)
             if not np.isfinite(cond_num) or cond_num > 1e12:
                 raise ValueError(
-                    f"Planck2018lite covariance matrix ill-conditioned (cond={cond_num:.2e})."
+                    "Planck2018lite covariance matrix ill-conditioned "
+                    f"(cond={cond_num:.2e})."
                 )
         except (np.linalg.LinAlgError, ValueError) as e:
             # Fall back to diagonal errors if inversion fails or matrix is bad

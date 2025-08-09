@@ -1,9 +1,10 @@
 """Parser for the Pantheon+SH0ES 2022 supernova sample."""
 
-import os
-import pandas as pd
-import numpy as np
 import logging
+import os
+
+import numpy as np
+import pandas as pd
 
 from copernican_lib.data_loaders import register_sne_parser
 
@@ -29,7 +30,12 @@ def parse_pantheon_plus(data_dir, **kwargs):
     cov_filepath = os.path.join(data_dir, sorted(cov_files)[0])
 
     try:
-        temp_df = pd.read_csv(filepath, sep=r"\s+", engine="python", comment="#")
+        temp_df = pd.read_csv(
+            filepath,
+            sep=r"\s+",
+            engine="python",
+            comment="#",
+        )
         data_df = pd.DataFrame()
         col_map = {
             "Name": ["CID", "SNID", "ID", "NAME"],
@@ -42,18 +48,23 @@ def parse_pantheon_plus(data_dir, **kwargs):
             N_cov = int(f.readlines()[0].strip())
 
         for target_col, possible_names in col_map.items():
-            found_col = next((p for p in possible_names if p in temp_df.columns), None)
+            found_col = next(
+                (p for p in possible_names if p in temp_df.columns),
+                None,
+            )
             if found_col:
                 data_df[target_col] = temp_df[found_col]
             elif target_col not in ["Name", "mu_sh0es_err_diag"]:
                 logger.error(
-                    f"Column for '{target_col}' not found in Pantheon+ (mu_cov)."
+                    "Column for %r not found in Pantheon+ (mu_cov).",
+                    target_col,
                 )
                 return None
 
         if "Name" not in data_df:
             data_df["Name"] = temp_df.get(
-                "CID", pd.Series([f"SN_PPlus_mucov_{i}" for i in range(len(temp_df))])
+                "CID",
+                pd.Series([f"SN_PPlus_mucov_{i}" for i in range(len(temp_df))]),
             )
         data_df["Name"] = data_df["Name"].astype(str).str.strip()
 
@@ -67,7 +78,7 @@ def parse_pantheon_plus(data_dir, **kwargs):
             for col in essential_cols
         ):
             logger.error(
-                "One or more essential columns missing/all NaN in Pantheon+ data."
+                "One or more essential columns missing/all NaN in Pantheon+ " "data."
             )
             return None
 
@@ -77,14 +88,18 @@ def parse_pantheon_plus(data_dir, **kwargs):
             return None
         if len(data_df) != N_cov:
             logger.critical(
-                f"SNe count for mu_cov: data ({len(data_df)}) vs cov N ({N_cov})."
+                "SNe count for mu_cov: data (%d) vs cov N (%d).",
+                len(data_df),
+                N_cov,
             )
             return None
 
         cov_matrix_flat = np.loadtxt(cov_filepath, skiprows=1)
         if len(cov_matrix_flat) != N_cov * N_cov:
             logger.error(
-                f"Cov matrix len ({len(cov_matrix_flat)}) != N*N ({N_cov * N_cov})."
+                "Cov matrix len (%d) != N*N (%d).",
+                len(cov_matrix_flat),
+                N_cov * N_cov,
             )
             return None
         cov_matrix_pantheon = cov_matrix_flat.reshape((N_cov, N_cov))
@@ -111,7 +126,8 @@ def parse_pantheon_plus(data_dir, **kwargs):
             )
         except np.linalg.LinAlgError:
             logger.warning(
-                "Could not invert Pantheon+ covariance matrix. Chi2 will fallback to diagonal errors."
+                "Could not invert Pantheon+ covariance matrix. "
+                "Chi2 will fallback to diagonal errors."
             )
             output_df.attrs["covariance_matrix_inv"] = None
             output_df.attrs["diag_errors_for_plot"] = output_df["e_mu_obs"].values

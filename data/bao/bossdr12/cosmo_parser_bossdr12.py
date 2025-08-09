@@ -147,10 +147,10 @@ def parse_boss_dr12(data_dir, **kwargs):
         dm_over_rs = dm_val / RS_FIDUCIAL_MPC
         dh_over_rs = C_LIGHT / (h_val * RS_FIDUCIAL_MPC)
 
-        dm_dh_vec[2 * i : 2 * i + 2] = [dm_over_rs, dh_over_rs]
+        dm_dh_vec[2 * i : 2 * i + 2] = [dm_over_rs, dh_over_rs]  # noqa: E203
 
         jac_dm[2 * i, 2 * i] = 1.0 / RS_FIDUCIAL_MPC
-        jac_dm[2 * i + 1, 2 * i + 1] = -C_LIGHT / (h_val ** 2 * RS_FIDUCIAL_MPC)
+        jac_dm[2 * i + 1, 2 * i + 1] = -C_LIGHT / (h_val**2 * RS_FIDUCIAL_MPC)
 
     cov_dm_dh = jac_dm @ cov_dm @ jac_dm.T
 
@@ -163,7 +163,7 @@ def parse_boss_dr12(data_dir, **kwargs):
     dv_vec = np.array(dv_obs)
     jac_dv = np.zeros((n_z, n_z * 2))
     for i in range(n_z):
-        jac_dv[i, 2 * i] = 1.0  # derivative of ``D_V/rs`` with respect to itself
+        jac_dv[i, 2 * i] = 1.0  # derivative of D_V/rs w.r.t. itself
     cov_dv_only = jac_dv @ cov_dv @ jac_dv.T
 
     # ------------------------------------------------------------------
@@ -193,7 +193,10 @@ def parse_boss_dr12(data_dir, **kwargs):
     diag = np.sqrt(np.diag(cov_y))
     try:
         cond = np.linalg.cond(cov_y)
-        cov_inv = np.linalg.inv(cov_y) if np.isfinite(cond) and cond < 1e12 else None
+        if np.isfinite(cond) and cond < 1e12:
+            cov_inv = np.linalg.inv(cov_y)
+        else:
+            cov_inv = None
     except Exception as exc:
         logger.warning(f"BOSS DR12 covariance inversion failed: {exc}")
         cov_inv = None
@@ -241,4 +244,3 @@ def parse_boss_dr12(data_dir, **kwargs):
     # Metadata such as dataset name and citation is attached by
     # ``load_bao_data`` after this function returns.
     return df
-
