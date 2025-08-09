@@ -25,8 +25,9 @@ ensures the expected functions are present and callable. Starting with
 version 1.11.4 the test suite no longer runs automatically. Execute
 `copernican.py --run-tests` or run `python -m unittest discover` to verify that
 the reference LCDM model and data parsers operate correctly. The `--run-tests`
-flag now uses Python's built-in discovery to gather all tests from the `tests`
-package and will exit cleanly even when Matplotlib has not yet been imported.
+flag delegates to `python -m unittest discover`, gathering all tests from the
+`tests` package and exiting cleanly even when Matplotlib has not yet been
+imported.
 
 ## 2. Directory Layout
 ```

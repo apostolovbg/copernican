@@ -79,8 +79,8 @@ Under the hood the program follows a clear pipeline:
 2. Follow the interactive prompts to choose a model, preferred data sources and
    computation engine.
 3. Execute `python3 copernican.py --run-tests` or run `python -m unittest discover`
-   to verify the reference model and parsers. The `--run-tests` flag now leverages
-   unittest discovery to gather all modules under `tests/`.
+   to verify the reference model and parsers. The `--run-tests` flag delegates to
+   `python -m unittest discover` to gather all modules under `tests/`.
 4. Plots and CSV results will appear in the `output/` folder when the run
    completes.
 

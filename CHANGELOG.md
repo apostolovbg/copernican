@@ -16,6 +16,9 @@ Add one line for each substantive commit or pull request directly under the late
 - **MINOR**: backward-compatible feature additions.
 - **PATCH**: backward-compatible bug fixes and documentation updates.
 
+## Version 3.6.1
+- 2025-08-09: Delegated `--run-tests` to `python -m unittest discover`, expanded regression and interface tests, and updated CI to run the full suite on every push (AI assistant)
+
 ## Version 3.6.0
 - 2025-08-09: Centralised version handling via `copernican_lib.version`, routed modules through the helper, configured `setuptools_scm` fallback and documented SemVer bump rules (AI assistant)
 

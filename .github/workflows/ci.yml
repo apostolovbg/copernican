@@ -31,7 +31,7 @@ jobs:
         run: pre-commit run --all-files # fail fast on style issues
 
       - name: Execute unit tests
-        run: python -m unittest discover # run suite and fail on test errors
+        run: python copernican.py --run-tests # run suite via CLI and fail on test errors
 
       - name: Build executables
         run: pyinstaller --onefile copernican.py # produce standalone binary

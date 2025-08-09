@@ -14,6 +14,7 @@ import shutil
 import time
 import datetime
 import argparse
+import subprocess
 from pathlib import Path
 
 from copernican_lib import console_output as console
@@ -102,20 +103,21 @@ def _get_cpu_info() -> tuple[str, str]:
 
 
 def run_startup_tests():
-    """Discover and execute functional tests within the ``tests`` package."""
-    # This routine is invoked when the ``--run-tests`` flag is supplied.
-    # It uses Python's built-in unittest discovery to execute all test modules
-    # under the ``tests`` folder. The boolean return value determines whether
-    # the suite ran successfully.
-    import unittest
+    """Execute the project's unit tests via ``python -m unittest discover``.
 
+    The main entry point delegates to Python's standard discovery mechanism
+    so that ``copernican.py --run-tests`` behaves identically to invoking
+    ``python -m unittest discover`` from the command line. A ``True`` return
+    value indicates that all tests passed.
+    """
     try:
-        suite = unittest.defaultTestLoader.discover("tests")
+        result = subprocess.run(
+            [sys.executable, "-m", "unittest", "discover"], check=False
+        )
     except Exception as exc:
-        console.write(f"Error discovering startup tests: {exc}")
+        console.write(f"Error running startup tests: {exc}")
         return False
-    result = unittest.TextTestRunner(verbosity=1).run(suite)
-    return result.wasSuccessful()
+    return result.returncode == 0
 
 
 def parse_args():
