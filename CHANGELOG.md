@@ -19,6 +19,7 @@ Add one line for each substantive commit or pull request directly under the late
 - 2025-08-09: Wrapped long lines in `logger.py` for 79-column compliance (AI assistant)
 - 2025-08-09: Wrapped long lines in `latex_utils.py` for 79-column compliance (AI assistant)
 - 2025-08-09: Wrapped overly long lines in `copernican.py` to satisfy style guide (AI assistant)
+- 2025-08-09: Wrapped long lines in `copernican_lib/engine_interface.py` for 79-column compliance (AI assistant)
 
 ### Version Bump Rules
 - **MAJOR**: incompatible API changes.
