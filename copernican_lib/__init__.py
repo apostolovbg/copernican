@@ -7,4 +7,4 @@ individual engines remain lightweight.
 """
 
 # Nothing else is defined here. Importing this package simply exposes the
-# submodules such as ``logger`` and ``plotter`` which the rest of the code uses.
+# submodules like ``logger`` and ``plotter`` used throughout the code.
