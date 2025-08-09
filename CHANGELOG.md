@@ -11,6 +11,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
+## Unreleased
+- 2025-08-09: Wrapped overly long lines in `copernican.py` to satisfy style guide (AI assistant)
+
 ### Version Bump Rules
 - **MAJOR**: incompatible API changes.
 - **MINOR**: backward-compatible feature additions.
