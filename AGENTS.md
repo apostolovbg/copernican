@@ -148,6 +148,8 @@ To keep the project maintainable all contributors, human or AI, must follow thes
 9. **Document every module, function and class with clear "what" and "why" explanations.** Comments and docstrings should describe not only the behaviour but also the rationale behind it.
 10. **Use concise, descriptive function and identifier names that accurately convey their purpose without unnecessary length.**
 11. **Use raw strings or escape backslashes explicitly to avoid invalid escape sequence warnings in docstrings or string literals.**
+12. **Run `pre-commit` on all modified files before committing to enforce Black, Isort, Ruff and Flake8 checks.**
+13. **Do not redistribute the Copernican Suite in full or assert patent claims; the license forbids these actions.**
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 
