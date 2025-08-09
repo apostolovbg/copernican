@@ -17,6 +17,7 @@ Add one line for each substantive commit or pull request directly under the late
 - 2025-08-09: Wrapped test file imports, docstrings and assertions for 79-char compliance (AI assistant)
 - 2025-08-09: Shortened lines in `engines/cosmo_engine_comb.py` (AI assistant)
 - 2025-08-09: Wrapped long lines across data parsers for 79-character compliance (AI assistant)
+- 2025-08-09: Added `psutil` dependency and ensured CI installs project before running tests (AI assistant)
 
 ### Version Bump Rules
 - **MAJOR**: incompatible API changes.
