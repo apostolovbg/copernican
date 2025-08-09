@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import yaml
 import re
 from pathlib import Path
 from typing import Dict
 
+import yaml
 
 # Load replacement dictionaries from ``latex_mappings.yml`` once at import.
 # YAML is more readable than JSON and avoids backslash escaping issues.
@@ -86,12 +86,14 @@ def wrap_math(text: str) -> str:
     cleaned = re.sub(r"\s{2,}", " ", cleaned)
     return f"${cleaned}$" if cleaned else ""
 
+
 # Unicode translation table used by :func:`latex_to_unicode` for prettier
-# console output. The mappings are stored in the YAML file so new symbols can be
-# added without modifying this module.
+# console output. The mappings are stored in the YAML file so new symbols
+# can be added without modifying this module.
 _UNICODE_SYMBOLS = _MAPPINGS.get("unicode_symbols", {})
 
-"""Tables of subscript and superscript characters used by ``latex_to_unicode``."""
+"""Tables of subscript and superscript characters used by
+``latex_to_unicode``."""
 
 # Only a subset of characters have dedicated Unicode glyphs.  The base tables
 # below list those known substitutions.  During map generation we iterate over
@@ -248,14 +250,20 @@ def _build_script_maps() -> tuple[Dict[str, str], Dict[str, str]]:
 
     for ch in latin_upper:
         sub_map[ch] = _SUBSCRIPT_BASE.get(ch.lower(), ch)
-        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, _SUPERSCRIPT_BASE.get(ch.lower(), ch))
+        sup_map[ch] = _SUPERSCRIPT_BASE.get(
+            ch,
+            _SUPERSCRIPT_BASE.get(ch.lower(), ch),
+        )
     for ch in latin_lower:
         sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
         sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
     for ch in greek_upper:
         lower = ch.lower()
         sub_map[ch] = _SUBSCRIPT_BASE.get(lower, _SUBSCRIPT_BASE.get(ch, ch))
-        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, _SUPERSCRIPT_BASE.get(lower, ch))
+        sup_map[ch] = _SUPERSCRIPT_BASE.get(
+            ch,
+            _SUPERSCRIPT_BASE.get(lower, ch),
+        )
     for ch in greek_lower:
         sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
         sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
@@ -304,6 +312,14 @@ def latex_to_unicode(text: str) -> str:
 
     cleaned = re.sub(r"_\{([^{}]+)\}", _sub_repl, cleaned)
     cleaned = re.sub(r"\^\{([^{}]+)\}", _sup_repl, cleaned)
-    cleaned = re.sub(r"_([A-Za-z0-9])", lambda m: _SUB_MAP.get(m.group(1), m.group(1)), cleaned)
-    cleaned = re.sub(r"\^([A-Za-z0-9+-])", lambda m: _SUP_MAP.get(m.group(1), m.group(1)), cleaned)
+    cleaned = re.sub(
+        r"_([A-Za-z0-9])",
+        lambda m: _SUB_MAP.get(m.group(1), m.group(1)),
+        cleaned,
+    )
+    cleaned = re.sub(
+        r"\^([A-Za-z0-9+-])",
+        lambda m: _SUP_MAP.get(m.group(1), m.group(1)),
+        cleaned,
+    )
     return cleaned
