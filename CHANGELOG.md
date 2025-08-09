@@ -16,6 +16,9 @@ Add one line for each substantive commit or pull request directly under the late
 - **MINOR**: backward-compatible feature additions.
 - **PATCH**: backward-compatible bug fixes and documentation updates.
 
+## Version 3.6.2
+- 2025-08-09: Configured pre-commit with Black, Isort, Ruff and Flake8 and added licensing reminders to contributor docs (AI assistant)
+
 ## Version 3.6.1
 - 2025-08-09: Delegated `--run-tests` to `python -m unittest discover`, expanded regression and interface tests, and updated CI to run the full suite on every push (AI assistant)
 

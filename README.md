@@ -1,4 +1,4 @@
-**Version:** 3.5.3
+**Version:** 3.6.2
 **Last Updated:** 2025-08-09
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
@@ -328,10 +328,19 @@ See `CHANGELOG.md` for the complete project history.
 The short file `CONTRIBUTING.md` summarises the basic workflow for submitting
 patches and links back to these guidelines.
 
+The Copernican Suite License forbids redistributing the full suite and prohibits patent filings or assertions. All contributions must adhere to these restrictions.
+
 To start developing, install the suite in editable mode:
 
 ```bash
 pip install -e .
+```
+
+Install and run the pre-commit hooks to apply Black, Isort, Ruff and Flake8 checks:
+
+```bash
+pre-commit install
+pre-commit run --files <changed files>
 ```
 
 Run the tests with either command:
@@ -360,7 +369,7 @@ not modify them unless explicitly instructed.
 
 
 ## License
-The Copernican Suite is distributed under the terms of the [Copernican Suite License (CSL)](LICENSE.md).
+The Copernican Suite is distributed under the terms of the [Copernican Suite License (CSL)](LICENSE.md). The license forbids redistributing the software in full and disallows patent filings or assertions.
 
 ## Versioning Policy
 The project now follows [Semantic Versioning](https://semver.org/). Versions are
@@ -412,6 +421,8 @@ See `CHANGELOG.md` for complete version history.
 > 9. **Document every module, function and class with clear "what" and "why" explanations.** Comments and docstrings should describe not only the behaviour but also the rationale behind it.
 > 10. **Use concise, descriptive function and identifier names that accurately convey their purpose without unnecessary length.**
 > 11. **Use raw strings or escape backslashes explicitly to avoid invalid escape sequence warnings in docstrings or string literals.**
+> 12. **Run `pre-commit` on all modified files before committing to enforce Black, Isort, Ruff and Flake8 checks.**
+> 13. **Do not redistribute the Copernican Suite in full or assert patent claims; the license forbids these actions.**
 >
 > Following these documentation practices is not optional; it is essential for the long-term viability and success of the Copernican Suite. Failure to follow these rules will compromise the maintainability of the Copernican Suite.
 
