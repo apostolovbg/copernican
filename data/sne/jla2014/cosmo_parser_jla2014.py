@@ -6,10 +6,11 @@ and inverted. Earlier versions kept a fallback path using only diagonal
 errors when the matrix was nearly singular, but in practice the
 covariance is well behaved so that logic has been removed."""
 
-import os
-import pandas as pd
-import numpy as np
 import logging
+import os
+
+import numpy as np
+import pandas as pd
 from astropy.io import fits
 
 from copernican_lib.data_loaders import register_sne_parser
@@ -86,7 +87,11 @@ def parse_jla2014(
     ]
     try:
         df = pd.read_fwf(
-            filepath, colspecs=col_specs, names=col_names, dtype=str, comment="#"
+            filepath,
+            colspecs=col_specs,
+            names=col_names,
+            dtype=str,
+            comment="#",
         )
     except Exception as e:
         logger.error(f"Error reading JLA data file: {e}")

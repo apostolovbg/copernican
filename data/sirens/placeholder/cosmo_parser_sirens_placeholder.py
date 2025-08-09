@@ -2,6 +2,7 @@
 
 import logging
 import os
+
 from copernican_lib.data_loaders import register_siren_parser
 
 DATA_DIR = os.path.dirname(__file__)
@@ -13,5 +14,8 @@ def parse_siren_placeholder(data_dir, **kwargs):
     # Placeholder to keep the API consistent while actual siren datasets are
     # being prepared.
     logger = logging.getLogger()
-    logger.info(f"Standard siren parser placeholder invoked in {data_dir}. Feature not implemented.")
+    logger.info(
+        f"Standard siren parser placeholder invoked in {data_dir}. "
+        "Feature not implemented."
+    )
     return None
