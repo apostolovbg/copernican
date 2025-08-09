@@ -71,7 +71,7 @@ Under the hood the program follows a clear pipeline:
    point temporary cache files are cleaned automatically.
 
 ## Quick Start
-1. Ensure Python 3.12 or later is available. Launch the suite via the `start`
+1. Ensure Python 3.11 or later is available. Launch the suite via the `start`
    script for your platform (`start.command`, `start.bat` or `start.sh`). The
    program checks for required Python packages at startup and prints an install
    command appropriate for your OS listing only the missing packages. Running with an older Python
@@ -85,7 +85,7 @@ Under the hood the program follows a clear pipeline:
    completes.
 
 ## Dependencies
-This project requires **Python 3.12 or later** and relies on `numpy`, `scipy`, `matplotlib`,
+This project requires **Python 3.11 or later** and relies on `numpy`, `scipy`, `matplotlib`,
 `pandas`, `sympy`, `jsonschema` and `camb`. If any packages are missing the
 program prints an OS-specific install command listing only those missing packages and exits so you can install them
 manually. Running under an older Python version results in an immediate error

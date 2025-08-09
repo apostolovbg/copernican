@@ -16,6 +16,9 @@ Add one line for each substantive commit or pull request directly under the late
 - **MINOR**: backward-compatible feature additions.
 - **PATCH**: backward-compatible bug fixes and documentation updates.
 
+## Version 3.6.3
+- 2025-08-09: Lowered minimum Python version to 3.11, pinned `camb` to 1.6.2, updated CI and documentation (AI assistant)
+
 ## Version 3.6.2
 - 2025-08-09: Configured pre-commit with Black, Isort, Ruff and Flake8 and added licensing reminders to contributor docs (AI assistant)
 
