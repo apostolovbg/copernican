@@ -7,17 +7,18 @@ focused strictly on mathematical calculations without bookkeeping.
 """
 
 # At the moment the main helper ``minimize_with_progress`` wraps SciPy's
-# ``minimize`` function and prints a live progress indicator. It also tracks the
-# best solution seen so that a reasonable result is returned even if the
-# optimiser fails.
+# ``minimize`` function and prints a live progress indicator.
+# It also tracks the best solution seen so that a reasonable result is
+# returned even if the optimiser fails.
 
-from typing import Iterable, Tuple, Callable, Any, Optional, List
-import sys
-import time
 import logging
-from . import console_output as console
-from scipy.optimize import minimize
+import time
+from typing import Any, Callable, Iterable, List, Optional, Tuple
+
 import numpy as np
+from scipy.optimize import minimize
+
+from . import console_output as console
 
 
 def minimize_with_progress(
@@ -78,10 +79,13 @@ def minimize_with_progress(
             best_params[0] = list(p)
         elapsed = time.time() - start_time
         rate = (
-            f"{eval_count['count'] / elapsed:.1f} evals/s" if elapsed > 1e-6 else "--- evals/s"
+            f"{eval_count['count'] / elapsed:.1f} evals/s"
+            if elapsed > 1e-6
+            else "--- evals/s"
         )
         console.write(
-            f"  {label} Evals: {eval_count['count']:<5} | Best Chi2: {best_val[0]:.4f} | Speed: {rate:<15}",
+            f"  {label} Evals: {eval_count['count']:<5} | Best Chi2: "
+            f"{best_val[0]:.4f} | Speed: {rate:<15}",
             end="\r",
             error=True,
         )
@@ -98,10 +102,17 @@ def minimize_with_progress(
             options=options or {},
         )
     except Exception as exc:  # pragma: no cover - hard to trigger in tests
-        logger.error(f"Exception during {label.lower()} minimize call: {exc}", exc_info=True)
+        logger.error(
+            f"Exception during {label.lower()} minimize call: {exc}",
+            exc_info=True,
+        )
     finally:
         # Clear the progress line so subsequent prints start on a clean line
         console.write(" " * 80, end="\r", error=True)
-        logger.info(f"{label} optimization finished. Total evals: {eval_count['count']}.")
+        logger.info(
+            "%s optimization finished. Total evals: %s.",
+            label,
+            eval_count["count"],
+        )
 
     return result, eval_count["count"], best_val[0], best_params[0]
