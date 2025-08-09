@@ -11,6 +11,9 @@ Add one line for each substantive commit or pull request directly under the late
 ```
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
+## Version 3.5.2
+- 2025-08-09: Added cross-platform CI workflow using GitHub Actions (AI assistant)
+
 ## Version 3.5.1
 - 2025-08-08: Expanded comments across codebase, restructured plot footer documentation and enlarged technical docs (AI assistant)
 
