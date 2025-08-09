@@ -12,14 +12,6 @@ Add one line for each substantive commit or pull request directly under the late
 ## Log changes here (place the newest version directly below this line and keep one blank line. Version headers run newest to oldest, and within each version the newest entries come first):
 
 ## Unreleased
-- 2025-08-09: Wrapped long lines in `copernican_lib/plotter.py` for 79-column compliance (AI assistant)
-- 2025-08-09: Wrapped long lines in `copernican_lib/error_handler.py` for 79-column compliance (AI assistant)
-- 2025-08-09: Shortened long comment in `copernican_lib/__init__.py` (AI assistant)
-- 2025-08-09: Wrapped long lines in `copernican_lib/data_loaders.py` for 79-column compliance (AI assistant)
-- 2025-08-09: Wrapped long lines in `logger.py` for 79-column compliance (AI assistant)
-- 2025-08-09: Wrapped long lines in `latex_utils.py` for 79-column compliance (AI assistant)
-- 2025-08-09: Wrapped overly long lines in `copernican.py` to satisfy style guide (AI assistant)
-- 2025-08-09: Wrapped long lines in `copernican_lib/engine_interface.py` for 79-column compliance (AI assistant)
 
 ### Version Bump Rules
 - **MAJOR**: incompatible API changes.
@@ -27,6 +19,7 @@ Add one line for each substantive commit or pull request directly under the late
 - **PATCH**: backward-compatible bug fixes and documentation updates.
 
 ## Version 3.6.3
+- 2025-08-09: Wrapped long lines across `copernican_lib` modules and `copernican.py` for 79-column compliance (AI assistant)
 - 2025-08-09: Lowered minimum Python version to 3.11, pinned `camb` to 1.6.2, updated CI and documentation (AI assistant)
 
 ## Version 3.6.2
