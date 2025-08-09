@@ -9,11 +9,12 @@ been removed.
 # These helpers are intentionally tiny but keep repetitive tasks such as
 # timestamp generation and directory creation in one place.
 
+import logging
 import os
 import time
-import yaml
-import logging
+
 import numpy as np
+import yaml
 
 
 def get_timestamp():
@@ -21,7 +22,13 @@ def get_timestamp():
     return time.strftime("%Y%m%d_%H%M%S")
 
 
-def generate_filename(file_type, dataset_name, ext, model_name="", timestamp=None):
+def generate_filename(
+    file_type,
+    dataset_name,
+    ext,
+    model_name="",
+    timestamp=None,
+):
     """Generates a harmonized filename for all outputs.
 
     Parameters
@@ -38,17 +45,17 @@ def generate_filename(file_type, dataset_name, ext, model_name="", timestamp=Non
         Timestamp string applied to the filename. When ``None`` the current
         timestamp is generated.
     """
-    sanitized_type = file_type.replace('_', '-').lower()
-    sanitized_model = model_name.replace('_', '-').replace('.', '')
+    sanitized_type = file_type.replace("_", "-").lower()
+    sanitized_model = model_name.replace("_", "-").replace(".", "")
     # Remove whitespace, file extensions and unsafe path characters so the
     # resulting filename is portable across platforms.
     sanitized_dataset = (
-        dataset_name.replace('_', '-')
-        .replace(' ', '')
-        .replace('/', '-')
-        .replace('.yml', '')
-        .replace('.yaml', '')
-        .replace('.dat', '')
+        dataset_name.replace("_", "-")
+        .replace(" ", "")
+        .replace("/", "-")
+        .replace(".yml", "")
+        .replace(".yaml", "")
+        .replace(".dat", "")
     )
     base_name = (
         f"{sanitized_type}-{sanitized_model}-{sanitized_dataset}"
@@ -75,12 +82,14 @@ def load_metadata_from_dir(data_dir: str) -> dict:
     line-by-line fallback parser is used when the strict loader fails.
     """
     try:
+        # fmt: off
         meta_files = [
             f
             for f in os.listdir(data_dir)
             if f.startswith("metadata")
             and f.lower().endswith((".yml", ".yaml"))
         ]
+        # fmt: on
         if meta_files:
             path = os.path.join(data_dir, sorted(meta_files)[0])
             try:
