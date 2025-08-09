@@ -13,6 +13,7 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Unreleased
 
+- 2025-08-09: Formatted version and engine exports for style (AI assistant)
 - 2025-08-09: Wrapped test file imports, docstrings and assertions for 79-char compliance (AI assistant)
 - 2025-08-09: Shortened lines in `engines/cosmo_engine_comb.py` (AI assistant)
 - 2025-08-09: Wrapped long lines across data parsers for 79-character compliance (AI assistant)
