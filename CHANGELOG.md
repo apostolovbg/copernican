@@ -18,6 +18,10 @@ Add one line for each substantive commit or pull request directly under the late
 - **MINOR**: backward-compatible feature additions.
 - **PATCH**: backward-compatible bug fixes and documentation updates.
 
+## Version 3.6.4
+- 2025-08-09: Wrapped long lines in `copernican_lib/csv_writer.py` for
+  79-column compliance (AI assistant)
+
 ## Version 3.6.3
 - 2025-08-09: Wrapped long lines across `copernican_lib` modules and `copernican.py` for 79-column compliance (AI assistant)
 - 2025-08-09: Lowered minimum Python version to 3.11, pinned `camb` to 1.6.2, updated CI and documentation (AI assistant)
