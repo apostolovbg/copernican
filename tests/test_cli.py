@@ -10,7 +10,7 @@ with mock.patch("sys.version_info", (3, 12, 0)):
 
 
 class RunTestsFlagTestCase(unittest.TestCase):
-    """Verify that ``--run-tests`` delegates to ``python -m unittest discover``."""
+    """Verify that ``--run-tests`` runs ``python -m unittest`` discovery."""
 
     @mock.patch("subprocess.run")
     def test_run_startup_tests_invokes_unittest_discover(self, run_mock):

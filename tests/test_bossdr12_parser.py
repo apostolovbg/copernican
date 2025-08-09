@@ -1,21 +1,21 @@
 """Validate the BOSS DR12 BAO parser.
 
-This test confirms that the parser combines the two covariance matrices into a
-single 9x9 inverse covariance matrix and produces one row per observable at each
-of the three redshift bins. It also ensures that missing covariance files are
-reported via a ``None`` return value.
+This test confirms that the parser combines the two covariance matrices into
+a single 9x9 inverse covariance matrix and produces one row per observable at
+each of the three redshift bins. It also ensures that missing covariance files
+are reported via a ``None`` return value.
 """
 
+import importlib.util
 import os
 import shutil
 import tempfile
 import unittest
-import importlib.util
 from pathlib import Path
 
 
 class BossDR12ParserTestCase(unittest.TestCase):
-    """Exercise the ``parse_boss_dr12`` routine under normal and failure modes."""
+    """Exercise ``parse_boss_dr12`` under normal and failure modes."""
 
     @classmethod
     def setUpClass(cls):
@@ -34,7 +34,7 @@ class BossDR12ParserTestCase(unittest.TestCase):
         cls.parser = module
 
     def test_dataframe_shape_and_covariance(self):
-        """Parser should return nine observables with a 9x9 inverse covariance."""
+        """Return nine observables with a 9x9 inverse covariance."""
         df = self.parser.parse_boss_dr12(str(self.data_dir))
         self.assertIsNotNone(df)
         self.assertEqual(len(df), 9)
@@ -43,7 +43,7 @@ class BossDR12ParserTestCase(unittest.TestCase):
         self.assertEqual(cov_inv.shape, (9, 9))
 
     def test_missing_covariance_files(self):
-        """Dropping a covariance file should trigger graceful error handling."""
+        """Dropping a covariance file triggers graceful error handling."""
         # Remove the dM/Hz covariance and expect ``None``.
         with tempfile.TemporaryDirectory() as tmp:
             shutil.copytree(self.data_dir, tmp, dirs_exist_ok=True)

@@ -26,7 +26,8 @@ class EngineInterfaceTestCase(unittest.TestCase):
             "equations": {"sne": ["$$E=mc^2$$"], "bao": []},
             "cmb": {"param_map": {"H0": "H_0", "ombh2": 0.022}},
         }
-        funcs = {name: _dummy_func for name in engine_interface.REQUIRED_FUNCTIONS}
+        req = engine_interface.REQUIRED_FUNCTIONS
+        funcs = {name: _dummy_func for name in req}
         self.plugin = engine_interface.build_plugin(self.model_data, funcs)
 
     def test_plugin_validation(self):
