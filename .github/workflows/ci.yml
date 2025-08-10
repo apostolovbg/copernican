@@ -8,7 +8,13 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest] # test on major operating systems
+        include:
+          - os: ubuntu-latest
+            spec: copernican_linux.spec
+          - os: macos-latest
+            spec: copernican_macos.spec
+          - os: windows-latest
+            spec: copernican_win.spec
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -34,14 +40,14 @@ jobs:
         run: pre-commit run --all-files # fail fast on style issues
 
       - name: Execute unit tests
-        run: python copernican.py --run-tests # run suite via CLI and fail on test errors
+        run: python copernican.py --run-tests # run tests via CLI
 
       - name: Build executables
-        run: pyinstaller --onefile copernican.py # produce standalone binary
+        run: pyinstaller ${{ matrix.spec }} # produce standalone binary
 
       - name: Upload build artifacts
         if: success() # only upload when previous steps succeed
         uses: actions/upload-artifact@v4
         with:
           name: copernican-${{ matrix.os }} # differentiate artifact by OS
-          path: dist/* # PyInstaller output directory
+          path: dist/ # PyInstaller output directory
