@@ -5,6 +5,9 @@ using PyInstaller. Each provided spec file bundles the project source code so
 the resulting binary can run without an existing checkout of the repository or a
 pre-installed copy of Python.
 
+Builds should target Python 3.11 or later and include `camb==1.6.2` to match
+the suite's runtime requirements.
+
 ## Windows `.exe`
 1. Install PyInstaller: `pip install pyinstaller`.
 2. Run `pyinstaller copernican_win.spec`.
