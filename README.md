@@ -115,8 +115,10 @@ list and entry points used by Python's packaging tools. It is generated
 automatically and does not need to be tracked in version control.
 
 Standalone executables can be created with the PyInstaller spec files included
-at the repository root. See [docs/packaging.md](docs/packaging.md) for platform
-specific build commands and macOS signing instructions.
+at the repository root. macOS builds **must** target `universal2` so the bundle
+runs on both Intel and Apple Silicon. See
+[docs/packaging.md](docs/packaging.md) for platform specific build commands and
+macOS signing instructions.
 
 
 ## Directory Layout

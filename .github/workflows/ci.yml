@@ -16,6 +16,8 @@ jobs:
           - os: windows-latest
             spec: copernican_win.spec
     runs-on: ${{ matrix.os }}
+    env:
+      PYTHON: python
     defaults:
       run:
         shell: bash # use bash for consistent behaviour across platforms
@@ -24,26 +26,34 @@ jobs:
         uses: actions/checkout@v4 # pull source code
 
       - name: Set up Python
+        if: matrix.os != 'macos-latest'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11' # match minimum project requirement
 
+      - name: Install universal2 Python
+        if: matrix.os == 'macos-latest'
+        run: |
+          curl -LO https://www.python.org/ftp/python/3.11.9/python-3.11.9-macos11.pkg
+          sudo installer -pkg python-3.11.9-macos11.pkg -target /
+          echo "PYTHON=/Library/Frameworks/Python.framework/Versions/3.11/bin/python3" >> "$GITHUB_ENV"
+
       - name: Install project dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install .
+          $PYTHON -m pip install --upgrade pip
+          $PYTHON -m pip install .
 
       - name: Install tooling
-        run: pip install pre-commit pyinstaller # linting and build tools
+        run: $PYTHON -m pip install pre-commit pyinstaller # linting and build tools
 
       - name: Run pre-commit
-        run: pre-commit run --all-files # fail fast on style issues
+        run: $PYTHON -m pre-commit run --all-files # fail fast on style issues
 
       - name: Execute unit tests
-        run: python copernican.py --run-tests # run tests via CLI
+        run: $PYTHON copernican.py --run-tests # run tests via CLI
 
       - name: Build executables
-        run: pyinstaller ${{ matrix.spec }} # produce standalone binary
+        run: $PYTHON -m PyInstaller ${{ matrix.spec }} # produce standalone binary
 
       - name: Upload build artifacts
         if: success() # only upload when previous steps succeed

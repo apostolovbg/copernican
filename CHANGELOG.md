@@ -13,6 +13,10 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Unreleased
 
+## Version 3.6.10
+
+- 2025-08-10: Ensure macOS build uses universal2 Python and document requirement (AI assistant)
+
 ## Version 3.6.9
 
 - 2025-08-10: Use per-OS PyInstaller specs and archive dist/ (AI assistant)
