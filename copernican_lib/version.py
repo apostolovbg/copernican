@@ -1,31 +1,38 @@
 """Version helpers for the Copernican Suite.
 
 This module centralises retrieval of the project's version string so that
-all components report a consistent value. It queries ``importlib.metadata``
-for the installed package version and falls back to ``"0+unknown"`` when the
-metadata is missing (for example when running from an unpackaged source
-checkout). The helper avoids scattering hard-coded version numbers across the
-codebase and keeps logging and plot footers in sync with tagged releases.
+all components report a consistent value. It first queries
+``importlib.metadata`` for the installed package version and, when that
+fails, asks :func:`setuptools_scm.get_version` for a Git-derived version. A
+fallback of ``"0+unknown"`` ensures that logging and plot footers still show a
+version-like identifier even in degenerate cases. Centralising this lookup
+avoids scattering hard-coded versions across the codebase.
 """
 
 from importlib.metadata import PackageNotFoundError, version
+
+from setuptools_scm import get_version as scm_get_version
 
 PACKAGE_NAME = "copernican-suite"
 
 
 def get_version() -> str:
-    """Return the installed package version or a fallback.
+    """Return the Copernican Suite version string.
 
-    The function asks :mod:`importlib.metadata` for the version of the
-    ``copernican-suite`` distribution. When that information cannot be found,
-    a fallback string of ``"0+unknown"`` is returned so that users still see a
-    version-like identifier in logs and plot footers.
+    The function first tries :mod:`importlib.metadata` to retrieve the
+    installed distribution version. When the package is not installed, the
+    version is derived from the Git worktree using
+    :func:`setuptools_scm.get_version`. If both lookups fail, the placeholder
+    ``"0+unknown"`` is returned.
     """
 
     try:
         return version(PACKAGE_NAME)
     except PackageNotFoundError:
-        return "0+unknown"
+        try:
+            return scm_get_version(root="..", relative_to=__file__)
+        except Exception:
+            return "0+unknown"
 
 
 __all__ = ["get_version"]
