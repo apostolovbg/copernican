@@ -426,6 +426,7 @@ See `CHANGELOG.md` for complete version history.
 > 11. **Use raw strings or escape backslashes explicitly to avoid invalid escape sequence warnings in docstrings or string literals.**
 > 12. **Run `pre-commit` on all modified files before committing to enforce Black, Isort, Ruff and Flake8 checks.**
 > 13. **Do not redistribute the Copernican Suite in full or assert patent claims; the license forbids these actions.**
+> 14. **Keep individual lines under 79 characters to maintain readability.**
 >
 > Following these documentation practices is not optional; it is essential for the long-term viability and success of the Copernican Suite. Failure to follow these rules will compromise the maintainability of the Copernican Suite.
 
