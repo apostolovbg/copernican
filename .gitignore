@@ -12,3 +12,4 @@ output/
 output/.DS_Store
 .vscode/
 /.vscode
+copernican_suite.egg-info
