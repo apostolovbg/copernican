@@ -14,6 +14,7 @@ Add one line for each substantive commit or pull request directly under the late
 ## Unreleased
 
 - 2025-08-11: Declared `setuptools_scm` as a runtime dependency (AI assistant)
+- 2025-08-10: Updated README version and clarified `setuptools_scm`-based versioning (AI assistant)
 - 2025-08-10: Gracefully handle missing `setuptools_scm` by importing it lazily (AI assistant)
 - 2025-08-10: Removed tracked `copernican_suite.egg-info` and added to `.gitignore` (AI assistant)
 - 2025-08-10: Derived fallback version from Git worktree using `setuptools_scm` (AI assistant)

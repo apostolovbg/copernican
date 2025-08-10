@@ -1,5 +1,5 @@
-**Version:** 3.6.2
-**Last Updated:** 2025-08-09
+**Version:** 3.6.7
+**Last Updated:** 2025-08-10
 
 The Copernican Suite is a Python toolkit for testing cosmological models against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and Cosmic Microwave Background (CMB) data.
 Support for gravitational waves and standard siren events is planned for future releases.
@@ -375,7 +375,9 @@ The Copernican Suite is distributed under the terms of the [Copernican Suite Lic
 The project now follows [Semantic Versioning](https://semver.org/). Versions are
 listed as `MAJOR.MINOR.PATCH`, where breaking changes increment `MAJOR`, new
 features increment `MINOR` and bug fixes increment `PATCH`. Package builds use
-`setuptools_scm` to derive the version from Git tags.
+`setuptools_scm` to derive the version from Git tags, so the version string is
+never hard-coded. Runtime code should call
+`copernican_lib.version.get_version` to obtain the current version.
 
 The `MINOR` value only increases when the suite gains a new data type or a
 similarly significant feature, such as introducing CMB support or a new engine.
