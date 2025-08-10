@@ -19,11 +19,12 @@ modules are:
 - `console_output.write(msg)` – unified console printing function that is logged
   verbatim via `logger`.
 - `engines.cosmo_engine_comb` – reference engine providing high level
-  optimisation routines such as ``fit_sne_parameters``,
-  ``fit_combined_parameters``, ``calculate_bao_observables`` and generic
-  ``chi_squared_*`` helpers.  Engines are regular Python modules that
-  operate purely on data frames and plugin callables so alternative
-  backends can be developed without modifying the rest of the codebase.
+  optimisation routines such as ``fit_sne_parameters`` and
+  ``fit_combined_parameters``.  The latter accepts ``prefit_maxiter`` and
+  ``maxiter`` keyword arguments to limit optimiser iterations during unit
+  tests.  Engines operate purely on data frames and plugin callables so
+  alternative backends can be developed without modifying the rest of the
+  codebase.
 
 Plugins are validated through ``engine_interface.validate_plugin`` before
 use. Engines expect the attributes listed in

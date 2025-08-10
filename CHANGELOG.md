@@ -13,6 +13,11 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Unreleased
 
+## Version 3.6.10
+
+- 2025-08-10: Added iteration limits to combined fit and restored universal2
+  macOS build by excluding `yaml._yaml` (AI assistant)
+
 ## Version 3.6.9
 
 - 2025-08-10: Use per-OS PyInstaller specs and archive dist/ (AI assistant)

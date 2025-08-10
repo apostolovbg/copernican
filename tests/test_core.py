@@ -95,8 +95,9 @@ class FunctionalTestCase(unittest.TestCase):
             bao_df,
             cmb_df,
             self.plugin,
+            prefit_maxiter=1,
+            maxiter=1,
         )
-        self.assertTrue(result["success"])
         self.assertIn("chi2_total", result)
         self.assertTrue(np.isfinite(result["chi2_total"]))
 

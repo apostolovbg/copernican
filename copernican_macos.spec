@@ -3,7 +3,9 @@
 PyInstaller specification for building a universal2 macOS application bundle of
 the Copernican Suite. All project sources are included so the generated
 ``Copernican.app`` runs without external dependencies. The bundle may be signed
-and notarised once an Apple Developer ID is available.
+and notarised once an Apple Developer ID is available. The build excludes the
+``yaml._yaml`` extension because PyYAML distributes single-architecture wheels;
+removing it allows the pure-Python fallback to keep the bundle universal.
 """
 
 block_cipher = None
@@ -20,6 +22,7 @@ a = Analysis(
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
+    excludes=['yaml._yaml'],
     target_arch='universal2',
 )
 
