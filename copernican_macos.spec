@@ -9,8 +9,11 @@ universal2 support on macOS while remaining portable for other platforms.
 
 import sys
 
-TARGET_ARCH = "universal2" if sys.platform == "darwin" else None
-# Use host architecture on non-mac platforms to keep CI builds portable.
+# ``target_arch`` is only valid on macOS. Passing the argument on other
+# platforms causes PyInstaller to abort, so we include it conditionally and
+# propagate it through every build phase so the macOS bundle retains
+# ``universal2`` support while other platforms build natively.
+ARCH_ARGS = {"target_arch": "universal2"} if sys.platform == "darwin" else {}
 
 block_cipher = None
 
@@ -26,7 +29,7 @@ a = Analysis(
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
-    target_arch=TARGET_ARCH,
+    **ARCH_ARGS,
 )
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
@@ -40,7 +43,7 @@ exe = EXE(
     [],
     name='Copernican',
     console=False,
-    target_arch=TARGET_ARCH,
+    **ARCH_ARGS,
 )
 
 app = BUNDLE(
@@ -48,4 +51,5 @@ app = BUNDLE(
     name='Copernican.app',
     icon=None,
     bundle_identifier='org.copernican.suite',
+    **ARCH_ARGS,
 )
