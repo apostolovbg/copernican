@@ -11,7 +11,13 @@ avoids scattering hard-coded versions across the codebase.
 
 from importlib.metadata import PackageNotFoundError, version
 
-from setuptools_scm import get_version as scm_get_version
+try:
+    from setuptools_scm import get_version as scm_get_version
+except Exception:  # pragma: no cover - optional dependency missing
+    # ``setuptools_scm`` is an optional build-time helper. Importing it at
+    # runtime should not be required for basic usage, so we fall back to a
+    # ``None`` sentinel when the package is absent.
+    scm_get_version = None  # type: ignore[assignment]
 
 PACKAGE_NAME = "copernican-suite"
 
@@ -22,13 +28,16 @@ def get_version() -> str:
     The function first tries :mod:`importlib.metadata` to retrieve the
     installed distribution version. When the package is not installed, the
     version is derived from the Git worktree using
-    :func:`setuptools_scm.get_version`. If both lookups fail, the placeholder
+    :func:`setuptools_scm.get_version` if the optional dependency is available.
+    If both lookups fail or ``setuptools_scm`` is missing, the placeholder
     ``"0+unknown"`` is returned.
     """
 
     try:
         return version(PACKAGE_NAME)
     except PackageNotFoundError:
+        if scm_get_version is None:
+            return "0+unknown"
         try:
             return scm_get_version(root="..", relative_to=__file__)
         except Exception:
