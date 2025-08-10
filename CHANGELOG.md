@@ -13,6 +13,10 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Unreleased
 
+## Version 3.6.9
+
+- 2025-08-10: Use per-OS PyInstaller specs and archive dist/ (AI assistant)
+
 ## Version 3.6.8
 
 - 2025-08-10: Prepared 3.6.8 release and opened new Unreleased section (AI assistant)
