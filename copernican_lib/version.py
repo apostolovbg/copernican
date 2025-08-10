@@ -13,10 +13,10 @@ from importlib.metadata import PackageNotFoundError, version
 
 try:
     from setuptools_scm import get_version as scm_get_version
-except Exception:  # pragma: no cover - optional dependency missing
-    # ``setuptools_scm`` is an optional build-time helper. Importing it at
-    # runtime should not be required for basic usage, so we fall back to a
-    # ``None`` sentinel when the package is absent.
+except Exception:  # pragma: no cover - dependency missing
+    # ``setuptools_scm`` is listed as a runtime dependency, but guard the
+    # import so source-only checkouts can still run the suite after installing
+    # requirements manually.
     scm_get_version = None  # type: ignore[assignment]
 
 PACKAGE_NAME = "copernican-suite"
