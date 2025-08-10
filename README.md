@@ -86,9 +86,10 @@ Under the hood the program follows a clear pipeline:
 
 ## Dependencies
 This project requires **Python 3.11 or later** and relies on `numpy`, `scipy`, `matplotlib`,
-`pandas`, `sympy`, `jsonschema` and `camb`. If any packages are missing the
-program prints an OS-specific install command listing only those missing packages and exits so you can install them
-manually. Running under an older Python version results in an immediate error
+`pandas`, `sympy`, `jsonschema` and `camb==1.6.2`.
+If any packages are missing the program prints an OS-specific install command
+listing only those missing packages and exits so you can install them manually.
+Running under an older Python version results in an immediate error
 and exit code 1. Future engines may also depend on `numba` or GPU libraries.
  
 ## Building & Installation
