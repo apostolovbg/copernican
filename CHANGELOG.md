@@ -13,6 +13,9 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Unreleased
 
+## Version 3.6.8
+
+- 2025-08-10: Prepared 3.6.8 release and opened new Unreleased section (AI assistant)
 - 2025-08-10: Added 79-char line-length rule to development laws (AI assistant)
 - 2025-08-11: Declared `setuptools_scm` as a runtime dependency (AI assistant)
 - 2025-08-10: Updated README version and clarified `setuptools_scm`-based versioning (AI assistant)
