@@ -19,6 +19,9 @@ entries come first):
 
 ## Unreleased
 
+## Version 3.6.12
+
+- 2025-08-11: Prepared 3.6.12 release and opened new Unreleased section (AI assistant)
 - 2025-08-11: Set formatter line length to 79 and wrap existing lines (AI
   assistant)
 - 2025-08-11: Load BAO parser via importlib in tests to avoid package import
