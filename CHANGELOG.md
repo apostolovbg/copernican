@@ -13,6 +13,8 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Unreleased
 
+- 2025-08-11: Set formatter line length to 79 and wrap existing lines (AI assistant)
+
 ## Version 3.6.11
 
 - 2025-08-11: Update documentation version strings to 3.6.11 (AI assistant)
