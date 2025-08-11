@@ -13,6 +13,9 @@ Add one line for each substantive commit or pull request directly under the late
 
 ## Unreleased
 
+## Version 3.6.11
+
+- 2025-08-11: Update documentation version strings to 3.6.11 (AI assistant)
 - 2025-08-11: Remove ``target_arch`` from macOS spec on non-mac systems to
   fix Linux and Windows CI builds (AI assistant)
 - 2025-08-11: Make macOS PyInstaller spec use universal2 only on macOS to
