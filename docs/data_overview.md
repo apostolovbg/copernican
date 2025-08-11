@@ -1,6 +1,7 @@
 # Data Directory Overview
 
-This document explains the layout of the `data/` directory and the role of the parser scripts stored with each dataset.
+This document explains the layout of the `data/` directory and the role of the
+parser scripts stored with each dataset.
 
 ```
 data/
@@ -11,9 +12,14 @@ data/
   sirens/     - Standard siren events (placeholder)
 ```
 
-Note: The `gw` and `sirens` parsers are stubs that return `None`. Real data support is under development.
-Each subdirectory contains one or more dataset sources. A Python file named `cosmo_parser_*.py` lives inside each source folder and registers a parser function via decorators from `copernican_lib.data_loaders`.
-Folders named `placeholder` are ignored during automatic discovery so work-in-progress datasets do not appear in interactive menus. When a dataset becomes usable simply rename the folder and supply a valid parser and metadata file.
+Note: The `gw` and `sirens` parsers are stubs that return `None`. Real data
+support is under development.
+Each subdirectory contains one or more dataset sources. A Python file named
+`cosmo_parser_*.py` lives inside each source folder and registers a parser
+function via decorators from `copernican_lib.data_loaders`.
+Folders named `placeholder` are ignored during automatic discovery so work-in-
+progress datasets do not appear in interactive menus. When a dataset becomes
+usable simply rename the folder and supply a valid parser and metadata file.
 
 Every dataset folder also provides a `metadata_*.yml` describing the
 source. Fields such as `dataset_name`, `description`, `citation`, the full
@@ -29,24 +35,42 @@ files remain read-only.
 ## Supernovae Datasets
 
 ### JLA Betoule+2014
-*Source:* "Improved cosmological constraints from a joint analysis of the SDSS-II and SNLS supernova samples" (Betoule et al. 2014).
+*Source:* "Improved cosmological constraints from a joint analysis of the
+SDSS-
+II and SNLS supernova samples" (Betoule et al. 2014).
 *Location:* `data/sne/jla2014/`.
-*Parser:* `cosmo_parser_jla2014.py` reads `tablef3.dat`, projects the SALT2 parameter covariance from `tablef4.fit` to distance-modulus space, adds the diagonal statistical errors and stores the inverse of the total covariance matrix. The parser uses the published nuisance parameters \(M_B=-19.05\), \(\alpha=0.141\) and \(\beta=3.101\) by default.
+*Parser:* `cosmo_parser_jla2014.py` reads `tablef3.dat`, projects the SALT2
+parameter covariance from `tablef4.fit` to distance-modulus space, adds the
+diagonal statistical errors and stores the inverse of the total covariance
+matrix. The parser uses the published nuisance parameters \(M_B=-19.05\),
+\(\alpha=0.141\) and \(\beta=3.101\) by default.
 
 ### Pantheon+ 2022 (Scolnic et al.)
 *Source:* Pantheon+SH0ES data release (Scolnic et al. 2022).
-*Parser:* `cosmo_parser_pantheon.py` loads `Pantheon+SH0ES.dat` together with its
-full covariance matrix.  Unlike JLA, the distance moduli are already provided so
+*Parser:* `cosmo_parser_pantheon.py` loads `Pantheon+SH0ES.dat` together with
+its
+full covariance matrix.  Unlike JLA, the distance moduli are already provided
+so
 no SALT2 nuisance parameters are required. The parser sorts the supernovae by
-redshift and reorders the covariance matrix accordingly before inverting it. The
+redshift and reorders the covariance matrix accordingly before inverting it.
+The
 inverse covariance is stored on the returned DataFrame.
 
 ## BAO Datasets
 
 ### BOSS DR12 BAO Consensus (Alam et al. 2017)
-*Source:* "The clustering of galaxies in the completed SDSS-III Baryon Oscillation Spectroscopic Survey" (Alam et al. 2017).
+*Source:* "The clustering of galaxies in the completed SDSS-III Baryon
+Oscillation Spectroscopic Survey" (Alam et al. 2017).
 *Location:* `data/bao/bossdr12/`.
-*Parser:* `cosmo_parser_bossdr12.py` combines the published $dM(rs_{\rm fid}/r_s)$, $Hz(r_s/rs_{\rm fid})$, $D_V/r_s$ and $F_{AP}$ measurements. The public [SDSS DR12 archive](https://data.sdss.org/sas/dr12/boss/) provides separate covariance matrices for the $dM/Hz$ and $D_V/F_{AP}$ sets but no joint covariance. Following the parser's block-diagonal rationale, these are assembled into a $9\times9$ matrix assuming the two inputs are uncorrelated and then converted to $D_M/r_s$, $D_H/r_s$ and $D_V/r_s$.
+*Parser:* `cosmo_parser_bossdr12.py` combines the published $dM(rs_{\rm
+fid}/r_s)$, $Hz(r_s/rs_{\rm fid})$, $D_V/r_s$ and $F_{AP}$ measurements. The
+public [SDSS DR12 archive](https://data.sdss.org/sas/dr12/boss/) provides
+separate covariance matrices for the $dM/Hz$ and $D_V/F_{AP}$ sets but no
+joint
+covariance. Following the parser's block-diagonal rationale, these are
+assembled into a $9\times9$ matrix assuming the two inputs are uncorrelated
+and
+then converted to $D_M/r_s$, $D_H/r_s$ and $D_V/r_s$.
 
 ## CMB Datasets
 
@@ -55,15 +79,20 @@ inverse covariance is stored on the returned DataFrame.
 *Location:* `data/cmb/planck2018lite/`.
 *Parser:* `cosmo_parser_cmb_planck2018lite.py` loads the temperature and
 polarisation spectra, the compressed covariance matrix and the beam window
-functions. The parser attaches these arrays to `df.attrs` so engines can compute
+functions. The parser attaches these arrays to `df.attrs` so engines can
+compute
 likelihoods without invoking external tools like CAMB.
 
 ## Adding New Datasets
 
-To add a new dataset create a `data/<type>/<source>/` directory, place your raw
-tables inside and implement `cosmo_parser_<source>.py`. The parser should return
+To add a new dataset create a `data/<type>/<source>/` directory, place your
+raw
+tables inside and implement `cosmo_parser_<source>.py`. The parser should
+return
 a `pandas.DataFrame` with observations and attach any auxiliary arrays to
 `df.attrs`. Document the dataset in `metadata_<source>.yml` with a
-`dataset_name`, a plain-language `description` and the full `citation`. Once the
-folder no longer carries the `placeholder` name it will appear automatically in
+`dataset_name`, a plain-language `description` and the full `citation`. Once
+the
+folder no longer carries the `placeholder` name it will appear automatically
+in
 the interactive menus.

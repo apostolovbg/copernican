@@ -35,10 +35,12 @@ xcrun notarytool submit dist/copernican.dmg --apple-id YOUR_ID@example.com \
 xcrun stapler staple dist/Copernican.app
 ```
 
-These steps sign the application, submit it to Apple for notarization and staple
+These steps sign the application, submit it to Apple for notarization and
+staple
 the approval ticket so the app runs without security prompts.
 
 ## Linux self-contained binary
 1. Install PyInstaller: `pip install pyinstaller`.
 2. Run `pyinstaller copernican_linux.spec`.
-3. The `dist/copernican` file is a one-file binary containing the full project source.
+3. The `dist/copernican` file is a one-file binary containing the full project
+   source.

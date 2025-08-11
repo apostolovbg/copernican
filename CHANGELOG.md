@@ -5,7 +5,7 @@ date when logging new changes, and datestamp them with a current date! Don't
 put dates that are in the future or in the past! Follow this template:
 ```
 ## Version 1.1.0
-- 2025-05-27: Added plotting and CSV (Apostol Apostolov) 
+- 2025-05-27: Added plotting and CSV (Apostol Apostolov)
 
 ## Version 1.0.0
 - 2025-05-26: Debugged copernican.py script (AI assistant)
@@ -19,10 +19,14 @@ entries come first):
 
 ## Unreleased
 
+- 2025-08-11: Wrapped long lines across docs and scripts for readability (AI
+  assistant)
+
 ## Version 3.6.12
 
 - 2025-08-11: Update documentation version strings to 3.6.12 (AI assistant)
-- 2025-08-11: Prepared 3.6.12 release and opened new Unreleased section (AI assistant)
+- 2025-08-11: Prepared 3.6.12 release and opened new Unreleased section (AI
+  assistant)
 - 2025-08-11: Set formatter line length to 79 and wrap existing lines (AI
   assistant)
 - 2025-08-11: Load BAO parser via importlib in tests to avoid package import
@@ -37,7 +41,7 @@ entries come first):
   prevent CI failures (AI assistant)
 - 2025-08-11: Propagate ``target_arch`` to the macOS bundle to keep universal2
   builds working (AI assistant)
-  
+
 ## Version 3.6.10
 
 - 2025-08-10: Fix CI pre-commit invocation to use correct module name (AI
@@ -53,15 +57,18 @@ entries come first):
 
 - 2025-08-10: Prepared 3.6.8 release and opened new Unreleased section (AI
   assistant)
-- 2025-08-10: Added 79-char line-length rule to development laws (AI assistant)
+- 2025-08-10: Added 79-char line-length rule to development laws (AI
+  assistant)
 - 2025-08-11: Declared `setuptools_scm` as a runtime dependency (AI assistant)
 - 2025-08-10: Updated README version and clarified `setuptools_scm`-based
   versioning (AI assistant)
-- 2025-08-10: Gracefully handle missing `setuptools_scm` by importing it lazily
+- 2025-08-10: Gracefully handle missing `setuptools_scm` by importing it
+  lazily
   (AI assistant)
 - 2025-08-10: Removed tracked `copernican_suite.egg-info` and added to
   `.gitignore` (AI assistant)
-- 2025-08-10: Derived fallback version from Git worktree using `setuptools_scm`
+- 2025-08-10: Derived fallback version from Git worktree using
+  `setuptools_scm`
   (AI assistant)
 - 2025-08-09: Formatted version and engine exports for style (AI assistant)
 - 2025-08-09: Wrapped test file imports, docstrings and assertions for 79-char
@@ -114,7 +121,8 @@ entries come first):
   suite on every push (AI assistant)
 
 ## Version 3.6.0
-- 2025-08-09: Centralised version handling via `copernican_lib.version`, routed
+- 2025-08-09: Centralised version handling via `copernican_lib.version`,
+  routed
   modules through the helper, configured `setuptools_scm` fallback and
   documented SemVer bump rules (AI assistant)
 
@@ -133,7 +141,8 @@ entries come first):
 ## Version 3.5.0
 - 2025-08-07: Added comprehensive development plan summarizing project goals
   (AI assistant)
-- 2025-08-05: Expanded subscript and superscript tables to cover full Latin and
+- 2025-08-05: Expanded subscript and superscript tables to cover full Latin
+  and
   Greek alphabets, digits and common operators; updated docs and bumped
   version (AI assistant)
 
@@ -150,7 +159,8 @@ entries come first):
   bumped version (AI assistant)
 
 ## Version 3.4.1
-- 2025-08-04: Added rule requiring concise, descriptive function and identifier
+- 2025-08-04: Added rule requiring concise, descriptive function and
+  identifier
   names and synchronized documentation (AI assistant)
 
 ## Version 3.4.0
@@ -215,7 +225,8 @@ entries come first):
   files and documented LaTeX syntax (AI assistant)
 
 ## Version 3.0.1
-- 2025-07-31: Fixed CAMB parameter map exponent syntax in cosmo_model_usmf2.yml
+- 2025-07-31: Fixed CAMB parameter map exponent syntax in
+  cosmo_model_usmf2.yml
   to prevent runtime errors (AI assistant)
 
 ## Version 3.0.0
@@ -233,7 +244,8 @@ entries come first):
   parsing (AI assistant)
 - 2025-07-30: Expanded inline comments and documentation to clarify workflow
   logic (AI assistant)
-- 2025-07-30: Synchronized development laws between README.md and AGENTS.md (AI
+- 2025-07-30: Synchronized development laws between README.md and AGENTS.md
+  (AI
   assistant)
 - 2025-07-30: Removed unused JLA covariance fallback logic (AI assistant)
 
@@ -304,11 +316,13 @@ entries come first):
   models and documentation (AI assistant)
 
 ## Version 1.18.0
-- 2025-07-28: Removed math delimiters and double backslash requirement in model
+- 2025-07-28: Removed math delimiters and double backslash requirement in
+  model
   files; added implicit multiplication (AI assistant)
 
 ## Version 1.17.0
-- 2025-07-28: Extended latex_mappings with extra symbols, functions and macros;
+- 2025-07-28: Extended latex_mappings with extra symbols, functions and
+  macros;
   bumped version (AI assistant)
 
 ## Version 1.16.0
@@ -316,7 +330,8 @@ entries come first):
   assistant)
 
 ## Version 1.15.0
-- 2025-07-28: Added automatic python_var generation and improved LaTeX handling
+- 2025-07-28: Added automatic python_var generation and improved LaTeX
+  handling
   (AI assistant)
 
 ## Version 1.14.11
@@ -363,7 +378,8 @@ entries come first):
   assistant)
 
 ## Version 1.14.2
-- 2025-07-26: Lightened grid lines, widened plot margins and fixed BAO info box
+- 2025-07-26: Lightened grid lines, widened plot margins and fixed BAO info
+  box
   equation parsing (AI assistant)
 
 ## Version 1.14.1
@@ -379,7 +395,8 @@ entries come first):
   assistant)
 
 ## Version 1.13.1
-- 2025-07-25: Renamed test BAO dataset and updated documentation (AI assistant)
+- 2025-07-25: Renamed test BAO dataset and updated documentation (AI
+  assistant)
 
 ## Version 1.13.0
 - 2025-07-24: Enforced automatic SemVer bumps and updated version references
@@ -390,13 +407,15 @@ entries come first):
   folder and added CONTRIBUTING guide (AI assistant)
 
 ## Version 1.12.8
-- 2025-07-19: Updated logger to avoid duplicate console output and capture user
+- 2025-07-19: Updated logger to avoid duplicate console output and capture
+  user
   input (AI assistant)
 - 2025-07-19: Footer lines now rendered with smaller font to prevent overlap
   (AI assistant)
 
 ## Version 1.12.7
-- 2025-07-16: Log now records console output verbatim and strips absolute paths
+- 2025-07-16: Log now records console output verbatim and strips absolute
+  paths
   (AI assistant)
 
 ## Version 1.12.6
@@ -406,27 +425,32 @@ entries come first):
 ## Version 1.12.5
 - 2025-07-16: Ignored virtual env directories when scanning imports for
   dependency check (AI assistant)
-- 2025-07-16: Removed automatic dependency installation and virtual environment
+- 2025-07-16: Removed automatic dependency installation and virtual
+  environment
   logic (AI assistant)
 - 2025-07-16: Implemented BAO residual plots with smoothed averages (AI
   assistant)
-- 2025-07-16: Added smoothed residual averages to all plots and extended footer
+- 2025-07-16: Added smoothed residual averages to all plots and extended
+  footer
   wrapping (AI assistant)
 - 2025-07-16: Dependency check now prints install command with only missing
   packages (AI assistant)
 - 2025-07-16: Dependency checker parses imports via AST and prints OS-aware
   install instructions (AI assistant)
-- 2025-07-16: Fixed logger crash and missing AST import in dependency check (AI
+- 2025-07-16: Fixed logger crash and missing AST import in dependency check
+  (AI
   assistant)
 
 ## Version 1.12.4
-- 2025-07-15: Fixed CMB spectrum scaling bug and added Dl verification test (AI
+- 2025-07-15: Fixed CMB spectrum scaling bug and added Dl verification test
+  (AI
   assistant)
 - 2025-07-15: Updated documentation and developer guide with raw string rule
   (AI assistant)
 - 2025-07-15: Converted math docstrings to raw strings to silence escape
   warnings (AI assistant)
-- 2025-07-15: Fixed dependency check for Python 3.13 `find_spec` ValueError (AI
+- 2025-07-15: Fixed dependency check for Python 3.13 `find_spec` ValueError
+  (AI
   assistant)
 
 ## Version 1.12.3
@@ -453,13 +477,15 @@ entries come first):
 - 2025-07-09: Simplified plot footers and updated documentation (AI assistant)
 
 ## Version 1.11.7
-- 2025-07-09: Renamed Pantheon+ files and made parser auto-detect dataset names
+- 2025-07-09: Renamed Pantheon+ files and made parser auto-detect dataset
+  names
   (AI assistant)
 - 2025-07-09: Moved chi-squared helpers back into the engine and removed
   chi2_helper module (AI assistant)
 
 ## Version 1.11.6
-- 2025-07-09: Removed deprecated 1.4b and numba engines and set combined engine
+- 2025-07-09: Removed deprecated 1.4b and numba engines and set combined
+  engine
   as default (AI assistant)
 
 ## Version 1.11.5
@@ -477,7 +503,8 @@ entries come first):
   parser updated (AI assistant)
 
 ## Version 1.11.3
-- 2025-07-07: Fixed missing extra CMB parameters in run_cmb_analysis and bumped
+- 2025-07-07: Fixed missing extra CMB parameters in run_cmb_analysis and
+  bumped
   version (AI assistant)
 
 ## Version 1.11.2
@@ -526,7 +553,8 @@ entries come first):
   (AI assistant)
 - 2025-07-07: Revised AGENTS overview and expanded README with developer guide
   (AI assistant)
-- 2025-07-07: Fixed test discovery and matplotlib cleanup in run-tests mode (AI
+- 2025-07-07: Fixed test discovery and matplotlib cleanup in run-tests mode
+  (AI
   assistant)
 
 ## Version 1.8.3-beta (Development Release)
@@ -602,7 +630,8 @@ entries come first):
 - 2025-07-05: Updated documentation and model guide. (AI assistant)
 - 2025-07-05: Clarified CMB requirements in cosmo_model_guide and bumped guide
   version. (AI assistant)
-- 2025-07-05: Documented automatic startup test suite in README. (AI assistant)
+- 2025-07-05: Documented automatic startup test suite in README. (AI
+  assistant)
 
 ## Version 1.7.4-beta (Development Release)
 - 2025-07-05: Fixed unit conversion (K\u00b2 \u2192 \u03bcK\u00b2) by applying
@@ -613,7 +642,8 @@ entries come first):
 ## Version 1.7.3-beta (Development Release)
 - 2025-07-05: Fixed Planck covariance reader for ASCII data and ensured CMB
   parameters use SNe best-fit values (AI assistant)
-- 2025-07-05: Corrected Planck covariance parsing for binary Fortran record (AI
+- 2025-07-05: Corrected Planck covariance parsing for binary Fortran record
+  (AI
   assistant)
 - 2025-07-05: Re-added integral expression support using numerical quadrature
   (AI assistant)
@@ -625,7 +655,8 @@ entries come first):
 
 ## Version 1.7.2-beta (Development Release)
 - 2025-07-05: Fixed Planck covariance parser using np.loadtxt (AI assistant)
-- 2025-07-05: Added default CAMB parameter mapping from SNe fits (AI assistant)
+- 2025-07-05: Added default CAMB parameter mapping from SNe fits (AI
+  assistant)
 - 2025-07-05: Handled binary Planck covariance matrix fallback (AI assistant)
 
 ## Version 1.7.1-beta (Development Release)
@@ -663,7 +694,8 @@ entries come first):
 - 2025-06-23: Fixed plot info boxes to display equations from the selected
   alternative theory and ensured Greek letters render correctly (AI
   assistant)
-- 2025-06-23: Updated README and AGENTS documentation for corrected JSON schema
+- 2025-06-23: Updated README and AGENTS documentation for corrected JSON
+  schema
   and version bump (AI assistant)
 
 ## Version 1.6.4 (Patch Release)
@@ -729,9 +761,11 @@ entries come first):
   gravitational waves and standard sirens. Added placeholder parser modules
   and loader functions for these data types.
 - Updated documentation for version 1.5f.
-- Hotfix 5: Removed automatic dependency installer. Users are now instructed to
+- Hotfix 5: Removed automatic dependency installer. Users are now instructed
+  to
   run a printed `pip install` command when packages are missing.
-- Hotfix 7: `Hz_expression` added to JSON models and compiled automatically for
+- Hotfix 7: `Hz_expression` added to JSON models and compiled automatically
+  for
   distance predictions.
 - Hotfix 8: Sound horizon `r_s` is now computed automatically when possible
   using
@@ -754,12 +788,14 @@ entries come first):
   packages are missing.
 
 ## Version 1.5c (Development Release)
-- Completed Phase 3: engine_interface now validates plugins and engines use the
+- Completed Phase 3: engine_interface now validates plugins and engines use
+  the
   new abstraction layer.
 - Updated documentation and headers for version 1.5c.
 
 ## Version 1.5b (Development Release)
-- Completed Phase 2: parser caches validated JSON and coder generates callables
+- Completed Phase 2: parser caches validated JSON and coder generates
+  callables
   with sanity checks.
 - Updated documentation and headers for version 1.5b.
 
