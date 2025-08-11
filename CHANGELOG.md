@@ -19,6 +19,8 @@ entries come first):
 
 ## Unreleased
 
+- 2025-08-11: Improve CI to export Python path, build universal2 macOS
+  binaries and verify Copernican.app artifact (AI assistant)
 - 2025-08-11: Wrapped long lines across docs and scripts for readability (AI
   assistant)
 
