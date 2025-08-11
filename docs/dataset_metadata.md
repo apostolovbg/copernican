@@ -8,7 +8,8 @@ source. All fields are optional except for `dataset_name` and
   footers and CSV headers. Footers preserve the original spacing; a
   sanitized variant is generated separately for filenames.
 - `description` -- Brief explanation of the dataset origin.
-- `citation` -- Formatted as "FirstAuthor et al. - J. Vol (Year) Pages - DOI: URL".
+- `citation` -- Formatted as "FirstAuthor et al. - J. Vol (Year) Pages - DOI:
+  URL".
 - `author` -- Full author list from the publication.
 - `title` -- Publication title.
 - `article` -- BibTeX citation key.
@@ -23,7 +24,9 @@ source. All fields are optional except for `dataset_name` and
 - `year` -- Publication year.
 - `month` -- Publication month (three-letter abbreviation).
 - `pages` -- Page range or article number.
-- `notes` -- Additional free-form comments displayed on the second line of plot footers.
+- `notes` -- Additional free-form comments displayed on the second line of
+  plot
+  footers.
 
 The metadata file is loaded automatically by the data loaders via
 `copernican_lib.utils.load_metadata_from_dir` after the parser returns and

@@ -4,7 +4,8 @@
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
 Cosmic Microwave Background (CMB) data.
-Support for gravitational waves and standard siren events is planned for future
+Support for gravitational waves and standard siren events is planned for
+future
 releases.
 The suite provides a modular architecture so new models, data parsers and
 computational engines can be plugged in with minimal effort.
@@ -83,11 +84,13 @@ parsers are discovered automatically under
 ## Quick Start
 1. Ensure Python 3.11 or later is available. Launch the suite via the `start`
    script for your platform (`start.command`, `start.bat` or `start.sh`). The
-   program checks for required Python packages at startup and prints an install
+   program checks for required Python packages at startup and prints an
+install
    command appropriate for your OS listing only the missing packages. Running
 with an older Python
    version will print an error and exit immediately.
-2. Follow the interactive prompts to choose a model, preferred data sources and
+2. Follow the interactive prompts to choose a model, preferred data sources
+   and
    computation engine.
 3. Execute `python3 copernican.py --run-tests` or run `python -m unittest
    discover`
@@ -102,10 +105,11 @@ This project requires **Python 3.11 or later** and relies on `numpy`, `scipy`,
 `matplotlib`,
 `pandas`, `sympy`, `jsonschema` and `camb==1.6.2`.
 If any packages are missing the program prints an OS-specific install command
-listing only those missing packages and exits so you can install them manually.
+listing only those missing packages and exits so you can install them
+manually.
 Running under an older Python version results in an immediate error
 and exit code 1. Future engines may also depend on `numba` or GPU libraries.
- 
+
 ## Building & Installation
 Windows users should open `start.bat`, macOS users should run `start.command`,
 and Linux users can execute `start.sh`.  These helpers simply run
@@ -130,9 +134,11 @@ list and entry points used by Python's packaging tools. It is generated
 automatically and does not need to be tracked in version control.
 
 Standalone executables can be created with the PyInstaller spec files included
-at the repository root. macOS builds **must** target `universal2` so the bundle
+at the repository root. macOS builds **must** target `universal2` so the
+bundle
 runs on both Intel and Apple Silicon. See
-[docs/packaging.md](docs/packaging.md) for platform specific build commands and
+[docs/packaging.md](docs/packaging.md) for platform specific build commands
+and
 macOS signing instructions.
 
 
@@ -176,7 +182,8 @@ functions to a lightweight plugin object that exposes a stable API. Every
 engine
 operates solely through this plugin and decides how parameters are fitted. The
 main workflow simply loads the plugin, selects an engine from `./engines/` and
-invokes its functions. New engines can therefore implement alternate strategies
+invokes its functions. New engines can therefore implement alternate
+strategies
 —such as SNe-only fits or fully combined optimisations—without modifying the
 rest of the codebase.
 Generic chi-squared helpers are now part of `engines/cosmo_engine_comb.py`
@@ -190,7 +197,8 @@ the same CMB calculation regardless of their own fitting scheme.
 
 ## Using the Suite
 - The program discovers available models from `models/cosmo_model_*.yml`.
- - Data sources for SNe, BAO and CMB are chosen interactively. Once a source is
+ - Data sources for SNe, BAO and CMB are chosen interactively. Once a source
+   is
    selected, its parser and files are loaded automatically from
    `data/<type>/<source>/`. The CMB loader now understands TT, TE and EE
    spectra with full covariance so additional datasets can be dropped in with
@@ -201,7 +209,8 @@ archive](https://data.sdss.org/sas/dr12/boss/) does not provide a
   joint covariance matrix for these observables, so `cosmo_parser_bossdr12.py`
   follows a block-diagonal approach that assumes the $dM/Hz$ and $D_V/F_{AP}$
   sets are uncorrelated.
-- Engines are selected interactively from the `engines/` directory. Parsers are
+- Engines are selected interactively from the `engines/` directory. Parsers
+  are
   discovered automatically when their source folders are imported.
 - After each run you may choose to evaluate another model or exit. Cache files
   are cleaned automatically.
@@ -225,7 +234,8 @@ the official dataset description and citation. Individual parsers never access
 metadata files directly.
 
 During configuration each loader prints a summary indicating whether the
-dataset's covariance matrix was inverted successfully or if diagonal errors are
+dataset's covariance matrix was inverted successfully or if diagonal errors
+are
 being used. When generating file names the suite sanitizes dataset names,
 replacing spaces and characters like ``/`` with hyphens so output paths remain
 portable across operating systems.
@@ -253,13 +263,15 @@ multiplication
 6. Backslashes may be written normally; the parser automatically escapes them
    so
    LaTeX commands like `\frac` work without doubled characters.
-7. Expressions may include `Integral(...)` terms with explicit limits. They are
+7. Expressions may include `Integral(...)` terms with explicit limits. They
+   are
    evaluated numerically with SciPy's `quad` when the model is loaded.
 8. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
 9. Every parameter must define a `latex_name`. When a `python_var` field is
    omitted, a valid identifier is derived automatically from this LaTeX name.
-10. `latex_name` values do not require `$` delimiters. Plots automatically wrap
+10. `latex_name` values do not require `$` delimiters. Plots automatically
+    wrap
    parameter names in math mode.
 11. Console and log outputs display parameter names with Greek letters,
     subscripts and superscripts when possible for easier reading.
@@ -272,16 +284,18 @@ multiplication
 * Using `oo` for infinite limits fails; write `\infty` instead.
 * Referencing `H(z)` inside `rs_expression` is unsupported—repeat the formula
   or rely on the fallback parameters.
-   
+
 The LaTeX parser supports a subset of math syntax including `\frac`,
 subscripts and superscripts, common functions (`\log`, `\ln`, `\exp`, `\sin`,
 `\cos`, `\tan`, `\csc`, `\sec`, `\cot`, `\arcsin`, `\arccos`, `\arctan`,
 `\sinh`, `\cosh`, `\tanh`, `\coth`, `\sech`, `\csch`, `\arcsinh`, `\arccosh`,
-`\arctanh`, `\sqrt`, `\abs`, `\floor`, `\ceil`), Greek letters such as `\alpha`
+`\arctanh`, `\sqrt`, `\abs`, `\floor`, `\ceil`), Greek letters such as
+`\alpha`
 and `\beta`, and
 macros that adjust bracket size like `\left`, `\right`, `\bigl` and `\bigr`.
 Thin spaces (`\,`) and font switches (`\rm`) are ignored. Unsupported sizing
-macros are removed from plot labels to keep Matplotlib's MathText parser happy.
+macros are removed from plot labels to keep Matplotlib's MathText parser
+happy.
 All sanitisation rules now live in `copernican_lib/latex_utils.py` with
 extensible mappings stored in `latex_mappings.yml`. Expressions may also
 contain `Integral` constructs with explicit limits which are numerically
@@ -362,7 +376,8 @@ entry using the template `- YYYY-MM-DD: short summary (author)`.
 Legacy `dev_note` headers embedded in source files have been removed in favour
 of changelog entries.
 Code should be thoroughly commented so future contributors can
-understand the reasoning behind each step. The documentation in `README.md` and
+understand the reasoning behind each step. The documentation in `README.md`
+and
 `AGENTS.md` must be updated whenever behavior or structure changes.
 See `CHANGELOG.md` for the complete project history.
 The short file `CONTRIBUTING.md` summarises the basic workflow for submitting
@@ -405,7 +420,8 @@ All engines import progress helpers from `copernican_lib/optim_utils.py` so
 that
 evaluation counting and reporting remain consistent across backends.
 
-New models are described entirely by YAML. Copy an existing file from `models/`
+New models are described entirely by YAML. Copy an existing file from
+`models/`
 and consult `cosmo_model_template.yml` for the full schema. Additional engines
 may
 be placed under `engines/` and must follow the interface in
@@ -430,26 +446,32 @@ never hard-coded. Runtime code should call
 `copernican_lib.version.get_version` to obtain the current version.
 
 The `MINOR` value only increases when the suite gains a new data type or a
-similarly significant feature, such as introducing CMB support or a new engine.
-Routine bug fixes and small feature restorations bump the `PATCH` value without
+similarly significant feature, such as introducing CMB support or a new
+engine.
+Routine bug fixes and small feature restorations bump the `PATCH` value
+without
 altering `MAJOR.MINOR`.
 
 ## 4. Workflow Overview
 
 1.  **Dependency Check**: `copernican.py` scans for missing packages and
-    prints an OS-specific install command containing only those packages if any
+    prints an OS-specific install command containing only those packages if
+any
 are absent.
 2.  **Optional Tests**: Run `copernican.py --run-tests` to execute the
     functional test suite and verify that the LCDM model and data parsers work
     as expected. This flag performs unittest discovery over the `tests`
 package.
-3.  **Initialization**: The script starts and creates the `./output/` directory
+3.  **Initialization**: The script starts and creates the `./output/`
+    directory
     for all results.
 4.  **Random Seed Setup**: The global NumPy RNG is seeded so any stochastic
     algorithms remain reproducible. The chosen seed is written to the log.
-5.  **Configuration**: The user specifies the file paths for the model and data
+5.  **Configuration**: The user specifies the file paths for the model and
+    data
     files.
-6.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the ΛCDM
+6.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the
+    ΛCDM
     model and the alternative model to the SNe Ia data. When
     `cosmo_engine_comb.py` is selected this step refines the parameters
     before the full joint optimisation.
@@ -480,12 +502,16 @@ between development sessions, a strict commenting and documentation standard
 must be followed. The `AGENTS.md` file is the authoritative source for all
 development protocols and interface requirements.
 >
-> 1. **Summarize every change in `CHANGELOG.md` using the changelog template.**
+> 1. **Summarize every change in `CHANGELOG.md` using the changelog
+> template.**
 Legacy `dev_note` headers should be migrated to the changelog when touched.
-> 2. **Comment the code extensively.** Explain the "why" as well as the "what",
-clarifying both obvious and non-obvious, simple or complex logic or algorithms.
+> 2. **Comment the code extensively.** Explain the "why" as well as the
+> "what",
+clarifying both obvious and non-obvious, simple or complex logic or
+algorithms.
 > 3. **Keep comments synchronized with the actual code.** Whenever behaviour
-changes, update all nearby comments immediately so future contributors can rely
+changes, update all nearby comments immediately so future contributors can
+rely
 on them.
 > 4. **Update documentation**, including this `AGENTS.md` and `README.md`,
 whenever behaviour or structure changes. These documents must always reflect

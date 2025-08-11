@@ -9,14 +9,18 @@ modules are:
   `cosmo_model_*.yml` file.
 - `model_coder.generate_callables(clean_path)` – compile sanitized model YAML
   into Python callables.
-- `engine_interface.build_plugin(parsed_data, funcs)` – construct a plugin object
+- `engine_interface.build_plugin(parsed_data, funcs)` – construct a plugin
+  object
   with attributes `MODEL_NAME`, `MODEL_DESCRIPTION`, `MODEL_ABSTRACT` and the
   distance and CMB functions required by engines.
   - `data_loaders.load_sne_data(name)`, `load_bao_data(name)`,
-    `load_cmb_data(name)` – load datasets by their registered names. Each loader
-    logs a short summary describing the dataset and whether its covariance matrix
+    `load_cmb_data(name)` – load datasets by their registered names. Each
+loader
+    logs a short summary describing the dataset and whether its covariance
+matrix
     was used or diagonal errors were applied.
-- `console_output.write(msg)` – unified console printing function that is logged
+- `console_output.write(msg)` – unified console printing function that is
+  logged
   verbatim via `logger`.
 - `engines.cosmo_engine_comb` – reference engine providing high level
   optimisation routines such as ``fit_sne_parameters``,
@@ -35,13 +39,18 @@ from the model YAML.
 
 All data parsers return a ``pandas.DataFrame`` with common columns and
 metadata so that engines remain agnostic to the origin of the data.
-`copernican_lib/data_loaders.py` reads ``metadata_*.yml`` files located next to
+`copernican_lib/data_loaders.py` reads ``metadata_*.yml`` files located next
+to
 the dataset tables and attaches the fields via the ``DataFrame.attrs``
-dictionary after the parser returns. For supernovae datasets the table contains
+dictionary after the parser returns. For supernovae datasets the table
+contains
 at minimum ``Name``, ``zcmb``, ``mu_obs`` and ``e_mu_obs``. Attributes such as
-``covariance_matrix_inv`` and ``diag_errors_for_plot`` are also attached. BAO and
-CMB loaders follow the same pattern. New datasets can therefore be added simply
-by placing them under ``data/<type>/<source>/`` and providing a compatible YAML
+``covariance_matrix_inv`` and ``diag_errors_for_plot`` are also attached. BAO
+and
+CMB loaders follow the same pattern. New datasets can therefore be added
+simply
+by placing them under ``data/<type>/<source>/`` and providing a compatible
+YAML
 parser.
 
 ## Extending the API
@@ -50,10 +59,14 @@ Third-party tools may import these modules directly. A typical scripting
 session looks like this:
 
 ```python
-from copernican_lib import model_parser, model_coder, engine_interface, data_loaders
+from copernican_lib import (
+    model_parser, model_coder, engine_interface, data_loaders
+)
 import engines.cosmo_engine_comb as engine
 
-cache = model_parser.parse_model('models/cosmo_model_lcdm.yml', 'models/cache')
+cache = model_parser.parse_model(
+    'models/cosmo_model_lcdm.yml', 'models/cache'
+)
 funcs, parsed = model_coder.generate_callables(cache)
 plugin = engine_interface.build_plugin(parsed, funcs)
 sne = data_loaders.load_sne_data('JLA 2014')

@@ -1,9 +1,11 @@
 #!/bin/bash
 
 # This script will launch the Copernican Suite.
-# It ensures that it runs from the same directory where the script itself is located.
+# It ensures that it runs from the same directory where the script is
+# located.
 
-# Change directory to the script's location. This is crucial for it to find copernican.py.
+# Change directory to the script's location. This is crucial for it to
+# find copernican.py.
 cd "$(dirname "$0")"
 
 # Run the Python script using the python3 interpreter.
