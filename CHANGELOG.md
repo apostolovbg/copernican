@@ -21,6 +21,7 @@ entries come first):
 
 ## Version 3.6.12
 
+- 2025-08-11: Update documentation version strings to 3.6.12 (AI assistant)
 - 2025-08-11: Prepared 3.6.12 release and opened new Unreleased section (AI assistant)
 - 2025-08-11: Set formatter line length to 79 and wrap existing lines (AI
   assistant)
