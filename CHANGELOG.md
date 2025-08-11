@@ -22,6 +22,7 @@ Add one line for each substantive commit or pull request directly under the late
   prevent CI failures (AI assistant)
 - 2025-08-11: Propagate ``target_arch`` to the macOS bundle to keep universal2
   builds working (AI assistant)
+  
 ## Version 3.6.10
 
 - 2025-08-10: Fix CI pre-commit invocation to use correct module name (AI assistant)
