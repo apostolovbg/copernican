@@ -1,5 +1,6 @@
 """Basic functional tests for the Copernican Suite."""
 
+import importlib.util
 import unittest
 from pathlib import Path
 
@@ -11,10 +12,23 @@ import copernican_lib.data_loaders as data_loaders
 import copernican_lib.engine_interface as engine_interface
 import copernican_lib.model_coder as model_coder
 import copernican_lib.model_parser as model_parser
-
-# Ensure compound BAO parser registration
-import data.bao.compound.cosmo_parser_compound  # noqa: F401
 import engines.cosmo_engine_comb as engine
+
+# Ensure compound BAO parser registration without requiring package installs
+parser_path = (
+    Path(__file__).resolve().parents[1]
+    / "data"
+    / "bao"
+    / "compound"
+    / "cosmo_parser_compound.py"
+)
+spec = importlib.util.spec_from_file_location(
+    "cosmo_parser_compound",
+    parser_path,
+)
+if spec and spec.loader:
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
 
 
 class FunctionalTestCase(unittest.TestCase):

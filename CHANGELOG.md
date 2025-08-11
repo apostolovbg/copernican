@@ -21,6 +21,8 @@ entries come first):
 
 - 2025-08-11: Set formatter line length to 79 and wrap existing lines (AI
   assistant)
+- 2025-08-11: Load BAO parser via importlib in tests to avoid package import
+  errors (AI assistant)
 
 ## Version 3.6.11
 
