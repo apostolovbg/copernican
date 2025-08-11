@@ -36,7 +36,10 @@ jobs:
         run: |
           curl -LO https://www.python.org/ftp/python/3.11.9/python-3.11.9-macos11.pkg
           sudo installer -pkg python-3.11.9-macos11.pkg -target /
-          echo "PYTHON=/Library/Frameworks/Python.framework/Versions/3.11/bin/python3" >> "$GITHUB_ENV"
+          PY_DIR=/Library/Frameworks/Python.framework/Versions/3.11/bin
+          export PATH="$PY_DIR:$PATH" # ensure pip and tools resolve correctly
+          echo "PATH=$PATH" >> "$GITHUB_ENV"
+          echo "PYTHON=$PY_DIR/python3" >> "$GITHUB_ENV"
 
       - name: Install project dependencies
         run: |
@@ -53,11 +56,20 @@ jobs:
         run: $PYTHON copernican.py --run-tests # run tests via CLI
 
       - name: Build executables
-        run: $PYTHON -m PyInstaller ${{ matrix.spec }} # produce standalone binary
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            $PYTHON -m PyInstaller --target-arch universal2 ${{ matrix.spec }}
+          else
+            $PYTHON -m PyInstaller ${{ matrix.spec }}
+          fi # produce standalone binaries
+
+      - name: Verify macOS app bundle
+        if: matrix.os == 'macos-latest'
+        run: test -d dist/Copernican.app # confirm app bundle was created
 
       - name: Upload build artifacts
         if: success() # only upload when previous steps succeed
         uses: actions/upload-artifact@v4
         with:
           name: copernican-${{ matrix.os }} # differentiate artifact by OS
-          path: dist/ # PyInstaller output directory
+          path: ${{ matrix.os == 'macos-latest' && 'dist/Copernican.app' || 'dist/' }}
