@@ -36,7 +36,10 @@ class QuadPrinter(NumPyPrinter):
         a_code = self._print(a)
         b_code = self._print(b)
         integrand_code = self._print(integrand)
-        return f"quad(lambda {var_code}: {integrand_code}, {a_code}, " f"{b_code})[0]"
+        return (
+            f"quad(lambda {var_code}: {integrand_code}, {a_code}, "
+            f"{b_code})[0]"
+        )
 
 
 def _latex_to_sympy_str(expr: str) -> str:
@@ -79,9 +82,12 @@ def generate_callables(cache_path):
     logger = logging.getLogger()
 
     z = sp.symbols("z")
-    param_syms = [sp.symbols(p["python_var"]) for p in model_data["parameters"]]
+    param_syms = [
+        sp.symbols(p["python_var"]) for p in model_data["parameters"]
+    ]
     local_dict = {
-        p["python_var"]: sym for p, sym in zip(model_data["parameters"], param_syms)
+        p["python_var"]: sym
+        for p, sym in zip(model_data["parameters"], param_syms)
     }
     local_dict["z"] = z
     # Allow YAML equations to reference the full 'sympy' prefix
@@ -132,7 +138,9 @@ def generate_callables(cache_path):
                 # For arrays, compute the integral element-wise and
                 # preserve shape.
                 z_flat = np.ravel(z_val)
-                results = [quad(integrand, 0, float(z), limit=100)[0] for z in z_flat]
+                results = [
+                    quad(integrand, 0, float(z), limit=100)[0] for z in z_flat
+                ]
                 return np.reshape(results, np.shape(z_val))
 
             if "get_comoving_distance_Mpc" not in funcs:
@@ -187,7 +195,8 @@ def generate_callables(cache_path):
             rs_expr_str = model_data.get("rs_expression")
             param_names = {p["python_var"] for p in model_data["parameters"]}
             param_index = {
-                p["python_var"]: i for i, p in enumerate(model_data["parameters"])
+                p["python_var"]: i
+                for i, p in enumerate(model_data["parameters"])
             }
 
             if rs_expr_str:
@@ -219,7 +228,8 @@ def generate_callables(cache_path):
                     code_dict["get_sound_horizon_rs_Mpc"] = str(rs_sym)
                     model_data["valid_for_bao"] = True
                     logger.info(
-                        "Derived r_s from symbolic rs_expression in model " "YAML.",
+                        "Derived r_s from symbolic rs_expression in model "
+                        "YAML.",
                     )
                 except Exception as e:
                     msg = f"Failed to parse rs_expression: {e}"
@@ -267,7 +277,8 @@ def generate_callables(cache_path):
                 code_dict["get_sound_horizon_rs_Mpc"] = "quad(c_s/H(z))"
                 model_data["valid_for_bao"] = True
                 logger.info(
-                    "Derived r_s using fallback integral from " "Hz_expression.",
+                    "Derived r_s using fallback integral from "
+                    "Hz_expression.",
                 )
             else:
                 console.write(
@@ -320,7 +331,10 @@ def generate_callables(cache_path):
             error_handler.report_error(msg)
             raise ValueError(msg) from e
 
-    if "distance_modulus_model" not in funcs and "get_luminosity_distance_Mpc" in funcs:
+    if (
+        "distance_modulus_model" not in funcs
+        and "get_luminosity_distance_Mpc" in funcs
+    ):
 
         def _mu(zv, *params):
             """Compute distance modulus from luminosity distance in Mpc."""

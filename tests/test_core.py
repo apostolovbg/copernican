@@ -44,7 +44,9 @@ class FunctionalTestCase(unittest.TestCase):
         sne_df = sne_df.head(3)
         if sne_df.attrs.get("covariance_matrix_inv") is not None:
             attrs = sne_df.attrs
-            attrs["covariance_matrix_inv"] = attrs["covariance_matrix_inv"][:3, :3]
+            attrs["covariance_matrix_inv"] = attrs["covariance_matrix_inv"][
+                :3, :3
+            ]
             attrs["diag_errors_for_plot"] = attrs["diag_errors_for_plot"][:3]
 
         bao_df = data_loaders.load_bao_data("Compound BAO dataset")
@@ -80,15 +82,17 @@ class FunctionalTestCase(unittest.TestCase):
         sne_df = data_loaders.load_sne_data("JLA 2014").head(2)
         if sne_df.attrs.get("covariance_matrix_inv") is not None:
             attrs = sne_df.attrs
-            attrs["covariance_matrix_inv"] = attrs["covariance_matrix_inv"][:2, :2]
+            attrs["covariance_matrix_inv"] = attrs["covariance_matrix_inv"][
+                :2, :2
+            ]
             attrs["diag_errors_for_plot"] = attrs["diag_errors_for_plot"][:2]
         bao_df = data_loaders.load_bao_data("Compound BAO dataset").head(2)
         cmb_df = data_loaders.load_cmb_data("Planck 2018 Lite TT/TE/EE")
         cmb_df = cmb_df.head(10)
         cmb_attrs = cmb_df.attrs
-        cmb_attrs["covariance_matrix_inv"] = cmb_attrs["covariance_matrix_inv"][
-            :10, :10
-        ]
+        cmb_attrs["covariance_matrix_inv"] = cmb_attrs[
+            "covariance_matrix_inv"
+        ][:10, :10]
 
         result = engine.fit_combined_parameters(
             sne_df,
