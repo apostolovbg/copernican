@@ -24,6 +24,9 @@ entries come first):
 - 2025-08-11: Wrapped long lines across docs and scripts for readability (AI
   assistant)
 
+- 2025-08-11: Specify OS shells in CI, validate binaries with --help and
+  enumerate hidden imports in spec files (AI assistant)
+
 ## Version 3.6.12
 
 - 2025-08-11: Update documentation version strings to 3.6.12 (AI assistant)
