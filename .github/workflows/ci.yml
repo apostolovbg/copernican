@@ -18,9 +18,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       PYTHON: python
-    defaults:
-      run:
-        shell: bash # use bash for consistent behaviour across platforms
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4 # pull source code
@@ -33,39 +30,93 @@ jobs:
 
       - name: Install universal2 Python
         if: matrix.os == 'macos-latest'
+        shell: bash
         run: |
           curl -LO https://www.python.org/ftp/python/3.11.9/python-3.11.9-macos11.pkg
           sudo installer -pkg python-3.11.9-macos11.pkg -target /
           PY_DIR=/Library/Frameworks/Python.framework/Versions/3.11/bin
-          export PATH="$PY_DIR:$PATH" # ensure pip and tools resolve correctly
+          export PATH="$PY_DIR:$PATH"
           echo "PATH=$PATH" >> "$GITHUB_ENV"
           echo "PYTHON=$PY_DIR/python3" >> "$GITHUB_ENV"
 
       - name: Install project dependencies
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
           $PYTHON -m pip install --upgrade pip
           $PYTHON -m pip install .
 
+      - name: Install project dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:PYTHON -m pip install --upgrade pip
+          $env:PYTHON -m pip install .
+
       - name: Install tooling
-        run: $PYTHON -m pip install pre-commit pyinstaller # linting and build tools
+        if: runner.os != 'Windows'
+        shell: bash
+        run: $PYTHON -m pip install pre-commit pyinstaller
+
+      - name: Install tooling (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: $env:PYTHON -m pip install pre-commit pyinstaller
 
       - name: Run pre-commit
-        run: $PYTHON -m pre_commit run --all-files # fail fast on style issues
+        if: runner.os != 'Windows'
+        shell: bash
+        run: $PYTHON -m pre_commit run --all-files
+
+      - name: Run pre-commit (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: $env:PYTHON -m pre_commit run --all-files
 
       - name: Execute unit tests
-        run: $PYTHON copernican.py --run-tests # run tests via CLI
+        if: runner.os != 'Windows'
+        shell: bash
+        run: $PYTHON copernican.py --run-tests
+
+      - name: Execute unit tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: $env:PYTHON copernican.py --run-tests
 
       - name: Build executables
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then
             $PYTHON -m PyInstaller --target-arch universal2 ${{ matrix.spec }}
           else
             $PYTHON -m PyInstaller ${{ matrix.spec }}
-          fi # produce standalone binaries
+          fi
+
+      - name: Build executables (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: $env:PYTHON -m PyInstaller ${{ matrix.spec }}
+
+      - name: Run executable help
+        if: runner.os == 'Linux'
+        shell: bash
+        run: ./dist/copernican --help
+
+      - name: Run executable help (macOS)
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: dist/Copernican.app/Contents/MacOS/Copernican --help
+
+      - name: Run executable help (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .\dist\copernican.exe --help
 
       - name: Verify macOS app bundle
         if: matrix.os == 'macos-latest'
-        run: test -d dist/Copernican.app # confirm app bundle was created
+        shell: bash
+        run: test -d dist/Copernican.app
 
       - name: Upload build artifacts
         if: success() # only upload when previous steps succeed
