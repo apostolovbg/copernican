@@ -39,6 +39,15 @@ jobs:
           echo "PYTHON=/Library/Frameworks/Python.framework/Versions/3.11/bin/python3" >> "$GITHUB_ENV"
 
       - name: Install project dependencies
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          $PYTHON -m pip install --upgrade pip
+          $PYTHON -m pip install .
+
+      - name: Install project dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: |
           $PYTHON -m pip install --upgrade pip
           $PYTHON -m pip install .
@@ -60,4 +69,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: copernican-${{ matrix.os }} # differentiate artifact by OS
-          path: dist/ # PyInstaller output directory
+          path: ${{ matrix.os == 'macos-latest' && 'dist/Copernican.app' || 'dist/' }}

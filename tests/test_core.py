@@ -1,5 +1,6 @@
 """Basic functional tests for the Copernican Suite."""
 
+import importlib.util
 import unittest
 from pathlib import Path
 
@@ -11,10 +12,23 @@ import copernican_lib.data_loaders as data_loaders
 import copernican_lib.engine_interface as engine_interface
 import copernican_lib.model_coder as model_coder
 import copernican_lib.model_parser as model_parser
-
-# Ensure compound BAO parser registration
-import data.bao.compound.cosmo_parser_compound  # noqa: F401
 import engines.cosmo_engine_comb as engine
+
+# Ensure compound BAO parser registration without requiring package installs
+parser_path = (
+    Path(__file__).resolve().parents[1]
+    / "data"
+    / "bao"
+    / "compound"
+    / "cosmo_parser_compound.py"
+)
+spec = importlib.util.spec_from_file_location(
+    "cosmo_parser_compound",
+    parser_path,
+)
+if spec and spec.loader:
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
 
 
 class FunctionalTestCase(unittest.TestCase):
@@ -44,7 +58,9 @@ class FunctionalTestCase(unittest.TestCase):
         sne_df = sne_df.head(3)
         if sne_df.attrs.get("covariance_matrix_inv") is not None:
             attrs = sne_df.attrs
-            attrs["covariance_matrix_inv"] = attrs["covariance_matrix_inv"][:3, :3]
+            attrs["covariance_matrix_inv"] = attrs["covariance_matrix_inv"][
+                :3, :3
+            ]
             attrs["diag_errors_for_plot"] = attrs["diag_errors_for_plot"][:3]
 
         bao_df = data_loaders.load_bao_data("Compound BAO dataset")
@@ -80,15 +96,17 @@ class FunctionalTestCase(unittest.TestCase):
         sne_df = data_loaders.load_sne_data("JLA 2014").head(2)
         if sne_df.attrs.get("covariance_matrix_inv") is not None:
             attrs = sne_df.attrs
-            attrs["covariance_matrix_inv"] = attrs["covariance_matrix_inv"][:2, :2]
+            attrs["covariance_matrix_inv"] = attrs["covariance_matrix_inv"][
+                :2, :2
+            ]
             attrs["diag_errors_for_plot"] = attrs["diag_errors_for_plot"][:2]
         bao_df = data_loaders.load_bao_data("Compound BAO dataset").head(2)
         cmb_df = data_loaders.load_cmb_data("Planck 2018 Lite TT/TE/EE")
         cmb_df = cmb_df.head(10)
         cmb_attrs = cmb_df.attrs
-        cmb_attrs["covariance_matrix_inv"] = cmb_attrs["covariance_matrix_inv"][
-            :10, :10
-        ]
+        cmb_attrs["covariance_matrix_inv"] = cmb_attrs[
+            "covariance_matrix_inv"
+        ][:10, :10]
 
         result = engine.fit_combined_parameters(
             sne_df,

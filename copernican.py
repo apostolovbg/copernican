@@ -303,7 +303,7 @@ lcdm = None
 
 
 def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
-    """Prompt for a file path relative to ``base_dir`` and ensure it exists."""
+    """Prompt for a relative path under ``base_dir`` and ensure it exists."""
 
     # The loop continues until a valid path is provided or the user cancels.
     # This prevents accidental typos from immediately aborting the workflow.
@@ -543,7 +543,9 @@ def main_workflow():
             continue
         try:
             func_dict, parsed = model_coder.generate_callables(cache_path)
-            alt_model_plugin = engine_interface.build_plugin(parsed, func_dict)
+            alt_model_plugin = engine_interface.build_plugin(
+                parsed, func_dict
+            )
             alt_model_plugin.MODEL_FILENAME = os.path.basename(yaml_path)
             logger.info(f"Loaded YAML model: {parsed.get('model_name')}")
         except Exception as e:
@@ -678,10 +680,8 @@ def main_workflow():
                 )
             else:
                 logger.warning(
-                    (
-                        f"{model_plugin.MODEL_NAME} BAO calculation failed or "
-                        "produced invalid r_s."
-                    )
+                    f"{model_plugin.MODEL_NAME} BAO calculation failed or "
+                    "produced invalid r_s."
                 )
 
             return {
@@ -738,7 +738,9 @@ def main_workflow():
                 model_plugin,
                 cmb_extras,
             )
-            logger.info(f"{model_plugin.MODEL_NAME} CMB chi2 = {chi2_val:.2f}")
+            logger.info(
+                f"{model_plugin.MODEL_NAME} CMB chi2 = {chi2_val:.2f}"
+            )
             return {"chi2_cmb": chi2_val, "theory_spectrum": theory}
 
         t0 = time.perf_counter()
@@ -793,7 +795,9 @@ def main_workflow():
             try:
                 os.rename(log_file, new_log)
                 CURRENT_LOG_FILE = new_log
-                logger.info(f"Log file renamed to {os.path.basename(new_log)}")
+                logger.info(
+                    f"Log file renamed to {os.path.basename(new_log)}"
+                )
                 log_file = new_log
             except OSError as e_ren:
                 logger.error(f"Failed renaming log file: {e_ren}")
@@ -839,7 +843,7 @@ def main_workflow():
         )
 
         def _print_fit(label, sne_res, bao_res, cmb_res, plugin):
-            """Pretty-print χ² statistics and fitted parameters for a model."""
+            """Pretty-print χ² stats and fitted parameters for a model."""
             console.write(f"--- {label} Fit Report ---\n")
             if sne_res:
                 from copernican_lib import latex_utils
@@ -971,8 +975,8 @@ if __name__ == "__main__":
         _mp.set_start_method("spawn", force=True)
     except RuntimeError:
         # The start method was already set (e.g. by another library). Using
-        # 'force=True' above normally prevents this, but wrap in try/except for
-        # absolute safety.
+        # 'force=True' above normally prevents this, but wrap in try/except
+        # for absolute safety.
         pass
     try:
         main_workflow()
