@@ -48,13 +48,17 @@ class BossDR12ParserTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             shutil.copytree(self.data_dir, tmp, dirs_exist_ok=True)
             os.remove(os.path.join(tmp, "BAO_consensus_covtot_dM_Hz.txt"))
-            self.assertIsNone(self.parser.parse_boss_dr12(tmp))
+            with self.assertLogs(level="ERROR") as cm:
+                self.assertIsNone(self.parser.parse_boss_dr12(tmp))
+            self.assertIn("dM/Hz covariance", "".join(cm.output))
 
         # Repeat for the D_V/F_AP covariance matrix.
         with tempfile.TemporaryDirectory() as tmp:
             shutil.copytree(self.data_dir, tmp, dirs_exist_ok=True)
             os.remove(os.path.join(tmp, "BAO_consensus_covtot_dV_FAP.txt"))
-            self.assertIsNone(self.parser.parse_boss_dr12(tmp))
+            with self.assertLogs(level="ERROR") as cm:
+                self.assertIsNone(self.parser.parse_boss_dr12(tmp))
+            self.assertIn("D_V/F_AP covariance", "".join(cm.output))
 
 
 if __name__ == "__main__":

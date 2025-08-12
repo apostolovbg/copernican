@@ -506,8 +506,30 @@ def fit_combined_parameters(
     bao_data_df,
     cmb_data_df,
     model_plugin,
+    *,
+    maxiter: int = 2000,
+    prefit_maxiter: int = 300,
+    maxfun: int | None = None,
 ):
-    r"""Fit a model to SNe, BAO and CMB simultaneously."""
+    r"""Fit a model to SNe, BAO and CMB simultaneously.
+
+    Parameters
+    ----------
+    sne_data_df, bao_data_df, cmb_data_df : pandas.DataFrame or ``None``
+        Observational datasets to include in the fit.
+    model_plugin : object
+        Validated plugin providing the cosmological model.
+    maxiter : int, optional
+        Maximum number of iterations for the combined optimisation. The
+        default of ``2000`` mirrors previous behaviour but tests can reduce
+        this for faster execution.
+    prefit_maxiter : int, optional
+        Maximum iterations for the optional SNe-only pre-fit. Defaults to
+        ``300``.
+    maxfun : int, optional
+        Maximum number of objective evaluations for the combined
+        optimisation. When ``None`` the SciPy default is used.
+    """
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)
     # Copy the model's parameter list so modifications for nuisance/CMB
@@ -559,7 +581,7 @@ def fit_combined_parameters(
             _chi2_sne_only,
             init_params[:num_cosmo_params],
             bounds=bounds[:num_cosmo_params],
-            options={"maxiter": 300},
+            options={"maxiter": prefit_maxiter},
             label="SNe Prefit",
         )
 
@@ -573,7 +595,9 @@ def fit_combined_parameters(
 
     # Do not pass deprecated L-BFGS-B options; default configuration already
     # keeps the solver quiet.
-    options = {"maxiter": 2000}
+    options = {"maxiter": maxiter}
+    if maxfun is not None:
+        options["maxfun"] = maxfun
 
     def combined_chi2(p):
         """Return combined χ² across SNe, BAO and CMB datasets."""

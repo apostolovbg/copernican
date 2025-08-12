@@ -22,12 +22,14 @@ matrix
 - `console_output.write(msg)` – unified console printing function that is
   logged
   verbatim via `logger`.
-- `engines.cosmo_engine_comb` – reference engine providing high level
-  optimisation routines such as ``fit_sne_parameters``,
-  ``fit_combined_parameters``, ``calculate_bao_observables`` and generic
-  ``chi_squared_*`` helpers.  Engines are regular Python modules that
-  operate purely on data frames and plugin callables so alternative
-  backends can be developed without modifying the rest of the codebase.
+  - `engines.cosmo_engine_comb` – reference engine providing high level
+    optimisation routines such as ``fit_sne_parameters``,
+    ``fit_combined_parameters``, ``calculate_bao_observables`` and generic
+    ``chi_squared_*`` helpers.  ``fit_combined_parameters`` accepts optional
+    ``maxiter``, ``maxfun`` and ``prefit_maxiter`` arguments to bound
+    optimisation time. Engines are regular Python modules that operate
+    purely on data frames and plugin callables so alternative backends can
+    be developed without modifying the rest of the codebase.
 
 Plugins are validated through ``engine_interface.validate_plugin`` before
 use. Engines expect the attributes listed in

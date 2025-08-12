@@ -30,6 +30,8 @@ entries come first):
 
 - 2025-08-12: Expanded dataset overview with parser and covariance details,
   documenting the compound BAO dataset (AI assistant)
+- 2025-08-12: Revamped test suite with verbose logging, bounded optimiser
+  iterations and explicit dataset paths (AI assistant)
 
 ## Version 3.6.12
 

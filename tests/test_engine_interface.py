@@ -37,7 +37,9 @@ class EngineInterfaceTestCase(unittest.TestCase):
     def test_missing_attribute_fails_validation(self):
         """A plugin lacking required attributes is rejected."""
         bad = SimpleNamespace()
-        self.assertFalse(engine_interface.validate_plugin(bad))
+        with self.assertLogs(level="ERROR") as cm:
+            self.assertFalse(engine_interface.validate_plugin(bad))
+        self.assertIn("Plugin validation failed", "".join(cm.output))
 
     def test_get_camb_params_expression(self):
         """LaTeX expressions in ``cmb.param_map`` evaluate correctly."""
