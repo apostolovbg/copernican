@@ -118,7 +118,8 @@ def run_startup_tests():
     """
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "unittest", "discover"], check=False
+            [sys.executable, "-m", "unittest", "discover", "-v"],
+            check=False,
         )
     except Exception as exc:
         console.write(f"Error running startup tests: {exc}")

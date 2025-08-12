@@ -22,6 +22,7 @@ class RunTestsFlagTestCase(unittest.TestCase):
         cmd = run_mock.call_args[0][0]
         self.assertEqual(cmd[:3], [sys.executable, "-m", "unittest"])
         self.assertEqual(cmd[3], "discover")
+        self.assertIn("-v", cmd)
 
 
 if __name__ == "__main__":

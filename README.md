@@ -92,11 +92,10 @@ with an older Python
 2. Follow the interactive prompts to choose a model, preferred data sources
    and
    computation engine.
-3. Execute `python3 copernican.py --run-tests` or run `python -m unittest
-   discover`
-   to verify the reference model and parsers. The `--run-tests` flag delegates
-to
-   `python -m unittest discover` to gather all modules under `tests/`.
+3. Execute `python3 copernican.py --run-tests` to run the verbose test
+   suite, or run `python -m unittest discover -v` directly. The test
+   runner reports informational messages, warnings and errors while
+   verifying the reference model and parsers.
 4. Plots and CSV results will appear in the `output/` folder when the run
    completes.
 
@@ -404,8 +403,8 @@ pre-commit run --files <changed files>
 Run the tests with either command:
 
 ```bash
-python -m unittest discover
-python copernican.py --run-tests  # uses unittest discovery internally
+python -m unittest discover -v
+python copernican.py --run-tests  # verbose unittest discovery
 ```
 
 Continuous integration verifies style, tests, and builds executables on
@@ -459,9 +458,10 @@ altering `MAJOR.MINOR`.
 any
 are absent.
 2.  **Optional Tests**: Run `copernican.py --run-tests` to execute the
-    functional test suite and verify that the LCDM model and data parsers work
-    as expected. This flag performs unittest discovery over the `tests`
-package.
+    verbose functional test suite and verify that the LCDM model and data
+    parsers work as expected. This flag performs unittest discovery over
+    the `tests` package and streams informational messages, warnings and
+    errors.
 3.  **Initialization**: The script starts and creates the `./output/`
     directory
     for all results.

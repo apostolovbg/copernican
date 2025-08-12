@@ -41,6 +41,7 @@ def parse_boss_dr12(data_dir, **kwargs):
     """Return BAO observables and covariance from the BOSS DR12 release."""
 
     logger = logging.getLogger()
+    logger.info("Loading BOSS DR12 data from %s", data_dir)
 
     # ------------------------------------------------------------------
     # Load ``dM(rsfid/rs)`` and ``Hz(rs/rsfid)`` results.

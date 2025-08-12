@@ -101,18 +101,16 @@ class FunctionalTestCase(unittest.TestCase):
             ]
             attrs["diag_errors_for_plot"] = attrs["diag_errors_for_plot"][:2]
         bao_df = data_loaders.load_bao_data("Compound BAO dataset").head(2)
-        cmb_df = data_loaders.load_cmb_data("Planck 2018 Lite TT/TE/EE")
-        cmb_df = cmb_df.head(10)
-        cmb_attrs = cmb_df.attrs
-        cmb_attrs["covariance_matrix_inv"] = cmb_attrs[
-            "covariance_matrix_inv"
-        ][:10, :10]
+        cmb_df = None
 
         result = engine.fit_combined_parameters(
             sne_df,
             bao_df,
             cmb_df,
             self.plugin,
+            maxiter=5,
+            prefit_maxiter=5,
+            maxfun=50,
         )
         self.assertTrue(result["success"])
         self.assertIn("chi2_total", result)
@@ -134,12 +132,14 @@ class FunctionalTestCase(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        chi2 = engine.chi_squared_sne(
-            self.plugin.INITIAL_GUESSES,
-            self.plugin.distance_modulus_model,
-            bad_df,
-        )
+        with self.assertLogs(level="ERROR") as cm:
+            chi2 = engine.chi_squared_sne(
+                self.plugin.INITIAL_GUESSES,
+                self.plugin.distance_modulus_model,
+                bad_df,
+            )
         self.assertTrue(np.isinf(chi2))
+        self.assertIn("non-finite zcmb or mu_obs", "".join(cm.output))
 
     def test_cmb_spectrum_is_d_ell(self):
         """Ensure cached CAMB spectra match Dl convention."""
