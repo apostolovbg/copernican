@@ -1,4 +1,5 @@
-dataset_name: JLA 2014
+dataset_name: Joint Light-curve Analysis 2014
+dataset_id: jla_2014
 description: Joint SDSS-II and SNLS supernova sample of 740 SNe Ia with distance moduli and full covariance matrix.
 citation: Betoule et al. - A&A 568 (2014) A22 - DOI: https://doi.org/10.1051/0004-6361/201423413
 author: Betoule M., Kessler R., Guy J., Mosher J., Hardin D., Biswas R., Astier P., El-Hage P., Konig M., Kuhlmann S., Marriner J., Pain R., Regnault N., Balland C., Bassett B.A., Brown P.J., Campbell H., Carlberg R.G., Cellier-Holzem F., Cinabro D., Conley A., D'Andrea C.B., DePoy D.L., Doi M., Ellis R.S., Fabbro S., Filippenko A.V., Foley R.J., Frieman J.A., Fouchez D., Galbany L., Goobar A., Gupta R.R., Hill G.J., Hlozek R., Hogan C.J., Hook I.M., Howell D.A., Jha S.W., Le Guillou L., Leloudas G., Lidman C., Marshall J.L., Moller A., Mourao A.M., Neveu J., Nichol R., Olmstead M.D., Palanque-Delabrouille N., Perlmutter S., Prieto J.L., Pritchet C.J., Richmond M., Riess A.G., Ruhlmann-Kleider V., Sako M., Schahmaneche K., Schneider D.P., Smith M., Sollerman J., Sullivan M., Walton N.A., Wheeler C.J.
