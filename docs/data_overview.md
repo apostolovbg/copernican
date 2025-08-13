@@ -69,7 +69,9 @@ converted to `D_M/rs` and `D_H/rs` with the fiducial sound horizon, while
 assembled into a block-diagonal structure, propagated through the
 transformation and inverted. The resulting `DataFrame` lists three
 observables per redshift and stores the inverse covariance and diagonal
-errors on `.attrs`.
+errors on `.attrs`. During \(\chi^2\) evaluation the engine contracts the
+full residual vector with this inverse covariance and falls back to the
+diagonal uncertainties only when the matrix is absent or ill conditioned.
 
 ### Compound BAO Dataset
 *Source:* synthetic compilation for testing purposes.
