@@ -18,6 +18,8 @@ Version headers run newest to oldest, and within each version the newest
 entries come first):
 
 ## Unreleased
+ - 2025-08-13: Added regression tests for BOSS DR12 BAO parsing and LCDM
+   chi-squared residuals (AI assistant)
 
 - 2025-08-13: Use full BAO covariance when available and test coverage
   (AI assistant)

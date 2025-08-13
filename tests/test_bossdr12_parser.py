@@ -13,6 +13,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import numpy as np
+
+import copernican_lib.engine_interface as engine_interface
+import copernican_lib.model_coder as model_coder
+import copernican_lib.model_parser as model_parser
+import engines.cosmo_engine_comb as engine
+
 
 class BossDR12ParserTestCase(unittest.TestCase):
     """Exercise ``parse_boss_dr12`` under normal and failure modes."""
@@ -33,6 +40,15 @@ class BossDR12ParserTestCase(unittest.TestCase):
         # unbound and callable without additional ``self`` arguments.
         cls.parser = module
 
+        # Build a validated ΛCDM plugin used for BAO predictions.
+        models_dir = base / "models"
+        yaml_path = models_dir / "cosmo_model_lcdm.yml"
+        cache_dir = models_dir / "cache"
+        cache_path = model_parser.parse_model(yaml_path, cache_dir)
+        funcs, parsed = model_coder.generate_callables(cache_path)
+        cls.plugin = engine_interface.build_plugin(parsed, funcs)
+        engine_interface.validate_plugin(cls.plugin)
+
     def test_dataframe_shape_and_covariance(self):
         """Return nine observables with a 9x9 inverse covariance."""
         df = self.parser.parse_boss_dr12(str(self.data_dir))
@@ -41,6 +57,54 @@ class BossDR12ParserTestCase(unittest.TestCase):
         cov_inv = df.attrs.get("covariance_matrix_inv")
         self.assertIsNotNone(cov_inv)
         self.assertEqual(cov_inv.shape, (9, 9))
+
+    def test_observable_values_match_release(self):
+        """Check parsed values against the published BOSS DR12 results."""
+        df = self.parser.parse_boss_dr12(str(self.data_dir))
+        self.assertIsNotNone(df)
+        expected = {
+            "DM_over_rs": {0.38: 10.234064, 0.51: 13.365949, 0.61: 15.608878},
+            "DH_over_rs": {0.38: 24.980578, 0.51: 22.316563, 0.61: 20.498625},
+            "DV_over_rs": {0.38: 9.980710, 0.51: 12.668700, 0.61: 14.496600},
+        }
+        for obs, mapping in expected.items():
+            for z, val in mapping.items():
+                mask = (df["redshift"] == z) & (df["observable_type"] == obs)
+                self.assertAlmostEqual(df.loc[mask, "value"].item(), val, 6)
+
+    def test_chi_squared_bao_residuals_small(self):
+        """Residuals stay near zero for reasonable ΛCDM parameters."""
+        df = self.parser.parse_boss_dr12(str(self.data_dir))
+        params = (67.66, 0.31, 0.112, 5e-5, 1090)
+        rs = self.plugin.get_sound_horizon_rs_Mpc(*params)
+        chi2 = engine.chi_squared_bao(df, self.plugin, params, rs)
+        self.assertLess(chi2, 10.0)
+
+        z = df["redshift"].to_numpy(dtype=float)
+        obs_type = df["observable_type"].to_numpy()
+        obs_val = df["value"].to_numpy(dtype=float)
+
+        pred = np.full_like(obs_val, np.nan, dtype=float)
+        mask = obs_type == "DM_over_rs"
+        if np.any(mask):
+            pred[mask] = (
+                self.plugin.get_comoving_distance_Mpc(z[mask], *params) / rs
+            )
+        mask = obs_type == "DH_over_rs"
+        if np.any(mask):
+            hz = self.plugin.get_Hz_per_Mpc(z[mask], *params)
+            pred[mask] = (
+                self.plugin.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458)
+                / hz
+                / rs
+            )
+        mask = obs_type == "DV_over_rs"
+        if np.any(mask):
+            dv = self.plugin.get_DV_Mpc(z[mask], *params)
+            pred[mask] = dv / rs
+
+        resid = obs_val - pred
+        self.assertLess(np.max(np.abs(resid)), 1.0)
 
     def test_missing_covariance_files(self):
         """Dropping a covariance file triggers graceful error handling."""
