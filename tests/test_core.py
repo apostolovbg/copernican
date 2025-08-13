@@ -63,11 +63,11 @@ class FunctionalTestCase(unittest.TestCase):
             ]
             attrs["diag_errors_for_plot"] = attrs["diag_errors_for_plot"][:3]
 
-        bao_df = data_loaders.load_bao_data("Compound BAO dataset")
+        bao_df = data_loaders.load_bao_data("compound_bao_set")
         self.assertIsNotNone(bao_df)
         bao_df = bao_df.head(3)
 
-        cmb_df = data_loaders.load_cmb_data("Planck 2018 Lite TT/TE/EE")
+        cmb_df = data_loaders.load_cmb_data("planck_2018_lite")
         self.assertIsNotNone(cmb_df)
 
         params = self.plugin.INITIAL_GUESSES
@@ -100,7 +100,7 @@ class FunctionalTestCase(unittest.TestCase):
                 :2, :2
             ]
             attrs["diag_errors_for_plot"] = attrs["diag_errors_for_plot"][:2]
-        bao_df = data_loaders.load_bao_data("Compound BAO dataset").head(2)
+        bao_df = data_loaders.load_bao_data("compound_bao_set").head(2)
         cmb_df = None
 
         result = engine.fit_combined_parameters(
@@ -118,7 +118,7 @@ class FunctionalTestCase(unittest.TestCase):
 
     def test_chi_squared_cmb_planck2018lite(self):
         """Verify that the Planck 2018 lite dataset yields finite χ²."""
-        cmb_df = data_loaders.load_cmb_data("Planck 2018 Lite TT/TE/EE")
+        cmb_df = data_loaders.load_cmb_data("planck_2018_lite")
         params = self.plugin.INITIAL_GUESSES
         chi2 = engine.chi_squared_cmb(params, cmb_df, self.plugin)
         self.assertTrue(np.isfinite(chi2))
@@ -143,7 +143,7 @@ class FunctionalTestCase(unittest.TestCase):
 
     def test_cmb_spectrum_is_d_ell(self):
         """Ensure cached CAMB spectra match Dl convention."""
-        cmb_df = data_loaders.load_cmb_data("Planck 2018 Lite TT/TE/EE")
+        cmb_df = data_loaders.load_cmb_data("planck_2018_lite")
         ells = cmb_df["ell"].values[:5]
         camb_params = self.plugin.get_camb_params(self.plugin.INITIAL_GUESSES)
         result = engine.compute_cmb_spectrum_from_dict(

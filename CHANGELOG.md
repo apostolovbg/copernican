@@ -35,6 +35,9 @@ entries come first):
 - 2025-08-13: Standardised `dataset_id` metadata and output filenames
   (AI assistant)
 
+- 2025-08-14: Require `dataset_id` for data loaders, revamp registries,
+  update tests and documentation (AI assistant)
+
 ## Version 3.6.12
 
 - 2025-08-11: Update documentation version strings to 3.6.12 (AI assistant)

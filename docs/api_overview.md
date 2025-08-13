@@ -13,12 +13,13 @@ modules are:
   object
   with attributes `MODEL_NAME`, `MODEL_DESCRIPTION`, `MODEL_ABSTRACT` and the
   distance and CMB functions required by engines.
-  - `data_loaders.load_sne_data(name)`, `load_bao_data(name)`,
-    `load_cmb_data(name)` – load datasets by their registered names. Each
-loader
-    logs a short summary describing the dataset and whether its covariance
-matrix
-    was used or diagonal errors were applied.
+  - `data_loaders.load_sne_data(dataset_id)`,
+    `load_bao_data(dataset_id)`,
+    `load_cmb_data(dataset_id)` – load datasets by their identifiers. The
+    interactive prompt lists the human readable `dataset_name` and description,
+    but calls expect the `dataset_id`. Each loader logs a short summary
+    describing the dataset and whether its covariance matrix was used or
+    diagonal errors were applied.
 - `console_output.write(msg)` – unified console printing function that is
   logged
   verbatim via `logger`.
@@ -71,7 +72,7 @@ cache = model_parser.parse_model(
 )
 funcs, parsed = model_coder.generate_callables(cache)
 plugin = engine_interface.build_plugin(parsed, funcs)
-sne = data_loaders.load_sne_data('JLA 2014')
+sne = data_loaders.load_sne_data('jla_2014')
 result = engine.fit_sne_parameters(sne, plugin)
 ```
 
