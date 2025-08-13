@@ -58,11 +58,11 @@ def save_sne_results_detailed_csv(
         df_out[f"mu_model_{alt_model_name}"] = np.nan
         df_out[f"residual_{alt_model_name}"] = np.nan
 
-    dataset_name = sne_data_df.attrs.get("dataset_name_sanitized", "SNe_data")
-    model_comparison_name = f"LCDM-vs-{alt_model_name}"
+    dataset_id = sne_data_df.attrs.get("dataset_id", "sne_data")
+    model_comparison_name = f"vs-{alt_model_name}"
     filename = generate_filename(
-        "sne-detailed-data",
-        dataset_name,
+        "sne-data",
+        dataset_id,
         "csv",
         model_name=model_comparison_name,
         timestamp=timestamp,
@@ -118,11 +118,11 @@ def save_bao_results_csv(
         ratio = diff / df_out["error"]
         df_out[f"chi2_contrib_{alt_model_name_safe}"] = ratio**2
 
-    dataset_name = bao_data_df.attrs.get("dataset_name_sanitized", "BAO_data")
-    model_comparison_name = f"LCDM-vs-{alt_model_name}"
+    dataset_id = bao_data_df.attrs.get("dataset_id", "bao_data")
+    model_comparison_name = f"vs-{alt_model_name}"
     filename = generate_filename(
-        "bao-detailed-data",
-        dataset_name,
+        "bao-data",
+        dataset_id,
         "csv",
         model_name=model_comparison_name,
         timestamp=timestamp,
@@ -234,11 +234,11 @@ def save_cmb_results_csv(
             ]
         ] = np.nan
 
-    dataset_name = cmb_data_df.attrs.get("dataset_name_sanitized", "CMB_data")
-    model_comparison_name = f"LCDM-vs-{alt_name_safe}"
+    dataset_id = cmb_data_df.attrs.get("dataset_id", "cmb_data")
+    model_comparison_name = f"vs-{alt_name_safe}"
     filename = generate_filename(
-        "cmb-detailed-data",
-        dataset_name,
+        "cmb-data",
+        dataset_id,
         "csv",
         model_name=model_comparison_name,
         timestamp=timestamp,

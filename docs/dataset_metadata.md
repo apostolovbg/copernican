@@ -1,12 +1,14 @@
 # Dataset Metadata Fields
 
 Each dataset folder contains a `metadata_*.yml` file that describes the
-source. All fields are optional except for `dataset_name` and
-`description`.
+source. All fields are optional except for `dataset_name`, `dataset_id`
+and `description`.
 
 - `dataset_name` -- Short human-readable identifier used in logs, plot
-  footers and CSV headers. Footers preserve the original spacing; a
-  sanitized variant is generated separately for filenames.
+  footers and CSV headers.
+- `dataset_id` -- Short identifier used in filenames. It must omit spaces
+  and forbidden characters: `/`, `\`, `:`, `*`, `?`, `"`, `<`, `>` and
+  `|`, yet still convey which dataset is referenced.
 - `description` -- Brief explanation of the dataset origin.
 - `citation` -- Formatted as "FirstAuthor et al. - J. Vol (Year) Pages - DOI:
   URL".
@@ -31,12 +33,11 @@ source. All fields are optional except for `dataset_name` and
 The metadata file is loaded automatically by the data loaders via
 `copernican_lib.utils.load_metadata_from_dir` after the parser returns and
 attached to the parsed `DataFrame` through the ``.attrs`` dictionary.
-Loaders store the original `dataset_name` along with a sanitized variant,
-`dataset_name_sanitized`, where spaces are replaced by underscores for safe
-filenames. Plot footers render the dataset name in bold followed by
-`: description notes` on the second line and the citation on a third
-line. Custom fields are preserved and can be used by new engines or
-analysis scripts.
+Loaders store both the human-readable `dataset_name` and the filename
+friendly `dataset_id`. Plot footers render the dataset name in bold,
+followed by `: description notes` on the second line and the citation on
+a third line. Custom fields are preserved and can be used by new engines
+or analysis scripts.
 
 ### Best Practices
 

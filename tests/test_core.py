@@ -53,7 +53,7 @@ class FunctionalTestCase(unittest.TestCase):
 
     def test_engine_routines(self):
         """Run a smoke test across the main engine routines."""
-        sne_df = data_loaders.load_sne_data("JLA 2014")
+        sne_df = data_loaders.load_sne_data("jla_2014")
         self.assertIsNotNone(sne_df)
         sne_df = sne_df.head(3)
         if sne_df.attrs.get("covariance_matrix_inv") is not None:
@@ -93,7 +93,7 @@ class FunctionalTestCase(unittest.TestCase):
 
     def test_combined_fit(self):
         """Check that the combined fit pipeline returns finite χ² values."""
-        sne_df = data_loaders.load_sne_data("JLA 2014").head(2)
+        sne_df = data_loaders.load_sne_data("jla_2014").head(2)
         if sne_df.attrs.get("covariance_matrix_inv") is not None:
             attrs = sne_df.attrs
             attrs["covariance_matrix_inv"] = attrs["covariance_matrix_inv"][

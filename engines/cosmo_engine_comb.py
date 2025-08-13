@@ -406,8 +406,8 @@ def fit_sne_parameters(sne_data_df, model_plugin):
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)
     dataset_name = sne_data_df.attrs.get(
-        "dataset_name_sanitized",
-        "UnknownSNeDataset",
+        "dataset_id",
+        "unknown_sne_dataset",
     )
     model_name_str = getattr(model_plugin, "MODEL_NAME", "UnknownModel")
 
