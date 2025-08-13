@@ -22,45 +22,51 @@ def get_timestamp():
     return time.strftime("%Y%m%d_%H%M%S")
 
 
+def check_dataset_id(dataset_id: str) -> str:
+    """Return ``dataset_id`` stripped of forbidden characters.
+
+    The Copernican Suite expects ``dataset_id`` to be safe for file
+    paths. Any unexpected characters such as spaces or path separators are
+    dropped rather than replaced so that a slightly malformed identifier
+    cannot corrupt directory structures.
+    """
+
+    forbidden = set(' \\/:*?"<>|')
+    return "".join(ch for ch in dataset_id if ch not in forbidden)
+
+
 def generate_filename(
     file_type,
-    dataset_name,
+    dataset_id,
     ext,
     model_name="",
     timestamp=None,
 ):
-    """Generates a harmonized filename for all outputs.
+    """Generate a harmonized filename for all outputs.
 
     Parameters
     ----------
     file_type : str
         Short descriptor of the file's contents.
-    dataset_name : str
-        Human readable dataset identifier.
+    dataset_id : str
+        Identifier used in output filenames. It should already comply
+        with :func:`check_dataset_id` rules.
     ext : str
         File extension without the leading period.
     model_name : str, optional
-        Name of the cosmological model, used when comparing multiple models.
+        Name of the cosmological model, used when comparing multiple
+        models.
     timestamp : str, optional
-        Timestamp string applied to the filename. When ``None`` the current
-        timestamp is generated.
+        Timestamp string applied to the filename. When ``None`` the
+        current timestamp is generated.
     """
     sanitized_type = file_type.replace("_", "-").lower()
     sanitized_model = model_name.replace("_", "-").replace(".", "")
-    # Remove whitespace, file extensions and unsafe path characters so the
-    # resulting filename is portable across platforms.
-    sanitized_dataset = (
-        dataset_name.replace("_", "-")
-        .replace(" ", "")
-        .replace("/", "-")
-        .replace(".yml", "")
-        .replace(".yaml", "")
-        .replace(".dat", "")
-    )
+    checked_id = check_dataset_id(dataset_id)
     base_name = (
-        f"{sanitized_type}-{sanitized_model}-{sanitized_dataset}"
+        f"{sanitized_type}-{sanitized_model}-{checked_id}"
         if sanitized_model
-        else f"{sanitized_type}-{sanitized_dataset}"
+        else f"{sanitized_type}-{checked_id}"
     )
     ts = timestamp or get_timestamp()
     return f"{base_name}_{ts}.{ext}"

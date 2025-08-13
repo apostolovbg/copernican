@@ -7,7 +7,7 @@ import logging
 import os
 
 from . import console_output as console
-from .utils import load_metadata_from_dir
+from .utils import check_dataset_id, load_metadata_from_dir
 
 # Each parser is registered via a decorator so that ``copernican.py`` can list
 # available data sources dynamically. The loaders below simply call the
@@ -192,6 +192,9 @@ def _discover_parsers():
                         )
                         entry["data_dir"] = src_dir
                         registry[dataset_name] = entry
+                        dataset_id = meta.get("dataset_id")
+                        if dataset_id:
+                            registry[dataset_id] = entry
                     # If the parser registered with an explicit name, simply
                     # update the description if metadata provides one.
                     else:
@@ -201,6 +204,9 @@ def _discover_parsers():
                                 "description",
                                 registry[dataset_name].get("description", ""),
                             )
+                            dataset_id = meta.get("dataset_id")
+                            if dataset_id:
+                                registry[dataset_id] = registry[dataset_name]
 
 
 # Discover parsers at import time so that functions like
@@ -252,14 +258,10 @@ def _log_dataset_info(df, data_type, logger):
     # DataFrame attributes.
     if df is None or df.empty:
         return
-    # Prefer the human-readable dataset name but fall back to the sanitized
-    # identifier when only that field is available.  Loaders attach both
-    # ``dataset_name`` (original string) and ``dataset_name_sanitized``
-    # (underscored variant).
-    name = df.attrs.get(
-        "dataset_name",
-        df.attrs.get("dataset_name_sanitized", ""),
-    )
+    # Prefer the human-readable dataset name but fall back to ``dataset_id``
+    # when only the identifier is available. Loaders attach both fields so
+    # that logs remain descriptive while filenames stay concise.
+    name = df.attrs.get("dataset_name", df.attrs.get("dataset_id", ""))
     logger.info(
         f"Loaded {data_type} dataset '{name}' with {len(df)} rows.",
     )
@@ -302,10 +304,13 @@ def load_sne_data(source_key=None, **kwargs):
             data_df.attrs["source_key"] = source_key
             dataset_name = data_df.attrs.get("dataset_name", source_key)
             data_df.attrs["dataset_name"] = dataset_name
-            data_df.attrs["dataset_name_sanitized"] = dataset_name.replace(
-                " ",
-                "_",
+            dataset_id = check_dataset_id(
+                data_df.attrs.get(
+                    "dataset_id",
+                    dataset_name.replace(" ", "_").lower(),
+                )
             )
+            data_df.attrs["dataset_id"] = dataset_id
             logger.info(
                 f"Successfully loaded {len(data_df)} SNe data points.",
             )
@@ -353,10 +358,13 @@ def load_bao_data(source_key=None, **kwargs):
             data_df.attrs["source_key"] = source_key
             dataset_name = data_df.attrs.get("dataset_name", source_key)
             data_df.attrs["dataset_name"] = dataset_name
-            data_df.attrs["dataset_name_sanitized"] = dataset_name.replace(
-                " ",
-                "_",
+            dataset_id = check_dataset_id(
+                data_df.attrs.get(
+                    "dataset_id",
+                    dataset_name.replace(" ", "_").lower(),
+                )
             )
+            data_df.attrs["dataset_id"] = dataset_id
             logger.info(
                 f"Successfully loaded {len(data_df)} BAO data points.",
             )
@@ -404,10 +412,13 @@ def load_cmb_data(source_key=None, **kwargs):
             data_df.attrs["source_key"] = source_key
             dataset_name = data_df.attrs.get("dataset_name", source_key)
             data_df.attrs["dataset_name"] = dataset_name
-            data_df.attrs["dataset_name_sanitized"] = dataset_name.replace(
-                " ",
-                "_",
+            dataset_id = check_dataset_id(
+                data_df.attrs.get(
+                    "dataset_id",
+                    dataset_name.replace(" ", "_").lower(),
+                )
             )
+            data_df.attrs["dataset_id"] = dataset_id
             logger.info(
                 f"Successfully loaded {len(data_df)} CMB data points.",
             )
@@ -463,10 +474,13 @@ def load_gw_data(source_key=None, **kwargs):
             data_df.attrs["source_key"] = source_key
             dataset_name = data_df.attrs.get("dataset_name", source_key)
             data_df.attrs["dataset_name"] = dataset_name
-            data_df.attrs["dataset_name_sanitized"] = dataset_name.replace(
-                " ",
-                "_",
+            dataset_id = check_dataset_id(
+                data_df.attrs.get(
+                    "dataset_id",
+                    dataset_name.replace(" ", "_").lower(),
+                )
             )
+            data_df.attrs["dataset_id"] = dataset_id
             logger.info(
                 f"Successfully loaded {len(data_df)} GW data points.",
             )
@@ -518,10 +532,13 @@ def load_siren_data(source_key=None, **kwargs):
             data_df.attrs["source_key"] = source_key
             dataset_name = data_df.attrs.get("dataset_name", source_key)
             data_df.attrs["dataset_name"] = dataset_name
-            data_df.attrs["dataset_name_sanitized"] = dataset_name.replace(
-                " ",
-                "_",
+            dataset_id = check_dataset_id(
+                data_df.attrs.get(
+                    "dataset_id",
+                    dataset_name.replace(" ", "_").lower(),
+                )
             )
+            data_df.attrs["dataset_id"] = dataset_id
             # fmt: off
             msg = (
                 f"Successfully loaded {len(data_df)} standard siren "

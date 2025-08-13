@@ -18,7 +18,11 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
         prev = data_loaders.SNE_PARSERS.copy()
         try:
             with tempfile.TemporaryDirectory() as tmp:
-                meta = {"dataset_name": "Dummy SNe", "description": "test set"}
+                meta = {
+                    "dataset_name": "Dummy SNe",
+                    "dataset_id": "dummy_sne",
+                    "description": "test set",
+                }
                 with open(
                     os.path.join(tmp, "metadata_dummy.yml"),
                     "w",
@@ -41,6 +45,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
 
                 df = data_loaders.load_sne_data("Dummy SNe")
                 self.assertEqual(df.attrs["dataset_name"], "Dummy SNe")
+                self.assertEqual(df.attrs["dataset_id"], "dummy_sne")
                 self.assertEqual(len(df), 1)
         finally:
             data_loaders.SNE_PARSERS = prev

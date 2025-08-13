@@ -32,6 +32,8 @@ entries come first):
   documenting the compound BAO dataset (AI assistant)
 - 2025-08-12: Revamped test suite with verbose logging, bounded optimiser
   iterations and explicit dataset paths (AI assistant)
+- 2025-08-13: Standardised `dataset_id` metadata and output filenames
+  (AI assistant)
 
 ## Version 3.6.12
 

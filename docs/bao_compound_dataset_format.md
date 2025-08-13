@@ -29,6 +29,7 @@ data_points:
 Example `metadata_compound.yml`:
 ```yaml
 dataset_name: Compound BAO dataset
+dataset_id: compound_bao_set
 description: Compilation of BAO distance measurements without a covariance
   matrix
 citation: N/A
@@ -71,9 +72,9 @@ diagonal errors.
 All observable types use the naming convention `DV_over_rs`, `DM_over_rs` or
 `DH_over_rs` to indicate $D_V$, $D_M$ or $D_H$ divided by the sound horizon.
 The parser converts the YAML to a Pandas `DataFrame` and the data loader
-attaches the metadata to the `.attrs` attribute. In addition to the original
-`dataset_name`, a sanitized version `dataset_name_sanitized` replaces spaces
-with underscores for safe filenames. The same `metadata_*.yml` structure with
-`dataset_name`, `description`, `notes` and `citation` is used for **all**
+attaches the metadata to the `.attrs` attribute. In addition to the
+original `dataset_name`, a `dataset_id` is supplied for constructing
+output filenames. The same `metadata_*.yml` structure with `dataset_name`,
+`dataset_id`, `description`, `notes` and `citation` is used for **all**
 datasets so plot footers render the dataset name in bold, followed by its
 description, notes and a separate citation line.

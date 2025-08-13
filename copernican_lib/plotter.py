@@ -100,9 +100,7 @@ def compose_footer(base_line: str, data_attrs: dict) -> list[tuple[str, bool]]:
         line breaks.
     """
 
-    dataset_name = data_attrs.get(
-        "dataset_name", data_attrs.get("dataset_name_sanitized", "")
-    )
+    dataset_name = data_attrs.get("dataset_name", "")
     # Escape characters that could break TeX-style formatting used for
     # bold text while preserving spaces in the displayed name.
     safe_name = (
@@ -267,7 +265,8 @@ def plot_hubble_diagram(
     """Generate and save a Hubble diagram and residuals plot."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
-    dataset_name = sne_data_df.attrs.get("dataset_name_sanitized", "SNe_data")
+    dataset_name = sne_data_df.attrs.get("dataset_name", "SNe data")
+    dataset_id = sne_data_df.attrs.get("dataset_id", "sne_data")
     logger.info(f"Generating Hubble Diagram for {dataset_name}...")
 
     _apply_common_style()
@@ -559,12 +558,13 @@ def plot_hubble_diagram(
         )
         y -= line_height
 
-    model_comparison_name = (
-        f"{lcdm_plugin.MODEL_NAME}-vs-" f"{alt_model_plugin.MODEL_NAME}"
+    alt_model_name = alt_model_plugin.MODEL_NAME.replace(" ", "_").replace(
+        ".", ""
     )
+    model_comparison_name = f"vs-{alt_model_name}"
     filename = generate_filename(
         "hubble-plot",
-        dataset_name,
+        dataset_id,
         "png",
         model_name=model_comparison_name,
         timestamp=timestamp,
@@ -591,7 +591,8 @@ def plot_bao_observables(
     """Generate and save a plot of BAO observables versus redshift."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
-    dataset_name = bao_data_df.attrs.get("dataset_name_sanitized", "BAO_data")
+    dataset_name = bao_data_df.attrs.get("dataset_name", "BAO data")
+    dataset_id = bao_data_df.attrs.get("dataset_id", "bao_data")
     logger.info(f"Generating BAO Plot for {dataset_name}...")
 
     _apply_common_style()
@@ -899,12 +900,13 @@ def plot_bao_observables(
         )
         y -= line_height
 
-    model_comparison_name = (
-        f"{lcdm_plugin.MODEL_NAME}-vs-" f"{alt_model_plugin.MODEL_NAME}"
+    alt_model_name = alt_model_plugin.MODEL_NAME.replace(" ", "_").replace(
+        ".", ""
     )
+    model_comparison_name = f"vs-{alt_model_name}"
     filename = generate_filename(
         "bao-plot",
-        dataset_name,
+        dataset_id,
         "png",
         model_name=model_comparison_name,
         timestamp=timestamp,
@@ -932,7 +934,8 @@ def plot_cmb_spectrum(
     """Generate and save a CMB power spectrum plot with residuals."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
-    dataset_name = cmb_data_df.attrs.get("dataset_name_sanitized", "CMB_data")
+    dataset_name = cmb_data_df.attrs.get("dataset_name", "CMB data")
+    dataset_id = cmb_data_df.attrs.get("dataset_id", "cmb_data")
     logger.info(f"Generating CMB Spectrum Plot for {dataset_name}...")
 
     _apply_common_style()
@@ -1260,12 +1263,13 @@ def plot_cmb_spectrum(
         )
         y -= line_height
 
-    model_comparison_name = (
-        f"{lcdm_plugin.MODEL_NAME}-vs-" f"{alt_model_plugin.MODEL_NAME}"
+    alt_model_name = alt_model_plugin.MODEL_NAME.replace(" ", "_").replace(
+        ".", ""
     )
+    model_comparison_name = f"vs-{alt_model_name}"
     filename = generate_filename(
         "cmb-plot",
-        dataset_name,
+        dataset_id,
         "png",
         model_name=model_comparison_name,
         timestamp=timestamp,
