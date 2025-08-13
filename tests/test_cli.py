@@ -7,6 +7,7 @@ from unittest import mock
 
 with mock.patch("sys.version_info", (3, 12, 0)):
     copernican = importlib.import_module("copernican")
+import copernican_lib.data_loaders
 
 
 class RunTestsFlagTestCase(unittest.TestCase):
@@ -23,6 +24,33 @@ class RunTestsFlagTestCase(unittest.TestCase):
         self.assertEqual(cmd[:3], [sys.executable, "-m", "unittest"])
         self.assertEqual(cmd[3], "discover")
         self.assertIn("-v", cmd)
+
+
+class SelectSourceDisplayTestCase(unittest.TestCase):
+    """Ensure CLI selection presents names and returns identifiers."""
+
+    @mock.patch("copernican_lib.data_loaders.console.ask", return_value="1")
+    def test_select_source_shows_name(self, ask_mock):
+        registry = {
+            "dummy_id": {
+                "dataset_name": "Dummy Dataset",
+                "description": "demo",
+                "data_dir": None,
+                "function": lambda *_: None,
+            }
+        }
+        captured = []
+        with mock.patch(
+            "copernican_lib.data_loaders.console.write",
+            lambda msg: captured.append(msg),
+        ):
+            result = copernican_lib.data_loaders._select_source(
+                registry, "SNe"
+            )
+        self.assertEqual(result, "dummy_id")
+        out = "".join(captured)
+        self.assertIn("Dummy Dataset", out)
+        self.assertNotIn("dummy_id", out)
 
 
 if __name__ == "__main__":

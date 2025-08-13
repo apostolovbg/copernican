@@ -3,6 +3,7 @@
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 import pandas as pd
 import yaml
@@ -31,7 +32,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     yaml.safe_dump(meta, fh)
 
                 @data_loaders.register_sne_parser(
-                    name="Dummy SNe",
+                    name="dummy_sne",
                     data_dir=tmp,
                 )
                 def _parser(_dir, **_kwargs):
@@ -43,12 +44,34 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                         }
                     )
 
-                df = data_loaders.load_sne_data("Dummy SNe")
+                df = data_loaders.load_sne_data("dummy_sne")
                 self.assertEqual(df.attrs["dataset_name"], "Dummy SNe")
                 self.assertEqual(df.attrs["dataset_id"], "dummy_sne")
                 self.assertEqual(len(df), 1)
         finally:
             data_loaders.SNE_PARSERS = prev
+
+    @mock.patch("copernican_lib.data_loaders.console.ask", return_value="1")
+    def test_select_source_uses_dataset_name(self, ask_mock):
+        """Interactive selection should display names and return the id."""
+        registry = {
+            "dummy_sne": {
+                "dataset_name": "Dummy SNe",
+                "description": "test set",
+                "data_dir": None,
+                "function": lambda *_: None,
+            }
+        }
+        captured = []
+        with mock.patch(
+            "copernican_lib.data_loaders.console.write",
+            lambda msg: captured.append(msg),
+        ):
+            ds_id = data_loaders._select_source(registry, "SNe")
+        self.assertEqual(ds_id, "dummy_sne")
+        output = "".join(captured)
+        self.assertIn("Dummy SNe", output)
+        self.assertNotIn("dummy_sne", output)
 
 
 if __name__ == "__main__":

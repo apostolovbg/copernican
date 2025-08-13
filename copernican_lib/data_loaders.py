@@ -15,10 +15,12 @@ from .utils import check_dataset_id, load_metadata_from_dir
 
 
 # --- Parser Registry ---
-# Each registry maps a short human readable key to a dictionary
-# describing the parser function, its help text and an optional data
-# directory.  Parser modules populate these registries via the
-# decorators below when they are imported.
+# Each registry maps a unique ``dataset_id`` to a dictionary describing the
+# parser function, human readable ``dataset_name``, ``description`` and an
+# optional ``data_dir``.  Parser modules populate these registries via the
+# decorators below when they are imported.  ``dataset_id`` values are derived
+# from the metadata files located next to the raw tables and are therefore
+# mandatory.
 SNE_PARSERS: dict = {}
 BAO_PARSERS: dict = {}
 CMB_PARSERS: dict = {}
@@ -28,13 +30,12 @@ SIREN_PARSERS: dict = {}
 
 # --- Decorators to register parsers ---
 def register_sne_parser(name=None, description="", data_dir=None):
-    """Decorator to register a SNe data parsing function bound to a data
-    source.
+    """Register a SNe data parsing function bound to a data source.
 
-    The registration no longer requires the human readable dataset name or
-    description up front. When ``name`` is ``None`` the base name of
-    ``data_dir`` is used as a temporary key and replaced with the metadata
-    ``dataset_name`` during discovery.
+    ``name`` acts as a temporary key until metadata discovery provides the
+    canonical ``dataset_id``. The same placeholder is stored as
+    ``dataset_name`` so that direct calls during tests remain functional before
+    discovery runs.
     """
 
     def decorator(func):
@@ -42,6 +43,7 @@ def register_sne_parser(name=None, description="", data_dir=None):
         key = name or os.path.basename(data_dir or func.__name__)
         SNE_PARSERS[key] = {
             "function": func,
+            "dataset_name": name or key,
             "description": description,
             "data_dir": data_dir,
         }
@@ -51,12 +53,11 @@ def register_sne_parser(name=None, description="", data_dir=None):
 
 
 def register_bao_parser(name=None, description="", data_dir=None):
-    """Decorator to register a BAO data parsing function bound to a data
-    source.
+    """Register a BAO data parsing function bound to a data source.
 
-    When ``name`` is ``None`` the dataset directory name is used as a temporary
-    key and replaced with the metadata-supplied ``dataset_name`` during
-    discovery.
+    ``name`` again provides a temporary key and placeholder ``dataset_name``
+    until discovery replaces the registry key with the metadata supplied
+    ``dataset_id``.
     """
 
     def decorator(func):
@@ -64,6 +65,7 @@ def register_bao_parser(name=None, description="", data_dir=None):
         key = name or os.path.basename(data_dir or func.__name__)
         BAO_PARSERS[key] = {
             "function": func,
+            "dataset_name": name or key,
             "description": description,
             "data_dir": data_dir,
         }
@@ -73,11 +75,10 @@ def register_bao_parser(name=None, description="", data_dir=None):
 
 
 def register_cmb_parser(name=None, description="", data_dir=None):
-    """Decorator to register a CMB data parsing function bound to a data
-    source.
+    """Register a CMB data parsing function bound to a data source.
 
-    When ``name`` is omitted the dataset directory name acts as a temporary key
-    until discovery replaces it with the metadata ``dataset_name``.
+    ``name`` is used as a placeholder ``dataset_id`` and ``dataset_name`` until
+    metadata discovery replaces the key with the canonical identifier.
     """
 
     def decorator(func):
@@ -85,6 +86,7 @@ def register_cmb_parser(name=None, description="", data_dir=None):
         key = name or os.path.basename(data_dir or func.__name__)
         CMB_PARSERS[key] = {
             "function": func,
+            "dataset_name": name or key,
             "description": description,
             "data_dir": data_dir,
         }
@@ -94,10 +96,10 @@ def register_cmb_parser(name=None, description="", data_dir=None):
 
 
 def register_gw_parser(name=None, description="", data_dir=None):
-    """Decorator to register a gravitational wave parser bound to a data
-    source.
+    """Register a gravitational wave parser bound to a data source.
 
-    Omitting ``name`` defers human-readable naming to metadata discovery.
+    ``name`` again serves as a provisional registry key and ``dataset_name``
+    until metadata discovery provides the definitive ``dataset_id``.
     """
 
     def decorator(func):
@@ -105,6 +107,7 @@ def register_gw_parser(name=None, description="", data_dir=None):
         key = name or os.path.basename(data_dir or func.__name__)
         GW_PARSERS[key] = {
             "function": func,
+            "dataset_name": name or key,
             "description": description,
             "data_dir": data_dir,
         }
@@ -114,10 +117,10 @@ def register_gw_parser(name=None, description="", data_dir=None):
 
 
 def register_siren_parser(name=None, description="", data_dir=None):
-    """Decorator to register a standard siren parser bound to a data source.
+    """Register a standard siren parser bound to a data source.
 
-    When ``name`` is ``None`` the dataset directory name serves as a temporary
-    key and is replaced with the metadata ``dataset_name`` during discovery.
+    ``name`` acts as the temporary key and placeholder ``dataset_name`` until
+    discovery replaces it with the metadata ``dataset_id``.
     """
 
     def decorator(func):
@@ -125,6 +128,7 @@ def register_siren_parser(name=None, description="", data_dir=None):
         key = name or os.path.basename(data_dir or func.__name__)
         SIREN_PARSERS[key] = {
             "function": func,
+            "dataset_name": name or key,
             "description": description,
             "data_dir": data_dir,
         }
@@ -163,6 +167,14 @@ def _discover_parsers():
             if not os.path.isdir(src_dir):
                 continue
             meta = load_metadata_from_dir(src_dir)
+            dataset_id = check_dataset_id(meta.get("dataset_id", ""))
+            dataset_name = meta.get("dataset_name")
+            if not dataset_id or not dataset_name:
+                logging.getLogger().error(
+                    "Missing dataset_id or dataset_name in %s",
+                    src_dir,
+                )
+                continue
             placeholder_key = os.path.basename(src_dir)
             for fname in os.listdir(src_dir):
                 if fname.startswith("cosmo_parser_") and fname.endswith(".py"):
@@ -180,33 +192,24 @@ def _discover_parsers():
                             f"Failed loading parser module {file_path}: {e}",
                         )
                     registry = registry_map[dtype]
+                    key = None
                     if placeholder_key in registry:
-                        entry = registry.pop(placeholder_key)
-                        dataset_name = meta.get(
-                            "dataset_name",
-                            placeholder_key,
-                        )
-                        entry["description"] = meta.get(
-                            "description",
-                            entry.get("description", ""),
-                        )
-                        entry["data_dir"] = src_dir
-                        registry[dataset_name] = entry
-                        dataset_id = meta.get("dataset_id")
-                        if dataset_id:
-                            registry[dataset_id] = entry
-                    # If the parser registered with an explicit name, simply
-                    # update the description if metadata provides one.
+                        key = placeholder_key
                     else:
-                        dataset_name = meta.get("dataset_name")
-                        if dataset_name and dataset_name in registry:
-                            registry[dataset_name]["description"] = meta.get(
-                                "description",
-                                registry[dataset_name].get("description", ""),
-                            )
-                            dataset_id = meta.get("dataset_id")
-                            if dataset_id:
-                                registry[dataset_id] = registry[dataset_name]
+                        for tmp_key, tmp_entry in registry.items():
+                            if tmp_entry.get("data_dir") == src_dir:
+                                key = tmp_key
+                                break
+                    if key is None:
+                        continue
+                    entry = registry.pop(key)
+                    entry["description"] = meta.get(
+                        "description",
+                        entry.get("description", ""),
+                    )
+                    entry["data_dir"] = src_dir
+                    entry["dataset_name"] = dataset_name
+                    registry[dataset_id] = entry
 
 
 # Discover parsers at import time so that functions like
@@ -217,18 +220,19 @@ _discover_parsers()
 
 # --- Helper to list and select parsers ---
 def _select_source(parser_registry, data_type_name):
-    """Displays available data sources and prompts user for selection."""
+    """Display available data sources and return the chosen ``dataset_id``."""
     logger = logging.getLogger()
     if not parser_registry:
         logger.error(f"No parsers registered for {data_type_name} data.")
         return None
 
     logger.info(f"\nAvailable {data_type_name} data sources:")
-    options = list(parser_registry.keys())
-    for i, key in enumerate(options):
-        desc = parser_registry[key]["description"]
+    options = list(parser_registry.items())
+    for i, (ds_id, entry) in enumerate(options):
+        name = entry.get("dataset_name", ds_id)
+        desc = entry.get("description", "")
         console.write(
-            f"  {i+1}. {key} ({desc})" if desc else f"  {i+1}. {key}",
+            f"  {i+1}. {name} ({desc})" if desc else f"  {i+1}. {name}",
         )
 
     console.write(
@@ -241,9 +245,8 @@ def _select_source(parser_registry, data_type_name):
                 return None
             choice_idx = int(choice) - 1
             if 0 <= choice_idx < len(options):
-                return options[choice_idx]
-            else:
-                console.write("Invalid selection. Please try again.")
+                return options[choice_idx][0]
+            console.write("Invalid selection. Please try again.")
         except ValueError:
             console.write("Invalid input. Please enter a number or 'c'.")
 
@@ -278,291 +281,263 @@ def _log_dataset_info(df, data_type, logger):
 
 
 # --- Main Loading Functions ---
-def load_sne_data(source_key=None, **kwargs):
-    """Loads SNe data for the chosen source."""
+def load_sne_data(dataset_id=None, **kwargs):
+    """Load SNe data for the chosen ``dataset_id``."""
     logger = logging.getLogger()
-    if source_key is None:
-        source_key = _select_source(SNE_PARSERS, "SNe")
-        if source_key is None:
+    if dataset_id is None:
+        dataset_id = _select_source(SNE_PARSERS, "SNe")
+        if dataset_id is None:
             logger.info("SNe data loading canceled by user.")
             return None
 
-    if source_key not in SNE_PARSERS:
-        logger.error(f"No SNe parser registered for source '{source_key}'")
+    if dataset_id not in SNE_PARSERS:
+        logger.error(f"No SNe parser registered for '{dataset_id}'")
         return None
 
-    entry = SNE_PARSERS[source_key]
+    entry = SNE_PARSERS[dataset_id]
     parser_func = entry["function"]
     data_dir = entry["data_dir"]
     try:
-        logger.info(f"Attempting to load SNe data from source '{source_key}'")
+        logger.info(
+            f"Attempting to load SNe data from '{entry['dataset_name']}'",
+        )
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
             meta = load_metadata_from_dir(data_dir)
             if meta:
-                data_df.attrs.update(meta)
-            data_df.attrs["source_key"] = source_key
-            dataset_name = data_df.attrs.get("dataset_name", source_key)
-            data_df.attrs["dataset_name"] = dataset_name
-            dataset_id = check_dataset_id(
-                data_df.attrs.get(
-                    "dataset_id",
-                    dataset_name.replace(" ", "_").lower(),
+                entry["dataset_name"] = meta.get(
+                    "dataset_name", entry.get("dataset_name", "")
                 )
-            )
-            data_df.attrs["dataset_id"] = dataset_id
+                data_df.attrs.update(meta)
+            data_df.attrs["dataset_name"] = entry["dataset_name"]
+            data_df.attrs["dataset_id"] = check_dataset_id(dataset_id)
             logger.info(
                 f"Successfully loaded {len(data_df)} SNe data points.",
             )
             _log_dataset_info(data_df, "SNe", logger)
         elif data_df is None:
             logger.error(
-                f"SNe parser '{source_key}' returned None.",
+                f"SNe parser '{dataset_id}' returned None.",
             )
         else:
             logger.error(
-                f"SNe parser '{source_key}' returned an empty DataFrame.",
+                f"SNe parser '{dataset_id}' returned an empty DataFrame.",
             )
         return data_df
     except Exception as e:
         logger.critical(
-            f"CRITICAL Error during SNe data parsing ({source_key}): {e}",
+            f"CRITICAL Error during SNe data parsing ({dataset_id}): {e}",
             exc_info=True,
         )
         return None
 
 
-def load_bao_data(source_key=None, **kwargs):
-    """Loads BAO data for the chosen source."""
+def load_bao_data(dataset_id=None, **kwargs):
+    """Load BAO data for the chosen ``dataset_id``."""
     logger = logging.getLogger()
-    if source_key is None:
-        source_key = _select_source(BAO_PARSERS, "BAO")
-        if source_key is None:
+    if dataset_id is None:
+        dataset_id = _select_source(BAO_PARSERS, "BAO")
+        if dataset_id is None:
             logger.info("BAO data loading canceled by user.")
             return None
 
-    if source_key not in BAO_PARSERS:
-        logger.error(f"No BAO parser registered for source '{source_key}'")
+    if dataset_id not in BAO_PARSERS:
+        logger.error(f"No BAO parser registered for '{dataset_id}'")
         return None
 
-    entry = BAO_PARSERS[source_key]
+    entry = BAO_PARSERS[dataset_id]
     parser_func = entry["function"]
     data_dir = entry["data_dir"]
     try:
-        logger.info(f"Attempting to load BAO data from source '{source_key}'")
+        logger.info(
+            f"Attempting to load BAO data from '{entry['dataset_name']}'",
+        )
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
             meta = load_metadata_from_dir(data_dir)
             if meta:
-                data_df.attrs.update(meta)
-            data_df.attrs["source_key"] = source_key
-            dataset_name = data_df.attrs.get("dataset_name", source_key)
-            data_df.attrs["dataset_name"] = dataset_name
-            dataset_id = check_dataset_id(
-                data_df.attrs.get(
-                    "dataset_id",
-                    dataset_name.replace(" ", "_").lower(),
+                entry["dataset_name"] = meta.get(
+                    "dataset_name", entry.get("dataset_name", "")
                 )
-            )
-            data_df.attrs["dataset_id"] = dataset_id
+                data_df.attrs.update(meta)
+            data_df.attrs["dataset_name"] = entry["dataset_name"]
+            data_df.attrs["dataset_id"] = check_dataset_id(dataset_id)
             logger.info(
                 f"Successfully loaded {len(data_df)} BAO data points.",
             )
             _log_dataset_info(data_df, "BAO", logger)
         elif data_df is None:
             logger.error(
-                f"BAO parser '{source_key}' returned None.",
+                f"BAO parser '{dataset_id}' returned None.",
             )
         else:
             logger.error(
-                f"BAO parser '{source_key}' returned an empty DataFrame.",
+                f"BAO parser '{dataset_id}' returned an empty DataFrame.",
             )
         return data_df
     except Exception as e:
         logger.critical(
-            f"CRITICAL Error during BAO data parsing ({source_key}): {e}",
+            f"CRITICAL Error during BAO data parsing ({dataset_id}): {e}",
             exc_info=True,
         )
         return None
 
 
-def load_cmb_data(source_key=None, **kwargs):
-    """Loads CMB data for the chosen source."""
+def load_cmb_data(dataset_id=None, **kwargs):
+    """Load CMB data for the chosen ``dataset_id``."""
     logger = logging.getLogger()
-    if source_key is None:
-        source_key = _select_source(CMB_PARSERS, "CMB")
-        if source_key is None:
+    if dataset_id is None:
+        dataset_id = _select_source(CMB_PARSERS, "CMB")
+        if dataset_id is None:
             logger.info("CMB data loading canceled by user.")
             return None
 
-    if source_key not in CMB_PARSERS:
-        logger.error(f"No CMB parser registered for source '{source_key}'")
+    if dataset_id not in CMB_PARSERS:
+        logger.error(f"No CMB parser registered for '{dataset_id}'")
         return None
 
-    entry = CMB_PARSERS[source_key]
+    entry = CMB_PARSERS[dataset_id]
     parser_func = entry["function"]
     data_dir = entry["data_dir"]
     try:
-        logger.info(f"Attempting to load CMB data from source '{source_key}'")
+        logger.info(
+            f"Attempting to load CMB data from '{entry['dataset_name']}'",
+        )
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
             meta = load_metadata_from_dir(data_dir)
             if meta:
-                data_df.attrs.update(meta)
-            data_df.attrs["source_key"] = source_key
-            dataset_name = data_df.attrs.get("dataset_name", source_key)
-            data_df.attrs["dataset_name"] = dataset_name
-            dataset_id = check_dataset_id(
-                data_df.attrs.get(
-                    "dataset_id",
-                    dataset_name.replace(" ", "_").lower(),
+                entry["dataset_name"] = meta.get(
+                    "dataset_name", entry.get("dataset_name", "")
                 )
-            )
-            data_df.attrs["dataset_id"] = dataset_id
+                data_df.attrs.update(meta)
+            data_df.attrs["dataset_name"] = entry["dataset_name"]
+            data_df.attrs["dataset_id"] = check_dataset_id(dataset_id)
             logger.info(
                 f"Successfully loaded {len(data_df)} CMB data points.",
             )
             _log_dataset_info(data_df, "CMB", logger)
         elif data_df is None:
             logger.error(
-                f"CMB parser '{source_key}' returned None.",
+                f"CMB parser '{dataset_id}' returned None.",
             )
         else:
             logger.error(
-                f"CMB parser '{source_key}' returned an empty DataFrame.",
+                f"CMB parser '{dataset_id}' returned an empty DataFrame.",
             )
         return data_df
     except Exception as e:
         logger.critical(
-            f"CRITICAL Error during CMB data parsing ({source_key}): {e}",
+            f"CRITICAL Error during CMB data parsing ({dataset_id}): {e}",
             exc_info=True,
         )
         return None
 
 
-def load_gw_data(source_key=None, **kwargs):
-    """Loads gravitational wave data for the chosen source."""
+def load_gw_data(dataset_id=None, **kwargs):
+    """Load gravitational wave data for the chosen ``dataset_id``."""
     logger = logging.getLogger()
-    if source_key is None:
-        source_key = _select_source(GW_PARSERS, "GW")
-        if source_key is None:
+    if dataset_id is None:
+        dataset_id = _select_source(GW_PARSERS, "GW")
+        if dataset_id is None:
             logger.info("Gravitational wave data loading canceled by user.")
             return None
 
-    if source_key not in GW_PARSERS:
-        # fmt: off
-        msg = (
-            "No gravitational wave parser registered for source "
-            f"'{source_key}'"
-        )
-        # fmt: on
+    if dataset_id not in GW_PARSERS:
+        msg = f"No gravitational wave parser registered for '{dataset_id}'"
         logger.error(msg)
         return None
 
-    entry = GW_PARSERS[source_key]
+    entry = GW_PARSERS[dataset_id]
     parser_func = entry["function"]
     data_dir = entry["data_dir"]
     try:
         logger.info(
-            f"Attempting to load GW data from source '{source_key}'",
+            f"Attempting to load GW data from '{entry['dataset_name']}'",
         )
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
             meta = load_metadata_from_dir(data_dir)
             if meta:
-                data_df.attrs.update(meta)
-            data_df.attrs["source_key"] = source_key
-            dataset_name = data_df.attrs.get("dataset_name", source_key)
-            data_df.attrs["dataset_name"] = dataset_name
-            dataset_id = check_dataset_id(
-                data_df.attrs.get(
-                    "dataset_id",
-                    dataset_name.replace(" ", "_").lower(),
+                entry["dataset_name"] = meta.get(
+                    "dataset_name", entry.get("dataset_name", "")
                 )
-            )
-            data_df.attrs["dataset_id"] = dataset_id
+                data_df.attrs.update(meta)
+            data_df.attrs["dataset_name"] = entry["dataset_name"]
+            data_df.attrs["dataset_id"] = check_dataset_id(dataset_id)
             logger.info(
                 f"Successfully loaded {len(data_df)} GW data points.",
             )
             _log_dataset_info(data_df, "GW", logger)
         elif data_df is None:
             logger.error(
-                f"GW parser '{source_key}' returned None.",
+                f"GW parser '{dataset_id}' returned None.",
             )
         else:
             logger.error(
-                f"GW parser '{source_key}' returned an empty DataFrame.",
+                f"GW parser '{dataset_id}' returned an empty DataFrame.",
             )
         return data_df
     except Exception as e:
         logger.critical(
-            f"CRITICAL Error during GW data parsing ({source_key}): {e}",
+            f"CRITICAL Error during GW data parsing ({dataset_id}): {e}",
             exc_info=True,
         )
         return None
 
 
-def load_siren_data(source_key=None, **kwargs):
-    """Loads standard siren data for the chosen source."""
+def load_siren_data(dataset_id=None, **kwargs):
+    """Load standard siren data for the chosen ``dataset_id``."""
     logger = logging.getLogger()
-    if source_key is None:
-        source_key = _select_source(SIREN_PARSERS, "standard siren")
-        if source_key is None:
+    if dataset_id is None:
+        dataset_id = _select_source(SIREN_PARSERS, "standard siren")
+        if dataset_id is None:
             logger.info("Standard siren data loading canceled by user.")
             return None
 
-    if source_key not in SIREN_PARSERS:
+    if dataset_id not in SIREN_PARSERS:
         logger.error(
-            f"No standard siren parser registered for source '{source_key}'",
+            f"No standard siren parser registered for '{dataset_id}'",
         )
         return None
 
-    entry = SIREN_PARSERS[source_key]
+    entry = SIREN_PARSERS[dataset_id]
     parser_func = entry["function"]
     data_dir = entry["data_dir"]
     try:
         logger.info(
-            f"Attempting to load siren data from source '{source_key}'",
+            f"Attempting to load siren data from '{entry['dataset_name']}'",
         )
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
             meta = load_metadata_from_dir(data_dir)
             if meta:
-                data_df.attrs.update(meta)
-            data_df.attrs["source_key"] = source_key
-            dataset_name = data_df.attrs.get("dataset_name", source_key)
-            data_df.attrs["dataset_name"] = dataset_name
-            dataset_id = check_dataset_id(
-                data_df.attrs.get(
-                    "dataset_id",
-                    dataset_name.replace(" ", "_").lower(),
+                entry["dataset_name"] = meta.get(
+                    "dataset_name", entry.get("dataset_name", "")
                 )
-            )
-            data_df.attrs["dataset_id"] = dataset_id
-            # fmt: off
+                data_df.attrs.update(meta)
+            data_df.attrs["dataset_name"] = entry["dataset_name"]
+            data_df.attrs["dataset_id"] = check_dataset_id(dataset_id)
             msg = (
-                f"Successfully loaded {len(data_df)} standard siren "
-                f"data points."
+                "Successfully loaded "
+                f"{len(data_df)} standard siren data points."
             )
-            # fmt: on
             logger.info(msg)
             _log_dataset_info(data_df, "SIREN", logger)
         elif data_df is None:
             logger.error(
-                f"Standard siren parser '{source_key}' returned None.",
+                f"Standard siren parser '{dataset_id}' returned None.",
             )
         else:
             logger.error(
-                f"Standard siren parser '{source_key}' returned an empty "
+                f"Standard siren parser '{dataset_id}' returned an empty "
                 f"DataFrame.",
             )
         return data_df
     except Exception as e:
-        # fmt: off
         err_msg = (
             "CRITICAL Error during standard siren data parsing "
-            f"({source_key}): {e}"
+            f"({dataset_id}): {e}"
         )
-        # fmt: on
         logger.critical(err_msg, exc_info=True)
         return None
