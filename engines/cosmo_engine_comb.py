@@ -83,11 +83,13 @@ def chi_squared_sne(cosmo_params, mu_model_func, sne_data_df):
 
 
 def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
-    """Return chi-squared for BAO observables.
+    r"""Return chi-squared for BAO observables.
 
-    The previous implementation iterated row by row which introduced a large
-    Python overhead when evaluating many data points. The calculation is now
-    fully vectorised so that distance functions operate on arrays directly.
+    If ``bao_data_df`` carries ``covariance_matrix_inv`` on ``.attrs`` the
+    full residual vector is evaluated as :math:`\Delta^T C^{-1} \Delta`.
+    Datasets lacking a covariance (or providing an ill-conditioned one) fall
+    back to diagonal errors. The calculation is vectorised so that distance
+    functions operate on arrays directly.
     """
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)
@@ -116,16 +118,6 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
     obs_type = bao_data_df["observable_type"].to_numpy()
     obs_val = bao_data_df["value"].to_numpy(dtype=float)
     obs_err = bao_data_df["error"].to_numpy(dtype=float)
-
-    valid = np.isfinite(obs_err) & (obs_err > 1e-9)
-    if not np.any(valid):
-        logger.warning("(chi2_bao): No valid BAO points for chi-squared.")
-        return np.inf
-
-    z = z[valid]
-    obs_type = obs_type[valid]
-    obs_val = obs_val[valid]
-    obs_err = obs_err[valid]
 
     pred = np.full_like(obs_val, np.nan, dtype=float)
 
@@ -171,7 +163,33 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
         logger.warning("(chi2_bao): Model returned no finite BAO predictions.")
         return np.inf
 
-    chi2 = np.sum(((obs_val - pred) / obs_err) ** 2)
+    # Residual vector between observed and modelled quantities.
+    resid = obs_val - pred
+    if np.any(~np.isfinite(resid)):
+        logger.warning("(chi2_bao): Non-finite residuals in BAO data.")
+        return np.inf
+
+    # Use the full covariance matrix when provided by the parser.
+    C_inv = bao_data_df.attrs.get("covariance_matrix_inv")
+    if C_inv is not None:
+        try:
+            if C_inv.shape[0] != len(resid):
+                raise ValueError("Covariance size mismatch")
+            chi2 = float(resid @ C_inv @ resid)
+        except Exception as exc:
+            logger.warning(
+                "Falling back to diagonal errors due to covariance issue: %s",
+                exc,
+            )
+            C_inv = None
+
+    if C_inv is None:
+        valid = np.isfinite(obs_err) & (obs_err > 1e-9)
+        if not np.any(valid):
+            logger.warning("(chi2_bao): No valid BAO points for chi-squared.")
+            return np.inf
+        chi2 = float(np.sum((resid[valid] / obs_err[valid]) ** 2))
+
     return chi2 if np.isfinite(chi2) else np.inf
 
 
