@@ -17,9 +17,11 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
-## Unreleased
- - 2025-08-13: Added regression tests for BOSS DR12 BAO parsing and LCDM
-   chi-squared residuals (AI assistant)
+## Version 3.6.13
+- 2025-08-15: Start scripts now create and reuse a local virtual environment,
+  installing dependencies automatically (AI assistant)
+- 2025-08-13: Added regression tests for BOSS DR12 BAO parsing and LCDM
+  chi-squared residuals (AI assistant)
 
 - 2025-08-13: Use full BAO covariance when available and test coverage
   (AI assistant)
