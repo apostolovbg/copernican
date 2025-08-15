@@ -250,34 +250,29 @@ def _gather_required_packages():
     }
 
 
-def _print_install_instructions(missing: list[str]) -> None:
-    """Show platform-specific commands to install missing packages."""
-    # The messages here intentionally rely on plain ``pip`` so users on
-    # any platform can copy & paste them directly.  Additional hints for
-    # Homebrew, APT or pipx are printed when those tools are available
-    # to guide less experienced users.
-    pkgs = " ".join(sorted(set(missing)))
-    pip_cmd = f"{Path(sys.executable).name} -m pip install {pkgs}"
-    console.write("Please install them with:")
-    console.write(f"  {pip_cmd}")
-
-    sys_name = platform.system()
-    if sys_name == "Darwin" and shutil.which("brew"):
-        console.write(f"  brew install python && {pip_cmd}")
-    elif sys_name == "Linux":
-        if shutil.which("apt"):
-            console.write(f"  sudo apt install python3-pip && {pip_cmd}")
-        elif shutil.which("apt-get"):
-            console.write(f"  sudo apt-get install python3-pip && {pip_cmd}")
-    if shutil.which("pipx"):
-        console.write(f"  pipx install {pkgs}")
-
-
 def check_dependencies():
-    """Ensure required packages are installed and activate venv if needed."""
+    """Ensure required packages are installed inside the local ``.venv``.
+
+    The suite bundles a virtual environment under ``.venv`` that is activated
+    by the ``start.*`` launchers.  This check confirms the interpreter is
+    running from that environment before installing any missing packages.
+    Required packages are installed automatically via ``pip`` and re-imported
+    to verify success so the workflow can proceed without manual steps.
+    """
     console.write("--- Running System Dependency Check ---")
+
+    if Path(sys.prefix).resolve().name != ".venv":
+        console.write(
+            (
+                "ERROR: The Copernican Suite must run inside the local "
+                "'.venv'. Launch the appropriate start script for your OS."
+            ),
+            error=True,
+        )
+        exit_clean(1)
+
     required = sorted(_gather_required_packages())
-    missing = []
+    missing: list[str] = []
     for pkg in required:
         try:
             if importlib.util.find_spec(pkg) is None:
@@ -291,9 +286,38 @@ def check_dependencies():
                 missing.append(pkg)
 
     if missing:
-        console.write(f"Missing packages detected: {', '.join(missing)}")
-        _print_install_instructions(missing)
-        exit_clean(1)
+        console.write(
+            f"Missing packages detected: {', '.join(missing)}"
+        )
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", *missing],
+                check=True,
+            )
+        except subprocess.CalledProcessError:
+            console.write(
+                "Automatic installation failed. Please check the log and "
+                "install the required packages manually.",
+                error=True,
+            )
+            exit_clean(1)
+
+        failed = []
+        for pkg in missing:
+            try:
+                importlib.import_module(pkg)
+            except Exception:
+                failed.append(pkg)
+        if failed:
+            console.write(
+                (
+                    "Still missing packages after installation: "
+                    f"{', '.join(failed)}"
+                ),
+                error=True,
+            )
+            exit_clean(1)
+        console.write("✅ Packages installed successfully. Continuing...\n")
     else:
         console.write("✅ System Dependency Check Passed. Continuing...\n")
 

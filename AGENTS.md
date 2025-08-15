@@ -78,13 +78,13 @@ by the engines instead of being reimplemented inside each backend.
 
 ## 3. Dependency Installation
 `copernican.py` scans all project files for imported modules using Python's
-AST parser to avoid false positives from comments. If any required package is
-missing, the program prints an install command tailored to the current
-operating system and lists only the missing packages. Run that command
-manually to install or upgrade packages (already installed libraries will be
-skipped). This lightweight approach works across Windows, macOS and Linux
-while allowing new engines to introduce additional dependencies without
-manual updates to the documentation.
+AST parser to avoid false positives from comments. When launched through the
+`start.*` scripts the interpreter runs inside the repository's ``.venv``.
+If any required package is missing, the program installs it automatically with
+`pip` and verifies the import before continuing. Running outside ``.venv``
+prompts the user to restart via the appropriate launcher. This lightweight
+approach works across Windows, macOS and Linux while allowing new engines to
+introduce additional dependencies without manual updates to the documentation.
 To install the suite as a package, run `pip install .` at the repository root.
 Use `pip install -e .` if you intend to develop the code.
 
