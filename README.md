@@ -1,4 +1,4 @@
-**Version:** 3.6.12
+**Version:** 3.6.13
 **Last Updated:** 2025-08-11
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -99,9 +99,10 @@ parsers are discovered automatically under
    completes.
 
 ## Dependencies
-This project requires **Python 3.11 or later** and relies on `numpy`, `scipy`,
-`matplotlib`,
-`pandas`, `sympy`, `jsonschema` and `camb==1.6.2`.
+Only a system-wide Python 3.11+ installation is required. The start scripts
+manage all other dependencies inside the `.venv`. This project relies on
+`numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`, `jsonschema` and
+`camb==1.6.2`.
 If any packages are missing the program installs them automatically with
 `pip` and verifies the imports. The script must run inside the repository's
 `.venv`; otherwise it instructs you to launch via `start.*`.
@@ -133,13 +134,10 @@ This folder contains package metadata such as the version number, dependency
 list and entry points used by Python's packaging tools. It is generated
 automatically and does not need to be tracked in version control.
 
-Standalone executables can be created with the PyInstaller spec files included
-at the repository root. macOS builds **must** target `universal2` so the
-bundle
-runs on both Intel and Apple Silicon. See
-[docs/packaging.md](docs/packaging.md) for platform specific build commands
-and
-macOS signing instructions.
+The suite no longer ships standalone binaries. Launch with `start.bat`,
+`start.command` or `start.sh` to create a local `.venv` and install all
+dependencies automatically. Only a system-wide Python 3.11+ installation is
+required. See [docs/packaging.md](docs/packaging.md) for launcher details.
 
 
 ## Directory Layout

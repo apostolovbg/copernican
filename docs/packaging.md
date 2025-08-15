@@ -1,46 +1,22 @@
 # Packaging Guide
 
-This guide describes how to build standalone executables for the Copernican
-Suite using PyInstaller. Each provided spec file bundles the project source
-code so the resulting binary can run without an existing checkout of the
-repository or a pre-installed copy of Python.
+Standalone executables are no longer produced. The suite runs directly
+from source using platform launchers:
 
-Builds should target Python 3.11 or later and include `camb==1.6.2` to match
-the suite's runtime requirements.
+- `start.bat` on Windows
+- `start.command` on macOS
+- `start.sh` on Linux
 
-## Windows `.exe`
-1. Install PyInstaller: `pip install pyinstaller`.
-2. Run `pyinstaller copernican_win.spec`.
-3. The `dist/copernican.exe` file contains the suite and all bundled sources.
+Each script creates or reuses a local `.venv`, upgrades `pip` and installs
+all required packages automatically. Only a system-wide Python 3.11+
+installation is needed. Running `copernican.py` outside the virtual
+environment prompts you to relaunch with the appropriate script.
 
-## macOS universal2 `.app`
-The macOS build **must** target `universal2` so the bundle runs on Intel and
-Apple Silicon. Install the universal2 Python distribution from python.org to
-ensure all compiled dependencies include both architectures.
-
-1. Install the python.org universal2 build of Python and PyInstaller.
-2. Run `pyinstaller copernican_macos.spec`.
-3. The `dist/Copernican.app` bundle supports both Intel and Apple Silicon.
-
-### Signing and notarizing
-Once you have an Apple Developer ID, the bundle can be signed and notarized:
+To install the suite as a package, run:
 
 ```bash
-codesign --deep --force --options runtime \
-  --sign "Developer ID Application: YOUR NAME (TEAMID)" dist/Copernican.app
-hdiutil create -fs HFS+ -volname Copernican \
-  -srcfolder dist/Copernican.app dist/copernican.dmg
-xcrun notarytool submit dist/copernican.dmg --apple-id YOUR_ID@example.com \
-  --team-id TEAMID --password YOUR_APP_SPECIFIC_PASSWORD --wait
-xcrun stapler staple dist/Copernican.app
+pip install .
 ```
 
-These steps sign the application, submit it to Apple for notarization and
-staple
-the approval ticket so the app runs without security prompts.
+Use `pip install -e .` for development.
 
-## Linux self-contained binary
-1. Install PyInstaller: `pip install pyinstaller`.
-2. Run `pyinstaller copernican_linux.spec`.
-3. The `dist/copernican` file is a one-file binary containing the full project
-   source.
