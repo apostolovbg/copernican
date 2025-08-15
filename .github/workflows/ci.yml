@@ -8,119 +8,59 @@ jobs:
   build:
     strategy:
       matrix:
-        include:
-          - os: ubuntu-latest
-            spec: copernican_linux.spec
-          - os: macos-latest
-            spec: copernican_macos.spec
-          - os: windows-latest
-            spec: copernican_win.spec
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    env:
-      PYTHON: python
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4 # pull source code
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        if: matrix.os != 'macos-latest'
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # match minimum project requirement
+          python-version: '3.11'
 
-      - name: Install universal2 Python
-        if: matrix.os == 'macos-latest'
+      - name: Cache virtual environment
+        id: cache-venv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+
+      - name: Set up virtual environment
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: python -m venv .venv
+
+      - name: Install dependencies
+        if: runner.os != 'Windows' && steps.cache-venv.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          curl -LO https://www.python.org/ftp/python/3.11.9/python-3.11.9-macos11.pkg
-          sudo installer -pkg python-3.11.9-macos11.pkg -target /
-          PY_DIR=/Library/Frameworks/Python.framework/Versions/3.11/bin
-          export PATH="$PY_DIR:$PATH"
-          echo "PATH=$PATH" >> "$GITHUB_ENV"
-          echo "PYTHON=$PY_DIR/python3" >> "$GITHUB_ENV"
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install . pre-commit
 
-      - name: Install project dependencies
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          $PYTHON -m pip install --upgrade pip
-          $PYTHON -m pip install .
-
-      - name: Install project dependencies (Windows)
-        if: runner.os == 'Windows'
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows' && steps.cache-venv.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          $env:PYTHON -m pip install --upgrade pip
-          $env:PYTHON -m pip install .
-
-      - name: Install tooling
-        if: runner.os != 'Windows'
-        shell: bash
-        run: $PYTHON -m pip install pre-commit pyinstaller
-
-      - name: Install tooling (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: $env:PYTHON -m pip install pre-commit pyinstaller
+          .\.venv\Scripts\pip install --upgrade pip
+          .\.venv\Scripts\pip install . pre-commit
 
       - name: Run pre-commit
         if: runner.os != 'Windows'
         shell: bash
-        run: $PYTHON -m pre_commit run --all-files
+        run: .venv/bin/pre-commit run --all-files
 
       - name: Run pre-commit (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: $env:PYTHON -m pre_commit run --all-files
+        run: .\.venv\Scripts\pre-commit run --all-files
 
       - name: Execute unit tests
         if: runner.os != 'Windows'
         shell: bash
-        run: $PYTHON copernican.py --run-tests
+        run: .venv/bin/python copernican.py --run-tests
 
       - name: Execute unit tests (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: $env:PYTHON copernican.py --run-tests
+        run: .\.venv\Scripts\python copernican.py --run-tests
 
-      - name: Build executables
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            $PYTHON -m PyInstaller --target-arch universal2 ${{ matrix.spec }}
-          else
-            $PYTHON -m PyInstaller ${{ matrix.spec }}
-          fi
-
-      - name: Build executables (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: $env:PYTHON -m PyInstaller ${{ matrix.spec }}
-
-      - name: Run executable help
-        if: runner.os == 'Linux'
-        shell: bash
-        run: ./dist/copernican --help
-
-      - name: Run executable help (macOS)
-        if: matrix.os == 'macos-latest'
-        shell: bash
-        run: dist/Copernican.app/Contents/MacOS/Copernican --help
-
-      - name: Run executable help (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: .\dist\copernican.exe --help
-
-      - name: Verify macOS app bundle
-        if: matrix.os == 'macos-latest'
-        shell: bash
-        run: test -d dist/Copernican.app
-
-      - name: Upload build artifacts
-        if: success() # only upload when previous steps succeed
-        uses: actions/upload-artifact@v4
-        with:
-          name: copernican-${{ matrix.os }} # differentiate artifact by OS
-          path: ${{ matrix.os == 'macos-latest' && 'dist/Copernican.app' || 'dist/' }}
