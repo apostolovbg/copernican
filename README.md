@@ -82,13 +82,12 @@ parsers are discovered automatically under
    point temporary cache files are cleaned automatically.
 
 ## Quick Start
-1. Ensure Python 3.11 or later is available. Launch the suite via the `start`
-   script for your platform (`start.command`, `start.bat` or `start.sh`). The
-   program checks for required Python packages at startup and prints an
-install
-   command appropriate for your OS listing only the missing packages. Running
-with an older Python
-   version will print an error and exit immediately.
+1. Ensure Python 3.11 or later is available. Launch the suite with the `start`
+   script for your platform (`start.command`, `start.bat` or `start.sh`). Each
+   script creates a `.venv` directory, upgrades `pip` and installs the project
+   automatically. Missing interpreters trigger OS specific install hints.
+   Running with an older Python version prints an error and exits
+   immediately.
 2. Follow the interactive prompts to choose a model, preferred data sources
    and
    computation engine.
@@ -111,9 +110,9 @@ and exit code 1. Future engines may also depend on `numba` or GPU libraries.
 
 ## Building & Installation
 Windows users should open `start.bat`, macOS users should run `start.command`,
-and Linux users can execute `start.sh`.  These helpers simply run
-`python copernican.py` from the repository root. Make sure the required
-dependencies are installed using `pip` before launching the suite:
+and Linux users can execute `start.sh`. These helpers now create a local
+virtual environment, upgrade `pip` and install the package automatically
+before launching the suite. You can also start the program manually:
 
 ```bash
 python copernican.py
