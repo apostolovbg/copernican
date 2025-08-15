@@ -18,6 +18,8 @@ Version headers run newest to oldest, and within each version the newest
 entries come first):
 
 ## Version 3.6.13
+- 2025-08-15: Replaced PyInstaller references with start script and `.venv`
+  instructions in documentation (AI assistant)
 - 2025-08-15: Automatically install missing packages and enforce `.venv`
   usage during dependency checks (AI assistant)
 - 2025-08-15: Start scripts now create and reuse a local virtual environment,

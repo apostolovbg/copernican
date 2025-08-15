@@ -31,33 +31,19 @@ when a critical fix warrants a new public release.
   to maintain PEP8 and PEP257 compliance. Failures should stop the pipeline
 and
   signal that the commit needs fixes before merging.
-- After tests and linting, each job will build a platform-specific executable
-  and upload it as an artifact for manual download. These artifacts are
-**not**
-  automatically packaged into a release but serve for iterative testing.
+- After tests and linting, each job uses the platform's start script to verify
+  the automatic virtual-environment workflow. Any logs are uploaded as
+  artifacts for manual inspection.
 - Pre-commit hooks (Black, Isort, Ruff or Flake8) will ensure consistent
   formatting before changes are committed. CI will run `pre-commit run --all-
   files` to guarantee uniform style across platforms.
 
-## Packaging and Executables
-- Use PyInstaller to bundle the interpreter, required libraries and source
-  files into stand-alone executables:
-  - **Windows:** `.exe` built on Windows 10, ensuring compatibility with
-    Windows 10 and later.
-  - **macOS:** an unsigned universal2 `.app` containing both Intel (x86_64)
-    and
-    Apple Silicon (arm64) slices. This build will run on macOS 15.0.1 and
-    later; the Intel slice becomes optional if Apple eventually drops Intel
-    support.
-  - **Linux:** a self-contained binary for Debian-based distributions. A
-    future
-    step may wrap this binary in a `.deb` package for easier installation.
-- The source code will remain bundled alongside the executables to allow
-  reference and derivative projects under the license terms.
-- For now, macOS builds are left unsigned. When desired, an Apple Developer ID
-  certificate will be used to sign and notarize each build. A qualified
-  electronic signature (QES) is insufficient for Gatekeeper; signing must be
-  repeated for every newly produced binary.
+## Packaging and Launchers
+- Distribution relies on the `start.*` scripts which bootstrap a local `.venv`
+  and install dependencies automatically.
+- Users need only a system-wide Python 3.11+ installation.
+- CI verifies the launchers on Windows, macOS and Linux.
+- No standalone executables are planned.
 
 ## Version Management
 - The runtime version is derived from package metadata using
@@ -91,9 +77,8 @@ builds will report that version automatically.
 
 ## Future Directions
 - Introduce a cross-platform GUI built with a toolkit such as Qt/PySide or
-  another suitable framework. The same CI pipeline and PyInstaller process
-will
-  bundle GUI builds when the interface stabilizes.
+  another suitable framework. The same CI pipeline and start scripts will
+  launch GUI builds using the `.venv` workflow when the interface stabilizes.
 - Explore macOS notarization and automated code signing once an Apple
   Developer
   ID certificate is available and the release process is more formalized.
