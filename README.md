@@ -48,8 +48,8 @@ simple command line interface. Results are saved as plots and CSV files in the
 `./output/` directory.
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages and
-   prints an install command tailored to your OS listing only the missing
-packages.
+   automatically installs any missing ones using `pip`, verifying each
+import before continuing.
 2. **Initialization** – the output directory is created and logging begins.
 3. **Configuration** – the user chooses a model and a computation engine
    from `./engines/`.  The default `cosmo_engine_comb.py` performs a
@@ -102,17 +102,19 @@ parsers are discovered automatically under
 This project requires **Python 3.11 or later** and relies on `numpy`, `scipy`,
 `matplotlib`,
 `pandas`, `sympy`, `jsonschema` and `camb==1.6.2`.
-If any packages are missing the program prints an OS-specific install command
-listing only those missing packages and exits so you can install them
-manually.
+If any packages are missing the program installs them automatically with
+`pip` and verifies the imports. The script must run inside the repository's
+`.venv`; otherwise it instructs you to launch via `start.*`.
 Running under an older Python version results in an immediate error
 and exit code 1. Future engines may also depend on `numba` or GPU libraries.
 
 ## Building & Installation
 Windows users should open `start.bat`, macOS users should run `start.command`,
-and Linux users can execute `start.sh`. These helpers now create a local
-virtual environment, upgrade `pip` and install the package automatically
-before launching the suite. You can also start the program manually:
+and Linux users can execute `start.sh`. These helpers create a local virtual
+environment, upgrade `pip` and install the package automatically before
+launching the suite. Running `copernican.py` outside this environment prompts
+you to use the appropriate start script. You can also start the program
+manually:
 
 ```bash
 python copernican.py
@@ -452,10 +454,8 @@ altering `MAJOR.MINOR`.
 
 ## 4. Workflow Overview
 
-1.  **Dependency Check**: `copernican.py` scans for missing packages and
-    prints an OS-specific install command containing only those packages if
-any
-are absent.
+1.  **Dependency Check**: `copernican.py` scans for missing packages,
+    installs them automatically with `pip` and verifies the environment.
 2.  **Optional Tests**: Run `copernican.py --run-tests` to execute the
     verbose functional test suite and verify that the LCDM model and data
     parsers work as expected. This flag performs unittest discovery over
