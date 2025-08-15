@@ -406,8 +406,9 @@ python -m unittest discover -v
 python copernican.py --run-tests  # verbose unittest discovery
 ```
 
-Continuous integration verifies style, tests, and builds executables on
-Windows, macOS, and Debian-based Linux using GitHub Actions.
+Continuous integration verifies style and tests across Windows, macOS and
+Debian-based Linux using GitHub Actions. Each job runs inside a cached
+virtual environment for reproducibility and speed.
 
 Multiprocessing is used by several engines. The program enforces the `spawn`
 start method when it launches so that each worker process begins with a fresh
