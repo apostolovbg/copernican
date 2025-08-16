@@ -27,7 +27,7 @@ Additional design notes can be found under the `docs/` directory.
 10. [Plot Footers and Metadata](#plot-footers-and-metadata)
 11. [Creating New Models](#creating-new-models)
 12. [Developer Guide](#developer-guide)
-13. [AI-driven and human development laws and protocols](#6-ai-driven-and-
+13. [AI-driven and human development laws and protocols](#ai-driven-and-
     human-development-laws-and-protocols)
 14. [License](#license)
 15. [Versioning Policy](#versioning-policy)
