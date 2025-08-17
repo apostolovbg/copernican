@@ -56,3 +56,11 @@ without dedicated Unicode glyphs fall back to their original form.
 - Avoid vendor-specific macros; if a symbol is missing from
   `latex_mappings.yml`, consider extending the mapping rather than embedding
   raw Unicode characters in the YAML file.
+
+## Debugging Syntax Errors
+
+If `copernican_lib.model_parser` reports a parsing failure, inspect the
+generated `models/cache/` entry to see the sanitised LaTeX.  Running the
+expression through `latex_utils.latex_to_unicode` can also help spot stray
+characters that were not translated.  When in doubt, reduce the equation to a
+minimal form and reintroduce terms gradually.

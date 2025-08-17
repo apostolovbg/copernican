@@ -1,10 +1,21 @@
-"""Console output utilities for the Copernican Suite."""
+"""Console I/O helpers shared across the Copernican Suite.
+
+All user facing text is funneled through this module so that console
+messages and prompts are handled in one place.  The logger patches
+``print`` and ``input`` to capture output verbatim; these helpers provide
+the indirection necessary to keep that behaviour consistent everywhere.
+"""
 
 import sys
 
 
 def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
-    """Display ``msg`` on the console and let the logger capture it.
+    """Display ``msg`` on the console and mirror it to the log file.
+
+    Routing all prints through this function ensures the patched
+    ``print``/``input`` hooks in :mod:`copernican_lib.logger` can record
+    every message exactly once.  Direct calls to ``print`` should be
+    avoided inside the project so that logs remain faithful.
 
     Parameters
     ----------
@@ -13,12 +24,18 @@ def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
     end : str, optional
         String appended after the message. Defaults to a newline.
     error : bool, optional
-        When ``True`` output is written to ``stderr`` instead of ``stdout``.
+        When ``True`` the message is sent to ``stderr`` rather than
+        ``stdout``.
     """
     stream = sys.stderr if error else sys.stdout
     print(msg, end=end, file=stream)
 
 
 def ask(prompt: str = "") -> str:
-    """Prompt the user and return their input."""
+    """Prompt the user and return their input while logging the exchange.
+
+    The patched :func:`builtins.input` records both the prompt and the
+    response to the active log file.  Wrapping the call here clarifies the
+    intent and avoids scattering raw ``input`` calls across the codebase.
+    """
     return input(prompt)

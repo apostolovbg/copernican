@@ -1,8 +1,12 @@
 # Copernican Suite CSV Writer
-"""CSV writing utilities for the Copernican Suite."""
-# Functions here convert the results of a run into comma-separated value files
-# so that they can be analysed with spreadsheets or other tools. Each helper
-# handles a specific data type such as SNe, BAO or CMB.
+"""CSV writing utilities for the Copernican Suite.
+
+These helpers convert fitting results into comma-separated value files so
+they can be examined with external tools.  Filenames are normalised via
+``utils.generate_filename`` to capture the dataset identifier, model name
+and execution timestamp.  Dedicated functions exist for each supported
+dataset so that the columns reflect their domain-specific outputs.
+"""
 import os
 from typing import Any
 

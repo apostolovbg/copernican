@@ -40,6 +40,18 @@ pip build .
 
 The command writes source archives and wheels to the `dist/` directory.
 
+## Verify the build
+
+After installation or building a distribution, run the test suite to
+confirm everything operates correctly:
+
+```bash
+python -m unittest discover -v
+```
+
+The tests exercise the reference ΛCDM model and basic data parsers and
+should complete within a few seconds.
+
 ## Troubleshooting
 
 - **No module named pip**: run `python -m ensurepip --upgrade` and relaunch

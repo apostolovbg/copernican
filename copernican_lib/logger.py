@@ -1,9 +1,12 @@
 # Copernican Suite Logger
 """Logging utilities for the Copernican Suite.
 
-The logger records all console input and output verbatim while also emitting
-standard log messages. ``print`` and ``input`` are patched so their text is
-captured to the log file without being echoed twice on the console.
+This module wraps :mod:`logging` configuration so that every run produces a
+fully self-contained log file.  Console messages and user prompts are
+mirrored verbatim by patching ``print`` and ``input``; path information is
+sanitised so absolute directories outside the repository are not leaked.
+Consumers can therefore rely on the log for complete provenance of a
+session without clutter or duplicated lines.
 """
 
 import builtins
@@ -88,7 +91,14 @@ def _patch_builtins(base_dir: str) -> None:
 
 
 def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
-    """Initializes logging handlers and patches ``print``/``input``."""
+    """Initialise logging and return the log file path.
+
+    A file handler stores timestamped records while a stream handler echoes
+    messages to the console.  The routine also patches ``print`` and
+    ``input`` so that all interactive exchanges are captured.  When
+    ``base_dir`` is provided, absolute paths inside log messages are
+    shortened to keep the output relocatable.
+    """
 
     ensure_dir_exists(log_dir)
     logger = logging.getLogger()

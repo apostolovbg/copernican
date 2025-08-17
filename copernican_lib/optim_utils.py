@@ -3,7 +3,10 @@
 
 This module centralizes common wrappers used during numerical
 optimisation. Engines can import these helpers to keep the engine code
-focused strictly on mathematical calculations without bookkeeping.
+focused strictly on mathematical calculations without bookkeeping.  The
+helpers here also standardise progress reporting and resiliency so that
+optimisers always yield the best-so-far solution even when they terminate
+early or encounter errors.
 """
 
 # At the moment the main helper ``minimize_with_progress`` wraps SciPy's

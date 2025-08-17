@@ -108,3 +108,8 @@ the
 folder no longer carries the `placeholder` name it will appear automatically
 in
 the interactive menus.
+
+All reference datasets included with the suite are considered read-only and
+should not be modified.  If local experiments require changes, copy the
+dataset to a new directory and adjust the `dataset_id` to avoid clashing
+with the shipped files.

@@ -18,6 +18,8 @@ Version headers run newest to oldest, and within each version the newest
 entries come first):
 
 ## Version 3.6.13
+- 2025-08-16: Expanded README and in-source docstrings; broadened
+  documentation across `docs/` (AI assistant)
 - 2025-08-15: Expanded packaging guide with Python 3.11 install and build docs
   (AI assistant)
 - 2025-08-15: Archived PyInstaller spec files and streamlined CI to use a

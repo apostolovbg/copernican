@@ -78,3 +78,12 @@ output filenames. The same `metadata_*.yml` structure with `dataset_name`,
 `dataset_id`, `description`, `notes` and `citation` is used for **all**
 datasets so plot footers render the dataset name in bold, followed by its
 description, notes and a separate citation line.
+
+### Extending the Dataset
+
+Additional points can be appended to `data_points` to experiment with new
+BAO measurements.  Keep observable names consistent and supply a metadata
+file describing the provenance of the added entries.  The lightweight
+format allows tests to cover edge cases—such as missing columns or
+unexpected types—without shipping large survey catalogues in the
+repository.

@@ -1,6 +1,12 @@
 # copernican_suite/data_loaders.py
-"""
-Modular data loading for various cosmological datasets (SNe, BAO, etc.).
+"""Dataset discovery and loading helpers.
+
+The suite treats observational data as pluggable components.  Parsers live
+alongside their raw tables under ``data/<type>/<source>/`` and register
+themselves through decorators provided here.  At runtime
+``copernican.py`` imports these modules to populate interactive menus and
+returns uniformly formatted :class:`pandas.DataFrame` objects with metadata
+stored on ``.attrs``.
 """
 import importlib
 import logging
@@ -139,13 +145,14 @@ def register_siren_parser(name=None, description="", data_dir=None):
 
 # --- Dynamic Discovery of Parser Modules ---
 def _discover_parsers():
-    """Import parser modules and populate registries with dataset metadata."""
-    # Parser modules register themselves in the dictionaries above when
-    # imported.  Automatically scanning the data directory keeps the core
-    # code agnostic to the exact set of available sources.  Metadata is
-    # read here rather than inside the parser modules so that discovery and
-    # user prompts present human readable dataset names without forcing the
-    # parsers to access the metadata files themselves.
+    """Import parser modules and populate registries with dataset metadata.
+
+    The scan walks ``data/`` recursively, ignoring ``placeholder`` folders
+    so unfinished datasets stay hidden.  Parser modules are imported on the
+    fly, allowing them to register with the decorators above.  Metadata is
+    read here to keep the parser implementations small and focused solely on
+    table parsing.
+    """
     base_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
     registry_map = {
         "sne": SNE_PARSERS,

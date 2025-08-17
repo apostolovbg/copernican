@@ -23,6 +23,13 @@ modules are:
 - `console_output.write(msg)` – unified console printing function that is
   logged
   verbatim via `logger`.
+- `console_output.ask(prompt)` – input helper that records prompts and
+  responses in the run log.
+- `logger.setup_logging(log_dir)` – initialise logging and patch
+  `print`/`input` so all interactions are captured.
+- `csv_writer.save_sne_results_detailed_csv`,
+  `save_bao_results_csv` and `save_cmb_results_csv` – persist fitting
+  results with filenames that encode the dataset, model and timestamp.
   - `engines.cosmo_engine_comb` – reference engine providing high level
     optimisation routines such as ``fit_sne_parameters``,
     ``fit_combined_parameters``, ``calculate_bao_observables`` and generic
