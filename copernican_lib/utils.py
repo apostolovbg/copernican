@@ -4,7 +4,9 @@
 This module centralises a handful of small helpers used across the project
 so that engines and parsers remain lightweight.  All dataset metadata and
 tables are now provided in YAML format only; any legacy JSON handling has
-been removed.
+been removed.  Functions here emphasise safe filename construction and
+lightweight metadata parsing so that higher level modules can focus on
+science logic rather than housekeeping.
 """
 # These helpers are intentionally tiny but keep repetitive tasks such as
 # timestamp generation and directory creation in one place.

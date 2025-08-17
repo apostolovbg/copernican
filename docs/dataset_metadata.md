@@ -4,6 +4,15 @@ Each dataset folder contains a `metadata_*.yml` file that describes the
 source. All fields are optional except for `dataset_name`, `dataset_id`
 and `description`.
 
+Example skeleton:
+
+```yaml
+dataset_name: Example Dataset
+dataset_id: example_set
+description: Short human readable blurb
+citation: FirstAuthor et al. 2024 - Journal 12 (2024) 34-56 - DOI: 10.x/y
+```
+
 - `dataset_name` -- Short human-readable identifier used in logs, plot
   footers and CSV headers.
 - `dataset_id` -- Short identifier used in filenames. It must omit spaces

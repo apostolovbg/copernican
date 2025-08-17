@@ -1,5 +1,5 @@
 **Version:** 3.6.13
-**Last Updated:** 2025-08-11
+**Last Updated:** 2025-08-16
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -25,14 +25,15 @@ Additional design notes can be found under the `docs/` directory.
 8. [LaTeX Syntax Guide](docs/latex_syntax.md)
 9. [Using the Suite](#using-the-suite)
 10. [Plot Footers and Metadata](#plot-footers-and-metadata)
-11. [Creating New Models](#creating-new-models)
-12. [Developer Guide](#developer-guide)
-13. [AI-driven and human development laws and protocols](#ai-driven-and-
+11. [Logging and Caching](#logging-and-caching)
+12. [Creating New Models](#creating-new-models)
+13. [Developer Guide](#developer-guide)
+14. [AI-driven and human development laws and protocols](#ai-driven-and-
     human-development-laws-and-protocols)
-14. [License](#license)
-15. [Versioning Policy](#versioning-policy)
-16. [API Overview](docs/api_overview.md)
-17. [Packaging Guide](docs/packaging.md)
+15. [License](#license)
+16. [Versioning Policy](#versioning-policy)
+17. [API Overview](docs/api_overview.md)
+18. [Packaging Guide](docs/packaging.md)
 
 ---
 
@@ -237,6 +238,15 @@ are
 being used. When generating file names the suite sanitizes dataset names,
 replacing spaces and characters like ``/`` with hyphens so output paths remain
 portable across operating systems.
+
+## Logging and Caching
+All console output and user prompts are captured in a timestamped log file in
+`./output/`. The logger shortens absolute paths so logs remain portable and
+records the final filenames used for plots and tables. Model YAML files are
+sanitised and cached under `models/cache/` for the duration of the session,
+avoiding repeated schema validation. For CMB analyses unlensed CAMB spectra
+are cached by rounded parameter tuples which keeps successive evaluations
+fast during optimisation loops.
 
 ## Creating New Models
 All model details, including theory text and equations, must be stored in a

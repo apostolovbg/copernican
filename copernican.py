@@ -2,8 +2,14 @@
 # flake8: noqa
 # isort: skip_file
 # fmt: off
-"""
-Copernican Suite - Main Orchestrator.
+"""Copernican Suite - Main Orchestrator.
+
+This script ties together model selection, dataset loading, dependency
+checks and result generation.  It presents a small command line interface
+that guides the user through choosing a cosmological model, parsing
+available observations and invoking the requested computational engine.
+The program also houses the optional test runner and automated package
+installer so that a fresh checkout can execute with minimal setup.
 """
 
 
