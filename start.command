@@ -6,6 +6,7 @@
 # installation.
 
 set -e
+SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$0")"
 
 # Relaunch from inside the virtual environment when already activated.
@@ -45,5 +46,5 @@ fi
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install .
-exec "$0" "$@"
+exec "$SCRIPT" "$@"
 
