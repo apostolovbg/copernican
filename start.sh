@@ -13,14 +13,27 @@ if [ -n "$VIRTUAL_ENV" ]; then
     exec python copernican.py "$@"
 fi
 
-# Detect a usable Python 3 interpreter.
+## Detect a usable Python 3.11+ interpreter.
 if command -v python3 >/dev/null 2>&1; then
     PYTHON=python3
 else
-    echo "Python 3 is not installed." >&2
-    echo "Install it with 'sudo apt install python3' or" >&2
-    echo "'brew install python'." >&2
-    echo "Get it at https://www.python.org/downloads/." >&2
+    echo "Python 3.11 is not installed." >&2
+    if [ "$(uname)" = "Darwin" ]; then
+        echo "Install it with 'brew install python@3.11'." >&2
+    else
+        echo "Install with 'sudo apt install python3.11 python3.11-venv'." >&2
+    fi
+    exit 1
+fi
+
+# Verify interpreter version.
+if ! "$PYTHON" -c "import sys; exit(not (sys.version_info >= (3,11)))"; then
+    echo "Python 3.11 or newer is required." >&2
+    if [ "$(uname)" = "Darwin" ]; then
+        echo "Install it with 'brew install python@3.11'." >&2
+    else
+        echo "Install with 'sudo apt install python3.11 python3.11-venv'." >&2
+    fi
     exit 1
 fi
 

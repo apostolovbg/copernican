@@ -1,5 +1,5 @@
-**Version:** 3.6.13
-**Last Updated:** 2025-08-16
+**Version:** 3.6.14
+**Last Updated:** 2025-08-17
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -83,12 +83,13 @@ parsers are discovered automatically under
    point temporary cache files are cleaned automatically.
 
 ## Quick Start
-1. Ensure Python 3.11 or later is available. Launch the suite with the `start`
-   script for your platform (`start.command`, `start.bat` or `start.sh`). Each
-   script creates a `.venv` directory, upgrades `pip` and installs the project
-   automatically. Missing interpreters trigger OS specific install hints.
-   Running with an older Python version prints an error and exits
-   immediately.
+1. Ensure Python 3.11 or later is available. Launch the suite with the
+   `start` script for your platform (`start.command`, `start.bat` or
+   `start.sh`). Each script creates a `.venv` directory, upgrades `pip` and
+   installs the project automatically. Missing or outdated interpreters
+   print OS specific install tips such as `sudo apt install python3.11
+   python3.11-venv` on Debian or `brew install python@3.11` on macOS before
+   exiting.
 2. Follow the interactive prompts to choose a model, preferred data sources
    and
    computation engine.
