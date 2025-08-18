@@ -17,6 +17,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.6.14
+- 2025-08-17: start.sh enforces Python 3.11+ and prints OS install hints
+  (AI assistant)
+
 ## Version 3.6.13
 - 2025-08-16: Expanded README and in-source docstrings; broadened
   documentation across `docs/` (AI assistant)
