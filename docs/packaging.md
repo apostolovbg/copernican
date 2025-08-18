@@ -4,20 +4,15 @@ This document explains how to prepare the suite for development or packaging.
 
 ## Install Python 3.11+
 
-### Windows
-1. Download the Python 3.11 installer from https://www.python.org.
-2. Enable "Add python.exe to PATH" during installation.
-3. Open a new Command Prompt and run `python --version` to verify.
+The `start.*` launchers verify Python 3.11+ before bootstrapping the suite.
+If the interpreter is missing or outdated they display one of the following
+commands and exit:
 
-### macOS
-1. Install Homebrew from https://brew.sh if it is not already present.
-2. Run `brew install python@3.11`.
-3. Verify the interpreter with `python3.11 --version`.
+- **Debian/Ubuntu**: `sudo apt install python3.11 python3.11-venv`
+- **macOS**: `brew install python@3.11`
+- **Windows**: `winget install -e --id Python.Python.3.11`
 
-### Linux
-1. Use your package manager. For Debian or Ubuntu run  
-   `sudo apt install python3.11 python3.11-venv`.
-2. Confirm the install with `python3.11 --version`.
+Run the command for your platform, then re-run the launcher.
 
 ## Bootstrap the virtual environment
 
@@ -27,7 +22,8 @@ Run the launcher in the project root:
 - `start.command` on macOS
 - `start.sh` on Linux
 
-The script creates or reuses `.venv`, upgrades `pip` and installs packages.
+The script verifies Python 3.11+, then creates or reuses `.venv`, upgrades
+`pip` and installs packages.
 Re-run it after pulling updates to refresh the environment.
 
 ## Build optional distributions
