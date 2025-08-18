@@ -88,8 +88,8 @@ parsers are discovered automatically under
    `start.sh`). Each script creates a `.venv` directory, upgrades `pip` and
    installs the project automatically. Missing or outdated interpreters
    print OS specific install tips such as `sudo apt install python3.11
-   python3.11-venv` on Debian or `brew install python@3.11` on macOS before
-   exiting.
+   python3.11-venv` on Debian, `brew install python@3.11` on macOS or
+   `winget install -e --id Python.Python.3.11` on Windows before exiting.
 2. Follow the interactive prompts to choose a model, preferred data sources
    and
    computation engine.

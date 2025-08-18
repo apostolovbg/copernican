@@ -18,11 +18,20 @@ if %ERRORLEVEL%==0 (
     if %ERRORLEVEL%==0 (
         set "PYTHON=py"
     ) else (
-        echo Python is not installed.
-        echo Install it with "winget install -e --id Python.Python.3" ^
+        echo Python 3.11 is not installed.
+        echo Install it with "winget install -e --id Python.Python.3.11" ^
 or visit https://www.python.org/downloads/
         exit /b 1
     )
+)
+
+REM Verify interpreter version.
+%PYTHON% -c "import sys; exit(not (sys.version_info >= (3,11)))"
+if errorlevel 1 (
+    echo Python 3.11 or newer is required.
+    echo Install it with "winget install -e --id Python.Python.3.11" ^
+or visit https://www.python.org/downloads/
+    exit /b 1
 )
 
 if not exist .venv (
