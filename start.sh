@@ -6,6 +6,8 @@
 # that environment. Subsequent runs reuse the cached dependencies.
 
 set -e
+# Resolve absolute path to this script before changing directories.
+SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$0")"
 
 # If we are already inside the virtual environment simply launch the suite.
@@ -47,8 +49,9 @@ if [ ! -d ".venv" ]; then
     "$PYTHON" -m venv .venv
 fi
 
-# Activate the environment, upgrade pip, install the project and re-run.
+# Activate the environment, upgrade pip, install the project and restart the
+# script.
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install .
-exec "$0" "$@"
+exec "$SCRIPT" "$@"
