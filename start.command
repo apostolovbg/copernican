@@ -23,8 +23,13 @@ else
     exit 1
 fi
 
-# Verify interpreter version.
-if ! "$PYTHON" -c "import sys; exit(not (sys.version_info >= (3,11)))"; then
+# Verify interpreter version by parsing '--version' output.
+PY_VERSION="$($PYTHON --version 2>&1 | awk '{print $2}')"
+PY_MAJOR="${PY_VERSION%%.*}"
+PY_MINOR="${PY_VERSION#*.}"
+PY_MINOR="${PY_MINOR%%.*}"
+if [ "$PY_MAJOR" -lt 3 ] || { [ "$PY_MAJOR" -eq 3 ] && \
+    [ "$PY_MINOR" -lt 11 ]; }; then
     echo "Python 3.11 or newer is required." >&2
     echo "Install it with 'brew install python@3.11'." >&2
     echo "Get it at https://www.python.org/downloads/." >&2
