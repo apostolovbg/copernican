@@ -17,6 +17,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.6.16
+- 2025-08-18: Parse interpreter '--version' in start scripts and use
+  'py -3.11' for virtual environments (AI assistant)
+
 ## Version 3.6.15
 - 2025-08-18: start.command and start.bat check for Python 3.11+ and show
   install hints before creating the virtual environment (AI assistant)
