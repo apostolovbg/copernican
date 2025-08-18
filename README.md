@@ -1,4 +1,4 @@
-**Version:** 3.6.17
+**Version:** 3.6.18
 **Last Updated:** 2025-08-18
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -83,13 +83,14 @@ parsers are discovered automatically under
    point temporary cache files are cleaned automatically.
 
 ## Quick Start
-1. Run the platform-specific `start` script (`start.command`, `start.bat`
-   or `start.sh`). The launcher verifies Python 3.11+ before creating a
-   `.venv`, upgrading `pip` and installing the project automatically. If
-   the interpreter is missing or too old it prints install tips such as
-   `sudo apt install python3.11 python3.11-venv` on Debian, `brew install
-   python@3.11` on macOS or `winget install -e --id Python.Python.3.11`
-   on Windows before exiting.
+1. Run the platform-specific `start` script. macOS users should run
+   `./start.command`, Windows users open `start.bat`, and Linux users can
+   execute `./start.sh`. The launcher verifies Python 3.11+ before
+   creating a `.venv`, upgrading `pip` and installing the project
+   automatically. If the interpreter is missing or too old it prints
+   install tips such as `sudo apt install python3.11 python3.11-venv` on
+   Debian, `brew install python@3.11` on macOS or `winget install -e --id
+   Python.Python.3.11` on Windows before exiting.
 2. Follow the interactive prompts to choose a model, preferred data sources
    and
    computation engine.
@@ -115,12 +116,12 @@ launch via `start.*`. Future engines may also depend on `numba` or GPU
 libraries.
 
 ## Building & Installation
-Windows users should open `start.bat`, macOS users should run `start.command`,
-and Linux users can execute `start.sh`. These helpers create a local virtual
-environment, upgrade `pip` and install the package automatically before
-launching the suite. Running `copernican.py` outside this environment prompts
-you to use the appropriate start script. You can also start the program
-manually:
+Windows users should open `start.bat`, macOS users should run
+`./start.command`, and Linux users can execute `./start.sh`. These helpers
+create a local virtual environment, upgrade `pip` and install the package
+automatically before launching the suite. Running `copernican.py` outside
+this environment prompts you to use the appropriate start script. You can
+also start the program manually:
 
 ```bash
 python copernican.py
