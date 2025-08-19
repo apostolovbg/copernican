@@ -91,6 +91,8 @@ parsers are discovered automatically under
    install tips such as `sudo apt install python3.11 python3.11-venv` on
    Debian, `brew install python@3.11` on macOS or `winget install -e --id
    Python.Python.3.11` on Windows before exiting.
+   If the virtual environment is incomplete the script suggests installing
+   `python3.11-venv`.
 2. Follow the interactive prompts to choose a model, preferred data sources
    and
    computation engine.
@@ -108,6 +110,8 @@ install dependencies. If Python is missing or outdated they print
 platform-specific commands like `sudo apt install python3.11
 python3.11-venv` on Debian, `brew install python@3.11` on macOS or
 `winget install -e --id Python.Python.3.11` on Windows before exiting.
+They also verify that `.venv/bin/activate` exists and hint to install
+`python3.11-venv` when it does not.
 Inside the virtual environment this project relies on `numpy`, `scipy`,
 `matplotlib`, `pandas`, `sympy`, `jsonschema` and `camb==1.6.2`.
 If any packages are missing the program installs them automatically with
