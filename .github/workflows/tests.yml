@@ -1,12 +1,12 @@
-name: CI
+name: Tests
 
 on:
-  push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
-  test:
-    name: Test
+  tests:
+    name: Lint and Test
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -55,12 +55,12 @@ jobs:
         shell: pwsh
         run: .\.venv\Scripts\pre-commit run --all-files
 
-      - name: Execute unit tests
+      - name: Run unit tests
         if: runner.os != 'Windows'
         shell: bash
         run: .venv/bin/python copernican.py --run-tests
 
-      - name: Execute unit tests (Windows)
+      - name: Run unit tests (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: .\.venv\Scripts\python copernican.py --run-tests

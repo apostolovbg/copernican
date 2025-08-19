@@ -93,6 +93,10 @@ Use `pip install -e .` if you intend to develop the code.
 The start scripts delete any `build/` directory before and after
 `pip install .` to prevent stale build artifacts.
 
+Pull requests run a GitHub Actions workflow named ``Tests`` that executes
+pre-commit checks and the full unit suite on Ubuntu, macOS and Windows.
+Only pull requests trigger the workflow to avoid duplicate push builds.
+
 ## 4. YAML Model System
 As of version 2.0 every cosmological model is described by a single YAML file
 `cosmo_model_*.yml`. All theory text, equations and parameters reside in this

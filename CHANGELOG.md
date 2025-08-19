@@ -17,6 +17,12 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.6.22
+- 2025-08-19: Replace legacy CI with pull-request-only ``Tests`` workflow and
+  document behaviour (AI assistant)
+- 2025-08-19: ``console_output.write`` now degrades gracefully on consoles
+  lacking Unicode support (AI assistant)
+
 ## Version 3.6.21
 - 2025-08-19: Rename CI job to 'test' for clarity (AI assistant)
 - 2025-08-19: Remove 'build/' before and after 'pip install .' in start

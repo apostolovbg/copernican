@@ -26,9 +26,18 @@ def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
     error : bool, optional
         When ``True`` the message is sent to ``stderr`` rather than
         ``stdout``.
+
+    The write is wrapped in a ``try`` block so terminals that cannot
+    represent certain Unicode characters still receive output. Unencodable
+    characters are replaced with ``?`` to avoid raising a
+    :class:`UnicodeEncodeError`.
     """
     stream = sys.stderr if error else sys.stdout
-    print(msg, end=end, file=stream)
+    try:
+        print(msg, end=end, file=stream)
+    except UnicodeEncodeError:
+        fallback = msg.encode("ascii", errors="replace").decode("ascii")
+        print(fallback, end=end, file=stream)
 
 
 def ask(prompt: str = "") -> str:
