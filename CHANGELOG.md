@@ -17,6 +17,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.6.23
+- 2025-08-19: Read ``latex_mappings.yml`` using UTF-8 for cross-platform
+  Unicode safety (AI assistant)
+
 ## Version 3.6.22
 - 2025-08-19: Replace legacy CI with pull-request-only ``Tests`` workflow and
   document behaviour (AI assistant)
