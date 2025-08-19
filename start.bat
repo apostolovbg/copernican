@@ -45,7 +45,11 @@ if not exist .venv (
 call .venv\Scripts\activate.bat
 set PYTHON=python
 %PYTHON% -m pip install --upgrade pip
+REM Remove any 'build' directory before and after 'pip install .'
+REM to avoid stale build artifacts.
+if exist build rmdir /s /q build
 %PYTHON% -m pip install .
+if exist build rmdir /s /q build
 
 call "%~f0" %*
 goto :eof
