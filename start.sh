@@ -46,18 +46,23 @@ fi
 
 # Create the virtual environment on first run.
 if [ ! -d ".venv" ]; then
-    # Allow venv creation to fail so we can emit a clearer message if the
-    # activation script is missing.
+    # Allow the initial creation to fail so we can retry if needed.
     "$PYTHON" -m venv .venv || true
 fi
 
 # Ensure the virtual environment was created successfully. On Debian-based
 # systems the 'python3.11-venv' package may be missing, leaving out the
-# activation script. Advise the user to install it and abort in that case.
+# activation script. If it is missing after the first try delete '.venv' and
+# recreate it once. Abort with guidance if the second attempt still lacks the
+# activation script.
 if [ ! -f ".venv/bin/activate" ]; then
-    echo "Virtual environment support is missing." >&2
-    echo "Install with 'sudo apt install python3.11-venv'." >&2
-    exit 1
+    rm -rf .venv
+    "$PYTHON" -m venv .venv || true
+    if [ ! -f ".venv/bin/activate" ]; then
+        echo "Virtual environment support is missing." >&2
+        echo "Install with 'sudo apt install python3.11-venv'." >&2
+        exit 1
+    fi
 fi
 
 # Activate the environment, upgrade pip, install the project and restart the

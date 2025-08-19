@@ -93,8 +93,8 @@ parsers are discovered automatically under
    install tips such as `sudo apt install python3.11 python3.11-venv` on
    Debian, `brew install python@3.11` on macOS or `winget install -e --id
    Python.Python.3.11` on Windows before exiting.
-   If the virtual environment is incomplete the script suggests installing
-   `python3.11-venv`.
+   If the activation script is missing the launcher recreates `.venv` once
+   before advising the user to install `python3.11-venv`.
 2. Follow the interactive prompts to choose a model, preferred data sources
    and
    computation engine.
