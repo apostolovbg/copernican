@@ -17,12 +17,17 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.6.21
+- 2025-08-19: Remove 'build/' before and after 'pip install .' in start
+  scripts, document cleanup and ignore the directory (AI assistant)
+
 ## Version 3.6.20
 - 2025-08-19: start.sh checks for missing 'python3.11-venv' after creating
   '.venv' and prints installation hint (AI assistant)
 
 ## Version 3.6.19
-- 2025-08-18: start.sh resolves absolute path before re-executing (AI assistant)
+- 2025-08-18: start.sh resolves absolute path before re-executing
+  (AI assistant)
 
 ## Version 3.6.18
 - 2025-08-18: start.command resolves absolute path; README notes macOS should

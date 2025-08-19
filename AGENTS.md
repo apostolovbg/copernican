@@ -90,6 +90,8 @@ new engines to introduce additional dependencies without manual updates to the
 documentation.
 To install the suite as a package, run `pip install .` at the repository root.
 Use `pip install -e .` if you intend to develop the code.
+The start scripts delete any `build/` directory before and after
+`pip install .` to prevent stale build artifacts.
 
 ## 4. YAML Model System
 As of version 2.0 every cosmological model is described by a single YAML file

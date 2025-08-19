@@ -87,7 +87,9 @@ parsers are discovered automatically under
    `./start.command`, Windows users open `start.bat`, and Linux users can
    execute `./start.sh`. The launcher verifies Python 3.11+ before
    creating a `.venv`, upgrading `pip` and installing the project
-   automatically. If the interpreter is missing or too old it prints
+   automatically. It deletes any `build/` directory before and after
+   `pip install .` to avoid stale artifacts. If the interpreter is missing
+   or too old it prints
    install tips such as `sudo apt install python3.11 python3.11-venv` on
    Debian, `brew install python@3.11` on macOS or `winget install -e --id
    Python.Python.3.11` on Windows before exiting.
@@ -139,10 +141,11 @@ pip install -e . # editable for development
 ```
 
 Installing the suite with `pip` creates a `copernican_suite.egg-info`
-directory.
-This folder contains package metadata such as the version number, dependency
-list and entry points used by Python's packaging tools. It is generated
-automatically and does not need to be tracked in version control.
+directory. The launchers also delete any temporary `build/` directory before
+and after installation so build artifacts are never tracked. This folder
+contains package metadata such as the version number, dependency list and
+entry points used by Python's packaging tools. It is generated automatically
+and does not need to be tracked in version control.
 
 The suite no longer ships standalone binaries. Launch with `start.bat`,
 `start.command` or `start.sh` to create a local `.venv` and install all

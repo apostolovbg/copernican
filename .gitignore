@@ -14,3 +14,4 @@ output/.DS_Store
 /.vscode
 copernican_suite.egg-info
 .venv/
+build/

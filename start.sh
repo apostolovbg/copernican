@@ -61,8 +61,11 @@ if [ ! -f ".venv/bin/activate" ]; then
 fi
 
 # Activate the environment, upgrade pip, install the project and restart the
-# script.
+# script. Delete any 'build/' directory before and after 'pip install .'
+# to avoid stale build artifacts.
 source .venv/bin/activate
 python -m pip install --upgrade pip
+rm -rf build
 python -m pip install .
+rm -rf build
 exec "$SCRIPT" "$@"
