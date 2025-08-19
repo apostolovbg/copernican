@@ -18,6 +18,9 @@ Version headers run newest to oldest, and within each version the newest
 entries come first):
 
 ## Version 3.6.24
+- 2025-08-19: start.bat verifies '.venv\Scripts\activate.bat' exists,
+  recreating the environment once and advising on missing 'venv' support
+  before exiting (AI assistant)
 - 2025-08-19: start.sh retries virtual environment creation when the
   activation script is missing and advises installing 'python3.11-venv'
   if the second attempt fails (AI assistant)

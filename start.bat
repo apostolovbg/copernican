@@ -42,6 +42,19 @@ if not exist .venv (
     %PYTHON_CMD% -m venv .venv
 )
 
+REM Ensure the activation script exists. Recreate once before suggesting that
+REM the 'venv' component is missing.
+if not exist .venv\Scripts\activate.bat (
+    rmdir /s /q .venv
+    %PYTHON_CMD% -m venv .venv
+    if not exist .venv\Scripts\activate.bat (
+        echo Virtual environment support is missing.
+        echo Install the Python 'venv' component and try again.
+        echo On Debian/Ubuntu: sudo apt install python3.11-venv
+        exit /b 1
+    )
+)
+
 call .venv\Scripts\activate.bat
 set PYTHON=python
 %PYTHON% -m pip install --upgrade pip
