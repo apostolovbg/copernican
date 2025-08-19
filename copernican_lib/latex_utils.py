@@ -10,9 +10,10 @@ import yaml
 
 # Load replacement dictionaries from ``latex_mappings.yml`` once at import.
 # YAML is more readable than JSON and avoids backslash escaping issues.
+# Explicit UTF-8 ensures consistent parsing across platforms.
 _mapping_path = Path(__file__).with_name("latex_mappings.yml")
 try:
-    with _mapping_path.open("r") as _fh:
+    with open(_mapping_path, encoding="utf-8") as _fh:
         _MAPPINGS: Dict[str, Dict[str, str]] = yaml.safe_load(_fh)
 except OSError as exc:  # pragma: no cover - only fails if repo is corrupted
     raise RuntimeError(f"Cannot read LaTeX mappings: {_mapping_path}") from exc
