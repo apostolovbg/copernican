@@ -42,6 +42,21 @@ if [ ! -d ".venv" ]; then
     "$PYTHON" -m venv .venv
 fi
 
+# Retry virtual environment creation once when the activation script is
+# missing. A missing script usually means the Python installation lacks
+# the ``venv`` module. Recreating the environment gives the interpreter
+# another chance before advising the user to reinstall Python.
+if [ ! -f ".venv/bin/activate" ]; then
+    rm -rf .venv
+    "$PYTHON" -m venv .venv
+    if [ ! -f ".venv/bin/activate" ]; then
+        echo "Python 3.11 with working 'venv' support is required." >&2
+        echo "Reinstall it with 'brew install python@3.11'." >&2
+        echo "Get it at https://www.python.org/downloads/." >&2
+        exit 1
+    fi
+fi
+
 # Activate, update pip, install the project and restart the script. Delete
 # any 'build/' directory before and after 'pip install .'
 # to avoid stale build artifacts.

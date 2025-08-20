@@ -17,6 +17,11 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.6.25
+- 2025-08-20: start.command recreates missing virtual environments and
+  advises reinstalling Python when activation scripts remain absent (AI
+  assistant)
+
 ## Version 3.6.24
 - 2025-08-19: start.bat verifies '.venv\Scripts\activate.bat' exists,
   recreating the environment once and advising on missing 'venv' support
