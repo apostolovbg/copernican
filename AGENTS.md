@@ -33,6 +33,10 @@ shown on the console while the log captures full details.
 All Python warnings are forwarded to the central logger. Use
 ``--strict-warnings`` to elevate warnings to errors during CI runs.
 
+Before any heavy computation, a tiny NumPy/SciPy calculation checks that the
+installed binaries match the CPU. If this fails the log explains possible CPU
+feature mismatches and suggests reinstalling with suitable wheels.
+
 The default engine is `engines/cosmo_engine_comb.py`. All model plugins are
 validated
 through `copernican_lib/engine_interface.py` before being passed to the

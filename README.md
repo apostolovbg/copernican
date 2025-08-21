@@ -1,4 +1,4 @@
-**Version:** 3.6.27
+**Version:** 3.8.0
 **Last Updated:** 2025-08-21
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -48,9 +48,10 @@ Users select models, datasets, and computational engines at runtime through a
 simple command line interface. Results are saved as plots and CSV files in the
 `./output/` directory.
 Under the hood the program follows a clear pipeline:
-1. **Dependency Check** – `copernican.py` scans for required packages and
-   automatically installs any missing ones using `pip`, verifying each
-import before continuing.
+1. **Dependency Check** – `copernican.py` scans for required packages,
+   installs missing ones and verifies each import. A tiny NumPy/SciPy
+   calculation then runs to catch CPU feature mismatches before heavy
+   computation begins.
 2. **Initialization** – the output directory is created and logging begins.
 3. **Configuration** – the user chooses a model and a computation engine
    from `./engines/`.  The default `cosmo_engine_comb.py` performs a
