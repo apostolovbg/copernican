@@ -566,6 +566,8 @@ def main_workflow():
         )
         CURRENT_LOG_FILE = log_file
         logger = log_mod.get_logger()
+        # Record interpreter and package details for reproducibility
+        log_mod.log_environment_info()
         utils.set_random_seed(0)
         start_ts = time.strftime("%y%m%d_%H%M%S")
         run_start_dt = datetime.datetime.now()
