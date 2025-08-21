@@ -1,4 +1,4 @@
-**Version:** 3.6.26
+**Version:** 3.6.27
 **Last Updated:** 2025-08-21
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -253,8 +253,11 @@ portable across operating systems.
 
 ## Logging and Caching
 All console output and user prompts are captured in a timestamped log file in
-`./output/`. The logger shortens absolute paths so logs remain portable and
-records the final filenames used for plots and tables. Model YAML files are
+`./output/`. After initialisation the suite logs the Python version, OS, CPU
+model and key package versions. A short summary appears on the console while
+full details are stored in the log file. The logger shortens absolute paths so
+logs remain portable and records the final filenames used for plots and tables.
+Model YAML files are
 sanitised and cached under `models/cache/` for the duration of the session,
 avoiding repeated schema validation. For CMB analyses unlensed CAMB spectra
 are cached by rounded parameter tuples which keeps successive evaluations

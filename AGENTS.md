@@ -26,6 +26,9 @@ necessary.
 The program enables Python's ``faulthandler`` at startup and registers
 ``SIGILL``, ``SIGSEGV`` and ``SIGFPE`` handlers. When triggered, they dump
 stack traces to both the console and the active log file before exiting.
+Immediately after logging initialises the suite records the Python version,
+operating system, CPU model and key package versions. A short summary is
+shown on the console while the log captures full details.
 
 The default engine is `engines/cosmo_engine_comb.py`. All model plugins are
 validated

@@ -10,8 +10,10 @@ session without clutter or duplicated lines.
 """
 
 import builtins
+import importlib
 import logging
 import os
+import platform
 import sys
 
 from .utils import ensure_dir_exists, get_timestamp
@@ -132,6 +134,36 @@ def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
         _patch_builtins(base_dir)
 
     return log_filename
+
+
+def log_environment_info() -> None:
+    """Log Python, OS, CPU and key package versions.
+
+    Detailed information is written to the log file while a short
+    summary prints to the console. This aids in reproducing results
+    across different systems.
+    """
+    logger = logging.getLogger()
+    py_ver = platform.python_version()
+    os_info = platform.platform()
+    cpu = platform.processor() or "Unknown CPU"
+    pkgs = {}
+    for name in ("numpy", "scipy", "matplotlib"):
+        try:
+            mod = importlib.import_module(name)
+            pkgs[name] = getattr(mod, "__version__", "unknown")
+        except Exception:
+            pkgs[name] = "not installed"
+    logger.info("Environment details:")
+    logger.info(f"  Python: {py_ver}")
+    logger.info(f"  OS: {os_info}")
+    logger.info(f"  CPU: {cpu}")
+    for n, v in pkgs.items():
+        logger.info(f"  {n}: {v}")
+    summary = f"Python {py_ver}; {os_info}; CPU {cpu}; " + ", ".join(
+        f"{n} {v}" for n, v in pkgs.items()
+    )
+    print(f"Environment summary: {summary}")
 
 
 def get_logger():
