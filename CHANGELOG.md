@@ -17,6 +17,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.8.0
+- 2025-08-21: Added NumPy/SciPy sanity checks before heavy computations to
+  diagnose CPU feature mismatches (AI assistant)
+
 ## Version 3.7.0
 - 2025-08-21: Forwarded Python warnings to logger and added strict warning flag
   for CI reproducibility (AI assistant)

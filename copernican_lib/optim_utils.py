@@ -35,6 +35,10 @@ def minimize_with_progress(
 ) -> Tuple[Optional[object], int, float, List[float]]:
     """Run :func:`scipy.optimize.minimize` while tracking evaluations.
 
+    A tiny NumPy/SciPy operation is attempted first to ensure the compiled
+    extensions load correctly. Failures often stem from CPU feature
+    mismatches and the log advises reinstalling compatible wheels.
+
     Parameters
     ----------
     func : callable
@@ -66,6 +70,19 @@ def minimize_with_progress(
     """
 
     logger = logging.getLogger()
+    try:
+        np.dot(np.ones(1), np.ones(1))
+        from scipy import linalg as _linalg
+
+        _linalg.det([[1.0]])
+    except Exception as exc:  # pragma: no cover - depends on environment
+        logger.error(
+            "Basic NumPy/SciPy check failed. This may indicate CPU feature "
+            "mismatches or a corrupted install. Reinstall with wheels "
+            "built for your system.",
+            exc_info=exc,
+        )
+        return None, 0, float("inf"), list(x0)
     eval_count = {"count": 0}
     best_val = [np.inf]
     best_params = [list(x0)]

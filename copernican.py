@@ -518,11 +518,36 @@ def cleanup_cache(base_dir):
                     logger.error(f"Error removing cache file {path}: {e}")
 
 
+def _sanity_check_numpy_scipy(log):
+    """Run a tiny NumPy/SciPy calculation to verify binary compatibility.
+
+    Mismatched CPU features or corrupted installations can cause crashes when
+    heavy computations begin. A trivial dot product and determinant expose such
+    issues early so the program can advise reinstalling with suitable wheels.
+    """
+
+    try:
+        import numpy as _np
+        from scipy import linalg as _linalg
+
+        _np.dot(_np.ones(1), _np.ones(1))
+        _linalg.det([[1.0]])
+    except Exception as exc:  # pragma: no cover - depends on local install
+        log.error(
+            "Basic NumPy/SciPy check failed. This often points to CPU feature "
+            "mismatches or a corrupted install. Reinstall NumPy and SciPy with "
+            "wheels built for your machine.",
+            exc_info=exc,
+        )
+        raise
+
+
 def main_workflow():
     """Main workflow for the Copernican Suite."""
     # This routine coordinates the entire user interaction:
     #  * parse command-line flags
     #  * verify Python dependencies
+    #  * perform a NumPy/SciPy sanity check
     #  * load the reference ΛCDM model
     #  * repeatedly ask the user for models, data sources and engines
     #  * produce plots and CSV files with the results
@@ -592,6 +617,10 @@ def main_workflow():
             )
         # Record interpreter and package details for reproducibility
         log_mod.log_environment_info()
+        try:
+            _sanity_check_numpy_scipy(logger)
+        except Exception:
+            exit_clean(1)
         utils.set_random_seed(0)
         start_ts = time.strftime("%y%m%d_%H%M%S")
         run_start_dt = datetime.datetime.now()
