@@ -23,6 +23,10 @@ using Matplotlib's standard text rendering. Dataset names retain their
 original spacing and the second line wraps after 190 characters when
 necessary.
 
+The program enables Python's ``faulthandler`` at startup and registers
+``SIGILL``, ``SIGSEGV`` and ``SIGFPE`` handlers. When triggered, they dump
+stack traces to both the console and the active log file before exiting.
+
 The default engine is `engines/cosmo_engine_comb.py`. All model plugins are
 validated
 through `copernican_lib/engine_interface.py` before being passed to the

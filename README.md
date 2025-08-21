@@ -1,5 +1,5 @@
-**Version:** 3.6.22
-**Last Updated:** 2025-08-19
+**Version:** 3.6.26
+**Last Updated:** 2025-08-21
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -259,6 +259,9 @@ sanitised and cached under `models/cache/` for the duration of the session,
 avoiding repeated schema validation. For CMB analyses unlensed CAMB spectra
 are cached by rounded parameter tuples which keeps successive evaluations
 fast during optimisation loops.
+
+Fatal signals such as ``SIGILL``, ``SIGSEGV`` or ``SIGFPE`` trigger handlers
+that dump stack traces to the console and active log file before termination.
 
 ## Creating New Models
 All model details, including theory text and equations, must be stored in a

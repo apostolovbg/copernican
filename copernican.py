@@ -25,6 +25,8 @@ import datetime
 import argparse
 import subprocess
 from pathlib import Path
+import faulthandler
+import signal
 
 from copernican_lib import console_output as console
 from copernican_lib.version import get_version
@@ -49,6 +51,9 @@ if sys.version_info < MIN_PYTHON:
     )
     exit_clean(1)
 
+# Enable low-level stack tracing so crashes reveal their origin.
+faulthandler.enable()
+
 # Delay heavy third-party imports until after the dependency check.
 # Doing so keeps startup quick and lets ``check_dependencies`` provide a
 # clean error message before the interpreter tries to import missing
@@ -71,6 +76,35 @@ data_loaders = None
 # logs and plot footers still carry a version-like identifier.
 COPERNICAN_VERSION = get_version()
 CURRENT_LOG_FILE = None
+
+
+def _handle_fatal_signal(signum: int, _frame: object) -> None:
+    """Dump a stack trace to the log and console then exit cleanly.
+
+    Critical signals such as ``SIGSEGV`` may indicate a corrupted process
+    state, so the handler writes a traceback for debugging before terminating
+    immediately using :func:`os._exit`.
+    """
+
+    sig_name = signal.Signals(signum).name
+    msg = f"Fatal signal {sig_name} received"
+    console.write(msg, error=True)
+    if CURRENT_LOG_FILE:
+        try:
+            with open(CURRENT_LOG_FILE, "a", encoding="utf-8") as fh:
+                fh.write(msg + "\n")
+                faulthandler.dump_traceback(file=fh, all_threads=True)
+        except Exception:
+            pass
+    faulthandler.dump_traceback(all_threads=True)
+    console.write("Exiting due to fatal signal.", error=True)
+    os._exit(1)
+
+
+for _name in ("SIGILL", "SIGSEGV", "SIGFPE"):
+    _sig = getattr(signal, _name, None)
+    if _sig is not None:
+        signal.signal(_sig, _handle_fatal_signal)
 
 
 def _delete_log_file(path: str) -> None:
