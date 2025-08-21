@@ -381,27 +381,6 @@ def check_dependencies():
 lcdm = None
 
 
-def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
-    """Prompt for a relative path under ``base_dir`` and ensure it exists."""
-
-    # The loop continues until a valid path is provided or the user cancels.
-    # This prevents accidental typos from immediately aborting the workflow.
-    while True:
-        filename = console.ask(
-            f"{prompt_message} (or 'c' to cancel): "
-        ).strip()
-        if filename.lower() == "c":
-            return None
-        filepath = os.path.join(base_dir, filename)
-        if os.path.isfile(filepath):
-            return filepath
-        else:
-            # Inform the user and loop again so they can correct the path.
-            console.write(
-                f"Error: File not found at '{filepath}'. Please try again."
-            )
-
-
 def load_alternative_model_plugin(model_filepath):
     """Dynamically loads an alternative cosmological model plugin."""
     logger = log_mod.get_logger()
@@ -465,27 +444,6 @@ def select_from_list(options, prompt):
         if choice.isdigit() and 1 <= int(choice) <= len(options):
             return options[int(choice) - 1]
         console.write("Invalid selection. Try again.")
-
-
-def parse_model_header(md_path):
-    """Read minimal YAML front matter for plugin lookup."""
-    # Only the YAML block at the start of the Markdown file is needed in
-    # order to locate the generated Python module.  This keeps startup
-    # snappy and avoids parsing the entire document.
-    data = {}
-    try:
-        with open(md_path, "r") as f:
-            lines = f.readlines()
-        if lines and lines[0].strip() == "---":
-            for line in lines[1:]:
-                if line.strip() == "---":
-                    break
-                if ":" in line:
-                    k, v = line.split(":", 1)
-                    data[k.strip()] = v.strip().strip('"').strip("'")
-    except Exception:
-        pass
-    return data
 
 
 def cleanup_cache(base_dir):
