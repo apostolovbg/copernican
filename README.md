@@ -101,7 +101,8 @@ parsers are discovered automatically under
 3. Execute `python3 copernican.py --run-tests` to run the verbose test
    suite, or run `python -m unittest discover -v` directly. The test
    runner reports informational messages, warnings and errors while
-   verifying the reference model and parsers.
+   verifying the reference model and parsers. Add `--strict-warnings`
+   to upgrade warnings to errors for reproducible CI runs.
 4. Plots and CSV results will appear in the `output/` folder when the run
    completes.
 
@@ -434,6 +435,9 @@ python -m unittest discover -v
 python copernican.py --run-tests  # verbose unittest discovery
 ```
 
+The optional `--strict-warnings` flag treats all warnings as errors during
+any run.
+
 Pull requests trigger a GitHub Actions workflow named ``Tests`` that runs
 pre-commit and the unit suite across Windows, macOS and Debian-based
 Linux. Each job executes inside a cached virtual environment for
@@ -488,7 +492,7 @@ altering `MAJOR.MINOR`.
     verbose functional test suite and verify that the LCDM model and data
     parsers work as expected. This flag performs unittest discovery over
     the `tests` package and streams informational messages, warnings and
-    errors.
+    errors. Combine with `--strict-warnings` to fail on any warning.
 3.  **Initialization**: The script starts and creates the `./output/`
     directory
     for all results.

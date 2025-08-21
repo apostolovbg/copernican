@@ -168,13 +168,27 @@ def run_startup_tests():
 
 
 def parse_args():
-    """Parse command line flags provided by the user."""
+    """Parse command line flags provided by the user.
+
+    Returns
+    -------
+    argparse.Namespace
+        ``run_tests`` executes the functional test suite and exits, while
+        ``strict_warnings`` upgrades all warnings to errors to ensure
+        deterministic CI behaviour.
+    """
+
     parser = argparse.ArgumentParser(description="Copernican Suite")
     # ``--run-tests`` triggers the functional test suite and then exits.
     parser.add_argument(
         "--run-tests",
         action="store_true",
         help="execute functional tests and exit",
+    )
+    parser.add_argument(
+        "--strict-warnings",
+        action="store_true",
+        help="treat warnings as errors for reproducible CI runs",
     )
     return parser.parse_args()
 
@@ -520,7 +534,7 @@ def main_workflow():
 
     # Import optional third-party packages after confirming they are installed
     global np, plt, mp, model_parser, model_coder, engine_interface, \
-        data_loaders, plotter, csv_writer, log_mod, logger
+        data_loaders, plotter, csv_writer, log_mod, logger, error_handler
     import numpy as np
     import matplotlib.pyplot as plt
     import multiprocessing as mp
@@ -531,6 +545,7 @@ def main_workflow():
         csv_writer,
         logger as log_mod,
         utils,
+        error_handler,
     )
 
     try:
@@ -566,6 +581,15 @@ def main_workflow():
         )
         CURRENT_LOG_FILE = log_file
         logger = log_mod.get_logger()
+        error_handler.configure_warnings(strict=args.strict_warnings)
+        if args.strict_warnings:
+            logger.info(
+                "Strict warnings mode enabled; treating warnings as errors"
+            )
+        else:
+            logger.info(
+                "Warnings will be logged but not treated as errors"
+            )
         # Record interpreter and package details for reproducibility
         log_mod.log_environment_info()
         utils.set_random_seed(0)

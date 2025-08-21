@@ -17,8 +17,13 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.7.0
+- 2025-08-21: Forwarded Python warnings to logger and added strict warning flag
+  for CI reproducibility (AI assistant)
+
 ## Version 3.6.27
-- 2025-08-21: Logged Python version, OS, CPU and package versions after logging setup (AI assistant)
+- 2025-08-21: Logged Python version, OS, CPU and package versions
+  after logging setup (AI assistant)
 
 ## Version 3.6.26
 - 2025-08-21: Added crash signal handlers dumping stack traces to log and

@@ -30,6 +30,9 @@ Immediately after logging initialises the suite records the Python version,
 operating system, CPU model and key package versions. A short summary is
 shown on the console while the log captures full details.
 
+All Python warnings are forwarded to the central logger. Use
+``--strict-warnings`` to elevate warnings to errors during CI runs.
+
 The default engine is `engines/cosmo_engine_comb.py`. All model plugins are
 validated
 through `copernican_lib/engine_interface.py` before being passed to the
