@@ -1,4 +1,4 @@
-**Version:** 3.8.4
+**Version:** 3.9.0
 **Last Updated:** 2025-08-22
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -438,7 +438,7 @@ python copernican.py --run-tests  # verbose unittest discovery
 ```
 
 The optional `--strict-warnings` flag treats all warnings as errors during
-any run.
+any run. Add `--yes` to install missing dependencies without prompting.
 
 Pull requests trigger a GitHub Actions workflow named ``Tests`` that runs
 pre-commit and the unit suite across Windows, macOS and Debian-based
@@ -489,7 +489,8 @@ altering `MAJOR.MINOR`.
 ## 4. Workflow Overview
 
 1.  **Dependency Check**: `copernican.py` scans for missing packages,
-    installs them automatically with `pip` and verifies the environment.
+    prompts before installing them with `pip` and verifies the environment.
+    Use `--yes` to skip the prompt in automated CI runs.
 2.  **Optional Tests**: Run `copernican.py --run-tests` to execute the
     verbose functional test suite and verify that the LCDM model and data
     parsers work as expected. This flag performs unittest discovery over

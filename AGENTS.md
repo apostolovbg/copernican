@@ -97,9 +97,11 @@ AST parser to avoid false positives from comments. The `start.*` launchers
 verify Python 3.11 or later before creating ``.venv``. If the interpreter is
 missing or outdated they print platform-specific installation commands and
 exit. Once the requirement is met the scripts run inside the repository's
-``.venv``. If any required package is missing, the program installs it
-automatically with `pip` and verifies the import before continuing. Running
-outside ``.venv`` prompts the user to restart via the appropriate launcher.
+``.venv``. If any required package is missing, the program asks before
+installing it with `pip` and verifies the import before continuing.
+Use `--yes` to bypass the prompt in non-interactive environments.
+Running outside ``.venv`` prompts the user to restart via the appropriate
+launcher.
 This lightweight approach works across Windows, macOS and Linux while allowing
 new engines to introduce additional dependencies without manual updates to the
 documentation.
