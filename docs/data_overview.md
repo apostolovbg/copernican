@@ -76,11 +76,11 @@ diagonal uncertainties only when the matrix is absent or ill conditioned.
 ### Compound BAO Dataset
 *Source:* synthetic compilation for testing purposes.
 *Location:* `data/bao/compound/`.
-*Parser:* `cosmo_parser_compound.py` scans the directory for a YAML or JSON
-file and loads its `data_points` table into a `DataFrame`. Numeric columns are
-coerced to floats and rows missing required fields are discarded. No
-covariance matrix is supplied, so the engine assumes uncorrelated errors and
-applies a diagonal covariance during \(\chi^2\) evaluation.
+*Parser:* `cosmo_parser_compound.py` scans the directory for a YAML file and
+loads its `data_points` table into a `DataFrame`. Numeric columns are coerced
+to floats and rows missing required fields are discarded. No covariance matrix
+is supplied, so the engine assumes uncorrelated errors and applies a diagonal
+covariance during \(\chi^2\) evaluation.
 
 ## CMB Datasets
 

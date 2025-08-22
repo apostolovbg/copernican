@@ -17,6 +17,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.8.3
+- 2025-08-22: Dropped JSON input from the compound BAO parser and updated
+  documentation to reference YAML only (AI assistant)
+
 ## Version 3.8.2
 - 2025-08-21: Logged previously silent exceptions in `copernican.py`,
   `copernican_lib/utils.py` and `engines/cosmo_engine_comb.py` (AI assistant)

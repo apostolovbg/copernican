@@ -31,8 +31,7 @@ def parse_bao_v1(data_dir, **kwargs):
     data_files = [
         f
         for f in os.listdir(data_dir)
-        if f.lower().endswith((".json", ".yml", ".yaml"))
-        and not f.startswith("metadata")
+        if f.lower().endswith((".yml", ".yaml")) and not f.startswith("metadata")
     ]
     if not data_files:
         logger.error(f"No BAO data file found in {data_dir}.")
@@ -40,9 +39,9 @@ def parse_bao_v1(data_dir, **kwargs):
     filepath = os.path.join(data_dir, sorted(data_files)[0])
     try:
         with open(filepath, "r") as f:
-            data_json = yaml.safe_load(f)
+            data_yaml = yaml.safe_load(f)
 
-        df = pd.DataFrame(data_json["data_points"])
+        df = pd.DataFrame(data_yaml["data_points"])
         required_cols = ["redshift", "observable_type", "value", "error"]
         if not all(col in df.columns for col in required_cols):
             logger.error(
