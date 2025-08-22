@@ -1,8 +1,8 @@
 # Dataset Metadata Fields
 
 Each dataset folder contains a `metadata_*.yml` file that describes the
-source. All fields are optional except for `dataset_name`, `dataset_id`
-and `description`.
+source. All fields are optional except for `dataset_name`, `dataset_id`,
+`description` and `license`.
 
 Example skeleton:
 
@@ -11,6 +11,7 @@ dataset_name: Example Dataset
 dataset_id: example_set
 description: Short human readable blurb
 citation: FirstAuthor et al. 2024 - Journal 12 (2024) 34-56 - DOI: 10.x/y
+license: Free to use with attribution
 ```
 
 - `dataset_name` -- Short human-readable identifier used in logs, plot
@@ -21,6 +22,7 @@ citation: FirstAuthor et al. 2024 - Journal 12 (2024) 34-56 - DOI: 10.x/y
 - `description` -- Brief explanation of the dataset origin.
 - `citation` -- Formatted as "FirstAuthor et al. - J. Vol (Year) Pages - DOI:
   URL".
+- `license` -- Usage terms or license under which the dataset is released.
 - `author` -- Full author list from the publication.
 - `title` -- Publication title.
 - `article` -- BibTeX citation key.

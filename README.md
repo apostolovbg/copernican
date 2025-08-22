@@ -1,4 +1,4 @@
-**Version:** 3.8.3
+**Version:** 3.8.4
 **Last Updated:** 2025-08-22
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -241,9 +241,10 @@ bold, while the dataset name on the second line retains its original spacing
 via MathText's ``\mathbf`` command.
 
 Metadata values are read from ``metadata_*.yml`` files stored next to each
-dataset. ``copernican_lib/data_loaders.py`` attaches this metadata to the
-DataFrame returned by each parser so both plot footers and CSV headers reflect
-the official dataset description and citation. Individual parsers never access
+dataset. These files include a ``license`` field pointing to usage terms.
+``copernican_lib/data_loaders.py`` attaches this metadata to the DataFrame
+returned by each parser so both plot footers and CSV headers reflect the
+official dataset description and citation. Individual parsers never access
 metadata files directly.
 
 During configuration each loader prints a summary indicating whether the

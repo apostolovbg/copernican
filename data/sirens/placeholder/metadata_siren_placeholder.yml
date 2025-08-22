@@ -2,5 +2,6 @@ dataset_name: Standard Siren Placeholder
 dataset_id: siren_placeholder
 description: No standard siren dataset available yet
 citation: N/A
+license: Usage terms to be determined
 authors_all: N/A
 notes: Stub parser for future standard siren observations

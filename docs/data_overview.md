@@ -23,9 +23,9 @@ usable simply rename the folder and supply a valid parser and metadata file.
 
 Every dataset folder also provides a `metadata_*.yml` describing the
 source. Fields such as `dataset_name`, `dataset_id`, `description`,
-`citation`, the full `author` list and accompanying BibTeX information
-(for example `title`, `volume`, `journal` and `DOI`) are read by
-`copernican_lib/data_loaders.py` after the parser returns so individual
+`citation`, `license`, the full `author` list and accompanying BibTeX
+information (for example `title`, `volume`, `journal` and `DOI`) are read
+by `copernican_lib/data_loaders.py` after the parser returns so individual
 parsers remain metadata-agnostic. Parsed DataFrames expose the same
 information on their `.attrs` property, and `dataset_id` is used when
 constructing output filenames. See `dataset_metadata.md` for a full
