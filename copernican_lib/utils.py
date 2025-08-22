@@ -114,8 +114,13 @@ def load_metadata_from_dir(data_dir: str) -> dict:
                             key, val = line.strip().split(":", 1)
                             meta[key.strip()] = val.strip()
                 return meta
-    except Exception:
-        pass
+    except Exception as exc:
+        # Report the failure instead of silently returning an empty dict.
+        logging.getLogger(__name__).exception(
+            "copernican_lib/utils.py: failed to load metadata from %s: %s",
+            data_dir,
+            exc,
+        )
     return {}
 
 

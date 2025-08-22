@@ -860,7 +860,14 @@ def calculate_bao_observables(
                     model_pred_numerator / model_rs_Mpc
                 )
         except Exception:
-            pass
+            # Log the failure but continue so other points still compute.
+            logger.exception(
+                "engines/cosmo_engine_comb.py: BAO prediction failed for %s"
+                " at z=%s in model '%s'",
+                obs_type,
+                z_val,
+                model_name,
+            )
 
     logger.debug(
         "BAO predictions for %s:\n%s",

@@ -17,6 +17,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.8.2
+- 2025-08-21: Logged previously silent exceptions in `copernican.py`,
+  `copernican_lib/utils.py` and `engines/cosmo_engine_comb.py` (AI assistant)
+
 ## Version 3.8.1
 - 2025-08-21: Removed unused `get_user_input_filepath` and `parse_model_header`
   helpers from `copernican.py` (AI assistant)
