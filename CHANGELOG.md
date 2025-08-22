@@ -19,6 +19,9 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.9.2
+- 2025-08-22: Updated licenses for GW and siren placeholders (AI assistant)
+
 ## Version 3.9.1
 - 2025-08-22: Replaced ``eval`` in CAMB parameter parsing with a safe
   AST-based evaluator and added malicious expression tests (AI assistant)
