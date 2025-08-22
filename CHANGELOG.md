@@ -18,6 +18,7 @@ Version headers run newest to oldest, and within each version the newest
 entries come first):
 
 ## Version 3.8.3
+- 2025-08-22: Updated README version to 3.8.3 (AI assistant)
 - 2025-08-22: Dropped JSON input from the compound BAO parser and updated
   documentation to reference YAML only (AI assistant)
 
