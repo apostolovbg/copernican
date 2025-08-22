@@ -468,7 +468,9 @@ not modify them unless explicitly instructed.
 ## License
 The Copernican Suite is distributed under the terms of the [Copernican Suite
 License (CSL)](LICENSE.md). The license forbids redistributing the software in
-full and disallows patent filings or assertions.
+full and disallows patent filings or assertions. Licenses for runtime
+dependencies are listed in
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
 ## Versioning Policy
 The project now follows [Semantic Versioning](https://semver.org/). Versions
