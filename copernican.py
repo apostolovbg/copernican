@@ -94,8 +94,20 @@ def _handle_fatal_signal(signum: int, _frame: object) -> None:
             with open(CURRENT_LOG_FILE, "a", encoding="utf-8") as fh:
                 fh.write(msg + "\n")
                 faulthandler.dump_traceback(file=fh, all_threads=True)
-        except Exception:
-            pass
+        except Exception as exc:
+            if logger:
+                # Preserve the failure details in the central log.
+                logger.exception(
+                    "copernican.py: failed to append fatal trace to %s",
+                    CURRENT_LOG_FILE,
+                )
+            else:
+                # Fallback so the issue is still visible to the user.
+                console.write(
+                    f"copernican.py: failed to write to {CURRENT_LOG_FILE}:"
+                    f" {exc}",
+                    error=True,
+                )
     faulthandler.dump_traceback(all_threads=True)
     console.write("Exiting due to fatal signal.", error=True)
     os._exit(1)
@@ -113,8 +125,21 @@ def _delete_log_file(path: str) -> None:
         try:
             os.remove(path)
             console.write(f"Removed log file {path}")
-        except OSError:
-            pass
+        except OSError as exc:
+            if logger:
+                # Deletion failures are non-critical but worth recording.
+                logger.warning(
+                    "copernican.py: could not remove log file %s: %s",
+                    path,
+                    exc,
+                )
+            else:
+                # Ensure the user sees the failure even without the logger.
+                console.write(
+                    f"copernican.py: unable to remove log file {path}:"
+                    f" {exc}",
+                    error=True,
+                )
 
 
 def _get_cpu_info() -> tuple[str, str]:
@@ -127,8 +152,19 @@ def _get_cpu_info() -> tuple[str, str]:
         freq_info = psutil.cpu_freq()
         if freq_info:
             freq = freq_info.current / 1000.0
-    except Exception:
-        pass
+    except Exception as exc:
+        if logger:
+            # ``psutil`` is optional; log and continue with unknown frequency.
+            logger.warning(
+                "copernican.py: psutil unavailable for CPU freq: %s",
+                exc,
+            )
+        else:
+            # Without a logger, surface the issue via the console.
+            console.write(
+                f"copernican.py: psutil import failed: {exc}",
+                error=True,
+            )
     if freq is None and platform.system() == "Linux":
         try:
             with open("/proc/cpuinfo", "r") as fh:
@@ -137,8 +173,20 @@ def _get_cpu_info() -> tuple[str, str]:
                         cpu = line.split(":", 1)[1].strip()
                     if line.startswith("cpu MHz") and freq is None:
                         freq = float(line.split(":", 1)[1]) / 1000.0
-        except Exception:
-            pass
+        except Exception as exc:
+            if logger:
+                # Reading ``/proc/cpuinfo`` can fail in restricted
+                # environments; log and fall back to placeholders.
+                logger.warning(
+                    "copernican.py: could not read /proc/cpuinfo: %s",
+                    exc,
+                )
+            else:
+                # Fallback console message when the logger is unavailable.
+                console.write(
+                    f"copernican.py: cannot read /proc/cpuinfo: {exc}",
+                    error=True,
+                )
     freq_str = f"{freq:.2f} GHz" if freq else "Unknown GHz"
     return cpu, freq_str
 
