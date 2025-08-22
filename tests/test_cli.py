@@ -53,5 +53,41 @@ class SelectSourceDisplayTestCase(unittest.TestCase):
         self.assertNotIn("dummy_id", out)
 
 
+class DependencyPromptTestCase(unittest.TestCase):
+    """Test dependency installer confirmation and CI override."""
+
+    @mock.patch("copernican.Path")
+    def test_installs_after_confirmation(self, path_mock):
+        path_mock.return_value.resolve.return_value.name = ".venv"
+        with (
+            mock.patch(
+                "copernican._gather_required_packages", return_value=["demo"]
+            ),
+            mock.patch("importlib.util.find_spec", return_value=None),
+            mock.patch("copernican.console.ask", return_value="y") as ask_mock,
+            mock.patch("subprocess.run") as run_mock,
+            mock.patch("importlib.import_module"),
+        ):
+            copernican.check_dependencies()
+            ask_mock.assert_called_once()
+            run_mock.assert_called_once()
+
+    @mock.patch("copernican.Path")
+    def test_auto_confirm_skips_prompt(self, path_mock):
+        path_mock.return_value.resolve.return_value.name = ".venv"
+        with (
+            mock.patch(
+                "copernican._gather_required_packages", return_value=["demo"]
+            ),
+            mock.patch("importlib.util.find_spec", return_value=None),
+            mock.patch("copernican.console.ask") as ask_mock,
+            mock.patch("subprocess.run") as run_mock,
+            mock.patch("importlib.import_module"),
+        ):
+            copernican.check_dependencies(auto_confirm=True)
+            ask_mock.assert_not_called()
+            run_mock.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.9.0
+- 2025-08-22: Prompted before installing dependencies and added `--yes` flag
+  for CI automation (AI assistant)
+
 ## Version 3.8.4
 - 2025-08-22: Added dataset license references and updated documentation
   (AI assistant)

@@ -223,7 +223,8 @@ def parse_args():
     argparse.Namespace
         ``run_tests`` executes the functional test suite and exits, while
         ``strict_warnings`` upgrades all warnings to errors to ensure
-        deterministic CI behaviour.
+        deterministic CI behaviour.  ``yes`` installs missing dependencies
+        without asking for confirmation, simplifying non-interactive CI runs.
     """
 
     parser = argparse.ArgumentParser(description="Copernican Suite")
@@ -237,6 +238,12 @@ def parse_args():
         "--strict-warnings",
         action="store_true",
         help="treat warnings as errors for reproducible CI runs",
+    )
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="install missing packages without prompting",
     )
     return parser.parse_args()
 
@@ -352,8 +359,16 @@ def _gather_required_packages():
     }
 
 
-def check_dependencies():
-    """Ensure required packages are installed inside the local ``.venv``.
+def check_dependencies(auto_confirm: bool = False) -> None:
+    """Ensure required packages exist inside the local ``.venv``.
+
+    Parameters
+    ----------
+    auto_confirm : bool, optional
+        When ``True`` any missing packages are installed without prompting
+        the user.  This is intended for non-interactive environments such as
+        continuous integration systems.  When ``False`` the user is asked to
+        confirm installation before ``pip`` is invoked.
 
     The suite bundles a virtual environment under ``.venv`` that is activated
     by the ``start.*`` launchers.  This check confirms the interpreter is
@@ -391,6 +406,14 @@ def check_dependencies():
         console.write(
             f"Missing packages detected: {', '.join(missing)}"
         )
+        if not auto_confirm:
+            reply = console.ask("Install missing packages? [y/N] ")
+            if reply.lower() not in {"y", "yes"}:
+                console.write(
+                    "Dependency installation aborted by user.",
+                    error=True,
+                )
+                exit_clean(1)
         try:
             subprocess.run(
                 [sys.executable, "-m", "pip", "install", *missing],
@@ -558,7 +581,7 @@ def main_workflow():
     #  * repeatedly ask the user for models, data sources and engines
     #  * produce plots and CSV files with the results
     args = parse_args()
-    check_dependencies()
+    check_dependencies(auto_confirm=args.yes)
     if args.run_tests:
         success = run_startup_tests()
         exit_clean(0 if success else 1)
