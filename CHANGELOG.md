@@ -6,6 +6,8 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Version 1.1.0
 - 2025-05-27: Added plotting and CSV (Apostol Apostolov)
+- 2025-08-22: Hardened SymPy expression handling to block unsafe code and
+               added security tests (OpenAI ChatGPT)
 
 ## Version 1.0.0
 - 2025-05-26: Debugged copernican.py script (AI assistant)

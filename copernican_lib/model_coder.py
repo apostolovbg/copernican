@@ -47,6 +47,32 @@ def _latex_to_sympy_str(expr: str) -> str:
     return latex_utils.latex_to_sympy(expr)
 
 
+_SAFE_GLOBALS = {"__builtins__": {}}
+_SAFE_GLOBALS.update({name: getattr(sp, name) for name in sp.__all__})
+
+
+def _safe_parse_expr(expr_str: str, local_dict: dict) -> sp.Expr:
+    """Safely parse ``expr_str`` into a SymPy expression.
+
+    The parser runs with an empty ``__builtins__`` dict so that tokens like
+    ``__import__`` cannot access Python's standard library. Expressions with
+    double underscores are rejected outright to avoid dunder exploits.
+    """
+
+    if "__" in expr_str:
+        raise ValueError(
+            "Double underscores are not permitted in expressions."
+        )
+
+    return parse_expr(
+        expr_str,
+        local_dict,
+        global_dict=_SAFE_GLOBALS,
+        transformations=standard_transformations
+        + (implicit_multiplication_application,),
+    )
+
+
 def _compile_sympy_expr(sym_expr, args):
     """Compile a SymPy expression into a callable that evaluates
     ``Integral`` nodes."""
@@ -58,8 +84,11 @@ def _compile_sympy_expr(sym_expr, args):
         printer = QuadPrinter({"strict": False})
         code = printer.doprint(sym_expr)
         lambda_src = f"lambda {', '.join(str(a) for a in args)}: {code}"
-        return eval(lambda_src, {"np": np, "quad": quad})
-    return sp.lambdify(args, sym_expr, "numpy")
+        return eval(
+            lambda_src,
+            {"np": np, "quad": quad, "__builtins__": {}},
+        )
+    return sp.lambdify(args, sym_expr, [{"__builtins__": {}}, "numpy"])
 
 
 def generate_callables(cache_path):
@@ -101,12 +130,7 @@ def generate_callables(cache_path):
     if hz_expr_str:
         try:
             parsed_hz = _latex_to_sympy_str(hz_expr_str)
-            hz_sym = parse_expr(
-                parsed_hz,
-                local_dict,
-                transformations=standard_transformations
-                + (implicit_multiplication_application,),
-            )
+            hz_sym = _safe_parse_expr(parsed_hz, local_dict)
             used_syms = {str(s) for s in hz_sym.free_symbols if s != z}
             param_names = {p["python_var"] for p in model_data["parameters"]}
             missing = used_syms - param_names
@@ -202,12 +226,7 @@ def generate_callables(cache_path):
             if rs_expr_str:
                 try:
                     parsed_rs = _latex_to_sympy_str(rs_expr_str)
-                    rs_sym = parse_expr(
-                        parsed_rs,
-                        local_dict,
-                        transformations=standard_transformations
-                        + (implicit_multiplication_application,),
-                    )
+                    rs_sym = _safe_parse_expr(parsed_rs, local_dict)
                     used = {str(s) for s in rs_sym.free_symbols} - {"z"}
                     missing_rs = used - param_names
                     if missing_rs:
@@ -303,12 +322,7 @@ def generate_callables(cache_path):
             # Textual equations are preserved but not parsed into functions
             continue
         try:
-            sym_expr = parse_expr(
-                expr,
-                local_dict,
-                transformations=standard_transformations
-                + (implicit_multiplication_application,),
-            )
+            sym_expr = _safe_parse_expr(expr, local_dict)
             # Convert SymPy expression to a callable, numerically evaluating
             # ``Integral`` constructs if present.
             fn = _compile_sympy_expr(sym_expr, (z, *param_syms))
