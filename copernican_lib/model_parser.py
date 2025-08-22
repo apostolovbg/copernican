@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Model parser for Copernican Suite YAML models."""
 
 # This module validates model definition files against a JSON schema and writes

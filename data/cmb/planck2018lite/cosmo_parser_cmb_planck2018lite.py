@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Parse the Planck 2018 lite TT/TE/EE spectra with covariance."""
 
 # The Planck team provides the data in a simple text format accompanied by a

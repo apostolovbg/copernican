@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 # optim_utils.py
 """Optimization utilities for the Copernican Suite.
 

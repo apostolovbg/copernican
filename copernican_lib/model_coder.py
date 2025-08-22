@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Translate sanitized model YAML into executable NumPy-aware callables.
 
 Every cosmological model is stored as YAML. This module parses that file,

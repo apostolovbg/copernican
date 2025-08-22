@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Bridge between generated model callables and numerical engines.
 
 Model YAML files are transformed into Python functions by

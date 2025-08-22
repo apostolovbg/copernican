@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 # copernican_suite/data_loaders.py
 """Dataset discovery and loading helpers.
 

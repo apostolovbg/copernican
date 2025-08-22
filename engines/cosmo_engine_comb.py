@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 # copernican_suite/cosmo_engine_comb.py
 """Combined-fit computational engine used by ``copernican.py``.
 
