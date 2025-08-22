@@ -47,6 +47,14 @@ class EngineInterfaceTestCase(unittest.TestCase):
         self.assertEqual(camb["H0"], 70.0)
         self.assertAlmostEqual(camb["ombh2"], 0.022)
 
+    def test_get_camb_params_rejects_malicious_expression(self):
+        """Expressions attempting attribute access raise ``ValueError``."""
+        self.plugin.CMB_PARAM_MAP["bad"] = (
+            "np.__class__.__mro__[2].__subclasses__()"
+        )
+        with self.assertRaises(ValueError):
+            self.plugin.get_camb_params([70.0])
+
     def test_equation_sanitization(self):
         """Equations are sanitized into Matplotlib-friendly form."""
         self.assertEqual(self.plugin.MODEL_EQUATIONS_LATEX_SN[0], "$E=mc^2$")

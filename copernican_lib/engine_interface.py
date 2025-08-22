@@ -15,12 +15,13 @@ engines to skip unsupported calculations gracefully.
 # helper functions that take the parsed YAML representation of a model and
 # turn it into a simple object with the required attributes and callables.
 
+import ast
 import inspect
 import logging
+import math
+import operator
 import re
 from types import SimpleNamespace
-
-import numpy as np
 
 REQUIRED_FUNCTIONS = [
     "distance_modulus_model",
@@ -43,6 +44,28 @@ REQUIRED_ATTRIBUTES = [
     "PARAMETER_BOUNDS",
     "FIXED_PARAMS",
 ]
+
+# Allowed math helpers for expression evaluation in ``get_camb_params``.
+ALLOWED_MATH_FUNCS = {
+    "sin": math.sin,
+    "cos": math.cos,
+    "tan": math.tan,
+    "exp": math.exp,
+    "log": math.log,
+    "sqrt": math.sqrt,
+}
+ALLOWED_CONSTANTS = {"pi": math.pi, "e": math.e}
+
+# Mappings from AST nodes to the corresponding Python operators. Only a small
+# subset of numeric operations is supported to keep expressions predictable.
+BIN_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.Pow: operator.pow,
+}
+UNARY_OPS = {ast.UAdd: operator.pos, ast.USub: operator.neg}
 
 
 def build_plugin(model_data, func_dict):
@@ -88,16 +111,92 @@ def build_plugin(model_data, func_dict):
         plugin.valid_for_cmb = False
 
     def get_camb_params(values):
-        """Return a CAMB parameter dictionary from ``values``."""
+        """Return a CAMB parameter dictionary from ``values``.
+
+        Expressions in ``plugin.CMB_PARAM_MAP`` may reference model parameter
+        names and a limited set of math helpers. Supported functions are
+        ``sin``, ``cos``, ``tan``, ``exp``, ``log`` and ``sqrt``. Only numeric
+        literals, parameter names and the operators ``+``, ``-``, ``*``, ``/``
+        and ``**`` are permitted. Any other identifier or construct raises a
+        :class:`ValueError` to block unsafe code execution.
+        """
+
         logger = logging.getLogger()
-        env = {name: val for name, val in zip(plugin.PARAMETER_NAMES, values)}
-        env["np"] = np
+        env = {
+            name: float(val)
+            for name, val in zip(plugin.PARAMETER_NAMES, values)
+        }
         replacements = dict(
             zip(
                 [ln.strip("$") for ln in plugin.PARAMETER_LATEX_NAMES],
                 plugin.PARAMETER_NAMES,
             )
         )
+
+        def _eval_safe(expr: str) -> float:
+            """Evaluate ``expr`` using a restricted AST interpreter.
+
+            Parameters
+            ----------
+            expr : str
+                Expression referencing parameter names and whitelisted math
+                helpers.
+
+            Returns
+            -------
+            float
+                Numerical result of ``expr``.
+
+            Raises
+            ------
+            ValueError
+                If ``expr`` contains disallowed syntax or identifiers.
+            """
+
+            try:
+                node = ast.parse(expr, mode="eval")
+            except SyntaxError as exc:  # pragma: no cover - SyntaxError rare
+                raise ValueError(f"invalid expression '{expr}'") from exc
+
+            def _eval(node: ast.AST) -> float:
+                if isinstance(node, ast.Expression):
+                    return _eval(node.body)
+                if isinstance(node, ast.Constant):
+                    if isinstance(node.value, (int, float)):
+                        return float(node.value)
+                    raise ValueError("non-numeric literal")
+                if isinstance(node, ast.BinOp):
+                    op = BIN_OPS.get(type(node.op))
+                    if op is None:
+                        raise ValueError("operator not allowed")
+                    return op(_eval(node.left), _eval(node.right))
+                if isinstance(node, ast.UnaryOp):
+                    op = UNARY_OPS.get(type(node.op))
+                    if op is None:
+                        raise ValueError("operator not allowed")
+                    return op(_eval(node.operand))
+                if isinstance(node, ast.Name):
+                    if node.id in env:
+                        return env[node.id]
+                    if node.id in ALLOWED_CONSTANTS:
+                        return ALLOWED_CONSTANTS[node.id]
+                    raise ValueError(f"name '{node.id}' not allowed")
+                if isinstance(node, ast.Call):
+                    if not isinstance(node.func, ast.Name):
+                        raise ValueError("invalid function call")
+                    func = ALLOWED_MATH_FUNCS.get(node.func.id)
+                    if func is None:
+                        raise ValueError(
+                            f"function '{node.func.id}' not allowed"
+                        )
+                    if node.keywords:
+                        raise ValueError("keyword arguments not supported")
+                    args = [_eval(arg) for arg in node.args]
+                    return float(func(*args))
+                raise ValueError("expression not allowed")
+
+            return _eval(node)
+
         camb_params = {}
         for key, expr in plugin.CMB_PARAM_MAP.items():
             if isinstance(expr, str):
@@ -105,13 +204,13 @@ def build_plugin(model_data, func_dict):
                 for latex, var in replacements.items():
                     clean_expr = clean_expr.replace(latex, var)
                 try:
-                    val = eval(clean_expr, {"__builtins__": {}}, env)
-                except Exception as exc:
+                    val = _eval_safe(clean_expr)
+                except ValueError as exc:
                     logger.error(
                         f"(get_camb_params): failed to evaluate "
                         f"'{expr}' for '{key}': {exc}"
                     )
-                    val = np.nan
+                    raise
             else:
                 val = expr
             camb_params[key] = float(val)
