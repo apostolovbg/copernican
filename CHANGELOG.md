@@ -20,6 +20,7 @@ Version headers run newest to oldest, and within each version the newest
 entries come first):
 
 ## Version 3.9.0
+- 2025-08-22: Documented third-party licenses and linked from README (AI assistant)
 - 2025-08-22: Added LICENSE.md references to module headers (AI assistant)
 - 2025-08-22: Prompted before installing dependencies and added `--yes` flag
   for CI automation (AI assistant)
