@@ -2,6 +2,8 @@ dataset_name: GW Placeholder
 dataset_id: gw_placeholder
 description: No gravitational wave dataset available yet
 citation: N/A
-license: Usage terms to be determined
+license: >-
+  CC0 1.0 Universal (CC0 1.0) Public Domain Dedication.
+  https://creativecommons.org/publicdomain/zero/1.0/
 authors_all: N/A
 notes: Stub parser for future gravitational wave observations
