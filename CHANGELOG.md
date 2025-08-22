@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.8.4
+- 2025-08-22: Added dataset license references and updated documentation
+  (AI assistant)
+
 ## Version 3.8.3
 - 2025-08-22: Updated README version to 3.8.3 (AI assistant)
 - 2025-08-22: Dropped JSON input from the compound BAO parser and updated
