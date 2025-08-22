@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 # Copernican Suite Plotter
 """Plotting utilities for the Copernican Suite."""
 # All plotting code lives here so that engines only perform computations.

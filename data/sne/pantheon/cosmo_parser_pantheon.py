@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Parser for the Pantheon+SH0ES 2022 supernova sample."""
 
 import logging

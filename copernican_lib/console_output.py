@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Console I/O helpers shared across the Copernican Suite.
 
 All user facing text is funneled through this module so that console

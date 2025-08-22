@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Version helpers for the Copernican Suite.
 
 This module centralises retrieval of the project's version string so that

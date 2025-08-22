@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Parser for the JLA 2014 supernova sample.
 
 The systematic covariance matrix from ``tablef4.fit`` is projected to

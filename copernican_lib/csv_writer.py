@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 # Copernican Suite CSV Writer
 """CSV writing utilities for the Copernican Suite.
 

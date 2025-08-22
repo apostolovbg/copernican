@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 r"""Parse BOSS DR12 consensus BAO measurements.
 
 The public BOSS DR12 release provides two equivalent sets of BAO-only

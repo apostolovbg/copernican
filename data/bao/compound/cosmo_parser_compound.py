@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 r"""Parse the *compound* BAO dataset.
 
 This parser is intentionally lightweight and makes no assumptions about the

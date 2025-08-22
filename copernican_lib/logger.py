@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 # Copernican Suite Logger
 """Logging utilities for the Copernican Suite.
 

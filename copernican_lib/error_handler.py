@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Logging and warning helpers for Copernican components.
 
 Parsers use :func:`report_error` to emit messages without depending on the
