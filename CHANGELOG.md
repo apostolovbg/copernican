@@ -20,6 +20,8 @@ Version headers run newest to oldest, and within each version the newest
 entries come first):
 
 ## Version 3.9.2
+- 2025-08-22: Wrapped metadata citations with YAML folded blocks and line
+  breaks (AI assistant)
 - 2025-08-22: Updated licenses for GW and siren placeholders (AI assistant)
 
 ## Version 3.9.1
