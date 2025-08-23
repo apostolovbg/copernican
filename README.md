@@ -1,4 +1,4 @@
-**Version:** 3.9.14
+**Version:** 3.9.15
 **Last Updated:** 2025-08-23
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -18,7 +18,6 @@ Citation details are provided in [CITATION.cff](CITATION.cff).
 1. [Overview](#overview)
 2. [Quick Start](#quick-start)
 3. [Directory Layout](#directory-layout)
-
 4. [Design Overview](docs/design_overview.md)
 5. [Data Directory Overview](docs/data_overview.md)
 6. [BAO Compound Dataset Format](docs/bao_compound_dataset_format.md)
@@ -29,12 +28,14 @@ Citation details are provided in [CITATION.cff](CITATION.cff).
 11. [Logging and Caching](#logging-and-caching)
 12. [Creating New Models](#creating-new-models)
 13. [Developer Guide](#developer-guide)
-14. [AI-driven and human development laws and protocols](#ai-driven-and-human-development-laws-and-protocols)
-15. [License](#license)
-16. [Versioning Policy](#versioning-policy)
-17. [API Overview](docs/api_overview.md)
-18. [Packaging Guide](docs/packaging.md)
-19. [Documentation Policy](docs/documentation_policy.md)
+    - [Workflow Overview](#workflow-overview)
+    - [Development History & Roadmap](#development-history--roadmap)
+    - [AI-driven and human development laws and protocols](#ai-driven-and-human-development-laws-and-protocols)
+14. [License](#license)
+15. [Versioning Policy](#versioning-policy)
+16. [API Overview](docs/api_overview.md)
+17. [Packaging Guide](docs/packaging.md)
+18. [Documentation Policy](docs/documentation_policy.md)
 
 ---
 
@@ -471,34 +472,7 @@ be placed under `engines/` and must follow the interface in
 **Note:** The current plotting style and algorithms are considered stable. Do
 not modify them unless explicitly instructed.
 
-
-## License
-The Copernican Suite is distributed under the terms of the [Copernican Suite
-License (CSL)](LICENSE.md). The license forbids redistributing the software in
-full and disallows patent filings or assertions. Licenses for runtime
-dependencies are listed in
-[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md), and the corresponding
-license texts ship under [`licenses/`](licenses/). CAMB is licensed under
-LGPL-3.0-or-later; you may relink the suite against a modified CAMB as
-described in that license.
-
-## Versioning Policy
-The project now follows [Semantic Versioning](https://semver.org/). Versions
-are
-listed as `MAJOR.MINOR.PATCH`, where breaking changes increment `MAJOR`, new
-features increment `MINOR` and bug fixes increment `PATCH`. Package builds use
-`setuptools_scm` to derive the version from Git tags, so the version string is
-never hard-coded. Runtime code should call
-`copernican_lib.version.get_version` to obtain the current version.
-
-The `MINOR` value only increases when the suite gains a new data type or a
-similarly significant feature, such as introducing CMB support or a new
-engine.
-Routine bug fixes and small feature restorations bump the `PATCH` value
-without
-altering `MAJOR.MINOR`.
-
-## 4. Workflow Overview
+### Workflow Overview
 
 1.  **Dependency Check**: `copernican.py` scans for missing packages,
     prompts before installing them with `pip` and verifies the environment.
@@ -531,13 +505,11 @@ altering `MAJOR.MINOR`.
     background with very light grey, solid grid lines for clarity.
 10. **Loop or Exit**: The user is prompted to run another evaluation or exit.
 
----
-
-## 5. Development History & Roadmap
+### Development History & Roadmap
 
 See `CHANGELOG.md` for complete version history.
 
-## 6. AI-driven and human development laws and protocols
+### AI-driven and human development laws and protocols
 
 > **To any AI or human developer, including my future self, that modifies this
 codebase:**
@@ -548,49 +520,75 @@ between development sessions, a strict commenting and documentation standard
 must be followed. The `AGENTS.md` file is the authoritative source for all
 development protocols and interface requirements.
 >
-> 1. **Summarize every change in `CHANGELOG.md` using the changelog
-> template.**
-Legacy `dev_note` headers should be migrated to the changelog when touched.
+> 1. **Summarize every change in `CHANGELOG.md` using the changelog**
+> template.** Legacy `dev_note` headers should be migrated to the changelog
+> when touched.
 > 2. **Comment the code extensively.** Explain the "why" as well as the
-> "what",
-clarifying both obvious and non-obvious, simple or complex logic or
-algorithms.
+> "what", clarifying both obvious and non-obvious, simple or complex logic or
+> algorithms.
 > 3. **Keep comments synchronized with the actual code.** Whenever behaviour
-changes, update all nearby comments immediately so future contributors can
-rely
-on them.
+> changes, update all nearby comments immediately so future contributors can
+> rely on them.
 > 4. **Update documentation**, including this `AGENTS.md`, `README.md` and the
-`docs/` directory, whenever behaviour or structure changes. Each task must
-expand the documentation's scope and size, refresh version strings and update
-all `Last Updated` fields.
+> `docs/` directory, whenever behaviour or structure changes. Each task must
+> expand the documentation's scope and size, refresh version strings and
+> update all `Last Updated` fields.
 > 5. **Keep these laws synchronized across `README.md` and `AGENTS.md`.**
-Amendments to any rule require an explicit human request.
-> 6. **Bump the project version according to Semantic Versioning whenever
-changes introduce new features, fixes or breaking changes.**
-> 7. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in
-any file.**
-> 8. **Re-read the "AI-driven and human development laws and protocols" section
-in `README.md` at the start of every development session.**
+> Amendments to any rule require an explicit human request.
+> 6. **Bump the project version according to Semantic Versioning whenever**
+> changes introduce new features, fixes or breaking changes.
+> 7. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in**
+> any file.
+> 8. **Re-read the "AI-driven and human development laws and protocols"
+> section in `README.md` at the start of every development session.**
 > 9. **Document every module, function and class with clear "what" and "why"
-explanations.** Comments and docstrings should describe not only the behaviour
-but also the rationale behind it.
-> 10. **Use concise, descriptive function and identifier names that accurately
-convey their purpose without unnecessary length.**
-> 11. **Use raw strings or escape backslashes explicitly to avoid invalid
-escape sequence warnings in docstrings or string literals.**
-> 12. **Run `pre-commit` on all modified files before committing to enforce
-Black, Isort, Ruff and Flake8 checks.**
-> 13. **Do not redistribute the Copernican Suite in full or assert patent
-claims; the license forbids these actions.**
+> explanations.** Comments and docstrings should describe not only the
+> behaviour but also the rationale behind it.
+> 10. **Use concise, descriptive function and identifier names that accurately**
+> convey their purpose without unnecessary length.
+> 11. **Use raw strings or escape backslashes explicitly to avoid invalid**
+> escape sequence warnings in docstrings or string literals.
+> 12. **Run `pre-commit` on all modified files before committing to enforce**
+> Black, Isort, Ruff and Flake8 checks.
+> 13. **Do not redistribute the Copernican Suite in full or assert patent**
+> claims; the license forbids these actions.
 > 14. **Keep individual lines under 79 characters to maintain readability.**
 > 15. **Treat documentation refresh as integral to every task.** No change is
-complete until all relevant texts reflect the update and version numbers
-remain in sync.
+> complete until all relevant texts reflect the update and version numbers
+> remain in sync.
+> 16. **Commit changes only after all tests pass on every supported platform.**
 >
 > Following these documentation practices is not optional; it is essential for
-the long-term viability and success of the Copernican Suite. Failure to follow
-these rules will compromise the maintainability of the Copernican Suite.
+> the long-term viability and success of the Copernican Suite. Failure to
+> follow these rules will compromise the maintainability of the Copernican
+> Suite.
 
 See [docs/api_overview.md](docs/api_overview.md) for the scripting API.
 All contributors must re-read this section at the beginning of every
 development session. The AGENTS.md file now instructs this explicitly.
+
+## License
+The Copernican Suite is distributed under the terms of the [Copernican Suite
+License (CSL)](LICENSE.md). The license forbids redistributing the software in
+full and disallows patent filings or assertions. Licenses for runtime
+dependencies are listed in
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md), and the corresponding
+license texts ship under [`licenses/`](licenses/). CAMB is licensed under
+LGPL-3.0-or-later; you may relink the suite against a modified CAMB as
+described in that license.
+
+## Versioning Policy
+The project now follows [Semantic Versioning](https://semver.org/). Versions
+are
+listed as `MAJOR.MINOR.PATCH`, where breaking changes increment `MAJOR`, new
+features increment `MINOR` and bug fixes increment `PATCH`. Package builds use
+`setuptools_scm` to derive the version from Git tags, so the version string is
+never hard-coded. Runtime code should call
+`copernican_lib.version.get_version` to obtain the current version.
+
+The `MINOR` value only increases when the suite gains a new data type or a
+similarly significant feature, such as introducing CMB support or a new
+engine.
+Routine bug fixes and small feature restorations bump the `PATCH` value
+without
+altering `MAJOR.MINOR`.

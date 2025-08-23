@@ -192,7 +192,7 @@ Models that can compute a CMB power spectrum should also define a
 object describing how standard CAMB parameters such as `H0` and `ombh2` are
 derived from the model's variables or constants.
 
-## 6. Development Protocol
+## AI-driven and human development laws and protocols
 To keep the project maintainable all contributors, human or AI, must follow
 these rules:
 1. **Summarize every change in `CHANGELOG.md` using the changelog template.**
@@ -230,6 +230,7 @@ these rules:
 15. **Treat documentation refresh as integral to every task.** No change is
     complete until all relevant texts reflect the update and version numbers
     remain in sync.
+16. **Commit changes only after all tests pass on every supported platform.**
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 
