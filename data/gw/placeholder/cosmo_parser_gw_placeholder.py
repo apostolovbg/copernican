@@ -18,6 +18,7 @@ def parse_gw_placeholder(data_dir, **kwargs):
     # the rest of the framework to run even though no real data is parsed yet.
     logger = logging.getLogger()
     logger.info(
-        f"GW parser placeholder invoked in {data_dir}. " "Feature not implemented."
+        "GW parser placeholder invoked in %s. " "Feature not implemented.",
+        data_dir,
     )
     return None

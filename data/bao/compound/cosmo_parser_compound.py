@@ -34,7 +34,8 @@ def parse_bao_v1(data_dir, **kwargs):
     data_files = [
         f
         for f in os.listdir(data_dir)
-        if f.lower().endswith((".yml", ".yaml")) and not f.startswith("metadata")
+        if f.lower().endswith((".yml", ".yaml"))
+        and not f.startswith("metadata")
     ]
     if not data_files:
         logger.error(f"No BAO data file found in {data_dir}.")

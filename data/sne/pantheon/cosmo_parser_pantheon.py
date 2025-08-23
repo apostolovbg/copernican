@@ -28,7 +28,9 @@ def parse_pantheon_plus(data_dir, **kwargs):
         logger.error("Pantheon+ directory must contain .dat and .cov files")
         return None
     if len(dat_files) > 1 or len(cov_files) > 1:
-        logger.warning("Multiple data/covariance files found; using first match")
+        logger.warning(
+            "Multiple data/covariance files found; using first match"
+        )
     filepath = os.path.join(data_dir, sorted(dat_files)[0])
     cov_filepath = os.path.join(data_dir, sorted(cov_files)[0])
 
@@ -67,7 +69,9 @@ def parse_pantheon_plus(data_dir, **kwargs):
         if "Name" not in data_df:
             data_df["Name"] = temp_df.get(
                 "CID",
-                pd.Series([f"SN_PPlus_mucov_{i}" for i in range(len(temp_df))]),
+                pd.Series(
+                    [f"SN_PPlus_mucov_{i}" for i in range(len(temp_df))]
+                ),
             )
         data_df["Name"] = data_df["Name"].astype(str).str.strip()
 
@@ -81,7 +85,8 @@ def parse_pantheon_plus(data_dir, **kwargs):
             for col in essential_cols
         ):
             logger.error(
-                "One or more essential columns missing/all NaN in Pantheon+ " "data."
+                "One or more essential columns missing/all NaN in Pantheon+ "
+                "data."
             )
             return None
 
@@ -133,7 +138,9 @@ def parse_pantheon_plus(data_dir, **kwargs):
                 "Chi2 will fallback to diagonal errors."
             )
             output_df.attrs["covariance_matrix_inv"] = None
-            output_df.attrs["diag_errors_for_plot"] = output_df["e_mu_obs"].values
+            output_df.attrs["diag_errors_for_plot"] = output_df[
+                "e_mu_obs"
+            ].values
         # Metadata such as dataset name and citation is attached later by the
         # loader. Only the numerical data and covariance information are
         # handled here.
