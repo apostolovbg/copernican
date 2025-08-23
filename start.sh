@@ -68,11 +68,14 @@ if [ ! -f ".venv/bin/activate" ]; then
     fi
 fi
 
-# Activate the environment, upgrade pip, install the project and restart the
-# script. Delete any 'build/' directory before and after 'pip install .'
-# to avoid stale build artifacts.
+# Activate the environment, upgrade pip, install dependencies with hash
+# verification, install the project and restart the script. Delete any
+# 'build/' directory before and after 'pip install .' to avoid stale build
+# artifacts.
 source .venv/bin/activate
 python -m pip install --upgrade pip
+# Install pinned dependencies to ensure reproducible environments.
+python -m pip install --require-hashes -r requirements.lock
 rm -rf build
 python -m pip install .
 rm -rf build

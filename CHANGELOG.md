@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.9.9
+- 2025-08-23: start.sh installs dependencies with hash verification before
+  package installation (AI assistant)
+
 ## Version 3.9.8
 - 2025-08-23: Added CITATION.cff and referenced it from README (AI assistant)
 - 2025-08-23: Embedded third-party license texts and documented CAMB LGPL
