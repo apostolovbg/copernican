@@ -29,8 +29,7 @@ Citation details are provided in [CITATION.cff](CITATION.cff).
 11. [Logging and Caching](#logging-and-caching)
 12. [Creating New Models](#creating-new-models)
 13. [Developer Guide](#developer-guide)
-14. [AI-driven and human development laws and protocols](#ai-driven-and-
-    human-development-laws-and-protocols)
+14. [AI-driven and human development laws and protocols](#ai-driven-and-human-development-laws-and-protocols)
 15. [License](#license)
 16. [Versioning Policy](#versioning-policy)
 17. [API Overview](docs/api_overview.md)
@@ -538,7 +537,7 @@ altering `MAJOR.MINOR`.
 
 See `CHANGELOG.md` for complete version history.
 
-## 6. Development laws and protocols for human and AI contributors
+## 6. AI-driven and human development laws and protocols
 
 > **To any AI or human developer, including my future self, that modifies this
 codebase:**
@@ -570,9 +569,8 @@ Amendments to any rule require an explicit human request.
 changes introduce new features, fixes or breaking changes.**
 > 7. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in
 any file.**
-> 8. **Re-read the "Development laws and protocols for human and AI
-contributors" section in `README.md` at the start of every development
-session.**
+> 8. **Re-read the "AI-driven and human development laws and protocols" section
+in `README.md` at the start of every development session.**
 > 9. **Document every module, function and class with clear "what" and "why"
 explanations.** Comments and docstrings should describe not only the behaviour
 but also the rationale behind it.
