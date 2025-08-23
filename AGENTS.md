@@ -213,9 +213,8 @@ these rules:
    changes introduce new features, fixes or breaking changes.**
 7. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in
    any file.**
-8. **Re-read the "Development laws and protocols for human and AI
-   contributors" section in `README.md` at the start of every development
-   session.**
+8. **Re-read the "AI-driven and human development laws and protocols" section
+   in `README.md` at the start of every development session.**
 9. **Document every module, function and class with clear "what" and "why"
    explanations.** Comments and docstrings should describe not only the
    behaviour but also the rationale behind it.

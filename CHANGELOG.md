@@ -20,6 +20,8 @@ Version headers run newest to oldest, and within each version the newest
 entries come first):
 
 ## Version 3.9.14
+- 2025-08-23: Clarified development laws section link and heading
+               (OpenAI ChatGPT)
 - 2025-08-23: Established documentation refresh policy and aligned version
                numbers across metadata (OpenAI ChatGPT)
 
