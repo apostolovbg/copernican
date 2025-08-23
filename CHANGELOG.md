@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.9.8
+- 2025-08-23: Embedded third-party license texts and documented CAMB LGPL
+  obligations (AI assistant)
+
 ## Version 3.9.7
 - 2025-08-23: Normalized parser path separators so trusted hashes work on all
   platforms (AI assistant)

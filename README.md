@@ -474,7 +474,10 @@ The Copernican Suite is distributed under the terms of the [Copernican Suite
 License (CSL)](LICENSE.md). The license forbids redistributing the software in
 full and disallows patent filings or assertions. Licenses for runtime
 dependencies are listed in
-[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md), and the corresponding
+license texts ship under [`licenses/`](licenses/). CAMB is licensed under
+LGPL-3.0-or-later; you may relink the suite against a modified CAMB as
+described in that license.
 
 ## Versioning Policy
 The project now follows [Semantic Versioning](https://semver.org/). Versions
