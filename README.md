@@ -1,4 +1,4 @@
-**Version:** 3.9.9
+**Version:** 3.9.14
 **Last Updated:** 2025-08-23
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -35,6 +35,7 @@ Citation details are provided in [CITATION.cff](CITATION.cff).
 16. [Versioning Policy](#versioning-policy)
 17. [API Overview](docs/api_overview.md)
 18. [Packaging Guide](docs/packaging.md)
+19. [Documentation Policy](docs/documentation_policy.md)
 
 ---
 
@@ -559,9 +560,10 @@ algorithms.
 changes, update all nearby comments immediately so future contributors can
 rely
 on them.
-> 4. **Update documentation**, including this `AGENTS.md` and `README.md`,
-whenever behaviour or structure changes. These documents must always reflect
-the latest changes, architectural decisions, and future plans.
+> 4. **Update documentation**, including this `AGENTS.md`, `README.md` and the
+`docs/` directory, whenever behaviour or structure changes. Each task must
+expand the documentation's scope and size, refresh version strings and update
+all `Last Updated` fields.
 > 5. **Keep these laws synchronized across `README.md` and `AGENTS.md`.**
 Amendments to any rule require an explicit human request.
 > 6. **Bump the project version according to Semantic Versioning whenever
@@ -583,6 +585,9 @@ Black, Isort, Ruff and Flake8 checks.**
 > 13. **Do not redistribute the Copernican Suite in full or assert patent
 claims; the license forbids these actions.**
 > 14. **Keep individual lines under 79 characters to maintain readability.**
+> 15. **Treat documentation refresh as integral to every task.** No change is
+complete until all relevant texts reflect the update and version numbers
+remain in sync.
 >
 > Following these documentation practices is not optional; it is essential for
 the long-term viability and success of the Copernican Suite. Failure to follow
