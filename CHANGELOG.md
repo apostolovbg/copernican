@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.9.4
+- 2025-08-23: Locked runtime dependencies and enforced hash-verified
+  installation (AI assistant)
+
 ## Version 3.9.3
 - 2025-08-23: Replaced ad-hoc metadata parser with strict YAML loader and
   added tests rejecting invalid YAML (AI assistant)

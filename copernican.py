@@ -376,8 +376,9 @@ def check_dependencies(auto_confirm: bool = False) -> None:
     The suite bundles a virtual environment under ``.venv`` that is activated
     by the ``start.*`` launchers.  This check confirms the interpreter is
     running from that environment before installing any missing packages.
-    Required packages are installed automatically via ``pip`` and re-imported
-    to verify success so the workflow can proceed without manual steps.
+    Required packages are installed automatically from ``requirements.lock``
+    using hash verification and re-imported to verify success so the workflow
+    can proceed without manual steps.
     """
     console.write("--- Running System Dependency Check ---")
 
@@ -419,13 +420,23 @@ def check_dependencies(auto_confirm: bool = False) -> None:
                 exit_clean(1)
         try:
             subprocess.run(
-                [sys.executable, "-m", "pip", "install", *missing],
+                [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "--require-hashes",
+                    "-r",
+                    "requirements.lock",
+                ],
                 check=True,
             )
         except subprocess.CalledProcessError:
             console.write(
-                "Automatic installation failed. Please check the log and "
-                "install the required packages manually.",
+                (
+                    "Automatic installation failed. Please check the log and "
+                    "install the required packages manually."
+                ),
                 error=True,
             )
             exit_clean(1)
