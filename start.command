@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 # Start the Copernican Suite on macOS.
 #
 # The script finds a Python 3 interpreter, prepares a virtual environment and
