@@ -8,6 +8,7 @@ converts equations to SymPy expressions and then compiles them into fast
 NumPy functions suitable for evaluation within the engines.
 """
 
+import ast
 import logging
 from pathlib import Path
 
@@ -77,20 +78,31 @@ def _safe_parse_expr(expr_str: str, local_dict: dict) -> sp.Expr:
 
 
 def _compile_sympy_expr(sym_expr, args):
-    """Compile a SymPy expression into a callable that evaluates
-    ``Integral`` nodes."""
+    """Return a callable for ``sym_expr`` that evaluates ``Integral`` nodes.
+
+    ``sym_expr`` is converted to a function using an AST-based compilation
+    step. This avoids the use of :func:`eval` while still allowing generated
+    code to run quickly. The executed environment exposes only ``numpy`` and
+    ``scipy.integrate.quad`` and disables builtins to guard against malicious
+    expressions.
+    """
+
     # SymPy can convert expressions directly to Python functions, but it does
-    # not evaluate ``Integral`` objects by default. When an integral is present
-    # we expand it into a call to ``scipy.integrate.quad`` so the resulting
-    # callable is fully numerical.
+    # not evaluate ``Integral`` objects by default. When an integral is
+    # present we expand it into a call to ``scipy.integrate.quad`` so the
+    # resulting callable is fully numerical.
     if sym_expr.atoms(sp.Integral):
         printer = QuadPrinter({"strict": False})
         code = printer.doprint(sym_expr)
-        lambda_src = f"lambda {', '.join(str(a) for a in args)}: {code}"
-        return eval(
-            lambda_src,
-            {"np": np, "quad": quad, "__builtins__": {}},
-        )
+        func_name = "_generated_func"
+        args_str = ", ".join(str(a) for a in args)
+        src = f"def {func_name}({args_str}):\n    return {code}"
+        module = ast.parse(src, mode="exec")
+        compiled = compile(module, filename="<model>", mode="exec")
+        env = {"np": np, "quad": quad, "__builtins__": {}}
+        exec(compiled, env)
+        return env[func_name]
+
     return sp.lambdify(args, sym_expr, [{"__builtins__": {}}, "numpy"])
 
 
