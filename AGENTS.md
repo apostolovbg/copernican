@@ -110,9 +110,10 @@ dependencies without manual updates to the documentation.
 packages. Any dependency changes must update this file and
 `THIRD_PARTY_LICENSES.md` to keep license records current. To install the
 suite as a package, run `pip install .` at the repository root. Use
-`pip install -e .` if you intend to develop the code.
-The start scripts delete any `build/` directory before and after
-`pip install .` to prevent stale build artifacts. They recreate `.venv`
+`pip install -e .` if you intend to develop the code. The start scripts
+install pinned dependencies from `requirements.lock` using hash verification
+before running `pip install .`. They delete any `build/` directory before and
+after `pip install .` to prevent stale build artifacts. They recreate `.venv`
 once when the activation script is missing before suggesting installation of
 `python3.11-venv`.
 
