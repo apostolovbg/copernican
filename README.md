@@ -10,6 +10,7 @@ releases.
 The suite provides a modular architecture so new models, data parsers and
 computational engines can be plugged in with minimal effort.
 Additional design notes can be found under the `docs/` directory.
+Citation details are provided in [CITATION.cff](CITATION.cff).
 
 ---
 
