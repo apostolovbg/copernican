@@ -20,6 +20,7 @@ Version headers run newest to oldest, and within each version the newest
 entries come first):
 
 ## Version 3.9.8
+- 2025-08-23: Added CITATION.cff and referenced it from README (AI assistant)
 - 2025-08-23: Embedded third-party license texts and documented CAMB LGPL
   obligations (AI assistant)
 
