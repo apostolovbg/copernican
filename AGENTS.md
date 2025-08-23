@@ -15,8 +15,9 @@ Support for additional observations such as gravitational waves and standard
 sirens is
 being prepared. Users interact with `copernican.py`, choose a model from
 `./models/`, pick a computational engine from `./engines/` and choose data
-sources. Parsers reside alongside their data. Results are saved under
-`./output/`. Each plot carries a centered footer with three lines: the
+sources. Parsers reside alongside their data but are imported only when their
+SHA256 digest matches a vetted list to block untrusted files. Results are saved
+under `./output/`. Each plot carries a centered footer with three lines: the
 model comparison, dataset details and the citation. The first and third
 lines are bold, while the dataset name on the second line is bolded
 using Matplotlib's standard text rendering. Dataset names retain their

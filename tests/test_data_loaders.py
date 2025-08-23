@@ -52,6 +52,45 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
         finally:
             data_loaders.SNE_PARSERS = prev
 
+    def test_hash_mismatch_skips_parser(self):
+        """Hash mismatches prevent parser import."""
+        prev_parsers = data_loaders.SNE_PARSERS.copy()
+        prev_hashes = data_loaders.TRUSTED_PARSER_HASHES.copy()
+        try:
+            with tempfile.TemporaryDirectory() as base:
+                sne_dir = os.path.join(base, "sne", "rogue2")
+                os.makedirs(sne_dir)
+                meta = {
+                    "dataset_name": "Rogue2 SNe",
+                    "dataset_id": "rogue2_sne",
+                }
+                with open(
+                    os.path.join(sne_dir, "metadata_dummy.yml"),
+                    "w",
+                    encoding="utf-8",
+                ) as fh:
+                    yaml.safe_dump(meta, fh)
+                parser_path = os.path.join(sne_dir, "cosmo_parser_rogue2.py")
+                code = (
+                    "from copernican_lib.data_loaders "
+                    "import register_sne_parser\n"
+                    "@register_sne_parser(name='rogue2_sne', data_dir=r'"
+                    + sne_dir
+                    + "')\n"
+                    "def load(_dir, **_kwargs):\n"
+                    "    return None\n"
+                )
+                with open(parser_path, "w", encoding="utf-8") as fh:
+                    fh.write(code)
+                rel_path = os.path.relpath(parser_path, base)
+                data_loaders.TRUSTED_PARSER_HASHES[rel_path] = "0" * 64
+                data_loaders.SNE_PARSERS = {}
+                data_loaders._discover_parsers(base_dir=base)
+                self.assertNotIn("rogue2_sne", data_loaders.SNE_PARSERS)
+        finally:
+            data_loaders.SNE_PARSERS = prev_parsers
+            data_loaders.TRUSTED_PARSER_HASHES = prev_hashes
+
     @mock.patch("copernican_lib.data_loaders.console.ask", return_value="1")
     def test_select_source_uses_dataset_name(self, ask_mock):
         """Interactive selection should display names and return the id."""
@@ -82,6 +121,41 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                 fh.write("dataset_name: bad\nitems: [1, 2\n")
             with self.assertRaises(yaml.YAMLError):
                 load_metadata_from_dir(tmp)
+
+    def test_untrusted_parser_is_skipped(self):
+        """Modules not whitelisted should never be imported."""
+        prev = data_loaders.SNE_PARSERS.copy()
+        try:
+            with tempfile.TemporaryDirectory() as base:
+                sne_dir = os.path.join(base, "sne", "rogue")
+                os.makedirs(sne_dir)
+                meta = {
+                    "dataset_name": "Rogue SNe",
+                    "dataset_id": "rogue_sne",
+                }
+                with open(
+                    os.path.join(sne_dir, "metadata_dummy.yml"),
+                    "w",
+                    encoding="utf-8",
+                ) as fh:
+                    yaml.safe_dump(meta, fh)
+                parser_path = os.path.join(sne_dir, "cosmo_parser_rogue.py")
+                code = (
+                    "from copernican_lib.data_loaders "
+                    "import register_sne_parser\n"
+                    "@register_sne_parser(name='rogue_sne', data_dir=r'"
+                    + sne_dir
+                    + "')\n"
+                    "def load(_dir, **_kwargs):\n"
+                    "    return None\n"
+                )
+                with open(parser_path, "w", encoding="utf-8") as fh:
+                    fh.write(code)
+                data_loaders.SNE_PARSERS = {}
+                data_loaders._discover_parsers(base_dir=base)
+                self.assertNotIn("rogue_sne", data_loaders.SNE_PARSERS)
+        finally:
+            data_loaders.SNE_PARSERS = prev
 
 
 if __name__ == "__main__":
