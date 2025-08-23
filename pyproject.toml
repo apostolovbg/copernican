@@ -29,6 +29,10 @@ copernican = "copernican:main_workflow"
 [tool.setuptools]
 packages = ["copernican_lib", "engines"]
 py-modules = ["copernican"]
+include-package-data = true
+
+[tool.setuptools.data-files]
+"licenses" = ["THIRD_PARTY_LICENSES.md", "licenses/*"]
 
 
 [tool.setuptools_scm]
