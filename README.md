@@ -1,4 +1,4 @@
-**Version:** 3.9.2
+**Version:** 3.9.3
 **Last Updated:** 2025-08-23
 
 The Copernican Suite is a Python toolkit for testing cosmological models

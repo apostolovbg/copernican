@@ -85,13 +85,12 @@ def ensure_dir_exists(directory):
 def load_metadata_from_dir(data_dir: str) -> dict:
     """Return dataset metadata from ``data_dir`` if available.
 
-    The loader looks for a file starting with ``metadata`` and ending in
-    ``.yml`` or ``.yaml``. JSON files were supported in earlier versions but
-    have been removed to keep the format consistent across the project.
-    Some legacy metadata files contain unquoted values with embedded colons,
-    e.g. URLs. ``yaml.safe_load`` rejects such scalars so a simple
-    line-by-line fallback parser is used when the strict loader fails.
+    The loader searches for a file starting with ``metadata`` and ending in
+    ``.yml`` or ``.yaml``. Metadata must be valid YAML; parse errors are
+    surfaced to the caller so that malformed files do not silently pass
+    through.
     """
+    logger = logging.getLogger(__name__)
     try:
         # fmt: off
         meta_files = [
@@ -101,30 +100,20 @@ def load_metadata_from_dir(data_dir: str) -> dict:
             and f.lower().endswith((".yml", ".yaml"))
         ]
         # fmt: on
-        if meta_files:
-            path = os.path.join(data_dir, sorted(meta_files)[0])
-            try:
-                with open(path, "r") as fh:
-                    return yaml.safe_load(fh)
-            except Exception:
-                # Fallback: parse ``key: value`` pairs manually so that
-                # unquoted URLs or other colon-containing values do not break
-                # metadata loading.
-                meta = {}
-                with open(path, "r") as fh:
-                    for line in fh:
-                        if ":" in line:
-                            key, val = line.strip().split(":", 1)
-                            meta[key.strip()] = val.strip()
-                return meta
-    except Exception as exc:
-        # Report the failure instead of silently returning an empty dict.
-        logging.getLogger(__name__).exception(
-            "copernican_lib/utils.py: failed to load metadata from %s: %s",
-            data_dir,
-            exc,
-        )
-    return {}
+    except OSError as exc:
+        logger.warning("Failed to list metadata in %s: %s", data_dir, exc)
+        raise
+
+    if not meta_files:
+        return {}
+
+    path = os.path.join(data_dir, sorted(meta_files)[0])
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            return yaml.safe_load(fh)
+    except (OSError, yaml.YAMLError) as exc:
+        logger.warning("Failed to load metadata from %s: %s", path, exc)
+        raise
 
 
 def set_random_seed(seed: int = 0) -> None:
