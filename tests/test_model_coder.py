@@ -23,6 +23,14 @@ class TestModelCoderSecurity(unittest.TestCase):
         with self.assertRaises(ValueError):
             model_coder._safe_parse_expr("__import__('os')", {})
 
+    def test_compile_sympy_expr_integral_execution(self):
+        """``_compile_sympy_expr`` should handle integrals safely."""
+        z = sp.symbols("z")
+        expr = sp.Integral(z, (z, 0, 1))  # integral of z from 0 to 1 = 0.5
+        fn = model_coder._compile_sympy_expr(expr, (z,))
+        self.assertAlmostEqual(fn(0), 0.5)
+        self.assertEqual(fn.__globals__.get("__builtins__"), {})
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

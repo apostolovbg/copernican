@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.9.5
+- 2025-08-23: Replaced ``eval`` in model compilation with AST-based execution
+  and expanded tests for integral handling (AI assistant)
+
 ## Version 3.9.4
 - 2025-08-23: Prepended license notices to start scripts (AI assistant)
 - 2025-08-23: Locked runtime dependencies and enforced hash-verified
