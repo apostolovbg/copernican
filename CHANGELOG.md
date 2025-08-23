@@ -20,6 +20,7 @@ Version headers run newest to oldest, and within each version the newest
 entries come first):
 
 ## Version 3.9.4
+- 2025-08-23: Prepended license notices to start scripts (AI assistant)
 - 2025-08-23: Locked runtime dependencies and enforced hash-verified
   installation (AI assistant)
 
