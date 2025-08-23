@@ -3,7 +3,9 @@ dataset_id: planck_2018_lite
 description: >-
   Temperature and polarization power spectra from the Planck 2018 lite
   release with full covariance matrix
-citation: Aghanim et al. - A&A 641 (2020) A1 - DOI: https://doi.org/10.1051/0004-6361/201833880
+citation: >-
+  Aghanim et al. - A&A 641 (2020) A1 - DOI:
+  https://doi.org/10.1051/0004-6361/201833880
 license: >-
   Planck 2018 data released under the ESA Planck Legacy Archive terms; see
   https://www.cosmos.esa.int/web/planck/pla
@@ -39,11 +41,13 @@ author: >-
   Renault C., Renzi A., Rocha G., Rosset C., Roudier G., Rubino-Martin J.A.,
   Ruiz-Granados B., Salvati L., Sandri M., Savelainen M., Scott D., Shellard
   E.P.S., Shiraishi M., Sirignano C., Sirri G., Spencer L.D., Sunyaev R.,
-  Suur-Uski A., Tauber J.A., Tavagnacco D., Tenti M., Terenzi L., Toffolatti L.,
+  Suur-Uski A., Tauber J.A., Tavagnacco D., Tenti M., Terenzi L.,
+  Toffolatti L.,
   Tomasi M., Trombetti T., Valiviita J., Van Tent B., Vibert L., Vielva P.,
   Villa F., Vittorio N., Wandelt B.D., Wehus I.K., White M., White S.D.M.,
   Zacchei A., Zonca A.
-title: Planck2018 results: I. Overview and the cosmological legacy of Planck
+title: >-
+  Planck2018 results: I. Overview and the cosmological legacy of Planck
 article: 2020
 volume: 641
 ISSN: 1432-0746
