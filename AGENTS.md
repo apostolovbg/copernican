@@ -107,7 +107,8 @@ Windows, macOS and Linux while allowing new engines to introduce additional
 dependencies without manual updates to the documentation.
 
 `requirements.lock` pins exact versions and SHA256 hashes for all runtime
-packages. Any dependency changes must update this file and
+packages, and `[project].dependencies` in `pyproject.toml` mirrors these pins.
+Any dependency change must regenerate both files and update
 `THIRD_PARTY_LICENSES.md` to keep license records current. To install the
 suite as a package, run `pip install .` at the repository root. Use
 `pip install -e .` if you intend to develop the code. The start scripts

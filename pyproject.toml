@@ -10,17 +10,18 @@ authors = [{name = "Copernican Developers"}]
 license = {file = "LICENSE.md"}
 requires-python = ">=3.11"
 dependencies = [
-    "numpy",
-    "scipy",
-    "matplotlib",
-    "pandas",
-    "sympy",
-    "jsonschema",
+    # Keep versions in sync with requirements.lock.
+    "numpy==2.2.6",
+    "scipy==1.16.1",
+    "matplotlib==3.10.5",
+    "pandas==2.3.2",
+    "sympy==1.14.0",
+    "jsonschema==4.25.1",
     "camb==1.6.2", # pin to ensure Python 3.11 wheels
-    "PyYAML",
-    "astropy",
-    "psutil",
-    "setuptools_scm",
+    "PyYAML==6.0.2",
+    "astropy==7.1.0",
+    "psutil==7.0.0",
+    "setuptools_scm==9.2.0",
 ]
 
 [project.scripts]

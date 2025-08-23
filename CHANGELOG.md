@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.9.10
+- 2025-08-23: Pinned pyproject dependencies to requirements.lock and
+  documented joint regeneration (AI assistant)
+
 ## Version 3.9.9
 - 2025-08-23: start.sh installs dependencies with hash verification before
   package installation (AI assistant)
