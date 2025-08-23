@@ -70,7 +70,18 @@ class DependencyPromptTestCase(unittest.TestCase):
         ):
             copernican.check_dependencies()
             ask_mock.assert_called_once()
-            run_mock.assert_called_once()
+            run_mock.assert_called_once_with(
+                [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "--require-hashes",
+                    "-r",
+                    "requirements.lock",
+                ],
+                check=True,
+            )
 
     @mock.patch("copernican.Path")
     def test_auto_confirm_skips_prompt(self, path_mock):
@@ -86,7 +97,18 @@ class DependencyPromptTestCase(unittest.TestCase):
         ):
             copernican.check_dependencies(auto_confirm=True)
             ask_mock.assert_not_called()
-            run_mock.assert_called_once()
+            run_mock.assert_called_once_with(
+                [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "--require-hashes",
+                    "-r",
+                    "requirements.lock",
+                ],
+                check=True,
+            )
 
 
 if __name__ == "__main__":
