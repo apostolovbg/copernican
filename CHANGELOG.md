@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.9.14
+- 2025-08-23: Established documentation refresh policy and aligned version
+               numbers across metadata (OpenAI ChatGPT)
+
 ## Version 3.9.13
 - 2025-08-23: start.sh exits on unset variables for stricter error handling (AI assistant)
 

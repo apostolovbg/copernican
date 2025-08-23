@@ -203,9 +203,10 @@ these rules:
 3. **Keep comments synchronized with the actual code.** Whenever behaviour
    changes, update all nearby comments immediately so future contributors can
    rely on them.
-4. **Update documentation**, including this `AGENTS.md` and `README.md`,
-   whenever behaviour or structure changes. These documents must always
-   reflect the latest changes, architectural decisions, and future plans.
+4. **Update documentation**, including this `AGENTS.md`, `README.md` and the
+   `docs/` directory, whenever behaviour or structure changes. Each task must
+   expand the documentation's scope and size, refresh version strings and
+   update all `Last Updated` fields.
 5. **Keep these laws synchronized across `README.md` and `AGENTS.md`.**
    Amendments to any rule require an explicit human request.
 6. **Bump the project version according to Semantic Versioning whenever
@@ -227,6 +228,9 @@ these rules:
 13. **Do not redistribute the Copernican Suite in full or assert patent
     claims; the license forbids these actions.**
 14. **Keep individual lines under 79 characters to maintain readability.**
+15. **Treat documentation refresh as integral to every task.** No change is
+    complete until all relevant texts reflect the update and version numbers
+    remain in sync.
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 
