@@ -8,7 +8,9 @@
 # environment if needed, installs the project and re-executes itself inside
 # that environment. Subsequent runs reuse the cached dependencies.
 
-set -e
+# Abort on errors and on references to unset variables to guard against
+# mistyped names.
+set -eu
 # Resolve absolute path to this script before changing directories.
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$0")"
