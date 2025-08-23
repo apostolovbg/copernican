@@ -9,6 +9,7 @@ import pandas as pd
 import yaml
 
 from copernican_lib import data_loaders
+from copernican_lib.utils import load_metadata_from_dir
 
 
 class DataLoaderRegistryTestCase(unittest.TestCase):
@@ -72,6 +73,15 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
         output = "".join(captured)
         self.assertIn("Dummy SNe", output)
         self.assertNotIn("dummy_sne", output)
+
+    def test_invalid_metadata_raises_yaml_error(self):
+        """Invalid YAML metadata should raise ``YAMLError``."""
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = os.path.join(tmp, "metadata_bad.yml")
+            with open(bad, "w", encoding="utf-8") as fh:
+                fh.write("dataset_name: bad\nitems: [1, 2\n")
+            with self.assertRaises(yaml.YAMLError):
+                load_metadata_from_dir(tmp)
 
 
 if __name__ == "__main__":
