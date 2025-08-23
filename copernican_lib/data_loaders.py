@@ -11,6 +11,7 @@ themselves through decorators provided here.  At runtime
 returns uniformly formatted :class:`pandas.DataFrame` objects with metadata
 stored on ``.attrs``.
 """
+import hashlib
 import importlib
 import logging
 import os
@@ -146,17 +147,57 @@ def register_siren_parser(name=None, description="", data_dir=None):
     return decorator
 
 
+TRUSTED_PARSER_HASHES = {
+    # ``relative_path`` -> ``sha256``
+    "sne/pantheon/cosmo_parser_pantheon.py": (
+        "5fd4f60499129dc4a0468712bc29364f717bc7fa3442021bb7691cf6fc98233d"
+    ),
+    "sne/jla2014/cosmo_parser_jla2014.py": (
+        "27b553519fa4545153c675f82141be2e2ed35a69b91ce5d72b0add794fb25339"
+    ),
+    "bao/bossdr12/cosmo_parser_bossdr12.py": (
+        "4de5b07156d65e4e075810745c6b61cf8b7f10f0e4c575be9d6d16ebbfcf37b8"
+    ),
+    "bao/compound/cosmo_parser_compound.py": (
+        "0faa58a29b2c809054d48130cce78adeebafd8d92b0bb40616b2bcc88c782712"
+    ),
+    "cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py": (
+        "ccd9f8173b38ea9d8fcf458ea638086efd2ac8cfb300a4b9ece84342fa69f296"
+    ),
+    "gw/placeholder/cosmo_parser_gw_placeholder.py": (
+        "10d0159cdd879a74324c852be92e877308b949ff0375c9e9609da3a95c0fe3e2"
+    ),
+    "sirens/placeholder/cosmo_parser_sirens_placeholder.py": (
+        "816f2624ff8452ae7fd41c138fcc73b5a5272117d931aae342c9eee6246d3f58"
+    ),
+}
+
+
+def _file_sha256(path: str) -> str:
+    """Return the SHA256 digest for ``path``."""
+    hasher = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
 # --- Dynamic Discovery of Parser Modules ---
-def _discover_parsers():
+def _discover_parsers(base_dir: str | None = None):
     """Import parser modules and populate registries with dataset metadata.
 
-    The scan walks ``data/`` recursively, ignoring ``placeholder`` folders
-    so unfinished datasets stay hidden.  Parser modules are imported on the
-    fly, allowing them to register with the decorators above.  Metadata is
-    read here to keep the parser implementations small and focused solely on
-    table parsing.
+    The scan walks ``data/`` recursively, ignoring ``placeholder`` folders so
+    unfinished datasets stay hidden.  Each candidate parser is verified against
+    ``TRUSTED_PARSER_HASHES`` before import to guard against tampering.  Only
+    trusted modules are executed, keeping the discovery step resilient to
+    untrusted files shipped alongside the data tables.
+    Metadata is read here to keep the parser implementations small and focused
+    solely on table parsing.
     """
-    base_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+    if base_dir is None:
+        base_dir = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "data"
+        )
     registry_map = {
         "sne": SNE_PARSERS,
         "bao": BAO_PARSERS,
@@ -190,16 +231,43 @@ def _discover_parsers():
                 if fname.startswith("cosmo_parser_") and fname.endswith(".py"):
                     module_name = f"data.{dtype}.{source}.{fname[:-3]}"
                     file_path = os.path.join(src_dir, fname)
+                    rel_path = os.path.relpath(file_path, base_dir)
+                    # Normalise path separators
+                    # for cross-platform hash lookup.
+                    rel_path = rel_path.replace("\\", "/")
+                    expected_hash = TRUSTED_PARSER_HASHES.get(rel_path)
+                    if expected_hash is None:
+                        logging.getLogger().warning(
+                            "Skipping untrusted parser %s", file_path
+                        )
+                        continue
+                    actual_hash = _file_sha256(file_path)
+                    if actual_hash != expected_hash:
+                        logging.getLogger().error(
+                            "Hash mismatch for parser %s; expected %s but "
+                            "got %s",
+                            file_path,
+                            expected_hash,
+                            actual_hash,
+                        )
+                        continue
                     spec = importlib.util.spec_from_file_location(
                         module_name,
                         file_path,
                     )
-                    module = importlib.util.module_from_spec(spec)
-                    try:
-                        spec.loader.exec_module(module)
-                    except Exception as e:
+                    if spec and spec.loader:
+                        module = importlib.util.module_from_spec(spec)
+                        try:
+                            spec.loader.exec_module(module)
+                        except Exception as e:
+                            logging.getLogger().error(
+                                "Failed loading parser module %s: %s",
+                                file_path,
+                                e,
+                            )
+                    else:
                         logging.getLogger().error(
-                            f"Failed loading parser module {file_path}: {e}",
+                            "Missing loader for parser module %s", file_path
                         )
                     registry = registry_map[dtype]
                     key = None
