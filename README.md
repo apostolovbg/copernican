@@ -1,4 +1,4 @@
-**Version:** 3.9.3
+**Version:** 3.9.4
 **Last Updated:** 2025-08-23
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -115,13 +115,16 @@ platform-specific commands like `sudo apt install python3.11
 python3.11-venv` on Debian, `brew install python@3.11` on macOS or
 `winget install -e --id Python.Python.3.11` on Windows before exiting.
 They also verify that `.venv/bin/activate` exists and hint to install
-`python3.11-venv` when it does not.
-Inside the virtual environment this project relies on `numpy`, `scipy`,
-`matplotlib`, `pandas`, `sympy`, `jsonschema` and `camb==1.6.2`.
-If any packages are missing the program installs them automatically with
-`pip` and verifies the imports. Running outside `.venv` instructs you to
-launch via `start.*`. Future engines may also depend on `numba` or GPU
-libraries.
+`python3.11-venv` when it does not. Inside the virtual environment this
+project relies on `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`,
+`jsonschema` and `camb==1.6.2`.
+
+Versions and SHA256 hashes for all runtime dependencies are pinned in
+`requirements.lock`. When a package is missing the program asks before
+running `pip install --require-hashes -r requirements.lock` and verifies
+each import. Use `--yes` to skip the prompt in automated environments.
+Running outside `.venv` instructs you to launch via `start.*`. Future
+engines may also depend on `numba` or GPU libraries.
 
 ## Building & Installation
 Windows users should open `start.bat`, macOS users should run

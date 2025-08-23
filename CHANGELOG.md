@@ -23,6 +23,8 @@ entries come first):
 - 2025-08-23: Prepended license notices to start scripts (AI assistant)
 - 2025-08-23: Locked runtime dependencies and enforced hash-verified
   installation (AI assistant)
+- 2025-08-23: Expanded documentation and updated dependency instructions
+  (AI assistant)
 
 ## Version 3.9.3
 - 2025-08-23: Replaced ad-hoc metadata parser with strict YAML loader and
