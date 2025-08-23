@@ -23,8 +23,13 @@ Run the launcher in the project root:
 - `start.sh` on Linux
 
 The script verifies Python 3.11+, then creates or reuses `.venv`, upgrades
-`pip` and installs packages.
-Re-run it after pulling updates to refresh the environment.
+`pip` and installs packages from `requirements.lock` using
+`pip install --require-hashes -r requirements.lock`. Re-run it after pulling
+updates to refresh the environment.
+
+`requirements.lock` pins exact versions and SHA256 hashes for all runtime
+dependencies. Adding or updating a package requires editing this file and the
+license summary in `THIRD_PARTY_LICENSES.md`.
 
 ## Build optional distributions
 
@@ -53,7 +58,7 @@ should complete within a few seconds.
 - **No module named pip**: run `python -m ensurepip --upgrade` and relaunch
   launcher.
 - **Packages not updating**: run `pip install -U pip` followed by
-  `pip install -U -r requirements.txt`.
+  `pip install --require-hashes -r requirements.lock`.
 - **Permission denied**: avoid `sudo pip`; use a writable directory or the
   provided `.venv`.
 - **Virtual environment missing**: ensure a launcher was used or activate with
