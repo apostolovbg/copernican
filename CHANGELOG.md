@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.9.11
+- 2025-08-23: Linted dataset parsers and removed data exclusion from
+  pre-commit (AI assistant)
+
 ## Version 3.9.10
 - 2025-08-23: Pinned pyproject dependencies to requirements.lock and
   documented joint regeneration (AI assistant)
@@ -66,7 +70,8 @@ entries come first):
   AST-based evaluator and added malicious expression tests (AI assistant)
 
 ## Version 3.9.0
-- 2025-08-22: Documented third-party licenses and linked from README (AI assistant)
+- 2025-08-22: Documented third-party licenses and linked from README
+  (AI assistant)
 - 2025-08-22: Added LICENSE.md references to module headers (AI assistant)
 - 2025-08-22: Prompted before installing dependencies and added `--yes` flag
   for CI automation (AI assistant)

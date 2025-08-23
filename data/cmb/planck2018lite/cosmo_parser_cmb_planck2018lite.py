@@ -83,15 +83,22 @@ def parse_planck2018lite(data_dir, **kwargs):
                 return None
             header_le = np.frombuffer(hdr_bytes, dtype="<i4")[0]
             header_be = np.frombuffer(hdr_bytes, dtype=">i4")[0]
-            if header_le > 0 and int(np.sqrt(header_le / 8)) ** 2 * 8 == header_le:
+            if (
+                header_le > 0
+                and int(np.sqrt(header_le / 8)) ** 2 * 8 == header_le
+            ):
                 endian = "<"
                 header = header_le
-            elif header_be > 0 and int(np.sqrt(header_be / 8)) ** 2 * 8 == header_be:
+            elif (
+                header_be > 0
+                and int(np.sqrt(header_be / 8)) ** 2 * 8 == header_be
+            ):
                 endian = ">"
                 header = header_be
             else:
                 logger.error(
-                    "Planck2018lite covariance matrix header mismatch or " "size error."
+                    "Planck2018lite covariance matrix header mismatch or "
+                    "size error."
                 )
                 return None
             n_full = int(np.sqrt(header / 8))
@@ -122,7 +129,8 @@ def parse_planck2018lite(data_dir, **kwargs):
             # Check for NaNs or infinities after inversion
             if not np.all(np.isfinite(cov_inv)):
                 raise ValueError(
-                    "Inverted Planck2018lite covariance contains non-finite " "values."
+                    "Inverted Planck2018lite covariance contains non-finite "
+                    "values."
                 )
 
             cond_num = np.linalg.cond(cov_matrix)
