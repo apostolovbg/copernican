@@ -23,6 +23,8 @@ lines are bold, while the dataset name on the second line is bolded
 using Matplotlib's standard text rendering. Dataset names retain their
 original spacing and the second line wraps after 190 characters when
 necessary.
+Parsers must register under the `dataset_id` stated in their metadata so
+the loaders can locate them directly without discovery.
 
 The program enables Python's ``faulthandler`` at startup and registers
 ``SIGILL``, ``SIGSEGV`` and ``SIGFPE`` handlers. When triggered, they dump
@@ -76,7 +78,8 @@ Installing the suite with `pip` produces a `copernican_suite.egg-info`
 directory
 containing build metadata. This folder can be safely removed and should not be
 edited manually.
-Files in `data/` are read-only and must not be modified by AI-driven changes.
+Tables under `data/` remain read-only, but parser `.py` files and
+`metadata_*.yml` files within that tree may be updated when necessary.
 
 The current plotting style and algorithms are considered stable. Do not alter
 them without explicit instruction.
