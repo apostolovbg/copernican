@@ -61,10 +61,12 @@ if not exist .venv\Scripts\activate.bat (
 call .venv\Scripts\activate.bat
 set PYTHON=python
 %PYTHON% -m pip install --upgrade pip
-REM Remove any 'build' directory before and after 'pip install .'
+REM Install pinned dependencies with hash verification.
+%PYTHON% -m pip install --require-hashes -r requirements.lock
+REM Remove any 'build' directory before and after installing the project
 REM to avoid stale build artifacts.
 if exist build rmdir /s /q build
-%PYTHON% -m pip install .
+%PYTHON% -m pip install --no-deps .
 if exist build rmdir /s /q build
 
 call "%~f0" %*

@@ -23,9 +23,9 @@ Run the launcher in the project root:
 - `start.sh` on Linux
 
 The script verifies Python 3.11+, then creates or reuses `.venv`, upgrades
-`pip` and installs packages from `requirements.lock` using
-`pip install --require-hashes -r requirements.lock`. Re-run it after pulling
-updates to refresh the environment.
+`pip`, installs packages from `requirements.lock` with hash verification and
+installs the project itself with `pip install --no-deps .`. Re-run it after
+pulling updates to refresh the environment.
 
 `requirements.lock` pins exact versions and SHA256 hashes for all runtime
 dependencies. Adding or updating a package requires editing this file and the
