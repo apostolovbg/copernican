@@ -60,13 +60,18 @@ if [ ! -f ".venv/bin/activate" ]; then
     fi
 fi
 
-# Activate, update pip, install the project and restart the script. Delete
-# any 'build/' directory before and after 'pip install .'
-# to avoid stale build artifacts.
+# Activate, update pip, install dependencies with hash verification,
+# then install the project without dependencies and restart the script.
+# Delete any 'build/' directory before and after installing the project to
+# avoid stale build artifacts.
 source .venv/bin/activate
 python -m pip install --upgrade pip
+# Install pinned dependencies to ensure reproducible environments.
+python -m pip install --require-hashes -r requirements.lock
+# Remove any 'build/' directory before and after installing the project
+# to avoid stale build artifacts.
 rm -rf build
-python -m pip install .
+python -m pip install --no-deps .
 rm -rf build
 exec "$SCRIPT" "$@"
 
