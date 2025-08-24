@@ -19,6 +19,16 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.9.17
+- 2025-08-24: Normalised parser hash computation for cross-platform
+               verification and refreshed trusted hashes (OpenAI ChatGPT)
+- 2025-08-24: Clarified data directory policy to allow parser and metadata
+               edits (OpenAI ChatGPT)
+
+## Version 3.9.16
+- 2025-08-24: Fixed BAO compound parser registration to honour dataset_id
+               (OpenAI ChatGPT)
+
 ## Version 3.9.15
 - 2025-08-23: Nested developer guide sections and required tests to pass
                before commits (OpenAI ChatGPT)
@@ -30,10 +40,12 @@ entries come first):
                numbers across metadata (OpenAI ChatGPT)
 
 ## Version 3.9.13
-- 2025-08-23: start.sh exits on unset variables for stricter error handling (AI assistant)
+- 2025-08-23: start.sh exits on unset variables for stricter error handling
+               (AI assistant)
 
 ## Version 3.9.12
-- 2025-08-23: Added security test ensuring rogue parsers are ignored (AI assistant)
+- 2025-08-23: Added security test ensuring rogue parsers are ignored
+               (AI assistant)
 
 ## Version 3.9.11
 - 2025-08-23: Linted dataset parsers and removed data exclusion from

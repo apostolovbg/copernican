@@ -1,4 +1,5 @@
 # Data Directory Overview
+**Last Updated:** 2025-08-24
 
 This document explains the layout of the `data/` directory and the role of the
 parser scripts stored with each dataset.
@@ -29,7 +30,8 @@ by `copernican_lib/data_loaders.py` after the parser returns so individual
 parsers remain metadata-agnostic. Parsed DataFrames expose the same
 information on their `.attrs` property, and `dataset_id` is used when
 constructing output filenames. See `dataset_metadata.md` for a full
-description of these fields. The reference files remain read-only.
+description of these fields. The reference tables remain read-only, while
+parser `.py` files and accompanying `metadata_*.yml` files may be updated.
 
 ## Supernovae Datasets
 
@@ -109,7 +111,7 @@ folder no longer carries the `placeholder` name it will appear automatically
 in
 the interactive menus.
 
-All reference datasets included with the suite are considered read-only and
-should not be modified.  If local experiments require changes, copy the
-dataset to a new directory and adjust the `dataset_id` to avoid clashing
-with the shipped files.
+All reference tables included with the suite are considered read-only. Parser
+scripts and metadata may be edited when necessary. If table edits are needed,
+copy the dataset to a new directory and adjust the `dataset_id` to avoid
+clashing with the shipped files.

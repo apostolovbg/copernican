@@ -1,5 +1,5 @@
-**Version:** 3.9.15
-**Last Updated:** 2025-08-23
+**Version:** 3.9.17
+**Last Updated:** 2025-08-24
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -30,7 +30,8 @@ Citation details are provided in [CITATION.cff](CITATION.cff).
 13. [Developer Guide](#developer-guide)
     - [Workflow Overview](#workflow-overview)
     - [Development History & Roadmap](#development-history--roadmap)
-    - [AI-driven and human development laws and protocols](#ai-driven-and-human-development-laws-and-protocols)
+    - [AI-driven and human development laws and
+      protocols](#ai-driven-and-human-development-laws-and-protocols)
 14. [License](#license)
 15. [Versioning Policy](#versioning-policy)
 16. [API Overview](docs/api_overview.md)
@@ -188,8 +189,9 @@ copernican_lib/          - Helper modules
 ```
 All dataset tables and metadata are provided **only** as YAML files. JSON
 input is no longer supported as of version 3.0.0.
-**Note:** Files in `data/` are treated as read-only reference datasets and
-should not be modified by AI-driven code changes.
+**Note:** Tables in `data/` are read-only reference datasets.  Parser `.py`
+files and accompanying `metadata_*.yml` files within that tree may be
+modified when necessary.
 
 ## Engine and Plugin Architecture
 The program compiles model equations into Python functions at runtime. When a
@@ -544,8 +546,8 @@ development protocols and interface requirements.
 > 9. **Document every module, function and class with clear "what" and "why"
 > explanations.** Comments and docstrings should describe not only the
 > behaviour but also the rationale behind it.
-> 10. **Use concise, descriptive function and identifier names that accurately**
-> convey their purpose without unnecessary length.
+> 10. **Use concise, descriptive function and identifier names that
+accurately** convey their purpose without unnecessary length.
 > 11. **Use raw strings or escape backslashes explicitly to avoid invalid**
 > escape sequence warnings in docstrings or string literals.
 > 12. **Run `pre-commit` on all modified files before committing to enforce**

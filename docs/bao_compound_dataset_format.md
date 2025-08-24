@@ -1,4 +1,5 @@
 # BAO Compound Dataset Format
+**Last Updated:** 2025-08-24
 
 This document describes the YAML format used for the **compound** BAO dataset
 shipped with the Copernican Suite. The folder lives under `data/bao/compound/`
@@ -13,6 +14,10 @@ reads this metadata after parsing so the parser itself remains trivial. The
 compound dataset lets developers exercise the BAO pipeline without downloading
 large public releases. A covariance matrix is intentionally omitted;
 uncertainties are treated as uncorrelated.
+
+The accompanying parser registers itself under the dataset ID
+`compound_bao_set` so ``load_bao_data('compound_bao_set')`` locates it
+directly without discovery.
 
 Example `compound.yml`:
 ```yaml
