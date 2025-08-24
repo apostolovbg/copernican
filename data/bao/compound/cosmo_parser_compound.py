@@ -27,7 +27,9 @@ from copernican_lib.data_loaders import register_bao_parser
 DATA_DIR = os.path.dirname(__file__)
 
 
-@register_bao_parser(data_dir=DATA_DIR)
+# Explicitly register under the metadata ``dataset_id`` so that
+# ``load_bao_data('compound_bao_set')`` locates this parser.
+@register_bao_parser(name="compound_bao_set", data_dir=DATA_DIR)
 def parse_bao_v1(data_dir, **kwargs):
     """Parse a BAO dataset defined in a small YAML table."""
     logger = logging.getLogger()

@@ -150,7 +150,7 @@ def register_siren_parser(name=None, description="", data_dir=None):
 TRUSTED_PARSER_HASHES = {
     # ``relative_path`` -> ``sha256``
     "sne/pantheon/cosmo_parser_pantheon.py": (
-        "5fd4f60499129dc4a0468712bc29364f717bc7fa3442021bb7691cf6fc98233d"
+        "a15cfd8cec9104e62aebeb03fc72b148d8da76b33e90ede4537eddbe3310d0a6"
     ),
     "sne/jla2014/cosmo_parser_jla2014.py": (
         "27b553519fa4545153c675f82141be2e2ed35a69b91ce5d72b0add794fb25339"
@@ -159,10 +159,10 @@ TRUSTED_PARSER_HASHES = {
         "4de5b07156d65e4e075810745c6b61cf8b7f10f0e4c575be9d6d16ebbfcf37b8"
     ),
     "bao/compound/cosmo_parser_compound.py": (
-        "0faa58a29b2c809054d48130cce78adeebafd8d92b0bb40616b2bcc88c782712"
+        "a203b6f5efe3742c4cb2253d1f96691c7af769af1718f9526a73069afd3cf126"
     ),
     "cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py": (
-        "ccd9f8173b38ea9d8fcf458ea638086efd2ac8cfb300a4b9ece84342fa69f296"
+        "3017407d77779873a0eb145d9f8f420c0ea83da33431fab70ecfd8b5ee6a23de"
     ),
     "gw/placeholder/cosmo_parser_gw_placeholder.py": (
         "10d0159cdd879a74324c852be92e877308b949ff0375c9e9609da3a95c0fe3e2"

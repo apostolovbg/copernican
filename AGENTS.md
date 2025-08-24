@@ -23,6 +23,8 @@ lines are bold, while the dataset name on the second line is bolded
 using Matplotlib's standard text rendering. Dataset names retain their
 original spacing and the second line wraps after 190 characters when
 necessary.
+Parsers must register under the `dataset_id` stated in their metadata so
+the loaders can locate them directly without discovery.
 
 The program enables Python's ``faulthandler`` at startup and registers
 ``SIGILL``, ``SIGSEGV`` and ``SIGFPE`` handlers. When triggered, they dump
