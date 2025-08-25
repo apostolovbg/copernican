@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Security tests for parser discovery.
 
 Only parser modules whose hashes are registered should be imported.

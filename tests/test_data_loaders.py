@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Tests for ``copernican_lib.data_loaders`` registration helpers."""
 
 import os

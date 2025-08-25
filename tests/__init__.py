@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Test package for the Copernican Suite."""
 
 import logging
