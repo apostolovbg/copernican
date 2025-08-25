@@ -58,6 +58,20 @@ class EngineInterfaceTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.plugin.get_camb_params([70.0])
 
+    def test_get_camb_params_rejects_recursion_depth(self):
+        """Deeply nested calls exceed the evaluator's recursion limit."""
+        expr = "exp(" * 30 + "1" + ")" * 30
+        self.plugin.CMB_PARAM_MAP["deep"] = expr
+        with self.assertRaises(ValueError):
+            self.plugin.get_camb_params([70.0])
+
+    def test_get_camb_params_rejects_node_blowup(self):
+        """Expressions with too many nodes trigger a ``ValueError``."""
+        expr = "+".join(["1"] * 200)
+        self.plugin.CMB_PARAM_MAP["wide"] = expr
+        with self.assertRaises(ValueError):
+            self.plugin.get_camb_params([70.0])
+
     def test_equation_sanitization(self):
         """Equations are sanitized into Matplotlib-friendly form."""
         self.assertEqual(self.plugin.MODEL_EQUATIONS_LATEX_SN[0], "$E=mc^2$")
