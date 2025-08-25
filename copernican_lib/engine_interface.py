@@ -150,7 +150,8 @@ def build_plugin(model_data, func_dict):
             Raises
             ------
             ValueError
-                If ``expr`` contains disallowed syntax or identifiers.
+                If ``expr`` contains disallowed syntax or exceeds
+                complexity limits.
             """
 
             try:
@@ -158,9 +159,17 @@ def build_plugin(model_data, func_dict):
             except SyntaxError as exc:  # pragma: no cover - SyntaxError rare
                 raise ValueError(f"invalid expression '{expr}'") from exc
 
-            def _eval(node: ast.AST) -> float:
+            # Limit expression complexity to avoid pathological evaluations.
+            MAX_NODES = 100
+            MAX_DEPTH = 20
+            if sum(1 for _ in ast.walk(node)) > MAX_NODES:
+                raise ValueError("expression too complex")
+
+            def _eval(node: ast.AST, depth: int = 0) -> float:
+                if depth > MAX_DEPTH:
+                    raise ValueError("expression too complex")
                 if isinstance(node, ast.Expression):
-                    return _eval(node.body)
+                    return _eval(node.body, depth + 1)
                 if isinstance(node, ast.Constant):
                     if isinstance(node.value, (int, float)):
                         return float(node.value)
@@ -169,12 +178,15 @@ def build_plugin(model_data, func_dict):
                     op = BIN_OPS.get(type(node.op))
                     if op is None:
                         raise ValueError("operator not allowed")
-                    return op(_eval(node.left), _eval(node.right))
+                    return op(
+                        _eval(node.left, depth + 1),
+                        _eval(node.right, depth + 1),
+                    )
                 if isinstance(node, ast.UnaryOp):
                     op = UNARY_OPS.get(type(node.op))
                     if op is None:
                         raise ValueError("operator not allowed")
-                    return op(_eval(node.operand))
+                    return op(_eval(node.operand, depth + 1))
                 if isinstance(node, ast.Name):
                     if node.id in env:
                         return env[node.id]
@@ -191,7 +203,7 @@ def build_plugin(model_data, func_dict):
                         )
                     if node.keywords:
                         raise ValueError("keyword arguments not supported")
-                    args = [_eval(arg) for arg in node.args]
+                    args = [_eval(arg, depth + 1) for arg in node.args]
                     return float(func(*args))
                 raise ValueError("expression not allowed")
 

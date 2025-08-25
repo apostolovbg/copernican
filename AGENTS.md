@@ -95,6 +95,10 @@ evaluation counters now live in ``copernican_lib/optim_utils.py`` and are
 imported
 by the engines instead of being reimplemented inside each backend.
 
+The ``_eval_safe`` helper in ``engine_interface`` caps recursion depth and
+AST node count when parsing expressions for ``get_camb_params`` to block
+runaway evaluation on malicious or overly complex inputs.
+
 ## 3. Dependency Installation
 `copernican.py` scans all project files for imported modules using Python's
 AST parser to avoid false positives from comments. The `start.*` launchers

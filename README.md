@@ -1,5 +1,5 @@
 **Version:** 3.9.20
-**Last Updated:** 2025-08-25
+**Last Updated:** 2025-08-26
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -391,7 +391,9 @@ that the CMB spectrum can be adjusted independently. The engines themselves
 call
 CAMB using this mapping; the plugin no longer provides a fallback
 `compute_cmb_spectrum` implementation. When `valid_for_cmb` is `false` the
-suite skips the CMB evaluation stage for that model.
+suite skips the CMB evaluation stage for that model. Expressions are parsed
+by a restricted interpreter that aborts when recursion depth or AST node
+count limits are exceeded to block runaway evaluation.
 CMB data parsers attach a `param_names` attribute to the returned DataFrame
 listing the CAMB parameter order—including `omnuh2` when relevant. The engine
 combines this list with `get_camb_params` to evaluate the power spectrum and
