@@ -18,7 +18,9 @@ def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
     Routing all prints through this function ensures the patched
     ``print``/``input`` hooks in :mod:`copernican_lib.logger` can record
     every message exactly once.  Direct calls to ``print`` should be
-    avoided inside the project so that logs remain faithful.
+    avoided inside the project so that logs remain faithful. The stream
+    is always flushed so progress lines using carriage returns remain
+    visible on all platforms.
 
     Parameters
     ----------
@@ -37,10 +39,10 @@ def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
     """
     stream = sys.stderr if error else sys.stdout
     try:
-        print(msg, end=end, file=stream)
+        print(msg, end=end, file=stream, flush=True)
     except UnicodeEncodeError:
         fallback = msg.encode("ascii", errors="replace").decode("ascii")
-        print(fallback, end=end, file=stream)
+        print(fallback, end=end, file=stream, flush=True)
 
 
 def ask(prompt: str = "") -> str:
