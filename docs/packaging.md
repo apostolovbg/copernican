@@ -24,7 +24,8 @@ Run the launcher in the project root:
 
 The script verifies Python 3.11+, then creates or reuses `.venv`, upgrades
 `pip`, installs packages from `requirements.lock` with hash verification and
-installs the project itself with `pip install --no-deps .`. Re-run it after
+installs the project itself with `pip install --no-deps .`. It ignores an
+unset `VIRTUAL_ENV` to avoid shell errors on first launch. Re-run it after
 pulling updates to refresh the environment.
 
 `requirements.lock` pins exact versions and SHA256 hashes for all runtime

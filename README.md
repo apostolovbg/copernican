@@ -1,4 +1,4 @@
-**Version:** 3.9.23
+**Version:** 3.9.24
 **Last Updated:** 2025-08-25
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -95,9 +95,9 @@ parsers are discovered automatically under
    execute `./start.sh`. The launcher verifies Python 3.11+ before
    creating a `.venv`, upgrading `pip`, installing locked dependencies with
    hash verification and then installing the project in isolation with
-   `pip install --no-deps .`. It deletes any `build/` directory before and
-   after installation to avoid stale artifacts. If the interpreter is
-   missing or too old it prints install
+   `pip install --no-deps .`. It skips errors when `VIRTUAL_ENV` is unset,
+   deletes any `build/` directory before and after installation to avoid
+   stale artifacts. If the interpreter is missing or too old it prints install
    tips such as `sudo apt install python3.11 python3.11-venv` on Debian,
    `brew install python@3.11` on macOS or `winget install -e --id
    Python.Python.3.11` on Windows before exiting. If the activation script
