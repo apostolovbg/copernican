@@ -157,12 +157,13 @@ def log_environment_info() -> None:
             pkgs[name] = getattr(mod, "__version__", "unknown")
         except Exception:
             pkgs[name] = "not installed"
-    logger.info("Environment details:")
-    logger.info(f"  Python: {py_ver}")
-    logger.info(f"  OS: {os_info}")
-    logger.info(f"  CPU: {cpu}")
+    log_kwargs = {"extra": {"console_capture": True}}
+    logger.info("Environment details:", **log_kwargs)
+    logger.info(f"  Python: {py_ver}", **log_kwargs)
+    logger.info(f"  OS: {os_info}", **log_kwargs)
+    logger.info(f"  CPU: {cpu}", **log_kwargs)
     for n, v in pkgs.items():
-        logger.info(f"  {n}: {v}")
+        logger.info(f"  {n}: {v}", **log_kwargs)
     summary = f"Python {py_ver}; {os_info}; CPU {cpu}; " + ", ".join(
         f"{n} {v}" for n, v in pkgs.items()
     )
