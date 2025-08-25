@@ -116,10 +116,10 @@ Any dependency change must regenerate both files and update
 suite as a package, run `pip install .` at the repository root. Use
 `pip install -e .` if you intend to develop the code. The start scripts
 install pinned dependencies from `requirements.lock` using hash verification
-before running `pip install .`. They delete any `build/` directory before and
-after `pip install .` to prevent stale build artifacts. They recreate `.venv`
-once when the activation script is missing before suggesting installation of
-`python3.11-venv`.
+before running `pip install --no-deps .`. They delete any `build/` directory
+before and after installing the project to prevent stale build artifacts.
+They recreate `.venv` once when the activation script is missing before
+suggesting installation of `python3.11-venv`.
 
 Pull requests run a GitHub Actions workflow named ``Tests`` that executes
 pre-commit checks and the full unit suite on Ubuntu, macOS and Windows.
