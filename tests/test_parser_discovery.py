@@ -84,6 +84,55 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
             data_loaders.TRUSTED_PARSER_HASHES = prev_hashes
             os.environ.pop("MAL_SENTINEL", None)
 
+    def test_symlinked_paths_are_skipped(self) -> None:
+        """Symlinked directories and parsers must never be imported."""
+        prev_parsers = data_loaders.SNE_PARSERS.copy()
+        prev_hashes = data_loaders.TRUSTED_PARSER_HASHES.copy()
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                base = Path(tmp)
+                outside = base.parent / "outside"
+                outside.mkdir()
+                meta = {"dataset_name": "Link SNe", "dataset_id": "link"}
+                with open(
+                    outside / "metadata_dummy.yml", "w", encoding="utf-8"
+                ) as fh:
+                    yaml.safe_dump(meta, fh)
+                bad_parser = outside / "cosmo_parser_bad.py"
+                sentinel = outside / "symlink_imported.txt"
+                code = (
+                    "import os\n"
+                    "with open(os.environ['LINK_SENTINEL'], 'w', "
+                    "encoding='utf-8') as fh:\n"
+                    "    fh.write('imported')\n"
+                )
+                bad_parser.write_text(code, encoding="utf-8")
+                os.environ["LINK_SENTINEL"] = str(sentinel)
+
+                sne_dir = base / "sne"
+                sne_dir.mkdir()
+                # Symlinked dataset directory pointing outside ``base``.
+                (sne_dir / "linked_dir").symlink_to(
+                    outside, target_is_directory=True
+                )
+                # Real dataset with symlinked parser file.
+                real_dir = sne_dir / "real"
+                real_dir.mkdir()
+                with open(
+                    real_dir / "metadata_dummy.yml", "w", encoding="utf-8"
+                ) as fh:
+                    yaml.safe_dump(meta, fh)
+                (real_dir / "cosmo_parser_real.py").symlink_to(bad_parser)
+
+                data_loaders.SNE_PARSERS = {}
+                data_loaders._discover_parsers(base_dir=tmp)
+                self.assertFalse(sentinel.exists())
+                self.assertEqual(data_loaders.SNE_PARSERS, {})
+        finally:
+            data_loaders.SNE_PARSERS = prev_parsers
+            data_loaders.TRUSTED_PARSER_HASHES = prev_hashes
+            os.environ.pop("LINK_SENTINEL", None)
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
