@@ -8,7 +8,9 @@
 # re-executes itself inside that environment so later runs reuse the cached
 # installation.
 
-set -e
+# Abort on errors and on references to unset variables to guard against
+# mistyped names.
+set -eu
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$0")"
 
