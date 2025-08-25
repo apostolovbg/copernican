@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.9.26
+- 2025-08-25: Routed optimisation progress to ``stdout`` so runs no longer
+              appear to hang on Linux (OpenAI ChatGPT)
+              
 ## Version 3.9.25
 - 2025-08-25: Flushed console output to prevent apparent hangs on Linux and
               restricted detailed environment information to the log file
