@@ -31,7 +31,9 @@ The program enables Python's ``faulthandler`` at startup and registers
 stack traces to both the console and the active log file before exiting.
 Immediately after logging initialises the suite records the Python version,
 operating system, CPU model and key package versions. A short summary is
-shown on the console while the log captures full details.
+shown on the console while the log captures full details. Progress messages
+print to ``stdout`` and flush on every update so lengthy optimisations still
+display activity on Linux terminals.
 
 All Python warnings are forwarded to the central logger. Use
 ``--strict-warnings`` to elevate warnings to errors during CI runs.

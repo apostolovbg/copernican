@@ -110,7 +110,7 @@ def minimize_with_progress(
             f"  {label} Evals: {eval_count['count']:<5} | Best Chi2: "
             f"{best_val[0]:.4f} | Speed: {rate:<15}",
             end="\r",
-            error=True,
+            error=False,
         )
         return val if np.isfinite(val) else 1e12
 
@@ -131,7 +131,7 @@ def minimize_with_progress(
         )
     finally:
         # Clear the progress line so subsequent prints start on a clean line
-        console.write(" " * 80, end="\r", error=True)
+        console.write(" " * 80, end="\r", error=False)
         logger.info(
             "%s optimization finished. Total evals: %s.",
             label,
