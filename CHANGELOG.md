@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.9.19
+- 2025-08-24: start.command exits on unset variables for stricter error
+              handling (OpenAI ChatGPT)
+
 ## Version 3.9.18
 - 2025-08-24: start.bat and start.command install hashed dependencies and
               isolate project install with --no-deps (OpenAI ChatGPT)
