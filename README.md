@@ -1,5 +1,5 @@
-**Version:** 3.9.20
-**Last Updated:** 2025-08-26
+**Version:** 3.9.23
+**Last Updated:** 2025-08-25
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -65,8 +65,10 @@ Under the hood the program follows a clear pipeline:
 parsers are discovered automatically under
   `data/<type>/<source>` and models are loaded from `cosmo_model_*.yml`.
   Only parser modules whose SHA256 digest matches a vetted list are imported,
-  ensuring untrusted files are ignored. Folders named `placeholder` are
-  ignored so unfinished datasets do not appear in the selection menus.
+  ensuring untrusted files are ignored. Symbolic links are rejected and any
+  path that resolves outside the repository is skipped. Folders named
+  `placeholder` are ignored so unfinished datasets do not appear in the
+  selection menus.
 4. **Parameter Fitting** – depending on the chosen engine either a pure
    SNe fit is performed or a combined optimisation over all datasets.  For
    the combined engine this optimisation begins with the SNe refinement

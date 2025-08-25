@@ -193,7 +193,9 @@ def _discover_parsers(base_dir: str | None = None):
     """Import parser modules and populate registries with dataset metadata.
 
     The scan walks ``data/`` recursively, ignoring ``placeholder`` folders so
-    unfinished datasets stay hidden.  Each candidate parser is verified against
+    unfinished datasets stay hidden.  Candidate paths are resolved with
+    ``os.path.realpath`` and rejected if they are symlinks or if the resolved
+    location escapes ``base_dir``.  Each parser is then verified against
     ``TRUSTED_PARSER_HASHES`` before import to guard against tampering.  Only
     trusted modules are executed, keeping the discovery step resilient to
     untrusted files shipped alongside the data tables.
@@ -204,6 +206,10 @@ def _discover_parsers(base_dir: str | None = None):
         base_dir = os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "data"
         )
+    # Resolve the discovery root to an absolute path so subsequent checks can
+    # verify that candidate entries never escape the repository via symlinks
+    # or ".." components.
+    base_dir = os.path.realpath(base_dir)
     registry_map = {
         "sne": SNE_PARSERS,
         "bao": BAO_PARSERS,
@@ -213,6 +219,12 @@ def _discover_parsers(base_dir: str | None = None):
     }
     for dtype in ("sne", "bao", "cmb", "gw", "sirens"):
         type_dir = os.path.join(base_dir, dtype)
+        # Skip symlinks or paths that resolve outside the data directory.
+        if os.path.islink(type_dir):
+            continue
+        type_dir = os.path.realpath(type_dir)
+        if os.path.commonpath([base_dir, type_dir]) != base_dir:
+            continue
         if not os.path.isdir(type_dir):
             continue
         for source in os.listdir(type_dir):
@@ -221,6 +233,11 @@ def _discover_parsers(base_dir: str | None = None):
             if source.lower() == "placeholder":
                 continue
             src_dir = os.path.join(type_dir, source)
+            if os.path.islink(src_dir):
+                continue
+            src_dir = os.path.realpath(src_dir)
+            if os.path.commonpath([base_dir, src_dir]) != base_dir:
+                continue
             if not os.path.isdir(src_dir):
                 continue
             meta = load_metadata_from_dir(src_dir)
@@ -237,9 +254,13 @@ def _discover_parsers(base_dir: str | None = None):
                 if fname.startswith("cosmo_parser_") and fname.endswith(".py"):
                     module_name = f"data.{dtype}.{source}.{fname[:-3]}"
                     file_path = os.path.join(src_dir, fname)
+                    if os.path.islink(file_path):
+                        continue
+                    file_path = os.path.realpath(file_path)
+                    if os.path.commonpath([base_dir, file_path]) != base_dir:
+                        continue
                     rel_path = os.path.relpath(file_path, base_dir)
-                    # Normalise path separators
-                    # for cross-platform hash lookup.
+                    # Normalise path separators for cross-platform hash lookup.
                     rel_path = rel_path.replace("\\", "/")
                     expected_hash = TRUSTED_PARSER_HASHES.get(rel_path)
                     if expected_hash is None:
