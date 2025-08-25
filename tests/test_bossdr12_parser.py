@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Validate the BOSS DR12 BAO parser.
 
 This test confirms that the parser combines the two covariance matrices into

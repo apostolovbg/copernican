@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Tests for command-line helpers in ``copernican.py``."""
 
 import importlib
