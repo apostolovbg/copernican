@@ -16,7 +16,9 @@ SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$0")"
 
 # If we are already inside the virtual environment simply launch the suite.
-if [ -n "$VIRTUAL_ENV" ]; then
+# Use parameter expansion to avoid an "unbound variable" error when
+# "VIRTUAL_ENV" is unset and "set -u" is active.
+if [ -n "${VIRTUAL_ENV:-}" ]; then
     exec python copernican.py "$@"
 fi
 
