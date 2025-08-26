@@ -59,6 +59,13 @@ def minimize_with_progress(
     label : str, optional
         Human readable label shown in the live progress display.
 
+    Notes
+    -----
+    Progress updates are throttled so the console is not flooded with
+    output.  The status line refreshes only after ten new evaluations or
+    when at least half a second has elapsed since the previous update,
+    whichever comes first.
+
     Returns
     -------
     result : OptimizeResult or ``None``
@@ -90,9 +97,14 @@ def minimize_with_progress(
     best_val = [np.inf]
     best_params = [list(x0)]
     start_time = time.time()
+    last_update = start_time
+    last_eval = 0
 
     def wrapped(p, *wrapped_args):
         """Internal function that records progress."""
+
+        nonlocal last_update, last_eval
+
         eval_count["count"] += 1
         val = func(p, *wrapped_args)
         if not np.isfinite(val):
@@ -100,18 +112,29 @@ def minimize_with_progress(
         if val < best_val[0]:
             best_val[0] = float(val)
             best_params[0] = list(p)
-        elapsed = time.time() - start_time
-        rate = (
-            f"{eval_count['count'] / elapsed:.1f} evals/s"
-            if elapsed > 1e-6
-            else "--- evals/s"
-        )
-        console.write(
-            f"  {label} Evals: {eval_count['count']:<5} | Best Chi2: "
-            f"{best_val[0]:.4f} | Speed: {rate:<15}",
-            end="\r",
-            error=False,
-        )
+
+        now = time.time()
+        need_update = False
+        if eval_count["count"] - last_eval >= 10:
+            need_update = True
+        if now - last_update >= 0.5:
+            need_update = True
+        if need_update:
+            elapsed = now - start_time
+            rate = (
+                f"{eval_count['count'] / elapsed:.1f} evals/s"
+                if elapsed > 1e-6
+                else "--- evals/s"
+            )
+            console.write(
+                f"  {label} Evals: {eval_count['count']:<5} | Best Chi2: "
+                f"{best_val[0]:.4f} | Speed: {rate:<15}",
+                end="\r",
+                error=False,
+            )
+            last_update = now
+            last_eval = eval_count["count"]
+
         return val if np.isfinite(val) else 1e12
 
     result = None
