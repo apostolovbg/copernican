@@ -240,6 +240,13 @@ these rules:
     complete until all relevant texts reflect the update and version numbers
     remain in sync.
 16. **Commit changes only after all tests pass on every supported platform.**
+17. **Treat `start.command`, `start.bat` and `start.sh` equally.** When one
+    launcher is fixed, assess the other two for the same issue and update
+    them as needed. Investigate how code changes affect the start scripts and
+    adjust them accordingly.
+18. **Follow current compliance and security requirements for all work.** The
+    suite processes user-provided files, so every change must meet the latest
+    security guidelines and consider their impact on the `start.*` scripts.
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 
