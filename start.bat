@@ -10,7 +10,8 @@ REM re-executes itself inside that environment so later runs reuse it.
 setlocal
 cd %~dp0
 
-if not "%VIRTUAL_ENV%"=="" goto run
+REM Skip setup when already inside the virtual environment.
+if defined VIRTUAL_ENV goto run
 
 REM Locate python.exe or the py launcher.
 where python >NUL 2>NUL

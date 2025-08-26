@@ -1,5 +1,5 @@
-**Version:** 3.9.26
-**Last Updated:** 2025-08-25
+**Version:** 3.9.27
+**Last Updated:** 2025-08-26
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -566,6 +566,13 @@ accurately** convey their purpose without unnecessary length.
 > complete until all relevant texts reflect the update and version numbers
 > remain in sync.
 > 16. **Commit changes only after all tests pass on every supported platform.**
+> 17. **Treat `start.command`, `start.bat` and `start.sh` equally.** When one
+> launcher is fixed, examine the others for the same issue and update them as
+> needed. Consider how code changes impact these launchers and modify them when
+> required.
+> 18. **Follow current compliance and security requirements for all work.** The
+> suite processes user-provided files, so every change must meet the latest
+> security guidelines and account for their effect on the `start.*` scripts.
 >
 > Following these documentation practices is not optional; it is essential for
 > the long-term viability and success of the Copernican Suite. Failure to
