@@ -1,4 +1,4 @@
-**Version:** 3.9.27
+**Version:** 3.9.28
 **Last Updated:** 2025-08-26
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -469,7 +469,9 @@ the
 main process; child processes simply read the sanitized cache.
 All engines import progress helpers from `copernican_lib/optim_utils.py` so
 that
-evaluation counting and reporting remain consistent across backends.
+evaluation counting and reporting remain consistent across backends. The
+helpers update the console at most once every ten evaluations or half a
+second to keep progress readable.
 
 New models are described entirely by YAML. Copy an existing file from
 `models/`
