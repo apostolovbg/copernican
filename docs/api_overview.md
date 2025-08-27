@@ -33,11 +33,14 @@ modules are:
   - `engines.cosmo_engine_comb` – reference engine providing high level
     optimisation routines such as ``fit_sne_parameters``,
     ``fit_combined_parameters``, ``calculate_bao_observables`` and generic
-    ``chi_squared_*`` helpers.  ``fit_combined_parameters`` accepts optional
-    ``maxiter``, ``maxfun`` and ``prefit_maxiter`` arguments to bound
-    optimisation time. Engines are regular Python modules that operate
-    purely on data frames and plugin callables so alternative backends can
-    be developed without modifying the rest of the codebase.
+    ``chi_squared_*`` helpers. ``chi_squared_bao`` accepts arrays
+    ``(z, observable_type, value, error)`` and an optional inverse
+    covariance so repeated evaluations can reuse cached data.
+    ``fit_combined_parameters`` accepts optional ``maxiter``, ``maxfun`` and
+    ``prefit_maxiter`` arguments to bound optimisation time. Engines are
+    regular Python modules that operate purely on data frames and plugin
+    callables so alternative backends can be developed without modifying the
+    rest of the codebase.
 
 Plugins are validated through ``engine_interface.validate_plugin`` before
 use. Chi-squared helpers assume this step has already succeeded, so

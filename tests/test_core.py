@@ -82,7 +82,21 @@ class FunctionalTestCase(unittest.TestCase):
         pred_df, rs_mpc, _ = engine.calculate_bao_observables(
             bao_df, self.plugin, params
         )
-        chi2_bao = engine.chi_squared_bao(bao_df, self.plugin, params, rs_mpc)
+        z = bao_df["redshift"].to_numpy(dtype=float)
+        obs_type = bao_df["observable_type"].to_numpy()
+        obs_val = bao_df["value"].to_numpy(dtype=float)
+        obs_err = bao_df["error"].to_numpy(dtype=float)
+        cov_inv = bao_df.attrs.get("covariance_matrix_inv")
+        chi2_bao = engine.chi_squared_bao(
+            z,
+            obs_type,
+            obs_val,
+            obs_err,
+            self.plugin,
+            params,
+            rs_mpc,
+            covariance_matrix_inv=cov_inv,
+        )
         self.assertTrue(np.isfinite(chi2_bao))
 
         camb_params = self.plugin.get_camb_params(params)

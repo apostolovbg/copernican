@@ -831,8 +831,20 @@ def main_workflow():
 
             chi2_bao = np.inf
             if pred_df is not None and np.isfinite(rs_Mpc):
+                z = bao_data_df["redshift"].to_numpy(dtype=float)
+                obs_type = bao_data_df["observable_type"].to_numpy()
+                obs_val = bao_data_df["value"].to_numpy(dtype=float)
+                obs_err = bao_data_df["error"].to_numpy(dtype=float)
+                cov_inv = bao_data_df.attrs.get("covariance_matrix_inv")
                 chi2_bao = cosmo_engine_selected.chi_squared_bao(
-                    bao_data_df, model_plugin, fitted_cosmo_p, rs_Mpc
+                    z,
+                    obs_type,
+                    obs_val,
+                    obs_err,
+                    model_plugin,
+                    fitted_cosmo_p,
+                    rs_Mpc,
+                    covariance_matrix_inv=cov_inv,
                 )
                 logger.info(
                     (

@@ -87,23 +87,35 @@ def chi_squared_sne(cosmo_params, mu_model_func, sne_data_df):
     return chi2 if np.isfinite(chi2) else np.inf
 
 
-def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
+def chi_squared_bao(
+    z,
+    obs_type,
+    obs_val,
+    obs_err,
+    model_plugin,
+    cosmo_params,
+    model_rs_Mpc,
+    covariance_matrix_inv=None,
+):
     r"""Return chi-squared for BAO observables.
 
     Callers must validate ``model_plugin`` via
-    ``engine_interface.validate_plugin`` before invoking this helper. If
-    ``bao_data_df`` carries ``covariance_matrix_inv`` on ``.attrs`` the full
-    residual vector is evaluated as :math:`\Delta^T C^{-1} \Delta`.
-    Datasets lacking a covariance (or providing an ill-conditioned one) fall
-    back to diagonal errors. The calculation is vectorised so that distance
-    functions operate on arrays directly.
+    ``engine_interface.validate_plugin`` before invoking this helper. The
+    arrays ``z``, ``obs_type``, ``obs_val`` and ``obs_err`` must be
+    extracted from the data frame once before optimisation. When
+    ``covariance_matrix_inv`` is provided the residual vector is evaluated as
+    :math:`\Delta^T C^{-1} \Delta`. Datasets lacking a covariance (or
+    providing an ill-conditioned one) fall back to diagonal errors. The
+    calculation is vectorised so that distance functions operate on arrays
+    directly.
     """
+
     logger = logging.getLogger()
     if getattr(model_plugin, "valid_for_bao", True) is False:
         logger.warning("(chi2_bao): Model invalid for BAO; skipping.")
         return np.inf
-    if bao_data_df is None or bao_data_df.empty:
-        logger.error("(chi2_bao): BAO data is empty.")
+    if z is None or len(z) == 0:
+        logger.error("(chi2_bao): BAO data arrays are empty.")
         return np.inf
     if not (np.isfinite(model_rs_Mpc) and model_rs_Mpc > 0):
         return np.inf
@@ -115,15 +127,9 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
         C_LIGHT = model_plugin.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458)
     except AttributeError as e:
         logger.error(
-            "(chi2_bao): Model plugin missing required function: %s",
-            e,
+            "(chi2_bao): Model plugin missing required function: %s", e
         )
         return np.inf
-
-    z = bao_data_df["redshift"].to_numpy(dtype=float)
-    obs_type = bao_data_df["observable_type"].to_numpy()
-    obs_val = bao_data_df["value"].to_numpy(dtype=float)
-    obs_err = bao_data_df["error"].to_numpy(dtype=float)
 
     pred = np.full_like(obs_val, np.nan, dtype=float)
 
@@ -175,8 +181,7 @@ def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
         logger.warning("(chi2_bao): Non-finite residuals in BAO data.")
         return np.inf
 
-    # Use the full covariance matrix when provided by the parser.
-    C_inv = bao_data_df.attrs.get("covariance_matrix_inv")
+    C_inv = covariance_matrix_inv
     if C_inv is not None:
         try:
             if C_inv.shape[0] != len(resid):
@@ -350,7 +355,7 @@ def chi_squared_combined(
     params,
     plugin,
     sne_df=None,
-    bao_df=None,
+    bao_arrays=None,
     cmb_df=None,
     num_cosmo_params=None,
     cmb_extra_names=None,
@@ -364,8 +369,13 @@ def chi_squared_combined(
         optional SNe nuisance parameters.
     plugin : object
         Model plugin implementing the required distance and CMB functions.
-    sne_df, bao_df, cmb_df : DataFrame, optional
-        Data for the respective observations. Any of them may be ``None``.
+    sne_df : DataFrame, optional
+        SNe Ia observations.
+    bao_arrays : tuple, optional
+        Tuple ``(z, obs_type, obs_val, obs_err, cov_inv)`` extracted from the
+        BAO data frame. ``cov_inv`` may be ``None``.
+    cmb_df : DataFrame, optional
+        CMB observations.
     num_cosmo_params : int, optional
         Number of cosmological parameters at the start of ``params``. Required
         when nuisance parameters are present.
@@ -400,13 +410,18 @@ def chi_squared_combined(
             sne_df,
         )
 
-    if bao_df is not None and getattr(plugin, "valid_for_bao", True):
+    if bao_arrays is not None and getattr(plugin, "valid_for_bao", True):
+        z, obs_type, obs_val, obs_err, cov_inv = bao_arrays
         rs_val = plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
         chi2_total += chi_squared_bao(
-            bao_df,
+            z,
+            obs_type,
+            obs_val,
+            obs_err,
             plugin,
             cosmo_params,
             rs_val,
+            covariance_matrix_inv=cov_inv,
         )
 
     if cmb_df is not None and getattr(plugin, "valid_for_cmb", True):
@@ -590,6 +605,16 @@ def fit_combined_parameters(
                 bounds.append((float(val) - spread, float(val) + spread))
                 param_names.append(key)
 
+    bao_arrays = None
+    if bao_data_df is not None:
+        bao_arrays = (
+            bao_data_df["redshift"].to_numpy(dtype=float),
+            bao_data_df["observable_type"].to_numpy(),
+            bao_data_df["value"].to_numpy(dtype=float),
+            bao_data_df["error"].to_numpy(dtype=float),
+            bao_data_df.attrs.get("covariance_matrix_inv"),
+        )
+
     # --- Optional Pre-fit: refine cosmological parameters using SNe only ---
     if sne_data_df is not None:
         logger.info("Running SNe pre-fit to obtain better starting values...")
@@ -630,7 +655,7 @@ def fit_combined_parameters(
             p,
             model_plugin,
             sne_df=sne_data_df,
-            bao_df=bao_data_df,
+            bao_arrays=bao_arrays,
             cmb_df=cmb_data_df,
             num_cosmo_params=num_cosmo_params,
             cmb_extra_names=cmb_extra_names,
@@ -655,7 +680,7 @@ def fit_combined_parameters(
             final_params,
             model_plugin,
             sne_df=sne_data_df,
-            bao_df=bao_data_df,
+            bao_arrays=bao_arrays,
             cmb_df=cmb_data_df,
             num_cosmo_params=num_cosmo_params,
             cmb_extra_names=cmb_extra_names,
@@ -676,18 +701,23 @@ def fit_combined_parameters(
             sne_data_df,
         )
     chi2_bao = np.nan
-    if bao_data_df is not None and getattr(
+    if bao_arrays is not None and getattr(
         model_plugin,
         "valid_for_bao",
         True,
     ):
         cosmo_subset = final_params[:num_cosmo_params]
         rs_val = model_plugin.get_sound_horizon_rs_Mpc(*cosmo_subset)
+        z_arr, type_arr, val_arr, err_arr, cov_inv = bao_arrays
         chi2_bao = chi_squared_bao(
-            bao_data_df,
+            z_arr,
+            type_arr,
+            val_arr,
+            err_arr,
             model_plugin,
             cosmo_subset,
             rs_val,
+            covariance_matrix_inv=cov_inv,
         )
     chi2_cmb = np.nan
     if cmb_data_df is not None and getattr(
