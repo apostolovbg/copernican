@@ -80,12 +80,22 @@ class BossDR12ParserTestCase(unittest.TestCase):
         df = self.parser.parse_boss_dr12(str(self.data_dir))
         params = (67.66, 0.31, 0.112, 5e-5, 1090)
         rs = self.plugin.get_sound_horizon_rs_Mpc(*params)
-        chi2 = engine.chi_squared_bao(df, self.plugin, params, rs)
-        self.assertLess(chi2, 10.0)
-
         z = df["redshift"].to_numpy(dtype=float)
         obs_type = df["observable_type"].to_numpy()
         obs_val = df["value"].to_numpy(dtype=float)
+        obs_err = df["error"].to_numpy(dtype=float)
+        cov_inv = df.attrs.get("covariance_matrix_inv")
+        chi2 = engine.chi_squared_bao(
+            z,
+            obs_type,
+            obs_val,
+            obs_err,
+            self.plugin,
+            params,
+            rs,
+            covariance_matrix_inv=cov_inv,
+        )
+        self.assertLess(chi2, 10.0)
 
         pred = np.full_like(obs_val, np.nan, dtype=float)
         mask = obs_type == "DM_over_rs"

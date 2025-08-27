@@ -45,8 +45,8 @@ feature mismatches and suggests reinstalling with suitable wheels.
 The default engine is `engines/cosmo_engine_comb.py`. All model plugins are
 validated
 through `copernican_lib/engine_interface.py` before being passed to the
-engine.
-This
+engine. The BAO χ² helper accepts pre-extracted arrays so callers can
+convert data frames once outside optimisation loops. This
 ensures the expected functions are present and callable. Starting with
 version 1.11.4 the test suite no longer runs automatically. Execute
 `copernican.py --run-tests` or run `python -m unittest discover` to verify

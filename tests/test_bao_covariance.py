@@ -54,26 +54,42 @@ class BaoCovarianceTestCase(unittest.TestCase):
     def test_covariance_changes_chi2(self):
         """Using the covariance matrix yields a distinct chi-squared value."""
         rs = 150.0
-        cov = self.df
-        chi2_cov = chi_squared_bao(cov, self.plugin, (), rs)
+        z = self.df["redshift"].to_numpy(dtype=float)
+        obs_type = self.df["observable_type"].to_numpy()
+        obs_val = self.df["value"].to_numpy(dtype=float)
+        obs_err = self.df["error"].to_numpy(dtype=float)
+        cov_inv = self.df.attrs.get("covariance_matrix_inv")
 
-        diag_df = cov.copy()
-        diag_df.attrs["covariance_matrix_inv"] = None
-        chi2_diag = chi_squared_bao(diag_df, self.plugin, (), rs)
+        chi2_cov = chi_squared_bao(
+            z,
+            obs_type,
+            obs_val,
+            obs_err,
+            self.plugin,
+            (),
+            rs,
+            covariance_matrix_inv=cov_inv,
+        )
 
-        z = cov["redshift"].to_numpy(dtype=float)
-        obs_type = cov["observable_type"].to_numpy()
+        chi2_diag = chi_squared_bao(
+            z,
+            obs_type,
+            obs_val,
+            obs_err,
+            self.plugin,
+            (),
+            rs,
+        )
+
         pred = np.zeros(len(z), dtype=float)
         mask = obs_type == "DH_over_rs"
         if np.any(mask):
             hz = self.plugin.get_Hz_per_Mpc(z[mask])
             pred[mask] = 299792.458 / hz / rs
-        resid = cov["value"].to_numpy(dtype=float) - pred
+        resid = obs_val - pred
 
-        cov_inv = cov.attrs["covariance_matrix_inv"]
         chi2_cov_manual = float(resid @ cov_inv @ resid)
-        err = cov["error"].to_numpy(dtype=float)
-        chi2_diag_manual = float(np.sum((resid / err) ** 2))
+        chi2_diag_manual = float(np.sum((resid / obs_err) ** 2))
 
         self.assertAlmostEqual(chi2_cov, chi2_cov_manual)
         self.assertAlmostEqual(chi2_diag, chi2_diag_manual)
