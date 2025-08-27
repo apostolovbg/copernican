@@ -49,6 +49,7 @@ class BaoCovarianceTestCase(unittest.TestCase):
             "get_sound_horizon_rs_Mpc": lambda *_: 150.0,
         }
         cls.plugin = engine_interface.build_plugin(model_data, funcs)
+        engine_interface.validate_plugin(cls.plugin)
 
     def test_covariance_changes_chi2(self):
         """Using the covariance matrix yields a distinct chi-squared value."""

@@ -90,14 +90,15 @@ def chi_squared_sne(cosmo_params, mu_model_func, sne_data_df):
 def chi_squared_bao(bao_data_df, model_plugin, cosmo_params, model_rs_Mpc):
     r"""Return chi-squared for BAO observables.
 
-    If ``bao_data_df`` carries ``covariance_matrix_inv`` on ``.attrs`` the
-    full residual vector is evaluated as :math:`\Delta^T C^{-1} \Delta`.
+    Callers must validate ``model_plugin`` via
+    ``engine_interface.validate_plugin`` before invoking this helper. If
+    ``bao_data_df`` carries ``covariance_matrix_inv`` on ``.attrs`` the full
+    residual vector is evaluated as :math:`\Delta^T C^{-1} \Delta`.
     Datasets lacking a covariance (or providing an ill-conditioned one) fall
     back to diagonal errors. The calculation is vectorised so that distance
     functions operate on arrays directly.
     """
     logger = logging.getLogger()
-    engine_interface.validate_plugin(model_plugin)
     if getattr(model_plugin, "valid_for_bao", True) is False:
         logger.warning("(chi2_bao): Model invalid for BAO; skipping.")
         return np.inf
@@ -541,7 +542,8 @@ def fit_combined_parameters(
     sne_data_df, bao_data_df, cmb_data_df : pandas.DataFrame or ``None``
         Observational datasets to include in the fit.
     model_plugin : object
-        Validated plugin providing the cosmological model.
+        Plugin providing the cosmological model. It is validated once at the
+        start of the routine.
     maxiter : int, optional
         Maximum number of iterations for the combined optimisation. The
         default of ``2000`` mirrors previous behaviour but tests can reduce
@@ -764,9 +766,11 @@ def calculate_bao_observables(
     cosmo_params,
     z_smooth=None,
 ):
-    """
-    Calculates BAO observable predictions for a given model and its parameters.
-    Also calculates smooth curves for plotting if z_smooth is provided.
+    """Calculate BAO predictions for a validated model.
+
+    The plugin is validated once before computations begin.  The function
+    returns model predictions for each BAO data point and optionally smooth
+    curves for plotting if ``z_smooth`` is provided.
     """
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)

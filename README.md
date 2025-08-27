@@ -1,4 +1,4 @@
-**Version:** 3.9.28
+**Version:** 3.9.29
 **Last Updated:** 2025-08-26
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -238,6 +238,9 @@ archive](https://data.sdss.org/sas/dr12/boss/) does not provide a
 - Engines are selected interactively from the `engines/` directory. Parsers
   are
   discovered automatically when their source folders are imported.
+- Model plugins must be validated once using
+  `engine_interface.validate_plugin` before passing them to engine
+  routines or chi-squared helpers.
 - After each run you may choose to evaluate another model or exit. Cache files
   are cleaned automatically.
 - When a run finishes the suite prints the abstract text from each model along
