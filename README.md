@@ -1,4 +1,4 @@
-**Version:** 3.11.0
+**Version:** 3.11.1
 **Last Updated:** 2025-08-27
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -37,6 +37,7 @@ Citation details are provided in [CITATION.cff](CITATION.cff).
 16. [API Overview](docs/api_overview.md)
 17. [Packaging Guide](docs/packaging.md)
 18. [Documentation Policy](docs/documentation_policy.md)
+19. [Run Manifest](docs/run_manifest.md)
 
 ---
 
@@ -130,7 +131,7 @@ python3.11-venv` on Debian, `brew install python@3.11` on macOS or
 They also verify that `.venv/bin/activate` exists and hint to install
 `python3.11-venv` when it does not. Inside the virtual environment this
 project relies on `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`,
-`jsonschema` and `camb==1.6.2`.
+`jsonschema`, `camb==1.6.2`, `emcee`, `xarray` and `arviz`.
 
 Versions and SHA256 hashes for all runtime dependencies are pinned in
 `requirements.lock`. When a package is missing the program asks before
@@ -289,6 +290,12 @@ sanitised and cached under `models/cache/` for the duration of the session,
 avoiding repeated schema validation. For CMB analyses unlensed CAMB spectra
 are cached by rounded parameter tuples which keeps successive evaluations
 fast during optimisation loops.
+
+Each run directory also contains a YAML manifest named
+`run_manifest_<timestamp>.yml` capturing the chosen models, engine, parameter
+priors, dataset hashes and the Git commit. See
+[docs/run_manifest.md](docs/run_manifest.md) for details on using this file to
+reproduce analyses.
 
 Fatal signals such as ``SIGILL``, ``SIGSEGV`` or ``SIGFPE`` trigger handlers
 that dump stack traces to the console and active log file before termination.

@@ -1,5 +1,5 @@
 # Third-Party Licenses
-**Last Updated:** 2025-08-23
+**Last Updated:** 2025-08-27
 
 The Copernican Suite relies on the following runtime dependencies. Their
 versions and license texts are shipped under [`licenses/`](licenses/) so
@@ -18,6 +18,9 @@ users can review the full terms offline.
 | astropy | 7.1.0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | psutil | 7.0.0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | setuptools_scm | 9.2.0 | [MIT](licenses/MIT.txt) |
+| emcee | 3.1.5 | [MIT](licenses/MIT.txt) |
+| xarray | 2025.8.0 | [Apache-2.0](licenses/Apache-2.0.txt) |
+| arviz | 0.16.1 | [Apache-2.0](licenses/Apache-2.0.txt) |
 
 ### Notes on camb (LGPL-3.0-or-later)
 

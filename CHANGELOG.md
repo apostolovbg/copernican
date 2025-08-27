@@ -18,15 +18,18 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
-(place the newest version directly below this line and keep one blank line.
-Version headers run newest to oldest, and within each version the newest
-entries come first):
+
+## Version 3.11.1
+- 2025-08-27: Added xarray to locked dependencies and documented automatic
+  installation of emcee, xarray and ArviZ (OpenAI ChatGPT)
 
 ## Version 3.11.0
 - 2025-08-27: Added emcee-based MCMC engine, per-run output folders and
-               NetCDF chain writer (OpenAI ChatGPT)
+              NetCDF chain writer (OpenAI ChatGPT)
 
 ## Version 3.10.0
+- 2025-08-28: Added run manifest with dataset hashes and Git metadata, SHA256
+  helper and accompanying tests and documentation (OpenAI ChatGPT)
 - 2025-08-27: Added parameter priors with parser and engine support (OpenAI ChatGPT)
 
 ## Version 3.9.31

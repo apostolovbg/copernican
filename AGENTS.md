@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-08-27
+**Last Updated:** 2025-08-28
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -25,6 +25,8 @@ lines are bold, while the dataset name on the second line is bolded
 using Matplotlib's standard text rendering. Dataset names retain their
 original spacing and the second line wraps after 190 characters when
 necessary.
+Each run directory also includes a `run_manifest_*.yml` file listing the
+selected models, engine, dataset hashes and Git state to aid reproducibility.
 Parsers must register under the `dataset_id` stated in their metadata so
 the loaders can locate them directly without discovery.
 
