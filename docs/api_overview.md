@@ -40,7 +40,9 @@ modules are:
     be developed without modifying the rest of the codebase.
 
 Plugins are validated through ``engine_interface.validate_plugin`` before
-use. Engines expect the attributes listed in
+use. Chi-squared helpers assume this step has already succeeded, so
+validation should occur once before any iterative evaluation begins.
+Engines expect the attributes listed in
 ``engine_interface.REQUIRED_ATTRIBUTES``.  The resulting object exposes
 distance functions, CMB helpers and initial parameter guesses derived
 from the model YAML.
