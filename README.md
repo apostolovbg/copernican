@@ -1,4 +1,4 @@
-**Version:** 3.11.2
+**Version:** 3.12.0
 **Last Updated:** 2025-08-27
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -118,7 +118,9 @@ Under the hood the program follows a clear pipeline:
    runner reports informational messages, warnings and errors while
    verifying the reference model and parsers. Add `--strict-warnings`
    to upgrade warnings to errors for reproducible CI runs.
-4. Results, including posterior chains, will appear inside a timestamped
+4. Provide `--seed <n>` to select a deterministic RNG state. It defaults to
+   `0` and seeds NumPy, Python's ``random`` module and supported engines.
+5. Results, including posterior chains, will appear inside a timestamped
    folder under `output/` when the run completes.
 
 ## Dependencies
@@ -515,11 +517,12 @@ not modify them unless explicitly instructed.
 3.  **Initialization**: The script starts and creates the `./output/`
     directory
     for all results.
-4.  **Random Seed Setup**: The global NumPy RNG is seeded so any stochastic
-    algorithms remain reproducible. The chosen seed is written to the log.
+4.  **Random Seed Setup**: The global NumPy and Python ``random`` RNGs are
+    seeded so stochastic algorithms remain reproducible. Supported engines
+    such as CAMB are seeded too. The chosen seed is written to the log and
+    run manifest and can be changed with ``--seed``.
 5.  **Configuration**: The user specifies the file paths for the model and
-    data
-    files.
+    data files.
 6.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the
     ΛCDM
     model and the alternative model to the SNe Ia data. When

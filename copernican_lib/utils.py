@@ -17,6 +17,7 @@ science logic rather than housekeeping.
 import hashlib
 import logging
 import os
+import random
 import time
 
 import numpy as np
@@ -133,10 +134,21 @@ def load_metadata_from_dir(data_dir: str) -> dict:
 
 
 def set_random_seed(seed: int = 0) -> None:
-    """Seed NumPy's global RNG and log the selected value.
+    """Seed global RNGs and log the selected value.
 
-    Engines call this helper so that optimisation results can be
-    reproduced exactly when the same seed is provided.
+    Engines call this helper so optimisation results can be reproduced
+    when the same seed is provided.  The Python ``random`` module and
+    optional engine libraries such as CAMB are seeded when available.
     """
     np.random.seed(seed)
-    logging.getLogger().info("Global RNG seed set to %s", seed)
+    random.seed(seed)
+    logger = logging.getLogger()
+    try:  # pragma: no cover - CAMB is optional
+        import camb  # type: ignore
+
+        if hasattr(camb, "set_random_seed"):
+            camb.set_random_seed(seed)
+            logger.info("CAMB RNG seed set to %s", seed)
+    except Exception:
+        logger.debug("CAMB RNG seeding unavailable", exc_info=True)
+    logger.info("Global RNG seed set to %s", seed)
