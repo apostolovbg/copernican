@@ -145,6 +145,26 @@ def _delete_log_file(path: str) -> None:
                 )
 
 
+def _remove_run_dir(path: str) -> None:
+    """Delete the run output directory and its contents."""
+    if path and os.path.isdir(path):
+        try:
+            shutil.rmtree(path)
+            console.write(f"Removed run directory {path}")
+        except OSError as exc:
+            if logger:
+                logger.warning(
+                    "copernican.py: could not remove run dir %s: %s",
+                    path,
+                    exc,
+                )
+            else:
+                console.write(
+                    f"copernican.py: could not remove run dir {path}: {exc}",
+                    error=True,
+                )
+
+
 def _get_cpu_info() -> tuple[str, str]:
     """Return CPU model and current clock speed."""
     cpu = platform.processor() or platform.uname().processor or "Unknown CPU"
@@ -614,6 +634,7 @@ def main_workflow():
         logger as log_mod,
         utils,
         error_handler,
+        chain_io,
     )
 
     try:
@@ -621,8 +642,8 @@ def main_workflow():
     except NameError:
         SCRIPT_DIR = os.getcwd()
 
-    OUTPUT_DIR = os.path.join(SCRIPT_DIR, "output")
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    OUTPUT_BASE_DIR = os.path.join(SCRIPT_DIR, "output")
+    os.makedirs(OUTPUT_BASE_DIR, exist_ok=True)
 
     show_splash_screen()
 
@@ -643,6 +664,11 @@ def main_workflow():
     engine_interface.validate_plugin(lcdm)
 
     while True:
+        run_start_ts = utils.get_timestamp()
+        OUTPUT_DIR = os.path.join(
+            OUTPUT_BASE_DIR, f"copernican-run_{run_start_ts}"
+        )
+        utils.ensure_dir_exists(OUTPUT_DIR)
         global CURRENT_LOG_FILE
         log_file = log_mod.setup_logging(
             log_dir=OUTPUT_DIR, base_dir=SCRIPT_DIR
@@ -694,6 +720,7 @@ def main_workflow():
         )
         if not selected_model:
             _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
             cleanup_cache(SCRIPT_DIR)
             console.write("")
             return
@@ -734,6 +761,7 @@ def main_workflow():
         )
         if not engine_choice:
             _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
             cleanup_cache(SCRIPT_DIR)
             console.write("")
             return
@@ -744,14 +772,26 @@ def main_workflow():
 
         sne_data_df = data_loaders.load_sne_data()
         if sne_data_df is None:
+            _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
+            cleanup_cache(SCRIPT_DIR)
+            console.write("")
             continue
 
         bao_data_df = data_loaders.load_bao_data()
         if bao_data_df is None:
+            _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
+            cleanup_cache(SCRIPT_DIR)
+            console.write("")
             continue
 
         cmb_data_df = data_loaders.load_cmb_data()
         if cmb_data_df is None:
+            _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
+            cleanup_cache(SCRIPT_DIR)
+            console.write("")
             continue
 
         lcdm_time = 0.0
@@ -965,6 +1005,18 @@ def main_workflow():
 
         run_end_dt = datetime.datetime.now()
         end_ts = run_end_dt.strftime("%Y%m%d_%H%M%S")
+        new_dir = os.path.join(
+            OUTPUT_BASE_DIR, f"copernican-run_{end_ts}"
+        )
+        if OUTPUT_DIR != new_dir:
+            try:
+                os.rename(OUTPUT_DIR, new_dir)
+                OUTPUT_DIR = new_dir
+                log_file = os.path.join(
+                    OUTPUT_DIR, os.path.basename(log_file)
+                )
+            except OSError as e_dir:
+                logger.error(f"Failed renaming output directory: {e_dir}")
         new_log = os.path.join(OUTPUT_DIR, f"copernican-run_{end_ts}.txt")
         if log_file != new_log:
             try:
@@ -1090,6 +1142,45 @@ def main_workflow():
                 alt_model_name=alt_model_plugin.MODEL_NAME,
                 csv_dir=OUTPUT_DIR,
                 timestamp=end_ts,
+            )
+
+        if lcdm_sne_fit_results.get("samples") is not None:
+            fname = utils.generate_filename(
+                "posterior",
+                sne_data_df.attrs.get("dataset_id", "sne_data"),
+                "nc",
+                model_name=lcdm.MODEL_NAME.replace(" ", "_"),
+                timestamp=end_ts,
+            )
+            chain_io.save_posterior(
+                lcdm_sne_fit_results["samples"],
+                lcdm_sne_fit_results.get(
+                    "param_names", lcdm.PARAMETER_NAMES
+                ),
+                os.path.join(OUTPUT_DIR, fname),
+                metadata={
+                    "model": lcdm.MODEL_NAME,
+                    "dataset": sne_data_df.attrs.get("dataset_id", ""),
+                },
+            )
+        if alt_model_sne_fit_results.get("samples") is not None:
+            fname = utils.generate_filename(
+                "posterior",
+                sne_data_df.attrs.get("dataset_id", "sne_data"),
+                "nc",
+                model_name=alt_model_plugin.MODEL_NAME.replace(" ", "_"),
+                timestamp=end_ts,
+            )
+            chain_io.save_posterior(
+                alt_model_sne_fit_results["samples"],
+                alt_model_sne_fit_results.get(
+                    "param_names", alt_model_plugin.PARAMETER_NAMES
+                ),
+                os.path.join(OUTPUT_DIR, fname),
+                metadata={
+                    "model": alt_model_plugin.MODEL_NAME,
+                    "dataset": sne_data_df.attrs.get("dataset_id", ""),
+                },
             )
 
         console.write("\n" + "=" * 50)

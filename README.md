@@ -1,4 +1,4 @@
-**Version:** 3.10.0
+**Version:** 3.11.0
 **Last Updated:** 2025-08-27
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -48,21 +48,25 @@ equations and parameters and serves as the sole source of truth. Optional
 Markdown summaries may exist for human readers but are ignored by the
 software.
 Users select models, datasets, and computational engines at runtime through a
-simple command line interface. Results are saved as plots and CSV files in the
-`./output/` directory.
+simple command line interface. Each execution creates a dedicated
+`output/copernican-run_YYYYMMDD_HHMMSS` folder that stores plots, CSV tables
+and posterior chains in NetCDF format.
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages,
    installs missing ones and verifies each import. A tiny NumPy/SciPy
    calculation then runs to catch CPU feature mismatches before heavy
    computation begins.
-2. **Initialization** – the output directory is created and logging begins.
+2. **Initialization** – a run-specific output directory is created and
+   logging begins.
 3. **Configuration** – the user chooses a model and a computation engine
-   from `./engines/`.  The default `cosmo_engine_comb.py` performs a
+   from `./engines/`. The default `cosmo_engine_comb.py` performs a
    combined optimisation across SNe, BAO and CMB, including optional
-   SALT2 nuisance parameters when available. Constant values in a model's
-  `cmb.param_map` are treated as
-  additional fit parameters so CMB spectra can be matched precisely. Data
-parsers are discovered automatically under
+   SALT2 nuisance parameters when available. The optional
+   `cosmo_engine_mcmc.py` backend uses an `emcee` sampler to explore the
+   SNe posterior. Constant values in a model's
+   `cmb.param_map` are treated as
+   additional fit parameters so CMB spectra can be matched precisely. Data
+   parsers are discovered automatically under
   `data/<type>/<source>` and models are loaded from `cosmo_model_*.yml`.
   Only parser modules whose SHA256 digest matches a vetted list are imported,
   ensuring untrusted files are ignored. Symbolic links are rejected and any
@@ -113,8 +117,8 @@ parsers are discovered automatically under
    runner reports informational messages, warnings and errors while
    verifying the reference model and parsers. Add `--strict-warnings`
    to upgrade warnings to errors for reproducible CI runs.
-4. Plots and CSV results will appear in the `output/` folder when the run
-   completes.
+4. Results, including posterior chains, will appear inside a timestamped
+   folder under `output/` when the run completes.
 
 ## Dependencies
 Only a system-wide Python 3.11+ installation is required. The `start.*`
