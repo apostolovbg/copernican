@@ -1,4 +1,5 @@
 # Copernican Suite Development Plan
+**Last Updated:** 2025-08-15
 
 ## Overview
 Copernican Suite has grown from a single script into a modular, cross-platform

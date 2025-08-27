@@ -1,3 +1,6 @@
+# Changelog
+**Last Updated:** 2025-08-27
+
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
 latest version header. AI assistant warning: please, always check the current
@@ -22,6 +25,8 @@ entries come first):
 ## Version 3.9.31
 - 2025-08-27: Parallelised combined χ² computation and added tests and
               docs (OpenAI ChatGPT)
+- 2025-08-27: Added Last Updated fields and clarified development rules
+              (OpenAI ChatGPT)
 
 ## Version 3.9.30
 - 2025-08-27: Refactored BAO χ² to accept arrays and updated tests

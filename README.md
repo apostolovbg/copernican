@@ -548,7 +548,8 @@ development protocols and interface requirements.
 > 4. **Update documentation**, including this `AGENTS.md`, `README.md` and the
 > `docs/` directory, whenever behaviour or structure changes. Each task must
 > expand the documentation's scope and size, refresh version strings and
-> update all `Last Updated` fields.
+> ensure every file carries a `Last Updated` field. Update that field on
+> every edit and add one when missing.
 > 5. **Keep these laws synchronized across `README.md` and `AGENTS.md`.**
 > Amendments to any rule require an explicit human request.
 > 6. **Bump the project version according to Semantic Versioning whenever**
