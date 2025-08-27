@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 3.11.2
+- 2025-08-27: Logged SHA256 digests for dataset files and propagated them
+               through the run manifest (OpenAI ChatGPT)
+
 ## Version 3.11.1
 - 2025-08-27: Added xarray to locked dependencies and documented automatic
   installation of emcee, xarray and ArviZ (OpenAI ChatGPT)

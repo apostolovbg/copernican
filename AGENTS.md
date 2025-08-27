@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-08-28
+**Last Updated:** 2025-08-27
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -26,9 +26,12 @@ using Matplotlib's standard text rendering. Dataset names retain their
 original spacing and the second line wraps after 190 characters when
 necessary.
 Each run directory also includes a `run_manifest_*.yml` file listing the
-selected models, engine, dataset hashes and Git state to aid reproducibility.
-Parsers must register under the `dataset_id` stated in their metadata so
-the loaders can locate them directly without discovery.
+selected models, engine, dataset hashes and Git state to aid
+reproducibility. The data loaders compute and log SHA256 digests for all
+non-parser files in each dataset directory and store these hashes on the
+returned DataFrames. The manifest copies this mapping verbatim. Parsers
+must register under the `dataset_id` stated in their metadata so the
+loaders can locate them directly without discovery.
 
 The program enables Python's ``faulthandler`` at startup and registers
 ``SIGILL``, ``SIGSEGV`` and ``SIGFPE`` handlers. When triggered, they dump

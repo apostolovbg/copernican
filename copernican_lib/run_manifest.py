@@ -2,15 +2,16 @@
 
 The manifest records critical information required to reproduce a run.
 It captures model and engine details, parameter priors, dataset hashes
-and the Git state.  Each run directory stores the resulting YAML file so
-that analyses can be traced back unambiguously.
+provided by the data loaders and the Git state.  Each run directory
+stores the resulting YAML file so that analyses can be traced back
+unambiguously.
 """
 
 from __future__ import annotations
 
 import os
 import subprocess
-from typing import Iterable, Tuple
+from typing import Dict, Iterable, Tuple
 
 import yaml
 
@@ -51,7 +52,7 @@ def _git_info() -> dict:
 def build_manifest(
     models: Iterable[Tuple[object, str]],
     engine_module: object,
-    datasets: Iterable[Tuple[str, str]],
+    datasets: Iterable[Tuple[str, str, Dict[str, str]]],
     seed: int,
 ) -> dict:
     """Collect manifest information for the current run.
@@ -66,7 +67,9 @@ def build_manifest(
         Selected engine module object.  ``ENGINE_VERSION`` is queried when
         available.
     datasets:
-        Iterable of ``(dataset_id, data_dir)`` tuples.
+        Iterable of ``(dataset_id, data_dir, file_hashes)`` tuples.  The
+        ``file_hashes`` mapping mirrors the ``file_hashes`` attribute attached
+        to the :class:`pandas.DataFrame` produced by the dataset loader.
     seed:
         RNG seed applied to the run.
     """
@@ -100,15 +103,7 @@ def build_manifest(
             }
         )
 
-    for dataset_id, data_dir in datasets:
-        file_hashes = {}
-        for root, _, files in os.walk(data_dir):
-            for fname in sorted(files):
-                if fname.endswith(".py"):
-                    continue
-                path = os.path.join(root, fname)
-                rel = os.path.relpath(path, data_dir)
-                file_hashes[rel] = utils.compute_sha256(path)
+    for dataset_id, data_dir, file_hashes in datasets:
         manifest["datasets"][dataset_id] = {
             "path": data_dir,
             "hashes": file_hashes,

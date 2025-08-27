@@ -1,5 +1,5 @@
 # Data Directory Overview
-**Last Updated:** 2025-08-24
+**Last Updated:** 2025-08-27
 
 This document explains the layout of the `data/` directory and the role of the
 parser scripts stored with each dataset.
@@ -29,9 +29,12 @@ information (for example `title`, `volume`, `journal` and `DOI`) are read
 by `copernican_lib/data_loaders.py` after the parser returns so individual
 parsers remain metadata-agnostic. Parsed DataFrames expose the same
 information on their `.attrs` property, and `dataset_id` is used when
-constructing output filenames. See `dataset_metadata.md` for a full
-description of these fields. The reference tables remain read-only, while
-parser `.py` files and accompanying `metadata_*.yml` files may be updated.
+constructing output filenames. The loaders also compute a SHA256 digest
+for every non-parser file in the dataset directory. These hashes are
+stored on `df.attrs['file_hashes']` and logged so manifests can reproduce
+exact inputs. See `dataset_metadata.md` for a full description of the
+metadata fields. The reference tables remain read-only, while parser
+`.py` files and accompanying `metadata_*.yml` files may be updated.
 
 ## Supernovae Datasets
 
