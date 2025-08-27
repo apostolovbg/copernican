@@ -182,6 +182,54 @@ class FunctionalTestCase(unittest.TestCase):
         )
         np.testing.assert_allclose(result, ref[:, 0][ells], rtol=1e-7)
 
+    def test_chi_squared_combined_parallel(self):
+        """chi_squared_combined sums concurrent dataset contributions."""
+        sne_df = data_loaders.load_sne_data("jla_2014").head(2)
+        if sne_df.attrs.get("covariance_matrix_inv") is not None:
+            attrs = sne_df.attrs
+            attrs["covariance_matrix_inv"] = attrs["covariance_matrix_inv"][
+                :2, :2
+            ]
+            attrs["diag_errors_for_plot"] = attrs["diag_errors_for_plot"][:2]
+        bao_df = data_loaders.load_bao_data("compound_bao_set").head(2)
+        cmb_df = data_loaders.load_cmb_data("planck_2018_lite").head(5).copy()
+        cmb_attrs = cmb_df.attrs
+        cmb_attrs["covariance_matrix_inv"] = cmb_attrs[
+            "covariance_matrix_inv"
+        ][:5, :5]
+        params = self.plugin.INITIAL_GUESSES
+        z = bao_df["redshift"].to_numpy(dtype=float)
+        obs_type = bao_df["observable_type"].to_numpy()
+        obs_val = bao_df["value"].to_numpy(dtype=float)
+        obs_err = bao_df["error"].to_numpy(dtype=float)
+        cov_inv = bao_df.attrs.get("covariance_matrix_inv")
+        total_parallel = engine.chi_squared_combined(
+            params,
+            self.plugin,
+            sne_df=sne_df,
+            bao_arrays=(z, obs_type, obs_val, obs_err, cov_inv),
+            cmb_df=cmb_df,
+        )
+        rs_val = self.plugin.get_sound_horizon_rs_Mpc(*params)
+        total_serial = (
+            engine.chi_squared_sne(
+                params, self.plugin.distance_modulus_model, sne_df
+            )
+            + engine.chi_squared_bao(
+                z,
+                obs_type,
+                obs_val,
+                obs_err,
+                self.plugin,
+                params,
+                rs_val,
+                covariance_matrix_inv=cov_inv,
+            )
+            + engine.chi_squared_cmb(params, cmb_df, self.plugin)
+        )
+        self.assertTrue(np.isfinite(total_parallel))
+        self.assertAlmostEqual(total_parallel, total_serial)
+
 
 class PlotterUtilTestCase(unittest.TestCase):
     """Test helper utilities in ``plotter``."""
