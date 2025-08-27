@@ -14,6 +14,7 @@ science logic rather than housekeeping.
 # These helpers are intentionally tiny but keep repetitive tasks such as
 # timestamp generation and directory creation in one place.
 
+import hashlib
 import logging
 import os
 import time
@@ -25,6 +26,21 @@ import yaml
 def get_timestamp():
     """Generates a standardized timestamp string."""
     return time.strftime("%Y%m%d_%H%M%S")
+
+
+def compute_sha256(path: str) -> str:
+    """Return the SHA256 hex digest for the file at ``path``.
+
+    The file is read in small chunks so that large datasets do not require
+    excessive memory.  A hexadecimal string is returned to keep manifests
+    human readable while still uniquely identifying file contents.
+    """
+
+    sha256 = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for block in iter(lambda: fh.read(8192), b""):
+            sha256.update(block)
+    return sha256.hexdigest()
 
 
 def check_dataset_id(dataset_id: str) -> str:

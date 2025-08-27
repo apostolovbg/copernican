@@ -1,0 +1,41 @@
+import os
+import tempfile
+from types import SimpleNamespace
+
+import yaml
+
+from copernican_lib import run_manifest, utils
+
+
+def _dummy_plugin():
+    return SimpleNamespace(
+        MODEL_NAME="DummyModel",
+        MODEL_FILENAME="dummy.yml",
+        PARAMETER_NAMES=["p1"],
+        PARAMETER_PRIORS=[{"distribution": "uniform", "min": 0, "max": 1}],
+    )
+
+
+def test_manifest_contains_required_fields():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        data_path = os.path.join(tmpdir, "data.txt")
+        with open(data_path, "w", encoding="utf-8") as fh:
+            fh.write("hello world\n")
+        engine = SimpleNamespace(__name__="engine", ENGINE_VERSION="0.0")
+        manifest = run_manifest.build_manifest(
+            models=[(_dummy_plugin(), "1.0")],
+            engine_module=engine,
+            datasets=[("ds", tmpdir)],
+            seed=123,
+        )
+        path = run_manifest.save_manifest(manifest, tmpdir)
+        with open(path, "r", encoding="utf-8") as fh:
+            loaded = yaml.safe_load(fh)
+        assert loaded["engine"]["name"] == "engine"
+        assert loaded["seed"] == 123
+        assert "ds" in loaded["datasets"]
+        hashes = loaded["datasets"]["ds"]["hashes"]
+        assert "data.txt" in hashes
+        assert hashes["data.txt"] == utils.compute_sha256(data_path)
+        assert len(loaded["git"]["commit"]) == 40
+        assert "dirty" in loaded["git"]

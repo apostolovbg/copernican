@@ -32,6 +32,7 @@ import faulthandler
 import signal
 
 from copernican_lib import console_output as console
+from copernican_lib import run_manifest
 from copernican_lib.version import get_version
 
 # Verify interpreter version early so users see clear feedback
@@ -657,10 +658,10 @@ def main_workflow():
         func_dict, parsed = model_coder.generate_callables(cache_path)
         plugin = engine_interface.build_plugin(parsed, func_dict)
         plugin.MODEL_FILENAME = os.path.basename(yaml_path)
-        return plugin
+        return plugin, parsed
 
-    global lcdm
-    lcdm = _load_lcdm_model()
+    global lcdm, lcdm_parsed
+    lcdm, lcdm_parsed = _load_lcdm_model()
     engine_interface.validate_plugin(lcdm)
 
     while True:
@@ -690,7 +691,8 @@ def main_workflow():
             _sanity_check_numpy_scipy(logger)
         except Exception:
             exit_clean(1)
-        utils.set_random_seed(0)
+        seed = 0
+        utils.set_random_seed(seed)
         start_ts = time.strftime("%y%m%d_%H%M%S")
         run_start_dt = datetime.datetime.now()
         run_start_pc = time.perf_counter()
@@ -793,6 +795,27 @@ def main_workflow():
             cleanup_cache(SCRIPT_DIR)
             console.write("")
             continue
+        dataset_info = []
+        for df, registry in [
+            (sne_data_df, data_loaders.SNE_PARSERS),
+            (bao_data_df, data_loaders.BAO_PARSERS),
+            (cmb_data_df, data_loaders.CMB_PARSERS),
+        ]:
+            ds_id = df.attrs.get("dataset_id")
+            data_dir = registry.get(ds_id, {}).get("data_dir")
+            if ds_id and data_dir:
+                dataset_info.append((ds_id, data_dir))
+
+        manifest = run_manifest.build_manifest(
+            models=[
+                (lcdm, lcdm_parsed.get("version", "unknown")),
+                (alt_model_plugin, parsed.get("version", "unknown")),
+            ],
+            engine_module=cosmo_engine_selected,
+            datasets=dataset_info,
+            seed=seed,
+        )
+        run_manifest.save_manifest(manifest, OUTPUT_DIR)
 
         lcdm_time = 0.0
         alt_time = 0.0
