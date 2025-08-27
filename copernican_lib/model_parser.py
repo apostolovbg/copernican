@@ -58,6 +58,17 @@ MODEL_SCHEMA = {
                     },
                     "unit": {"type": "string"},
                     "latex_name": {"type": "string"},
+                    "prior": {
+                        "type": "object",
+                        "required": ["type"],
+                        "properties": {
+                            "type": {"type": "string"},
+                            "mean": {"type": "number"},
+                            "sigma": {"type": "number"},
+                            "lower": {"type": "number"},
+                            "upper": {"type": "number"},
+                        },
+                    },
                 },
             },
         },
@@ -131,6 +142,22 @@ def parse_model(path, cache_dir):
                 idx += 1
             param["python_var"] = candidate
             used_vars.add(candidate)
+        prior = param.get("prior")
+        # Validate prior definitions to ensure engines receive complete data.
+        if prior:
+            ptype = prior.get("type")
+            if ptype == "gaussian":
+                if "mean" not in prior or "sigma" not in prior:
+                    raise ValueError(
+                        "Gaussian prior requires 'mean' and 'sigma' fields"
+                    )
+            elif ptype == "uniform":
+                if "lower" not in prior or "upper" not in prior:
+                    raise ValueError(
+                        "Uniform prior requires 'lower' and 'upper' fields"
+                    )
+            else:
+                raise ValueError(f"Unknown prior type '{ptype}'")
 
     # Ensure mathematical fields are wrapped with '$$' for downstream tools
     data["Hz_expression"] = _ensure_delim(data.get("Hz_expression"))
