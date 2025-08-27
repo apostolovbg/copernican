@@ -76,7 +76,9 @@ parsers are discovered automatically under
    are fitted in turn.
 5. **BAO Analysis** – BAO observables are computed using the fitted
    parameters (from the combined fit if that engine was selected) and
-   chi-squared statistics are reported.
+   chi-squared statistics are reported. When several datasets are
+   available the SNe, BAO and CMB chi-squared contributions are evaluated
+   concurrently to reduce runtime.
 6. **CMB Analysis** – CMB power spectra are generated using the fitted
    cosmological parameters **and** any extra CMB-specific values from a
    combined optimisation. The chi-squared contribution is then calculated.

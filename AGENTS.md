@@ -47,7 +47,10 @@ validated
 through `copernican_lib/engine_interface.py` before being passed to the
 engine. The BAO χ² helper accepts pre-extracted arrays so callers can
 convert data frames once outside optimisation loops. This
-ensures the expected functions are present and callable. Starting with
+ensures the expected functions are present and callable. Chi-squared
+values for SNe, BAO and CMB are evaluated concurrently when multiple
+datasets are supplied, using processes when objects are picklable and
+threads otherwise. Starting with
 version 1.11.4 the test suite no longer runs automatically. Execute
 `copernican.py --run-tests` or run `python -m unittest discover` to verify
 that the reference LCDM model and data parsers operate correctly. The

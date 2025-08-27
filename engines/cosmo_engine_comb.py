@@ -14,7 +14,9 @@ cached by rounded parameter tuples which keeps repeated evaluations fast
 during iterative searches.
 """
 
+import concurrent.futures
 import logging
+import pickle
 from functools import lru_cache
 
 import camb
@@ -26,6 +28,15 @@ from copernican_lib.optim_utils import minimize_with_progress
 # ===========================================================================
 # --- CHI-SQUARED HELPER FUNCTIONS ---
 # ===========================================================================
+
+
+def _is_picklable(obj):
+    """Return ``True`` if ``obj`` can be pickled."""
+    try:
+        pickle.dumps(obj)
+        return True
+    except Exception:
+        return False
 
 
 def chi_squared_sne(cosmo_params, mu_model_func, sne_data_df):
@@ -360,7 +371,13 @@ def chi_squared_combined(
     num_cosmo_params=None,
     cmb_extra_names=None,
 ):
-    """Return global chi-squared summed over all available datasets.
+    r"""Return global chi-squared summed over all available datasets.
+
+    When more than one dataset is supplied the individual chi-squared
+    calculations are evaluated concurrently using
+    :mod:`concurrent.futures`.  A process pool is preferred when the plugin
+    and data are picklable; otherwise a thread pool is used.  If the parallel
+    setup fails the function falls back to serial execution.
 
     Parameters
     ----------
@@ -397,41 +414,73 @@ def chi_squared_combined(
         extra_slice = params[start:end]
         extra_params = {n: v for n, v in zip(cmb_extra_names, extra_slice)}
 
-    chi2_total = 0.0
-
+    tasks = []
     if sne_df is not None and getattr(
         plugin,
         "valid_for_distance_metrics",
         True,
     ):
-        chi2_total += chi_squared_sne(
-            cosmo_params,
-            plugin.distance_modulus_model,
-            sne_df,
+        tasks.append(
+            (
+                chi_squared_sne,
+                (cosmo_params, plugin.distance_modulus_model, sne_df),
+                {},
+            )
         )
 
     if bao_arrays is not None and getattr(plugin, "valid_for_bao", True):
         z, obs_type, obs_val, obs_err, cov_inv = bao_arrays
         rs_val = plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
-        chi2_total += chi_squared_bao(
-            z,
-            obs_type,
-            obs_val,
-            obs_err,
-            plugin,
-            cosmo_params,
-            rs_val,
-            covariance_matrix_inv=cov_inv,
+        tasks.append(
+            (
+                chi_squared_bao,
+                (z, obs_type, obs_val, obs_err, plugin, cosmo_params, rs_val),
+                {"covariance_matrix_inv": cov_inv},
+            )
         )
 
     if cmb_df is not None and getattr(plugin, "valid_for_cmb", True):
-        chi2_total += chi_squared_cmb(
-            cosmo_params,
-            cmb_df,
-            plugin,
-            extra_params,
+        tasks.append(
+            (
+                chi_squared_cmb,
+                (cosmo_params, cmb_df, plugin, extra_params),
+                {},
+            )
         )
 
+    if len(tasks) <= 1:
+        results = [func(*args, **kwargs) for func, args, kwargs in tasks]
+        chi2_total = sum(results) if results else 0.0
+        return chi2_total if np.isfinite(chi2_total) else np.inf
+
+    all_picklable = all(
+        _is_picklable(obj)
+        for obj in (
+            plugin,
+            sne_df,
+            bao_arrays,
+            cmb_df,
+            extra_params,
+        )
+        if obj is not None
+    )
+    executor_cls = (
+        concurrent.futures.ProcessPoolExecutor
+        if all_picklable
+        else concurrent.futures.ThreadPoolExecutor
+    )
+    logger = logging.getLogger()
+    try:
+        with executor_cls() as exe:
+            futs = [exe.submit(f, *a, **kw) for f, a, kw in tasks]
+            results = [f.result() for f in futs]
+    except Exception as exc:
+        logger.warning(
+            "Parallel chi-squared failed (%s); falling back to serial", exc
+        )
+        results = [func(*args, **kwargs) for func, args, kwargs in tasks]
+
+    chi2_total = sum(results)
     return chi2_total if np.isfinite(chi2_total) else np.inf
 
 

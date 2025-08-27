@@ -1,5 +1,7 @@
 # Copernican Suite API Overview
 
+**Last Updated:** 2025-08-27
+
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be
 imported directly without using the command-line interface.  The core
@@ -35,12 +37,13 @@ modules are:
     ``fit_combined_parameters``, ``calculate_bao_observables`` and generic
     ``chi_squared_*`` helpers. ``chi_squared_bao`` accepts arrays
     ``(z, observable_type, value, error)`` and an optional inverse
-    covariance so repeated evaluations can reuse cached data.
-    ``fit_combined_parameters`` accepts optional ``maxiter``, ``maxfun`` and
-    ``prefit_maxiter`` arguments to bound optimisation time. Engines are
-    regular Python modules that operate purely on data frames and plugin
-    callables so alternative backends can be developed without modifying the
-    rest of the codebase.
+    covariance so repeated evaluations can reuse cached data. The engine
+    evaluates SNe, BAO and CMB chi-squared terms concurrently when several
+    datasets are provided. ``fit_combined_parameters`` accepts optional
+    ``maxiter``, ``maxfun`` and ``prefit_maxiter`` arguments to bound
+    optimisation time. Engines are regular Python modules that operate
+    purely on data frames and plugin callables so alternative backends can
+    be developed without modifying the rest of the codebase.
 
 Plugins are validated through ``engine_interface.validate_plugin`` before
 use. Chi-squared helpers assume this step has already succeeded, so
