@@ -1,5 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
+@REM Last Updated: 2025-08-26
 
 @echo off
 REM Start the Copernican Suite on Windows.

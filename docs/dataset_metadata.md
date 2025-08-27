@@ -1,4 +1,5 @@
 # Dataset Metadata Fields
+**Last Updated:** 2025-08-22
 
 Each dataset folder contains a `metadata_*.yml` file that describes the
 source. All fields are optional except for `dataset_name`, `dataset_id`,

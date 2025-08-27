@@ -1,4 +1,5 @@
 # Contributing to the Copernican Suite
+**Last Updated:** 2025-08-12
 
 Thank you for considering a contribution. Before opening a pull request,
 please

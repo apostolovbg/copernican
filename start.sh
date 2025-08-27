@@ -1,6 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
+# Last Updated: 2025-08-26
 
 # Start the Copernican Suite on Unix-like systems.
 #
