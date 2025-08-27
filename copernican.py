@@ -249,6 +249,7 @@ def parse_args():
         ``strict_warnings`` upgrades all warnings to errors to ensure
         deterministic CI behaviour.  ``yes`` installs missing dependencies
         without asking for confirmation, simplifying non-interactive CI runs.
+        ``seed`` sets the global RNG state for reproducible runs.
     """
 
     parser = argparse.ArgumentParser(description="Copernican Suite")
@@ -268,6 +269,12 @@ def parse_args():
         "-y",
         action="store_true",
         help="install missing packages without prompting",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help="RNG seed for NumPy, Python and engines",
     )
     return parser.parse_args()
 
@@ -691,8 +698,9 @@ def main_workflow():
             _sanity_check_numpy_scipy(logger)
         except Exception:
             exit_clean(1)
-        seed = 0
+        seed = args.seed
         utils.set_random_seed(seed)
+        logger.info("Using RNG seed %s", seed)
         start_ts = time.strftime("%y%m%d_%H%M%S")
         run_start_dt = datetime.datetime.now()
         run_start_pc = time.perf_counter()

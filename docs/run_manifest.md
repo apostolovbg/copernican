@@ -1,5 +1,5 @@
 # Run Manifest
-**Last Updated:** 2025-08-28
+**Last Updated:** 2025-08-27
 
 The suite writes a YAML manifest for every evaluation under the run's output
 folder.  The file is named `run_manifest_<timestamp>.yml` and records:
@@ -16,6 +16,9 @@ run exactly.  To rerun an analysis:
    matches the worktree state.
 2. Verify that each data file still produces the recorded SHA256 digest.
 3. Configure the suite with the same model, priors, engine and seed.
+
+The seed is chosen via the ``--seed`` command line option. The value is
+saved in the manifest and main log so runs can be reproduced exactly.
 
 The manifest is intentionally human readable so it can be archived in lab
 notebooks or cited in publications.

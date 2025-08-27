@@ -33,6 +33,9 @@ returned DataFrames. The manifest copies this mapping verbatim. Parsers
 must register under the `dataset_id` stated in their metadata so the
 loaders can locate them directly without discovery.
 
+A `--seed` command line option selects the global RNG seed. The value is
+stored in the run manifest and logged so analyses can be reproduced.
+
 The program enables Python's ``faulthandler`` at startup and registers
 ``SIGILL``, ``SIGSEGV`` and ``SIGFPE`` handlers. When triggered, they dump
 stack traces to both the console and the active log file before exiting.
