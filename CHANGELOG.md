@@ -22,6 +22,9 @@ put dates that are in the future or in the past! Follow this template:
 Version headers run newest to oldest, and within each version the newest
 entries come first):
 
+## Version 3.10.0
+- 2025-08-27: Added parameter priors with parser and engine support (OpenAI ChatGPT)
+
 ## Version 3.9.31
 - 2025-08-27: Parallelised combined χ² computation and added tests and
               docs (OpenAI ChatGPT)

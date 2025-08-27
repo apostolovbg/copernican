@@ -1,4 +1,4 @@
-**Version:** 3.9.30
+**Version:** 3.10.0
 **Last Updated:** 2025-08-27
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -317,15 +317,18 @@ multiplication
    evaluated numerically with SciPy's `quad` when the model is loaded.
 8. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
-9. Every parameter must define a `latex_name`. When a `python_var` field is
-   omitted, a valid identifier is derived automatically from this LaTeX name.
-10. `latex_name` values do not require `$` delimiters. Plots automatically
-    wrap
-   parameter names in math mode.
-11. Console and log outputs display parameter names with Greek letters,
-    subscripts and superscripts when possible for easier reading.
-    The conversion tables cover every Latin and Greek letter, digits and
-    common operators.
+9. Each parameter may define a `prior` block describing sampling assumptions.
+   `type: gaussian` requires `mean` and `sigma` while `type: uniform` needs
+   `lower` and `upper`. Engines expose these via `PARAMETER_PRIORS`.
+10. Every parameter must define a `latex_name`. When a `python_var` field is
+    omitted, a valid identifier is derived automatically from this LaTeX
+    name.
+11. `latex_name` values do not require `$` delimiters. Plots automatically
+    wrap parameter names in math mode.
+12. Console and log outputs display parameter names with Greek letters,
+    subscripts and superscripts when possible for easier reading. The
+    conversion tables cover every Latin and Greek letter, digits and common
+    operators.
 
 **Common mistakes**
 * Missing `*` between variables and parentheses results in a `'Symbol' object

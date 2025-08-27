@@ -43,6 +43,7 @@ REQUIRED_ATTRIBUTES = [
     "INITIAL_GUESSES",
     "PARAMETER_BOUNDS",
     "FIXED_PARAMS",
+    "PARAMETER_PRIORS",
 ]
 
 # Allowed math helpers for expression evaluation in ``get_camb_params``.
@@ -97,6 +98,8 @@ def build_plugin(model_data, func_dict):
     plugin.INITIAL_GUESSES = [sum(p["bounds"]) / 2.0 for p in params]
     plugin.PARAMETER_BOUNDS = [tuple(p["bounds"]) for p in params]
     plugin.FIXED_PARAMS = {}
+    # Preserve prior metadata so engines can apply external constraints.
+    plugin.PARAMETER_PRIORS = [p.get("prior", {}) for p in params]
     plugin.valid_for_distance_metrics = model_data.get(
         "valid_for_distance_metrics", True
     )

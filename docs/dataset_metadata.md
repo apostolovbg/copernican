@@ -1,5 +1,5 @@
 # Dataset Metadata Fields
-**Last Updated:** 2025-08-22
+**Last Updated:** 2025-08-27
 
 Each dataset folder contains a `metadata_*.yml` file that describes the
 source. All fields are optional except for `dataset_name`, `dataset_id`,
@@ -59,3 +59,10 @@ or analysis scripts.
   derive from the suite's outputs.
 - Unknown fields are preserved by the loader, making it safe to add
   experiment-specific keys for downstream tools.
+
+### Model Parameter Priors
+
+Model YAML files now support a `prior` block for each parameter. Priors carry
+their `type` and relevant numeric fields: Gaussian priors require `mean` and
+`sigma`, while uniform priors use `lower` and `upper`. Parsed models expose
+these details so engines can apply them during optimisation.

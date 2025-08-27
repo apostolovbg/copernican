@@ -12,11 +12,19 @@ parameters:
     bounds: [50.0, 80.0]
     unit: km/s/Mpc
     latex_name: H_0
+    prior:
+      type: gaussian
+      mean: 65.0
+      sigma: 5.0
   - name: Matter density
     definition: N/A
     bounds: [0.1, 0.5]
     unit: ""
     latex_name: \Omega_{m0}
+    prior:
+      type: uniform
+      lower: 0.1
+      upper: 0.5
 Hz_expression: "H(z) = H_0 * \sqrt{\Omega_{m0}*(1+z)^3 + /* additional model terms */}"
 equations:
   sne:
