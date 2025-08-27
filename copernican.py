@@ -803,8 +803,10 @@ def main_workflow():
         ]:
             ds_id = df.attrs.get("dataset_id")
             data_dir = registry.get(ds_id, {}).get("data_dir")
+            # ``file_hashes`` enables manifest reproducibility.
+            hashes = df.attrs.get("file_hashes", {})
             if ds_id and data_dir:
-                dataset_info.append((ds_id, data_dir))
+                dataset_info.append((ds_id, data_dir, hashes))
 
         manifest = run_manifest.build_manifest(
             models=[

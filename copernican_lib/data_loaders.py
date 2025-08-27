@@ -17,7 +17,7 @@ import logging
 import os
 
 from . import console_output as console
-from .utils import check_dataset_id, load_metadata_from_dir
+from .utils import check_dataset_id, compute_sha256, load_metadata_from_dir
 
 # Each parser is registered via a decorator so that ``copernican.py`` can list
 # available data sources dynamically. The loaders below simply call the
@@ -385,6 +385,27 @@ def _log_dataset_info(df, data_type, logger):
             )
 
 
+def _attach_file_hashes(df, data_dir, logger):
+    """Compute SHA256 hashes for files in ``data_dir`` and log them.
+
+    The resulting mapping is stored on ``df.attrs['file_hashes']`` so later
+    stages such as the run manifest can embed the exact input digests.  Each
+    hash is logged for audit purposes to aid reproducibility.
+    """
+
+    file_hashes = {}
+    for root, _, files in os.walk(data_dir):
+        for fname in sorted(files):
+            if fname.endswith(".py"):
+                continue
+            path = os.path.join(root, fname)
+            rel = os.path.relpath(path, data_dir)
+            file_hashes[rel] = compute_sha256(path)
+    df.attrs["file_hashes"] = file_hashes
+    for rel, digest in file_hashes.items():
+        logger.info("SHA256 %s: %s", rel, digest)
+
+
 # --- Main Loading Functions ---
 def load_sne_data(dataset_id=None, **kwargs):
     """Load SNe data for the chosen ``dataset_id``."""
@@ -419,6 +440,7 @@ def load_sne_data(dataset_id=None, **kwargs):
             logger.info(
                 f"Successfully loaded {len(data_df)} SNe data points.",
             )
+            _attach_file_hashes(data_df, data_dir, logger)
             _log_dataset_info(data_df, "SNe", logger)
         elif data_df is None:
             logger.error(
@@ -470,6 +492,7 @@ def load_bao_data(dataset_id=None, **kwargs):
             logger.info(
                 f"Successfully loaded {len(data_df)} BAO data points.",
             )
+            _attach_file_hashes(data_df, data_dir, logger)
             _log_dataset_info(data_df, "BAO", logger)
         elif data_df is None:
             logger.error(
@@ -521,6 +544,7 @@ def load_cmb_data(dataset_id=None, **kwargs):
             logger.info(
                 f"Successfully loaded {len(data_df)} CMB data points.",
             )
+            _attach_file_hashes(data_df, data_dir, logger)
             _log_dataset_info(data_df, "CMB", logger)
         elif data_df is None:
             logger.error(
@@ -573,6 +597,7 @@ def load_gw_data(dataset_id=None, **kwargs):
             logger.info(
                 f"Successfully loaded {len(data_df)} GW data points.",
             )
+            _attach_file_hashes(data_df, data_dir, logger)
             _log_dataset_info(data_df, "GW", logger)
         elif data_df is None:
             logger.error(
@@ -628,7 +653,8 @@ def load_siren_data(dataset_id=None, **kwargs):
                 f"{len(data_df)} standard siren data points."
             )
             logger.info(msg)
-            _log_dataset_info(data_df, "SIREN", logger)
+            _attach_file_hashes(data_df, data_dir, logger)
+            _log_dataset_info(data_df, "Standard siren", logger)
         elif data_df is None:
             logger.error(
                 f"Standard siren parser '{dataset_id}' returned None.",

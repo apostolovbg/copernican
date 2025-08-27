@@ -22,10 +22,11 @@ def test_manifest_contains_required_fields():
         with open(data_path, "w", encoding="utf-8") as fh:
             fh.write("hello world\n")
         engine = SimpleNamespace(__name__="engine", ENGINE_VERSION="0.0")
+        file_hashes = {"data.txt": utils.compute_sha256(data_path)}
         manifest = run_manifest.build_manifest(
             models=[(_dummy_plugin(), "1.0")],
             engine_module=engine,
-            datasets=[("ds", tmpdir)],
+            datasets=[("ds", tmpdir, file_hashes)],
             seed=123,
         )
         path = run_manifest.save_manifest(manifest, tmpdir)
@@ -36,6 +37,6 @@ def test_manifest_contains_required_fields():
         assert "ds" in loaded["datasets"]
         hashes = loaded["datasets"]["ds"]["hashes"]
         assert "data.txt" in hashes
-        assert hashes["data.txt"] == utils.compute_sha256(data_path)
+        assert hashes["data.txt"] == file_hashes["data.txt"]
         assert len(loaded["git"]["commit"]) == 40
         assert "dirty" in loaded["git"]
