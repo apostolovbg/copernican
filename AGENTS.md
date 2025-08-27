@@ -18,7 +18,8 @@ being prepared. Users interact with `copernican.py`, choose a model from
 `./models/`, pick a computational engine from `./engines/` and choose data
 sources. Parsers reside alongside their data but are imported only when their
 SHA256 digest matches a vetted list to block untrusted files. Results are saved
-under `./output/`. Each plot carries a centered footer with three lines: the
+under `./output/`, each run in a dedicated `copernican-run_YYYYMMDD_HHMMSS`
+subdirectory. Each plot carries a centered footer with three lines: the
 model comparison, dataset details and the citation. The first and third
 lines are bold, while the dataset name on the second line is bolded
 using Matplotlib's standard text rendering. Dataset names retain their
@@ -72,7 +73,7 @@ data/             - Observation files under ``data/<type>/<source>/``. Each
                     exclusively by
                     `copernican_lib/data_loaders.py` after each parser runs.
   cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance
-output/           - Generated plots and CSV tables (created automatically)
+output/           - Per-run folders with plots, tables and NetCDF chains
 AGENTS.md         - Development specification and contributor rules
 CHANGELOG.md      - Release history
 copernican_lib/optim_utils.py - Shared optimisation helpers used by engines

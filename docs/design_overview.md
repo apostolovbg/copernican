@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-08-17
+**Last Updated:** 2025-08-27
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all
@@ -18,6 +18,11 @@ focused on numerical work.
 All observational data and accompanying metadata are stored exclusively
 as YAML files.  Legacy JSON support was removed in version 3.0.0 so that
 all parsers operate on a single consistent format.
+
+Each evaluation now writes its outputs to a dedicated
+`output/copernican-run_YYYYMMDD_HHMMSS` directory.  Besides plots and CSV
+tables these folders may contain NetCDF chains produced by
+`copernican_lib.chain_io` when the MCMC engine is used.
 
 `copernican.py` is the command-line entry point that orchestrates model
 selection, data loading, optimisation and result generation.  The new

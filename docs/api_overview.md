@@ -29,6 +29,8 @@ modules are:
   responses in the run log.
 - `logger.setup_logging(log_dir)` – initialise logging and patch
   `print`/`input` so all interactions are captured.
+- `chain_io.save_posterior(chain, param_names, path, metadata)` – store
+  posterior samples in NetCDF format using ArviZ.
 - `csv_writer.save_sne_results_detailed_csv`,
   `save_bao_results_csv` and `save_cmb_results_csv` – persist fitting
   results with filenames that encode the dataset, model and timestamp.
@@ -44,6 +46,9 @@ modules are:
     optimisation time. Engines are regular Python modules that operate
     purely on data frames and plugin callables so alternative backends can
     be developed without modifying the rest of the codebase.
+  - `engines.cosmo_engine_mcmc` – lightweight `emcee` sampler for SNe
+    posteriors. Chi-squared helpers are re-exported so downstream code can
+    reuse the same calculations as the combined engine.
 
 Plugins are validated through ``engine_interface.validate_plugin`` before
 use. Chi-squared helpers assume this step has already succeeded, so

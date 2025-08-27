@@ -6,8 +6,9 @@
 # Importing this package exposes the combined-fit engine as
 # ``engines.cosmo_engine_comb``.
 
-from . import cosmo_engine_comb
+from . import cosmo_engine_comb, cosmo_engine_mcmc
 
 __all__ = [
     "cosmo_engine_comb",
+    "cosmo_engine_mcmc",
 ]
