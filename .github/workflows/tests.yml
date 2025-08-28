@@ -25,25 +25,33 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .venv
-          key: venv-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+          key: >-
+            venv-${{ runner.os }}-${{ hashFiles('pyproject.toml',
+            'requirements.lock') }}
 
       - name: Set up virtual environment
         if: steps.cache-venv.outputs.cache-hit != 'true'
         run: python -m venv .venv
 
       - name: Install dependencies
-        if: runner.os != 'Windows' && steps.cache-venv.outputs.cache-hit != 'true'
+        if: >-
+          runner.os != 'Windows' &&
+          steps.cache-venv.outputs.cache-hit != 'true'
         shell: bash
         run: |
           .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install . pre-commit
+          .venv/bin/pip install --require-hashes -r requirements.lock
+          .venv/bin/pip install --no-deps . pre-commit
 
       - name: Install dependencies (Windows)
-        if: runner.os == 'Windows' && steps.cache-venv.outputs.cache-hit != 'true'
+        if: >-
+          runner.os == 'Windows' &&
+          steps.cache-venv.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           .\.venv\Scripts\pip install --upgrade pip
-          .\.venv\Scripts\pip install . pre-commit
+          .\.venv\Scripts\pip install --require-hashes -r requirements.lock
+          .\.venv\Scripts\pip install --no-deps . pre-commit
 
       - name: Run pre-commit
         if: runner.os != 'Windows'

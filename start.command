@@ -77,15 +77,8 @@ fi
 # avoid stale build artifacts.
 source .venv/bin/activate
 python -m pip install --upgrade pip
-# Install pinned dependencies with ArviZ handled separately to bypass its
-# NumPy requirement.
-REQ_TMP="$(mktemp)"
-grep -v '^arviz==' requirements.lock > "$REQ_TMP"
-python -m pip install --require-hashes -r "$REQ_TMP"
-python -m pip install --no-deps \
-    arviz==0.16.1 \
-    --hash=sha256:872d1d685719f81a31f94c25278cbaef314df7f6cad0671935f26a006182b8d4
-rm "$REQ_TMP"
+# Install pinned dependencies with hash verification.
+python -m pip install --require-hashes -r requirements.lock
 # Remove any 'build/' directory before and after installing the project
 # to avoid stale build artifacts.
 rm -rf build

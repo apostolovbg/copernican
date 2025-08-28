@@ -70,12 +70,7 @@ if not exist .venv\Scripts\activate.bat (
 call .venv\Scripts\activate.bat
 set PYTHON=python
 %PYTHON% -m pip install --upgrade pip
-set "REQ_NO_ARVIZ=%TEMP%\copernican_req.txt"
-findstr /v "^arviz==" requirements.lock > "%REQ_NO_ARVIZ%"
-%PYTHON% -m pip install --require-hashes -r "%REQ_NO_ARVIZ%"
-del "%REQ_NO_ARVIZ%"
-%PYTHON% -m pip install --no-deps arviz==0.16.1 ^
-    --hash=sha256:872d1d685719f81a31f94c25278cbaef314df7f6cad0671935f26a006182b8d4
+%PYTHON% -m pip install --require-hashes -r requirements.lock
 if exist build rmdir /s /q build
 %PYTHON% -m pip install --no-deps .
 if exist build rmdir /s /q build
