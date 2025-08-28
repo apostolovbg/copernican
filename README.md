@@ -133,11 +133,13 @@ python3.11-venv` on Debian, `brew install python@3.11` on macOS or
 They also verify that `.venv/bin/activate` exists and hint to install
 `python3.11-venv` when it does not. Inside the virtual environment this
 project relies on `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`,
-`jsonschema`, `camb==1.6.2`, `emcee`, `xarray` and `arviz`.
+`jsonschema`, `camb==1.6.2`, `emcee`, `xarray` and `arviz` from a pinned
+upstream commit.
 The launchers refuse to run when another virtual environment is active and
 reinstall pinned dependencies on every start so the suite always uses its
-managed `.venv`. ArviZ is installed separately to bypass its outdated NumPy
-constraint; the script handles this automatically.
+managed `.venv`. ArviZ is fetched from commit
+`01c8b9454349247eed2145a27b03f9231acb412f` to avoid the
+package's former `numpy<2` constraint without maintaining a fork.
 
 Versions and SHA256 hashes for all runtime dependencies are pinned in
 `requirements.lock`. When a package is missing the program asks before

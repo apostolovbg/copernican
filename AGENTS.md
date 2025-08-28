@@ -127,6 +127,9 @@ non-interactive environments. Running outside ``.venv`` prompts the user to
 restart via the appropriate launcher. This lightweight approach works across
 Windows, macOS and Linux while allowing new engines to introduce additional
 dependencies without manual updates to the documentation.
+ArviZ is installed from commit
+`01c8b9454349247eed2145a27b03f9231acb412f` of the upstream repository to
+avoid its former `numpy<2` restriction without maintaining a fork.
 
 `requirements.lock` pins exact versions and SHA256 hashes for all runtime
 packages, and `[project].dependencies` in `pyproject.toml` mirrors these pins.

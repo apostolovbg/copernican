@@ -24,7 +24,7 @@ dependencies = [
     "setuptools_scm==9.2.0",
     "emcee==3.1.5",
     "xarray==2025.8.0",
-    "arviz==0.16.1",
+    "arviz @ git+https://github.com/arviz-devs/arviz.git@01c8b9454349247eed2145a27b03f9231acb412f",
 ]
 
 [project.scripts]
