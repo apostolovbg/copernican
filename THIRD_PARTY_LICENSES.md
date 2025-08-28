@@ -20,6 +20,7 @@ users can review the full terms offline.
 | setuptools_scm | 9.2.0 | [MIT](licenses/MIT.txt) |
 | emcee | 3.1.5 | [MIT](licenses/MIT.txt) |
 | xarray | 2025.8.0 | [Apache-2.0](licenses/Apache-2.0.txt) |
+| packaging | 25.0 | [Apache-2.0](licenses/Apache-2.0.txt) |
 | arviz | git 01c8b9454349 | [Apache-2.0](licenses/Apache-2.0.txt) |
 
 ### Notes on camb (LGPL-3.0-or-later)
