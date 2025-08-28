@@ -1,5 +1,5 @@
 # Packaging Guide
-**Last Updated:** 2025-08-26
+**Last Updated:** 2025-08-28
 
 This document explains how to prepare the suite for development or packaging.
 
@@ -7,7 +7,8 @@ This document explains how to prepare the suite for development or packaging.
 
 The `start.*` launchers verify Python 3.11+ before bootstrapping the suite.
 If the interpreter is missing or outdated they display one of the following
-commands and exit:
+commands and exit. They also refuse to run when another virtual environment is
+active so the repository's `.venv` is always used:
 
 - **Debian/Ubuntu**: `sudo apt install python3.11 python3.11-venv`
 - **macOS**: `brew install python@3.11`
@@ -17,7 +18,8 @@ Run the command for your platform, then re-run the launcher.
 
 ## Bootstrap the virtual environment
 
-Run the launcher in the project root:
+Run the launcher in the project root. It recreates or upgrades `.venv` on every
+start and ignores globally installed packages:
 
 - `start.bat` on Windows
 - `start.command` on macOS
@@ -25,8 +27,8 @@ Run the launcher in the project root:
 
 The script verifies Python 3.11+, then creates or reuses `.venv`, upgrades
 `pip`, installs packages from `requirements.lock` with hash verification and
-installs the project itself with `pip install --no-deps .`. It ignores an
-unset `VIRTUAL_ENV` to avoid shell errors on first launch. Re-run it after
+installs the project itself with `pip install --no-deps .`. ArviZ is installed
+separately to work around its stale NumPy requirement. Re-run the launcher after
 pulling updates to refresh the environment.
 
 `requirements.lock` pins exact versions and SHA256 hashes for all runtime

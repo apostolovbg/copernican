@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-08-27
+**Last Updated:** 2025-08-28
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -22,6 +22,11 @@ put dates that are in the future or in the past! Follow this template:
 ## Version 3.12.0
 - 2025-08-27: Added ``--seed`` CLI option, seeded Python and engine RNGs and
                logged the value in manifest and logs (OpenAI ChatGPT)
+
+## Version 3.12.1
+- 2025-08-28: Enforced use of repository virtual environment, added laws on
+  testing and dependency licensing, and worked around ArviZ's NumPy pin in
+  start scripts (OpenAI ChatGPT)
 
 ## Version 3.11.2
 - 2025-08-27: Logged SHA256 digests for dataset files and propagated them

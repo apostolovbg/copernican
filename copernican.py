@@ -55,6 +55,20 @@ if sys.version_info < MIN_PYTHON:
     )
     exit_clean(1)
 
+# Require execution from the repository's virtual environment so that global
+# site-packages are ignored.
+EXPECTED_VENV = (Path(__file__).resolve().parent / ".venv").resolve()
+current_venv = os.environ.get("VIRTUAL_ENV")
+if current_venv is None or Path(current_venv).resolve() != EXPECTED_VENV:
+    console.write(
+        (
+            "ERROR: Run Copernican Suite via start.sh, start.command or "
+            "start.bat inside its managed .venv."
+        ),
+        error=True,
+    )
+    exit_clean(1)
+
 # Enable low-level stack tracing so crashes reveal their origin.
 faulthandler.enable()
 
