@@ -22,6 +22,7 @@ put dates that are in the future or in the past! Follow this template:
 ## Version 3.13.3
 - 2025-08-28: Added cross-platform wheel hashes and fixed Windows pip upgrade
               in CI (OpenAI ChatGPT)
+
 ## Version 3.13.2
 - 2025-08-28: Replaced ArviZ VCS dependency with pinned commit archive
               (OpenAI ChatGPT)
@@ -111,6 +112,9 @@ put dates that are in the future or in the past! Follow this template:
 ## Version 3.9.20
 - 2025-08-25: start.sh installs project with --no-deps to avoid implicit
               dependency resolution (OpenAI ChatGPT)
+
+## Version 3.9.20
+- 2025-08-28: Added cross-platform wheel hashes for NumPy and SciPy in requirements.lock (AI assistant)
 
 ## Version 3.9.19
 - 2025-08-24: start.command exits on unset variables for stricter error
