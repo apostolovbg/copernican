@@ -49,7 +49,7 @@ jobs:
           steps.cache-venv.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          .\.venv\Scripts\pip install --upgrade pip
+          .\.venv\Scripts\python -m pip install --upgrade pip
           .\.venv\Scripts\pip install --require-hashes -r requirements.lock
           .\.venv\Scripts\pip install --no-deps . pre-commit
 

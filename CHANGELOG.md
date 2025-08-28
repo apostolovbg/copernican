@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 3.13.3
+- 2025-08-28: Replaced direct pip call with python -m pip in Windows workflow
+              (OpenAI ChatGPT)
+
 ## Version 3.13.2
 - 2025-08-28: Replaced ArviZ VCS dependency with pinned commit archive
               (OpenAI ChatGPT)
