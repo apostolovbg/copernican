@@ -19,6 +19,7 @@ users can review the full terms offline.
 | psutil | 7.0.0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | setuptools_scm | 9.2.0 | [MIT](licenses/MIT.txt) |
 | emcee | 3.1.5 | [MIT](licenses/MIT.txt) |
+| h5netcdf | 1.6.4 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | xarray | 2025.8.0 | [Apache-2.0](licenses/Apache-2.0.txt) |
 | packaging | 25.0 | [Apache-2.0](licenses/Apache-2.0.txt) |
 | typing_extensions | 4.15.0 | [MIT](licenses/MIT.txt) |
