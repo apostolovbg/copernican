@@ -1,3 +1,4 @@
+# Last Updated: 2025-08-28
 [build-system]
 requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]"]
 build-backend = "setuptools.build_meta"
@@ -24,7 +25,7 @@ dependencies = [
     "setuptools_scm==9.2.0",
     "emcee==3.1.5",
     "xarray==2025.8.0",
-    "arviz @ git+https://github.com/arviz-devs/arviz.git@01c8b9454349247eed2145a27b03f9231acb412f",
+    "arviz @ https://github.com/arviz-devs/arviz/archive/01c8b9454349247eed2145a27b03f9231acb412f.tar.gz#sha256=90422f7370cf47a38342e96ecad5b627a26ad4da7cfb6222a6d6c46cfb273177",
 ]
 
 [project.scripts]
