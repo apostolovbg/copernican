@@ -33,6 +33,7 @@ import signal
 
 from copernican_lib import console_output as console
 from copernican_lib import run_manifest
+from copernican_lib import result_writer
 from copernican_lib.version import get_version
 
 # Verify interpreter version early so users see clear feedback
@@ -864,6 +865,17 @@ def main_workflow():
                 )
             )
             alt_time += time.perf_counter() - t0
+
+        # Persist parameter estimates so external tools can inspect the
+        # numerical results without parsing logs.  The summary includes fitted
+        # values, 1σ errors and the covariance matrix for each model.
+        result_writer.save_summary(
+            {
+                lcdm.MODEL_NAME: lcdm_sne_fit_results,
+                alt_model_plugin.MODEL_NAME: alt_model_sne_fit_results,
+            },
+            OUTPUT_DIR,
+        )
 
         logger.info("\n--- Stage 3: BAO Analysis ---\n")
 

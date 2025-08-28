@@ -1,6 +1,6 @@
 # Copernican Suite API Overview
 
-**Last Updated:** 2025-08-27
+**Last Updated:** 2025-08-28
 
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be
@@ -34,6 +34,9 @@ modules are:
 - `csv_writer.save_sne_results_detailed_csv`,
   `save_bao_results_csv` and `save_cmb_results_csv` – persist fitting
   results with filenames that encode the dataset, model and timestamp.
+- `result_writer.save_summary(results, output_dir)` – serialize fitted
+  parameters, 1σ errors and covariance matrices to JSON and YAML for later
+  analysis.
   - `engines.cosmo_engine_comb` – reference engine providing high level
     optimisation routines such as ``fit_sne_parameters``,
     ``fit_combined_parameters``, ``calculate_bao_observables`` and generic
@@ -99,3 +102,18 @@ result = engine.fit_sne_parameters(sne, plugin)
 Because the API is intentionally thin, advanced users can orchestrate custom
 pipelines or integrate the suite into larger optimisation frameworks without
 relying on the command-line wrapper.
+
+## Parameter Summary Format
+
+The :mod:`result_writer` helper stores parameter estimates after optimisation
+or sampling.  Files named ``parameter-summary_<timestamp>.json`` and ``.yml``
+are created in the current run directory.  Each model entry contains
+``parameters``, ``errors_1sigma`` and ``covariance_matrix`` with ``param_names``
+and a numeric matrix.  The data is fully serialisable so external analysis
+tools can parse it without importing NumPy or pandas.
+
+Example::
+
+    from copernican_lib import result_writer
+    summary = {"LCDM": engine_results}
+    result_writer.save_summary(summary, "output/run")

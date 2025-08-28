@@ -19,6 +19,11 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 3.13.0
+- 2025-08-28: Added result writer for parameter summaries and exposed
+              covariance matrices from optimisation and MCMC engines
+              (OpenAI ChatGPT)
+
 ## Version 3.12.0
 - 2025-08-27: Added ``--seed`` CLI option, seeded Python and engine RNGs and
                logged the value in manifest and logs (OpenAI ChatGPT)

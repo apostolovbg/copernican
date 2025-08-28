@@ -738,6 +738,20 @@ def fit_combined_parameters(
         if result and hasattr(result, "message") and result.message:
             message += f" (Optimizer msg: {result.message})"
         success_flag = np.isfinite(chi2_tot)
+
+    covariance = None
+    errors_dict = None
+    if result and hasattr(result, "hess_inv"):
+        try:
+            hess = result.hess_inv
+            if hasattr(hess, "todense"):
+                hess = hess.todense()
+            covariance = np.asarray(hess, dtype=float)
+            errs = np.sqrt(np.diag(covariance))
+            errors_dict = {n: e for n, e in zip(param_names, errs)}
+        except Exception:
+            covariance = None
+            errors_dict = None
     chi2_sne = np.nan
     if sne_data_df is not None and getattr(
         model_plugin,
@@ -836,6 +850,9 @@ def fit_combined_parameters(
         "reduced_chi2": reduced,
         "message": message,
         "n_evals_wrapper": eval_total,
+        "parameter_errors": errors_dict,
+        "covariance_matrix": covariance,
+        "param_names": param_names,
     }
 
 
