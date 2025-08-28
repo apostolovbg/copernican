@@ -114,12 +114,21 @@ def fit_sne_parameters(
     mean_params = np.mean(chain[start:], axis=(0, 1))
     fitted = {n: v for n, v in zip(names, mean_params)}
 
+    # Flatten the tail of the chain so a standard covariance calculation can be
+    # performed.  The diagonal of this covariance yields 1σ parameter errors.
+    flat_chain = chain[start:].reshape(-1, ndim)
+    covariance = np.cov(flat_chain, rowvar=False)
+    errors = np.sqrt(np.diag(covariance))
+    error_dict = {n: e for n, e in zip(names, errors)}
+
     return {
         "success": True,
         "samples": chain,
         "fitted_cosmological_params": fitted,
         "model_name": getattr(model_plugin, "MODEL_NAME", "Unknown"),
         "param_names": list(names),
+        "parameter_errors": error_dict,
+        "covariance_matrix": covariance,
     }
 
 
