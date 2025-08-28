@@ -19,6 +19,13 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 3.13.3
+- 2025-08-28: Added cross-platform wheel hashes and fixed Windows pip upgrade
+              in CI (OpenAI ChatGPT)
+## Version 3.13.2
+- 2025-08-28: Replaced ArviZ VCS dependency with pinned commit archive
+              (OpenAI ChatGPT)
+
 ## Version 3.13.1
 - 2025-08-28: Pinned ArviZ to upstream commit and simplified dependency
               installation across launchers and CI (OpenAI ChatGPT)
