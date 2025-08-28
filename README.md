@@ -1,5 +1,5 @@
-**Version:** 3.12.0
-**Last Updated:** 2025-08-27
+**Version:** 3.12.1
+**Last Updated:** 2025-08-28
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -134,6 +134,10 @@ They also verify that `.venv/bin/activate` exists and hint to install
 `python3.11-venv` when it does not. Inside the virtual environment this
 project relies on `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`,
 `jsonschema`, `camb==1.6.2`, `emcee`, `xarray` and `arviz`.
+The launchers refuse to run when another virtual environment is active and
+reinstall pinned dependencies on every start so the suite always uses its
+managed `.venv`. ArviZ is installed separately to bypass its outdated NumPy
+constraint; the script handles this automatically.
 
 Versions and SHA256 hashes for all runtime dependencies are pinned in
 `requirements.lock`. When a package is missing the program asks before
@@ -141,8 +145,9 @@ running `pip install --require-hashes -r requirements.lock` and verifies
 each import. Use `--yes` to skip the prompt in automated environments.
 The same versions appear under `[project].dependencies` in `pyproject.toml`.
 Regenerate both files together whenever dependencies change.
-Running outside `.venv` instructs you to launch via `start.*`. Future
-engines may also depend on `numba` or GPU libraries.
+Running `copernican.py` directly now fails with a message directing you to
+use the `start.*` helpers. Future engines may also depend on `numba` or GPU
+libraries.
 
 ## Building & Installation
 Windows users should open `start.bat`, macOS users should run
@@ -598,6 +603,16 @@ accurately** convey their purpose without unnecessary length.
 > 18. **Follow current compliance and security requirements for all work.** The
 > suite processes user-provided files, so every change must meet the latest
 > security guidelines and account for their effect on the `start.*` scripts.
+> 19. **Add tests alongside new functionality or behaviour changes.** Each
+> feature or fix must include unit tests demonstrating the intended
+> behaviour.
+> 20. **Audit licenses for new dependencies.** Ensure added packages are
+> license-compatible and update `THIRD_PARTY_LICENSES.md` and the
+> `licenses/` directory accordingly.
+> 21. **Run the suite exclusively through the managed virtual environment.**
+> Always launch via `start.sh`, `start.command` or `start.bat` so the
+> repository's `.venv` is created or updated automatically; other Python
+> environments must be ignored.
 >
 > Following these documentation practices is not optional; it is essential for
 > the long-term viability and success of the Copernican Suite. Failure to

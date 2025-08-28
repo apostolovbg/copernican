@@ -1,6 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-08-26
+@REM Last Updated: 2025-08-28
 
 @echo off
 REM Start the Copernican Suite on Windows.
@@ -10,9 +10,16 @@ REM re-executes itself inside that environment so later runs reuse it.
 
 setlocal
 cd %~dp0
+set "EXPECTED_VENV=%CD%\.venv"
 
-REM Skip setup when already inside the virtual environment.
-if defined VIRTUAL_ENV goto run
+REM Skip setup when already inside the repository virtual environment.
+if defined VIRTUAL_ENV (
+    if /I not "%VIRTUAL_ENV%"=="%EXPECTED_VENV%" (
+        echo Deactivate the active virtual environment before running start.bat.
+        exit /b 1
+    )
+    goto run
+)
 
 REM Locate python.exe or the py launcher.
 where python >NUL 2>NUL
@@ -63,10 +70,12 @@ if not exist .venv\Scripts\activate.bat (
 call .venv\Scripts\activate.bat
 set PYTHON=python
 %PYTHON% -m pip install --upgrade pip
-REM Install pinned dependencies with hash verification.
-%PYTHON% -m pip install --require-hashes -r requirements.lock
-REM Remove any 'build' directory before and after installing the project
-REM to avoid stale build artifacts.
+set "REQ_NO_ARVIZ=%TEMP%\copernican_req.txt"
+findstr /v "^arviz==" requirements.lock > "%REQ_NO_ARVIZ%"
+%PYTHON% -m pip install --require-hashes -r "%REQ_NO_ARVIZ%"
+del "%REQ_NO_ARVIZ%"
+%PYTHON% -m pip install --no-deps arviz==0.16.1 ^
+    --hash=sha256:872d1d685719f81a31f94c25278cbaef314df7f6cad0671935f26a006182b8d4
 if exist build rmdir /s /q build
 %PYTHON% -m pip install --no-deps .
 if exist build rmdir /s /q build

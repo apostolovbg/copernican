@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-08-26
+# Last Updated: 2025-08-28
 
 # Start the Copernican Suite on macOS.
 #
@@ -18,7 +18,13 @@ cd "$(dirname "$0")"
 # Relaunch from inside the virtual environment when already activated.
 # Use parameter expansion to avoid an "unbound variable" error when
 # "VIRTUAL_ENV" is unset and "set -u" is active.
-if [ -n "${VIRTUAL_ENV:-}" ]; then
+# Enforce use of the repository's own virtual environment.
+EXPECTED_VENV="$(pwd)/.venv"
+if [ -n "${VIRTUAL_ENV:-}" ] && [ "$VIRTUAL_ENV" != "$EXPECTED_VENV" ]; then
+    echo "Deactivate the active virtual environment before running start.command." >&2
+    exit 1
+fi
+if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
     exec python copernican.py "$@"
 fi
 
@@ -71,8 +77,15 @@ fi
 # avoid stale build artifacts.
 source .venv/bin/activate
 python -m pip install --upgrade pip
-# Install pinned dependencies to ensure reproducible environments.
-python -m pip install --require-hashes -r requirements.lock
+# Install pinned dependencies with ArviZ handled separately to bypass its
+# NumPy requirement.
+REQ_TMP="$(mktemp)"
+grep -v '^arviz==' requirements.lock > "$REQ_TMP"
+python -m pip install --require-hashes -r "$REQ_TMP"
+python -m pip install --no-deps \
+    arviz==0.16.1 \
+    --hash=sha256:872d1d685719f81a31f94c25278cbaef314df7f6cad0671935f26a006182b8d4
+rm "$REQ_TMP"
 # Remove any 'build/' directory before and after installing the project
 # to avoid stale build artifacts.
 rm -rf build

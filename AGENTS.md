@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-08-27
+**Last Updated:** 2025-08-28
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -261,6 +261,16 @@ these rules:
 18. **Follow current compliance and security requirements for all work.** The
     suite processes user-provided files, so every change must meet the latest
     security guidelines and consider their impact on the `start.*` scripts.
+19. **Add tests alongside new functionality or behaviour changes.** Each
+    feature or fix must include unit tests demonstrating the intended
+    behaviour.
+20. **Audit licenses for new dependencies.** Ensure added packages are
+    license-compatible and update `THIRD_PARTY_LICENSES.md` and the
+    `licenses/` directory accordingly.
+21. **Run the suite exclusively through the managed virtual environment.**
+    Always launch via `start.sh`, `start.command` or `start.bat` so the
+    repository's `.venv` is created or updated automatically; other Python
+    environments must be ignored.
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 
