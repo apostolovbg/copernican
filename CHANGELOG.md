@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-08-28
+**Last Updated:** 2025-08-29
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,10 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 3.13.6
+- 2025-08-29: Allowed `COPERNICAN_VERSION` to override runtime version and
+               documented custom prerelease builds (OpenAI ChatGPT)
 
 ## Version 3.13.5
 - 2025-08-28: Pinned h5netcdf dependency for ArviZ to satisfy

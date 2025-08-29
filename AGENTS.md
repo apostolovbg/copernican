@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-08-28
+**Last Updated:** 2025-08-29
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -285,3 +285,5 @@ tags using `setuptools_scm`. Runtime code should obtain the current version
 via ``copernican_lib.version.get_version`` rather than hard-coded strings.
 Contributors must update the version whenever a pull request introduces a
 change covered by these rules.
+Setting ``COPERNICAN_VERSION`` in the environment overrides the derived
+version so CI builds can embed custom prerelease identifiers.

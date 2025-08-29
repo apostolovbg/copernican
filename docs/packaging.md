@@ -1,5 +1,5 @@
 # Packaging Guide
-**Last Updated:** 2025-08-28
+**Last Updated:** 2025-08-29
 
 This document explains how to prepare the suite for development or packaging.
 
@@ -44,6 +44,17 @@ pip build .
 ```
 
 The command writes source archives and wheels to the `dist/` directory.
+
+### Custom version strings
+
+Set the ``COPERNICAN_VERSION`` environment variable before building to
+override the version derived from Git. This is useful for CI jobs on
+feature branches. For example, a build off ``work`` might use:
+
+```bash
+export COPERNICAN_VERSION="1.2.1-alpha+work.$(git rev-parse --short HEAD)"
+pip build .
+```
 
 ## Verify the build
 

@@ -12,6 +12,7 @@ version-like identifier even in degenerate cases. Centralising this lookup
 avoids scattering hard-coded versions across the codebase.
 """
 
+import os
 from importlib.metadata import PackageNotFoundError, version
 
 try:
@@ -28,14 +29,19 @@ PACKAGE_NAME = "copernican-suite"
 def get_version() -> str:
     """Return the Copernican Suite version string.
 
-    The function first tries :mod:`importlib.metadata` to retrieve the
-    installed distribution version. When the package is not installed, the
-    version is derived from the Git worktree using
-    :func:`setuptools_scm.get_version` if the optional dependency is available.
-    If both lookups fail or ``setuptools_scm`` is missing, the placeholder
-    ``"0+unknown"`` is returned.
+    The function first honours the ``COPERNICAN_VERSION`` environment
+    variable so CI or development builds can supply custom prerelease
+    identifiers. If the variable is unset it queries
+    :mod:`importlib.metadata` for the installed distribution version. When the
+    package is not installed, the version is derived from the Git worktree
+    using :func:`setuptools_scm.get_version` if the optional dependency is
+    available. If both lookups fail or ``setuptools_scm`` is missing, the
+    placeholder ``"0+unknown"`` is returned.
     """
 
+    env_version = os.environ.get("COPERNICAN_VERSION")
+    if env_version:
+        return env_version
     try:
         return version(PACKAGE_NAME)
     except PackageNotFoundError:
