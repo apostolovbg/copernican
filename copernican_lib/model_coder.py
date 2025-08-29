@@ -15,7 +15,7 @@ from pathlib import Path
 import numpy as np
 import sympy as sp
 import yaml
-from scipy.integrate import quad
+from scipy.integrate import cumulative_trapezoid, quad
 from sympy.parsing.sympy_parser import (
     implicit_multiplication_application,
     parse_expr,
@@ -174,13 +174,22 @@ def generate_callables(cache_path):
                     # ``quad`` expects scalar limits; cast to float explicitly.
                     return quad(integrand, 0, float(z_val), limit=100)[0]
 
-                # For arrays, compute the integral element-wise and
-                # preserve shape.
-                z_flat = np.ravel(z_val)
-                results = [
-                    quad(integrand, 0, float(z), limit=100)[0] for z in z_flat
-                ]
-                return np.reshape(results, np.shape(z_val))
+                # ``quad`` in a Python loop becomes prohibitively slow when
+                # evaluating hundreds of redshifts for MCMC proposals.  Instead
+                # integrate all points at once using a cumulative trapezoid
+                # scheme.  A dense grid maintains accuracy while keeping the
+                # evaluation cost manageable.
+                z_arr = np.asarray(z_val, dtype=float)
+                z_flat = np.ravel(z_arr)
+                z_sorted = np.sort(z_flat)
+                n_grid = max(2000, len(z_sorted) * 4)
+                grid = np.linspace(0.0, z_sorted[-1], n_grid)
+                integrand_vals = integrand(grid)
+                cumulative = cumulative_trapezoid(
+                    integrand_vals, grid, initial=0
+                )
+                interp = np.interp(z_flat, grid, cumulative)
+                return np.reshape(interp, np.shape(z_val))
 
             if "get_comoving_distance_Mpc" not in funcs:
                 funcs["get_comoving_distance_Mpc"] = _dm

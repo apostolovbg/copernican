@@ -64,7 +64,10 @@ Under the hood the program follows a clear pipeline:
    combined optimisation across SNe, BAO and CMB, including optional
    SALT2 nuisance parameters when available. The optional
    `cosmo_engine_mcmc.py` backend uses an `emcee` sampler to explore the
-   SNe posterior. Constant values in a model's
+   SNe posterior. Its distance calculations are vectorised for
+   responsiveness and proposals outside parameter bounds receive a large
+   finite penalty instead of an infinite likelihood. Constant values in
+   a model's
    `cmb.param_map` are treated as
    additional fit parameters so CMB spectra can be matched precisely. Data
    parsers are discovered automatically under
