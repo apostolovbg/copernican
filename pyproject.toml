@@ -24,6 +24,8 @@ dependencies = [
     "psutil==7.0.0",
     "setuptools_scm==9.2.0",
     "emcee==3.1.5",
+    "h5netcdf==1.6.4",
+    "h5py==3.14.0",
     "xarray==2025.8.0",
     "xarray-einstats==0.9.1",
     "arviz @ https://github.com/arviz-devs/arviz/archive/01c8b9454349247eed2145a27b03f9231acb412f.tar.gz#sha256=90422f7370cf47a38342e96ecad5b627a26ad4da7cfb6222a6d6c46cfb273177",

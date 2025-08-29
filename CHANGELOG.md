@@ -19,6 +19,9 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 3.13.8
+- 2025-08-29: Pinned h5py dependency for hash-locked installs (OpenAI ChatGPT)
+
 ## Version 3.13.7
 - 2025-08-29: Pinned xarray-einstats dependency to satisfy hash-locked installs (OpenAI ChatGPT)
 

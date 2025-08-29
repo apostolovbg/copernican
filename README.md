@@ -133,8 +133,8 @@ python3.11-venv` on Debian, `brew install python@3.11` on macOS or
 They also verify that `.venv/bin/activate` exists and hint to install
 `python3.11-venv` when it does not. Inside the virtual environment this
 project relies on `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`,
-`jsonschema`, `camb==1.6.2`, `emcee`, `h5netcdf`, `xarray` and `arviz` from
-a pinned commit archive.
+`jsonschema`, `camb==1.6.2`, `emcee`, `h5netcdf`, `h5py`, `xarray` and
+`arviz` from a pinned commit archive.
 The launchers refuse to run when another virtual environment is active and
 reinstall pinned dependencies on every start so the suite always uses its
 managed `.venv`. ArviZ is pulled as a tarball from commit
@@ -142,8 +142,9 @@ managed `.venv`. ArviZ is pulled as a tarball from commit
 `numpy<2` constraint without using a VCS URL.
 
 Versions and SHA256 hashes for all runtime dependencies are pinned in
-`requirements.lock`. This set now includes statistical helpers such as
-`xarray-einstats` to keep ArviZ's linear algebra deterministic. When a
+`requirements.lock`. This set now includes the `h5py` library for HDF5
+support and statistical helpers such as `xarray-einstats` to keep ArviZ's
+linear algebra deterministic. When a
 package is missing the program asks before running `pip install
 --require-hashes -r requirements.lock` and verifies each import. Use
 `--yes` to skip the prompt in automated environments. The same versions
