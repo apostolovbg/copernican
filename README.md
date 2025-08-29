@@ -142,11 +142,13 @@ managed `.venv`. ArviZ is pulled as a tarball from commit
 `numpy<2` constraint without using a VCS URL.
 
 Versions and SHA256 hashes for all runtime dependencies are pinned in
-`requirements.lock`. When a package is missing the program asks before
-running `pip install --require-hashes -r requirements.lock` and verifies
-each import. Use `--yes` to skip the prompt in automated environments.
-The same versions appear under `[project].dependencies` in `pyproject.toml`.
-Regenerate both files together whenever dependencies change.
+`requirements.lock`. This set now includes statistical helpers such as
+`xarray-einstats` to keep ArviZ's linear algebra deterministic. When a
+package is missing the program asks before running `pip install
+--require-hashes -r requirements.lock` and verifies each import. Use
+`--yes` to skip the prompt in automated environments. The same versions
+appear under `[project].dependencies` in `pyproject.toml`. Regenerate both
+files together whenever dependencies change.
 Running `copernican.py` directly now fails with a message directing you to
 use the `start.*` helpers. Future engines may also depend on `numba` or GPU
 libraries.
