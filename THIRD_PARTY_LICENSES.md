@@ -1,5 +1,5 @@
 # Third-Party Licenses
-**Last Updated:** 2025-08-29
+**Last Updated:** 2025-08-30
 
 The Copernican Suite relies on the following runtime dependencies. Their
 versions and license texts are shipped under [`licenses/`](licenses/) so
@@ -26,6 +26,23 @@ users can review the full terms offline.
 | packaging | 25.0 | [Apache-2.0](licenses/Apache-2.0.txt) |
 | typing_extensions | 4.15.0 | [MIT](licenses/MIT.txt) |
 | arviz | git 01c8b9454349 | [Apache-2.0](licenses/Apache-2.0.txt) |
+| contourpy | 1.3.3 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
+| cycler | 0.12.1 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
+| fonttools | 4.55.3 | [MIT](licenses/MIT.txt) |
+| kiwisolver | 1.4.7 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
+| pillow | 10.4.0 | [HPND](licenses/HPND.txt) |
+| pyparsing | 3.1.2 | [MIT](licenses/MIT.txt) |
+| python-dateutil | 2.9.0.post0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
+| six | 1.16.0 | [MIT](licenses/MIT.txt) |
+| pytz | 2025.1 | [MIT](licenses/MIT.txt) |
+| tzdata | 2025.1 | [MIT](licenses/MIT.txt) |
+| mpmath | 1.3.0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
+| attrs | 25.3.0 | [MIT](licenses/MIT.txt) |
+| jsonschema-specifications | 2025.4.1 | [MIT](licenses/MIT.txt) |
+| referencing | 0.36.2 | [MIT](licenses/MIT.txt) |
+| rpds-py | 0.27.0 | [MIT](licenses/MIT.txt) |
+| pyerfa | 2.0.1.5 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
+| astropy-iers-data | 0.2025.8.25.0.36.58 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 
 ### Notes on camb (LGPL-3.0-or-later)
 
