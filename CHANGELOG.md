@@ -21,7 +21,7 @@ put dates that are in the future or in the past! Follow this template:
 
 ## Version 3.13.9
 - 2025-08-30: Pinned typing_extensions and dependency tree for hash-locked installs (OpenAI ChatGPT)
-
+- 
 ## Version 3.13.8
 - 2025-08-29: Pinned h5py dependency for hash-locked installs (OpenAI ChatGPT)
 
