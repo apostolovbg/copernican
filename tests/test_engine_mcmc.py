@@ -4,6 +4,7 @@ import os
 import tempfile
 import unittest
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -54,6 +55,33 @@ class TestMCMCEngine(unittest.TestCase):
             ds = xr.open_dataset(path, group="posterior")
             for name in plugin.PARAMETER_NAMES:
                 self.assertIn(name, ds.data_vars)
+
+    def test_log_probability_penalty(self):
+        plugin = self._build_lcdm_plugin()
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01],
+                "mu_obs": [40.0],
+                "e_mu_obs": [0.1],
+            }
+        )
+        bad = np.array([200.0] + list(plugin.INITIAL_GUESSES[1:]))
+        lp = cosmo_engine_mcmc._log_probability(bad, plugin, sne_df)
+        self.assertTrue(np.isfinite(lp))
+        self.assertLess(lp, -1e100)
+
+    def test_comoving_distance_vectorized(self):
+        plugin = self._build_lcdm_plugin()
+        params = plugin.INITIAL_GUESSES
+        z_vals = np.array([0.1, 0.2, 0.3])
+        arr = plugin.get_comoving_distance_Mpc(z_vals, *params)
+        loop = np.array(
+            [
+                plugin.get_comoving_distance_Mpc(float(z), *params)
+                for z in z_vals
+            ]
+        )
+        np.testing.assert_allclose(arr, loop)
 
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation
