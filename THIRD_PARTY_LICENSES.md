@@ -1,5 +1,5 @@
 # Third-Party Licenses
-**Last Updated:** 2025-08-28
+**Last Updated:** 2025-08-29
 
 The Copernican Suite relies on the following runtime dependencies. Their
 versions and license texts are shipped under [`licenses/`](licenses/) so
@@ -20,7 +20,9 @@ users can review the full terms offline.
 | setuptools_scm | 9.2.0 | [MIT](licenses/MIT.txt) |
 | emcee | 3.1.5 | [MIT](licenses/MIT.txt) |
 | h5netcdf | 1.6.4 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
+| h5py | 3.14.0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | xarray | 2025.8.0 | [Apache-2.0](licenses/Apache-2.0.txt) |
+| xarray-einstats | 0.9.1 | [Apache-2.0](licenses/Apache-2.0.txt) |
 | packaging | 25.0 | [Apache-2.0](licenses/Apache-2.0.txt) |
 | typing_extensions | 4.15.0 | [MIT](licenses/MIT.txt) |
 | arviz | git 01c8b9454349 | [Apache-2.0](licenses/Apache-2.0.txt) |
