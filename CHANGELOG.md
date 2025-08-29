@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-08-29
+**Last Updated:** 2025-08-30
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,15 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 3.13.9
+- 2025-08-30: Pinned typing_extensions and dependency tree for hash-locked installs (OpenAI ChatGPT)
+
+## Version 3.13.8
+- 2025-08-29: Pinned h5py dependency for hash-locked installs (OpenAI ChatGPT)
+
+## Version 3.13.7
+- 2025-08-29: Pinned xarray-einstats dependency to satisfy hash-locked installs (OpenAI ChatGPT)
 
 ## Version 3.13.6
 - 2025-08-29: Allowed `COPERNICAN_VERSION` to override runtime version and
