@@ -1,5 +1,5 @@
-**Version:** 4.1.0
-**Last Updated:** 2025-08-30
+**Version:** 4.2.0
+**Last Updated:** 2025-08-31
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -112,13 +112,15 @@ Under the hood the program follows a clear pipeline:
 2. Follow the interactive prompts to choose a model, preferred data sources
    and
    computation engine.
-3. Execute `python3 copernican.py --run-tests` to run the verbose test
-   suite, or run `python -m unittest discover -v` directly. The test
-   runner reports informational messages, warnings and errors while
-   verifying the reference model and parsers. Add `--strict-warnings`
-   to upgrade warnings to errors for reproducible CI runs.
-4. Provide `--seed <n>` to select a deterministic RNG state. It defaults to
-   `0` and seeds NumPy, Python's ``random`` module and supported engines.
+3. Choose "Run the unit test suite" from the launcher's menu or execute
+   `python -m unittest discover -v` directly. The test runner reports
+   informational messages, warnings and errors while verifying the
+   reference model and parsers. Toggle strict warning mode from the menu
+   or set `COPERNICAN_STRICT_WARNINGS=1` to upgrade warnings to errors for
+   reproducible CI runs.
+4. Set `COPERNICAN_SEED=<n>` before launching to select a deterministic RNG
+   state. It defaults to `0` and seeds NumPy, Python's ``random`` module and
+   supported engines.
 5. Results, including posterior chains, will appear inside a timestamped
    folder under `output/` when the run completes.
 
@@ -146,8 +148,9 @@ deterministic. Matplotlib's helper libraries (`contourpy`, `cycler`,
 `mpmath` are pinned as well so `--require-hashes` installs remain
 reproducible. When a
 package is missing the program asks before running `pip install
---require-hashes -r requirements.lock` and verifies each import. Use
-`--yes` to skip the prompt in automated environments. The same versions
+--require-hashes -r requirements.lock` and verifies each import. Set
+`COPERNICAN_AUTO_INSTALL=1` to skip the prompt in automated environments. The
+same versions
 appear under `[project].dependencies` in `pyproject.toml`. Regenerate both
 files together whenever dependencies change.
 This requirement is codified as law 22 under
@@ -480,15 +483,15 @@ pre-commit install
 pre-commit run --files <changed files>
 ```
 
-Run the tests with either command:
+Run the tests with:
 
 ```bash
 python -m unittest discover -v
-python copernican.py --run-tests  # verbose unittest discovery
 ```
 
-The optional `--strict-warnings` flag treats all warnings as errors during
-any run. Add `--yes` to install missing dependencies without prompting.
+Set `COPERNICAN_STRICT_WARNINGS=1` to treat all warnings as errors during
+any run. Set `COPERNICAN_AUTO_INSTALL=1` to install missing dependencies
+without prompting.
 
 Pull requests trigger a GitHub Actions workflow named ``Tests`` that runs
 pre-commit and the unit suite across Windows, macOS and Debian-based
@@ -520,19 +523,20 @@ not modify them unless explicitly instructed.
 
 1.  **Dependency Check**: `copernican.py` scans for missing packages,
     prompts before installing them with `pip` and verifies the environment.
-    Use `--yes` to skip the prompt in automated CI runs.
-2.  **Optional Tests**: Run `copernican.py --run-tests` to execute the
-    verbose functional test suite and verify that the LCDM model and data
-    parsers work as expected. This flag performs unittest discovery over
-    the `tests` package and streams informational messages, warnings and
-    errors. Combine with `--strict-warnings` to fail on any warning.
+    Set `COPERNICAN_AUTO_INSTALL=1` to skip the prompt in automated runs.
+2.  **Optional Tests**: Choose "Run the unit test suite" from the launcher
+    or run `python -m unittest discover -v` to verify that the LCDM model
+    and data parsers work as expected. This command performs unittest
+    discovery over the `tests` package and streams informational messages,
+    warnings and errors. Combine with `COPERNICAN_STRICT_WARNINGS=1` to fail
+    on any warning.
 3.  **Initialization**: The script starts and creates the `./output/`
     directory
     for all results.
 4.  **Random Seed Setup**: The global NumPy and Python ``random`` RNGs are
     seeded so stochastic algorithms remain reproducible. Supported engines
     such as CAMB are seeded too. The chosen seed is written to the log and
-    run manifest and can be changed with ``--seed``.
+    run manifest and can be changed with ``COPERNICAN_SEED``.
 5.  **Configuration**: The user specifies the file paths for the model and
     data files.
 6.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the

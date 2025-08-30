@@ -1,7 +1,7 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Tests for command-line helpers in ``copernican.py``."""
+"""Tests for user interaction helpers in ``copernican.py``."""
 
 import importlib
 import sys
@@ -14,7 +14,7 @@ import copernican_lib.data_loaders
 
 
 class RunTestsFlagTestCase(unittest.TestCase):
-    """Verify that ``--run-tests`` runs ``python -m unittest`` discovery."""
+    """Verify the test runner invokes ``python -m unittest`` discovery."""
 
     @mock.patch("subprocess.run")
     def test_run_startup_tests_invokes_unittest_discover(self, run_mock):
@@ -30,7 +30,7 @@ class RunTestsFlagTestCase(unittest.TestCase):
 
 
 class SelectSourceDisplayTestCase(unittest.TestCase):
-    """Ensure CLI selection presents names and returns identifiers."""
+    """Ensure selection prompts show names and return identifiers."""
 
     @mock.patch("copernican_lib.data_loaders.console.ask", return_value="1")
     def test_select_source_shows_name(self, ask_mock):
