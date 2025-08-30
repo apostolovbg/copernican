@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-08-31
+# Last Updated: 2025-08-30
 
 # Start the Copernican Suite on Unix-like systems.
 #
@@ -15,6 +15,21 @@ set -eu
 # Resolve absolute path to this script before changing directories.
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$0")"
+
+pkg_notice() {
+    echo 'A package manager may request your password.'
+    echo 'The Copernican Suite never reads or stores it.'
+}
+
+sudo_pkg() {
+    pkg_notice
+    sudo -k -p '[sudo] password for package manager: ' "$@"
+}
+
+brew_pkg() {
+    pkg_notice
+    brew "$@"
+}
 
 # If we are already inside the virtual environment simply launch the suite.
 # Use parameter expansion to avoid an "unbound variable" error when

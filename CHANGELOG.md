@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-08-31
+**Last Updated:** 2025-08-30
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,10 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 4.2.1
+- 2025-08-30: Added package manager password notices in launchers and
+              updated README and LICENSE (OpenAI ChatGPT)
 
 ## Version 4.2.0
 - 2025-08-31: Replaced CLI flags with menu-driven launchers and environment

@@ -1,8 +1,10 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-08-31
+@REM Last Updated: 2025-08-30
 
 @echo off
+set "PKG_NOTICE=Package managers may request your password. The Copernican"
+set "PKG_NOTICE=%PKG_NOTICE% Suite never reads or stores it."
 REM Start the Copernican Suite on Windows.
 REM
 REM The script downloads a private Python 3.12+ into '.python', creates a
@@ -106,4 +108,9 @@ if "%CHOICE%"=="4" (
 )
 if "%CHOICE%"=="5" goto :eof
 goto loop
+
+:winget_safe
+echo %PKG_NOTICE%
+winget %*
+exit /b %ERRORLEVEL%
 

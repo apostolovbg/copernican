@@ -1,5 +1,5 @@
-**Version:** 4.2.0
-**Last Updated:** 2025-08-31
+**Version:** 4.2.1
+**Last Updated:** 2025-08-30
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -108,7 +108,10 @@ Under the hood the program follows a clear pipeline:
    --no-deps .`. It skips errors when `VIRTUAL_ENV` is unset and deletes any
    `build/` directory before and after installation to avoid stale artifacts.
    If the activation script is missing the launcher recreates `.venv` once
-   before exiting with an error.
+   before exiting with an error. Each launcher prints a notice before
+   invoking `sudo`, `brew` or `winget` so users know any password prompt
+   originates from the package manager and is never read or stored. `sudo -k`
+   and explicit prompts keep password handling within the operating system.
 2. Follow the interactive prompts to choose a model, preferred data sources
    and
    computation engine.

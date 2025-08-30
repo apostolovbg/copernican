@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-08-31
+# Last Updated: 2025-08-30
 
 # Start the Copernican Suite on macOS.
 #
@@ -14,6 +14,21 @@
 set -eu
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$0")"
+
+pkg_notice() {
+    echo 'A package manager may request your password.'
+    echo 'The Copernican Suite never reads or stores it.'
+}
+
+sudo_pkg() {
+    pkg_notice
+    sudo -k -p '[sudo] password for package manager: ' "$@"
+}
+
+brew_pkg() {
+    pkg_notice
+    brew "$@"
+}
 
 # Relaunch from inside the virtual environment when already activated.
 # Use parameter expansion to avoid an "unbound variable" error when

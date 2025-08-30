@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-08-31
+**Last Updated:** 2025-08-30
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -126,6 +126,10 @@ prompts the user to
 restart via the appropriate launcher. This lightweight approach works across
 Windows, macOS and Linux while allowing new engines to introduce additional
 dependencies without manual updates to the documentation.
+The launchers print a notice before invoking `sudo`, `brew` or `winget` so
+users know any password prompt originates from the package manager and is
+never read or stored. `sudo -k` and explicit prompts ensure the operating
+system handles all credential entry.
 ArviZ is installed from commit
 `01c8b9454349247eed2145a27b03f9231acb412f` of the upstream repository to
 avoid its former `numpy<2` restriction without maintaining a fork.
