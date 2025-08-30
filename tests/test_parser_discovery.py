@@ -13,6 +13,7 @@ import os
 import sys
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 
 import yaml
@@ -91,7 +92,7 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 base = Path(tmp)
-                outside = base.parent / "outside"
+                outside = base.parent / f"outside_{uuid.uuid4().hex}"
                 outside.mkdir()
                 meta = {"dataset_name": "Link SNe", "dataset_id": "link"}
                 with open(

@@ -8,11 +8,11 @@
 """Copernican Suite - Main Orchestrator.
 
 This script ties together model selection, dataset loading, dependency
-checks and result generation.  It presents a small command line interface
-that guides the user through choosing a cosmological model, parsing
-available observations and invoking the requested computational engine.
-The program also houses the optional test runner and automated package
-installer so that a fresh checkout can execute with minimal setup.
+checks and result generation.  Runtime behaviour is configured through
+environment variables set by the cross-platform ``start`` launchers, so
+no raw command line flags are exposed to end users.  The module also
+houses the optional test runner and automated package installer so that
+a fresh checkout can execute with minimal setup.
 """
 
 
@@ -25,11 +25,11 @@ import platform
 import shutil
 import time
 import datetime
-import argparse
 import subprocess
 from pathlib import Path
 import faulthandler
 import signal
+from dataclasses import dataclass
 
 from copernican_lib import console_output as console
 from copernican_lib import run_manifest
@@ -238,8 +238,8 @@ def _get_cpu_info() -> tuple[str, str]:
 def run_startup_tests():
     """Execute the project's unit tests via ``python -m unittest discover``.
 
-    The main entry point delegates to Python's standard discovery mechanism
-    so that ``copernican.py --run-tests`` behaves identically to invoking
+    The helper delegates to Python's standard discovery mechanism so the
+    start script's *Run tests* option behaves identically to invoking
     ``python -m unittest discover`` from the command line. A ``True`` return
     value indicates that all tests passed.
     """
@@ -254,44 +254,25 @@ def run_startup_tests():
     return result.returncode == 0
 
 
-def parse_args():
-    """Parse command line flags provided by the user.
+@dataclass
+class RuntimeOptions:
+    """Runtime configuration derived from environment variables."""
 
-    Returns
-    -------
-    argparse.Namespace
-        ``run_tests`` executes the functional test suite and exits, while
-        ``strict_warnings`` upgrades all warnings to errors to ensure
-        deterministic CI behaviour.  ``yes`` installs missing dependencies
-        without asking for confirmation, simplifying non-interactive CI runs.
-        ``seed`` sets the global RNG state for reproducible runs.
-    """
+    run_tests: bool = False
+    strict_warnings: bool = False
+    auto_confirm: bool = False
+    seed: int = 0
 
-    parser = argparse.ArgumentParser(description="Copernican Suite")
-    # ``--run-tests`` triggers the functional test suite and then exits.
-    parser.add_argument(
-        "--run-tests",
-        action="store_true",
-        help="execute functional tests and exit",
+
+def get_runtime_options() -> RuntimeOptions:
+    """Return options from ``COPERNICAN_*`` environment variables."""
+
+    return RuntimeOptions(
+        run_tests=os.environ.get("COPERNICAN_RUN_TESTS") == "1",
+        strict_warnings=os.environ.get("COPERNICAN_STRICT_WARNINGS") == "1",
+        auto_confirm=os.environ.get("COPERNICAN_AUTO_INSTALL") == "1",
+        seed=int(os.environ.get("COPERNICAN_SEED", "0")),
     )
-    parser.add_argument(
-        "--strict-warnings",
-        action="store_true",
-        help="treat warnings as errors for reproducible CI runs",
-    )
-    parser.add_argument(
-        "--yes",
-        "-y",
-        action="store_true",
-        help="install missing packages without prompting",
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=0,
-        help="RNG seed for NumPy, Python and engines",
-    )
-    return parser.parse_args()
 
 
 def show_splash_screen():
@@ -631,15 +612,15 @@ def _sanity_check_numpy_scipy(log):
 def main_workflow():
     """Main workflow for the Copernican Suite."""
     # This routine coordinates the entire user interaction:
-    #  * parse command-line flags
+    #  * read environment-controlled runtime options
     #  * verify Python dependencies
     #  * perform a NumPy/SciPy sanity check
     #  * load the reference ΛCDM model
     #  * repeatedly ask the user for models, data sources and engines
     #  * produce plots and CSV files with the results
-    args = parse_args()
-    check_dependencies(auto_confirm=args.yes)
-    if args.run_tests:
+    opts = get_runtime_options()
+    check_dependencies(auto_confirm=opts.auto_confirm)
+    if opts.run_tests:
         success = run_startup_tests()
         exit_clean(0 if success else 1)
 
@@ -698,8 +679,8 @@ def main_workflow():
         )
         CURRENT_LOG_FILE = log_file
         logger = log_mod.get_logger()
-        error_handler.configure_warnings(strict=args.strict_warnings)
-        if args.strict_warnings:
+        error_handler.configure_warnings(strict=opts.strict_warnings)
+        if opts.strict_warnings:
             logger.info(
                 "Strict warnings mode enabled; treating warnings as errors"
             )
@@ -713,7 +694,7 @@ def main_workflow():
             _sanity_check_numpy_scipy(logger)
         except Exception:
             exit_clean(1)
-        seed = args.seed
+        seed = opts.seed
         utils.set_random_seed(seed)
         logger.info("Using RNG seed %s", seed)
         start_ts = time.strftime("%y%m%d_%H%M%S")

@@ -1,5 +1,6 @@
 """Tests for the MCMC engine."""
 
+import importlib.util
 import os
 import tempfile
 import unittest
@@ -8,15 +9,17 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from copernican_lib import (
-    chain_io,
-    engine_interface,
-    model_coder,
-    model_parser,
-)
+if importlib.util.find_spec("arviz") is not None:
+    from copernican_lib import chain_io
+
+    ARVIZ_AVAILABLE = True
+else:
+    ARVIZ_AVAILABLE = False
+from copernican_lib import engine_interface, model_coder, model_parser
 from engines import cosmo_engine_mcmc
 
 
+@unittest.skipUnless(ARVIZ_AVAILABLE, "arviz not installed")
 class TestMCMCEngine(unittest.TestCase):
     """Verify that the MCMC engine produces chains and NetCDF output."""
 

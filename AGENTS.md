@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-08-30
+**Last Updated:** 2025-08-31
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -33,8 +33,9 @@ returned DataFrames. The manifest copies this mapping verbatim. Parsers
 must register under the `dataset_id` stated in their metadata so the
 loaders can locate them directly without discovery.
 
-A `--seed` command line option selects the global RNG seed. The value is
-stored in the run manifest and logged so analyses can be reproduced.
+A ``COPERNICAN_SEED`` environment variable selects the global RNG seed. The
+value is stored in the run manifest and logged so analyses can be
+reproduced.
 
 The program enables Python's ``faulthandler`` at startup and registers
 ``SIGILL``, ``SIGSEGV`` and ``SIGFPE`` handlers. When triggered, they dump
@@ -45,8 +46,9 @@ shown on the console while the log captures full details. Progress messages
 print to ``stdout`` and flush on every update so lengthy optimisations still
 display activity on Linux terminals.
 
-All Python warnings are forwarded to the central logger. Use
-``--strict-warnings`` to elevate warnings to errors during CI runs.
+All Python warnings are forwarded to the central logger. Set
+``COPERNICAN_STRICT_WARNINGS=1`` to elevate warnings to errors during CI
+runs.
 
 Before any heavy computation, a tiny NumPy/SciPy calculation checks that the
 installed binaries match the CPU. If this fails the log explains possible CPU
@@ -61,12 +63,9 @@ ensures the expected functions are present and callable. Chi-squared
 values for SNe, BAO and CMB are evaluated concurrently when multiple
 datasets are supplied, using processes when objects are picklable and
 threads otherwise. Starting with
-version 1.11.4 the test suite no longer runs automatically. Execute
-`copernican.py --run-tests` or run `python -m unittest discover` to verify
-that the reference LCDM model and data parsers operate correctly. The
-`--run-tests` flag delegates to `python -m unittest discover`, gathering all
-tests from the `tests` package and exiting cleanly even when Matplotlib has
-not yet been imported.
+version 1.11.4 the test suite no longer runs automatically. Launchers offer
+a *Run the unit test suite* option which delegates to `python -m unittest
+discover` and exits cleanly even when Matplotlib has not yet been imported.
 
 ## 2. Directory Layout
 ```
@@ -121,8 +120,9 @@ always download a private Python 3.12+ into ``.python`` and build ``.venv``
 from that interpreter, ignoring any system-wide Python. If the download fails
 they exit with guidance. When packages are missing the program asks before
 installing them with `pip install --require-hashes -r requirements.lock` and
-verifies the import before continuing. Use `--yes` to bypass the prompt in
-non-interactive environments. Running outside ``.venv`` prompts the user to
+verifies the import before continuing. Set ``COPERNICAN_AUTO_INSTALL=1`` to
+bypass the prompt in non-interactive environments. Running outside ``.venv``
+prompts the user to
 restart via the appropriate launcher. This lightweight approach works across
 Windows, macOS and Linux while allowing new engines to introduce additional
 dependencies without manual updates to the documentation.

@@ -1,6 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-08-30
+@REM Last Updated: 2025-08-31
 
 @echo off
 REM Start the Copernican Suite on Windows.
@@ -22,7 +22,7 @@ if defined VIRTUAL_ENV (
         echo start.bat.
         exit /b 1
     )
-    goto run
+    goto menu
 )
 
 REM Bootstrap a dedicated interpreter.
@@ -65,6 +65,45 @@ if exist build rmdir /s /q build
 call "%~f0" %*
 goto :eof
 
-:run
-python copernican.py %*
+:menu
+set STRICT=0
+set AUTO=0
+:loop
+echo Copernican Suite
+echo 1^) Launch Copernican Suite
+echo 2^) Run the unit test suite
+if "%STRICT%"=="1" (
+    echo 3^) Disable strict warning mode
+) else (
+    echo 3^) Enable strict warning mode
+)
+if "%AUTO%"=="1" (
+    echo 4^) Disable automatic dependency installation
+) else (
+    echo 4^) Enable automatic dependency installation
+)
+echo 5^) Exit
+set /p CHOICE=Select an option: 
+if "%CHOICE%"=="1" (
+    set COPERNICAN_STRICT_WARNINGS=%STRICT%
+    set COPERNICAN_AUTO_INSTALL=%AUTO%
+    python copernican.py
+    goto :eof
+)
+if "%CHOICE%"=="2" (
+    set COPERNICAN_STRICT_WARNINGS=%STRICT%
+    set COPERNICAN_AUTO_INSTALL=%AUTO%
+    python -m unittest discover -v
+    goto :eof
+)
+if "%CHOICE%"=="3" (
+    if "%STRICT%"=="1" (set STRICT=0) else (set STRICT=1)
+    goto loop
+)
+if "%CHOICE%"=="4" (
+    if "%AUTO%"=="1" (set AUTO=0) else (set AUTO=1)
+    goto loop
+)
+if "%CHOICE%"=="5" goto :eof
+goto loop
 

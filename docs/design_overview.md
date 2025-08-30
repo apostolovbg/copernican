@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-08-30
+**Last Updated:** 2025-08-31
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all
@@ -24,10 +24,11 @@ Each evaluation now writes its outputs to a dedicated
 tables these folders may contain NetCDF chains produced by
 `copernican_lib.chain_io` when the MCMC engine is used.
 
-`copernican.py` is the command-line entry point that orchestrates model
-selection, data loading, optimisation and result generation.  The new
-package name emphasises that these modules are part of the suite's core
-library and not mere scripts.
+`copernican.py` is launched through the `start.*` scripts which present a
+menu-driven interface. Runtime options are controlled via environment
+variables, and the module orchestrates model selection, data loading and
+result generation. The package name emphasises that these modules are part
+of the suite's core library and not mere scripts.
 
 LaTeX translations rely on `copernican_lib/latex_utils.py` which reads symbol
 and function mappings from `latex_mappings.yml`. New commands can be added

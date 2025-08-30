@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-08-30
+# Last Updated: 2025-08-31
 
 # Start the Copernican Suite on macOS.
 #
@@ -26,7 +26,41 @@ if [ -n "${VIRTUAL_ENV:-}" ] && [ "$VIRTUAL_ENV" != "$EXPECTED_VENV" ]; then
     exit 1
 fi
 if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
-    exec python copernican.py "$@"
+    STRICT=0
+    AUTO=0
+    while true; do
+        echo "Copernican Suite"
+        echo "1) Launch Copernican Suite"
+        echo "2) Run the unit test suite"
+        if [ "$STRICT" -eq 1 ]; then
+            echo "3) Disable strict warning mode"
+        else
+            echo "3) Enable strict warning mode"
+        fi
+        if [ "$AUTO" -eq 1 ]; then
+            echo "4) Disable automatic dependency installation"
+        else
+            echo "4) Enable automatic dependency installation"
+        fi
+        echo "5) Exit"
+        read -r -p "Select an option: " choice
+        case "$choice" in
+            1)
+                COPERNICAN_STRICT_WARNINGS=$STRICT \
+                COPERNICAN_AUTO_INSTALL=$AUTO \
+                exec python copernican.py ;;
+            2)
+                COPERNICAN_STRICT_WARNINGS=$STRICT \
+                COPERNICAN_AUTO_INSTALL=$AUTO \
+                exec python -m unittest discover -v ;;
+            3)
+                if [ "$STRICT" -eq 1 ]; then STRICT=0; else STRICT=1; fi ;;
+            4)
+                if [ "$AUTO" -eq 1 ]; then AUTO=0; else AUTO=1; fi ;;
+            5)
+                exit 0 ;;
+        esac
+    done
 fi
 
 # Always bootstrap a dedicated interpreter.
