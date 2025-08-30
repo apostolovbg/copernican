@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-08-31
+**Last Updated:** 2025-08-30
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -134,9 +134,9 @@ avoid its former `numpy<2` restriction without maintaining a fork.
 `requirements.lock` pins exact versions and SHA256 hashes for all runtime
 packages, and `[project].dependencies` in `pyproject.toml` mirrors these pins.
 Any dependency change must regenerate both files and update
-`THIRD_PARTY_LICENSES.md` to keep license records current. To install the
-suite as a package, run `pip install .` at the repository root. Use
-`pip install -e .` if you intend to develop the code. The start scripts
+`THIRD_PARTY_LICENSES.md` to keep license records current (see law 22).
+To install the suite as a package, run `pip install .` at the repository root.
+Use `pip install -e .` if you intend to develop the code. The start scripts
 install pinned dependencies from `requirements.lock` using hash verification
 before running `pip install --no-deps .`. They delete any `build/` directory
 before and after installing the project to prevent stale build artifacts.
@@ -274,6 +274,10 @@ these rules:
     Always launch via `start.sh`, `start.command` or `start.bat` so the
     repository's `.venv` is created or updated automatically; other Python
     environments must be ignored.
+22. **Regenerate hashes and refresh dependencies after any update.**
+    Update `requirements.lock`, sync `[project].dependencies` hashes and
+    revise `THIRD_PARTY_LICENSES.md`; see the "Dependency Installation"
+    section above and law 20 for the license audit workflow.
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 
