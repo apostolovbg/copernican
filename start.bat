@@ -1,68 +1,55 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-08-31
+@REM Last Updated: 2025-08-30
 
 @echo off
 REM Start the Copernican Suite on Windows.
 REM
-REM The script locates a Python interpreter, sets up a virtual environment and
-REM re-executes itself inside that environment so later runs reuse it.
+REM The script downloads a private Python 3.12+ into '.python', creates a
+REM virtual environment from it and re-executes itself inside that
+REM environment. System-wide Python installations are ignored.
 
 setlocal
 cd %~dp0
 set "EXPECTED_VENV=%CD%\.venv"
+set "PYDIR=%CD%\.python"
+set "PYBIN=%PYDIR%\python.exe"
 
 REM Skip setup when already inside the repository virtual environment.
 if defined VIRTUAL_ENV (
     if /I not "%VIRTUAL_ENV%"=="%EXPECTED_VENV%" (
-        echo Deactivate the active virtual environment before running start.bat.
+        echo Deactivate the active virtual environment before running.
+        echo start.bat.
         exit /b 1
     )
     goto run
 )
 
-REM Locate python.exe or the py launcher.
-where python >NUL 2>NUL
-if %ERRORLEVEL%==0 (
-    set "PYTHON=python"
-    set "PYTHON_CMD=python"
-) else (
-    where py >NUL 2>NUL
-    if %ERRORLEVEL%==0 (
-        set "PYTHON=py"
-        set "PYTHON_CMD=py -3.12"
-    ) else (
-        echo Python 3.12 is not installed.
-        echo Install it with "winget install -e --id Python.Python.3.12" ^
-or visit https://www.python.org/downloads/
-        exit /b 1
-    )
+REM Bootstrap a dedicated interpreter.
+if not exist "%PYBIN%" (
+    set "BASE=https://github.com/indygreg/python-build-standalone/releases"
+    set "REL=20240710"
+    set "VER=3.12.4"
+    set "ARCH=amd64"
+    set "URL=%BASE%/download/%REL%/cpython-%VER%+%REL%-%ARCH%-pc-windows-"
+    set "URL=%URL%msvc-shared-install_only.zip"
+    powershell -Command "Invoke-WebRequest -Uri '%URL%' -OutFile 'python.zip'"
+    powershell -Command "Expand-Archive 'python.zip' '%PYDIR%'"
+    del python.zip
 )
+set "PYTHON=%PYBIN%"
 
-REM Verify interpreter version by parsing '--version' output.
-for /f "tokens=2 delims= " %%v in ('%PYTHON_CMD% --version 2^>NUL') do ^
-    set "PYVERSION=%%v"
-if not defined PYVERSION goto needpython
-for /f "tokens=1-2 delims=." %%a in ("%PYVERSION%") do (
-    set "MAJOR=%%a"
-    set "MINOR=%%b"
-)
-if %MAJOR% LSS 3 goto needpython
-    if %MAJOR%==3 if %MINOR% LSS 12 goto needpython
-
+REM Create the virtual environment when missing.
 if not exist .venv (
-    %PYTHON_CMD% -m venv .venv
+    "%PYTHON%" -m venv .venv
 )
 
-REM Ensure the activation script exists. Recreate once before suggesting that
-REM the 'venv' component is missing.
+REM Retry environment creation once to catch rare failures.
 if not exist .venv\Scripts\activate.bat (
     rmdir /s /q .venv
-    %PYTHON_CMD% -m venv .venv
+    "%PYTHON%" -m venv .venv
     if not exist .venv\Scripts\activate.bat (
-        echo Virtual environment support is missing.
-        echo Install the Python 'venv' component and try again.
-        echo On Debian/Ubuntu: sudo apt install python3.12-venv
+        echo Virtual environment creation failed.
         exit /b 1
     )
 )
@@ -80,10 +67,4 @@ goto :eof
 
 :run
 python copernican.py %*
-
-:needpython
-echo Python 3.12 or newer is required.
-echo Install it with "winget install -e --id Python.Python.3.12" ^
-or visit https://www.python.org/downloads/
-exit /b 1
 

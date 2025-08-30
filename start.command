@@ -1,13 +1,13 @@
 #!/bin/bash
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-08-31
+# Last Updated: 2025-08-30
 
 # Start the Copernican Suite on macOS.
 #
-# The script finds a Python 3 interpreter, prepares a virtual environment and
-# re-executes itself inside that environment so later runs reuse the cached
-# installation.
+# The script downloads a private Python 3.12+ interpreter into '.python',
+# creates a local virtual environment and re-executes itself inside that
+# environment. System-wide Python installations are ignored.
 
 # Abort on errors and on references to unset variables to guard against
 # mistyped names.
@@ -21,35 +21,29 @@ cd "$(dirname "$0")"
 # Enforce use of the repository's own virtual environment.
 EXPECTED_VENV="$(pwd)/.venv"
 if [ -n "${VIRTUAL_ENV:-}" ] && [ "$VIRTUAL_ENV" != "$EXPECTED_VENV" ]; then
-    echo "Deactivate the active virtual environment before running start.command." >&2
+    echo "Deactivate the active virtual environment before running" >&2
+    echo "start.command." >&2
     exit 1
 fi
 if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
     exec python copernican.py "$@"
 fi
 
-## Detect a usable Python 3.12+ interpreter.
-if command -v python3 >/dev/null 2>&1; then
-    PYTHON=python3
-else
-    echo "Python 3.12 is not installed." >&2
-    echo "Install it with 'brew install python@3.12'." >&2
-    echo "Get it at https://www.python.org/downloads/." >&2
-    exit 1
+# Always bootstrap a dedicated interpreter.
+PY_DIR="$(pwd)/.python"
+PY_BIN="$PY_DIR/bin/python3"
+if [ ! -x "$PY_BIN" ]; then
+    mkdir -p "$PY_DIR"
+    BASE="https://github.com/indygreg/python-build-standalone/releases"
+    REL="20240710"
+    VER="3.12.4"
+    ARCH="$(uname -m)"
+    PLAT="apple-darwin"
+    URL="$BASE/download/$REL/"
+    URL="${URL}cpython-${VER}+${REL}-${ARCH}-${PLAT}-install_only.tar.gz"
+    curl -L "$URL" | tar -xz -C "$PY_DIR" --strip-components=1
 fi
-
-# Verify interpreter version by parsing '--version' output.
-PY_VERSION="$($PYTHON --version 2>&1 | awk '{print $2}')"
-PY_MAJOR="${PY_VERSION%%.*}"
-PY_MINOR="${PY_VERSION#*.}"
-PY_MINOR="${PY_MINOR%%.*}"
-if [ "$PY_MAJOR" -lt 3 ] || { [ "$PY_MAJOR" -eq 3 ] && \
-    [ "$PY_MINOR" -lt 12 ]; }; then
-    echo "Python 3.12 or newer is required." >&2
-    echo "Install it with 'brew install python@3.12'." >&2
-    echo "Get it at https://www.python.org/downloads/." >&2
-    exit 1
-fi
+PYTHON="$PY_BIN"
 
 # Build the environment when missing.
 if [ ! -d ".venv" ]; then
@@ -64,9 +58,7 @@ if [ ! -f ".venv/bin/activate" ]; then
     rm -rf .venv
     "$PYTHON" -m venv .venv
     if [ ! -f ".venv/bin/activate" ]; then
-        echo "Python 3.12 with working 'venv' support is required." >&2
-        echo "Reinstall it with 'brew install python@3.12'." >&2
-        echo "Get it at https://www.python.org/downloads/." >&2
+        echo "Virtual environment creation failed." >&2
         exit 1
     fi
 fi
