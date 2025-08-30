@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 4.1.0
+- 2025-08-30: Launchers bootstrap a private Python 3.12+ and ignore system
+              interpreters; updated documentation (OpenAI ChatGPT)
+
 ## Version 4.0.0
 - 2025-08-31: Require Python 3.12+, updated launchers and docs, added 3.12 wheel hashes (OpenAI ChatGPT)
 - 2025-08-30: Added dependency update law and synced policies (OpenAI ChatGPT)

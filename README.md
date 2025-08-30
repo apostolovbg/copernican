@@ -1,4 +1,4 @@
-**Version:** 4.0.0
+**Version:** 4.1.0
 **Last Updated:** 2025-08-30
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -102,17 +102,13 @@ Under the hood the program follows a clear pipeline:
 ## Quick Start
 1. Run the platform-specific `start` script. macOS users should run
    `./start.command`, Windows users open `start.bat`, and Linux users can
-   execute `./start.sh`. The launcher verifies Python 3.12+ before
-   creating a `.venv`, upgrading `pip`, installing locked dependencies with
-   hash verification and then installing the project in isolation with
-   `pip install --no-deps .`. It skips errors when `VIRTUAL_ENV` is unset,
-   deletes any `build/` directory before and after installation to avoid
-   stale artifacts. If the interpreter is missing or too old it prints install
-   tips such as `sudo apt install python3.12 python3.12-venv` on Debian,
-   `brew install python@3.12` on macOS or `winget install -e --id
-   Python.Python.3.12` on Windows before exiting. If the activation script
-   is missing the launcher recreates `.venv` once before advising the user
-   to install `python3.12-venv`.
+   execute `./start.sh`. The launcher downloads a private Python 3.12+ into
+   `.python`, creates `.venv`, upgrades `pip`, installs locked dependencies
+   with hash verification and installs the project with `pip install
+   --no-deps .`. It skips errors when `VIRTUAL_ENV` is unset and deletes any
+   `build/` directory before and after installation to avoid stale artifacts.
+   If the activation script is missing the launcher recreates `.venv` once
+   before exiting with an error.
 2. Follow the interactive prompts to choose a model, preferred data sources
    and
    computation engine.
@@ -127,17 +123,13 @@ Under the hood the program follows a clear pipeline:
    folder under `output/` when the run completes.
 
 ## Dependencies
-Only a system-wide Python 3.12+ installation is required. The `start.*`
-launchers check the interpreter version, create `.venv` automatically and
-install dependencies. If Python is missing or outdated they print
-platform-specific commands like `sudo apt install python3.12
-  python3.12-venv` on Debian, `brew install python@3.12` on macOS or
-  `winget install -e --id Python.Python.3.12` on Windows before exiting.
-  They also verify that `.venv/bin/activate` exists and hint to install
-  `python3.12-venv` when it does not. Inside the virtual environment this
-project relies on `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`,
-`jsonschema`, `camb==1.6.2`, `emcee`, `h5netcdf`, `h5py`, `xarray`,
-`typing_extensions` and `arviz` from a pinned commit archive.
+The launchers automatically bootstrap a dedicated Python 3.12+ into
+`.python` and create `.venv` from it, so no pre-existing Python
+installation is needed. They verify that `.venv/bin/activate` exists and
+retry once before aborting. Inside the virtual environment this project
+relies on `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`, `jsonschema`,
+`camb==1.6.2`, `emcee`, `h5netcdf`, `h5py`, `xarray`, `typing_extensions`
+and `arviz` from a pinned commit archive.
 The launchers refuse to run when another virtual environment is active and
 reinstall pinned dependencies on every start so the suite always uses its
 managed `.venv`. ArviZ is pulled as a tarball from commit

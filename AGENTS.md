@@ -117,12 +117,11 @@ runaway evaluation on malicious or overly complex inputs.
 ## 3. Dependency Installation
 `copernican.py` scans all project files for imported modules using Python's
 AST parser to avoid false positives from comments. The `start.*` launchers
-verify Python 3.12 or later before creating ``.venv``. If the interpreter is
-missing or outdated they print platform-specific installation commands and
-exit. Once the requirement is met the scripts run inside the repository's
-``.venv``. If any required package is missing, the program asks before
-installing it by running `pip install --require-hashes -r requirements.lock`
-and verifies the import before continuing. Use `--yes` to bypass the prompt in
+always download a private Python 3.12+ into ``.python`` and build ``.venv``
+from that interpreter, ignoring any system-wide Python. If the download fails
+they exit with guidance. When packages are missing the program asks before
+installing them with `pip install --require-hashes -r requirements.lock` and
+verifies the import before continuing. Use `--yes` to bypass the prompt in
 non-interactive environments. Running outside ``.venv`` prompts the user to
 restart via the appropriate launcher. This lightweight approach works across
 Windows, macOS and Linux while allowing new engines to introduce additional
@@ -139,9 +138,8 @@ To install the suite as a package, run `pip install .` at the repository root.
 Use `pip install -e .` if you intend to develop the code. The start scripts
 install pinned dependencies from `requirements.lock` using hash verification
 before running `pip install --no-deps .`. They delete any `build/` directory
-before and after installing the project to prevent stale build artifacts.
-They recreate `.venv` once when the activation script is missing before
-suggesting installation of `python3.12-venv`.
+before and after installing the project to prevent stale build artifacts and
+recreate `.venv` once when the activation script is missing.
 
 Pull requests run a GitHub Actions workflow named ``Tests`` that executes
 pre-commit checks and the full unit suite on Ubuntu, macOS and Windows.
