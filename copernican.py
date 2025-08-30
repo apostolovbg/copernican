@@ -30,6 +30,7 @@ from pathlib import Path
 import faulthandler
 import signal
 from dataclasses import dataclass
+import random
 
 from copernican_lib import console_output as console
 from copernican_lib import run_manifest
@@ -261,7 +262,6 @@ class RuntimeOptions:
     run_tests: bool = False
     strict_warnings: bool = False
     auto_confirm: bool = False
-    seed: int = 0
 
 
 def get_runtime_options() -> RuntimeOptions:
@@ -271,8 +271,53 @@ def get_runtime_options() -> RuntimeOptions:
         run_tests=os.environ.get("COPERNICAN_RUN_TESTS") == "1",
         strict_warnings=os.environ.get("COPERNICAN_STRICT_WARNINGS") == "1",
         auto_confirm=os.environ.get("COPERNICAN_AUTO_INSTALL") == "1",
-        seed=int(os.environ.get("COPERNICAN_SEED", "0")),
     )
+
+
+def select_seed() -> int:
+    """Prompt the user for an RNG seed.
+
+    The ``COPERNICAN_SEED`` environment variable overrides the interactive
+    prompt so automated runs remain deterministic.  When unset users may
+    accept the default ``0``, enter a manual value or request a random
+    seed.  The selected value is applied via :func:`utils.set_random_seed`
+    and returned for convenience.
+    """
+
+    from copernican_lib import utils as _utils
+
+    env_seed = os.environ.get("COPERNICAN_SEED")
+    if env_seed is not None:
+        seed = int(env_seed)
+        _utils.set_random_seed(seed)
+        return seed
+
+    console.write("Select RNG seed:")
+    console.write("1) Use default seed 0")
+    console.write("2) Enter a seed manually")
+    console.write("3) Generate a random seed")
+    while True:
+        choice = input("Choice [1-3]: ").strip() or "1"
+        if choice == "1":
+            seed = 0
+            break
+        if choice == "2":
+            while True:
+                entry = input("Enter integer seed: ").strip()
+                try:
+                    seed = int(entry)
+                    break
+                except ValueError:
+                    console.write("Seed must be an integer.", error=True)
+            break
+        if choice == "3":
+            seed = random.randint(0, 2**32 - 1)
+            console.write(f"Generated random seed {seed}")
+            break
+        console.write("Please choose 1, 2 or 3.", error=True)
+
+    _utils.set_random_seed(seed)
+    return seed
 
 
 def show_splash_screen():
@@ -694,9 +739,8 @@ def main_workflow():
             _sanity_check_numpy_scipy(logger)
         except Exception:
             exit_clean(1)
-        seed = opts.seed
-        utils.set_random_seed(seed)
-        logger.info("Using RNG seed %s", seed)
+        select_seed()
+        logger.info("Using RNG seed %s", utils.get_random_seed())
         start_ts = time.strftime("%y%m%d_%H%M%S")
         run_start_dt = datetime.datetime.now()
         run_start_pc = time.perf_counter()
@@ -819,7 +863,6 @@ def main_workflow():
             ],
             engine_module=cosmo_engine_selected,
             datasets=dataset_info,
-            seed=seed,
         )
         run_manifest.save_manifest(manifest, OUTPUT_DIR)
 

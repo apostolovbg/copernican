@@ -33,9 +33,10 @@ returned DataFrames. The manifest copies this mapping verbatim. Parsers
 must register under the `dataset_id` stated in their metadata so the
 loaders can locate them directly without discovery.
 
-A ``COPERNICAN_SEED`` environment variable selects the global RNG seed. The
-value is stored in the run manifest and logged so analyses can be
-reproduced.
+A ``COPERNICAN_SEED`` environment variable overrides the interactive seed
+prompt.  When unset, the program asks users to accept the default ``0``, enter
+their own value or generate a random seed.  The final choice is stored in the
+run manifest and logged so analyses can be reproduced.
 
 The program enables Python's ``faulthandler`` at startup and registers
 ``SIGILL``, ``SIGSEGV`` and ``SIGFPE`` handlers. When triggered, they dump
