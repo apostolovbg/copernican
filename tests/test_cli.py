@@ -4,12 +4,18 @@
 """Tests for user interaction helpers in ``copernican.py``."""
 
 import importlib
+import os
 import sys
 import unittest
+from pathlib import Path
 from unittest import mock
 
 with mock.patch("sys.version_info", (3, 12, 0)):
-    copernican = importlib.import_module("copernican")
+    with mock.patch.dict(
+        os.environ,
+        {"VIRTUAL_ENV": str(Path(__file__).resolve().parents[1] / ".venv")},
+    ):
+        copernican = importlib.import_module("copernican")
 import copernican_lib.data_loaders
 
 

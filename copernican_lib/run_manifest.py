@@ -53,7 +53,6 @@ def build_manifest(
     models: Iterable[Tuple[object, str]],
     engine_module: object,
     datasets: Iterable[Tuple[str, str, Dict[str, str]]],
-    seed: int,
 ) -> dict:
     """Collect manifest information for the current run.
 
@@ -70,8 +69,6 @@ def build_manifest(
         Iterable of ``(dataset_id, data_dir, file_hashes)`` tuples.  The
         ``file_hashes`` mapping mirrors the ``file_hashes`` attribute attached
         to the :class:`pandas.DataFrame` produced by the dataset loader.
-    seed:
-        RNG seed applied to the run.
     """
 
     manifest = {
@@ -80,7 +77,7 @@ def build_manifest(
             "name": getattr(engine_module, "__name__", "unknown"),
             "version": getattr(engine_module, "ENGINE_VERSION", "unknown"),
         },
-        "seed": seed,
+        "seed": utils.get_random_seed(),
         "datasets": {},
         "git": _git_info(),
     }

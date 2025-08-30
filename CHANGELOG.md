@@ -19,6 +19,11 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 4.3.0
+- 2025-08-30: Removed ``--seed`` flag in favour of an interactive seed prompt
+              with manual and random options; updated manifest, utilities,
+              tests and documentation (OpenAI ChatGPT)
+
 ## Version 4.2.1
 - 2025-08-30: Added package manager password notices in launchers and
               updated README and LICENSE (OpenAI ChatGPT)

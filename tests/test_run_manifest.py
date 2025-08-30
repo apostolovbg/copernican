@@ -23,11 +23,11 @@ def test_manifest_contains_required_fields():
             fh.write("hello world\n")
         engine = SimpleNamespace(__name__="engine", ENGINE_VERSION="0.0")
         file_hashes = {"data.txt": utils.compute_sha256(data_path)}
+        utils.set_random_seed(123)
         manifest = run_manifest.build_manifest(
             models=[(_dummy_plugin(), "1.0")],
             engine_module=engine,
             datasets=[("ds", tmpdir, file_hashes)],
-            seed=123,
         )
         path = run_manifest.save_manifest(manifest, tmpdir)
         with open(path, "r", encoding="utf-8") as fh:
