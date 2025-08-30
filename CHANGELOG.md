@@ -19,6 +19,8 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 3.13.12
+- 2025-08-30: Added Python 3.12 wheel hashes and pinned setuptools for reproducible installs (OpenAI ChatGPT)
 ## Version 3.13.11
 - 2025-08-30: Added macOS NumPy hash to fix start script installs
               (OpenAI ChatGPT)
