@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-08-29
+**Last Updated:** 2025-08-31
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -117,7 +117,7 @@ runaway evaluation on malicious or overly complex inputs.
 ## 3. Dependency Installation
 `copernican.py` scans all project files for imported modules using Python's
 AST parser to avoid false positives from comments. The `start.*` launchers
-verify Python 3.11 or later before creating ``.venv``. If the interpreter is
+verify Python 3.12 or later before creating ``.venv``. If the interpreter is
 missing or outdated they print platform-specific installation commands and
 exit. Once the requirement is met the scripts run inside the repository's
 ``.venv``. If any required package is missing, the program asks before
@@ -141,7 +141,7 @@ install pinned dependencies from `requirements.lock` using hash verification
 before running `pip install --no-deps .`. They delete any `build/` directory
 before and after installing the project to prevent stale build artifacts.
 They recreate `.venv` once when the activation script is missing before
-suggesting installation of `python3.11-venv`.
+suggesting installation of `python3.12-venv`.
 
 Pull requests run a GitHub Actions workflow named ``Tests`` that executes
 pre-commit checks and the full unit suite on Ubuntu, macOS and Windows.

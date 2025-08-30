@@ -1,18 +1,18 @@
 # Packaging Guide
-**Last Updated:** 2025-08-29
+**Last Updated:** 2025-08-31
 
 This document explains how to prepare the suite for development or packaging.
 
-## Install Python 3.11+
+## Install Python 3.12+
 
-The `start.*` launchers verify Python 3.11+ before bootstrapping the suite.
+The `start.*` launchers verify Python 3.12+ before bootstrapping the suite.
 If the interpreter is missing or outdated they display one of the following
 commands and exit. They also refuse to run when another virtual environment is
 active so the repository's `.venv` is always used:
 
-- **Debian/Ubuntu**: `sudo apt install python3.11 python3.11-venv`
-- **macOS**: `brew install python@3.11`
-- **Windows**: `winget install -e --id Python.Python.3.11`
+- **Debian/Ubuntu**: `sudo apt install python3.12 python3.12-venv`
+- **macOS**: `brew install python@3.12`
+- **Windows**: `winget install -e --id Python.Python.3.12`
 
 Run the command for your platform, then re-run the launcher.
 
@@ -25,7 +25,7 @@ start and ignores globally installed packages:
 - `start.command` on macOS
 - `start.sh` on Linux
 
-The script verifies Python 3.11+, then creates or reuses `.venv`, upgrades
+The script verifies Python 3.12+, then creates or reuses `.venv`, upgrades
 `pip`, installs packages from `requirements.lock` with hash verification and
 installs the project itself with `pip install --no-deps .`. ArviZ is installed
 separately to work around its stale NumPy requirement. Re-run the launcher after

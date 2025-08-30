@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-08-28
+# Last Updated: 2025-08-31
 
 # Start the Copernican Suite on Unix-like systems.
 #
@@ -29,15 +29,15 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
     exec python copernican.py "$@"
 fi
 
-## Detect a usable Python 3.11+ interpreter.
+## Detect a usable Python 3.12+ interpreter.
 if command -v python3 >/dev/null 2>&1; then
     PYTHON=python3
 else
-    echo "Python 3.11 is not installed." >&2
+    echo "Python 3.12 is not installed." >&2
     if [ "$(uname)" = "Darwin" ]; then
-        echo "Install it with 'brew install python@3.11'." >&2
+        echo "Install it with 'brew install python@3.12'." >&2
     else
-        echo "Install with 'sudo apt install python3.11 python3.11-venv'." >&2
+        echo "Install with 'sudo apt install python3.12 python3.12-venv'." >&2
     fi
     exit 1
 fi
@@ -48,12 +48,12 @@ PY_MAJOR="${PY_VERSION%%.*}"
 PY_MINOR="${PY_VERSION#*.}"
 PY_MINOR="${PY_MINOR%%.*}"
 if [ "$PY_MAJOR" -lt 3 ] || { [ "$PY_MAJOR" -eq 3 ] && \
-    [ "$PY_MINOR" -lt 11 ]; }; then
-    echo "Python 3.11 or newer is required." >&2
+    [ "$PY_MINOR" -lt 12 ]; }; then
+    echo "Python 3.12 or newer is required." >&2
     if [ "$(uname)" = "Darwin" ]; then
-        echo "Install it with 'brew install python@3.11'." >&2
+        echo "Install it with 'brew install python@3.12'." >&2
     else
-        echo "Install with 'sudo apt install python3.11 python3.11-venv'." >&2
+        echo "Install with 'sudo apt install python3.12 python3.12-venv'." >&2
     fi
     exit 1
 fi
@@ -65,7 +65,7 @@ if [ ! -d ".venv" ]; then
 fi
 
 # Ensure the virtual environment was created successfully. On Debian-based
-# systems the 'python3.11-venv' package may be missing, leaving out the
+# systems the 'python3.12-venv' package may be missing, leaving out the
 # activation script. If it is missing after the first try delete '.venv' and
 # recreate it once. Abort with guidance if the second attempt still lacks the
 # activation script.
@@ -74,7 +74,7 @@ if [ ! -f ".venv/bin/activate" ]; then
     "$PYTHON" -m venv .venv || true
     if [ ! -f ".venv/bin/activate" ]; then
         echo "Virtual environment support is missing." >&2
-        echo "Install with 'sudo apt install python3.11-venv'." >&2
+        echo "Install with 'sudo apt install python3.12-venv'." >&2
         exit 1
     fi
 fi

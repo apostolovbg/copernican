@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-08-28
+# Last Updated: 2025-08-31
 
 # Start the Copernican Suite on macOS.
 #
@@ -28,12 +28,12 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
     exec python copernican.py "$@"
 fi
 
-## Detect a usable Python 3.11+ interpreter.
+## Detect a usable Python 3.12+ interpreter.
 if command -v python3 >/dev/null 2>&1; then
     PYTHON=python3
 else
-    echo "Python 3.11 is not installed." >&2
-    echo "Install it with 'brew install python@3.11'." >&2
+    echo "Python 3.12 is not installed." >&2
+    echo "Install it with 'brew install python@3.12'." >&2
     echo "Get it at https://www.python.org/downloads/." >&2
     exit 1
 fi
@@ -44,9 +44,9 @@ PY_MAJOR="${PY_VERSION%%.*}"
 PY_MINOR="${PY_VERSION#*.}"
 PY_MINOR="${PY_MINOR%%.*}"
 if [ "$PY_MAJOR" -lt 3 ] || { [ "$PY_MAJOR" -eq 3 ] && \
-    [ "$PY_MINOR" -lt 11 ]; }; then
-    echo "Python 3.11 or newer is required." >&2
-    echo "Install it with 'brew install python@3.11'." >&2
+    [ "$PY_MINOR" -lt 12 ]; }; then
+    echo "Python 3.12 or newer is required." >&2
+    echo "Install it with 'brew install python@3.12'." >&2
     echo "Get it at https://www.python.org/downloads/." >&2
     exit 1
 fi
@@ -64,8 +64,8 @@ if [ ! -f ".venv/bin/activate" ]; then
     rm -rf .venv
     "$PYTHON" -m venv .venv
     if [ ! -f ".venv/bin/activate" ]; then
-        echo "Python 3.11 with working 'venv' support is required." >&2
-        echo "Reinstall it with 'brew install python@3.11'." >&2
+        echo "Python 3.12 with working 'venv' support is required." >&2
+        echo "Reinstall it with 'brew install python@3.12'." >&2
         echo "Get it at https://www.python.org/downloads/." >&2
         exit 1
     fi
