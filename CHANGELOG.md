@@ -21,6 +21,7 @@ put dates that are in the future or in the past! Follow this template:
 
 ## Version 4.0.0
 - 2025-08-31: Require Python 3.12+, updated launchers and docs, added 3.12 wheel hashes (OpenAI ChatGPT)
+
 ## Version 3.13.11
 - 2025-08-30: Added macOS NumPy hash to fix start script installs
               (OpenAI ChatGPT)
