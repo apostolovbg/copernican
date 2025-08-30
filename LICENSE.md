@@ -1,5 +1,5 @@
 # Copernican Suite License (CSL) v1.5
-**Last Updated:** 2025-08-12
+**Last Updated:** 2025-08-30
 
 > **Effective Date:** June 22, 2025
 > **Copyright** © 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of
@@ -40,6 +40,12 @@
 - **Scope of Project**
    Non-commercial research activities in cosmology, astrophysics, or closely
    related theoretical or observational domains.
+
+The start scripts may invoke system package managers such as `sudo`, `brew`
+or `winget`. They display a notice explaining that any password prompt comes
+from the package manager and is never captured by the Copernican Suite.
+`sudo -k` and explicit prompts ensure the operating system alone handles
+credential entry.
 
 ## 1. Grant of License
 
