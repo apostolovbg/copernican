@@ -1,5 +1,5 @@
 # Copernican Suite Development Plan
-**Last Updated:** 2025-08-31
+**Last Updated:** 2025-08-30
 
 ## Overview
 Copernican Suite has grown from a single script into a modular, cross-platform
@@ -59,8 +59,8 @@ builds will report that version automatically.
 
 ## Testing and Quality Assurance
 - `python -m unittest discover` remains the canonical way to run the test
-  suite. Developers can also invoke `copernican.py --run-tests` to execute the
-  same tests via the main entry point.
+  suite. The launchers also provide a *Run the unit test suite* option that
+  triggers the same command.
 - Tests cover model interfaces, data loaders and regression checks for
   supported datasets. Future additions should extend coverage, especially as
   new engines, parsers or GUI components appear.

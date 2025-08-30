@@ -1,7 +1,7 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Tests for user interaction helpers in ``copernican.py``."""
+"""Tests for menu interaction helpers in ``copernican.py``."""
 
 import importlib
 import os
@@ -19,8 +19,8 @@ with mock.patch("sys.version_info", (3, 12, 0)):
 import copernican_lib.data_loaders
 
 
-class RunTestsFlagTestCase(unittest.TestCase):
-    """Verify the test runner invokes ``python -m unittest`` discovery."""
+class MenuRunTestsTestCase(unittest.TestCase):
+    """Verify the menu invokes ``python -m unittest`` discovery."""
 
     @mock.patch("subprocess.run")
     def test_run_startup_tests_invokes_unittest_discover(self, run_mock):
@@ -39,7 +39,7 @@ class SelectSourceDisplayTestCase(unittest.TestCase):
     """Ensure selection prompts show names and return identifiers."""
 
     @mock.patch("copernican_lib.data_loaders.console.ask", return_value="1")
-    def test_select_source_shows_name(self, ask_mock):
+    def test_select_source_shows_name(self, _ask_mock):
         registry = {
             "dummy_id": {
                 "dataset_name": "Dummy Dataset",

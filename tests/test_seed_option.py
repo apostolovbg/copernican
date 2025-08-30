@@ -18,8 +18,8 @@ with mock.patch("sys.version_info", (3, 12, 0)):
 from copernican_lib import utils
 
 
-class SeedOptionTestCase(unittest.TestCase):
-    """Verify environment, manual and random seed handling."""
+class SeedMenuTestCase(unittest.TestCase):
+    """Verify environment, manual, random and default seed handling."""
 
     def test_env_seed_changes_rng(self):
         """Separate environment seeds yield distinct RNG outputs."""
@@ -46,6 +46,13 @@ class SeedOptionTestCase(unittest.TestCase):
                 with mock.patch("random.randint", return_value=99):
                     copernican.select_seed()
         self.assertEqual(utils.get_random_seed(), 99)
+
+    def test_default_seed_prompt(self):
+        """Accepting the default seed stores zero."""
+        with mock.patch.dict(os.environ, {}, clear=True):
+            with mock.patch("builtins.input", side_effect=[""]):
+                copernican.select_seed()
+        self.assertEqual(utils.get_random_seed(), 0)
 
 
 if __name__ == "__main__":

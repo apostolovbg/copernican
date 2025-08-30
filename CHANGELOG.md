@@ -19,10 +19,15 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 4.3.1
+- 2025-08-30: Removed outdated CLI examples, revised menu and seed tests,
+              and clarified external authentication prompts in LICENSE
+              (OpenAI ChatGPT)
+
 ## Version 4.3.0
-- 2025-08-30: Removed ``--seed`` flag in favour of an interactive seed prompt
-              with manual and random options; updated manifest, utilities,
-              tests and documentation (OpenAI ChatGPT)
+- 2025-08-30: Removed the command-line seed flag in favour of an interactive
+              seed prompt with manual and random options; updated manifest,
+              utilities, tests and documentation (OpenAI ChatGPT)
 
 ## Version 4.2.1
 - 2025-08-30: Added package manager password notices in launchers and
@@ -84,8 +89,8 @@ put dates that are in the future or in the past! Follow this template:
               (OpenAI ChatGPT)
 
 ## Version 3.12.0
-- 2025-08-27: Added ``--seed`` CLI option, seeded Python and engine RNGs and
-               logged the value in manifest and logs (OpenAI ChatGPT)
+- 2025-08-27: Added a command-line seed flag, seeded Python and engine RNGs
+               and logged the value in manifest and logs (OpenAI ChatGPT)
 
 ## Version 3.12.1
 - 2025-08-28: Enforced use of repository virtual environment, added laws on
@@ -476,9 +481,9 @@ put dates that are in the future or in the past! Follow this template:
   added licensing reminders to contributor docs (AI assistant)
 
 ## Version 3.6.1
-- 2025-08-09: Delegated `--run-tests` to `python -m unittest discover`,
-  expanded regression and interface tests, and updated CI to run the full
-  suite on every push (AI assistant)
+- 2025-08-09: Delegated the test-suite menu option to `python -m unittest
+              discover`, expanded regression and interface tests, and
+              updated CI to run the full suite on every push (AI assistant)
 
 ## Version 3.6.0
 - 2025-08-09: Centralised version handling via `copernican_lib.version`,
@@ -913,7 +918,8 @@ put dates that are in the future or in the past! Follow this template:
   (AI assistant)
 - 2025-07-07: Revised AGENTS overview and expanded README with developer guide
   (AI assistant)
-- 2025-07-07: Fixed test discovery and matplotlib cleanup in run-tests mode
+- 2025-07-07: Fixed test discovery and Matplotlib cleanup when running the
+              test suite via the menu option (AI assistant)
   (AI
   assistant)
 

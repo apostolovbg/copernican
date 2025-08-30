@@ -45,7 +45,8 @@ The start scripts may invoke system package managers such as `sudo`, `brew`
 or `winget`. They display a notice explaining that any password prompt comes
 from the package manager and is never captured by the Copernican Suite.
 `sudo -k` and explicit prompts ensure the operating system alone handles
-credential entry.
+credential entry. Any authentication requests originate from those external
+tools; the Copernican Suite never handles, records or stores credentials.
 
 ## 1. Grant of License
 

@@ -1,5 +1,5 @@
 # Contributing to the Copernican Suite
-**Last Updated:** 2025-08-12
+**Last Updated:** 2025-08-30
 
 Thank you for considering a contribution. Before opening a pull request,
 please
@@ -7,10 +7,9 @@ read `AGENTS.md` for the full development specification. The quick checklist
 is:
 
 1. Run `pre-commit run --files <changed files>` to apply Black, Isort, Ruff
-   and
-   Flake8 checks.
-2. Run the test suite with `python -m unittest discover` or `copernican.py
-   --run-tests`.
+   and Flake8 checks.
+2. Run the test suite with `python -m unittest discover` or via the launchers'
+   *Run the unit test suite* option.
 3. Document your changes in `CHANGELOG.md` using the `- YYYY-MM-DD: summary
    (author)` format.
 4. Update documentation where needed, including `README.md` and `AGENTS.md`.
