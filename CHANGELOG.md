@@ -19,12 +19,14 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 3.13.11
+- 2025-08-30: Added macOS NumPy hash to fix start script installs
+              (OpenAI ChatGPT)
 ## Version 3.13.10
 - 2025-08-30: Vectorised distance integrals and finite penalties in MCMC
               engine to prevent hangs and warnings (OpenAI ChatGPT)
 ## Version 3.13.9
 - 2025-08-30: Pinned typing_extensions and dependency tree for hash-locked installs (OpenAI ChatGPT)
--
 ## Version 3.13.8
 - 2025-08-29: Pinned h5py dependency for hash-locked installs (OpenAI ChatGPT)
 
