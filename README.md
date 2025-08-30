@@ -1,4 +1,4 @@
-**Version:** 4.3.0
+**Version:** 4.3.1
 **Last Updated:** 2025-08-30
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -167,12 +167,7 @@ Windows users should open `start.bat`, macOS users should run
 `./start.command`, and Linux users can execute `./start.sh`. These helpers
 create a local virtual environment, upgrade `pip` and install the package
 automatically before launching the suite. Running `copernican.py` outside
-this environment prompts you to use the appropriate start script. You can
-also start the program manually:
-
-```bash
-python copernican.py
-```
+this environment prompts you to use the appropriate start script.
 
 To install the package system-wide run:
 
