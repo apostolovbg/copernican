@@ -1,5 +1,5 @@
 # Copernican Suite Development Plan
-**Last Updated:** 2025-08-15
+**Last Updated:** 2025-08-31
 
 ## Overview
 Copernican Suite has grown from a single script into a modular, cross-platform
@@ -42,7 +42,7 @@ and
 ## Packaging and Launchers
 - Distribution relies on the `start.*` scripts which bootstrap a local `.venv`
   and install dependencies automatically.
-- Users need only a system-wide Python 3.11+ installation.
+- Users need only a system-wide Python 3.12+ installation.
 - CI verifies the launchers on Windows, macOS and Linux.
 - No standalone executables are planned.
 

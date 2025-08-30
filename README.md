@@ -1,5 +1,5 @@
-**Version:** 3.13.9
-**Last Updated:** 2025-08-30
+**Version:** 4.0.0
+**Last Updated:** 2025-08-31
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -102,17 +102,17 @@ Under the hood the program follows a clear pipeline:
 ## Quick Start
 1. Run the platform-specific `start` script. macOS users should run
    `./start.command`, Windows users open `start.bat`, and Linux users can
-   execute `./start.sh`. The launcher verifies Python 3.11+ before
+   execute `./start.sh`. The launcher verifies Python 3.12+ before
    creating a `.venv`, upgrading `pip`, installing locked dependencies with
    hash verification and then installing the project in isolation with
    `pip install --no-deps .`. It skips errors when `VIRTUAL_ENV` is unset,
    deletes any `build/` directory before and after installation to avoid
    stale artifacts. If the interpreter is missing or too old it prints install
-   tips such as `sudo apt install python3.11 python3.11-venv` on Debian,
-   `brew install python@3.11` on macOS or `winget install -e --id
-   Python.Python.3.11` on Windows before exiting. If the activation script
+   tips such as `sudo apt install python3.12 python3.12-venv` on Debian,
+   `brew install python@3.12` on macOS or `winget install -e --id
+   Python.Python.3.12` on Windows before exiting. If the activation script
    is missing the launcher recreates `.venv` once before advising the user
-   to install `python3.11-venv`.
+   to install `python3.12-venv`.
 2. Follow the interactive prompts to choose a model, preferred data sources
    and
    computation engine.
@@ -127,14 +127,14 @@ Under the hood the program follows a clear pipeline:
    folder under `output/` when the run completes.
 
 ## Dependencies
-Only a system-wide Python 3.11+ installation is required. The `start.*`
+Only a system-wide Python 3.12+ installation is required. The `start.*`
 launchers check the interpreter version, create `.venv` automatically and
 install dependencies. If Python is missing or outdated they print
-platform-specific commands like `sudo apt install python3.11
-python3.11-venv` on Debian, `brew install python@3.11` on macOS or
-`winget install -e --id Python.Python.3.11` on Windows before exiting.
-They also verify that `.venv/bin/activate` exists and hint to install
-`python3.11-venv` when it does not. Inside the virtual environment this
+platform-specific commands like `sudo apt install python3.12
+  python3.12-venv` on Debian, `brew install python@3.12` on macOS or
+  `winget install -e --id Python.Python.3.12` on Windows before exiting.
+  They also verify that `.venv/bin/activate` exists and hint to install
+  `python3.12-venv` when it does not. Inside the virtual environment this
 project relies on `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`,
 `jsonschema`, `camb==1.6.2`, `emcee`, `h5netcdf`, `h5py`, `xarray`,
 `typing_extensions` and `arviz` from a pinned commit archive.
@@ -190,7 +190,7 @@ and does not need to be tracked in version control.
 
 The suite no longer ships standalone binaries. Launch with `start.bat`,
 `start.command` or `start.sh` to create a local `.venv` and install all
-dependencies automatically. Only a system-wide Python 3.11+ installation is
+dependencies automatically. Only a system-wide Python 3.12+ installation is
 required. See [docs/packaging.md](docs/packaging.md) for launcher details.
 
 

@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-08-30
+**Last Updated:** 2025-08-31
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -19,8 +19,9 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
-## Version 3.13.12
-- 2025-08-30: Added Python 3.12 wheel hashes and pinned setuptools for reproducible installs (OpenAI ChatGPT)
+## Version 4.0.0
+- 2025-08-31: Require Python 3.12+, updated launchers and docs, added 3.12 wheel hashes (OpenAI ChatGPT)
+
 ## Version 3.13.11
 - 2025-08-30: Added macOS NumPy hash to fix start script installs
               (OpenAI ChatGPT)

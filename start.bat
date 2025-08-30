@@ -1,6 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-08-28
+@REM Last Updated: 2025-08-31
 
 @echo off
 REM Start the Copernican Suite on Windows.
@@ -30,10 +30,10 @@ if %ERRORLEVEL%==0 (
     where py >NUL 2>NUL
     if %ERRORLEVEL%==0 (
         set "PYTHON=py"
-        set "PYTHON_CMD=py -3.11"
+        set "PYTHON_CMD=py -3.12"
     ) else (
-        echo Python 3.11 is not installed.
-        echo Install it with "winget install -e --id Python.Python.3.11" ^
+        echo Python 3.12 is not installed.
+        echo Install it with "winget install -e --id Python.Python.3.12" ^
 or visit https://www.python.org/downloads/
         exit /b 1
     )
@@ -48,7 +48,7 @@ for /f "tokens=1-2 delims=." %%a in ("%PYVERSION%") do (
     set "MINOR=%%b"
 )
 if %MAJOR% LSS 3 goto needpython
-if %MAJOR%==3 if %MINOR% LSS 11 goto needpython
+    if %MAJOR%==3 if %MINOR% LSS 12 goto needpython
 
 if not exist .venv (
     %PYTHON_CMD% -m venv .venv
@@ -62,7 +62,7 @@ if not exist .venv\Scripts\activate.bat (
     if not exist .venv\Scripts\activate.bat (
         echo Virtual environment support is missing.
         echo Install the Python 'venv' component and try again.
-        echo On Debian/Ubuntu: sudo apt install python3.11-venv
+        echo On Debian/Ubuntu: sudo apt install python3.12-venv
         exit /b 1
     )
 )
@@ -82,8 +82,8 @@ goto :eof
 python copernican.py %*
 
 :needpython
-echo Python 3.11 or newer is required.
-echo Install it with "winget install -e --id Python.Python.3.11" ^
+echo Python 3.12 or newer is required.
+echo Install it with "winget install -e --id Python.Python.3.12" ^
 or visit https://www.python.org/downloads/
 exit /b 1
 
