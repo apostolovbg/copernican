@@ -1,3 +1,4 @@
+# Last Updated: 2025-08-30
 name: Tests
 
 on:
@@ -6,7 +7,6 @@ on:
 
 jobs:
   tests:
-    name: Lint and Test
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -18,25 +18,20 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-
-      - name: Cache virtual environment
-        id: cache-venv
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: >-
-            venv-${{ runner.os }}-${{ hashFiles('pyproject.toml',
-            'requirements.lock') }}
+          python-version: '3.12'
 
       - name: Set up virtual environment
-        if: steps.cache-venv.outputs.cache-hit != 'true'
+        if: runner.os != 'Windows'
+        shell: bash
+        run: python -m venv .venv
+
+      - name: Set up virtual environment (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: python -m venv .venv
 
       - name: Install dependencies
-        if: >-
-          runner.os != 'Windows' &&
-          steps.cache-venv.outputs.cache-hit != 'true'
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           .venv/bin/pip install --upgrade pip
@@ -44,32 +39,21 @@ jobs:
           .venv/bin/pip install --no-deps . pre-commit
 
       - name: Install dependencies (Windows)
-        if: >-
-          runner.os == 'Windows' &&
-          steps.cache-venv.outputs.cache-hit != 'true'
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           .\.venv\Scripts\python -m pip install --upgrade pip
           .\.venv\Scripts\pip install --require-hashes -r requirements.lock
           .\.venv\Scripts\pip install --no-deps . pre-commit
 
-      - name: Run pre-commit
-        if: runner.os != 'Windows'
-        shell: bash
-        run: .venv/bin/pre-commit run --all-files
-
-      - name: Run pre-commit (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: .\.venv\Scripts\pre-commit run --all-files
-
       - name: Run unit tests
         if: runner.os != 'Windows'
         shell: bash
-        run: .venv/bin/python copernican.py --run-tests
+        run: COPERNICAN_STRICT_WARNINGS=1 .venv/bin/python -m unittest discover -v
 
       - name: Run unit tests (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: .\.venv\Scripts\python copernican.py --run-tests
-
+        run: |
+          $env:COPERNICAN_STRICT_WARNINGS = '1'
+          .\.venv\Scripts\python -m unittest discover -v

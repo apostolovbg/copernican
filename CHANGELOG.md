@@ -23,6 +23,8 @@ put dates that are in the future or in the past! Follow this template:
 - 2025-08-30: Removed outdated CLI examples, revised menu and seed tests,
               and clarified external authentication prompts in LICENSE
               (OpenAI ChatGPT)
+- 2025-08-30: Split CI into dedicated lint and test workflows using
+              Python 3.12 (OpenAI ChatGPT)
 
 ## Version 4.3.0
 - 2025-08-30: Removed the command-line seed flag in favour of an interactive
