@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 4.3.5
+- 2025-09-01: Added macOS and Windows wheel hashes for contourpy==1.3.3
+              to support cross-platform installs (OpenAI ChatGPT)
+
 ## Version 4.3.4
 - 2025-09-01: Refreshed dependency lock file (OpenAI ChatGPT)
 
