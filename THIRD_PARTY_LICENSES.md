@@ -1,5 +1,5 @@
 # Third-Party Licenses
-**Last Updated:** 2025-08-30
+**Last Updated:** 2025-09-01
 
 The Copernican Suite relies on the following runtime dependencies. Their
 versions and license texts are shipped under [`licenses/`](licenses/) so

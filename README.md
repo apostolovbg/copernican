@@ -1,5 +1,5 @@
-**Version:** 4.3.1
-**Last Updated:** 2025-08-30
+**Version:** 4.3.3
+**Last Updated:** 2025-09-01
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -622,10 +622,10 @@ accurately** convey their purpose without unnecessary length.
 > Always launch via `start.sh`, `start.command` or `start.bat` so the
 > repository's `.venv` is created or updated automatically; other Python
 > environments must be ignored.
-> 22. **Regenerate hashes and refresh dependencies after any update.**
->    Update `requirements.lock`, sync `[project].dependencies` hashes and
->    revise `THIRD_PARTY_LICENSES.md`; see the dependency notes above and
->    rule 20 for the license audit workflow.
+> 22. **Regenerate hashes and refresh dependencies whenever dependencies are**
+>    **added or changed.** Run `pip-compile --generate-hashes requirements.in`,
+>    commit the updated `requirements.lock`, and audit
+>    `THIRD_PARTY_LICENSES.md`.
 >
 > Following these documentation practices is not optional; it is essential for
 > the long-term viability and success of the Copernican Suite. Failure to
