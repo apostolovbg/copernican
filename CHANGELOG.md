@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 4.3.4
+- 2025-09-01: Refreshed dependency lock file (OpenAI ChatGPT)
+
+
 ## Version 4.3.3
 - 2025-09-01: Added automated hash locking and pre-commit hook for dependency
               updates; documented new workflow (OpenAI ChatGPT)
