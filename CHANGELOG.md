@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 4.3.9
+- 2025-09-01: Added pytest and Windows colorama dependency to lock file and
+              refreshed hashes to fix failing tests (OpenAI ChatGPT)
+
 ## Version 4.3.8
 - 2025-09-01: Included stable-ABI wheels in hash refresher and refreshed
               pyerfa hashes for all platforms (OpenAI ChatGPT)
