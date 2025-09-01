@@ -20,6 +20,7 @@ put dates that are in the future or in the past! Follow this template:
 ## Log changes here
 
 ## Version 4.3.2
+- 2025-09-01: Regenerated dependency lock file (OpenAI ChatGPT)
 - 2025-09-01: start scripts fetch Python 3.12.11 from astral-sh releases
               (OpenAI ChatGPT)
 
