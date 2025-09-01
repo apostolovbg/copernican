@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-08-30
+**Last Updated:** 2025-09-01
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,10 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 4.3.2
+- 2025-09-01: start scripts fetch Python 3.12.11 from astral-sh releases
+              (OpenAI ChatGPT)
 
 ## Version 4.3.1
 - 2025-08-30: Removed outdated CLI examples, revised menu and seed tests,
