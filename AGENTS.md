@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-08-30
+**Last Updated:** 2025-09-01
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -277,10 +277,10 @@ these rules:
     Always launch via `start.sh`, `start.command` or `start.bat` so the
     repository's `.venv` is created or updated automatically; other Python
     environments must be ignored.
-22. **Regenerate hashes and refresh dependencies after any update.**
-    Update `requirements.lock`, sync `[project].dependencies` hashes and
-    revise `THIRD_PARTY_LICENSES.md`; see the "Dependency Installation"
-    section above and law 20 for the license audit workflow.
+22. **Regenerate hashes and refresh dependencies whenever dependencies are**
+    **added or changed.** Run `pip-compile --generate-hashes requirements.in`,
+    commit the updated `requirements.lock`, and audit
+    `THIRD_PARTY_LICENSES.md`.
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 
