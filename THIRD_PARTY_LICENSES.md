@@ -14,6 +14,7 @@ users can review the full terms offline.
 | sympy | 1.14.0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | jsonschema | 4.25.1 | [MIT](licenses/MIT.txt) |
 | camb | 1.6.2 | [LGPL-3.0-or-later](licenses/LGPL-3.0-or-later.txt) |
+| colorama | 0.4.6 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | PyYAML | 6.0.2 | [MIT](licenses/MIT.txt) |
 | astropy | 7.1.0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | psutil | 7.0.0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
@@ -21,6 +22,7 @@ users can review the full terms offline.
 | emcee | 3.1.5 | [MIT](licenses/MIT.txt) |
 | h5netcdf | 1.6.4 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | h5py | 3.14.0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
+| iniconfig | 2.1.0 | [MIT](licenses/MIT.txt) |
 | xarray | 2025.8.0 | [Apache-2.0](licenses/Apache-2.0.txt) |
 | xarray-einstats | 0.9.1 | [Apache-2.0](licenses/Apache-2.0.txt) |
 | packaging | 25.0 | [Apache-2.0](licenses/Apache-2.0.txt) |
@@ -31,7 +33,10 @@ users can review the full terms offline.
 | fonttools | 4.55.3 | [MIT](licenses/MIT.txt) |
 | kiwisolver | 1.4.7 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | pillow | 10.4.0 | [HPND](licenses/HPND.txt) |
+| pluggy | 1.6.0 | [MIT](licenses/MIT.txt) |
+| pygments | 2.19.2 | [BSD-2-Clause](licenses/BSD-2-Clause.txt) |
 | pyparsing | 3.1.2 | [MIT](licenses/MIT.txt) |
+| pytest | 8.4.1 | [MIT](licenses/MIT.txt) |
 | python-dateutil | 2.9.0.post0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | six | 1.16.0 | [MIT](licenses/MIT.txt) |
 | pytz | 2025.1 | [MIT](licenses/MIT.txt) |
