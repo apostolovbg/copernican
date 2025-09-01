@@ -38,18 +38,33 @@ def fetch_wheel_hashes(package: str, version: str) -> set[str]:
         data = json.load(resp)
 
     def wanted(filename: str) -> bool:
-        if not filename.endswith(".whl") or "cp312" not in filename:
+        """Determine whether ``filename`` targets our supported platforms."""
+
+        if not filename.endswith(".whl"):
             return False
-        if "win_amd64" in filename:
+
+        # Wheel filenames are ``{dist}-{ver}-{py}-{abi}-{plat}.whl`` with
+        # hyphens only occurring in the ``{dist}`` segment.  Splitting from the
+        # right avoids mis-parsing distributions containing hyphens.
+        parts = filename.rsplit("-", 3)
+        if len(parts) != 4:
+            return False
+        py_tag, abi_tag, plat = parts[1], parts[2], parts[3][:-4]
+
+        # Accept wheels built for the exact interpreter (``cp312``), pure
+        # Python wheels (``py3``) and stable ABI builds (``abi3``).  The latter
+        # covers releases such as ``cp39-abi3`` that remain compatible across
+        # Python 3.x versions and previously slipped through the filters,
+        # leading to missing hashes for packages like ``pyerfa``.
+        if py_tag != "cp312" and abi_tag != "abi3" and py_tag != "py3":
+            return False
+
+        if plat.startswith("win_amd64"):
             return True
-        if "manylinux" in filename and (
-            "x86_64" in filename or "aarch64" in filename
-        ):
+        if "manylinux" in plat and ("x86_64" in plat or "aarch64" in plat):
             return True
-        if "macosx" in filename and (
-            "x86_64" in filename
-            or "arm64" in filename
-            or "universal2" in filename
+        if plat.startswith("macosx") and (
+            "x86_64" in plat or "arm64" in plat or "universal2" in plat
         ):
             # ``universal2`` wheels embed both x86_64 and arm64 binaries.
             return True

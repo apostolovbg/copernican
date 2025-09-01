@@ -85,3 +85,39 @@ def test_universal2_wheels(
     text = req.read_text().splitlines()
     assert text[1].endswith("\\")
     assert text[2] == "    --hash=sha256:ccc"
+
+
+def test_abi3_wheels(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pick up wheels built against Python's stable ``abi3`` interface."""
+
+    req = tmp_path / "req.lock"
+    req.write_text("pkg==1.0 \\\n" "    --hash=sha256:aaa\n")
+
+    sample = {
+        "urls": [
+            {
+                "filename": "pkg-1.0-cp39-abi3-macosx_11_0_arm64.whl",
+                "digests": {"sha256": "ddd"},
+            },
+            {
+                "filename": "pkg-1.0-cp39-abi3-win_amd64.whl",
+                "digests": {"sha256": "eee"},
+            },
+        ]
+    }
+
+    class Dummy:
+        def __enter__(self) -> io.BytesIO:  # pragma: no cover - trivial
+            return io.BytesIO(json.dumps(sample).encode())
+
+        def __exit__(self, *exc: object) -> None:  # pragma: no cover - trivial
+            pass
+
+    monkeypatch.setattr(hash_utils, "urlopen", lambda req: Dummy())
+
+    changed = hash_utils.update_hashes(req, ["pkg"])
+    assert changed
+    text = req.read_text().splitlines()
+    assert text[1].endswith("\\")
+    hashes = {line.strip(" \\") for line in text[1:3]}
+    assert hashes == {"--hash=sha256:ddd", "--hash=sha256:eee"}
