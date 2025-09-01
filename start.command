@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-08-30
+# Last Updated: 2025-09-01
 
 # Start the Copernican Suite on macOS.
 #
@@ -83,9 +83,9 @@ PY_DIR="$(pwd)/.python"
 PY_BIN="$PY_DIR/bin/python3"
 if [ ! -x "$PY_BIN" ]; then
     mkdir -p "$PY_DIR"
-    BASE="https://github.com/indygreg/python-build-standalone/releases"
-    REL="20240710"
-    VER="3.12.4"
+    BASE="https://github.com/astral-sh/python-build-standalone/releases"
+    REL="20250828"
+    VER="3.12.11"
     ARCH="$(uname -m)"
     PLAT="apple-darwin"
     URL="$BASE/download/$REL/"
