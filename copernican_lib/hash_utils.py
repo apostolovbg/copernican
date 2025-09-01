@@ -47,8 +47,11 @@ def fetch_wheel_hashes(package: str, version: str) -> set[str]:
         ):
             return True
         if "macosx" in filename and (
-            "x86_64" in filename or "arm64" in filename
+            "x86_64" in filename
+            or "arm64" in filename
+            or "universal2" in filename
         ):
+            # ``universal2`` wheels embed both x86_64 and arm64 binaries.
             return True
         return False
 

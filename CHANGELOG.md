@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 4.3.7
+- 2025-09-01: Added universal2 wheel support in hash helper and refreshed
+              dependency hashes (OpenAI ChatGPT)
+
 ## Version 4.3.6
 - 2025-09-01: Automated wheel hash recreation and fixed contourpy macOS ARM
               hash to unblock CI (OpenAI ChatGPT)
