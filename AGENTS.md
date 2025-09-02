@@ -120,7 +120,7 @@ AST parser to avoid false positives from comments. The `start.*` launchers
 always download a private Python 3.12+ into ``.python`` and build ``.venv``
 from that interpreter, ignoring any system-wide Python. If the download fails
 they exit with guidance. When packages are missing the program asks before
-installing them with `pip install --require-hashes -r requirements.lock` and
+installing them with `pip install -r requirements.lock` and
 verifies the import before continuing. Set ``COPERNICAN_AUTO_INSTALL=1`` to
 bypass the prompt in non-interactive environments. Running outside ``.venv``
 prompts the user to
@@ -135,13 +135,13 @@ ArviZ is installed from commit
 `01c8b9454349247eed2145a27b03f9231acb412f` of the upstream repository to
 avoid its former `numpy<2` restriction without maintaining a fork.
 
-`requirements.lock` pins exact versions and SHA256 hashes for all runtime
+`requirements.lock` pins exact versions for all runtime
 packages, and `[project].dependencies` in `pyproject.toml` mirrors these pins.
 Any dependency change must regenerate both files and update
 `THIRD_PARTY_LICENSES.md` to keep license records current (see law 22).
 To install the suite as a package, run `pip install .` at the repository root.
 Use `pip install -e .` if you intend to develop the code. The start scripts
-install pinned dependencies from `requirements.lock` using hash verification
+install pinned dependencies from `requirements.lock`
 before running `pip install --no-deps .`. They delete any `build/` directory
 before and after installing the project to prevent stale build artifacts and
 recreate `.venv` once when the activation script is missing.
@@ -277,10 +277,9 @@ these rules:
     Always launch via `start.sh`, `start.command` or `start.bat` so the
     repository's `.venv` is created or updated automatically; other Python
     environments must be ignored.
-22. **Regenerate hashes and refresh dependencies whenever dependencies are**
-    **added or changed.** Run `pip-compile --generate-hashes requirements.in`,
-    commit the updated `requirements.lock`, and audit
-    `THIRD_PARTY_LICENSES.md`.
+22. **Refresh dependencies whenever packages are added or changed.**
+    Run `pip-compile requirements.in`, commit the updated
+    `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`.
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 

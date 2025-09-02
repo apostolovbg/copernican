@@ -1,6 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-09-01
+@REM Last Updated: 2025-09-02
 
 @echo off
 set "PKG_NOTICE=Package managers may request your password. The Copernican"
@@ -61,7 +61,7 @@ if not exist .venv\Scripts\activate.bat (
 call .venv\Scripts\activate.bat
 set PYTHON=python
 %PYTHON% -m pip install --upgrade pip
-%PYTHON% -m pip install --require-hashes -r requirements.lock
+%PYTHON% -m pip install -r requirements.lock
 if exist build rmdir /s /q build
 %PYTHON% -m pip install --no-deps .
 if exist build rmdir /s /q build

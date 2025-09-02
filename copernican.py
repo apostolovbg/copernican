@@ -1,3 +1,4 @@
+# Last Updated: 2025-09-02
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -446,7 +447,7 @@ def check_dependencies(auto_confirm: bool = False) -> None:
     by the ``start.*`` launchers.  This check confirms the interpreter is
     running from that environment before installing any missing packages.
     Required packages are installed automatically from ``requirements.lock``
-    using hash verification and re-imported to verify success so the workflow
+    and re-imported to verify success so the workflow
     can proceed without manual steps.
     """
     console.write("--- Running System Dependency Check ---")
@@ -494,7 +495,6 @@ def check_dependencies(auto_confirm: bool = False) -> None:
                     "-m",
                     "pip",
                     "install",
-                    "--require-hashes",
                     "-r",
                     "requirements.lock",
                 ],

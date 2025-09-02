@@ -1,5 +1,5 @@
-**Version:** 4.3.3
-**Last Updated:** 2025-09-01
+**Version:** 4.3.12
+**Last Updated:** 2025-09-02
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -104,7 +104,7 @@ Under the hood the program follows a clear pipeline:
    `./start.command`, Windows users open `start.bat`, and Linux users can
    execute `./start.sh`. The launcher downloads a private Python 3.12+ into
    `.python`, creates `.venv`, upgrades `pip`, installs locked dependencies
-   with hash verification and installs the project with `pip install
+   and installs the project with `pip install
    --no-deps .`. It skips errors when `VIRTUAL_ENV` is unset and deletes any
    `build/` directory before and after installation to avoid stale artifacts.
    If the activation script is missing the launcher recreates `.venv` once
@@ -141,17 +141,17 @@ managed `.venv`. ArviZ is pulled as a tarball from commit
 `01c8b9454349247eed2145a27b03f9231acb412f` to avoid the package's former
 `numpy<2` constraint without using a VCS URL.
 
-Versions and SHA256 hashes for all runtime dependencies are pinned in
+Versions for all runtime dependencies are pinned in
 `requirements.lock`. This set now includes the `h5py` library for HDF5
 support, statistical helpers such as `xarray-einstats`, and typing
 backports via `typing_extensions` to keep ArviZ's linear algebra
 deterministic. Matplotlib's helper libraries (`contourpy`, `cycler`,
 `fonttools`, `kiwisolver`, `pillow` and `pyparsing`) and time zone tools
 (`python-dateutil`, `six`, `pytz` and `tzdata`) and numerical helper
-`mpmath` are pinned as well so `--require-hashes` installs remain
+`mpmath` are pinned as well so installs remain
 reproducible. When a
 package is missing the program asks before running `pip install
---require-hashes -r requirements.lock` and verifies each import. Set
+-r requirements.lock` and verifies each import. Set
 `COPERNICAN_AUTO_INSTALL=1` to skip the prompt in automated environments. The
 same versions
 appear under `[project].dependencies` in `pyproject.toml`. Regenerate both
@@ -622,8 +622,8 @@ accurately** convey their purpose without unnecessary length.
 > Always launch via `start.sh`, `start.command` or `start.bat` so the
 > repository's `.venv` is created or updated automatically; other Python
 > environments must be ignored.
-> 22. **Regenerate hashes and refresh dependencies whenever dependencies are**
->    **added or changed.** Run `pip-compile --generate-hashes requirements.in`,
+> 22. **Refresh dependencies whenever packages are added or changed.**
+>    Run `pip-compile requirements.in`,
 >    commit the updated `requirements.lock`, and audit
 >    `THIRD_PARTY_LICENSES.md`.
 >

@@ -19,6 +19,10 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 4.3.12
+- 2025-09-02: Removed dependency hash verification and related tooling, tests and documentation (OpenAI ChatGPT)
+
+
 ## Version 4.3.11
 - 2025-09-02: Derived wheel tags from the running Python version to drop
                hard-coded cp311 references in hash refresher and tests

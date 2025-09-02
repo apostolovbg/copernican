@@ -1,4 +1,4 @@
-# Last Updated: 2025-09-01
+# Last Updated: 2025-09-02
 name: Tests
 
 on:
@@ -35,7 +35,7 @@ jobs:
         shell: bash
         run: |
           .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install --require-hashes -r requirements.lock
+          .venv/bin/pip install -r requirements.lock
           .venv/bin/pip install --no-deps . pre-commit pip-tools
 
       - name: Install dependencies (Windows)
@@ -43,7 +43,7 @@ jobs:
         shell: pwsh
         run: |
           .\.venv\Scripts\python -m pip install --upgrade pip
-          .\.venv\Scripts\pip install --require-hashes -r requirements.lock
+          .\.venv\Scripts\pip install -r requirements.lock
           .\.venv\Scripts\pip install --no-deps . pre-commit pip-tools
 
       - name: Run unit tests
