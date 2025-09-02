@@ -1,5 +1,5 @@
 # Third-Party Licenses
-**Last Updated:** 2025-09-01
+**Last Updated:** 2025-09-02
 
 The Copernican Suite relies on the following runtime dependencies. Their
 versions and license texts are shipped under [`licenses/`](licenses/) so
@@ -49,6 +49,21 @@ users can review the full terms offline.
 | rpds-py | 0.27.0 | [MIT](licenses/MIT.txt) |
 | pyerfa | 2.0.1.5 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | astropy-iers-data | 0.2025.8.25.0.36.58 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
+| pre-commit | 4.3.0 | [MIT](licenses/MIT.txt) |
+| cfgv | 3.4.0 | [MIT](licenses/MIT.txt) |
+| identify | 2.6.13 | [MIT](licenses/MIT.txt) |
+| nodeenv | 1.9.1 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
+| virtualenv | 20.34.0 | [MIT](licenses/MIT.txt) |
+| distlib | 0.4.0 | [PSF-2.0](licenses/PSF-2.0.txt) |
+| filelock | 3.19.1 | [Unlicense](licenses/Unlicense.txt) |
+| platformdirs | 4.4.0 | [MIT](licenses/MIT.txt) |
+| pip-tools | 7.5.0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
+| build | 1.3.0 | [MIT](licenses/MIT.txt) |
+| click | 8.2.1 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
+| pip | 25.2 | [MIT](licenses/MIT.txt) |
+| pyproject-hooks | 1.2.0 | [MIT](licenses/MIT.txt) |
+| setuptools | 65.5.0 | [MIT](licenses/MIT.txt) |
+| wheel | 0.45.1 | [MIT](licenses/MIT.txt) |
 
 ### Notes on camb (LGPL-3.0-or-later)
 
