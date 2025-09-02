@@ -55,9 +55,12 @@ class TestMCMCEngine(unittest.TestCase):
                 path,
                 metadata={"model": plugin.MODEL_NAME},
             )
-            ds = xr.open_dataset(path, group="posterior")
-            for name in plugin.PARAMETER_NAMES:
-                self.assertIn(name, ds.data_vars)
+            # ``xarray.open_dataset`` keeps a file handle open on Windows.
+            # Using a context manager ensures the temporary directory can be
+            # cleaned up without hitting permission errors.
+            with xr.open_dataset(path, group="posterior") as ds:
+                for name in plugin.PARAMETER_NAMES:
+                    self.assertIn(name, ds.data_vars)
 
     def test_log_probability_penalty(self):
         plugin = self._build_lcdm_plugin()
