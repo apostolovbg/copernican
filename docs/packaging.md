@@ -1,5 +1,5 @@
 # Packaging Guide
-**Last Updated:** 2025-08-30
+**Last Updated:** 2025-09-02
 
 This document explains how to prepare the suite for development or packaging.
 
@@ -20,12 +20,12 @@ start and ignores globally installed packages:
 - `start.sh` on Linux
 
 The script creates or reuses `.venv` from the bundled interpreter, upgrades
-`pip`, installs packages from `requirements.lock` with hash verification and
+`pip`, installs packages from `requirements.lock` and
 installs the project itself with `pip install --no-deps .`. ArviZ is installed
 separately to work around its stale NumPy requirement. Re-run the launcher
 after pulling updates to refresh the environment.
 
-`requirements.lock` pins exact versions and SHA256 hashes for all runtime
+`requirements.lock` pins exact versions for all runtime
 dependencies. Adding or updating a package requires editing this file and the
 license summary in `THIRD_PARTY_LICENSES.md`.
 
@@ -67,7 +67,7 @@ should complete within a few seconds.
 - **No module named pip**: run `python -m ensurepip --upgrade` and relaunch
   launcher.
 - **Packages not updating**: run `pip install -U pip` followed by
-  `pip install --require-hashes -r requirements.lock`.
+  `pip install -r requirements.lock`.
 - **Permission denied**: avoid `sudo pip`; use a writable directory or the
   provided `.venv`.
 - **Virtual environment missing**: ensure a launcher was used or activate with

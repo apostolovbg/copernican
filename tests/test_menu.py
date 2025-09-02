@@ -1,3 +1,4 @@
+# Last Updated: 2025-09-02
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -85,7 +86,6 @@ class DependencyPromptTestCase(unittest.TestCase):
                     "-m",
                     "pip",
                     "install",
-                    "--require-hashes",
                     "-r",
                     "requirements.lock",
                 ],
@@ -112,7 +112,6 @@ class DependencyPromptTestCase(unittest.TestCase):
                     "-m",
                     "pip",
                     "install",
-                    "--require-hashes",
                     "-r",
                     "requirements.lock",
                 ],

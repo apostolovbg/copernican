@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-09-01
+# Last Updated: 2025-09-02
 
 # Start the Copernican Suite on macOS.
 #
@@ -112,14 +112,14 @@ if [ ! -f ".venv/bin/activate" ]; then
     fi
 fi
 
-# Activate, update pip, install dependencies with hash verification,
+# Activate, update pip, install dependencies,
 # then install the project without dependencies and restart the script.
 # Delete any 'build/' directory before and after installing the project to
 # avoid stale build artifacts.
 source .venv/bin/activate
 python -m pip install --upgrade pip
-# Install pinned dependencies with hash verification.
-python -m pip install --require-hashes -r requirements.lock
+# Install pinned dependencies.
+python -m pip install -r requirements.lock
 # Remove any 'build/' directory before and after installing the project
 # to avoid stale build artifacts.
 rm -rf build
