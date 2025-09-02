@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-09-01
+**Last Updated:** 2025-09-02
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -19,6 +19,35 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 4.3.11
+- 2025-09-02: Derived wheel tags from the running Python version to drop
+               hard-coded cp311 references in hash refresher and tests
+               (OpenAI ChatGPT)
+
+## Version 4.3.10
+- 2025-09-01: Pinned setuptools and extended hash refresher to cover cp311
+              wheels and other unsafe packages, preventing hash-mode
+              install failures (OpenAI ChatGPT)
+
+## Version 4.3.9
+- 2025-09-01: Added pytest and Windows colorama dependency to lock file and
+              refreshed hashes to fix failing tests (OpenAI ChatGPT)
+
+## Version 4.3.8
+- 2025-09-01: Included stable-ABI wheels in hash refresher and refreshed
+              pyerfa hashes for all platforms (OpenAI ChatGPT)
+
+## Version 4.3.7
+- 2025-09-01: Added universal2 wheel support in hash helper and refreshed
+              dependency hashes (OpenAI ChatGPT)
+
+## Version 4.3.6
+- 2025-09-01: Automated wheel hash recreation and fixed contourpy macOS ARM
+              hash to unblock CI (OpenAI ChatGPT)
+
+## Version 4.3.5
+- 2025-09-01: Added macOS and Windows wheel hashes for contourpy==1.3.3
+              to support cross-platform installs (OpenAI ChatGPT)
 ## Version 4.3.4
 - 2025-09-01: Refreshed dependency lock file (OpenAI ChatGPT)
 
