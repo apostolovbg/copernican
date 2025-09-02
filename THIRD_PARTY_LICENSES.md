@@ -18,6 +18,7 @@ users can review the full terms offline.
 | PyYAML | 6.0.2 | [MIT](licenses/MIT.txt) |
 | astropy | 7.1.0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | psutil | 7.0.0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
+| setuptools | 80.9.0 | [MIT](licenses/MIT.txt) |
 | setuptools_scm | 9.2.0 | [MIT](licenses/MIT.txt) |
 | emcee | 3.1.5 | [MIT](licenses/MIT.txt) |
 | h5netcdf | 1.6.4 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |

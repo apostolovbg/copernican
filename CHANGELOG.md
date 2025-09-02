@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-09-01
+**Last Updated:** 2025-09-02
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,16 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 4.3.11
+- 2025-09-02: Derived wheel tags from the running Python version to drop
+               hard-coded cp311 references in hash refresher and tests
+               (OpenAI ChatGPT)
+
+## Version 4.3.10
+- 2025-09-01: Pinned setuptools and extended hash refresher to cover cp311
+              wheels and other unsafe packages, preventing hash-mode
+              install failures (OpenAI ChatGPT)
 
 ## Version 4.3.9
 - 2025-09-01: Added pytest and Windows colorama dependency to lock file and

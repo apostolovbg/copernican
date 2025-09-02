@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Iterable, Sequence
 from urllib.request import Request, urlopen
@@ -51,12 +52,13 @@ def fetch_wheel_hashes(package: str, version: str) -> set[str]:
             return False
         py_tag, abi_tag, plat = parts[1], parts[2], parts[3][:-4]
 
-        # Accept wheels built for the exact interpreter (``cp312``), pure
-        # Python wheels (``py3``) and stable ABI builds (``abi3``).  The latter
-        # covers releases such as ``cp39-abi3`` that remain compatible across
-        # Python 3.x versions and previously slipped through the filters,
-        # leading to missing hashes for packages like ``pyerfa``.
-        if py_tag != "cp312" and abi_tag != "abi3" and py_tag != "py3":
+        # Accept wheels built for the running interpreter version, pure Python
+        # wheels (``py3``) and stable ABI builds (``abi3``).  Stable ABI wheels
+        # such as ``cp39-abi3`` remain compatible across Python 3 releases and
+        # previously slipped through the filters, leading to missing hashes for
+        # packages like ``pyerfa``.
+        cp_tag = f"cp{sys.version_info.major}{sys.version_info.minor}"
+        if py_tag != cp_tag and abi_tag != "abi3" and py_tag != "py3":
             return False
 
         if plat.startswith("win_amd64"):
