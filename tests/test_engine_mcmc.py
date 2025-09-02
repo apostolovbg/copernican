@@ -55,9 +55,13 @@ class TestMCMCEngine(unittest.TestCase):
                 path,
                 metadata={"model": plugin.MODEL_NAME},
             )
-            ds = xr.open_dataset(path, group="posterior")
-            for name in plugin.PARAMETER_NAMES:
-                self.assertIn(name, ds.data_vars)
+            # Use a context manager so Windows can remove the file when the
+            # temporary directory cleans up. Without explicitly closing the
+            # dataset the cleanup step fails because the file handle remains
+            # open on that platform.
+            with xr.open_dataset(path, group="posterior") as ds:
+                for name in plugin.PARAMETER_NAMES:
+                    self.assertIn(name, ds.data_vars)
 
     def test_log_probability_penalty(self):
         plugin = self._build_lcdm_plugin()
