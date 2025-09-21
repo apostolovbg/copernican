@@ -1,5 +1,5 @@
 # Packaging Guide
-**Last Updated:** 2025-09-02
+**Last Updated:** 2025-09-03
 
 This document explains how to prepare the suite for development or packaging.
 
@@ -28,6 +28,11 @@ after pulling updates to refresh the environment.
 `requirements.lock` pins exact versions for all runtime
 dependencies. Adding or updating a package requires editing this file and the
 license summary in `THIRD_PARTY_LICENSES.md`.
+
+Development helpers such as `pre-commit` are installed without the
+`--no-deps` flag so their own dependencies are pulled in automatically.
+This keeps the environment consistent across platforms without manually
+tracking every transient requirement.
 
 ## Build optional distributions
 
