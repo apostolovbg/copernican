@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-09-03
+**Last Updated:** 2025-09-22
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,11 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 4.3.14
+- 2025-09-22: Bundled pip-tools with locked dependencies, refreshed the lock
+               file, documentation and licensing metadata so `make lock`
+               always succeeds inside the managed environment (OpenAI ChatGPT)
 
 ## Version 4.3.13
 - 2025-09-03: Closed NetCDF handle in MCMC test to resolve Windows temp file cleanup (OpenAI ChatGPT)
