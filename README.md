@@ -1,5 +1,5 @@
-**Version:** 4.3.13
-**Last Updated:** 2025-09-03
+**Version:** 4.3.14
+**Last Updated:** 2025-09-22
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -156,8 +156,11 @@ package is missing the program asks before running `pip install
 same versions
 appear under `[project].dependencies` in `pyproject.toml`. Regenerate both
 files together whenever dependencies change.
-This requirement is codified as law 22 under
-"AI-driven and human development" laws and protocols.
+`pip-tools` now ships alongside the runtime stack so `pip-compile` is always
+available before running `make lock`. Use the bundled start scripts to enter
+the managed environment before regenerating locks; they guarantee the tool is
+installed with the pinned dependencies. This requirement is codified as law
+22 under "AI-driven and human development" laws and protocols.
 Running `copernican.py` directly now fails with a message directing you to
 use the `start.*` helpers. Future engines may also depend on `numba` or GPU
 libraries.

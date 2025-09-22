@@ -1,4 +1,4 @@
-# Last Updated: 2025-09-02
+# Last Updated: 2025-09-22
 numpy==2.2.6
 scipy==1.16.1
 matplotlib==3.10.5
@@ -19,4 +19,5 @@ xarray==2025.8.0
 xarray-einstats==0.9.1
 typing_extensions==4.15.0
 pytest==8.4.1
+pip-tools==7.4.1
 arviz @ https://github.com/arviz-devs/arviz/archive/01c8b9454349247eed2145a27b03f9231acb412f.tar.gz
