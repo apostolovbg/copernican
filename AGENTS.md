@@ -281,6 +281,9 @@ these rules:
    Run `python -m piptools compile requirements.in --allow-unsafe
    --output-file requirements.lock` (or simply `make lock`), commit the
    updated `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`.
+   The local pre-commit hook provisions `pip-tools==7.4.1` automatically
+   before invoking `make lock` so the workflow succeeds even in clean CI
+   environments.
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 
