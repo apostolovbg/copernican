@@ -1,4 +1,4 @@
-**Version:** 4.3.14
+**Version:** 4.3.15
 **Last Updated:** 2025-09-22
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -156,11 +156,12 @@ package is missing the program asks before running `pip install
 same versions
 appear under `[project].dependencies` in `pyproject.toml`. Regenerate both
 files together whenever dependencies change.
-`pip-tools` now ships alongside the runtime stack so `pip-compile` is always
-available before running `make lock`. Use the bundled start scripts to enter
-the managed environment before regenerating locks; they guarantee the tool is
-installed with the pinned dependencies. This requirement is codified as law
-22 under "AI-driven and human development" laws and protocols.
+`pip-tools` now ships alongside the runtime stack so `python -m piptools
+compile` is always available before running `make lock`. Use the bundled
+start scripts to enter the managed environment before regenerating locks; they
+guarantee the module resolves to the pinned version. The `make lock` target
+wraps `python -m piptools compile --allow-unsafe`, so law 22 under
+"AI-driven and human development" covers this workflow explicitly.
 Running `copernican.py` directly now fails with a message directing you to
 use the `start.*` helpers. Future engines may also depend on `numba` or GPU
 libraries.
@@ -626,9 +627,9 @@ accurately** convey their purpose without unnecessary length.
 > repository's `.venv` is created or updated automatically; other Python
 > environments must be ignored.
 > 22. **Refresh dependencies whenever packages are added or changed.**
->    Run `pip-compile requirements.in`,
->    commit the updated `requirements.lock`, and audit
->    `THIRD_PARTY_LICENSES.md`.
+>    Run `python -m piptools compile requirements.in --allow-unsafe
+>    --output-file requirements.lock` (or simply `make lock`), commit the
+>    updated `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`.
 >
 > Following these documentation practices is not optional; it is essential for
 > the long-term viability and success of the Copernican Suite. Failure to

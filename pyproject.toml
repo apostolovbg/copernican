@@ -29,7 +29,7 @@ dependencies = [
     "xarray==2025.8.0",
     "xarray-einstats==0.9.1",
     "typing_extensions==4.15.0",
-    "pip-tools==7.4.1",  # ensure pip-compile is installed for make lock
+    "pip-tools==7.4.1",  # ensure python -m piptools compile is available
     "arviz @ https://github.com/arviz-devs/arviz/archive/01c8b9454349247eed2145a27b03f9231acb412f.tar.gz",
 ]
 
