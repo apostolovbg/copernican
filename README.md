@@ -1,4 +1,4 @@
-**Version:** 4.3.15
+**Version:** 4.3.16
 **Last Updated:** 2025-09-22
 
 The Copernican Suite is a Python toolkit for testing cosmological models
@@ -484,6 +484,11 @@ checks:
 pre-commit install
 pre-commit run --files <changed files>
 ```
+
+The local `make-lock` hook now bootstraps a dedicated Python environment and
+installs `pip-tools==7.4.1` before executing `make lock`. This keeps
+`pip-compile` available for both developer workflows and CI runs without
+requiring manual package management outside the managed stack.
 
 Run the tests with:
 

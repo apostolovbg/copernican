@@ -1,4 +1,4 @@
-# Last Updated: 2025-09-02
+# Last Updated: 2025-09-22
 repos:
   - repo: https://github.com/psf/black
     rev: 24.4.2
@@ -25,6 +25,8 @@ repos:
       - id: make-lock
         name: update dependency lock
         entry: make lock
-        language: system
+        language: python
+        additional_dependencies:
+          - pip-tools==7.4.1
         files: ^requirements\.in$
         pass_filenames: false

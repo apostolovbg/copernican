@@ -19,6 +19,11 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 4.3.16
+- 2025-09-22: Reconfigured the pre-commit `make lock` hook to provision
+              `pip-tools` automatically so dependency refreshes succeed in CI
+              and during local linting (OpenAI ChatGPT)
+
 ## Version 4.3.15
 - 2025-09-22: Switched the dependency lock automation to
               `python -m piptools compile`, refreshed documentation and
