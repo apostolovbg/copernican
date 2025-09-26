@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-09-02
+# Last Updated: 2025-09-30
 
 # Start the Copernican Suite on macOS.
 #
@@ -88,9 +88,15 @@ if [ ! -x "$PY_BIN" ]; then
     VER="3.12.11"
     ARCH="$(uname -m)"
     PLAT="apple-darwin"
-    URL="$BASE/download/$REL/"
-    URL="${URL}cpython-${VER}+${REL}-${ARCH}-${PLAT}-install_only.tar.gz"
-    curl -L "$URL" | tar -xz -C "$PY_DIR" --strip-components=1
+    # Build the release URL once so we can validate it before invoking curl.
+    # An empty URL means the release metadata above is stale.
+    URL_PATH="cpython-${VER}+${REL}-${ARCH}-${PLAT}-install_only.tar.gz"
+    DOWNLOAD_URL="$BASE/download/$REL/$URL_PATH"
+    if [ -z "$DOWNLOAD_URL" ]; then
+        echo "Copernican Suite download URL is empty." >&2
+        exit 1
+    fi
+    curl -fL "$DOWNLOAD_URL" | tar -xz -C "$PY_DIR" --strip-components=1
 fi
 PYTHON="$PY_BIN"
 

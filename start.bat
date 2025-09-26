@@ -1,6 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-09-28
+@REM Last Updated: 2025-09-30
 @echo off
 set "PKG_NOTICE=Package managers may request your password. The Copernican"
 set "PKG_NOTICE=%PKG_NOTICE% Suite never reads or stores it."
@@ -38,21 +38,38 @@ if not exist "%PYBIN%" (
     set "URL_BASE=%BASE%/download/%REL%/"
     set "URL_FILE=cpython-%VER%+%REL%-%ARCH%-pc-windows-msvc-"
     set "URL_FILE=%URL_FILE%shared-install_only.tar.gz"
-    set "URL=%URL_BASE%%URL_FILE%"
-    REM Surface the URL and archive path to PowerShell via environment variables
-    REM so it can validate the values before downloading and unpacking.
-    set "COPERNICAN_PYTHON_URL=%URL%"
-    set "COPERNICAN_PYTHON_TAR=python.tar.gz"
-    set "COPERNICAN_PYDIR=%PYDIR%"
+    set "DOWNLOAD_URL=%URL_BASE%%URL_FILE%"
+    set "DOWNLOAD_TAR=python.tar.gz"
+    REM Fail fast when the computed URL is blank so the user sees a clear
+    REM diagnostic instead of a confusing PowerShell error.
+    if "%DOWNLOAD_URL%"=="" (
+        echo Copernican Suite download URL is empty.
+        exit /b 1
+    )
+    REM Download the archive with strict argument checking to avoid silent
+    REM truncation when environment variables are missing.
     powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
-        "$url = $env:COPERNICAN_PYTHON_URL;" ^
-        "if ([string]::IsNullOrWhiteSpace($url))" ^
-        " { throw 'Copernican Suite download URL is empty.' }" ^
-        "Invoke-WebRequest -Uri $url -OutFile $env:COPERNICAN_PYTHON_TAR"
+        "& { param([string]$url, [string]$outFile) ^
+            Set-StrictMode -Version Latest; ^
+            if ([string]::IsNullOrWhiteSpace($url)) { ^
+                throw 'Copernican Suite download URL is empty.' ^
+            } ^
+            Invoke-WebRequest -Uri $url -OutFile $outFile ^
+        }" ^
+        -Args "%DOWNLOAD_URL%", "%DOWNLOAD_TAR%"
+    if errorlevel 1 exit /b 1
+    REM Extract the interpreter once the archive exists and surface a helpful
+    REM message if the download step was skipped or failed.
     powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
-        "$tarPath = $env:COPERNICAN_PYTHON_TAR;" ^
-        "$targetDir = $env:COPERNICAN_PYDIR;" ^
-        "tar -xzf $tarPath -C $targetDir --strip-components=1"
+        "& { param([string]$tarPath, [string]$targetDir) ^
+            Set-StrictMode -Version Latest; ^
+            if (-not (Test-Path -Path $tarPath -PathType Leaf)) { ^
+                throw 'Copernican Suite download archive is missing.' ^
+            } ^
+            & tar -xzf $tarPath -C $targetDir --strip-components=1 ^
+        }" ^
+        -Args "%DOWNLOAD_TAR%", "%PYDIR%"
+    if errorlevel 1 exit /b 1
     del python.tar.gz
 )
 set "PYTHON=%PYBIN%"

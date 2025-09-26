@@ -1,5 +1,5 @@
-**Version:** 4.3.18
-**Last Updated:** 2025-09-28
+**Version:** 4.3.19
+**Last Updated:** 2025-09-30
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -173,13 +173,12 @@ create a local virtual environment, upgrade `pip` and install the package
 automatically before launching the suite. Running `copernican.py` outside
 this environment prompts you to use the appropriate start script.
 
-The Windows launcher now assembles the download URL without relying on
-line continuations, surfaces it to PowerShell through environment
-variables and creates the `.python` directory before extracting the
-standalone interpreter. These safeguards prevent the
-`Invoke-WebRequest` call from receiving an empty URI on PowerShell,
-which previously surfaced as "Invalid URI: The hostname could not be
-parsed." errors on some shells.
+The launchers now assemble the Python download URL once, validate that it
+is non-empty and halt with an explicit "Copernican Suite download URL is
+empty." error when the release metadata is missing. The Windows helper
+passes the URL and archive path to PowerShell as strict parameters so
+`Invoke-WebRequest` cannot start with undefined values, while the Unix
+launchers rely on `curl -fL` to surface HTTP failures immediately.
 
 To install the package system-wide run:
 
