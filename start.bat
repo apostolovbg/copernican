@@ -1,6 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-09-02
+@REM Last Updated: 2025-09-26
 
 @echo off
 set "PKG_NOTICE=Package managers may request your password. The Copernican"
@@ -29,12 +29,17 @@ if defined VIRTUAL_ENV (
 
 REM Bootstrap a dedicated interpreter.
 if not exist "%PYBIN%" (
+    REM Create the extraction target before unpacking the archive.
+    if not exist "%PYDIR%" mkdir "%PYDIR%"
     set "BASE=https://github.com/astral-sh/python-build-standalone/releases"
     set "REL=20250828"
     set "VER=3.12.11"
     set "ARCH=amd64"
-    set "URL=%BASE%/download/%REL%/cpython-%VER%+%REL%-%ARCH%-pc-windows-msvc-^"
-    set "URL=%URL%shared-install_only.tar.gz"
+    REM Build the download URL without caret continuations to keep it stable.
+    set "URL_BASE=%BASE%/download/%REL%/"
+    set "URL_FILE=cpython-%VER%+%REL%-%ARCH%-pc-windows-msvc-"
+    set "URL_FILE=%URL_FILE%shared-install_only.tar.gz"
+    set "URL=%URL_BASE%%URL_FILE%"
     powershell -Command ^
         "Invoke-WebRequest -Uri '%URL%' -OutFile 'python.tar.gz'"
     powershell -Command ^

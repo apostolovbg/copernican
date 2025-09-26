@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-09-22
+**Last Updated:** 2025-09-26
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,12 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 4.3.17
+- 2025-09-26: Repaired the Windows launcher so it builds a valid
+              Python download URL, pre-creates the `.python` directory,
+              documents the fix and bumps the suite metadata
+              (OpenAI ChatGPT)
 
 ## Version 4.3.16
 - 2025-09-22: Reconfigured the pre-commit `make lock` hook to provision
