@@ -1,6 +1,5 @@
 # Packaging Guide
-**Last Updated:** 2025-09-26
-
+**Last Updated:** 2025-09-28
 This document explains how to prepare the suite for development or packaging.
 
 ## Install Python 3.12+
@@ -11,9 +10,11 @@ another virtual environment is active so the repository's `.venv` is
 always used. If the download fails the scripts exit with guidance.
 
 On Windows the launcher now constructs the download URL without command
-continuations and creates the `.python` directory before extraction.
-Those guard rails prevent empty-URL failures when PowerShell parses the
-`Invoke-WebRequest` call.
+continuations, exports it to PowerShell via environment variables and
+creates the `.python` directory before extraction. Those guard rails
+prevent empty-URL failures when PowerShell parses the
+`Invoke-WebRequest` call and ensure the bootstrapper refuses to
+continue if the download URL ever collapses to an empty string.
 
 ## Bootstrap the virtual environment
 

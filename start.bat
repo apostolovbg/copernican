@@ -1,7 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-09-26
-
+@REM Last Updated: 2025-09-28
 @echo off
 set "PKG_NOTICE=Package managers may request your password. The Copernican"
 set "PKG_NOTICE=%PKG_NOTICE% Suite never reads or stores it."
@@ -40,10 +39,20 @@ if not exist "%PYBIN%" (
     set "URL_FILE=cpython-%VER%+%REL%-%ARCH%-pc-windows-msvc-"
     set "URL_FILE=%URL_FILE%shared-install_only.tar.gz"
     set "URL=%URL_BASE%%URL_FILE%"
-    powershell -Command ^
-        "Invoke-WebRequest -Uri '%URL%' -OutFile 'python.tar.gz'"
-    powershell -Command ^
-        "tar -xzf 'python.tar.gz' -C '%PYDIR%' --strip-components=1"
+    REM Surface the URL and archive path to PowerShell via environment variables
+    REM so it can validate the values before downloading and unpacking.
+    set "COPERNICAN_PYTHON_URL=%URL%"
+    set "COPERNICAN_PYTHON_TAR=python.tar.gz"
+    set "COPERNICAN_PYDIR=%PYDIR%"
+    powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
+        "$url = $env:COPERNICAN_PYTHON_URL;" ^
+        "if ([string]::IsNullOrWhiteSpace($url))" ^
+        " { throw 'Copernican Suite download URL is empty.' }" ^
+        "Invoke-WebRequest -Uri $url -OutFile $env:COPERNICAN_PYTHON_TAR"
+    powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
+        "$tarPath = $env:COPERNICAN_PYTHON_TAR;" ^
+        "$targetDir = $env:COPERNICAN_PYDIR;" ^
+        "tar -xzf $tarPath -C $targetDir --strip-components=1"
     del python.tar.gz
 )
 set "PYTHON=%PYBIN%"

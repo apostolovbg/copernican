@@ -40,8 +40,15 @@ class StartScriptTestCase(unittest.TestCase):
             'set "URL_FILE=%URL_FILE%shared-install_only.tar.gz"',
             self.start_bat,
         )
+        self.assertIn('set "URL=%URL_BASE%%URL_FILE%"', self.start_bat)
+        self.assertIn('set "COPERNICAN_PYTHON_URL=%URL%"', self.start_bat)
         self.assertIn(
-            'set "URL=%URL_BASE%%URL_FILE%"',
+            'set "COPERNICAN_PYTHON_TAR=python.tar.gz"', self.start_bat
+        )
+        self.assertIn('set "COPERNICAN_PYDIR=%PYDIR%"', self.start_bat)
+        self.assertIn("$url = $env:COPERNICAN_PYTHON_URL;", self.start_bat)
+        self.assertIn(
+            "if ([string]::IsNullOrWhiteSpace($url))",
             self.start_bat,
         )
 
