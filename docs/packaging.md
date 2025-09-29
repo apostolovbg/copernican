@@ -1,5 +1,5 @@
 # Packaging Guide
-**Last Updated:** 2025-09-28
+**Last Updated:** 2025-10-05
 This document explains how to prepare the suite for development or packaging.
 
 ## Install Python 3.12+
@@ -11,10 +11,13 @@ always used. If the download fails the scripts exit with guidance.
 
 On Windows the launcher now constructs the download URL without command
 continuations, exports it to PowerShell via environment variables and
-creates the `.python` directory before extraction. Those guard rails
-prevent empty-URL failures when PowerShell parses the
-`Invoke-WebRequest` call and ensure the bootstrapper refuses to
-continue if the download URL ever collapses to an empty string.
+creates the `.python` directory before extraction. The download and
+extraction steps run through dedicated subroutines outside the
+`if not exist "%PYBIN%" (...)` block, so `cmd.exe` no longer mis-parses
+PowerShell closures when the block finishes. Those guard rails prevent
+empty-URL failures when PowerShell parses the `Invoke-WebRequest` call
+and ensure the bootstrapper refuses to continue if the download URL ever
+collapses to an empty string while still restoring the interactive menu.
 
 ## Bootstrap the virtual environment
 
