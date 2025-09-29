@@ -1,6 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-09-30
+@REM Last Updated: 2025-10-05
 @echo off
 set "PKG_NOTICE=Package managers may request your password. The Copernican"
 set "PKG_NOTICE=%PKG_NOTICE% Suite never reads or stores it."
@@ -27,6 +27,7 @@ if defined VIRTUAL_ENV (
 )
 
 REM Bootstrap a dedicated interpreter.
+set "COPERNICAN_BOOTSTRAP=0"
 if not exist "%PYBIN%" (
     REM Create the extraction target before unpacking the archive.
     if not exist "%PYDIR%" mkdir "%PYDIR%"
@@ -46,32 +47,13 @@ if not exist "%PYBIN%" (
         echo Copernican Suite download URL is empty.
         exit /b 1
     )
-    REM Download the archive with strict argument checking to avoid silent
-    REM truncation when environment variables are missing.
-    powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
-        "& { param([string]$url, [string]$outFile) ^
-            Set-StrictMode -Version Latest; ^
-            if ([string]::IsNullOrWhiteSpace($url)) { ^
-                throw 'Copernican Suite download URL is empty.' ^
-            } ^
-            Invoke-WebRequest -Uri $url -OutFile $outFile ^
-        }" ^
-        -Args "%DOWNLOAD_URL%", "%DOWNLOAD_TAR%"
-    if errorlevel 1 exit /b 1
-    REM Extract the interpreter once the archive exists and surface a helpful
-    REM message if the download step was skipped or failed.
-    powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
-        "& { param([string]$tarPath, [string]$targetDir) ^
-            Set-StrictMode -Version Latest; ^
-            if (-not (Test-Path -Path $tarPath -PathType Leaf)) { ^
-                throw 'Copernican Suite download archive is missing.' ^
-            } ^
-            & tar -xzf $tarPath -C $targetDir --strip-components=1 ^
-        }" ^
-        -Args "%DOWNLOAD_TAR%", "%PYDIR%"
-    if errorlevel 1 exit /b 1
-    del python.tar.gz
+    set "COPERNICAN_BOOTSTRAP=1"
 )
+if "%COPERNICAN_BOOTSTRAP%"=="1" call :download_python "%DOWNLOAD_URL%" "%DOWNLOAD_TAR%"
+if errorlevel 1 exit /b 1
+if "%COPERNICAN_BOOTSTRAP%"=="1" call :extract_python "%DOWNLOAD_TAR%" "%PYDIR%"
+if errorlevel 1 exit /b 1
+if "%COPERNICAN_BOOTSTRAP%"=="1" del python.tar.gz
 set "PYTHON=%PYBIN%"
 
 REM Create the virtual environment when missing.
@@ -99,6 +81,32 @@ if exist build rmdir /s /q build
 
 call "%~f0" %*
 goto :eof
+
+:download_python
+REM Download the bundled Python interpreter through PowerShell.
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
+    "& { param([string]$url, [string]$outFile) ^
+        Set-StrictMode -Version Latest; ^
+        if ([string]::IsNullOrWhiteSpace($url)) { ^
+            throw 'Copernican Suite download URL is empty.' ^
+        } ^
+        Invoke-WebRequest -Uri $url -OutFile $outFile ^
+    }" ^
+    -Args "%~1", "%~2"
+exit /b %ERRORLEVEL%
+
+:extract_python
+REM Extract the downloaded interpreter archive with validation.
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
+    "& { param([string]$tarPath, [string]$targetDir) ^
+        Set-StrictMode -Version Latest; ^
+        if (-not (Test-Path -Path $tarPath -PathType Leaf)) { ^
+            throw 'Copernican Suite download archive is missing.' ^
+        } ^
+        & tar -xzf $tarPath -C $targetDir --strip-components=1 ^
+    }" ^
+    -Args "%~1", "%~2"
+exit /b %ERRORLEVEL%
 
 :menu
 set STRICT=0

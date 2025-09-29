@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-09-30
+**Last Updated:** 2025-10-05
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,12 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 4.3.20
+- 2025-10-05: Moved the Windows launcher PowerShell invocations into helper
+              subroutines to avoid `cmd.exe` parsing bugs, confirmed the
+              bootstrap menu launches cleanly and refreshed documentation and
+              metadata (OpenAI ChatGPT)
 
 ## Version 4.3.19
 - 2025-09-30: Hardened the launchers to validate the Python download URL, pass
