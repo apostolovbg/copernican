@@ -1,0 +1,161 @@
+2025-10-22 19:11:27,459 - INFO - Logging initialized. Log file: output/copernican-run_20251022_191127/copernican-run_20251022_191127.txt
+2025-10-22 19:11:27,459 - INFO - Warnings will be logged but not treated as errors
+2025-10-22 19:11:27,529 - INFO - Environment details:
+2025-10-22 19:11:27,530 - INFO -   Python: 3.12.11
+2025-10-22 19:11:27,530 - INFO -   OS: macOS-15.0.1-x86_64-i386-64bit
+2025-10-22 19:11:27,530 - INFO -   CPU: i386
+2025-10-22 19:11:27,530 - INFO -   numpy: 2.2.6
+2025-10-22 19:11:27,530 - INFO -   scipy: 1.16.1
+2025-10-22 19:11:27,530 - INFO -   matplotlib: 3.10.5
+2025-10-22 19:11:27,530 - INFO - Environment summary: Python 3.12.11; macOS-15.0.1-x86_64-i386-64bit; CPU i386; numpy 2.2.6, scipy 1.16.1, matplotlib 3.10.5
+2025-10-22 19:11:27,530 - INFO - Select RNG seed:
+2025-10-22 19:11:27,530 - INFO - 1) Use default seed 0
+2025-10-22 19:11:27,530 - INFO - 2) Enter a seed manually
+2025-10-22 19:11:27,530 - INFO - 3) Generate a random seed
+2025-10-22 19:11:27,543 - INFO - Choice [1-3]: 
+2025-10-22 19:11:48,616 - INFO - Global RNG seed set to 0
+2025-10-22 19:11:48,617 - INFO - Using RNG seed 0
+2025-10-22 19:11:48,617 - INFO - Copernican 3.5.0.post1.dev370+g74225d4b5.d20251022 has initialized! Current timestamp is 251022_191148. Log file: output/copernican-run_20251022_191127/copernican-run_20251022_191127.txt
+2025-10-22 19:11:48,617 - INFO - Using standard CPU (SciPy) computational backend with multiprocessing.
+2025-10-22 19:11:48,617 - INFO - Running from base directory: .
+2025-10-22 19:11:48,617 - INFO - All outputs will be saved to: output/copernican-run_20251022_191127
+2025-10-22 19:11:48,617 - INFO - 
+--- Stage 1: Configuration ---
+
+2025-10-22 19:11:48,618 - INFO - 
+Available cosmological models:
+2025-10-22 19:11:48,618 - INFO -   1. cosmo_model_cfsc.yml
+2025-10-22 19:11:48,618 - INFO -   2. cosmo_model_cpc.yml
+2025-10-22 19:11:48,618 - INFO -   3. cosmo_model_lcdm.yml
+2025-10-22 19:11:48,618 - INFO -   4. cosmo_model_qauc.yml
+2025-10-22 19:11:48,618 - INFO -   5. cosmo_model_usmf2.yml
+2025-10-22 19:11:48,618 - INFO -   6. cosmo_model_usmf3.yml
+2025-10-22 19:11:48,618 - INFO -   7. cosmo_model_usmf4.yml
+2025-10-22 19:11:48,618 - INFO -   8. cosmo_model_usmf5.yml
+2025-10-22 19:11:48,618 - INFO -   9. cosmo_model_usmf6.yml
+2025-10-22 19:11:48,618 - INFO -   10. cosmo_model_usmf7.yml
+2025-10-22 19:11:48,618 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-10-22 20:58:35,640 - INFO - > 3
+2025-10-22 20:58:35,691 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2025-10-22 20:58:35,691 - INFO - Derived r_s using fallback integral from Hz_expression.
+2025-10-22 20:58:35,691 - INFO - Derived distance_modulus_model from luminosity distance.
+2025-10-22 20:58:35,696 - INFO - Loaded YAML model: LambdaCDM
+2025-10-22 20:58:35,700 - INFO - 
+Available computation engines:
+2025-10-22 20:58:35,700 - INFO -   1. cosmo_engine_comb.py
+2025-10-22 20:58:35,700 - INFO -   2. cosmo_engine_mcmc.py
+2025-10-22 20:58:35,700 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-10-22 20:58:39,109 - INFO - > 2
+2025-10-22 20:59:53,556 - INFO - 
+Available SNe data sources:
+2025-10-22 20:59:53,558 - INFO -   1. Joint Light-curve Analysis 2014 (Joint SDSS-II and SNLS supernova sample of 740 SNe Ia with distance moduli and full covariance matrix.)
+2025-10-22 20:59:53,558 - INFO -   2. Pantheon+SH0ES 2022 (Combined sample of 1701 Type Ia supernova distance moduli with full statistical and systematic covariance matrix)
+2025-10-22 20:59:53,558 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-10-22 21:00:32,210 - INFO - > 1
+2025-10-22 21:00:32,310 - INFO - Attempting to load SNe data from 'Joint Light-curve Analysis 2014'
+2025-10-22 21:00:45,086 - INFO - Successfully loaded 740 SNe data points.
+2025-10-22 21:00:50,567 - INFO - SHA256 +footg5.gif: 6d375d2d9a97f897b6bdadf61781d5ad49365a612b0eeda2e27b363e83546b89
+2025-10-22 21:00:50,567 - INFO - SHA256 +footg8.gif: c725331eae86cce9f3b27fc9b3b2476d611b9c0d8c1a760df4c4792a5f9022da
+2025-10-22 21:00:50,568 - INFO - SHA256 ReadMe.txt: 236793155d6572626a56259732b06e4d1141e1ebe5ee2f4ed83253aca403b3f9
+2025-10-22 21:00:50,568 - INFO - SHA256 metadata_jla2014.yml: 85b5de817832c0d6ebcdbd052941145dadf0754e72e9f82dde8b789fe8148c46
+2025-10-22 21:00:50,568 - INFO - SHA256 tablef1.dat: d9b17b4c704b554d0e3df0b5efed7877e881d2f62c04f968b789a61b3fb80114
+2025-10-22 21:00:50,568 - INFO - SHA256 tablef2.fit: 0db2aeab210523594c07ac7f89edca87c55a76601c51c4a831d338cc32ce3ff4
+2025-10-22 21:00:50,568 - INFO - SHA256 tablef3.dat: 35db10c033fa4bc5326436d957eb732e76fd7a4d6db7c729bc3ce17aeb5de470
+2025-10-22 21:00:50,568 - INFO - SHA256 tablef4.fit: a17a1e29a8ee1631669a4456adf84c27372a33f5448a65971dbdd50eb9a97a67
+2025-10-22 21:00:50,568 - INFO - SHA256 __pycache__/cosmo_parser_jla2014.cpython-312.pyc: 9320b2c2c99e926d85ea8d9fff9bcc225d24328f861ca2fed25b8513e3234054
+2025-10-22 21:00:50,568 - INFO - Loaded SNe dataset 'Joint Light-curve Analysis 2014' with 740 rows.
+2025-10-22 21:00:50,568 - INFO - SNe covariance matrix inverted successfully.
+2025-10-22 21:00:50,568 - INFO - 
+Available BAO data sources:
+2025-10-22 21:00:50,569 - INFO -   1. BOSS DR12 BAO Consensus (Consensus BAO distances for three redshift bins providing DM/rs, DH/rs and DV/rs with propagated block-diagonal covariance)
+2025-10-22 21:00:50,569 - INFO -   2. Compound BAO dataset (Compilation of BAO distance measurements without a covariance matrix)
+2025-10-22 21:00:50,569 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-10-22 21:01:12,077 - INFO - > 1
+2025-10-22 21:01:12,077 - INFO - Attempting to load BAO data from 'BOSS DR12 BAO Consensus'
+2025-10-22 21:01:12,077 - INFO - Loading BOSS DR12 data from /Users/apostolov/Documents/GitHub/copernican/data/bao/bossdr12
+2025-10-22 21:01:15,385 - INFO - Successfully loaded 9 BAO data points.
+2025-10-22 21:01:15,389 - INFO - SHA256 BAO_consensus_covtot_dM_Hz.txt: 05c04829c8edc117870efe809494593a23de6c35547f8b66760a5250804b65cf
+2025-10-22 21:01:15,389 - INFO - SHA256 BAO_consensus_covtot_dV_FAP.txt: cf5b760b34f4335bd90490fcce4540dbac0b0b54e3240544c4af133dd45c8300
+2025-10-22 21:01:15,389 - INFO - SHA256 BAO_consensus_results_dM_Hz.txt: 30e784fa08e7eddb2fdd1ab09411424e67aa9b75df58f4bb330a889c9b9c478e
+2025-10-22 21:01:15,389 - INFO - SHA256 BAO_consensus_results_dV_FAP.txt: e507d65dacedc814892609d2decca9990a954ef5836da79b57c663885fce4ef8
+2025-10-22 21:01:15,389 - INFO - SHA256 metadata_bossdr12.yml: 9d8b2b526b33c043f382c3d623f60a1f29dbf4e438549549ec96b01e763f09a8
+2025-10-22 21:01:15,389 - INFO - SHA256 __pycache__/cosmo_parser_bossdr12.cpython-312.pyc: 62e75c1574a9f21896e267d4ba8d8143f5a8ffe939e9fcc2a0240539a858f563
+2025-10-22 21:01:15,389 - INFO - Loaded BAO dataset 'BOSS DR12 BAO Consensus' with 9 rows.
+2025-10-22 21:01:15,389 - INFO - BAO covariance matrix inverted successfully.
+2025-10-22 21:01:15,390 - INFO - 
+Available CMB data sources:
+2025-10-22 21:01:15,390 - INFO -   1. Planck 2018 Lite TT/TE/EE (Temperature and polarization power spectra from the Planck 2018 lite release with full covariance matrix)
+2025-10-22 21:01:15,390 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-10-22 21:01:18,429 - INFO - > 1
+2025-10-22 21:01:18,429 - INFO - Attempting to load CMB data from 'Planck 2018 Lite TT/TE/EE'
+2025-10-22 21:01:21,852 - INFO - Successfully loaded 215 CMB data points.
+2025-10-22 21:01:22,702 - INFO - SHA256 c_matrix_plik_v22.dat: ad90378c50bd67841764179c90ae6711fa4317c649966ab2b0712143b31e0a32
+2025-10-22 21:01:22,702 - INFO - SHA256 cl_cmb_plik_v22.dat: dac0d9d493213e77c940a10a968cf0da3c5730bae60e1356c4cd8bcff96377ff
+2025-10-22 21:01:22,702 - INFO - SHA256 metadata_planck2018lite.yml: eedaf3802b38b35044f70d7740f7618036f959aa7959c3ef46494b6226c3aa23
+2025-10-22 21:01:22,702 - INFO - SHA256 readme_baseline.md: ae6cef6886f2c4381147657fc195bed72742fbe3cc106208200f961af24caa73
+2025-10-22 21:01:22,702 - INFO - SHA256 __pycache__/cosmo_parser_cmb_planck2018lite.cpython-312.pyc: 37a7b94f7d54c5d8408cc9a18c7fdeefa8ea4c434c181320938c5d2b099a2a93
+2025-10-22 21:01:22,702 - INFO - Loaded CMB dataset 'Planck 2018 Lite TT/TE/EE' with 215 rows.
+2025-10-22 21:01:22,702 - INFO - CMB covariance matrix inverted successfully.
+2025-10-22 21:01:22,857 - INFO - 
+--- Stage 2: Supernovae Ia Fitting ---
+
+2025-10-22 21:01:25,170 - INFO - 
+--- Stage 3: BAO Analysis ---
+
+2025-10-22 21:01:25,172 - INFO - Calculating BAO observables for LambdaCDM with parameters: [4.851e+09, 7.06e+09, -1.371e+10, -2.654e+10, 4.566e+08]
+2025-10-22 21:01:25,183 - WARNING - /Users/apostolov/Documents/GitHub/copernican/copernican_lib/model_coder.py:310: RuntimeWarning: invalid value encountered in sqrt
+2025-10-22 21:01:25,189 - WARNING - /Users/apostolov/Documents/GitHub/copernican/copernican_lib/model_coder.py:316: IntegrationWarning: The occurrence of roundoff error is detected, which prevents 
+  the requested tolerance from being achieved.  The error may be 
+  underestimated.
+2025-10-22 21:01:25,189 - WARNING - Model 'LambdaCDM' returned invalid r_s (nan Mpc). BAO calculations will be NaN.
+2025-10-22 21:01:25,190 - WARNING - LambdaCDM BAO calculation failed or produced invalid r_s.
+2025-10-22 21:01:25,190 - INFO - Calculating BAO observables for LambdaCDM with parameters: [6.859e+10, -5.005e+10, -2.326e+10, 5.3e+10, 2.803e+10]
+2025-10-22 21:01:25,190 - WARNING - <lambdifygenerated-2>:2: RuntimeWarning: invalid value encountered in sqrt
+2025-10-22 21:01:25,192 - WARNING - /Users/apostolov/Documents/GitHub/copernican/copernican_lib/model_coder.py:316: IntegrationWarning: The occurrence of roundoff error is detected, which prevents 
+  the requested tolerance from being achieved.  The error may be 
+  underestimated.
+2025-10-22 21:01:25,192 - WARNING - Model 'LambdaCDM' returned invalid r_s (nan Mpc). BAO calculations will be NaN.
+2025-10-22 21:01:25,192 - WARNING - LambdaCDM BAO calculation failed or produced invalid r_s.
+2025-10-22 21:01:25,192 - INFO - 
+--- Stage 4: CMB Analysis ---
+
+2025-10-22 21:01:55,761 - ERROR - (compute_cmb_spectrum_from_dict): Error in Fortran called from calc_transfer:
+Reionization did not converge to optical depth
+2025-10-22 21:02:25,333 - ERROR - (compute_cmb_spectrum_from_dict): Error in Fortran called from calc_transfer:
+Reionization did not converge to optical depth
+2025-10-22 21:02:25,344 - INFO - LambdaCDM CMB chi2 = inf
+2025-10-22 21:02:59,059 - ERROR - (compute_cmb_spectrum_from_dict): Error in Fortran called from calc_transfer:
+Reionization did not converge to optical depth
+2025-10-22 21:03:32,790 - ERROR - (compute_cmb_spectrum_from_dict): Error in Fortran called from calc_transfer:
+Reionization did not converge to optical depth
+2025-10-22 21:03:32,791 - INFO - LambdaCDM CMB chi2 = inf
+2025-10-22 21:03:32,791 - INFO - 
+--- Stage 5: Generating Outputs ---
+
+2025-10-22 21:03:32,791 - INFO - LambdaCDM CMB chi2 = inf
+2025-10-22 21:03:32,791 - INFO - LambdaCDM CMB chi2 = inf
+2025-10-22 21:03:32,801 - INFO - Log file renamed to copernican-run_20251022_210332.txt
+2025-10-22 21:03:32,806 - INFO - Generating Hubble Diagram for Joint Light-curve Analysis 2014...
+2025-10-22 21:03:52,500 - WARNING - <lambdifygenerated-2>:2: RuntimeWarning: invalid value encountered in sqrt
+2025-10-22 21:04:09,767 - INFO - Hubble diagram saved to hubble-plot-vs-LambdaCDM-jla_2014_20251022_210332.png
+2025-10-22 21:04:09,772 - INFO - Generating BAO Plot for BOSS DR12 BAO Consensus...
+2025-10-22 21:04:09,827 - WARNING - Skipping BAO plot for $\Lambda$CDM as smooth predictions are missing.
+2025-10-22 21:04:09,827 - WARNING - Skipping BAO plot for LambdaCDM as smooth predictions are missing.
+2025-10-22 21:04:09,843 - WARNING - /Users/apostolov/Documents/GitHub/copernican/copernican_lib/plotter.py:801: RuntimeWarning: All-NaN slice encountered
+2025-10-22 21:04:13,334 - INFO - BAO plot saved to bao-plot-vs-LambdaCDM-boss_dr12_bao_20251022_210332.png
+2025-10-22 21:04:13,342 - INFO - Generating CMB Spectrum Plot for Planck 2018 Lite TT/TE/EE...
+2025-10-22 21:04:13,550 - CRITICAL - Unhandled exception in main_workflow!
+Traceback (most recent call last):
+  File "/Users/apostolov/Documents/GitHub/copernican/copernican.py", line 1331, in <module>
+    main_workflow()
+  File "/Users/apostolov/Documents/GitHub/copernican/copernican.py", line 1136, in main_workflow
+    plotter.plot_cmb_spectrum(
+  File "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/plotter.py", line 1224, in plot_cmb_spectrum
+    format_model_summary_text(
+  File "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/plotter.py", line 254, in format_model_summary_text
+    lines.append(rf"  $\chi^2_{{tot}}$ = {chi2_tot:.2f}")
+                                         ^^^^^^^^^^^^^^
+TypeError: unsupported format string passed to NoneType.__format__
+2025-10-22 21:04:13,662 - INFO - 
+Displaying plot(s). Close plot window(s) to exit script fully.
+2025-10-22 21:04:26,866 - INFO - 
