@@ -1,6 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-10-22
+@REM Last Updated: 2025-11-05
 @echo off
 set "PKG_NOTICE=Package managers may request your password. The Copernican"
 set "PKG_NOTICE=%PKG_NOTICE% Suite never reads or stores it."
@@ -24,8 +24,12 @@ set "ARCH=amd64"
 set "URL_BASE=%BASE%/download/%REL%/"
 set "URL_FILE=cpython-%VER%+%REL%-%ARCH%-pc-windows-msvc-"
 set "URL_FILE=%URL_FILE%shared-install_only.tar.gz"
-set "DOWNLOAD_URL=%URL_BASE%%URL_FILE%"
+set "URL=%URL_BASE%%URL_FILE%"
+set "DOWNLOAD_URL=%URL%"
 set "DOWNLOAD_TAR=python.tar.gz"
+set "COPERNICAN_PYTHON_URL=%URL%"
+set "COPERNICAN_PYTHON_TAR=python.tar.gz"
+set "COPERNICAN_PYDIR=%PYDIR%"
 
 REM Skip setup when already inside the repository virtual environment.
 if defined VIRTUAL_ENV (
@@ -86,8 +90,12 @@ goto :eof
 :download_python
 REM Download the bundled Python interpreter through PowerShell.
 powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
-    "& { param([string]$url, [string]$outFile) ^
+    "& { param([string]$urlParam, [string]$outFile) ^
         Set-StrictMode -Version Latest; ^
+        $url = $env:COPERNICAN_PYTHON_URL; ^
+        if ([string]::IsNullOrWhiteSpace($url)) { ^
+            $url = $urlParam; ^
+        } ^
         if ([string]::IsNullOrWhiteSpace($url)) { ^
             throw 'Copernican Suite download URL is empty.' ^
         } ^

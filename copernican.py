@@ -1,4 +1,4 @@
-# Last Updated: 2025-09-02
+# Last Updated: 2025-11-05
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -17,9 +17,10 @@ a fresh checkout can execute with minimal setup.
 """
 
 
-import importlib.util
-import importlib
 import ast
+import importlib
+import importlib.util
+import json
 import os
 import sys
 import platform
@@ -27,11 +28,11 @@ import shutil
 import time
 import datetime
 import subprocess
-from pathlib import Path
 import faulthandler
 import signal
 from dataclasses import dataclass
 import random
+from pathlib import Path
 
 from copernican_lib import console_output as console
 from copernican_lib import run_manifest
@@ -97,6 +98,10 @@ data_loaders = None
 # logs and plot footers still carry a version-like identifier.
 COPERNICAN_VERSION = get_version()
 CURRENT_LOG_FILE = None
+
+DEPENDENCY_CACHE_ENV_VAR = "COPERNICAN_DEP_CACHE_DIR"
+DEPENDENCY_CACHE_FILENAME = "dependency_scan.json"
+DEPENDENCY_CACHE_SCHEMA = 1
 
 
 def _handle_fatal_signal(signum: int, _frame: object) -> None:
@@ -353,27 +358,30 @@ def show_splash_screen():
 # --- System Dependency and Sanity Checker ---
 
 
-def _gather_required_packages():
-    """Return external packages imported across project modules."""
-    # Rather than rely on ``pip freeze`` or manual lists this function
-    # walks through the source tree and parses each ``import`` statement
-    # with :mod:`ast`.  This keeps the dependency check accurate even
-    # when new optional modules are added.
-    pkg_names = set()
-    search_dirs = ["copernican_lib", "engines", "tests", "."]
-    ignore_dirs = {
-        "venv",
-        ".venv",
-        "env",
-        "build",
-        "dist",
-        "__pycache__",
-        "copernican_suite.egg-info",
-    }
+def _resolve_dependency_cache_paths() -> tuple[Path, Path]:
+    """Return the cache directory and file for dependency scans."""
+
+    override = os.environ.get(DEPENDENCY_CACHE_ENV_VAR)
+    if override:
+        cache_dir = Path(override).expanduser()
+    else:
+        cache_dir = Path(__file__).resolve().parent / ".cache"
+    cache_file = cache_dir / DEPENDENCY_CACHE_FILENAME
+    return cache_dir, cache_file
+
+
+def _scan_python_sources(
+    search_dirs: list[str], ignore_dirs: set[str]
+) -> tuple[list[Path], dict[str, dict[str, int]]]:
+    """Return Python source paths and a metadata snapshot for caching."""
+
+    python_files: list[Path] = []
+    snapshot: dict[str, dict[str, int]] = {}
     for base in search_dirs:
-        if not os.path.isdir(base):
+        base_path = Path(base).resolve()
+        if not base_path.is_dir():
             continue
-        for root, dirs, files in os.walk(base):
+        for root, dirs, files in os.walk(base_path):
             dirs[:] = [
                 d
                 for d in dirs
@@ -384,19 +392,114 @@ def _gather_required_packages():
             for fname in files:
                 if not fname.endswith(".py"):
                     continue
-                path = os.path.join(root, fname)
-                try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        tree = ast.parse(f.read(), filename=path)
-                except SyntaxError:
-                    continue
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.Import):
-                        for alias in node.names:
-                            pkg_names.add(alias.name.split(".")[0])
-                    elif isinstance(node, ast.ImportFrom):
-                        if node.level == 0 and node.module:
-                            pkg_names.add(node.module.split(".")[0])
+                path = Path(root, fname).resolve()
+                python_files.append(path)
+                stat_info = path.stat()
+                mtime_ns = getattr(stat_info, "st_mtime_ns", None)
+                if mtime_ns is None:
+                    mtime_ns = int(stat_info.st_mtime * 1_000_000_000)
+                snapshot[str(path)] = {
+                    "mtime_ns": int(mtime_ns),
+                    "size": int(stat_info.st_size),
+                }
+    python_files.sort()
+    return python_files, snapshot
+
+
+def _load_cached_dependencies(
+    snapshot: dict[str, dict[str, int]], search_dirs: list[str]
+) -> set[str] | None:
+    """Return cached dependency names when the snapshot is unchanged."""
+
+    _, cache_file = _resolve_dependency_cache_paths()
+    if not cache_file.is_file():
+        return None
+    try:
+        with cache_file.open("r", encoding="utf-8") as handle:
+            cached = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return None
+    if cached.get("schema") != DEPENDENCY_CACHE_SCHEMA:
+        return None
+    canonical_dirs = sorted(str(Path(d).resolve()) for d in search_dirs)
+    if cached.get("search_dirs") != canonical_dirs:
+        return None
+    if cached.get("files") != snapshot:
+        return None
+    deps = cached.get("dependencies")
+    if not isinstance(deps, list):
+        return None
+    return set(deps)
+
+
+def _store_dependency_cache(
+    snapshot: dict[str, dict[str, int]],
+    search_dirs: list[str],
+    dependencies: set[str],
+) -> None:
+    """Persist the dependency cache snapshot for subsequent runs."""
+
+    cache_dir, cache_file = _resolve_dependency_cache_paths()
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        tmp_file = cache_file.with_suffix(".tmp")
+        payload = {
+            "schema": DEPENDENCY_CACHE_SCHEMA,
+            "search_dirs": sorted(str(Path(d).resolve()) for d in search_dirs),
+            "files": snapshot,
+            "dependencies": sorted(dependencies),
+        }
+        with tmp_file.open("w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2, sort_keys=True)
+        tmp_file.replace(cache_file)
+    except OSError as exc:
+        console.write(
+            "Warning: Unable to update dependency cache."
+            f" {exc}",
+            error=True,
+        )
+
+
+def _gather_required_packages(
+    search_dirs: list[str] | None = None,
+) -> set[str]:
+    """Return external packages imported across project modules."""
+    # Rather than rely on ``pip freeze`` or manual lists this function
+    # walks through the source tree and parses each ``import`` statement
+    # with :mod:`ast`.  This keeps the dependency check accurate even
+    # when new optional modules are added.
+    pkg_names = set()
+    if search_dirs is None:
+        search_dirs = ["copernican_lib", "engines", "tests", "."]
+    ignore_dirs = {
+        "venv",
+        ".venv",
+        "env",
+        "build",
+        "dist",
+        "__pycache__",
+        "copernican_suite.egg-info",
+    }
+    py_files, snapshot = _scan_python_sources(search_dirs, ignore_dirs)
+    cached = _load_cached_dependencies(snapshot, search_dirs)
+    if cached is not None:
+        console.write(
+            "Dependency scan cache is current; skipping source parsing."
+        )
+        return cached
+    for path in py_files:
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                tree = ast.parse(handle.read(), filename=str(path))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    pkg_names.add(alias.name.split(".")[0])
+            elif isinstance(node, ast.ImportFrom):
+                if node.level == 0 and node.module:
+                    pkg_names.add(node.module.split(".")[0])
     ignore = {
         # Standard library modules or local packages that should not trigger
         # the dependency installer
@@ -423,13 +526,14 @@ def _gather_required_packages():
         "logger",
         "utils",
     }
-    return {
+    filtered = {
         pkg
         for pkg in pkg_names
-        if pkg not in ignore and not pkg.startswith(
-            ("copernican_lib", "engines")
-        )
+        if pkg not in ignore
+        and not pkg.startswith(("copernican_lib", "engines"))
     }
+    _store_dependency_cache(snapshot, search_dirs, filtered)
+    return filtered
 
 
 def check_dependencies(auto_confirm: bool = False) -> None:

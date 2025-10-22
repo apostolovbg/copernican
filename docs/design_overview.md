@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-08-31
+**Last Updated:** 2025-11-05
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all
@@ -28,7 +28,13 @@ tables these folders may contain NetCDF chains produced by
 menu-driven interface. Runtime options are controlled via environment
 variables, and the module orchestrates model selection, data loading and
 result generation. The package name emphasises that these modules are part
-of the suite's core library and not mere scripts.
+of the suite's core library and not mere scripts. To keep the menu
+responsive the dependency scanner records a JSON snapshot of every parsed
+module under `.cache/dependency_scan.json` and reuses it when file sizes and
+modification times are unchanged. The cache path honours the
+`COPERNICAN_DEP_CACHE_DIR`
+environment variable so automated pipelines can redirect it to writable
+storage.
 
 LaTeX translations rely on `copernican_lib/latex_utils.py` which reads symbol
 and function mappings from `latex_mappings.yml`. New commands can be added
