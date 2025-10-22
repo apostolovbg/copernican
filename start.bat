@@ -1,6 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-10-05
+@REM Last Updated: 2025-10-22
 @echo off
 set "PKG_NOTICE=Package managers may request your password. The Copernican"
 set "PKG_NOTICE=%PKG_NOTICE% Suite never reads or stores it."
@@ -15,6 +15,17 @@ cd %~dp0
 set "EXPECTED_VENV=%CD%\.venv"
 set "PYDIR=%CD%\.python"
 set "PYBIN=%PYDIR%\python.exe"
+REM Precompute release metadata outside conditionals so cmd.exe expands
+REM each token correctly even without delayed expansion.
+set "BASE=https://github.com/astral-sh/python-build-standalone/releases"
+set "REL=20250828"
+set "VER=3.12.11"
+set "ARCH=amd64"
+set "URL_BASE=%BASE%/download/%REL%/"
+set "URL_FILE=cpython-%VER%+%REL%-%ARCH%-pc-windows-msvc-"
+set "URL_FILE=%URL_FILE%shared-install_only.tar.gz"
+set "DOWNLOAD_URL=%URL_BASE%%URL_FILE%"
+set "DOWNLOAD_TAR=python.tar.gz"
 
 REM Skip setup when already inside the repository virtual environment.
 if defined VIRTUAL_ENV (
@@ -31,16 +42,6 @@ set "COPERNICAN_BOOTSTRAP=0"
 if not exist "%PYBIN%" (
     REM Create the extraction target before unpacking the archive.
     if not exist "%PYDIR%" mkdir "%PYDIR%"
-    set "BASE=https://github.com/astral-sh/python-build-standalone/releases"
-    set "REL=20250828"
-    set "VER=3.12.11"
-    set "ARCH=amd64"
-    REM Build the download URL without caret continuations to keep it stable.
-    set "URL_BASE=%BASE%/download/%REL%/"
-    set "URL_FILE=cpython-%VER%+%REL%-%ARCH%-pc-windows-msvc-"
-    set "URL_FILE=%URL_FILE%shared-install_only.tar.gz"
-    set "DOWNLOAD_URL=%URL_BASE%%URL_FILE%"
-    set "DOWNLOAD_TAR=python.tar.gz"
     REM Fail fast when the computed URL is blank so the user sees a clear
     REM diagnostic instead of a confusing PowerShell error.
     if "%DOWNLOAD_URL%"=="" (
