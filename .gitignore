@@ -15,3 +15,4 @@ output/.DS_Store
 copernican_suite.egg-info
 .venv/
 build/
+/.python
