@@ -1,5 +1,5 @@
 # Packaging Guide
-**Last Updated:** 2025-10-05
+**Last Updated:** 2025-10-22
 This document explains how to prepare the suite for development or packaging.
 
 ## Install Python 3.12+
@@ -14,9 +14,12 @@ continuations, exports it to PowerShell via environment variables and
 creates the `.python` directory before extraction. The download and
 extraction steps run through dedicated subroutines outside the
 `if not exist "%PYBIN%" (...)` block, so `cmd.exe` no longer mis-parses
-PowerShell closures when the block finishes. Those guard rails prevent
-empty-URL failures when PowerShell parses the `Invoke-WebRequest` call
-and ensure the bootstrapper refuses to continue if the download URL ever
+PowerShell closures when the block finishes. Release metadata such as the
+Python version, release identifier and architecture tag are now computed
+before the conditional runs, guaranteeing `%DOWNLOAD_URL%` expands to the
+expected GitHub asset without enabling delayed expansion. Those guard rails
+prevent empty-URL failures when PowerShell parses the `Invoke-WebRequest`
+call and ensure the bootstrapper refuses to continue if the download URL ever
 collapses to an empty string while still restoring the interactive menu.
 
 ## Bootstrap the virtual environment

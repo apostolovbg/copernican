@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-10-05
+**Last Updated:** 2025-10-22
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,13 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 4.3.21
+- 2025-10-22: Precomputed Windows bootstrap release metadata outside
+              conditional blocks so `%DOWNLOAD_URL%` expands reliably,
+              kept the empty-URL guard, verified the other launchers
+              remain stable and refreshed suite documentation
+              (OpenAI ChatGPT)
 
 ## Version 4.3.20
 - 2025-10-05: Moved the Windows launcher PowerShell invocations into helper
