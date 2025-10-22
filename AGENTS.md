@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-10-05
+**Last Updated:** 2025-10-22
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -265,7 +265,9 @@ these rules:
     them as needed. Investigate how code changes affect the start scripts and
     adjust them accordingly. Keep multi-line PowerShell calls inside helper
     subroutines when editing `start.bat` so `cmd.exe` never mis-parses
-    closing parentheses inside conditional blocks.
+    closing parentheses inside conditional blocks. Prefer computing release
+    metadata outside conditional parentheses or enable delayed expansion so
+    `%DOWNLOAD_URL%` resolves consistently on Windows builds.
 18. **Follow current compliance and security requirements for all work.** The
     suite processes user-provided files, so every change must meet the latest
     security guidelines and consider their impact on the `start.*` scripts.
