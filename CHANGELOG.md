@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-10-22
+**Last Updated:** 2025-11-05
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,11 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 4.3.22
+- 2025-11-05: Added a cached dependency scan so repeated launches skip costly
+              AST parsing, introduced targeted tests, refreshed documentation
+              and metadata across the suite (OpenAI ChatGPT)
 
 ## Version 4.3.21
 - 2025-10-22: Precomputed Windows bootstrap release metadata outside

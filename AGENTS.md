@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-10-22
+**Last Updated:** 2025-11-05
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -116,7 +116,13 @@ runaway evaluation on malicious or overly complex inputs.
 
 ## 3. Dependency Installation
 `copernican.py` scans all project files for imported modules using Python's
-AST parser to avoid false positives from comments. The `start.*` launchers
+AST parser to avoid false positives from comments. It writes the discovered
+imports to `.cache/dependency_scan.json` alongside the absolute path, size
+and modification time of every parsed file. When those details match a
+previous run the check loads the cached list immediately, keeping the menu
+snappy even on large worktrees. Set `COPERNICAN_DEP_CACHE_DIR` to direct
+the cache to a custom location when the default path is read-only. The
+`start.*` launchers
 always download a private Python 3.12+ into ``.python`` and build ``.venv``
 from that interpreter, ignoring any system-wide Python. If the download fails
 they exit with guidance. When packages are missing the program asks before

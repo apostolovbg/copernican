@@ -1,5 +1,5 @@
-**Version:** 4.3.21
-**Last Updated:** 2025-10-22
+**Version:** 4.3.22
+**Last Updated:** 2025-11-05
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -54,9 +54,11 @@ simple command line interface. Each execution creates a dedicated
 and posterior chains in NetCDF format.
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages,
-   installs missing ones and verifies each import. A tiny NumPy/SciPy
-   calculation then runs to catch CPU feature mismatches before heavy
-   computation begins.
+   installs missing ones and verifies each import. The scan now caches its
+   import list in `.cache/dependency_scan.json` whenever the source tree is
+   unchanged, so repeated launches skip the expensive AST parse and return to
+   the menu promptly. A tiny NumPy/SciPy calculation then runs to catch CPU
+   feature mismatches before heavy computation begins.
 2. **Initialization** – a run-specific output directory is created and
    logging begins.
 3. **Configuration** – the user chooses a model and a computation engine
@@ -323,6 +325,11 @@ full details are stored in the log file. The logger shortens absolute paths so
 logs remain portable and records the final filenames used for plots and tables.
 Progress indicators print to ``stdout`` and flush on every update so long
 optimisations do not appear stalled on Linux terminals.
+Dependency checks reuse a cached import list stored in
+`.cache/dependency_scan.json`. The cache records the absolute path, size and
+modification time of every parsed module so unchanged worktrees skip the AST
+walk entirely. Set `COPERNICAN_DEP_CACHE_DIR` to point the cache at a custom
+location when running the suite from read-only media or temporary clones.
 Model YAML files are
 sanitised and cached under `models/cache/` for the duration of the session,
 avoiding repeated schema validation. For CMB analyses unlensed CAMB spectra
