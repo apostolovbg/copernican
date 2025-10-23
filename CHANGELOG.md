@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-06
+**Last Updated:** 2025-10-23
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,11 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 4.3.24
+- 2025-10-23: Hardened plot summaries against missing chi-squared totals,
+              added regression tests, refreshed documentation and bumped the
+              suite metadata (OpenAI ChatGPT)
 
 ## Version 4.3.23
 - 2025-11-06: Replaced the MCMC penalty sentinel with ``-np.inf``, updated
