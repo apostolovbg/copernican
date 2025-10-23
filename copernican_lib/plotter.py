@@ -188,6 +188,27 @@ def format_model_summary_text(
     model_name_latex = model_name_raw.replace("_", r"\_")
     lines.append(rf"**Model: {model_name_latex}**")
 
+    def _format_numeric_line(
+        label_tex: str, value: Any, *, unit: str | None = None
+    ) -> str:
+        """Return a readable line or ``N/A`` when ``value`` is non-finite.
+
+        The helper prevents ``:.2f`` formatting from raising when optimisation
+        metadata is incomplete. Cosmological fits occasionally leave global
+        chi-squared totals undefined, so the summary must degrade gracefully
+        instead of crashing the plotting workflow.
+        """
+
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return rf"  {label_tex} = N/A"
+        if not np.isfinite(numeric):
+            return rf"  {label_tex} = N/A"
+        suffix = f" {unit}" if unit else ""
+        formatted = f"{numeric:.2f}"
+        return rf"  {label_tex} = {formatted}{suffix}"
+
     lines.append("$\\mathbf{Mathematical\\ Form:}$")
     for eq_line in getattr(model_plugin, "MODEL_EQUATIONS_LATEX_SN", []):
         lines.append(f"  {_wrap_math(eq_line)}")
@@ -233,25 +254,29 @@ def format_model_summary_text(
         lines.append("$\\mathbf{SNe\\ Fit\\ Statistics:}$")
         chi2_min = fit_results.get("chi2_min", np.nan)
         chi2_sne = fit_results.get("chi2_sne", chi2_min)
-        lines.append(rf"  $\chi^2_{{SNe}}$ = {chi2_sne:.2f}")
+        lines.append(_format_numeric_line(r"$\chi^2_{SNe}$", chi2_sne))
         if "chi2_total" in fit_results:
             chi2_tot = fit_results.get("chi2_total", np.nan)
-            lines.append(rf"  $\chi^2_{{tot}}$ = {chi2_tot:.2f}")
+            lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))
     elif dataset_type == "bao":
         lines.append("$\\mathbf{BAO\\ Fit\\ Results:}$")
-        lines.append(rf"  $r_s$ = {kwargs.get('rs_Mpc', np.nan):.2f} Mpc")
+        lines.append(
+            _format_numeric_line(
+                r"$r_s$", kwargs.get("rs_Mpc", np.nan), unit="Mpc"
+            )
+        )
         chi2_bao = kwargs.get("chi2_bao", np.nan)
-        lines.append(rf"  $\chi^2_{{BAO}}$ = {chi2_bao:.2f}")
+        lines.append(_format_numeric_line(r"$\chi^2_{BAO}$", chi2_bao))
         if "chi2_total" in kwargs:
             chi2_tot = kwargs.get("chi2_total", np.nan)
-            lines.append(rf"  $\chi^2_{{tot}}$ = {chi2_tot:.2f}")
+            lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))
     elif dataset_type == "cmb":
         lines.append("$\\mathbf{CMB\\ Fit\\ Statistics:}$")
         chi2_cmb = kwargs.get("chi2_cmb", np.nan)
-        lines.append(rf"  $\chi^2_{{CMB}}$ = {chi2_cmb:.2f}")
+        lines.append(_format_numeric_line(r"$\chi^2_{CMB}$", chi2_cmb))
         if "chi2_total" in kwargs:
             chi2_tot = kwargs.get("chi2_total", np.nan)
-            lines.append(rf"  $\chi^2_{{tot}}$ = {chi2_tot:.2f}")
+            lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))
 
     return "\n".join(lines)
 

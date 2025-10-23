@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-11-05
+**Last Updated:** 2025-10-23
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all
@@ -18,6 +18,11 @@ focused on numerical work.
 All observational data and accompanying metadata are stored exclusively
 as YAML files.  Legacy JSON support was removed in version 3.0.0 so that
 all parsers operate on a single consistent format.
+
+Plotting helpers inside ``copernican_lib/plotter.py`` now translate missing
+chi-squared totals into ``N/A`` markers before drawing the summary insets. The
+guard ensures alternate engines that skip combined fits no longer interrupt
+the rendering pipeline.
 
 Each evaluation now writes its outputs to a dedicated
 `output/copernican-run_YYYYMMDD_HHMMSS` directory.  Besides plots and CSV
