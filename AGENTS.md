@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-05
+**Last Updated:** 2025-11-06
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -63,7 +63,10 @@ convert data frames once outside optimisation loops. This
 ensures the expected functions are present and callable. Chi-squared
 values for SNe, BAO and CMB are evaluated concurrently when multiple
 datasets are supplied, using processes when objects are picklable and
-threads otherwise. Starting with
+threads otherwise. The optional `engines/cosmo_engine_mcmc.py` backend now
+returns ``-np.inf`` whenever a proposal falls outside declared parameter
+bounds or yields a non-finite chi-squared so the sampler rejects invalid
+walkers deterministically. Starting with
 version 1.11.4 the test suite no longer runs automatically. Launchers offer
 a *Run the unit test suite* option which delegates to `python -m unittest
 discover` and exits cleanly even when Matplotlib has not yet been imported.

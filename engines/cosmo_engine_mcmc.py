@@ -42,16 +42,18 @@ def _log_probability(
 
     A uniform prior derived from ``PARAMETER_BOUNDS`` ensures that walkers stay
     within the physically allowed region.  The likelihood is based on the
-    supernova chi-squared metric from the combined engine.  Proposals outside
-    the allowed region return a large negative value instead of ``-inf`` so the
-    sampler avoids floating-point warnings when subtracting infinities.
+    supernova chi-squared metric from the combined engine.  Invalid proposals
+    now return ``-np.inf`` so the sampler rejects them decisively.  Callers
+    no longer need to reason about arbitrary large penalties.
     """
 
     bounds = getattr(model_plugin, "PARAMETER_BOUNDS", [])
-    penalty = -1.0e300
     for val, (low, high) in zip(params, bounds):
         if val < low or val > high:
-            return penalty
+            # ``-np.inf`` marks a proposal as impossible, guaranteeing that
+            # emcee rejects it without relying on sentinel constants whose
+            # magnitude could interact poorly with later arithmetic.
+            return -np.inf
 
     chi2 = chi_squared_sne(
         params,
@@ -59,7 +61,10 @@ def _log_probability(
         sne_data_df,
     )
     if not np.isfinite(chi2):
-        return penalty
+        # Chi-squared helpers return ``np.nan`` or ``np.inf`` when the model
+        # emits invalid predictions.  Propagate that failure transparently so
+        # diagnostics see an explicit ``-inf`` log probability.
+        return -np.inf
     return -0.5 * chi2
 
 

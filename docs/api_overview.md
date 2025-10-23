@@ -1,6 +1,6 @@
 # Copernican Suite API Overview
 
-**Last Updated:** 2025-08-28
+**Last Updated:** 2025-11-06
 
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be
@@ -51,7 +51,9 @@ modules are:
     be developed without modifying the rest of the codebase.
   - `engines.cosmo_engine_mcmc` – lightweight `emcee` sampler for SNe
     posteriors. Chi-squared helpers are re-exported so downstream code can
-    reuse the same calculations as the combined engine.
+    reuse the same calculations as the combined engine. Invalid proposals
+    now return ``-np.inf`` so callers see explicit rejections instead of
+    opaque large negative sentinels.
 
 Plugins are validated through ``engine_interface.validate_plugin`` before
 use. Chi-squared helpers assume this step has already succeeded, so
