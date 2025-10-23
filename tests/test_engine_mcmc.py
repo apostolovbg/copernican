@@ -74,8 +74,7 @@ class TestMCMCEngine(unittest.TestCase):
         )
         bad = np.array([200.0] + list(plugin.INITIAL_GUESSES[1:]))
         lp = cosmo_engine_mcmc._log_probability(bad, plugin, sne_df)
-        self.assertTrue(np.isfinite(lp))
-        self.assertLess(lp, -1e100)
+        self.assertTrue(np.isneginf(lp))
 
     def test_comoving_distance_vectorized(self):
         plugin = self._build_lcdm_plugin()
