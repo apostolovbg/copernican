@@ -1,6 +1,6 @@
 # Copernican Suite API Overview
 
-**Last Updated:** 2025-11-06
+**Last Updated:** 2025-11-09
 
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be
@@ -15,6 +15,13 @@ modules are:
   object
   with attributes `MODEL_NAME`, `MODEL_DESCRIPTION`, `MODEL_ABSTRACT` and the
   distance and CMB functions required by engines.
+- `copernican_lib.statistics` – shared chi-squared and BAO/CMB helper
+  functions used by every engine.  Importing from this module avoids
+  referencing the legacy combined optimiser when sampling with the MCMC
+  backend and keeps the numerical implementations in a single place.
+  The helpers now expose SNe chi-squared evaluations that always return
+  finite values for physically meaningful proposals so MCMC reseeding can
+  fall back to them reliably.
   - `data_loaders.load_sne_data(dataset_id)`,
     `load_bao_data(dataset_id)`,
     `load_cmb_data(dataset_id)` – load datasets by their identifiers. The
@@ -34,6 +41,14 @@ modules are:
 - `csv_writer.save_sne_results_detailed_csv`,
   `save_bao_results_csv` and `save_cmb_results_csv` – persist fitting
   results with filenames that encode the dataset, model and timestamp.
+
+The `engines.cosmo_engine_mcmc.fit_sne_parameters` helper mirrors the
+combined engine's return structure. Besides the raw chain it now reports
+`chi2_total` (identical to `chi2_sne` for pure supernova fits), the burn-in
+length, acceptance fractions, autocorrelation estimates and the sanitised
+log-probability trace.  The private `_reseed_invalid_walkers` utility
+reseeds walkers that emit `nan` coordinates after burn-in so downstream API
+consumers never need to handle undefined sampler states.
 - `result_writer.save_summary(results, output_dir)` – serialize fitted
   parameters, 1σ errors and covariance matrices to JSON and YAML for later
   analysis.
@@ -50,10 +65,13 @@ modules are:
     purely on data frames and plugin callables so alternative backends can
     be developed without modifying the rest of the codebase.
   - `engines.cosmo_engine_mcmc` – lightweight `emcee` sampler for SNe
-    posteriors. Chi-squared helpers are re-exported so downstream code can
-    reuse the same calculations as the combined engine. Invalid proposals
-    now return ``-np.inf`` so callers see explicit rejections instead of
-    opaque large negative sentinels.
+    posteriors. Walkers are initialised uniformly within declared
+    parameter bounds, a burn-in run precedes production sampling and the
+    returned dictionary now includes log-probability traces, acceptance
+    fractions, estimated autocorrelation times and both MAP and posterior
+    mean parameter summaries. Invalid proposals still return ``-np.inf``
+    so callers see explicit rejections instead of opaque large negative
+    sentinels.
 
 Plugins are validated through ``engine_interface.validate_plugin`` before
 use. Chi-squared helpers assume this step has already succeeded, so
@@ -111,8 +129,11 @@ The :mod:`result_writer` helper stores parameter estimates after optimisation
 or sampling.  Files named ``parameter-summary_<timestamp>.json`` and ``.yml``
 are created in the current run directory.  Each model entry contains
 ``parameters``, ``errors_1sigma`` and ``covariance_matrix`` with ``param_names``
-and a numeric matrix.  The data is fully serialisable so external analysis
-tools can parse it without importing NumPy or pandas.
+and a numeric matrix.  When results originate from the MCMC engine the
+summary also records the burn-in length, production steps, posterior means,
+log-probability arrays and the chi-squared value associated with the maximum
+posterior sample.  The data is fully serialisable so external analysis tools
+can parse it without importing NumPy or pandas.
 
 Example::
 

@@ -17,6 +17,7 @@ else:
     ARVIZ_AVAILABLE = False
 from copernican_lib import engine_interface, model_coder, model_parser
 from engines import cosmo_engine_mcmc
+from engines.cosmo_engine_mcmc import _log_probability, _reseed_invalid_walkers
 
 
 @unittest.skipUnless(ARVIZ_AVAILABLE, "arviz not installed")
@@ -46,6 +47,20 @@ class TestMCMCEngine(unittest.TestCase):
         n_params = len(plugin.PARAMETER_NAMES)
         expected = (5, max(4, 2 * n_params), n_params)
         self.assertEqual(res["samples"].shape, expected)
+        self.assertEqual(res["log_probability"].shape, expected[:2])
+        self.assertTrue(res["success"])
+        self.assertTrue(np.isfinite(res["chi2_min"]))
+        self.assertAlmostEqual(res["chi2_total"], res["chi2_sne"])
+        self.assertSetEqual(
+            set(res["fitted_cosmological_params"].keys()),
+            set(plugin.PARAMETER_NAMES),
+        )
+        self.assertSetEqual(
+            set(res["posterior_mean_params"].keys()),
+            set(plugin.PARAMETER_NAMES),
+        )
+        self.assertIsInstance(res["burn_in_steps"], int)
+        self.assertIsInstance(res["production_steps"], int)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "chain.nc")
@@ -75,6 +90,48 @@ class TestMCMCEngine(unittest.TestCase):
         bad = np.array([200.0] + list(plugin.INITIAL_GUESSES[1:]))
         lp = cosmo_engine_mcmc._log_probability(bad, plugin, sne_df)
         self.assertTrue(np.isneginf(lp))
+
+    def test_invalid_walkers_are_reseeded(self):
+        plugin = self._build_lcdm_plugin()
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01, 0.02],
+                "mu_obs": [40.0, 41.0],
+                "e_mu_obs": [0.1, 0.1],
+            }
+        )
+        bounds = plugin.PARAMETER_BOUNDS
+        lower = np.array(
+            [-np.inf if low is None else float(low) for low, _ in bounds]
+        )
+        upper = np.array(
+            [np.inf if high is None else float(high) for _, high in bounds]
+        )
+        ndim = len(plugin.PARAMETER_NAMES)
+        coords = np.vstack(
+            [
+                np.asarray(plugin.INITIAL_GUESSES, dtype=float),
+                np.full(ndim, np.nan),
+            ]
+        )
+        log_prob = np.array(
+            [
+                _log_probability(coords[0], plugin, sne_df),
+                np.nan,
+            ]
+        )
+        rng = np.random.default_rng(12345)
+        new_coords, new_log_prob = _reseed_invalid_walkers(
+            coords,
+            log_prob,
+            lower=lower,
+            upper=upper,
+            rng=rng,
+            model_plugin=plugin,
+            sne_data_df=sne_df,
+        )
+        self.assertTrue(np.all(np.isfinite(new_coords)))
+        self.assertTrue(np.all(np.isfinite(new_log_prob)))
 
     def test_comoving_distance_vectorized(self):
         plugin = self._build_lcdm_plugin()

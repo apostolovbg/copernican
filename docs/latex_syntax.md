@@ -1,9 +1,16 @@
 # LaTeX Syntax Guide
-**Last Updated:** 2025-08-17
+**Last Updated:** 2025-11-09
 
 This document describes the supported LaTeX-like syntax for cosmological model
 YAML files. Expressions are parsed by `latex_utils.py` and converted to NumPy-
 ready code using mappings from `latex_mappings.yml`.
+
+`copernican_lib.statistics` now imports `latex_utils.latex_to_unicode` when it
+logs acceptance fractions and fitted parameters so that diagnostics produced by
+the MCMC engine display the same typographic quality as optimiser summaries.
+Extending the mapping tables therefore benefits both plotting and log output.
+The same helper converts ``χ²_Total`` when Stage 5 summaries print the SNe-only
+chi-squared totals, keeping the glyph consistent with the BAO and CMB entries.
 
 ## Exponentiation
 Use `**` for powers:

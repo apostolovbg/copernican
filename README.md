@@ -1,5 +1,5 @@
-**Version:** 4.3.24
-**Last Updated:** 2025-10-23
+**Version:** 4.3.26
+**Last Updated:** 2025-11-09
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -15,6 +15,9 @@ Citation details are provided in [CITATION.cff](CITATION.cff).
 Plot summaries now report ``N/A`` for missing chi-squared totals so the
 visualisation workflow remains stable even when a dataset omits combined
 statistics.
+Supernova-only MCMC runs now populate ``χ²_Total`` with the SNe
+value so downstream summaries never display ``N/A`` when the combined fit is
+skipped intentionally.
 
 ---
 
@@ -69,14 +72,21 @@ Under the hood the program follows a clear pipeline:
    from `./engines/`. The default `cosmo_engine_comb.py` performs a
    combined optimisation across SNe, BAO and CMB, including optional
    SALT2 nuisance parameters when available. The optional
-  `cosmo_engine_mcmc.py` backend uses an `emcee` sampler to explore the
-  SNe posterior. Its distance calculations are vectorised for
-  responsiveness and invalid proposals now return ``-np.inf`` directly so
-  walkers outside the allowed region or producing non-finite chi-squared
-  values are rejected unambiguously. Constant values in
-   a model's
-   `cmb.param_map` are treated as
-   additional fit parameters so CMB spectra can be matched precisely. Data
+   `cosmo_engine_mcmc.py` backend uses an `emcee` sampler to explore the
+   SNe posterior. Its distance calculations are vectorised for
+   responsiveness and invalid proposals now return ``-np.inf`` directly so
+   walkers outside the allowed region or producing non-finite chi-squared
+   values are rejected unambiguously. After burn-in any walkers that drift
+   into ``nan`` coordinates are reseeded near the ensemble mean, removing the
+   `RuntimeWarning: invalid value encountered in scalar subtract` messages
+   recorded in previous LCDM self-tests. The sampler now draws its initial
+   ensemble uniformly inside the declared bounds, performs an explicit
+   burn-in phase before production sampling and records acceptance
+   fractions, autocorrelation estimates and log-probability traces. Shared
+   chi-squared helpers moved to `copernican_lib/statistics.py` so both
+   engines call the same routines without importing one another. Constant
+   values in a model's `cmb.param_map` are treated as additional fit
+   parameters so CMB spectra can be matched precisely. Data
    parsers are discovered automatically under
   `data/<type>/<source>` and models are loaded from `cosmo_model_*.yml`.
   Only parser modules whose SHA256 digest matches a vetted list are imported,
@@ -85,10 +95,14 @@ Under the hood the program follows a clear pipeline:
   `placeholder` are ignored so unfinished datasets do not appear in the
   selection menus.
 4. **Parameter Fitting** – depending on the chosen engine either a pure
-   SNe fit is performed or a combined optimisation over all datasets.  For
+   SNe fit is performed or a combined optimisation over all datasets. For
    the combined engine this optimisation begins with the SNe refinement
-   step described above. Both the ΛCDM reference and the alternative model
-   are fitted in turn.
+   step described above. When both selected theories load the same plugin
+   (for example when testing ΛCDM against itself) the Stage 2 workflow now
+   compares `MODEL_FILENAME` values, reuses the first chain and copies the
+   chi-squared totals so BAO and CMB comparisons draw identical predictions.
+   Otherwise the ΛCDM reference and the alternative model are
+   fitted in turn.
 5. **BAO Analysis** – BAO observables are computed using the fitted
    parameters (from the combined fit if that engine was selected) and
    chi-squared statistics are reported. When several datasets are

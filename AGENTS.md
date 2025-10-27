@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-06
+**Last Updated:** 2025-11-09
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -56,20 +56,25 @@ installed binaries match the CPU. If this fails the log explains possible CPU
 feature mismatches and suggests reinstalling with suitable wheels.
 
 The default engine is `engines/cosmo_engine_comb.py`. All model plugins are
-validated
-through `copernican_lib/engine_interface.py` before being passed to the
-engine. The BAO χ² helper accepts pre-extracted arrays so callers can
-convert data frames once outside optimisation loops. This
-ensures the expected functions are present and callable. Chi-squared
-values for SNe, BAO and CMB are evaluated concurrently when multiple
-datasets are supplied, using processes when objects are picklable and
-threads otherwise. The optional `engines/cosmo_engine_mcmc.py` backend now
-returns ``-np.inf`` whenever a proposal falls outside declared parameter
-bounds or yields a non-finite chi-squared so the sampler rejects invalid
-walkers deterministically. Starting with
-version 1.11.4 the test suite no longer runs automatically. Launchers offer
-a *Run the unit test suite* option which delegates to `python -m unittest
-discover` and exits cleanly even when Matplotlib has not yet been imported.
+validated through `copernican_lib/engine_interface.py` before being passed to
+the engine. The BAO χ² helper accepts pre-extracted arrays so callers can
+convert data frames once outside optimisation loops. This ensures the
+expected functions are present and callable. Chi-squared values for SNe, BAO
+and CMB are evaluated concurrently when multiple datasets are supplied, using
+processes when objects are picklable and threads otherwise. When both models
+reference the same YAML file the Stage 2 workflow compares
+`MODEL_FILENAME` values and reuses the initial posterior so BAO and CMB
+overlays align exactly during LCDM self-consistency checks. The optional
+`engines/cosmo_engine_mcmc.py` backend now returns ``-np.inf`` whenever a
+proposal falls outside declared parameter bounds or yields a non-finite
+chi-squared so the sampler rejects invalid walkers deterministically. After
+burn-in any walkers that drift into ``nan`` coordinates are reseeded around
+the ensemble mean with progressively smaller jitter, eliminating the
+`RuntimeWarning: invalid value encountered in scalar subtract` messages that
+appeared in archived logs. Starting with version 1.11.4 the test suite no
+longer runs automatically. Launchers offer a *Run the unit test suite*
+option which delegates to `python -m unittest discover` and exits cleanly
+even when Matplotlib has not yet been imported.
 
 ## 2. Directory Layout
 ```
