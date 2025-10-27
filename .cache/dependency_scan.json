@@ -1,0 +1,246 @@
+{
+  "dependencies": [
+    "__future__",
+    "arviz",
+    "ast",
+    "astropy",
+    "camb",
+    "concurrent",
+    "dataclasses",
+    "datetime",
+    "emcee",
+    "faulthandler",
+    "functools",
+    "hashlib",
+    "itertools",
+    "json",
+    "jsonschema",
+    "math",
+    "matplotlib",
+    "numbers",
+    "numpy",
+    "operator",
+    "pandas",
+    "pickle",
+    "psutil",
+    "pytest",
+    "random",
+    "re",
+    "scipy",
+    "setuptools_scm",
+    "signal",
+    "sympy",
+    "tempfile",
+    "textwrap",
+    "unittest",
+    "uuid",
+    "warnings",
+    "xarray",
+    "yaml"
+  ],
+  "files": {
+    "/Users/apostolov/Documents/GitHub/copernican/copernican.py": {
+      "mtime_ns": 1761526542521452964,
+      "size": 51477
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/__init__.py": {
+      "mtime_ns": 1761526542521918250,
+      "size": 546
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/chain_io.py": {
+      "mtime_ns": 1761526542522109455,
+      "size": 2791
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/console_output.py": {
+      "mtime_ns": 1761526542522524528,
+      "size": 2146
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/csv_writer.py": {
+      "mtime_ns": 1761526542523051497,
+      "size": 9319
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/data_loaders.py": {
+      "mtime_ns": 1761526542523500894,
+      "size": 25638
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/engine_interface.py": {
+      "mtime_ns": 1761526542523828621,
+      "size": 11859
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/error_handler.py": {
+      "mtime_ns": 1761526542524114301,
+      "size": 1970
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/latex_utils.py": {
+      "mtime_ns": 1761526542524432211,
+      "size": 10020
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/logger.py": {
+      "mtime_ns": 1761526542524759304,
+      "size": 6239
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/model_coder.py": {
+      "mtime_ns": 1761526542525180460,
+      "size": 15670
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/model_parser.py": {
+      "mtime_ns": 1761526542525501497,
+      "size": 6354
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/optim_utils.py": {
+      "mtime_ns": 1761526542525867068,
+      "size": 5447
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/plotter.py": {
+      "mtime_ns": 1761526542526246807,
+      "size": 39709
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/result_writer.py": {
+      "mtime_ns": 1761526542526442884,
+      "size": 3665
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/run_manifest.py": {
+      "mtime_ns": 1761526542526622313,
+      "size": 3758
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/utils.py": {
+      "mtime_ns": 1761526542526941311,
+      "size": 5425
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/version.py": {
+      "mtime_ns": 1761526542527199344,
+      "size": 2163
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/data/bao/bossdr12/cosmo_parser_bossdr12.py": {
+      "mtime_ns": 1761526542527858081,
+      "size": 9631
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/data/bao/compound/cosmo_parser_compound.py": {
+      "mtime_ns": 1761526542528512205,
+      "size": 3095
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py": {
+      "mtime_ns": 1761526542529188213,
+      "size": 6502
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/data/gw/placeholder/cosmo_parser_gw_placeholder.py": {
+      "mtime_ns": 1761526542530574828,
+      "size": 757
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/data/sirens/placeholder/cosmo_parser_sirens_placeholder.py": {
+      "mtime_ns": 1761526542531227213,
+      "size": 720
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/data/sne/jla2014/cosmo_parser_jla2014.py": {
+      "mtime_ns": 1761526542531875832,
+      "size": 5376
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/data/sne/pantheon/cosmo_parser_pantheon.py": {
+      "mtime_ns": 1761526542536666755,
+      "size": 5485
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/engines/__init__.py": {
+      "mtime_ns": 1761526542539569549,
+      "size": 365
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/engines/cosmo_engine_comb.py": {
+      "mtime_ns": 1761526542539916394,
+      "size": 35043
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/engines/cosmo_engine_mcmc.py": {
+      "mtime_ns": 1761526542540122650,
+      "size": 5017
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/models/__init__.py": {
+      "mtime_ns": 1761209736315414871,
+      "size": 262
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/__init__.py": {
+      "mtime_ns": 1761526542547118148,
+      "size": 558
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_bao_covariance.py": {
+      "mtime_ns": 1761526542547296454,
+      "size": 3120
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_bossdr12_parser.py": {
+      "mtime_ns": 1761526542547592925,
+      "size": 5891
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_core.py": {
+      "mtime_ns": 1761526542547953085,
+      "size": 10113
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_data_hashes.py": {
+      "mtime_ns": 1761526542548135248,
+      "size": 817
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_data_loaders.py": {
+      "mtime_ns": 1761526542549541540,
+      "size": 8579
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_dependency_cache.py": {
+      "mtime_ns": 1761526542553349388,
+      "size": 2521
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_engine_interface.py": {
+      "mtime_ns": 1761526542553651513,
+      "size": 3115
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_engine_mcmc.py": {
+      "mtime_ns": 1761526542553826668,
+      "size": 3312
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_menu.py": {
+      "mtime_ns": 1761526542554032728,
+      "size": 4236
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_model_coder.py": {
+      "mtime_ns": 1761526542554198706,
+      "size": 1408
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_model_priors.py": {
+      "mtime_ns": 1761526542554361682,
+      "size": 2093
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_optim_utils.py": {
+      "mtime_ns": 1761526542554536479,
+      "size": 2640
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_parser_discovery.py": {
+      "mtime_ns": 1761526542554723517,
+      "size": 5788
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_plotter.py": {
+      "mtime_ns": 1761526542554890030,
+      "size": 2006
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_result_writer.py": {
+      "mtime_ns": 1761526542555062842,
+      "size": 2496
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_run_manifest.py": {
+      "mtime_ns": 1761526542606329588,
+      "size": 1495
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_seed_option.py": {
+      "mtime_ns": 1761526542606612219,
+      "size": 2051
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_start_scripts.py": {
+      "mtime_ns": 1761526542606801591,
+      "size": 2211
+    },
+    "/Users/apostolov/Documents/GitHub/copernican/tests/test_version_env.py": {
+      "mtime_ns": 1761526542606958300,
+      "size": 837
+    }
+  },
+  "schema": 1,
+  "search_dirs": [
+    "/Users/apostolov/Documents/GitHub/copernican",
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib",
+    "/Users/apostolov/Documents/GitHub/copernican/engines",
+    "/Users/apostolov/Documents/GitHub/copernican/tests"
+  ]
+}

@@ -63,7 +63,7 @@ datasets:
       tablef2.fit: 0db2aeab210523594c07ac7f89edca87c55a76601c51c4a831d338cc32ce3ff4
       tablef3.dat: 35db10c033fa4bc5326436d957eb732e76fd7a4d6db7c729bc3ce17aeb5de470
       tablef4.fit: a17a1e29a8ee1631669a4456adf84c27372a33f5448a65971dbdd50eb9a97a67
-      __pycache__/cosmo_parser_jla2014.cpython-312.pyc: 9320b2c2c99e926d85ea8d9fff9bcc225d24328f861ca2fed25b8513e3234054
+      __pycache__/cosmo_parser_jla2014.cpython-312.pyc: f00a4d5bee64bc2308a2333a535f0b3b036746480005f25a2130df1dcf5f7572
   boss_dr12_bao:
     path: /Users/apostolov/Documents/GitHub/copernican/data/bao/bossdr12
     hashes:
@@ -72,7 +72,7 @@ datasets:
       BAO_consensus_results_dM_Hz.txt: 30e784fa08e7eddb2fdd1ab09411424e67aa9b75df58f4bb330a889c9b9c478e
       BAO_consensus_results_dV_FAP.txt: e507d65dacedc814892609d2decca9990a954ef5836da79b57c663885fce4ef8
       metadata_bossdr12.yml: 9d8b2b526b33c043f382c3d623f60a1f29dbf4e438549549ec96b01e763f09a8
-      __pycache__/cosmo_parser_bossdr12.cpython-312.pyc: 62e75c1574a9f21896e267d4ba8d8143f5a8ffe939e9fcc2a0240539a858f563
+      __pycache__/cosmo_parser_bossdr12.cpython-312.pyc: 64e1d3817b690595ac497e99e04d55ba8c3a7a050f2de318a5b3381b229ef1ea
   planck_2018_lite:
     path: /Users/apostolov/Documents/GitHub/copernican/data/cmb/planck2018lite
     hashes:
@@ -80,7 +80,7 @@ datasets:
       cl_cmb_plik_v22.dat: dac0d9d493213e77c940a10a968cf0da3c5730bae60e1356c4cd8bcff96377ff
       metadata_planck2018lite.yml: eedaf3802b38b35044f70d7740f7618036f959aa7959c3ef46494b6226c3aa23
       readme_baseline.md: ae6cef6886f2c4381147657fc195bed72742fbe3cc106208200f961af24caa73
-      __pycache__/cosmo_parser_cmb_planck2018lite.cpython-312.pyc: 37a7b94f7d54c5d8408cc9a18c7fdeefa8ea4c434c181320938c5d2b099a2a93
+      __pycache__/cosmo_parser_cmb_planck2018lite.cpython-312.pyc: d56f40d5836a5cd9fd0df0fa48f5f0596c043bfa9ccd6a6344521bfa433eaa4c
 git:
-  commit: 74225d4b5091117a6ec474b0c5622a0627e27a32
+  commit: d519adb5e3acab5527863951994ebe2670a215f7
   dirty: true
