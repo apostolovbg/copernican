@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-10-28
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,18 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 6.0.0
+- 2025-10-28: Retired the combined optimiser module, promoted the MCMC sampler
+              to the default pluggable engine, updated the CLI, tests and
+              documentation to reflect the single-engine architecture and
+              reiterated verbose progress reporting (OpenAI ChatGPT)
+
+## Version 5.0.0
+- 2025-11-10: Replaced the legacy combined optimiser with
+              ``engines.cosmo_engine``, added verbose percentage-based
+              progress reporting to the MCMC backend, refreshed all
+              documentation and bumped suite metadata (OpenAI ChatGPT)
 
 ## Version 4.3.26
 - 2025-11-09: Reseeded invalid MCMC walkers to eliminate emcee warnings,

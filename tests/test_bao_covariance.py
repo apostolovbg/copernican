@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 
 from copernican_lib import engine_interface
-from engines.cosmo_engine_comb import chi_squared_bao
+from copernican_lib.statistics import chi_squared_bao
 
 
 class BaoCovarianceTestCase(unittest.TestCase):

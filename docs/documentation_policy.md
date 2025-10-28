@@ -1,7 +1,7 @@
 # Documentation Policy
 
 **Version:** 1.0
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-10-28
 
 The Copernican Suite treats documentation as a first-class component of the
 project. Every development task must include a documentation refresh that does
@@ -13,7 +13,9 @@ more than fix typos.
 - Synchronise version strings and `Last Updated` fields across all documents.
 - Record the changes in `CHANGELOG.md`.
 - Document user-facing console behaviour changes, including logging output and
-  progress indicators, so users understand new interactions.
+  progress indicators, so users understand new interactions. The retirement of
+  the combined optimiser in favour of the verbose MCMC progress reporting is an
+  example that must always be highlighted in end-user docs.
 - Highlight shared module refactors—such as the introduction of
   `copernican_lib.statistics`—in the API and design documentation so future
   tasks build atop the central helpers instead of re-creating legacy links.

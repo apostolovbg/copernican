@@ -1,13 +1,12 @@
 """Shared statistical helpers for cosmological engines.
 
-**Last Updated:** 2025-11-08
+**Last Updated:** 2025-10-28
 
-The Markov Chain Monte Carlo (MCMC) backend historically reused chi-squared
-helpers from :mod:`engines.cosmo_engine_comb`.  That implicit dependency kept
-both engines tightly coupled even though the combined optimiser is being
-retired.  This module extracts the reusable routines so each engine can import
-identical, well-documented functions without referencing the legacy optimiser.
-The helpers cover Supernovae Ia, BAO and CMB likelihood calculations alongside
+The retirement of the combined optimiser elevated this module to the single
+source of truth for χ² and spectrum helpers.  All engines—including the
+default MCMC sampler—import these routines so numerical behaviour stays
+consistent regardless of the backend plugged into :mod:`copernican.py`.  The
+helpers cover Supernovae Ia, BAO and CMB likelihood calculations alongside
 CAMB-based spectrum generation and BAO plotting utilities.
 """
 
@@ -53,10 +52,10 @@ def chi_squared_sne(
 
     Notes
     -----
-    The routine mirrors the previous implementation in
-    ``cosmo_engine_comb`` and keeps the behaviour stable.  The logic is kept
-    intentionally verbose so diagnostics in the engines can emit precise error
-    messages when the dataset is malformed or the model prediction fails.
+    The routine mirrors the previous combined optimiser implementation and
+    keeps the behaviour stable.  The logic is kept intentionally verbose so
+    diagnostics in the engines can emit precise error messages when the
+    dataset is malformed or the model prediction fails.
     """
 
     logger = logging.getLogger()
