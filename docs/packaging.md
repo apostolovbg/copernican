@@ -1,5 +1,5 @@
 # Packaging Guide
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-11-11
 This document explains how to prepare the suite for development or packaging.
 
 ## Install Python 3.12+
@@ -58,11 +58,21 @@ pip build .
 
 The command writes source archives and wheels to the `dist/` directory.
 
+### Keep the tracked version in sync
+
+Update both the README heading and `copernican_lib/VERSION` before building a
+release candidate. The runtime version helper reads the tracked file, so
+packaged wheels display the intended identifier even before a Git tag is cut.
+Keeping the two locations aligned prevents confusion between development
+snapshots and tagged releases.
+
 ### Custom version strings
 
 Set the ``COPERNICAN_VERSION`` environment variable before building to
-override the version derived from Git. This is useful for CI jobs on
-feature branches. For example, a build off ``work`` might use:
+override the version derived from Git. Export the same value stored in
+`copernican_lib/VERSION` so the package metadata, runtime banner and
+documentation all agree. This is useful for CI jobs on feature branches. For
+example, a build off ``work`` might use:
 
 ```bash
 export COPERNICAN_VERSION="1.2.1-alpha+work.$(git rev-parse --short HEAD)"

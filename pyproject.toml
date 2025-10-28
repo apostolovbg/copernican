@@ -1,4 +1,4 @@
-# Last Updated: 2025-09-22
+# Last Updated: 2025-11-11
 [build-system]
 requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]"]
 build-backend = "setuptools.build_meta"
@@ -46,6 +46,9 @@ include-package-data = true
 
 [tool.setuptools.data-files]
 "licenses" = ["THIRD_PARTY_LICENSES.md", "licenses/*"]
+
+[tool.setuptools.package-data]
+"copernican_lib" = ["VERSION"]
 
 
 [tool.setuptools_scm]
