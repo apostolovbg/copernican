@@ -21,7 +21,7 @@ import numpy as np
 import copernican_lib.engine_interface as engine_interface
 import copernican_lib.model_coder as model_coder
 import copernican_lib.model_parser as model_parser
-import engines.cosmo_engine_comb as engine
+from copernican_lib.statistics import chi_squared_bao
 
 
 class BossDR12ParserTestCase(unittest.TestCase):
@@ -85,7 +85,7 @@ class BossDR12ParserTestCase(unittest.TestCase):
         obs_val = df["value"].to_numpy(dtype=float)
         obs_err = df["error"].to_numpy(dtype=float)
         cov_inv = df.attrs.get("covariance_matrix_inv")
-        chi2 = engine.chi_squared_bao(
+        chi2 = chi_squared_bao(
             z,
             obs_type,
             obs_val,

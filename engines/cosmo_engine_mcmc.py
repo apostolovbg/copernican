@@ -3,15 +3,15 @@
 
 """Markov Chain Monte Carlo engine using :mod:`emcee`.
 
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-10-28
 
-The combined engine performs deterministic optimisation. This module
-complements it with a lightweight sampler so users can explore posterior
-
-distributions of cosmological parameters. Only the supernova distance
-modulus is sampled for brevity. Shared chi-squared helpers now live in
-``copernican_lib.statistics`` so the sampler and the legacy optimiser
-consume the same functions without cross-importing engine modules.
+The combined optimiser has been retired entirely, leaving this sampler as the
+sole runtime engine.  It continues to focus on Supernova Ia posteriors while
+delegating shared χ² helpers to :mod:`copernican_lib.statistics` so the module
+acts as the canonical engine façade.  Future backends can slot in beside it
+without changing the orchestration code.  Verbose progress logging tracks both
+burn-in and production phases with percentage updates so long chains always
+report their status.
 """
 
 from __future__ import annotations
@@ -30,7 +30,11 @@ from copernican_lib.statistics import (
     chi_squared_cmb,
     chi_squared_sne,
     compute_cmb_spectrum,
+    compute_cmb_spectrum_from_dict,
 )
+
+ENGINE_KIND = "mcmc"
+ENGINE_LABEL = "Ensemble MCMC sampler"
 
 
 def _log_probability(
@@ -136,6 +140,46 @@ def _reseed_invalid_walkers(
     return coords, log_prob
 
 
+def _run_stage_with_progress(
+    sampler: emcee.EnsembleSampler,
+    initial_state: np.ndarray,
+    n_steps: int,
+    *,
+    stage_name: str,
+    logger: logging.Logger,
+    progress_granularity: int = 20,
+):
+    """Iterate ``sampler.sample`` while logging percentage progress."""
+
+    if n_steps <= 0:
+        logger.info("Skipping %s stage; zero steps requested.", stage_name)
+        return sampler.get_last_sample()
+
+    logger.info("Starting MCMC %s stage for %d steps...", stage_name, n_steps)
+
+    interval = max(1, n_steps // progress_granularity)
+    state = None
+    for idx, state in enumerate(
+        sampler.sample(initial_state, iterations=n_steps, progress=False),
+        start=1,
+    ):
+        if idx == 1 or idx % interval == 0 or idx == n_steps:
+            percent = int(round(idx / n_steps * 100))
+            logger.info(
+                "MCMC %s progress: %3d%% (%d/%d steps)",
+                stage_name,
+                percent,
+                idx,
+                n_steps,
+            )
+
+    if state is None:
+        raise RuntimeError("Sampler produced no states during %s" % stage_name)
+
+    logger.info("Completed MCMC %s stage.", stage_name)
+    return state
+
+
 def fit_sne_parameters(
     sne_data_df: Any,
     model_plugin: Any,
@@ -148,8 +192,8 @@ def fit_sne_parameters(
 
     The routine initialises walkers within the declared parameter bounds, runs
     a configurable burn-in stage and returns summary statistics alongside the
-    raw chain. The result mirrors the combined engine API so higher-level code
-    can report χ² values consistently.
+    raw chain. Its return structure remains stable so higher-level code can
+    report χ² values consistently even after the combined optimiser removal.
     """
 
     logger = logging.getLogger()
@@ -217,8 +261,13 @@ def fit_sne_parameters(
             args=(model_plugin, sne_data_df),
             pool=pool,
         )
-        sampler.run_mcmc(p0, burn_in, progress=False)
-        last = sampler.get_last_sample()
+        last = _run_stage_with_progress(
+            sampler,
+            p0,
+            burn_in,
+            stage_name="burn-in",
+            logger=logger,
+        )
         try:
             coords, log_prob = _reseed_invalid_walkers(
                 last.coords,
@@ -233,7 +282,13 @@ def fit_sne_parameters(
             logger.error("%s", exc)
             return {"success": False, "samples": None}
         sampler.reset()
-        sampler.run_mcmc(coords, n_steps, progress=False)
+        _run_stage_with_progress(
+            sampler,
+            coords,
+            n_steps,
+            stage_name="production",
+            logger=logger,
+        )
     finally:
         if pool is not None:
             pool.close()
@@ -300,10 +355,13 @@ def fit_sne_parameters(
 
 
 __all__ = [
+    "ENGINE_KIND",
+    "ENGINE_LABEL",
     "calculate_bao_observables",
     "chi_squared_bao",
     "chi_squared_cmb",
     "chi_squared_sne",
     "compute_cmb_spectrum",
+    "compute_cmb_spectrum_from_dict",
     "fit_sne_parameters",
 ]

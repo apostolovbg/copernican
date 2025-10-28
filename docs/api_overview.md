@@ -1,6 +1,6 @@
 # Copernican Suite API Overview
 
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-10-28
 
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be
@@ -16,12 +16,11 @@ modules are:
   with attributes `MODEL_NAME`, `MODEL_DESCRIPTION`, `MODEL_ABSTRACT` and the
   distance and CMB functions required by engines.
 - `copernican_lib.statistics` – shared chi-squared and BAO/CMB helper
-  functions used by every engine.  Importing from this module avoids
-  referencing the legacy combined optimiser when sampling with the MCMC
-  backend and keeps the numerical implementations in a single place.
-  The helpers now expose SNe chi-squared evaluations that always return
-  finite values for physically meaningful proposals so MCMC reseeding can
-  fall back to them reliably.
+  functions used by every engine.  Importing from this module keeps the
+  numerical implementations in a single place so engines remain thin
+  orchestration layers. The helpers expose SNe chi-squared evaluations that
+  always return finite values for physically meaningful proposals so MCMC
+  reseeding can fall back to them reliably.
   - `data_loaders.load_sne_data(dataset_id)`,
     `load_bao_data(dataset_id)`,
     `load_cmb_data(dataset_id)` – load datasets by their identifiers. The
@@ -42,36 +41,25 @@ modules are:
   `save_bao_results_csv` and `save_cmb_results_csv` – persist fitting
   results with filenames that encode the dataset, model and timestamp.
 
-The `engines.cosmo_engine_mcmc.fit_sne_parameters` helper mirrors the
-combined engine's return structure. Besides the raw chain it now reports
-`chi2_total` (identical to `chi2_sne` for pure supernova fits), the burn-in
-length, acceptance fractions, autocorrelation estimates and the sanitised
-log-probability trace.  The private `_reseed_invalid_walkers` utility
-reseeds walkers that emit `nan` coordinates after burn-in so downstream API
-consumers never need to handle undefined sampler states.
+- `engines.cosmo_engine_mcmc.fit_sne_parameters` – returns a dictionary with
+  posterior samples, chi-squared totals, burn-in length, acceptance fractions,
+  autocorrelation estimates and a sanitised log-probability trace. The
+  private `_reseed_invalid_walkers` utility reseeds walkers that emit `nan`
+  coordinates after burn-in so downstream API consumers never need to handle
+  undefined sampler states.
 - `result_writer.save_summary(results, output_dir)` – serialize fitted
   parameters, 1σ errors and covariance matrices to JSON and YAML for later
   analysis.
-  - `engines.cosmo_engine_comb` – reference engine providing high level
-    optimisation routines such as ``fit_sne_parameters``,
-    ``fit_combined_parameters``, ``calculate_bao_observables`` and generic
-    ``chi_squared_*`` helpers. ``chi_squared_bao`` accepts arrays
-    ``(z, observable_type, value, error)`` and an optional inverse
-    covariance so repeated evaluations can reuse cached data. The engine
-    evaluates SNe, BAO and CMB chi-squared terms concurrently when several
-    datasets are provided. ``fit_combined_parameters`` accepts optional
-    ``maxiter``, ``maxfun`` and ``prefit_maxiter`` arguments to bound
-    optimisation time. Engines are regular Python modules that operate
-    purely on data frames and plugin callables so alternative backends can
-    be developed without modifying the rest of the codebase.
   - `engines.cosmo_engine_mcmc` – lightweight `emcee` sampler for SNe
     posteriors. Walkers are initialised uniformly within declared
     parameter bounds, a burn-in run precedes production sampling and the
-    returned dictionary now includes log-probability traces, acceptance
+    returned dictionary includes log-probability traces, acceptance
     fractions, estimated autocorrelation times and both MAP and posterior
     mean parameter summaries. Invalid proposals still return ``-np.inf``
     so callers see explicit rejections instead of opaque large negative
-    sentinels.
+    sentinels, and verbose progress updates report percentage completion
+    for burn-in and production stages. Future engines can adopt the same
+    public API to remain plug compatible with the suite.
 
 Plugins are validated through ``engine_interface.validate_plugin`` before
 use. Chi-squared helpers assume this step has already succeeded, so
@@ -108,7 +96,7 @@ session looks like this:
 from copernican_lib import (
     model_parser, model_coder, engine_interface, data_loaders
 )
-import engines.cosmo_engine_comb as engine
+import engines.cosmo_engine_mcmc as engine
 
 cache = model_parser.parse_model(
     'models/cosmo_model_lcdm.yml', 'models/cache'

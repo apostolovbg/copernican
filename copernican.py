@@ -973,57 +973,48 @@ def main_workflow():
 
         lcdm_time = 0.0
         alt_time = 0.0
-        if hasattr(cosmo_engine_selected, "fit_combined_parameters"):
-            logger.info("\n--- Stage 2: Combined Fit (SNe + BAO + CMB) ---\n")
-            t0 = time.perf_counter()
-            lcdm_sne_fit_results = (
-                cosmo_engine_selected.fit_combined_parameters(
-                    sne_data_df, bao_data_df, cmb_data_df, lcdm
-                )
+        engine_label = getattr(
+            cosmo_engine_selected,
+            "ENGINE_LABEL",
+            getattr(cosmo_engine_selected, "__name__", "Engine"),
+        )
+        logger.info("\n--- Stage 2: %s ---\n", engine_label)
+        if not hasattr(cosmo_engine_selected, "fit_sne_parameters"):
+            logger.error(
+                "Selected engine %s does not expose fit_sne_parameters;"
+                " aborting run.",
+                getattr(cosmo_engine_selected, "__name__", "unknown"),
             )
-            lcdm_time += time.perf_counter() - t0
+            _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
+            cleanup_cache(SCRIPT_DIR)
+            console.write("")
+            return
+        t0 = time.perf_counter()
+        lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(
+            sne_data_df, lcdm
+        )
+        lcdm_time += time.perf_counter() - t0
+        same_name = (
+            getattr(lcdm, "MODEL_NAME", "").casefold()
+            == getattr(alt_model_plugin, "MODEL_NAME", "").casefold()
+        )
+        same_file = (
+            getattr(lcdm, "MODEL_FILENAME", "")
+            == getattr(alt_model_plugin, "MODEL_FILENAME", "")
+        )
+        if same_name and same_file and type(lcdm) is type(alt_model_plugin):
+            logger.info(
+                "Alternative model matches ΛCDM; reusing SNe chain from %s.",
+                engine_label,
+            )
+            alt_model_sne_fit_results = copy.deepcopy(lcdm_sne_fit_results)
+        else:
             t0 = time.perf_counter()
-            alt_model_sne_fit_results = (
-                cosmo_engine_selected.fit_combined_parameters(
-                    sne_data_df,
-                    bao_data_df,
-                    cmb_data_df,
-                    alt_model_plugin,
-                )
+            alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(
+                sne_data_df, alt_model_plugin
             )
             alt_time += time.perf_counter() - t0
-        else:
-            logger.info("\n--- Stage 2: Supernovae Ia Fitting ---\n")
-            t0 = time.perf_counter()
-            lcdm_sne_fit_results = (
-                cosmo_engine_selected.fit_sne_parameters(
-                    sne_data_df, lcdm
-                )
-            )
-            lcdm_time += time.perf_counter() - t0
-            same_name = (
-                getattr(lcdm, "MODEL_NAME", "").casefold()
-                == getattr(alt_model_plugin, "MODEL_NAME", "").casefold()
-            )
-            same_file = (
-                getattr(lcdm, "MODEL_FILENAME", "")
-                == getattr(alt_model_plugin, "MODEL_FILENAME", "")
-            )
-            if same_name and same_file and type(lcdm) is type(alt_model_plugin):
-                logger.info(
-                    "Alternative model matches ΛCDM; reusing SNe MCMC chain."
-                )
-                alt_model_sne_fit_results = copy.deepcopy(
-                    lcdm_sne_fit_results
-                )
-            else:
-                t0 = time.perf_counter()
-                alt_model_sne_fit_results = (
-                    cosmo_engine_selected.fit_sne_parameters(
-                        sne_data_df, alt_model_plugin
-                    )
-                )
-                alt_time += time.perf_counter() - t0
 
         # Persist parameter estimates so external tools can inspect the
         # numerical results without parsing logs.  The summary includes fitted
@@ -1134,9 +1125,9 @@ def main_workflow():
             # Convert the fitted cosmological parameters to CAMB's expected
             # dictionary format using the helper provided by the model plugin.
             camb_params = model_plugin.get_camb_params(cosmo_params)
-            # Append any additional CMB parameters recovered from a combined
-            # fit so that the theoretical spectrum reflects the actual
-            # optimisation result instead of falling back to defaults.
+            # Append any additional CMB parameters supplied by the engine so
+            # that the theoretical spectrum reflects the actual optimisation
+            # result instead of falling back to defaults.
             if cmb_extras:
                 camb_params.update(cmb_extras)
 

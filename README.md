@@ -1,5 +1,5 @@
-**Version:** 4.3.26
-**Last Updated:** 2025-11-09
+**Version:** 6.0.0
+**Last Updated:** 2025-10-28
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -13,11 +13,10 @@ Additional design notes can be found under the `docs/` directory.
 Citation details are provided in [CITATION.cff](CITATION.cff).
 
 Plot summaries now report ``N/A`` for missing chi-squared totals so the
-visualisation workflow remains stable even when a dataset omits combined
-statistics.
-Supernova-only MCMC runs now populate ``χ²_Total`` with the SNe
-value so downstream summaries never display ``N/A`` when the combined fit is
-skipped intentionally.
+visualisation workflow remains stable even when a dataset omits cross-dataset
+statistics. Supernova-only MCMC runs now populate ``χ²_Total`` with the SNe
+value so downstream summaries never display ``N/A`` when only the sampling
+engine is in play.
 
 ---
 
@@ -69,24 +68,26 @@ Under the hood the program follows a clear pipeline:
 2. **Initialization** – a run-specific output directory is created and
    logging begins.
 3. **Configuration** – the user chooses a model and a computation engine
-   from `./engines/`. The default `cosmo_engine_comb.py` performs a
-   combined optimisation across SNe, BAO and CMB, including optional
-   SALT2 nuisance parameters when available. The optional
-   `cosmo_engine_mcmc.py` backend uses an `emcee` sampler to explore the
-   SNe posterior. Its distance calculations are vectorised for
-   responsiveness and invalid proposals now return ``-np.inf`` directly so
-   walkers outside the allowed region or producing non-finite chi-squared
-   values are rejected unambiguously. After burn-in any walkers that drift
-   into ``nan`` coordinates are reseeded near the ensemble mean, removing the
-   `RuntimeWarning: invalid value encountered in scalar subtract` messages
-   recorded in previous LCDM self-tests. The sampler now draws its initial
-   ensemble uniformly inside the declared bounds, performs an explicit
-   burn-in phase before production sampling and records acceptance
-   fractions, autocorrelation estimates and log-probability traces. Shared
-   chi-squared helpers moved to `copernican_lib/statistics.py` so both
-   engines call the same routines without importing one another. Constant
-   values in a model's `cmb.param_map` are treated as additional fit
-   parameters so CMB spectra can be matched precisely. Data
+   from `./engines/`. Engines are discovered dynamically by the
+   `cosmo_engine_*.py` naming convention so additional deterministic or
+   stochastic solvers can be dropped in later without touching the launcher.
+   The current default, `cosmo_engine_mcmc.py`, uses an `emcee` ensemble
+   sampler to explore the SNe posterior. Its distance calculations are
+   vectorised for responsiveness and invalid proposals return ``-np.inf``
+   directly so walkers outside the allowed region or producing non-finite
+   chi-squared values are rejected unambiguously. After burn-in any walkers
+   that drift into ``nan`` coordinates are reseeded near the ensemble mean,
+   removing the `RuntimeWarning: invalid value encountered in scalar subtract`
+   messages recorded in previous ΛCDM self-tests. The sampler draws its
+   initial ensemble uniformly inside the declared bounds, performs an
+   explicit burn-in phase before production sampling, records acceptance
+   fractions, autocorrelation estimates and log-probability traces and emits
+   progress updates with percentage indicators for both burn-in and
+   production stages. Shared chi-squared helpers live in
+   `copernican_lib/statistics.py` so every backend calls the same routines
+   without cross-importing engine modules. Constant values in a model's
+   `cmb.param_map` are treated as additional fit parameters so CMB spectra
+   can be matched precisely. Data
    parsers are discovered automatically under
   `data/<type>/<source>` and models are loaded from `cosmo_model_*.yml`.
   Only parser modules whose SHA256 digest matches a vetted list are imported,
@@ -94,23 +95,21 @@ Under the hood the program follows a clear pipeline:
   path that resolves outside the repository is skipped. Folders named
   `placeholder` are ignored so unfinished datasets do not appear in the
   selection menus.
-4. **Parameter Fitting** – depending on the chosen engine either a pure
-   SNe fit is performed or a combined optimisation over all datasets. For
-   the combined engine this optimisation begins with the SNe refinement
-   step described above. When both selected theories load the same plugin
-   (for example when testing ΛCDM against itself) the Stage 2 workflow now
-   compares `MODEL_FILENAME` values, reuses the first chain and copies the
-   chi-squared totals so BAO and CMB comparisons draw identical predictions.
-   Otherwise the ΛCDM reference and the alternative model are
-   fitted in turn.
-5. **BAO Analysis** – BAO observables are computed using the fitted
-   parameters (from the combined fit if that engine was selected) and
-   chi-squared statistics are reported. When several datasets are
-   available the SNe, BAO and CMB chi-squared contributions are evaluated
-   concurrently to reduce runtime.
+4. **Parameter Fitting** – the MCMC engine samples the SNe posterior for the
+   ΛCDM baseline and the chosen alternative model. When both theories share
+   the same plugin (for example when testing ΛCDM against itself) the Stage 2
+   workflow compares `MODEL_FILENAME` values, reuses the first chain and
+   copies the chi-squared totals so BAO and CMB comparisons draw identical
+   predictions. Otherwise the ΛCDM reference and the alternative model are
+   sampled in turn with independent random seeds.
+5. **BAO Analysis** – BAO observables are computed using the MAP parameters
+   returned by the sampler and chi-squared statistics are reported. Shared
+   helpers from `copernican_lib.statistics` keep the calculations identical
+   regardless of the active engine, ensuring future backends remain
+   drop-in replacements.
 6. **CMB Analysis** – CMB power spectra are generated using the fitted
-   cosmological parameters **and** any extra CMB-specific values from a
-   combined optimisation. The chi-squared contribution is then calculated.
+   cosmological parameters and any extra CMB-specific values supplied by the
+   engine. The chi-squared contribution is then calculated.
 7. **Spectra Caching** – unlensed CAMB spectra are cached using parameter
    keys rounded to six significant digits.
 8. **Output Generation** – `copernican_lib/logger.py`,
@@ -238,8 +237,8 @@ unchanged.
 models/           - YAML model definitions containing all theory text and
                     equations. Optional `.md` files may provide human-readable
                     summaries but are not required.
-engines/          - Computational backends (e.g. `cosmo_engine_comb.py` for
-                    combined fits)
+engines/          - Computational backends (e.g. `cosmo_engine_mcmc.py` for
+                    ensemble sampling)
 data/             - Observation data organized as ``data/<type>/<source>/``
   cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance
                          (binary Fortran matrix)
@@ -276,12 +275,11 @@ operates solely through this plugin and decides how parameters are fitted. The
 main workflow simply loads the plugin, selects an engine from `./engines/` and
 invokes its functions. New engines can therefore implement alternate
 strategies
-—such as SNe-only fits or fully combined optimisations—without modifying the
+—such as SNe-only sampling or future joint optimisations—without modifying the
 rest of the codebase.
-Generic chi-squared helpers are now part of `engines/cosmo_engine_comb.py`
-under
-a dedicated helper block, keeping `model_coder.py` focused on translating
-models.
+Generic chi-squared helpers live in `copernican_lib/statistics.py` and are
+re-exported by each engine module, keeping `model_coder.py` focused on
+translating models.
 
 The helper `chi_squared_cmb` now accepts either a plugin and parameter
 vector or a ready CAMB dictionary. This flexibility lets future engines reuse
@@ -473,8 +471,8 @@ notes: any additional remarks
 When a `cmb.param_map` object is provided, the mapping is stored on the plugin
 as `CMB_PARAM_MAP`. Call `plugin.get_camb_params(values)` to convert a list of
 cosmological parameters into a dictionary for CAMB. Constant numeric values in
-the mapping are interpreted as extra fit parameters by combined-fit engines so
-that the CMB spectrum can be adjusted independently. The engines themselves
+the mapping are interpreted as extra fit parameters by engines that expose
+them so the CMB spectrum can be adjusted independently. The engines themselves
 call
 CAMB using this mapping; the plugin no longer provides a fallback
 `compute_cmb_spectrum` implementation. When `valid_for_cmb` is `false` the
@@ -591,16 +589,15 @@ not modify them unless explicitly instructed.
     to the log and run manifest.
 5.  **Configuration**: The user specifies the file paths for the model and
     data files.
-6.  **SNe Ia Fitting**: The `cosmo_engine` fits the parameters of both the
-    ΛCDM
-    model and the alternative model to the SNe Ia data. When
-    `cosmo_engine_comb.py` is selected this step refines the parameters
-    before the full joint optimisation.
-7.  **BAO Analysis**: Using the best-fit parameters, the engine calculates BAO
-    observables for each model.
+6.  **SNe Ia Sampling**: The active engine—currently `cosmo_engine_mcmc`—
+    samples the parameters of both the ΛCDM model and the alternative model
+    against the SNe Ia data. Matching models reuse the first chain to avoid
+    redundant computation.
+7.  **BAO Analysis**: Using the MAP parameters returned by the sampler, the
+    engine calculates BAO observables for each model.
 8.  **CMB Analysis**: Each model's CMB spectrum is evaluated against the
-    selected dataset. The combined engine performs this after completing
-    the joint optimisation.
+    selected dataset with any engine-provided auxiliary parameters folded
+    into the CAMB call.
 9.  **Output Generation**: `plotter`, `csv_writer` and `logger` save plots,
     tables and logs using a consistent format. Plots now use a white
     background with very light grey, solid grid lines for clarity.

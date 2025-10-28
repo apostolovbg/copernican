@@ -1,14 +1,21 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-10-28
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all
 reusable modules that were previously found under `scripts/`.  Engines
 and data parsers import utilities from this package so they can remain
 focused on numerical work.  As of version 4.3.26 the shared statistical
-helpers were extracted into `copernican_lib/statistics.py`, giving both
-engines a single implementation of the SNe, BAO and CMB chi-squared
-calculations and ensuring future improvements propagate automatically.
+helpers were extracted into `copernican_lib/statistics.py`, giving every engine
+a single implementation of the SNe, BAO and CMB chi-squared calculations and
+ensuring future improvements propagate automatically.
+
+With the retirement of the deterministic combined optimiser the suite now
+ships solely with the `cosmo_engine_mcmc` backend.  Engines remain pluggable
+via the `cosmo_engine_*.py` naming convention so GPU solvers or new
+optimisation strategies can be introduced without altering the orchestration
+logic in `copernican.py`.  The shared helpers and validation routines therefore
+remain the authoritative source of truth for statistical behaviour.
 
 ```
 /engines/          - Computational backends
@@ -22,12 +29,12 @@ All observational data and accompanying metadata are stored exclusively
 as YAML files.  Legacy JSON support was removed in version 3.0.0 so that
 all parsers operate on a single consistent format.
 
-Plotting helpers inside ``copernican_lib/plotter.py`` now translate missing
+Plotting helpers inside ``copernican_lib/plotter.py`` translate missing
 chi-squared totals into ``N/A`` markers before drawing the summary insets. The
-guard ensures alternate engines that skip combined fits no longer interrupt
-the rendering pipeline. Supernova-only results also populate ``χ²_Total`` with
-the SNe contribution so LCDM self-checks no longer display ``N/A`` rows when
-the combined optimiser is intentionally bypassed.
+guard ensures sampling-only engines no longer interrupt the rendering
+pipeline. Supernova-only results also populate ``χ²_Total`` with the SNe
+contribution so LCDM self-checks never display ``N/A`` rows when no joint
+optimiser is present.
 
 Each evaluation now writes its outputs to a dedicated
 `output/copernican-run_YYYYMMDD_HHMMSS` directory.  Besides plots and CSV
