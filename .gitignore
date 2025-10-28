@@ -17,3 +17,4 @@ copernican_suite.egg-info
 build/
 /.python
 .cache/dependency_scan.json
+/.cache
