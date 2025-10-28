@@ -1,5 +1,5 @@
 # BAO Compound Dataset Format
-**Last Updated:** 2025-08-24
+**Last Updated:** 2025-11-09
 
 This document describes the YAML format used for the **compound** BAO dataset
 shipped with the Copernican Suite. The folder lives under `data/bao/compound/`
@@ -61,19 +61,23 @@ notes: Observable types: DV_over_rs (D_V(z)/r_s), DM_over_rs (D_M(z)/r_s),
 ## Usage
 
 The compound dataset is primarily intended for automated tests and examples.
-It
-demonstrates how BAO observables are encoded without requiring gigabyte-scale
-survey releases. When developing a new parser, model the output DataFrame on
-the
-structure produced by this example: one row per measurement with columns for
-the
-observable, its uncertainty and any fiducial sound horizon.
+It demonstrates how BAO observables are encoded without requiring
+gigabyte-scale survey releases. When developing a new parser, model the output
+DataFrame on the structure produced by this example: one row per measurement
+with columns for the observable, its uncertainty and any fiducial sound
+horizon.
 
 When a real dataset supplies a covariance matrix the parser should attach the
 inverse matrix to `df.attrs['covariance_matrix_inv']`. For uncorrelated data,
 as
 shown here, omitting the matrix is sufficient and the engine will fall back to
 diagonal errors.
+During analysis the engine now populates a `model_prediction` column on the
+returned DataFrame. The Stage 2 workflow reuses the same SNe chain whenever
+both models point to the identical plugin, ensuring these predictions align
+perfectly between baseline and alternative theory curves in diagnostic plots.
+The matching chi-squared totals recorded in BAO CSV exports confirm that
+LCDM-versus-LCDM checks now keep the red and blue curves coincident.
 All observable types use the naming convention `DV_over_rs`, `DM_over_rs` or
 `DH_over_rs` to indicate $D_V$, $D_M$ or $D_H$ divided by the sound horizon.
 The parser converts the YAML to a Pandas `DataFrame` and the data loader

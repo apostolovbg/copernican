@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-05
+# Last Updated: 2025-11-08
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -18,6 +18,7 @@ a fresh checkout can execute with minimal setup.
 
 
 import ast
+import copy
 import importlib
 import importlib.util
 import json
@@ -1000,13 +1001,29 @@ def main_workflow():
                 )
             )
             lcdm_time += time.perf_counter() - t0
-            t0 = time.perf_counter()
-            alt_model_sne_fit_results = (
-                cosmo_engine_selected.fit_sne_parameters(
-                    sne_data_df, alt_model_plugin
-                )
+            same_name = (
+                getattr(lcdm, "MODEL_NAME", "").casefold()
+                == getattr(alt_model_plugin, "MODEL_NAME", "").casefold()
             )
-            alt_time += time.perf_counter() - t0
+            same_file = (
+                getattr(lcdm, "MODEL_FILENAME", "")
+                == getattr(alt_model_plugin, "MODEL_FILENAME", "")
+            )
+            if same_name and same_file and type(lcdm) is type(alt_model_plugin):
+                logger.info(
+                    "Alternative model matches ΛCDM; reusing SNe MCMC chain."
+                )
+                alt_model_sne_fit_results = copy.deepcopy(
+                    lcdm_sne_fit_results
+                )
+            else:
+                t0 = time.perf_counter()
+                alt_model_sne_fit_results = (
+                    cosmo_engine_selected.fit_sne_parameters(
+                        sne_data_df, alt_model_plugin
+                    )
+                )
+                alt_time += time.perf_counter() - t0
 
         # Persist parameter estimates so external tools can inspect the
         # numerical results without parsing logs.  The summary includes fitted

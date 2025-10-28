@@ -1,5 +1,5 @@
 # Data Directory Overview
-**Last Updated:** 2025-08-27
+**Last Updated:** 2025-11-09
 
 This document explains the layout of the `data/` directory and the role of the
 parser scripts stored with each dataset.
@@ -32,9 +32,20 @@ information on their `.attrs` property, and `dataset_id` is used when
 constructing output filenames. The loaders also compute a SHA256 digest
 for every non-parser file in the dataset directory. These hashes are
 stored on `df.attrs['file_hashes']` and logged so manifests can reproduce
-exact inputs. See `dataset_metadata.md` for a full description of the
-metadata fields. The reference tables remain read-only, while parser
-`.py` files and accompanying `metadata_*.yml` files may be updated.
+exact inputs. BAO DataFrames additionally carry a `model_prediction`
+column which is populated during analysis and now remains consistent even
+when the suite compares a model against itself because the Stage 2 SNe
+chain is reused for both roles. See `dataset_metadata.md` for a full
+description of the metadata fields. The reference tables remain
+read-only, while parser `.py` files and accompanying `metadata_*.yml`
+files may be updated.
+
+When the MCMC engine runs it writes NetCDF chains that capture burn-in and
+production lengths, per-walker acceptance fractions, the complete
+log-probability trace and posterior summaries. Walkers that encounter
+``nan`` coordinates during burn-in are reseeded automatically so the stored
+chains never contain undefined numbers and archived logs stay free of the
+emcee warning observed in the latest LCDM self-test.
 
 ## Supernovae Datasets
 

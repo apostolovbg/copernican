@@ -1,11 +1,14 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-10-23
+**Last Updated:** 2025-11-09
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all
 reusable modules that were previously found under `scripts/`.  Engines
 and data parsers import utilities from this package so they can remain
-focused on numerical work.
+focused on numerical work.  As of version 4.3.26 the shared statistical
+helpers were extracted into `copernican_lib/statistics.py`, giving both
+engines a single implementation of the SNe, BAO and CMB chi-squared
+calculations and ensuring future improvements propagate automatically.
 
 ```
 /engines/          - Computational backends
@@ -22,12 +25,19 @@ all parsers operate on a single consistent format.
 Plotting helpers inside ``copernican_lib/plotter.py`` now translate missing
 chi-squared totals into ``N/A`` markers before drawing the summary insets. The
 guard ensures alternate engines that skip combined fits no longer interrupt
-the rendering pipeline.
+the rendering pipeline. Supernova-only results also populate ``χ²_Total`` with
+the SNe contribution so LCDM self-checks no longer display ``N/A`` rows when
+the combined optimiser is intentionally bypassed.
 
 Each evaluation now writes its outputs to a dedicated
 `output/copernican-run_YYYYMMDD_HHMMSS` directory.  Besides plots and CSV
 tables these folders may contain NetCDF chains produced by
-`copernican_lib.chain_io` when the MCMC engine is used.
+`copernican_lib.chain_io` when the MCMC engine is used.  Chains now record
+burn-in length, production steps, per-walker acceptance fractions and the
+log-probability trace so convergence diagnostics can be reviewed after a run
+without replaying the sampling session. The sampler reseeds any walkers that
+acquire ``nan`` coordinates during burn-in, preventing spurious emcee runtime
+warnings from polluting the logs.
 
 `copernican.py` is launched through the `start.*` scripts which present a
 menu-driven interface. Runtime options are controlled via environment
@@ -65,8 +75,11 @@ comparison between runs.
 Engines follow a strict interface. `engine_interface.validate_plugin` ensures
 that any model plugin supplies the callable hooks required by a backend. This
 allows alternative engines—GPU-accelerated solvers, for example—to be swapped
-in
-without touching the high-level orchestration in `copernican.py`.
+in without touching the high-level orchestration in `copernican.py`. The MCMC
+engine now reuses an existing SNe chain when both selected models share the
+same `MODEL_FILENAME`, guaranteeing that downstream BAO and CMB comparisons
+remain perfectly aligned when the suite performs self-consistency checks such
+as ΛCDM versus ΛCDM runs.
 
 To keep multiprocessing predictable, the suite sets the start method to
 ``spawn`` and validates model YAML only in the main process. Worker processes

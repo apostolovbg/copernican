@@ -1,5 +1,5 @@
 # Dataset Metadata Fields
-**Last Updated:** 2025-08-27
+**Last Updated:** 2025-11-09
 
 Each dataset folder contains a `metadata_*.yml` file that describes the
 source. All fields are optional except for `dataset_name`, `dataset_id`,
@@ -59,6 +59,12 @@ or analysis scripts.
   derive from the suite's outputs.
 - Unknown fields are preserved by the loader, making it safe to add
   experiment-specific keys for downstream tools.
+- BAO datasets expose a `model_prediction` column during analysis. The
+  prediction now remains identical for baseline and alternative models when
+  their plugins match because the Stage 2 sampler reuses the first SNe chain.
+- Stage 5 summary files include `parameter-summary_*.yml/json`. Supernova-only
+  MCMC runs now copy the SNe chi-squared into ``χ²_Total`` so both sides of a
+  self-consistency test report the same totals when models share a plugin.
 
 ### Model Parameter Priors
 

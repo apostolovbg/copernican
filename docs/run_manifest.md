@@ -1,5 +1,5 @@
 # Run Manifest
-**Last Updated:** 2025-08-30
+**Last Updated:** 2025-11-09
 
 The suite writes a YAML manifest for every evaluation under the run's output
 folder.  The file is named `run_manifest_<timestamp>.yml` and records:
@@ -8,6 +8,8 @@ folder.  The file is named `run_manifest_<timestamp>.yml` and records:
 - Parameter priors and the random seed
 - Dataset identifiers with SHA256 hashes of input files
 - The Git commit hash and whether the tree was dirty
+- Per-engine extras such as MCMC burn-in length, production steps and
+  acceptance fractions when the SNe sampler is used
 
 Saving this manifest alongside plots and tables allows others to reproduce a
 run exactly.  To rerun an analysis:
@@ -24,3 +26,8 @@ in the manifest and main log so runs can be reproduced exactly.
 
 The manifest is intentionally human readable so it can be archived in lab
 notebooks or cited in publications.
+
+When both models point to the same YAML file the manifest will list matching
+`MODEL_FILENAME` entries. That shared marker indicates the Stage 2 workflow
+reused a single SNe posterior, keeping BAO and CMB chi-squared totals in lock
+step for LCDM self-consistency checks.

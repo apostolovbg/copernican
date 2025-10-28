@@ -1,5 +1,5 @@
 # Packaging Guide
-**Last Updated:** 2025-10-22
+**Last Updated:** 2025-11-09
 This document explains how to prepare the suite for development or packaging.
 
 ## Install Python 3.12+
@@ -39,7 +39,9 @@ after pulling updates to refresh the environment.
 
 `requirements.lock` pins exact versions for all runtime
 dependencies. Adding or updating a package requires editing this file and the
-license summary in `THIRD_PARTY_LICENSES.md`.
+license summary in `THIRD_PARTY_LICENSES.md`. The introduction of
+`copernican_lib.statistics` consolidated existing helpers without adding new
+packages, so the lock file remained unchanged for this release.
 
 Development helpers such as `pre-commit` are installed without the
 `--no-deps` flag so their own dependencies are pulled in automatically.
@@ -70,7 +72,10 @@ pip build .
 ## Verify the build
 
 After installation or building a distribution, run the test suite to
-confirm everything operates correctly:
+confirm everything operates correctly.
+The `tests/test_engine_mcmc.py` module now exercises the sampler's reseeding
+helper so automated builds catch any regression that might reintroduce
+``nan`` walkers:
 
 ```bash
 python -m unittest discover -v

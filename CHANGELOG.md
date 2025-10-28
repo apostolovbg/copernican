@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-10-23
+**Last Updated:** 2025-11-09
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,22 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 4.3.26
+- 2025-11-09: Reseeded invalid MCMC walkers to eliminate emcee warnings,
+              copied SNe chi-squared totals into summary outputs, reused
+              posterior chains when `MODEL_FILENAME` matches so BAO/CMB
+              overlays and χ² values stay aligned during LCDM self-tests,
+              refreshed documentation and hardened tests for the new helper
+              (OpenAI ChatGPT)
+
+## Version 4.3.25
+- 2025-11-08: Extracted shared chi-squared helpers into
+              ``copernican_lib.statistics``, overhauled the MCMC engine to
+              initialise walkers uniformly, run a dedicated burn-in and record
+              diagnostics, reused SNe chains when models match so BAO/CMB
+              overlays align during self-comparisons, refreshed documentation
+              across the suite and bumped metadata (OpenAI ChatGPT)
 
 ## Version 4.3.24
 - 2025-10-23: Hardened plot summaries against missing chi-squared totals,
