@@ -18,3 +18,4 @@ build/
 /.python
 .cache/dependency_scan.json
 /.cache
+/.cache
