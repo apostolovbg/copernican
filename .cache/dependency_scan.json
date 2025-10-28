@@ -6,6 +6,7 @@
     "astropy",
     "camb",
     "concurrent",
+    "copy",
     "dataclasses",
     "datetime",
     "emcee",
@@ -40,8 +41,8 @@
   ],
   "files": {
     "/Users/apostolov/Documents/GitHub/copernican/copernican.py": {
-      "mtime_ns": 1761526542521452964,
-      "size": 51477
+      "mtime_ns": 1761676775212646118,
+      "size": 52192
     },
     "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/__init__.py": {
       "mtime_ns": 1761526542521918250,
@@ -103,6 +104,10 @@
       "mtime_ns": 1761526542526622313,
       "size": 3758
     },
+    "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/statistics.py": {
+      "mtime_ns": 1761676775214784079,
+      "size": 17113
+    },
     "/Users/apostolov/Documents/GitHub/copernican/copernican_lib/utils.py": {
       "mtime_ns": 1761526542526941311,
       "size": 5425
@@ -148,8 +153,8 @@
       "size": 35043
     },
     "/Users/apostolov/Documents/GitHub/copernican/engines/cosmo_engine_mcmc.py": {
-      "mtime_ns": 1761526542540122650,
-      "size": 5017
+      "mtime_ns": 1761676775231297837,
+      "size": 9871
     },
     "/Users/apostolov/Documents/GitHub/copernican/models/__init__.py": {
       "mtime_ns": 1761209736315414871,
@@ -188,8 +193,8 @@
       "size": 3115
     },
     "/Users/apostolov/Documents/GitHub/copernican/tests/test_engine_mcmc.py": {
-      "mtime_ns": 1761526542553826668,
-      "size": 3312
+      "mtime_ns": 1761676775254880115,
+      "size": 5327
     },
     "/Users/apostolov/Documents/GitHub/copernican/tests/test_menu.py": {
       "mtime_ns": 1761526542554032728,
