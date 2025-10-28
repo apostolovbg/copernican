@@ -1,10 +1,10 @@
 """Run manifest generator for the Copernican Suite.
 
 The manifest records critical information required to reproduce a run.
-It captures model and engine details, parameter priors, dataset hashes
-provided by the data loaders and the Git state.  Each run directory
-stores the resulting YAML file so that analyses can be traced back
-unambiguously.
+It captures the Copernican Suite version, model and engine details,
+parameter priors, dataset hashes provided by the data loaders and the Git
+state.  Each run directory stores the resulting YAML file so that analyses can
+be traced back unambiguously.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from typing import Dict, Iterable, Tuple
 import yaml
 
 from . import utils
+from .version import get_version
 
 
 def _git_info() -> dict:
@@ -72,6 +73,7 @@ def build_manifest(
     """
 
     manifest = {
+        "copernican": {"version": get_version()},
         "models": [],
         "engine": {
             "name": getattr(engine_module, "__name__", "unknown"),

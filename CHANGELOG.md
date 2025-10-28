@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-10-28
+**Last Updated:** 2025-11-11
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,12 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 6.0.1
+- 2025-11-11: Added a tracked VERSION file, taught the runtime helper to read
+              it before falling back to setuptools_scm, embedded the suite
+              version in run manifests, expanded packaging guidance and
+              refreshed documentation for the new workflow (OpenAI ChatGPT)
 
 ## Version 6.0.0
 - 2025-10-28: Retired the combined optimiser module, promoted the MCMC sampler

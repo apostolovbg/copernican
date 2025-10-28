@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-10-28
+**Last Updated:** 2025-11-11
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -308,10 +308,12 @@ Failure to follow these guidelines will compromise the Copernican Suite.
 ## 7. Versioning Policy
 The project follows Semantic Versioning (`MAJOR.MINOR.PATCH`). Increment the
 `MAJOR` number for breaking changes, the `MINOR` for new backward-compatible
-features and the `PATCH` for bug fixes. Package versions are derived from Git
-tags using `setuptools_scm`. Runtime code should obtain the current version
-via ``copernican_lib.version.get_version`` rather than hard-coded strings.
-Contributors must update the version whenever a pull request introduces a
-change covered by these rules.
-Setting ``COPERNICAN_VERSION`` in the environment overrides the derived
-version so CI builds can embed custom prerelease identifiers.
+features and the `PATCH` for bug fixes. The canonical version is stored both
+at the top of `README.md` and inside `copernican_lib/VERSION`. Keep these two
+locations in sync whenever the version changes so runtime banners, manifests
+and documentation all agree. Runtime code must obtain the current version via
+``copernican_lib.version.get_version`` rather than hard-coded strings. The
+helper reads the tracked version file before falling back to package metadata
+or Git tags. Setting ``COPERNICAN_VERSION`` in the environment overrides the
+derived value so CI builds can embed custom prerelease identifiers that
+match the tracked version.

@@ -1,9 +1,10 @@
 # Run Manifest
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-11-11
 
 The suite writes a YAML manifest for every evaluation under the run's output
 folder.  The file is named `run_manifest_<timestamp>.yml` and records:
 
+- Copernican Suite version under `copernican.version`
 - Selected model and engine names with their versions
 - Parameter priors and the random seed
 - Dataset identifiers with SHA256 hashes of input files
@@ -25,7 +26,9 @@ enter a manual value or generate a random seed.  The chosen value is saved
 in the manifest and main log so runs can be reproduced exactly.
 
 The manifest is intentionally human readable so it can be archived in lab
-notebooks or cited in publications.
+notebooks or cited in publications. Recording the suite version makes it clear
+which behaviour and documentation set applied to the run, especially when a
+development branch has diverged from the last tagged release.
 
 When both models point to the same YAML file the manifest will list matching
 `MODEL_FILENAME` entries. That shared marker indicates the Stage 2 workflow

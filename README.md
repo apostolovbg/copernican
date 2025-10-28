@@ -1,5 +1,5 @@
-**Version:** 6.0.0
-**Last Updated:** 2025-10-28
+**Version:** 6.0.1
+**Last Updated:** 2025-11-11
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
@@ -354,8 +354,8 @@ are cached by rounded parameter tuples which keeps successive evaluations
 fast during optimisation loops.
 
 Each run directory also contains a YAML manifest named
-`run_manifest_<timestamp>.yml` capturing the chosen models, engine, parameter
-priors, dataset hashes and the Git commit. See
+`run_manifest_<timestamp>.yml` capturing the suite version, chosen models,
+engine, parameter priors, dataset hashes and the Git commit. See
 [docs/run_manifest.md](docs/run_manifest.md) for details on using this file to
 reproduce analyses.
 
@@ -699,15 +699,20 @@ described in that license.
 
 ## Versioning Policy
 The project now follows [Semantic Versioning](https://semver.org/). Versions
-are
-listed as `MAJOR.MINOR.PATCH`, where breaking changes increment `MAJOR`, new
-features increment `MINOR` and bug fixes increment `PATCH`. Package builds use
-`setuptools_scm` to derive the version from Git tags, so the version string is
-never hard-coded. Runtime code should call
-`copernican_lib.version.get_version` to obtain the current version.
+are listed as `MAJOR.MINOR.PATCH`, where breaking changes increment `MAJOR`,
+new features increment `MINOR` and bug fixes increment `PATCH`. The canonical
+version is stored in two places inside the repository: the heading at the top
+of this README and the tracked `copernican_lib/VERSION` file. Keep both in
+sync when preparing a release so runtime code and documentation report the
+same identifier. Runtime code calls `copernican_lib.version.get_version` which
+reads the version file before consulting installed package metadata or Git
+tags.
 
 Set ``COPERNICAN_VERSION`` during builds to supply custom prerelease
-identifiers, for example in CI when building off feature branches.
+identifiers, for example in CI when building off feature branches. When
+publishing wheels from a work-in-progress branch, export the value written to
+`copernican_lib/VERSION` via ``COPERNICAN_VERSION`` so the package metadata
+matches the runtime identifier.
 
 The `MINOR` value only increases when the suite gains a new data type or a
 similarly significant feature, such as introducing CMB support or a new

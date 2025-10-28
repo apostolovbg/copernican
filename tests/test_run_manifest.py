@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import yaml
 
 from copernican_lib import run_manifest, utils
+from copernican_lib.version import get_version
 
 
 def _dummy_plugin():
@@ -32,6 +33,7 @@ def test_manifest_contains_required_fields():
         path = run_manifest.save_manifest(manifest, tmpdir)
         with open(path, "r", encoding="utf-8") as fh:
             loaded = yaml.safe_load(fh)
+        assert loaded["copernican"]["version"] == get_version()
         assert loaded["engine"]["name"] == "engine"
         assert loaded["seed"] == 123
         assert "ds" in loaded["datasets"]
