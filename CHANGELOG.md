@@ -19,6 +19,11 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 6.0.2
+- 2025-10-29: Removed the tracked dependency cache directory and documented
+              the `.cache/` workflow so Git only sees per-user data
+              (OpenAI ChatGPT)
+
 ## Version 6.0.1
 - 2025-10-29: Restored the README `Last Updated` value to the human-specified
               date, codified the timestamp verification guideline in

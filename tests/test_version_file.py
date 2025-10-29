@@ -21,7 +21,9 @@ class VersionFileTests(TestCase):
                 with mock.patch.object(
                     version_module,
                     "scm_get_version",
-                    side_effect=AssertionError("setuptools_scm should not run"),
+                    side_effect=AssertionError(
+                        "setuptools_scm should not run"
+                    ),
                 ):
                     observed = version_module.get_version()
         finally:

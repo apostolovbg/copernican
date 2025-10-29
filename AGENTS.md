@@ -128,8 +128,10 @@ AST parser to avoid false positives from comments. It writes the discovered
 imports to `.cache/dependency_scan.json` alongside the absolute path, size
 and modification time of every parsed file. When those details match a
 previous run the check loads the cached list immediately, keeping the menu
-snappy even on large worktrees. Set `COPERNICAN_DEP_CACHE_DIR` to direct
-the cache to a custom location when the default path is read-only. The
+snappy even on large worktrees. The `.cache/` directory is created on demand
+and must remain untracked so contributors keep private dependency metadata.
+Set `COPERNICAN_DEP_CACHE_DIR` to direct the cache to a custom location when
+the default path is read-only. The
 `start.*` launchers
 always download a private Python 3.12+ into ``.python`` and build ``.venv``
 from that interpreter, ignoring any system-wide Python. If the download fails

@@ -1,4 +1,4 @@
-**Version:** 6.0.1
+**Version:** 6.0.2
 **Last Updated:** 2025-10-29
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -347,8 +347,10 @@ optimisations do not appear stalled on Linux terminals.
 Dependency checks reuse a cached import list stored in
 `.cache/dependency_scan.json`. The cache records the absolute path, size and
 modification time of every parsed module so unchanged worktrees skip the AST
-walk entirely. Set `COPERNICAN_DEP_CACHE_DIR` to point the cache at a custom
-location when running the suite from read-only media or temporary clones.
+walk entirely. The `.cache/` directory is created on demand and is now ignored
+by Git so each contributor keeps a private cache that never pollutes commits.
+Set `COPERNICAN_DEP_CACHE_DIR` to point the cache at a custom location when
+running the suite from read-only media or temporary clones.
 Model YAML files are
 sanitised and cached under `models/cache/` for the duration of the session,
 avoiding repeated schema validation. For CMB analyses unlensed CAMB spectra
