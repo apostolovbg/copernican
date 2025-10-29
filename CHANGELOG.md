@@ -43,13 +43,13 @@ put dates that are in the future or in the past! Follow this template:
               reiterated verbose progress reporting (OpenAI ChatGPT)
 
 ## Version 5.0.0
-- 2025-11-10: Replaced the legacy combined optimiser with
+- 2025-10-27: Replaced the legacy combined optimiser with
               ``engines.cosmo_engine``, added verbose percentage-based
               progress reporting to the MCMC backend, refreshed all
               documentation and bumped suite metadata (OpenAI ChatGPT)
 
 ## Version 4.3.26
-- 2025-11-09: Reseeded invalid MCMC walkers to eliminate emcee warnings,
+- 2025-10-26: Reseeded invalid MCMC walkers to eliminate emcee warnings,
               copied SNe chi-squared totals into summary outputs, reused
               posterior chains when `MODEL_FILENAME` matches so BAO/CMB
               overlays and χ² values stay aligned during LCDM self-tests,
@@ -57,7 +57,7 @@ put dates that are in the future or in the past! Follow this template:
               (OpenAI ChatGPT)
 
 ## Version 4.3.25
-- 2025-11-08: Extracted shared chi-squared helpers into
+- 2025-10-25: Extracted shared chi-squared helpers into
               ``copernican_lib.statistics``, overhauled the MCMC engine to
               initialise walkers uniformly, run a dedicated burn-in and record
               diagnostics, reused SNe chains when models match so BAO/CMB
@@ -70,12 +70,12 @@ put dates that are in the future or in the past! Follow this template:
               suite metadata (OpenAI ChatGPT)
 
 ## Version 4.3.23
-- 2025-11-06: Replaced the MCMC penalty sentinel with ``-np.inf``, updated
+- 2025-10-23: Replaced the MCMC penalty sentinel with ``-np.inf``, updated
               tests, documentation and metadata to describe the deterministic
               rejection behaviour (OpenAI ChatGPT)
 
 ## Version 4.3.22
-- 2025-11-05: Added a cached dependency scan so repeated launches skip costly
+- 2025-10-23: Added a cached dependency scan so repeated launches skip costly
               AST parsing, introduced targeted tests, refreshed documentation
               and metadata across the suite (OpenAI ChatGPT)
 
