@@ -1,5 +1,5 @@
-**Version:** 6.0.5
-**Last Updated:** 2025-10-30
+**Version:** 6.0.6
+**Last Updated:** 2025-10-29
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -114,10 +114,15 @@ Under the hood the program follows a clear pipeline:
    returned by the sampler and chi-squared statistics are reported. Shared
    helpers from `copernican_lib.statistics` keep the calculations identical
    regardless of the active engine, ensuring future backends remain
-   drop-in replacements.
+   drop-in replacements. When a sampler reports failure or omits fitted
+   parameters the suite now skips BAO calculations for that model instead of
+   crashing, logging a warning so users can revisit their priors.
 6. **CMB Analysis** – CMB power spectra are generated using the fitted
    cosmological parameters and any extra CMB-specific values supplied by the
-   engine. The chi-squared contribution is then calculated.
+   engine. The chi-squared contribution is then calculated. As with the BAO
+   stage the orchestrator bypasses CMB processing gracefully when the
+   underlying fit does not yield cosmological parameters, preventing
+   `KeyError` exceptions at the end of long runs.
 7. **Spectra Caching** – unlensed CAMB spectra are cached using parameter
    keys rounded to six significant digits.
 8. **Output Generation** – `copernican_lib/logger.py`,

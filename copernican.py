@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-08
+# Last Updated: 2025-10-29
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -31,6 +31,7 @@ import datetime
 import subprocess
 import faulthandler
 import signal
+from collections.abc import Mapping
 from dataclasses import dataclass
 import random
 from pathlib import Path
@@ -735,6 +736,59 @@ def cleanup_cache(base_dir):
                     logger.error(f"Error removing cache file {path}: {e}")
 
 
+def extract_cosmological_param_vector(
+    fit_results,
+    model_plugin,
+    *,
+    logger=None,
+):
+    """Return fitted cosmological parameters ordered for ``model_plugin``.
+
+    The helper hides the boilerplate required to guard against partial engine
+    failures.  Engines return ``success=False`` and omit
+    ``fitted_cosmological_params`` when the sampler cannot initialise (for
+    example if ``emcee`` rejects the walker ensemble).  Higher level workflow
+    code can call this function and receive either a list of parameter values
+    in the plugin's declared order or ``None`` when the data is unavailable.
+    ``logger`` is optional so unit tests can remain silent while the runtime
+    continues to emit descriptive warnings for users.
+    """
+
+    if not isinstance(fit_results, Mapping):
+        return None
+    if not fit_results.get("success"):
+        return None
+    params = fit_results.get("fitted_cosmological_params")
+    if not isinstance(params, Mapping):
+        if logger is not None:
+            model_name = getattr(model_plugin, "MODEL_NAME", "model")
+            logger.warning(
+                "%s fit results did not expose 'fitted_cosmological_params'; "
+                "skipping dependent analyses.",
+                model_name,
+            )
+        return None
+
+    names = list(getattr(model_plugin, "PARAMETER_NAMES", []))
+    if not names:
+        return list(params.values())
+
+    missing = [name for name in names if name not in params]
+    if missing:
+        if logger is not None:
+            model_name = getattr(model_plugin, "MODEL_NAME", "model")
+            joined = ", ".join(missing)
+            logger.warning(
+                "%s fit is missing values for %s; skipping dependent "
+                "analyses.",
+                model_name,
+                joined,
+            )
+        return None
+
+    return [params[name] for name in names]
+
+
 def _sanity_check_numpy_scipy(log):
     """Run a tiny NumPy/SciPy calculation to verify binary compatibility.
 
@@ -1052,9 +1106,25 @@ def main_workflow():
                     "smooth_predictions": None,
                 }
 
-            fitted_cosmo_p = list(
-                sne_fit_results["fitted_cosmological_params"].values()
+            fitted_cosmo_p = extract_cosmological_param_vector(
+                sne_fit_results,
+                model_plugin,
+                logger=logger,
             )
+            if fitted_cosmo_p is None:
+                logger.warning(
+                    (
+                        f"{model_plugin.MODEL_NAME} fit does not expose "
+                        "cosmological parameters; skipping BAO analysis."
+                    )
+                )
+                return {
+                    "sne_fit_results": sne_fit_results,
+                    "pred_df": None,
+                    "rs_Mpc": np.nan,
+                    "chi2_bao": np.inf,
+                    "smooth_predictions": None,
+                }
             pred_df, rs_Mpc, smooth_preds = (
                 cosmo_engine_selected.calculate_bao_observables(
                     bao_data_df,
@@ -1122,6 +1192,15 @@ def main_workflow():
             if cmb_df is None or cmb_df.empty:
                 return {"chi2_cmb": np.inf, "theory_spectrum": None}
 
+            if cosmo_params is None:
+                logger.warning(
+                    (
+                        f"{model_plugin.MODEL_NAME} fit does not provide "
+                        "cosmological parameters; skipping CMB analysis."
+                    )
+                )
+                return {"chi2_cmb": np.inf, "theory_spectrum": None}
+
             # Convert the fitted cosmological parameters to CAMB's expected
             # dictionary format using the helper provided by the model plugin.
             camb_params = model_plugin.get_camb_params(cosmo_params)
@@ -1166,13 +1245,22 @@ def main_workflow():
 
         logger.info("\n--- Stage 4: CMB Analysis ---\n")
 
+        lcdm_cosmo = extract_cosmological_param_vector(
+            lcdm_sne_fit_results,
+            lcdm,
+            logger=logger,
+        )
+        alt_cosmo = extract_cosmological_param_vector(
+            alt_model_sne_fit_results,
+            alt_model_plugin,
+            logger=logger,
+        )
+
         t0 = time.perf_counter()
         lcdm_cmb = run_cmb_analysis(
             cmb_data_df,
             lcdm,
-            list(
-                lcdm_sne_fit_results["fitted_cosmological_params"].values()
-            ),
+            lcdm_cosmo,
             lcdm_sne_fit_results.get("fitted_cmb_params"),
         )
         lcdm_time += time.perf_counter() - t0
@@ -1180,11 +1268,7 @@ def main_workflow():
         alt_cmb = run_cmb_analysis(
             cmb_data_df,
             alt_model_plugin,
-            list(
-                alt_model_sne_fit_results[
-                    "fitted_cosmological_params"
-                ].values()
-            ),
+            alt_cosmo,
             alt_model_sne_fit_results.get("fitted_cmb_params"),
         )
         alt_time += time.perf_counter() - t0
