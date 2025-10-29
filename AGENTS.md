@@ -68,6 +68,10 @@ engine emits step-by-step progress messages for both burn-in and production
 phases, displays percentage indicators and continues to return ``-np.inf``
 whenever a proposal falls outside declared parameter bounds or yields a
 non-finite chi-squared so the sampler rejects invalid walkers deterministically.
+Non-ΛCDM sample YAMLs (`cosmo_model_cfsc.yml`, `cosmo_model_cpc.yml`,
+`cosmo_model_qauc.yml` and `cosmo_model_usmf{3..7}.yml`) are maintained as
+parseable exemplars. Treat their `python_var` assignments and folded block
+scalars as the canonical style when authoring new theories.
 After burn-in any walkers that drift into ``nan`` coordinates are reseeded
 around the ensemble mean with progressively smaller jitter, eliminating the
 `RuntimeWarning: invalid value encountered in scalar subtract` messages that

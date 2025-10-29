@@ -1,199 +1,148 @@
-model_name: USMFv4.0
+model_name: USMFv4
 version: '4.0'
-title: 'USMF Version 4.0: Radiation-Calibrated Quantum-Shrinking Cosmology'
-date: '2025-07-28'
-abstract: USMF v4.0 is a cosmological model that matches supernova distances, BAO
-  measurements, and the CMB acoustic spectra to Planck-level precision without introducing
-  a cosmological constant or dark-matter particles. Instead, it interprets cosmic
-  redshift and acceleration as emerging from a universal, gradual shrinking of all
-  rulers and clocks driven by quantum-geometry. A single expansion function with an
-  embedded photon-density term enforces the correct early-time H(z)∝(1+z)² behavior,
-  and an emergent clustering parameter provides the necessary matter-like gravitational
-  effects.
-description: 'USMF v4.0 is built on five clear principles:
-
-
-  1. Radius and clock shrinkage: all measurement units contract over cosmic time via
-  quantum-geometry effects, so observed redshift arises from changing local scales
-  rather than new energies.
-
-
-  2. Unified expansion law: H(z) is given by a single function that includes both
-  a flexible shrinkage term and the photon-density term, so it transitions automatically
-  from radiation-dominated (H∝(1+z)²) to matter-like to late-time acceleration.
-
-
-  3. Emergent clustering (Ω_eff): a free parameter that behaves like pressureless
-  matter in structure formation and the CMB, but without invoking particle dark matter.
-
-
-  4. Anchored early-universe inputs: the photon density (Ω_γ) and recombination redshift
-  (z_rec) are fixed to observations, and the baryon density (Ω_b) is constrained by
-  BBN priors.
-
-
-  5. Automatic sound horizon: with these inputs declared, the suite’s built-in integral
-  computes the baryon–photon sound horizon and restores the correct BAO and CMB peak
-  scale without any manual tuning.
-
-
-  Together, these elements let USMF v4.0 reproduce all key cosmological probes on
-  equal footing with ΛCDM, yet maintain a purely geometric–quantum origin for the
-  apparent acceleration.'
+description: >-
+  USMF v4 introduces a logistic modulation that eases the shrink component into
+  the matter era. The template highlights how to include smooth transitions and
+  additional power-law drifts using clear YAML syntax.
+abstract: >-
+  A logistic switch controls when the shrinking-frame contribution hands off to
+  an emergent matter density. A gentle power-law drift supplements the
+  oscillation-free baseline so the model remains easy to extend.
 parameters:
-- name: Speed of light
-  bounds:
-  - 299792.458
-  - 299792.458
-  unit: km/s
-  latex_name: c
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 299792.458
-    upper: 299792.458
-- name: Hubble scale today
-  bounds:
-  - 50.0
-  - 100.0
-  unit: km/s/Mpc
-  latex_name: H_A
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 50.0
-    upper: 100.0
-- name: Late-time exponent
-  bounds:
-  - 0.5
-  - 1.5
-  unit: ''
-  latex_name: p_{alpha}
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 0.5
-    upper: 1.5
-- name: Extra-term amplitude
-  bounds:
-  - 0.0
-  - 5.0
-  unit: ''
-  latex_name: "k_{\rm exp}"
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 0.0
-    upper: 5.0
-- name: Extra-term slope
-  bounds:
-  - 0.0
-  - 3.0
-  unit: ''
-  latex_name: "s_{\rm exp}"
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 0.0
-    upper: 3.0
-- name: Present-day age
-  bounds:
-  - 10.0
-  - 20.0
-  unit: Gyr
-  latex_name: "t_{0,\rm age}"
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 10.0
-    upper: 20.0
-- name: Baryon density
-  bounds:
-  - 0.045
-  - 0.055
-  unit: ''
-  latex_name: Omega_b
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 0.045
-    upper: 0.055
-- name: Photon density
-  bounds:
-  - 4.186e-05
-  - 4.186e-05
-  unit: ''
-  latex_name: Omega_{gamma}
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 4.186e-05
-    upper: 4.186e-05
-- name: Recombination redshift
-  bounds:
-  - 1100
-  - 1100
-  unit: ''
-  latex_name: "z_{\rm rec}"
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 1100.0
-    upper: 1100.0
-- name: Primordial amplitude
-  bounds:
-  - 1.0e-09
-  - 5.0e-09
-  unit: ''
-  latex_name: A_s
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 1.0e-09
-    upper: 5.0e-09
-- name: Primordial tilt
-  bounds:
-  - 0.9
-  - 1.1
-  unit: ''
-  latex_name: n_s
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 0.9
-    upper: 1.1
-- name: Emergent clustering density
-  bounds:
-  - 0.0
-  - 0.5
-  unit: ''
-  latex_name: "Omega_{\rm eff}"
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 0.0
-    upper: 0.5
-Hz_expression: "H(z) = H_A * sqrt{ left((1+z)**{p_{alpha}} * left(1 + k_{\rm exp}\
-  \ * (1+z)**{s_{\rm exp}}\right)\right)**2 + Omega_{gamma} * (1+z)**4 }"
+  - name: Hubble scale today
+    bounds: [50.0, 100.0]
+    unit: km/s/Mpc
+    latex_name: H_0
+    python_var: H0
+    definition: Present-day Hubble parameter.
+    prior:
+      type: uniform
+      lower: 50.0
+      upper: 100.0
+  - name: Shrink exponent
+    bounds: [0.2, 1.5]
+    unit: ''
+    latex_name: p_{\alpha}
+    python_var: p_alpha
+    definition: Power-law index of the shrink term.
+    prior:
+      type: uniform
+      lower: 0.2
+      upper: 1.5
+  - name: Logistic amplitude
+    bounds: [-1.0, 1.0]
+    unit: ''
+    latex_name: k_{\rm log}
+    python_var: k_log
+    definition: Strength of the logistic modulation.
+    prior:
+      type: uniform
+      lower: -1.0
+      upper: 1.0
+  - name: Logistic pivot
+    bounds: [0.0, 5.0]
+    unit: ''
+    latex_name: z_{\rm pivot}
+    python_var: z_pivot
+    definition: Redshift where the logistic switch centres.
+    prior:
+      type: uniform
+      lower: 0.0
+      upper: 5.0
+  - name: Logistic width
+    bounds: [0.2, 2.0]
+    unit: ''
+    latex_name: \Delta_z
+    python_var: delta_z
+    definition: Width of the logistic transition.
+    prior:
+      type: uniform
+      lower: 0.2
+      upper: 2.0
+  - name: Emergent matter density
+    bounds: [0.0, 0.6]
+    unit: ''
+    latex_name: \Omega_{\rm eff}
+    python_var: Omega_eff
+    definition: Effective matter-like term.
+    prior:
+      type: uniform
+      lower: 0.0
+      upper: 0.6
+  - name: Drift amplitude
+    bounds: [0.0, 0.5]
+    unit: ''
+    latex_name: D_{\rm drift}
+    python_var: D_drift
+    definition: Coefficient of the additional drift term.
+    prior:
+      type: uniform
+      lower: 0.0
+      upper: 0.5
+  - name: Drift exponent
+    bounds: [0.0, 4.0]
+    unit: ''
+    latex_name: n_{\rm drift}
+    python_var: n_drift
+    definition: Power-law index of the drift term.
+    prior:
+      type: uniform
+      lower: 0.0
+      upper: 4.0
+  - name: Baryon density
+    bounds: [0.01, 0.1]
+    unit: ''
+    latex_name: \Omega_b
+    python_var: Omega_b
+    definition: Baryon density for CMB mappings.
+    prior:
+      type: uniform
+      lower: 0.01
+      upper: 0.1
+  - name: Photon density
+    bounds: [1.0e-05, 0.001]
+    unit: ''
+    latex_name: \Omega_{\gamma}
+    python_var: Omega_gamma
+    definition: Photon density entering r_s.
+    prior:
+      type: uniform
+      lower: 1.0e-05
+      upper: 0.001
+  - name: Recombination redshift
+    bounds: [900.0, 1200.0]
+    unit: ''
+    latex_name: z_{\rm rec}
+    python_var: z_rec
+    definition: Reference redshift for the sound horizon.
+    prior:
+      type: uniform
+      lower: 900.0
+      upper: 1200.0
+Hz_expression: >-
+  H(z) = H0 * sqrt(
+    (1 + z)**(2*p_alpha) * (1 + k_log/(1 + exp(-(z - z_pivot)/delta_z)))
+    + Omega_eff*(1 + z)**3
+    + Omega_gamma*(1 + z)**4
+    + D_drift*(1 + z)**n_drift
+  )
+equations:
+  sne:
+    - d_L(z) = (1+z) \int_0^z \frac{c\,dz'}{H(z')}
+    - \mu(z) = 5\log_{10}[d_L(z)/{\rm Mpc}] + 25
+  bao:
+    - D_M(z) = \int_0^z \frac{c\,dz'}{H(z')}
+    - D_H(z) = \frac{c}{H(z)}
+    - D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}
 predicts_bao: true
 valid_for_bao: true
 valid_for_cmb: true
-equations:
-  sne:
-  - d_L(z) = (1+z) \int_0^z \frac{c,dz'}{H(z')}
-  - "mu(z) = 5log_{10}\bigl(d_L(z)/\\mathrm{Mpc}\bigr) + 25"
-  bao:
-  - D_M(z) = \int_0^z \frac{c,dz'}{H(z')}
-  - D_H(z) = \frac{c}{H(z)}
-  - D_V(z) = [D_M(z)**2 * D_H(z)]**(1/3)
 cmb:
   param_map:
-    H0: H_A
-    ombh2: Omega_b*(H_A/100)**2
-    omch2: "Omega_{\rm eff}*(H_A/100)**2"
-    omnuh2: Omega_{gamma}*(H_A/100)**2
+    H0: H0
+    ombh2: Omega_b * (H0/100)**2
+    omch2: (Omega_eff - Omega_b) * (H0/100)**2
+    omnuh2: Omega_gamma * (H0/100)**2
     tau: 0.054
-    As: A_s
-    ns: n_s
-notes: Fixed JSON escaping in abstract/description; removed all invalid backslashes;
-  made abstract/description fully self-contained for new readers.
+    As: 2.1e-09
+    ns: 0.965

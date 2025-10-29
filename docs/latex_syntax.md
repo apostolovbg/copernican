@@ -1,5 +1,5 @@
 # LaTeX Syntax Guide
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-10-29
 
 This document describes the supported LaTeX-like syntax for cosmological model
 YAML files. Expressions are parsed by `latex_utils.py` and converted to NumPy-
@@ -11,6 +11,15 @@ the MCMC engine display the same typographic quality as optimiser summaries.
 Extending the mapping tables therefore benefits both plotting and log output.
 The same helper converts ``χ²_Total`` when Stage 5 summaries print the SNe-only
 chi-squared totals, keeping the glyph consistent with the BAO and CMB entries.
+
+## YAML hygiene tips
+
+* Prefer block scalars (`|` or `>`) when writing long expressions. Quoted
+  strings interpret escape sequences, so `\beta` becomes a literal backspace.
+  The updated non-ΛCDM models illustrate the folded-style approach.
+* Set explicit `python_var` values when you want concise identifiers in the
+  generated callables. This avoids auto-generated names such as `Omega_m_eff`
+  when the expression simply needs `Omega_eff`.
 
 ## Exponentiation
 Use `**` for powers:
