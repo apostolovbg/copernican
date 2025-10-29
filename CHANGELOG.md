@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-11
+**Last Updated:** 2025-10-29
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -24,6 +24,9 @@ put dates that are in the future or in the past! Follow this template:
               it before falling back to setuptools_scm, embedded the suite
               version in run manifests, expanded packaging guidance and
               refreshed documentation for the new workflow (OpenAI ChatGPT)
+- 2025-10-29: Retired the repository roadmap formerly stored in `PLAN.md`,
+              confirmed no remaining references and documented the removal
+              (OpenAI ChatGPT)
 
 ## Version 6.0.0
 - 2025-10-28: Retired the combined optimiser module, promoted the MCMC sampler
