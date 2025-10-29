@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-11
+**Last Updated:** 2025-10-29
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -302,6 +302,10 @@ these rules:
    The local pre-commit hook provisions `pip-tools==7.4.1` automatically
    before invoking `make lock` so the workflow succeeds even in clean CI
    environments.
+23. **Verify every `Last Updated` field reflects the actual current date**
+   before committing. Investigate prior human edits to understand their
+   intent and never overwrite those timestamps without confirming they are
+   genuinely stale.
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 

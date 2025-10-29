@@ -1,6 +1,8 @@
 **Version:** 6.0.1
 **Last Updated:** 2025-10-29
 
+![Copernican Suite banner](docs/copernican_suite_banner.png)
+
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
 Cosmic Microwave Background (CMB) data.
@@ -677,6 +679,10 @@ accurately** convey their purpose without unnecessary length.
 >    Run `python -m piptools compile requirements.in --allow-unsafe
 >    --output-file requirements.lock` (or simply `make lock`), commit the
 >    updated `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`.
+> 23. **Verify every `Last Updated` field reflects the actual current date**
+>     before committing. Investigate prior human edits to understand their
+>     intent and never overwrite those timestamps without confirming they are
+>     genuinely stale.
 >
 > Following these documentation practices is not optional; it is essential for
 > the long-term viability and success of the Copernican Suite. Failure to

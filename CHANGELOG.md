@@ -20,6 +20,14 @@ put dates that are in the future or in the past! Follow this template:
 ## Log changes here
 
 ## Version 6.0.1
+- 2025-10-29: Restored the README `Last Updated` value to the human-specified
+              date, codified the timestamp verification guideline in
+              `AGENTS.md` and reaffirmed the need to understand prior human
+              changes before altering them (OpenAI ChatGPT)
+- 2025-10-29: Added a README banner reference for the refreshed
+              Copernican Suite artwork so the documentation opens
+              with the updated visual identity once the asset is
+              supplied (OpenAI ChatGPT)
 - 2025-11-11: Added a tracked VERSION file, taught the runtime helper to read
               it before falling back to setuptools_scm, embedded the suite
               version in run manifests, expanded packaging guidance and
