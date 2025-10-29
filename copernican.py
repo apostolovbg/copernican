@@ -1,26 +1,47 @@
+# Last Updated: 2025-11-08
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 # copernican_suite/copernican.py
-"""
-Copernican Suite - Main Orchestrator.
+# flake8: noqa
+# isort: skip_file
+# fmt: off
+"""Copernican Suite - Main Orchestrator.
+
+This script ties together model selection, dataset loading, dependency
+checks and result generation.  Runtime behaviour is configured through
+environment variables set by the cross-platform ``start`` launchers, so
+no raw command line flags are exposed to end users.  The module also
+houses the optional test runner and automated package installer so that
+a fresh checkout can execute with minimal setup.
 """
 
 
-import importlib.util
-import importlib
-from importlib.metadata import version as package_version, PackageNotFoundError
 import ast
+import copy
+import importlib
+import importlib.util
+import json
 import os
 import sys
 import platform
 import shutil
 import time
 import datetime
-import argparse
+import subprocess
+import faulthandler
+import signal
+from dataclasses import dataclass
+import random
 from pathlib import Path
 
 from copernican_lib import console_output as console
+from copernican_lib import run_manifest
+from copernican_lib import result_writer
+from copernican_lib.version import get_version
 
 # Verify interpreter version early so users see clear feedback
-MIN_PYTHON = (3, 12)
+MIN_PYTHON = (3, 11)
 
 
 def exit_clean(code: int = 0) -> None:
@@ -31,10 +52,30 @@ def exit_clean(code: int = 0) -> None:
 
 if sys.version_info < MIN_PYTHON:
     console.write(
-        f"ERROR: Copernican Suite requires Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]} or later.",
+        (
+            f"ERROR: Copernican Suite requires Python {MIN_PYTHON[0]}"
+            f".{MIN_PYTHON[1]} or later."
+        ),
         error=True,
     )
     exit_clean(1)
+
+# Require execution from the repository's virtual environment so that global
+# site-packages are ignored.
+EXPECTED_VENV = (Path(__file__).resolve().parent / ".venv").resolve()
+current_venv = os.environ.get("VIRTUAL_ENV")
+if current_venv is None or Path(current_venv).resolve() != EXPECTED_VENV:
+    console.write(
+        (
+            "ERROR: Run Copernican Suite via start.sh, start.command or "
+            "start.bat inside its managed .venv."
+        ),
+        error=True,
+    )
+    exit_clean(1)
+
+# Enable low-level stack tracing so crashes reveal their origin.
+faulthandler.enable()
 
 # Delay heavy third-party imports until after the dependency check.
 # Doing so keeps startup quick and lets ``check_dependencies`` provide a
@@ -53,12 +94,56 @@ log_mod = None
 logger = None
 data_loaders = None
 
-# Use a fixed version string to avoid confusion when the package metadata is
-# outdated. Automatic releases are not yet enabled. Version 3.1.0 adds
-# unified exponent syntax across model YAML files and drops all
-# legacy JSON dataset support in favour of YAML-only inputs.
-COPERNICAN_VERSION = "3.5.0"
+# Retrieve the runtime version from installed package metadata. When the
+# distribution is not installed, ``get_version`` supplies ``"0+unknown"`` so
+# logs and plot footers still carry a version-like identifier.
+COPERNICAN_VERSION = get_version()
 CURRENT_LOG_FILE = None
+
+DEPENDENCY_CACHE_ENV_VAR = "COPERNICAN_DEP_CACHE_DIR"
+DEPENDENCY_CACHE_FILENAME = "dependency_scan.json"
+DEPENDENCY_CACHE_SCHEMA = 1
+
+
+def _handle_fatal_signal(signum: int, _frame: object) -> None:
+    """Dump a stack trace to the log and console then exit cleanly.
+
+    Critical signals such as ``SIGSEGV`` may indicate a corrupted process
+    state, so the handler writes a traceback for debugging before terminating
+    immediately using :func:`os._exit`.
+    """
+
+    sig_name = signal.Signals(signum).name
+    msg = f"Fatal signal {sig_name} received"
+    console.write(msg, error=True)
+    if CURRENT_LOG_FILE:
+        try:
+            with open(CURRENT_LOG_FILE, "a", encoding="utf-8") as fh:
+                fh.write(msg + "\n")
+                faulthandler.dump_traceback(file=fh, all_threads=True)
+        except Exception as exc:
+            if logger:
+                # Preserve the failure details in the central log.
+                logger.exception(
+                    "copernican.py: failed to append fatal trace to %s",
+                    CURRENT_LOG_FILE,
+                )
+            else:
+                # Fallback so the issue is still visible to the user.
+                console.write(
+                    f"copernican.py: failed to write to {CURRENT_LOG_FILE}:"
+                    f" {exc}",
+                    error=True,
+                )
+    faulthandler.dump_traceback(all_threads=True)
+    console.write("Exiting due to fatal signal.", error=True)
+    os._exit(1)
+
+
+for _name in ("SIGILL", "SIGSEGV", "SIGFPE"):
+    _sig = getattr(signal, _name, None)
+    if _sig is not None:
+        signal.signal(_sig, _handle_fatal_signal)
 
 
 def _delete_log_file(path: str) -> None:
@@ -67,8 +152,41 @@ def _delete_log_file(path: str) -> None:
         try:
             os.remove(path)
             console.write(f"Removed log file {path}")
-        except OSError:
-            pass
+        except OSError as exc:
+            if logger:
+                # Deletion failures are non-critical but worth recording.
+                logger.warning(
+                    "copernican.py: could not remove log file %s: %s",
+                    path,
+                    exc,
+                )
+            else:
+                # Ensure the user sees the failure even without the logger.
+                console.write(
+                    f"copernican.py: unable to remove log file {path}:"
+                    f" {exc}",
+                    error=True,
+                )
+
+
+def _remove_run_dir(path: str) -> None:
+    """Delete the run output directory and its contents."""
+    if path and os.path.isdir(path):
+        try:
+            shutil.rmtree(path)
+            console.write(f"Removed run directory {path}")
+        except OSError as exc:
+            if logger:
+                logger.warning(
+                    "copernican.py: could not remove run dir %s: %s",
+                    path,
+                    exc,
+                )
+            else:
+                console.write(
+                    f"copernican.py: could not remove run dir {path}: {exc}",
+                    error=True,
+                )
 
 
 def _get_cpu_info() -> tuple[str, str]:
@@ -81,8 +199,19 @@ def _get_cpu_info() -> tuple[str, str]:
         freq_info = psutil.cpu_freq()
         if freq_info:
             freq = freq_info.current / 1000.0
-    except Exception:
-        pass
+    except Exception as exc:
+        if logger:
+            # ``psutil`` is optional; log and continue with unknown frequency.
+            logger.warning(
+                "copernican.py: psutil unavailable for CPU freq: %s",
+                exc,
+            )
+        else:
+            # Without a logger, surface the issue via the console.
+            console.write(
+                f"copernican.py: psutil import failed: {exc}",
+                error=True,
+            )
     if freq is None and platform.system() == "Linux":
         try:
             with open("/proc/cpuinfo", "r") as fh:
@@ -91,8 +220,20 @@ def _get_cpu_info() -> tuple[str, str]:
                         cpu = line.split(":", 1)[1].strip()
                     if line.startswith("cpu MHz") and freq is None:
                         freq = float(line.split(":", 1)[1]) / 1000.0
-        except Exception:
-            pass
+        except Exception as exc:
+            if logger:
+                # Reading ``/proc/cpuinfo`` can fail in restricted
+                # environments; log and fall back to placeholders.
+                logger.warning(
+                    "copernican.py: could not read /proc/cpuinfo: %s",
+                    exc,
+                )
+            else:
+                # Fallback console message when the logger is unavailable.
+                console.write(
+                    f"copernican.py: cannot read /proc/cpuinfo: {exc}",
+                    error=True,
+                )
     freq_str = f"{freq:.2f} GHz" if freq else "Unknown GHz"
     return cpu, freq_str
 
@@ -103,30 +244,87 @@ def _get_cpu_info() -> tuple[str, str]:
 
 
 def run_startup_tests():
-    """Discover and execute functional tests within the ``tests`` package."""
-    # This routine is invoked when the ``--run-tests`` flag is supplied.
-    # It uses Python's built-in unittest discovery to execute all test modules
-    # under the ``tests`` folder. The boolean return value determines whether
-    # the suite ran successfully.
-    import unittest
+    """Execute the project's unit tests via ``python -m unittest discover``.
 
+    The helper delegates to Python's standard discovery mechanism so the
+    start script's *Run tests* option behaves identically to invoking
+    ``python -m unittest discover`` from the command line. A ``True`` return
+    value indicates that all tests passed.
+    """
     try:
-        suite = unittest.defaultTestLoader.discover("tests")
+        result = subprocess.run(
+            [sys.executable, "-m", "unittest", "discover", "-v"],
+            check=False,
+        )
     except Exception as exc:
-        console.write(f"Error discovering startup tests: {exc}")
+        console.write(f"Error running startup tests: {exc}")
         return False
-    result = unittest.TextTestRunner(verbosity=1).run(suite)
-    return result.wasSuccessful()
+    return result.returncode == 0
 
 
-def parse_args():
-    """Parse command line flags provided by the user."""
-    parser = argparse.ArgumentParser(description="Copernican Suite")
-    # ``--run-tests`` triggers the functional test suite and then exits.
-    parser.add_argument(
-        "--run-tests", action="store_true", help="execute functional tests and exit"
+@dataclass
+class RuntimeOptions:
+    """Runtime configuration derived from environment variables."""
+
+    run_tests: bool = False
+    strict_warnings: bool = False
+    auto_confirm: bool = False
+
+
+def get_runtime_options() -> RuntimeOptions:
+    """Return options from ``COPERNICAN_*`` environment variables."""
+
+    return RuntimeOptions(
+        run_tests=os.environ.get("COPERNICAN_RUN_TESTS") == "1",
+        strict_warnings=os.environ.get("COPERNICAN_STRICT_WARNINGS") == "1",
+        auto_confirm=os.environ.get("COPERNICAN_AUTO_INSTALL") == "1",
     )
-    return parser.parse_args()
+
+
+def select_seed() -> int:
+    """Prompt the user for an RNG seed.
+
+    The ``COPERNICAN_SEED`` environment variable overrides the interactive
+    prompt so automated runs remain deterministic.  When unset users may
+    accept the default ``0``, enter a manual value or request a random
+    seed.  The selected value is applied via :func:`utils.set_random_seed`
+    and returned for convenience.
+    """
+
+    from copernican_lib import utils as _utils
+
+    env_seed = os.environ.get("COPERNICAN_SEED")
+    if env_seed is not None:
+        seed = int(env_seed)
+        _utils.set_random_seed(seed)
+        return seed
+
+    console.write("Select RNG seed:")
+    console.write("1) Use default seed 0")
+    console.write("2) Enter a seed manually")
+    console.write("3) Generate a random seed")
+    while True:
+        choice = input("Choice [1-3]: ").strip() or "1"
+        if choice == "1":
+            seed = 0
+            break
+        if choice == "2":
+            while True:
+                entry = input("Enter integer seed: ").strip()
+                try:
+                    seed = int(entry)
+                    break
+                except ValueError:
+                    console.write("Seed must be an integer.", error=True)
+            break
+        if choice == "3":
+            seed = random.randint(0, 2**32 - 1)
+            console.write(f"Generated random seed {seed}")
+            break
+        console.write("Please choose 1, 2 or 3.", error=True)
+
+    _utils.set_random_seed(seed)
+    return seed
 
 
 def show_splash_screen():
@@ -138,8 +336,12 @@ def show_splash_screen():
         "\n",
         "=" * 70,
         "\n",
-        "A tool for rapid development, prototyping and testing of\n".center(70),
-        "alternative cosmological frameworks against observational data\n".center(70),
+        (
+            "A tool for rapid development, prototyping and testing of\n"
+        ).center(70),
+        (
+            "alternative cosmological frameworks against observational data\n"
+        ).center(70),
         "-" * 70,
         f"build {COPERNICAN_VERSION}".center(70),
         "=" * 70,
@@ -149,34 +351,38 @@ def show_splash_screen():
         console.write(line)
     time.sleep(1)
     console.write(
-        "Follow the prompts to configure a run. Results are saved in the 'output' directory.\n\n"
+        "Follow the prompts to configure a run. Results are saved in the "
+        "'output' directory.\n\n"
     )
 
 
 # --- System Dependency and Sanity Checker ---
 
 
-def _gather_required_packages():
-    """Return external packages imported across project modules."""
-    # Rather than rely on ``pip freeze`` or manual lists this function
-    # walks through the source tree and parses each ``import`` statement
-    # with :mod:`ast`.  This keeps the dependency check accurate even
-    # when new optional modules are added.
-    pkg_names = set()
-    search_dirs = ["copernican_lib", "engines", "tests", "."]
-    ignore_dirs = {
-        "venv",
-        ".venv",
-        "env",
-        "build",
-        "dist",
-        "__pycache__",
-        "copernican_suite.egg-info",
-    }
+def _resolve_dependency_cache_paths() -> tuple[Path, Path]:
+    """Return the cache directory and file for dependency scans."""
+
+    override = os.environ.get(DEPENDENCY_CACHE_ENV_VAR)
+    if override:
+        cache_dir = Path(override).expanduser()
+    else:
+        cache_dir = Path(__file__).resolve().parent / ".cache"
+    cache_file = cache_dir / DEPENDENCY_CACHE_FILENAME
+    return cache_dir, cache_file
+
+
+def _scan_python_sources(
+    search_dirs: list[str], ignore_dirs: set[str]
+) -> tuple[list[Path], dict[str, dict[str, int]]]:
+    """Return Python source paths and a metadata snapshot for caching."""
+
+    python_files: list[Path] = []
+    snapshot: dict[str, dict[str, int]] = {}
     for base in search_dirs:
-        if not os.path.isdir(base):
+        base_path = Path(base).resolve()
+        if not base_path.is_dir():
             continue
-        for root, dirs, files in os.walk(base):
+        for root, dirs, files in os.walk(base_path):
             dirs[:] = [
                 d
                 for d in dirs
@@ -187,19 +393,114 @@ def _gather_required_packages():
             for fname in files:
                 if not fname.endswith(".py"):
                     continue
-                path = os.path.join(root, fname)
-                try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        tree = ast.parse(f.read(), filename=path)
-                except SyntaxError:
-                    continue
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.Import):
-                        for alias in node.names:
-                            pkg_names.add(alias.name.split(".")[0])
-                    elif isinstance(node, ast.ImportFrom):
-                        if node.level == 0 and node.module:
-                            pkg_names.add(node.module.split(".")[0])
+                path = Path(root, fname).resolve()
+                python_files.append(path)
+                stat_info = path.stat()
+                mtime_ns = getattr(stat_info, "st_mtime_ns", None)
+                if mtime_ns is None:
+                    mtime_ns = int(stat_info.st_mtime * 1_000_000_000)
+                snapshot[str(path)] = {
+                    "mtime_ns": int(mtime_ns),
+                    "size": int(stat_info.st_size),
+                }
+    python_files.sort()
+    return python_files, snapshot
+
+
+def _load_cached_dependencies(
+    snapshot: dict[str, dict[str, int]], search_dirs: list[str]
+) -> set[str] | None:
+    """Return cached dependency names when the snapshot is unchanged."""
+
+    _, cache_file = _resolve_dependency_cache_paths()
+    if not cache_file.is_file():
+        return None
+    try:
+        with cache_file.open("r", encoding="utf-8") as handle:
+            cached = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return None
+    if cached.get("schema") != DEPENDENCY_CACHE_SCHEMA:
+        return None
+    canonical_dirs = sorted(str(Path(d).resolve()) for d in search_dirs)
+    if cached.get("search_dirs") != canonical_dirs:
+        return None
+    if cached.get("files") != snapshot:
+        return None
+    deps = cached.get("dependencies")
+    if not isinstance(deps, list):
+        return None
+    return set(deps)
+
+
+def _store_dependency_cache(
+    snapshot: dict[str, dict[str, int]],
+    search_dirs: list[str],
+    dependencies: set[str],
+) -> None:
+    """Persist the dependency cache snapshot for subsequent runs."""
+
+    cache_dir, cache_file = _resolve_dependency_cache_paths()
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        tmp_file = cache_file.with_suffix(".tmp")
+        payload = {
+            "schema": DEPENDENCY_CACHE_SCHEMA,
+            "search_dirs": sorted(str(Path(d).resolve()) for d in search_dirs),
+            "files": snapshot,
+            "dependencies": sorted(dependencies),
+        }
+        with tmp_file.open("w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2, sort_keys=True)
+        tmp_file.replace(cache_file)
+    except OSError as exc:
+        console.write(
+            "Warning: Unable to update dependency cache."
+            f" {exc}",
+            error=True,
+        )
+
+
+def _gather_required_packages(
+    search_dirs: list[str] | None = None,
+) -> set[str]:
+    """Return external packages imported across project modules."""
+    # Rather than rely on ``pip freeze`` or manual lists this function
+    # walks through the source tree and parses each ``import`` statement
+    # with :mod:`ast`.  This keeps the dependency check accurate even
+    # when new optional modules are added.
+    pkg_names = set()
+    if search_dirs is None:
+        search_dirs = ["copernican_lib", "engines", "tests", "."]
+    ignore_dirs = {
+        "venv",
+        ".venv",
+        "env",
+        "build",
+        "dist",
+        "__pycache__",
+        "copernican_suite.egg-info",
+    }
+    py_files, snapshot = _scan_python_sources(search_dirs, ignore_dirs)
+    cached = _load_cached_dependencies(snapshot, search_dirs)
+    if cached is not None:
+        console.write(
+            "Dependency scan cache is current; skipping source parsing."
+        )
+        return cached
+    for path in py_files:
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                tree = ast.parse(handle.read(), filename=str(path))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    pkg_names.add(alias.name.split(".")[0])
+            elif isinstance(node, ast.ImportFrom):
+                if node.level == 0 and node.module:
+                    pkg_names.add(node.module.split(".")[0])
     ignore = {
         # Standard library modules or local packages that should not trigger
         # the dependency installer
@@ -226,41 +527,48 @@ def _gather_required_packages():
         "logger",
         "utils",
     }
-    return {
+    filtered = {
         pkg
         for pkg in pkg_names
-        if pkg not in ignore and not pkg.startswith(("copernican_lib", "engines"))
+        if pkg not in ignore
+        and not pkg.startswith(("copernican_lib", "engines"))
     }
+    _store_dependency_cache(snapshot, search_dirs, filtered)
+    return filtered
 
 
-def _print_install_instructions(missing: list[str]) -> None:
-    """Show platform-specific commands to install missing packages."""
-    # The messages here intentionally rely on plain ``pip`` so users on
-    # any platform can copy & paste them directly.  Additional hints for
-    # Homebrew, APT or pipx are printed when those tools are available
-    # to guide less experienced users.
-    pkgs = " ".join(sorted(set(missing)))
-    pip_cmd = f"{Path(sys.executable).name} -m pip install {pkgs}"
-    console.write("Please install them with:")
-    console.write(f"  {pip_cmd}")
+def check_dependencies(auto_confirm: bool = False) -> None:
+    """Ensure required packages exist inside the local ``.venv``.
 
-    sys_name = platform.system()
-    if sys_name == "Darwin" and shutil.which("brew"):
-        console.write(f"  brew install python && {pip_cmd}")
-    elif sys_name == "Linux":
-        if shutil.which("apt"):
-            console.write(f"  sudo apt install python3-pip && {pip_cmd}")
-        elif shutil.which("apt-get"):
-            console.write(f"  sudo apt-get install python3-pip && {pip_cmd}")
-    if shutil.which("pipx"):
-        console.write(f"  pipx install {pkgs}")
+    Parameters
+    ----------
+    auto_confirm : bool, optional
+        When ``True`` any missing packages are installed without prompting
+        the user.  This is intended for non-interactive environments such as
+        continuous integration systems.  When ``False`` the user is asked to
+        confirm installation before ``pip`` is invoked.
 
-
-def check_dependencies():
-    """Ensure all required packages are installed and activate venv if needed."""
+    The suite bundles a virtual environment under ``.venv`` that is activated
+    by the ``start.*`` launchers.  This check confirms the interpreter is
+    running from that environment before installing any missing packages.
+    Required packages are installed automatically from ``requirements.lock``
+    and re-imported to verify success so the workflow
+    can proceed without manual steps.
+    """
     console.write("--- Running System Dependency Check ---")
+
+    if Path(sys.prefix).resolve().name != ".venv":
+        console.write(
+            (
+                "ERROR: The Copernican Suite must run inside the local "
+                "'.venv'. Launch the appropriate start script for your OS."
+            ),
+            error=True,
+        )
+        exit_clean(1)
+
     required = sorted(_gather_required_packages())
-    missing = []
+    missing: list[str] = []
     for pkg in required:
         try:
             if importlib.util.find_spec(pkg) is None:
@@ -274,9 +582,55 @@ def check_dependencies():
                 missing.append(pkg)
 
     if missing:
-        console.write(f"Missing packages detected: {', '.join(missing)}")
-        _print_install_instructions(missing)
-        exit_clean(1)
+        console.write(
+            f"Missing packages detected: {', '.join(missing)}"
+        )
+        if not auto_confirm:
+            reply = console.ask("Install missing packages? [y/N] ")
+            if reply.lower() not in {"y", "yes"}:
+                console.write(
+                    "Dependency installation aborted by user.",
+                    error=True,
+                )
+                exit_clean(1)
+        try:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "-r",
+                    "requirements.lock",
+                ],
+                check=True,
+            )
+        except subprocess.CalledProcessError:
+            console.write(
+                (
+                    "Automatic installation failed. Please check the log and "
+                    "install the required packages manually."
+                ),
+                error=True,
+            )
+            exit_clean(1)
+
+        failed = []
+        for pkg in missing:
+            try:
+                importlib.import_module(pkg)
+            except Exception:
+                failed.append(pkg)
+        if failed:
+            console.write(
+                (
+                    "Still missing packages after installation: "
+                    f"{', '.join(failed)}"
+                ),
+                error=True,
+            )
+            exit_clean(1)
+        console.write("✅ Packages installed successfully. Continuing...\n")
     else:
         console.write("✅ System Dependency Check Passed. Continuing...\n")
 
@@ -286,48 +640,40 @@ def check_dependencies():
 lcdm = None
 
 
-def get_user_input_filepath(prompt_message, base_dir, must_exist=True):
-    """Prompt for a file path relative to ``base_dir`` and ensure it exists."""
-
-    # The loop continues until a valid path is provided or the user cancels.
-    # This prevents accidental typos from immediately aborting the workflow.
-    while True:
-        filename = console.ask(f"{prompt_message} (or 'c' to cancel): ").strip()
-        if filename.lower() == "c":
-            return None
-        filepath = os.path.join(base_dir, filename)
-        if os.path.isfile(filepath):
-            return filepath
-        else:
-            # Inform the user and loop again so they can correct the path.
-            console.write(f"Error: File not found at '{filepath}'. Please try again.")
-
-
 def load_alternative_model_plugin(model_filepath):
     """Dynamically loads an alternative cosmological model plugin."""
     logger = log_mod.get_logger()
     if not model_filepath.endswith(".py"):
         model_filepath += ".py"
     if not os.path.isfile(model_filepath):
-        logger.error(f"Alternative model plugin file '{model_filepath}' not found.")
+        logger.error(
+            f"Alternative model plugin file '{model_filepath}' not found."
+        )
         return None
     try:
         module_name = os.path.splitext(os.path.basename(model_filepath))[0]
-        spec = importlib.util.spec_from_file_location(module_name, model_filepath)
+        spec = importlib.util.spec_from_file_location(
+            module_name, model_filepath
+        )
         alt_model_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(alt_model_module)
         if not engine_interface.validate_plugin(alt_model_module):
             logger.error(
-                f"Model plugin '{os.path.basename(model_filepath)}' failed validation."
+                (
+                    f"Model plugin '{os.path.basename(model_filepath)}' "
+                    "failed validation."
+                )
             )
             return None
         logger.info(
-            f"Successfully loaded alternative model: {alt_model_module.MODEL_NAME}"
+            f"Successfully loaded alternative model: "
+            f"{alt_model_module.MODEL_NAME}"
         )
         return alt_model_module
     except Exception as e:
         logger.error(
-            f"Error loading model plugin '{os.path.basename(model_filepath)}': {e}",
+            f"Error loading model plugin "
+            f"'{os.path.basename(model_filepath)}': {e}",
             exc_info=True,
         )
         return None
@@ -347,7 +693,9 @@ def select_from_list(options, prompt):
     console.write(f"\nAvailable {header}:")
     for i, opt in enumerate(options, 1):
         console.write(f"  {i}. {opt}")
-    console.write("Write the number of your preferred choice or 'c' to cancel:")
+    console.write(
+        "Write the number of your preferred choice or 'c' to cancel:"
+    )
     while True:
         choice = console.ask("> ").strip()
         if choice.lower() == "c":
@@ -355,27 +703,6 @@ def select_from_list(options, prompt):
         if choice.isdigit() and 1 <= int(choice) <= len(options):
             return options[int(choice) - 1]
         console.write("Invalid selection. Try again.")
-
-
-def parse_model_header(md_path):
-    """Read minimal YAML front matter for plugin lookup."""
-    # Only the YAML block at the start of the Markdown file is needed in
-    # order to locate the generated Python module.  This keeps startup
-    # snappy and avoids parsing the entire document.
-    data = {}
-    try:
-        with open(md_path, "r") as f:
-            lines = f.readlines()
-        if lines and lines[0].strip() == "---":
-            for line in lines[1:]:
-                if line.strip() == "---":
-                    break
-                if ":" in line:
-                    k, v = line.split(":", 1)
-                    data[k.strip()] = v.strip().strip('"').strip("'")
-    except Exception:
-        pass
-    return data
 
 
 def cleanup_cache(base_dir):
@@ -393,7 +720,9 @@ def cleanup_cache(base_dir):
                 shutil.rmtree(pycache_path)
                 logger.info(f"Removed cache directory: {pycache_path}")
             except OSError as e:
-                logger.error(f"Error removing cache directory {pycache_path}: {e}")
+                logger.error(
+                    f"Error removing cache directory {pycache_path}: {e}"
+                )
     cache_dir = os.path.join(base_dir, "models", "cache")
     if os.path.isdir(cache_dir):
         for fname in os.listdir(cache_dir):
@@ -406,22 +735,48 @@ def cleanup_cache(base_dir):
                     logger.error(f"Error removing cache file {path}: {e}")
 
 
+def _sanity_check_numpy_scipy(log):
+    """Run a tiny NumPy/SciPy calculation to verify binary compatibility.
+
+    Mismatched CPU features or corrupted installations can cause crashes when
+    heavy computations begin. A trivial dot product and determinant expose such
+    issues early so the program can advise reinstalling with suitable wheels.
+    """
+
+    try:
+        import numpy as _np
+        from scipy import linalg as _linalg
+
+        _np.dot(_np.ones(1), _np.ones(1))
+        _linalg.det([[1.0]])
+    except Exception as exc:  # pragma: no cover - depends on local install
+        log.error(
+            "Basic NumPy/SciPy check failed. This often points to CPU feature "
+            "mismatches or a corrupted install. Reinstall NumPy and SciPy with "
+            "wheels built for your machine.",
+            exc_info=exc,
+        )
+        raise
+
+
 def main_workflow():
     """Main workflow for the Copernican Suite."""
     # This routine coordinates the entire user interaction:
-    #  * parse command-line flags
+    #  * read environment-controlled runtime options
     #  * verify Python dependencies
+    #  * perform a NumPy/SciPy sanity check
     #  * load the reference ΛCDM model
     #  * repeatedly ask the user for models, data sources and engines
     #  * produce plots and CSV files with the results
-    args = parse_args()
-    check_dependencies()
-    if args.run_tests:
+    opts = get_runtime_options()
+    check_dependencies(auto_confirm=opts.auto_confirm)
+    if opts.run_tests:
         success = run_startup_tests()
         exit_clean(0 if success else 1)
 
     # Import optional third-party packages after confirming they are installed
-    global np, plt, mp, model_parser, model_coder, engine_interface, data_loaders, plotter, csv_writer, log_mod, logger
+    global np, plt, mp, model_parser, model_coder, engine_interface, \
+        data_loaders, plotter, csv_writer, log_mod, logger, error_handler
     import numpy as np
     import matplotlib.pyplot as plt
     import multiprocessing as mp
@@ -432,6 +787,8 @@ def main_workflow():
         csv_writer,
         logger as log_mod,
         utils,
+        error_handler,
+        chain_io,
     )
 
     try:
@@ -439,13 +796,14 @@ def main_workflow():
     except NameError:
         SCRIPT_DIR = os.getcwd()
 
-    OUTPUT_DIR = os.path.join(SCRIPT_DIR, "output")
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    OUTPUT_BASE_DIR = os.path.join(SCRIPT_DIR, "output")
+    os.makedirs(OUTPUT_BASE_DIR, exist_ok=True)
 
     show_splash_screen()
 
     # Load the baseline LCDM model from YAML and validate it
     def _load_lcdm_model():
+        """Load and validate the reference ΛCDM model from its YAML file."""
         models_dir = os.path.join(SCRIPT_DIR, "models")
         yaml_path = os.path.join(models_dir, "cosmo_model_lcdm.yml")
         cache_dir = os.path.join(models_dir, "cache")
@@ -453,26 +811,51 @@ def main_workflow():
         func_dict, parsed = model_coder.generate_callables(cache_path)
         plugin = engine_interface.build_plugin(parsed, func_dict)
         plugin.MODEL_FILENAME = os.path.basename(yaml_path)
-        return plugin
+        return plugin, parsed
 
-    global lcdm
-    lcdm = _load_lcdm_model()
+    global lcdm, lcdm_parsed
+    lcdm, lcdm_parsed = _load_lcdm_model()
     engine_interface.validate_plugin(lcdm)
 
     while True:
+        run_start_ts = utils.get_timestamp()
+        OUTPUT_DIR = os.path.join(
+            OUTPUT_BASE_DIR, f"copernican-run_{run_start_ts}"
+        )
+        utils.ensure_dir_exists(OUTPUT_DIR)
         global CURRENT_LOG_FILE
-        log_file = log_mod.setup_logging(log_dir=OUTPUT_DIR, base_dir=SCRIPT_DIR)
+        log_file = log_mod.setup_logging(
+            log_dir=OUTPUT_DIR, base_dir=SCRIPT_DIR
+        )
         CURRENT_LOG_FILE = log_file
         logger = log_mod.get_logger()
-        utils.set_random_seed(0)
+        error_handler.configure_warnings(strict=opts.strict_warnings)
+        if opts.strict_warnings:
+            logger.info(
+                "Strict warnings mode enabled; treating warnings as errors"
+            )
+        else:
+            logger.info(
+                "Warnings will be logged but not treated as errors"
+            )
+        # Record interpreter and package details for reproducibility
+        log_mod.log_environment_info()
+        try:
+            _sanity_check_numpy_scipy(logger)
+        except Exception:
+            exit_clean(1)
+        select_seed()
+        logger.info("Using RNG seed %s", utils.get_random_seed())
         start_ts = time.strftime("%y%m%d_%H%M%S")
         run_start_dt = datetime.datetime.now()
         run_start_pc = time.perf_counter()
         logger.info(
-            f"Copernican {COPERNICAN_VERSION} has initialized! Current timestamp is {start_ts}. Log file: {log_file}"
+            f"Copernican {COPERNICAN_VERSION} has initialized! "
+            f"Current timestamp is {start_ts}. Log file: {log_file}"
         )
         logger.info(
-            "Using standard CPU (SciPy) computational backend with multiprocessing."
+            "Using standard CPU (SciPy) computational backend with "
+            "multiprocessing."
         )
         logger.info(f"Running from base directory: {SCRIPT_DIR}")
         logger.info(f"All outputs will be saved to: {OUTPUT_DIR}")
@@ -487,9 +870,12 @@ def main_workflow():
                 if f.startswith("cosmo_model_") and f.endswith(".yml")
             ]
         )
-        selected_model = select_from_list(model_files, "Select cosmological model")
+        selected_model = select_from_list(
+            model_files, "Select cosmological model"
+        )
         if not selected_model:
             _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
             cleanup_cache(SCRIPT_DIR)
             console.write("")
             return
@@ -502,11 +888,16 @@ def main_workflow():
             continue
         try:
             func_dict, parsed = model_coder.generate_callables(cache_path)
-            alt_model_plugin = engine_interface.build_plugin(parsed, func_dict)
+            alt_model_plugin = engine_interface.build_plugin(
+                parsed, func_dict
+            )
             alt_model_plugin.MODEL_FILENAME = os.path.basename(yaml_path)
             logger.info(f"Loaded YAML model: {parsed.get('model_name')}")
         except Exception as e:
-            logger.error(f"Error generating model from YAML: {e}", exc_info=True)
+            logger.error(
+                f"Error generating model from YAML: {e}",
+                exc_info=True,
+            )
             continue
 
         if not alt_model_plugin:
@@ -520,64 +911,138 @@ def main_workflow():
                 if f.startswith("cosmo_engine_") and f.endswith(".py")
             ]
         )
-        engine_choice = select_from_list(engine_files, "Select computation engine")
+        engine_choice = select_from_list(
+            engine_files, "Select computation engine"
+        )
         if not engine_choice:
             _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
             cleanup_cache(SCRIPT_DIR)
             console.write("")
             return
-        engine_module = importlib.import_module(f"engines.{engine_choice[:-3]}")
+        engine_module = importlib.import_module(
+            f"engines.{engine_choice[:-3]}"
+        )
         cosmo_engine_selected = engine_module
 
         sne_data_df = data_loaders.load_sne_data()
         if sne_data_df is None:
+            _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
+            cleanup_cache(SCRIPT_DIR)
+            console.write("")
             continue
 
         bao_data_df = data_loaders.load_bao_data()
         if bao_data_df is None:
+            _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
+            cleanup_cache(SCRIPT_DIR)
+            console.write("")
             continue
 
         cmb_data_df = data_loaders.load_cmb_data()
         if cmb_data_df is None:
+            _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
+            cleanup_cache(SCRIPT_DIR)
+            console.write("")
             continue
+        dataset_info = []
+        for df, registry in [
+            (sne_data_df, data_loaders.SNE_PARSERS),
+            (bao_data_df, data_loaders.BAO_PARSERS),
+            (cmb_data_df, data_loaders.CMB_PARSERS),
+        ]:
+            ds_id = df.attrs.get("dataset_id")
+            data_dir = registry.get(ds_id, {}).get("data_dir")
+            # ``file_hashes`` enables manifest reproducibility.
+            hashes = df.attrs.get("file_hashes", {})
+            if ds_id and data_dir:
+                dataset_info.append((ds_id, data_dir, hashes))
+
+        manifest = run_manifest.build_manifest(
+            models=[
+                (lcdm, lcdm_parsed.get("version", "unknown")),
+                (alt_model_plugin, parsed.get("version", "unknown")),
+            ],
+            engine_module=cosmo_engine_selected,
+            datasets=dataset_info,
+        )
+        run_manifest.save_manifest(manifest, OUTPUT_DIR)
 
         lcdm_time = 0.0
         alt_time = 0.0
-        if hasattr(cosmo_engine_selected, "fit_combined_parameters"):
-            logger.info("\n--- Stage 2: Combined Fit (SNe + BAO + CMB) ---\n")
-            t0 = time.perf_counter()
-            lcdm_sne_fit_results = cosmo_engine_selected.fit_combined_parameters(
-                sne_data_df, bao_data_df, cmb_data_df, lcdm
+        engine_label = getattr(
+            cosmo_engine_selected,
+            "ENGINE_LABEL",
+            getattr(cosmo_engine_selected, "__name__", "Engine"),
+        )
+        logger.info("\n--- Stage 2: %s ---\n", engine_label)
+        if not hasattr(cosmo_engine_selected, "fit_sne_parameters"):
+            logger.error(
+                "Selected engine %s does not expose fit_sne_parameters;"
+                " aborting run.",
+                getattr(cosmo_engine_selected, "__name__", "unknown"),
             )
-            lcdm_time += time.perf_counter() - t0
-            t0 = time.perf_counter()
-            alt_model_sne_fit_results = cosmo_engine_selected.fit_combined_parameters(
-                sne_data_df, bao_data_df, cmb_data_df, alt_model_plugin
+            _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
+            cleanup_cache(SCRIPT_DIR)
+            console.write("")
+            return
+        t0 = time.perf_counter()
+        lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(
+            sne_data_df, lcdm
+        )
+        lcdm_time += time.perf_counter() - t0
+        same_name = (
+            getattr(lcdm, "MODEL_NAME", "").casefold()
+            == getattr(alt_model_plugin, "MODEL_NAME", "").casefold()
+        )
+        same_file = (
+            getattr(lcdm, "MODEL_FILENAME", "")
+            == getattr(alt_model_plugin, "MODEL_FILENAME", "")
+        )
+        if same_name and same_file and type(lcdm) is type(alt_model_plugin):
+            logger.info(
+                "Alternative model matches ΛCDM; reusing SNe chain from %s.",
+                engine_label,
             )
-            alt_time += time.perf_counter() - t0
+            alt_model_sne_fit_results = copy.deepcopy(lcdm_sne_fit_results)
         else:
-            logger.info("\n--- Stage 2: Supernovae Ia Fitting ---\n")
-            t0 = time.perf_counter()
-            lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(
-                sne_data_df, lcdm
-            )
-            lcdm_time += time.perf_counter() - t0
             t0 = time.perf_counter()
             alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(
                 sne_data_df, alt_model_plugin
             )
             alt_time += time.perf_counter() - t0
 
+        # Persist parameter estimates so external tools can inspect the
+        # numerical results without parsing logs.  The summary includes fitted
+        # values, 1σ errors and the covariance matrix for each model.
+        result_writer.save_summary(
+            {
+                lcdm.MODEL_NAME: lcdm_sne_fit_results,
+                alt_model_plugin.MODEL_NAME: alt_model_sne_fit_results,
+            },
+            OUTPUT_DIR,
+        )
+
         logger.info("\n--- Stage 3: BAO Analysis ---\n")
 
-        min_z, max_z = bao_data_df["redshift"].min(), bao_data_df["redshift"].max()
+        min_z, max_z = (
+            bao_data_df["redshift"].min(),
+            bao_data_df["redshift"].max(),
+        )
         z_plot_smooth = np.geomspace(max(min_z * 0.8, 0.01), max_z * 1.2, 100)
 
         def run_bao_analysis(model_plugin, sne_fit_results, z_smooth_arr):
             """Helper to run BAO analysis for a given model."""
             if not (sne_fit_results and sne_fit_results.get("success")):
                 logger.warning(
-                    f"{model_plugin.MODEL_NAME} fit failed; skipping BAO analysis."
+                    (
+                        f"{model_plugin.MODEL_NAME} fit failed; "
+                        "skipping BAO analysis."
+                    )
                 )
                 return {
                     "sne_fit_results": sne_fit_results,
@@ -592,21 +1057,41 @@ def main_workflow():
             )
             pred_df, rs_Mpc, smooth_preds = (
                 cosmo_engine_selected.calculate_bao_observables(
-                    bao_data_df, model_plugin, fitted_cosmo_p, z_smooth=z_smooth_arr
+                    bao_data_df,
+                    model_plugin,
+                    fitted_cosmo_p,
+                    z_smooth=z_smooth_arr,
                 )
             )
 
             chi2_bao = np.inf
             if pred_df is not None and np.isfinite(rs_Mpc):
+                z = bao_data_df["redshift"].to_numpy(dtype=float)
+                obs_type = bao_data_df["observable_type"].to_numpy()
+                obs_val = bao_data_df["value"].to_numpy(dtype=float)
+                obs_err = bao_data_df["error"].to_numpy(dtype=float)
+                cov_inv = bao_data_df.attrs.get("covariance_matrix_inv")
                 chi2_bao = cosmo_engine_selected.chi_squared_bao(
-                    bao_data_df, model_plugin, fitted_cosmo_p, rs_Mpc
+                    z,
+                    obs_type,
+                    obs_val,
+                    obs_err,
+                    model_plugin,
+                    fitted_cosmo_p,
+                    rs_Mpc,
+                    covariance_matrix_inv=cov_inv,
                 )
                 logger.info(
-                    f"{model_plugin.MODEL_NAME} BAO: r_s = {rs_Mpc:.2f} Mpc, Chi2_BAO = {chi2_bao:.2f}"
+                    (
+                        f"{model_plugin.MODEL_NAME} BAO: r_s = "
+                        f"{rs_Mpc:.2f} Mpc, "
+                        f"Chi2_BAO = {chi2_bao:.2f}"
+                    )
                 )
             else:
                 logger.warning(
-                    f"{model_plugin.MODEL_NAME} BAO calculation failed or produced invalid r_s."
+                    f"{model_plugin.MODEL_NAME} BAO calculation failed or "
+                    "produced invalid r_s."
                 )
 
             return {
@@ -617,7 +1102,9 @@ def main_workflow():
                 "smooth_predictions": smooth_preds,
             }
 
-        def run_cmb_analysis(cmb_df, model_plugin, cosmo_params, cmb_extras=None):
+        def run_cmb_analysis(
+            cmb_df, model_plugin, cosmo_params, cmb_extras=None
+        ):
             """Run CMB analysis for a given model."""
             # Skip the CMB step entirely when the model declares it is invalid
             # for such data. This prevents misleading chi-squared calculations
@@ -625,7 +1112,10 @@ def main_workflow():
             # functions.
             if getattr(model_plugin, "valid_for_cmb", True) is False:
                 logger.info(
-                    f"{model_plugin.MODEL_NAME} does not support CMB; skipping analysis."
+                    (
+                        f"{model_plugin.MODEL_NAME} does not support CMB; "
+                        "skipping analysis."
+                    )
                 )
                 return {"chi2_cmb": np.inf, "theory_spectrum": None}
 
@@ -635,9 +1125,9 @@ def main_workflow():
             # Convert the fitted cosmological parameters to CAMB's expected
             # dictionary format using the helper provided by the model plugin.
             camb_params = model_plugin.get_camb_params(cosmo_params)
-            # Append any additional CMB parameters recovered from a combined
-            # fit so that the theoretical spectrum reflects the actual
-            # optimisation result instead of falling back to defaults.
+            # Append any additional CMB parameters supplied by the engine so
+            # that the theoretical spectrum reflects the actual optimisation
+            # result instead of falling back to defaults.
             if cmb_extras:
                 camb_params.update(cmb_extras)
 
@@ -658,11 +1148,15 @@ def main_workflow():
                 model_plugin,
                 cmb_extras,
             )
-            logger.info(f"{model_plugin.MODEL_NAME} CMB chi2 = {chi2_val:.2f}")
+            logger.info(
+                f"{model_plugin.MODEL_NAME} CMB chi2 = {chi2_val:.2f}"
+            )
             return {"chi2_cmb": chi2_val, "theory_spectrum": theory}
 
         t0 = time.perf_counter()
-        lcdm_full_results = run_bao_analysis(lcdm, lcdm_sne_fit_results, z_plot_smooth)
+        lcdm_full_results = run_bao_analysis(
+            lcdm, lcdm_sne_fit_results, z_plot_smooth
+        )
         lcdm_time += time.perf_counter() - t0
         t0 = time.perf_counter()
         alt_model_full_results = run_bao_analysis(
@@ -676,7 +1170,9 @@ def main_workflow():
         lcdm_cmb = run_cmb_analysis(
             cmb_data_df,
             lcdm,
-            list(lcdm_sne_fit_results["fitted_cosmological_params"].values()),
+            list(
+                lcdm_sne_fit_results["fitted_cosmological_params"].values()
+            ),
             lcdm_sne_fit_results.get("fitted_cmb_params"),
         )
         lcdm_time += time.perf_counter() - t0
@@ -684,25 +1180,46 @@ def main_workflow():
         alt_cmb = run_cmb_analysis(
             cmb_data_df,
             alt_model_plugin,
-            list(alt_model_sne_fit_results["fitted_cosmological_params"].values()),
+            list(
+                alt_model_sne_fit_results[
+                    "fitted_cosmological_params"
+                ].values()
+            ),
             alt_model_sne_fit_results.get("fitted_cmb_params"),
         )
         alt_time += time.perf_counter() - t0
 
         logger.info("\n--- Stage 5: Generating Outputs ---\n")
-        logger.info(f"{lcdm.MODEL_NAME} CMB chi2 = {lcdm_cmb['chi2_cmb']:.2f}")
         logger.info(
-            f"{alt_model_plugin.MODEL_NAME} CMB chi2 = {alt_cmb['chi2_cmb']:.2f}"
+            f"{lcdm.MODEL_NAME} CMB chi2 = {lcdm_cmb['chi2_cmb']:.2f}"
+        )
+        logger.info(
+            f"{alt_model_plugin.MODEL_NAME} CMB chi2 = "
+            f"{alt_cmb['chi2_cmb']:.2f}"
         )
 
         run_end_dt = datetime.datetime.now()
         end_ts = run_end_dt.strftime("%Y%m%d_%H%M%S")
+        new_dir = os.path.join(
+            OUTPUT_BASE_DIR, f"copernican-run_{end_ts}"
+        )
+        if OUTPUT_DIR != new_dir:
+            try:
+                os.rename(OUTPUT_DIR, new_dir)
+                OUTPUT_DIR = new_dir
+                log_file = os.path.join(
+                    OUTPUT_DIR, os.path.basename(log_file)
+                )
+            except OSError as e_dir:
+                logger.error(f"Failed renaming output directory: {e_dir}")
         new_log = os.path.join(OUTPUT_DIR, f"copernican-run_{end_ts}.txt")
         if log_file != new_log:
             try:
                 os.rename(log_file, new_log)
                 CURRENT_LOG_FILE = new_log
-                logger.info(f"Log file renamed to {os.path.basename(new_log)}")
+                logger.info(
+                    f"Log file renamed to {os.path.basename(new_log)}"
+                )
                 log_file = new_log
             except OSError as e_ren:
                 logger.error(f"Failed renaming log file: {e_ren}")
@@ -743,10 +1260,12 @@ def main_workflow():
         console.write("\n--- Theory Abstracts ---\n")
         console.write(f"ΛCDM Abstract:\n{lcdm.MODEL_ABSTRACT}\n")
         console.write(
-            f"{alt_model_plugin.MODEL_NAME} Abstract:\n{alt_model_plugin.MODEL_ABSTRACT}\n"
+            f"{alt_model_plugin.MODEL_NAME} Abstract:\n"
+            f"{alt_model_plugin.MODEL_ABSTRACT}\n"
         )
 
         def _print_fit(label, sne_res, bao_res, cmb_res, plugin):
+            """Pretty-print χ² stats and fitted parameters for a model."""
             console.write(f"--- {label} Fit Report ---\n")
             if sne_res:
                 from copernican_lib import latex_utils
@@ -754,21 +1273,31 @@ def main_workflow():
                 p_names = getattr(plugin, "PARAMETER_NAMES", [])
                 p_latex = getattr(plugin, "PARAMETER_LATEX_NAMES", [])
                 for name, latex_name in zip(p_names, p_latex):
-                    val = sne_res.get("fitted_cosmological_params", {}).get(name)
+                    val = sne_res.get(
+                        "fitted_cosmological_params", {}
+                    ).get(name)
                     if val is not None:
                         disp = latex_utils.latex_to_unicode(latex_name)
                         console.write(f"  {disp} = {val:.5g}")
-            chi2_sne = sne_res.get("chi2_sne", sne_res.get("chi2_min", float("nan")))
+            chi2_sne = sne_res.get(
+                "chi2_sne", sne_res.get("chi2_min", float("nan"))
+            )
             chi2_total = sne_res.get("chi2_total", float("nan"))
             console.write(f"  χ²_Total = {chi2_total:.2f}")
             console.write(f"  χ²_SNe = {chi2_sne:.2f}")
             if bao_res:
-                console.write(f"  χ²_BAO = {bao_res.get('chi2_bao', float('nan')):.2f}")
+                console.write(
+                    f"  χ²_BAO = {bao_res.get('chi2_bao', float('nan')):.2f}"
+                )
             if cmb_res:
-                console.write(f"  χ²_CMB = {cmb_res.get('chi2_cmb', float('nan')):.2f}")
+                console.write(
+                    f"  χ²_CMB = {cmb_res.get('chi2_cmb', float('nan')):.2f}"
+                )
             console.write("")
 
-        _print_fit("ΛCDM", lcdm_sne_fit_results, lcdm_full_results, lcdm_cmb, lcdm)
+        _print_fit(
+            "ΛCDM", lcdm_sne_fit_results, lcdm_full_results, lcdm_cmb, lcdm
+        )
         _print_fit(
             alt_model_plugin.MODEL_NAME,
             alt_model_sne_fit_results,
@@ -810,8 +1339,49 @@ def main_workflow():
                 timestamp=end_ts,
             )
 
+        if lcdm_sne_fit_results.get("samples") is not None:
+            fname = utils.generate_filename(
+                "posterior",
+                sne_data_df.attrs.get("dataset_id", "sne_data"),
+                "nc",
+                model_name=lcdm.MODEL_NAME.replace(" ", "_"),
+                timestamp=end_ts,
+            )
+            chain_io.save_posterior(
+                lcdm_sne_fit_results["samples"],
+                lcdm_sne_fit_results.get(
+                    "param_names", lcdm.PARAMETER_NAMES
+                ),
+                os.path.join(OUTPUT_DIR, fname),
+                metadata={
+                    "model": lcdm.MODEL_NAME,
+                    "dataset": sne_data_df.attrs.get("dataset_id", ""),
+                },
+            )
+        if alt_model_sne_fit_results.get("samples") is not None:
+            fname = utils.generate_filename(
+                "posterior",
+                sne_data_df.attrs.get("dataset_id", "sne_data"),
+                "nc",
+                model_name=alt_model_plugin.MODEL_NAME.replace(" ", "_"),
+                timestamp=end_ts,
+            )
+            chain_io.save_posterior(
+                alt_model_sne_fit_results["samples"],
+                alt_model_sne_fit_results.get(
+                    "param_names", alt_model_plugin.PARAMETER_NAMES
+                ),
+                os.path.join(OUTPUT_DIR, fname),
+                metadata={
+                    "model": alt_model_plugin.MODEL_NAME,
+                    "dataset": sne_data_df.attrs.get("dataset_id", ""),
+                },
+            )
+
         console.write("\n" + "=" * 50)
-        console.write("Evaluation complete. All files saved to the 'output' directory.")
+        console.write(
+            "Evaluation complete. All files saved to the 'output' directory."
+        )
         console.write("=" * 50 + "\n")
 
         total_time = time.perf_counter() - run_start_pc
@@ -820,17 +1390,25 @@ def main_workflow():
 
         logger.info(f"Run completed at {end_ts}.")
 
-        console.write(f"Run started on {run_start_dt.strftime('%Y-%m-%d %H:%M:%S')}")
-        console.write(f"Run ended on {run_end_dt.strftime('%Y-%m-%d %H:%M:%S')}")
         console.write(
-            f"Run took {lcdm_time:.2f}s for LCDM and {alt_time:.2f}s for {alt_model_plugin.MODEL_NAME}, "
-            f"or {total_time:.2f}s in total, on a system with a {cpu_model} {cpu_freq}, "
+            f"Run started on {run_start_dt.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        console.write(
+            f"Run ended on {run_end_dt.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        console.write(
+            f"Run took {lcdm_time:.2f}s for LCDM and {alt_time:.2f}s for "
+            f"{alt_model_plugin.MODEL_NAME}, "
+            f"or {total_time:.2f}s in total, on a system with a {cpu_model} "
+            f"{cpu_freq}, "
             f"under {os_info}"
         )
 
         while True:
             another_run = (
-                console.ask("Would you like to run another evaluation? (yes/no): ")
+                console.ask(
+                    "Would you like to run another evaluation? (yes/no): "
+                )
                 .strip()
                 .lower()
             )
@@ -858,15 +1436,18 @@ if __name__ == "__main__":
         _mp.set_start_method("spawn", force=True)
     except RuntimeError:
         # The start method was already set (e.g. by another library). Using
-        # 'force=True' above normally prevents this, but wrap in try/except for
-        # absolute safety.
+        # 'force=True' above normally prevents this, but wrap in try/except
+        # for absolute safety.
         pass
     try:
         main_workflow()
     except Exception:
         logger_obj = log_mod.get_logger() if log_mod else None
         if logger_obj and logger_obj.hasHandlers():
-            logger_obj.critical("Unhandled exception in main_workflow!", exc_info=True)
+            logger_obj.critical(
+                "Unhandled exception in main_workflow!",
+                exc_info=True,
+            )
         else:
             console.write("CRITICAL UNHANDLED EXCEPTION IN MAIN WORKFLOW:")
             import traceback
@@ -874,12 +1455,19 @@ if __name__ == "__main__":
             traceback.print_exc()
     finally:
         # Ensure that any generated plot windows are displayed at the very end
-        if plt is not None and hasattr(plt, "get_fignums") and plt.get_fignums():
+        if (
+            plt is not None
+            and hasattr(plt, "get_fignums")
+            and plt.get_fignums()
+        ):
             console.write(
-                "\nDisplaying plot(s). Close plot window(s) to exit script fully."
+                "\nDisplaying plot(s). Close plot window(s) to exit script "
+                "fully."
             )
             try:
                 plt.show(block=True)
             except Exception as e_show:
                 console.write(f"Error during final plt.show(): {e_show}")
         console.write("")
+
+# fmt: on

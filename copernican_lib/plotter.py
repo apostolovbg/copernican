@@ -1,26 +1,32 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 # Copernican Suite Plotter
 """Plotting utilities for the Copernican Suite."""
 # All plotting code lives here so that engines only perform computations.
 # Functions create Matplotlib figures summarising SNe, BAO and CMB results.
 
-from typing import Any
-import logging
 import os
-import numpy as np
-import matplotlib.pyplot as plt
 import textwrap
+from typing import Any
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 from . import latex_utils
-
-from .utils import generate_filename, ensure_dir_exists, get_timestamp
 from .logger import get_logger
-from copernican import COPERNICAN_VERSION
+from .utils import ensure_dir_exists, generate_filename, get_timestamp
+from .version import get_version
+
+# Query package metadata once so every plot records the same version string.
+COPERNICAN_VERSION = get_version()
 
 
 def _wrap_math(text: str) -> str:
     """Return ``text`` wrapped in dollar signs for MathText rendering."""
     # Delegate the heavy lifting to :mod:`latex_utils` so that the same
-    # sanitisation rules are shared across plotting, parsing and code generation.
+    # sanitisation rules are shared across plotting,
+    # parsing and code generation.
     return latex_utils.wrap_math(text)
 
 
@@ -62,7 +68,9 @@ def get_binned_average(
         valid_indices = ~np.isnan(mean_stat)
         return bin_centers[valid_indices], mean_stat[valid_indices]
     except ImportError:
-        get_logger().warning("Scipy not found, cannot plot binned residual averages.")
+        get_logger().warning(
+            "Scipy not found, cannot plot binned residual averages.",
+        )
         return np.array([]), np.array([])
     except Exception as exc:
         get_logger().warning(
@@ -95,9 +103,7 @@ def compose_footer(base_line: str, data_attrs: dict) -> list[tuple[str, bool]]:
         line breaks.
     """
 
-    dataset_name = data_attrs.get(
-        "dataset_name", data_attrs.get("dataset_name_sanitized", "")
-    )
+    dataset_name = data_attrs.get("dataset_name", "")
     # Escape characters that could break TeX-style formatting used for
     # bold text while preserving spaces in the displayed name.
     safe_name = (
@@ -117,13 +123,23 @@ def compose_footer(base_line: str, data_attrs: dict) -> list[tuple[str, bool]]:
     second_line = (
         "Observational dataset and processing: "
         f"$\\mathbf{{{safe_name}}}$: {description} {notes}"
-        ).strip()
+    ).strip()
 
     wrapped: list[tuple[str, bool]] = [(base_line, True)]
     if second_line:
-        wrapped.extend((line, False) for line in textwrap.wrap(second_line, width=190))
+        wrapped.extend(
+            ((line, False) for line in textwrap.wrap(second_line, width=190)),
+        )
     if citation:
-        wrapped.extend((line, True) for line in textwrap.wrap(citation.strip(), width=190))
+        wrapped.extend(
+            (
+                (line, True)
+                for line in textwrap.wrap(
+                    citation.strip(),
+                    width=190,
+                )
+            ),
+        )
     return wrapped
 
 
@@ -172,6 +188,27 @@ def format_model_summary_text(
     model_name_latex = model_name_raw.replace("_", r"\_")
     lines.append(rf"**Model: {model_name_latex}**")
 
+    def _format_numeric_line(
+        label_tex: str, value: Any, *, unit: str | None = None
+    ) -> str:
+        """Return a readable line or ``N/A`` when ``value`` is non-finite.
+
+        The helper prevents ``:.2f`` formatting from raising when optimisation
+        metadata is incomplete. Cosmological fits occasionally leave global
+        chi-squared totals undefined, so the summary must degrade gracefully
+        instead of crashing the plotting workflow.
+        """
+
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return rf"  {label_tex} = N/A"
+        if not np.isfinite(numeric):
+            return rf"  {label_tex} = N/A"
+        suffix = f" {unit}" if unit else ""
+        formatted = f"{numeric:.2f}"
+        return rf"  {label_tex} = {formatted}{suffix}"
+
     lines.append("$\\mathbf{Mathematical\\ Form:}$")
     for eq_line in getattr(model_plugin, "MODEL_EQUATIONS_LATEX_SN", []):
         lines.append(f"  {_wrap_math(eq_line)}")
@@ -181,13 +218,20 @@ def format_model_summary_text(
 
     lines.append("$\\mathbf{Cosmological\\ Parameters:}$")
     param_names = getattr(model_plugin, "PARAMETER_NAMES", [])
-    param_latex_names = getattr(model_plugin, "PARAMETER_LATEX_NAMES", [])
+    param_latex_names = getattr(
+        model_plugin,
+        "PARAMETER_LATEX_NAMES",
+        [],
+    )
     fitted_cosmo_params = fit_results.get("fitted_cosmological_params")
 
     if fitted_cosmo_params:
         for i, name in enumerate(param_names):
             val = fitted_cosmo_params.get(name)
-            latex_name = param_latex_names[i] if i < len(param_latex_names) else name
+            if i < len(param_latex_names):
+                latex_name = param_latex_names[i]
+            else:
+                latex_name = name
             latex_name = _wrap_math(latex_name)
             if val is not None:
                 lines.append(rf"  {latex_name} = ${val:.4g}$")
@@ -208,28 +252,31 @@ def format_model_summary_text(
 
     if dataset_type == "sne":
         lines.append("$\\mathbf{SNe\\ Fit\\ Statistics:}$")
-        lines.append(
-            rf"  $\chi^2_{{SNe}}$ = {fit_results.get('chi2_sne', fit_results.get('chi2_min', np.nan)):.2f}"
-        )
+        chi2_min = fit_results.get("chi2_min", np.nan)
+        chi2_sne = fit_results.get("chi2_sne", chi2_min)
+        lines.append(_format_numeric_line(r"$\chi^2_{SNe}$", chi2_sne))
         if "chi2_total" in fit_results:
-            lines.append(
-                rf"  $\chi^2_{{tot}}$ = {fit_results.get('chi2_total', np.nan):.2f}"
-            )
+            chi2_tot = fit_results.get("chi2_total", np.nan)
+            lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))
     elif dataset_type == "bao":
         lines.append("$\\mathbf{BAO\\ Fit\\ Results:}$")
-        lines.append(rf"  $r_s$ = {kwargs.get('rs_Mpc', np.nan):.2f} Mpc")
-        lines.append(rf"  $\chi^2_{{BAO}}$ = {kwargs.get('chi2_bao', np.nan):.2f}")
-        if "chi2_total" in kwargs:
-            lines.append(
-                rf"  $\chi^2_{{tot}}$ = {kwargs.get('chi2_total', np.nan):.2f}"
+        lines.append(
+            _format_numeric_line(
+                r"$r_s$", kwargs.get("rs_Mpc", np.nan), unit="Mpc"
             )
+        )
+        chi2_bao = kwargs.get("chi2_bao", np.nan)
+        lines.append(_format_numeric_line(r"$\chi^2_{BAO}$", chi2_bao))
+        if "chi2_total" in kwargs:
+            chi2_tot = kwargs.get("chi2_total", np.nan)
+            lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))
     elif dataset_type == "cmb":
         lines.append("$\\mathbf{CMB\\ Fit\\ Statistics:}$")
-        lines.append(rf"  $\chi^2_{{CMB}}$ = {kwargs.get('chi2_cmb', np.nan):.2f}")
+        chi2_cmb = kwargs.get("chi2_cmb", np.nan)
+        lines.append(_format_numeric_line(r"$\chi^2_{CMB}$", chi2_cmb))
         if "chi2_total" in kwargs:
-            lines.append(
-                rf"  $\chi^2_{{tot}}$ = {kwargs.get('chi2_total', np.nan):.2f}"
-            )
+            chi2_tot = kwargs.get("chi2_total", np.nan)
+            lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))
 
     return "\n".join(lines)
 
@@ -246,7 +293,8 @@ def plot_hubble_diagram(
     """Generate and save a Hubble diagram and residuals plot."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
-    dataset_name = sne_data_df.attrs.get("dataset_name_sanitized", "SNe_data")
+    dataset_name = sne_data_df.attrs.get("dataset_name", "SNe data")
+    dataset_id = sne_data_df.attrs.get("dataset_id", "sne_data")
     logger.info(f"Generating Hubble Diagram for {dataset_name}...")
 
     _apply_common_style()
@@ -285,7 +333,8 @@ def plot_hubble_diagram(
             )
         else:
             logger.error(
-                "Cannot plot Hubble Diagram: 'mu_obs' column missing and could not be calculated."
+                "Cannot plot Hubble Diagram: 'mu_obs' column missing and "
+                "could not be calculated."
             )
             return
 
@@ -348,7 +397,10 @@ def plot_hubble_diagram(
         mu_model_lcdm_smooth = lcdm_plugin.distance_modulus_model(
             z_plot_smooth, *p_lcdm
         )
-        mu_model_lcdm_points = lcdm_plugin.distance_modulus_model(z_data, *p_lcdm)
+        mu_model_lcdm_points = lcdm_plugin.distance_modulus_model(
+            z_data,
+            *p_lcdm,
+        )
         res_lcdm = mu_obs_data - mu_model_lcdm_points
         chi2_lcdm = f"{lcdm_fit_results.get('chi2_min', np.nan):.2f}"
         axs[0].plot(
@@ -386,11 +438,16 @@ def plot_hubble_diagram(
     alt_name_raw = getattr(alt_model_plugin, "MODEL_NAME", "AltModel")
     alt_name_latex = alt_name_raw.replace("_", r"\_")
     if alt_model_fit_results and alt_model_fit_results.get("success"):
-        p_alt = list(alt_model_fit_results["fitted_cosmological_params"].values())
+        fitted_vals = alt_model_fit_results["fitted_cosmological_params"]
+        p_alt = list(fitted_vals.values())
         mu_model_alt_smooth = alt_model_plugin.distance_modulus_model(
-            z_plot_smooth, *p_alt
+            z_plot_smooth,
+            *p_alt,
         )
-        mu_model_alt_points = alt_model_plugin.distance_modulus_model(z_data, *p_alt)
+        mu_model_alt_points = alt_model_plugin.distance_modulus_model(
+            z_data,
+            *p_alt,
+        )
         res_alt = mu_obs_data - mu_model_alt_points
         chi2_alt = f"{alt_model_fit_results.get('chi2_min', np.nan):.2f}"
         axs[0].plot(
@@ -427,23 +484,62 @@ def plot_hubble_diagram(
             label=f"Avg. {alt_name_latex} Res.",
         )
 
-    axs[0].set_ylabel(r"Distance Modulus ($\mu$)", fontsize=font_sizes["label"])
+    axs[0].set_ylabel(
+        r"Distance Modulus ($\mu$)",
+        fontsize=font_sizes["label"],
+    )
     axs[0].legend(fontsize=font_sizes["legend"], loc="lower right")
-    axs[0].set_title(f"Hubble Diagram: {dataset_name}", fontsize=font_sizes["title"])
+    axs[0].set_title(
+        f"Hubble Diagram: {dataset_name}",
+        fontsize=font_sizes["title"],
+    )
     axs[0].minorticks_on()
-    axs[0].tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
-    axs[0].grid(True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5)
+    axs[0].tick_params(
+        axis="both",
+        which="major",
+        labelsize=font_sizes["ticks"],
+    )
+    axs[0].grid(
+        True,
+        which="both",
+        color="#E0E0E0",
+        linestyle="-",
+        linewidth=0.5,
+    )
 
     axs[1].axhline(0, color="black", ls="--", lw=1)
     axs[1].set_xlabel("Redshift (z)", fontsize=font_sizes["label"])
-    axs[1].set_ylabel(r"$\mu_{obs} - \mu_{model}$", fontsize=font_sizes["label"])
+    axs[1].set_ylabel(
+        r"$\mu_{obs} - \mu_{model}$",
+        fontsize=font_sizes["label"],
+    )
     axs[1].legend(fontsize=font_sizes["legend"], loc="lower right")
     axs[1].minorticks_on()
-    axs[1].tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
-    axs[1].grid(True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5)
+    axs[1].tick_params(
+        axis="both",
+        which="major",
+        labelsize=font_sizes["ticks"],
+    )
+    axs[1].grid(
+        True,
+        which="both",
+        color="#E0E0E0",
+        linestyle="-",
+        linewidth=0.5,
+    )
 
-    bbox_lcdm = dict(boxstyle="round,pad=0.5", fc="#FFEEEE", ec="darkred", alpha=0.8)
-    bbox_alt = dict(boxstyle="round,pad=0.5", fc="#EEF2FF", ec="darkblue", alpha=0.8)
+    bbox_lcdm = dict(
+        boxstyle="round,pad=0.5",
+        fc="#FFEEEE",
+        ec="darkred",
+        alpha=0.8,
+    )
+    bbox_alt = dict(
+        boxstyle="round,pad=0.5",
+        fc="#EEF2FF",
+        ec="darkblue",
+        alpha=0.8,
+    )
     red_y = top - info_gap
     blue_y = red_y - box_height - info_gap
     fig.text(
@@ -479,13 +575,24 @@ def plot_hubble_diagram(
     for idx, (line, is_bold) in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
         weight = "bold" if is_bold else "normal"
-        fig.text(0.5, y, line, ha="center", fontsize=fs, fontweight=weight, wrap=True)
+        fig.text(
+            0.5,
+            y,
+            line,
+            ha="center",
+            fontsize=fs,
+            fontweight=weight,
+            wrap=True,
+        )
         y -= line_height
 
-    model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
+    alt_model_name = alt_model_plugin.MODEL_NAME.replace(" ", "_").replace(
+        ".", ""
+    )
+    model_comparison_name = f"vs-{alt_model_name}"
     filename = generate_filename(
         "hubble-plot",
-        dataset_name,
+        dataset_id,
         "png",
         model_name=model_comparison_name,
         timestamp=timestamp,
@@ -512,7 +619,8 @@ def plot_bao_observables(
     """Generate and save a plot of BAO observables versus redshift."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
-    dataset_name = bao_data_df.attrs.get("dataset_name_sanitized", "BAO_data")
+    dataset_name = bao_data_df.attrs.get("dataset_name", "BAO data")
+    dataset_id = bao_data_df.attrs.get("dataset_id", "bao_data")
     logger.info(f"Generating BAO Plot for {dataset_name}...")
 
     _apply_common_style()
@@ -585,14 +693,19 @@ def plot_bao_observables(
         """Internal helper to plot a model's smooth BAO curves."""
         if not results or not results.get("smooth_predictions"):
             logger.warning(
-                f"Skipping BAO plot for {label_prefix} as smooth predictions are missing."
+                f"Skipping BAO plot for {label_prefix} as smooth predictions "
+                "are missing."
             )
             return
 
         smooth_preds = results["smooth_predictions"]
         z = smooth_preds["z"]
 
-        def robust_plot(z_vals: np.ndarray, y_vals: np.ndarray, **kwargs: Any) -> None:
+        def robust_plot(
+            z_vals: np.ndarray,
+            y_vals: np.ndarray,
+            **kwargs: Any,
+        ) -> None:
             """Plot only valid data points to avoid runtime warnings."""
             valid_indices = np.isfinite(z_vals) & np.isfinite(y_vals)
             if np.any(valid_indices):
@@ -644,9 +757,10 @@ def plot_bao_observables(
 
     # --- Residuals ---
     all_res = []
+    val_data = bao_data_df["value"].values
     lcdm_pred = lcdm_full_results.get("pred_df")
     if lcdm_pred is not None:
-        res_lcdm = bao_data_df["value"].values - lcdm_pred["model_prediction"].values
+        res_lcdm = val_data - lcdm_pred["model_prediction"].values
         all_res.append(res_lcdm)
         res_ax.errorbar(
             bao_data_df["redshift"],
@@ -660,7 +774,10 @@ def plot_bao_observables(
             capsize=2,
             ms=4,
         )
-        z_avg, r_avg = get_binned_average(bao_data_df["redshift"].values, res_lcdm)
+        z_avg, r_avg = get_binned_average(
+            bao_data_df["redshift"].values,
+            res_lcdm,
+        )
         z_avg, r_avg = _smooth_line(z_avg, r_avg)
         res_ax.plot(
             z_avg,
@@ -674,7 +791,7 @@ def plot_bao_observables(
 
     alt_pred = alt_model_full_results.get("pred_df")
     if alt_pred is not None:
-        res_alt = bao_data_df["value"].values - alt_pred["model_prediction"].values
+        res_alt = val_data - alt_pred["model_prediction"].values
         all_res.append(res_alt)
         res_ax.errorbar(
             bao_data_df["redshift"],
@@ -690,7 +807,10 @@ def plot_bao_observables(
             capsize=2,
             ms=7,
         )
-        z_avg, r_avg = get_binned_average(bao_data_df["redshift"].values, res_alt)
+        z_avg, r_avg = get_binned_average(
+            bao_data_df["redshift"].values,
+            res_alt,
+        )
         z_avg, r_avg = _smooth_line(z_avg, r_avg)
         res_ax.plot(
             z_avg,
@@ -709,23 +829,57 @@ def plot_bao_observables(
 
     ax.set_ylabel(r"$D_X/r_s$", fontsize=font_sizes["label"])
     ax.set_title(
-        f"BAO Observables vs. Redshift: {dataset_name}", fontsize=font_sizes["title"]
+        f"BAO Observables vs. Redshift: {dataset_name}",
+        fontsize=font_sizes["title"],
     )
     ax.legend(fontsize=font_sizes["legend"], loc="best")
     ax.minorticks_on()
-    ax.tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
-    ax.grid(True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5)
+    ax.tick_params(
+        axis="both",
+        which="major",
+        labelsize=font_sizes["ticks"],
+    )
+    ax.grid(
+        True,
+        which="both",
+        color="#E0E0E0",
+        linestyle="-",
+        linewidth=0.5,
+    )
 
     res_ax.axhline(0, color="black", ls="--", lw=1)
     res_ax.set_xlabel("Redshift (z)", fontsize=font_sizes["label"])
-    res_ax.set_ylabel(r"$D_X/r_s^{obs} - D_X/r_s^{th}$", fontsize=font_sizes["label"])
+    res_ax.set_ylabel(
+        r"$D_X/r_s^{obs} - D_X/r_s^{th}$",
+        fontsize=font_sizes["label"],
+    )
     res_ax.legend(fontsize=font_sizes["legend"], loc="best")
     res_ax.minorticks_on()
-    res_ax.tick_params(axis="both", which="major", labelsize=font_sizes["ticks"])
-    res_ax.grid(True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5)
+    res_ax.tick_params(
+        axis="both",
+        which="major",
+        labelsize=font_sizes["ticks"],
+    )
+    res_ax.grid(
+        True,
+        which="both",
+        color="#E0E0E0",
+        linestyle="-",
+        linewidth=0.5,
+    )
 
-    bbox_lcdm = dict(boxstyle="round,pad=0.5", fc="#FFEEEE", ec="darkred", alpha=0.8)
-    bbox_alt = dict(boxstyle="round,pad=0.5", fc="#EEF2FF", ec="darkblue", alpha=0.8)
+    bbox_lcdm = dict(
+        boxstyle="round,pad=0.5",
+        fc="#FFEEEE",
+        ec="darkred",
+        alpha=0.8,
+    )
+    bbox_alt = dict(
+        boxstyle="round,pad=0.5",
+        fc="#EEF2FF",
+        ec="darkblue",
+        alpha=0.8,
+    )
     red_y = top - info_gap
     blue_y = red_y - box_height - info_gap
     fig.text(
@@ -763,13 +917,24 @@ def plot_bao_observables(
     for idx, (line, is_bold) in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
         weight = "bold" if is_bold else "normal"
-        fig.text(0.5, y, line, ha="center", fontsize=fs, fontweight=weight, wrap=True)
+        fig.text(
+            0.5,
+            y,
+            line,
+            ha="center",
+            fontsize=fs,
+            fontweight=weight,
+            wrap=True,
+        )
         y -= line_height
 
-    model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
+    alt_model_name = alt_model_plugin.MODEL_NAME.replace(" ", "_").replace(
+        ".", ""
+    )
+    model_comparison_name = f"vs-{alt_model_name}"
     filename = generate_filename(
         "bao-plot",
-        dataset_name,
+        dataset_id,
         "png",
         model_name=model_comparison_name,
         timestamp=timestamp,
@@ -797,7 +962,8 @@ def plot_cmb_spectrum(
     """Generate and save a CMB power spectrum plot with residuals."""
     ensure_dir_exists(plot_dir)
     logger = get_logger()
-    dataset_name = cmb_data_df.attrs.get("dataset_name_sanitized", "CMB_data")
+    dataset_name = cmb_data_df.attrs.get("dataset_name", "CMB data")
+    dataset_id = cmb_data_df.attrs.get("dataset_id", "cmb_data")
     logger.info(f"Generating CMB Spectrum Plot for {dataset_name}...")
 
     _apply_common_style()
@@ -818,7 +984,9 @@ def plot_cmb_spectrum(
             cov = np.linalg.inv(cmb_data_df.attrs["covariance_matrix_inv"])
             diag_errors_plot = np.sqrt(np.diag(cov))
         except Exception as exc:
-            logger.warning(f"Could not derive CMB errors from covariance: {exc}")
+            logger.warning(
+                f"Could not derive CMB errors from covariance: {exc}",
+            )
             diag_errors_plot = np.full_like(dl_obs, 1.0)
     else:
         diag_errors_plot = np.full_like(dl_obs, 1.0)
@@ -841,7 +1009,10 @@ def plot_cmb_spectrum(
         1,
         figsize=(17, 6 * len(components)),
         sharex=True,
-        gridspec_kw={"height_ratios": [4, 1.5] * len(components), "hspace": 0.25},
+        gridspec_kw={
+            "height_ratios": [4, 1.5] * len(components),
+            "hspace": 0.25,
+        },
     )
 
     footer_lines = build_footer_lines(
@@ -877,7 +1048,10 @@ def plot_cmb_spectrum(
         if comp == "TT":
             err = diag_errors_plot
         else:
-            err = cmb_data_df.get(f"e_{comp.lower()}_obs", np.full_like(obs, 1.0))
+            err = cmb_data_df.get(
+                f"e_{comp.lower()}_obs",
+                np.full_like(obs, 1.0),
+            )
 
         axs[idx_main].errorbar(
             ells,
@@ -918,7 +1092,14 @@ def plot_cmb_spectrum(
                 label = r"$\Lambda$CDM" + (
                     rf" ($\chi^2$={chi2_lcdm})" if chi2_lcdm else ""
                 )
-                axs[idx_main].plot(ells, th, color="red", ls="-", lw=2.0, label=label)
+                axs[idx_main].plot(
+                    ells,
+                    th,
+                    color="red",
+                    ls="-",
+                    lw=2.0,
+                    label=label,
+                )
                 cv = np.sqrt(2.0 / (2 * ells + 1.0)) * th
                 lower = np.clip(th - cv, 1e-8, None)
                 axs[idx_main].fill_between(
@@ -970,7 +1151,14 @@ def plot_cmb_spectrum(
                 label = rf"{alt_name_latex}" + (
                     rf" ($\chi^2$={chi2_alt})" if chi2_alt else ""
                 )
-                axs[idx_main].plot(ells, th, color="blue", ls="--", lw=2.0, label=label)
+                axs[idx_main].plot(
+                    ells,
+                    th,
+                    color="blue",
+                    ls="--",
+                    lw=2.0,
+                    label=label,
+                )
                 res = obs - th
                 axs[idx_res].errorbar(
                     ells,
@@ -998,7 +1186,10 @@ def plot_cmb_spectrum(
                     label=f"Avg. {alt_name_latex} Res." if i == 0 else None,
                 )
 
-        axs[idx_main].set_ylabel(r"$D_\ell\ (\mu K^2)$", fontsize=font_sizes["label"])
+        axs[idx_main].set_ylabel(
+            r"$D_\ell\ (\mu K^2)$",
+            fontsize=font_sizes["label"],
+        )
         if comp in ("TT", "EE"):
             axs[idx_main].set_yscale("log")
         if i == 0:
@@ -1021,7 +1212,10 @@ def plot_cmb_spectrum(
 
         axs[idx_res].axhline(0, color="black", ls="--", lw=1)
         if i == len(components) - 1:
-            axs[idx_res].set_xlabel(r"Multipole $\ell$", fontsize=font_sizes["label"])
+            axs[idx_res].set_xlabel(
+                r"Multipole $\ell$",
+                fontsize=font_sizes["label"],
+            )
         axs[idx_res].set_ylabel(
             r"$D_\ell^{obs} - D_\ell^{th}$", fontsize=font_sizes["label"]
         )
@@ -1035,8 +1229,18 @@ def plot_cmb_spectrum(
             True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5
         )
 
-    bbox_lcdm = dict(boxstyle="round,pad=0.5", fc="#FFEEEE", ec="darkred", alpha=0.8)
-    bbox_alt = dict(boxstyle="round,pad=0.5", fc="#EEF2FF", ec="darkblue", alpha=0.8)
+    bbox_lcdm = dict(
+        boxstyle="round,pad=0.5",
+        fc="#FFEEEE",
+        ec="darkred",
+        alpha=0.8,
+    )
+    bbox_alt = dict(
+        boxstyle="round,pad=0.5",
+        fc="#EEF2FF",
+        ec="darkblue",
+        alpha=0.8,
+    )
     red_y = top - info_gap
     blue_y = red_y - box_height - info_gap
     fig.text(
@@ -1076,13 +1280,24 @@ def plot_cmb_spectrum(
     for idx, (line, is_bold) in enumerate(footer_lines):
         fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
         weight = "bold" if is_bold else "normal"
-        fig.text(0.5, y, line, ha="center", fontsize=fs, fontweight=weight, wrap=True)
+        fig.text(
+            0.5,
+            y,
+            line,
+            ha="center",
+            fontsize=fs,
+            fontweight=weight,
+            wrap=True,
+        )
         y -= line_height
 
-    model_comparison_name = f"{lcdm_plugin.MODEL_NAME}-vs-{alt_model_plugin.MODEL_NAME}"
+    alt_model_name = alt_model_plugin.MODEL_NAME.replace(" ", "_").replace(
+        ".", ""
+    )
+    model_comparison_name = f"vs-{alt_model_name}"
     filename = generate_filename(
         "cmb-plot",
-        dataset_name,
+        dataset_id,
         "png",
         model_name=model_comparison_name,
         timestamp=timestamp,

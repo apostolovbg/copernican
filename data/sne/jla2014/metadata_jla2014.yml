@@ -1,8 +1,30 @@
-dataset_name: JLA 2014
-description: Joint SDSS-II and SNLS supernova sample of 740 SNe Ia with distance moduli and full covariance matrix.
-citation: Betoule et al. - A&A 568 (2014) A22 - DOI: https://doi.org/10.1051/0004-6361/201423413
-author: Betoule M., Kessler R., Guy J., Mosher J., Hardin D., Biswas R., Astier P., El-Hage P., Konig M., Kuhlmann S., Marriner J., Pain R., Regnault N., Balland C., Bassett B.A., Brown P.J., Campbell H., Carlberg R.G., Cellier-Holzem F., Cinabro D., Conley A., D'Andrea C.B., DePoy D.L., Doi M., Ellis R.S., Fabbro S., Filippenko A.V., Foley R.J., Frieman J.A., Fouchez D., Galbany L., Goobar A., Gupta R.R., Hill G.J., Hlozek R., Hogan C.J., Hook I.M., Howell D.A., Jha S.W., Le Guillou L., Leloudas G., Lidman C., Marshall J.L., Moller A., Mourao A.M., Neveu J., Nichol R., Olmstead M.D., Palanque-Delabrouille N., Perlmutter S., Prieto J.L., Pritchet C.J., Richmond M., Riess A.G., Ruhlmann-Kleider V., Sako M., Schahmaneche K., Schneider D.P., Smith M., Sollerman J., Sullivan M., Walton N.A., Wheeler C.J.
-title: Improved cosmological constraints from a joint analysis of the SDSS-II and SNLS supernova samples
+dataset_name: Joint Light-curve Analysis 2014
+dataset_id: jla_2014
+description: >-
+  Joint SDSS-II and SNLS supernova sample of 740 SNe Ia with distance
+  moduli and full covariance matrix.
+citation: >-
+  Betoule et al. - A&A 568 (2014) A22 - DOI:
+  https://doi.org/10.1051/0004-6361/201423413
+license: >-
+  JLA data release is public with required citation; see
+  https://supernovae.in2p3.fr/sdss_snls_jla/ReadMe.html
+author: >-
+  Betoule M., Kessler R., Guy J., Mosher J., Hardin D., Biswas R., Astier
+  P., El-Hage P., Konig M., Kuhlmann S., Marriner J., Pain R., Regnault N.,
+  Balland C., Bassett B.A., Brown P.J., Campbell H., Carlberg R.G.,
+  Cellier-Holzem F., Cinabro D., Conley A., D'Andrea C.B., DePoy D.L., Doi
+  M., Ellis R.S., Fabbro S., Filippenko A.V., Foley R.J., Frieman J.A.,
+  Fouchez D., Galbany L., Goobar A., Gupta R.R., Hill G.J., Hlozek R., Hogan
+  C.J., Hook I.M., Howell D.A., Jha S.W., Le Guillou L., Leloudas G., Lidman
+  C., Marshall J.L., Moller A., Mourao A.M., Neveu J., Nichol R., Olmstead
+  M.D., Palanque-Delabrouille N., Perlmutter S., Prieto J.L., Pritchet C.J.,
+  Richmond M., Riess A.G., Ruhlmann-Kleider V., Sako M., Schahmaneche K.,
+  Schneider D.P., Smith M., Sollerman J., Sullivan M., Walton N.A., Wheeler
+  C.J.
+title: >-
+  Improved cosmological constraints from a joint analysis of the SDSS-II and
+  SNLS supernova samples
 article: Betoule_2014
 volume: 568
 ISSN: 1432-0746
@@ -15,4 +37,9 @@ publisher: EDP Sciences
 year: 2014
 month: aug
 pages: A22
-notes: Light-curve parameters are converted to distance moduli using fixed SALT2 nuisance parameters. The systematic covariance from tablef4.fit is projected to distance-modulus space, combined with diagonal statistical errors and inverted. Supernovae are sorted by redshift and the inverse covariance is attached to the DataFrame.
+notes: >-
+  Light-curve parameters are converted to distance moduli using fixed SALT2
+  nuisance parameters. The systematic covariance from tablef4.fit is
+  projected to distance-modulus space, combined with diagonal statistical
+  errors and inverted. Supernovae are sorted by redshift and the inverse
+  covariance is attached to the DataFrame.

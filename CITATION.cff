@@ -1,0 +1,15 @@
+# Last Updated: 2025-09-01
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Copernican Suite"
+version: "4.3.3"
+date-released: 2025-09-01
+authors:
+  - name: "Copernican Developers"
+preferred-citation:
+  type: software
+  authors:
+    - name: "Copernican Developers"
+  title: "Copernican Suite"
+  version: "4.3.3"
+  date-released: 2025-09-01

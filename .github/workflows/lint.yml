@@ -1,0 +1,31 @@
+# Last Updated: 2025-09-03
+name: Lint
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up virtual environment
+        run: python -m venv .venv
+
+      - name: Install dependencies
+        run: |
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r requirements.lock
+          .venv/bin/pip install --no-deps .
+          .venv/bin/pip install pre-commit pip-tools
+
+      - name: Run pre-commit
+        run: .venv/bin/pre-commit run --all-files

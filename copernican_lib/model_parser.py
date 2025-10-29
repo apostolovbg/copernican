@@ -1,16 +1,19 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Model parser for Copernican Suite YAML models."""
 
 # This module validates model definition files against a JSON schema and writes
 # a sanitized copy to ``models/cache/``. The sanitized file is used by child
 # processes so that validation only happens once in the main process.
 
-import yaml
-import re
-from jsonschema import validate, ValidationError
-from pathlib import Path
 import multiprocessing as _mp
-from . import error_handler
-from . import latex_utils
+from pathlib import Path
+
+import yaml
+from jsonschema import ValidationError, validate
+
+from . import error_handler, latex_utils
 
 
 def _sanitise_name_to_var(name: str) -> str:
@@ -32,6 +35,7 @@ def _ensure_delim(expr: str | None) -> str | None:
     cleaned = f"$${cleaned}$$"
     return cleaned
 
+
 MODEL_SCHEMA = {
     "type": "object",
     "required": ["model_name", "version", "parameters", "equations"],
@@ -50,12 +54,23 @@ MODEL_SCHEMA = {
                         "type": "array",
                         "minItems": 2,
                         "maxItems": 2,
-                        "items": {"type": "number"}
+                        "items": {"type": "number"},
                     },
                     "unit": {"type": "string"},
-                    "latex_name": {"type": "string"}
-                }
-            }
+                    "latex_name": {"type": "string"},
+                    "prior": {
+                        "type": "object",
+                        "required": ["type"],
+                        "properties": {
+                            "type": {"type": "string"},
+                            "mean": {"type": "number"},
+                            "sigma": {"type": "number"},
+                            "lower": {"type": "number"},
+                            "upper": {"type": "number"},
+                        },
+                    },
+                },
+            },
         },
         "equations": {"type": "object"},
         "rs_expression": {"type": "string"},
@@ -66,8 +81,8 @@ MODEL_SCHEMA = {
         # Optional human-readable fields used by upcoming UI modules
         "abstract": {"type": "string"},
         "description": {"type": "string"},
-        "notes": {"type": "string"}
-    }
+        "notes": {"type": "string"},
+    },
 }
 
 
@@ -105,15 +120,16 @@ def parse_model(path, cache_dir):
         try:
             validate(instance=data, schema=MODEL_SCHEMA)
         except ValidationError as e:
-            error_handler.report_error(
-                f"Model YAML validation error: {e.message}"
-            )
-            raise ValueError(
-                f"Model YAML validation error: {e.message}"
-            ) from e
+            msg = f"Model YAML validation error: {e.message}"
+            error_handler.report_error(msg)
+            raise ValueError(msg) from e
 
     # Auto-generate missing python_var fields from LaTeX names
-    used_vars = {p.get("python_var") for p in data.get("parameters", []) if p.get("python_var")}
+    used_vars = {
+        param.get("python_var")
+        for param in data.get("parameters", [])
+        if param.get("python_var")
+    }
     for param in data.get("parameters", []):
         if "latex_name" not in param:
             raise ValueError("Missing required latex_name for parameter")
@@ -126,11 +142,27 @@ def parse_model(path, cache_dir):
                 idx += 1
             param["python_var"] = candidate
             used_vars.add(candidate)
+        prior = param.get("prior")
+        # Validate prior definitions to ensure engines receive complete data.
+        if prior:
+            ptype = prior.get("type")
+            if ptype == "gaussian":
+                if "mean" not in prior or "sigma" not in prior:
+                    raise ValueError(
+                        "Gaussian prior requires 'mean' and 'sigma' fields"
+                    )
+            elif ptype == "uniform":
+                if "lower" not in prior or "upper" not in prior:
+                    raise ValueError(
+                        "Uniform prior requires 'lower' and 'upper' fields"
+                    )
+            else:
+                raise ValueError(f"Unknown prior type '{ptype}'")
 
     # Ensure mathematical fields are wrapped with '$$' for downstream tools
-    data['Hz_expression'] = _ensure_delim(data.get('Hz_expression'))
-    data['rs_expression'] = _ensure_delim(data.get('rs_expression'))
-    eq_sections = data.get('equations', {})
+    data["Hz_expression"] = _ensure_delim(data.get("Hz_expression"))
+    data["rs_expression"] = _ensure_delim(data.get("rs_expression"))
+    eq_sections = data.get("equations", {})
     for key, arr in eq_sections.items():
         if isinstance(arr, list):
             eq_sections[key] = [_ensure_delim(e) for e in arr]

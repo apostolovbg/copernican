@@ -1,0 +1,3 @@
+include THIRD_PARTY_LICENSES.md
+recursive-include licenses *
+include copernican_lib/VERSION

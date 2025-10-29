@@ -1,10 +1,26 @@
-"""Console output utilities for the Copernican Suite."""
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
+"""Console I/O helpers shared across the Copernican Suite.
+
+All user facing text is funneled through this module so that console
+messages and prompts are handled in one place.  The logger patches
+``print`` and ``input`` to capture output verbatim; these helpers provide
+the indirection necessary to keep that behaviour consistent everywhere.
+"""
 
 import sys
 
 
 def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
-    """Display ``msg`` on the console and let the logger capture it.
+    """Display ``msg`` on the console and mirror it to the log file.
+
+    Routing all prints through this function ensures the patched
+    ``print``/``input`` hooks in :mod:`copernican_lib.logger` can record
+    every message exactly once.  Direct calls to ``print`` should be
+    avoided inside the project so that logs remain faithful. The stream
+    is always flushed so progress lines using carriage returns remain
+    visible on all platforms.
 
     Parameters
     ----------
@@ -13,12 +29,27 @@ def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
     end : str, optional
         String appended after the message. Defaults to a newline.
     error : bool, optional
-        When ``True`` output is written to ``stderr`` instead of ``stdout``.
+        When ``True`` the message is sent to ``stderr`` rather than
+        ``stdout``.
+
+    The write is wrapped in a ``try`` block so terminals that cannot
+    represent certain Unicode characters still receive output. Unencodable
+    characters are replaced with ``?`` to avoid raising a
+    :class:`UnicodeEncodeError`.
     """
     stream = sys.stderr if error else sys.stdout
-    print(msg, end=end, file=stream)
+    try:
+        print(msg, end=end, file=stream, flush=True)
+    except UnicodeEncodeError:
+        fallback = msg.encode("ascii", errors="replace").decode("ascii")
+        print(fallback, end=end, file=stream, flush=True)
 
 
 def ask(prompt: str = "") -> str:
-    """Prompt the user and return their input."""
+    """Prompt the user and return their input while logging the exchange.
+
+    The patched :func:`builtins.input` records both the prompt and the
+    response to the active log file.  Wrapping the call here clarifies the
+    intent and avoids scattering raw ``input`` calls across the codebase.
+    """
     return input(prompt)

@@ -1,31 +1,41 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 # Copernican Suite Logger
 """Logging utilities for the Copernican Suite.
 
-The logger records all console input and output verbatim while also emitting
-standard log messages. ``print`` and ``input`` are patched so their text is
-captured to the log file without being echoed twice on the console.
+This module wraps :mod:`logging` configuration so that every run produces a
+fully self-contained log file.  Console messages and user prompts are
+mirrored verbatim by patching ``print`` and ``input``; path information is
+sanitised so absolute directories outside the repository are not leaked.
+Consumers can therefore rely on the log for complete provenance of a
+session without clutter or duplicated lines.
 """
 
+import builtins
+import importlib
 import logging
 import os
+import platform
 import sys
-import builtins
-import datetime
-from .utils import get_timestamp, ensure_dir_exists
+
+from .utils import ensure_dir_exists, get_timestamp
 
 
 class _PathFilter(logging.Filter):
     """Filter that strips absolute paths above the project root."""
 
     def __init__(self, base_dir: str):
+        """Store repository root for later path stripping."""
         super().__init__()
         self.base_dir = os.path.abspath(base_dir)
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Remove leading ``base_dir`` segments from log messages."""
         if isinstance(record.msg, str):
-            record.msg = record.msg.replace(self.base_dir + os.sep, "").replace(
-                self.base_dir, "."
-            )
+            # Replace absolute base paths with project-relative forms
+            clean = record.msg.replace(self.base_dir + os.sep, "")
+            record.msg = clean.replace(self.base_dir, ".")
         return True
 
 
@@ -33,6 +43,7 @@ class _ConsoleFilter(logging.Filter):
     """Filter to exclude captured console messages from the StreamHandler."""
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Skip records already printed via patched ``print``/``input``."""
         # When ``console_capture`` is True the message originated from
         # ``print`` or ``input``. Those messages are already displayed on the
         # console via the original call, so the stream handler should ignore
@@ -51,10 +62,12 @@ def _patch_builtins(base_dir: str) -> None:
     orig_input = builtins.input
 
     def _shorten(msg: str) -> str:
+        """Replace absolute paths in ``msg`` with project-relative forms."""
         base = os.path.abspath(base_dir)
         return msg.replace(base + os.sep, "").replace(base, ".")
 
     def print_patch(*args, **kwargs):
+        """Proxy ``print`` that mirrors output to the log file."""
         orig_print(*args, **kwargs)
         if kwargs.get("file", sys.stdout) is sys.stdout:
             sep = kwargs.get("sep", " ")
@@ -68,6 +81,7 @@ def _patch_builtins(base_dir: str) -> None:
             )
 
     def input_patch(prompt: str = ""):
+        """Proxy ``input`` that logs the prompt and response."""
         response = orig_input(prompt)
         logger.info(
             _shorten(f"{prompt}{response}"),
@@ -82,7 +96,14 @@ def _patch_builtins(base_dir: str) -> None:
 
 
 def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
-    """Initializes logging handlers and patches ``print``/``input``."""
+    """Initialise logging and return the log file path.
+
+    A file handler stores timestamped records while a stream handler echoes
+    messages to the console.  The routine also patches ``print`` and
+    ``input`` so that all interactive exchanges are captured.  When
+    ``base_dir`` is provided, absolute paths inside log messages are
+    shortened to keep the output relocatable.
+    """
 
     ensure_dir_exists(log_dir)
     logger = logging.getLogger()
@@ -90,11 +111,14 @@ def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
 
-    log_filename = os.path.join(log_dir, f"copernican-run_{get_timestamp()}.txt")
+    # Name log file using an execution timestamp
+    run_tag = f"copernican-run_{get_timestamp()}.txt"
+    log_filename = os.path.join(log_dir, run_tag)
 
     fh = logging.FileHandler(log_filename)
     fh.setLevel(logging.INFO)
-    fh.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    fh.setFormatter(formatter)
     if base_dir:
         fh.addFilter(_PathFilter(base_dir))
     logger.addHandler(fh)
@@ -113,6 +137,37 @@ def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
         _patch_builtins(base_dir)
 
     return log_filename
+
+
+def log_environment_info() -> None:
+    """Log Python, OS, CPU and key package versions.
+
+    Detailed information is written to the log file while a short
+    summary prints to the console. This aids in reproducing results
+    across different systems.
+    """
+    logger = logging.getLogger()
+    py_ver = platform.python_version()
+    os_info = platform.platform()
+    cpu = platform.processor() or "Unknown CPU"
+    pkgs = {}
+    for name in ("numpy", "scipy", "matplotlib"):
+        try:
+            mod = importlib.import_module(name)
+            pkgs[name] = getattr(mod, "__version__", "unknown")
+        except Exception:
+            pkgs[name] = "not installed"
+    log_kwargs = {"extra": {"console_capture": True}}
+    logger.info("Environment details:", **log_kwargs)
+    logger.info(f"  Python: {py_ver}", **log_kwargs)
+    logger.info(f"  OS: {os_info}", **log_kwargs)
+    logger.info(f"  CPU: {cpu}", **log_kwargs)
+    for n, v in pkgs.items():
+        logger.info(f"  {n}: {v}", **log_kwargs)
+    summary = f"Python {py_ver}; {os_info}; CPU {cpu}; " + ", ".join(
+        f"{n} {v}" for n, v in pkgs.items()
+    )
+    print(f"Environment summary: {summary}")
 
 
 def get_logger():

@@ -12,3 +12,10 @@ output/
 output/.DS_Store
 .vscode/
 /.vscode
+copernican_suite.egg-info
+.venv/
+build/
+/.python
+.cache/dependency_scan.json
+/.cache
+/.cache

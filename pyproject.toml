@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-11
 [build-system]
 requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]"]
 build-backend = "setuptools.build_meta"
@@ -10,16 +11,30 @@ authors = [{name = "Copernican Developers"}]
 license = {file = "LICENSE.md"}
 requires-python = ">=3.12"
 dependencies = [
-    "numpy",
-    "scipy",
-    "matplotlib",
-    "pandas",
-    "sympy",
-    "jsonschema",
-    "camb",
-    "PyYAML",
-    "astropy",
+    # Keep versions in sync with requirements.lock.
+    "numpy==2.2.6",
+    "scipy==1.16.1",
+    "matplotlib==3.10.5",
+    "pandas==2.3.2",
+    "sympy==1.14.0",
+    "jsonschema==4.25.1",
+    "camb==1.6.2", # pin to ensure Python 3.12 wheels
+    "PyYAML==6.0.2",
+    "astropy==7.1.0",
+    "psutil==7.0.0",
+    "setuptools_scm==9.2.0",
+    "emcee==3.1.5",
+    "h5netcdf==1.6.4",
+    "h5py==3.14.0",
+    "xarray==2025.8.0",
+    "xarray-einstats==0.9.1",
+    "typing_extensions==4.15.0",
+    "pip-tools==7.4.1",  # ensure python -m piptools compile is available
+    "arviz @ https://github.com/arviz-devs/arviz/archive/01c8b9454349247eed2145a27b03f9231acb412f.tar.gz",
 ]
+
+[project.optional-dependencies]
+dev = ["pip-tools==7.4.1"]
 
 [project.scripts]
 copernican = "copernican:main_workflow"
@@ -27,7 +42,15 @@ copernican = "copernican:main_workflow"
 [tool.setuptools]
 packages = ["copernican_lib", "engines"]
 py-modules = ["copernican"]
+include-package-data = true
+
+[tool.setuptools.data-files]
+"licenses" = ["THIRD_PARTY_LICENSES.md", "licenses/*"]
+
+[tool.setuptools.package-data]
+"copernican_lib" = ["VERSION"]
 
 
 [tool.setuptools_scm]
 version_scheme = "no-guess-dev"
+fallback_version = "0+unknown"

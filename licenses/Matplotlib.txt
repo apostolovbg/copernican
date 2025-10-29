@@ -1,0 +1,178 @@
+[
+  {
+    "name": "LICENSE",
+    "path": "LICENSE/LICENSE",
+    "sha": "ec51537db27dd4d9c9ed3cd39fd96485f3cfddea",
+    "size": 4830,
+    "url": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE?ref=v3.8.0",
+    "html_url": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE",
+    "git_url": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/ec51537db27dd4d9c9ed3cd39fd96485f3cfddea",
+    "download_url": "https://raw.githubusercontent.com/matplotlib/matplotlib/v3.8.0/LICENSE/LICENSE",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE?ref=v3.8.0",
+      "git": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/ec51537db27dd4d9c9ed3cd39fd96485f3cfddea",
+      "html": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE"
+    }
+  },
+  {
+    "name": "LICENSE_AMSFONTS",
+    "path": "LICENSE/LICENSE_AMSFONTS",
+    "sha": "3627bb9bb6170b32966d5e77531128e261e73f85",
+    "size": 12675,
+    "url": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_AMSFONTS?ref=v3.8.0",
+    "html_url": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_AMSFONTS",
+    "git_url": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/3627bb9bb6170b32966d5e77531128e261e73f85",
+    "download_url": "https://raw.githubusercontent.com/matplotlib/matplotlib/v3.8.0/LICENSE/LICENSE_AMSFONTS",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_AMSFONTS?ref=v3.8.0",
+      "git": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/3627bb9bb6170b32966d5e77531128e261e73f85",
+      "html": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_AMSFONTS"
+    }
+  },
+  {
+    "name": "LICENSE_BAKOMA",
+    "path": "LICENSE/LICENSE_BAKOMA",
+    "sha": "6200f085b9d67a77320a5c4b18d2c15f305e4b3d",
+    "size": 1440,
+    "url": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_BAKOMA?ref=v3.8.0",
+    "html_url": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_BAKOMA",
+    "git_url": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/6200f085b9d67a77320a5c4b18d2c15f305e4b3d",
+    "download_url": "https://raw.githubusercontent.com/matplotlib/matplotlib/v3.8.0/LICENSE/LICENSE_BAKOMA",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_BAKOMA?ref=v3.8.0",
+      "git": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/6200f085b9d67a77320a5c4b18d2c15f305e4b3d",
+      "html": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_BAKOMA"
+    }
+  },
+  {
+    "name": "LICENSE_CARLOGO",
+    "path": "LICENSE/LICENSE_CARLOGO",
+    "sha": "8c99c656a0f52293c3ec928831c70bab2171bc57",
+    "size": 4455,
+    "url": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_CARLOGO?ref=v3.8.0",
+    "html_url": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_CARLOGO",
+    "git_url": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/8c99c656a0f52293c3ec928831c70bab2171bc57",
+    "download_url": "https://raw.githubusercontent.com/matplotlib/matplotlib/v3.8.0/LICENSE/LICENSE_CARLOGO",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_CARLOGO?ref=v3.8.0",
+      "git": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/8c99c656a0f52293c3ec928831c70bab2171bc57",
+      "html": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_CARLOGO"
+    }
+  },
+  {
+    "name": "LICENSE_COLORBREWER",
+    "path": "LICENSE/LICENSE_COLORBREWER",
+    "sha": "7557bb7e769b6e9a9105b83bc917fb50fda9e703",
+    "size": 695,
+    "url": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_COLORBREWER?ref=v3.8.0",
+    "html_url": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_COLORBREWER",
+    "git_url": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/7557bb7e769b6e9a9105b83bc917fb50fda9e703",
+    "download_url": "https://raw.githubusercontent.com/matplotlib/matplotlib/v3.8.0/LICENSE/LICENSE_COLORBREWER",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_COLORBREWER?ref=v3.8.0",
+      "git": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/7557bb7e769b6e9a9105b83bc917fb50fda9e703",
+      "html": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_COLORBREWER"
+    }
+  },
+  {
+    "name": "LICENSE_COURIERTEN",
+    "path": "LICENSE/LICENSE_COURIERTEN",
+    "sha": "c6d3fd7410a240fe64448e8b29a3a7b3ac94f9ac",
+    "size": 802,
+    "url": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_COURIERTEN?ref=v3.8.0",
+    "html_url": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_COURIERTEN",
+    "git_url": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/c6d3fd7410a240fe64448e8b29a3a7b3ac94f9ac",
+    "download_url": "https://raw.githubusercontent.com/matplotlib/matplotlib/v3.8.0/LICENSE/LICENSE_COURIERTEN",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_COURIERTEN?ref=v3.8.0",
+      "git": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/c6d3fd7410a240fe64448e8b29a3a7b3ac94f9ac",
+      "html": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_COURIERTEN"
+    }
+  },
+  {
+    "name": "LICENSE_JSXTOOLS_RESIZE_OBSERVER",
+    "path": "LICENSE/LICENSE_JSXTOOLS_RESIZE_OBSERVER",
+    "sha": "0bc1fa7060b758dca10a5a5013ca9a6d63c203d3",
+    "size": 6799,
+    "url": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_JSXTOOLS_RESIZE_OBSERVER?ref=v3.8.0",
+    "html_url": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_JSXTOOLS_RESIZE_OBSERVER",
+    "git_url": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/0bc1fa7060b758dca10a5a5013ca9a6d63c203d3",
+    "download_url": "https://raw.githubusercontent.com/matplotlib/matplotlib/v3.8.0/LICENSE/LICENSE_JSXTOOLS_RESIZE_OBSERVER",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_JSXTOOLS_RESIZE_OBSERVER?ref=v3.8.0",
+      "git": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/0bc1fa7060b758dca10a5a5013ca9a6d63c203d3",
+      "html": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_JSXTOOLS_RESIZE_OBSERVER"
+    }
+  },
+  {
+    "name": "LICENSE_QT4_EDITOR",
+    "path": "LICENSE/LICENSE_QT4_EDITOR",
+    "sha": "1c9d941973ce663d9231cfdfc456ef037a042a8c",
+    "size": 1230,
+    "url": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_QT4_EDITOR?ref=v3.8.0",
+    "html_url": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_QT4_EDITOR",
+    "git_url": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/1c9d941973ce663d9231cfdfc456ef037a042a8c",
+    "download_url": "https://raw.githubusercontent.com/matplotlib/matplotlib/v3.8.0/LICENSE/LICENSE_QT4_EDITOR",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_QT4_EDITOR?ref=v3.8.0",
+      "git": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/1c9d941973ce663d9231cfdfc456ef037a042a8c",
+      "html": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_QT4_EDITOR"
+    }
+  },
+  {
+    "name": "LICENSE_SOLARIZED",
+    "path": "LICENSE/LICENSE_SOLARIZED",
+    "sha": "6e5a0475dd2411c39fbf972ca3b45cb22c36f997",
+    "size": 1121,
+    "url": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_SOLARIZED?ref=v3.8.0",
+    "html_url": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_SOLARIZED",
+    "git_url": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/6e5a0475dd2411c39fbf972ca3b45cb22c36f997",
+    "download_url": "https://raw.githubusercontent.com/matplotlib/matplotlib/v3.8.0/LICENSE/LICENSE_SOLARIZED",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_SOLARIZED?ref=v3.8.0",
+      "git": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/6e5a0475dd2411c39fbf972ca3b45cb22c36f997",
+      "html": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_SOLARIZED"
+    }
+  },
+  {
+    "name": "LICENSE_STIX",
+    "path": "LICENSE/LICENSE_STIX",
+    "sha": "2f7aeea331ce3df7d92c9cd9f6e85e1b520b11b6",
+    "size": 3914,
+    "url": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_STIX?ref=v3.8.0",
+    "html_url": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_STIX",
+    "git_url": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/2f7aeea331ce3df7d92c9cd9f6e85e1b520b11b6",
+    "download_url": "https://raw.githubusercontent.com/matplotlib/matplotlib/v3.8.0/LICENSE/LICENSE_STIX",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_STIX?ref=v3.8.0",
+      "git": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/2f7aeea331ce3df7d92c9cd9f6e85e1b520b11b6",
+      "html": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_STIX"
+    }
+  },
+  {
+    "name": "LICENSE_YORICK",
+    "path": "LICENSE/LICENSE_YORICK",
+    "sha": "8c908509a7395acd602496d3783302b2c353d305",
+    "size": 2313,
+    "url": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_YORICK?ref=v3.8.0",
+    "html_url": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_YORICK",
+    "git_url": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/8c908509a7395acd602496d3783302b2c353d305",
+    "download_url": "https://raw.githubusercontent.com/matplotlib/matplotlib/v3.8.0/LICENSE/LICENSE_YORICK",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/matplotlib/matplotlib/contents/LICENSE/LICENSE_YORICK?ref=v3.8.0",
+      "git": "https://api.github.com/repos/matplotlib/matplotlib/git/blobs/8c908509a7395acd602496d3783302b2c353d305",
+      "html": "https://github.com/matplotlib/matplotlib/blob/v3.8.0/LICENSE/LICENSE_YORICK"
+    }
+  }
+]

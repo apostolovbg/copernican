@@ -1,0 +1,86 @@
+models:
+- name: LambdaCDM
+  version: '1.0'
+  filename: cosmo_model_lcdm.yml
+  priors:
+    H_0:
+      type: uniform
+      lower: 50.0
+      upper: 100.0
+    Omega_m0:
+      type: uniform
+      lower: 0.05
+      upper: 0.7
+    Omega_b:
+      type: uniform
+      lower: 0.01
+      upper: 0.1
+    Omega_gamma:
+      type: uniform
+      lower: 1.0e-05
+      upper: 0.0001
+    z_rec:
+      type: uniform
+      lower: 1000.0
+      upper: 1200.0
+- name: LambdaCDM
+  version: '1.0'
+  filename: cosmo_model_lcdm.yml
+  priors:
+    H_0:
+      type: uniform
+      lower: 50.0
+      upper: 100.0
+    Omega_m0:
+      type: uniform
+      lower: 0.05
+      upper: 0.7
+    Omega_b:
+      type: uniform
+      lower: 0.01
+      upper: 0.1
+    Omega_gamma:
+      type: uniform
+      lower: 1.0e-05
+      upper: 0.0001
+    z_rec:
+      type: uniform
+      lower: 1000.0
+      upper: 1200.0
+engine:
+  name: engines.cosmo_engine_mcmc
+  version: unknown
+seed: 0
+datasets:
+  jla_2014:
+    path: /Users/apostolov/Documents/GitHub/copernican/data/sne/jla2014
+    hashes:
+      +footg5.gif: 6d375d2d9a97f897b6bdadf61781d5ad49365a612b0eeda2e27b363e83546b89
+      +footg8.gif: c725331eae86cce9f3b27fc9b3b2476d611b9c0d8c1a760df4c4792a5f9022da
+      ReadMe.txt: 236793155d6572626a56259732b06e4d1141e1ebe5ee2f4ed83253aca403b3f9
+      metadata_jla2014.yml: 85b5de817832c0d6ebcdbd052941145dadf0754e72e9f82dde8b789fe8148c46
+      tablef1.dat: d9b17b4c704b554d0e3df0b5efed7877e881d2f62c04f968b789a61b3fb80114
+      tablef2.fit: 0db2aeab210523594c07ac7f89edca87c55a76601c51c4a831d338cc32ce3ff4
+      tablef3.dat: 35db10c033fa4bc5326436d957eb732e76fd7a4d6db7c729bc3ce17aeb5de470
+      tablef4.fit: a17a1e29a8ee1631669a4456adf84c27372a33f5448a65971dbdd50eb9a97a67
+      __pycache__/cosmo_parser_jla2014.cpython-312.pyc: f00a4d5bee64bc2308a2333a535f0b3b036746480005f25a2130df1dcf5f7572
+  boss_dr12_bao:
+    path: /Users/apostolov/Documents/GitHub/copernican/data/bao/bossdr12
+    hashes:
+      BAO_consensus_covtot_dM_Hz.txt: 05c04829c8edc117870efe809494593a23de6c35547f8b66760a5250804b65cf
+      BAO_consensus_covtot_dV_FAP.txt: cf5b760b34f4335bd90490fcce4540dbac0b0b54e3240544c4af133dd45c8300
+      BAO_consensus_results_dM_Hz.txt: 30e784fa08e7eddb2fdd1ab09411424e67aa9b75df58f4bb330a889c9b9c478e
+      BAO_consensus_results_dV_FAP.txt: e507d65dacedc814892609d2decca9990a954ef5836da79b57c663885fce4ef8
+      metadata_bossdr12.yml: 9d8b2b526b33c043f382c3d623f60a1f29dbf4e438549549ec96b01e763f09a8
+      __pycache__/cosmo_parser_bossdr12.cpython-312.pyc: 64e1d3817b690595ac497e99e04d55ba8c3a7a050f2de318a5b3381b229ef1ea
+  planck_2018_lite:
+    path: /Users/apostolov/Documents/GitHub/copernican/data/cmb/planck2018lite
+    hashes:
+      c_matrix_plik_v22.dat: ad90378c50bd67841764179c90ae6711fa4317c649966ab2b0712143b31e0a32
+      cl_cmb_plik_v22.dat: dac0d9d493213e77c940a10a968cf0da3c5730bae60e1356c4cd8bcff96377ff
+      metadata_planck2018lite.yml: eedaf3802b38b35044f70d7740f7618036f959aa7959c3ef46494b6226c3aa23
+      readme_baseline.md: ae6cef6886f2c4381147657fc195bed72742fbe3cc106208200f961af24caa73
+      __pycache__/cosmo_parser_cmb_planck2018lite.cpython-312.pyc: d56f40d5836a5cd9fd0df0fa48f5f0596c043bfa9ccd6a6344521bfa433eaa4c
+git:
+  commit: d519adb5e3acab5527863951994ebe2670a215f7
+  dirty: true

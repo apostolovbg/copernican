@@ -1,3 +1,6 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# See LICENSE.md in the repository root for details.
+
 """Core helper modules for the Copernican Suite.
 
 This package bundles general-purpose utilities used across the
@@ -7,4 +10,4 @@ individual engines remain lightweight.
 """
 
 # Nothing else is defined here. Importing this package simply exposes the
-# submodules such as ``logger`` and ``plotter`` which the rest of the code uses.
+# submodules like ``logger`` and ``plotter`` used throughout the code.

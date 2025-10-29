@@ -1,14 +1,22 @@
 dataset_name: Compound BAO dataset
-description: Compilation of BAO distance measurements without a covariance matrix
-citation: Multiple Surveys (see metadata "authors")
-author: 6dFGS: Beutler et al. 2011. SDSS MGS: Ross et al. 2015. WiggleZ: Blake
-  et al. 2011. BOSS DR12 Consensus: Alam et al. 2017 (Table 5). eBOSS DR14 Quasar:
-  Benasque BAO DR14 QSO. eBOSS DR16 Quasar: Alam et al. 2021 (Table 3). eBOSS DR16
-  Lyman-α: du Mas des Bourboux et al. 2020 (Table 7). Additional: SDSS DR7 LRG z=0.35;
-  SDSS DR7 LRG z=0.2; BOSS DR11 LOWZ z=0.32 & CMASS z=0.57; BOSS DR11 Quasar-Lyα Cross
-  z=2.36; eBOSS DR14 Quasar-Lyα Cross z=2.35: Blomqvist et al. 2019; eBOSS DR14 Lyα
-  Auto z=2.34: de Sainte Agathe et al. 2019; eBOSS DR16 ELG z=0.845: Raichoor et al.
-  2020; DES Year 1 Angular BAO z=0.81: Leclercq et al. 2018.
+dataset_id: compound_bao_set
+description: >-
+  Compilation of BAO distance measurements without a covariance matrix
+citation: >-
+  Multiple Surveys (see metadata "authors")
+license: >-
+  Aggregates publicly released BAO measurements; consult individual surveys
+  for their usage policies.
+author: >-
+  6dFGS: Beutler et al. 2011. SDSS MGS: Ross et al. 2015. WiggleZ: Blake et
+  al. 2011. BOSS DR12 Consensus: Alam et al. 2017 (Table 5). eBOSS DR14
+  Quasar: Benasque BAO DR14 QSO. eBOSS DR16 Quasar: Alam et al. 2021 (Table
+  3). eBOSS DR16 Lyman-α: du Mas des Bourboux et al. 2020 (Table 7).
+  Additional: SDSS DR7 LRG z=0.35; SDSS DR7 LRG z=0.2; BOSS DR11 LOWZ
+  z=0.32 & CMASS z=0.57; BOSS DR11 Quasar-Lyα Cross z=2.36; eBOSS DR14
+  Quasar-Lyα Cross z=2.35: Blomqvist et al. 2019; eBOSS DR14 Lyα Auto
+  z=2.34: de Sainte Agathe et al. 2019; eBOSS DR16 ELG z=0.845: Raichoor et
+  al. 2020; DES Year 1 Angular BAO z=0.81: Leclercq et al. 2018.
 title: N/A
 article: N/A
 volume: N/A
@@ -22,4 +30,9 @@ publisher: N/A
 year: N/A
 month: N/A
 pages: N/A
-notes: Observable types: DV_over_rs (D_V(z)/r_s), DM_over_rs (D_M(z)/r_s), DH_over_rs (D_H(z)/r_s = c/(H(z) r_s)). All r_s values are the model's sound horizon at the drag epoch unless a fiducial r_s is specified (rs_fiducial_Mpc). No covariance matrix is available; uncertainties are treated as uncorrelated.
+notes: >-
+  Observable types: DV_over_rs (D_V(z)/r_s), DM_over_rs (D_M(z)/r_s),
+  DH_over_rs (D_H(z)/r_s = c/(H(z) r_s)). All r_s values are the model's
+  sound horizon at the drag epoch unless a fiducial r_s is specified
+  (rs_fiducial_Mpc). No covariance matrix is available; uncertainties are
+  treated as uncorrelated.

@@ -10,9 +10,62 @@ description: |-
 
     H(z) = H_A * sqrt(
       (1+z)^(2*p_alpha) * (1 + k_exp*(1+z)^(s_exp))
-      + Omega_{m eff}*(1+z)^3
-      + Omega_{gamma}*(1+z)^4
-    )
+      + Omega_{
+m eff}*(1+z)^3
+  - The matter term Omega_{
+m eff}*(1+z)^3 mimics clustering without new particles.
+  - The recombination redshift z_{
+m rec} is also fit, aligning the sound horizon with the observed CMB peaks.
+  The baryon–photon sound horizon is computed automatically by integrating c/H(z) up to z_{
+m rec}.
+  prior:
+    type: uniform
+    lower: 299792.458
+    upper: 299792.458
+  prior:
+    type: uniform
+    lower: 50.0
+    upper: 100.0
+  prior:
+    type: uniform
+    lower: 0.0
+    upper: 2.0
+  prior:
+    type: uniform
+    lower: 0.0
+    upper: 2.0
+  prior:
+    type: uniform
+    lower: 0.0
+    upper: 5.0
+  prior:
+    type: uniform
+    lower: 0.0
+    upper: 0.5
+  prior:
+    type: uniform
+    lower: 1.0e-06
+    upper: 0.001
+  prior:
+    type: uniform
+    lower: 0.03
+    upper: 0.07
+  prior:
+    type: uniform
+    lower: 800
+    upper: 1500
+  prior:
+    type: uniform
+    lower: 1.0e-09
+    upper: 5.0e-09
+  prior:
+    type: uniform
+    lower: 0.9
+    upper: 1.1
+  prior:
+    type: uniform
+    lower: 0.01
+    upper: 0.15
 
   where:
   - H_A sets today’s Hubble scale (km/s/Mpc).
