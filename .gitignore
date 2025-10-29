@@ -17,6 +17,8 @@ copernican_suite.egg-info
 build/
 /.python
 .cache/dependency_scan.json
+# Local dependency cache generated at runtime; keep it untracked so every
+# contributor works with a private scan snapshot.
 /.cache
 /.cache/
 .cache/
