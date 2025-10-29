@@ -1,5 +1,5 @@
-**Version:** 6.0.3
-**Last Updated:** 2025-10-29
+**Version:** 6.0.5
+**Last Updated:** 2025-10-30
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -77,7 +77,13 @@ Under the hood the program follows a clear pipeline:
    sampler to explore the SNe posterior. Its distance calculations are
    vectorised for responsiveness and invalid proposals return ``-np.inf``
    directly so walkers outside the allowed region or producing non-finite
-   chi-squared values are rejected unambiguously. After burn-in any walkers
+   chi-squared values are rejected unambiguously. The sampler automatically
+   classifies parameters whose bounds collapse to a point—or a numerically
+   indistinguishable sliver—as fixed so arbitrary model plugins remain
+   compatible. Initial walkers now expand adaptively until their condition
+   number falls below the guardrail enforced by ``emcee``, ensuring even wildly
+   scaled models and exotic bound combinations initialise without manual
+   tuning. After burn-in any walkers
    that drift into ``nan`` coordinates are reseeded near the ensemble mean,
    removing the `RuntimeWarning: invalid value encountered in scalar subtract`
    messages recorded in previous ΛCDM self-tests. The sampler draws its
