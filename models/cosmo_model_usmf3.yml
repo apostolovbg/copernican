@@ -1,13 +1,13 @@
 model_name: USMFv3
 version: '3.0'
-description: '### 1. Introduction
+description: '1. Introduction
 
   This version extends the Unified Shrinking Matter Framework by introducing a flexible
   expansion history and an emergent clustering term, allowing the model to fit CMB
   and BAO without a cosmological constant or exotic dark components.
 
 
-  ### 2. Key Modifications
+  2. Key Modifications
 
   - **Flexible H(z):** a two-term law with a tunable power-law and exponential component.
 
@@ -18,7 +18,7 @@ description: '### 1. Introduction
   realistic r_s.
 
 
-  ### 3. Implications
+  3. Implications
 
   These changes enable the correct radiation→matter→late-time sequence, bringing the
   sound horizon, BAO scales, and CMB peaks into agreement with observations while
