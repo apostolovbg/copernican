@@ -1,4 +1,4 @@
-**Version:** 6.0.2
+**Version:** 6.0.3
 **Last Updated:** 2025-10-29
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -388,7 +388,10 @@ multiplication
    written in LaTeX.
 6. Backslashes may be written normally; the parser automatically escapes them
    so
-   LaTeX commands like `\frac` work without doubled characters.
+   LaTeX commands like `\frac` work without doubled characters. Prefer YAML
+   block scalars (`|` or `>`) for long expressions instead of quoting strings;
+   this avoids accidental escape sequences such as `\beta` becoming a
+   backspace.
 7. Expressions may include `Integral(...)` terms with explicit limits. They
    are
    evaluated numerically with SciPy's `quad` when the model is loaded.
@@ -399,13 +402,26 @@ multiplication
    `lower` and `upper`. Engines expose these via `PARAMETER_PRIORS`.
 10. Every parameter must define a `latex_name`. When a `python_var` field is
     omitted, a valid identifier is derived automatically from this LaTeX
-    name.
+    name. Provide an explicit `python_var` when you want short variable names
+    such as `Omega_b` or `A1`; the refreshed sample models show this pattern.
 11. `latex_name` values do not require `$` delimiters. Plots automatically
     wrap parameter names in math mode.
 12. Console and log outputs display parameter names with Greek letters,
     subscripts and superscripts when possible for easier reading. The
     conversion tables cover every Latin and Greek letter, digits and common
     operators.
+
+### Updated example models
+The non-\LambdaCDM samples now demonstrate several design patterns:
+
+* `cosmo_model_cfsc.yml` shows how to drive sound-horizon fits with explicit
+  phenomenological parameters.
+* `cosmo_model_cpc.yml` illustrates a compact f(R) toy model using explicit
+  `python_var` names instead of escaped LaTeX.
+* `cosmo_model_qauc.yml` and the refreshed `cosmo_model_usmf{3..7}.yml` files
+  document different shrink-based expansion laws while keeping YAML easy to
+  extend. These examples double as regression fixtures that should parse
+  cleanly without hand-editing cached outputs.
 
 **Common mistakes**
 * Missing `*` between variables and parentheses results in a `'Symbol' object

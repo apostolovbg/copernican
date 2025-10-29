@@ -1,139 +1,129 @@
 model_name: CPCfRGravityCosmology
-version: '1.0'
-description: "CPC-f(R) Gravity Cosmology combines a modified gravity action f(R)=R+αR²−βR**{−n}\
-  \ with a CP-violating curvature coupling ξR F\tilde F in the Standard Model gauge\
-  \ sector. This framework recovers standard radiation-dominated expansion (R→0→f(R)≈R)\
-  \ for BBN, features late-time cosmic acceleration from the R**{-n} term without\
-  \ a cosmological constant, and mediates Newtonian gravity plus Yukawa corrections\
-  \ at galactic scales. The CP term generates baryon asymmetry during the QCD phase\
-  \ transition, eliminating the need for extra baryogenesis fields."
-abstract: "We propose a CP-coupled f(R) gravity model: S⊃∫d⁴x√−g [M_{Pl}²/2 f(R) +\
-  \ (ξ/4)R F\tilde F + L_{SM}], with f(R)=R+αR²−βR**{−n}. In the radiation era R→0,\
-  \ yielding standard H∝√ρ behavior for BBN. At late times the −βR**{−n} term drives\
-  \ self-acceleration without Λ. We include a CP-violating term ξR F\tilde F to generate\
-  \ n_B/s∼10**{−10} at T∼150 MeV. This model unifies cosmic acceleration, baryogenesis,\
-  \ and structure formation in a pure gravitational framework."
+version: '1.1'
+description: >-
+  The CP-coupled f(R) cosmology augments a simple R + alpha R^2 - beta R^{-n}
+  action with a small CP-violating curvature interaction. The late-time
+  acceleration is sourced by the inverse-power term while early-universe
+  radiation and matter eras match General Relativity.
+abstract: >-
+  This toy model keeps the f(R) modifications symbolic by folding the main
+  corrections into an effective Hubble rate. It retains explicit matter and
+  radiation densities plus a phenomenological power-law driving term so the
+  YAML example remains compact yet expressive.
 parameters:
-- name: Hubble constant
-  bounds:
-  - 50.0
-  - 80.0
-  unit: km/s/Mpc
-  latex_name: H_0
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 50.0
-    upper: 80.0
-- name: Matter density
-  bounds:
-  - 0.1
-  - 0.5
-  unit: ''
-  latex_name: \Omega_{m0}
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 0.1
-    upper: 0.5
-- name: Radiation density
-  bounds:
-  - 1.0e-05
-  - 0.0001
-  unit: ''
-  latex_name: \Omega_{r0}
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 1.0e-05
-    upper: 0.0001
-- name: R² coefficient
-  bounds:
-  - 0.0
-  - 1000000.0
-  unit: ''
-  latex_name: \alpha
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 0.0
-    upper: 1000000.0
-- name: Inverse-power coefficient
-  bounds:
-  - 0.0
-  - 1.0
-  unit: ''
-  latex_name: "\beta"
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 0.0
-    upper: 1.0
-- name: Inverse-power exponent
-  bounds:
-  - 0.0
-  - 2.0
-  unit: ''
-  latex_name: n
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 0.0
-    upper: 2.0
-- name: CP-coupling strength
-  bounds:
-  - 0.0
-  - 1.0
-  unit: ''
-  latex_name: \xi
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 0.0
-    upper: 1.0
-- name: Sound horizon base
-  bounds:
-  - 140.0
-  - 160.0
-  unit: Mpc
-  latex_name: r_{s,0}
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 140.0
-    upper: 160.0
-- name: Drag redshift
-  bounds:
-  - 800
-  - 1500
-  unit: ''
-  latex_name: "z_{\rm drag}"
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 800.0
-    upper: 1500.0
-- name: Speed of light
-  bounds:
-  - 299792.458
-  - 299792.458
-  unit: km/s
-  latex_name: c
-  definition: N/A
-  prior:
-    type: uniform
-    lower: 299792.458
-    upper: 299792.458
-Hz_expression: "H(z) = H_0 * \\sqrt{\\Omega_{m0}*(1+z)**3 + \\Omega_{r0}*(1+z)**4\
-  \ + \beta*(1+z)**(-n)}"
+  - name: Hubble constant
+    bounds: [50.0, 80.0]
+    unit: km/s/Mpc
+    latex_name: H_0
+    python_var: H0
+    definition: Present-day Hubble rate.
+    prior:
+      type: uniform
+      lower: 50.0
+      upper: 80.0
+  - name: Matter density
+    bounds: [0.1, 0.5]
+    unit: ''
+    latex_name: \Omega_{m0}
+    python_var: Omega_m0
+    definition: Non-relativistic matter density parameter.
+    prior:
+      type: uniform
+      lower: 0.1
+      upper: 0.5
+  - name: Radiation density
+    bounds: [1.0e-05, 1.0e-04]
+    unit: ''
+    latex_name: \Omega_{r0}
+    python_var: Omega_r0
+    definition: Relativistic density today.
+    prior:
+      type: uniform
+      lower: 1.0e-05
+      upper: 1.0e-04
+  - name: R-squared coefficient
+    bounds: [0.0, 1000000.0]
+    unit: ''
+    latex_name: \alpha
+    python_var: alpha
+    definition: Strength of the R^2 correction.
+    prior:
+      type: uniform
+      lower: 0.0
+      upper: 1000000.0
+  - name: Inverse-power coefficient
+    bounds: [0.0, 1.0]
+    unit: ''
+    latex_name: \beta
+    python_var: beta
+    definition: Coefficient of the R^{-n} driving term.
+    prior:
+      type: uniform
+      lower: 0.0
+      upper: 1.0
+  - name: Inverse-power exponent
+    bounds: [0.0, 2.0]
+    unit: ''
+    latex_name: n
+    python_var: n
+    definition: Exponent for the R^{-n} modification.
+    prior:
+      type: uniform
+      lower: 0.0
+      upper: 2.0
+  - name: CP-coupling strength
+    bounds: [0.0, 1.0]
+    unit: ''
+    latex_name: \xi
+    python_var: xi
+    definition: Effective CP-violating amplitude (unused placeholder).
+    prior:
+      type: uniform
+      lower: 0.0
+      upper: 1.0
+  - name: Sound horizon base
+    bounds: [140.0, 160.0]
+    unit: Mpc
+    latex_name: r_{s,0}
+    python_var: rs0
+    definition: Fiducial sound horizon scale.
+    prior:
+      type: uniform
+      lower: 140.0
+      upper: 160.0
+  - name: Drag redshift
+    bounds: [800.0, 1500.0]
+    unit: ''
+    latex_name: z_{\rm drag}
+    python_var: z_drag
+    definition: Phenomenological drag-epoch redshift.
+    prior:
+      type: uniform
+      lower: 800.0
+      upper: 1500.0
+  - name: Speed of light
+    bounds: [299792.458, 299792.458]
+    unit: km/s
+    latex_name: c
+    python_var: c
+    definition: Fixed speed of light.
+    prior:
+      type: uniform
+      lower: 299792.458
+      upper: 299792.458
+Hz_expression: >-
+  H(z) = H0 * sqrt(
+    Omega_m0*(1 + z)**3 + Omega_r0*(1 + z)**4 + beta*(1 + z)**(-n)
+  )
 equations:
   sne:
-  - "d_L(z) = (1+z) \\int_0^z \frac{c\\,dz'}{H(z')}"
-  - "\\mu(z) = 5\\log_{10}[d_L(z)/{\rm Mpc}] + 25"
+    - d_L(z) = (1+z) \int_0^z \frac{c\,dz'}{H(z')}
+    - \mu(z) = 5\log_{10}[d_L(z)/{\rm Mpc}] + 25
   bao:
-  - "D_M(z) = \\int_0^z \frac{c\\,dz'}{H(z')}"
-  - "D_H(z) = \frac{c}{H(z)}"
-  - D_V(z) = [D_M(z)**2 * D_H(z)]**(1/3)
+    - D_M(z) = \int_0^z \frac{c\,dz'}{H(z')}
+    - D_H(z) = \frac{c}{H(z)}
+    - D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}
 rs_expression: r_s = rs0
 predicts_bao: true
 valid_for_bao: true
+valid_for_cmb: false

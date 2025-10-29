@@ -19,6 +19,12 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 6.0.3
+- 2025-10-29: Rebuilt all non-\LambdaCDM model YAMLs with explicit
+              `python_var` mappings, safe expressions and documentation links
+              so they load without parser errors and serve as future-ready
+              examples (OpenAI ChatGPT)
+
 ## Version 6.0.2
 - 2025-10-29: Removed the tracked dependency cache directory and documented
               the `.cache/` workflow so Git only sees per-user data
