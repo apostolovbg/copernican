@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-10-29
+**Last Updated:** 2025-10-30
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,19 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 6.0.5
+- 2025-10-30: Classified numerically locked parameters before sampling,
+              introduced adaptive walker initialisation to defeat emcee's
+              condition-number guard and added regression tests covering the
+              helper utilities so arbitrary YAML models remain supported
+              (OpenAI ChatGPT)
+
+## Version 6.0.4
+- 2025-10-29: Hardened the MCMC sampler to exclude fixed-bound parameters
+              from the active subspace so constant entries no longer trigger
+              emcee's condition-number guard and added regression coverage for
+              the Conformal Stationary Field Cosmology plugin (OpenAI ChatGPT)
 
 ## Version 6.0.3
 - 2025-10-29: Rebuilt all non-\LambdaCDM model YAMLs with explicit

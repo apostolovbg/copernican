@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-10-29
+**Last Updated:** 2025-10-30
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all
@@ -16,6 +16,17 @@ via the `cosmo_engine_*.py` naming convention so GPU solvers or new
 optimisation strategies can be introduced without altering the orchestration
 logic in `copernican.py`.  The shared helpers and validation routines therefore
 remain the authoritative source of truth for statistical behaviour.
+
+To keep emcee initialisation numerically stable the sampler now removes any
+parameter whose lower and upper bounds are identical—or numerically
+indistinguishable—before launching the ensemble.  Those constants re-enter each
+likelihood evaluation transparently, ensuring models such as Conformal
+Stationary Field Cosmology can keep fixed physical values (for example the
+speed of light) without tripping emcee's condition-number safeguard.  When a
+model defines only a handful of truly free parameters the engine inflates the
+initial walker cloud adaptively until the ensemble's condition number satisfies
+``emcee``'s guardrail, so YAML plugins with wildly different scales or exotic
+bound combinations no longer require manual tuning before sampling begins.
 
 ```
 /engines/          - Computational backends

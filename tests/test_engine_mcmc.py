@@ -1,6 +1,7 @@
 """Tests for the MCMC engine."""
 
 import importlib.util
+import logging
 import os
 import tempfile
 import unittest
@@ -17,7 +18,28 @@ else:
     ARVIZ_AVAILABLE = False
 from copernican_lib import engine_interface, model_coder, model_parser
 from engines import cosmo_engine_mcmc
-from engines.cosmo_engine_mcmc import _log_probability, _reseed_invalid_walkers
+from engines.cosmo_engine_mcmc import (
+    _classify_parameter_bounds,
+    _estimate_condition_number,
+    _initialise_active_walkers,
+    _log_probability,
+    _reseed_invalid_walkers,
+)
+
+
+def _build_model_plugin(yaml_filename: str):
+    """Return a validated plugin for ``yaml_filename``.
+
+    Tests construct plugins from disk instead of hard-coding dummy classes so
+    that they exercise the same parsing pathway as the production workflow.
+    """
+
+    models_dir = os.path.join(os.path.dirname(__file__), "..", "models")
+    yaml_path = os.path.join(models_dir, yaml_filename)
+    cache_dir = os.path.join(models_dir, "cache")
+    cache_path = model_parser.parse_model(yaml_path, cache_dir)
+    func_dict, parsed = model_coder.generate_callables(cache_path)
+    return engine_interface.build_plugin(parsed, func_dict)
 
 
 @unittest.skipUnless(ARVIZ_AVAILABLE, "arviz not installed")
@@ -25,12 +47,10 @@ class TestMCMCEngine(unittest.TestCase):
     """Verify that the MCMC engine produces chains and NetCDF output."""
 
     def _build_lcdm_plugin(self):
-        models_dir = os.path.join(os.path.dirname(__file__), "..", "models")
-        yaml_path = os.path.join(models_dir, "cosmo_model_lcdm.yml")
-        cache_dir = os.path.join(models_dir, "cache")
-        cache_path = model_parser.parse_model(yaml_path, cache_dir)
-        func_dict, parsed = model_coder.generate_callables(cache_path)
-        return engine_interface.build_plugin(parsed, func_dict)
+        return _build_model_plugin("cosmo_model_lcdm.yml")
+
+    def _build_cfsc_plugin(self):
+        return _build_model_plugin("cosmo_model_cfsc.yml")
 
     def test_sampler_produces_netcdf(self):
         plugin = self._build_lcdm_plugin()
@@ -127,11 +147,36 @@ class TestMCMCEngine(unittest.TestCase):
             lower=lower,
             upper=upper,
             rng=rng,
-            model_plugin=plugin,
-            sne_data_df=sne_df,
+            log_probability_fn=lambda pos: _log_probability(
+                pos, plugin, sne_df
+            ),
+            reference_position=np.asarray(plugin.INITIAL_GUESSES, dtype=float),
         )
         self.assertTrue(np.all(np.isfinite(new_coords)))
         self.assertTrue(np.all(np.isfinite(new_log_prob)))
+
+    def test_sampler_handles_fixed_bounds(self):
+        plugin = self._build_cfsc_plugin()
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01, 0.02],
+                "mu_obs": [40.0, 41.0],
+                "e_mu_obs": [0.1, 0.1],
+            }
+        )
+        result = cosmo_engine_mcmc.fit_sne_parameters(
+            sne_df,
+            plugin,
+            n_walkers=30,
+            n_steps=4,
+            pool_size=1,
+        )
+        self.assertTrue(result["success"])
+        chain = result["samples"]
+        self.assertEqual(chain.shape[2], len(plugin.PARAMETER_NAMES))
+        const_idx = plugin.PARAMETER_NAMES.index("c")
+        fixed_spread = np.ptp(chain[:, :, const_idx])
+        self.assertAlmostEqual(fixed_spread, 0.0, places=10)
 
     def test_comoving_distance_vectorized(self):
         plugin = self._build_lcdm_plugin()
@@ -145,6 +190,74 @@ class TestMCMCEngine(unittest.TestCase):
             ]
         )
         np.testing.assert_allclose(arr, loop)
+
+
+class TestMCMCHelpers(unittest.TestCase):
+    """Exercise helper utilities that remain active without arviz."""
+
+    def test_near_fixed_bounds_are_flagged(self):
+        logger = logging.getLogger("test.mcmc.bounds")
+        bounds = [(1.0, 1.0 + 5e-10), (0.0, 2.0)]
+        lower, upper, fixed_mask = _classify_parameter_bounds(
+            bounds, logger=logger
+        )
+        self.assertTrue(fixed_mask[0])
+        self.assertFalse(fixed_mask[1])
+        self.assertAlmostEqual(lower[0], 1.0)
+        self.assertAlmostEqual(upper[0], 1.0 + 5e-10)
+
+    def test_initialise_walkers_relaxes_condition_number(self):
+        initial = np.array([5.0, 5.0])
+        lower = np.array([0.0, 0.0])
+        upper = np.array([10.0, 10.0])
+        rng = np.random.default_rng(42)
+
+        def logp(_):
+            return 0.0
+
+        walkers, logp_vals = _initialise_active_walkers(
+            initial,
+            lower,
+            upper,
+            n_walkers=6,
+            rng=rng,
+            log_probability_fn=logp,
+        )
+        self.assertTrue(np.all(np.isfinite(logp_vals)))
+        cond = _estimate_condition_number(walkers)
+        if cond is not None:
+            self.assertLessEqual(cond, 1e12)
+
+    def test_sampler_handles_near_fixed_bounds(self):
+        plugin = _build_model_plugin("cosmo_model_lcdm.yml")
+        tight_value = plugin.INITIAL_GUESSES[0]
+        plugin.PARAMETER_BOUNDS = list(plugin.PARAMETER_BOUNDS)
+        plugin.PARAMETER_BOUNDS[0] = (
+            tight_value - 5e-10,
+            tight_value + 5e-10,
+        )
+        plugin.INITIAL_GUESSES = list(plugin.INITIAL_GUESSES)
+        plugin.INITIAL_GUESSES[0] = tight_value
+
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01, 0.02],
+                "mu_obs": [40.0, 41.0],
+                "e_mu_obs": [0.1, 0.1],
+            }
+        )
+
+        result = cosmo_engine_mcmc.fit_sne_parameters(
+            sne_df,
+            plugin,
+            n_walkers=10,
+            n_steps=4,
+            pool_size=1,
+        )
+        self.assertTrue(result["success"])
+        chain = result["samples"]
+        fixed_spread = np.ptp(chain[:, :, 0])
+        self.assertAlmostEqual(fixed_spread, 0.0, places=10)
 
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation

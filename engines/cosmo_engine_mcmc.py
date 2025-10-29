@@ -3,7 +3,7 @@
 
 """Markov Chain Monte Carlo engine using :mod:`emcee`.
 
-**Last Updated:** 2025-10-28
+**Last Updated:** 2025-10-30
 
 The combined optimiser has been retired entirely, leaving this sampler as the
 sole runtime engine.  It continues to focus on Supernova Ia posteriors while
@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import multiprocessing as mp
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 import emcee
 import numpy as np
@@ -35,6 +35,18 @@ from copernican_lib.statistics import (
 
 ENGINE_KIND = "mcmc"
 ENGINE_LABEL = "Ensemble MCMC sampler"
+
+# ``emcee`` triggers its condition number guard when walkers occupy an almost
+# degenerate subspace.  The suite accepts wildly different model definitions,
+# so the sampler must adaptively identify fixed or near-fixed parameters and
+# spread walkers enough to avoid singular ensembles.  These heuristics rely on
+# a small mix of absolute and relative tolerances.  The defaults below flag
+# intervals narrower than roughly one billionth of the parameter scale while
+# still allowing legitimate, tight priors to remain active.
+_FIXED_BOUNDS_RTOL = 1e-9
+_FIXED_BOUNDS_ATOL = 1e-12
+_MAX_INITIAL_CONDITION = 1e12
+_MAX_INITIAL_ATTEMPTS = 12
 
 
 def _log_probability(
@@ -72,8 +84,8 @@ def _reseed_invalid_walkers(
     lower: np.ndarray,
     upper: np.ndarray,
     rng: np.random.Generator,
-    model_plugin: Any,
-    sne_data_df: Any,
+    log_probability_fn: Callable[[np.ndarray], float],
+    reference_position: np.ndarray | None = None,
     max_attempts: int = 8,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Replace non-finite walker states with fresh proposals.
@@ -84,6 +96,11 @@ def _reseed_invalid_walkers(
     subtraction logic.  To maintain a clean log and avoid undefined
     transitions we reseed any problematic walkers by drawing small Gaussian
     jitters around the mean of the valid ensemble before continuing the run.
+    ``log_probability_fn`` evaluates the sampler's objective for the proposed
+    coordinates so fixed-parameter expansions can remain encapsulated inside a
+    caller-provided closure.  ``reference_position`` supplies a fallback
+    centroid when every walker is invalid so reseeding still succeeds even if
+    the ensemble collapses entirely.
     """
 
     logger = logging.getLogger()
@@ -101,16 +118,17 @@ def _reseed_invalid_walkers(
 
     valid_coords = coords[~invalid]
     if valid_coords.size == 0:
-        initial = np.asarray(
-            getattr(model_plugin, "INITIAL_GUESSES", []),
-            dtype=float,
-        )
-        if initial.size == 0:
+        if reference_position is None:
             raise RuntimeError("No baseline available for reseeding walkers.")
-        valid_coords = initial[None, :]
+        valid_coords = np.asarray(reference_position, dtype=float)[None, :]
 
     centre = np.mean(valid_coords, axis=0)
     spread = np.std(valid_coords, axis=0)
+    finite_width = np.where(
+        np.isfinite(lower) & np.isfinite(upper), upper - lower, np.nan
+    )
+    fallback = np.where(np.isfinite(finite_width), finite_width / 6.0, 1.0)
+    spread = np.where(spread > 0, spread, fallback)
     spread = np.where(spread > 0, spread, 1.0)
 
     bad_idx = np.flatnonzero(invalid)
@@ -120,12 +138,7 @@ def _reseed_invalid_walkers(
         jitter = rng.standard_normal((bad_idx.size, centre.size))
         proposals = centre + jitter * np.maximum(spread, 1e-3)
         proposals = np.clip(proposals, lower, upper)
-        new_log_prob = np.array(
-            [
-                _log_probability(pos, model_plugin, sne_data_df)
-                for pos in proposals
-            ]
-        )
+        new_log_prob = np.array([log_probability_fn(pos) for pos in proposals])
         finite = np.isfinite(new_log_prob)
         coords[bad_idx[finite]] = proposals[finite]
         log_prob[bad_idx[finite]] = new_log_prob[finite]
@@ -199,54 +212,68 @@ def fit_sne_parameters(
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)
     names: Iterable[str] = getattr(model_plugin, "PARAMETER_NAMES", [])
+    names = list(names)
     initial = np.asarray(getattr(model_plugin, "INITIAL_GUESSES", []), float)
     bounds = list(getattr(model_plugin, "PARAMETER_BOUNDS", []))
 
-    ndim = len(initial)
-    if ndim == 0 or len(bounds) != ndim:
+    ndim_total = len(initial)
+    if ndim_total == 0 or len(bounds) != ndim_total:
         logger.error("Model plugin missing parameter definitions")
         return {"success": False, "samples": None}
 
-    lower = np.array(
-        [-np.inf if low is None else float(low) for low, _ in bounds]
-    )
-    upper = np.array(
-        [np.inf if high is None else float(high) for _, high in bounds]
-    )
-
-    n_walkers = max(n_walkers, 2 * ndim)
-    rng = np.random.default_rng()
-    if np.all(np.isfinite(lower)) and np.all(np.isfinite(upper)):
-        p0 = rng.uniform(lower, upper, size=(n_walkers, ndim))
-    else:
-        jitter = rng.standard_normal((n_walkers, ndim)) * 1e-3
-        p0 = initial + jitter
-        p0 = np.clip(p0, lower, upper)
-    p0[0] = initial
-
-    logp = np.array(
-        [_log_probability(pos, model_plugin, sne_data_df) for pos in p0]
-    )
-    attempts = 0
-    while np.any(~np.isfinite(logp)) and attempts < 10:
-        bad = ~np.isfinite(logp)
-        count = int(np.sum(bad))
-        if count == 0:
-            break
-        if np.all(np.isfinite(lower)) and np.all(np.isfinite(upper)):
-            p0[bad] = rng.uniform(lower, upper, size=(count, ndim))
-        else:
-            jitter = rng.standard_normal((count, ndim)) * 1e-3
-            p0[bad] = np.clip(initial + jitter, lower, upper)
-        logp[bad] = [
-            _log_probability(pos, model_plugin, sne_data_df) for pos in p0[bad]
-        ]
-        attempts += 1
-
-    if not np.all(np.isfinite(logp)):
-        logger.error(
-            "Unable to initialise walkers with finite log probability"
+    try:
+        lower_all, upper_all, fixed_mask = _classify_parameter_bounds(
+            bounds, logger=logger
         )
+    except ValueError:
+        return {"success": False, "samples": None}
+    active_mask = ~fixed_mask
+    active_indices = np.flatnonzero(active_mask)
+    fixed_indices = np.flatnonzero(fixed_mask)
+
+    if active_indices.size == 0:
+        logger.error("All parameters are fixed; cannot run the sampler.")
+        return {"success": False, "samples": None}
+
+    if fixed_indices.size:
+        fixed_names = ", ".join(names[idx] for idx in fixed_indices)
+        logger.info(
+            "Treating %d parameter(s) as fixed or numerically locked: %s",
+            int(fixed_indices.size),
+            fixed_names,
+        )
+
+    template_params = np.clip(initial, lower_all, upper_all)
+    initial_active = template_params[active_indices]
+    lower = lower_all[active_indices]
+    upper = upper_all[active_indices]
+
+    rng = np.random.default_rng()
+
+    ndim_active = active_indices.size
+    n_walkers = max(n_walkers, 2 * ndim_active)
+
+    def assemble_full(position: np.ndarray) -> np.ndarray:
+        """Return the full parameter vector with fixed entries restored."""
+        full = template_params.copy()
+        full[active_indices] = position
+        return full
+
+    def log_probability_active(position: np.ndarray) -> float:
+        full = assemble_full(position)
+        return _log_probability(full, model_plugin, sne_data_df)
+
+    try:
+        p0, logp = _initialise_active_walkers(
+            initial_active,
+            lower,
+            upper,
+            n_walkers,
+            rng,
+            log_probability_active,
+        )
+    except RuntimeError as exc:
+        logger.error("%s", exc)
         return {"success": False, "samples": None}
 
     pool = None
@@ -256,9 +283,8 @@ def fit_sne_parameters(
     try:
         sampler = emcee.EnsembleSampler(
             n_walkers,
-            ndim,
-            _log_probability,
-            args=(model_plugin, sne_data_df),
+            ndim_active,
+            log_probability_active,
             pool=pool,
         )
         last = _run_stage_with_progress(
@@ -275,8 +301,8 @@ def fit_sne_parameters(
                 lower=lower,
                 upper=upper,
                 rng=rng,
-                model_plugin=model_plugin,
-                sne_data_df=sne_data_df,
+                log_probability_fn=log_probability_active,
+                reference_position=initial_active,
             )
         except RuntimeError as exc:
             logger.error("%s", exc)
@@ -294,10 +320,19 @@ def fit_sne_parameters(
             pool.close()
             pool.join()
 
-    chain = sampler.get_chain()
+    chain_active = sampler.get_chain()
     log_prob_chain = sampler.get_log_prob()
-    flat_chain = sampler.get_chain(flat=True)
     flat_log_prob = sampler.get_log_prob(flat=True)
+
+    n_production, n_effective_walkers, _ = chain_active.shape
+    chain = np.empty(
+        (n_production, n_effective_walkers, ndim_total),
+        dtype=chain_active.dtype,
+    )
+    chain[:] = template_params
+    chain[:, :, active_indices] = chain_active
+
+    flat_chain = chain.reshape(-1, ndim_total)
 
     best_index = int(np.argmax(flat_log_prob))
     best_params = flat_chain[best_index]
@@ -315,7 +350,7 @@ def fit_sne_parameters(
         model_plugin.distance_modulus_model,
         sne_data_df,
     )
-    dof = len(sne_data_df) - ndim
+    dof = len(sne_data_df) - ndim_total
     reduced = chi2_best / dof if dof > 0 else np.nan
 
     acceptance = sampler.acceptance_fraction
@@ -365,3 +400,134 @@ __all__ = [
     "compute_cmb_spectrum_from_dict",
     "fit_sne_parameters",
 ]
+
+
+def _estimate_condition_number(samples: np.ndarray) -> float | None:
+    """Return the condition number of ``samples`` or ``None`` when undefined.
+
+    ``emcee`` inspects the condition number of the initial walker ensemble to
+    ensure the stretch move can generate proposals effectively.  The function
+    below mirrors that logic without importing private ``emcee`` helpers so the
+    engine can deliberately inflate the walker spread before the library raises
+    ``ValueError``.  When the ensemble contains fewer than two walkers the
+    condition number is undefined; in that situation we return ``None`` and let
+    the caller continue with additional attempts.
+    """
+
+    if samples.shape[0] < 2:
+        return None
+    centred = samples - np.mean(samples, axis=0, keepdims=True)
+    try:
+        singular_values = np.linalg.svd(
+            centred, full_matrices=False, hermitian=False
+        )[1]
+    except np.linalg.LinAlgError:
+        return float("inf")
+    positive = singular_values[singular_values > 0]
+    if positive.size == 0:
+        return float("inf")
+    return float(positive.max() / positive.min())
+
+
+def _classify_parameter_bounds(
+    bounds: Iterable[tuple[float | None, float | None]],
+    *,
+    logger: logging.Logger,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Return lower/upper bounds and a mask of effectively fixed parameters.
+
+    Each entry in ``bounds`` is converted to a floating interval.  ``None``
+    values map to ``-np.inf`` or ``np.inf`` as appropriate.  Bounds where the
+    upper edge falls below the lower edge signal malformed model definitions
+    and trigger an error log.  Parameters whose admissible range shrinks to a
+    single point—or a numerically indistinguishable sliver—are flagged as
+    fixed so the active sampling subspace contains only degrees of freedom
+    that ``emcee`` can explore without tripping its linear-independence
+    checks.
+    """
+
+    lower = np.empty(len(bounds), dtype=float)
+    upper = np.empty(len(bounds), dtype=float)
+    for idx, (low, high) in enumerate(bounds):
+        lower[idx] = -np.inf if low is None else float(low)
+        upper[idx] = np.inf if high is None else float(high)
+        if (
+            np.isfinite(lower[idx])
+            and np.isfinite(upper[idx])
+            and upper[idx] < lower[idx]
+        ):
+            logger.error(
+                "Parameter %d declares inverted bounds [%f, %f]",
+                idx,
+                lower[idx],
+                upper[idx],
+            )
+            raise ValueError("invalid parameter bounds: lower exceeds upper")
+
+    with np.errstate(invalid="ignore"):
+        widths = upper - lower
+        centres = (upper + lower) / 2.0
+        scale = np.maximum(np.abs(centres), 1.0)
+        threshold = scale * _FIXED_BOUNDS_RTOL + _FIXED_BOUNDS_ATOL
+        fixed_mask = np.isfinite(widths) & (widths <= threshold)
+
+    return lower, upper, fixed_mask
+
+
+def _initialise_active_walkers(
+    initial_active: np.ndarray,
+    lower: np.ndarray,
+    upper: np.ndarray,
+    n_walkers: int,
+    rng: np.random.Generator,
+    log_probability_fn: Callable[[np.ndarray], float],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return initial walker positions with finite log probabilities.
+
+    The generator gradually inflates the proposal scatter whenever the
+    resulting ensemble either falls outside the declared bounds, yields
+    non-finite log probabilities or remains dangerously close to a
+    degenerate hyperplane.  The strategy favours uniform draws when both
+    bounds are finite because those intervals already encode acceptable
+    ranges.  Otherwise walkers jitter around the initial guess with adaptive
+    Gaussian noise that widens on every retry.  The first walker remains
+    anchored to ``initial_active`` so the sampler always includes the
+    model's nominal parameter set.
+    """
+
+    ndim_active = initial_active.size
+    uniform_mask = np.isfinite(lower) & np.isfinite(upper)
+    width = upper - lower
+    jitter = np.maximum(np.abs(initial_active), 1.0) * 1e-3
+    jitter = np.where(
+        np.isfinite(width), np.maximum(width / 10.0, jitter), jitter
+    )
+
+    attempts = 0
+    scatter_multiplier = 1.0
+    while attempts < _MAX_INITIAL_ATTEMPTS:
+        attempts += 1
+        if uniform_mask.all():
+            proposals = rng.uniform(
+                lower, upper, size=(n_walkers, ndim_active)
+            )
+        else:
+            noise = rng.standard_normal((n_walkers, ndim_active))
+            proposals = initial_active + noise * jitter * scatter_multiplier
+            proposals = np.clip(proposals, lower, upper)
+        proposals[0] = np.clip(initial_active, lower, upper)
+
+        logp = np.array([log_probability_fn(pos) for pos in proposals])
+        if not np.all(np.isfinite(logp)):
+            scatter_multiplier *= 2.0
+            continue
+
+        cond = _estimate_condition_number(proposals)
+        if cond is None or cond <= _MAX_INITIAL_CONDITION:
+            return proposals, logp
+
+        scatter_multiplier *= 5.0
+
+    raise RuntimeError(
+        "Unable to initialise walkers with stable condition number"
+    )
