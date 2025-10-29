@@ -4,8 +4,10 @@
 """Basic functional tests for the Copernican Suite."""
 
 import importlib.util
+import os
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 import camb
 import numpy as np
@@ -16,6 +18,19 @@ import copernican_lib.engine_interface as engine_interface
 import copernican_lib.model_coder as model_coder
 import copernican_lib.model_parser as model_parser
 import engines.cosmo_engine_mcmc as engine
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+os.environ.setdefault("VIRTUAL_ENV", str(REPO_ROOT / ".venv"))
+
+COPERNICAN_PATH = REPO_ROOT / "copernican.py"
+SPEC = importlib.util.spec_from_file_location("copernican", COPERNICAN_PATH)
+if SPEC is None or SPEC.loader is None:
+    raise ImportError("Unable to resolve copernican module for testing")
+COPERNICAN_MODULE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(COPERNICAN_MODULE)
+extract_cosmological_param_vector = (
+    COPERNICAN_MODULE.extract_cosmological_param_vector
+)
 
 # Ensure compound BAO parser registration without requiring package installs
 parser_path = (
@@ -217,6 +232,51 @@ class PlotterUtilTestCase(unittest.TestCase):
         self.assertEqual(latex_utils.latex_to_unicode(r"z_{\rm rec}"), "zᵣₑc")
         self.assertEqual(latex_utils.latex_to_unicode("x_{(1+2)}"), "x₍₁₊₂₎")
         self.assertEqual(latex_utils.latex_to_unicode("y^{*}"), "y⁎")
+
+
+class CosmologicalParameterHelperTestCase(unittest.TestCase):
+    """Validate parameter extraction fallbacks in ``copernican``."""
+
+    def test_returns_ordered_values_when_available(self):
+        """Preserve plugin parameter order when extraction succeeds."""
+
+        plugin = SimpleNamespace(
+            MODEL_NAME="Toy", PARAMETER_NAMES=["H0", "Om_m"]
+        )
+        fit_results = {
+            "success": True,
+            "fitted_cosmological_params": {
+                "H0": 71.0,
+                "Om_m": 0.3,
+                "unused": 1.0,
+            },
+        }
+        vector = extract_cosmological_param_vector(fit_results, plugin)
+        self.assertEqual(vector, [71.0, 0.3])
+
+    def test_returns_none_when_required_value_missing(self):
+        """Refuse to extract vectors with incomplete parameter coverage."""
+
+        plugin = SimpleNamespace(
+            MODEL_NAME="Toy", PARAMETER_NAMES=["H0", "Om_m"]
+        )
+        fit_results = {
+            "success": True,
+            "fitted_cosmological_params": {"H0": 71.0},
+        }
+        vector = extract_cosmological_param_vector(fit_results, plugin)
+        self.assertIsNone(vector)
+
+    def test_returns_none_when_fit_unsuccessful(self):
+        """Avoid leaking stale parameters when the fit itself failed."""
+
+        plugin = SimpleNamespace(MODEL_NAME="Toy", PARAMETER_NAMES=["H0"])
+        fit_results = {
+            "success": False,
+            "fitted_cosmological_params": {"H0": 71.0},
+        }
+        vector = extract_cosmological_param_vector(fit_results, plugin)
+        self.assertIsNone(vector)
 
 
 if __name__ == "__main__":
