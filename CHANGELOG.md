@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-10-29
+**Last Updated:** 2025-10-30
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,12 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 6.0.7
+- 2025-10-30: Added a metadata validation script that enforces synchronized
+  release numbers and prevents future-dated documentation, refreshed release
+  notes and normalized Last Updated timestamps across the suite (OpenAI
+  ChatGPT)
 
 ## Version 6.0.6
 - 2025-10-29: Added a guarded parameter extraction helper so BAO and CMB

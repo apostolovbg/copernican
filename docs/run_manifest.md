@@ -1,5 +1,5 @@
 # Run Manifest
-**Last Updated:** 2025-11-11
+**Last Updated:** 2025-10-30
 
 The suite writes a YAML manifest for every evaluation under the run's output
 folder.  The file is named `run_manifest_<timestamp>.yml` and records:
