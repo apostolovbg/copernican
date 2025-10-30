@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-24
+**Last Updated:** 2025-10-30
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,25 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 6.0.11
+- 2025-10-30: Removed `pip` and `pip-tools` from the runtime lock so Windows
+  runs no longer attempt to replace the active installer, regenerated the
+  dependency snapshot, refreshed CI and developer guidance, and bumped the
+  recorded suite metadata (OpenAI ChatGPT)
+
+## Version 6.0.10
+- 2025-10-30: Rebuilt the dependency lock against currently published
+  wheels, pinned the bootstrapper to `pip==24.2`, updated CI workflows to
+  honour the stable installer and refreshed documentation and metadata so
+  Windows, macOS and Linux jobs all resolve packages without source builds
+  (OpenAI ChatGPT)
+
+## Version 6.0.9
+- 2025-10-30: Added a cross-platform GitHub Actions CI matrix for Python 3.12,
+  cached pip and CAMB assets, automated testing, packaging artifact uploads,
+  refreshed the documentation, stabilised the dependency lock hook by pinning
+  its pip toolchain and bumped the recorded suite version (OpenAI ChatGPT)
 
 ## Version 6.0.8
 - 2025-11-24: Enforced Python 3.12+ across all start launchers, rebuilt the
