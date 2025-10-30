@@ -1,5 +1,6 @@
 dataset_name: Joint Light-curve Analysis 2014
 dataset_id: jla_2014
+version: "2014.09"
 description: >-
   Joint SDSS-II and SNLS supernova sample of 740 SNe Ia with distance
   moduli and full covariance matrix.

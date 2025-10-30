@@ -1,0 +1,41 @@
+# Copernican Suite Run Configuration Schema
+# Last Updated: 2025-10-30 14:27 UTC
+---
+schema_version: 1
+summary: >-
+  Declarative schema describing how copernican.py records dataset choices,
+  independence assumptions and reproducibility toggles. Each field is
+  documented inline so future automation can validate run descriptors before
+  execution.
+
+# Canonical dataset selections for SNe, BAO and CMB analyses. The values are
+# mirrored by the loader defaults and copied into run manifests.
+datasets:
+  sne:
+    id: pantheon+sh0es_2022
+    version: "2022.10"
+    independence:
+      - Type Ia supernova distance moduli are treated as statistically
+        independent from BAO and CMB observables once their published
+        covariance matrices are accounted for.
+  bao:
+    id: boss_dr12_bao
+    version: "DR12"
+    independence:
+      - BAO distance measurements are assumed independent of SNe and CMB
+        datasets because overlapping systematics are negligible at the current
+        precision level.
+  cmb:
+    id: planck_2018_lite
+    version: "2018"
+    independence:
+      - Planck-lite CMB spectra are modelled as independent from SNe and BAO
+        summaries; cross-covariances are ignored consistently with published
+        likelihood treatments.
+
+# Additional boolean flags that control reproducibility guarantees.
+flags:
+  # Require parser hashes to match the whitelist.
+  enforce_trusted_parsers: true
+  # Prompt users to acknowledge independence assumptions before joint runs.
+  confirm_independence: true

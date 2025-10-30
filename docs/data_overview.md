@@ -29,16 +29,19 @@ information (for example `title`, `volume`, `journal` and `DOI`) are read
 by `copernican_lib/data_loaders.py` after the parser returns so individual
 parsers remain metadata-agnostic. Parsed DataFrames expose the same
 information on their `.attrs` property, and `dataset_id` is used when
-constructing output filenames. The loaders also compute a SHA256 digest
-for every non-parser file in the dataset directory. These hashes are
-stored on `df.attrs['file_hashes']` and logged so manifests can reproduce
-exact inputs. BAO DataFrames additionally carry a `model_prediction`
-column which is populated during analysis and now remains consistent even
-when the suite compares a model against itself because the Stage 2 SNe
-chain is reused for both roles. See `dataset_metadata.md` for a full
-description of the metadata fields. The reference tables remain
-read-only, while parser `.py` files and accompanying `metadata_*.yml`
-files may be updated.
+constructing output filenames. The loaders now attach `dataset_version`
+and `data_path` so manifests retain the release tag and the exact source
+directory. They also populate `independence_assumptions` with the
+statements quoted in `copernican_lib/config_schemas/run_config.yml`.
+Finally, the loaders compute a SHA256 digest for every non-parser file in
+the dataset directory. These hashes are stored on `df.attrs['file_hashes']`
+and logged so manifests can reproduce exact inputs. BAO DataFrames
+additionally carry a `model_prediction` column which is populated during
+analysis and now remains consistent even when the suite compares a model
+against itself because the Stage 2 SNe chain is reused for both roles. See
+`dataset_metadata.md` for a full description of the metadata fields. The
+reference tables remain read-only, while parser `.py` files and
+accompanying `metadata_*.yml` files may be updated.
 
 When the MCMC engine runs it writes NetCDF chains that capture burn-in and
 production lengths, per-walker acceptance fractions, the complete

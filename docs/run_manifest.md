@@ -7,7 +7,10 @@ folder.  The file is named `run_manifest_<timestamp>.yml` and records:
 - Copernican Suite version under `copernican.version`
 - Selected model and engine names with their versions
 - Parameter priors and the random seed
-- Dataset identifiers with SHA256 hashes of input files
+- Dataset identifiers, names and release versions with SHA256 hashes of input
+  files
+- Independence statements confirming that SNe, BAO and CMB likelihoods were
+  treated as statistically separate when building the joint posterior
 - The Git commit hash and whether the tree was dirty
 - Per-engine extras such as MCMC burn-in length, production steps and
   acceptance fractions when the SNe sampler is used

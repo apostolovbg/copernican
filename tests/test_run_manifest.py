@@ -28,7 +28,16 @@ def test_manifest_contains_required_fields():
         manifest = run_manifest.build_manifest(
             models=[(_dummy_plugin(), "1.0")],
             engine_module=engine,
-            datasets=[("ds", tmpdir, file_hashes)],
+            datasets=[
+                {
+                    "id": "ds",
+                    "name": "Dummy dataset",
+                    "version": "2025.10",
+                    "path": tmpdir,
+                    "hashes": file_hashes,
+                    "independence": "Assumed independent test input",
+                }
+            ],
         )
         path = run_manifest.save_manifest(manifest, tmpdir)
         with open(path, "r", encoding="utf-8") as fh:
@@ -37,7 +46,14 @@ def test_manifest_contains_required_fields():
         assert loaded["engine"]["name"] == "engine"
         assert loaded["seed"] == 123
         assert "ds" in loaded["datasets"]
-        hashes = loaded["datasets"]["ds"]["hashes"]
+        ds_entry = loaded["datasets"]["ds"]
+        assert ds_entry["name"] == "Dummy dataset"
+        assert ds_entry["version"] == "2025.10"
+        assert ds_entry["path"] == tmpdir
+        assert ds_entry["independence"] == [
+            "Assumed independent test input",
+        ]
+        hashes = ds_entry["hashes"]
         assert "data.txt" in hashes
         assert hashes["data.txt"] == file_hashes["data.txt"]
         assert len(loaded["git"]["commit"]) == 40

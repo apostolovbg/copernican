@@ -27,6 +27,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     "dataset_name": "Dummy SNe",
                     "dataset_id": "dummy_sne",
                     "description": "test set",
+                    "version": "1.0-test",
                 }
                 with open(
                     os.path.join(tmp, "metadata_dummy.yml"),
@@ -52,6 +53,12 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                 self.assertEqual(df.attrs["dataset_name"], "Dummy SNe")
                 self.assertEqual(df.attrs["dataset_id"], "dummy_sne")
                 self.assertEqual(len(df), 1)
+                self.assertEqual(df.attrs["dataset_version"], "1.0-test")
+                self.assertEqual(df.attrs["data_path"], tmp)
+                self.assertEqual(
+                    df.attrs["independence_assumptions"],
+                    data_loaders.INDEPENDENCE_ASSUMPTIONS["sne"],
+                )
         finally:
             data_loaders.SNE_PARSERS = prev
 

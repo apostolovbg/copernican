@@ -20,6 +20,12 @@ dates. Follow this template:
 ```
 ## Log changes here
 
+## Version 6.5.0
+- 2025-10-30: Centralised SNe/BAO/CMB dataset loading, recorded dataset names,
+  versions and independence statements in manifests, documented the new
+  `run_config` schema, refreshed metadata and bumped suite metadata (OpenAI
+  ChatGPT)
+
 ## Version 6.4.0
 - 2025-10-30: Added an explicit `fixed` prior class with canonical
   normalisation, enforced strict `type` fields in the model schema, promoted
