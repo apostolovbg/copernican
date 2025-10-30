@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-10-29
+**Last Updated:** 2025-10-30
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -271,8 +271,9 @@ these rules:
     convey their purpose without unnecessary length.**
 11. **Use raw strings or escape backslashes explicitly to avoid invalid escape
     sequence warnings in docstrings or string literals.**
-12. **Run `pre-commit` on all modified files before committing to enforce
-    Black, Isort, Ruff and Flake8 checks.**
+12. **Run `pre-commit run --all-files` before committing so Black, Isort, Ruff,
+    Flake8 and the Copernican policy hook enforce formatting, whitespace,
+    metadata and print-free library rules.**
 13. **Do not redistribute the Copernican Suite in full or assert patent
     claims; the license forbids these actions.**
 14. **Keep individual lines under 79 characters to maintain readability.**
@@ -306,6 +307,11 @@ these rules:
    --output-file requirements.lock` (or simply `make lock`), commit the
    updated `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`.
    The local pre-commit hook provisions `pip-tools==7.4.1` automatically
+
+   The lockfile header now strips Python version banners during the
+   `make lock` workflow so CI runs on Python 3.11 or 3.12 yield
+   identical results.
+
    before invoking `make lock` so the workflow succeeds even in clean CI
    environments.
 23. **Verify every `Last Updated` field reflects the actual current date**
