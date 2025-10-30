@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-02-14
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all
@@ -7,8 +7,12 @@ reusable modules that were previously found under `scripts/`.  Engines
 and data parsers import utilities from this package so they can remain
 focused on numerical work.  As of version 4.3.26 the shared statistical
 helpers were extracted into `copernican_lib/statistics.py`, giving every engine
-a single implementation of the SNe, BAO and CMB chi-squared calculations and
-ensuring future improvements propagate automatically.
+a single implementation of the SNe, BAO and CMB chi-squared calculations.
+Version 6.1.0 introduces `copernican_lib/likelihoods/`, a dedicated package
+providing reusable log-likelihood helpers and a `JointLike` aggregator while
+`statistics.py` exposes thin wrappers for backward compatibility.  Version
+6.1.1 tidies the package exports so imports resolve deterministically across
+the suite's lint and packaging workflows.
 
 With the retirement of the deterministic combined optimiser the suite now
 ships solely with the `cosmo_engine_mcmc` backend.  Engines remain pluggable

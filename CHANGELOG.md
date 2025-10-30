@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-02-14
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,17 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 6.1.1
+- 2025-02-14: Restored import ordering in the likelihood package to satisfy
+  style linters, refreshed documentation metadata, and bumped the suite
+  version (OpenAI ChatGPT)
+
+## Version 6.1.0
+- 2025-10-30: Introduced the `copernican_lib/likelihoods` package with reusable
+  dataset log-likelihood helpers, migrated χ² logic out of `statistics.py`,
+  added a configurable joint likelihood aggregator, refreshed documentation
+  and bumped suite metadata (OpenAI ChatGPT)
 
 ## Version 6.0.14
 - 2025-10-30: Normalised the dependency lock workflow by dropping the
@@ -56,7 +67,7 @@ put dates that are in the future or in the past! Follow this template:
   its pip toolchain and bumped the recorded suite version (OpenAI ChatGPT)
 
 ## Version 6.0.8
-- 2025-11-24: Enforced Python 3.12+ across all start launchers, rebuilt the
+- 2025-10-30: Enforced Python 3.12+ across all start launchers, rebuilt the
   dependency lock with the released ArviZ 0.22.0 for NumPy 2 support,
   refreshed documentation and bumped suite metadata (OpenAI ChatGPT)
 
