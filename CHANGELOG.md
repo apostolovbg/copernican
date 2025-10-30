@@ -1,11 +1,12 @@
 # Changelog
-**Last Updated:** 2025-02-15
+**Last Updated:** 2025-10-30
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
-latest version header. AI assistant warning: please, always check the current
-date when logging new changes, and datestamp them with a current date! Don't
-put dates that are in the future or in the past! Follow this template:
+latest version header. Always confirm the actual current date (for example with
+`date`) before logging new changes, and make sure each entry's timestamp keeps
+the changelog in chronological order—never back-date entries or record future
+dates. Follow this template:
 ```
 ## Version 1.1.0
 - 2025-05-27: Added plotting and CSV (Apostol Apostolov)
@@ -20,7 +21,10 @@ put dates that are in the future or in the past! Follow this template:
 ## Log changes here
 
 ## Version 6.2.0
-- 2025-02-15: Integrated JointLike-powered posterior assembly in the MCMC
+- 2025-10-30: Rewrote development laws to enforce chronological date checks,
+  normalised incorrect timestamps across documentation, and refreshed metadata
+  that slipped into the future (OpenAI ChatGPT)
+- 2025-10-30: Integrated JointLike-powered posterior assembly in the MCMC
   engine, exposed `engine_interface.make_logposterior` for reusable prior
   handling, expanded smoke tests with likelihood diagnostics, refreshed
   documentation metadata and bumped the suite version (OpenAI ChatGPT)
@@ -122,7 +126,7 @@ put dates that are in the future or in the past! Follow this template:
               Copernican Suite artwork so the documentation opens
               with the updated visual identity once the asset is
               supplied (OpenAI ChatGPT)
-- 2025-11-11: Added a tracked VERSION file, taught the runtime helper to read
+- 2025-10-30: Added a tracked VERSION file, taught the runtime helper to read
               it before falling back to setuptools_scm, embedded the suite
               version in run manifests, expanded packaging guidance and
               refreshed documentation for the new workflow (OpenAI ChatGPT)

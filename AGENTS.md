@@ -314,10 +314,16 @@ these rules:
 
    before invoking `make lock` so the workflow succeeds even in clean CI
    environments.
-23. **Verify every `Last Updated` field reflects the actual current date**
-   before committing. Investigate prior human edits to understand their
-   intent and never overwrite those timestamps without confirming they are
-   genuinely stale.
+23. **Validate every timestamp before recording it.** Confirm the real
+    current date (for example with the `date` command) before updating any
+    `Last Updated` field or logging changes, and cross-check changelog entries
+    so their dates never jump backward or forward relative to prior records.
+    Do not introduce historical gaps, future-dated entries or other
+    chronological inconsistencies.
+24. **Preserve human-authored edits across the project.** Respect the
+    structure, wording and intent of human-made changes—including timestamps
+    and metadata—and only revise them when a human explicitly requests an
+    update or when correcting objective errors they identify.
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 
