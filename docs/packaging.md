@@ -1,14 +1,20 @@
 # Packaging Guide
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-10-30 17:02 UTC
 This document explains how to prepare the suite for development or packaging.
 
-## Install Python 3.12+
+CAMB only publishes wheels for Python 3.11 today, so the suite intentionally
+sticks to that interpreter until upstream catches up. Blocking newer Python
+versions avoids forcing contributors to compile CAMB locally during bootstrap.
 
-The `start.*` launchers always download a private Python 3.12+ into
-`.python`, ignoring any system interpreter. They now delete legacy
-downloads that predate Python 3.12 and rebuild `.venv` automatically if it
-ever points at an older interpreter. They refuse to run when another
-virtual environment is active so the repository's `.venv` is always used.
+## Install Python 3.11
+
+The `start.*` launchers always download a private Python 3.11 interpreter into
+`.python`, ignoring any system interpreter. They now delete legacy downloads
+that fall outside the Python 3.11 series and rebuild `.venv` automatically if it
+ever points at an unsupported interpreter. They refuse to run when another
+virtual environment is active so the repository's `.venv` is always used. This
+guard also prunes stray Python 3.12 downloads before the environment is
+recreated, keeping the managed toolchain inside the supported window.
 If the download fails the scripts exit with guidance.
 
 On Windows the launcher now constructs the download URL without command
@@ -76,7 +82,7 @@ snapshots and tagged releases.
 Run `make lock` whenever `requirements.in` changes. The helper installs
 `pip-tools==7.4.1` on demand, strips the interpreter banner from the
 generated header and rewrites the `# Last Updated` marker so Python
-3.11 and 3.12 runs produce byte-for-byte identical lockfiles in CI.
+Python 3.11 runs produce byte-for-byte identical lockfiles in CI.
 
 ### Custom version strings
 

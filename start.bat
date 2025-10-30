@@ -1,14 +1,15 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-10-30
+@REM Last Updated: 2025-10-30 16:40 UTC
 @echo off
 set "PKG_NOTICE=Package managers may request your password. The Copernican"
 set "PKG_NOTICE=%PKG_NOTICE% Suite never reads or stores it."
 REM Start the Copernican Suite on Windows.
 REM
-REM The script downloads a private Python 3.12+ into '.python', creates a
-REM virtual environment from it and re-executes itself inside that
-REM environment. System-wide Python installations are ignored.
+REM The script downloads a private Python 3.11 interpreter into '.python',
+REM creates a virtual environment from it and re-executes itself inside that
+REM environment. System-wide Python installations are ignored so Python
+REM 3.12 never leaks into the managed bootstrap sequence.
 
 setlocal
 cd %~dp0
@@ -18,12 +19,12 @@ set "PYBIN=%PYDIR%\python.exe"
 REM Precompute release metadata outside conditionals so cmd.exe expands
 REM each token correctly even without delayed expansion.
 set "BASE=https://github.com/astral-sh/python-build-standalone/releases"
-set "REL=20250828"
-set "VER=3.12.11"
+set "REL=20251028"
+set "VER=3.11.14"
 set "ARCH=amd64"
 set "URL_BASE=%BASE%/download/%REL%/"
 set "URL_FILE=cpython-%VER%+%REL%-%ARCH%-pc-windows-msvc-"
-set "URL_FILE=%URL_FILE%shared-install_only.tar.gz"
+set "URL_FILE=%URL_FILE%install_only.tar.gz"
 set "URL=%URL_BASE%%URL_FILE%"
 set "DOWNLOAD_URL=%URL%"
 set "DOWNLOAD_TAR=python.tar.gz"
@@ -41,13 +42,13 @@ if defined VIRTUAL_ENV (
     goto menu
 )
 
-REM Bootstrap a dedicated interpreter. Delete stale downloads that predate
-REM the Python 3.12 floor so the managed environment always satisfies the
-REM runtime requirement.
+REM Bootstrap a dedicated interpreter. Delete stale downloads that fall
+REM outside the Python 3.11 window so the managed environment always
+REM satisfies the runtime requirement.
 set "COPERNICAN_BOOTSTRAP=0"
 set "COPERNICAN_PYOK=0"
 if exist "%PYBIN%" (
-    for /f "delims=" %%I in ('"%PYBIN%" -c "import sys; print(1 if sys.version_info >= (3, 12) else 0)"') do set "COPERNICAN_PYOK=%%I"
+    for /f "delims=" %%I in ('"%PYBIN%" -c "import sys; print(1 if (3, 11) <= sys.version_info < (3, 12) else 0)"') do set "COPERNICAN_PYOK=%%I"
     if not defined COPERNICAN_PYOK set "COPERNICAN_PYOK=0"
     if not "%COPERNICAN_PYOK%"=="1" if exist "%PYDIR%" rmdir /s /q "%PYDIR%"
 )
@@ -73,7 +74,7 @@ set "PYTHON=%PYBIN%"
 REM Create the virtual environment when missing.
 set "COPERNICAN_VENV_OK=0"
 if exist .venv\Scripts\python.exe (
-    for /f "delims=" %%I in ('".venv\Scripts\python.exe" -c "import sys; print(1 if sys.version_info >= (3, 12) else 0)"') do set "COPERNICAN_VENV_OK=%%I"
+    for /f "delims=" %%I in ('".venv\Scripts\python.exe" -c "import sys; print(1 if (3, 11) <= sys.version_info < (3, 12) else 0)"') do set "COPERNICAN_VENV_OK=%%I"
     if not defined COPERNICAN_VENV_OK set "COPERNICAN_VENV_OK=0"
     if not "%COPERNICAN_VENV_OK%"=="1" rmdir /s /q .venv
 )

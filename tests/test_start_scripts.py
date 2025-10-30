@@ -37,7 +37,7 @@ class StartScriptTestCase(unittest.TestCase):
             self.start_bat,
         )
         self.assertIn(
-            'set "URL_FILE=%URL_FILE%shared-install_only.tar.gz"',
+            'set "URL_FILE=%URL_FILE%install_only.tar.gz"',
             self.start_bat,
         )
         self.assertIn('set "URL=%URL_BASE%%URL_FILE%"', self.start_bat)
@@ -57,6 +57,14 @@ class StartScriptTestCase(unittest.TestCase):
 
         self.assertIn(
             'if not exist "%PYDIR%" mkdir "%PYDIR%"',
+            self.start_bat,
+        )
+
+    def test_windows_launcher_limits_python_series(self) -> None:
+        """Confirm the launcher purges interpreters outside Python 3.11."""
+
+        self.assertIn(
+            "(3, 11) <= sys.version_info < (3, 12)",
             self.start_bat,
         )
 
