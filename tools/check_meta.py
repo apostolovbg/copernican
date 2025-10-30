@@ -38,6 +38,16 @@ def _version_file(path: Path) -> str:
     return path.read_text(encoding="utf-8").strip()
 
 
+def _posix_relative(path: Path, *, root: Path) -> str:
+    """Return a repository-relative POSIX path for stable diagnostics."""
+
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        relative = path
+    return relative.as_posix()
+
+
 def extract_last_updated_dates(text: str) -> List[_dt.date]:
     """Find every ``Last Updated`` timestamp embedded in *text*.
 
@@ -125,16 +135,15 @@ def validate_metadata(
 
     for target in _last_updated_targets(root):
         text = target.read_text(encoding="utf-8")
+        display_name = _posix_relative(target, root=root)
         dates = extract_last_updated_dates(text)
         if not dates:
-            errors.append(
-                f"{target.relative_to(root)} is missing a Last Updated marker."
-            )
+            errors.append(f"{display_name} is missing a Last Updated marker.")
             continue
         for stamp in dates:
             if stamp > current_date:
                 errors.append(
-                    f"{target.relative_to(root)} carries future timestamp"
+                    f"{display_name} carries future timestamp"
                     f" {stamp.isoformat()} (today is"
                     f" {current_date.isoformat()})."
                 )

@@ -1,4 +1,4 @@
-**Version:** 6.0.11
+**Version:** 6.0.13
 **Last Updated:** 2025-10-30
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -574,13 +574,20 @@ To start developing, install the suite in editable mode:
 pip install -e .
 ```
 
-Install and run the pre-commit hooks to apply Black, Isort, Ruff and Flake8
-checks:
+Install and run the pre-commit hooks to apply Black, Isort, Ruff, Flake8 and
+the Copernican policy checks:
 
 ```bash
 pre-commit install
-pre-commit run --files <changed files>
+pre-commit run --all-files
 ```
+
+The local `copernican-policy` hook verifies that no file declares a future
+"Last Updated" date, enforces version synchronisation between `README.md`,
+`CITATION.cff` and `copernican_lib/VERSION`, and forbids direct `print()`
+calls inside `copernican_lib/` modules outside the console helpers. The
+standard whitespace fixers, Ruff auto-fixes and formatting hooks run before
+the custom policy check to keep style adjustments automated.
 
 The local `make-lock` hook now bootstraps a dedicated Python environment and
 installs `pip-tools==7.4.1` before executing `make lock`. This keeps
@@ -597,10 +604,10 @@ Set `COPERNICAN_STRICT_WARNINGS=1` to treat all warnings as errors during
 any run. Set `COPERNICAN_AUTO_INSTALL=1` to install missing dependencies
 without prompting.
 
-Pull requests trigger a GitHub Actions workflow named ``Tests`` that runs
-pre-commit and the unit suite across Windows, macOS and Debian-based
-Linux. Each job executes inside a cached virtual environment for
-reproducibility and speed.
+Pull requests trigger the ``Lint`` workflow, which executes `pre-commit run
+--all-files`, and the ``Tests`` workflow, which runs the unit suite across
+Windows, macOS and Debian-based Linux. Each job executes inside a cached
+virtual environment for reproducibility and speed.
 
 Multiprocessing is used by several engines. The program enforces the `spawn`
 start method when it launches so that each worker process begins with a fresh

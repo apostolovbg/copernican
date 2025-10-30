@@ -19,6 +19,17 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 6.0.13
+- 2025-10-30: Normalised metadata and policy check outputs across Windows and
+  POSIX paths, pinned the lint workflow to pip-tools 7.4.1, made the lock
+  target explicit about --strip-extras and bumped suite metadata (OpenAI
+  ChatGPT)
+
+## Version 6.0.12
+- 2025-10-30: Added repository policy pre-commit checks for metadata dates,
+  version synchronisation and print-free libraries, expanded lint hooks and
+  documented the CI `pre-commit run --all-files` enforcement (OpenAI ChatGPT)
+
 ## Version 6.0.11
 - 2025-10-30: Removed `pip` and `pip-tools` from the runtime lock so Windows
   runs no longer attempt to replace the active installer, regenerated the
@@ -359,7 +370,7 @@ put dates that are in the future or in the past! Follow this template:
 ## Version 3.9.26
 - 2025-08-25: Routed optimisation progress to ``stdout`` so runs no longer
               appear to hang on Linux (OpenAI ChatGPT)
-              
+
 ## Version 3.9.25
 - 2025-08-25: Flushed console output to prevent apparent hangs on Linux and
               restricted detailed environment information to the log file
@@ -1410,4 +1421,3 @@ put dates that are in the future or in the past! Follow this template:
 - Removed GPU code for stability.
 - Implemented robust multiprocessing using `psutil`.
 - Added test mode and cache cleanup loop.
-
