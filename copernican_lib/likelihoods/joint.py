@@ -1,6 +1,6 @@
 """Joint likelihood helper combining individual dataset components.
 
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-02-14
 
 Aggregates SNe, BAO and CMB likelihoods (or any other helper implementing
 :class:`~copernican_lib.likelihoods.LikelihoodProtocol`).  Configuration flags
@@ -15,7 +15,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Any, Mapping, MutableMapping, Sequence
 
-from . import LikelihoodProtocol, LikelihoodState
+from ._protocol import LikelihoodProtocol, LikelihoodState
 
 
 @dataclass(slots=True)

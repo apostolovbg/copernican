@@ -1,6 +1,6 @@
 """Baryon Acoustic Oscillation likelihood helper.
 
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-02-14
 
 Reimplements the χ² evaluation previously exposed via
 ``copernican_lib.statistics.chi_squared_bao`` while preserving support for
@@ -16,7 +16,7 @@ from typing import Any, Mapping, Sequence
 
 import numpy as np
 
-from . import LikelihoodProtocol, LikelihoodState
+from ._protocol import LikelihoodProtocol, LikelihoodState
 
 
 @dataclass(slots=True)
@@ -53,9 +53,7 @@ class BAOLike(LikelihoodProtocol):
             get_DM = getattr(self.model_plugin, "get_comoving_distance_Mpc")
             get_Hz = getattr(self.model_plugin, "get_Hz_per_Mpc")
             get_DV = getattr(self.model_plugin, "get_DV_Mpc", None)
-            get_rs = getattr(
-                self.model_plugin, "get_sound_horizon_rs_Mpc"
-            )
+            get_rs = getattr(self.model_plugin, "get_sound_horizon_rs_Mpc")
             C_LIGHT = self.model_plugin.FIXED_PARAMS.get(
                 "C_LIGHT_KM_S",
                 299792.458,

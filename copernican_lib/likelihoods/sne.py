@@ -1,6 +1,6 @@
 """Supernova Ia likelihood helper.
 
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-02-14
 
 Wraps the covariance-aware χ² evaluation previously implemented in
 ``copernican_lib.statistics`` so engines can reuse it without duplicating
@@ -18,7 +18,7 @@ from typing import Any, Callable, Mapping, Sequence
 import numpy as np
 import pandas as pd
 
-from . import LikelihoodProtocol, LikelihoodState
+from ._protocol import LikelihoodProtocol, LikelihoodState
 
 
 @dataclass(slots=True)
@@ -54,9 +54,7 @@ class SNeLike(LikelihoodProtocol):
         z_data = df["zcmb"].to_numpy(dtype=float)
         mu_obs = df["mu_obs"].to_numpy(dtype=float)
         if np.any(~np.isfinite(z_data)) or np.any(~np.isfinite(mu_obs)):
-            logger.error(
-                "SNe data contains non-finite zcmb or mu_obs values"
-            )
+            logger.error("SNe data contains non-finite zcmb or mu_obs values")
             self._state = LikelihoodState()
             return float("-inf")
 

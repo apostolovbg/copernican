@@ -1,6 +1,6 @@
 """Unit tests for likelihood helper classes.
 
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-02-14
 """
 
 from __future__ import annotations
@@ -120,9 +120,7 @@ class LikelihoodTestCase(unittest.TestCase):
         component_sum = sum(
             state["loglike"] for state in component_states.values()
         )
-        chi2_sum = sum(
-            state["chi2"] for state in component_states.values()
-        )
+        chi2_sum = sum(state["chi2"] for state in component_states.values())
 
         self.assertAlmostEqual(joint_loglike, component_sum, places=8)
         self.assertAlmostEqual(joint.state["chi2"], chi2_sum, places=8)

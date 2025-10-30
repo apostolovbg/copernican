@@ -1,6 +1,6 @@
 """Cosmic Microwave Background likelihood helper.
 
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-02-14
 
 Provides the CAMB spectrum wrappers and covariance-aware χ² evaluation for the
 Planck lite dataset as well as future CMB releases.  The helper mirrors the
@@ -19,7 +19,7 @@ import camb
 import numpy as np
 import pandas as pd
 
-from . import LikelihoodProtocol, LikelihoodState
+from ._protocol import LikelihoodProtocol, LikelihoodState
 
 
 @lru_cache(maxsize=128)

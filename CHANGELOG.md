@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-02-14
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,11 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 6.1.1
+- 2025-02-14: Restored import ordering in the likelihood package to satisfy
+  style linters, refreshed documentation metadata, and bumped the suite
+  version (OpenAI ChatGPT)
 
 ## Version 6.1.0
 - 2025-10-30: Introduced the `copernican_lib/likelihoods` package with reusable
