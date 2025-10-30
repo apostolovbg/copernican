@@ -147,13 +147,13 @@ prompts the user to
 restart via the appropriate launcher. This lightweight approach works across
 Windows, macOS and Linux while allowing new engines to introduce additional
 dependencies without manual updates to the documentation.
-The launchers print a notice before invoking `sudo`, `brew` or `winget` so
-users know any password prompt originates from the package manager and is
-never read or stored. `sudo -k` and explicit prompts ensure the operating
-system handles all credential entry.
-ArviZ is installed from commit
-`01c8b9454349247eed2145a27b03f9231acb412f` of the upstream repository to
-avoid its former `numpy<2` restriction without maintaining a fork.
+The launchers delete bundled interpreters older than Python 3.12, recreate
+`.venv` when its Python falls below that floor and print a notice before
+invoking `sudo`, `brew` or `winget` so users know any password prompt
+originates from the package manager and is never read or stored. `sudo -k`
+and explicit prompts ensure the operating system handles all credential
+entry. ArviZ ships as the released `0.22.0` build, which already supports
+NumPy 2 so the dependency set no longer relies on a pinned commit archive.
 
 `requirements.lock` pins exact versions for all runtime
 packages, and `[project].dependencies` in `pyproject.toml` mirrors these pins.

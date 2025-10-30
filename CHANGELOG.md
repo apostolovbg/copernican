@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-11-24
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,11 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 6.0.8
+- 2025-11-24: Enforced Python 3.12+ across all start launchers, rebuilt the
+  dependency lock with the released ArviZ 0.22.0 for NumPy 2 support,
+  refreshed documentation and bumped suite metadata (OpenAI ChatGPT)
 
 ## Version 6.0.7
 - 2025-10-30: Added a metadata validation script that enforces synchronized

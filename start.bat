@@ -1,6 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-11-05
+@REM Last Updated: 2025-11-24
 @echo off
 set "PKG_NOTICE=Package managers may request your password. The Copernican"
 set "PKG_NOTICE=%PKG_NOTICE% Suite never reads or stores it."
@@ -41,9 +41,19 @@ if defined VIRTUAL_ENV (
     goto menu
 )
 
-REM Bootstrap a dedicated interpreter.
+REM Bootstrap a dedicated interpreter. Delete stale downloads that predate
+REM the Python 3.12 floor so the managed environment always satisfies the
+REM runtime requirement.
 set "COPERNICAN_BOOTSTRAP=0"
-if not exist "%PYBIN%" (
+set "COPERNICAN_PYOK=0"
+if exist "%PYBIN%" (
+    for /f "delims=" %%I in ('"%PYBIN%" -c "import sys; print(1 if sys.version_info >= (3, 12) else 0)"') do set "COPERNICAN_PYOK=%%I"
+    if not defined COPERNICAN_PYOK set "COPERNICAN_PYOK=0"
+    if not "%COPERNICAN_PYOK%"=="1" if exist "%PYDIR%" rmdir /s /q "%PYDIR%"
+)
+if not exist "%PYBIN%" set "COPERNICAN_BOOTSTRAP=1"
+if exist "%PYBIN%" if not "%COPERNICAN_PYOK%"=="1" set "COPERNICAN_BOOTSTRAP=1"
+if "%COPERNICAN_BOOTSTRAP%"=="1" (
     REM Create the extraction target before unpacking the archive.
     if not exist "%PYDIR%" mkdir "%PYDIR%"
     REM Fail fast when the computed URL is blank so the user sees a clear
@@ -52,7 +62,6 @@ if not exist "%PYBIN%" (
         echo Copernican Suite download URL is empty.
         exit /b 1
     )
-    set "COPERNICAN_BOOTSTRAP=1"
 )
 if "%COPERNICAN_BOOTSTRAP%"=="1" call :download_python "%DOWNLOAD_URL%" "%DOWNLOAD_TAR%"
 if errorlevel 1 exit /b 1
@@ -62,6 +71,12 @@ if "%COPERNICAN_BOOTSTRAP%"=="1" del python.tar.gz
 set "PYTHON=%PYBIN%"
 
 REM Create the virtual environment when missing.
+set "COPERNICAN_VENV_OK=0"
+if exist .venv\Scripts\python.exe (
+    for /f "delims=" %%I in ('".venv\Scripts\python.exe" -c "import sys; print(1 if sys.version_info >= (3, 12) else 0)"') do set "COPERNICAN_VENV_OK=%%I"
+    if not defined COPERNICAN_VENV_OK set "COPERNICAN_VENV_OK=0"
+    if not "%COPERNICAN_VENV_OK%"=="1" rmdir /s /q .venv
+)
 if not exist .venv (
     "%PYTHON%" -m venv .venv
 )

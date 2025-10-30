@@ -1,5 +1,5 @@
 # Third-Party Licenses
-**Last Updated:** 2025-09-22
+**Last Updated:** 2025-11-24
 
 The Copernican Suite relies on the following runtime dependencies. Their
 versions and license texts are shipped under [`licenses/`](licenses/) so
@@ -33,7 +33,7 @@ users can review the full terms offline.
 | pip-tools | 7.4.1 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | pip | 25.2 | [MIT](licenses/MIT.txt) |
 | pyproject-hooks | 1.2.0 | [MIT](licenses/MIT.txt) |
-| arviz | git 01c8b9454349 | [Apache-2.0](licenses/Apache-2.0.txt) |
+| arviz | 0.22.0 | [Apache-2.0](licenses/Apache-2.0.txt) |
 | contourpy | 1.3.3 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | cycler | 0.12.1 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | fonttools | 4.55.3 | [MIT](licenses/MIT.txt) |

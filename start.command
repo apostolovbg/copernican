@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-09-30
+# Last Updated: 2025-11-24
 
 # Start the Copernican Suite on macOS.
 #
@@ -81,6 +81,11 @@ fi
 # Always bootstrap a dedicated interpreter.
 PY_DIR="$(pwd)/.python"
 PY_BIN="$PY_DIR/bin/python3"
+# Delete any interpreter older than Python 3.12 before reuse so legacy
+# downloads never survive across upgrades.
+if [ -x "$PY_BIN" ] && ! "$PY_BIN" -c 'import sys; exit(0 if sys.version_info >= (3, 12) else 1)'; then
+    rm -rf "$PY_DIR"
+fi
 if [ ! -x "$PY_BIN" ]; then
     mkdir -p "$PY_DIR"
     BASE="https://github.com/astral-sh/python-build-standalone/releases"
@@ -101,6 +106,9 @@ fi
 PYTHON="$PY_BIN"
 
 # Build the environment when missing.
+if [ -x ".venv/bin/python" ] && ! .venv/bin/python -c 'import sys; exit(0 if sys.version_info >= (3, 12) else 1)'; then
+    rm -rf .venv
+fi
 if [ ! -d ".venv" ]; then
     "$PYTHON" -m venv .venv
 fi
