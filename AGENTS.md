@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-10-29
+**Last Updated:** 2025-10-30
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -307,6 +307,11 @@ these rules:
    --output-file requirements.lock` (or simply `make lock`), commit the
    updated `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`.
    The local pre-commit hook provisions `pip-tools==7.4.1` automatically
+
+   The lockfile header now strips Python version banners during the
+   `make lock` workflow so CI runs on Python 3.11 or 3.12 yield
+   identical results.
+
    before invoking `make lock` so the workflow succeeds even in clean CI
    environments.
 23. **Verify every `Last Updated` field reflects the actual current date**

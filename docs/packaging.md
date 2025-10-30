@@ -71,6 +71,13 @@ packaged wheels display the intended identifier even before a Git tag is cut.
 Keeping the two locations aligned prevents confusion between development
 snapshots and tagged releases.
 
+### Regenerating dependency locks
+
+Run `make lock` whenever `requirements.in` changes. The helper installs
+`pip-tools==7.4.1` on demand, strips the interpreter banner from the
+generated header and rewrites the `# Last Updated` marker so Python
+3.11 and 3.12 runs produce byte-for-byte identical lockfiles in CI.
+
 ### Custom version strings
 
 Set the ``COPERNICAN_VERSION`` environment variable before building to

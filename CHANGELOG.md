@@ -19,6 +19,12 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 6.0.14
+- 2025-10-30: Normalised the dependency lock workflow by dropping the
+  Python interpreter banner, ensured the `make lock` helper keeps
+  cross-platform runs byte-identical, refreshed documentation and
+  bumped suite metadata (OpenAI ChatGPT)
+
 ## Version 6.0.13
 - 2025-10-30: Normalised metadata and policy check outputs across Windows and
   POSIX paths, pinned the lint workflow to pip-tools 7.4.1, made the lock

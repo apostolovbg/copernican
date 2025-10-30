@@ -1,4 +1,4 @@
-**Version:** 6.0.13
+**Version:** 6.0.14
 **Last Updated:** 2025-10-30
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -209,6 +209,9 @@ regenerating locks; they guarantee the module resolves to the pinned
 version of `pip-tools`. The `make lock` target wraps
 `python -m piptools compile --allow-unsafe`, so law 22 under
 "AI-driven and human development" covers this workflow explicitly.
+To keep CI reproducible across Python 3.11 and 3.12, the target
+normalises the generated header so reruns stop rewriting the
+interpreter banner.
 Running `copernican.py` directly now fails with a message directing you to
 use the `start.*` helpers. Future engines may also depend on `numba` or GPU
 libraries.
