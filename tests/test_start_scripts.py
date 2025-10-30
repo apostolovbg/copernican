@@ -37,7 +37,7 @@ class StartScriptTestCase(unittest.TestCase):
             self.start_bat,
         )
         self.assertIn(
-            'set "URL_FILE=%URL_FILE%shared-install_only.tar.gz"',
+            'set "URL_FILE=%URL_FILE%install_only.tar.gz"',
             self.start_bat,
         )
         self.assertIn('set "URL=%URL_BASE%%URL_FILE%"', self.start_bat)
