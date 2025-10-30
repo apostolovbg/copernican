@@ -18,12 +18,8 @@ attrs==23.2.0
     #   -r requirements.in
     #   jsonschema
     #   referencing
-build==1.3.0
-    # via pip-tools
 camb==1.6.3
     # via -r requirements.in
-click==8.3.0
-    # via pip-tools
 colorama==0.4.6
     # via -r requirements.in
 contourpy==1.2.0
@@ -84,7 +80,6 @@ packaging==24.2
     #   -r requirements.in
     #   arviz
     #   astropy
-    #   build
     #   camb
     #   h5netcdf
     #   matplotlib
@@ -100,8 +95,6 @@ pillow==10.3.0
     # via
     #   -r requirements.in
     #   matplotlib
-pip-tools==7.4.1
-    # via -r requirements.in
 pluggy==1.5.0
     # via
     #   -r requirements.in
@@ -116,10 +109,6 @@ pyparsing==3.1.1
     # via
     #   -r requirements.in
     #   matplotlib
-pyproject-hooks==1.2.0
-    # via
-    #   build
-    #   pip-tools
 pytest==8.2.2
     # via -r requirements.in
 python-dateutil==2.9.0.post0
@@ -171,9 +160,7 @@ tzdata==2024.1
     #   -r requirements.in
     #   pandas
 wheel==0.43.0
-    # via
-    #   -r requirements.in
-    #   pip-tools
+    # via -r requirements.in
 xarray==2023.12.0
     # via
     #   -r requirements.in
@@ -185,13 +172,8 @@ xarray-einstats==0.6.0
     #   arviz
 
 # The following packages are considered to be unsafe in a requirements file:
-pip==24.2
-    # via
-    #   -r requirements.in
-    #   pip-tools
 setuptools==69.5.1
     # via
     #   -r requirements.in
     #   arviz
-    #   pip-tools
     #   setuptools-scm

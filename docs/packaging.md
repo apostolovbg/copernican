@@ -33,9 +33,9 @@ start and ignores globally installed packages:
 - `start.command` on macOS
 - `start.sh` on Linux
 
-The script creates or reuses `.venv` from the bundled interpreter, pins
-`pip` to `24.2`, installs packages from `requirements.lock` and installs the
-project itself with `pip install --no-deps .`. ArviZ now ships as the
+The script creates or reuses `.venv` from the bundled interpreter, upgrades
+`pip` to the latest stable release, installs packages from `requirements.lock`
+and installs the project itself with `pip install --no-deps .`. ArviZ now ships as the
 widely available `0.16.1` release alongside `numpy==1.26.4`,
 `scipy==1.12.0`, `matplotlib==3.8.2` and `pandas==2.2.1`,
 ensuring every platform pulls published wheels instead of attempting source

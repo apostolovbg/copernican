@@ -1,4 +1,4 @@
-**Version:** 6.0.10
+**Version:** 6.0.11
 **Last Updated:** 2025-10-30
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -186,8 +186,9 @@ start so the suite always uses its managed `.venv`.
 
 Versions for all runtime dependencies are pinned in
 `requirements.lock`. The manifest lists the same wheel-friendly releases as
-`pyproject.toml` and adds a bootstrap pin for `pip==24.2`, including
-helpers such as `xarray-einstats==0.6.0`,
+`pyproject.toml`, and the CI bootstrap upgrades `pip` to 24.2 before it
+resolves the lock so Windows installers never attempt to overwrite the
+running binary. Helper libraries such as `xarray-einstats==0.6.0`,
 `typing_extensions==4.10.0`, Matplotlib's rendering stack
 (`contourpy==1.2.0`, `cycler==0.12.1`, `fonttools==4.51.0`,
 `kiwisolver==1.4.5`, `pillow==10.3.0`, `pyparsing==3.1.1`), the timezone
@@ -195,16 +196,18 @@ tooling (`python-dateutil==2.9.0.post0`, `six==1.16.0`, `pytz==2024.1`,
 `tzdata==2024.1`) and supporting libraries such as
 `packaging==24.2`, `attrs==23.2.0`, `jsonschema-specifications==2023.12.1`,
 `referencing==0.34.0`, `rpds-py==0.18.0`, `pyerfa==2.0.1.1` and
-`astropy-iers-data==0.2024.10.28.0.34.7`. When a package is missing the
-program asks before running `pip install -r requirements.lock` and verifies
-each import. Set `COPERNICAN_AUTO_INSTALL=1` to skip the prompt in automated
-environments. Regenerate both files together whenever dependencies change so
-the suite and published wheels remain in sync.
-`pip-tools` now ships alongside the runtime stack so `python -m piptools
-compile` is always available before running `make lock`. Use the bundled
-start scripts to enter the managed environment before regenerating locks; they
-guarantee the module resolves to the pinned version. The `make lock` target
-wraps `python -m piptools compile --allow-unsafe`, so law 22 under
+`astropy-iers-data==0.2024.10.28.0.34.7` remain pinned to the published
+wheels. When a package is missing the program asks before running
+`pip install -r requirements.lock` and verifies each import. Set
+`COPERNICAN_AUTO_INSTALL=1` to skip the prompt in automated environments.
+Regenerate both files together whenever dependencies change so the suite and
+published wheels remain in sync. The pre-commit hook provisions
+`pip-tools==7.4.1` on demand before it runs `make lock`, so the runtime
+environment no longer carries `pip-tools` or `pip` in the lock file.
+Use the bundled start scripts to enter the managed environment before
+regenerating locks; they guarantee the module resolves to the pinned
+version of `pip-tools`. The `make lock` target wraps
+`python -m piptools compile --allow-unsafe`, so law 22 under
 "AI-driven and human development" covers this workflow explicitly.
 Running `copernican.py` directly now fails with a message directing you to
 use the `start.*` helpers. Future engines may also depend on `numba` or GPU

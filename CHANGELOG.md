@@ -19,6 +19,12 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 6.0.11
+- 2025-10-30: Removed `pip` and `pip-tools` from the runtime lock so Windows
+  runs no longer attempt to replace the active installer, regenerated the
+  dependency snapshot, refreshed CI and developer guidance, and bumped the
+  recorded suite metadata (OpenAI ChatGPT)
+
 ## Version 6.0.10
 - 2025-10-30: Rebuilt the dependency lock against currently published
   wheels, pinned the bootstrapper to `pip==24.2`, updated CI workflows to
