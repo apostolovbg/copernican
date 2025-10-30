@@ -1,7 +1,7 @@
 # Documentation Policy
 
 **Version:** 1.0
-**Last Updated:** 2025-10-28
+**Last Updated:** 2025-10-30
 
 The Copernican Suite treats documentation as a first-class component of the
 project. Every development task must include a documentation refresh that does
