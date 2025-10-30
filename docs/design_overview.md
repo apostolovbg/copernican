@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-02-15
+**Last Updated:** 2025-10-30
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all

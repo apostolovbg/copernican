@@ -1,5 +1,5 @@
 **Version:** 6.2.0
-**Last Updated:** 2025-02-15
+**Last Updated:** 2025-10-30
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -749,10 +749,16 @@ accurately** convey their purpose without unnecessary length.
 >    Run `python -m piptools compile requirements.in --allow-unsafe
 >    --output-file requirements.lock` (or simply `make lock`), commit the
 >    updated `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`.
-> 23. **Verify every `Last Updated` field reflects the actual current date**
->     before committing. Investigate prior human edits to understand their
->     intent and never overwrite those timestamps without confirming they are
->     genuinely stale.
+> 23. **Validate every timestamp before recording it.** Confirm the real
+>     current date (for example with the `date` command) before updating any
+>     `Last Updated` field or logging changes, and cross-check changelog
+>     entries so their dates never jump backward or forward relative to prior
+>     records. Do not introduce historical gaps, future-dated entries or other
+>     chronological inconsistencies.
+> 24. **Preserve human-authored edits across the project.** Respect the
+>     structure, wording and intent of human-made changes—including timestamps
+>     and metadata—and only revise them when a human explicitly requests an
+>     update or when correcting objective errors they identify.
 >
 > Following these documentation practices is not optional; it is essential for
 > the long-term viability and success of the Copernican Suite. Failure to
