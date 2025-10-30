@@ -1,4 +1,4 @@
-**Version:** 6.0.12
+**Version:** 6.0.13
 **Last Updated:** 2025-10-30
 
 ![Copernican Suite banner](docs/banner_github.png)

@@ -25,7 +25,8 @@ jobs:
           .venv/bin/python -m pip install pip==24.2
           .venv/bin/python -m pip install -r requirements.lock
           .venv/bin/python -m pip install --no-deps .
-          .venv/bin/python -m pip install pre-commit pip-tools
+          .venv/bin/python -m pip install pre-commit
+          .venv/bin/python -m pip install pip-tools==7.4.1
 
       - name: Run pre-commit
         run: .venv/bin/pre-commit run --all-files

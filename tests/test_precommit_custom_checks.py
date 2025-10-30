@@ -6,7 +6,6 @@ import datetime as dt
 import importlib.util
 from pathlib import Path
 
-
 MODULE_PATH = (
     Path(__file__).resolve().parents[1]
     / "tools"
@@ -44,9 +43,9 @@ def test_check_version_sync_detects_mismatched_versions(tmp_path) -> None:
     citation = (
         "# Last Updated: 2025-10-30\n"
         "cff-version: 1.2.0\n"
-        "version: \"1.2.3\"\n"
+        'version: "1.2.3"\n'
         "preferred-citation:\n"
-        "  version: \"1.2.3\"\n"
+        '  version: "1.2.3"\n'
     )
     (root / "CITATION.cff").write_text(citation, encoding="utf-8")
     errors = MODULE._check_version_sync(root)

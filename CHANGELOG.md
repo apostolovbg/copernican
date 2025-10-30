@@ -19,6 +19,12 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 6.0.13
+- 2025-10-30: Normalised metadata and policy check outputs across Windows and
+  POSIX paths, pinned the lint workflow to pip-tools 7.4.1, made the lock
+  target explicit about --strip-extras and bumped suite metadata (OpenAI
+  ChatGPT)
+
 ## Version 6.0.12
 - 2025-10-30: Added repository policy pre-commit checks for metadata dates,
   version synchronisation and print-free libraries, expanded lint hooks and
