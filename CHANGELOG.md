@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-10-30 17:02 UTC
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -19,6 +19,11 @@ dates. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 6.5.2
+- 2025-10-30: Hardened all launchers to purge Python 3.12 interpreters, added
+  explicit range guards to the bootstrap tests, refreshed documentation and
+  metadata, and bumped the recorded suite version (OpenAI ChatGPT)
 
 ## Version 6.5.1
 - 2025-10-30: Reverted the managed interpreter to Python 3.11 across all

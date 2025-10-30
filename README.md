@@ -1,4 +1,4 @@
-**Version:** 6.5.1
+**Version:** 6.5.2
 **Last Updated:** 2025-10-30
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -42,7 +42,7 @@ engine is in play.
       protocols](#ai-driven-and-human-development-laws-and-protocols)
 14. [License](#license)
 15. [Versioning Policy](#versioning-policy)
-16. [API Overview](docs/api_overview.md)
+16. [API Overview](docs/api_overview.md
 17. [Packaging Guide](docs/packaging.md)
 18. [Documentation Policy](docs/documentation_policy.md)
 19. [Run Manifest](docs/run_manifest.md)
@@ -135,10 +135,11 @@ Under the hood the program follows a clear pipeline:
 ## Quick Start
 1. Run the platform-specific `start` script. macOS users should run
    `./start.command`, Windows users open `start.bat`, and Linux users can
-   execute `./start.sh`. The launcher downloads a private Python 3.11 runtime into
-   `.python`, removes any bundled interpreter older than 3.11 and recreates
-   `.venv` automatically when its Python falls below the minimum supported
-   version. It pins `pip` to 24.2 before installing dependencies so
+   execute `./start.sh`. The launcher downloads a private Python 3.11 runtime
+   into `.python`, removes any bundled interpreter that falls outside the 3.11
+   series and recreates `.venv` automatically when its Python falls below the
+   minimum supported version. It pins `pip` to 24.2 before installing
+   dependencies so
    Windows jobs no longer attempt to grab unreleased wheels, installs the
    locked stack and installs the project with `pip install --no-deps .`. The
    helpers
@@ -171,9 +172,9 @@ Under the hood the program follows a clear pipeline:
 
 ## Dependencies
 The launchers automatically bootstrap a dedicated Python 3.11 interpreter into
-`.python`, delete any interpreter older than 3.11 and rebuild `.venv`
-whenever its Python falls below the supported floor, so no pre-existing
-Python installation is needed. They verify that `.venv/bin/activate` exists
+`.python`, delete any interpreter that falls outside the 3.11 series and
+rebuild `.venv` whenever its Python falls below the supported floor, so no
+pre-existing Python installation is needed. They verify that `.venv/bin/activate` exists
 and retry once before aborting. Inside the virtual environment this project
 relies on `numpy==1.26.4`, `scipy==1.12.0`, `matplotlib==3.8.2`,
 `pandas==2.2.1`, `sympy==1.13.0`, `jsonschema==4.21.1`,
@@ -250,7 +251,7 @@ and does not need to be tracked in version control.
 
 The suite no longer ships standalone binaries. Launch with `start.bat`,
 `start.command` or `start.sh` to create a local `.venv` and install all
-dependencies automatically. Only a system-wide Python 3.11+ installation is
+dependencies automatically. Only a system-wide Python 3.11 installation is
 required. See [docs/packaging.md](docs/packaging.md) for launcher details.
 
 ## Continuous Integration

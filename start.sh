@@ -1,13 +1,14 @@
 #!/bin/bash
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-10-30
+# Last Updated: 2025-10-30 16:40 UTC
 
 # Start the Copernican Suite on Unix-like systems.
 #
-# The script downloads a private Python 3.11+ interpreter into '.python',
+# The script downloads a private Python 3.11 interpreter into '.python',
 # creates a local virtual environment and re-executes itself inside that
-# environment. System-wide Python installations are ignored.
+# environment. System-wide Python installations are ignored so Python
+# 3.12 never leaks into the managed bootstrap sequence.
 
 # Abort on errors and on references to unset variables to guard against
 # mistyped names.
@@ -29,6 +30,13 @@ sudo_pkg() {
 brew_pkg() {
     pkg_notice
     brew "$@"
+}
+
+# Check whether the supplied Python binary reports a version within the 3.11
+# series. Purging anything outside this window blocks Python 3.12 from entering
+# the managed environment while allowing future 3.11 maintenance releases.
+python_in_311_series() {
+    "$1" -c 'import sys; exit(0 if (3, 11) <= sys.version_info < (3, 12) else 1)'
 }
 
 # If we are already inside the virtual environment simply launch the suite.
@@ -82,11 +90,11 @@ fi
 # Always bootstrap a dedicated interpreter.
 PY_DIR="$(pwd)/.python"
 PY_BIN="$PY_DIR/bin/python3"
-# Remove any bundled interpreter older than Python 3.11 before reuse so the
-# virtual environment is always built from a supported runtime. The
+# Remove any bundled interpreter outside the Python 3.11 series before reuse
+# so the virtual environment is always built from the supported runtime. The
 # interpreter may exist when users pull a newer release without cleaning
 # `.python` first.
-if [ -x "$PY_BIN" ] && ! "$PY_BIN" -c 'import sys; exit(0 if sys.version_info >= (3, 11) else 1)'; then
+if [ -x "$PY_BIN" ] && ! python_in_311_series "$PY_BIN"; then
     rm -rf "$PY_DIR"
 fi
 if [ ! -x "$PY_BIN" ]; then
@@ -116,7 +124,7 @@ PYTHON="$PY_BIN"
 # Remove any legacy virtual environment built from an older interpreter. The
 # bundled interpreter check above ensures new environments always use
 # Python 3.11 or newer.
-if [ -x ".venv/bin/python" ] && ! .venv/bin/python -c 'import sys; exit(0 if sys.version_info >= (3, 11) else 1)'; then
+if [ -x ".venv/bin/python" ] && ! python_in_311_series ".venv/bin/python"; then
     rm -rf .venv
 fi
 if [ ! -d ".venv" ]; then

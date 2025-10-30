@@ -60,6 +60,14 @@ class StartScriptTestCase(unittest.TestCase):
             self.start_bat,
         )
 
+    def test_windows_launcher_limits_python_series(self) -> None:
+        """Confirm the launcher purges interpreters outside Python 3.11."""
+
+        self.assertIn(
+            "(3, 11) <= sys.version_info < (3, 12)",
+            self.start_bat,
+        )
+
 
 if __name__ == "__main__":  # pragma: no cover - manual helper
     unittest.main()
