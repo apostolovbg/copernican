@@ -1,5 +1,5 @@
-**Version:** 6.0.8
-**Last Updated:** 2025-11-24
+**Version:** 6.0.10
+**Last Updated:** 2025-10-30
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -138,8 +138,11 @@ Under the hood the program follows a clear pipeline:
    execute `./start.sh`. The launcher downloads a private Python 3.12+ into
    `.python`, removes any bundled interpreter older than 3.12 and recreates
    `.venv` automatically when its Python falls below the minimum supported
-   version. It then upgrades `pip`, installs locked dependencies and installs
-   the project with `pip install --no-deps .`. The helpers skip errors when
+   version. It pins `pip` to 24.2 before installing dependencies so
+   Windows jobs no longer attempt to grab unreleased wheels, installs the
+   locked stack and installs the project with `pip install --no-deps .`. The
+   helpers
+   skip errors when
    `VIRTUAL_ENV` is unset and delete any `build/` directory before and after
    installation to avoid stale artifacts. If the activation script is missing
    the launcher recreates `.venv` once before exiting with an error. Each
@@ -172,28 +175,31 @@ The launchers automatically bootstrap a dedicated Python 3.12+ into
 whenever its Python falls below the supported floor, so no pre-existing
 Python installation is needed. They verify that `.venv/bin/activate` exists
 and retry once before aborting. Inside the virtual environment this project
-relies on `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`, `jsonschema`,
-`camb==1.6.2`, `emcee`, `h5netcdf`, `h5py`, `xarray`, `typing_extensions`
-and the released `arviz==0.22.0`, which ships with NumPy 2 compatibility.
-The launchers refuse to run when another virtual environment is active and
-reinstall pinned dependencies on every start so the suite always uses its
-managed `.venv`.
+relies on `numpy==1.26.4`, `scipy==1.12.0`, `matplotlib==3.8.2`,
+`pandas==2.2.1`, `sympy==1.13.0`, `jsonschema==4.21.1`,
+`camb==1.6.3`, `emcee==3.1.4`, `h5netcdf==1.3.0`,
+`h5py==3.10.0`, `xarray==2023.12.0`, `typing_extensions==4.10.0`
+and the widely available `arviz==0.16.1` release
+so wheels exist on every platform. The launchers refuse to run when another
+virtual environment is active and reinstall pinned dependencies on every
+start so the suite always uses its managed `.venv`.
 
 Versions for all runtime dependencies are pinned in
-`requirements.lock`. This set now includes the `h5py` library for HDF5
-support, statistical helpers such as `xarray-einstats`, and typing
-backports via `typing_extensions` to keep ArviZ's linear algebra
-deterministic. Matplotlib's helper libraries (`contourpy`, `cycler`,
-`fonttools`, `kiwisolver`, `pillow` and `pyparsing`) and time zone tools
-(`python-dateutil`, `six`, `pytz` and `tzdata`) and numerical helper
-`mpmath` are pinned as well so installs remain
-reproducible. When a
-package is missing the program asks before running `pip install
--r requirements.lock` and verifies each import. Set
-`COPERNICAN_AUTO_INSTALL=1` to skip the prompt in automated environments. The
-same versions
-appear under `[project].dependencies` in `pyproject.toml`. Regenerate both
-files together whenever dependencies change.
+`requirements.lock`. The manifest lists the same wheel-friendly releases as
+`pyproject.toml` and adds a bootstrap pin for `pip==24.2`, including
+helpers such as `xarray-einstats==0.6.0`,
+`typing_extensions==4.10.0`, Matplotlib's rendering stack
+(`contourpy==1.2.0`, `cycler==0.12.1`, `fonttools==4.51.0`,
+`kiwisolver==1.4.5`, `pillow==10.3.0`, `pyparsing==3.1.1`), the timezone
+tooling (`python-dateutil==2.9.0.post0`, `six==1.16.0`, `pytz==2024.1`,
+`tzdata==2024.1`) and supporting libraries such as
+`packaging==24.2`, `attrs==23.2.0`, `jsonschema-specifications==2023.12.1`,
+`referencing==0.34.0`, `rpds-py==0.18.0`, `pyerfa==2.0.1.1` and
+`astropy-iers-data==0.2024.10.28.0.34.7`. When a package is missing the
+program asks before running `pip install -r requirements.lock` and verifies
+each import. Set `COPERNICAN_AUTO_INSTALL=1` to skip the prompt in automated
+environments. Regenerate both files together whenever dependencies change so
+the suite and published wheels remain in sync.
 `pip-tools` now ships alongside the runtime stack so `python -m piptools
 compile` is always available before running `make lock`. Use the bundled
 start scripts to enter the managed environment before regenerating locks; they
@@ -236,6 +242,19 @@ The suite no longer ships standalone binaries. Launch with `start.bat`,
 `start.command` or `start.sh` to create a local `.venv` and install all
 dependencies automatically. Only a system-wide Python 3.12+ installation is
 required. See [docs/packaging.md](docs/packaging.md) for launcher details.
+
+## Continuous Integration
+The GitHub Actions workflow named **CI** validates every pull request and each
+push to the `main` branch across `ubuntu-latest`, `macos-latest` and
+`windows-latest` runners using Python 3.12. The job checks out the repository,
+restores cached pip wheels through `actions/setup-python`, optionally reuses
+CAMB background data from `~/.camb`, installs the pinned dependencies from
+`requirements.lock`, executes `pytest -q` and then builds both the source
+distribution and wheel via `python -m build`. The resulting `dist/` directory
+is uploaded as a workflow artifact with `actions/upload-artifact` so
+maintainers can inspect the exact packages produced by CI. Branch protection
+requires the CI job to succeed before merges complete, so contributors should
+replicate this sequence locally to avoid surprises.
 
 Windows bootstrap reliability received an extra safeguard in 4.3.21.
 `start.bat` now computes release metadata such as the Python version,

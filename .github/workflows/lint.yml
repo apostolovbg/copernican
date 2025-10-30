@@ -1,4 +1,4 @@
-# Last Updated: 2025-09-03
+# Last Updated: 2025-10-30
 name: Lint
 
 on:
@@ -22,10 +22,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -r requirements.lock
-          .venv/bin/pip install --no-deps .
-          .venv/bin/pip install pre-commit pip-tools
+          .venv/bin/python -m pip install pip==24.2
+          .venv/bin/python -m pip install -r requirements.lock
+          .venv/bin/python -m pip install --no-deps .
+          .venv/bin/python -m pip install pre-commit pip-tools
 
       - name: Run pre-commit
         run: .venv/bin/pre-commit run --all-files
