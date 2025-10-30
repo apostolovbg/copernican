@@ -19,6 +19,7 @@ import os
 import platform
 import sys
 
+from . import console_output
 from .utils import ensure_dir_exists, get_timestamp
 
 
@@ -167,7 +168,7 @@ def log_environment_info() -> None:
     summary = f"Python {py_ver}; {os_info}; CPU {cpu}; " + ", ".join(
         f"{n} {v}" for n, v in pkgs.items()
     )
-    print(f"Environment summary: {summary}")
+    console_output.write(f"Environment summary: {summary}")
 
 
 def get_logger():
