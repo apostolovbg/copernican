@@ -25,6 +25,8 @@ from itertools import zip_longest
 from types import SimpleNamespace
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
+from . import priors as prior_lib
+
 REQUIRED_FUNCTIONS = [
     "distance_modulus_model",
     "get_comoving_distance_Mpc",
@@ -100,8 +102,30 @@ def build_plugin(model_data, func_dict):
     plugin.INITIAL_GUESSES = [sum(p["bounds"]) / 2.0 for p in params]
     plugin.PARAMETER_BOUNDS = [tuple(p["bounds"]) for p in params]
     plugin.FIXED_PARAMS = {}
-    # Preserve prior metadata so engines can apply external constraints.
-    plugin.PARAMETER_PRIORS = [p.get("prior", {}) for p in params]
+    # Canonicalise prior metadata so every engine observes the same
+    # dictionary layout and helper objects.  This keeps manifests readable
+    # while letting samplers reuse the prepared transform callables.
+    prior_mappings: list[dict[str, object]] = []
+    prior_objects: list[prior_lib.BasePrior | None] = []
+    transforms: list[Callable[[float], tuple[float, float]] | None] = []
+    for param in params:
+        raw_prior = param.get("prior") or {}
+        if raw_prior:
+            try:
+                prior_obj = prior_lib.prior_from_mapping(raw_prior)
+            except prior_lib.PriorError as exc:  # pragma: no cover - sanitized
+                raise ValueError(str(exc)) from exc
+            prior_mappings.append(prior_obj.to_mapping())
+            prior_objects.append(prior_obj)
+            transforms.append(prior_obj.create_transform())
+        else:
+            prior_mappings.append({})
+            prior_objects.append(None)
+            transforms.append(None)
+    plugin.PARAMETER_PRIORS = prior_mappings
+    plugin.PARAMETER_PRIOR_OBJECTS = prior_objects
+    if any(t is not None for t in transforms):
+        plugin.PARAMETER_TRANSFORMS = transforms
     plugin.valid_for_distance_metrics = model_data.get(
         "valid_for_distance_metrics", True
     )
@@ -260,7 +284,7 @@ def build_plugin(model_data, func_dict):
 
 def make_logposterior(
     like: Callable[[Sequence[float]], float],
-    priors: Iterable[Mapping[str, Any]] | None,
+    priors: Iterable[prior_lib.BasePrior | Mapping[str, Any]] | None,
 ) -> Callable[[Sequence[float]], float]:
     """Return a posterior callable combining ``like`` with parameter priors.
 
@@ -280,9 +304,11 @@ def make_logposterior(
         parameter is left unchanged.
     priors:
         Iterable of prior definitions mirroring the structures parsed from
-        model YAML files.  Supported entries currently include ``type:
-        "uniform"`` with ``lower``/``upper`` (or ``min``/``max``) edges and
-        ``type: "gaussian"`` with ``mean``/``sigma``.  Unknown priors are
+        model YAML files.  Items may be dictionaries or instances of the
+        classes defined in :mod:`copernican_lib.priors`.  Supported entries
+        include ``type: "uniform"`` with ``lower``/``upper`` edges,
+        ``type: "gaussian"`` with ``mean``/``sigma`` and ``type:
+        "loguniform"`` with strictly positive bounds.  Unknown priors are
         ignored after emitting a warning so that future extensions remain
         backward compatible.
 
@@ -309,7 +335,24 @@ def make_logposterior(
     # Normalise optional metadata once so the inner evaluation loop can remain
     # allocation-free.  ``priors`` defaults to an empty tuple so missing
     # entries behave like uninformative priors.
-    priors_list = [dict(p) for p in (priors or [])]
+    prior_objects: list[prior_lib.BasePrior | None] = []
+    for entry in priors or []:
+        if isinstance(entry, prior_lib.BasePrior):
+            prior_objects.append(entry)
+            continue
+        if isinstance(entry, Mapping):
+            try:
+                prior_objects.append(prior_lib.prior_from_mapping(entry))
+            except prior_lib.PriorError as exc:
+                logger.warning(
+                    "(make_logposterior): ignoring invalid prior: %s", exc
+                )
+                prior_objects.append(None)
+            continue
+        logger.warning(
+            "(make_logposterior): unsupported prior entry %r skipped", entry
+        )
+        prior_objects.append(None)
 
     bounds = getattr(like, "parameter_bounds", None)
     if bounds is not None:
@@ -392,45 +435,14 @@ def make_logposterior(
 
         log_prior = log_jacobian
         for idx, (value, prior) in enumerate(
-            zip_longest(transformed, priors_list, fillvalue=None)
+            zip_longest(transformed, prior_objects, fillvalue=None)
         ):
-            if prior is None or not prior:
+            if prior is None:
                 continue
-            ptype = str(prior.get("type") or prior.get("distribution"))
-            if ptype.lower() == "uniform":
-                lower = prior.get("lower", prior.get("min"))
-                upper = prior.get("upper", prior.get("max"))
-                lower = None if lower is None else float(lower)
-                upper = None if upper is None else float(upper)
-                if lower is not None and value < lower:
-                    return float("-inf")
-                if upper is not None and value > upper:
-                    return float("-inf")
-                if lower is not None and upper is not None and upper > lower:
-                    log_prior -= math.log(upper - lower)
-            elif ptype.lower() == "gaussian":
-                mean = prior.get("mean")
-                sigma = prior.get("sigma")
-                if mean is None or sigma in (None, 0):
-                    logger.debug(
-                        "(make_logposterior): gaussian prior %d missing"
-                        " parameters",
-                        idx,
-                    )
-                    return float("-inf")
-                sigma = float(sigma)
-                if not math.isfinite(sigma) or sigma <= 0.0:
-                    return float("-inf")
-                mean = float(mean)
-                delta = (value - mean) / sigma
-                log_prior += -0.5 * delta * delta - math.log(
-                    sigma * math.sqrt(2.0 * math.pi)
-                )
-            elif ptype:
-                logger.warning(
-                    "(make_logposterior): unsupported prior type '%s' ignored",
-                    ptype,
-                )
+            density = prior.log_density(value)
+            if not math.isfinite(density):
+                return float("-inf")
+            log_prior += density
 
         log_like = like(transformed)
         if not math.isfinite(log_like):

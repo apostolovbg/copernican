@@ -17,6 +17,15 @@ engine directly to `JointLike` and the new
 `engine_interface.make_logposterior` helper so posterior evaluations apply
 model priors, declared bounds and optional sampling transforms uniformly across
 engines while surfacing component-level diagnostics for downstream analysis.
+Version 6.3.0 extracts reusable prior classes into
+`copernican_lib/priors.py`, unifying validation, Jacobian handling and
+transform registration across every engine.  Version 6.3.1 extends the
+parser so every prior declaration is normalised before it reaches the cache
+or an engine.  The canonicalisation guarantees that metadata-driven
+transforms and manifests all observe the same schema even when the
+original YAML used alternative field names or redundant transforms.  Older
+files may still use a `distribution` field; the parser recognises the alias
+and re-emits the canonical `type` key for downstream tools.
 
 With the retirement of the deterministic combined optimiser the suite now
 ships solely with the `cosmo_engine_mcmc` backend.  Engines remain pluggable
