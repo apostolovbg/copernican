@@ -1,5 +1,5 @@
 **Version:** 6.5.2
-**Last Updated:** 2025-10-30 16:40 UTC
+**Last Updated:** 2025-10-30
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -42,7 +42,7 @@ engine is in play.
       protocols](#ai-driven-and-human-development-laws-and-protocols)
 14. [License](#license)
 15. [Versioning Policy](#versioning-policy)
-16. [API Overview](docs/api_overview.md)
+16. [API Overview](docs/api_overview.md
 17. [Packaging Guide](docs/packaging.md)
 18. [Documentation Policy](docs/documentation_policy.md)
 19. [Run Manifest](docs/run_manifest.md)
