@@ -1,5 +1,5 @@
-# Packaging Guide
 **Last Updated:** 2025-10-30 17:02 UTC
+# Packaging Guide
 This document explains how to prepare the suite for development or packaging.
 
 CAMB only publishes wheels for Python 3.11 today, so the suite intentionally
