@@ -1,5 +1,5 @@
-**Version:** 6.0.8
-**Last Updated:** 2025-11-24
+**Version:** 6.0.9
+**Last Updated:** 2025-10-30
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -236,6 +236,19 @@ The suite no longer ships standalone binaries. Launch with `start.bat`,
 `start.command` or `start.sh` to create a local `.venv` and install all
 dependencies automatically. Only a system-wide Python 3.12+ installation is
 required. See [docs/packaging.md](docs/packaging.md) for launcher details.
+
+## Continuous Integration
+The GitHub Actions workflow named **CI** validates every pull request and each
+push to the `main` branch across `ubuntu-latest`, `macos-latest` and
+`windows-latest` runners using Python 3.12. The job checks out the repository,
+restores cached pip wheels through `actions/setup-python`, optionally reuses
+CAMB background data from `~/.camb`, installs the pinned dependencies from
+`requirements.lock`, executes `pytest -q` and then builds both the source
+distribution and wheel via `python -m build`. The resulting `dist/` directory
+is uploaded as a workflow artifact with `actions/upload-artifact` so
+maintainers can inspect the exact packages produced by CI. Branch protection
+requires the CI job to succeed before merges complete, so contributors should
+replicate this sequence locally to avoid surprises.
 
 Windows bootstrap reliability received an extra safeguard in 4.3.21.
 `start.bat` now computes release metadata such as the Python version,

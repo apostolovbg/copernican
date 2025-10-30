@@ -1,5 +1,5 @@
 # Packaging Guide
-**Last Updated:** 2025-11-24
+**Last Updated:** 2025-10-30
 This document explains how to prepare the suite for development or packaging.
 
 ## Install Python 3.12+

@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-24
+**Last Updated:** 2025-10-30
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,12 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 6.0.9
+- 2025-10-30: Added a cross-platform GitHub Actions CI matrix for Python 3.12,
+  cached pip and CAMB assets, automated testing, packaging artifact uploads,
+  refreshed the documentation, stabilised the dependency lock hook by pinning
+  its pip toolchain and bumped the recorded suite version (OpenAI ChatGPT)
 
 ## Version 6.0.8
 - 2025-11-24: Enforced Python 3.12+ across all start launchers, rebuilt the
