@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-10-30 16:40 UTC
+# Last Updated: 2025-10-30 17:56 UTC
 
 # Start the Copernican Suite on Unix-like systems.
 #
@@ -30,6 +30,28 @@ sudo_pkg() {
 brew_pkg() {
     pkg_notice
     brew "$@"
+}
+
+ensure_pip() {
+    if python -m ensurepip --upgrade; then
+        return 0
+    fi
+
+    local tmpfile
+    tmpfile="$(mktemp "${TMPDIR:-/tmp}/copernican-get-pip-XXXXXXXX.py")"
+    if ! curl -fL "https://bootstrap.pypa.io/get-pip.py" -o "$tmpfile"; then
+        rm -f "$tmpfile"
+        echo "Failed to download get-pip.py." >&2
+        return 1
+    fi
+
+    if ! python "$tmpfile"; then
+        rm -f "$tmpfile"
+        echo "Failed to bootstrap pip via get-pip.py." >&2
+        return 1
+    fi
+
+    rm -f "$tmpfile"
 }
 
 # Check whether the supplied Python binary reports a version within the 3.11
@@ -148,6 +170,10 @@ fi
 # Delete any 'build/' directory before and after installing the project
 # to avoid stale build artifacts.
 source .venv/bin/activate
+if ! ensure_pip; then
+    echo "Unable to bootstrap pip in the Copernican virtual environment." >&2
+    exit 1
+fi
 python -m pip install --upgrade pip
 # Install pinned dependencies.
 python -m pip install -r requirements.lock
