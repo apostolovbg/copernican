@@ -20,6 +20,11 @@ dates. Follow this template:
 ```
 ## Log changes here
 
+## Version 6.3.0
+- 2025-10-30: Added `copernican_lib/priors.py` with reusable prior classes,
+  extended model validation with log-uniform support, refreshed documentation,
+  expanded prior tests and bumped the suite version (OpenAI ChatGPT)
+
 ## Version 6.2.0
 - 2025-10-30: Rewrote development laws to enforce chronological date checks,
   normalised incorrect timestamps across documentation, and refreshed metadata

@@ -1,4 +1,4 @@
-**Version:** 6.2.0
+**Version:** 6.3.0
 **Last Updated:** 2025-10-30
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -443,8 +443,13 @@ multiplication
 8. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
 9. Each parameter may define a `prior` block describing sampling assumptions.
-   `type: gaussian` requires `mean` and `sigma` while `type: uniform` needs
-   `lower` and `upper`. Engines expose these via `PARAMETER_PRIORS`.
+   `type: gaussian` requires `mean` and `sigma`, `type: uniform` needs
+   `lower` and `upper`, and `type: loguniform` expects strictly positive
+   `lower`/`upper` bounds. Log-uniform priors automatically activate a
+   log-space transform whose Jacobian is tracked through
+   `copernican_lib.priors`. Engines expose the canonical dictionaries via
+   `PARAMETER_PRIORS` and the instantiated helper objects via
+   `PARAMETER_PRIOR_OBJECTS` so samplers can reuse consistent mechanics.
 10. Every parameter must define a `latex_name`. When a `python_var` field is
     omitted, a valid identifier is derived automatically from this LaTeX
     name. Provide an explicit `python_var` when you want short variable names

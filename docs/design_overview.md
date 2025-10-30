@@ -17,6 +17,9 @@ engine directly to `JointLike` and the new
 `engine_interface.make_logposterior` helper so posterior evaluations apply
 model priors, declared bounds and optional sampling transforms uniformly across
 engines while surfacing component-level diagnostics for downstream analysis.
+Version 6.3.0 extracts reusable prior classes into
+`copernican_lib/priors.py`, unifying validation, Jacobian handling and
+transform registration across every engine.
 
 With the retirement of the deterministic combined optimiser the suite now
 ships solely with the `cosmo_engine_mcmc` backend.  Engines remain pluggable
