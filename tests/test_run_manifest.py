@@ -13,7 +13,7 @@ def _dummy_plugin():
         MODEL_NAME="DummyModel",
         MODEL_FILENAME="dummy.yml",
         PARAMETER_NAMES=["p1"],
-        PARAMETER_PRIORS=[{"distribution": "uniform", "min": 0, "max": 1}],
+        PARAMETER_PRIORS=[{"type": "uniform", "lower": 0, "upper": 1}],
     )
 
 

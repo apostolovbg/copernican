@@ -17,6 +17,15 @@ engine directly to `JointLike` and the new
 `engine_interface.make_logposterior` helper so posterior evaluations apply
 model priors, declared bounds and optional sampling transforms uniformly across
 engines while surfacing component-level diagnostics for downstream analysis.
+Version 6.4.0 adds an explicit `fixed` prior to `copernican_lib/priors.py`,
+exposing deterministic parameters alongside the probabilistic uniform,
+Gaussian and log-uniform options.  Earlier releases (6.3.0 and 6.3.1)
+centralised validation, Jacobian handling and transform registration so every
+engine observes consistent metadata.  The parser now normalises each prior
+before it reaches the cache or an engine and rejects the retired
+`distribution` alias outright.  Canonicalisation guarantees that
+metadata-driven transforms, manifests and engine plugins all observe the same
+schema even when the original YAML attempted to declare redundant transforms.
 
 With the retirement of the deterministic combined optimiser the suite now
 ships solely with the `cosmo_engine_mcmc` backend.  Engines remain pluggable
@@ -25,16 +34,17 @@ optimisation strategies can be introduced without altering the orchestration
 logic in `copernican.py`.  The shared helpers and validation routines therefore
 remain the authoritative source of truth for statistical behaviour.
 
-To keep emcee initialisation numerically stable the sampler now removes any
+To keep emcee initialisation numerically stable the sampler treats any
 parameter whose lower and upper bounds are identical—or numerically
-indistinguishable—before launching the ensemble.  Those constants re-enter each
-likelihood evaluation transparently, ensuring models such as Conformal
-Stationary Field Cosmology can keep fixed physical values (for example the
-speed of light) without tripping emcee's condition-number safeguard.  When a
-model defines only a handful of truly free parameters the engine inflates the
-initial walker cloud adaptively until the ensemble's condition number satisfies
-``emcee``'s guardrail, so YAML plugins with wildly different scales or exotic
-bound combinations no longer require manual tuning before sampling begins.
+indistinguishable—as fixed.  The parser installs a canonical `type: fixed`
+prior in these cases and the engine publishes the resulting constants via
+`plugin.FIXED_PARAMS`.  Models such as Conformal Stationary Field Cosmology can
+therefore keep the speed of light hard-coded without tripping emcee's
+condition-number safeguard.  When a model defines only a handful of truly free
+parameters the engine inflates the initial walker cloud adaptively until the
+ensemble's condition number satisfies ``emcee``'s guardrail, so YAML plugins
+with wildly different scales or exotic bound combinations no longer require
+manual tuning before sampling begins.
 
 ```
 /engines/          - Computational backends

@@ -7,13 +7,14 @@
 # a sanitized copy to ``models/cache/``. The sanitized file is used by child
 # processes so that validation only happens once in the main process.
 
+import math
 import multiprocessing as _mp
 from pathlib import Path
 
 import yaml
 from jsonschema import ValidationError, validate
 
-from . import error_handler, latex_utils
+from . import error_handler, latex_utils, priors
 
 
 def _sanitise_name_to_var(name: str) -> str:
@@ -58,6 +59,7 @@ MODEL_SCHEMA = {
                     },
                     "unit": {"type": "string"},
                     "latex_name": {"type": "string"},
+                    "transform": {"type": "string"},
                     "prior": {
                         "type": "object",
                         "required": ["type"],
@@ -67,6 +69,8 @@ MODEL_SCHEMA = {
                             "sigma": {"type": "number"},
                             "lower": {"type": "number"},
                             "upper": {"type": "number"},
+                            "value": {"type": "number"},
+                            "transform": {"type": "string"},
                         },
                     },
                 },
@@ -142,22 +146,76 @@ def parse_model(path, cache_dir):
                 idx += 1
             param["python_var"] = candidate
             used_vars.add(candidate)
+        bounds = param.get("bounds", [])
+        if (
+            isinstance(bounds, list)
+            and len(bounds) == 2
+            and math.isclose(
+                bounds[0], bounds[1], rel_tol=1e-12, abs_tol=1e-12
+            )
+        ):
+            fixed_value = float(bounds[0])
+            prior = param.get("prior") or {
+                "type": "fixed",
+                "value": fixed_value,
+            }
+            if not isinstance(prior, dict):
+                raise ValueError("Fixed parameter priors must be mappings")
+            prior_map = dict(prior)
+            try:
+                priors.normalise_prior_mapping(prior_map)
+            except priors.PriorError as exc:
+                raise ValueError(str(exc)) from exc
+            if prior_map.get("type") != "fixed":
+                raise ValueError("Fixed parameters must declare a fixed prior")
+            if not math.isclose(
+                float(prior_map.get("value", float("nan"))),
+                fixed_value,
+                rel_tol=1e-12,
+                abs_tol=1e-12,
+            ):
+                raise ValueError(
+                    "Fixed prior value must match the declared bounds"
+                )
+            param["prior"] = prior_map
+            param.pop("transform", None)
+            continue
         prior = param.get("prior")
-        # Validate prior definitions to ensure engines receive complete data.
         if prior:
-            ptype = prior.get("type")
-            if ptype == "gaussian":
-                if "mean" not in prior or "sigma" not in prior:
-                    raise ValueError(
-                        "Gaussian prior requires 'mean' and 'sigma' fields"
+            if not isinstance(prior, dict):
+                raise ValueError("Prior definitions must be mappings")
+            prior_map = dict(prior)
+            try:
+                priors.normalise_prior_mapping(prior_map)
+            except priors.PriorError as exc:
+                raise ValueError(str(exc)) from exc
+            if prior_map.get("type") == "fixed":
+                if not (
+                    isinstance(bounds, list)
+                    and len(bounds) == 2
+                    and math.isclose(
+                        bounds[0],
+                        bounds[1],
+                        rel_tol=1e-12,
+                        abs_tol=1e-12,
                     )
-            elif ptype == "uniform":
-                if "lower" not in prior or "upper" not in prior:
+                ):
                     raise ValueError(
-                        "Uniform prior requires 'lower' and 'upper' fields"
+                        "Fixed priors require identical parameter bounds"
                     )
+            param["prior"] = prior_map
+            transform = priors.transform_from_mapping(prior_map)
+            if transform is not None:
+                param["transform"] = prior_map.get("transform", "log")
             else:
-                raise ValueError(f"Unknown prior type '{ptype}'")
+                param.pop("transform", None)
+        elif param.get("transform"):
+            transform_name = param["transform"]
+            if transform_name != "identity":
+                raise ValueError(
+                    "Transforms require a prior declaration to anchor them"
+                )
+            param.pop("transform", None)
 
     # Ensure mathematical fields are wrapped with '$$' for downstream tools
     data["Hz_expression"] = _ensure_delim(data.get("Hz_expression"))

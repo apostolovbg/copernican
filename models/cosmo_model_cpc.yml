@@ -108,9 +108,8 @@ parameters:
     python_var: c
     definition: Fixed speed of light.
     prior:
-      type: uniform
-      lower: 299792.458
-      upper: 299792.458
+      type: fixed
+      value: 299792.458
 Hz_expression: >-
   H(z) = H0 * sqrt(
     Omega_m0*(1 + z)**3 + Omega_r0*(1 + z)**4 + beta*(1 + z)**(-n)
