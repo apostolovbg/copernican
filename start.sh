@@ -5,7 +5,7 @@
 
 # Start the Copernican Suite on Unix-like systems.
 #
-# The script downloads a private Python 3.12+ interpreter into '.python',
+# The script downloads a private Python 3.11+ interpreter into '.python',
 # creates a local virtual environment and re-executes itself inside that
 # environment. System-wide Python installations are ignored.
 
@@ -82,18 +82,18 @@ fi
 # Always bootstrap a dedicated interpreter.
 PY_DIR="$(pwd)/.python"
 PY_BIN="$PY_DIR/bin/python3"
-# Remove any bundled interpreter older than Python 3.12 before reuse so the
+# Remove any bundled interpreter older than Python 3.11 before reuse so the
 # virtual environment is always built from a supported runtime. The
 # interpreter may exist when users pull a newer release without cleaning
 # `.python` first.
-if [ -x "$PY_BIN" ] && ! "$PY_BIN" -c 'import sys; exit(0 if sys.version_info >= (3, 12) else 1)'; then
+if [ -x "$PY_BIN" ] && ! "$PY_BIN" -c 'import sys; exit(0 if sys.version_info >= (3, 11) else 1)'; then
     rm -rf "$PY_DIR"
 fi
 if [ ! -x "$PY_BIN" ]; then
     mkdir -p "$PY_DIR"
     BASE="https://github.com/astral-sh/python-build-standalone/releases"
-    REL="20250828"
-    VER="3.12.11"
+    REL="20251028"
+    VER="3.11.14"
     ARCH="$(uname -m)"
     if [ "$(uname)" = "Darwin" ]; then
         PLAT="apple-darwin"
@@ -115,8 +115,8 @@ PYTHON="$PY_BIN"
 # Create the virtual environment on first run.
 # Remove any legacy virtual environment built from an older interpreter. The
 # bundled interpreter check above ensures new environments always use
-# Python 3.12 or newer.
-if [ -x ".venv/bin/python" ] && ! .venv/bin/python -c 'import sys; exit(0 if sys.version_info >= (3, 12) else 1)'; then
+# Python 3.11 or newer.
+if [ -x ".venv/bin/python" ] && ! .venv/bin/python -c 'import sys; exit(0 if sys.version_info >= (3, 11) else 1)'; then
     rm -rf .venv
 fi
 if [ ! -d ".venv" ]; then

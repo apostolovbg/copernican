@@ -142,7 +142,7 @@ and must remain untracked so contributors keep private dependency metadata.
 Set `COPERNICAN_DEP_CACHE_DIR` to direct the cache to a custom location when
 the default path is read-only. The
 `start.*` launchers
-always download a private Python 3.12+ into ``.python`` and build ``.venv``
+always download a private Python 3.11+ into ``.python`` and build ``.venv``
 from that interpreter, ignoring any system-wide Python. If the download fails
 they exit with guidance. When packages are missing the program asks before
 installing them with `pip install -r requirements.lock` and
@@ -152,7 +152,7 @@ prompts the user to
 restart via the appropriate launcher. This lightweight approach works across
 Windows, macOS and Linux while allowing new engines to introduce additional
 dependencies without manual updates to the documentation.
-The launchers delete bundled interpreters older than Python 3.12, recreate
+The launchers delete bundled interpreters older than Python 3.11, recreate
 `.venv` when its Python falls below that floor and print a notice before
 invoking `sudo`, `brew` or `winget` so users know any password prompt
 originates from the package manager and is never read or stored. `sudo -k`
@@ -314,7 +314,7 @@ these rules:
    The local pre-commit hook provisions `pip-tools==7.4.1` automatically
 
    The lockfile header now strips Python version banners during the
-   `make lock` workflow so CI runs on Python 3.11 or 3.12 yield
+   `make lock` workflow so CI runs on Python 3.11 yield
    identical results.
 
    before invoking `make lock` so the workflow succeeds even in clean CI

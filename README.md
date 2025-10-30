@@ -1,4 +1,4 @@
-**Version:** 6.5.0
+**Version:** 6.5.1
 **Last Updated:** 2025-10-30
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -135,8 +135,8 @@ Under the hood the program follows a clear pipeline:
 ## Quick Start
 1. Run the platform-specific `start` script. macOS users should run
    `./start.command`, Windows users open `start.bat`, and Linux users can
-   execute `./start.sh`. The launcher downloads a private Python 3.12+ into
-   `.python`, removes any bundled interpreter older than 3.12 and recreates
+   execute `./start.sh`. The launcher downloads a private Python 3.11 runtime into
+   `.python`, removes any bundled interpreter older than 3.11 and recreates
    `.venv` automatically when its Python falls below the minimum supported
    version. It pins `pip` to 24.2 before installing dependencies so
    Windows jobs no longer attempt to grab unreleased wheels, installs the
@@ -170,8 +170,8 @@ Under the hood the program follows a clear pipeline:
    folder under `output/` when the run completes.
 
 ## Dependencies
-The launchers automatically bootstrap a dedicated Python 3.12+ into
-`.python`, delete any interpreter older than 3.12 and rebuild `.venv`
+The launchers automatically bootstrap a dedicated Python 3.11 interpreter into
+`.python`, delete any interpreter older than 3.11 and rebuild `.venv`
 whenever its Python falls below the supported floor, so no pre-existing
 Python installation is needed. They verify that `.venv/bin/activate` exists
 and retry once before aborting. Inside the virtual environment this project
@@ -183,6 +183,10 @@ and the widely available `arviz==0.16.1` release
 so wheels exist on every platform. The launchers refuse to run when another
 virtual environment is active and reinstall pinned dependencies on every
 start so the suite always uses its managed `.venv`.
+
+CAMB has not yet published Python 3.12 wheels, so the project intentionally
+targets Python 3.11 until upstream support arrives. Packaging metadata blocks
+newer interpreters to avoid prompting users to build CAMB from source.
 
 Versions for all runtime dependencies are pinned in
 `requirements.lock`. The manifest lists the same wheel-friendly releases as
@@ -209,7 +213,7 @@ regenerating locks; they guarantee the module resolves to the pinned
 version of `pip-tools`. The `make lock` target wraps
 `python -m piptools compile --allow-unsafe`, so law 22 under
 "AI-driven and human development" covers this workflow explicitly.
-To keep CI reproducible across Python 3.11 and 3.12, the target
+To keep CI reproducible across Python 3.11 toolchains, the target
 normalises the generated header so reruns stop rewriting the
 interpreter banner.
 Running `copernican.py` directly now fails with a message directing you to
@@ -246,13 +250,13 @@ and does not need to be tracked in version control.
 
 The suite no longer ships standalone binaries. Launch with `start.bat`,
 `start.command` or `start.sh` to create a local `.venv` and install all
-dependencies automatically. Only a system-wide Python 3.12+ installation is
+dependencies automatically. Only a system-wide Python 3.11+ installation is
 required. See [docs/packaging.md](docs/packaging.md) for launcher details.
 
 ## Continuous Integration
 The GitHub Actions workflow named **CI** validates every pull request and each
 push to the `main` branch across `ubuntu-latest`, `macos-latest` and
-`windows-latest` runners using Python 3.12. The job checks out the repository,
+`windows-latest` runners using Python 3.11. The job checks out the repository,
 restores cached pip wheels through `actions/setup-python`, optionally reuses
 CAMB background data from `~/.camb`, installs the pinned dependencies from
 `requirements.lock`, executes `pytest -q` and then builds both the source

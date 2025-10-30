@@ -20,6 +20,13 @@ dates. Follow this template:
 ```
 ## Log changes here
 
+## Version 6.5.1
+- 2025-10-30: Reverted the managed interpreter to Python 3.11 across all
+  launchers so CAMB wheels install on macOS again, tightened packaging
+  metadata to block Python 3.12 environments until upstream wheels ship,
+  updated CI matrices, documentation and metadata, and bumped the suite
+  version (OpenAI ChatGPT)
+
 ## Version 6.5.0
 - 2025-10-30: Centralised SNe/BAO/CMB dataset loading, recorded dataset names,
   versions and independence statements in manifests, documented the new
