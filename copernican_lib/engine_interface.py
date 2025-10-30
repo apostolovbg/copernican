@@ -21,7 +21,9 @@ import logging
 import math
 import operator
 import re
+from itertools import zip_longest
 from types import SimpleNamespace
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 REQUIRED_FUNCTIONS = [
     "distance_modulus_model",
@@ -254,6 +256,188 @@ def build_plugin(model_data, func_dict):
 
     validate_plugin(plugin)
     return plugin
+
+
+def make_logposterior(
+    like: Callable[[Sequence[float]], float],
+    priors: Iterable[Mapping[str, Any]] | None,
+) -> Callable[[Sequence[float]], float]:
+    """Return a posterior callable combining ``like`` with parameter priors.
+
+    Parameters
+    ----------
+    like:
+        Callable returning the natural logarithm of the likelihood for a
+        *physical* parameter vector.  The callable may expose optional
+        ``parameter_bounds`` and ``parameter_transforms`` attributes.  Bounds
+        are interpreted as inclusive ``(lower, upper)`` pairs and are enforced
+        before calling the likelihood.  Transforms allow engines to operate on
+        unconstrained coordinates by mapping raw walker positions onto the
+        physical domain.  Each transform callable should accept a single float
+        and either return the transformed value directly or a ``(value,
+        log_jacobian)`` tuple capturing the Jacobian contribution of the
+        transform.  When the attribute is missing or entries are ``None`` the
+        parameter is left unchanged.
+    priors:
+        Iterable of prior definitions mirroring the structures parsed from
+        model YAML files.  Supported entries currently include ``type:
+        "uniform"`` with ``lower``/``upper`` (or ``min``/``max``) edges and
+        ``type: "gaussian"`` with ``mean``/``sigma``.  Unknown priors are
+        ignored after emitting a warning so that future extensions remain
+        backward compatible.
+
+    Returns
+    -------
+    Callable[[Sequence[float]], float]
+        Function mapping a parameter vector to the combined log-posterior.  The
+        callable returns ``-inf`` whenever bounds or priors are violated, a
+        transform fails or the underlying likelihood reports a non-finite
+        value.
+
+    Notes
+    -----
+    Engines call the returned function repeatedly during sampling.  Expensive
+    validation is therefore avoided inside the loop—inputs are normalised once
+    up front, leaving the inner evaluation to perform only the strictly
+    necessary checks.  The helper leans on duck-typed attributes instead of a
+    rigid protocol so that existing engines can opt-in incrementally without
+    breaking the public API exposed to model plugins.
+    """
+
+    logger = logging.getLogger()
+
+    # Normalise optional metadata once so the inner evaluation loop can remain
+    # allocation-free.  ``priors`` defaults to an empty tuple so missing
+    # entries behave like uninformative priors.
+    priors_list = [dict(p) for p in (priors or [])]
+
+    bounds = getattr(like, "parameter_bounds", None)
+    if bounds is not None:
+        bounds = [
+            (
+                None if low is None else float(low),
+                None if high is None else float(high),
+            )
+            for low, high in bounds
+        ]
+
+    transforms = getattr(like, "parameter_transforms", None)
+    if transforms is not None:
+        transforms = list(transforms)
+
+    def _evaluate(params: Sequence[float]) -> float:
+        """Return the posterior value for ``params`` with safeguards."""
+
+        # Convert the incoming sequence into a tuple so we can iterate multiple
+        # times without re-evaluating generators supplied by callers.  Casting
+        # to ``float`` eagerly keeps downstream NumPy calls predictable.
+        try:
+            raw_values = tuple(float(val) for val in params)
+        except (TypeError, ValueError):
+            logger.debug("(make_logposterior): received non-numeric params")
+            return float("-inf")
+
+        transformed: list[float] = []
+        log_jacobian = 0.0
+
+        # Apply optional per-parameter transforms.  When a transform returns a
+        # ``(value, log_jacobian)`` tuple we accumulate the Jacobian term so
+        # the posterior remains properly normalised in the transformed space.
+        for idx, value in enumerate(raw_values):
+            transform = None
+            if transforms is not None and idx < len(transforms):
+                transform = transforms[idx]
+            if transform is None:
+                transformed.append(value)
+                continue
+            try:
+                result = transform(value)
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.debug(
+                    "(make_logposterior): transform %d failed: %s", idx, exc
+                )
+                return float("-inf")
+            if isinstance(result, tuple):
+                if len(result) != 2:
+                    logger.debug(
+                        "(make_logposterior): transform %d returned %s",
+                        idx,
+                        result,
+                    )
+                    return float("-inf")
+                new_val, jac = result
+            else:
+                new_val, jac = result, 0.0
+            try:
+                transformed.append(float(new_val))
+                log_jacobian += float(jac)
+            except (TypeError, ValueError):
+                logger.debug(
+                    "(make_logposterior): transform %d produced non-float", idx
+                )
+                return float("-inf")
+
+        # Enforce parameter bounds before evaluating the likelihood.  Bounds
+        # are inclusive and accept ``None`` as an open limit.
+        if bounds is not None:
+            for idx, value in enumerate(transformed):
+                try:
+                    low_val, high_val = bounds[idx]
+                except IndexError:
+                    low_val, high_val = (None, None)
+                if low_val is not None and value < low_val:
+                    return float("-inf")
+                if high_val is not None and value > high_val:
+                    return float("-inf")
+
+        log_prior = log_jacobian
+        for idx, (value, prior) in enumerate(
+            zip_longest(transformed, priors_list, fillvalue=None)
+        ):
+            if prior is None or not prior:
+                continue
+            ptype = str(prior.get("type") or prior.get("distribution"))
+            if ptype.lower() == "uniform":
+                lower = prior.get("lower", prior.get("min"))
+                upper = prior.get("upper", prior.get("max"))
+                lower = None if lower is None else float(lower)
+                upper = None if upper is None else float(upper)
+                if lower is not None and value < lower:
+                    return float("-inf")
+                if upper is not None and value > upper:
+                    return float("-inf")
+                if lower is not None and upper is not None and upper > lower:
+                    log_prior -= math.log(upper - lower)
+            elif ptype.lower() == "gaussian":
+                mean = prior.get("mean")
+                sigma = prior.get("sigma")
+                if mean is None or sigma in (None, 0):
+                    logger.debug(
+                        "(make_logposterior): gaussian prior %d missing"
+                        " parameters",
+                        idx,
+                    )
+                    return float("-inf")
+                sigma = float(sigma)
+                if not math.isfinite(sigma) or sigma <= 0.0:
+                    return float("-inf")
+                mean = float(mean)
+                delta = (value - mean) / sigma
+                log_prior += -0.5 * delta * delta - math.log(
+                    sigma * math.sqrt(2.0 * math.pi)
+                )
+            elif ptype:
+                logger.warning(
+                    "(make_logposterior): unsupported prior type '%s' ignored",
+                    ptype,
+                )
+
+        log_like = like(transformed)
+        if not math.isfinite(log_like):
+            return float("-inf")
+        return float(log_like + log_prior)
+
+    return _evaluate
 
 
 def validate_plugin(plugin):

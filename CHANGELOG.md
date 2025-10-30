@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-02-14
+**Last Updated:** 2025-02-15
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -18,6 +18,12 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 6.2.0
+- 2025-02-15: Integrated JointLike-powered posterior assembly in the MCMC
+  engine, exposed `engine_interface.make_logposterior` for reusable prior
+  handling, expanded smoke tests with likelihood diagnostics, refreshed
+  documentation metadata and bumped the suite version (OpenAI ChatGPT)
 
 ## Version 6.1.1
 - 2025-02-14: Restored import ordering in the likelihood package to satisfy

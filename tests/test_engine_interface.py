@@ -3,6 +3,7 @@
 
 """Tests for ``copernican_lib.engine_interface`` helpers."""
 
+import math
 import unittest
 from types import SimpleNamespace
 
@@ -75,6 +76,57 @@ class EngineInterfaceTestCase(unittest.TestCase):
     def test_equation_sanitization(self):
         """Equations are sanitized into Matplotlib-friendly form."""
         self.assertEqual(self.plugin.MODEL_EQUATIONS_LATEX_SN[0], "$E=mc^2$")
+
+    def test_make_logposterior_applies_priors(self):
+        """Combined posterior should include prior contributions and bounds."""
+
+        calls: list[tuple[float, ...]] = []
+
+        def like(params):
+            calls.append(tuple(params))
+            return -0.5 * sum(val * val for val in params)
+
+        like.parameter_bounds = [(0.0, 1.0), (None, None)]
+        priors = [
+            {"type": "uniform", "lower": 0.0, "upper": 1.0},
+            {"type": "gaussian", "mean": 0.0, "sigma": 0.5},
+        ]
+        posterior = engine_interface.make_logposterior(like, priors)
+
+        rejected = posterior((-0.1, 0.0))
+        self.assertTrue(math.isinf(rejected) and rejected < 0)
+        value = posterior((0.5, 0.0))
+        base = like((0.5, 0.0))
+        gaussian = -math.log(0.5 * math.sqrt(2.0 * math.pi))
+        self.assertAlmostEqual(value, base + gaussian, places=7)
+        self.assertIn((0.5, 0.0), calls)
+
+    def test_make_logposterior_respects_transforms(self):
+        """Transforms should apply Jacobian corrections automatically."""
+
+        def like(params):
+            return -0.5 * sum(val * val for val in params)
+
+        def exp_transform(raw):
+            transformed = math.exp(raw)
+            return transformed, raw
+
+        like.parameter_bounds = [(None, None), (0.5, 2.0)]
+        like.parameter_transforms = [None, exp_transform]
+        priors = [
+            {"type": "uniform"},
+            {"type": "uniform", "lower": 0.5, "upper": 2.0},
+        ]
+        posterior = engine_interface.make_logposterior(like, priors)
+
+        # Raw value of 0.0 transforms to 1.0 and remains inside bounds.
+        val = posterior((0.0, 0.0))
+        expected = like((0.0, math.exp(0.0))) - math.log(2.0 - 0.5) + 0.0
+        self.assertAlmostEqual(val, expected)
+        # Raw value of log(3) transforms outside the allowed range and is
+        # rejected.
+        transformed = posterior((0.0, math.log(3.0)))
+        self.assertTrue(math.isinf(transformed) and transformed < 0)
 
 
 if __name__ == "__main__":

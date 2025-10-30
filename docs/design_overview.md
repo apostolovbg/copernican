@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-02-14
+**Last Updated:** 2025-02-15
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all
@@ -12,7 +12,11 @@ Version 6.1.0 introduces `copernican_lib/likelihoods/`, a dedicated package
 providing reusable log-likelihood helpers and a `JointLike` aggregator while
 `statistics.py` exposes thin wrappers for backward compatibility.  Version
 6.1.1 tidies the package exports so imports resolve deterministically across
-the suite's lint and packaging workflows.
+the suite's lint and packaging workflows.  Version 6.2.0 connects the MCMC
+engine directly to `JointLike` and the new
+`engine_interface.make_logposterior` helper so posterior evaluations apply
+model priors, declared bounds and optional sampling transforms uniformly across
+engines while surfacing component-level diagnostics for downstream analysis.
 
 With the retirement of the deterministic combined optimiser the suite now
 ships solely with the `cosmo_engine_mcmc` backend.  Engines remain pluggable

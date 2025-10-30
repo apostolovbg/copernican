@@ -3,7 +3,7 @@
 
 """Markov Chain Monte Carlo engine using :mod:`emcee`.
 
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-02-15
 
 The combined optimiser has been retired entirely, leaving this sampler as the
 sole runtime engine.  It continues to focus on Supernova Ia posteriors while
@@ -11,19 +11,26 @@ delegating shared χ² helpers to :mod:`copernican_lib.statistics` so the module
 acts as the canonical engine façade.  Future backends can slot in beside it
 without changing the orchestration code.  Verbose progress logging tracks both
 burn-in and production phases with percentage updates so long chains always
-report their status.
+report their status.  Version 6.2.0 routes all likelihood evaluations through
+the :class:`copernican_lib.likelihoods.JointLike` aggregator and the
+new :func:`copernican_lib.engine_interface.make_logposterior` helper so that
+posterior calculations automatically honour per-parameter priors, declared
+bounds and optional reparameterisation transforms while exposing diagnostic
+metadata alongside sampled chains.
 """
 
 from __future__ import annotations
 
 import logging
+import math
 import multiprocessing as mp
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Sequence
 
 import emcee
 import numpy as np
 
 from copernican_lib import engine_interface
+from copernican_lib.likelihoods import JointLike, SNeLike
 from copernican_lib.statistics import (
     calculate_bao_observables,
     chi_squared_bao,
@@ -49,32 +56,43 @@ _MAX_INITIAL_CONDITION = 1e12
 _MAX_INITIAL_ATTEMPTS = 12
 
 
-def _log_probability(
-    params: np.ndarray,
+def _build_sne_logposterior(
     model_plugin: Any,
     sne_data_df: Any,
-) -> float:
-    """Return the log-posterior for ``params``.
+) -> tuple[
+    Callable[[Sequence[float]], float],
+    Callable[[Sequence[float]], float],
+    JointLike,
+]:
+    """Return posterior, likelihood and diagnostics for Supernova data.
 
-    Walkers outside the declared parameter bounds are rejected immediately
-    by returning ``-np.inf``. The likelihood uses the Supernova χ² helper from
-    :mod:`copernican_lib.statistics` so that both engines evaluate identical
-    statistics.
+    Engines evaluate the returned posterior repeatedly during sampling.  The
+    helper therefore pre-computes the reusable :class:`JointLike` aggregator
+    once, attaches the plugin's bounds and optional transformations to the
+    underlying log-likelihood callable and finally hands everything to
+    :func:`engine_interface.make_logposterior` so priors and Jacobian
+    adjustments remain consistent across engines.
     """
 
-    bounds = getattr(model_plugin, "PARAMETER_BOUNDS", [])
-    for val, (low, high) in zip(params, bounds):
-        if val < low or val > high:
-            return -np.inf
+    sne_like = SNeLike(model_plugin.distance_modulus_model, sne_data_df)
+    joint_like = JointLike({"sne": sne_like})
 
-    chi2 = chi_squared_sne(
-        params,
-        model_plugin.distance_modulus_model,
-        sne_data_df,
-    )
-    if not np.isfinite(chi2):
-        return -np.inf
-    return -0.5 * chi2
+    def loglike(params: Sequence[float]) -> float:
+        """Return the Supernova log-likelihood for ``params``."""
+
+        return float(joint_like.loglike(params))
+
+    # Attach optional metadata so ``make_logposterior`` can enforce bounds and
+    # apply reparameterisation transforms without the engine reimplementing
+    # those mechanics locally.
+    loglike.parameter_bounds = getattr(model_plugin, "PARAMETER_BOUNDS", [])
+    transforms = getattr(model_plugin, "PARAMETER_TRANSFORMS", None)
+    if transforms is not None:
+        loglike.parameter_transforms = transforms
+
+    priors = getattr(model_plugin, "PARAMETER_PRIORS", [])
+    posterior = engine_interface.make_logposterior(loglike, priors)
+    return posterior, loglike, joint_like
 
 
 def _reseed_invalid_walkers(
@@ -211,6 +229,11 @@ def fit_sne_parameters(
 
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)
+
+    posterior_full, loglike_full, joint_like = _build_sne_logposterior(
+        model_plugin,
+        sne_data_df,
+    )
     names: Iterable[str] = getattr(model_plugin, "PARAMETER_NAMES", [])
     names = list(names)
     initial = np.asarray(getattr(model_plugin, "INITIAL_GUESSES", []), float)
@@ -261,7 +284,7 @@ def fit_sne_parameters(
 
     def log_probability_active(position: np.ndarray) -> float:
         full = assemble_full(position)
-        return _log_probability(full, model_plugin, sne_data_df)
+        return posterior_full(full)
 
     try:
         p0, logp = _initialise_active_walkers(
@@ -345,13 +368,16 @@ def fit_sne_parameters(
     fitted = {n: v for n, v in zip(names, best_params)}
     posterior_mean = {n: v for n, v in zip(names, mean_params)}
 
-    chi2_best = chi_squared_sne(
-        best_params,
-        model_plugin.distance_modulus_model,
-        sne_data_df,
-    )
+    loglike_best = float(loglike_full(best_params))
+    log_posterior_best = float(posterior_full(best_params))
+    likelihood_state = dict(joint_like.state)
+    chi2_best = float(likelihood_state.get("chi2", float("inf")))
     dof = len(sne_data_df) - ndim_total
     reduced = chi2_best / dof if dof > 0 else np.nan
+
+    log_prior_best = float("-inf")
+    if math.isfinite(log_posterior_best) and math.isfinite(loglike_best):
+        log_prior_best = log_posterior_best - loglike_best
 
     acceptance = sampler.acceptance_fraction
     logger.info(
@@ -368,7 +394,8 @@ def fit_sne_parameters(
         autocorr = None
 
     return {
-        "success": np.isfinite(chi2_best),
+        "success": np.isfinite(chi2_best)
+        and math.isfinite(log_posterior_best),
         "samples": chain,
         "log_probability": log_prob_chain,
         "fitted_cosmological_params": fitted,
@@ -380,12 +407,16 @@ def fit_sne_parameters(
         "chi2_min": chi2_best,
         "chi2_sne": chi2_best,
         "chi2_total": chi2_best,
+        "log_likelihood_best": loglike_best,
+        "log_posterior_best": log_posterior_best,
+        "log_prior_best": log_prior_best,
         "dof": dof,
         "reduced_chi2": reduced,
         "acceptance_fraction": acceptance,
         "burn_in_steps": burn_in,
         "production_steps": n_steps,
         "autocorrelation_time": autocorr,
+        "likelihood_state": likelihood_state,
     }
 
 

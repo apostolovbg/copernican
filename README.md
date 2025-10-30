@@ -1,5 +1,5 @@
-**Version:** 6.1.1
-**Last Updated:** 2025-02-14
+**Version:** 6.2.0
+**Last Updated:** 2025-02-15
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -320,7 +320,12 @@ rest of the codebase.
 Generic chi-squared wrappers live in `copernican_lib/statistics.py` and now
 delegate to the dataset-specific helpers inside `copernican_lib/likelihoods`
 while remaining re-exported by each engine module. This keeps
-`model_coder.py` focused on translating models.
+`model_coder.py` focused on translating models. Engines assemble posteriors via
+`engine_interface.make_logposterior`, which applies declared priors, honours
+parameter bounds and injects Jacobian corrections whenever models expose
+sampling transforms. The default MCMC backend wires these helpers into the
+`JointLike` aggregator so every run records dataset-level diagnostics alongside
+the sampled chains.
 
 The helper `chi_squared_cmb` now accepts either a plugin and parameter
 vector or a ready CAMB dictionary. This flexibility lets future engines reuse
@@ -349,9 +354,10 @@ archive](https://data.sdss.org/sas/dr12/boss/) does not provide a
 - After each run you may choose to evaluate another model or exit. Cache files
   are cleaned automatically.
 - When a run finishes the suite prints the abstract text from each model along
-  with a summary of the best-fit parameters and individual chi-squared values
-for
-  SNe, BAO and CMB.
+  with a summary of the best-fit parameters, individual chi-squared values for
+  SNe, BAO and CMB, and the structured likelihood diagnostics returned by the
+  `JointLike` aggregator so downstream notebooks can reproduce the sampler
+  state without recomputing log-likelihoods.
 
 ## Plot Footers and Metadata
 Each generated plot includes a centered footer that documents the run.
