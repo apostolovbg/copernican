@@ -1,4 +1,4 @@
-**Version:** 6.2.0
+**Version:** 6.4.0
 **Last Updated:** 2025-10-30
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -443,8 +443,17 @@ multiplication
 8. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
 9. Each parameter may define a `prior` block describing sampling assumptions.
-   `type: gaussian` requires `mean` and `sigma` while `type: uniform` needs
-   `lower` and `upper`. Engines expose these via `PARAMETER_PRIORS`.
+   `type: gaussian` requires `mean` and `sigma`, `type: uniform` needs
+   `lower` and `upper`, and `type: loguniform` expects strictly positive
+   `lower`/`upper` bounds. When the declared bounds are identical the parser
+   elevates the parameter to `type: fixed` and stores the common value.  All
+   priors must declare their `type` explicitly; legacy aliases such as
+   `distribution` are no longer accepted.  Log-uniform priors automatically
+   activate a log-space transform whose Jacobian is tracked through
+   `copernican_lib.priors`. Engines expose the canonical dictionaries via
+   `PARAMETER_PRIORS`, instantiated helper objects via
+   `PARAMETER_PRIOR_OBJECTS` and deterministic constants through
+   `FIXED_PARAMS` so samplers can reuse consistent mechanics.
 10. Every parameter must define a `latex_name`. When a `python_var` field is
     omitted, a valid identifier is derived automatically from this LaTeX
     name. Provide an explicit `python_var` when you want short variable names
@@ -455,6 +464,14 @@ multiplication
     subscripts and superscripts when possible for easier reading. The
     conversion tables cover every Latin and Greek letter, digits and common
     operators.
+
+The parser rewrites every prior into a canonical dictionary before the
+sanitized cache file is written, clearing stray transform declarations when
+they do not match the selected prior, inserting `transform: log` entries
+whenever a log-uniform prior is declared and adding `type: fixed` stanzas for
+parameters whose bounds coincide.  This keeps the cached YAML
+human-readable while ensuring engines and manifests always observe the same
+schema, regardless of how the original model was authored.
 
 ### Updated example models
 The non-\LambdaCDM samples now demonstrate several design patterns:

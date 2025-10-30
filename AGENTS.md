@@ -68,6 +68,11 @@ engine emits step-by-step progress messages for both burn-in and production
 phases, displays percentage indicators and continues to return ``-np.inf``
 whenever a proposal falls outside declared parameter bounds or yields a
 non-finite chi-squared so the sampler rejects invalid walkers deterministically.
+Parameter priors must now declare an explicit `type`; legacy `distribution`
+aliases are rejected.  The parser canonicalises every mapping, injects
+`type: fixed` for bounds whose endpoints coincide and surfaces deterministic
+constants via `plugin.FIXED_PARAMS` so downstream utilities can consume them
+without re-reading the YAML cache.
 Non-ΛCDM sample YAMLs (`cosmo_model_cfsc.yml`, `cosmo_model_cpc.yml`,
 `cosmo_model_qauc.yml` and `cosmo_model_usmf{3..7}.yml`) are maintained as
 parseable exemplars. Treat their `python_var` assignments and folded block

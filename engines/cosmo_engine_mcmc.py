@@ -90,7 +90,9 @@ def _build_sne_logposterior(
     if transforms is not None:
         loglike.parameter_transforms = transforms
 
-    priors = getattr(model_plugin, "PARAMETER_PRIORS", [])
+    priors = getattr(model_plugin, "PARAMETER_PRIOR_OBJECTS", None)
+    if priors is None:
+        priors = getattr(model_plugin, "PARAMETER_PRIORS", [])
     posterior = engine_interface.make_logposterior(loglike, priors)
     return posterior, loglike, joint_like
 

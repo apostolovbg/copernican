@@ -70,5 +70,8 @@ or analysis scripts.
 
 Model YAML files now support a `prior` block for each parameter. Priors carry
 their `type` and relevant numeric fields: Gaussian priors require `mean` and
-`sigma`, while uniform priors use `lower` and `upper`. Parsed models expose
-these details so engines can apply them during optimisation.
+`sigma`, uniform priors use `lower` and `upper`, and log-uniform priors
+demand strictly positive `lower`/`upper` pairs. Parsed models expose these
+details so engines can apply them during optimisation while
+`copernican_lib.priors.LogUniformPrior` injects the accompanying log-space
+transform automatically.
