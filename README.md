@@ -1,4 +1,4 @@
-**Version:** 6.0.14
+**Version:** 6.1.0
 **Last Updated:** 2025-10-30
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -293,6 +293,7 @@ copernican_lib/          - Helper modules
   data_loaders.py   - Data loading utilities
   utils.py          - Common helpers
   optim_utils.py    - Shared optimisation wrappers used by engines
+  likelihoods/      - Dataset-specific log-likelihood helpers
 ```
 All dataset tables and metadata are provided **only** as YAML files. JSON
 input is no longer supported as of version 3.0.0.
@@ -316,9 +317,10 @@ invokes its functions. New engines can therefore implement alternate
 strategies
 —such as SNe-only sampling or future joint optimisations—without modifying the
 rest of the codebase.
-Generic chi-squared helpers live in `copernican_lib/statistics.py` and are
-re-exported by each engine module, keeping `model_coder.py` focused on
-translating models.
+Generic chi-squared wrappers live in `copernican_lib/statistics.py` and now
+delegate to the dataset-specific helpers inside `copernican_lib/likelihoods`
+while remaining re-exported by each engine module. This keeps
+`model_coder.py` focused on translating models.
 
 The helper `chi_squared_cmb` now accepts either a plugin and parameter
 vector or a ready CAMB dictionary. This flexibility lets future engines reuse
