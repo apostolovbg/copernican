@@ -2,6 +2,7 @@
 
 import importlib.util
 import logging
+import math
 import os
 import tempfile
 import unittest
@@ -19,10 +20,10 @@ else:
 from copernican_lib import engine_interface, model_coder, model_parser
 from engines import cosmo_engine_mcmc
 from engines.cosmo_engine_mcmc import (
+    _build_sne_logposterior,
     _classify_parameter_bounds,
     _estimate_condition_number,
     _initialise_active_walkers,
-    _log_probability,
     _reseed_invalid_walkers,
 )
 
@@ -107,8 +108,12 @@ class TestMCMCEngine(unittest.TestCase):
                 "e_mu_obs": [0.1],
             }
         )
+        posterior, _, _ = _build_sne_logposterior(
+            plugin,
+            sne_df,
+        )
         bad = np.array([200.0] + list(plugin.INITIAL_GUESSES[1:]))
-        lp = cosmo_engine_mcmc._log_probability(bad, plugin, sne_df)
+        lp = posterior(bad)
         self.assertTrue(np.isneginf(lp))
 
     def test_invalid_walkers_are_reseeded(self):
@@ -134,12 +139,11 @@ class TestMCMCEngine(unittest.TestCase):
                 np.full(ndim, np.nan),
             ]
         )
-        log_prob = np.array(
-            [
-                _log_probability(coords[0], plugin, sne_df),
-                np.nan,
-            ]
+        posterior, _, _ = _build_sne_logposterior(
+            plugin,
+            sne_df,
         )
+        log_prob = np.array([posterior(coords[0]), np.nan])
         rng = np.random.default_rng(12345)
         new_coords, new_log_prob = _reseed_invalid_walkers(
             coords,
@@ -147,9 +151,7 @@ class TestMCMCEngine(unittest.TestCase):
             lower=lower,
             upper=upper,
             rng=rng,
-            log_probability_fn=lambda pos: _log_probability(
-                pos, plugin, sne_df
-            ),
+            log_probability_fn=lambda pos: posterior(pos),
             reference_position=np.asarray(plugin.INITIAL_GUESSES, dtype=float),
         )
         self.assertTrue(np.all(np.isfinite(new_coords)))
@@ -177,6 +179,29 @@ class TestMCMCEngine(unittest.TestCase):
         const_idx = plugin.PARAMETER_NAMES.index("c")
         fixed_spread = np.ptp(chain[:, :, const_idx])
         self.assertAlmostEqual(fixed_spread, 0.0, places=10)
+
+    def test_likelihood_state_reported(self):
+        plugin = self._build_lcdm_plugin()
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01, 0.02],
+                "mu_obs": [40.0, 41.0],
+                "e_mu_obs": [0.1, 0.1],
+            }
+        )
+        result = cosmo_engine_mcmc.fit_sne_parameters(
+            sne_df,
+            plugin,
+            n_walkers=4,
+            n_steps=4,
+            pool_size=1,
+        )
+        state = result["likelihood_state"]
+        self.assertIn("components", state["metadata"])
+        self.assertIn("sne", state["metadata"]["components"])
+        self.assertTrue(math.isfinite(result["log_likelihood_best"]))
+        self.assertTrue(math.isfinite(result["log_posterior_best"]))
+        self.assertTrue(math.isfinite(result["log_prior_best"]))
 
     def test_comoving_distance_vectorized(self):
         plugin = self._build_lcdm_plugin()
