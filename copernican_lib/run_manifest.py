@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import Dict, Iterable, Tuple
+from typing import Any, Dict, Iterable
 
 import yaml
 
@@ -51,9 +51,9 @@ def _git_info() -> dict:
 
 
 def build_manifest(
-    models: Iterable[Tuple[object, str]],
+    models: Iterable[tuple[object, str]],
     engine_module: object,
-    datasets: Iterable[Tuple[str, str, Dict[str, str]]],
+    datasets: Iterable[Dict[str, Any]],
 ) -> dict:
     """Collect manifest information for the current run.
 
@@ -67,9 +67,10 @@ def build_manifest(
         Selected engine module object.  ``ENGINE_VERSION`` is queried when
         available.
     datasets:
-        Iterable of ``(dataset_id, data_dir, file_hashes)`` tuples.  The
-        ``file_hashes`` mapping mirrors the ``file_hashes`` attribute attached
-        to the :class:`pandas.DataFrame` produced by the dataset loader.
+        Iterable of dictionaries describing each dataset.  Expected keys are
+        ``id``, ``name``, ``version``, ``path``, ``hashes`` and
+        ``independence``.  The manifest builder ignores missing keys so
+        callers may provide partial information when necessary.
     """
 
     manifest = {
@@ -102,10 +103,19 @@ def build_manifest(
             }
         )
 
-    for dataset_id, data_dir, file_hashes in datasets:
+    for dataset in datasets:
+        dataset_id = dataset.get("id")
+        if not dataset_id:
+            continue
+        independence = dataset.get("independence", [])
+        if isinstance(independence, str):
+            independence = [independence]
         manifest["datasets"][dataset_id] = {
-            "path": data_dir,
-            "hashes": file_hashes,
+            "name": dataset.get("name", dataset_id),
+            "version": dataset.get("version", "unknown"),
+            "path": dataset.get("path", ""),
+            "hashes": dataset.get("hashes", {}),
+            "independence": independence,
         }
 
     return manifest

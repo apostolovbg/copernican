@@ -1003,17 +1003,25 @@ def main_workflow():
             console.write("")
             continue
         dataset_info = []
-        for df, registry in [
-            (sne_data_df, data_loaders.SNE_PARSERS),
-            (bao_data_df, data_loaders.BAO_PARSERS),
-            (cmb_data_df, data_loaders.CMB_PARSERS),
-        ]:
+        for df in (sne_data_df, bao_data_df, cmb_data_df):
             ds_id = df.attrs.get("dataset_id")
-            data_dir = registry.get(ds_id, {}).get("data_dir")
-            # ``file_hashes`` enables manifest reproducibility.
+            data_dir = df.attrs.get("data_path")
+            if not ds_id or not data_dir:
+                continue
             hashes = df.attrs.get("file_hashes", {})
-            if ds_id and data_dir:
-                dataset_info.append((ds_id, data_dir, hashes))
+            dataset_info.append(
+                {
+                    "id": ds_id,
+                    "name": df.attrs.get("dataset_name", ds_id),
+                    "version": df.attrs.get("dataset_version", "unknown"),
+                    "path": data_dir,
+                    "hashes": hashes,
+                    "independence": df.attrs.get(
+                        "independence_assumptions",
+                        [],
+                    ),
+                }
+            )
 
         manifest = run_manifest.build_manifest(
             models=[

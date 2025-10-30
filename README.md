@@ -1,4 +1,4 @@
-**Version:** 6.4.0
+**Version:** 6.5.0
 **Last Updated:** 2025-10-30
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -381,6 +381,12 @@ being used. When generating file names the suite sanitizes dataset names,
 replacing spaces and characters like ``/`` with hyphens so output paths remain
 portable across operating systems.
 
+The canonical dataset selections, release versions and independence
+assumptions are documented in
+`copernican_lib/config_schemas/run_config.yml`.  The schema is kept in sync with
+the loader attributes so automated tooling can validate run descriptors and the
+manifest always records the same statements presented to the user.
+
 ## Logging and Caching
 All console output and user prompts are captured in a timestamped log file in
 `./output/`. After initialisation the suite logs the Python version, OS, CPU
@@ -404,7 +410,8 @@ fast during optimisation loops.
 
 Each run directory also contains a YAML manifest named
 `run_manifest_<timestamp>.yml` capturing the suite version, chosen models,
-engine, parameter priors, dataset hashes and the Git commit. See
+engine, parameter priors, dataset names, versions, SHA256 hashes, the
+independence statements declared by the loaders and the Git commit. See
 [docs/run_manifest.md](docs/run_manifest.md) for details on using this file to
 reproduce analyses.
 
