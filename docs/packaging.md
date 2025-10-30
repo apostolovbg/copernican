@@ -33,18 +33,20 @@ start and ignores globally installed packages:
 - `start.command` on macOS
 - `start.sh` on Linux
 
-The script creates or reuses `.venv` from the bundled interpreter, upgrades
-`pip`, installs packages from `requirements.lock` and installs the project
-itself with `pip install --no-deps .`. ArviZ now ships as the released
-`0.22.0` build, so the runtime stack stays compatible with NumPy 2 without
-fetching a commit archive. Re-run the launcher after pulling updates to
-refresh the environment.
+The script creates or reuses `.venv` from the bundled interpreter, pins
+`pip` to `24.2`, installs packages from `requirements.lock` and installs the
+project itself with `pip install --no-deps .`. ArviZ now ships as the
+widely available `0.16.1` release alongside `numpy==1.26.4`,
+`scipy==1.12.0`, `matplotlib==3.8.2` and `pandas==2.2.1`,
+ensuring every platform pulls published wheels instead of attempting source
+builds. Re-run
+the launcher after pulling updates to refresh the environment.
 
-`requirements.lock` pins exact versions for all runtime
-dependencies. Adding or updating a package requires editing this file and the
-license summary in `THIRD_PARTY_LICENSES.md`. The introduction of
-`copernican_lib.statistics` consolidated existing helpers without adding new
-packages, so the lock file remained unchanged for this release.
+`requirements.lock` pins exact versions for all runtime dependencies.
+Adding or updating a package requires editing this file and the license
+summary in `THIRD_PARTY_LICENSES.md`. This release refreshed nearly every
+pin to match published wheels, so remember to keep the license table in
+sync when adjusting future dependencies.
 
 Development helpers such as `pre-commit` are installed without the
 `--no-deps` flag so their own dependencies are pulled in automatically.

@@ -19,6 +19,13 @@ put dates that are in the future or in the past! Follow this template:
 ```
 ## Log changes here
 
+## Version 6.0.10
+- 2025-10-30: Rebuilt the dependency lock against currently published
+  wheels, pinned the bootstrapper to `pip==24.2`, updated CI workflows to
+  honour the stable installer and refreshed documentation and metadata so
+  Windows, macOS and Linux jobs all resolve packages without source builds
+  (OpenAI ChatGPT)
+
 ## Version 6.0.9
 - 2025-10-30: Added a cross-platform GitHub Actions CI matrix for Python 3.12,
   cached pip and CAMB assets, automated testing, packaging artifact uploads,
