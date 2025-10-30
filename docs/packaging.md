@@ -1,13 +1,15 @@
 # Packaging Guide
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-11-24
 This document explains how to prepare the suite for development or packaging.
 
 ## Install Python 3.12+
 
 The `start.*` launchers always download a private Python 3.12+ into
-`.python`, ignoring any system interpreter. They refuse to run when
-another virtual environment is active so the repository's `.venv` is
-always used. If the download fails the scripts exit with guidance.
+`.python`, ignoring any system interpreter. They now delete legacy
+downloads that predate Python 3.12 and rebuild `.venv` automatically if it
+ever points at an older interpreter. They refuse to run when another
+virtual environment is active so the repository's `.venv` is always used.
+If the download fails the scripts exit with guidance.
 
 On Windows the launcher now constructs the download URL without command
 continuations, exports it to PowerShell via environment variables and
@@ -32,10 +34,11 @@ start and ignores globally installed packages:
 - `start.sh` on Linux
 
 The script creates or reuses `.venv` from the bundled interpreter, upgrades
-`pip`, installs packages from `requirements.lock` and
-installs the project itself with `pip install --no-deps .`. ArviZ is installed
-separately to work around its stale NumPy requirement. Re-run the launcher
-after pulling updates to refresh the environment.
+`pip`, installs packages from `requirements.lock` and installs the project
+itself with `pip install --no-deps .`. ArviZ now ships as the released
+`0.22.0` build, so the runtime stack stays compatible with NumPy 2 without
+fetching a commit archive. Re-run the launcher after pulling updates to
+refresh the environment.
 
 `requirements.lock` pins exact versions for all runtime
 dependencies. Adding or updating a package requires editing this file and the

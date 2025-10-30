@@ -1,5 +1,5 @@
-**Version:** 6.0.7
-**Last Updated:** 2025-10-30
+**Version:** 6.0.8
+**Last Updated:** 2025-11-24
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -136,19 +136,21 @@ Under the hood the program follows a clear pipeline:
 1. Run the platform-specific `start` script. macOS users should run
    `./start.command`, Windows users open `start.bat`, and Linux users can
    execute `./start.sh`. The launcher downloads a private Python 3.12+ into
-   `.python`, creates `.venv`, upgrades `pip`, installs locked dependencies
-   and installs the project with `pip install
-   --no-deps .`. It skips errors when `VIRTUAL_ENV` is unset and deletes any
-   `build/` directory before and after installation to avoid stale artifacts.
-   If the activation script is missing the launcher recreates `.venv` once
-   before exiting with an error. Each launcher prints a notice before
-   invoking `sudo`, `brew` or `winget` so users know any password prompt
-   originates from the package manager and is never read or stored. `sudo -k`
-   and explicit prompts keep password handling within the operating system.
-   On Windows the launcher now delegates the download and extraction steps to
-   dedicated helper routines so the PowerShell commands execute outside the
-   bootstrap condition, preventing `cmd.exe` from mis-parsing closing
-   parentheses and restoring the interactive menu.
+   `.python`, removes any bundled interpreter older than 3.12 and recreates
+   `.venv` automatically when its Python falls below the minimum supported
+   version. It then upgrades `pip`, installs locked dependencies and installs
+   the project with `pip install --no-deps .`. The helpers skip errors when
+   `VIRTUAL_ENV` is unset and delete any `build/` directory before and after
+   installation to avoid stale artifacts. If the activation script is missing
+   the launcher recreates `.venv` once before exiting with an error. Each
+   launcher prints a notice before invoking `sudo`, `brew` or `winget` so
+   users know any password prompt originates from the package manager and is
+   never read or stored. `sudo -k` and explicit prompts keep password
+   handling within the operating system. On Windows the launcher now
+   delegates the download and extraction steps to dedicated helper routines
+   so the PowerShell commands execute outside the bootstrap condition,
+   preventing `cmd.exe` from mis-parsing closing parentheses and restoring
+   the interactive menu.
 2. Follow the interactive prompts to choose a model, preferred data sources
    and
    computation engine.
@@ -166,17 +168,16 @@ Under the hood the program follows a clear pipeline:
 
 ## Dependencies
 The launchers automatically bootstrap a dedicated Python 3.12+ into
-`.python` and create `.venv` from it, so no pre-existing Python
-installation is needed. They verify that `.venv/bin/activate` exists and
-retry once before aborting. Inside the virtual environment this project
+`.python`, delete any interpreter older than 3.12 and rebuild `.venv`
+whenever its Python falls below the supported floor, so no pre-existing
+Python installation is needed. They verify that `.venv/bin/activate` exists
+and retry once before aborting. Inside the virtual environment this project
 relies on `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`, `jsonschema`,
 `camb==1.6.2`, `emcee`, `h5netcdf`, `h5py`, `xarray`, `typing_extensions`
-and `arviz` from a pinned commit archive.
+and the released `arviz==0.22.0`, which ships with NumPy 2 compatibility.
 The launchers refuse to run when another virtual environment is active and
 reinstall pinned dependencies on every start so the suite always uses its
-managed `.venv`. ArviZ is pulled as a tarball from commit
-`01c8b9454349247eed2145a27b03f9231acb412f` to avoid the package's former
-`numpy<2` constraint without using a VCS URL.
+managed `.venv`.
 
 Versions for all runtime dependencies are pinned in
 `requirements.lock`. This set now includes the `h5py` library for HDF5
