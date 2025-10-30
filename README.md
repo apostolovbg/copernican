@@ -1,5 +1,5 @@
-**Version:** 6.5.2
-**Last Updated:** 2025-10-30
+**Version:** 6.5.3
+**Last Updated:** 2025-10-30 17:56 UTC
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -138,23 +138,21 @@ Under the hood the program follows a clear pipeline:
    execute `./start.sh`. The launcher downloads a private Python 3.11 runtime
    into `.python`, removes any bundled interpreter that falls outside the 3.11
    series and recreates `.venv` automatically when its Python falls below the
-   minimum supported version. It pins `pip` to 24.2 before installing
-   dependencies so
-   Windows jobs no longer attempt to grab unreleased wheels, installs the
-   locked stack and installs the project with `pip install --no-deps .`. The
-   helpers
-   skip errors when
-   `VIRTUAL_ENV` is unset and delete any `build/` directory before and after
-   installation to avoid stale artifacts. If the activation script is missing
-   the launcher recreates `.venv` once before exiting with an error. Each
-   launcher prints a notice before invoking `sudo`, `brew` or `winget` so
-   users know any password prompt originates from the package manager and is
-   never read or stored. `sudo -k` and explicit prompts keep password
-   handling within the operating system. On Windows the launcher now
-   delegates the download and extraction steps to dedicated helper routines
-   so the PowerShell commands execute outside the bootstrap condition,
-   preventing `cmd.exe` from mis-parsing closing parentheses and restoring
-   the interactive menu.
+   minimum supported version. If the bundled interpreter omits `pip` the
+   helpers run `python -m ensurepip --upgrade` and fall back to
+   `get-pip.py` so dependency installation always succeeds before they
+   upgrade to the pinned 24.2 release. They install the locked stack, install
+   the project with `pip install --no-deps .`, skip errors when `VIRTUAL_ENV`
+   is unset and delete any `build/` directory before and after installation to
+   avoid stale artifacts. If the activation script is missing the launcher
+   recreates `.venv` once before exiting with an error. Each launcher prints a
+   notice before invoking `sudo`, `brew` or `winget` so users know any password
+   prompt originates from the package manager and is never read or stored.
+   `sudo -k` and explicit prompts keep password handling within the operating
+   system. On Windows the launcher now delegates the download and extraction
+   steps to dedicated helper routines so the PowerShell commands execute
+   outside the bootstrap condition, preventing `cmd.exe` from mis-parsing
+   closing parentheses and restoring the interactive menu.
 2. Follow the interactive prompts to choose a model, preferred data sources
    and
    computation engine.

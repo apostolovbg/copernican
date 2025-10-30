@@ -1,6 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-10-30 16:40 UTC
+@REM Last Updated: 2025-10-30 17:56 UTC
 @echo off
 set "PKG_NOTICE=Package managers may request your password. The Copernican"
 set "PKG_NOTICE=%PKG_NOTICE% Suite never reads or stores it."
@@ -94,6 +94,11 @@ if not exist .venv\Scripts\activate.bat (
 
 call .venv\Scripts\activate.bat
 set PYTHON=python
+call :ensure_pip
+if errorlevel 1 (
+    echo Unable to bootstrap pip in the Copernican virtual environment.
+    exit /b 1
+)
 %PYTHON% -m pip install --upgrade pip
 %PYTHON% -m pip install -r requirements.lock
 if exist build rmdir /s /q build
@@ -132,6 +137,31 @@ powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
     }" ^
     -Args "%~1", "%~2"
 exit /b %ERRORLEVEL%
+
+:ensure_pip
+%PYTHON% -m ensurepip --upgrade
+if errorlevel 1 (
+    set "COPERNICAN_GETPIP=%TEMP%\copernican-get-pip.py"
+    powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
+        "& { param([string]$path) ^
+            Set-StrictMode -Version Latest; ^
+            $uri = 'https://bootstrap.pypa.io/get-pip.py'; ^
+            Invoke-WebRequest -Uri $uri -OutFile $path ^
+        }" ^
+        -Args "%COPERNICAN_GETPIP%"
+    if errorlevel 1 (
+        echo Failed to download get-pip.py.
+        exit /b 1
+    )
+    %PYTHON% "%COPERNICAN_GETPIP%"
+    set "COPERNICAN_ENSURE_ERR=%ERRORLEVEL%"
+    if exist "%COPERNICAN_GETPIP%" del "%COPERNICAN_GETPIP%"
+    if not "%COPERNICAN_ENSURE_ERR%"=="0" (
+        echo Failed to bootstrap pip via get-pip.py.
+        exit /b %COPERNICAN_ENSURE_ERR%
+    )
+)
+exit /b 0
 
 :menu
 set STRICT=0

@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-10-30 17:02 UTC
+**Last Updated:** 2025-10-30 17:56 UTC
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -19,6 +19,12 @@ dates. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 6.5.3
+- 2025-10-30: Ensured the managed launchers bootstrap `pip` with
+  `ensurepip` and a `get-pip.py` fallback so dependency installations never
+  fail on fresh interpreters, refreshed the quick-start documentation, and
+  bumped suite metadata (OpenAI ChatGPT)
 
 ## Version 6.5.2
 - 2025-10-30: Hardened all launchers to purge Python 3.12 interpreters, added
