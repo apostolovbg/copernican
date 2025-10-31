@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 6.6.0
+- 2025-10-31: Enabled joint SNe/BAO/CMB sampling in the MCMC engine, updated
+  Stage 2 orchestration and downstream reporting to reuse the combined
+  likelihood diagnostics, refreshed documentation, expanded regression tests
+  and bumped suite metadata (OpenAI ChatGPT)
+
 ## Version 6.5.4
 - 2025-10-31: Allowed "Last Updated" markers within the first three lines of
   tracked files, removed time components from metadata fields, updated the CI

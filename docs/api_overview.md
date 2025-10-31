@@ -1,6 +1,6 @@
 # Copernican Suite API Overview
 
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-10-31
 
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be
@@ -42,11 +42,13 @@ modules are:
   results with filenames that encode the dataset, model and timestamp.
 
 - `engines.cosmo_engine_mcmc.fit_sne_parameters` – returns a dictionary with
-  posterior samples, chi-squared totals, burn-in length, acceptance fractions,
-  autocorrelation estimates and a sanitised log-probability trace. The
-  private `_reseed_invalid_walkers` utility reseeds walkers that emit `nan`
-  coordinates after burn-in so downstream API consumers never need to handle
-  undefined sampler states.
+  posterior samples, joint chi-squared diagnostics for the SNe/BAO/CMB
+  components, dataset-level point counts, burn-in length, acceptance fractions
+  and a sanitised log-probability trace. BAO and CMB data frames can be passed
+  via the `bao_data_df` and `cmb_data_df` keyword arguments to enable joint
+  sampling in a single call. The private `_reseed_invalid_walkers` utility
+  reseeds walkers that emit `nan` coordinates after burn-in so downstream API
+  consumers never need to handle undefined sampler states.
 - `result_writer.save_summary(results, output_dir)` – serialize fitted
   parameters, 1σ errors and covariance matrices to JSON and YAML for later
   analysis.

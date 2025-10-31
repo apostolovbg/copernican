@@ -1,5 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
+# Last Updated: 2025-10-31
 
 """Basic functional tests for the Copernican Suite."""
 
@@ -143,7 +144,17 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertIn("samples", result)
         self.assertIn("chi2_total", result)
         self.assertTrue(np.isfinite(result["chi2_total"]))
-        self.assertEqual(result["chi2_total"], result["chi2_sne"])
+        components = result.get("chi2_components", {})
+        self.assertAlmostEqual(
+            result["chi2_total"], sum(components.values()), places=7
+        )
+        self.assertAlmostEqual(result["chi2_sne"], components.get("sne", 0.0))
+        self.assertAlmostEqual(
+            result.get("chi2_bao", 0.0), components.get("bao", 0.0)
+        )
+        self.assertAlmostEqual(
+            result.get("chi2_cmb", 0.0), components.get("cmb", 0.0)
+        )
         self.assertIn("burn_in_steps", result)
         self.assertIn("production_steps", result)
         self.assertEqual(

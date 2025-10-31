@@ -1,4 +1,4 @@
-**Version:** 6.5.4
+**Version:** 6.6.0
 **Last Updated:** 2025-10-31
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -103,26 +103,26 @@ Under the hood the program follows a clear pipeline:
   path that resolves outside the repository is skipped. Folders named
   `placeholder` are ignored so unfinished datasets do not appear in the
   selection menus.
-4. **Parameter Fitting** – the MCMC engine samples the SNe posterior for the
-   ΛCDM baseline and the chosen alternative model. When both theories share
-   the same plugin (for example when testing ΛCDM against itself) the Stage 2
-   workflow compares `MODEL_FILENAME` values, reuses the first chain and
-   copies the chi-squared totals so BAO and CMB comparisons draw identical
-   predictions. Otherwise the ΛCDM reference and the alternative model are
-   sampled in turn with independent random seeds.
-5. **BAO Analysis** – BAO observables are computed using the MAP parameters
-   returned by the sampler and chi-squared statistics are reported. Shared
-   helpers from `copernican_lib.statistics` keep the calculations identical
-   regardless of the active engine, ensuring future backends remain
-   drop-in replacements. When a sampler reports failure or omits fitted
-   parameters the suite now skips BAO calculations for that model instead of
-   crashing, logging a warning so users can revisit their priors.
-6. **CMB Analysis** – CMB power spectra are generated using the fitted
-   cosmological parameters and any extra CMB-specific values supplied by the
-   engine. The chi-squared contribution is then calculated. As with the BAO
-   stage the orchestrator bypasses CMB processing gracefully when the
-   underlying fit does not yield cosmological parameters, preventing
-   `KeyError` exceptions at the end of long runs.
+4. **Joint Parameter Fitting** – Stage 2 now samples a combined posterior for
+   the ΛCDM baseline and the alternative model by evaluating SNe, BAO and CMB
+   likelihoods simultaneously through the `JointLike` aggregator. When both
+   theories share the same plugin (for example when testing ΛCDM against
+   itself) the workflow compares `MODEL_FILENAME` values, reuses the first
+   chain and copies the recorded dataset diagnostics so every component shares
+   the same walker history. Otherwise the ΛCDM reference and the alternative
+   model are sampled in turn with independent random seeds.
+5. **BAO Analysis** – Stage 3 reuses the sampler's diagnostics to report BAO
+   chi-squared contributions directly from the joint fit while still
+   generating smooth predictions for plots and CSV exports. Shared helpers
+   from `copernican_lib.statistics` compute the observables so future engines
+   remain drop-in replacements. When a sampler reports failure or omits
+   cosmological parameters the suite skips BAO plotting gracefully and logs a
+   warning instead of crashing.
+6. **CMB Analysis** – Stage 4 mirrors the BAO workflow: it reads the CMB χ²
+   stored on the joint sampler state, regenerates spectra for plotting and
+   respects model compatibility flags. The orchestrator bypasses CMB
+   processing cleanly when the underlying fit does not provide cosmological
+   parameters, preventing `KeyError` exceptions at the end of long runs.
 7. **Spectra Caching** – unlensed CAMB spectra are cached using parameter
    keys rounded to six significant digits.
 8. **Output Generation** – `copernican_lib/logger.py`,
