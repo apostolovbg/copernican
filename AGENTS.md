@@ -350,4 +350,8 @@ and documentation all agree. Runtime code must obtain the current version via
 helper reads the tracked version file before falling back to package metadata
 or Git tags. Setting ``COPERNICAN_VERSION`` in the environment overrides the
 derived value so CI builds can embed custom prerelease identifiers that
-match the tracked version.
+match the tracked version. Version 7.0.4 added defensive lookups inside
+``copernican.py``, ``copernican_lib/run_manifest.py`` and
+``copernican_lib/plotter.py`` so the suite still boots when
+``copernican_lib.version.get_version`` is temporarily unavailable during
+partial upgrades.

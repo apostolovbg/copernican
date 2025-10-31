@@ -27,6 +27,13 @@ before it reaches the cache or an engine and rejects the retired
 metadata-driven transforms, manifests and engine plugins all observe the same
 schema even when the original YAML attempted to declare redundant transforms.
 
+Version 7.0.4 adds resilient version discovery so the macOS launcher continues
+to boot even when `copernican_lib.version.get_version` is temporarily missing
+during partial upgrades.  The runtime now defers attribute lookups until a
+version string is required, mirroring the fallbacks in
+`copernican_lib.version.get_version` so manifests and plot footers still record
+``"0+unknown"`` when the helper cannot be imported directly.
+
 Version 6.7.4 kept the multiprocessing contract intact by making both the
 joint likelihood wrapper and the generated distance functions picklable. Version
 7.0.0 replaced the legacy `engine_interface` monolith with the

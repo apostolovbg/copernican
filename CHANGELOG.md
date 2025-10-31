@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.0.4
+- 2025-10-31: Hardened runtime version discovery so the macOS launcher and
+  plotting stack tolerate missing ``copernican_lib.version.get_version`` during
+  partial upgrades, added regression tests covering the new fallbacks and
+  refreshed documentation and metadata (OpenAI ChatGPT)
+
 ## Version 7.0.3
 - 2025-10-31: Wrapped SymPy-generated distance helpers in self-reconstructing
   callables so spawn-based multiprocessing workers rebuild them from cached
