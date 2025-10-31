@@ -1,4 +1,4 @@
-**Version:** 6.7.1
+**Version:** 6.7.3
 **Last Updated:** 2025-10-31
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -215,10 +215,12 @@ wheels. When a package is missing the program asks before running
 Regenerate both files together whenever dependencies change so the suite and
 published wheels remain in sync. The pre-commit hook provisions
 `pip-tools==7.4.1` on demand before it runs `make lock`, so the runtime
-environment no longer carries `pip-tools` or `pip` in the lock file.
-Use the bundled start scripts to enter the managed environment before
-regenerating locks; they guarantee the module resolves to the pinned
-version of `pip-tools`. The `make lock` target wraps
+environment no longer carries `pip-tools` or `pip` in the lock file.  The
+tool now lives exclusively in the optional `dev` extra and the pre-commit
+hook, keeping production installs lean while preserving the familiar lock
+workflow for contributors.  Use the bundled start scripts to enter the
+managed environment before regenerating locks; they guarantee the module
+resolves to the pinned version of `pip-tools`. The `make lock` target wraps
 `python -m piptools compile --allow-unsafe`, so law 22 under
 "AI-driven and human development" covers this workflow explicitly.
 To keep CI reproducible across Python 3.11 toolchains, the target
@@ -335,9 +337,11 @@ while remaining re-exported by each engine module. This keeps
 `model_coder.py` focused on translating models. Engines assemble posteriors via
 `engine_interface.make_logposterior`, which applies declared priors, honours
 parameter bounds and injects Jacobian corrections whenever models expose
-sampling transforms. The default MCMC backend wires these helpers into the
-`JointLike` aggregator so every run records dataset-level diagnostics alongside
-the sampled chains.
+sampling transforms. Version 6.7.3 promotes the helper to return a dedicated,
+module-level adapter so spawn-based multiprocessing pools can pickle the
+callable without error, keeping development and CI environments aligned. The
+default MCMC backend wires these helpers into the `JointLike` aggregator so
+every run records dataset-level diagnostics alongside the sampled chains.
 
 The helper `chi_squared_cmb` now accepts either a plugin and parameter
 vector or a ready CAMB dictionary. This flexibility lets future engines reuse

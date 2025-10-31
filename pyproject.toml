@@ -1,4 +1,4 @@
-# Last Updated: 2025-10-30
+# Last Updated: 2025-10-31
 [build-system]
 requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]"]
 build-backend = "setuptools.build_meta"
@@ -29,7 +29,6 @@ dependencies = [
     "xarray==2023.12.0",
     "xarray-einstats==0.6.0",
     "typing_extensions==4.10.0",
-    "pip-tools==7.4.1",  # ensure python -m piptools compile is available
     "arviz==0.16.1",
 ]
 
@@ -40,7 +39,9 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-dev = ["pip-tools==7.4.1"]
+dev = [
+    "pip-tools==7.4.1",
+]
 
 [project.scripts]
 copernican = "copernican:main_workflow"

@@ -1,5 +1,5 @@
 # Third-Party Licenses
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-10-31
 
 The Copernican Suite relies on the following runtime dependencies. Their
 versions and license texts are shipped under [`licenses/`](licenses/) so
@@ -30,7 +30,6 @@ users can review the full terms offline.
 | xarray-einstats | 0.6.0 | [Apache-2.0](licenses/Apache-2.0.txt) |
 | packaging | 24.2 | [Apache-2.0](licenses/Apache-2.0.txt) |
 | typing_extensions | 4.10.0 | [MIT](licenses/MIT.txt) |
-| pip-tools | 7.4.1 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | pip | 24.2 | [MIT](licenses/MIT.txt) |
 | pyproject-hooks | 1.2.0 | [MIT](licenses/MIT.txt) |
 | arviz | 0.16.1 | [Apache-2.0](licenses/Apache-2.0.txt) |
@@ -54,6 +53,10 @@ users can review the full terms offline.
 | rpds-py | 0.18.0 | [MIT](licenses/MIT.txt) |
 | pyerfa | 2.0.1.1 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | astropy-iers-data | 0.2024.10.28.0.34.7 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
+
+The optional ``dev`` extra installs ``pip-tools==7.4.1`` for contributors who
+regenerate ``requirements.lock`` locally.  Because it is not required to run
+the suite, it is excluded from the runtime license table above.
 
 ### Notes on camb (LGPL-3.0-or-later)
 

@@ -1,5 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
+# Last Updated: 2025-10-31
 
 """Bridge between generated model callables and numerical engines.
 
@@ -297,6 +298,134 @@ def build_plugin(model_data, func_dict):
     return plugin
 
 
+class _PosteriorEvaluator:
+    """Picklable callable returned by :func:`make_logposterior`.
+
+    Engines frequently evaluate the combined posterior inside multiprocessing
+    pools that use the ``spawn`` start method.  Spawned workers must import the
+    callable from module scope, otherwise Python refuses to pickle the
+    reference.  Earlier implementations relied on a nested ``_evaluate``
+    closure, which caused ``AttributeError: Can't pickle local object`` when
+    worker pools attempted to serialise it.
+    A dedicated adapter class keeps the evaluation logic intact while
+    remaining serialisable and easy to unit test.
+    """
+
+    __slots__ = (
+        "_like",
+        "_priors",
+        "_bounds",
+        "_transforms",
+        "_logger",
+    )
+
+    def __init__(
+        self,
+        like: Callable[[Sequence[float]], float],
+        priors: Sequence[prior_lib.BasePrior | None],
+        bounds: Sequence[tuple[float | None, float | None]] | None,
+        transforms: Sequence[Callable[[float], Any]] | None,
+        logger: logging.Logger,
+    ) -> None:
+        # ``like`` is stored verbatim so we can forward transformed values to
+        # the original likelihood helper.  It already encapsulates any
+        # side-effect free state required by the engine.
+        self._like = like
+        # Persist a tuple of priors.  ``None`` entries survive so we can keep
+        # skipping invalid or unsupported definitions without rewriting the
+        # evaluation loop.
+        self._priors = tuple(priors)
+        # Bounds are optional.  When present, normalise them into a tuple of
+        # ``(lower, upper)`` pairs where ``None`` represents an open interval.
+        self._bounds = None if bounds is None else tuple(bounds)
+        # Transforms mirror the data provided by engines or plugins.  Store
+        # them as a tuple so workers receive an immutable, picklable snapshot.
+        self._transforms = None if transforms is None else tuple(transforms)
+        self._logger = logger
+
+    def __call__(self, params: Sequence[float]) -> float:
+        """Return the posterior value for ``params`` while enforcing guards."""
+
+        try:
+            raw_values = tuple(float(val) for val in params)
+        except (TypeError, ValueError):
+            self._logger.debug(
+                "(make_logposterior): received non-numeric params",
+            )
+            return float("-inf")
+
+        transformed: list[float] = []
+        log_jacobian = 0.0
+
+        if self._transforms is not None:
+            transforms = self._transforms
+        else:
+            transforms = ()
+
+        for idx, value in enumerate(raw_values):
+            transform = transforms[idx] if idx < len(transforms) else None
+            if transform is None:
+                transformed.append(value)
+                continue
+            try:
+                result = transform(value)
+            except Exception as exc:  # pragma: no cover - defensive logging
+                self._logger.debug(
+                    "(make_logposterior): transform %d failed: %s",
+                    idx,
+                    exc,
+                )
+                return float("-inf")
+            if isinstance(result, tuple):
+                if len(result) != 2:
+                    self._logger.debug(
+                        "(make_logposterior): transform %d returned %s",
+                        idx,
+                        result,
+                    )
+                    return float("-inf")
+                new_val, jac = result
+            else:
+                new_val, jac = result, 0.0
+            try:
+                transformed.append(float(new_val))
+                log_jacobian += float(jac)
+            except (TypeError, ValueError):
+                self._logger.debug(
+                    "(make_logposterior): transform %d produced non-float",
+                    idx,
+                )
+                return float("-inf")
+
+        bounds = self._bounds
+        if bounds is not None:
+            for idx, value in enumerate(transformed):
+                try:
+                    low_val, high_val = bounds[idx]
+                except IndexError:
+                    low_val, high_val = (None, None)
+                if low_val is not None and value < low_val:
+                    return float("-inf")
+                if high_val is not None and value > high_val:
+                    return float("-inf")
+
+        log_prior = log_jacobian
+        for idx, (value, prior) in enumerate(
+            zip_longest(transformed, self._priors, fillvalue=None)
+        ):
+            if prior is None:
+                continue
+            density = prior.log_density(value)
+            if not math.isfinite(density):
+                return float("-inf")
+            log_prior += density
+
+        log_like = self._like(transformed)
+        if not math.isfinite(log_like):
+            return float("-inf")
+        return float(log_like + log_prior)
+
+
 def make_logposterior(
     like: Callable[[Sequence[float]], float],
     priors: Iterable[prior_lib.BasePrior | Mapping[str, Any]] | None,
@@ -383,88 +512,13 @@ def make_logposterior(
     if transforms is not None:
         transforms = list(transforms)
 
-    def _evaluate(params: Sequence[float]) -> float:
-        """Return the posterior value for ``params`` with safeguards."""
-
-        # Convert the incoming sequence into a tuple so we can iterate multiple
-        # times without re-evaluating generators supplied by callers.  Casting
-        # to ``float`` eagerly keeps downstream NumPy calls predictable.
-        try:
-            raw_values = tuple(float(val) for val in params)
-        except (TypeError, ValueError):
-            logger.debug("(make_logposterior): received non-numeric params")
-            return float("-inf")
-
-        transformed: list[float] = []
-        log_jacobian = 0.0
-
-        # Apply optional per-parameter transforms.  When a transform returns a
-        # ``(value, log_jacobian)`` tuple we accumulate the Jacobian term so
-        # the posterior remains properly normalised in the transformed space.
-        for idx, value in enumerate(raw_values):
-            transform = None
-            if transforms is not None and idx < len(transforms):
-                transform = transforms[idx]
-            if transform is None:
-                transformed.append(value)
-                continue
-            try:
-                result = transform(value)
-            except Exception as exc:  # pragma: no cover - defensive logging
-                logger.debug(
-                    "(make_logposterior): transform %d failed: %s", idx, exc
-                )
-                return float("-inf")
-            if isinstance(result, tuple):
-                if len(result) != 2:
-                    logger.debug(
-                        "(make_logposterior): transform %d returned %s",
-                        idx,
-                        result,
-                    )
-                    return float("-inf")
-                new_val, jac = result
-            else:
-                new_val, jac = result, 0.0
-            try:
-                transformed.append(float(new_val))
-                log_jacobian += float(jac)
-            except (TypeError, ValueError):
-                logger.debug(
-                    "(make_logposterior): transform %d produced non-float", idx
-                )
-                return float("-inf")
-
-        # Enforce parameter bounds before evaluating the likelihood.  Bounds
-        # are inclusive and accept ``None`` as an open limit.
-        if bounds is not None:
-            for idx, value in enumerate(transformed):
-                try:
-                    low_val, high_val = bounds[idx]
-                except IndexError:
-                    low_val, high_val = (None, None)
-                if low_val is not None and value < low_val:
-                    return float("-inf")
-                if high_val is not None and value > high_val:
-                    return float("-inf")
-
-        log_prior = log_jacobian
-        for idx, (value, prior) in enumerate(
-            zip_longest(transformed, prior_objects, fillvalue=None)
-        ):
-            if prior is None:
-                continue
-            density = prior.log_density(value)
-            if not math.isfinite(density):
-                return float("-inf")
-            log_prior += density
-
-        log_like = like(transformed)
-        if not math.isfinite(log_like):
-            return float("-inf")
-        return float(log_like + log_prior)
-
-    return _evaluate
+    return _PosteriorEvaluator(
+        like=like,
+        priors=prior_objects,
+        bounds=bounds,
+        transforms=transforms,
+        logger=logger,
+    )
 
 
 def validate_plugin(plugin):

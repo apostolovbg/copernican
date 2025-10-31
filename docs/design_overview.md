@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-10-31
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all
@@ -26,6 +26,10 @@ before it reaches the cache or an engine and rejects the retired
 `distribution` alias outright.  Canonicalisation guarantees that
 metadata-driven transforms, manifests and engine plugins all observe the same
 schema even when the original YAML attempted to declare redundant transforms.
+
+Version 6.7.3 elevates the posterior helper to a module-level adapter so the
+spawn start method can pickle it without error, aligning local development with
+the managed CI pools that exercise the sampler under multiprocessing.
 
 With the retirement of the deterministic combined optimiser the suite now
 ships solely with the `cosmo_engine_mcmc` backend.  Engines remain pluggable

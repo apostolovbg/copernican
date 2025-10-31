@@ -21,6 +21,18 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 6.7.3
+- 2025-10-31: Replaced the nested posterior closure with a picklable adapter so
+  spawn-based multiprocessing pools can evaluate it, tightened unit coverage and
+  refreshed documentation and metadata (OpenAI ChatGPT)
+
+## Version 6.7.2
+- 2025-10-31: Removed `pip-tools` from runtime installs while retaining the
+  familiar developer workflow, refactored the Stage 2 log-probability adapter
+  so multiprocessing workers can pickle it reliably, added regression tests
+  for the new helper, refreshed dependency documentation and bumped suite
+  metadata (OpenAI ChatGPT)
+
 ## Version 6.7.1
 - 2025-10-31: Ensured sampler progress logs enumerate every parameter, reused
   diagnostic buffers to cut callback overhead, wrapped walker snapshots, updated
