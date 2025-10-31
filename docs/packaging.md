@@ -82,7 +82,10 @@ snapshots and tagged releases.
 Run `make lock` whenever `requirements.in` changes. The helper installs
 `pip-tools==7.4.1` on demand, strips the interpreter banner from the
 generated header and rewrites the `# Last Updated` marker so Python
-Python 3.11 runs produce byte-for-byte identical lockfiles in CI.
+3.11 runs produce byte-for-byte identical lockfiles in CI.  Developers can
+either rely on the pre-commit hook to provision the tool automatically or
+install the optional `dev` extra (`pip install .[dev]`) when preparing
+packaging updates locally.
 
 ### Custom version strings
 
