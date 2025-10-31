@@ -63,6 +63,17 @@ def extract_last_updated_dates(text: str) -> List[_dt.date]:
     return dates
 
 
+def _header_contains_last_updated(text: str) -> bool:
+    """Return ``True`` when the first three lines expose a ``Last Updated`` marker."""
+
+    header_lines = text.splitlines()[:3]
+    header_text = "\n".join(header_lines)
+    for pattern in _LAST_UPDATED_PATTERNS:
+        if pattern.search(header_text):
+            return True
+    return False
+
+
 def _extract_readme_version(text: str) -> str | None:
     """Return the release string tracked inside the README header."""
 
@@ -140,6 +151,13 @@ def validate_metadata(
         if not dates:
             errors.append(f"{display_name} is missing a Last Updated marker.")
             continue
+        if not _header_contains_last_updated(text):
+            errors.append(
+                (
+                    f"{display_name} must place a Last Updated marker "
+                    "within the first three lines."
+                )
+            )
         for stamp in dates:
             if stamp > current_date:
                 errors.append(

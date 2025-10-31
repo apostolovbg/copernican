@@ -7,7 +7,7 @@ from pathlib import Path
 
 from tools import check_meta
 
-_REFERENCE_DATE = _dt.date(2025, 10, 30)
+_REFERENCE_DATE = _dt.date(2025, 10, 31)
 
 
 def test_validate_metadata_current_repo() -> None:
@@ -60,3 +60,53 @@ def test_validate_metadata_reports_discrepancies(tmp_path: Path) -> None:
     assert any(
         "docs/page.md carries future timestamp" in error for error in errors
     )
+
+
+def test_validate_metadata_flags_late_last_updated(tmp_path: Path) -> None:
+    """Markers appearing after the third line should fail validation."""
+
+    base = tmp_path
+    (base / "copernican_lib").mkdir(parents=True)
+    (base / "copernican_lib" / "VERSION").write_text(
+        "1.0.0\n", encoding="utf-8"
+    )
+    (base / "README.md").write_text(
+        "**Version:** 1.0.0\n\n\n**Last Updated:** 2025-01-01\n",
+        encoding="utf-8",
+    )
+    (base / "CHANGELOG.md").write_text(
+        "# Changelog\n**Last Updated:** 2025-01-01\n",
+        encoding="utf-8",
+    )
+
+    errors = check_meta.validate_metadata(
+        base_path=base, today=_REFERENCE_DATE
+    )
+
+    assert any("first three lines" in error for error in errors)
+
+
+def test_validate_metadata_accepts_third_line_marker(
+    tmp_path: Path,
+) -> None:
+    """A marker on the third line should pass validation."""
+
+    base = tmp_path
+    (base / "copernican_lib").mkdir(parents=True)
+    (base / "copernican_lib" / "VERSION").write_text(
+        "1.0.0\n", encoding="utf-8"
+    )
+    (base / "README.md").write_text(
+        "**Version:** 1.0.0\nHeading\n**Last Updated:** 2025-01-01\n",
+        encoding="utf-8",
+    )
+    (base / "CHANGELOG.md").write_text(
+        "# Changelog\n**Last Updated:** 2025-01-01\n",
+        encoding="utf-8",
+    )
+
+    errors = check_meta.validate_metadata(
+        base_path=base, today=_REFERENCE_DATE
+    )
+
+    assert errors == []

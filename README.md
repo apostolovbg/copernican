@@ -1,5 +1,5 @@
-**Version:** 6.5.3
-**Last Updated:** 2025-10-30 17:56 UTC
+**Version:** 6.5.4
+**Last Updated:** 2025-10-31
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -624,8 +624,11 @@ The local `copernican-policy` hook verifies that no file declares a future
 "Last Updated" date, enforces version synchronisation between `README.md`,
 `CITATION.cff` and `copernican_lib/VERSION`, and forbids direct `print()`
 calls inside `copernican_lib/` modules outside the console helpers. The
-standard whitespace fixers, Ruff auto-fixes and formatting hooks run before
-the custom policy check to keep style adjustments automated.
+custom check now also confirms that each tracked file records a "Last
+Updated" marker within its first three lines and that the marker contains
+only a calendar date (no time component). The standard whitespace fixers,
+Ruff auto-fixes and formatting hooks run before the custom policy check to
+keep style adjustments automated.
 
 The local `make-lock` hook now bootstraps a dedicated Python environment and
 installs `pip-tools==7.4.1` before executing `make lock`. This keeps

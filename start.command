@@ -1,7 +1,7 @@
 #!/bin/bash
+# Last Updated: 2025-10-31
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-10-30 17:56 UTC
 
 # Start the Copernican Suite on macOS.
 #

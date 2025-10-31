@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-10-30 16:40 UTC
+**Last Updated:** 2025-10-31
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -261,8 +261,9 @@ these rules:
 4. **Update documentation**, including this `AGENTS.md`, `README.md` and the
    `docs/` directory, whenever behaviour or structure changes. Each task must
    expand the documentation's scope and size, refresh version strings and
-   ensure every file carries a `Last Updated` field. Update that field on
-   every edit and add one when missing.
+   ensure every file carries a `Last Updated` field within its first three
+   lines. The marker must record only the ISO-8601 calendar date—never a time
+   of day. Update that field on every edit and add one when missing.
 5. **Keep these laws synchronized across `README.md` and `AGENTS.md`.**
    Amendments to any rule require an explicit human request.
 6. **Bump the project version according to Semantic Versioning whenever

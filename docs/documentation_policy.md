@@ -1,7 +1,6 @@
 # Documentation Policy
-
+**Last Updated:** 2025-10-31
 **Version:** 1.0
-**Last Updated:** 2025-10-30
 
 The Copernican Suite treats documentation as a first-class component of the
 project. Every development task must include a documentation refresh that does
@@ -11,6 +10,8 @@ more than fix typos.
 - Update `README.md`, `AGENTS.md` and any affected files under `docs/`.
 - Expand the scope or depth of documentation so it grows alongside the code.
 - Synchronise version strings and `Last Updated` fields across all documents.
+- Keep every `Last Updated` marker within the first three lines of its file
+  and record only the ISO calendar date (YYYY-MM-DD) with no time component.
 - Record the changes in `CHANGELOG.md`.
 - Document user-facing console behaviour changes, including logging output and
   progress indicators, so users understand new interactions. The retirement of

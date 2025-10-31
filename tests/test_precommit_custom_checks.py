@@ -31,6 +31,33 @@ def test_detect_future_dates_flags_future_timestamp(tmp_path) -> None:
     assert "2099-01-01" in errors[0]
 
 
+def test_check_last_updated_headers_flags_late_marker(tmp_path) -> None:
+    """Markers beyond the third line should be rejected."""
+
+    root = tmp_path
+    target = root / "README.md"
+    target.write_text(
+        "**Version:** 1.0.0\n\n\n**Last Updated:** 2025-01-01\n",
+        encoding="utf-8",
+    )
+    errors = MODULE._check_last_updated_headers(root, [target])
+    assert errors
+    assert "first three lines" in errors[0]
+
+
+def test_check_last_updated_headers_accepts_header(tmp_path) -> None:
+    """Markers within the first three lines should pass."""
+
+    root = tmp_path
+    target = root / "README.md"
+    target.write_text(
+        "**Version:** 1.0.0\n**Last Updated:** 2025-01-01\n",
+        encoding="utf-8",
+    )
+    errors = MODULE._check_last_updated_headers(root, [target])
+    assert not errors
+
+
 def test_check_version_sync_detects_mismatched_versions(tmp_path) -> None:
     """A mismatch between metadata files should surface an explicit error."""
 
