@@ -113,6 +113,7 @@ class _GeneratedCallable:
             compiled = compile(module, filename="<model>", mode="exec")
             env = {
                 "np": np,
+                "numpy": np,
                 "quad": quad,
                 "__builtins__": {},
                 "__name__": __name__,
@@ -254,41 +255,6 @@ class _SoundHorizonFromExpression:
 
     def __call__(self, *params):
         return float(self._fn(*params))
-
-
-class _SoundHorizonFallback:
-    """Numerically integrate the baryon-photon sound horizon."""
-
-    __slots__ = ("_hz_fn", "_omega_b_idx", "_omega_gamma_idx", "_z_rec_idx")
-
-    def __init__(self, hz_fn, omega_b_idx, omega_gamma_idx, z_rec_idx):
-        self._hz_fn = hz_fn
-        self._omega_b_idx = omega_b_idx
-        self._omega_gamma_idx = omega_gamma_idx
-        self._z_rec_idx = z_rec_idx
-
-    def __call__(self, *params):
-        ob_val = params[self._omega_b_idx]
-        og_val = params[self._omega_gamma_idx]
-        zrec = params[self._z_rec_idx]
-
-        def sound_speed(zv):
-            return 299792.458 / np.sqrt(
-                3.0 * (1.0 + 3.0 * ob_val / (4.0 * og_val) / (1.0 + zv))
-            )
-
-        h0_val = self._hz_fn(0.0, *params)
-
-        def hz_with_radiation(zv):
-            base = self._hz_fn(zv, *params)
-            rad_sq = (h0_val**2) * og_val * (1.0 + zv) ** 4
-            return np.sqrt(base**2 + rad_sq)
-
-        def integrand(zv):
-            return sound_speed(zv) / hz_with_radiation(zv)
-
-        result, _ = quad(integrand, zrec, np.inf, limit=100)
-        return result
 
 
 class _DistanceModulusFromLuminosity:
@@ -470,10 +436,6 @@ def generate_callables(cache_path):
             # --- Derive sound horizon at recombination (r_s) ---
             rs_expr_str = model_data.get("rs_expression")
             param_names = {p["python_var"] for p in model_data["parameters"]}
-            param_index = {
-                p["python_var"]: i
-                for i, p in enumerate(model_data["parameters"])
-            }
 
             if rs_expr_str:
                 try:
@@ -509,30 +471,20 @@ def generate_callables(cache_path):
                     msg = f"Failed to parse rs_expression: {e}"
                     error_handler.report_error(msg)
                     raise ValueError(msg) from e
-            elif (
-                "Omega_b" in param_names
-                and "Omega_gamma" in param_names
-                and ("z_rec" in param_names or "z_recomb" in param_names)
-                and "get_Hz_per_Mpc" in funcs
-            ):
-                ob_i = param_index["Omega_b"]
-                og_i = param_index["Omega_gamma"]
-                zr_key = "z_rec" if "z_rec" in param_names else "z_recomb"
-                zr_i = param_index[zr_key]
-
-                funcs["get_sound_horizon_rs_Mpc"] = _SoundHorizonFallback(
-                    hz_fn, ob_i, og_i, zr_i
-                )
-                code_dict["get_sound_horizon_rs_Mpc"] = "quad(c_s/H(z))"
-                model_data["valid_for_bao"] = True
-                logger.info(
-                    "Derived r_s using fallback integral from "
-                    "Hz_expression.",
-                )
             else:
+                expects_bao = bool(model_data.get("predicts_bao", True))
+                advertises_bao = bool(model_data.get("valid_for_bao", True))
+                if expects_bao or advertises_bao:
+                    msg = (
+                        "Model declares BAO support but omits an explicit "
+                        "rs_expression. Provide a sound-horizon formula to "
+                        "enable scientifically consistent BAO scaling."
+                    )
+                    error_handler.report_error(msg)
+                    raise ValueError(msg)
                 console.write(
-                    "\u26A0\uFE0F  Model lacks parameters for computing "
-                    "r_s. BAO scaling may be unavailable."
+                    "\u26A0\uFE0F  Model does not supply r_s; BAO metrics "
+                    "are disabled."
                 )
                 model_data["valid_for_bao"] = False
         except Exception as e:

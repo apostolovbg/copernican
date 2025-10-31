@@ -238,6 +238,12 @@ automatically; no manual Python implementation is required.
 The parser keeps unknown keys intact, ensuring the DSL stays backward
 compatible as new fields are introduced.
 
+Models that advertise BAO support must now declare an explicit
+``rs_expression``. The former numerical fallback has been removed because it
+double-counted photon densities whenever the model's ``H(z)`` already included
+radiation terms. Tests must cover every new integral to confirm the provided
+sound horizon matches the declared background dynamics.
+
 ### 4.2 Dataset compatibility flags
 
 Generated model plugins include boolean attributes

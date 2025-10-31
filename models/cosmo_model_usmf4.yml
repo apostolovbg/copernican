@@ -134,6 +134,20 @@ equations:
     - D_M(z) = \int_0^z \frac{c\,dz'}{H(z')}
     - D_H(z) = \frac{c}{H(z)}
     - D_V(z) = [D_M(z)^2 D_H(z)]^{1/3}
+rs_expression: >-
+  r_s = Integral(
+    299792.458 / sqrt(
+      3 * (1 + 3 * Omega_b / (4 * Omega_gamma) / (1 + z))
+    ) / (
+      H0 * sqrt(
+        (1 + z)**(2 * p_alpha)
+        * (1 + k_log / (1 + exp(-(z - z_pivot) / delta_z)))
+        + Omega_eff * (1 + z)**3
+        + Omega_gamma * (1 + z)**4
+        + D_drift * (1 + z)**n_drift
+      )
+    ), (z, z_rec, oo)
+  )
 predicts_bao: true
 valid_for_bao: true
 valid_for_cmb: true

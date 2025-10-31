@@ -1,9 +1,11 @@
 model_name: LambdaCDM
 version: '1.0'
-description: Uses H(z)=H0*sqrt(Omega_m0(1+z)**3+Omega_Lambda0). Luminosity distance
+description: >-
+  Uses H(z)=H0*sqrt(Omega_m0(1+z)**3+Omega_Lambda0). Luminosity distance
   integrates c/H. BAO scale D_V uses angular distance and H(z).
-abstract: LambdaCDM model describes a flat universe dominated by cold dark matter
-  and a cosmological constant serving as the reference model
+abstract: >-
+  LambdaCDM model describes a flat universe dominated by cold dark matter
+  and a cosmological constant serving as the reference model.
 parameters:
 - name: Hubble constant
   bounds:
@@ -56,7 +58,12 @@ parameters:
     type: uniform
     lower: 1000.0
     upper: 1200.0
-Hz_expression: H(z) = H_0 * sqrt{Omega_{m0}*(1+z)**3 + (1 - Omega_{m0})}
+Hz_expression: >-
+  H(z) = H_0 * sqrt(
+    Omega_{m0}*(1 + z)**3
+    + Omega_{\gamma}*(1 + z)**4
+    + (1 - Omega_{m0} - Omega_{\gamma})
+  )
 equations:
   sne:
   - d_L(z) = (1+z) \int_0^z \frac{c\,dz'}{H(z')}
@@ -65,6 +72,18 @@ equations:
   - D_M(z) = \int_0^z \frac{c\,dz'}{H(z')}
   - D_H(z) = \frac{c}{H(z)}
   - D_V(z) = [D_M(z)**2 * D_H(z)]**(1/3)
+rs_expression: >-
+  r_s = Integral(
+    299792.458 / sqrt(
+      3 * (1 + 3 * Omega_b / (4 * Omega_{\gamma}) / (1 + z))
+    ) / (
+      H_0 * sqrt(
+        Omega_{m0} * (1 + z)**3
+        + Omega_{\gamma} * (1 + z)**4
+        + (1 - Omega_{m0} - Omega_{\gamma})
+      )
+    ), (z, z_rec, oo)
+  )
 predicts_bao: true
 valid_for_bao: true
 valid_for_cmb: true

@@ -1,14 +1,17 @@
-**Version:** 7.0.5
+**Version:** 7.0.6
 **Last Updated:** 2025-10-31
 
 ![Copernican Suite banner](docs/banner_github.png)
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and
-Cosmic Microwave Background (CMB) data. Version 7.0.5 retools the likelihood
-helpers so they cache numpy views of their input datasets and reuse residual
-buffers, eliminating repeated DataFrame conversions inside the multiprocessing
-pool and keeping the engine responsive even when Stage 2 evaluates thousands of
+Cosmic Microwave Background (CMB) data. Version 7.0.6 removes the automatic
+sound-horizon fallback, requiring every BAO-capable model to declare its own
+`rs_expression` so fits never double-count photon densities and remain
+scientifically controlled. Version 7.0.5 retools the likelihood helpers so they
+cache numpy views of their input datasets and reuse residual buffers,
+eliminating repeated DataFrame conversions inside the multiprocessing pool and
+keeping the engine responsive even when Stage 2 evaluates thousands of
 posterior calls per second. Version 7.0.4 hardens version discovery so the
 macOS launcher continues to boot even when
 ``copernican_lib.version.get_version`` is missing from partially upgraded
@@ -20,7 +23,8 @@ roadmap and the refined architecture keeps those additions straightforward to
 stage.
 
 Engines, datasets and models stay fully pluggable. Generated YAML definitions
-are transformed into :class:`copernican_lib.plugins.EnginePlugin` instances that
+are transformed into :class:`copernican_lib.plugins.EnginePlugin`
+instances that
 declare dataset compatibility, bounds, priors and distance functions in a
 single serialisable object. Posterior construction lives in
 :mod:`copernican_lib.posterior`, ensuring every engine evaluates priors,
@@ -462,11 +466,12 @@ See `cosmo_model_template.yml` for a detailed template.
    your model parameters. Explicit `*` is optional since implicit
 multiplication
    is now supported, though adding it can improve readability.
-4. Optionally provide an `rs_expression` in LaTeX for the sound horizon at
-   recombination or include the parameters `Omega_b`, `Omega_gamma` and either
-   `z_rec` or `z_recomb`. The suite will then
-   derive `r_s` automatically using a numerical integral. Use `\infty` when an
-   integral extends to infinity.
+4. Provide an `rs_expression` in LaTeX for the sound horizon at recombination
+   whenever the model advertises BAO support. The automatic fallback integral
+   has been removed; models that omit `rs_expression` must set
+   `valid_for_bao: false` or drop the BAO section entirely. Use `oo` (or
+   `\infty`) for upper limits that extend to infinity and repeat the model's
+   full `H(z)` formula inside the integrand.
 5. Python code must never appear in `cosmo_model_*.yml`; all expressions are
    written in LaTeX.
 6. Backslashes may be written normally; the parser automatically escapes them
@@ -526,9 +531,10 @@ The non-\LambdaCDM samples now demonstrate several design patterns:
 **Common mistakes**
 * Missing `*` between variables and parentheses results in a `'Symbol' object
   is not callable` error.
-* Using `oo` for infinite limits fails; write `\infty` instead.
-* Referencing `H(z)` inside `rs_expression` is unsupported—repeat the formula
-  or rely on the fallback parameters.
+* Using `oo` or `\infty` for infinite limits is supported; mixing the two
+  within the same expression can confuse the LaTeX cleaner.
+* Referencing `H(z)` inside `rs_expression` remains unsupported—repeat the
+  formula explicitly so the integral matches the model's declared background.
 
 The LaTeX parser supports a subset of math syntax including `\frac`,
 subscripts and superscripts, common functions (`\log`, `\ln`, `\exp`, `\sin`,
