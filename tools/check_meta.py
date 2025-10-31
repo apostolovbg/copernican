@@ -1,3 +1,5 @@
+# Last Updated: 2025-10-31
+
 """Utility helpers for validating documentation metadata.
 
 The Copernican Suite keeps the canonical release number in
@@ -61,6 +63,17 @@ def extract_last_updated_dates(text: str) -> List[_dt.date]:
         for match in pattern.finditer(text):
             dates.append(_dt.date.fromisoformat(match.group(1)))
     return dates
+
+
+def _header_contains_last_updated(text: str) -> bool:
+    """Return ``True`` if a ``Last Updated`` marker appears in the header."""
+
+    header_lines = text.splitlines()[:3]
+    header_text = "\n".join(header_lines)
+    for pattern in _LAST_UPDATED_PATTERNS:
+        if pattern.search(header_text):
+            return True
+    return False
 
 
 def _extract_readme_version(text: str) -> str | None:
@@ -140,6 +153,13 @@ def validate_metadata(
         if not dates:
             errors.append(f"{display_name} is missing a Last Updated marker.")
             continue
+        if not _header_contains_last_updated(text):
+            errors.append(
+                (
+                    f"{display_name} must place a Last Updated marker "
+                    "within the first three lines."
+                )
+            )
         for stamp in dates:
             if stamp > current_date:
                 errors.append(

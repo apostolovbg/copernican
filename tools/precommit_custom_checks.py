@@ -1,3 +1,5 @@
+# Last Updated: 2025-10-31
+
 """Custom pre-commit validations specific to the Copernican Suite.
 
 The checks provided here extend the standard tooling enforced by the
@@ -19,6 +21,11 @@ from typing import Iterable, List
 
 DATE_PATTERN = re.compile(r"\b(19|20)\d{2}-\d{2}-\d{2}\b")
 PRINT_PATTERN = re.compile(r"(?<![\w.])print\s*\(")
+LAST_UPDATED_HEADER_PATTERNS = (
+    re.compile(r"^\s*\*\*Last Updated:\*\*\s*(19|20)\d{2}-\d{2}-\d{2}\s*$"),
+    re.compile(r"^\s*# Last Updated:\s*(19|20)\d{2}-\d{2}-\d{2}\s*$"),
+    re.compile(r"^\s*@REM Last Updated:\s*(19|20)\d{2}-\d{2}-\d{2}\s*$"),
+)
 
 
 def _as_posix(path: Path) -> str:
@@ -84,6 +91,39 @@ def _detect_future_dates(
                 errors.append(
                     f"{display_path}: contains future date {iso_stamp}"
                 )
+    return errors
+
+
+def _check_last_updated_headers(
+    root: Path, files: Iterable[Path]
+) -> List[str]:
+    """Ensure ``Last Updated`` markers live in the first three lines."""
+
+    errors: List[str] = []
+    for path in files:
+        if not path.is_file():
+            continue
+        text = _read_text(path)
+        if "Last Updated" not in text:
+            continue
+        header = text.splitlines()[:3]
+        if any(
+            pattern.match(line)
+            for pattern in LAST_UPDATED_HEADER_PATTERNS
+            for line in header
+        ):
+            continue
+        try:
+            rel_path = path.relative_to(root)
+        except ValueError:
+            rel_path = path
+        display_path = _as_posix(rel_path)
+        errors.append(
+            (
+                f"{display_path}: Last Updated marker must appear "
+                "within the first three lines and use YYYY-MM-DD."
+            )
+        )
     return errors
 
 
@@ -180,6 +220,7 @@ def main(argv: list[str] | None = None) -> int:
 
     errors: List[str] = []
     errors.extend(_detect_future_dates(staged_files, today, root=repo_root))
+    errors.extend(_check_last_updated_headers(repo_root, staged_files))
     errors.extend(_check_version_sync(repo_root))
     errors.extend(_check_print_usage(repo_root, staged_files))
 

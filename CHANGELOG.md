@@ -1,12 +1,13 @@
 # Changelog
-**Last Updated:** 2025-10-30 17:56 UTC
+**Last Updated:** 2025-10-31
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
 latest version header. Always confirm the actual current date (for example with
 `date`) before logging new changes, and make sure each entry's timestamp keeps
 the changelog in chronological order—never back-date entries or record future
-dates. Follow this template:
+dates. Record timestamps as ISO dates (`YYYY-MM-DD`) without times or timezone
+suffixes. Follow this template:
 ```
 ## Version 1.1.0
 - 2025-05-27: Added plotting and CSV (Apostol Apostolov)
@@ -19,6 +20,12 @@ dates. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 6.5.4
+- 2025-10-31: Allowed "Last Updated" markers within the first three lines of
+  tracked files, removed time components from metadata fields, updated the CI
+  checks accordingly, refreshed documentation, and bumped suite metadata
+  (OpenAI ChatGPT)
 
 ## Version 6.5.3
 - 2025-10-30: Ensured the managed launchers bootstrap `pip` with
