@@ -35,8 +35,10 @@ posterior construction became an explicit, picklable dataclass workflow. Version
 7.0.1 cements that transition by registering every SymPy-derived helper
 on `copernican_lib.model_coder` using stable names, eliminating the
 `_lambdifygenerated` pickling failures that blocked spawn pools launched from
-`start.command`. Engines therefore remain pluggable and multiprocessing safe
-regardless of the priors chosen.
+`start.command`. Version 7.0.2 extends the protection to the plugin metadata
+by replacing ``MappingProxyType`` wrappers with the picklable
+``copernican_lib.plugins.FrozenMapping`` helper, ensuring engine plugins stay
+serialisable across macOS and Linux spawn pools.
 
 With the retirement of the deterministic combined optimiser the suite now
 ships solely with the `cosmo_engine_mcmc` backend.  Engines remain pluggable

@@ -40,8 +40,7 @@ import logging
 import math
 import re
 from dataclasses import dataclass, field
-from types import MappingProxyType
-from typing import Any, Callable, Mapping, MutableMapping, Sequence
+from typing import Any, Callable, Iterator, Mapping, MutableMapping, Sequence
 
 from .. import priors as prior_lib
 
@@ -205,6 +204,52 @@ class CAMBParameterEvaluator:
         raise ValueError("expression not allowed")
 
 
+class FrozenMapping(Mapping[str, Any]):
+    """Picklable read-only mapping used to freeze plugin metadata."""
+
+    __slots__ = ("_data",)
+
+    def __init__(self, source: Mapping[str, Any] | None = None) -> None:
+        """Store a shallow copy of ``source`` for later access.
+
+        ``types.MappingProxyType`` offered similar immutability but refused to
+        pickle on Python 3.11, triggering ``TypeError: cannot pickle
+        'mappingproxy' object`` exceptions inside ``multiprocessing`` spawn
+        pools.  Engines serialise :class:`EnginePlugin` instances whenever they
+        hand work to worker processes, so the read-only wrapper must cooperate
+        with ``pickle``.
+        """
+
+        self._data = dict(source or {})
+
+    def __getitem__(self, key: str) -> Any:
+        return self._data[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._data)
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __repr__(self) -> str:
+        return f"FrozenMapping({self._data!r})"
+
+    def __getstate__(self) -> dict[str, Any]:
+        """Return a picklable snapshot for ``pickle`` round-trips."""
+
+        return self._data
+
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
+        """Restore state produced by :meth:`__getstate__`."""
+
+        object.__setattr__(self, "_data", dict(state))
+
+    def to_dict(self) -> dict[str, Any]:
+        """Expose a shallow copy for callers needing a mutable mapping."""
+
+        return dict(self._data)
+
+
 @dataclass(slots=True)
 class EnginePlugin:
     """Container describing a generated cosmological model."""
@@ -244,7 +289,7 @@ class EnginePlugin:
     )
 
     def __post_init__(self) -> None:
-        self.extras = MappingProxyType(dict(self.extras))
+        self.extras = FrozenMapping(self.extras)
         if self.valid_for_cmb and not self.CMB_PARAM_MAP:
             LOGGER.warning(
                 "Model marked valid_for_cmb but no cmb.param_map provided. "
@@ -262,8 +307,16 @@ class EnginePlugin:
             object.__setattr__(self, "_camb_evaluator", None)
 
     def __getattr__(self, name: str) -> Any:
+        if name == "extras":
+            raise AttributeError(name)
+
         try:
-            return self.extras[name]
+            extras = object.__getattribute__(self, "extras")
+        except AttributeError as exc:
+            raise AttributeError(name) from exc
+
+        try:
+            return extras[name]
         except KeyError as exc:
             raise AttributeError(name) from exc
 
@@ -340,11 +393,7 @@ def _prepare_priors(
         tuple(prior_mappings),
         tuple(prior_objects),
         transform_tuple,
-        (
-            MappingProxyType(dict(fixed_params))
-            if fixed_params
-            else MappingProxyType({})
-        ),
+        FrozenMapping(fixed_params),
     )
 
 

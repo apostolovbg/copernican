@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.0.2
+- 2025-10-31: Replaced ``MappingProxyType`` wrappers inside engine plugins with
+  a picklable ``FrozenMapping`` helper, restored spawn-pool compatibility,
+  added regression coverage for plugin pickling and refreshed suite metadata
+  (OpenAI ChatGPT)
+
 ## Version 7.0.1
 - 2025-10-31: Registered SymPy-generated distance helpers as module-level
   callables so spawn-based pools launched from the macOS bootstrap
