@@ -14,12 +14,30 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from . import latex_utils
+from . import version as version_module
 from .logger import get_logger
 from .utils import ensure_dir_exists, generate_filename, get_timestamp
-from .version import get_version
+
+
+def _copernican_version() -> str:
+    """Return the suite version while tolerating missing helpers.
+
+    The plotting layer executes in subprocesses launched by Matplotlib and by
+    the optimisation engines.  Import errors bubbled up when
+    ``copernican_lib.version.get_version`` was absent even though the module
+    itself was present, preventing residual plots from rendering on macOS.
+    Falling back to the "unknown" placeholder keeps Matplotlib usable while
+    matching the final stage of :func:`copernican_lib.version.get_version`.
+    """
+
+    getter = getattr(version_module, "get_version", None)
+    if callable(getter):
+        return getter()
+    return "0+unknown"
+
 
 # Query package metadata once so every plot records the same version string.
-COPERNICAN_VERSION = get_version()
+COPERNICAN_VERSION = _copernican_version()
 
 
 def _wrap_math(text: str) -> str:

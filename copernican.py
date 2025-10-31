@@ -43,7 +43,7 @@ from copernican_lib.diagnostics import (
     bao_residual_diagnostics,
     cmb_residual_diagnostics,
 )
-from copernican_lib.version import get_version
+import copernican_lib.version as version_module
 
 # Verify interpreter version early so users see clear feedback
 MIN_PYTHON = (3, 11)
@@ -100,9 +100,30 @@ logger = None
 data_loaders = None
 
 # Retrieve the runtime version from installed package metadata. When the
-# distribution is not installed, ``get_version`` supplies ``"0+unknown"`` so
-# logs and plot footers still carry a version-like identifier.
-COPERNICAN_VERSION = get_version()
+# distribution is not installed, the helper below returns ``"0+unknown"`` so
+# logs and plot footers still carry a version-like identifier.  Importing the
+# attribute lazily avoids the ``ImportError`` seen on some macOS systems where
+# ``copernican_lib.version`` was importable but ``get_version`` was not
+# exported.
+
+
+def _copernican_version() -> str:
+    """Return the Copernican Suite version while tolerating missing helpers.
+
+    The launcher crashed on macOS when ``start.command`` re-imported this
+    module and ``copernican_lib.version.get_version`` was absent even though
+    the version module itself was available.  Looking up the attribute at
+    runtime allows the menu to load successfully and matches the fallbacks
+    inside :func:`copernican_lib.version.get_version`.
+    """
+
+    getter = getattr(version_module, "get_version", None)
+    if callable(getter):
+        return getter()
+    return "0+unknown"
+
+
+COPERNICAN_VERSION = _copernican_version()
 CURRENT_LOG_FILE = None
 
 DEPENDENCY_CACHE_ENV_VAR = "COPERNICAN_DEP_CACHE_DIR"

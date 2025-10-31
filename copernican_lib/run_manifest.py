@@ -16,7 +16,25 @@ from typing import Any, Dict, Iterable
 import yaml
 
 from . import utils
-from .version import get_version
+from . import version as version_module
+
+
+def _copernican_version() -> str:
+    """Return the suite version while tolerating missing helpers.
+
+    Some macOS installations reported ``ImportError`` when
+    ``copernican_lib.version.get_version`` was unavailable even though the
+    module itself existed. Importing the attribute lazily keeps the
+    ``run_manifest`` module importable in that scenario so ``start.command``
+    can still launch and emit a manifest. Falling back to ``"0+unknown"``
+    mirrors the final stage inside :func:`copernican_lib.version.get_version`
+    and ensures the manifest always carries a deterministic placeholder.
+    """
+
+    getter = getattr(version_module, "get_version", None)
+    if callable(getter):
+        return getter()
+    return "0+unknown"
 
 
 def _git_info() -> dict:
@@ -74,7 +92,7 @@ def build_manifest(
     """
 
     manifest = {
-        "copernican": {"version": get_version()},
+        "copernican": {"version": _copernican_version()},
         "models": [],
         "engine": {
             "name": getattr(engine_module, "__name__", "unknown"),
