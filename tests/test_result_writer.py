@@ -42,7 +42,12 @@ class TestResultWriter(unittest.TestCase):
             }
         )
         res = cosmo_engine_mcmc.fit_sne_parameters(
-            sne_df, plugin, n_walkers=4, n_steps=6, pool_size=1
+            sne_df,
+            plugin,
+            n_walkers=4,
+            n_steps=6,
+            pool_size=1,
+            burn_in_steps=12,
         )
         with tempfile.TemporaryDirectory() as tmpdir:
             json_path, yaml_path = result_writer.save_summary(

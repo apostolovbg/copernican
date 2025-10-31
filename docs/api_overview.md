@@ -11,10 +11,18 @@ modules are:
   `cosmo_model_*.yml` file.
 - `model_coder.generate_callables(clean_path)` – compile sanitized model YAML
   into Python callables.
-- `engine_interface.build_plugin(parsed_data, funcs)` – construct a plugin
-  object
-  with attributes `MODEL_NAME`, `MODEL_DESCRIPTION`, `MODEL_ABSTRACT` and the
-  distance and CMB functions required by engines.
+- `engine_interface.build_plugin(parsed_data, funcs)` – construct an
+  :class:`copernican_lib.plugins.EnginePlugin` instance with dataset toggles,
+  priors, bounds and distance functions ready for engine consumption.
+- `copernican_lib.plugins` – home of the picklable plugin dataclass and
+  validation helpers. Import `REQUIRED_ATTRIBUTES` and `REQUIRED_FUNCTIONS`
+  from here when building custom tooling that needs to confirm interface
+  compliance.
+- `copernican_lib.posterior` – exposes
+  :func:`copernican_lib.posterior.make_logposterior`, which now returns a
+  picklable :class:`PosteriorEvaluator` combining priors, transforms and
+  likelihood callables. Engines should always route posterior evaluations
+  through this helper to keep multiprocessing safe.
 - `copernican_lib.statistics` – shared chi-squared and BAO/CMB helper
   functions used by every engine.  Importing from this module keeps the
   numerical implementations in a single place so engines remain thin
@@ -46,9 +54,11 @@ modules are:
   components, dataset-level point counts, burn-in length, acceptance fractions
   and a sanitised log-probability trace. BAO and CMB data frames can be passed
   via the `bao_data_df` and `cmb_data_df` keyword arguments to enable joint
-  sampling in a single call. The private `_reseed_invalid_walkers` utility
-  reseeds walkers that emit `nan` coordinates after burn-in so downstream API
-  consumers never need to handle undefined sampler states.
+  sampling in a single call. ``burn_in_steps`` overrides the default
+  ``max(100, n_steps // 5)`` warm-up, keeping scripted workflows nimble.
+  The private `_reseed_invalid_walkers` utility reseeds walkers that emit
+  `nan` coordinates after burn-in so downstream API consumers never need to
+  handle undefined sampler states.
 - `result_writer.save_summary(results, output_dir)` – serialize fitted
   parameters, 1σ errors and covariance matrices to JSON and YAML for later
   analysis.
@@ -63,13 +73,14 @@ modules are:
     for burn-in and production stages. Future engines can adopt the same
     public API to remain plug compatible with the suite.
 
-Plugins are validated through ``engine_interface.validate_plugin`` before
-use. Chi-squared helpers assume this step has already succeeded, so
-validation should occur once before any iterative evaluation begins.
-Engines expect the attributes listed in
-``engine_interface.REQUIRED_ATTRIBUTES``.  The resulting object exposes
-distance functions, CMB helpers and initial parameter guesses derived
-from the model YAML.
+Plugins are validated through ``engine_interface.validate_plugin``—a thin
+wrapper around :func:`copernican_lib.plugins.validate_plugin`—before use.
+Chi-squared helpers assume this step has already succeeded, so validation
+should occur once before any iterative evaluation begins. Engines expect the
+attributes listed in ``copernican_lib.plugins.REQUIRED_ATTRIBUTES``. The
+resulting :class:`EnginePlugin` exposes distance functions, CMB helpers and
+initial parameter guesses derived from the model YAML while remaining fully
+picklable for multiprocessing workloads.
 
 ## Standardised Dataset Format
 
@@ -106,7 +117,7 @@ cache = model_parser.parse_model(
 funcs, parsed = model_coder.generate_callables(cache)
 plugin = engine_interface.build_plugin(parsed, funcs)
 sne = data_loaders.load_sne_data('jla_2014')
-result = engine.fit_sne_parameters(sne, plugin)
+result = engine.fit_sne_parameters(sne, plugin, burn_in_steps=20)
 ```
 
 Because the API is intentionally thin, advanced users can orchestrate custom

@@ -55,13 +55,17 @@ Before any heavy computation, a tiny NumPy/SciPy calculation checks that the
 installed binaries match the CPU. If this fails the log explains possible CPU
 feature mismatches and suggests reinstalling with suitable wheels.
 
-The default engine is `engines/cosmo_engine_mcmc.py`. All model plugins are
-validated through `copernican_lib/engine_interface.py` before being passed to
-the sampler. The BAO χ² helper accepts pre-extracted arrays so callers can
-convert data frames once outside optimisation loops. Joint likelihoods use
-`copernican_lib.likelihoods.JointLike` so Stage 2 evaluates SNe, BAO and CMB
-data simultaneously, recording per-dataset χ² values in the sampler output.
-When both models reference the same YAML file the Stage 2 workflow compares
+The default engine is `engines/cosmo_engine_mcmc.py`. Model plugins are now
+constructed via `copernican_lib.plugins.build_engine_plugin` which produces a
+picklable dataclass describing bounds, priors, transforms and dataset
+compatibility. Posterior evaluation is handled by
+`copernican_lib.posterior.make_logposterior`, ensuring every engine shares the
+same prior, transform and bounds logic while remaining multiprocessing safe.
+The BAO χ² helper accepts pre-extracted arrays so callers can convert data
+frames once outside optimisation loops. Joint likelihoods use
+`copernican_lib.likelihoods.JointLike` so Stage 2 evaluates SNe, BAO and CMB data
+simultaneously, recording per-dataset χ² values in the sampler output. When both
+models reference the same YAML file the Stage 2 workflow compares
 `MODEL_FILENAME` values and reuses the initial posterior so BAO and CMB overlays
 align exactly during ΛCDM self-consistency checks. The engine emits step-by-step
 progress messages for both burn-in and production phases, displays percentage

@@ -27,9 +27,15 @@ before it reaches the cache or an engine and rejects the retired
 metadata-driven transforms, manifests and engine plugins all observe the same
 schema even when the original YAML attempted to declare redundant transforms.
 
-Version 6.7.3 elevates the posterior helper to a module-level adapter so the
-spawn start method can pickle it without error, aligning local development with
-the managed CI pools that exercise the sampler under multiprocessing.
+Version 6.7.4 kept the multiprocessing contract intact by making both the
+joint likelihood wrapper and the generated distance functions picklable. Version
+7.0.0 finishes that transition by replacing the legacy `engine_interface`
+monolith with the new `copernican_lib.plugins` package and the
+`copernican_lib.posterior` module. Engine plugins are now explicit dataclass
+instances that describe bounds, priors, transforms and dataset compatibility in
+a serialisable structure, while posterior evaluation happens inside a dedicated
+picklable callable. Engines therefore remain pluggable and multiprocessing safe
+regardless of the priors chosen.
 
 With the retirement of the deterministic combined optimiser the suite now
 ships solely with the `cosmo_engine_mcmc` backend.  Engines remain pluggable

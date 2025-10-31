@@ -27,6 +27,150 @@ from . import console_output as console
 from . import error_handler, latex_utils
 
 
+class _ComovingDistance:
+    """Picklable callable computing the comoving distance in Mpc."""
+
+    __slots__ = ("_hz_fn",)
+
+    def __init__(self, hz_fn):
+        self._hz_fn = hz_fn
+
+    def __call__(self, z_val, *params):
+        """Integrate ``c/H(z)`` using either ``quad`` or a trapezoid grid."""
+
+        def integrand(zp):
+            return 299792.458 / self._hz_fn(zp, *params)
+
+        if np.isscalar(z_val):
+            return quad(integrand, 0.0, float(z_val), limit=100)[0]
+
+        z_arr = np.asarray(z_val, dtype=float)
+        z_flat = np.ravel(z_arr)
+        if z_flat.size == 0:
+            return np.asarray(z_arr, dtype=float)
+        z_sorted = np.sort(z_flat)
+        n_grid = max(2000, len(z_sorted) * 4)
+        grid = np.linspace(0.0, z_sorted[-1], n_grid)
+        integrand_vals = integrand(grid)
+        cumulative = cumulative_trapezoid(integrand_vals, grid, initial=0.0)
+        interp = np.interp(z_flat, grid, cumulative)
+        return np.reshape(interp, np.shape(z_val))
+
+
+class _LuminosityDistance:
+    """Return the luminosity distance from a comoving distance helper."""
+
+    __slots__ = ("_dm",)
+
+    def __init__(self, dm_fn):
+        self._dm = dm_fn
+
+    def __call__(self, zv, *params):
+        return (1.0 + zv) * self._dm(zv, *params)
+
+
+class _AngularDiameterDistance:
+    """Return the angular diameter distance from comoving distance."""
+
+    __slots__ = ("_dm",)
+
+    def __init__(self, dm_fn):
+        self._dm = dm_fn
+
+    def __call__(self, zv, *params):
+        return self._dm(zv, *params) / (1.0 + zv)
+
+
+class _VolumeAveragedDistance:
+    """Compute the BAO volume-averaged distance ``D_V`` in Mpc."""
+
+    __slots__ = ("_dm", "_hz_fn")
+
+    def __init__(self, dm_fn, hz_fn):
+        self._dm = dm_fn
+        self._hz_fn = hz_fn
+
+    def __call__(self, z_val, *params):
+        dm_val = self._dm(z_val, *params)
+        hz_val = self._hz_fn(z_val, *params)
+        term = dm_val**2 * 299792.458 * z_val / hz_val
+
+        if np.isscalar(z_val):
+            if z_val > 0 and hz_val != 0:
+                return term ** (1 / 3) if term >= 0 else np.nan
+            return 0.0
+
+        result = np.zeros_like(z_val, dtype=float)
+        mask = (z_val > 0) & (hz_val != 0)
+        term_arr = term[mask]
+        result[mask] = np.where(
+            term_arr >= 0, np.power(term_arr, 1 / 3), np.nan
+        )
+        return result
+
+
+class _SoundHorizonFromExpression:
+    """Wrap a symbolic sound-horizon function in a picklable callable."""
+
+    __slots__ = ("_fn",)
+
+    def __init__(self, fn):
+        self._fn = fn
+
+    def __call__(self, *params):
+        return float(self._fn(*params))
+
+
+class _SoundHorizonFallback:
+    """Numerically integrate the baryon-photon sound horizon."""
+
+    __slots__ = ("_hz_fn", "_omega_b_idx", "_omega_gamma_idx", "_z_rec_idx")
+
+    def __init__(self, hz_fn, omega_b_idx, omega_gamma_idx, z_rec_idx):
+        self._hz_fn = hz_fn
+        self._omega_b_idx = omega_b_idx
+        self._omega_gamma_idx = omega_gamma_idx
+        self._z_rec_idx = z_rec_idx
+
+    def __call__(self, *params):
+        ob_val = params[self._omega_b_idx]
+        og_val = params[self._omega_gamma_idx]
+        zrec = params[self._z_rec_idx]
+
+        def sound_speed(zv):
+            return 299792.458 / np.sqrt(
+                3.0 * (1.0 + 3.0 * ob_val / (4.0 * og_val) / (1.0 + zv))
+            )
+
+        h0_val = self._hz_fn(0.0, *params)
+
+        def hz_with_radiation(zv):
+            base = self._hz_fn(zv, *params)
+            rad_sq = (h0_val**2) * og_val * (1.0 + zv) ** 4
+            return np.sqrt(base**2 + rad_sq)
+
+        def integrand(zv):
+            return sound_speed(zv) / hz_with_radiation(zv)
+
+        result, _ = quad(integrand, zrec, np.inf, limit=100)
+        return result
+
+
+class _DistanceModulusFromLuminosity:
+    """Convert luminosity distance results to distance modulus."""
+
+    __slots__ = ("_luminosity_fn",)
+
+    def __init__(self, luminosity_fn):
+        self._luminosity_fn = luminosity_fn
+
+    def __call__(self, zv, *params):
+        dl = self._luminosity_fn(zv, *params)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            mu = 5.0 * np.log10(dl) + 25.0
+        return np.where(np.asarray(dl) > 0, mu, np.nan)
+
+
 class QuadPrinter(NumPyPrinter):
     """NumPy printer that expands ``Integral`` nodes into ``scipy``
     quad calls."""
@@ -163,76 +307,26 @@ def generate_callables(cache_path):
             code_dict["get_Hz_per_Mpc"] = str(hz_sym)
             model_data["valid_for_distance_metrics"] = True
 
-            def _dm(z_val, *params):
-                """Comoving distance integral valid for scalars or arrays."""
-
-                def integrand(zp):
-                    """Return c/H(z) at redshift ``zp``."""
-                    return 299792.458 / hz_fn(zp, *params)
-
-                if np.isscalar(z_val):
-                    # ``quad`` expects scalar limits; cast to float explicitly.
-                    return quad(integrand, 0, float(z_val), limit=100)[0]
-
-                # ``quad`` in a Python loop becomes prohibitively slow when
-                # evaluating hundreds of redshifts for MCMC proposals.  Instead
-                # integrate all points at once using a cumulative trapezoid
-                # scheme.  A dense grid maintains accuracy while keeping the
-                # evaluation cost manageable.
-                z_arr = np.asarray(z_val, dtype=float)
-                z_flat = np.ravel(z_arr)
-                z_sorted = np.sort(z_flat)
-                n_grid = max(2000, len(z_sorted) * 4)
-                grid = np.linspace(0.0, z_sorted[-1], n_grid)
-                integrand_vals = integrand(grid)
-                cumulative = cumulative_trapezoid(
-                    integrand_vals, grid, initial=0
-                )
-                interp = np.interp(z_flat, grid, cumulative)
-                return np.reshape(interp, np.shape(z_val))
-
-            if "get_comoving_distance_Mpc" not in funcs:
-                funcs["get_comoving_distance_Mpc"] = _dm
+            dm_fn = funcs.get("get_comoving_distance_Mpc")
+            if dm_fn is None:
+                dm_fn = _ComovingDistance(hz_fn)
+                funcs["get_comoving_distance_Mpc"] = dm_fn
                 code_dict["get_comoving_distance_Mpc"] = "integral(c/H(z))"
+
             if "get_luminosity_distance_Mpc" not in funcs:
-
-                def _dl(zv, *p):
-                    """Luminosity distance D_L in Mpc."""
-                    return (1 + zv) * _dm(zv, *p)
-
-                funcs["get_luminosity_distance_Mpc"] = _dl
+                funcs["get_luminosity_distance_Mpc"] = _LuminosityDistance(
+                    dm_fn
+                )
                 code_dict["get_luminosity_distance_Mpc"] = "(1+z)*DC"
+
             if "get_angular_diameter_distance_Mpc" not in funcs:
-
-                def _da(zv, *p):
-                    """Angular diameter distance D_A in Mpc."""
-                    return _dm(zv, *p) / (1 + zv)
-
-                funcs["get_angular_diameter_distance_Mpc"] = _da
+                funcs["get_angular_diameter_distance_Mpc"] = (
+                    _AngularDiameterDistance(dm_fn)
+                )
                 code_dict["get_angular_diameter_distance_Mpc"] = "DC/(1+z)"
+
             if "get_DV_Mpc" not in funcs:
-
-                def _dv(z_val, *params):
-                    """Compute volume-averaged distance D_V."""
-                    dm_val = _dm(z_val, *params)
-                    hz_val = hz_fn(z_val, *params)
-
-                    term = dm_val**2 * 299792.458 * z_val / hz_val
-
-                    if np.isscalar(z_val):
-                        if z_val > 0 and hz_val != 0:
-                            return term ** (1 / 3) if term >= 0 else np.nan
-                        return 0.0
-
-                    result = np.zeros_like(z_val, dtype=float)
-                    mask = (z_val > 0) & (hz_val != 0)
-                    term_arr = term[mask]
-                    result[mask] = np.where(
-                        term_arr >= 0, np.power(term_arr, 1 / 3), np.nan
-                    )
-                    return result
-
-                funcs["get_DV_Mpc"] = _dv
+                funcs["get_DV_Mpc"] = _VolumeAveragedDistance(dm_fn, hz_fn)
                 code_dict["get_DV_Mpc"] = "((DC^2 * c*z/H)^1/3)"
             logger.info(
                 "Derived distance functions from symbolic "
@@ -263,11 +357,9 @@ def generate_callables(cache_path):
                     # ``quad``.
                     rs_fn_sym = _compile_sympy_expr(rs_sym, tuple(param_syms))
 
-                    def _rs_fn(*p):
-                        """Return the sound horizon r_s in Mpc."""
-                        return float(rs_fn_sym(*p))
-
-                    funcs["get_sound_horizon_rs_Mpc"] = _rs_fn
+                    funcs["get_sound_horizon_rs_Mpc"] = (
+                        _SoundHorizonFromExpression(rs_fn_sym)
+                    )
                     code_dict["get_sound_horizon_rs_Mpc"] = str(rs_sym)
                     model_data["valid_for_bao"] = True
                     logger.info(
@@ -289,34 +381,9 @@ def generate_callables(cache_path):
                 zr_key = "z_rec" if "z_rec" in param_names else "z_recomb"
                 zr_i = param_index[zr_key]
 
-                def _rs(*params):
-                    """Numerically compute the sound horizon r_s in Mpc."""
-                    Ob_val = params[ob_i]
-                    Og_val = params[og_i]
-                    zrec = params[zr_i]
-
-                    def sound_speed(zv):
-                        """Return baryon-photon sound speed in km/s."""
-                        return 299792.458 / np.sqrt(
-                            3 * (1 + 3 * Ob_val / (4 * Og_val) / (1 + zv))
-                        )
-
-                    h0_val = hz_fn(0.0, *params)
-
-                    def hz_with_radiation(zv):
-                        """Return H(z) with a radiation density term."""
-                        base = hz_fn(zv, *params)
-                        rad_sq = (h0_val**2) * Og_val * (1 + zv) ** 4
-                        return np.sqrt(base**2 + rad_sq)
-
-                    def integrand(zv):
-                        """Sound-horizon integrand c_s/H(z)."""
-                        return sound_speed(zv) / hz_with_radiation(zv)
-
-                    result, _ = quad(integrand, zrec, np.inf, limit=100)
-                    return result
-
-                funcs["get_sound_horizon_rs_Mpc"] = _rs
+                funcs["get_sound_horizon_rs_Mpc"] = _SoundHorizonFallback(
+                    hz_fn, ob_i, og_i, zr_i
+                )
                 code_dict["get_sound_horizon_rs_Mpc"] = "quad(c_s/H(z))"
                 model_data["valid_for_bao"] = True
                 logger.info(
@@ -374,15 +441,9 @@ def generate_callables(cache_path):
         and "get_luminosity_distance_Mpc" in funcs
     ):
 
-        def _mu(zv, *params):
-            """Compute distance modulus from luminosity distance in Mpc."""
-            dl = funcs["get_luminosity_distance_Mpc"](zv, *params)
-            with np.errstate(divide="ignore", invalid="ignore"):
-                mu = 5 * np.log10(dl) + 25.0
-            mu = np.where(np.asarray(dl) > 0, mu, np.nan)
-            return mu
-
-        funcs["distance_modulus_model"] = _mu
+        funcs["distance_modulus_model"] = _DistanceModulusFromLuminosity(
+            funcs["get_luminosity_distance_Mpc"]
+        )
         code_dict["distance_modulus_model"] = "5*log10(DL_Mpc)+25"
         logger.info("Derived distance_modulus_model from luminosity distance.")
 
