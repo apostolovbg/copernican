@@ -46,9 +46,11 @@ modules are:
   components, dataset-level point counts, burn-in length, acceptance fractions
   and a sanitised log-probability trace. BAO and CMB data frames can be passed
   via the `bao_data_df` and `cmb_data_df` keyword arguments to enable joint
-  sampling in a single call. The private `_reseed_invalid_walkers` utility
-  reseeds walkers that emit `nan` coordinates after burn-in so downstream API
-  consumers never need to handle undefined sampler states.
+  sampling in a single call. ``burn_in_steps`` overrides the default
+  ``max(100, n_steps // 5)`` warm-up, keeping scripted workflows nimble.
+  The private `_reseed_invalid_walkers` utility reseeds walkers that emit
+  `nan` coordinates after burn-in so downstream API consumers never need to
+  handle undefined sampler states.
 - `result_writer.save_summary(results, output_dir)` – serialize fitted
   parameters, 1σ errors and covariance matrices to JSON and YAML for later
   analysis.
@@ -106,7 +108,7 @@ cache = model_parser.parse_model(
 funcs, parsed = model_coder.generate_callables(cache)
 plugin = engine_interface.build_plugin(parsed, funcs)
 sne = data_loaders.load_sne_data('jla_2014')
-result = engine.fit_sne_parameters(sne, plugin)
+result = engine.fit_sne_parameters(sne, plugin, burn_in_steps=20)
 ```
 
 Because the API is intentionally thin, advanced users can orchestrate custom

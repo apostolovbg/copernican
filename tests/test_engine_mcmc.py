@@ -67,7 +67,12 @@ class TestMCMCEngine(unittest.TestCase):
             }
         )
         res = cosmo_engine_mcmc.fit_sne_parameters(
-            sne_df, plugin, n_walkers=4, n_steps=5, pool_size=1
+            sne_df,
+            plugin,
+            n_walkers=4,
+            n_steps=5,
+            pool_size=1,
+            burn_in_steps=12,
         )
         n_params = len(plugin.PARAMETER_NAMES)
         expected = (5, max(4, 2 * n_params), n_params)
@@ -134,6 +139,7 @@ class TestMCMCEngine(unittest.TestCase):
                 n_steps=6,
                 pool_size=1,
                 progress_granularity=4,
+                burn_in_steps=12,
             )
 
         joined = "\n".join(captured.output)
@@ -253,6 +259,7 @@ class TestMCMCEngine(unittest.TestCase):
             n_walkers=4,
             n_steps=6,
             pool_size=2,
+            burn_in_steps=12,
         )
         self.assertTrue(result["success"])
         self.assertEqual(result["pool_workers"], 2)
@@ -273,6 +280,7 @@ class TestMCMCEngine(unittest.TestCase):
             n_walkers=30,
             n_steps=4,
             pool_size=1,
+            burn_in_steps=12,
         )
         self.assertTrue(result["success"])
         chain = result["samples"]
@@ -296,6 +304,7 @@ class TestMCMCEngine(unittest.TestCase):
             n_walkers=4,
             n_steps=4,
             pool_size=1,
+            burn_in_steps=12,
         )
         state = result["likelihood_state"]
         self.assertIn("components", state["metadata"])
@@ -345,6 +354,7 @@ class TestMCMCEngine(unittest.TestCase):
             n_walkers=6,
             n_steps=6,
             pool_size=1,
+            burn_in_steps=12,
         )
         components = result.get("chi2_components", {})
         total = sum(components.values())
@@ -438,6 +448,7 @@ class TestMCMCHelpers(unittest.TestCase):
             n_walkers=10,
             n_steps=4,
             pool_size=1,
+            burn_in_steps=12,
         )
         self.assertTrue(result["success"])
         chain = result["samples"]

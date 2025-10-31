@@ -27,9 +27,13 @@ before it reaches the cache or an engine and rejects the retired
 metadata-driven transforms, manifests and engine plugins all observe the same
 schema even when the original YAML attempted to declare redundant transforms.
 
-Version 6.7.3 elevates the posterior helper to a module-level adapter so the
-spawn start method can pickle it without error, aligning local development with
-the managed CI pools that exercise the sampler under multiprocessing.
+Version 6.7.4 keeps the multiprocessing contract intact by making both the
+joint likelihood wrapper and the generated distance functions picklable.  It
+also exposes a `burn_in_steps` override so scripted runs can trim warm-up
+costs when necessary, while the default heuristic remains available for
+interactive use.  These adjustments ensure spawn-based worker pools mirror
+single-process behaviour even when datasets or priors disable distance
+metrics entirely.
 
 With the retirement of the deterministic combined optimiser the suite now
 ships solely with the `cosmo_engine_mcmc` backend.  Engines remain pluggable

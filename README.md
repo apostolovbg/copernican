@@ -1,4 +1,4 @@
-**Version:** 6.7.3
+**Version:** 6.7.4
 **Last Updated:** 2025-10-31
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -337,11 +337,12 @@ while remaining re-exported by each engine module. This keeps
 `model_coder.py` focused on translating models. Engines assemble posteriors via
 `engine_interface.make_logposterior`, which applies declared priors, honours
 parameter bounds and injects Jacobian corrections whenever models expose
-sampling transforms. Version 6.7.3 promotes the helper to return a dedicated,
-module-level adapter so spawn-based multiprocessing pools can pickle the
-callable without error, keeping development and CI environments aligned. The
-default MCMC backend wires these helpers into the `JointLike` aggregator so
-every run records dataset-level diagnostics alongside the sampled chains.
+sampling transforms. Version 6.7.4 extends those guarantees by wrapping the
+joint likelihood in a picklable adapter, updating generated distance
+functions to avoid closure pickling pitfalls and exposing a `burn_in_steps`
+override so scripted workflows can tune warm-up costs explicitly. The default
+MCMC backend wires these helpers into the `JointLike` aggregator so every run
+records dataset-level diagnostics alongside the sampled chains.
 
 The helper `chi_squared_cmb` now accepts either a plugin and parameter
 vector or a ready CAMB dictionary. This flexibility lets future engines reuse

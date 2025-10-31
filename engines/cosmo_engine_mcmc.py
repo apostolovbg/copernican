@@ -118,6 +118,34 @@ class _ActiveLogProbability:
         return float(value)
 
 
+class _JointLogLikelihood:
+    """Picklable adapter that proxies :class:`JointLike.loglike`."""
+
+    __slots__ = (
+        "_joint_like",
+        "parameter_bounds",
+        "parameter_transforms",
+    )
+
+    def __init__(
+        self,
+        joint_like: JointLike,
+        parameter_bounds: Iterable[tuple[float | None, float | None]] | None,
+        parameter_transforms: (
+            Iterable[Callable[[float], tuple[float, float]]] | None
+        ),
+    ) -> None:
+        self._joint_like = joint_like
+        self.parameter_bounds = list(parameter_bounds or [])
+        if parameter_transforms is not None:
+            self.parameter_transforms = list(parameter_transforms)
+
+    def __call__(self, params: Sequence[float]) -> float:
+        """Return the combined log-likelihood for ``params``."""
+
+        return float(self._joint_like.loglike(params))
+
+
 class _SamplingProgressReporter:
     """Emit compact diagnostics for ensemble sampler updates.
 
@@ -360,18 +388,12 @@ def _build_sne_logposterior(
         config=likelihood_config,
     )
 
-    def loglike(params: Sequence[float]) -> float:
-        """Return the Supernova log-likelihood for ``params``."""
-
-        return float(joint_like.loglike(params))
-
-    # Attach optional metadata so ``make_logposterior`` can enforce bounds and
-    # apply reparameterisation transforms without the engine reimplementing
-    # those mechanics locally.
-    loglike.parameter_bounds = getattr(model_plugin, "PARAMETER_BOUNDS", [])
     transforms = getattr(model_plugin, "PARAMETER_TRANSFORMS", None)
-    if transforms is not None:
-        loglike.parameter_transforms = transforms
+    loglike = _JointLogLikelihood(
+        joint_like,
+        getattr(model_plugin, "PARAMETER_BOUNDS", []),
+        transforms,
+    )
 
     priors = getattr(model_plugin, "PARAMETER_PRIOR_OBJECTS", None)
     if priors is None:
@@ -522,15 +544,17 @@ def fit_sne_parameters(
     n_steps: int = 200,
     pool_size: int | None = None,
     progress_granularity: int = 20,
+    burn_in_steps: int | None = None,
 ) -> dict[str, Any]:
     """Sample cosmological parameters with joint dataset support.
 
     The routine initialises walkers within the declared parameter bounds, runs
     a configurable burn-in stage and returns summary statistics alongside the
-    raw chain. Its return structure remains stable so higher-level code can
-    report χ² values consistently even after the combined optimiser removal.
-    ``progress_granularity`` controls how many progress updates appear per
-    stage and therefore also the cadence of the accompanying diagnostics.
+    raw chain. ``burn_in_steps`` overrides the adaptive ``max(100, n_steps //
+    5)`` heuristic, letting tests and scripted workflows trim the warm-up cost
+    without affecting the production phase.  ``progress_granularity`` controls
+    how many progress updates appear per stage and therefore also the cadence
+    of the accompanying diagnostics.
     """
 
     logger = logging.getLogger()
@@ -629,7 +653,10 @@ def fit_sne_parameters(
 
     if pool_processes is not None:
         pool = mp.get_context("spawn").Pool(processes=pool_processes)
-    burn_in = max(100, n_steps // 5)
+    burn_in = (
+        burn_in_steps if burn_in_steps is not None else max(100, n_steps // 5)
+    )
+    burn_in = max(1, int(burn_in))
     try:
         sampler = emcee.EnsembleSampler(
             n_walkers,

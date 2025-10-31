@@ -139,6 +139,7 @@ class FunctionalTestCase(unittest.TestCase):
             n_walkers=6,
             n_steps=8,
             pool_size=1,
+            burn_in_steps=20,
         )
         self.assertTrue(result["success"])
         self.assertIn("samples", result)
@@ -157,10 +158,7 @@ class FunctionalTestCase(unittest.TestCase):
         )
         self.assertIn("burn_in_steps", result)
         self.assertIn("production_steps", result)
-        self.assertEqual(
-            result["burn_in_steps"],
-            max(100, result["production_steps"] // 5),
-        )
+        self.assertEqual(result["burn_in_steps"], 20)
 
     def test_chi_squared_cmb_planck2018lite(self):
         """Verify that the Planck 2018 lite dataset yields finite χ²."""

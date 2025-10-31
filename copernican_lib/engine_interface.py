@@ -544,20 +544,24 @@ def validate_plugin(plugin):
         )
         return False
 
-    required_funcs = list(REQUIRED_FUNCTIONS)
-    if getattr(plugin, "valid_for_distance_metrics", True) is False:
+    distance_required = [
+        "distance_modulus_model",
+        "get_comoving_distance_Mpc",
+        "get_luminosity_distance_Mpc",
+        "get_angular_diameter_distance_Mpc",
+        "get_Hz_per_Mpc",
+    ]
+    bao_required = ["get_DV_Mpc", "get_sound_horizon_rs_Mpc"]
+
+    required_funcs: list[str] = []
+    if getattr(plugin, "valid_for_distance_metrics", True):
+        required_funcs.extend(distance_required)
+    if getattr(plugin, "valid_for_bao", True):
+        for fname in bao_required:
+            if fname not in required_funcs:
+                required_funcs.append(fname)
+    if not required_funcs:
         required_funcs = ["distance_modulus_model"]
-    elif getattr(plugin, "valid_for_bao", True) is False:
-        required_funcs = [
-            "distance_modulus_model",
-            "get_comoving_distance_Mpc",
-            "get_luminosity_distance_Mpc",
-            "get_angular_diameter_distance_Mpc",
-            "get_Hz_per_Mpc",
-            "get_DV_Mpc",
-        ]
-    # When the model lacks CMB support, exclude the spectrum routine from the
-    # required function list.
 
     for fname in required_funcs:
         func = getattr(plugin, fname, None)
