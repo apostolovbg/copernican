@@ -1,6 +1,6 @@
 """Baryon Acoustic Oscillation likelihood helper.
 
-**Last Updated:** 2025-02-14
+**Last Updated:** 2025-10-31
 
 Reimplements the χ² evaluation previously exposed via
 ``copernican_lib.statistics.chi_squared_bao`` while preserving support for
@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
 
@@ -35,6 +35,85 @@ class BAOLike(LikelihoodProtocol):
         default_factory=LikelihoodState,
         init=False,
     )
+    _z_values: np.ndarray = field(init=False, repr=False)
+    _obs_type: np.ndarray = field(init=False, repr=False)
+    _observed: np.ndarray = field(init=False, repr=False)
+    _errors: np.ndarray = field(init=False, repr=False)
+    _cov_inv: np.ndarray | None = field(init=False, repr=False)
+    _rs_override: float | None = field(init=False, repr=False)
+    _mask_dm: np.ndarray = field(init=False, repr=False)
+    _mask_dh: np.ndarray = field(init=False, repr=False)
+    _mask_dv: np.ndarray = field(init=False, repr=False)
+    _prediction_buffer: np.ndarray = field(init=False, repr=False)
+    _residual_buffer: np.ndarray = field(init=False, repr=False)
+    _get_dm: Callable[..., np.ndarray] | None = field(
+        init=False,
+        repr=False,
+    )
+    _get_hz: Callable[..., np.ndarray] | None = field(
+        init=False,
+        repr=False,
+    )
+    _get_dv: Callable[..., np.ndarray] | None = field(
+        init=False,
+        repr=False,
+    )
+    _get_rs: Callable[..., float] | None = field(
+        init=False,
+        repr=False,
+    )
+    _speed_of_light: float = field(init=False, repr=False)
+    _setup_error: str | None = field(init=False, default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        """Normalise arrays and cache model callables for fast evaluation."""
+
+        self._z_values = np.asarray(self.z, dtype=float).copy()
+        self._obs_type = np.asarray(self.obs_type, dtype=object).copy()
+        self._observed = np.asarray(self.obs_val, dtype=float).copy()
+        self._errors = np.asarray(self.obs_err, dtype=float).copy()
+        self._cov_inv = (
+            None
+            if self.covariance_matrix_inv is None
+            else np.asarray(self.covariance_matrix_inv, dtype=float)
+        )
+        self._rs_override = (
+            None if self.rs_override is None else float(self.rs_override)
+        )
+
+        self._mask_dm = self._obs_type == "DM_over_rs"
+        self._mask_dh = self._obs_type == "DH_over_rs"
+        self._mask_dv = self._obs_type == "DV_over_rs"
+
+        self._prediction_buffer = np.empty_like(self._observed, dtype=float)
+        self._prediction_buffer.fill(np.nan)
+        self._residual_buffer = np.empty_like(self._observed, dtype=float)
+
+        try:
+            self._get_dm = getattr(
+                self.model_plugin, "get_comoving_distance_Mpc"
+            )
+            self._get_hz = getattr(self.model_plugin, "get_Hz_per_Mpc")
+            self._get_dv = getattr(self.model_plugin, "get_DV_Mpc", None)
+            self._get_rs = getattr(
+                self.model_plugin, "get_sound_horizon_rs_Mpc"
+            )
+        except AttributeError as exc:
+            self._setup_error = (
+                f"(bao_like): Model plugin missing BAO API: {exc}"
+            )
+            self._get_dm = None
+            self._get_hz = None
+            self._get_dv = None
+            self._get_rs = None
+
+        fixed_params = getattr(self.model_plugin, "FIXED_PARAMS", {})
+        self._speed_of_light = float(
+            fixed_params.get("C_LIGHT_KM_S", 299792.458)
+        )
+
+        if self._z_values.size == 0:
+            self._setup_error = "(bao_like): BAO redshift array is empty."
 
     def loglike(self, params: Sequence[float]) -> float:
         """Return the BAO log-likelihood for ``params``."""
@@ -44,29 +123,23 @@ class BAOLike(LikelihoodProtocol):
             self._state = LikelihoodState(chi2=0.0, loglike=0.0)
             return 0.0
 
-        if self.z is None or len(self.z) == 0:
-            logger.error("(bao_like): BAO redshift array is empty.")
+        if self._setup_error is not None:
+            logger.error(self._setup_error)
             self._state = LikelihoodState()
             return float("-inf")
 
-        try:
-            get_DM = getattr(self.model_plugin, "get_comoving_distance_Mpc")
-            get_Hz = getattr(self.model_plugin, "get_Hz_per_Mpc")
-            get_DV = getattr(self.model_plugin, "get_DV_Mpc", None)
-            get_rs = getattr(self.model_plugin, "get_sound_horizon_rs_Mpc")
-            C_LIGHT = self.model_plugin.FIXED_PARAMS.get(
-                "C_LIGHT_KM_S",
-                299792.458,
-            )
-        except AttributeError as exc:
-            logger.error("(bao_like): Model plugin missing BAO API: %s", exc)
+        if (
+            self._get_dm is None
+            or self._get_hz is None
+            or self._get_rs is None
+        ):
             self._state = LikelihoodState()
             return float("-inf")
 
-        rs_mpc = self.rs_override
+        rs_mpc = self._rs_override
         if rs_mpc is None:
             try:
-                rs_mpc = get_rs(*params)
+                rs_mpc = float(self._get_rs(*params))
             except Exception:
                 self._state = LikelihoodState()
                 return float("-inf")
@@ -75,67 +148,76 @@ class BAOLike(LikelihoodProtocol):
             self._state = LikelihoodState()
             return float("-inf")
 
-        pred = np.full_like(self.obs_val, np.nan, dtype=float)
+        self._prediction_buffer.fill(np.nan)
 
-        mask = self.obs_type == "DM_over_rs"
-        if np.any(mask):
-            pred[mask] = get_DM(self.z[mask], *params) / rs_mpc
+        if np.any(self._mask_dm):
+            self._prediction_buffer[self._mask_dm] = (
+                self._get_dm(self._z_values[self._mask_dm], *params) / rs_mpc
+            )
 
-        mask = self.obs_type == "DH_over_rs"
-        if np.any(mask):
-            hz = get_Hz(self.z[mask], *params)
+        if np.any(self._mask_dh):
+            hz = self._get_hz(self._z_values[self._mask_dh], *params)
             dh = np.where(
                 np.isfinite(hz) & (np.abs(hz) > 1e-9),
-                C_LIGHT / hz,
+                self._speed_of_light / hz,
                 np.nan,
             )
-            pred[mask] = dh / rs_mpc
+            self._prediction_buffer[self._mask_dh] = dh / rs_mpc
 
-        mask = self.obs_type == "DV_over_rs"
-        if np.any(mask):
-            if get_DV is not None:
-                dv = get_DV(self.z[mask], *params)
+        if np.any(self._mask_dv):
+            if self._get_dv is not None:
+                dv = self._get_dv(self._z_values[self._mask_dv], *params)
             else:
-                dm_val = get_DM(self.z[mask], *params)
-                hz_val = get_Hz(self.z[mask], *params)
-                term = dm_val**2 * C_LIGHT * self.z[mask] / hz_val
+                dm_val = self._get_dm(self._z_values[self._mask_dv], *params)
+                hz_val = self._get_hz(self._z_values[self._mask_dv], *params)
+                term = (
+                    dm_val**2
+                    * self._speed_of_light
+                    * self._z_values[self._mask_dv]
+                    / hz_val
+                )
                 valid = (
                     np.isfinite(dm_val)
                     & (dm_val >= 0)
                     & np.isfinite(hz_val)
                     & (np.abs(hz_val) > 1e-9)
-                    & (self.z[mask] > 1e-9)
+                    & (self._z_values[self._mask_dv] > 1e-9)
                 )
                 dv = np.full_like(dm_val, np.nan)
                 dv[valid] = np.where(
-                    term[valid] >= 0,
-                    term[valid] ** (1.0 / 3.0),
-                    np.nan,
+                    term[valid] >= 0, term[valid] ** (1.0 / 3.0), np.nan
                 )
-                dv[np.abs(self.z[mask]) < 1e-9] = 0.0
-            pred[mask] = dv / rs_mpc
+                dv[np.abs(self._z_values[self._mask_dv]) < 1e-9] = 0.0
+            self._prediction_buffer[self._mask_dv] = dv / rs_mpc
 
-        if np.all(~np.isfinite(pred)):
+        if np.all(~np.isfinite(self._prediction_buffer)):
             logger.warning(
                 "(bao_like): Model returned no finite BAO predictions."
             )
             self._state = LikelihoodState()
             return float("-inf")
 
-        resid = self.obs_val - pred
-        if np.any(~np.isfinite(resid)):
+        np.subtract(
+            self._observed,
+            self._prediction_buffer,
+            out=self._residual_buffer,
+            casting="unsafe",
+        )
+        if np.any(~np.isfinite(self._residual_buffer)):
             logger.warning("(bao_like): Non-finite residuals in BAO data.")
             self._state = LikelihoodState()
             return float("-inf")
 
-        cov_inv = self.covariance_matrix_inv
-        metadata: dict[str, Any] = {"points": int(resid.size)}
+        cov_inv = self._cov_inv
+        metadata: dict[str, Any] = {"points": int(self._observed.size)}
         chi2 = float("inf")
         if cov_inv is not None:
             try:
-                if cov_inv.shape[0] != resid.size:
+                if cov_inv.shape[0] != self._observed.size:
                     raise ValueError("Covariance size mismatch")
-                chi2 = float(resid @ cov_inv @ resid)
+                chi2 = float(
+                    self._residual_buffer @ cov_inv @ self._residual_buffer
+                )
                 metadata["covariance"] = "full"
             except Exception as exc:
                 logger.warning(
@@ -145,12 +227,16 @@ class BAOLike(LikelihoodProtocol):
                 cov_inv = None
 
         if cov_inv is None:
-            valid = np.isfinite(self.obs_err) & (self.obs_err > 1e-9)
+            valid = np.isfinite(self._errors) & (self._errors > 1e-9)
             if not np.any(valid):
                 logger.warning("(bao_like): No valid BAO errors available.")
                 self._state = LikelihoodState()
                 return float("-inf")
-            chi2 = float(np.sum((resid[valid] / self.obs_err[valid]) ** 2))
+            chi2 = float(
+                np.sum(
+                    (self._residual_buffer[valid] / self._errors[valid]) ** 2
+                )
+            )
             metadata["covariance"] = "diagonal"
 
         loglike = -0.5 * chi2 if np.isfinite(chi2) else float("-inf")

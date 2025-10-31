@@ -1,6 +1,6 @@
 """Cosmic Microwave Background likelihood helper.
 
-**Last Updated:** 2025-02-14
+**Last Updated:** 2025-10-31
 
 Provides the CAMB spectrum wrappers and covariance-aware χ² evaluation for the
 Planck lite dataset as well as future CMB releases.  The helper mirrors the
@@ -130,6 +130,52 @@ class CMBLike(LikelihoodProtocol):
         default_factory=LikelihoodState,
         init=False,
     )
+    _ells: np.ndarray = field(init=False, repr=False)
+    _observed: np.ndarray = field(init=False, repr=False)
+    _cov_inv: np.ndarray | None = field(init=False, repr=False)
+    _residual_buffer: np.ndarray = field(init=False, repr=False)
+    _extra_params_cached: dict[str, float] | None = field(
+        init=False,
+        default=None,
+        repr=False,
+    )
+    _setup_error: str | None = field(init=False, default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        """Extract immutable arrays so log-likelihood evaluation stays lean."""
+
+        df = self.data
+        if df is None or df.empty:
+            self._setup_error = "(cmb_like): CMB data is empty."
+            self._ells = np.empty(0, dtype=int)
+            self._observed = np.empty(0, dtype=float)
+            self._cov_inv = None
+            self._residual_buffer = np.empty(0, dtype=float)
+            return
+
+        self._ells = df["ell"].to_numpy(dtype=int, copy=True)
+        self._observed = df["Dl_obs"].to_numpy(dtype=float, copy=True)
+        if np.any(~np.isfinite(self._observed)):
+            self._setup_error = (
+                "(cmb_like): Observed spectrum contains non-finite values."
+            )
+
+        cov_attr = df.attrs.get("covariance_matrix_inv")
+        self._cov_inv = (
+            None if cov_attr is None else np.asarray(cov_attr, dtype=float)
+        )
+        if self._cov_inv is None:
+            self._setup_error = (
+                "(cmb_like): Missing inverse covariance matrix."
+            )
+
+        self._residual_buffer = np.empty_like(self._observed, dtype=float)
+
+        if self.extra_params:
+            cached: dict[str, float] = {}
+            for key, value in self.extra_params.items():
+                cached[str(key)] = float(value)
+            self._extra_params_cached = cached
 
     def loglike(self, params: Sequence[float]) -> float:
         """Return the CMB log-likelihood for ``params``."""
@@ -139,38 +185,56 @@ class CMBLike(LikelihoodProtocol):
             self._state = LikelihoodState(chi2=0.0, loglike=0.0)
             return 0.0
 
-        if self.data is None or self.data.empty:
-            logger.error("(cmb_like): CMB data is empty.")
-            self._state = LikelihoodState()
-            return float("-inf")
-        if "covariance_matrix_inv" not in self.data.attrs:
-            logger.error("(cmb_like): Missing inverse covariance matrix.")
+        if self._setup_error is not None:
+            logger.error(self._setup_error)
             self._state = LikelihoodState()
             return float("-inf")
 
-        ells = self.data["ell"].to_numpy(dtype=int)
-        obs = self.data["Dl_obs"].to_numpy(dtype=float)
         try:
             camb_params = self.plugin.get_camb_params(params)
         except Exception:
             self._state = LikelihoodState()
             return float("-inf")
-        if self.extra_params:
-            camb_params.update(self.extra_params)
 
-        theory = compute_cmb_spectrum_from_dict(
-            camb_params, ells, spectra=("TT",)
-        )
-        if not isinstance(theory, np.ndarray):
-            theory = np.asarray(theory, dtype=float)
-        if theory.shape != obs.shape or np.any(~np.isfinite(theory)):
+        if not isinstance(camb_params, Mapping):
             self._state = LikelihoodState()
             return float("-inf")
 
-        resid = obs - theory
-        cov_inv = self.data.attrs["covariance_matrix_inv"]
+        params_dict = {
+            str(key): float(val) for key, val in camb_params.items()
+        }
+        if self._extra_params_cached:
+            params_dict.update(self._extra_params_cached)
+
+        theory = compute_cmb_spectrum_from_dict(
+            params_dict,
+            self._ells,
+            spectra=("TT",),
+        )
+        if not isinstance(theory, np.ndarray):
+            theory = np.asarray(theory, dtype=float)
+        if theory.shape != self._observed.shape or np.any(
+            ~np.isfinite(theory)
+        ):
+            self._state = LikelihoodState()
+            return float("-inf")
+
+        np.subtract(
+            self._observed,
+            theory,
+            out=self._residual_buffer,
+            casting="unsafe",
+        )
+
+        cov_inv = self._cov_inv
+        if cov_inv is None:
+            self._state = LikelihoodState()
+            return float("-inf")
+
         try:
-            chi2 = float(resid @ cov_inv @ resid)
+            chi2 = float(
+                self._residual_buffer @ cov_inv @ self._residual_buffer
+            )
         except Exception as exc:
             logger.error("(cmb_like): Linear algebra failure: %s", exc)
             self._state = LikelihoodState()
@@ -182,7 +246,7 @@ class CMBLike(LikelihoodProtocol):
             loglike=loglike,
             metadata={
                 "covariance": "full",
-                "points": int(resid.size),
+                "points": int(self._observed.size),
             },
         )
         return loglike
