@@ -59,6 +59,65 @@ _MAX_INITIAL_CONDITION = 1e12
 _MAX_INITIAL_ATTEMPTS = 12
 
 
+class _ActiveLogProbability:
+    """Picklable adapter that expands active coordinates to full parameters.
+
+    ``emcee`` evaluates only the actively sampled parameters, yet the
+    likelihood helper expects the full cosmological vector, including entries
+    that are numerically fixed.  The managed start scripts launch the suite
+    under the ``spawn`` multiprocessing context, so any callable passed to
+    worker processes must be picklable.  Local closures fail that constraint
+    and previously triggered ``AttributeError: Can't pickle local object``
+    when Stage 2 activated multiprocessing.  A dedicated adapter class keeps
+    the restoration logic together with the posterior callable while remaining
+    serialisable for ``multiprocessing.Pool``.
+    """
+
+    __slots__ = ("_posterior", "_template", "_active_indices")
+
+    def __init__(
+        self,
+        posterior: Callable[[np.ndarray], float],
+        template_params: np.ndarray,
+        active_indices: np.ndarray,
+    ) -> None:
+        # ``posterior`` already encapsulates priors and likelihood terms via
+        # ``_build_sne_logposterior``.  We retain it verbatim and only manage
+        # the vector assembly around it.
+        self._posterior = posterior
+        # ``template_params`` stores the baseline parameter vector with fixed
+        # entries included.  Copy and coerce it to ``float`` so all workers see
+        # a consistent array and accidental mutations never bleed between
+        # processes.
+        self._template = np.asarray(template_params, dtype=float)
+        # ``active_indices`` pinpoints which coordinates ``emcee`` manipulates.
+        self._active_indices = np.asarray(active_indices, dtype=int)
+
+    def assemble_full(self, position: np.ndarray) -> np.ndarray:
+        """Return a full parameter vector for ``position``.
+
+        The method centralises the reconstruction so tests can assert that
+        fixed coordinates survive untouched when the adapter is invoked
+        directly.  Each call returns a new array, keeping ``self._template``
+        immutable for safe multiprocessing pickling.
+        """
+
+        full = self._template.copy()
+        full[self._active_indices] = np.asarray(position, dtype=float)
+        return full
+
+    def __call__(self, position: np.ndarray) -> float:
+        """Evaluate the posterior for ``position`` in the active subspace."""
+
+        full = self.assemble_full(position)
+        value = self._posterior(full)
+        # ``emcee`` expects a Python ``float`` rather than a NumPy scalar for
+        # predictable ``isfinite`` checks.  Coercing here guarantees downstream
+        # consumers see the same type under both serial and multiprocessing
+        # execution.
+        return float(value)
+
+
 class _SamplingProgressReporter:
     """Emit compact diagnostics for ensemble sampler updates.
 
@@ -525,15 +584,11 @@ def fit_sne_parameters(
     ndim_active = active_indices.size
     n_walkers = max(n_walkers, 2 * ndim_active)
 
-    def assemble_full(position: np.ndarray) -> np.ndarray:
-        """Return the full parameter vector with fixed entries restored."""
-        full = template_params.copy()
-        full[active_indices] = position
-        return full
-
-    def log_probability_active(position: np.ndarray) -> float:
-        full = assemble_full(position)
-        return posterior_full(full)
+    log_probability_active = _ActiveLogProbability(
+        posterior_full,
+        template_params,
+        active_indices,
+    )
 
     try:
         p0, logp = _initialise_active_walkers(

@@ -23,6 +23,7 @@ else:
 from copernican_lib import engine_interface, model_coder, model_parser
 from engines import cosmo_engine_mcmc
 from engines.cosmo_engine_mcmc import (
+    _ActiveLogProbability,
     _build_sne_logposterior,
     _classify_parameter_bounds,
     _estimate_condition_number,
@@ -199,6 +200,63 @@ class TestMCMCEngine(unittest.TestCase):
         )
         self.assertTrue(np.all(np.isfinite(new_coords)))
         self.assertTrue(np.all(np.isfinite(new_log_prob)))
+
+    def test_active_log_probability_expands_parameters(self):
+        plugin = self._build_lcdm_plugin()
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01],
+                "mu_obs": [40.0],
+                "e_mu_obs": [0.1],
+            }
+        )
+        posterior, _, _ = _build_sne_logposterior(plugin, sne_df)
+        bounds = plugin.PARAMETER_BOUNDS
+        lower, upper, fixed_mask = _classify_parameter_bounds(
+            bounds, logger=logging.getLogger()
+        )
+        template = np.asarray(plugin.INITIAL_GUESSES, dtype=float)
+        active_indices = np.flatnonzero(~fixed_mask)
+        adapter = _ActiveLogProbability(posterior, template, active_indices)
+        trial = template[active_indices]
+        assembled = adapter.assemble_full(trial)
+        self.assertTrue(np.allclose(assembled[active_indices], trial))
+        self.assertTrue(
+            np.allclose(assembled[fixed_mask], template[fixed_mask])
+        )
+        value = adapter(trial)
+        self.assertIsInstance(value, float)
+        self.assertTrue(math.isfinite(value) or math.isneginf(value))
+
+        clipped = np.clip(
+            trial + 0.1,
+            lower[~fixed_mask],
+            upper[~fixed_mask],
+        )
+        assembled_clipped = adapter.assemble_full(clipped)
+        self.assertTrue(
+            np.allclose(assembled_clipped[active_indices], clipped)
+        )
+
+    def test_sampler_runs_with_spawn_pool(self):
+        plugin = self._build_lcdm_plugin()
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01, 0.02],
+                "mu_obs": [40.0, 41.0],
+                "e_mu_obs": [0.1, 0.1],
+            }
+        )
+        result = cosmo_engine_mcmc.fit_sne_parameters(
+            sne_df,
+            plugin,
+            n_walkers=4,
+            n_steps=6,
+            pool_size=2,
+        )
+        self.assertTrue(result["success"])
+        self.assertEqual(result["pool_workers"], 2)
+        self.assertTrue(math.isfinite(result["log_posterior_best"]))
 
     def test_sampler_handles_fixed_bounds(self):
         plugin = self._build_cfsc_plugin()
