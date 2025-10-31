@@ -29,9 +29,10 @@ from typing import Any, Callable, Iterable, Sequence
 
 import emcee
 import numpy as np
+import pandas as pd
 
 from copernican_lib import engine_interface
-from copernican_lib.likelihoods import JointLike, SNeLike
+from copernican_lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
 from copernican_lib.statistics import (
     calculate_bao_observables,
     chi_squared_bao,
@@ -60,12 +61,14 @@ _MAX_INITIAL_ATTEMPTS = 12
 def _build_sne_logposterior(
     model_plugin: Any,
     sne_data_df: Any,
+    bao_data_df: Any | None = None,
+    cmb_data_df: Any | None = None,
 ) -> tuple[
     Callable[[Sequence[float]], float],
     Callable[[Sequence[float]], float],
     JointLike,
 ]:
-    """Return posterior, likelihood and diagnostics for Supernova data.
+    """Return posterior, likelihood and diagnostics for joint datasets.
 
     Engines evaluate the returned posterior repeatedly during sampling.  The
     helper therefore pre-computes the reusable :class:`JointLike` aggregator
@@ -76,7 +79,77 @@ def _build_sne_logposterior(
     """
 
     sne_like = SNeLike(model_plugin.distance_modulus_model, sne_data_df)
-    joint_like = JointLike({"sne": sne_like})
+
+    # Recreate the BAO arrays in NumPy form so the helper can compute
+    # residuals without repeatedly converting the DataFrame on every
+    # likelihood evaluation. Missing datasets fall back to empty arrays while
+    # the ``enabled`` flag records whether the component should contribute to
+    # the joint likelihood.
+    if bao_data_df is not None:
+        bao_z = bao_data_df.get("redshift")
+        bao_types = bao_data_df.get("observable_type")
+        bao_val = bao_data_df.get("value")
+        bao_err = bao_data_df.get("error")
+    else:
+        bao_z = bao_types = bao_val = bao_err = None
+
+    bao_enabled = bool(
+        bao_data_df is not None
+        and getattr(model_plugin, "valid_for_bao", True)
+        and hasattr(bao_data_df, "__len__")
+        and len(bao_data_df) > 0
+    )
+    bao_like = BAOLike(
+        np.asarray(bao_z if bao_z is not None else [], dtype=float),
+        np.asarray(bao_types if bao_types is not None else [], dtype=object),
+        np.asarray(bao_val if bao_val is not None else [], dtype=float),
+        np.asarray(bao_err if bao_err is not None else [], dtype=float),
+        model_plugin,
+        covariance_matrix_inv=(
+            None
+            if bao_data_df is None
+            else bao_data_df.attrs.get("covariance_matrix_inv")
+        ),
+        enabled=bao_enabled,
+    )
+
+    # The CMB helper operates directly on the tabulated DataFrame so we can
+    # preserve metadata such as the inverse covariance matrix.  When the model
+    # declares it is incompatible with CMB analyses or the dataset lacks the
+    # required covariance the component remains disabled.
+    cmb_enabled = bool(
+        cmb_data_df is not None
+        and getattr(model_plugin, "valid_for_cmb", True)
+        and not getattr(cmb_data_df, "empty", True)
+        and "covariance_matrix_inv" in getattr(cmb_data_df, "attrs", {})
+    )
+    cmb_like = CMBLike(
+        cmb_data_df if cmb_data_df is not None else pd.DataFrame(),
+        model_plugin,
+        enabled=cmb_enabled,
+    )
+
+    # Preserve any model-provided dataset toggles while ensuring every
+    # component defaults to the availability detected above.  The resulting
+    # configuration keeps backwards compatibility with lightweight models that
+    # only targeted Supernova data yet lets richer plugins disable specific
+    # datasets explicitly.
+    likelihood_config = dict(
+        getattr(model_plugin, "LIKELIHOOD_CONFIG", {}) or {}
+    )
+    likelihood_config.setdefault(
+        "sne",
+        sne_data_df is not None
+        and hasattr(sne_data_df, "__len__")
+        and len(sne_data_df) > 0,
+    )
+    likelihood_config.setdefault("bao", bao_enabled)
+    likelihood_config.setdefault("cmb", cmb_enabled)
+
+    joint_like = JointLike(
+        {"sne": sne_like, "bao": bao_like, "cmb": cmb_like},
+        config=likelihood_config,
+    )
 
     def loglike(params: Sequence[float]) -> float:
         """Return the Supernova log-likelihood for ``params``."""
@@ -218,11 +291,13 @@ def fit_sne_parameters(
     sne_data_df: Any,
     model_plugin: Any,
     *,
+    bao_data_df: Any | None = None,
+    cmb_data_df: Any | None = None,
     n_walkers: int = 32,
     n_steps: int = 200,
     pool_size: int | None = None,
 ) -> dict[str, Any]:
-    """Sample SNe parameters with :mod:`emcee`.
+    """Sample cosmological parameters with joint dataset support.
 
     The routine initialises walkers within the declared parameter bounds, runs
     a configurable burn-in stage and returns summary statistics alongside the
@@ -236,6 +311,8 @@ def fit_sne_parameters(
     posterior_full, loglike_full, joint_like = _build_sne_logposterior(
         model_plugin,
         sne_data_df,
+        bao_data_df,
+        cmb_data_df,
     )
     names: Iterable[str] = getattr(model_plugin, "PARAMETER_NAMES", [])
     names = list(names)
@@ -374,8 +451,32 @@ def fit_sne_parameters(
     loglike_best = float(loglike_full(best_params))
     log_posterior_best = float(posterior_full(best_params))
     likelihood_state = dict(joint_like.state)
-    chi2_best = float(likelihood_state.get("chi2", float("inf")))
-    dof = len(sne_data_df) - ndim_total
+    metadata = likelihood_state.get("metadata", {})
+    components = metadata.get("components", {})
+    chi2_sne = float(components.get("sne", {}).get("chi2", float("inf")))
+    chi2_bao = float(components.get("bao", {}).get("chi2", 0.0))
+    chi2_cmb = float(components.get("cmb", {}).get("chi2", 0.0))
+    chi2_best = float(
+        likelihood_state.get("chi2", chi2_sne + chi2_bao + chi2_cmb)
+    )
+
+    sne_points = len(sne_data_df) if sne_data_df is not None else 0
+    bao_points = components.get("bao", {}).get("metadata", {}).get("points", 0)
+    cmb_points = components.get("cmb", {}).get("metadata", {}).get("points", 0)
+    try:
+        bao_points = int(bao_points)
+    except (TypeError, ValueError):
+        bao_points = len(bao_data_df) if bao_data_df is not None else 0
+    try:
+        cmb_points = int(cmb_points)
+    except (TypeError, ValueError):
+        cmb_points = (
+            len(cmb_data_df)
+            if cmb_data_df is not None and not cmb_data_df.empty
+            else 0
+        )
+    total_points = sne_points + bao_points + cmb_points
+    dof = total_points - ndim_total
     reduced = chi2_best / dof if dof > 0 else np.nan
 
     log_prior_best = float("-inf")
@@ -408,7 +509,9 @@ def fit_sne_parameters(
         "parameter_errors": error_dict,
         "covariance_matrix": covariance,
         "chi2_min": chi2_best,
-        "chi2_sne": chi2_best,
+        "chi2_sne": chi2_sne,
+        "chi2_bao": chi2_bao,
+        "chi2_cmb": chi2_cmb,
         "chi2_total": chi2_best,
         "log_likelihood_best": loglike_best,
         "log_posterior_best": log_posterior_best,
@@ -420,6 +523,17 @@ def fit_sne_parameters(
         "production_steps": n_steps,
         "autocorrelation_time": autocorr,
         "likelihood_state": likelihood_state,
+        "chi2_components": {
+            "sne": chi2_sne,
+            "bao": chi2_bao,
+            "cmb": chi2_cmb,
+        },
+        "data_points": {
+            "sne": sne_points,
+            "bao": bao_points,
+            "cmb": cmb_points,
+            "total": total_points,
+        },
     }
 
 

@@ -1053,8 +1053,11 @@ def main_workflow():
             console.write("")
             return
         t0 = time.perf_counter()
-        lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(
-            sne_data_df, lcdm
+        lcdm_fit_results = cosmo_engine_selected.fit_sne_parameters(
+            sne_data_df,
+            lcdm,
+            bao_data_df=bao_data_df,
+            cmb_data_df=cmb_data_df,
         )
         lcdm_time += time.perf_counter() - t0
         same_name = (
@@ -1070,11 +1073,14 @@ def main_workflow():
                 "Alternative model matches ΛCDM; reusing SNe chain from %s.",
                 engine_label,
             )
-            alt_model_sne_fit_results = copy.deepcopy(lcdm_sne_fit_results)
+            alt_model_fit_results = copy.deepcopy(lcdm_fit_results)
         else:
             t0 = time.perf_counter()
-            alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(
-                sne_data_df, alt_model_plugin
+            alt_model_fit_results = cosmo_engine_selected.fit_sne_parameters(
+                sne_data_df,
+                alt_model_plugin,
+                bao_data_df=bao_data_df,
+                cmb_data_df=cmb_data_df,
             )
             alt_time += time.perf_counter() - t0
 
@@ -1083,13 +1089,24 @@ def main_workflow():
         # values, 1σ errors and the covariance matrix for each model.
         result_writer.save_summary(
             {
-                lcdm.MODEL_NAME: lcdm_sne_fit_results,
-                alt_model_plugin.MODEL_NAME: alt_model_sne_fit_results,
+                lcdm.MODEL_NAME: lcdm_fit_results,
+                alt_model_plugin.MODEL_NAME: alt_model_fit_results,
             },
             OUTPUT_DIR,
         )
 
         logger.info("\n--- Stage 3: BAO Analysis ---\n")
+
+        def _component_enabled(fit_results, component):
+            state = fit_results.get("likelihood_state", {}) if fit_results else {}
+            metadata = state.get("metadata", {})
+            components = metadata.get("components", {})
+            entry = components.get(component, {})
+            enabled_flag = entry.get("metadata", {}).get("enabled")
+            if enabled_flag is not None:
+                return bool(enabled_flag)
+            enabled_components = metadata.get("enabled_components", ())
+            return component in enabled_components
 
         min_z, max_z = (
             bao_data_df["redshift"].min(),
@@ -1097,25 +1114,40 @@ def main_workflow():
         )
         z_plot_smooth = np.geomspace(max(min_z * 0.8, 0.01), max_z * 1.2, 100)
 
-        def run_bao_analysis(model_plugin, sne_fit_results, z_smooth_arr):
-            """Helper to run BAO analysis for a given model."""
-            if not (sne_fit_results and sne_fit_results.get("success")):
+        def run_bao_analysis(model_plugin, fit_results, z_smooth_arr):
+            """Return BAO diagnostics and predictions for ``model_plugin``."""
+
+            summary = {
+                "sne_fit_results": fit_results,
+                "pred_df": None,
+                "rs_Mpc": np.nan,
+                "chi2_bao": float(
+                    (fit_results or {}).get("chi2_bao", float("inf"))
+                ),
+                "smooth_predictions": None,
+            }
+
+            if not (fit_results and fit_results.get("success")):
                 logger.warning(
                     (
                         f"{model_plugin.MODEL_NAME} fit failed; "
                         "skipping BAO analysis."
                     )
                 )
-                return {
-                    "sne_fit_results": sne_fit_results,
-                    "pred_df": None,
-                    "rs_Mpc": np.nan,
-                    "chi2_bao": np.inf,
-                    "smooth_predictions": None,
-                }
+                return summary
+
+            if not _component_enabled(fit_results, "bao"):
+                logger.info(
+                    (
+                        f"{model_plugin.MODEL_NAME} BAO likelihood disabled; "
+                        "skipping predictions."
+                    )
+                )
+                summary["chi2_bao"] = float("inf")
+                return summary
 
             fitted_cosmo_p = extract_cosmological_param_vector(
-                sne_fit_results,
+                fit_results,
                 model_plugin,
                 logger=logger,
             )
@@ -1126,13 +1158,9 @@ def main_workflow():
                         "cosmological parameters; skipping BAO analysis."
                     )
                 )
-                return {
-                    "sne_fit_results": sne_fit_results,
-                    "pred_df": None,
-                    "rs_Mpc": np.nan,
-                    "chi2_bao": np.inf,
-                    "smooth_predictions": None,
-                }
+                summary["chi2_bao"] = float("inf")
+                return summary
+
             pred_df, rs_Mpc, smooth_preds = (
                 cosmo_engine_selected.calculate_bao_observables(
                     bao_data_df,
@@ -1141,53 +1169,72 @@ def main_workflow():
                     z_smooth=z_smooth_arr,
                 )
             )
+            summary.update(
+                {
+                    "pred_df": pred_df,
+                    "rs_Mpc": rs_Mpc,
+                    "smooth_predictions": smooth_preds,
+                }
+            )
 
-            chi2_bao = np.inf
+            chi2_bao = summary["chi2_bao"]
             if pred_df is not None and np.isfinite(rs_Mpc):
-                z = bao_data_df["redshift"].to_numpy(dtype=float)
-                obs_type = bao_data_df["observable_type"].to_numpy()
-                obs_val = bao_data_df["value"].to_numpy(dtype=float)
-                obs_err = bao_data_df["error"].to_numpy(dtype=float)
-                cov_inv = bao_data_df.attrs.get("covariance_matrix_inv")
-                chi2_bao = cosmo_engine_selected.chi_squared_bao(
-                    z,
-                    obs_type,
-                    obs_val,
-                    obs_err,
-                    model_plugin,
-                    fitted_cosmo_p,
-                    rs_Mpc,
-                    covariance_matrix_inv=cov_inv,
-                )
-                logger.info(
-                    (
-                        f"{model_plugin.MODEL_NAME} BAO: r_s = "
-                        f"{rs_Mpc:.2f} Mpc, "
-                        f"Chi2_BAO = {chi2_bao:.2f}"
+                if np.isfinite(chi2_bao):
+                    logger.info(
+                        (
+                            f"{model_plugin.MODEL_NAME} BAO: r_s = "
+                            f"{rs_Mpc:.2f} Mpc, "
+                            f"χ²_BAO = {chi2_bao:.2f}"
+                        )
                     )
-                )
+                else:
+                    logger.warning(
+                        (
+                            f"{model_plugin.MODEL_NAME} BAO predictions "
+                            "available but χ² is non-finite."
+                        )
+                    )
             else:
                 logger.warning(
                     f"{model_plugin.MODEL_NAME} BAO calculation failed or "
                     "produced invalid r_s."
                 )
 
-            return {
-                "sne_fit_results": sne_fit_results,
-                "pred_df": pred_df,
-                "rs_Mpc": rs_Mpc,
-                "chi2_bao": chi2_bao,
-                "smooth_predictions": smooth_preds,
+            return summary
+
+        t0 = time.perf_counter()
+        lcdm_bao_summary = run_bao_analysis(
+            lcdm,
+            lcdm_fit_results,
+            z_plot_smooth,
+        )
+        lcdm_time += time.perf_counter() - t0
+        t0 = time.perf_counter()
+        alt_bao_summary = run_bao_analysis(
+            alt_model_plugin,
+            alt_model_fit_results,
+            z_plot_smooth,
+        )
+        alt_time += time.perf_counter() - t0
+
+        logger.info("\n--- Stage 4: CMB Analysis ---\n")
+
+        def run_cmb_analysis(model_plugin, fit_results):
+            """Return CMB diagnostics and theory spectra for ``model_plugin``."""
+
+            summary = {
+                "chi2_cmb": float(
+                    (fit_results or {}).get("chi2_cmb", float("inf"))
+                ),
+                "theory_spectrum": None,
             }
 
-        def run_cmb_analysis(
-            cmb_df, model_plugin, cosmo_params, cmb_extras=None
-        ):
-            """Run CMB analysis for a given model."""
-            # Skip the CMB step entirely when the model declares it is invalid
-            # for such data. This prevents misleading chi-squared calculations
-            # and ensures plugin validation does not fail for missing CMB
-            # functions.
+            if not _component_enabled(fit_results, "cmb"):
+                return summary
+
+            if cmb_data_df is None or getattr(cmb_data_df, "empty", True):
+                return summary
+
             if getattr(model_plugin, "valid_for_cmb", True) is False:
                 logger.info(
                     (
@@ -1195,99 +1242,81 @@ def main_workflow():
                         "skipping analysis."
                     )
                 )
-                return {"chi2_cmb": np.inf, "theory_spectrum": None}
+                summary["chi2_cmb"] = float("inf")
+                return summary
 
-            if cmb_df is None or cmb_df.empty:
-                return {"chi2_cmb": np.inf, "theory_spectrum": None}
-
+            cosmo_params = extract_cosmological_param_vector(
+                fit_results,
+                model_plugin,
+                logger=logger,
+            )
             if cosmo_params is None:
                 logger.warning(
                     (
                         f"{model_plugin.MODEL_NAME} fit does not provide "
-                        "cosmological parameters; skipping CMB analysis."
+                        "cosmological parameters; skipping CMB predictions."
                     )
                 )
-                return {"chi2_cmb": np.inf, "theory_spectrum": None}
+                summary["chi2_cmb"] = float("inf")
+                return summary
 
-            # Convert the fitted cosmological parameters to CAMB's expected
-            # dictionary format using the helper provided by the model plugin.
-            camb_params = model_plugin.get_camb_params(cosmo_params)
-            # Append any additional CMB parameters supplied by the engine so
-            # that the theoretical spectrum reflects the actual optimisation
-            # result instead of falling back to defaults.
-            if cmb_extras:
-                camb_params.update(cmb_extras)
+            try:
+                camb_params = model_plugin.get_camb_params(cosmo_params)
+            except Exception as exc:
+                logger.warning(
+                    (
+                        f"{model_plugin.MODEL_NAME} failed to build CAMB "
+                        f"parameters: {exc}"
+                    )
+                )
+                summary["chi2_cmb"] = float("inf")
+                return summary
 
             components = ["TT"]
-            if "Dl_te_obs" in cmb_df.columns:
+            if "Dl_te_obs" in cmb_data_df.columns:
                 components.append("TE")
-            if "Dl_ee_obs" in cmb_df.columns:
+            if "Dl_ee_obs" in cmb_data_df.columns:
                 components.append("EE")
 
             theory = cosmo_engine_selected.compute_cmb_spectrum(
                 camb_params,
-                cmb_df["ell"].values,
+                cmb_data_df["ell"].values,
                 spectra=tuple(components),
             )
-            chi2_val = cosmo_engine_selected.chi_squared_cmb(
-                cosmo_params,
-                cmb_df,
-                model_plugin,
-                cmb_extras,
-            )
-            logger.info(
-                f"{model_plugin.MODEL_NAME} CMB chi2 = {chi2_val:.2f}"
-            )
-            return {"chi2_cmb": chi2_val, "theory_spectrum": theory}
+            summary["theory_spectrum"] = theory
+
+            chi2_cmb = summary["chi2_cmb"]
+            if np.isfinite(chi2_cmb):
+                logger.info(
+                    f"{model_plugin.MODEL_NAME} CMB χ² = {chi2_cmb:.2f}"
+                )
+            else:
+                logger.info(
+                    (
+                        f"{model_plugin.MODEL_NAME} CMB likelihood disabled "
+                        "or returned a non-finite χ²."
+                    )
+                )
+
+            return summary
 
         t0 = time.perf_counter()
-        lcdm_full_results = run_bao_analysis(
-            lcdm, lcdm_sne_fit_results, z_plot_smooth
-        )
+        lcdm_cmb_summary = run_cmb_analysis(lcdm, lcdm_fit_results)
         lcdm_time += time.perf_counter() - t0
         t0 = time.perf_counter()
-        alt_model_full_results = run_bao_analysis(
-            alt_model_plugin, alt_model_sne_fit_results, z_plot_smooth
-        )
-        alt_time += time.perf_counter() - t0
-
-        logger.info("\n--- Stage 4: CMB Analysis ---\n")
-
-        lcdm_cosmo = extract_cosmological_param_vector(
-            lcdm_sne_fit_results,
-            lcdm,
-            logger=logger,
-        )
-        alt_cosmo = extract_cosmological_param_vector(
-            alt_model_sne_fit_results,
+        alt_cmb_summary = run_cmb_analysis(
             alt_model_plugin,
-            logger=logger,
-        )
-
-        t0 = time.perf_counter()
-        lcdm_cmb = run_cmb_analysis(
-            cmb_data_df,
-            lcdm,
-            lcdm_cosmo,
-            lcdm_sne_fit_results.get("fitted_cmb_params"),
-        )
-        lcdm_time += time.perf_counter() - t0
-        t0 = time.perf_counter()
-        alt_cmb = run_cmb_analysis(
-            cmb_data_df,
-            alt_model_plugin,
-            alt_cosmo,
-            alt_model_sne_fit_results.get("fitted_cmb_params"),
+            alt_model_fit_results,
         )
         alt_time += time.perf_counter() - t0
 
         logger.info("\n--- Stage 5: Generating Outputs ---\n")
         logger.info(
-            f"{lcdm.MODEL_NAME} CMB chi2 = {lcdm_cmb['chi2_cmb']:.2f}"
+            f"{lcdm.MODEL_NAME} CMB χ² = {lcdm_cmb_summary['chi2_cmb']:.2f}"
         )
         logger.info(
-            f"{alt_model_plugin.MODEL_NAME} CMB chi2 = "
-            f"{alt_cmb['chi2_cmb']:.2f}"
+            f"{alt_model_plugin.MODEL_NAME} CMB χ² = "
+            f"{alt_cmb_summary['chi2_cmb']:.2f}"
         )
 
         run_end_dt = datetime.datetime.now()
@@ -1318,8 +1347,8 @@ def main_workflow():
 
         plotter.plot_hubble_diagram(
             sne_data_df,
-            lcdm_sne_fit_results,
-            alt_model_sne_fit_results,
+            lcdm_fit_results,
+            alt_model_fit_results,
             lcdm,
             alt_model_plugin,
             plot_dir=OUTPUT_DIR,
@@ -1328,8 +1357,8 @@ def main_workflow():
         if bao_data_df is not None:
             plotter.plot_bao_observables(
                 bao_data_df,
-                lcdm_full_results,
-                alt_model_full_results,
+                lcdm_bao_summary,
+                alt_bao_summary,
                 lcdm,
                 alt_model_plugin,
                 sne_data_df,
@@ -1339,10 +1368,10 @@ def main_workflow():
         if cmb_data_df is not None:
             plotter.plot_cmb_spectrum(
                 cmb_data_df,
-                lcdm_cmb,
-                alt_cmb,
-                lcdm_sne_fit_results,
-                alt_model_sne_fit_results,
+                lcdm_cmb_summary,
+                alt_cmb_summary,
+                lcdm_fit_results,
+                alt_model_fit_results,
                 lcdm,
                 alt_model_plugin,
                 plot_dir=OUTPUT_DIR,
@@ -1356,25 +1385,25 @@ def main_workflow():
             f"{alt_model_plugin.MODEL_ABSTRACT}\n"
         )
 
-        def _print_fit(label, sne_res, bao_res, cmb_res, plugin):
+        def _print_fit(label, fit_res, bao_res, cmb_res, plugin):
             """Pretty-print χ² stats and fitted parameters for a model."""
             console.write(f"--- {label} Fit Report ---\n")
-            if sne_res:
+            if fit_res:
                 from copernican_lib import latex_utils
 
                 p_names = getattr(plugin, "PARAMETER_NAMES", [])
                 p_latex = getattr(plugin, "PARAMETER_LATEX_NAMES", [])
                 for name, latex_name in zip(p_names, p_latex):
-                    val = sne_res.get(
+                    val = fit_res.get(
                         "fitted_cosmological_params", {}
                     ).get(name)
                     if val is not None:
                         disp = latex_utils.latex_to_unicode(latex_name)
                         console.write(f"  {disp} = {val:.5g}")
-            chi2_sne = sne_res.get(
-                "chi2_sne", sne_res.get("chi2_min", float("nan"))
+            chi2_sne = fit_res.get(
+                "chi2_sne", fit_res.get("chi2_min", float("nan"))
             )
-            chi2_total = sne_res.get("chi2_total", float("nan"))
+            chi2_total = fit_res.get("chi2_total", float("nan"))
             console.write(f"  χ²_Total = {chi2_total:.2f}")
             console.write(f"  χ²_SNe = {chi2_sne:.2f}")
             if bao_res:
@@ -1388,13 +1417,13 @@ def main_workflow():
             console.write("")
 
         _print_fit(
-            "ΛCDM", lcdm_sne_fit_results, lcdm_full_results, lcdm_cmb, lcdm
+            "ΛCDM", lcdm_fit_results, lcdm_bao_summary, lcdm_cmb_summary, lcdm
         )
         _print_fit(
             alt_model_plugin.MODEL_NAME,
-            alt_model_sne_fit_results,
-            alt_model_full_results,
-            alt_cmb,
+            alt_model_fit_results,
+            alt_bao_summary,
+            alt_cmb_summary,
             alt_model_plugin,
         )
 
@@ -1404,8 +1433,8 @@ def main_workflow():
         # Save the detailed point-by-point SNe results CSV
         csv_writer.save_sne_results_detailed_csv(
             sne_data_df,
-            lcdm_sne_fit_results,
-            alt_model_sne_fit_results,
+            lcdm_fit_results,
+            alt_model_fit_results,
             lcdm,
             alt_model_plugin,
             csv_dir=OUTPUT_DIR,
@@ -1415,8 +1444,8 @@ def main_workflow():
         if bao_data_df is not None:
             csv_writer.save_bao_results_csv(
                 bao_data_df,
-                lcdm_full_results,
-                alt_model_full_results,
+                lcdm_bao_summary,
+                alt_bao_summary,
                 alt_model_name=alt_model_plugin.MODEL_NAME,
                 csv_dir=OUTPUT_DIR,
                 timestamp=end_ts,
@@ -1424,14 +1453,14 @@ def main_workflow():
         if cmb_data_df is not None:
             csv_writer.save_cmb_results_csv(
                 cmb_data_df,
-                lcdm_cmb,
-                alt_cmb,
+                lcdm_cmb_summary,
+                alt_cmb_summary,
                 alt_model_name=alt_model_plugin.MODEL_NAME,
                 csv_dir=OUTPUT_DIR,
                 timestamp=end_ts,
             )
 
-        if lcdm_sne_fit_results.get("samples") is not None:
+        if lcdm_fit_results.get("samples") is not None:
             fname = utils.generate_filename(
                 "posterior",
                 sne_data_df.attrs.get("dataset_id", "sne_data"),
@@ -1440,8 +1469,8 @@ def main_workflow():
                 timestamp=end_ts,
             )
             chain_io.save_posterior(
-                lcdm_sne_fit_results["samples"],
-                lcdm_sne_fit_results.get(
+                lcdm_fit_results["samples"],
+                lcdm_fit_results.get(
                     "param_names", lcdm.PARAMETER_NAMES
                 ),
                 os.path.join(OUTPUT_DIR, fname),
@@ -1450,7 +1479,7 @@ def main_workflow():
                     "dataset": sne_data_df.attrs.get("dataset_id", ""),
                 },
             )
-        if alt_model_sne_fit_results.get("samples") is not None:
+        if alt_model_fit_results.get("samples") is not None:
             fname = utils.generate_filename(
                 "posterior",
                 sne_data_df.attrs.get("dataset_id", "sne_data"),
@@ -1459,8 +1488,8 @@ def main_workflow():
                 timestamp=end_ts,
             )
             chain_io.save_posterior(
-                alt_model_sne_fit_results["samples"],
-                alt_model_sne_fit_results.get(
+                alt_model_fit_results["samples"],
+                alt_model_fit_results.get(
                     "param_names", alt_model_plugin.PARAMETER_NAMES
                 ),
                 os.path.join(OUTPUT_DIR, fname),

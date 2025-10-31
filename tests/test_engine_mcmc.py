@@ -1,4 +1,7 @@
-"""Tests for the MCMC engine."""
+"""Integration tests for the ensemble MCMC engine.
+
+**Last Updated:** 2025-10-31
+"""
 
 import importlib.util
 import logging
@@ -71,7 +74,20 @@ class TestMCMCEngine(unittest.TestCase):
         self.assertEqual(res["log_probability"].shape, expected[:2])
         self.assertTrue(res["success"])
         self.assertTrue(np.isfinite(res["chi2_min"]))
-        self.assertAlmostEqual(res["chi2_total"], res["chi2_sne"])
+        components = res.get("chi2_components", {})
+        total_components = (
+            components.get("sne", 0.0)
+            + components.get("bao", 0.0)
+            + components.get("cmb", 0.0)
+        )
+        self.assertAlmostEqual(res["chi2_total"], total_components)
+        self.assertAlmostEqual(res["chi2_sne"], components.get("sne", 0.0))
+        self.assertAlmostEqual(
+            res.get("chi2_bao", 0.0), components.get("bao", 0.0)
+        )
+        self.assertAlmostEqual(
+            res.get("chi2_cmb", 0.0), components.get("cmb", 0.0)
+        )
         self.assertSetEqual(
             set(res["fitted_cosmological_params"].keys()),
             set(plugin.PARAMETER_NAMES),
@@ -202,6 +218,65 @@ class TestMCMCEngine(unittest.TestCase):
         self.assertTrue(math.isfinite(result["log_likelihood_best"]))
         self.assertTrue(math.isfinite(result["log_posterior_best"]))
         self.assertTrue(math.isfinite(result["log_prior_best"]))
+
+    def test_joint_fit_component_chi2_totals(self):
+        plugin = self._build_lcdm_plugin()
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01, 0.02, 0.03],
+                "mu_obs": [40.0, 41.0, 42.0],
+                "e_mu_obs": [0.1, 0.1, 0.1],
+            }
+        )
+        initial = np.asarray(plugin.INITIAL_GUESSES, dtype=float)
+        z_bao = np.array([0.1])
+        dm = plugin.get_comoving_distance_Mpc(z_bao, *initial)
+        rs = plugin.get_sound_horizon_rs_Mpc(*initial)
+        bao_df = pd.DataFrame(
+            {
+                "redshift": z_bao,
+                "observable_type": ["DM_over_rs"],
+                "value": dm / rs,
+                "error": [0.05],
+            }
+        )
+        bao_df.attrs["covariance_matrix_inv"] = np.eye(1)
+
+        ells = np.arange(30, 34)
+        camb_params = plugin.get_camb_params(initial)
+        dl_vals = cosmo_engine_mcmc.compute_cmb_spectrum(
+            camb_params,
+            ells,
+            spectra=("TT",),
+        )
+        cmb_df = pd.DataFrame({"ell": ells, "Dl_obs": dl_vals})
+        cmb_df.attrs["covariance_matrix_inv"] = np.eye(len(ells))
+
+        result = cosmo_engine_mcmc.fit_sne_parameters(
+            sne_df,
+            plugin,
+            bao_data_df=bao_df,
+            cmb_data_df=cmb_df,
+            n_walkers=6,
+            n_steps=6,
+            pool_size=1,
+        )
+        components = result.get("chi2_components", {})
+        total = sum(components.values())
+        self.assertTrue(result["success"])
+        self.assertAlmostEqual(result["chi2_total"], total, places=6)
+        self.assertAlmostEqual(
+            result["chi2_bao"], components.get("bao", float("nan"))
+        )
+        self.assertAlmostEqual(
+            result["chi2_cmb"], components.get("cmb", float("nan"))
+        )
+        self.assertIn(
+            "bao", result["likelihood_state"]["metadata"]["components"]
+        )
+        self.assertIn(
+            "cmb", result["likelihood_state"]["metadata"]["components"]
+        )
 
     def test_comoving_distance_vectorized(self):
         plugin = self._build_lcdm_plugin()

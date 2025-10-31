@@ -58,16 +58,16 @@ feature mismatches and suggests reinstalling with suitable wheels.
 The default engine is `engines/cosmo_engine_mcmc.py`. All model plugins are
 validated through `copernican_lib/engine_interface.py` before being passed to
 the sampler. The BAO χ² helper accepts pre-extracted arrays so callers can
-convert data frames once outside optimisation loops. This ensures the expected
-functions are present and callable. Chi-squared values for SNe, BAO and CMB are
-evaluated serially for clarity; shared helpers keep the behaviour identical
-across engines. When both models reference the same YAML file the Stage 2
-workflow compares `MODEL_FILENAME` values and reuses the initial posterior so
-BAO and CMB overlays align exactly during ΛCDM self-consistency checks. The
-engine emits step-by-step progress messages for both burn-in and production
-phases, displays percentage indicators and continues to return ``-np.inf``
-whenever a proposal falls outside declared parameter bounds or yields a
-non-finite chi-squared so the sampler rejects invalid walkers deterministically.
+convert data frames once outside optimisation loops. Joint likelihoods use
+`copernican_lib.likelihoods.JointLike` so Stage 2 evaluates SNe, BAO and CMB
+data simultaneously, recording per-dataset χ² values in the sampler output.
+When both models reference the same YAML file the Stage 2 workflow compares
+`MODEL_FILENAME` values and reuses the initial posterior so BAO and CMB overlays
+align exactly during ΛCDM self-consistency checks. The engine emits step-by-step
+progress messages for both burn-in and production phases, displays percentage
+indicators and continues to return ``-np.inf`` whenever a proposal falls outside
+declared parameter bounds or yields a non-finite chi-squared so the sampler
+rejects invalid walkers deterministically.
 Parameter priors must now declare an explicit `type`; legacy `distribution`
 aliases are rejected.  The parser canonicalises every mapping, injects
 `type: fixed` for bounds whose endpoints coincide and surfaces deterministic
