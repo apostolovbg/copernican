@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.0.5
+- 2025-10-31: Cached SNe, BAO and CMB likelihood inputs as immutable NumPy
+  arrays to remove per-call DataFrame conversions, reusing residual buffers to
+  accelerate multiprocessing, added regression tests covering the caching
+  behaviour and refreshed documentation and metadata (OpenAI ChatGPT)
+
 ## Version 7.0.4
 - 2025-10-31: Hardened runtime version discovery so the macOS launcher and
   plotting stack tolerate missing ``copernican_lib.version.get_version`` during

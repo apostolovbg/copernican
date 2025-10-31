@@ -34,6 +34,14 @@ version string is required, mirroring the fallbacks in
 `copernican_lib.version.get_version` so manifests and plot footers still record
 ``"0+unknown"`` when the helper cannot be imported directly.
 
+Version 7.0.5 eliminates repeated DataFrame-to-NumPy conversions inside the
+likelihood helpers.  `copernican_lib.likelihoods.SNeLike`, `BAOLike` and
+`CMBLike` now cache immutable arrays and residual scratch buffers during
+initialisation so multiprocessing workers evaluate log-likelihoods without
+allocating fresh arrays on every call.  The refactor keeps engine plugins
+pluggable while allowing the MCMC sampler to saturate all configured worker
+processes.
+
 Version 6.7.4 kept the multiprocessing contract intact by making both the
 joint likelihood wrapper and the generated distance functions picklable. Version
 7.0.0 replaced the legacy `engine_interface` monolith with the

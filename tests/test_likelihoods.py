@@ -1,6 +1,6 @@
 """Unit tests for likelihood helper classes.
 
-**Last Updated:** 2025-02-14
+**Last Updated:** 2025-10-31
 """
 
 from __future__ import annotations
@@ -156,6 +156,77 @@ class LikelihoodTestCase(unittest.TestCase):
         self.assertAlmostEqual(loglike, state["sne"]["loglike"], places=8)
         self.assertAlmostEqual(state["bao"]["chi2"], 0.0, places=8)
         self.assertFalse(state["bao"]["metadata"]["enabled"])
+
+    def test_likelihoods_reuse_cached_inputs(self):
+        """Mutating sources after construction keeps outputs stable."""
+
+        params = self.plugin.INITIAL_GUESSES
+
+        sne_df = self._prepare_sne()
+        sne_like = likelihoods.SNeLike(
+            self.plugin.distance_modulus_model,
+            sne_df,
+        )
+        sne_baseline = sne_like.loglike(params)
+        # Mutate the DataFrame in place; cached arrays must shield the helper.
+        sne_df.loc[:, "mu_obs"] = 0.0
+        sne_df.loc[:, "zcmb"] = 0.0
+        self.assertAlmostEqual(sne_like.loglike(params), sne_baseline)
+        sne_mutated = likelihoods.SNeLike(
+            self.plugin.distance_modulus_model,
+            sne_df,
+        )
+        self.assertNotAlmostEqual(
+            sne_mutated.loglike(params),
+            sne_baseline,
+        )
+
+        bao_df = self._prepare_bao()
+        z = bao_df["redshift"].to_numpy(dtype=float)
+        obs_type = bao_df["observable_type"].to_numpy()
+        obs_val = bao_df["value"].to_numpy(dtype=float)
+        obs_err = bao_df["error"].to_numpy(dtype=float)
+        cov = bao_df.attrs.get("covariance_matrix_inv")
+        rs_value = self.plugin.get_sound_horizon_rs_Mpc(*params)
+        bao_like = likelihoods.BAOLike(
+            z=z,
+            obs_type=obs_type,
+            obs_val=obs_val,
+            obs_err=obs_err,
+            model_plugin=self.plugin,
+            covariance_matrix_inv=cov,
+            rs_override=rs_value,
+        )
+        bao_baseline = bao_like.loglike(params)
+        z[:] = 0.0
+        obs_val[:] = obs_val + 50.0
+        self.assertAlmostEqual(bao_like.loglike(params), bao_baseline)
+        bao_mutated = likelihoods.BAOLike(
+            z=z,
+            obs_type=obs_type,
+            obs_val=obs_val,
+            obs_err=obs_err,
+            model_plugin=self.plugin,
+            covariance_matrix_inv=cov,
+            rs_override=rs_value,
+        )
+        self.assertNotAlmostEqual(
+            bao_mutated.loglike(params),
+            bao_baseline,
+        )
+
+        cmb_df = data_loaders.load_cmb_data("planck_2018_lite").copy()
+        cmb_like = likelihoods.CMBLike(cmb_df, self.plugin)
+        cmb_baseline = cmb_like.loglike(params)
+        cmb_df.loc[:, "Dl_obs"] = 0.0
+        self.assertAlmostEqual(cmb_like.loglike(params), cmb_baseline)
+        cmb_mutated = data_loaders.load_cmb_data("planck_2018_lite").copy()
+        cmb_mutated.loc[:, "Dl_obs"] += 5.0
+        cmb_like_mutated = likelihoods.CMBLike(cmb_mutated, self.plugin)
+        self.assertNotAlmostEqual(
+            cmb_like_mutated.loglike(params),
+            cmb_baseline,
+        )
 
 
 if __name__ == "__main__":
