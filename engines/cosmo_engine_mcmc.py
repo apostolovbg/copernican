@@ -25,6 +25,7 @@ from __future__ import annotations
 import logging
 import math
 import multiprocessing as mp
+import textwrap
 from typing import Any, Callable, Iterable, Sequence
 
 import emcee
@@ -56,6 +57,155 @@ _FIXED_BOUNDS_RTOL = 1e-9
 _FIXED_BOUNDS_ATOL = 1e-12
 _MAX_INITIAL_CONDITION = 1e12
 _MAX_INITIAL_ATTEMPTS = 12
+
+
+class _SamplingProgressReporter:
+    """Emit compact diagnostics for ensemble sampler updates.
+
+    The reporter reconstructs the full parameter vectors from the active
+    coordinates tracked by :mod:`emcee`, computes running summary statistics
+    and prepares human-readable log lines.  Each stage instantiates its own
+    reporter so burn-in and production maintain distinct Δχ² baselines while
+    sharing the same formatting logic.
+    """
+
+    def __init__(
+        self,
+        param_names: Sequence[str],
+        template_params: np.ndarray,
+        active_indices: np.ndarray,
+        *,
+        progress_granularity: int = 20,
+        max_params_to_show: int | None = None,
+    ) -> None:
+        self._param_names = list(param_names)
+        self._template = np.asarray(template_params, dtype=float)
+        self._active_indices = np.asarray(active_indices, dtype=int)
+        self._reference_log_prob: float | None = None
+        self._report_count = 0
+        self._show_all = max_params_to_show is None
+        if self._show_all:
+            self._max_params_to_show = len(self._param_names)
+        else:
+            self._max_params_to_show = int(max(1, max_params_to_show))
+        self._sample_interval = max(1, int(progress_granularity // 4) or 1)
+        # Reuse a scratch buffer so percentile calculations avoid allocating a
+        # fresh ``(n_walkers, n_params)`` array on every progress callback.
+        self._scratch: np.ndarray | None = None
+        self._wrap_width = 72
+
+    def __call__(
+        self,
+        step_index: int,
+        state: emcee.State,
+    ) -> Sequence[str]:
+        """Return formatted diagnostics for ``state`` at ``step_index``."""
+
+        del step_index  # The index is tracked via ``_report_count``.
+        self._report_count += 1
+
+        coords = np.asarray(state.coords, dtype=float)
+        log_prob = np.asarray(state.log_prob, dtype=float)
+
+        lines: list[str] = []
+        finite_mask = np.isfinite(log_prob)
+        if np.any(finite_mask):
+            finite = log_prob[finite_mask]
+            mean_lp = float(np.mean(finite))
+            std_lp = float(np.std(finite))
+            max_lp = float(np.max(finite))
+            if self._reference_log_prob is None:
+                self._reference_log_prob = max_lp
+            delta_chi2 = -2.0 * (max_lp - self._reference_log_prob)
+            lines.append(
+                "    logP μ=% .3e σ=% .3e max=% .3e Δχ²≈%+.3f"
+                % (mean_lp, std_lp, max_lp, delta_chi2)
+            )
+        else:
+            lines.append(
+                "    logP diagnostics unavailable (non-finite values)."
+            )
+
+        if coords.ndim == 1:
+            coords = coords[np.newaxis, :]
+
+        n_walkers = coords.shape[0]
+        if n_walkers == 0:
+            return lines
+
+        expanded = self._expand_coordinates(coords)
+
+        for idx, name in enumerate(
+            self._param_names[: self._max_params_to_show]
+        ):
+            values = expanded[:, idx]
+            finite_vals = values[np.isfinite(values)]
+            if finite_vals.size == 0:
+                lines.append(
+                    f"    {name}: statistics unavailable (non-finite samples)."
+                )
+                continue
+            q16, q50, q84 = np.percentile(finite_vals, [16.0, 50.0, 84.0])
+            minus = q50 - q16
+            plus = q84 - q50
+            lines.append(
+                "    %s: med=% .4g (-%.2g/+%.2g)" % (name, q50, minus, plus)
+            )
+
+        if not self._show_all:
+            remaining = len(self._param_names) - self._max_params_to_show
+            if remaining > 0:
+                lines.append(
+                    "    ... %d additional parameter(s) omitted." % remaining
+                )
+
+        if np.any(finite_mask) and (
+            self._report_count == 1
+            or self._report_count % self._sample_interval == 0
+        ):
+            walker_idx = int(np.argmax(log_prob[finite_mask]))
+            full_idx = np.flatnonzero(finite_mask)[walker_idx]
+            snapshot_vals = expanded[full_idx]
+            snapshot_pairs = [
+                f"{name}={snapshot_vals[idx]:.4g}"
+                for idx, name in enumerate(
+                    self._param_names[: self._max_params_to_show]
+                )
+            ]
+            snapshot_text = ", ".join(snapshot_pairs)
+            lines.append(
+                textwrap.fill(
+                    snapshot_text,
+                    width=self._wrap_width,
+                    initial_indent=f"    Walker[{full_idx}] snapshot: ",
+                    subsequent_indent=" " * 8,
+                )
+            )
+
+        return lines
+
+    def _expand_coordinates(self, coords: np.ndarray) -> np.ndarray:
+        """Return full parameter coordinates for ``coords`` walkers."""
+
+        if coords.ndim == 1:
+            coords = coords[np.newaxis, :]
+
+        n_walkers = coords.shape[0]
+        n_params = self._template.size
+        if self._scratch is None or self._scratch.shape != (
+            n_walkers,
+            n_params,
+        ):
+            self._scratch = np.broadcast_to(
+                self._template, (n_walkers, n_params)
+            ).copy()
+        else:
+            self._scratch[...] = self._template
+
+        if coords.size:
+            self._scratch[:, self._active_indices] = coords
+
+        return self._scratch
 
 
 def _build_sne_logposterior(
@@ -255,14 +405,27 @@ def _run_stage_with_progress(
     stage_name: str,
     logger: logging.Logger,
     progress_granularity: int = 20,
+    summary_callback: (
+        Callable[[int, emcee.State], Sequence[str]] | None
+    ) = None,
 ):
-    """Iterate ``sampler.sample`` while logging percentage progress."""
+    """Iterate ``sampler.sample`` while logging percentage progress.
+
+    When ``summary_callback`` is provided it receives the step index and the
+    :class:`emcee.State` instance for each progress update and must return an
+    iterable of strings to append to the log output.  This keeps statistics
+    generation orthogonal to the sampling loop while ensuring all logging
+    honours ``progress_granularity``.
+    """
 
     if n_steps <= 0:
         logger.info("Skipping %s stage; zero steps requested.", stage_name)
         return sampler.get_last_sample()
 
     logger.info("Starting MCMC %s stage for %d steps...", stage_name, n_steps)
+
+    if progress_granularity <= 0:
+        progress_granularity = 1
 
     interval = max(1, n_steps // progress_granularity)
     state = None
@@ -279,6 +442,9 @@ def _run_stage_with_progress(
                 idx,
                 n_steps,
             )
+            if summary_callback is not None:
+                for line in summary_callback(idx, state):
+                    logger.info("%s", line)
 
     if state is None:
         raise RuntimeError("Sampler produced no states during %s" % stage_name)
@@ -296,6 +462,7 @@ def fit_sne_parameters(
     n_walkers: int = 32,
     n_steps: int = 200,
     pool_size: int | None = None,
+    progress_granularity: int = 20,
 ) -> dict[str, Any]:
     """Sample cosmological parameters with joint dataset support.
 
@@ -303,6 +470,8 @@ def fit_sne_parameters(
     a configurable burn-in stage and returns summary statistics alongside the
     raw chain. Its return structure remains stable so higher-level code can
     report χ² values consistently even after the combined optimiser removal.
+    ``progress_granularity`` controls how many progress updates appear per
+    stage and therefore also the cadence of the accompanying diagnostics.
     """
 
     logger = logging.getLogger()
@@ -380,8 +549,31 @@ def fit_sne_parameters(
         return {"success": False, "samples": None}
 
     pool = None
-    if pool_size and pool_size > 1:
-        pool = mp.get_context("spawn").Pool(processes=pool_size)
+    pool_processes = pool_size if pool_size not in (None, 0) else None
+    if pool_processes is None:
+        try:
+            cpu_total = mp.cpu_count()
+        except NotImplementedError:
+            cpu_total = 1
+        if cpu_total > 1:
+            pool_processes = min(max(cpu_total - 1, 1), n_walkers)
+            if pool_processes <= 1:
+                pool_processes = None
+        if pool_processes is not None:
+            logger.info(
+                "Auto-configured multiprocessing pool with %d worker(s).",
+                pool_processes,
+            )
+    elif pool_processes > 1:
+        logger.info(
+            "Using requested multiprocessing pool with %d worker(s).",
+            pool_processes,
+        )
+    else:
+        pool_processes = None
+
+    if pool_processes is not None:
+        pool = mp.get_context("spawn").Pool(processes=pool_processes)
     burn_in = max(100, n_steps // 5)
     try:
         sampler = emcee.EnsembleSampler(
@@ -390,12 +582,20 @@ def fit_sne_parameters(
             log_probability_active,
             pool=pool,
         )
+        burnin_reporter = _SamplingProgressReporter(
+            names,
+            template_params,
+            active_indices,
+            progress_granularity=progress_granularity,
+        )
         last = _run_stage_with_progress(
             sampler,
             p0,
             burn_in,
             stage_name="burn-in",
             logger=logger,
+            progress_granularity=progress_granularity,
+            summary_callback=burnin_reporter,
         )
         try:
             coords, log_prob = _reseed_invalid_walkers(
@@ -411,12 +611,20 @@ def fit_sne_parameters(
             logger.error("%s", exc)
             return {"success": False, "samples": None}
         sampler.reset()
+        production_reporter = _SamplingProgressReporter(
+            names,
+            template_params,
+            active_indices,
+            progress_granularity=progress_granularity,
+        )
         _run_stage_with_progress(
             sampler,
             coords,
             n_steps,
             stage_name="production",
             logger=logger,
+            progress_granularity=progress_granularity,
+            summary_callback=production_reporter,
         )
     finally:
         if pool is not None:
@@ -522,6 +730,8 @@ def fit_sne_parameters(
         "burn_in_steps": burn_in,
         "production_steps": n_steps,
         "autocorrelation_time": autocorr,
+        "pool_workers": int(pool_processes or 0),
+        "progress_granularity": int(progress_granularity),
         "likelihood_state": likelihood_state,
         "chi2_components": {
             "sne": chi2_sne,

@@ -1,4 +1,4 @@
-**Version:** 6.6.0
+**Version:** 6.7.1
 **Last Updated:** 2025-10-31
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -91,7 +91,12 @@ Under the hood the program follows a clear pipeline:
    explicit burn-in phase before production sampling, records acceptance
    fractions, autocorrelation estimates and log-probability traces and emits
    progress updates with percentage indicators for both burn-in and
-   production stages. Shared chi-squared helpers live in
+   production stages. Each update now carries log-posterior mean, spread and
+   extrema, an approximate Δχ² trend and occasional walker snapshots on the
+   first four parameters so terminals remain readable. When no worker pool is
+   requested explicitly the engine auto-configures a multiprocessing pool sized
+   to the available CPUs, shaving minutes off expensive likelihoods while still
+   preserving single-core fallbacks. Shared chi-squared helpers live in
    `copernican_lib/statistics.py` so every backend calls the same routines
    without cross-importing engine modules. Constant values in a model's
    `cmb.param_map` are treated as additional fit parameters so CMB spectra
@@ -117,12 +122,16 @@ Under the hood the program follows a clear pipeline:
    from `copernican_lib.statistics` compute the observables so future engines
    remain drop-in replacements. When a sampler reports failure or omits
    cosmological parameters the suite skips BAO plotting gracefully and logs a
-   warning instead of crashing.
+   warning instead of crashing. Live diagnostics now stream residual RMS, max
+   and median values for each observable type alongside the latest sound
+   horizon estimate, giving immediate feedback while curves render.
 6. **CMB Analysis** – Stage 4 mirrors the BAO workflow: it reads the CMB χ²
    stored on the joint sampler state, regenerates spectra for plotting and
    respects model compatibility flags. The orchestrator bypasses CMB
    processing cleanly when the underlying fit does not provide cosmological
-   parameters, preventing `KeyError` exceptions at the end of long runs.
+   parameters, preventing `KeyError` exceptions at the end of long runs. Live
+   logging mirrors the BAO feed by reporting TT/TE/EE residual norms and
+   medians as spectra update, so users can gauge convergence while CAMB runs.
 7. **Spectra Caching** – unlensed CAMB spectra are cached using parameter
    keys rounded to six significant digits.
 8. **Output Generation** – `copernican_lib/logger.py`,
@@ -171,17 +180,17 @@ Under the hood the program follows a clear pipeline:
 ## Dependencies
 The launchers automatically bootstrap a dedicated Python 3.11 interpreter into
 `.python`, delete any interpreter that falls outside the 3.11 series and
-rebuild `.venv` whenever its Python falls below the supported floor, so no
-pre-existing Python installation is needed. They verify that `.venv/bin/activate` exists
-and retry once before aborting. Inside the virtual environment this project
-relies on `numpy==1.26.4`, `scipy==1.12.0`, `matplotlib==3.8.2`,
-`pandas==2.2.1`, `sympy==1.13.0`, `jsonschema==4.21.1`,
-`camb==1.6.3`, `emcee==3.1.4`, `h5netcdf==1.3.0`,
-`h5py==3.10.0`, `xarray==2023.12.0`, `typing_extensions==4.10.0`
-and the widely available `arviz==0.16.1` release
-so wheels exist on every platform. The launchers refuse to run when another
-virtual environment is active and reinstall pinned dependencies on every
-start so the suite always uses its managed `.venv`.
+rebuild `.venv` whenever its Python falls below the supported floor. No
+pre-existing Python installation is needed. They verify that
+`.venv/bin/activate` exists and retry once before aborting. Inside the virtual
+environment this project relies on `numpy==1.26.4`, `scipy==1.12.0`,
+`matplotlib==3.8.2`, `pandas==2.2.1`, `sympy==1.13.0` and
+`jsonschema==4.21.1`, plus cosmology libraries `camb==1.6.3`, `emcee==3.1.4`,
+`h5netcdf==1.3.0`, `h5py==3.10.0`, `xarray==2023.12.0`,
+`typing_extensions==4.10.0` and the widely available `arviz==0.16.1`
+release so wheels exist on every platform. The launchers refuse to run when
+another virtual environment is active and reinstall pinned dependencies on
+every start so the suite always uses its managed `.venv`.
 
 CAMB has not yet published Python 3.12 wheels, so the project intentionally
 targets Python 3.11 until upstream support arrives. Packaging metadata blocks
@@ -386,9 +395,10 @@ portable across operating systems.
 
 The canonical dataset selections, release versions and independence
 assumptions are documented in
-`copernican_lib/config_schemas/run_config.yml`.  The schema is kept in sync with
-the loader attributes so automated tooling can validate run descriptors and the
-manifest always records the same statements presented to the user.
+`copernican_lib/config_schemas/run_config.yml`.
+The schema is kept in sync with the loader attributes so automated tooling can
+validate run descriptors and the manifest always records the same statements
+presented to the user.
 
 ## Logging and Caching
 All console output and user prompts are captured in a timestamped log file in
@@ -397,7 +407,12 @@ model and key package versions. A short summary appears on the console while
 full details are stored in the log file. The logger shortens absolute paths so
 logs remain portable and records the final filenames used for plots and tables.
 Progress indicators print to ``stdout`` and flush on every update so long
-optimisations do not appear stalled on Linux terminals.
+optimisations do not appear stalled on Linux terminals. The ensemble sampler's
+progress reporter now surfaces quantiles for every fitted parameter, never
+omitting late entries, and wraps walker snapshots so long parameter lists stay
+readable. Internally it reuses a scratch buffer for the expanded parameter
+matrix, shaving several percent off the time spent in diagnostic callbacks for
+long chains.
 Dependency checks reuse a cached import list stored in
 `.cache/dependency_scan.json`. The cache records the absolute path, size and
 modification time of every parsed module so unchanged worktrees skip the AST
