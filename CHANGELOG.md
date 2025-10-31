@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.0.0
+- 2025-10-31: Replaced the legacy engine interface with the picklable
+  `copernican_lib.plugins` package and a standalone posterior module, ensured
+  log-uniform transforms serialise cleanly, refreshed validation and
+  documentation, added regression tests covering posterior pickling and bumped
+  suite metadata (OpenAI ChatGPT)
+
 ## Version 6.7.4
 - 2025-10-31: Made joint likelihood adapters and generated distance functions
   picklable so spawn-based pools no longer crash, relaxed plugin validation when

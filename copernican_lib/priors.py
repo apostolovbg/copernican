@@ -1,6 +1,6 @@
 """Parameter prior definitions and helper utilities.
 
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-10-31
 
 This module centralises the construction of parameter priors so every
 engine evaluates them consistently.  Historically the project stored raw
@@ -31,10 +31,11 @@ Each prior exposes three pieces of information:
 
 ``create_transform``
     Provides an optional callable that yields a ``(value, log_jacobian)``
-    tuple for :func:`copernican_lib.engine_interface.make_logposterior`.
-    Uniform and Gaussian priors default to an identity transform, whereas
-    log-uniform priors apply the standard ``log`` reparameterisation to
-    maintain proper normalisation in log-space.
+    tuple for :func:`copernican_lib.posterior.make_logposterior`. Uniform and
+    Gaussian priors default to an identity transform, whereas log-uniform
+    priors apply the standard ``log`` reparameterisation to maintain proper
+    normalisation in log-space. Transform implementations are now realised as
+    module-level classes so multiprocessing pools can pickle them safely.
 """
 
 from __future__ import annotations
@@ -49,6 +50,19 @@ class PriorError(ValueError):
 
 
 TransformCallable = Callable[[float], tuple[float, float]]
+
+
+@dataclass(slots=True)
+class LogUniformTransform:
+    """Picklable helper implementing the log-uniform Jacobian term."""
+
+    def __call__(self, value: float) -> tuple[float, float]:
+        value = float(value)
+        if value <= 0.0:
+            raise ValueError(
+                "Log-uniform prior expects strictly positive values"
+            )
+        return value, -math.log(value)
 
 
 def _ensure_number(value: object, field: str) -> float:
@@ -188,15 +202,7 @@ class LogUniformPrior(BasePrior):
         }
 
     def create_transform(self) -> TransformCallable:
-        def _transform(value: float) -> tuple[float, float]:
-            value = float(value)
-            if value <= 0.0:
-                raise ValueError(
-                    "Log-uniform prior expects strictly positive values"
-                )
-            return value, -math.log(value)
-
-        return _transform
+        return LogUniformTransform()
 
 
 @dataclass(slots=True)

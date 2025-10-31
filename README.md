@@ -1,24 +1,25 @@
-**Version:** 6.7.4
+**Version:** 7.0.0
 **Last Updated:** 2025-10-31
 
 ![Copernican Suite banner](docs/banner_github.png)
 
 The Copernican Suite is a Python toolkit for testing cosmological models
-against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
-Cosmic Microwave Background (CMB) data.
-Support for gravitational waves and standard siren events is planned for
-future
-releases.
-The suite provides a modular architecture so new models, data parsers and
-computational engines can be plugged in with minimal effort.
-Additional design notes can be found under the `docs/` directory.
-Citation details are provided in [CITATION.cff](CITATION.cff).
+against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and
+Cosmic Microwave Background (CMB) data. The refreshed 7.0.0 release reorganises
+the runtime core around picklable engine plugins and a dedicated posterior
+module so multiprocessing backends remain reliable even when advanced priors
+or transforms are enabled. Support for gravitational waves and standard sirens
+remains on the roadmap and the new architecture makes those additions easier to
+stage.
 
-Plot summaries now report ``N/A`` for missing chi-squared totals so the
-visualisation workflow remains stable even when a dataset omits cross-dataset
-statistics. Supernova-only MCMC runs now populate ``χ²_Total`` with the SNe
-value so downstream summaries never display ``N/A`` when only the sampling
-engine is in play.
+Engines, datasets and models stay fully pluggable. Generated YAML definitions
+are transformed into :class:`copernican_lib.plugins.EnginePlugin` instances that
+declare dataset compatibility, bounds, priors and distance functions in a
+single serialisable object. Posterior construction lives in
+:mod:`copernican_lib.posterior`, ensuring every engine evaluates priors,
+transforms and bounds consistently while keeping the callable picklable for
+``spawn`` worker pools. Additional design notes live in the `docs/` directory
+and citation information appears in [CITATION.cff](CITATION.cff).
 
 ---
 
@@ -42,7 +43,7 @@ engine is in play.
       protocols](#ai-driven-and-human-development-laws-and-protocols)
 14. [License](#license)
 15. [Versioning Policy](#versioning-policy)
-16. [API Overview](docs/api_overview.md
+16. [API Overview](docs/api_overview.md)
 17. [Packaging Guide](docs/packaging.md)
 18. [Documentation Policy](docs/documentation_policy.md)
 19. [Run Manifest](docs/run_manifest.md)

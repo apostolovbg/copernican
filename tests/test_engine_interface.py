@@ -4,15 +4,24 @@
 """Tests for ``copernican_lib.engine_interface`` helpers."""
 
 import math
+import pickle
 import unittest
 from types import SimpleNamespace
 
 from copernican_lib import engine_interface
 
+MAKE_POSTERIOR = engine_interface.make_logposterior
+
 
 def _dummy_func(*_args, **_kwargs):
     """Return a placeholder numerical value."""
     return 0.0
+
+
+def _linear_like(params):
+    """Simple log-likelihood used to test pickling."""
+
+    return -sum(params)
 
 
 class EngineInterfaceTestCase(unittest.TestCase):
@@ -127,6 +136,17 @@ class EngineInterfaceTestCase(unittest.TestCase):
         # rejected.
         transformed = posterior((0.0, math.log(3.0)))
         self.assertTrue(math.isinf(transformed) and transformed < 0)
+
+    def test_make_logposterior_is_picklable(self):
+        """Posterior evaluator pickles with log-uniform transforms."""
+
+        priors = [
+            {"type": "loguniform", "lower": 1e-3, "upper": 1.0},
+        ]
+        posterior = MAKE_POSTERIOR(_linear_like, priors)
+        payload = pickle.dumps(posterior)
+        restored = pickle.loads(payload)
+        self.assertAlmostEqual(restored([0.1]), posterior([0.1]))
 
 
 if __name__ == "__main__":
