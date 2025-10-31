@@ -35,13 +35,12 @@ The module exposes three primary entry points:
 from __future__ import annotations
 
 import ast
+import inspect
 import logging
 import math
 import re
-import inspect
 from dataclasses import dataclass, field
-from types import MappingProxyType
-from typing import Any, Callable, Mapping, MutableMapping, Sequence
+from typing import Any, Callable, Iterator, Mapping, MutableMapping, Sequence
 
 from .. import priors as prior_lib
 
@@ -123,7 +122,9 @@ class CAMBParameterEvaluator:
         )
 
     def __call__(self, values: Sequence[float]) -> dict[str, float]:
-        env = {name: float(val) for name, val in zip(self.parameter_names, values)}
+        env = {
+            name: float(val) for name, val in zip(self.parameter_names, values)
+        }
         results: dict[str, float] = {}
         for key, expr in self.param_map.items():
             if isinstance(expr, str):
@@ -203,6 +204,52 @@ class CAMBParameterEvaluator:
         raise ValueError("expression not allowed")
 
 
+class FrozenMapping(Mapping[str, Any]):
+    """Picklable read-only mapping used to freeze plugin metadata."""
+
+    __slots__ = ("_data",)
+
+    def __init__(self, source: Mapping[str, Any] | None = None) -> None:
+        """Store a shallow copy of ``source`` for later access.
+
+        ``types.MappingProxyType`` offered similar immutability but refused to
+        pickle on Python 3.11, triggering ``TypeError: cannot pickle
+        'mappingproxy' object`` exceptions inside ``multiprocessing`` spawn
+        pools.  Engines serialise :class:`EnginePlugin` instances whenever they
+        hand work to worker processes, so the read-only wrapper must cooperate
+        with ``pickle``.
+        """
+
+        self._data = dict(source or {})
+
+    def __getitem__(self, key: str) -> Any:
+        return self._data[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._data)
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __repr__(self) -> str:
+        return f"FrozenMapping({self._data!r})"
+
+    def __getstate__(self) -> dict[str, Any]:
+        """Return a picklable snapshot for ``pickle`` round-trips."""
+
+        return self._data
+
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
+        """Restore state produced by :meth:`__getstate__`."""
+
+        object.__setattr__(self, "_data", dict(state))
+
+    def to_dict(self) -> dict[str, Any]:
+        """Expose a shallow copy for callers needing a mutable mapping."""
+
+        return dict(self._data)
+
+
 @dataclass(slots=True)
 class EnginePlugin:
     """Container describing a generated cosmological model."""
@@ -242,7 +289,7 @@ class EnginePlugin:
     )
 
     def __post_init__(self) -> None:
-        self.extras = MappingProxyType(dict(self.extras))
+        self.extras = FrozenMapping(self.extras)
         if self.valid_for_cmb and not self.CMB_PARAM_MAP:
             LOGGER.warning(
                 "Model marked valid_for_cmb but no cmb.param_map provided. "
@@ -260,8 +307,16 @@ class EnginePlugin:
             object.__setattr__(self, "_camb_evaluator", None)
 
     def __getattr__(self, name: str) -> Any:
+        if name == "extras":
+            raise AttributeError(name)
+
         try:
-            return self.extras[name]
+            extras = object.__getattribute__(self, "extras")
+        except AttributeError as exc:
+            raise AttributeError(name) from exc
+
+        try:
+            return extras[name]
         except KeyError as exc:
             raise AttributeError(name) from exc
 
@@ -328,8 +383,8 @@ def _prepare_priors(
                 fixed_params[latex_name.strip("$")] = value
 
     if any(transform is not None for transform in transforms):
-        transform_tuple: tuple[Callable[[float], Any] | None, ...] | None = tuple(
-            transforms
+        transform_tuple: tuple[Callable[[float], Any] | None, ...] | None = (
+            tuple(transforms)
         )
     else:
         transform_tuple = None
@@ -338,7 +393,7 @@ def _prepare_priors(
         tuple(prior_mappings),
         tuple(prior_objects),
         transform_tuple,
-        MappingProxyType(dict(fixed_params)) if fixed_params else MappingProxyType({}),
+        FrozenMapping(fixed_params),
     )
 
 
@@ -349,11 +404,17 @@ def build_engine_plugin(
     """Return an :class:`EnginePlugin` for the provided model."""
 
     params: Sequence[Mapping[str, Any]] = model_data.get("parameters", [])
-    names = tuple(param.get("python_var", param.get("name")) for param in params)
+    names = tuple(
+        param.get("python_var", param.get("name")) for param in params
+    )
     latex_names = tuple(param.get("latex_name", "") for param in params)
     units = tuple(param.get("unit", "") for param in params)
-    guesses = tuple(sum(param.get("bounds", (0.0, 0.0))) / 2.0 for param in params)
-    bounds = tuple(tuple(param.get("bounds", (None, None))) for param in params)
+    guesses = tuple(
+        sum(param.get("bounds", (0.0, 0.0))) / 2.0 for param in params
+    )
+    bounds = tuple(
+        tuple(param.get("bounds", (None, None))) for param in params
+    )
 
     (
         prior_mappings,
@@ -388,7 +449,9 @@ def build_engine_plugin(
         PARAMETER_PRIORS=prior_mappings,
         PARAMETER_PRIOR_OBJECTS=prior_objects,
         PARAMETER_TRANSFORMS=transforms,
-        valid_for_distance_metrics=model_data.get("valid_for_distance_metrics", True),
+        valid_for_distance_metrics=model_data.get(
+            "valid_for_distance_metrics", True
+        ),
         valid_for_bao=model_data.get("valid_for_bao", True),
         valid_for_cmb=model_data.get("valid_for_cmb", True),
         CMB_PARAM_MAP=model_data.get("cmb", {}).get("param_map", {}),
@@ -398,7 +461,9 @@ def build_engine_plugin(
         MODEL_FILENAME=model_data.get("filename"),
         distance_modulus_model=functions.get("distance_modulus_model"),
         get_comoving_distance_Mpc=functions.get("get_comoving_distance_Mpc"),
-        get_luminosity_distance_Mpc=functions.get("get_luminosity_distance_Mpc"),
+        get_luminosity_distance_Mpc=functions.get(
+            "get_luminosity_distance_Mpc"
+        ),
         get_angular_diameter_distance_Mpc=functions.get(
             "get_angular_diameter_distance_Mpc"
         ),
@@ -418,7 +483,9 @@ def build_engine_plugin(
 def validate_plugin(plugin: EnginePlugin) -> bool:
     """Validate that ``plugin`` exposes required attributes and callables."""
 
-    missing_attrs = [attr for attr in REQUIRED_ATTRIBUTES if not hasattr(plugin, attr)]
+    missing_attrs = [
+        attr for attr in REQUIRED_ATTRIBUTES if not hasattr(plugin, attr)
+    ]
     if missing_attrs:
         LOGGER.error(
             "Plugin validation failed. Missing attributes: %s", missing_attrs

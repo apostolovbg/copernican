@@ -36,7 +36,9 @@ class PosteriorEvaluator:
         try:
             raw_values = tuple(float(val) for val in params)
         except (TypeError, ValueError):
-            self.logger.debug("(PosteriorEvaluator): received non-numeric params")
+            self.logger.debug(
+                "(PosteriorEvaluator): received non-numeric params"
+            )
             return float("-inf")
 
         transformed: list[float] = []
@@ -58,7 +60,9 @@ class PosteriorEvaluator:
             if isinstance(result, tuple):
                 if len(result) != 2:
                     self.logger.debug(
-                        "(PosteriorEvaluator): transform %d returned %s", idx, result
+                        "(PosteriorEvaluator): transform %d returned %s",
+                        idx,
+                        result,
                     )
                     return float("-inf")
                 new_val, jac = result
@@ -69,7 +73,8 @@ class PosteriorEvaluator:
                 log_jacobian += float(jac)
             except (TypeError, ValueError):
                 self.logger.debug(
-                    "(PosteriorEvaluator): transform %d produced non-float", idx
+                    "(PosteriorEvaluator): transform %d produced non-float",
+                    idx,
                 )
                 return float("-inf")
 
@@ -86,7 +91,9 @@ class PosteriorEvaluator:
                     return float("-inf")
 
         log_prior = log_jacobian
-        for value, prior in zip_longest(transformed, self.priors, fillvalue=None):
+        for value, prior in zip_longest(
+            transformed, self.priors, fillvalue=None
+        ):
             if prior is None:
                 continue
             density = prior.log_density(value)
@@ -116,7 +123,9 @@ def make_logposterior(
             try:
                 prior_objects.append(prior_lib.prior_from_mapping(entry))
             except prior_lib.PriorError as exc:
-                logger.warning("(make_logposterior): invalid prior skipped: %s", exc)
+                logger.warning(
+                    "(make_logposterior): invalid prior skipped: %s", exc
+                )
                 prior_objects.append(None)
             continue
         logger.warning(
