@@ -5,16 +5,22 @@
 
 # Start the Copernican Suite on macOS.
 #
-# The script downloads a private Python 3.11 interpreter into '.python',
-# creates a local virtual environment and re-executes itself inside that
-# environment. System-wide Python installations are ignored so Python
-# 3.12 never leaks into the managed bootstrap sequence.
+# The launcher now opens with a management menu that can install, reinstall or
+# remove the managed interpreter before the runtime starts. When the toolchain
+# already exists the first menu entry launches the suite without reinstalling
+# packages so contributors can relaunch quickly while still having recovery
+# options when the environment becomes corrupted.
 
 # Abort on errors and on references to unset variables to guard against
 # mistyped names.
 set -eu
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$0")"
+EXPECTED_VENV="$(pwd)/.venv"
+PY_DIR="$(pwd)/.python"
+PY_BIN="$PY_DIR/bin/python3"
+PYTHON_SERIES_PROBE='import sys; exit(0 if (3, 11) <= sys.version_info < '
+PYTHON_SERIES_PROBE+='(3, 12) else 1)'
 
 pkg_notice() {
     echo 'A package manager may request your password.'
@@ -57,20 +63,134 @@ ensure_pip() {
 # series. Purging anything outside this window blocks Python 3.12 from entering
 # the managed environment while allowing future 3.11 maintenance releases.
 python_in_311_series() {
-    "$1" -c 'import sys; exit(0 if (3, 11) <= sys.version_info < (3, 12) else 1)'
+    "$1" -c "$PYTHON_SERIES_PROBE"
 }
 
-# Relaunch from inside the virtual environment when already activated.
-# Use parameter expansion to avoid an "unbound variable" error when
-# "VIRTUAL_ENV" is unset and "set -u" is active.
-# Enforce use of the repository's own virtual environment.
-EXPECTED_VENV="$(pwd)/.venv"
+dependencies_ready() {
+    if [ ! -x "$PY_BIN" ]; then
+        return 1
+    fi
+    if ! python_in_311_series "$PY_BIN"; then
+        return 1
+    fi
+    if [ ! -x ".venv/bin/python" ]; then
+        return 1
+    fi
+    if ! python_in_311_series ".venv/bin/python"; then
+        return 1
+    fi
+    if [ ! -f ".venv/bin/activate" ]; then
+        return 1
+    fi
+    return 0
+}
+
+print_main_menu() {
+    echo "Copernican Suite"
+    if dependencies_ready; then
+        echo "1) Use existing environment"
+        echo "2) Reinstall dependencies"
+        echo "3) Uninstall dependencies"
+        echo "4) Exit"
+    else
+        echo "1) Install dependencies"
+        echo "2) Exit"
+    fi
+}
+
 if [ -n "${VIRTUAL_ENV:-}" ] && [ "$VIRTUAL_ENV" != "$EXPECTED_VENV" ]; then
     echo "Deactivate the active virtual environment before running" >&2
     echo "start.command." >&2
     exit 1
 fi
-if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
+bootstrap_python() {
+    if [ -x "$PY_BIN" ] && ! python_in_311_series "$PY_BIN"; then
+        rm -rf "$PY_DIR"
+    fi
+    if [ -x "$PY_BIN" ]; then
+        return
+    fi
+    mkdir -p "$PY_DIR"
+    local base
+    local rel
+    local ver
+    local arch
+    base="https://github.com/astral-sh/python-build-standalone/releases"
+    rel="20251028"
+    ver="3.11.14"
+    arch="$(uname -m)"
+    local plat
+    plat="apple-darwin"
+    local url_path
+    url_path="cpython-${ver}+${rel}-${arch}-${plat}-install_only.tar.gz"
+    local download_url
+    download_url="$base/download/$rel/$url_path"
+    if [ -z "$download_url" ]; then
+        echo "Copernican Suite download URL is empty." >&2
+        exit 1
+    fi
+    curl -fL "$download_url" | tar -xz -C "$PY_DIR" --strip-components=1
+}
+
+create_virtualenv() {
+    if [ -x ".venv/bin/python" ] && \
+        ! python_in_311_series ".venv/bin/python"; then
+        rm -rf .venv
+    fi
+    if [ ! -d ".venv" ]; then
+        "$PY_BIN" -m venv .venv || true
+    fi
+    if [ ! -f ".venv/bin/activate" ]; then
+        rm -rf .venv
+        "$PY_BIN" -m venv .venv || true
+        if [ ! -f ".venv/bin/activate" ]; then
+            echo "Virtual environment creation failed." >&2
+            exit 1
+        fi
+    fi
+}
+
+install_dependencies() {
+    echo "--- Installing managed dependencies ---"
+    bootstrap_python
+    create_virtualenv
+    # shellcheck disable=SC1091
+    source .venv/bin/activate
+    if ! ensure_pip; then
+        local msg
+        msg="Unable to bootstrap pip in the Copernican virtual environment."
+        echo "$msg" >&2
+        exit 1
+    fi
+    python -m pip install --upgrade pip
+    python -m pip install -r requirements.lock
+    rm -rf build
+    python -m pip install --no-deps .
+    rm -rf build
+    deactivate 2>/dev/null || true
+    echo "Managed dependencies installed."
+}
+
+reinstall_dependencies() {
+    echo "--- Reinstalling managed dependencies ---"
+    rm -rf "$PY_DIR" .venv
+    install_dependencies
+}
+
+uninstall_dependencies() {
+    echo "--- Removing managed dependencies ---"
+    rm -rf "$PY_DIR" .venv
+}
+
+launch_runtime_menu() {
+    if ! dependencies_ready; then
+        echo "Managed dependencies are missing. Install them first." >&2
+        exit 1
+    fi
+    if [ "${VIRTUAL_ENV:-}" != "$EXPECTED_VENV" ]; then
+        # shellcheck disable=SC1091
+        source .venv/bin/activate
+    fi
     STRICT=0
     AUTO=0
     while true; do
@@ -106,72 +226,44 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
                 exit 0 ;;
         esac
     done
+}
+
+launcher_main() {
+    while true; do
+        print_main_menu
+        if dependencies_ready; then
+            read -r -p "Select an option: " choice
+            case "$choice" in
+                1)
+                    launch_runtime_menu ;;
+                2)
+                    reinstall_dependencies ;;
+                3)
+                    uninstall_dependencies ;;
+                4)
+                    exit 0 ;;
+            esac
+        else
+            read -r -p "Select an option: " choice
+            case "$choice" in
+                1)
+                    install_dependencies
+                    launch_runtime_menu ;;
+                2)
+                    exit 0 ;;
+            esac
+        fi
+    done
+}
+
+if [ "${COPERNICAN_LAUNCHER_TEST:-}" = "print-menu" ]; then
+    print_main_menu
+    exit 0
 fi
 
-# Always bootstrap a dedicated interpreter.
-PY_DIR="$(pwd)/.python"
-PY_BIN="$PY_DIR/bin/python3"
-# Delete any interpreter that falls outside the Python 3.11 series so legacy
-# downloads or stray Python 3.12 builds never survive across upgrades.
-if [ -x "$PY_BIN" ] && ! python_in_311_series "$PY_BIN"; then
-    rm -rf "$PY_DIR"
-fi
-if [ ! -x "$PY_BIN" ]; then
-    mkdir -p "$PY_DIR"
-    BASE="https://github.com/astral-sh/python-build-standalone/releases"
-    REL="20251028"
-    VER="3.11.14"
-    ARCH="$(uname -m)"
-    PLAT="apple-darwin"
-    # Build the release URL once so we can validate it before invoking curl.
-    # An empty URL means the release metadata above is stale.
-    URL_PATH="cpython-${VER}+${REL}-${ARCH}-${PLAT}-install_only.tar.gz"
-    DOWNLOAD_URL="$BASE/download/$REL/$URL_PATH"
-    if [ -z "$DOWNLOAD_URL" ]; then
-        echo "Copernican Suite download URL is empty." >&2
-        exit 1
-    fi
-    curl -fL "$DOWNLOAD_URL" | tar -xz -C "$PY_DIR" --strip-components=1
-fi
-PYTHON="$PY_BIN"
-
-# Build the environment when missing.
-if [ -x ".venv/bin/python" ] && ! python_in_311_series ".venv/bin/python"; then
-    rm -rf .venv
-fi
-if [ ! -d ".venv" ]; then
-    "$PYTHON" -m venv .venv
+if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
+    launch_runtime_menu
 fi
 
-# Retry virtual environment creation once when the activation script is
-# missing. A missing script usually means the Python installation lacks
-# the ``venv`` module. Recreating the environment gives the interpreter
-# another chance before advising the user to reinstall Python.
-if [ ! -f ".venv/bin/activate" ]; then
-    rm -rf .venv
-    "$PYTHON" -m venv .venv
-    if [ ! -f ".venv/bin/activate" ]; then
-        echo "Virtual environment creation failed." >&2
-        exit 1
-    fi
-fi
-
-# Activate, update pip, install dependencies,
-# then install the project without dependencies and restart the script.
-# Delete any 'build/' directory before and after installing the project to
-# avoid stale build artifacts.
-source .venv/bin/activate
-if ! ensure_pip; then
-    echo "Unable to bootstrap pip in the Copernican virtual environment." >&2
-    exit 1
-fi
-python -m pip install --upgrade pip
-# Install pinned dependencies.
-python -m pip install -r requirements.lock
-# Remove any 'build/' directory before and after installing the project
-# to avoid stale build artifacts.
-rm -rf build
-python -m pip install --no-deps .
-rm -rf build
-exec "$SCRIPT" "$@"
+launcher_main
 

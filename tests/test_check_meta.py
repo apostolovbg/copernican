@@ -9,13 +9,11 @@ from pathlib import Path
 
 from tools import check_meta
 
-_REFERENCE_DATE = _dt.date(2025, 10, 31)
-
 
 def test_validate_metadata_current_repo() -> None:
     """The repository metadata should already satisfy the checker."""
 
-    errors = check_meta.validate_metadata(today=_REFERENCE_DATE)
+    errors = check_meta.validate_metadata()
     assert errors == []
 
 
@@ -51,7 +49,7 @@ def test_validate_metadata_reports_discrepancies(tmp_path: Path) -> None:
     )
 
     errors = check_meta.validate_metadata(
-        base_path=base, today=_REFERENCE_DATE
+        base_path=base, today=_dt.date.today()
     )
 
     assert any("README.md records version" in error for error in errors)
@@ -82,7 +80,7 @@ def test_validate_metadata_flags_late_last_updated(tmp_path: Path) -> None:
     )
 
     errors = check_meta.validate_metadata(
-        base_path=base, today=_REFERENCE_DATE
+        base_path=base, today=_dt.date.today()
     )
 
     assert any("first three lines" in error for error in errors)
@@ -108,7 +106,7 @@ def test_validate_metadata_accepts_third_line_marker(
     )
 
     errors = check_meta.validate_metadata(
-        base_path=base, today=_REFERENCE_DATE
+        base_path=base, today=_dt.date.today()
     )
 
     assert errors == []

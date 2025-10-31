@@ -1,4 +1,4 @@
-**Version:** 6.5.4
+**Version:** 6.6.1
 **Last Updated:** 2025-10-31
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -135,32 +135,26 @@ Under the hood the program follows a clear pipeline:
 ## Quick Start
 1. Run the platform-specific `start` script. macOS users should run
    `./start.command`, Windows users open `start.bat`, and Linux users can
-   execute `./start.sh`. The launcher downloads a private Python 3.11 runtime
-   into `.python`, removes any bundled interpreter that falls outside the 3.11
-   series and recreates `.venv` automatically when its Python falls below the
-   minimum supported version. If the bundled interpreter omits `pip` the
-   helpers run `python -m ensurepip --upgrade` and fall back to
-   `get-pip.py` so dependency installation always succeeds before they
-   upgrade to the pinned 24.2 release. They install the locked stack, install
-   the project with `pip install --no-deps .`, skip errors when `VIRTUAL_ENV`
-   is unset and delete any `build/` directory before and after installation to
-   avoid stale artifacts. If the activation script is missing the launcher
-   recreates `.venv` once before exiting with an error. Each launcher prints a
-   notice before invoking `sudo`, `brew` or `winget` so users know any password
-   prompt originates from the package manager and is never read or stored.
-   `sudo -k` and explicit prompts keep password handling within the operating
-   system. On Windows the launcher now delegates the download and extraction
-   steps to dedicated helper routines so the PowerShell commands execute
-   outside the bootstrap condition, preventing `cmd.exe` from mis-parsing
-   closing parentheses and restoring the interactive menu.
+   execute `./start.sh`. Each launcher now opens with a management menu that
+   detects whether `.python` and `.venv` already exist. When they are missing
+   the first option reads **Install dependencies** and provisions the bundled
+   Python 3.11 interpreter, creates `.venv`, upgrades `pip` via
+   `python -m ensurepip --upgrade` (falling back to `get-pip.py` on failure)
+   and installs the locked stack plus the suite itself. When the environment
+   already exists the first option becomes **Use existing environment**, which
+   activates `.venv` and displays the familiar runtime menu with launch, test
+   and toggle controls. Additional entries support reinstalling both folders or
+   removing them entirely so a repository can be returned to a fresh clone.
+   Each launcher still prints a notice before invoking `sudo`, `brew` or
+   `winget`, keeping password prompts within the operating system.
 2. Follow the interactive prompts to choose a model, preferred data sources
    and
    computation engine.
-3. Choose "Run the unit test suite" from the launcher's menu or execute
+3. Choose "Run the unit test suite" from the runtime menu or execute
    `python -m unittest discover -v` directly. The test runner reports
-   informational messages, warnings and errors while verifying the
-   reference model and parsers. Toggle strict warning mode from the menu
-   or set `COPERNICAN_STRICT_WARNINGS=1` to upgrade warnings to errors for
+   informational messages, warnings and errors while verifying the reference
+   model and parsers. Toggle strict warning mode from the menu or set
+   `COPERNICAN_STRICT_WARNINGS=1` to upgrade warnings to errors for
    reproducible CI runs.
 4. When prompted, choose an RNG seed or set `COPERNICAN_SEED=<n>` in the
    environment to skip the prompt. The seed defaults to `0` and is applied to
@@ -172,16 +166,17 @@ Under the hood the program follows a clear pipeline:
 The launchers automatically bootstrap a dedicated Python 3.11 interpreter into
 `.python`, delete any interpreter that falls outside the 3.11 series and
 rebuild `.venv` whenever its Python falls below the supported floor, so no
-pre-existing Python installation is needed. They verify that `.venv/bin/activate` exists
-and retry once before aborting. Inside the virtual environment this project
-relies on `numpy==1.26.4`, `scipy==1.12.0`, `matplotlib==3.8.2`,
-`pandas==2.2.1`, `sympy==1.13.0`, `jsonschema==4.21.1`,
-`camb==1.6.3`, `emcee==3.1.4`, `h5netcdf==1.3.0`,
-`h5py==3.10.0`, `xarray==2023.12.0`, `typing_extensions==4.10.0`
-and the widely available `arviz==0.16.1` release
-so wheels exist on every platform. The launchers refuse to run when another
-virtual environment is active and reinstall pinned dependencies on every
-start so the suite always uses its managed `.venv`.
+pre-existing Python installation is needed. They verify that
+`.venv/bin/activate` exists and retry once before aborting. Inside the virtual
+environment this project relies on `numpy==1.26.4`, `scipy==1.12.0`,
+`matplotlib==3.8.2`, `pandas==2.2.1`, `sympy==1.13.0`, `jsonschema==4.21.1`,
+`camb==1.6.3`, `emcee==3.1.4`, `h5netcdf==1.3.0`, `h5py==3.10.0`,
+`xarray==2023.12.0`, `typing_extensions==4.10.0` and the widely available
+`arviz==0.16.1` release so wheels exist on every platform. The launchers refuse
+to run when another virtual environment is active. They now leave existing
+installations untouched unless the user selects **Reinstall dependencies** or
+**Use existing environment**, making incremental launches faster while keeping
+tooling controlled.
 
 CAMB has not yet published Python 3.12 wheels, so the project intentionally
 targets Python 3.11 until upstream support arrives. Packaging metadata blocks
@@ -189,9 +184,9 @@ newer interpreters to avoid prompting users to build CAMB from source.
 
 Versions for all runtime dependencies are pinned in
 `requirements.lock`. The manifest lists the same wheel-friendly releases as
-`pyproject.toml`, and the CI bootstrap upgrades `pip` to 24.2 before it
-resolves the lock so Windows installers never attempt to overwrite the
-running binary. Helper libraries such as `xarray-einstats==0.6.0`,
+`pyproject.toml`, and the CI bootstrap upgrades `pip` before it resolves the
+lock so Windows installers never attempt to overwrite the running binary.
+Helper libraries such as `xarray-einstats==0.6.0`,
 `typing_extensions==4.10.0`, Matplotlib's rendering stack
 (`contourpy==1.2.0`, `cycler==0.12.1`, `fonttools==4.51.0`,
 `kiwisolver==1.4.5`, `pillow==10.3.0`, `pyparsing==3.1.1`), the timezone
@@ -384,11 +379,11 @@ being used. When generating file names the suite sanitizes dataset names,
 replacing spaces and characters like ``/`` with hyphens so output paths remain
 portable across operating systems.
 
-The canonical dataset selections, release versions and independence
-assumptions are documented in
-`copernican_lib/config_schemas/run_config.yml`.  The schema is kept in sync with
-the loader attributes so automated tooling can validate run descriptors and the
-manifest always records the same statements presented to the user.
+The canonical dataset selections, release versions and
+independence assumptions are documented in
+`copernican_lib/config_schemas/run_config.yml`. The schema is kept in sync with
+the loader attributes so automated tooling can validate run descriptors and
+the manifest always records the same statements presented to the user.
 
 ## Logging and Caching
 All console output and user prompts are captured in a timestamped log file in

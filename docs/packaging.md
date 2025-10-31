@@ -10,8 +10,8 @@ versions avoids forcing contributors to compile CAMB locally during bootstrap.
 
 The `start.*` launchers always download a private Python 3.11 interpreter into
 `.python`, ignoring any system interpreter. They now delete legacy downloads
-that fall outside the Python 3.11 series and rebuild `.venv` automatically if it
-ever points at an unsupported interpreter. They refuse to run when another
+that fall outside the Python 3.11 series and rebuild `.venv` automatically if
+it ever points at an unsupported interpreter. They refuse to run when another
 virtual environment is active so the repository's `.venv` is always used. This
 guard also prunes stray Python 3.12 downloads before the environment is
 recreated, keeping the managed toolchain inside the supported window.
@@ -32,21 +32,26 @@ collapses to an empty string while still restoring the interactive menu.
 
 ## Bootstrap the virtual environment
 
-Run the launcher in the project root. It recreates or upgrades `.venv` on every
-start and ignores globally installed packages:
+Run the launcher in the project root. The top-level menu now checks whether the
+managed `.python` and `.venv` folders exist before acting:
 
 - `start.bat` on Windows
 - `start.command` on macOS
 - `start.sh` on Linux
 
-The script creates or reuses `.venv` from the bundled interpreter, upgrades
-`pip` to the latest stable release, installs packages from `requirements.lock`
-and installs the project itself with `pip install --no-deps .`. ArviZ now ships as the
-widely available `0.16.1` release alongside `numpy==1.26.4`,
-`scipy==1.12.0`, `matplotlib==3.8.2` and `pandas==2.2.1`,
-ensuring every platform pulls published wheels instead of attempting source
-builds. Re-run
-the launcher after pulling updates to refresh the environment.
+Choosing **Install dependencies** provisions the interpreter,
+upgrades `pip` via `python -m ensurepip --upgrade` (falling back to
+`get-pip.py` on failure),
+installs packages from `requirements.lock` and installs the project itself with
+`pip install --no-deps .`. The widely available `arviz==0.16.1` release ships
+alongside `numpy==1.26.4`, `scipy==1.12.0`, `matplotlib==3.8.2` and
+`pandas==2.2.1`, ensuring every platform pulls published wheels instead
+of attempting source builds. When `.python` and `.venv` already exist choose
+**Use existing environment** to activate the runtime menu immediately. Select
+**Reinstall dependencies** rebuilds both folders, and
+**Uninstall dependencies** removes them entirely before shipping a clean
+archive. Re-run the installer
+after pulling dependency updates to refresh the environment.
 
 `requirements.lock` pins exact versions for all runtime dependencies.
 Adding or updating a package requires editing this file and the license
@@ -76,6 +81,11 @@ release candidate. The runtime version helper reads the tracked file, so
 packaged wheels display the intended identifier even before a Git tag is cut.
 Keeping the two locations aligned prevents confusion between development
 snapshots and tagged releases.
+
+Run `python -m tools.check_meta` after updating metadata. The validator now
+uses the system date when scanning `Last Updated` markers, so it catches any
+future-dated entries immediately instead of relying on a pinned reference date
+inside the test suite.
 
 ### Regenerating dependency locks
 

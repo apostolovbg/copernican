@@ -21,6 +21,19 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 6.6.1
+- 2025-10-31: Corrected future-dated metadata across the documentation, updated
+  release dates to reflect the actual publication day, refreshed the packaging
+  guide with guidance on running the metadata validator, adjusted the unit
+  tests to rely on the live system date, and bumped suite metadata (OpenAI
+  ChatGPT)
+
+## Version 6.6.0
+- 2025-10-31: Added dependency management menus to every launcher so teams can
+  install, reinstall or remove the managed interpreter on demand, updated the
+  documentation to describe the new flow, refreshed packaging guidance and
+  bumped the recorded suite version (OpenAI ChatGPT)
+
 ## Version 6.5.4
 - 2025-10-31: Allowed "Last Updated" markers within the first three lines of
   tracked files, removed time components from metadata fields, updated the CI
