@@ -35,8 +35,21 @@ class TestModelCoderSecurity(unittest.TestCase):
         fn = model_coder._compile_sympy_expr(expr, (z,), name_hint="picklable")
         payload = pickle.dumps(fn)
         self.assertIsInstance(payload, bytes)
-        self.assertEqual(fn.__module__, "copernican_lib.model_coder")
-        self.assertTrue(hasattr(model_coder, fn.__name__))
+        restored = pickle.loads(payload)
+        self.assertIsInstance(
+            restored,
+            model_coder._GeneratedCallable,
+        )
+        self.assertEqual(restored(1), 2)
+        self.assertIsInstance(
+            fn,
+            model_coder._GeneratedCallable,
+        )
+        self.assertEqual(
+            fn.python_function.__module__,
+            "copernican_lib.model_coder",
+        )
+        self.assertTrue(hasattr(model_coder, fn.python_function.__name__))
 
     def test_compile_sympy_expr_integral_execution(self):
         """``_compile_sympy_expr`` should handle integrals safely."""
@@ -44,7 +57,10 @@ class TestModelCoderSecurity(unittest.TestCase):
         expr = sp.Integral(z, (z, 0, 1))  # integral of z from 0 to 1 = 0.5
         fn = model_coder._compile_sympy_expr(expr, (z,))
         self.assertAlmostEqual(fn(0), 0.5)
-        self.assertEqual(fn.__globals__.get("__builtins__"), {})
+        self.assertEqual(
+            fn.python_function.__globals__.get("__builtins__"),
+            {},
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover

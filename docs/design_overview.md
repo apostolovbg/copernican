@@ -38,7 +38,10 @@ on `copernican_lib.model_coder` using stable names, eliminating the
 `start.command`. Version 7.0.2 extends the protection to the plugin metadata
 by replacing ``MappingProxyType`` wrappers with the picklable
 ``copernican_lib.plugins.FrozenMapping`` helper, ensuring engine plugins stay
-serialisable across macOS and Linux spawn pools.
+serialisable across macOS and Linux spawn pools. Version 7.0.3 completes the
+story by turning the symbolic distance helpers into self-rebuilding wrappers so
+spawn workers reconstruct them from the cached SymPy expressions instead of
+expecting parent-only module attributes.
 
 With the retirement of the deterministic combined optimiser the suite now
 ships solely with the `cosmo_engine_mcmc` backend.  Engines remain pluggable

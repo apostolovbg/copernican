@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.0.3
+- 2025-10-31: Wrapped SymPy-generated distance helpers in self-reconstructing
+  callables so spawn-based multiprocessing workers rebuild them from cached
+  expressions, refreshed the regression tests and documentation, and bumped
+  suite metadata (OpenAI ChatGPT)
+
 ## Version 7.0.2
 - 2025-10-31: Replaced ``MappingProxyType`` wrappers inside engine plugins with
   a picklable ``FrozenMapping`` helper, restored spawn-pool compatibility,
