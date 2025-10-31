@@ -1,4 +1,4 @@
-# Last Updated: 2025-10-29
+# Last Updated: 2025-10-31
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -39,6 +39,10 @@ from pathlib import Path
 from copernican_lib import console_output as console
 from copernican_lib import run_manifest
 from copernican_lib import result_writer
+from copernican_lib.diagnostics import (
+    bao_residual_diagnostics,
+    cmb_residual_diagnostics,
+)
 from copernican_lib.version import get_version
 
 # Verify interpreter version early so users see clear feedback
@@ -1177,6 +1181,12 @@ def main_workflow():
                 }
             )
 
+            for line in bao_residual_diagnostics(
+                pred_df,
+                model_name=model_plugin.MODEL_NAME,
+            ):
+                logger.info(line)
+
             chi2_bao = summary["chi2_bao"]
             if pred_df is not None and np.isfinite(rs_Mpc):
                 if np.isfinite(chi2_bao):
@@ -1216,6 +1226,18 @@ def main_workflow():
             z_plot_smooth,
         )
         alt_time += time.perf_counter() - t0
+
+        if (
+            np.isfinite(lcdm_bao_summary.get("rs_Mpc", np.nan))
+            and np.isfinite(alt_bao_summary.get("rs_Mpc", np.nan))
+        ):
+            delta_rs = alt_bao_summary["rs_Mpc"] - lcdm_bao_summary["rs_Mpc"]
+            logger.info(
+                (
+                    f"{alt_model_plugin.MODEL_NAME} r_s offset relative to "
+                    f"{lcdm.MODEL_NAME}: {delta_rs:+.3f} Mpc"
+                )
+            )
 
         logger.info("\n--- Stage 4: CMB Analysis ---\n")
 
@@ -1284,6 +1306,13 @@ def main_workflow():
                 spectra=tuple(components),
             )
             summary["theory_spectrum"] = theory
+
+            for line in cmb_residual_diagnostics(
+                cmb_data_df,
+                theory,
+                model_name=model_plugin.MODEL_NAME,
+            ):
+                logger.info(line)
 
             chi2_cmb = summary["chi2_cmb"]
             if np.isfinite(chi2_cmb):

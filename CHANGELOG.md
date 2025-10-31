@@ -21,6 +21,11 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 6.7.0
+- 2025-10-31: Added granular sampler diagnostics with walker snapshots, auto-
+  configured multiprocessing, live BAO/CMB residual logging, regression tests,
+  documentation refreshes and bumped suite metadata (OpenAI ChatGPT)
+
 ## Version 6.6.0
 - 2025-10-31: Enabled joint SNe/BAO/CMB sampling in the MCMC engine, updated
   Stage 2 orchestration and downstream reporting to reuse the combined

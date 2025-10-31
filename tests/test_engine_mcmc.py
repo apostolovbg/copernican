@@ -115,6 +115,30 @@ class TestMCMCEngine(unittest.TestCase):
                 for name in plugin.PARAMETER_NAMES:
                     self.assertIn(name, ds.data_vars)
 
+    def test_progress_logging_reports_statistics(self):
+        plugin = self._build_lcdm_plugin()
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01, 0.02],
+                "mu_obs": [40.0, 41.0],
+                "e_mu_obs": [0.1, 0.1],
+            }
+        )
+
+        with self.assertLogs(level="INFO") as captured:
+            cosmo_engine_mcmc.fit_sne_parameters(
+                sne_df,
+                plugin,
+                n_walkers=4,
+                n_steps=6,
+                pool_size=1,
+                progress_granularity=4,
+            )
+
+        joined = "\n".join(captured.output)
+        self.assertIn("logP μ=", joined)
+        self.assertIn("Walker[", joined)
+
     def test_log_probability_penalty(self):
         plugin = self._build_lcdm_plugin()
         sne_df = pd.DataFrame(
