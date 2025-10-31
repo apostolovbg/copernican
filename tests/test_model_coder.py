@@ -1,8 +1,10 @@
 # Copyright (c) 2025 Copernican Suite developers.
+# Last Updated: 2025-10-31
 # See LICENSE.md in the repository root for details.
 
 """Security tests for ``model_coder`` expression handling."""
 
+import pickle
 import unittest
 
 import sympy as sp
@@ -25,6 +27,16 @@ class TestModelCoderSecurity(unittest.TestCase):
         """Expressions containing ``__`` should be rejected outright."""
         with self.assertRaises(ValueError):
             model_coder._safe_parse_expr("__import__('os')", {})
+
+    def test_compile_sympy_expr_returns_picklable_callable(self):
+        """Generated helpers should pickle under the spawn start method."""
+        z = sp.symbols("z")
+        expr = z + 1
+        fn = model_coder._compile_sympy_expr(expr, (z,), name_hint="picklable")
+        payload = pickle.dumps(fn)
+        self.assertIsInstance(payload, bytes)
+        self.assertEqual(fn.__module__, "copernican_lib.model_coder")
+        self.assertTrue(hasattr(model_coder, fn.__name__))
 
     def test_compile_sympy_expr_integral_execution(self):
         """``_compile_sympy_expr`` should handle integrals safely."""

@@ -29,12 +29,13 @@ schema even when the original YAML attempted to declare redundant transforms.
 
 Version 6.7.4 kept the multiprocessing contract intact by making both the
 joint likelihood wrapper and the generated distance functions picklable. Version
-7.0.0 finishes that transition by replacing the legacy `engine_interface`
-monolith with the new `copernican_lib.plugins` package and the
-`copernican_lib.posterior` module. Engine plugins are now explicit dataclass
-instances that describe bounds, priors, transforms and dataset compatibility in
-a serialisable structure, while posterior evaluation happens inside a dedicated
-picklable callable. Engines therefore remain pluggable and multiprocessing safe
+7.0.0 replaced the legacy `engine_interface` monolith with the
+`copernican_lib.plugins` package and the `copernican_lib.posterior` module so
+posterior construction became an explicit, picklable dataclass workflow. Version
+7.0.1 cements that transition by registering every SymPy-derived helper
+on `copernican_lib.model_coder` using stable names, eliminating the
+`_lambdifygenerated` pickling failures that blocked spawn pools launched from
+`start.command`. Engines therefore remain pluggable and multiprocessing safe
 regardless of the priors chosen.
 
 With the retirement of the deterministic combined optimiser the suite now

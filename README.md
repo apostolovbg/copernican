@@ -1,16 +1,16 @@
-**Version:** 7.0.0
+**Version:** 7.0.1
 **Last Updated:** 2025-10-31
 
 ![Copernican Suite banner](docs/banner_github.png)
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and
-Cosmic Microwave Background (CMB) data. The refreshed 7.0.0 release reorganises
-the runtime core around picklable engine plugins and a dedicated posterior
-module so multiprocessing backends remain reliable even when advanced priors
-or transforms are enabled. Support for gravitational waves and standard sirens
-remains on the roadmap and the new architecture makes those additions easier to
-stage.
+Cosmic Microwave Background (CMB) data. Version 7.0.1 builds on the recent
+engine refactor by registering SymPy-generated distance helpers as module-level
+callables so spawn-based multiprocessing pools can import them reliably
+during bootstrap and when the macOS launcher re-executes the suite. Support for
+gravitational waves and standard sirens remains on the roadmap and the new
+architecture makes those additions easier to stage.
 
 Engines, datasets and models stay fully pluggable. Generated YAML definitions
 are transformed into :class:`copernican_lib.plugins.EnginePlugin` instances that

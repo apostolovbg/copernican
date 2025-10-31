@@ -1,4 +1,5 @@
 # Copyright (c) 2025 Copernican Suite developers.
+# Last Updated: 2025-10-31
 # See LICENSE.md in the repository root for details.
 
 """Translate sanitized model YAML into executable NumPy-aware callables.
@@ -9,7 +10,10 @@ NumPy functions suitable for evaluation within the engines.
 """
 
 import ast
+import itertools
 import logging
+import re
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -25,6 +29,38 @@ from sympy.printing.numpy import NumPyPrinter
 
 from . import console_output as console
 from . import error_handler, latex_utils
+
+_GENERATED_NAME_COUNTER = itertools.count(1)
+
+
+def _register_generated_callable(func, *, name_hint: str | None = None):
+    """Register ``func`` on this module so it can be pickled safely.
+
+    ``sympy.lambdify`` synthesises functions inside ephemeral modules
+    whose names are meaningless once the generator finishes executing.
+    Multiprocessing pools that rely on the ``spawn`` start method must
+    import callables by module path, so we normalise the function name,
+    attach it to :mod:`copernican_lib.model_coder` and update the
+    metadata ``pickle`` expects. Using an explicit registration helper
+    keeps the workflow centralised and easy to audit when new symbolic
+    helpers are introduced.
+    """
+
+    module = sys.modules[__name__]
+    base_name = name_hint or getattr(func, "__name__", "generated_callable")
+    base_name = re.sub(r"[^0-9A-Za-z_]+", "_", base_name).strip("_")
+    if not base_name:
+        base_name = "generated_callable"
+    while True:
+        suffix = next(_GENERATED_NAME_COUNTER)
+        candidate = f"_{base_name}_{suffix}"
+        if not hasattr(module, candidate):
+            break
+    setattr(module, candidate, func)
+    func.__name__ = candidate
+    func.__qualname__ = candidate
+    func.__module__ = module.__name__
+    return func
 
 
 class _ComovingDistance:
@@ -221,7 +257,7 @@ def _safe_parse_expr(expr_str: str, local_dict: dict) -> sp.Expr:
     )
 
 
-def _compile_sympy_expr(sym_expr, args):
+def _compile_sympy_expr(sym_expr, args, name_hint: str | None = None):
     """Return a callable for ``sym_expr`` that evaluates ``Integral`` nodes.
 
     ``sym_expr`` is converted to a function using an AST-based compilation
@@ -229,12 +265,19 @@ def _compile_sympy_expr(sym_expr, args):
     code to run quickly. The executed environment exposes only ``numpy`` and
     ``scipy.integrate.quad`` and disables builtins to guard against malicious
     expressions.
+
+    Parameters
+    ----------
+    sym_expr
+        SymPy expression representing the desired callable.
+    args
+        Symbolic arguments passed to :func:`sympy.lambdify`.
+    name_hint
+        Optional identifier used when registering the generated callable.
+        Supplying a stable name keeps :mod:`multiprocessing` pickling
+        predictable when pools import the helper under spawn.
     """
 
-    # SymPy can convert expressions directly to Python functions, but it does
-    # not evaluate ``Integral`` objects by default. When an integral is
-    # present we expand it into a call to ``scipy.integrate.quad`` so the
-    # resulting callable is fully numerical.
     if sym_expr.atoms(sp.Integral):
         printer = QuadPrinter({"strict": False})
         code = printer.doprint(sym_expr)
@@ -243,11 +286,18 @@ def _compile_sympy_expr(sym_expr, args):
         src = f"def {func_name}({args_str}):\n    return {code}"
         module = ast.parse(src, mode="exec")
         compiled = compile(module, filename="<model>", mode="exec")
-        env = {"np": np, "quad": quad, "__builtins__": {}}
+        env = {
+            "np": np,
+            "quad": quad,
+            "__builtins__": {},
+            "__name__": __name__,
+        }
         exec(compiled, env)
-        return env[func_name]
+        generated = env[func_name]
+        return _register_generated_callable(generated, name_hint=name_hint)
 
-    return sp.lambdify(args, sym_expr, [{"__builtins__": {}}, "numpy"])
+    generated = sp.lambdify(args, sym_expr, [{"__builtins__": {}}, "numpy"])
+    return _register_generated_callable(generated, name_hint=name_hint)
 
 
 def generate_callables(cache_path):
@@ -302,7 +352,13 @@ def generate_callables(cache_path):
             # Convert SymPy expression to a NumPy callable.
             # Any ``Integral`` terms are replaced with numerical
             # quad evaluations.
-            hz_fn = _compile_sympy_expr(hz_sym, (z, *param_syms))
+
+            hz_fn = _compile_sympy_expr(
+                hz_sym,
+                (z, *param_syms),
+                name_hint="get_Hz_per_Mpc",
+            )
+
             funcs["get_Hz_per_Mpc"] = hz_fn
             code_dict["get_Hz_per_Mpc"] = str(hz_sym)
             model_data["valid_for_distance_metrics"] = True
@@ -355,7 +411,12 @@ def generate_callables(cache_path):
                         )
                     # ``Integral`` terms here are also expanded to calls to
                     # ``quad``.
-                    rs_fn_sym = _compile_sympy_expr(rs_sym, tuple(param_syms))
+
+                    rs_fn_sym = _compile_sympy_expr(
+                        rs_sym,
+                        tuple(param_syms),
+                        name_hint="get_sound_horizon_rs_Mpc",
+                    )
 
                     funcs["get_sound_horizon_rs_Mpc"] = (
                         _SoundHorizonFromExpression(rs_fn_sym)
@@ -416,7 +477,13 @@ def generate_callables(cache_path):
             sym_expr = _safe_parse_expr(expr, local_dict)
             # Convert SymPy expression to a callable, numerically evaluating
             # ``Integral`` constructs if present.
-            fn = _compile_sympy_expr(sym_expr, (z, *param_syms))
+
+            fn = _compile_sympy_expr(
+                sym_expr,
+                (z, *param_syms),
+                name_hint=name,
+            )
+
             # Quick sanity evaluation using midpoints of parameter bounds
             try:
                 mid_params = tuple(

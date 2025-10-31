@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.0.1
+- 2025-10-31: Registered SymPy-generated distance helpers as module-level
+  callables so spawn-based pools launched from the macOS bootstrap
+  script remain stable, restored start.command usability, added
+  regression tests, and updated documentation and metadata (OpenAI
+  ChatGPT)
+
 ## Version 7.0.0
 - 2025-10-31: Replaced the legacy engine interface with the picklable
   `copernican_lib.plugins` package and a standalone posterior module, ensured
