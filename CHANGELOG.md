@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.0.6
+- 2025-10-31: Retired the sound-horizon fallback, enforced explicit
+  ``rs_expression`` definitions, updated bundled models with integral
+  expressions, expanded unit tests, refreshed documentation and bumped the
+  recorded version (OpenAI ChatGPT)
+
 ## Version 7.0.5
 - 2025-10-31: Cached SNe, BAO and CMB likelihood inputs as immutable NumPy
   arrays to remove per-call DataFrame conversions, reusing residual buffers to
