@@ -25,6 +25,7 @@ from __future__ import annotations
 import logging
 import math
 import multiprocessing as mp
+import textwrap
 from typing import Any, Callable, Iterable, Sequence
 
 import emcee
@@ -75,15 +76,23 @@ class _SamplingProgressReporter:
         active_indices: np.ndarray,
         *,
         progress_granularity: int = 20,
-        max_params_to_show: int = 4,
+        max_params_to_show: int | None = None,
     ) -> None:
         self._param_names = list(param_names)
         self._template = np.asarray(template_params, dtype=float)
         self._active_indices = np.asarray(active_indices, dtype=int)
         self._reference_log_prob: float | None = None
         self._report_count = 0
-        self._max_params_to_show = int(max(1, max_params_to_show))
+        self._show_all = max_params_to_show is None
+        if self._show_all:
+            self._max_params_to_show = len(self._param_names)
+        else:
+            self._max_params_to_show = int(max(1, max_params_to_show))
         self._sample_interval = max(1, int(progress_granularity // 4) or 1)
+        # Reuse a scratch buffer so percentile calculations avoid allocating a
+        # fresh ``(n_walkers, n_params)`` array on every progress callback.
+        self._scratch: np.ndarray | None = None
+        self._wrap_width = 72
 
     def __call__(
         self,
@@ -124,9 +133,7 @@ class _SamplingProgressReporter:
         if n_walkers == 0:
             return lines
 
-        expanded = np.repeat(self._template[np.newaxis, :], n_walkers, axis=0)
-        if coords.size:
-            expanded[:, self._active_indices] = coords
+        expanded = self._expand_coordinates(coords)
 
         for idx, name in enumerate(
             self._param_names[: self._max_params_to_show]
@@ -134,6 +141,9 @@ class _SamplingProgressReporter:
             values = expanded[:, idx]
             finite_vals = values[np.isfinite(values)]
             if finite_vals.size == 0:
+                lines.append(
+                    f"    {name}: statistics unavailable (non-finite samples)."
+                )
                 continue
             q16, q50, q84 = np.percentile(finite_vals, [16.0, 50.0, 84.0])
             minus = q50 - q16
@@ -142,11 +152,12 @@ class _SamplingProgressReporter:
                 "    %s: med=% .4g (-%.2g/+%.2g)" % (name, q50, minus, plus)
             )
 
-        remaining = len(self._param_names) - self._max_params_to_show
-        if remaining > 0:
-            lines.append(
-                "    ... %d additional parameter(s) omitted." % remaining
-            )
+        if not self._show_all:
+            remaining = len(self._param_names) - self._max_params_to_show
+            if remaining > 0:
+                lines.append(
+                    "    ... %d additional parameter(s) omitted." % remaining
+                )
 
         if np.any(finite_mask) and (
             self._report_count == 1
@@ -155,15 +166,46 @@ class _SamplingProgressReporter:
             walker_idx = int(np.argmax(log_prob[finite_mask]))
             full_idx = np.flatnonzero(finite_mask)[walker_idx]
             snapshot_vals = expanded[full_idx]
-            snapshot = ", ".join(
+            snapshot_pairs = [
                 f"{name}={snapshot_vals[idx]:.4g}"
                 for idx, name in enumerate(
                     self._param_names[: self._max_params_to_show]
                 )
+            ]
+            snapshot_text = ", ".join(snapshot_pairs)
+            lines.append(
+                textwrap.fill(
+                    snapshot_text,
+                    width=self._wrap_width,
+                    initial_indent=f"    Walker[{full_idx}] snapshot: ",
+                    subsequent_indent=" " * 8,
+                )
             )
-            lines.append(f"    Walker[{full_idx}] snapshot: {snapshot}")
 
         return lines
+
+    def _expand_coordinates(self, coords: np.ndarray) -> np.ndarray:
+        """Return full parameter coordinates for ``coords`` walkers."""
+
+        if coords.ndim == 1:
+            coords = coords[np.newaxis, :]
+
+        n_walkers = coords.shape[0]
+        n_params = self._template.size
+        if self._scratch is None or self._scratch.shape != (
+            n_walkers,
+            n_params,
+        ):
+            self._scratch = np.broadcast_to(
+                self._template, (n_walkers, n_params)
+            ).copy()
+        else:
+            self._scratch[...] = self._template
+
+        if coords.size:
+            self._scratch[:, self._active_indices] = coords
+
+        return self._scratch
 
 
 def _build_sne_logposterior(

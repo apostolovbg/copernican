@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 6.7.1
+- 2025-10-31: Ensured sampler progress logs enumerate every parameter, reused
+  diagnostic buffers to cut callback overhead, wrapped walker snapshots, updated
+  documentation, extended regression coverage and fixed lint issues (OpenAI
+  ChatGPT)
+
 ## Version 6.7.0
 - 2025-10-31: Added granular sampler diagnostics with walker snapshots, auto-
   configured multiprocessing, live BAO/CMB residual logging, regression tests,

@@ -17,7 +17,9 @@ import numpy as np
 import pandas as pd
 
 
-def _residual_statistics(residuals: np.ndarray) -> tuple[float, float, float, int]:
+def _residual_statistics(
+    residuals: np.ndarray,
+) -> tuple[float, float, float, int]:
     """Return RMS, max absolute value, median and sample size.
 
     ``residuals`` may contain NaNs from masked measurements.  Only finite
@@ -68,8 +70,8 @@ def bao_residual_diagnostics(
 
     lines = [
         (
-            f"{model_name} BAO residual RMS={rms:.3g}, max={max_abs:.3g}, "
-            f"median={median:+.3g} (N={n_points})"
+            f"{model_name} BAO residual RMS={rms:.3g}, "
+            f"max={max_abs:.3g}, median={median:+.3g} (N={n_points})"
         )
     ]
 
@@ -83,8 +85,8 @@ def bao_residual_diagnostics(
                 continue
             lines.append(
                 (
-                    f"    {obs_type}: rms={g_rms:.3g}, max={g_max:.3g}, "
-                    f"median={g_median:+.3g} (N={g_n})"
+                    f"    {obs_type}: rms={g_rms:.3g}, "
+                    f"max={g_max:.3g}, median={g_median:+.3g} (N={g_n})"
                 )
             )
 
@@ -97,15 +99,18 @@ def cmb_residual_diagnostics(
     *,
     model_name: str,
 ) -> list[str]:
-    """Return residual diagnostics for each available CMB spectrum component."""
+    """Return residual diagnostics for each available CMB component."""
 
     if cmb_data is None or getattr(cmb_data, "empty", True):
         return [f"{model_name} CMB residuals unavailable (no data)."]
 
     if isinstance(theory, np.ndarray):
-        theory_map: Mapping[str, np.ndarray] = {"TT": np.asarray(theory, dtype=float)}
+        theory_map: Mapping[str, np.ndarray] = {}
+        theory_map["TT"] = np.asarray(theory, dtype=float)
     else:
-        theory_map = {key: np.asarray(val, dtype=float) for key, val in theory.items()}
+        theory_map = {}
+        for key, val in theory.items():
+            theory_map[key] = np.asarray(val, dtype=float)
 
     component_columns = {
         "TT": "Dl_obs",
@@ -131,8 +136,8 @@ def cmb_residual_diagnostics(
             continue
         lines.append(
             (
-                f"{model_name} CMB {component} rms={rms:.3g}, max={max_abs:.3g}, "
-                f"median={median:+.3g} (N={n_points})"
+                f"{model_name} CMB {component} rms={rms:.3g}, "
+                f"max={max_abs:.3g}, median={median:+.3g} (N={n_points})"
             )
         )
 

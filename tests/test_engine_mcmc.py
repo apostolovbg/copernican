@@ -138,6 +138,9 @@ class TestMCMCEngine(unittest.TestCase):
         joined = "\n".join(captured.output)
         self.assertIn("logP μ=", joined)
         self.assertIn("Walker[", joined)
+        for name in plugin.PARAMETER_NAMES:
+            self.assertIn(f"    {name}:", joined)
+        self.assertNotIn("omitted", joined)
 
     def test_log_probability_penalty(self):
         plugin = self._build_lcdm_plugin()

@@ -1,4 +1,4 @@
-**Version:** 6.7.0
+**Version:** 6.7.1
 **Last Updated:** 2025-10-31
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -407,7 +407,12 @@ model and key package versions. A short summary appears on the console while
 full details are stored in the log file. The logger shortens absolute paths so
 logs remain portable and records the final filenames used for plots and tables.
 Progress indicators print to ``stdout`` and flush on every update so long
-optimisations do not appear stalled on Linux terminals.
+optimisations do not appear stalled on Linux terminals. The ensemble sampler's
+progress reporter now surfaces quantiles for every fitted parameter, never
+omitting late entries, and wraps walker snapshots so long parameter lists stay
+readable. Internally it reuses a scratch buffer for the expanded parameter
+matrix, shaving several percent off the time spent in diagnostic callbacks for
+long chains.
 Dependency checks reuse a cached import list stored in
 `.cache/dependency_scan.json`. The cache records the absolute path, size and
 modification time of every parsed module so unchanged worktrees skip the AST
