@@ -1,3 +1,5 @@
+# Last Updated: 2025-10-31
+
 """Custom pre-commit validations specific to the Copernican Suite.
 
 The checks provided here extend the standard tooling enforced by the

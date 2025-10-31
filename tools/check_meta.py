@@ -1,3 +1,5 @@
+# Last Updated: 2025-10-31
+
 """Utility helpers for validating documentation metadata.
 
 The Copernican Suite keeps the canonical release number in
@@ -64,7 +66,7 @@ def extract_last_updated_dates(text: str) -> List[_dt.date]:
 
 
 def _header_contains_last_updated(text: str) -> bool:
-    """Return ``True`` when the first three lines expose a ``Last Updated`` marker."""
+    """Return ``True`` if a ``Last Updated`` marker appears in the header."""
 
     header_lines = text.splitlines()[:3]
     header_text = "\n".join(header_lines)
