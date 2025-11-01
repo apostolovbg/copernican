@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-01
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -9,7 +10,9 @@ fully self-contained log file.  Console messages and user prompts are
 mirrored verbatim by patching ``print`` and ``input``; path information is
 sanitised so absolute directories outside the repository are not leaked.
 Consumers can therefore rely on the log for complete provenance of a
-session without clutter or duplicated lines.
+session without clutter or duplicated lines.  Log timestamps are emitted in
+Coordinated Universal Time (UTC) so diagnostics remain comparable across
+machines in different time zones.
 """
 
 import builtins
@@ -18,6 +21,7 @@ import logging
 import os
 import platform
 import sys
+import time
 
 from . import console_output
 from .utils import ensure_dir_exists, get_timestamp
@@ -119,6 +123,7 @@ def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
     fh = logging.FileHandler(log_filename)
     fh.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    formatter.converter = time.gmtime
     fh.setFormatter(formatter)
     if base_dir:
         fh.addFilter(_PathFilter(base_dir))
@@ -132,7 +137,9 @@ def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
     ch.addFilter(_ConsoleFilter())
     logger.addHandler(ch)
 
-    logging.info(f"Logging initialized. Log file: {log_filename}")
+    logging.info(
+        f"Logging initialized with UTC timestamps. Log file: {log_filename}"
+    )
 
     if base_dir:
         _patch_builtins(base_dir)

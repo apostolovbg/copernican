@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-10-31
+**Last Updated:** 2025-11-01
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,21 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 7.1.1
+- 2025-11-01: Normalised every runtime timestamp to Coordinated Universal Time
+  (UTC) across logging, manifests and filenames, updated metadata
+  validators and pre-commit checks to read the UTC clock, added targeted
+  unit coverage for the new helpers, refreshed documentation, and bumped
+  the recorded version (OpenAI ChatGPT)
+
+## Version 7.1.0
+- 2025-11-01: Added an interactive Stage 2 sampler configuration menu that
+  records production steps, burn-in length, walker counts and pool sizes,
+  ensured the MCMC engine honours explicit pool selections when sizing the
+  ensemble, persisted the sampler plan in parameter summaries, refreshed
+  documentation, bumped the recorded version and extended regression tests
+  for the new metadata (OpenAI ChatGPT)
 
 ## Version 7.0.6
 - 2025-10-31: Retired the sound-horizon fallback, enforced explicit

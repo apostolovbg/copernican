@@ -1,10 +1,10 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-10-31
+# Last Updated: 2025-11-01
 
 """Markov Chain Monte Carlo engine using :mod:`emcee`.
 
-**Last Updated:** 2025-10-31
+**Last Updated:** 2025-11-01
 
 The combined optimiser has been retired entirely, leaving this sampler as the
 sole runtime engine.  It continues to focus on Supernova Ia posteriors while
@@ -554,7 +554,9 @@ def fit_sne_parameters(
     5)`` heuristic, letting tests and scripted workflows trim the warm-up cost
     without affecting the production phase.  ``progress_granularity`` controls
     how many progress updates appear per stage and therefore also the cadence
-    of the accompanying diagnostics.
+    of the accompanying diagnostics.  When ``pool_size`` is provided the
+    walker ensemble expands as needed so every worker process remains busy
+    throughout burn-in and production.
     """
 
     logger = logging.getLogger()
@@ -606,7 +608,21 @@ def fit_sne_parameters(
     rng = np.random.default_rng()
 
     ndim_active = active_indices.size
-    n_walkers = max(n_walkers, 2 * ndim_active)
+    requested_pool = pool_size if pool_size not in (None, 0) else None
+
+    # ``emcee`` requires at least ``2 * ndim`` walkers.  Honour that rule and
+    # also guarantee that a user-specified worker pool never idles because
+    # the ensemble is too small.
+    minimum_walkers = max(2 * ndim_active, 2)
+    if requested_pool is not None:
+        minimum_walkers = max(minimum_walkers, int(requested_pool))
+
+    n_walkers = max(n_walkers, minimum_walkers)
+    logger.info(
+        "Using %d walkers for %d active parameter(s).",
+        int(n_walkers),
+        int(ndim_active),
+    )
 
     log_probability_active = _ActiveLogProbability(
         posterior_full,
@@ -628,7 +644,7 @@ def fit_sne_parameters(
         return {"success": False, "samples": None}
 
     pool = None
-    pool_processes = pool_size if pool_size not in (None, 0) else None
+    pool_processes = requested_pool
     if pool_processes is None:
         try:
             cpu_total = mp.cpu_count()
@@ -811,6 +827,7 @@ def fit_sne_parameters(
         "acceptance_fraction": acceptance,
         "burn_in_steps": burn_in,
         "production_steps": n_steps,
+        "n_walkers": int(n_walkers),
         "autocorrelation_time": autocorr,
         "pool_workers": int(pool_processes or 0),
         "progress_granularity": int(progress_granularity),

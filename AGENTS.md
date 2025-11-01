@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-10-31
+**Last Updated:** 2025-11-01
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -72,6 +72,16 @@ progress messages for both burn-in and production phases, displays percentage
 indicators and continues to return ``-np.inf`` whenever a proposal falls outside
 declared parameter bounds or yields a non-finite chi-squared so the sampler
 rejects invalid walkers deterministically.
+
+Version 7.1.1 standardises every runtime timestamp on Coordinated
+Universal Time (UTC) so log files, manifests and output directories
+match across developer machines and CI runners. Version 7.1.0 adds an
+interactive Stage 2 sampler menu. After the CMB dataset loads, the
+launcher now prompts for production steps, burn-in length, walker count
+and multiprocessing pool size, suggesting minimum values derived from
+the selected models. The chosen configuration is logged and written to
+the parameter summary files so trimmed exploratory runs and
+CPU-optimised batches remain auditable.
 Parameter priors must now declare an explicit `type`; legacy `distribution`
 aliases are rejected.  The parser canonicalises every mapping, injects
 `type: fixed` for bounds whose endpoints coincide and surfaces deterministic

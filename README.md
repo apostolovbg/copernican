@@ -1,26 +1,32 @@
-**Version:** 7.0.6
-**Last Updated:** 2025-10-31
+**Version:** 7.1.1
+**Last Updated:** 2025-11-01
 
 ![Copernican Suite banner](docs/banner_github.png)
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and
-Cosmic Microwave Background (CMB) data. Version 7.0.6 removes the automatic
-sound-horizon fallback, requiring every BAO-capable model to declare its own
-`rs_expression` so fits never double-count photon densities and remain
-scientifically controlled. Version 7.0.5 retools the likelihood helpers so they
-cache numpy views of their input datasets and reuse residual buffers,
-eliminating repeated DataFrame conversions inside the multiprocessing pool and
-keeping the engine responsive even when Stage 2 evaluates thousands of
-posterior calls per second. Version 7.0.4 hardens version discovery so the
-macOS launcher continues to boot even when
+Cosmic Microwave Background (CMB) data. Version 7.1.1 normalises every
+runtime timestamp to Coordinated Universal Time (UTC) so local runs match
+CI logs and manifest records regardless of locale. Version 7.1.0 introduces
+an interactive Stage 2 configuration menu that captures production steps,
+burn-in length, walker ensembles and multiprocessing pool sizes before the
+sampler launches. The selections are logged and mirrored in the parameter
+summary files so trimmed exploratory runs stay reproducible. Version 7.0.6
+removes the automatic sound-horizon fallback, requiring every BAO-capable
+model to declare its own `rs_expression` so fits never double-count photon
+densities and remain scientifically controlled. Version 7.0.5 retools the
+likelihood helpers so they cache numpy views of their input datasets and
+reuse residual buffers, eliminating repeated DataFrame conversions inside the
+multiprocessing pool and keeping the engine responsive even when Stage 2
+evaluates thousands of posterior calls per second. Version 7.0.4 hardens
+version discovery so the macOS launcher continues to boot even when
 ``copernican_lib.version.get_version`` is missing from partially upgraded
-installations. Version 7.0.3 rebuilt the symbolic distance helpers as self-
-reconstructing wrappers so spawn-based multiprocessing pools can unpickle them
-deterministically, eliminating the missing attribute errors reported on macOS
-runners. Support for gravitational waves and standard sirens remains on the
-roadmap and the refined architecture keeps those additions straightforward to
-stage.
+installations. Version 7.0.3 rebuilt the symbolic distance helpers as
+self-reconstructing wrappers so spawn-based multiprocessing pools can
+unpickle them deterministically, eliminating the missing attribute errors
+reported on macOS runners. Support for gravitational waves and standard
+sirens remains on the roadmap and the refined architecture keeps those
+additions straightforward to stage.
 
 Engines, datasets and models stay fully pluggable. Generated YAML definitions
 are transformed into :class:`copernican_lib.plugins.EnginePlugin`

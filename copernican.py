@@ -1,4 +1,4 @@
-# Last Updated: 2025-10-31
+# Last Updated: 2025-11-01
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -21,7 +21,9 @@ import ast
 import copy
 import importlib
 import importlib.util
+import inspect
 import json
+import math
 import os
 import sys
 import platform
@@ -731,6 +733,203 @@ def select_from_list(options, prompt):
         console.write("Invalid selection. Try again.")
 
 
+def _count_active_parameters(plugin, *, engine_module) -> int:
+    """Return the number of free parameters declared by ``plugin``.
+
+    ``emcee`` mandates at least ``2 * ndim`` walkers.  The helper mirrors the
+    engine's fixed-parameter detection so the interactive prompt can recommend
+    an ensemble size that respects any effectively locked coordinates.
+    """
+
+    bounds = list(getattr(plugin, "PARAMETER_BOUNDS", []))
+    names = list(getattr(plugin, "PARAMETER_NAMES", []))
+    if not bounds or len(bounds) != len(names):
+        return max(len(names), 1)
+
+    rtol = getattr(engine_module, "_FIXED_BOUNDS_RTOL", 1e-9)
+    atol = getattr(engine_module, "_FIXED_BOUNDS_ATOL", 1e-12)
+
+    active = 0
+    for low, high in bounds:
+        lower = -math.inf if low is None else float(low)
+        upper = math.inf if high is None else float(high)
+        if math.isfinite(lower) and math.isfinite(upper):
+            width = upper - lower
+            centre = (upper + lower) / 2.0
+            scale = max(abs(centre), 1.0)
+            threshold = scale * rtol + atol
+            if math.isfinite(width) and width <= threshold:
+                continue
+        active += 1
+    return max(active, 1)
+
+
+def prompt_sampling_configuration(
+    engine_module,
+    lcdm_plugin,
+    alt_model_plugin,
+):
+    """Return user-selected sampler settings or ``None`` if cancelled."""
+
+    fit_sig = inspect.signature(engine_module.fit_sne_parameters)
+    try:
+        default_steps = int(fit_sig.parameters["n_steps"].default)
+    except (KeyError, ValueError, TypeError):
+        default_steps = 200
+    try:
+        default_walkers = int(fit_sig.parameters["n_walkers"].default)
+    except (KeyError, ValueError, TypeError):
+        default_walkers = 32
+
+    lcdm_active = _count_active_parameters(lcdm_plugin, engine_module=engine_module)
+    alt_active = _count_active_parameters(
+        alt_model_plugin,
+        engine_module=engine_module,
+    )
+    minimum_walkers = max(2 * max(lcdm_active, alt_active), 2)
+
+    cpu_total = os.cpu_count() or 0
+    default_pool = cpu_total if cpu_total > 0 else minimum_walkers
+    default_pool = max(default_pool, 1)
+
+    while True:
+        console.write("\nConfigure ensemble sampler settings:")
+        console.write(f"  ΛCDM active parameters: {lcdm_active}")
+        console.write(
+            f"  {alt_model_plugin.MODEL_NAME} active parameters: {alt_active}"
+        )
+        console.write(
+            f"  Minimum walkers per emcee rule: {minimum_walkers}"
+        )
+        console.write(
+            "Press Enter at any prompt to accept the default value."
+        )
+
+        console.write(f"Default production steps: {default_steps}")
+        console.write("Leave blank to use this value.")
+        while True:
+            entry = console.ask("Production steps: ").strip()
+            if not entry:
+                n_steps = default_steps
+                break
+            try:
+                n_steps = int(entry)
+            except ValueError:
+                console.write("Steps must be an integer.", error=True)
+                continue
+            if n_steps <= 0:
+                console.write("Steps must be positive.", error=True)
+                continue
+            break
+
+        default_burn = max(100, n_steps // 5)
+        quick_burn = max(1, n_steps // 5)
+        console.write(f"Default burn-in steps: {default_burn}")
+        console.write(
+            f"A quicker warm-up such as {quick_burn} can save time."
+        )
+        console.write("Leave blank to keep the default warm-up length.")
+        while True:
+            entry = console.ask("Burn-in steps: ").strip()
+            if not entry:
+                burn_in = default_burn
+                break
+            try:
+                burn_in = int(entry)
+            except ValueError:
+                console.write("Burn-in must be an integer.", error=True)
+                continue
+            if burn_in <= 0:
+                console.write("Burn-in must be positive.", error=True)
+                continue
+            break
+
+        walker_default = max(default_walkers, minimum_walkers)
+        console.write(f"Default walkers: {walker_default}")
+        console.write("Leave blank to accept this recommendation.")
+        console.write(
+            f"At least {minimum_walkers} walkers are required for stability."
+        )
+        while True:
+            entry = console.ask("Number of walkers: ").strip()
+            if not entry:
+                n_walkers = walker_default
+                break
+            try:
+                n_walkers = int(entry)
+            except ValueError:
+                console.write("Walker count must be an integer.", error=True)
+                continue
+            if n_walkers < minimum_walkers:
+                console.write(
+                    (
+                        "Walker count is below the required minimum; the "
+                        "ensemble would stagnate."
+                    ),
+                    error=True,
+                )
+                continue
+            break
+
+        console.write(f"Default pool size: {default_pool}")
+        console.write("Enter 0 to disable multiprocessing.")
+        if cpu_total > 0:
+            console.write(f"Detected logical CPU cores: {cpu_total}.")
+        while True:
+            entry = console.ask("Pool workers: ").strip().lower()
+            if not entry:
+                pool_size = default_pool
+                break
+            if entry in {"0", "none", "disable"}:
+                pool_size = None
+                break
+            try:
+                pool_value = int(entry)
+            except ValueError:
+                console.write("Pool size must be an integer.", error=True)
+                continue
+            if pool_value < 0:
+                console.write("Pool size cannot be negative.", error=True)
+                continue
+            pool_size = pool_value if pool_value > 0 else None
+            break
+
+        effective_pool = pool_size if pool_size is not None else None
+        adjusted_walkers = max(
+            n_walkers,
+            minimum_walkers,
+            effective_pool or 0,
+        )
+        if adjusted_walkers != n_walkers:
+            console.write(
+                f"Walker count increased to {adjusted_walkers} to "
+                "match the worker pool."
+            )
+            n_walkers = adjusted_walkers
+
+        console.write("\nSampling plan summary:")
+        console.write(f"  Production steps: {n_steps}")
+        console.write(f"  Burn-in steps: {burn_in}")
+        console.write(f"  Walkers: {n_walkers}")
+        pool_display = effective_pool if effective_pool is not None else "auto"
+        console.write(f"  Pool workers: {pool_display}")
+
+        while True:
+            confirm = console.ask("Start run now? [Y/n/c]: ").strip().lower()
+            if confirm in {"", "y", "yes"}:
+                return {
+                    "n_steps": n_steps,
+                    "burn_in_steps": burn_in,
+                    "n_walkers": n_walkers,
+                    "pool_size": effective_pool,
+                }
+            if confirm in {"c", "cancel"}:
+                return None
+            if confirm in {"n", "no"}:
+                console.write("Reconfigure sampling settings.")
+                break
+            console.write("Please respond with Y, N or C.")
+
 def cleanup_cache(base_dir):
     """Remove temporary files left behind by previous runs."""
 
@@ -925,12 +1124,12 @@ def main_workflow():
             exit_clean(1)
         select_seed()
         logger.info("Using RNG seed %s", utils.get_random_seed())
-        start_ts = time.strftime("%y%m%d_%H%M%S")
-        run_start_dt = datetime.datetime.now()
+        run_start_dt = datetime.datetime.now(datetime.timezone.utc)
+        start_ts = run_start_dt.strftime("%y%m%d_%H%M%S")
         run_start_pc = time.perf_counter()
         logger.info(
             f"Copernican {COPERNICAN_VERSION} has initialized! "
-            f"Current timestamp is {start_ts}. Log file: {log_file}"
+            f"Current timestamp is {start_ts} UTC. Log file: {log_file}"
         )
         logger.info(
             "Using standard CPU (SciPy) computational backend with "
@@ -1048,6 +1247,43 @@ def main_workflow():
                 }
             )
 
+        sampling_plan = prompt_sampling_configuration(
+            cosmo_engine_selected,
+            lcdm,
+            alt_model_plugin,
+        )
+        if sampling_plan is None:
+            logger.info("User cancelled sampling configuration; aborting run.")
+            _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
+            cleanup_cache(SCRIPT_DIR)
+            console.write("")
+            return
+
+        sampling_steps = int(sampling_plan["n_steps"])
+        sampling_burn_in = int(sampling_plan["burn_in_steps"])
+        sampling_walkers = int(sampling_plan["n_walkers"])
+        sampling_pool = sampling_plan["pool_size"]
+
+        pool_label = sampling_pool if sampling_pool is not None else "auto"
+        logger.info(
+            (
+                "Sampler configuration: steps=%d, burn-in=%d, walkers=%d, "
+                "pool=%s"
+            ),
+            sampling_steps,
+            sampling_burn_in,
+            sampling_walkers,
+            pool_label,
+        )
+        console.write(
+            f"Configured sampler: steps {sampling_steps}, burn-in "
+            f"{sampling_burn_in}."
+        )
+        console.write(
+            f"Walker ensemble {sampling_walkers}, pool {pool_label}."
+        )
+
         manifest = run_manifest.build_manifest(
             models=[
                 (lcdm, lcdm_parsed.get("version", "unknown")),
@@ -1083,6 +1319,10 @@ def main_workflow():
             lcdm,
             bao_data_df=bao_data_df,
             cmb_data_df=cmb_data_df,
+            n_walkers=sampling_walkers,
+            n_steps=sampling_steps,
+            pool_size=sampling_pool,
+            burn_in_steps=sampling_burn_in,
         )
         lcdm_time += time.perf_counter() - t0
         same_name = (
@@ -1106,6 +1346,10 @@ def main_workflow():
                 alt_model_plugin,
                 bao_data_df=bao_data_df,
                 cmb_data_df=cmb_data_df,
+                n_walkers=sampling_walkers,
+                n_steps=sampling_steps,
+                pool_size=sampling_pool,
+                burn_in_steps=sampling_burn_in,
             )
             alt_time += time.perf_counter() - t0
 
@@ -1369,7 +1613,7 @@ def main_workflow():
             f"{alt_cmb_summary['chi2_cmb']:.2f}"
         )
 
-        run_end_dt = datetime.datetime.now()
+        run_end_dt = datetime.datetime.now(datetime.timezone.utc)
         end_ts = run_end_dt.strftime("%Y%m%d_%H%M%S")
         new_dir = os.path.join(
             OUTPUT_BASE_DIR, f"copernican-run_{end_ts}"
@@ -1559,13 +1803,13 @@ def main_workflow():
         cpu_model, cpu_freq = _get_cpu_info()
         os_info = platform.platform()
 
-        logger.info(f"Run completed at {end_ts}.")
+        logger.info(f"Run completed at {end_ts} UTC.")
 
         console.write(
-            f"Run started on {run_start_dt.strftime('%Y-%m-%d %H:%M:%S')}"
+            f"Run started on {run_start_dt.strftime('%Y-%m-%d %H:%M:%S')} UTC"
         )
         console.write(
-            f"Run ended on {run_end_dt.strftime('%Y-%m-%d %H:%M:%S')}"
+            f"Run ended on {run_end_dt.strftime('%Y-%m-%d %H:%M:%S')} UTC"
         )
         console.write(
             f"Run took {lcdm_time:.2f}s for LCDM and {alt_time:.2f}s for "

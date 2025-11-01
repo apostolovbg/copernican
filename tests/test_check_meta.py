@@ -1,4 +1,4 @@
-# Last Updated: 2025-10-31
+# Last Updated: 2025-11-01
 
 """Tests for :mod:`tools.check_meta`."""
 
@@ -9,7 +9,7 @@ from pathlib import Path
 
 from tools import check_meta
 
-_REFERENCE_DATE = _dt.date(2025, 10, 31)
+_REFERENCE_DATE = _dt.date(2025, 11, 1)
 
 
 def test_validate_metadata_current_repo() -> None:
@@ -112,3 +112,35 @@ def test_validate_metadata_accepts_third_line_marker(
     )
 
     assert errors == []
+
+
+def test_validate_metadata_default_uses_utc(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """The default date source should rely on a UTC-normalised clock."""
+
+    base = tmp_path
+    (base / "copernican_lib").mkdir(parents=True)
+    (base / "copernican_lib" / "VERSION").write_text(
+        "1.0.0\n", encoding="utf-8"
+    )
+    (base / "README.md").write_text(
+        "**Version:** 1.0.0\n**Last Updated:** 2099-01-01\n",
+        encoding="utf-8",
+    )
+    (base / "CHANGELOG.md").write_text(
+        "# Changelog\n**Last Updated:** 2099-01-01\n",
+        encoding="utf-8",
+    )
+    (base / "CITATION.cff").write_text(
+        '# Last Updated: 2099-01-01\nversion: "1.0.0"\n'
+        'preferred-citation:\n  version: "1.0.0"\n',
+        encoding="utf-8",
+    )
+
+    sentinel = _dt.date(2100, 1, 1)
+    monkeypatch.setattr(check_meta, "_utc_today", lambda: sentinel)
+
+    errors = check_meta.validate_metadata(base_path=base)
+
+    assert all("future timestamp" not in error for error in errors)
