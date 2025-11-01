@@ -21,6 +21,19 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.2.3
+- 2025-11-01: Synced the functional CAMB regression test with the restored
+  neutrino-sector pass-through so cached :math:`D_\ell` spectra match direct
+  solver calls, refreshed documentation to describe the alignment and bumped
+  project metadata to 7.2.3 (OpenAI ChatGPT)
+
+## Version 7.2.2
+- 2025-11-01: Restored the full neutrino-sector mapping for the CAMB helpers,
+  mirrored the configuration across the cached background observables, added
+  regression coverage that compares helper outputs against direct CAMB calls and
+  refreshed the architecture notes to highlight the restored pass-through
+  (OpenAI ChatGPT)
+
 ## Version 7.2.1
 - 2025-11-01: Returned :math:`D_\ell` spectra from the CAMB helper, restored a
   controlled BAO background fallback that reuses model distance functions when

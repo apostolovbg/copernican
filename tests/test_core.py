@@ -1,6 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-10-31
+# Last Updated: 2025-11-01
 
 """Basic functional tests for the Copernican Suite."""
 
@@ -19,6 +19,7 @@ import copernican_lib.engine_interface as engine_interface
 import copernican_lib.model_coder as model_coder
 import copernican_lib.model_parser as model_parser
 import engines.cosmo_engine_mcmc as engine
+from copernican_lib.likelihoods import cmb
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 os.environ.setdefault("VIRTUAL_ENV", str(REPO_ROOT / ".venv"))
@@ -194,16 +195,13 @@ class FunctionalTestCase(unittest.TestCase):
             camb_params, ells, spectra=("TT",)
         )
 
-        params = camb.CAMBparams()
-        params.set_cosmology(
-            H0=camb_params["H0"],
-            ombh2=camb_params["ombh2"],
-            omch2=camb_params["omch2"],
-            tau=camb_params["tau"],
-        )
-        params.omnuh2 = camb_params.get("omnuh2", 0.0)
+        # Mirror the likelihood helper's CAMB parameter construction so the
+        # comparison exercises the same neutrino-sector mapping that feeds the
+        # cached spectra.  Calling the internal builder keeps the functional
+        # regression aligned with whichever optional neutrino knobs the plugin
+        # exposes.
+        params = cmb._make_camb_params(camb_params, lmax=int(np.max(ells)))
         params.InitPower.set_params(As=camb_params["As"], ns=camb_params["ns"])
-        params.set_for_lmax(int(np.max(ells)) + 300, lens_potential_accuracy=0)
         ref = camb.get_results(params).get_unlensed_scalar_cls(
             lmax=int(np.max(ells)), CMB_unit="muK"
         )

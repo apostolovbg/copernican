@@ -15,6 +15,7 @@ against published Planck-lite tables use consistent conventions.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any, Iterable, Mapping, Sequence
@@ -29,6 +30,7 @@ _C_LIGHT_KM_S = 299_792.458
 _LMAX_PADDING = 300
 _LENS_POTENTIAL_ACCURACY = 0
 _CACHE_PRECISION = 15
+_MNU_PATTERN = re.compile(r"^mnu(\d+)$")
 
 
 def _normalise_value(value: Any) -> Any:
@@ -66,13 +68,64 @@ def _make_camb_params(
 
     params = camb.CAMBparams()
     cosmo_kwargs: dict[str, Any] = {}
-    for key in ("H0", "ombh2", "omch2"):
-        if key in param_dict:
-            cosmo_kwargs[key] = float(param_dict[key])
+    # CAMB insists on either ``H0`` or an angular scale parameter.  We mirror
+    # the defaults used in ``_cached_cmb`` so helper calls remain backward
+    # compatible when optional keys are omitted from ``param_dict``.
+    cosmo_kwargs["H0"] = float(param_dict.get("H0", 67.5))
+    cosmo_kwargs["ombh2"] = float(param_dict.get("ombh2", 0.022))
+    cosmo_kwargs["omch2"] = float(param_dict.get("omch2", 0.12))
     if "tau" in param_dict:
         cosmo_kwargs["tau"] = float(param_dict["tau"])
+    else:
+        cosmo_kwargs["tau"] = float(0.06)
     if "omk" in param_dict:
         cosmo_kwargs["omk"] = float(param_dict["omk"])
+    if "YHe" in param_dict:
+        cosmo_kwargs["YHe"] = float(param_dict["YHe"])
+    if "theta_H0_range" in param_dict:
+        theta_range = param_dict["theta_H0_range"]
+        cosmo_kwargs["theta_H0_range"] = tuple(
+            float(value) for value in np.atleast_1d(theta_range)[:2]
+        )
+
+    # Translate high-level neutrino controls into the names CAMB expects.  The
+    # helper accepts both the effective relativistic degrees of freedom and the
+    # standard reference value so users can keep oscillation-motivated deltas
+    # explicit in their parameter maps.
+    if "Neff" in param_dict:
+        cosmo_kwargs["nnu"] = float(param_dict["Neff"])
+    if "standard_neutrino_neff" in param_dict:
+        cosmo_kwargs["standard_neutrino_neff"] = float(
+            param_dict["standard_neutrino_neff"]
+        )
+    if "num_massive_neutrinos" in param_dict:
+        cosmo_kwargs["num_massive_neutrinos"] = int(
+            float(param_dict["num_massive_neutrinos"])
+        )
+    if "neutrino_hierarchy" in param_dict:
+        cosmo_kwargs["neutrino_hierarchy"] = param_dict["neutrino_hierarchy"]
+
+    # The YAML layer lets models expose individual mass eigenstates via keys
+    # such as ``mnu1`` and ``mnu2``.  CAMB only receives the summed mass, so we
+    # aggregate the ordered entries before forwarding them.  When a direct
+    # ``sum_mnu`` mapping is supplied it overrides the individual masses, while
+    # ``mnu`` remains available for historical parameterisations.
+    dynamic_mass_keys = [
+        key for key in param_dict if _MNU_PATTERN.match(str(key))
+    ]
+    if dynamic_mass_keys:
+        ordered = sorted(
+            dynamic_mass_keys,
+            key=lambda item: int(_MNU_PATTERN.match(str(item)).group(1)),
+        )
+        masses = [float(param_dict[key]) for key in ordered]
+        cosmo_kwargs.setdefault("num_massive_neutrinos", len(masses))
+        cosmo_kwargs["mnu"] = float(np.sum(masses))
+    if "sum_mnu" in param_dict:
+        cosmo_kwargs["mnu"] = float(param_dict["sum_mnu"])
+    elif "mnu" in param_dict:
+        cosmo_kwargs["mnu"] = float(param_dict["mnu"])
+
     params.set_cosmology(**cosmo_kwargs)
     if "omnuh2" in param_dict:
         params.omnuh2 = float(param_dict["omnuh2"])
@@ -116,40 +169,7 @@ def _cached_cmb(
 
     _, items, lmax, spectra = key
     param_dict = _restore_dict(items)
-    params = camb.CAMBparams()
-    params.set_cosmology(
-        H0=float(param_dict.get("H0", 67.5)),
-        ombh2=float(param_dict.get("ombh2", 0.022)),
-        omch2=float(param_dict.get("omch2", 0.12)),
-        omk=float(param_dict.get("omk", 0.0)),
-        tau=float(param_dict.get("tau", 0.06)),
-    )
-    params.omnuh2 = float(param_dict.get("omnuh2", 0.0))
-    power_kwargs: dict[str, Any] = {}
-    if "As" in param_dict:
-        power_kwargs["As"] = float(param_dict["As"])
-    if "ns" in param_dict:
-        power_kwargs["ns"] = float(param_dict["ns"])
-    if "nrun" in param_dict:
-        power_kwargs["nrun"] = float(param_dict["nrun"])
-    if "nrunrun" in param_dict:
-        power_kwargs["nrunrun"] = float(param_dict["nrunrun"])
-    if "r" in param_dict:
-        power_kwargs["r"] = float(param_dict["r"])
-    if power_kwargs:
-        params.InitPower.set_params(**power_kwargs)
-    accuracy = getattr(params, "Accuracy", None)
-    if accuracy is not None:
-        if "AccuracyBoost" in param_dict:
-            accuracy.AccuracyBoost = float(param_dict["AccuracyBoost"])
-        if "lAccuracyBoost" in param_dict:
-            accuracy.LAccuracyBoost = float(param_dict["lAccuracyBoost"])
-        if "kAccuracyBoost" in param_dict:
-            accuracy.KAccuracyBoost = float(param_dict["kAccuracyBoost"])
-    params.set_for_lmax(
-        int(lmax) + _LMAX_PADDING,
-        lens_potential_accuracy=_LENS_POTENTIAL_ACCURACY,
-    )
+    params = _make_camb_params(param_dict, lmax=int(lmax))
     results = camb.get_results(params)
     cls = results.get_unlensed_scalar_cls(lmax=lmax, CMB_unit="muK")
     out: dict[str, np.ndarray] = {}
