@@ -1,5 +1,5 @@
 # Copyright (c) 2025 Copernican Suite developers.
-# Last Updated: 2025-10-31
+# Last Updated: 2025-11-01
 # See LICENSE.md in the repository root for details.
 
 """Translate sanitized model YAML into executable NumPy-aware callables.
@@ -15,14 +15,17 @@ whenever they are unpickled.
 import ast
 import itertools
 import logging
+import math
 import re
 import sys
+import warnings
 from pathlib import Path
 
 import numpy as np
 import sympy as sp
 import yaml
-from scipy.integrate import cumulative_trapezoid, quad
+from scipy.integrate import IntegrationWarning, cumulative_trapezoid
+from scipy.integrate import quad as _SCIPY_QUAD
 from sympy.parsing.sympy_parser import (
     implicit_multiplication_application,
     parse_expr,
@@ -32,6 +35,13 @@ from sympy.printing.numpy import NumPyPrinter
 
 from . import console_output as console
 from . import error_handler, latex_utils
+
+LOGGER = logging.getLogger(__name__)
+
+_DEFAULT_QUAD_LIMIT = 200
+_MAX_QUAD_LIMIT = 6400
+_MIN_SEGMENT_COUNT = 4
+_MAX_SEGMENT_COUNT = 32
 
 _GENERATED_NAME_COUNTER = itertools.count(1)
 
@@ -114,7 +124,11 @@ class _GeneratedCallable:
             env = {
                 "np": np,
                 "numpy": np,
-                "quad": quad,
+                # ``quad`` is mapped to the resilient helper so that
+                # generated callables automatically inherit the retry
+                # logic that guards against SciPy ``IntegrationWarning``
+                # emissions.
+                "quad": robust_quad,
                 "__builtins__": {},
                 "__name__": __name__,
             }
@@ -178,7 +192,16 @@ class _ComovingDistance:
             return 299792.458 / self._hz_fn(zp, *params)
 
         if np.isscalar(z_val):
-            return quad(integrand, 0.0, float(z_val), limit=100)[0]
+            # The adaptive quad helper raises the subdivision ceiling
+            # automatically so sharply varying integrands—common in the
+            # suite's experimental models—do not terminate with a SciPy
+            # ``IntegrationWarning``.
+            return robust_quad(
+                integrand,
+                0.0,
+                float(z_val),
+                limit=_DEFAULT_QUAD_LIMIT,
+            )[0]
 
         z_arr = np.asarray(z_val, dtype=float)
         z_flat = np.ravel(z_arr)
@@ -289,6 +312,198 @@ class QuadPrinter(NumPyPrinter):
             f"quad(lambda {var_code}: {integrand_code}, {a_code}, "
             f"{b_code})[0]"
         )
+
+
+def _is_finite_bound(value) -> bool:
+    """Return ``True`` when ``value`` can be represented as a finite float."""
+
+    try:
+        return math.isfinite(float(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def robust_quad(
+    func,
+    a,
+    b,
+    *args,
+    limit: int = _DEFAULT_QUAD_LIMIT,
+    max_attempts: int = 5,
+    points: tuple[float, ...] | None = None,
+    **kwargs,
+):
+    """Evaluate ``func`` between ``a`` and ``b`` with resilience safeguards.
+
+    SciPy's :func:`scipy.integrate.quad` raises ``IntegrationWarning`` when
+    the integrator exhausts its internal subdivision limit. Wild cosmological
+    theories frequently push the sampler into such territory—oscillatory
+    terms, stiff transitions and narrow spikes all demand more work than the
+    default limit of fifty sub-intervals.  ``robust_quad`` retries the
+    integration with progressively larger limits, optionally splitting the
+    interval into smaller segments when simple retries still fail.  The helper
+    mirrors SciPy's return signature so existing call sites remain unchanged
+    while benefitting from the additional fault tolerance.
+
+    Parameters
+    ----------
+    func:
+        Callable of the integrand.  It must accept the integration variable as
+        the first argument, followed by ``*args`` supplied by the caller.
+    a, b:
+        Lower and upper integration bounds.  Infinite bounds are forwarded to
+        SciPy directly because the library already applies specialised
+        transformations for semi-infinite intervals.
+    *args:
+        Extra positional arguments forwarded to the integrand.
+    limit:
+        Starting subdivision limit used for the first attempt.  The helper
+        doubles this ceiling on every retry until ``_MAX_QUAD_LIMIT`` is
+        reached.
+    max_attempts:
+        Maximum number of retries before falling back to manual segmentation.
+    points:
+        Optional tuple of breakpoints propagated to SciPy's implementation so
+        known discontinuities are preserved across retries.
+    **kwargs:
+        Forwarded keyword arguments for :func:`scipy.integrate.quad`.
+    """
+
+    # Normalise ``points`` into a tuple so repeated retries do not mutate the
+    # caller-provided sequence.
+    if points is None:
+        points = ()
+    else:
+        points = tuple(points)
+
+    # Merge any ``points`` provided through ``**kwargs`` with the explicit
+    # ``points`` parameter while avoiding duplicate entries.
+    extra_points = kwargs.pop("points", None)
+    if extra_points:
+        combined = list(points)
+        combined.extend(extra_points)
+        points = tuple(dict.fromkeys(combined))
+
+    base_kwargs = dict(kwargs)
+
+    def _call_quad(lower, upper, limit_value, dynamic_points):
+        quad_kwargs = dict(base_kwargs)
+        if dynamic_points:
+            quad_kwargs["points"] = tuple(dynamic_points)
+        return _SCIPY_QUAD(
+            func,
+            lower,
+            upper,
+            *args,
+            limit=limit_value,
+            **quad_kwargs,
+        )
+
+    current_limit = max(1, int(limit))
+    attempts = 0
+
+    while attempts < max_attempts and current_limit <= _MAX_QUAD_LIMIT:
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", IntegrationWarning)
+                finite_points = (
+                    points
+                    if _is_finite_bound(a) and _is_finite_bound(b)
+                    else ()
+                )
+                return _call_quad(
+                    a,
+                    b,
+                    current_limit,
+                    finite_points,
+                )
+        except IntegrationWarning as exc:
+            attempts += 1
+            current_limit = min(current_limit * 2, _MAX_QUAD_LIMIT)
+            LOGGER.debug(
+                "IntegrationWarning during quad between %s and %s; "
+                "escalating limit to %s (attempt %s/%s): %s",
+                a,
+                b,
+                current_limit,
+                attempts,
+                max_attempts,
+                exc,
+            )
+
+    # If simple retries failed, split finite intervals into progressively
+    # smaller segments.  This mirrors the advice packaged with SciPy's
+    # warnings and prevents pathological models from derailing the sampler.
+    if _is_finite_bound(a) and _is_finite_bound(b):
+        start = float(a)
+        stop = float(b)
+        segment_count = _MIN_SEGMENT_COUNT
+        while segment_count <= _MAX_SEGMENT_COUNT:
+            edges = np.linspace(start, stop, segment_count + 1, dtype=float)
+            total = 0.0
+            total_err = 0.0
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error", IntegrationWarning)
+                    for left, right in zip(edges[:-1], edges[1:]):
+                        # Only pass breakpoints that fall strictly within the
+                        # current sub-interval.
+                        sub_points = tuple(
+                            p
+                            for p in points
+                            if min(left, right) < p < max(left, right)
+                        )
+                        partial, err = _call_quad(
+                            left,
+                            right,
+                            current_limit,
+                            sub_points,
+                        )
+                        total += partial
+                        total_err += err
+            except IntegrationWarning as exc:
+                segment_count *= 2
+                LOGGER.debug(
+                    "IntegrationWarning persisted after splitting into %s "
+                    "segments between %s and %s: %s",
+                    segment_count,
+                    a,
+                    b,
+                    exc,
+                )
+                continue
+
+            LOGGER.info(
+                "Resolved challenging integral between %s and %s by splitting "
+                "into %s segments.",
+                a,
+                b,
+                segment_count,
+            )
+            return total, total_err
+
+    # Final attempt: run SciPy's quad with warnings suppressed so users still
+    # receive a numerical answer alongside SciPy's error estimate.  Returning
+    # a value keeps the sampler moving and the suppressed warning is replaced
+    # with an explicit log entry.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", IntegrationWarning)
+        finite_points = (
+            points if _is_finite_bound(a) and _is_finite_bound(b) else ()
+        )
+        result = _call_quad(
+            a,
+            b,
+            current_limit,
+            finite_points,
+        )
+    LOGGER.warning(
+        "quad returned after exhausting retries between %s and %s; check the "
+        "model for singularities or provide explicit breakpoints.",
+        a,
+        b,
+    )
+    return result
 
 
 def _latex_to_sympy_str(expr: str) -> str:

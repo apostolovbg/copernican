@@ -792,130 +792,140 @@ def prompt_sampling_configuration(
     default_pool = cpu_total if cpu_total > 0 else minimum_walkers
     default_pool = max(default_pool, 1)
 
-    while True:
-        console.write("\nConfigure ensemble sampler settings:")
-        console.write(f"  ΛCDM active parameters: {lcdm_active}")
-        console.write(
-            f"  {alt_model_plugin.MODEL_NAME} active parameters: {alt_active}"
-        )
-        console.write(
-            f"  Minimum walkers per emcee rule: {minimum_walkers}"
-        )
-        console.write(
-            "Press Enter at any prompt to accept the default value."
-        )
+    cpu_display = cpu_total if cpu_total and cpu_total > 0 else "unknown"
+    recommended_steps = default_steps
+    recommended_burn = max(100, recommended_steps // 5)
+    recommended_walkers = max(default_walkers, minimum_walkers)
+    recommended_pool = default_pool
 
-        console.write(f"Default production steps: {default_steps}")
-        console.write("Leave blank to use this value.")
+    def _format_pool(value: int | None) -> str:
+        return str(value) if value is not None else "auto"
+
+    def _collect_custom_plan() -> dict[str, int | None] | str | None:
+        """Gather a customised sampler configuration from the operator."""
+
         while True:
-            entry = console.ask("Production steps: ").strip()
+            console.write("")
+            console.write("Production steps control the total sampler iterations.")
+            console.write(f"  Recommended default: {recommended_steps}")
+            entry = console.ask(
+                f"Production steps [{recommended_steps}]: "
+            ).strip()
             if not entry:
-                n_steps = default_steps
-                break
-            try:
-                n_steps = int(entry)
-            except ValueError:
-                console.write("Steps must be an integer.", error=True)
-                continue
-            if n_steps <= 0:
-                console.write("Steps must be positive.", error=True)
-                continue
-            break
+                n_steps = recommended_steps
+            else:
+                try:
+                    n_steps = int(entry)
+                except ValueError:
+                    console.write("Steps must be an integer.", error=True)
+                    continue
+                if n_steps <= 0:
+                    console.write("Steps must be positive.", error=True)
+                    continue
 
-        default_burn = max(100, n_steps // 5)
-        quick_burn = max(1, n_steps // 5)
-        console.write(f"Default burn-in steps: {default_burn}")
-        console.write(
-            f"A quicker warm-up such as {quick_burn} can save time."
-        )
-        console.write("Leave blank to keep the default warm-up length.")
-        while True:
-            entry = console.ask("Burn-in steps: ").strip()
+            default_burn = max(100, n_steps // 5)
+            quick_burn = max(1, n_steps // 5)
+            console.write("")
+            console.write(
+                "Burn-in steps discard the early samples so the chain can "
+                "stabilise."
+            )
+            console.write(f"  Recommended warm-up: {default_burn}")
+            console.write(
+                f"  A shorter option such as {quick_burn} trades certainty for "
+                "speed."
+            )
+            entry = console.ask(f"Burn-in steps [{default_burn}]: ").strip()
             if not entry:
                 burn_in = default_burn
-                break
-            try:
-                burn_in = int(entry)
-            except ValueError:
-                console.write("Burn-in must be an integer.", error=True)
-                continue
-            if burn_in <= 0:
-                console.write("Burn-in must be positive.", error=True)
-                continue
-            break
+            else:
+                try:
+                    burn_in = int(entry)
+                except ValueError:
+                    console.write("Burn-in must be an integer.", error=True)
+                    continue
+                if burn_in <= 0:
+                    console.write("Burn-in must be positive.", error=True)
+                    continue
 
-        walker_default = max(default_walkers, minimum_walkers)
-        console.write(f"Default walkers: {walker_default}")
-        console.write("Leave blank to accept this recommendation.")
-        console.write(
-            f"At least {minimum_walkers} walkers are required for stability."
-        )
-        while True:
-            entry = console.ask("Number of walkers: ").strip()
+            walker_default = max(default_walkers, minimum_walkers)
+            console.write("")
+            console.write(
+                "Walkers sample the posterior in parallel; more walkers "
+                "increase convergence confidence."
+            )
+            console.write(f"  Required minimum: {minimum_walkers}")
+            console.write(f"  Recommended default: {walker_default}")
+            entry = console.ask(f"Number of walkers [{walker_default}]: ").strip()
             if not entry:
                 n_walkers = walker_default
-                break
-            try:
-                n_walkers = int(entry)
-            except ValueError:
-                console.write("Walker count must be an integer.", error=True)
-                continue
-            if n_walkers < minimum_walkers:
-                console.write(
-                    (
+            else:
+                try:
+                    n_walkers = int(entry)
+                except ValueError:
+                    console.write("Walker count must be an integer.", error=True)
+                    continue
+                if n_walkers < minimum_walkers:
+                    console.write(
                         "Walker count is below the required minimum; the "
-                        "ensemble would stagnate."
-                    ),
-                    error=True,
-                )
-                continue
-            break
+                        "ensemble would stagnate.",
+                        error=True,
+                    )
+                    continue
 
-        console.write(f"Default pool size: {default_pool}")
-        console.write("Enter 0 to disable multiprocessing.")
-        if cpu_total > 0:
-            console.write(f"Detected logical CPU cores: {cpu_total}.")
-        while True:
-            entry = console.ask("Pool workers: ").strip().lower()
-            if not entry:
-                pool_size = default_pool
-                break
-            if entry in {"0", "none", "disable"}:
-                pool_size = None
-                break
-            try:
-                pool_value = int(entry)
-            except ValueError:
-                console.write("Pool size must be an integer.", error=True)
-                continue
-            if pool_value < 0:
-                console.write("Pool size cannot be negative.", error=True)
-                continue
-            pool_size = pool_value if pool_value > 0 else None
-            break
-
-        effective_pool = pool_size if pool_size is not None else None
-        adjusted_walkers = max(
-            n_walkers,
-            minimum_walkers,
-            effective_pool or 0,
-        )
-        if adjusted_walkers != n_walkers:
+            console.write("")
             console.write(
-                f"Walker count increased to {adjusted_walkers} to "
-                "match the worker pool."
+                "Worker pools accelerate sampling by spreading walkers across "
+                "processes."
             )
-            n_walkers = adjusted_walkers
+            console.write(
+                "  Recommended pool size: "
+                f"{recommended_pool} (detected CPUs: {cpu_display})"
+            )
+            console.write("  Enter 0 to disable multiprocessing entirely.")
+            entry = console.ask(
+                f"Pool workers [{_format_pool(recommended_pool)}]: "
+            ).strip().lower()
+            if not entry:
+                pool_size: int | None = recommended_pool
+            elif entry in {"0", "none", "disable"}:
+                pool_size = None
+            else:
+                try:
+                    pool_value = int(entry)
+                except ValueError:
+                    console.write("Pool size must be an integer.", error=True)
+                    continue
+                if pool_value < 0:
+                    console.write("Pool size cannot be negative.", error=True)
+                    continue
+                pool_size = pool_value if pool_value > 0 else None
 
-        console.write("\nSampling plan summary:")
-        console.write(f"  Production steps: {n_steps}")
-        console.write(f"  Burn-in steps: {burn_in}")
-        console.write(f"  Walkers: {n_walkers}")
-        pool_display = effective_pool if effective_pool is not None else "auto"
-        console.write(f"  Pool workers: {pool_display}")
+            effective_pool = pool_size if pool_size is not None else None
+            adjusted_walkers = max(
+                n_walkers,
+                minimum_walkers,
+                effective_pool or 0,
+            )
+            if adjusted_walkers != n_walkers:
+                console.write("")
+                console.write(
+                    f"Walker count increased to {adjusted_walkers} to match the "
+                    "worker pool."
+                )
+                n_walkers = adjusted_walkers
 
-        while True:
-            confirm = console.ask("Start run now? [Y/n/c]: ").strip().lower()
+            console.write("")
+            console.write("Sampling plan summary:")
+            console.write(f"  Production steps: {n_steps}")
+            console.write(f"  Burn-in steps: {burn_in}")
+            console.write(f"  Walkers: {n_walkers}")
+            console.write(f"  Pool workers: {_format_pool(effective_pool)}")
+            console.write("")
+
+            confirm = console.ask(
+                "Accept these settings? [Y/r/b/c]: "
+            ).strip().lower()
             if confirm in {"", "y", "yes"}:
                 return {
                     "n_steps": n_steps,
@@ -925,10 +935,57 @@ def prompt_sampling_configuration(
                 }
             if confirm in {"c", "cancel"}:
                 return None
-            if confirm in {"n", "no"}:
-                console.write("Reconfigure sampling settings.")
-                break
-            console.write("Please respond with Y, N or C.")
+            if confirm in {"b", "back"}:
+                return "back"
+            if confirm in {"r", "restart", "n", "no"}:
+                console.write("Restarting the sampler questionnaire.")
+                continue
+            console.write("Please respond with Y, R, B or C.")
+
+    while True:
+        console.write("")
+        console.write("Sampler defaults summary:")
+        console.write(f"  ΛCDM active parameters: {lcdm_active}")
+        console.write(
+            f"  {alt_model_plugin.MODEL_NAME} active parameters: {alt_active}"
+        )
+        console.write(
+            f"  Minimum walkers per emcee rule: {minimum_walkers}"
+        )
+        console.write(
+            f"  Recommended production steps: {recommended_steps}"
+        )
+        console.write(f"  Recommended burn-in steps: {recommended_burn}")
+        console.write(f"  Recommended walkers: {recommended_walkers}")
+        console.write(
+            f"  Recommended pool workers: {_format_pool(recommended_pool)}"
+        )
+        console.write("")
+        console.write("1) Run with default settings")
+        console.write("2) Change settings")
+        console.write("C) Cancel configuration")
+        console.write("")
+
+        choice = console.ask("Write the number of choice: ").strip().lower()
+        if choice in {"", "1"}:
+            return {
+                "n_steps": recommended_steps,
+                "burn_in_steps": recommended_burn,
+                "n_walkers": recommended_walkers,
+                "pool_size": recommended_pool,
+            }
+        if choice == "2":
+            custom_plan = _collect_custom_plan()
+            if custom_plan is None:
+                return None
+            if custom_plan == "back":
+                console.write("")
+                console.write("Returning to default sampler summary.")
+                continue
+            return custom_plan
+        if choice in {"c", "cancel"}:
+            return None
+        console.write("Please choose 1, 2 or C.", error=True)
 
 def cleanup_cache(base_dir):
     """Remove temporary files left behind by previous runs."""

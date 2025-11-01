@@ -1,5 +1,5 @@
 #!/bin/bash
-# Last Updated: 2025-10-31
+# Last Updated: 2025-11-01
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -14,7 +14,153 @@
 # mistyped names.
 set -eu
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+SCRIPT_ARGS=("$@")
 cd "$(dirname "$0")"
+
+EXPECTED_VENV="$(pwd)/.venv"
+PY_DIR="$(pwd)/.python"
+if [ -f "copernican_lib/VERSION" ]; then
+    SUITE_VERSION="$(cat copernican_lib/VERSION)"
+else
+    SUITE_VERSION="unknown"
+fi
+
+AUTO=0
+STRICT=0
+if [ "${COPERNICAN_AUTO_INSTALL:-}" = "1" ]; then
+    AUTO=1
+fi
+if [ "${COPERNICAN_STRICT_WARNINGS:-}" = "1" ]; then
+    STRICT=1
+fi
+
+update_dependencies() {
+    echo
+    echo "Updating managed dependencies..."
+    local venv_python
+    venv_python="$EXPECTED_VENV/bin/python"
+    if [ ! -x "$venv_python" ]; then
+        echo "The managed virtual environment is missing." >&2
+        echo "Choose 'Create the managed virtual environment' first." >&2
+        return 0
+    fi
+    if ! "$venv_python" -m pip install --upgrade pip; then
+        echo "Failed to upgrade pip." >&2
+        return 1
+    fi
+    if ! "$venv_python" -m pip install -r requirements.lock; then
+        echo "Failed to install dependencies." >&2
+        return 1
+    fi
+    rm -rf build
+    if ! "$venv_python" -m pip install --no-deps .; then
+        echo "Failed to reinstall the Copernican Suite." >&2
+        return 1
+    fi
+    rm -rf build
+    echo "Dependencies updated successfully."
+}
+
+remove_environment() {
+    echo
+    echo "Removing the managed virtual environment..."
+    rm -rf "$EXPECTED_VENV"
+    echo "Managed environment removed. The launcher will now exit."
+    exit 0
+}
+
+rebuild_environment() {
+    echo
+    echo "Rebuilding the managed virtual environment..."
+    rm -rf "$EXPECTED_VENV"
+    unset VIRTUAL_ENV || true
+    exec "$SCRIPT" "${SCRIPT_ARGS[@]}"
+}
+
+environment_menu() {
+    while true; do
+        echo
+        echo "Environment and dependency management"
+        echo
+        if [ -d "$EXPECTED_VENV" ]; then
+            echo "1) Update dependencies in the managed virtual environment"
+            echo "2) Remove the managed virtual environment"
+            echo "3) Rebuild the managed virtual environment"
+            if [ "$AUTO" -eq 1 ]; then
+                echo "4) Disable automatic dependency installation"
+            else
+                echo "4) Enable automatic dependency installation"
+            fi
+            echo "5) Back"
+            echo
+            read -r -p "Write the number of choice: " env_choice
+            env_choice=${env_choice:-5}
+            case "$env_choice" in
+                1)
+                    if ! update_dependencies; then
+                        echo "Dependency update failed." >&2
+                    fi
+                    ;;
+                2)
+                    remove_environment
+                    ;;
+                3)
+                    rebuild_environment
+                    ;;
+                4)
+                    if [ "$AUTO" -eq 1 ]; then
+                        AUTO=0
+                        echo
+                        echo "Automatic dependency installation disabled."
+                    else
+                        AUTO=1
+                        echo
+                        echo "Automatic dependency installation enabled."
+                    fi
+                    ;;
+                5)
+                    return
+                    ;;
+                *)
+                    echo "Please enter a number between 1 and 5."
+                    ;;
+            esac
+        else
+            echo "1) Create the managed virtual environment and install dependencies"
+            if [ "$AUTO" -eq 1 ]; then
+                echo "2) Disable automatic dependency installation"
+            else
+                echo "2) Enable automatic dependency installation"
+            fi
+            echo "3) Back"
+            echo
+            read -r -p "Write the number of choice: " env_choice
+            env_choice=${env_choice:-3}
+            case "$env_choice" in
+                1)
+                    rebuild_environment
+                    ;;
+                2)
+                    if [ "$AUTO" -eq 1 ]; then
+                        AUTO=0
+                        echo
+                        echo "Automatic dependency installation disabled."
+                    else
+                        AUTO=1
+                        echo
+                        echo "Automatic dependency installation enabled."
+                    fi
+                    ;;
+                3)
+                    return
+                    ;;
+                *)
+                    echo "Please enter 1, 2 or 3."
+                    ;;
+            esac
+        fi
+    done
+}
 
 pkg_notice() {
     echo 'A package manager may request your password.'
@@ -64,17 +210,17 @@ python_in_311_series() {
 # Use parameter expansion to avoid an "unbound variable" error when
 # "VIRTUAL_ENV" is unset and "set -u" is active.
 # Enforce use of the repository's own virtual environment.
-EXPECTED_VENV="$(pwd)/.venv"
 if [ -n "${VIRTUAL_ENV:-}" ] && [ "$VIRTUAL_ENV" != "$EXPECTED_VENV" ]; then
     echo "Deactivate the active virtual environment before running" >&2
     echo "start.command." >&2
     exit 1
 fi
 if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
-    STRICT=0
-    AUTO=0
     while true; do
-        echo "Copernican Suite"
+        echo
+        echo "Copernican Suite ${SUITE_VERSION} Launcher:"
+        echo
+        echo "Choose an option or press Enter to launch the Suite"
         echo "1) Launch Copernican Suite"
         echo "2) Run the unit test suite"
         if [ "$STRICT" -eq 1 ]; then
@@ -82,13 +228,11 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
         else
             echo "3) Enable strict warning mode"
         fi
-        if [ "$AUTO" -eq 1 ]; then
-            echo "4) Disable automatic dependency installation"
-        else
-            echo "4) Enable automatic dependency installation"
-        fi
+        echo "4) Environment and dependency management"
         echo "5) Exit"
-        read -r -p "Select an option: " choice
+        echo
+        read -r -p "Write the number of choice: " choice
+        choice=${choice:-1}
         case "$choice" in
             1)
                 COPERNICAN_STRICT_WARNINGS=$STRICT \
@@ -101,15 +245,17 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
             3)
                 if [ "$STRICT" -eq 1 ]; then STRICT=0; else STRICT=1; fi ;;
             4)
-                if [ "$AUTO" -eq 1 ]; then AUTO=0; else AUTO=1; fi ;;
+                environment_menu ;;
             5)
                 exit 0 ;;
+            *)
+                echo "Please enter a number between 1 and 5."
+                ;;
         esac
     done
 fi
 
 # Always bootstrap a dedicated interpreter.
-PY_DIR="$(pwd)/.python"
 PY_BIN="$PY_DIR/bin/python3"
 # Delete any interpreter that falls outside the Python 3.11 series so legacy
 # downloads or stray Python 3.12 builds never survive across upgrades.

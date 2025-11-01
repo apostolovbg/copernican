@@ -1,6 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-10-31
+@REM Last Updated: 2025-11-01
 @echo off
 set "PKG_NOTICE=Package managers may request your password. The Copernican"
 set "PKG_NOTICE=%PKG_NOTICE% Suite never reads or stores it."
@@ -13,6 +13,10 @@ REM 3.12 never leaks into the managed bootstrap sequence.
 
 setlocal
 cd %~dp0
+set "SUITE_VERSION=unknown"
+if exist "copernican_lib\VERSION" (
+    for /f "usebackq delims=" %%I in ("copernican_lib\VERSION") do set "SUITE_VERSION=%%I"
+)
 set "EXPECTED_VENV=%CD%\.venv"
 set "PYDIR=%CD%\.python"
 set "PYBIN=%PYDIR%\python.exe"
@@ -108,6 +112,50 @@ if exist build rmdir /s /q build
 call "%~f0" %*
 goto :eof
 
+:update_dependencies
+if not exist "%EXPECTED_VENV%\Scripts\python.exe" (
+    echo.
+    echo The managed virtual environment is missing.
+    exit /b 0
+)
+echo.
+echo Updating managed dependencies...
+"%EXPECTED_VENV%\Scripts\python.exe" -m pip install --upgrade pip
+if errorlevel 1 (
+    echo Failed to upgrade pip.
+    exit /b 1
+)
+"%EXPECTED_VENV%\Scripts\python.exe" -m pip install -r requirements.lock
+if errorlevel 1 (
+    echo Failed to install dependencies.
+    exit /b 1
+)
+if exist build rmdir /s /q build
+"%EXPECTED_VENV%\Scripts\python.exe" -m pip install --no-deps .
+set "COPERNICAN_UPDATE_ERR=%ERRORLEVEL%"
+if exist build rmdir /s /q build
+if not "%COPERNICAN_UPDATE_ERR%"=="0" (
+    echo Failed to reinstall the Copernican Suite.
+    exit /b %COPERNICAN_UPDATE_ERR%
+)
+echo Dependencies updated successfully.
+exit /b 0
+
+:remove_environment
+echo.
+echo Removing the managed virtual environment...
+if exist "%EXPECTED_VENV%" rmdir /s /q "%EXPECTED_VENV%"
+echo Managed environment removed. The launcher will now exit.
+exit /b 0
+
+:rebuild_environment
+echo.
+echo Rebuilding the managed virtual environment...
+if exist "%EXPECTED_VENV%" rmdir /s /q "%EXPECTED_VENV%"
+set "VIRTUAL_ENV="
+call "%~f0" %*
+exit /b 0
+
 :download_python
 REM Download the bundled Python interpreter through PowerShell.
 powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
@@ -166,8 +214,13 @@ exit /b 0
 :menu
 set STRICT=0
 set AUTO=0
+if /I "%COPERNICAN_STRICT_WARNINGS%"=="1" set STRICT=1
+if /I "%COPERNICAN_AUTO_INSTALL%"=="1" set AUTO=1
 :loop
-echo Copernican Suite
+echo.
+echo Copernican Suite %SUITE_VERSION% Launcher:
+echo.
+echo Choose an option or press Enter to launch the Suite
 echo 1^) Launch Copernican Suite
 echo 2^) Run the unit test suite
 if "%STRICT%"=="1" (
@@ -175,13 +228,12 @@ if "%STRICT%"=="1" (
 ) else (
     echo 3^) Enable strict warning mode
 )
-if "%AUTO%"=="1" (
-    echo 4^) Disable automatic dependency installation
-) else (
-    echo 4^) Enable automatic dependency installation
-)
+echo 4^) Environment and dependency management
 echo 5^) Exit
-set /p CHOICE=Select an option: 
+echo.
+set "CHOICE="
+set /p CHOICE=Write the number of choice:
+if not defined CHOICE set "CHOICE=1"
 if "%CHOICE%"=="1" (
     set COPERNICAN_STRICT_WARNINGS=%STRICT%
     set COPERNICAN_AUTO_INSTALL=%AUTO%
@@ -198,12 +250,93 @@ if "%CHOICE%"=="3" (
     if "%STRICT%"=="1" (set STRICT=0) else (set STRICT=1)
     goto loop
 )
-if "%CHOICE%"=="4" (
-    if "%AUTO%"=="1" (set AUTO=0) else (set AUTO=1)
-    goto loop
-)
+if "%CHOICE%"=="4" goto env_menu
 if "%CHOICE%"=="5" goto :eof
+echo Please enter a number between 1 and 5.
 goto loop
+
+:env_menu
+if exist "%EXPECTED_VENV%\Scripts\python.exe" (
+    set "ENV_PRESENT=1"
+) else (
+    set "ENV_PRESENT=0"
+)
+echo.
+echo Environment and dependency management
+echo.
+if "%ENV_PRESENT%"=="1" (
+    echo 1^) Update dependencies in the managed virtual environment
+    echo 2^) Remove the managed virtual environment
+    echo 3^) Rebuild the managed virtual environment
+    if "%AUTO%"=="1" (
+        echo 4^) Disable automatic dependency installation
+    ) else (
+        echo 4^) Enable automatic dependency installation
+    )
+    echo 5^) Back
+    echo.
+    set "ENV_CHOICE="
+    set /p ENV_CHOICE=Write the number of choice:
+    if not defined ENV_CHOICE set "ENV_CHOICE=5"
+    if "%ENV_CHOICE%"=="1" (
+        call :update_dependencies
+        goto env_menu
+    )
+    if "%ENV_CHOICE%"=="2" (
+        call :remove_environment
+        goto :eof
+    )
+    if "%ENV_CHOICE%"=="3" (
+        call :rebuild_environment
+        goto :eof
+    )
+    if "%ENV_CHOICE%"=="4" (
+        if "%AUTO%"=="1" (
+            set AUTO=0
+            echo.
+            echo Automatic dependency installation disabled.
+        ) else (
+            set AUTO=1
+            echo.
+            echo Automatic dependency installation enabled.
+        )
+        goto env_menu
+    )
+    if "%ENV_CHOICE%"=="5" goto loop
+    echo Please enter a number between 1 and 5.
+    goto env_menu
+) else (
+    echo 1^) Create the managed virtual environment and install dependencies
+    if "%AUTO%"=="1" (
+        echo 2^) Disable automatic dependency installation
+    ) else (
+        echo 2^) Enable automatic dependency installation
+    )
+    echo 3^) Back
+    echo.
+    set "ENV_CHOICE="
+    set /p ENV_CHOICE=Write the number of choice:
+    if not defined ENV_CHOICE set "ENV_CHOICE=3"
+    if "%ENV_CHOICE%"=="1" (
+        call :rebuild_environment
+        goto :eof
+    )
+    if "%ENV_CHOICE%"=="2" (
+        if "%AUTO%"=="1" (
+            set AUTO=0
+            echo.
+            echo Automatic dependency installation disabled.
+        ) else (
+            set AUTO=1
+            echo.
+            echo Automatic dependency installation enabled.
+        )
+        goto env_menu
+    )
+    if "%ENV_CHOICE%"=="3" goto loop
+    echo Please enter 1, 2 or 3.
+    goto env_menu
+)
 
 :winget_safe
 echo %PKG_NOTICE%

@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-10-31
+**Last Updated:** 2025-11-01
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all
@@ -132,7 +132,12 @@ all output passes through a single function. The logger patches `print` and
 Distance integrals produced by `model_coder.generate_callables` are now
 vectorised using a cumulative trapezoid scheme. Arrays of redshifts are
 integrated in one pass, keeping MCMC sampling responsive even with large
-datasets.
+datasets. When a model requests scalar quadrature the generated helper calls a
+resilient wrapper around SciPy's `quad`. The wrapper automatically increases
+the subdivision limit and, if necessary, slices the interval into multiple
+segments before retrying. This strategy suppresses the familiar
+`IntegrationWarning: The maximum number of subdivisions (50) has been` message
+and keeps exotic theories—USMFv2 included—from derailing Stage 2 runs.
 
 Version 7.0.6 removes the automatic sound-horizon fallback. Models that
 advertise BAO support must provide an `rs_expression` matching their own
