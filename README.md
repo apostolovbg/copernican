@@ -1,13 +1,26 @@
-**Version:** 7.1.1
+**Version:** 7.1.4
 **Last Updated:** 2025-11-01
 
 ![Copernican Suite banner](docs/banner_github.png)
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and
-Cosmic Microwave Background (CMB) data. Version 7.1.1 normalises every
-runtime timestamp to Coordinated Universal Time (UTC) so local runs match
-CI logs and manifest records regardless of locale. Version 7.1.0 introduces
+Cosmic Microwave Background (CMB) data. Version 7.1.4 extends the resilient
+quadrature helper with logistic remapping for semi-infinite and two-sided
+integrals. The helper now seeds breakpoints automatically so USMFv2-class
+theories no longer emit repeated fallback warnings when sound-horizon
+equations stretch into extreme redshifts. Version 7.1.3 toughens the numerical
+integration pipeline so even wildly behaved theories—such as USMFv2 and its
+future descendants—sail through Stage 2 without flooding the console with
+SciPy ``IntegrationWarning`` messages. The resilient quadrature wrapper raises
+the subdivision ceiling automatically and slices the integration interval into
+manageable pieces when retries still fail, ensuring the sampler keeps running
+instead of stalling on exotic parameterisations. Version 7.1.2 refreshes the
+launchers with a concise primary menu, an environment-management submenu and a
+guided sampler questionnaire so new users understand every knob before Stage 2
+begins. Version 7.1.1 normalises every runtime timestamp to Coordinated
+Universal Time (UTC) so local runs match CI logs and manifest records
+regardless of locale. Version 7.1.0 introduces
 an interactive Stage 2 configuration menu that captures production steps,
 burn-in length, walker ensembles and multiprocessing pool sizes before the
 sampler launches. The selections are logged and mirrored in the parameter
@@ -180,9 +193,12 @@ Under the hood the program follows a clear pipeline:
    steps to dedicated helper routines so the PowerShell commands execute
    outside the bootstrap condition, preventing `cmd.exe` from mis-parsing
    closing parentheses and restoring the interactive menu.
-2. Follow the interactive prompts to choose a model, preferred data sources
-   and
-   computation engine.
+2. When the launcher prints "Copernican Suite <version> Launcher" press Enter
+   to start the suite immediately or enter one of the numbered options. Option
+   3 toggles strict-warning enforcement for the upcoming session. Option 4
+   opens the *Environment and dependency management* submenu where you can
+   update pinned dependencies, rebuild or remove the managed virtual
+   environment, and toggle automatic dependency installation for future runs.
 3. Choose "Run the unit test suite" from the launcher's menu or execute
    `python -m unittest discover -v` directly. The test runner reports
    informational messages, warnings and errors while verifying the
@@ -229,7 +245,8 @@ tooling (`python-dateutil==2.9.0.post0`, `six==1.16.0`, `pytz==2024.1`,
 `astropy-iers-data==0.2024.10.28.0.34.7` remain pinned to the published
 wheels. When a package is missing the program asks before running
 `pip install -r requirements.lock` and verifies each import. Set
-`COPERNICAN_AUTO_INSTALL=1` to skip the prompt in automated environments.
+`COPERNICAN_AUTO_INSTALL=1`—or enable the launcher toggle inside the
+Environment submenu—to skip the prompt in automated environments.
 Regenerate both files together whenever dependencies change so the suite and
 published wheels remain in sync. The pre-commit hook provisions
 `pip-tools==7.4.1` on demand before it runs `make lock`, so the runtime
@@ -682,8 +699,9 @@ python -m unittest discover -v
 ```
 
 Set `COPERNICAN_STRICT_WARNINGS=1` to treat all warnings as errors during
-any run. Set `COPERNICAN_AUTO_INSTALL=1` to install missing dependencies
-without prompting.
+any run. Set `COPERNICAN_AUTO_INSTALL=1`—or enable the toggle inside the
+Environment and dependency management submenu—to install missing
+dependencies without prompting.
 
 Pull requests trigger the ``Lint`` workflow, which executes `pre-commit run
 --all-files`, and the ``Tests`` workflow, which runs the unit suite across
@@ -715,7 +733,8 @@ not modify them unless explicitly instructed.
 
 1.  **Dependency Check**: `copernican.py` scans for missing packages,
     prompts before installing them with `pip` and verifies the environment.
-    Set `COPERNICAN_AUTO_INSTALL=1` to skip the prompt in automated runs.
+    Set `COPERNICAN_AUTO_INSTALL=1`—or enable the launcher toggle inside the
+    Environment submenu—to skip the prompt in automated runs.
 2.  **Optional Tests**: Choose "Run the unit test suite" from the launcher
     or run `python -m unittest discover -v` to verify that the LCDM model
     and data parsers work as expected. This command performs unittest
