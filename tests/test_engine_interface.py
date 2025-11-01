@@ -1,7 +1,10 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Tests for ``copernican_lib.engine_interface`` helpers."""
+"""Tests for ``copernican_lib.engine_interface`` helpers.
+
+**Last Updated:** 2025-11-01
+"""
 
 import math
 import pickle
@@ -37,7 +40,16 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 {"python_var": "h0", "latex_name": "H_0", "bounds": [60, 80]}
             ],
             "equations": {"sne": ["$$E=mc^2$$"], "bao": []},
-            "cmb": {"param_map": {"H0": "H_0", "ombh2": 0.022}},
+            "cmb": {
+                "param_map": {
+                    "H0": "H_0",
+                    "ombh2": 0.022,
+                    "omch2": 0.12,
+                    "Neff": 3.044,
+                    "num_massive_neutrinos": 3,
+                    "sum_mnu": 0.06,
+                }
+            },
         }
         req = engine_interface.REQUIRED_FUNCTIONS
         funcs = {name: _dummy_func for name in req}
@@ -81,6 +93,32 @@ class EngineInterfaceTestCase(unittest.TestCase):
         self.plugin.CMB_PARAM_MAP["wide"] = expr
         with self.assertRaises(ValueError):
             self.plugin.get_camb_params([70.0])
+
+    def test_cmb_param_map_rejects_invalid_keys(self):
+        """Engine interface should reject unsupported CAMB parameters."""
+
+        bad_model = dict(self.model_data)
+        bad_model["cmb"] = {"param_map": {"H0": "H_0", "bad_key": 1}}
+        funcs = {name: _dummy_func for name in engine_interface.REQUIRED_FUNCTIONS}
+        with self.assertRaises(ValueError):
+            engine_interface.build_plugin(bad_model, funcs)
+
+    def test_cmb_param_map_rejects_conflicting_neutrino_specs(self):
+        """Sum and individual neutrino masses cannot be combined."""
+
+        clash = dict(self.model_data)
+        clash["cmb"] = {
+            "param_map": {
+                "H0": "H_0",
+                "ombh2": 0.022,
+                "omch2": 0.12,
+                "sum_mnu": 0.06,
+                "mnu1": 0.01,
+            }
+        }
+        funcs = {name: _dummy_func for name in engine_interface.REQUIRED_FUNCTIONS}
+        with self.assertRaises(ValueError):
+            engine_interface.build_plugin(clash, funcs)
 
     def test_equation_sanitization(self):
         """Equations are sanitized into Matplotlib-friendly form."""

@@ -1,6 +1,6 @@
 """Unit tests for likelihood helper classes.
 
-**Last Updated:** 2025-10-31
+**Last Updated:** 2025-11-01
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ class LikelihoodTestCase(unittest.TestCase):
         return sne_df
 
     def _prepare_bao(self):
-        bao_df = data_loaders.load_bao_data("compound_bao_set").head(3).copy()
+        bao_df = data_loaders.load_bao_data("boss_dr12_bao").head(3).copy()
         cov_inv = bao_df.attrs.get("covariance_matrix_inv")
         if cov_inv is not None:
             bao_df.attrs["covariance_matrix_inv"] = cov_inv[:3, :3]

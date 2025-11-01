@@ -23,6 +23,8 @@ import os
 from collections.abc import Callable
 from typing import Any
 
+import numpy as np
+
 from . import console_output as console
 from .utils import check_dataset_id, compute_sha256, load_metadata_from_dir
 
@@ -442,6 +444,32 @@ def _log_dataset_info(df, data_type, logger):
                 f"{data_type} parser provided no usable covariance matrix; "
                 "using diagonal errors only.",
             )
+    cond_number = df.attrs.get("covariance_condition_number")
+    if cond_number is not None:
+        logger.info(
+            "%s covariance condition number: %.3e",
+            data_type,
+            cond_number,
+        )
+
+
+def _validate_bao_covariance(df, logger):
+    """Ensure BAO covariance matrices are symmetric and positive definite."""
+
+    inv_cov = df.attrs.get("covariance_matrix_inv")
+    if inv_cov is None:
+        raise ValueError("BAO dataset is missing an inverse covariance matrix.")
+    inv_arr = np.asarray(inv_cov, dtype=float)
+    if inv_arr.ndim != 2 or inv_arr.shape[0] != inv_arr.shape[1]:
+        raise ValueError("BAO covariance inverse must be a square matrix.")
+    if not np.allclose(inv_arr, inv_arr.T, atol=1e-10):
+        raise ValueError("BAO covariance inverse is not symmetric.")
+    eigenvalues = np.linalg.eigvalsh(inv_arr)
+    if np.any(eigenvalues <= 0.0):
+        raise ValueError("BAO covariance inverse must be positive definite.")
+    cond_number = float(np.linalg.cond(inv_arr))
+    df.attrs["covariance_condition_number"] = cond_number
+    logger.info("BAO covariance condition number: %.3e", cond_number)
 
 
 def _attach_file_hashes(df, data_dir, logger):
@@ -535,6 +563,8 @@ def _load_dataset(
             data_df.attrs["independence_assumptions"] = list(
                 INDEPENDENCE_ASSUMPTIONS.get(dataset_key, [])
             )
+            if dataset_key == "bao":
+                _validate_bao_covariance(data_df, logger)
             logger.info(
                 "Successfully loaded %s %s data points.",
                 len(data_df),

@@ -1,6 +1,6 @@
 """Likelihood components for Copernican Suite datasets.
 
-**Last Updated:** 2025-02-14
+**Last Updated:** 2025-11-01
 
 The modules in this package expose small, stateful helpers that evaluate
 log-likelihoods for individual observational datasets.  Each helper implements
@@ -19,9 +19,11 @@ from ._protocol import LikelihoodProtocol, LikelihoodState
 from .bao import BAOLike
 from .cmb import (
     CMBLike,
+    compute_camb_background_observables,
     compute_cmb_spectrum,
     compute_cmb_spectrum_cached,
     compute_cmb_spectrum_from_dict,
+    describe_camb_configuration,
 )
 from .joint import JointLike
 from .sne import SNeLike
@@ -33,7 +35,9 @@ __all__ = [
     "LikelihoodProtocol",
     "LikelihoodState",
     "SNeLike",
+    "compute_camb_background_observables",
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_cached",
     "compute_cmb_spectrum_from_dict",
+    "describe_camb_configuration",
 ]

@@ -1,11 +1,13 @@
 """Cosmic Microwave Background likelihood helper.
 
-**Last Updated:** 2025-10-31
+**Last Updated:** 2025-11-01
 
-Provides the CAMB spectrum wrappers and covariance-aware χ² evaluation for the
-Planck lite dataset as well as future CMB releases.  The helper mirrors the
-previous logic from :mod:`copernican_lib.statistics` so external APIs remain
-stable while consolidating likelihood behaviour inside this package.
+Provides cache-aware CAMB interfaces shared by the CMB likelihood and the BAO
+background evaluator.  Earlier revisions duplicated CAMB configuration across
+modules which let the BAO pipeline drift from the spectra settings used during
+Stage 2.  The refactor below consolidates parameter normalisation, neutrino
+sector handling and accuracy knobs so every observable consumes the same
+cosmology and the run manifest can record the exact CAMB controls.
 """
 
 from __future__ import annotations
@@ -18,28 +20,150 @@ from typing import Any, Iterable, Mapping, Sequence
 import camb
 import numpy as np
 import pandas as pd
+import re
 
 from ._protocol import LikelihoodProtocol, LikelihoodState
 
 
+_C_LIGHT_KM_S = 299_792.458
+_LMAX_PADDING = 300
+_LENS_POTENTIAL_ACCURACY = 0
+_CACHE_PRECISION = 10
+_MNU_INDEX_PATTERN = re.compile(r"^mnu(\d+)$")
+
+
+def _normalise_value(value: Any) -> Any:
+    """Return a cache-friendly representation of ``value``."""
+
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        return float(f"{float(value):.{_CACHE_PRECISION}g}")
+    return str(value)
+
+
+def _normalise_items(param_dict: Mapping[str, Any]) -> tuple[tuple[str, Any], ...]:
+    """Convert ``param_dict`` into a deterministic tuple of items."""
+
+    normalised: list[tuple[str, Any]] = []
+    for key in sorted(param_dict):
+        normalised.append((str(key), _normalise_value(param_dict[key])))
+    return tuple(normalised)
+
+
+def _restore_dict(items: tuple[tuple[str, Any], ...]) -> dict[str, Any]:
+    """Rehydrate a mapping from ``items`` produced by :func:`_normalise_items`."""
+
+    restored: dict[str, Any] = {}
+    for key, value in items:
+        restored[str(key)] = value
+    return restored
+
+
+def _configure_camb(
+    params: camb.CAMBparams,
+    param_dict: Mapping[str, Any],
+    *,
+    lmax: int | None = None,
+) -> None:
+    """Populate ``params`` from ``param_dict`` while honouring neutrino knobs."""
+
+    cosmo_kwargs: dict[str, Any] = {}
+    for required_key in ("H0", "ombh2", "omch2"):
+        if required_key in param_dict:
+            cosmo_kwargs[required_key] = float(param_dict[required_key])
+    if "tau" in param_dict:
+        cosmo_kwargs["tau"] = float(param_dict["tau"])
+    if "omnuh2" in param_dict:
+        cosmo_kwargs["omnuh2"] = float(param_dict["omnuh2"])
+    if "omk" in param_dict:
+        cosmo_kwargs["omk"] = float(param_dict["omk"])
+    if "Alens" in param_dict:
+        cosmo_kwargs["Alens"] = float(param_dict["Alens"])
+    if "neutrino_hierarchy" in param_dict:
+        cosmo_kwargs["neutrino_hierarchy"] = param_dict["neutrino_hierarchy"]
+    if "num_massive_neutrinos" in param_dict:
+        cosmo_kwargs["num_massive_neutrinos"] = int(
+            round(float(param_dict["num_massive_neutrinos"]))
+        )
+    if "Neff" in param_dict:
+        cosmo_kwargs["nnu"] = float(param_dict["Neff"])
+    if "standard_neutrino_neff" in param_dict:
+        cosmo_kwargs["standard_neutrino_neff"] = float(
+            param_dict["standard_neutrino_neff"]
+        )
+    if "YHe" in param_dict:
+        cosmo_kwargs["YHe"] = float(param_dict["YHe"])
+    if "theta_H0_range" in param_dict:
+        cosmo_kwargs["theta_H0_range"] = param_dict["theta_H0_range"]
+
+    if "sum_mnu" in param_dict:
+        nmassive = cosmo_kwargs.get("num_massive_neutrinos", 1)
+        nmassive = max(1, nmassive)
+        cosmo_kwargs["mnu"] = float(param_dict["sum_mnu"]) / float(nmassive)
+    elif "mnu" in param_dict:
+        cosmo_kwargs["mnu"] = float(param_dict["mnu"])
+
+    mass_entries: list[tuple[int, float]] = []
+    for key, value in param_dict.items():
+        match = _MNU_INDEX_PATTERN.match(str(key))
+        if match is None:
+            continue
+        mass_entries.append((int(match.group(1)), float(value)))
+    if mass_entries:
+        mass_entries.sort(key=lambda item: item[0])
+        masses = [mass for _, mass in mass_entries]
+        cosmo_kwargs["num_massive_neutrinos"] = len(masses)
+        cosmo_kwargs["mnu"] = float(sum(masses) / len(masses))
+
+    params.set_cosmology(**cosmo_kwargs)
+
+    power_kwargs: dict[str, Any] = {}
+    if "As" in param_dict:
+        power_kwargs["As"] = float(param_dict["As"])
+    if "ns" in param_dict:
+        power_kwargs["ns"] = float(param_dict["ns"])
+    if "nrun" in param_dict:
+        power_kwargs["nrun"] = float(param_dict["nrun"])
+    if "nrunrun" in param_dict:
+        power_kwargs["nrunrun"] = float(param_dict["nrunrun"])
+    if "r" in param_dict:
+        power_kwargs["r"] = float(param_dict["r"])
+    if power_kwargs:
+        params.InitPower.set_params(**power_kwargs)
+
+    accuracy = getattr(params, "Accuracy", None)
+    if accuracy is not None:
+        if "AccuracyBoost" in param_dict:
+            accuracy.AccuracyBoost = float(param_dict["AccuracyBoost"])
+        if "lAccuracyBoost" in param_dict:
+            accuracy.LAccuracyBoost = float(param_dict["lAccuracyBoost"])
+        if "kAccuracyBoost" in param_dict:
+            accuracy.KAccuracyBoost = float(param_dict["kAccuracyBoost"])
+
+    if lmax is not None:
+        params.set_for_lmax(
+            int(lmax) + _LMAX_PADDING,
+            lens_potential_accuracy=_LENS_POTENTIAL_ACCURACY,
+        )
+
+
+def _build_params(
+    param_dict: Mapping[str, Any], *, lmax: int | None = None
+) -> camb.CAMBparams:
+    """Return a configured :class:`camb.CAMBparams` instance."""
+
+    params = camb.CAMBparams()
+    _configure_camb(params, param_dict, lmax=lmax)
+    return params
+
 @lru_cache(maxsize=128)
 def _cached_cmb(
-    key: tuple[str, tuple[tuple[str, float], ...], int, tuple[str, ...]]
+    key: tuple[str, tuple[tuple[str, Any], ...], int, tuple[str, ...]]
 ):
     """Return unlensed CAMB spectra for a given cache key."""
 
-    _, param_tuple, lmax, spectra = key
-    param_dict = dict(param_tuple)
-    params = camb.CAMBparams()
-    params.set_cosmology(
-        H0=param_dict["H0"],
-        ombh2=param_dict["ombh2"],
-        omch2=param_dict["omch2"],
-        tau=param_dict["tau"],
-    )
-    params.omnuh2 = param_dict.get("omnuh2", 0.0)
-    params.InitPower.set_params(As=param_dict["As"], ns=param_dict["ns"])
-    params.set_for_lmax(lmax + 300, lens_potential_accuracy=0)
+    _, items, lmax, spectra = key
+    param_dict = _restore_dict(items)
+    params = _build_params(param_dict, lmax=lmax)
     results = camb.get_results(params)
     cls = results.get_unlensed_scalar_cls(lmax=lmax, CMB_unit="muK")
     out: dict[str, np.ndarray] = {}
@@ -52,6 +176,100 @@ def _cached_cmb(
     return out
 
 
+@lru_cache(maxsize=128)
+def _cached_background(
+    key: tuple[str, tuple[tuple[str, Any], ...], tuple[float, ...]]
+) -> tuple[float, tuple[float, ...], tuple[float, ...], tuple[float, ...], tuple[float, ...], tuple[float, ...]]:
+    """Return cached CAMB background observables for ``key``."""
+
+    _, items, z_tuple = key
+    param_dict = _restore_dict(items)
+    params = _build_params(param_dict, lmax=None)
+    results = camb.get_results(params)
+    derived = results.get_derived_params()
+    rs_drag = float(derived.get("rdrag", float("nan")))
+
+    z_arr = np.asarray(z_tuple, dtype=float)
+    dm_vals: list[float] = []
+    da_vals: list[float] = []
+    hz_vals: list[float] = []
+    for z_val in z_arr:
+        dm_vals.append(float(results.comoving_radial_distance(float(z_val))))
+        da_vals.append(float(results.angular_diameter_distance(float(z_val))))
+        hz_vals.append(float(results.hubble_parameter(float(z_val))))
+
+    dm = np.asarray(dm_vals, dtype=float)
+    da = np.asarray(da_vals, dtype=float)
+    hz = np.asarray(hz_vals, dtype=float)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        dh = np.where(np.abs(hz) > 1e-12, _C_LIGHT_KM_S / hz, np.nan)
+    term = dm * dm
+    term *= z_arr
+    with np.errstate(divide="ignore", invalid="ignore"):
+        term = term * dh
+    dv = np.full_like(term, np.nan, dtype=float)
+    mask = np.isfinite(term) & (term >= 0.0)
+    dv[mask] = np.power(term[mask], 1.0 / 3.0)
+    zero = np.isfinite(term) & (z_arr == 0.0)
+    dv[zero] = 0.0
+
+    return (
+        rs_drag,
+        tuple(dm.tolist()),
+        tuple(dh.tolist()),
+        tuple(da.tolist()),
+        tuple(dv.tolist()),
+        tuple(hz.tolist()),
+    )
+
+
+def compute_camb_background_observables(
+    param_dict: Mapping[str, Any], redshifts: Sequence[float]
+) -> dict[str, np.ndarray]:
+    """Return CAMB background quantities for ``redshifts``.
+
+    The helper shares the same caching layer as the spectrum generator so
+    BAO evaluations reuse cosmologies computed for the CMB likelihood.
+    """
+
+    z_arr = np.asarray(redshifts, dtype=float)
+    z_tuple = tuple(float(f"{float(val):.{_CACHE_PRECISION}g}") for val in z_arr)
+    items = _normalise_items(param_dict)
+    rs_drag, dm, dh, da, dv, hz = _cached_background(
+        ("background", items, z_tuple)
+    )
+    return {
+        "rs_drag": float(rs_drag),
+        "DM": np.asarray(dm, dtype=float),
+        "DH": np.asarray(dh, dtype=float),
+        "DA": np.asarray(da, dtype=float),
+        "DV": np.asarray(dv, dtype=float),
+        "Hz": np.asarray(hz, dtype=float),
+        "z": np.asarray(z_tuple, dtype=float),
+    }
+
+
+def describe_camb_configuration() -> dict[str, Any]:
+    """Return the default CAMB configuration used by the likelihood helpers."""
+
+    params = camb.CAMBparams()
+    accuracy = getattr(params, "Accuracy", None)
+    accuracy_info: dict[str, float] = {}
+    if accuracy is not None:
+        accuracy_info = {
+            "AccuracyBoost": float(getattr(accuracy, "AccuracyBoost", 1.0)),
+            "LAccuracyBoost": float(getattr(accuracy, "LAccuracyBoost", 1.0)),
+            "KAccuracyBoost": float(getattr(accuracy, "KAccuracyBoost", 1.0)),
+        }
+
+    return {
+        "lmax_padding": _LMAX_PADDING,
+        "lens_potential_accuracy": _LENS_POTENTIAL_ACCURACY,
+        "reionization_model": "optical_depth_tau",  # tau-based parameterisation
+        "accuracy": accuracy_info,
+    }
+
+
 def compute_cmb_spectrum_from_dict(
     param_dict: Mapping[str, float],
     ells: Iterable[int],
@@ -62,12 +280,9 @@ def compute_cmb_spectrum_from_dict(
 
     logger = logging.getLogger()
     try:
-        pairs: list[tuple[str, float]] = []
-        for key, value in sorted(param_dict.items()):
-            pairs.append((key, float(f"{float(value):.6g}")))
-        key_tuple = tuple(pairs)
+        items = _normalise_items(param_dict)
         lmax = int(np.max(list(ells)))
-        cache_key = ("dict", key_tuple, lmax, tuple(sorted(spectra)))
+        cache_key = ("dict", items, lmax, tuple(sorted(spectra)))
         full = _cached_cmb(cache_key)
     except Exception as exc:  # pragma: no cover - camb errors are logged
         logger.error("(compute_cmb_spectrum_from_dict): %s", exc)

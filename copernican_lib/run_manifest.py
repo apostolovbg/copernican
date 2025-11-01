@@ -1,10 +1,12 @@
 """Run manifest generator for the Copernican Suite.
 
-The manifest records critical information required to reproduce a run.
-It captures the Copernican Suite version, model and engine details,
-parameter priors, dataset hashes provided by the data loaders and the Git
-state.  Each run directory stores the resulting YAML file so that analyses can
-be traced back unambiguously.
+**Last Updated:** 2025-11-01
+
+The manifest records critical information required to reproduce a run. It
+captures the Copernican Suite version, model and engine details, parameter
+priors, dataset hashes provided by the data loaders and the Git state.  Each
+run directory stores the resulting YAML file so that analyses can be traced
+back unambiguously.
 """
 
 from __future__ import annotations
@@ -17,6 +19,7 @@ import yaml
 
 from . import utils
 from . import version as version_module
+from .likelihoods import cmb as cmb_module
 
 
 def _copernican_version() -> str:
@@ -66,6 +69,44 @@ def _git_info() -> dict:
     except Exception:
         dirty = True
     return {"commit": commit, "dirty": dirty}
+
+
+def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
+    """Return CAMB metadata for models that supply a CMB mapping."""
+
+    camb_models: list[object] = []
+    for plugin, _ in models:
+        if getattr(plugin, "valid_for_cmb", True) is False:
+            continue
+        param_map = getattr(plugin, "CMB_PARAM_MAP", {}) or {}
+        if param_map:
+            camb_models.append(plugin)
+    if not camb_models:
+        return None
+
+    try:  # pragma: no cover - graceful when CAMB absent in minimal envs
+        import camb  # type: ignore
+
+        version = getattr(camb, "__version__", "unknown")
+    except Exception:
+        version = "unavailable"
+
+    configuration = cmb_module.describe_camb_configuration()
+    models_meta: list[dict[str, Any]] = []
+    for plugin in camb_models:
+        keys = sorted(str(key) for key in getattr(plugin, "CMB_PARAM_MAP", {}))
+        models_meta.append(
+            {
+                "model": getattr(plugin, "MODEL_NAME", "unknown"),
+                "param_map_keys": keys,
+            }
+        )
+
+    return {
+        "version": version,
+        "configuration": configuration,
+        "models": models_meta,
+    }
 
 
 def build_manifest(
@@ -134,7 +175,12 @@ def build_manifest(
             "path": dataset.get("path", ""),
             "hashes": dataset.get("hashes", {}),
             "independence": independence,
+            "condition_number": dataset.get("condition_number"),
         }
+
+    camb_details = _camb_info(models)
+    if camb_details is not None:
+        manifest["camb"] = camb_details
 
     return manifest
 

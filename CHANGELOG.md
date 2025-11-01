@@ -21,6 +21,15 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.2.0
+- 2025-11-01: Routed BAO likelihood distances and sound-horizon evaluations
+  through the CAMB helpers shared with the CMB module, enforced positive-
+  definite BAO covariance matrices with condition-number reporting, validated
+  CAMB parameter maps in the engine interface, recorded CAMB configuration
+  details in run manifests, refreshed the sample models with explicit neutrino
+  sector parameters, added dedicated CAMB background tests and bumped the suite
+  version to 7.2.0 (OpenAI ChatGPT)
+
 ## Version 7.1.4
 - 2025-11-01: Extended the resilient quadrature helper with logistic
   remapping for infinite bounds, automatic breakpoint seeding and expanded

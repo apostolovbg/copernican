@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-01
 model_name: LambdaCDM
 version: '1.0'
 description: >-
@@ -92,8 +93,10 @@ cmb:
     H0: H_0
     ombh2: Omega_b * (H_0/100)**2
     omch2: (Omega_{m0} - Omega_b) * (H_0/100)**2
-    omnuh2: Omega_{gamma} * (H_0/100)**2
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
+    Neff: 3.044
+    num_massive_neutrinos: 3
+    sum_mnu: 0.06
 notes: Additional notes available.

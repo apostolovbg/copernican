@@ -1,3 +1,8 @@
+"""Tests for the run manifest helper.
+
+**Last Updated:** 2025-11-01
+"""
+
 import os
 import tempfile
 from types import SimpleNamespace
@@ -14,6 +19,8 @@ def _dummy_plugin():
         MODEL_FILENAME="dummy.yml",
         PARAMETER_NAMES=["p1"],
         PARAMETER_PRIORS=[{"type": "uniform", "lower": 0, "upper": 1}],
+        valid_for_cmb=True,
+        CMB_PARAM_MAP={"H0": "p1", "ombh2": 0.022, "omch2": 0.12, "Neff": 3.044},
     )
 
 
@@ -58,3 +65,7 @@ def test_manifest_contains_required_fields():
         assert hashes["data.txt"] == file_hashes["data.txt"]
         assert len(loaded["git"]["commit"]) == 40
         assert "dirty" in loaded["git"]
+        assert "camb" in loaded
+        camb_entry = loaded["camb"]
+        assert "version" in camb_entry
+        assert camb_entry["models"][0]["model"] == "DummyModel"
