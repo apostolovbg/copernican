@@ -1,25 +1,27 @@
-**Version:** 7.2.2
+**Version:** 7.2.3
 **Last Updated:** 2025-11-01
 
 ![Copernican Suite banner](docs/banner_github.png)
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and
-Cosmic Microwave Background (CMB) data. Version 7.2.2 keeps BAO and CMB runs in
+Cosmic Microwave Background (CMB) data. Version 7.2.3 keeps BAO and CMB runs in
 lockstep by returning :math:`D_\ell` spectra from the CAMB helper, restores a
 guarded BAO fallback that uses model-provided distance functions when CAMB
 parameters are absent, retains covariance integrity checks so trusted datasets
-without full matrices still load predictably and reintroduces the direct CAMB
-neutrino parameter pass-through used by earlier releases. Version 7.2.0 routes
+without full matrices still load predictably, reintroduces the direct CAMB
+neutrino parameter pass-through used by earlier releases and aligns the
+regression harness with the neutrino defaults sent to CAMB so cached spectra
+match direct solver calls. Version 7.2.0 routes BAO
 BAO
 distances and sound-horizon calculations through the same CAMB configuration
 used by the CMB likelihood, enforcing strictly positive-definite covariance
 matrices and recording their condition numbers in the run manifest. The release
 also validates CAMB parameter maps declared in model YAML files so neutrino
 sector options such as ``Neff`` and ``sum_mnu`` remain consistent across
-engines. Version 7.2.2 re-enables the direct pass-through of neutrino masses,
-hierarchy flags and ``Neff`` adjustments when computing CMB spectra or cached
-background distances.
+engines. Version 7.2.3 keeps the neutrino masses, hierarchy flags and ``Neff``
+adjustments in sync between cached spectra, background distances and
+regression comparisons.
 Version 7.1.4 extends the resilient quadrature helper with logistic remapping
 for semi-infinite and two-sided integrals. The helper now seeds breakpoints
 automatically so USMFv2-class theories no longer emit repeated fallback

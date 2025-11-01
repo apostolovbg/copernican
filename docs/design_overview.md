@@ -27,9 +27,10 @@ before it reaches the cache or an engine and rejects the retired
 metadata-driven transforms, manifests and engine plugins all observe the same
 schema even when the original YAML attempted to declare redundant transforms.
 
-Version 7.2.2 restores the direct pass-through of neutrino-sector CAMB
+Version 7.2.3 restores the direct pass-through of neutrino-sector CAMB
 arguments so model plugins can once again specify `Neff`, individual `mnuN`
-entries or mass hierarchies without bespoke likelihood code.
+entries or mass hierarchies without bespoke likelihood code while keeping the
+regression harness synchronised with those choices.
 
 Version 7.0.4 adds resilient version discovery so the macOS launcher continues
 to boot even when `copernican_lib.version.get_version` is temporarily missing
