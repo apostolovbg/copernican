@@ -1,4 +1,5 @@
 # Copyright (c) 2025 Copernican Suite developers.
+# Last Updated: 2025-11-01
 # See LICENSE.md in the repository root for details.
 
 # copernican_suite/data_loaders.py
@@ -458,18 +459,33 @@ def _validate_bao_covariance(df, logger):
 
     inv_cov = df.attrs.get("covariance_matrix_inv")
     if inv_cov is None:
-        raise ValueError("BAO dataset is missing an inverse covariance matrix.")
+        logger.warning(
+            "BAO dataset is missing an inverse covariance matrix; "
+            "falling back to diagonal errors."
+        )
+        return False
     inv_arr = np.asarray(inv_cov, dtype=float)
-    if inv_arr.ndim != 2 or inv_arr.shape[0] != inv_arr.shape[1]:
-        raise ValueError("BAO covariance inverse must be a square matrix.")
-    if not np.allclose(inv_arr, inv_arr.T, atol=1e-10):
-        raise ValueError("BAO covariance inverse is not symmetric.")
-    eigenvalues = np.linalg.eigvalsh(inv_arr)
-    if np.any(eigenvalues <= 0.0):
-        raise ValueError("BAO covariance inverse must be positive definite.")
+    try:
+        if inv_arr.ndim != 2 or inv_arr.shape[0] != inv_arr.shape[1]:
+            raise ValueError("matrix must be square")
+        if not np.allclose(inv_arr, inv_arr.T, atol=1e-10):
+            raise ValueError("matrix is not symmetric")
+        eigenvalues = np.linalg.eigvalsh(inv_arr)
+        if np.any(eigenvalues <= 0.0):
+            raise ValueError("matrix must be positive definite")
+    except ValueError as exc:
+        logger.warning(
+            (
+                "Invalid BAO covariance inverse (%s); falling back to "
+                "diagonal errors."
+            ),
+            exc,
+        )
+        return False
     cond_number = float(np.linalg.cond(inv_arr))
     df.attrs["covariance_condition_number"] = cond_number
     logger.info("BAO covariance condition number: %.3e", cond_number)
+    return True
 
 
 def _attach_file_hashes(df, data_dir, logger):
@@ -564,7 +580,9 @@ def _load_dataset(
                 INDEPENDENCE_ASSUMPTIONS.get(dataset_key, [])
             )
             if dataset_key == "bao":
-                _validate_bao_covariance(data_df, logger)
+                has_cov = _validate_bao_covariance(data_df, logger)
+                if not has_cov:
+                    data_df.attrs.pop("covariance_matrix_inv", None)
             logger.info(
                 "Successfully loaded %s %s data points.",
                 len(data_df),

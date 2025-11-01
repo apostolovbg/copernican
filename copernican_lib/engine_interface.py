@@ -24,7 +24,6 @@ from .plugins import (
 from .plugins import validate_plugin as _validate_plugin
 from .posterior import PosteriorEvaluator, make_logposterior
 
-
 _CMB_PARAM_ALLOWED_KEYS = {
     "H0",
     "ombh2",
@@ -78,7 +77,10 @@ def _validate_cmb_param_map(plugin: EnginePlugin) -> None:
         conflicts.append("'mnu' and 'sum_mnu' are mutually exclusive")
     if dynamic_mass_keys and ("mnu" in keys or "sum_mnu" in keys):
         conflicts.append(
-            "individual 'mnuN' entries cannot be combined with 'mnu' or 'sum_mnu'"
+            (
+                "individual 'mnuN' entries cannot be combined with 'mnu' or "
+                "'sum_mnu'"
+            )
         )
     if conflicts:
         raise ValueError("; ".join(conflicts))

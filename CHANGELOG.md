@@ -21,6 +21,16 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.2.1
+- 2025-11-01: Returned :math:`D_\ell` spectra from the CAMB helper, restored a
+  controlled BAO background fallback that reuses model distance functions when
+  CAMB parameters are unavailable, relaxed BAO covariance validation to fall
+  back to diagonal errors for trusted datasets and bumped the recorded version
+  to 7.2.1 (OpenAI ChatGPT)
+- 2025-11-01: Added regression coverage confirming the BAO likelihood falls back
+  to model distance functions when CAMB parameters are unavailable (OpenAI
+  ChatGPT)
+
 ## Version 7.2.0
 - 2025-11-01: Routed BAO likelihood distances and sound-horizon evaluations
   through the CAMB helpers shared with the CMB module, enforced positive-

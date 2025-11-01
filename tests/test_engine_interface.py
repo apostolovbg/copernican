@@ -1,10 +1,8 @@
+# Last Updated: 2025-11-01
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Tests for ``copernican_lib.engine_interface`` helpers.
-
-**Last Updated:** 2025-11-01
-"""
+"""Tests for ``copernican_lib.engine_interface`` helpers."""
 
 import math
 import pickle
@@ -99,7 +97,9 @@ class EngineInterfaceTestCase(unittest.TestCase):
 
         bad_model = dict(self.model_data)
         bad_model["cmb"] = {"param_map": {"H0": "H_0", "bad_key": 1}}
-        funcs = {name: _dummy_func for name in engine_interface.REQUIRED_FUNCTIONS}
+        funcs = {
+            name: _dummy_func for name in engine_interface.REQUIRED_FUNCTIONS
+        }
         with self.assertRaises(ValueError):
             engine_interface.build_plugin(bad_model, funcs)
 
@@ -116,7 +116,9 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 "mnu1": 0.01,
             }
         }
-        funcs = {name: _dummy_func for name in engine_interface.REQUIRED_FUNCTIONS}
+        funcs = {
+            name: _dummy_func for name in engine_interface.REQUIRED_FUNCTIONS
+        }
         with self.assertRaises(ValueError):
             engine_interface.build_plugin(clash, funcs)
 

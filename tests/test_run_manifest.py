@@ -20,7 +20,12 @@ def _dummy_plugin():
         PARAMETER_NAMES=["p1"],
         PARAMETER_PRIORS=[{"type": "uniform", "lower": 0, "upper": 1}],
         valid_for_cmb=True,
-        CMB_PARAM_MAP={"H0": "p1", "ombh2": 0.022, "omch2": 0.12, "Neff": 3.044},
+        CMB_PARAM_MAP={
+            "H0": "p1",
+            "ombh2": 0.022,
+            "omch2": 0.12,
+            "Neff": 3.044,
+        },
     )
 
 

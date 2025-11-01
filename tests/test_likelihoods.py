@@ -85,6 +85,63 @@ class LikelihoodTestCase(unittest.TestCase):
         self.assertTrue(np.isfinite(cmb_like.loglike(params)))
         self.assertTrue(np.isfinite(cmb_like.state["chi2"]))
 
+    def test_bao_loglike_falls_back_without_camb(self):
+        """BAO helper should reuse model distance functions when CAMB fails."""
+
+        class TrackingPlugin:
+            """Proxy raising ``get_camb_params`` and tracking fallbacks."""
+
+            def __init__(self, base_plugin):
+                self._base = base_plugin
+                self.calls = {"dm": 0, "hz": 0, "dv": 0, "da": 0, "rs": 0}
+
+            def __getattr__(self, name):
+                return getattr(self._base, name)
+
+            def get_camb_params(self, *_args, **_kwargs):
+                raise RuntimeError("CAMB unavailable for test fallback path")
+
+            def get_comoving_distance_Mpc(self, *args, **kwargs):
+                self.calls["dm"] += 1
+                return self._base.get_comoving_distance_Mpc(*args, **kwargs)
+
+            def get_Hz_per_Mpc(self, *args, **kwargs):
+                self.calls["hz"] += 1
+                return self._base.get_Hz_per_Mpc(*args, **kwargs)
+
+            def get_DV_Mpc(self, *args, **kwargs):
+                self.calls["dv"] += 1
+                return self._base.get_DV_Mpc(*args, **kwargs)
+
+            def get_angular_diameter_distance_Mpc(self, *args, **kwargs):
+                self.calls["da"] += 1
+                return self._base.get_angular_diameter_distance_Mpc(
+                    *args, **kwargs
+                )
+
+            def get_sound_horizon_rs_Mpc(self, *args, **kwargs):
+                self.calls["rs"] += 1
+                return self._base.get_sound_horizon_rs_Mpc(*args, **kwargs)
+
+        params = self.plugin.INITIAL_GUESSES
+        bao_df = self._prepare_bao()
+        fallback_plugin = TrackingPlugin(self.plugin)
+        bao_like = likelihoods.BAOLike(
+            z=bao_df["redshift"].to_numpy(dtype=float),
+            obs_type=bao_df["observable_type"].to_numpy(),
+            obs_val=bao_df["value"].to_numpy(dtype=float),
+            obs_err=bao_df["error"].to_numpy(dtype=float),
+            model_plugin=fallback_plugin,
+            covariance_matrix_inv=bao_df.attrs.get("covariance_matrix_inv"),
+        )
+
+        loglike = bao_like.loglike(params)
+
+        self.assertTrue(np.isfinite(loglike))
+        self.assertGreater(fallback_plugin.calls["dm"], 0)
+        self.assertGreater(fallback_plugin.calls["hz"], 0)
+        self.assertGreater(fallback_plugin.calls["rs"], 0)
+
     def test_joint_loglike_matches_component_sum(self):
         """The joint likelihood should equal the sum of its components."""
 

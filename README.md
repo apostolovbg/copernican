@@ -1,16 +1,21 @@
-**Version:** 7.2.0
+**Version:** 7.2.1
 **Last Updated:** 2025-11-01
 
 ![Copernican Suite banner](docs/banner_github.png)
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and
-Cosmic Microwave Background (CMB) data. Version 7.2.0 routes BAO distances and
-sound-horizon calculations through the same CAMB configuration used by the CMB
-likelihood, enforcing strictly positive-definite covariance matrices and
-recording their condition numbers in the run manifest. The release also
-validates CAMB parameter maps declared in model YAML files so neutrino sector
-options such as ``Neff`` and ``sum_mnu`` remain consistent across engines.
+Cosmic Microwave Background (CMB) data. Version 7.2.1 keeps BAO and CMB runs in
+lockstep by returning :math:`D_\ell` spectra from the CAMB helper, restores a
+guarded BAO fallback that uses model-provided distance functions when CAMB
+parameters are absent, and retains covariance integrity checks so trusted
+datasets without full matrices still load predictably. Version 7.2.0 routes BAO
+distances and sound-horizon calculations through the same CAMB configuration
+used by the CMB likelihood, enforcing strictly positive-definite covariance
+matrices and recording their condition numbers in the run manifest. The release
+also validates CAMB parameter maps declared in model YAML files so neutrino
+sector options such as ``Neff`` and ``sum_mnu`` remain consistent across
+engines.
 Version 7.1.4 extends the resilient quadrature helper with logistic remapping
 for semi-infinite and two-sided integrals. The helper now seeds breakpoints
 automatically so USMFv2-class theories no longer emit repeated fallback

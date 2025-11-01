@@ -11,9 +11,7 @@ from pathlib import Path
 
 import numpy as np
 
-from copernican_lib import engine_interface
-from copernican_lib import model_coder
-from copernican_lib import model_parser
+from copernican_lib import engine_interface, model_coder, model_parser
 from copernican_lib.likelihoods import cmb
 
 
@@ -52,8 +50,12 @@ class CMBBackgroundTestCase(unittest.TestCase):
         redshifts = np.array([0.35, 0.35, 0.60])
         background = cmb.compute_camb_background_observables(params, redshifts)
 
-        self.assertAlmostEqual(background["DM"][0], background["DM"][1], places=12)
-        self.assertAlmostEqual(background["DH"][0], background["DH"][1], places=12)
+        self.assertAlmostEqual(
+            background["DM"][0], background["DM"][1], places=12
+        )
+        self.assertAlmostEqual(
+            background["DH"][0], background["DH"][1], places=12
+        )
 
 
 if __name__ == "__main__":
