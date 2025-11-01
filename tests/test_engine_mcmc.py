@@ -9,6 +9,8 @@ import math
 import os
 import tempfile
 import unittest
+import warnings
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -45,6 +47,62 @@ def _build_model_plugin(yaml_filename: str):
     cache_path = model_parser.parse_model(yaml_path, cache_dir)
     func_dict, parsed = model_coder.generate_callables(cache_path)
     return engine_interface.build_plugin(parsed, func_dict)
+
+
+def _build_short_chain_plugin():
+    """Return a lightweight plugin for the autocorrelation guard test."""
+
+    def _distance_modulus_model(z, omega_m, omega_lambda):
+        z = np.asarray(z, dtype=float)
+        return (
+            5.0 * np.log10(1.0 + z)
+            + float(omega_m)
+            + 0.5 * float(omega_lambda)
+        )
+
+    def _distance_helper(z, *params):
+        z = np.asarray(z, dtype=float)
+        return (1.0 + z) * 100.0
+
+    def _hz_helper(z, *params):
+        z = np.asarray(z, dtype=float)
+        return np.full(z.shape, 70.0, dtype=float)
+
+    return SimpleNamespace(
+        MODEL_NAME="ShortChainModel",
+        MODEL_DESCRIPTION="Synthetic plugin for autocorrelation guard tests.",
+        MODEL_ABSTRACT="",
+        PARAMETER_NAMES=("omega_m", "omega_lambda"),
+        PARAMETER_LATEX_NAMES=(r"\Omega_m", r"\Omega_\Lambda"),
+        PARAMETER_UNITS=("", ""),
+        INITIAL_GUESSES=(0.3, 0.7),
+        PARAMETER_BOUNDS=((0.0, 1.0), (0.0, 1.5)),
+        FIXED_PARAMS={},
+        PARAMETER_PRIORS=(
+            {"type": "uniform", "lower": 0.0, "upper": 1.0},
+            {"type": "uniform", "lower": 0.0, "upper": 1.5},
+        ),
+        PARAMETER_PRIOR_OBJECTS=(None, None),
+        PARAMETER_TRANSFORMS=None,
+        valid_for_distance_metrics=True,
+        valid_for_bao=False,
+        valid_for_cmb=False,
+        CMB_PARAM_MAP={},
+        LIKELIHOOD_CONFIG={},
+        MODEL_EQUATIONS_LATEX_SN=(),
+        MODEL_EQUATIONS_LATEX_BAO=(),
+        MODEL_FILENAME=None,
+        extras={},
+        distance_modulus_model=_distance_modulus_model,
+        get_comoving_distance_Mpc=_distance_helper,
+        get_luminosity_distance_Mpc=_distance_helper,
+        get_angular_diameter_distance_Mpc=_distance_helper,
+        get_Hz_per_Mpc=_hz_helper,
+        get_DV_Mpc=_distance_helper,
+        get_sound_horizon_rs_Mpc=_distance_helper,
+        compute_cmb_spectrum=None,
+        compute_cmb_spectrum_from_dict=None,
+    )
 
 
 @unittest.skipUnless(ARVIZ_AVAILABLE, "arviz not installed")
@@ -476,6 +534,39 @@ class TestMCMCHelpers(unittest.TestCase):
         chain = result["samples"]
         fixed_spread = np.ptp(chain[:, :, 0])
         self.assertAlmostEqual(fixed_spread, 0.0, places=10)
+
+
+class TestAutocorrelationGuard(unittest.TestCase):
+    """Validate that short chains skip autocorrelation diagnostics."""
+
+    def test_short_chain_returns_none_without_runtime_warning(self):
+        plugin = _build_short_chain_plugin()
+        z_values = np.linspace(0.01, 0.03, 3)
+        baseline = np.array([0.3, 0.7])
+        mu_model = (
+            5.0 * np.log10(1.0 + z_values) + baseline[0] + 0.5 * baseline[1]
+        )
+        sne_df = pd.DataFrame(
+            {"zcmb": z_values, "mu_obs": mu_model, "e_mu_obs": np.full(3, 0.1)}
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", RuntimeWarning)
+            result = cosmo_engine_mcmc.fit_sne_parameters(
+                sne_df,
+                plugin,
+                n_walkers=4,
+                n_steps=3,
+                pool_size=1,
+                burn_in_steps=1,
+                progress_granularity=1,
+            )
+        runtime_warnings = [
+            item
+            for item in caught
+            if issubclass(item.category, RuntimeWarning)
+        ]
+        self.assertIsNone(result.get("autocorrelation_time"))
+        self.assertFalse(runtime_warnings)
 
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation

@@ -75,7 +75,8 @@ modules are:
     posteriors. Walkers are initialised uniformly within declared
     parameter bounds, a burn-in run precedes production sampling and the
     returned dictionary includes log-probability traces, acceptance
-    fractions, estimated autocorrelation times and both MAP and posterior
+    fractions, estimated autocorrelation times when the production chain is
+    long enough and both MAP and posterior
     mean parameter summaries. Invalid proposals still return ``-np.inf``
     so callers see explicit rejections instead of opaque large negative
     sentinels, and verbose progress updates report percentage completion

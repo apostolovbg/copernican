@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.2.4
+- 2025-11-01: Guarded autocorrelation estimation against undersized chains in
+  the MCMC engine, added a regression test covering the short-chain scenario,
+  refreshed diagnostics documentation and bumped the recorded version to 7.2.4
+  (OpenAI ChatGPT)
+
 ## Version 7.2.3
 - 2025-11-01: Synced the functional CAMB regression test with the restored
   neutrino-sector pass-through so cached :math:`D_\ell` spectra match direct
