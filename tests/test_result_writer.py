@@ -1,9 +1,10 @@
 """Tests for the parameter summary writer.
 
-**Last Updated:** 2025-10-31
+**Last Updated:** 2025-11-01
 """
 
 import json
+import logging
 import numbers
 import os
 import tempfile
@@ -63,6 +64,7 @@ class TestResultWriter(unittest.TestCase):
                 self.assertIn("parameters", entry)
                 self.assertIn("errors_1sigma", entry)
                 self.assertIn("covariance_matrix", entry)
+                self.assertIn("sampling", entry)
                 for val in entry["parameters"].values():
                     self.assertIsInstance(val, numbers.Real)
                 for val in entry["errors_1sigma"].values():
@@ -71,6 +73,20 @@ class TestResultWriter(unittest.TestCase):
                 for row in matrix:
                     for val in row:
                         self.assertIsInstance(val, numbers.Real)
+                sampling = entry["sampling"]
+                self.assertIsInstance(sampling, dict)
+                self.assertEqual(sampling.get("production_steps"), 6)
+                self.assertEqual(sampling.get("burn_in_steps"), 12)
+                _lower, _upper, fixed_mask = (
+                    cosmo_engine_mcmc._classify_parameter_bounds(
+                        plugin.PARAMETER_BOUNDS,
+                        logger=logging.getLogger(),
+                    )
+                )
+                active = int((~fixed_mask).sum())
+                expected_walkers = max(4, 2 * active)
+                self.assertEqual(sampling.get("n_walkers"), expected_walkers)
+                self.assertEqual(sampling.get("pool_workers"), 0)
 
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation

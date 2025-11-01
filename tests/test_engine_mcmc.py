@@ -1,6 +1,6 @@
 """Integration tests for the ensemble MCMC engine.
 
-**Last Updated:** 2025-10-31
+**Last Updated:** 2025-11-01
 """
 
 import importlib.util
@@ -104,6 +104,8 @@ class TestMCMCEngine(unittest.TestCase):
         )
         self.assertIsInstance(res["burn_in_steps"], int)
         self.assertIsInstance(res["production_steps"], int)
+        self.assertIsInstance(res["n_walkers"], int)
+        self.assertIsInstance(res["pool_workers"], int)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "chain.nc")
@@ -148,6 +150,26 @@ class TestMCMCEngine(unittest.TestCase):
         for name in plugin.PARAMETER_NAMES:
             self.assertIn(f"    {name}:", joined)
         self.assertNotIn("omitted", joined)
+
+    def test_explicit_pool_size_respected(self):
+        plugin = self._build_lcdm_plugin()
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01, 0.02],
+                "mu_obs": [40.0, 41.0],
+                "e_mu_obs": [0.1, 0.1],
+            }
+        )
+        res = cosmo_engine_mcmc.fit_sne_parameters(
+            sne_df,
+            plugin,
+            n_walkers=4,
+            n_steps=4,
+            pool_size=2,
+            burn_in_steps=4,
+        )
+        self.assertEqual(res["pool_workers"], 2)
+        self.assertGreaterEqual(res["n_walkers"], res["pool_workers"])
 
     def test_log_probability_penalty(self):
         plugin = self._build_lcdm_plugin()

@@ -1,5 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
+# Last Updated: 2025-11-01
 
 """Utilities for saving parameter fit summaries.
 
@@ -10,8 +11,11 @@ numbers without depending on the full code base.  The writer accepts a
 mapping of model names to engine result dictionaries.  Each entry should
 contain ``fitted_cosmological_params`` with best-fit values, optional
 ``parameter_errors`` describing 1σ uncertainties and an optional
-``covariance_matrix``.  NumPy arrays are converted to plain Python lists to
-keep the output fully serialisable.
+``covariance_matrix``.  Starting with version 7.1.0 the summary also embeds
+the sampler configuration—production steps, burn-in length, walker count and
+worker pool size—so output files mirror the interactive configuration
+menu. NumPy arrays are converted to plain Python lists to keep the output
+fully serialisable.
 """
 
 from __future__ import annotations
@@ -83,6 +87,20 @@ def save_summary(
                 "param_names": param_names,
                 "matrix": _to_serialisable(cov),
             }
+        sampling_entry = None
+        sampling_fields = (
+            ("production_steps", "production_steps"),
+            ("burn_in_steps", "burn_in_steps"),
+            ("n_walkers", "n_walkers"),
+            ("pool_workers", "pool_workers"),
+        )
+        for out_key, res_key in sampling_fields:
+            value = res.get(res_key)
+            if value is None:
+                continue
+            if sampling_entry is None:
+                sampling_entry = {}
+            sampling_entry[out_key] = _to_serialisable(value)
         summary[model_name] = {
             "parameters": {k: _to_serialisable(v) for k, v in params.items()},
             "errors_1sigma": (
@@ -91,6 +109,7 @@ def save_summary(
                 else None
             ),
             "covariance_matrix": cov_entry,
+            "sampling": sampling_entry,
         }
 
     base_name = f"parameter-summary_{ts}"

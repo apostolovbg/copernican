@@ -1,6 +1,6 @@
 # Copernican Suite API Overview
 
-**Last Updated:** 2025-10-31
+**Last Updated:** 2025-11-01
 
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be
@@ -55,13 +55,18 @@ modules are:
   and a sanitised log-probability trace. BAO and CMB data frames can be passed
   via the `bao_data_df` and `cmb_data_df` keyword arguments to enable joint
   sampling in a single call. ``burn_in_steps`` overrides the default
-  ``max(100, n_steps // 5)`` warm-up, keeping scripted workflows nimble.
-  The private `_reseed_invalid_walkers` utility reseeds walkers that emit
-  `nan` coordinates after burn-in so downstream API consumers never need to
-  handle undefined sampler states.
+  ``max(100, n_steps // 5)`` warm-up, keeping scripted workflows nimble, and
+  the ``pool_size`` keyword enforces user-selected multiprocessing pools
+  while automatically expanding the walker ensemble to keep every worker
+  busy. The private `_reseed_invalid_walkers` utility reseeds walkers that
+  emit `nan` coordinates after burn-in so downstream API consumers never need
+  to handle undefined sampler states. The interactive CLI now collects the
+  production steps, burn-in length, walker count and pool size before
+  launching Stage 2, mirroring the available function arguments for scripted
+  workflows.
 - `result_writer.save_summary(results, output_dir)` – serialize fitted
-  parameters, 1σ errors and covariance matrices to JSON and YAML for later
-  analysis.
+  parameters, 1σ errors, covariance matrices and the recorded sampling
+  configuration to JSON and YAML for later analysis.
   - `engines.cosmo_engine_mcmc` – lightweight `emcee` sampler for SNe
     posteriors. Walkers are initialised uniformly within declared
     parameter bounds, a burn-in run precedes production sampling and the
