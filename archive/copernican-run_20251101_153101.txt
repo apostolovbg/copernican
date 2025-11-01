@@ -1,0 +1,352 @@
+2025-11-01 15:16:09,456 - INFO - Logging initialized with UTC timestamps. Log file: output/copernican-run_20251101_151609/copernican-run_20251101_151609.txt
+2025-11-01 15:16:09,456 - INFO - Warnings will be logged but not treated as errors
+2025-11-01 15:16:09,501 - INFO - Environment details:
+2025-11-01 15:16:09,502 - INFO -   Python: 3.11.14
+2025-11-01 15:16:09,503 - INFO -   OS: macOS-15.0.1-x86_64-i386-64bit
+2025-11-01 15:16:09,503 - INFO -   CPU: i386
+2025-11-01 15:16:09,503 - INFO -   numpy: 1.26.4
+2025-11-01 15:16:09,503 - INFO -   scipy: 1.12.0
+2025-11-01 15:16:09,503 - INFO -   matplotlib: 3.8.2
+2025-11-01 15:16:09,503 - INFO - Environment summary: Python 3.11.14; macOS-15.0.1-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2025-11-01 15:16:09,504 - INFO - Select RNG seed:
+2025-11-01 15:16:09,504 - INFO - 1) Use default seed 0
+2025-11-01 15:16:09,504 - INFO - 2) Enter a seed manually
+2025-11-01 15:16:09,504 - INFO - 3) Generate a random seed
+2025-11-01 15:16:17,270 - INFO - Choice [1-3]: 3
+2025-11-01 15:16:17,270 - INFO - Generated random seed 2152442536
+2025-11-01 15:16:17,270 - INFO - Global RNG seed set to 2152442536
+2025-11-01 15:16:17,270 - INFO - Using RNG seed 2152442536
+2025-11-01 15:16:17,271 - INFO - Copernican 7.2.3 has initialized! Current timestamp is 251101_151617 UTC. Log file: output/copernican-run_20251101_151609/copernican-run_20251101_151609.txt
+2025-11-01 15:16:17,271 - INFO - Using standard CPU (SciPy) computational backend with multiprocessing.
+2025-11-01 15:16:17,271 - INFO - Running from base directory: .
+2025-11-01 15:16:17,271 - INFO - All outputs will be saved to: output/copernican-run_20251101_151609
+2025-11-01 15:16:17,271 - INFO - 
+--- Stage 1: Configuration ---
+
+2025-11-01 15:16:17,271 - INFO - 
+Available cosmological models:
+2025-11-01 15:16:17,271 - INFO -   1. cosmo_model_cfsc.yml
+2025-11-01 15:16:17,271 - INFO -   2. cosmo_model_cpc.yml
+2025-11-01 15:16:17,271 - INFO -   3. cosmo_model_lcdm.yml
+2025-11-01 15:16:17,271 - INFO -   4. cosmo_model_qauc.yml
+2025-11-01 15:16:17,271 - INFO -   5. cosmo_model_usmf2.yml
+2025-11-01 15:16:17,271 - INFO -   6. cosmo_model_usmf4.yml
+2025-11-01 15:16:17,271 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-01 15:16:21,741 - INFO - > 5
+2025-11-01 15:16:21,801 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2025-11-01 15:16:21,805 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2025-11-01 15:16:21,805 - INFO - Derived distance_modulus_model from luminosity distance.
+2025-11-01 15:16:21,816 - INFO - Loaded YAML model: USMFv2
+2025-11-01 15:16:21,816 - INFO - 
+Available computation engines:
+2025-11-01 15:16:21,816 - INFO -   1. cosmo_engine_mcmc.py
+2025-11-01 15:16:21,816 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-01 15:16:23,990 - INFO - > 1
+2025-11-01 15:16:39,094 - INFO - 
+Available SNe data sources:
+2025-11-01 15:16:39,095 - INFO -   1. Joint Light-curve Analysis 2014 (Joint SDSS-II and SNLS supernova sample of 740 SNe Ia with distance moduli and full covariance matrix.)
+2025-11-01 15:16:39,095 - INFO -   2. Pantheon+SH0ES 2022 (Combined sample of 1701 Type Ia supernova distance moduli with full statistical and systematic covariance matrix)
+2025-11-01 15:16:39,095 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-01 15:16:46,074 - INFO - > 1
+2025-11-01 15:16:46,074 - INFO - Attempting to load SNe data from 'Joint Light-curve Analysis 2014'
+2025-11-01 15:16:50,364 - INFO - Successfully loaded 740 SNe data points.
+2025-11-01 15:16:53,434 - INFO - SHA256 +footg5.gif: 6d375d2d9a97f897b6bdadf61781d5ad49365a612b0eeda2e27b363e83546b89
+2025-11-01 15:16:53,434 - INFO - SHA256 +footg8.gif: c725331eae86cce9f3b27fc9b3b2476d611b9c0d8c1a760df4c4792a5f9022da
+2025-11-01 15:16:53,434 - INFO - SHA256 ReadMe.txt: 236793155d6572626a56259732b06e4d1141e1ebe5ee2f4ed83253aca403b3f9
+2025-11-01 15:16:53,434 - INFO - SHA256 metadata_jla2014.yml: 699a7435e1f5c014702d1c4b8e98770eef23420be98afd5fa84ff35aa9a891ec
+2025-11-01 15:16:53,434 - INFO - SHA256 tablef1.dat: d9b17b4c704b554d0e3df0b5efed7877e881d2f62c04f968b789a61b3fb80114
+2025-11-01 15:16:53,434 - INFO - SHA256 tablef2.fit: 0db2aeab210523594c07ac7f89edca87c55a76601c51c4a831d338cc32ce3ff4
+2025-11-01 15:16:53,434 - INFO - SHA256 tablef3.dat: 35db10c033fa4bc5326436d957eb732e76fd7a4d6db7c729bc3ce17aeb5de470
+2025-11-01 15:16:53,434 - INFO - SHA256 tablef4.fit: a17a1e29a8ee1631669a4456adf84c27372a33f5448a65971dbdd50eb9a97a67
+2025-11-01 15:16:53,434 - INFO - SHA256 __pycache__/cosmo_parser_jla2014.cpython-311.pyc: 20be9aaba6bad86742c4c445595ff2024aae9338e2f184cb8e2ff86e78f757c0
+2025-11-01 15:16:53,434 - INFO - Loaded SNe dataset 'Joint Light-curve Analysis 2014' with 740 rows.
+2025-11-01 15:16:53,434 - INFO - SNe covariance matrix inverted successfully.
+2025-11-01 15:16:53,434 - INFO - 
+Available BAO data sources:
+2025-11-01 15:16:53,435 - INFO -   1. BOSS DR12 BAO Consensus (Consensus BAO distances for three redshift bins providing DM/rs, DH/rs and DV/rs with propagated block-diagonal covariance)
+2025-11-01 15:16:53,435 - INFO -   2. Compound BAO compilation (Compilation of BAO distance measurements without a covariance matrix)
+2025-11-01 15:16:53,435 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-01 15:16:56,117 - INFO - > 1
+2025-11-01 15:16:56,117 - INFO - Attempting to load BAO data from 'BOSS DR12 BAO Consensus'
+2025-11-01 15:16:56,117 - INFO - Loading BOSS DR12 data from /Users/apostolov/Documents/GitHub/copernican/data/bao/bossdr12
+2025-11-01 15:16:56,136 - INFO - BAO covariance condition number: 1.052e+02
+2025-11-01 15:16:56,136 - INFO - Successfully loaded 9 BAO data points.
+2025-11-01 15:16:56,139 - INFO - SHA256 BAO_consensus_covtot_dM_Hz.txt: 05c04829c8edc117870efe809494593a23de6c35547f8b66760a5250804b65cf
+2025-11-01 15:16:56,139 - INFO - SHA256 BAO_consensus_covtot_dV_FAP.txt: cf5b760b34f4335bd90490fcce4540dbac0b0b54e3240544c4af133dd45c8300
+2025-11-01 15:16:56,139 - INFO - SHA256 BAO_consensus_results_dM_Hz.txt: 30e784fa08e7eddb2fdd1ab09411424e67aa9b75df58f4bb330a889c9b9c478e
+2025-11-01 15:16:56,139 - INFO - SHA256 BAO_consensus_results_dV_FAP.txt: e507d65dacedc814892609d2decca9990a954ef5836da79b57c663885fce4ef8
+2025-11-01 15:16:56,139 - INFO - SHA256 metadata_bossdr12.yml: 821022b3851fda917a4c014d88d35da92f303e7295a1d9d6d373eaab541939ef
+2025-11-01 15:16:56,139 - INFO - SHA256 __pycache__/cosmo_parser_bossdr12.cpython-311.pyc: 28ae840a3d9516258948021762b63cb177a912a6cc2436568f9af6454fbf7ec3
+2025-11-01 15:16:56,139 - INFO - Loaded BAO dataset 'BOSS DR12 BAO Consensus' with 9 rows.
+2025-11-01 15:16:56,139 - INFO - BAO covariance matrix inverted successfully.
+2025-11-01 15:16:56,139 - INFO - BAO covariance condition number: 1.052e+02
+2025-11-01 15:16:56,139 - INFO - 
+Available CMB data sources:
+2025-11-01 15:16:56,140 - INFO -   1. Planck 2018 Lite TT/TE/EE (Temperature and polarization power spectra from the Planck 2018 lite release with full covariance matrix)
+2025-11-01 15:16:56,140 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-01 15:16:57,750 - INFO - > 1
+2025-11-01 15:16:57,750 - INFO - Attempting to load CMB data from 'Planck 2018 Lite TT/TE/EE'
+2025-11-01 15:16:59,413 - INFO - Successfully loaded 215 CMB data points.
+2025-11-01 15:16:59,741 - INFO - SHA256 c_matrix_plik_v22.dat: ad90378c50bd67841764179c90ae6711fa4317c649966ab2b0712143b31e0a32
+2025-11-01 15:16:59,741 - INFO - SHA256 cl_cmb_plik_v22.dat: dac0d9d493213e77c940a10a968cf0da3c5730bae60e1356c4cd8bcff96377ff
+2025-11-01 15:16:59,742 - INFO - SHA256 metadata_planck2018lite.yml: ec760dece3ddba7da4db1720cc52fd3b8e01e14f6bf2ed60b7d8ecc391f7516c
+2025-11-01 15:16:59,742 - INFO - SHA256 readme_baseline.md: ae6cef6886f2c4381147657fc195bed72742fbe3cc106208200f961af24caa73
+2025-11-01 15:16:59,742 - INFO - SHA256 __pycache__/cosmo_parser_cmb_planck2018lite.cpython-311.pyc: 0108deff6ee5b9f9e073b6a9f4b6ee18ae28cca729c61c81b54b9a2006479b56
+2025-11-01 15:16:59,742 - INFO - Loaded CMB dataset 'Planck 2018 Lite TT/TE/EE' with 215 rows.
+2025-11-01 15:16:59,742 - INFO - CMB covariance matrix inverted successfully.
+2025-11-01 15:16:59,742 - INFO - 
+2025-11-01 15:16:59,743 - INFO - Sampler defaults summary:
+2025-11-01 15:16:59,743 - INFO -   ΛCDM active parameters: 5
+2025-11-01 15:16:59,743 - INFO -   USMFv2 active parameters: 12
+2025-11-01 15:16:59,743 - INFO -   Minimum walkers per emcee rule: 24
+2025-11-01 15:16:59,743 - INFO -   Recommended production steps: 200
+2025-11-01 15:16:59,743 - INFO -   Recommended burn-in steps: 100
+2025-11-01 15:16:59,743 - INFO -   Recommended walkers: 32
+2025-11-01 15:16:59,743 - INFO -   Recommended pool workers: 4
+2025-11-01 15:16:59,743 - INFO - 
+2025-11-01 15:16:59,743 - INFO - 1) Run with default settings
+2025-11-01 15:16:59,743 - INFO - 2) Change settings
+2025-11-01 15:16:59,744 - INFO - C) Cancel configuration
+2025-11-01 15:16:59,744 - INFO - 
+2025-11-01 15:17:30,334 - INFO - Write the number of choice: 2
+2025-11-01 15:17:30,415 - INFO - 
+2025-11-01 15:17:30,418 - INFO - Production steps control the total sampler iterations.
+2025-11-01 15:17:30,418 - INFO -   Recommended default: 200
+2025-11-01 15:17:37,873 - INFO - Production steps [200]: 3
+2025-11-01 15:17:37,874 - INFO - 
+2025-11-01 15:17:37,874 - INFO - Burn-in steps discard the early samples so the chain can stabilise.
+2025-11-01 15:17:37,874 - INFO -   Recommended warm-up: 100
+2025-11-01 15:17:37,874 - INFO -   A shorter option such as 1 trades certainty for speed.
+2025-11-01 15:17:42,537 - INFO - Burn-in steps [100]: 1
+2025-11-01 15:17:42,551 - INFO - 
+2025-11-01 15:17:42,551 - INFO - Walkers sample the posterior in parallel; more walkers increase convergence confidence.
+2025-11-01 15:17:42,551 - INFO -   Required minimum: 24
+2025-11-01 15:17:42,551 - INFO -   Recommended default: 32
+2025-11-01 15:17:45,497 - INFO - Number of walkers [32]: 24
+2025-11-01 15:17:45,497 - INFO - 
+2025-11-01 15:17:45,497 - INFO - Worker pools accelerate sampling by spreading walkers across processes.
+2025-11-01 15:17:45,497 - INFO -   Recommended pool size: 4 (detected CPUs: 4)
+2025-11-01 15:17:45,497 - INFO -   Enter 0 to disable multiprocessing entirely.
+2025-11-01 15:17:49,649 - INFO - Pool workers [4]: 4
+2025-11-01 15:17:49,650 - INFO - 
+2025-11-01 15:17:49,650 - INFO - Sampling plan summary:
+2025-11-01 15:17:49,650 - INFO -   Production steps: 3
+2025-11-01 15:17:49,650 - INFO -   Burn-in steps: 1
+2025-11-01 15:17:49,650 - INFO -   Walkers: 24
+2025-11-01 15:17:49,650 - INFO -   Pool workers: 4
+2025-11-01 15:17:49,650 - INFO - 
+2025-11-01 15:17:52,413 - INFO - Accept these settings? [Y/r/b/c]: y
+2025-11-01 15:17:52,413 - INFO - Sampler configuration: steps=3, burn-in=1, walkers=24, pool=4
+2025-11-01 15:17:52,413 - INFO - Configured sampler: steps 3, burn-in 1.
+2025-11-01 15:17:52,413 - INFO - Walker ensemble 24, pool 4.
+2025-11-01 15:17:53,173 - INFO - 
+--- Stage 2: Ensemble MCMC sampler ---
+
+2025-11-01 15:17:53,184 - INFO - Using 24 walkers for 5 active parameter(s).
+2025-11-01 15:18:57,644 - INFO - Using requested multiprocessing pool with 4 worker(s).
+2025-11-01 15:18:57,792 - INFO - Starting MCMC burn-in stage for 1 steps...
+2025-11-01 15:20:58,327 - INFO - MCMC burn-in progress: 100% (1/1 steps)
+2025-11-01 15:20:58,332 - INFO -     logP μ=-9.282e+04 σ= 1.334e+05 max=-1.115e+03 Δχ²≈-0.000
+2025-11-01 15:20:58,332 - INFO -     H_0: med= 67.29 (-9.4/+18)
+2025-11-01 15:20:58,332 - INFO -     Omega_m0: med= 0.309 (-0.2/+0.15)
+2025-11-01 15:20:58,332 - INFO -     Omega_b: med= 0.0564 (-0.027/+0.034)
+2025-11-01 15:20:58,332 - INFO -     Omega_gamma: med= 5.29e-05 (-2e-05/+2.7e-05)
+2025-11-01 15:20:58,332 - INFO -     z_rec: med= 1105 (-56/+69)
+2025-11-01 15:20:58,332 - INFO -     Walker[6] snapshot: H_0=67.18, Omega_m0=0.2957, Omega_b=0.0437,
+        Omega_gamma=3.212e-05, z_rec=1097
+2025-11-01 15:20:58,332 - INFO - Completed MCMC burn-in stage.
+2025-11-01 15:20:58,333 - INFO - Starting MCMC production stage for 3 steps...
+2025-11-01 15:22:23,099 - INFO - MCMC production progress:  33% (1/3 steps)
+2025-11-01 15:22:23,301 - INFO -     logP μ=-8.746e+04 σ= 1.304e+05 max=-1.115e+03 Δχ²≈-0.000
+2025-11-01 15:22:23,301 - INFO -     H_0: med= 67.09 (-9/+14)
+2025-11-01 15:22:23,301 - INFO -     Omega_m0: med= 0.309 (-0.2/+0.13)
+2025-11-01 15:22:23,301 - INFO -     Omega_b: med= 0.05465 (-0.025/+0.034)
+2025-11-01 15:22:23,301 - INFO -     Omega_gamma: med= 4.899e-05 (-1.6e-05/+3.1e-05)
+2025-11-01 15:22:23,301 - INFO -     z_rec: med= 1104 (-46/+70)
+2025-11-01 15:22:23,301 - INFO -     Walker[6] snapshot: H_0=67.18, Omega_m0=0.2957, Omega_b=0.0437,
+        Omega_gamma=3.212e-05, z_rec=1097
+2025-11-01 15:23:07,430 - INFO - MCMC production progress:  67% (2/3 steps)
+2025-11-01 15:23:07,449 - INFO -     logP μ=-7.007e+04 σ= 1.290e+05 max=-1.115e+03 Δχ²≈-0.000
+2025-11-01 15:23:07,451 - INFO -     H_0: med= 67.09 (-8.3/+10)
+2025-11-01 15:23:07,451 - INFO -     Omega_m0: med= 0.3139 (-0.2/+0.14)
+2025-11-01 15:23:07,451 - INFO -     Omega_b: med= 0.0535 (-0.024/+0.021)
+2025-11-01 15:23:07,451 - INFO -     Omega_gamma: med= 4.899e-05 (-1.3e-05/+2.3e-05)
+2025-11-01 15:23:07,451 - INFO -     z_rec: med= 1105 (-47/+54)
+2025-11-01 15:23:39,433 - INFO - MCMC production progress: 100% (3/3 steps)
+2025-11-01 15:23:39,434 - INFO -     logP μ=-6.806e+04 σ= 1.298e+05 max=-1.115e+03 Δχ²≈-0.000
+2025-11-01 15:23:39,434 - INFO -     H_0: med= 67.09 (-9.7/+10)
+2025-11-01 15:23:39,434 - INFO -     Omega_m0: med= 0.3064 (-0.19/+0.13)
+2025-11-01 15:23:39,434 - INFO -     Omega_b: med= 0.0535 (-0.024/+0.021)
+2025-11-01 15:23:39,434 - INFO -     Omega_gamma: med= 4.869e-05 (-1.3e-05/+2.6e-05)
+2025-11-01 15:23:39,435 - INFO -     z_rec: med= 1102 (-39/+55)
+2025-11-01 15:23:39,435 - INFO - Completed MCMC production stage.
+2025-11-01 15:23:44,337 - INFO - MCMC acceptance for LambdaCDM: mean=0.389, min=0.000, max=0.667
+2025-11-01 15:23:44,337 - WARNING - /Users/apostolov/Documents/GitHub/copernican/.venv/lib/python3.11/site-packages/emcee/autocorr.py:38: RuntimeWarning: invalid value encountered in divide
+2025-11-01 15:23:44,342 - INFO - Using 24 walkers for 12 active parameter(s).
+2025-11-01 15:25:21,451 - INFO - Using requested multiprocessing pool with 4 worker(s).
+2025-11-01 15:25:21,494 - INFO - Starting MCMC burn-in stage for 1 steps...
+2025-11-01 15:27:46,860 - INFO - MCMC burn-in progress: 100% (1/1 steps)
+2025-11-01 15:27:46,865 - INFO -     logP μ=-4.141e+05 σ= 2.001e+05 max=-2.541e+05 Δχ²≈-0.000
+2025-11-01 15:27:46,865 - INFO -     H_A: med= 83.89 (-14/+13)
+2025-11-01 15:27:46,865 - INFO -     p_alpha: med= 0.9251 (-0.43/+0.46)
+2025-11-01 15:27:46,865 - INFO -     k_exp: med= 0.4009 (-1.4/+1.4)
+2025-11-01 15:27:46,866 - INFO -     s_exp: med= 1.254 (-0.46/+0.38)
+2025-11-01 15:27:46,866 - INFO -     t_0_age: med= 15.27 (-3.5/+2.4)
+2025-11-01 15:27:46,866 - INFO -     A_osc: med= 0.03234 (-0.017/+0.0093)
+2025-11-01 15:27:46,866 - INFO -     omega_osc: med= 6.428 (-4.2/+3.1)
+2025-11-01 15:27:46,866 - INFO -     t_i_osc: med= 11.79 (-7.4/+6.5)
+2025-11-01 15:27:46,866 - INFO -     phi_osc: med=-0.05036 (-2.2/+1.8)
+2025-11-01 15:27:46,866 - INFO -     Omega_b: med= 0.05435 (-0.024/+0.025)
+2025-11-01 15:27:46,866 - INFO -     Omega_gamma: med= 5.462e-05 (-3.6e-05/+2.7e-05)
+2025-11-01 15:27:46,866 - INFO -     z_rec: med= 1074 (-46/+66)
+2025-11-01 15:27:46,866 - INFO -     Walker[3] snapshot: H_A=99.56, p_alpha=0.9158, k_exp=0.1374,
+        s_exp=1.039, t_0_age=17.56, A_osc=0.01789, omega_osc=3.644,
+        t_i_osc=11.24, phi_osc=3.002, Omega_b=0.04991,
+        Omega_gamma=8.141e-05, z_rec=1135
+2025-11-01 15:27:46,866 - INFO - Completed MCMC burn-in stage.
+2025-11-01 15:27:46,866 - INFO - Starting MCMC production stage for 3 steps...
+2025-11-01 15:29:26,295 - INFO - MCMC production progress:  33% (1/3 steps)
+2025-11-01 15:29:26,298 - INFO -     logP μ=-3.993e+05 σ= 1.894e+05 max=-2.541e+05 Δχ²≈-0.000
+2025-11-01 15:29:26,303 - INFO -     H_A: med= 83.89 (-14/+13)
+2025-11-01 15:29:26,303 - INFO -     p_alpha: med= 0.9288 (-0.44/+0.45)
+2025-11-01 15:29:26,303 - INFO -     k_exp: med= 0.4485 (-1.4/+0.99)
+2025-11-01 15:29:26,303 - INFO -     s_exp: med= 1.257 (-0.43/+0.33)
+2025-11-01 15:29:26,303 - INFO -     t_0_age: med= 15.37 (-3.3/+2.3)
+2025-11-01 15:29:26,303 - INFO -     A_osc: med= 0.03196 (-0.015/+0.0097)
+2025-11-01 15:29:26,304 - INFO -     omega_osc: med= 6.555 (-4.3/+2.8)
+2025-11-01 15:29:26,304 - INFO -     t_i_osc: med= 11.46 (-7.1/+6.5)
+2025-11-01 15:29:26,304 - INFO -     phi_osc: med=-0.05036 (-2/+1.8)
+2025-11-01 15:29:26,304 - INFO -     Omega_b: med= 0.05435 (-0.024/+0.019)
+2025-11-01 15:29:26,304 - INFO -     Omega_gamma: med= 5.275e-05 (-3.4e-05/+2.4e-05)
+2025-11-01 15:29:26,304 - INFO -     z_rec: med= 1074 (-41/+66)
+2025-11-01 15:29:26,304 - INFO -     Walker[3] snapshot: H_A=99.56, p_alpha=0.9158, k_exp=0.1374,
+        s_exp=1.039, t_0_age=17.56, A_osc=0.01789, omega_osc=3.644,
+        t_i_osc=11.24, phi_osc=3.002, Omega_b=0.04991,
+        Omega_gamma=8.141e-05, z_rec=1135
+2025-11-01 15:30:12,853 - INFO - MCMC production progress:  67% (2/3 steps)
+2025-11-01 15:30:12,925 - INFO -     logP μ=-3.932e+05 σ= 1.893e+05 max=-2.541e+05 Δχ²≈-0.000
+2025-11-01 15:30:12,925 - INFO -     H_A: med= 83.89 (-17/+13)
+2025-11-01 15:30:12,925 - INFO -     p_alpha: med= 0.9302 (-0.44/+0.27)
+2025-11-01 15:30:12,925 - INFO -     k_exp: med= 0.4886 (-1.4/+0.74)
+2025-11-01 15:30:12,925 - INFO -     s_exp: med= 1.268 (-0.36/+0.22)
+2025-11-01 15:30:12,925 - INFO -     t_0_age: med= 15.22 (-2.7/+2.3)
+2025-11-01 15:30:12,925 - INFO -     A_osc: med= 0.03397 (-0.017/+0.0074)
+2025-11-01 15:30:12,925 - INFO -     omega_osc: med= 6.428 (-3.7/+3)
+2025-11-01 15:30:12,925 - INFO -     t_i_osc: med= 11.26 (-6.2/+4.8)
+2025-11-01 15:30:12,925 - INFO -     phi_osc: med= 0.3707 (-2/+1.4)
+2025-11-01 15:30:12,925 - INFO -     Omega_b: med= 0.05272 (-0.019/+0.019)
+2025-11-01 15:30:12,925 - INFO -     Omega_gamma: med= 4.831e-05 (-2.4e-05/+2.8e-05)
+2025-11-01 15:30:12,925 - INFO -     z_rec: med= 1073 (-38/+54)
+2025-11-01 15:30:56,599 - INFO - MCMC production progress: 100% (3/3 steps)
+2025-11-01 15:30:57,312 - INFO -     logP μ=-3.869e+05 σ= 1.862e+05 max=-2.541e+05 Δχ²≈-0.000
+2025-11-01 15:30:57,335 - INFO -     H_A: med= 83.89 (-13/+12)
+2025-11-01 15:30:57,335 - INFO -     p_alpha: med= 0.9302 (-0.31/+0.27)
+2025-11-01 15:30:57,335 - INFO -     k_exp: med= 0.4886 (-1.4/+0.74)
+2025-11-01 15:30:57,335 - INFO -     s_exp: med= 1.268 (-0.41/+0.22)
+2025-11-01 15:30:57,335 - INFO -     t_0_age: med= 15.09 (-2.8/+2.4)
+2025-11-01 15:30:57,335 - INFO -     A_osc: med= 0.03479 (-0.018/+0.0065)
+2025-11-01 15:30:57,335 - INFO -     omega_osc: med= 6.66 (-3.4/+2.8)
+2025-11-01 15:30:57,335 - INFO -     t_i_osc: med= 11.26 (-5.6/+4.9)
+2025-11-01 15:30:57,335 - INFO -     phi_osc: med= 0.3707 (-1.8/+1.1)
+2025-11-01 15:30:57,335 - INFO -     Omega_b: med= 0.0537 (-0.02/+0.017)
+2025-11-01 15:30:57,335 - INFO -     Omega_gamma: med= 5.28e-05 (-2.8e-05/+2.1e-05)
+2025-11-01 15:30:57,336 - INFO -     z_rec: med= 1076 (-38/+51)
+2025-11-01 15:30:57,336 - INFO - Completed MCMC production stage.
+2025-11-01 15:30:57,744 - INFO - MCMC acceptance for USMFv2: mean=0.264, min=0.000, max=0.667
+2025-11-01 15:30:57,764 - INFO - 
+--- Stage 3: BAO Analysis ---
+
+2025-11-01 15:30:57,767 - INFO - Calculating BAO observables for LambdaCDM with parameters: [67.18, 0.2957, 0.0437, 3.212e-05, 1097]
+2025-11-01 15:30:57,768 - INFO - Successfully calculated r_s for LambdaCDM: 175.557 Mpc
+2025-11-01 15:30:57,775 - INFO - LambdaCDM BAO residual RMS=2.38, max=4.1, median=-1.96 (N=9)
+2025-11-01 15:30:57,775 - INFO -     DH_over_rs: rms=3.19, max=4.1, median=-2.95 (N=3)
+2025-11-01 15:30:57,775 - INFO -     DM_over_rs: rms=1.93, max=2.31, median=-1.95 (N=3)
+2025-11-01 15:30:57,775 - INFO -     DV_over_rs: rms=1.75, max=1.96, median=-1.79 (N=3)
+2025-11-01 15:30:57,775 - INFO - LambdaCDM BAO: r_s = 175.56 Mpc, χ²_BAO = 6.35
+2025-11-01 15:30:57,776 - INFO - Calculating BAO observables for USMFv2 with parameters: [99.56, 0.9158, 0.1374, 1.039, 17.56, 0.01789, 3.644, 11.24, 3.002, 0.04991, 8.141e-05, 1135]
+2025-11-01 15:30:57,817 - WARNING - quad returned after exhausting retries between 0.0 and 1.0; check the model for singularities or provide explicit breakpoints.
+2025-11-01 15:30:57,817 - INFO - Successfully calculated r_s for USMFv2: 52674.414 Mpc
+2025-11-01 15:30:57,822 - INFO - USMFv2 BAO residual RMS=16.8, max=24.9, median=-14.5 (N=9)
+2025-11-01 15:30:57,822 - INFO -     DH_over_rs: rms=22.6, max=24.9, median=-22.3 (N=3)
+2025-11-01 15:30:57,822 - INFO -     DM_over_rs: rms=13.2, max=15.6, median=-13.3 (N=3)
+2025-11-01 15:30:57,822 - INFO -     DV_over_rs: rms=12.5, max=14.5, median=-12.6 (N=3)
+2025-11-01 15:30:57,822 - INFO - USMFv2 BAO: r_s = 52674.41 Mpc, χ²_BAO = 2210.13
+2025-11-01 15:30:57,822 - INFO - USMFv2 r_s offset relative to LambdaCDM: +52498.857 Mpc
+2025-11-01 15:30:57,822 - INFO - 
+--- Stage 4: CMB Analysis ---
+
+2025-11-01 15:30:59,368 - INFO - LambdaCDM CMB TT rms=76.3, max=266, median=-11.6 (N=215)
+2025-11-01 15:30:59,368 - INFO - LambdaCDM CMB TE rms=8.05, max=24.5, median=+2.22 (N=199)
+2025-11-01 15:30:59,368 - INFO - LambdaCDM CMB EE rms=7.69, max=54.1, median=-0.416 (N=199)
+2025-11-01 15:30:59,368 - INFO - LambdaCDM CMB χ² = 640.91
+2025-11-01 15:31:01,083 - INFO - USMFv2 CMB TT rms=3.37e+03, max=1.02e+04, median=-467 (N=215)
+2025-11-01 15:31:01,083 - INFO - USMFv2 CMB TE rms=124, max=318, median=-14.8 (N=199)
+2025-11-01 15:31:01,083 - INFO - USMFv2 CMB EE rms=18.9, max=63, median=-0.534 (N=199)
+2025-11-01 15:31:01,083 - INFO - USMFv2 CMB χ² = 499964.67
+2025-11-01 15:31:01,083 - INFO - 
+--- Stage 5: Generating Outputs ---
+
+2025-11-01 15:31:01,083 - INFO - LambdaCDM CMB χ² = 640.91
+2025-11-01 15:31:01,084 - INFO - USMFv2 CMB χ² = 499964.67
+2025-11-01 15:31:01,085 - INFO - Log file renamed to copernican-run_20251101_153101.txt
+2025-11-01 15:31:01,085 - INFO - Generating Hubble Diagram for Joint Light-curve Analysis 2014...
+2025-11-01 15:31:08,592 - INFO - Hubble diagram saved to hubble-plot-vs-USMFv2-jla_2014_20251101_153101.png
+2025-11-01 15:31:08,593 - INFO - Generating BAO Plot for BOSS DR12 BAO Consensus...
+2025-11-01 15:31:12,857 - INFO - BAO plot saved to bao-plot-vs-USMFv2-boss_dr12_bao_20251101_153101.png
+2025-11-01 15:31:12,857 - INFO - Generating CMB Spectrum Plot for Planck 2018 Lite TT/TE/EE...
+2025-11-01 15:31:18,020 - INFO - CMB plot saved to cmb-plot-vs-USMFv2-planck_2018_lite_20251101_153101.png
+2025-11-01 15:31:18,021 - INFO - 
+--- Theory Abstracts ---
+
+2025-11-01 15:31:18,021 - INFO - ΛCDM Abstract:
+LambdaCDM model describes a flat universe dominated by cold dark matter and a cosmological constant serving as the reference model.
+
+2025-11-01 15:31:18,021 - INFO - USMFv2 Abstract:
+The Unified Shrinking Matter Framework (USMF) is a cosmological model proposing that the observed accelerated expansion of the Universe and phenomena attributed to dark matter and dark energy are apparent effects. These arise from observations made from within dense cosmic structures (like galaxies) that are themselves shrinking over cosmic time relative to a static universal coordinate system. This paper details the core concepts of USMF, its refined mathematical formulation including considerations for early universe evolution, the mechanisms for inhomogeneous shrinking, its implications for key cosmological observations such as Type Ia supernovae, Big Bang Nucleosynthesis, Baryon Acoustic Oscillations, and the matter-antimatter asymmetry. The framework suggests a dynamic evolution of fundamental scales and the effective gravitational constant ($G_{univ}(t)$), proposing specific modifications to gravitational field equations and offering novel explanations and unique testable predictions for cosmic puzzles without invoking new undiscovered particles or energy fields.
+
+2025-11-01 15:31:18,021 - INFO - --- ΛCDM Fit Report ---
+
+2025-11-01 15:31:18,022 - INFO -   H₀ = 67.184
+2025-11-01 15:31:18,022 - INFO -   Ωₘ₀ = 0.29571
+2025-11-01 15:31:18,022 - INFO -   Ωb = 0.043697
+2025-11-01 15:31:18,023 - INFO -   Ωᵧ = 3.2116e-05
+2025-11-01 15:31:18,023 - INFO -   zᵣₑc = 1096.8
+2025-11-01 15:31:18,023 - INFO -   χ²_Total = 2235.11
+2025-11-01 15:31:18,023 - INFO -   χ²_SNe = 1587.85
+2025-11-01 15:31:18,023 - INFO -   χ²_BAO = 6.35
+2025-11-01 15:31:18,023 - INFO -   χ²_CMB = 640.91
+2025-11-01 15:31:18,023 - INFO - 
+2025-11-01 15:31:18,023 - INFO - --- USMFv2 Fit Report ---
+
+2025-11-01 15:31:18,023 - INFO -   Hₐ = 99.564
+2025-11-01 15:31:18,023 - INFO -   pα = 0.91579
+2025-11-01 15:31:18,023 - INFO -   kₑₓₚ = 0.1374
+2025-11-01 15:31:18,024 - INFO -   sₑₓₚ = 1.039
+2025-11-01 15:31:18,024 - INFO -   t₀,ₐgₑ = 17.563
+2025-11-01 15:31:18,024 - INFO -   Aₒₛc = 0.017895
+2025-11-01 15:31:18,024 - INFO -   ωₒₛc = 3.6435
+2025-11-01 15:31:18,024 - INFO -   tᵢ,ₒₛc = 11.242
+2025-11-01 15:31:18,024 - INFO -   phiₒₛc = 3.0023
+2025-11-01 15:31:18,024 - INFO -   Ωb = 0.049912
+2025-11-01 15:31:18,025 - INFO -   Ωᵧ = 8.1413e-05
+2025-11-01 15:31:18,025 - INFO -   zᵣₑc = 1135.2
+2025-11-01 15:31:18,025 - INFO -   χ²_Total = 508145.32
+2025-11-01 15:31:18,025 - INFO -   χ²_SNe = 5970.52
+2025-11-01 15:31:18,025 - INFO -   χ²_BAO = 2210.13
+2025-11-01 15:31:18,025 - INFO -   χ²_CMB = 499964.67
+2025-11-01 15:31:18,025 - INFO - 
+2025-11-01 15:31:18,052 - INFO - SNe detailed results CSV saved to sne-data-vs-USMFv2-jla_2014_20251101_153101.csv
+2025-11-01 15:31:18,057 - INFO - BAO detailed results CSV saved to bao-data-vs-USMFv2-boss_dr12_bao_20251101_153101.csv
+2025-11-01 15:31:18,070 - INFO - CMB detailed results CSV saved to cmb-data-vs-USMFv2-planck_2018_lite_20251101_153101.csv
+2025-11-01 15:31:18,098 - WARNING - /Users/apostolov/Documents/GitHub/copernican/.venv/lib/python3.11/site-packages/arviz/data/base.py:221: UserWarning: More chains (24) than draws (3). Passed array should have shape (chains, draws, *shape)
+2025-11-01 15:31:18,285 - INFO - Posterior samples saved to /Users/apostolov/Documents/GitHub/copernican/output/copernican-run_20251101_153101/posterior-LambdaCDM-jla_2014_20251101_153101.nc
+2025-11-01 15:31:18,363 - INFO - Posterior samples saved to /Users/apostolov/Documents/GitHub/copernican/output/copernican-run_20251101_153101/posterior-USMFv2-jla_2014_20251101_153101.nc
+2025-11-01 15:31:18,363 - INFO - 
+==================================================
+2025-11-01 15:31:18,363 - INFO - Evaluation complete. All files saved to the 'output' directory.
+2025-11-01 15:31:18,363 - INFO - ==================================================
+
+2025-11-01 15:31:19,049 - INFO - Run completed at 20251101_153101 UTC.
+2025-11-01 15:31:19,049 - INFO - Run started on 2025-11-01 15:16:17 UTC
+2025-11-01 15:31:19,050 - INFO - Run ended on 2025-11-01 15:31:01 UTC
+2025-11-01 15:31:19,050 - INFO - Run took 352.73s for LCDM and 435.18s for USMFv2, or 901.10s in total, on a system with a i386 3.50 GHz, under macOS-15.0.1-x86_64-i386-64bit
