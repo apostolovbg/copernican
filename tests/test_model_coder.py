@@ -1,5 +1,5 @@
 # Copyright (c) 2025 Copernican Suite developers.
-# Last Updated: 2025-10-31
+# Last Updated: 2025-11-01
 # See LICENSE.md in the repository root for details.
 
 """Security tests for ``model_coder`` expression handling."""
@@ -9,10 +9,11 @@ import pickle
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import sympy as sp
 import yaml
-from scipy.integrate import quad
+from scipy.integrate import IntegrationWarning, quad
 
 from copernican_lib import model_coder
 
@@ -185,6 +186,61 @@ class TestSoundHorizonRigour(unittest.TestCase):
         rs_expected = quad(integrand, z_rec, math.inf, limit=200)[0]
         self.assertAlmostEqual(rs_model, rs_expected, places=6)
         self.assertTrue(data["valid_for_bao"])
+
+
+class TestRobustQuad(unittest.TestCase):
+    """Validate the resilient quadrature wrapper used by generated models."""
+
+    def test_robust_quad_escalates_limit(self):
+        """The helper should retry with larger limits when warnings occur."""
+
+        call_limits = []
+
+        def fake_quad(*args, **kwargs):
+            limit = kwargs.get("limit")
+            call_limits.append(limit)
+            if limit is None or limit < 400:
+                raise IntegrationWarning("Maximum subdivisions reached")
+            a_val, b_val = args[1], args[2]
+            # Integral of x from a to b equals (b^2 - a^2)/2.
+            return ((b_val**2 - a_val**2) / 2.0, 1e-12)
+
+        with mock.patch.object(
+            model_coder, "_SCIPY_QUAD", side_effect=fake_quad
+        ):
+            result, err = model_coder.robust_quad(lambda x: x, 0.0, 1.0)
+
+        self.assertAlmostEqual(result, 0.5, places=12)
+        self.assertLess(err, 1e-6)
+        self.assertGreaterEqual(len(call_limits), 2)
+        self.assertIn(400, call_limits)
+
+    def test_robust_quad_splits_interval(self):
+        """Finite integrals split into sub-intervals when retries fail."""
+
+        calls = []
+
+        def fake_quad(func, a_val, b_val, *args, **kwargs):
+            limit = kwargs.get("limit")
+            calls.append((a_val, b_val, limit))
+            if abs(b_val - a_val) > 0.3:
+                raise IntegrationWarning("Interval too wide")
+            # Analytic integral of x^2 from a to b.
+            return ((b_val**3 - a_val**3) / 3.0, 1e-12)
+
+        with mock.patch.object(
+            model_coder, "_SCIPY_QUAD", side_effect=fake_quad
+        ):
+            result, err = model_coder.robust_quad(
+                lambda x: x**2, 0.0, 1.0, max_attempts=1
+            )
+
+        self.assertAlmostEqual(result, 1.0 / 3.0, places=6)
+        self.assertLess(err, 1e-6)
+        # Ensure at least one fallback call used a narrower segment.
+        self.assertTrue(
+            any(abs(end - start) <= 0.3 for start, end, _ in calls[1:])
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover

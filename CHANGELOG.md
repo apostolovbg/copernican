@@ -21,6 +21,20 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.1.3
+- 2025-11-01: Hardened the symbolic quadrature pipeline with automatic limit
+  escalation, interval subdivision and targeted logging so wild theories such
+  as USMFv2 complete without SciPy ``IntegrationWarning`` spam, refreshed
+  documentation to describe the resilience improvements, bumped the recorded
+  version and added regression tests for the new helper (OpenAI ChatGPT)
+
+## Version 7.1.2
+- 2025-11-01: Refreshed every launcher with a concise primary menu, an
+  environment-management submenu and blank-line separators, added a guided
+  sampler questionnaire after CMB loading, updated documentation, synced the
+  recorded version and adjusted start-script tests for the new flows (OpenAI
+  ChatGPT)
+
 ## Version 7.1.1
 - 2025-11-01: Normalised every runtime timestamp to Coordinated Universal Time
   (UTC) across logging, manifests and filenames, updated metadata

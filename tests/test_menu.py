@@ -9,6 +9,7 @@ import os
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 with mock.patch("sys.version_info", (3, 12, 0)):
@@ -117,6 +118,104 @@ class DependencyPromptTestCase(unittest.TestCase):
                 ],
                 check=True,
             )
+
+
+class SamplerConfigurationPromptTestCase(unittest.TestCase):
+    """Exercise the sampler configuration questionnaire."""
+
+    def setUp(self) -> None:
+        def fit_sne_parameters(
+            n_steps: int = 400, n_walkers: int = 64
+        ) -> None:
+            return None
+
+        self.engine = SimpleNamespace(
+            fit_sne_parameters=fit_sne_parameters,
+            _FIXED_BOUNDS_RTOL=1e-9,
+            _FIXED_BOUNDS_ATOL=1e-12,
+        )
+        self.lcdm_plugin = SimpleNamespace(
+            PARAMETER_BOUNDS=[(0.0, 1.0)] * 3,
+            PARAMETER_NAMES=["Ωm", "ΩΛ", "H0"],
+            MODEL_NAME="ΛCDM",
+        )
+        self.alt_plugin = SimpleNamespace(
+            PARAMETER_BOUNDS=[(0.0, 1.0)] * 4,
+            PARAMETER_NAMES=["w0", "wa", "Ωk", "Neff"],
+            MODEL_NAME="AltModel",
+        )
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    @mock.patch("copernican.os.cpu_count", return_value=16)
+    def test_defaults_selected_via_enter(
+        self, _cpu_mock, ask_mock, _write_mock
+    ) -> None:
+        """Pressing Enter chooses the recommended sampler plan."""
+
+        ask_mock.side_effect = [""]
+        plan = copernican.prompt_sampling_configuration(
+            self.engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+        )
+        self.assertEqual(
+            plan,
+            {
+                "n_steps": 400,
+                "burn_in_steps": 100,
+                "n_walkers": 64,
+                "pool_size": 16,
+            },
+        )
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    @mock.patch("copernican.os.cpu_count", return_value=12)
+    def test_custom_plan_collects_values(
+        self, _cpu_mock, ask_mock, _write_mock
+    ) -> None:
+        """Users can enter custom sampler values via the questionnaire."""
+
+        ask_mock.side_effect = ["2", "600", "", "80", "4", ""]
+        plan = copernican.prompt_sampling_configuration(
+            self.engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+        )
+        self.assertEqual(
+            plan,
+            {
+                "n_steps": 600,
+                "burn_in_steps": 120,
+                "n_walkers": 80,
+                "pool_size": 4,
+            },
+        )
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    @mock.patch("copernican.os.cpu_count", return_value=10)
+    def test_back_option_returns_to_summary(
+        self, _cpu_mock, ask_mock, _write_mock
+    ) -> None:
+        """Selecting back restarts the menu before launching."""
+
+        ask_mock.side_effect = ["2", "", "", "", "", "b", ""]
+        plan = copernican.prompt_sampling_configuration(
+            self.engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+        )
+        self.assertEqual(
+            plan,
+            {
+                "n_steps": 400,
+                "burn_in_steps": 100,
+                "n_walkers": 64,
+                "pool_size": 10,
+            },
+        )
 
 
 if __name__ == "__main__":
