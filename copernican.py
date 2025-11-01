@@ -1301,6 +1301,9 @@ def main_workflow():
                         "independence_assumptions",
                         [],
                     ),
+                    "condition_number": df.attrs.get(
+                        "covariance_condition_number"
+                    ),
                 }
             )
 

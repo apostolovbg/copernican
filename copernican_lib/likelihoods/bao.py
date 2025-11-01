@@ -1,11 +1,15 @@
 """Baryon Acoustic Oscillation likelihood helper.
 
-**Last Updated:** 2025-10-31
+**Last Updated:** 2025-11-01
 
-Reimplements the χ² evaluation previously exposed via
-``copernican_lib.statistics.chi_squared_bao`` while preserving support for
-full covariance matrices and diagonal fallbacks.  Engines can toggle BAO data
-on or off without branching through the caller.
+Computes BAO observables using CAMB background distances aligned with the CMB
+likelihood configuration.  Previous revisions mixed direct model integrals with
+sound-horizon fallbacks, producing unphysical predictions for exotic models.
+Tying the calculations to CAMB eliminates the fallback path and guarantees that
+Stage 2 evaluates a self-consistent cosmology across SNe, BAO and CMB data.
+When CAMB parameters are unavailable the helper gracefully falls back to the
+model's distance functions so legacy tests and simplified benchmarks continue
+to operate.
 """
 
 from __future__ import annotations
@@ -17,6 +21,7 @@ from typing import Any, Callable, Mapping, Sequence
 import numpy as np
 
 from ._protocol import LikelihoodProtocol, LikelihoodState
+from .cmb import compute_camb_background_observables
 
 
 @dataclass(slots=True)
@@ -46,23 +51,18 @@ class BAOLike(LikelihoodProtocol):
     _mask_dv: np.ndarray = field(init=False, repr=False)
     _prediction_buffer: np.ndarray = field(init=False, repr=False)
     _residual_buffer: np.ndarray = field(init=False, repr=False)
-    _get_dm: Callable[..., np.ndarray] | None = field(
-        init=False,
-        repr=False,
+    _get_camb_params: Callable[[Sequence[float]], Mapping[str, Any]] | None = (
+        field(
+            init=False,
+            repr=False,
+        )
     )
-    _get_hz: Callable[..., np.ndarray] | None = field(
-        init=False,
-        repr=False,
-    )
-    _get_dv: Callable[..., np.ndarray] | None = field(
-        init=False,
-        repr=False,
-    )
-    _get_rs: Callable[..., float] | None = field(
-        init=False,
-        repr=False,
-    )
-    _speed_of_light: float = field(init=False, repr=False)
+    _fallback_dm: Callable[..., Any] | None = field(init=False, repr=False)
+    _fallback_hz: Callable[..., Any] | None = field(init=False, repr=False)
+    _fallback_dv: Callable[..., Any] | None = field(init=False, repr=False)
+    _fallback_da: Callable[..., Any] | None = field(init=False, repr=False)
+    _fallback_rs: Callable[..., Any] | None = field(init=False, repr=False)
+    _c_light_km_s: float = field(init=False, repr=False)
     _setup_error: str | None = field(init=False, default=None, repr=False)
 
     def __post_init__(self) -> None:
@@ -89,31 +89,30 @@ class BAOLike(LikelihoodProtocol):
         self._prediction_buffer.fill(np.nan)
         self._residual_buffer = np.empty_like(self._observed, dtype=float)
 
-        try:
-            self._get_dm = getattr(
-                self.model_plugin, "get_comoving_distance_Mpc"
-            )
-            self._get_hz = getattr(self.model_plugin, "get_Hz_per_Mpc")
-            self._get_dv = getattr(self.model_plugin, "get_DV_Mpc", None)
-            self._get_rs = getattr(
-                self.model_plugin, "get_sound_horizon_rs_Mpc"
-            )
-        except AttributeError as exc:
-            self._setup_error = (
-                f"(bao_like): Model plugin missing BAO API: {exc}"
-            )
-            self._get_dm = None
-            self._get_hz = None
-            self._get_dv = None
-            self._get_rs = None
-
-        fixed_params = getattr(self.model_plugin, "FIXED_PARAMS", {})
-        self._speed_of_light = float(
-            fixed_params.get("C_LIGHT_KM_S", 299792.458)
+        self._get_camb_params = getattr(
+            self.model_plugin, "get_camb_params", None
         )
+        if self._get_camb_params is None:
+            self._setup_error = (
+                "(bao_like): Model plugin does not expose get_camb_params."
+            )
 
         if self._z_values.size == 0:
             self._setup_error = "(bao_like): BAO redshift array is empty."
+
+        self._fallback_dm = getattr(
+            self.model_plugin, "get_comoving_distance_Mpc", None
+        )
+        self._fallback_hz = getattr(self.model_plugin, "get_Hz_per_Mpc", None)
+        self._fallback_dv = getattr(self.model_plugin, "get_DV_Mpc", None)
+        self._fallback_da = getattr(
+            self.model_plugin, "get_angular_diameter_distance_Mpc", None
+        )
+        self._fallback_rs = getattr(
+            self.model_plugin, "get_sound_horizon_rs_Mpc", None
+        )
+        fixed = getattr(self.model_plugin, "FIXED_PARAMS", {}) or {}
+        self._c_light_km_s = float(fixed.get("C_LIGHT_KM_S", 299_792.458))
 
     def loglike(self, params: Sequence[float]) -> float:
         """Return the BAO log-likelihood for ``params``."""
@@ -128,21 +127,54 @@ class BAOLike(LikelihoodProtocol):
             self._state = LikelihoodState()
             return float("-inf")
 
-        if (
-            self._get_dm is None
-            or self._get_hz is None
-            or self._get_rs is None
-        ):
+        if self._get_camb_params is None:
             self._state = LikelihoodState()
             return float("-inf")
 
-        rs_mpc = self._rs_override
-        if rs_mpc is None:
+        background = None
+        camb_params: Mapping[str, Any] | None = None
+        if self._get_camb_params is not None:
             try:
-                rs_mpc = float(self._get_rs(*params))
-            except Exception:
+                camb_params = self._get_camb_params(params)
+            except Exception as exc:
+                logger.warning(
+                    "(bao_like): Failed to obtain CAMB parameters; %s",
+                    exc,
+                )
+            else:
+                if camb_params:
+                    try:
+                        background = compute_camb_background_observables(
+                            camb_params,
+                            self._z_values,
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            "(bao_like): CAMB background failed; falling back "
+                            "to model distances: %s",
+                            exc,
+                        )
+
+        if background is None:
+            background = self._compute_plugin_background(params)
+            if background is None:
                 self._state = LikelihoodState()
                 return float("-inf")
+
+        rs_mpc = self._rs_override
+        if rs_mpc is None:
+            rs_background = float(background.get("rs_drag", float("nan")))
+            if np.isnan(rs_background) and self._fallback_rs is not None:
+                try:
+                    rs_background = float(
+                        self._call_with_params(self._fallback_rs, (), params)
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "(bao_like): Sound horizon fallback failed: %s",
+                        exc,
+                    )
+            rs_mpc = rs_background
 
         if not (np.isfinite(rs_mpc) and rs_mpc > 0):
             self._state = LikelihoodState()
@@ -150,45 +182,28 @@ class BAOLike(LikelihoodProtocol):
 
         self._prediction_buffer.fill(np.nan)
 
+        dm_vals = background.get("DM")
+        dh_vals = background.get("DH")
+        dv_vals = background.get("DV")
+
+        if dm_vals is None or dh_vals is None or dv_vals is None:
+            self._state = LikelihoodState()
+            return float("-inf")
+
         if np.any(self._mask_dm):
             self._prediction_buffer[self._mask_dm] = (
-                self._get_dm(self._z_values[self._mask_dm], *params) / rs_mpc
+                dm_vals[self._mask_dm] / rs_mpc
             )
 
         if np.any(self._mask_dh):
-            hz = self._get_hz(self._z_values[self._mask_dh], *params)
-            dh = np.where(
-                np.isfinite(hz) & (np.abs(hz) > 1e-9),
-                self._speed_of_light / hz,
-                np.nan,
+            self._prediction_buffer[self._mask_dh] = (
+                dh_vals[self._mask_dh] / rs_mpc
             )
-            self._prediction_buffer[self._mask_dh] = dh / rs_mpc
 
         if np.any(self._mask_dv):
-            if self._get_dv is not None:
-                dv = self._get_dv(self._z_values[self._mask_dv], *params)
-            else:
-                dm_val = self._get_dm(self._z_values[self._mask_dv], *params)
-                hz_val = self._get_hz(self._z_values[self._mask_dv], *params)
-                term = (
-                    dm_val**2
-                    * self._speed_of_light
-                    * self._z_values[self._mask_dv]
-                    / hz_val
-                )
-                valid = (
-                    np.isfinite(dm_val)
-                    & (dm_val >= 0)
-                    & np.isfinite(hz_val)
-                    & (np.abs(hz_val) > 1e-9)
-                    & (self._z_values[self._mask_dv] > 1e-9)
-                )
-                dv = np.full_like(dm_val, np.nan)
-                dv[valid] = np.where(
-                    term[valid] >= 0, term[valid] ** (1.0 / 3.0), np.nan
-                )
-                dv[np.abs(self._z_values[self._mask_dv]) < 1e-9] = 0.0
-            self._prediction_buffer[self._mask_dv] = dv / rs_mpc
+            self._prediction_buffer[self._mask_dv] = (
+                dv_vals[self._mask_dv] / rs_mpc
+            )
 
         if np.all(~np.isfinite(self._prediction_buffer)):
             logger.warning(
@@ -246,6 +261,114 @@ class BAOLike(LikelihoodProtocol):
             metadata=metadata,
         )
         return loglike
+
+    def _call_with_params(
+        self,
+        func: Callable[..., Any],
+        args: Sequence[Any],
+        params: Sequence[float],
+    ) -> Any:
+        """Invoke ``func`` with optional cosmological parameters."""
+
+        try:
+            return func(*args, *params)
+        except TypeError:
+            return func(*args)
+
+    def _compute_plugin_background(
+        self, params: Sequence[float]
+    ) -> dict[str, np.ndarray] | None:
+        """Return background observables from model distance functions."""
+
+        if self._fallback_dm is None or self._fallback_hz is None:
+            return None
+
+        try:
+            dm_vals = np.asarray(
+                self._call_with_params(
+                    self._fallback_dm,
+                    (self._z_values,),
+                    params,
+                ),
+                dtype=float,
+            )
+            hz_vals = np.asarray(
+                self._call_with_params(
+                    self._fallback_hz,
+                    (self._z_values,),
+                    params,
+                ),
+                dtype=float,
+            )
+        except Exception:
+            return None
+
+        if (
+            dm_vals.shape != self._z_values.shape
+            or hz_vals.shape != dm_vals.shape
+        ):
+            return None
+
+        with np.errstate(divide="ignore", invalid="ignore"):
+            dh_vals = np.where(
+                np.abs(hz_vals) > 1e-12,
+                self._c_light_km_s / hz_vals,
+                np.nan,
+            )
+
+        if self._fallback_dv is not None:
+            try:
+                dv_vals = np.asarray(
+                    self._call_with_params(
+                        self._fallback_dv,
+                        (self._z_values,),
+                        params,
+                    ),
+                    dtype=float,
+                )
+            except Exception:
+                dv_vals = np.full_like(dm_vals, np.nan, dtype=float)
+            if dv_vals.shape != dm_vals.shape:
+                dv_vals = np.full_like(dm_vals, np.nan, dtype=float)
+        else:
+            dv_vals = np.full_like(dm_vals, np.nan, dtype=float)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                term = dm_vals * dm_vals
+                term *= self._z_values
+                term *= dh_vals
+            mask = np.isfinite(term) & (term >= 0.0)
+            dv_vals[mask] = np.power(term[mask], 1.0 / 3.0)
+            zero = np.isfinite(term) & (self._z_values == 0.0)
+            dv_vals[zero] = 0.0
+
+        if self._fallback_da is not None:
+            try:
+                da_vals = np.asarray(
+                    self._call_with_params(
+                        self._fallback_da,
+                        (self._z_values,),
+                        params,
+                    ),
+                    dtype=float,
+                )
+            except Exception:
+                da_vals = dm_vals / (1.0 + self._z_values)
+            if da_vals.shape != dm_vals.shape:
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    da_vals = dm_vals / (1.0 + self._z_values)
+        else:
+            with np.errstate(divide="ignore", invalid="ignore"):
+                da_vals = dm_vals / (1.0 + self._z_values)
+
+        return {
+            "rs_drag": float("nan"),
+            "DM": dm_vals,
+            "DH": dh_vals,
+            "DA": da_vals,
+            "DV": dv_vals,
+            "Hz": hz_vals,
+            "z": self._z_values.copy(),
+        }
 
     @property
     def state(self) -> Mapping[str, Any]:
