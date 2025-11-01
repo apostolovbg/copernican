@@ -1,4 +1,4 @@
-# Last Updated: 2025-10-31
+# Last Updated: 2025-11-01
 
 """Custom pre-commit validations specific to the Copernican Suite.
 
@@ -26,6 +26,12 @@ LAST_UPDATED_HEADER_PATTERNS = (
     re.compile(r"^\s*# Last Updated:\s*(19|20)\d{2}-\d{2}-\d{2}\s*$"),
     re.compile(r"^\s*@REM Last Updated:\s*(19|20)\d{2}-\d{2}-\d{2}\s*$"),
 )
+
+
+def _utc_today() -> _dt.date:
+    """Return today's date normalised to Coordinated Universal Time."""
+
+    return _dt.datetime.now(_dt.timezone.utc).date()
 
 
 def _as_posix(path: Path) -> str:
@@ -216,7 +222,7 @@ def main(argv: list[str] | None = None) -> int:
 
     repo_root = Path(__file__).resolve().parents[1]
     staged_files = [repo_root / name for name in args.filenames]
-    today = _dt.date.today()
+    today = _utc_today()
 
     errors: List[str] = []
     errors.extend(_detect_future_dates(staged_files, today, root=repo_root))

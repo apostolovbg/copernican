@@ -1124,12 +1124,12 @@ def main_workflow():
             exit_clean(1)
         select_seed()
         logger.info("Using RNG seed %s", utils.get_random_seed())
-        start_ts = time.strftime("%y%m%d_%H%M%S")
-        run_start_dt = datetime.datetime.now()
+        run_start_dt = datetime.datetime.now(datetime.timezone.utc)
+        start_ts = run_start_dt.strftime("%y%m%d_%H%M%S")
         run_start_pc = time.perf_counter()
         logger.info(
             f"Copernican {COPERNICAN_VERSION} has initialized! "
-            f"Current timestamp is {start_ts}. Log file: {log_file}"
+            f"Current timestamp is {start_ts} UTC. Log file: {log_file}"
         )
         logger.info(
             "Using standard CPU (SciPy) computational backend with "
@@ -1613,7 +1613,7 @@ def main_workflow():
             f"{alt_cmb_summary['chi2_cmb']:.2f}"
         )
 
-        run_end_dt = datetime.datetime.now()
+        run_end_dt = datetime.datetime.now(datetime.timezone.utc)
         end_ts = run_end_dt.strftime("%Y%m%d_%H%M%S")
         new_dir = os.path.join(
             OUTPUT_BASE_DIR, f"copernican-run_{end_ts}"
@@ -1803,13 +1803,13 @@ def main_workflow():
         cpu_model, cpu_freq = _get_cpu_info()
         os_info = platform.platform()
 
-        logger.info(f"Run completed at {end_ts}.")
+        logger.info(f"Run completed at {end_ts} UTC.")
 
         console.write(
-            f"Run started on {run_start_dt.strftime('%Y-%m-%d %H:%M:%S')}"
+            f"Run started on {run_start_dt.strftime('%Y-%m-%d %H:%M:%S')} UTC"
         )
         console.write(
-            f"Run ended on {run_end_dt.strftime('%Y-%m-%d %H:%M:%S')}"
+            f"Run ended on {run_end_dt.strftime('%Y-%m-%d %H:%M:%S')} UTC"
         )
         console.write(
             f"Run took {lcdm_time:.2f}s for LCDM and {alt_time:.2f}s for "

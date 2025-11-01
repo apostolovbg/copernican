@@ -43,6 +43,10 @@ modules are:
   responses in the run log.
 - `logger.setup_logging(log_dir)` – initialise logging and patch
   `print`/`input` so all interactions are captured.
+- `utils.get_timestamp(now=None)` – return a `YYYYMMDD_HHMMSS` string in
+  Coordinated Universal Time for consistent filenames and manifests. The
+  helper underpins logging, result writers and manifest builders so outputs
+  from CI and local runs align chronologically.
 - `chain_io.save_posterior(chain, param_names, path, metadata)` – store
   posterior samples in NetCDF format using ArviZ.
 - `csv_writer.save_sne_results_detailed_csv`,

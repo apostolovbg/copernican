@@ -1,12 +1,14 @@
-**Version:** 7.1.0
+**Version:** 7.1.1
 **Last Updated:** 2025-11-01
 
 ![Copernican Suite banner](docs/banner_github.png)
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and
-Cosmic Microwave Background (CMB) data. Version 7.1.0 introduces an
-interactive Stage 2 configuration menu that captures production steps,
+Cosmic Microwave Background (CMB) data. Version 7.1.1 normalises every
+runtime timestamp to Coordinated Universal Time (UTC) so local runs match
+CI logs and manifest records regardless of locale. Version 7.1.0 introduces
+an interactive Stage 2 configuration menu that captures production steps,
 burn-in length, walker ensembles and multiprocessing pool sizes before the
 sampler launches. The selections are logged and mirrored in the parameter
 summary files so trimmed exploratory runs stay reproducible. Version 7.0.6

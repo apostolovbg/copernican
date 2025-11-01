@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-01
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -9,7 +10,9 @@ so that engines and parsers remain lightweight.  All dataset metadata and
 tables are now provided in YAML format only; any legacy JSON handling has
 been removed.  Functions here emphasise safe filename construction and
 lightweight metadata parsing so that higher level modules can focus on
-science logic rather than housekeeping.
+science logic rather than housekeeping.  Runtime timestamps are emitted in
+Coordinated Universal Time (UTC) so logs, manifests and filenames remain
+stable regardless of the host machine's locale.
 """
 # These helpers are intentionally tiny but keep repetitive tasks such as
 # timestamp generation and directory creation in one place.
@@ -18,15 +21,35 @@ import hashlib
 import logging
 import os
 import random
-import time
+from datetime import datetime, timezone
 
 import numpy as np
 import yaml
 
 
-def get_timestamp():
-    """Generates a standardized timestamp string."""
-    return time.strftime("%Y%m%d_%H%M%S")
+def get_utc_now() -> datetime:
+    """Return the current UTC time with timezone information."""
+
+    return datetime.now(timezone.utc)
+
+
+def get_timestamp(now: datetime | None = None) -> str:
+    """Generate a standardized UTC timestamp string.
+
+    Parameters
+    ----------
+    now : :class:`datetime.datetime`, optional
+        Explicit timestamp to convert.  When omitted the current UTC time is
+        sampled.  Naive datetime objects are assumed to already represent UTC
+        and will be tagged accordingly.
+    """
+
+    moment = now or get_utc_now()
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    else:
+        moment = moment.astimezone(timezone.utc)
+    return moment.strftime("%Y%m%d_%H%M%S")
 
 
 def compute_sha256(path: str) -> str:

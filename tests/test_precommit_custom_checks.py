@@ -1,4 +1,4 @@
-# Last Updated: 2025-10-31
+# Last Updated: 2025-11-01
 
 """Unit tests for the custom pre-commit policy checks."""
 
@@ -103,3 +103,23 @@ def test_check_print_usage_allows_console_module(tmp_path) -> None:
     console.write_text("print('allowed')\n", encoding="utf-8")
     errors = MODULE._check_print_usage(root, [console])
     assert not errors
+
+
+def test_utc_today_requests_utc_clock(monkeypatch) -> None:
+    """The helper should request the UTC timezone from datetime.now."""
+
+    real_datetime = dt.datetime
+
+    class _DummyDateTime:
+        called = False
+
+        @classmethod
+        def now(cls, tz=None):  # type: ignore[override]
+            assert tz is dt.timezone.utc
+            cls.called = True
+            return real_datetime(2025, 1, 1, tzinfo=dt.timezone.utc)
+
+    monkeypatch.setattr(MODULE._dt, "datetime", _DummyDateTime)
+    result = MODULE._utc_today()
+    assert result == dt.date(2025, 1, 1)
+    assert _DummyDateTime.called

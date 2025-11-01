@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.1.1
+- 2025-11-01: Normalised every runtime timestamp to Coordinated Universal Time
+  (UTC) across logging, manifests and filenames, updated metadata
+  validators and pre-commit checks to read the UTC clock, added targeted
+  unit coverage for the new helpers, refreshed documentation, and bumped
+  the recorded version (OpenAI ChatGPT)
+
 ## Version 7.1.0
 - 2025-11-01: Added an interactive Stage 2 sampler configuration menu that
   records production steps, burn-in length, walker counts and pool sizes,

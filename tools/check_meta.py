@@ -1,4 +1,4 @@
-# Last Updated: 2025-10-31
+# Last Updated: 2025-11-01
 
 """Utility helpers for validating documentation metadata.
 
@@ -24,6 +24,12 @@ _LAST_UPDATED_PATTERNS: Sequence[re.Pattern[str]] = (
     ),
     re.compile(r"^# Last Updated:\s*(\d{4}-\d{2}-\d{2})\s*$", re.MULTILINE),
 )
+
+
+def _utc_today() -> _dt.date:
+    """Return today's date in Coordinated Universal Time (UTC)."""
+
+    return _dt.datetime.now(_dt.timezone.utc).date()
 
 
 def _repo_root(base_path: Path | None = None) -> Path:
@@ -119,7 +125,7 @@ def validate_metadata(
     """Validate release metadata and return a list of error messages."""
 
     root = _repo_root(base_path)
-    current_date = today or _dt.date.today()
+    current_date = today or _utc_today()
     errors: List[str] = []
 
     version_file = root / "copernican_lib" / "VERSION"
