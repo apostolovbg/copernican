@@ -135,9 +135,10 @@ integrated in one pass, keeping MCMC sampling responsive even with large
 datasets. When a model requests scalar quadrature the generated helper calls a
 resilient wrapper around SciPy's `quad`. The wrapper automatically increases
 the subdivision limit and, if necessary, slices the interval into multiple
-segments before retrying. This strategy suppresses the familiar
-`IntegrationWarning: The maximum number of subdivisions (50) has been` message
-and keeps exotic theories—USMFv2 included—from derailing Stage 2 runs.
+segments before retrying. Version 7.1.4 further remaps semi-infinite and
+two-sided infinite integrals onto a logistic domain, inserting supportive
+breakpoints automatically so exotic theories—USMFv2 included—no longer emit
+repeated fallback warnings when their equations probe extreme redshifts.
 
 Version 7.0.6 removes the automatic sound-horizon fallback. Models that
 advertise BAO support must provide an `rs_expression` matching their own

@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.1.4
+- 2025-11-01: Extended the resilient quadrature helper with logistic
+  remapping for infinite bounds, automatic breakpoint seeding and expanded
+  regression coverage so USMFv2-class models complete without repeated
+  fallback warnings, and refreshed the documentation plus recorded version
+  metadata (OpenAI ChatGPT)
+
 ## Version 7.1.3
 - 2025-11-01: Hardened the symbolic quadrature pipeline with automatic limit
   escalation, interval subdivision and targeted logging so wild theories such

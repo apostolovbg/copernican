@@ -42,6 +42,13 @@ _DEFAULT_QUAD_LIMIT = 200
 _MAX_QUAD_LIMIT = 6400
 _MIN_SEGMENT_COUNT = 4
 _MAX_SEGMENT_COUNT = 32
+_LOGISTIC_SUPPORT_POINTS = (
+    0.5,
+    0.75,
+    0.875,
+    0.9375,
+    0.96875,
+)
 
 _GENERATED_NAME_COUNTER = itertools.count(1)
 
@@ -323,6 +330,85 @@ def _is_finite_bound(value) -> bool:
         return False
 
 
+def _is_pos_inf(value) -> bool:
+    """Return ``True`` when ``value`` represents positive infinity."""
+
+    try:
+        return float(value) == math.inf
+    except (TypeError, ValueError):
+        return False
+
+
+def _is_neg_inf(value) -> bool:
+    """Return ``True`` when ``value`` represents negative infinity."""
+
+    try:
+        return float(value) == -math.inf
+    except (TypeError, ValueError):
+        return False
+
+
+def _point_in_interval(point: float, lower, upper) -> bool:
+    """Return ``True`` when ``point`` falls strictly between the bounds."""
+
+    try:
+        point_val = float(point)
+    except (TypeError, ValueError):
+        return False
+
+    if _is_neg_inf(lower) and _is_pos_inf(upper):
+        return True
+    if _is_neg_inf(lower):
+        return point_val < float(upper)
+    if _is_pos_inf(upper):
+        return point_val > float(lower)
+    lower_val = float(lower)
+    upper_val = float(upper)
+    return min(lower_val, upper_val) < point_val < max(lower_val, upper_val)
+
+
+def _map_points_for_positive_infinity(
+    points: tuple[float, ...], lower: float
+) -> tuple[float, ...]:
+    """Project finite breakpoints to the logistic domain for ``b = +inf``."""
+
+    mapped = []
+    for value in points:
+        try:
+            delta = float(value) - float(lower)
+        except (TypeError, ValueError):
+            continue
+        if delta <= 0.0:
+            continue
+        mapped_value = delta / (1.0 + delta)
+        if 0.0 < mapped_value < 1.0:
+            mapped.append(mapped_value)
+    mapped.extend(_LOGISTIC_SUPPORT_POINTS)
+    mapped = tuple(dict.fromkeys(sorted(mapped)))
+    return mapped
+
+
+def _map_points_for_negative_infinity(
+    points: tuple[float, ...], upper: float
+) -> tuple[float, ...]:
+    """Project finite breakpoints to the logistic domain for ``a = -inf``."""
+
+    mapped = []
+    for value in points:
+        try:
+            distance = float(upper) - float(value)
+        except (TypeError, ValueError):
+            continue
+        if distance <= 0.0:
+            continue
+        mapped_value = 1.0 / (distance + 1.0)
+        if 0.0 < mapped_value < 1.0:
+            mapped.append(mapped_value)
+    mapped.extend(_LOGISTIC_SUPPORT_POINTS)
+    mapped = tuple(dict.fromkeys(sorted(mapped)))
+    return mapped
+
+
 def robust_quad(
     func,
     a,
@@ -369,15 +455,11 @@ def robust_quad(
         Forwarded keyword arguments for :func:`scipy.integrate.quad`.
     """
 
-    # Normalise ``points`` into a tuple so repeated retries do not mutate the
-    # caller-provided sequence.
     if points is None:
         points = ()
     else:
         points = tuple(points)
 
-    # Merge any ``points`` provided through ``**kwargs`` with the explicit
-    # ``points`` parameter while avoiding duplicate entries.
     extra_points = kwargs.pop("points", None)
     if extra_points:
         combined = list(points)
@@ -385,6 +467,70 @@ def robust_quad(
         points = tuple(dict.fromkeys(combined))
 
     base_kwargs = dict(kwargs)
+    start_limit = max(1, int(limit))
+
+    return _robust_quad(
+        func,
+        a,
+        b,
+        args,
+        start_limit,
+        max_attempts,
+        points,
+        base_kwargs,
+        allow_infinite=True,
+    )
+
+
+def _robust_quad(
+    func,
+    a,
+    b,
+    args,
+    start_limit,
+    max_attempts,
+    points,
+    base_kwargs,
+    *,
+    allow_infinite: bool,
+):
+    """Execute ``quad`` with retries, segmentation and infinity transforms."""
+
+    if allow_infinite and (not _is_finite_bound(a) or not _is_finite_bound(b)):
+        return _handle_infinite_interval(
+            func,
+            a,
+            b,
+            args,
+            start_limit,
+            max_attempts,
+            points,
+            base_kwargs,
+        )
+
+    return _robust_quad_core(
+        func,
+        a,
+        b,
+        args,
+        start_limit,
+        max_attempts,
+        points,
+        base_kwargs,
+    )
+
+
+def _robust_quad_core(
+    func,
+    a,
+    b,
+    args,
+    start_limit,
+    max_attempts,
+    points,
+    base_kwargs,
+):
+    """Core retry and segmentation loop for :func:`robust_quad`."""
 
     def _call_quad(lower, upper, limit_value, dynamic_points):
         quad_kwargs = dict(base_kwargs)
@@ -399,7 +545,7 @@ def robust_quad(
             **quad_kwargs,
         )
 
-    current_limit = max(1, int(limit))
+    current_limit = start_limit
     attempts = 0
 
     while attempts < max_attempts and current_limit <= _MAX_QUAD_LIMIT:
@@ -419,21 +565,19 @@ def robust_quad(
                 )
         except IntegrationWarning as exc:
             attempts += 1
-            current_limit = min(current_limit * 2, _MAX_QUAD_LIMIT)
+            next_limit = min(current_limit * 2, _MAX_QUAD_LIMIT)
             LOGGER.debug(
                 "IntegrationWarning during quad between %s and %s; "
                 "escalating limit to %s (attempt %s/%s): %s",
                 a,
                 b,
-                current_limit,
+                next_limit,
                 attempts,
                 max_attempts,
                 exc,
             )
+            current_limit = next_limit
 
-    # If simple retries failed, split finite intervals into progressively
-    # smaller segments.  This mirrors the advice packaged with SciPy's
-    # warnings and prevents pathological models from derailing the sampler.
     if _is_finite_bound(a) and _is_finite_bound(b):
         start = float(a)
         stop = float(b)
@@ -446,8 +590,6 @@ def robust_quad(
                 with warnings.catch_warnings():
                     warnings.simplefilter("error", IntegrationWarning)
                     for left, right in zip(edges[:-1], edges[1:]):
-                        # Only pass breakpoints that fall strictly within the
-                        # current sub-interval.
                         sub_points = tuple(
                             p
                             for p in points
@@ -482,10 +624,6 @@ def robust_quad(
             )
             return total, total_err
 
-    # Final attempt: run SciPy's quad with warnings suppressed so users still
-    # receive a numerical answer alongside SciPy's error estimate.  Returning
-    # a value keeps the sampler moving and the suppressed warning is replaced
-    # with an explicit log entry.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", IntegrationWarning)
         finite_points = (
@@ -504,6 +642,152 @@ def robust_quad(
         b,
     )
     return result
+
+
+def _handle_infinite_interval(
+    func,
+    a,
+    b,
+    args,
+    start_limit,
+    max_attempts,
+    points,
+    base_kwargs,
+):
+    """Integrate intervals touching infinity using logistic transforms."""
+
+    relevant_points = tuple(
+        sorted(p for p in points if _point_in_interval(p, a, b))
+    )
+
+    if _is_neg_inf(a) and _is_pos_inf(b) and not relevant_points:
+        relevant_points = (0.0,)
+
+    boundaries = [a]
+    boundaries.extend(relevant_points)
+    boundaries.append(b)
+
+    total = 0.0
+    total_err = 0.0
+    for left, right in zip(boundaries[:-1], boundaries[1:]):
+        segment_points = tuple(
+            p for p in relevant_points if _point_in_interval(p, left, right)
+        )
+        partial, err = _integrate_infinite_segment(
+            func,
+            left,
+            right,
+            args,
+            start_limit,
+            max_attempts,
+            segment_points,
+            base_kwargs,
+        )
+        total += partial
+        total_err += err
+
+    return total, total_err
+
+
+def _integrate_infinite_segment(
+    func,
+    lower,
+    upper,
+    args,
+    start_limit,
+    max_attempts,
+    points,
+    base_kwargs,
+):
+    """Evaluate a single segment that touches ``+/-inf`` bounds."""
+
+    if _is_neg_inf(lower) and _is_pos_inf(upper):
+        midpoint = points[0] if points else 0.0
+        left_result = _integrate_infinite_segment(
+            func,
+            lower,
+            midpoint,
+            args,
+            start_limit,
+            max_attempts,
+            (),
+            base_kwargs,
+        )
+        right_result = _integrate_infinite_segment(
+            func,
+            midpoint,
+            upper,
+            args,
+            start_limit,
+            max_attempts,
+            (),
+            base_kwargs,
+        )
+        return (
+            left_result[0] + right_result[0],
+            left_result[1] + right_result[1],
+        )
+
+    if _is_neg_inf(lower):
+        finite_upper = float(upper)
+        mapped_points = _map_points_for_negative_infinity(points, finite_upper)
+
+        def transformed(t, *fn_args):
+            t_safe = float(t)
+            if t_safe <= 0.0:
+                t_safe = float(np.nextafter(0.0, 1.0))
+            if t_safe >= 1.0:
+                t_safe = float(np.nextafter(1.0, 0.0))
+            x_val = finite_upper - (1.0 - t_safe) / t_safe
+            return func(x_val, *fn_args) * (1.0 / (t_safe**2))
+
+        return _robust_quad(
+            transformed,
+            0.0,
+            1.0,
+            args,
+            start_limit,
+            max_attempts,
+            mapped_points,
+            base_kwargs,
+            allow_infinite=False,
+        )
+
+    if _is_pos_inf(upper):
+        finite_lower = float(lower)
+        mapped_points = _map_points_for_positive_infinity(points, finite_lower)
+
+        def transformed(t, *fn_args):
+            t_safe = float(t)
+            if t_safe <= 0.0:
+                t_safe = float(np.nextafter(0.0, 1.0))
+            if t_safe >= 1.0:
+                t_safe = float(np.nextafter(1.0, 0.0))
+            x_val = finite_lower + t_safe / (1.0 - t_safe)
+            return func(x_val, *fn_args) * (1.0 / (1.0 - t_safe) ** 2)
+
+        return _robust_quad(
+            transformed,
+            0.0,
+            1.0,
+            args,
+            start_limit,
+            max_attempts,
+            mapped_points,
+            base_kwargs,
+            allow_infinite=False,
+        )
+
+    return _robust_quad_core(
+        func,
+        lower,
+        upper,
+        args,
+        start_limit,
+        max_attempts,
+        points,
+        base_kwargs,
+    )
 
 
 def _latex_to_sympy_str(expr: str) -> str:

@@ -242,6 +242,76 @@ class TestRobustQuad(unittest.TestCase):
             any(abs(end - start) <= 0.3 for start, end, _ in calls[1:])
         )
 
+    def test_robust_quad_transforms_positive_infinity(self):
+        """Semi-infinite integrals map onto a finite logistic domain."""
+
+        calls = []
+        original_quad = model_coder._SCIPY_QUAD
+
+        def fake_quad(func, a_val, b_val, *args, **kwargs):
+            calls.append((a_val, b_val))
+            if math.isinf(a_val) or math.isinf(b_val):
+                raise IntegrationWarning("force logistic fallback")
+            return original_quad(func, a_val, b_val, *args, **kwargs)
+
+        with (
+            mock.patch.object(
+                model_coder, "_SCIPY_QUAD", side_effect=fake_quad
+            ),
+            mock.patch.object(model_coder.LOGGER, "warning") as mock_warning,
+        ):
+            result, err = model_coder.robust_quad(
+                lambda x: 1.0 / (1.0 + x**2),
+                0.0,
+                math.inf,
+            )
+
+        self.assertAlmostEqual(result, math.pi / 2.0, places=6)
+        self.assertLess(err, 1e-6)
+        self.assertTrue(
+            any(
+                not math.isinf(start)
+                and not math.isinf(end)
+                and math.isclose(end, 1.0, rel_tol=1e-12, abs_tol=1e-12)
+                for start, end in calls
+            )
+        )
+        mock_warning.assert_not_called()
+
+    def test_robust_quad_handles_two_sided_infinity(self):
+        """Two-sided infinite integrals split into manageable segments."""
+
+        calls = []
+        original_quad = model_coder._SCIPY_QUAD
+
+        def fake_quad(func, a_val, b_val, *args, **kwargs):
+            calls.append((a_val, b_val))
+            if math.isinf(a_val) or math.isinf(b_val):
+                raise IntegrationWarning("force logistic fallback")
+            return original_quad(func, a_val, b_val, *args, **kwargs)
+
+        with (
+            mock.patch.object(
+                model_coder, "_SCIPY_QUAD", side_effect=fake_quad
+            ),
+            mock.patch.object(model_coder.LOGGER, "warning") as mock_warning,
+        ):
+            result, err = model_coder.robust_quad(
+                lambda x: 1.0 / (1.0 + x**2),
+                -math.inf,
+                math.inf,
+                points=(0.0,),
+            )
+
+        self.assertAlmostEqual(result, math.pi, places=6)
+        self.assertLess(err, 1e-6)
+        # Confirm the helper evaluated at least two logistic segments.
+        finite_segments = [
+            pair for pair in calls if all(map(math.isfinite, pair))
+        ]
+        self.assertGreaterEqual(len(finite_segments), 2)
+        mock_warning.assert_not_called()
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
