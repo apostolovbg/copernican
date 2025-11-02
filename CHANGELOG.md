@@ -28,6 +28,9 @@ suffixes. Follow this template:
   integrate ``\int_{z_{rec}}^{\infty} dz/(1+z)`` to ensure the failure
   propagates, refreshed documentation to describe the guardrails and bumped the
   recorded version to 7.2.5 (OpenAI ChatGPT)
+- 2025-11-02: Realigned the metadata validation reference date with the updated
+  documentation timestamps so CI recognizes the refreshed release metadata
+  (OpenAI ChatGPT)
 
 ## Version 7.2.4
 - 2025-11-01: Guarded autocorrelation estimation against undersized chains in
