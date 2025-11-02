@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-02
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,17 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 7.2.5
+- 2025-11-02: Raised a dedicated ``SoundHorizonComputationError`` when robust
+  quadrature exhausts its retries, taught the BAO likelihood to stop plotting
+  ratios once ``rs_expression`` integrals diverge, added regression tests that
+  integrate ``\int_{z_{rec}}^{\infty} dz/(1+z)`` to ensure the failure
+  propagates, refreshed documentation to describe the guardrails and bumped the
+  recorded version to 7.2.5 (OpenAI ChatGPT)
+- 2025-11-02: Realigned the metadata validation reference date with the updated
+  documentation timestamps so CI recognizes the refreshed release metadata
+  (OpenAI ChatGPT)
 
 ## Version 7.2.4
 - 2025-11-01: Guarded autocorrelation estimation against undersized chains in

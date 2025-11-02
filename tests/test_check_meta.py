@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-01
+# Last Updated: 2025-11-02
 
 """Tests for :mod:`tools.check_meta`."""
 
@@ -9,7 +9,7 @@ from pathlib import Path
 
 from tools import check_meta
 
-_REFERENCE_DATE = _dt.date(2025, 11, 1)
+_REFERENCE_DATE = _dt.date(2025, 11, 2)
 
 
 def test_validate_metadata_current_repo() -> None:

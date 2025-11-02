@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-02
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all
@@ -26,6 +26,13 @@ before it reaches the cache or an engine and rejects the retired
 `distribution` alias outright.  Canonicalisation guarantees that
 metadata-driven transforms, manifests and engine plugins all observe the same
 schema even when the original YAML attempted to declare redundant transforms.
+
+Version 7.2.5 promotes the resilient quadrature helper into a hard gate for
+sound-horizon calculations.  ``copernican_lib.model_coder`` now raises a
+``SoundHorizonComputationError`` whenever ``rs_expression`` integrals still
+trigger suppressed SciPy ``IntegrationWarning`` instances.  The BAO likelihood
+records the failure in its ``LikelihoodState`` metadata and aborts ratio plots
+so datasets never display near-zero curves sourced from divergent integrals.
 
 Version 7.2.3 restores the direct pass-through of neutrino-sector CAMB
 arguments so model plugins can once again specify `Neff`, individual `mnuN`

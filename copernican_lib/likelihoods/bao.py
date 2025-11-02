@@ -1,6 +1,6 @@
 """Baryon Acoustic Oscillation likelihood helper.
 
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-02
 
 Computes BAO observables using CAMB background distances aligned with the CMB
 likelihood configuration.  Previous revisions mixed direct model integrals with
@@ -20,6 +20,7 @@ from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
 
+from ..model_coder import SoundHorizonComputationError
 from ._protocol import LikelihoodProtocol, LikelihoodState
 from .cmb import compute_camb_background_observables
 
@@ -169,6 +170,21 @@ class BAOLike(LikelihoodProtocol):
                     rs_background = float(
                         self._call_with_params(self._fallback_rs, (), params)
                     )
+                except SoundHorizonComputationError as exc:
+                    logger.error(
+                        "(bao_like): rs_expression diverged; aborting BAO "
+                        "predictions: %s",
+                        exc,
+                    )
+                    self._state = LikelihoodState(
+                        metadata={
+                            "error": (
+                                "Sound horizon integral diverged; see log for "
+                                "rs_expression diagnostics."
+                            )
+                        }
+                    )
+                    return float("-inf")
                 except Exception as exc:
                     logger.warning(
                         "(bao_like): Sound horizon fallback failed: %s",
@@ -300,6 +316,13 @@ class BAOLike(LikelihoodProtocol):
                 ),
                 dtype=float,
             )
+        except SoundHorizonComputationError as exc:
+            logging.getLogger().error(
+                "(bao_like): rs_expression diverged while computing model "
+                "background distances: %s",
+                exc,
+            )
+            return None
         except Exception:
             return None
 

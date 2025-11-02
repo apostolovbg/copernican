@@ -1,5 +1,5 @@
 # Copyright (c) 2025 Copernican Suite developers.
-# Last Updated: 2025-11-01
+# Last Updated: 2025-11-02
 # See LICENSE.md in the repository root for details.
 
 """Security tests for ``model_coder`` expression handling."""
@@ -8,6 +8,7 @@ import math
 import pickle
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
 from unittest import mock
 
@@ -187,6 +188,37 @@ class TestSoundHorizonRigour(unittest.TestCase):
         self.assertAlmostEqual(rs_model, rs_expected, places=6)
         self.assertTrue(data["valid_for_bao"])
 
+    def test_sound_horizon_divergence_raises_signal(self):
+        """Divergent ``rs_expression`` integrals must raise a clear error."""
+
+        payload = {
+            "parameters": [
+                {
+                    "name": "Hubble",
+                    "python_var": "H0",
+                    "bounds": [70.0, 70.0],
+                },
+                {
+                    "name": "Recombination",
+                    "python_var": "z_rec",
+                    "bounds": [1100.0, 1100.0],
+                },
+            ],
+            "Hz_expression": "H(z) = H0",
+            "rs_expression": ("r_s = Integral(1 / (1 + z), (z, z_rec, oo))"),
+            "predicts_bao": True,
+            "valid_for_bao": True,
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            cache = self._write_model(tmp_path, payload)
+            funcs, _ = model_coder.generate_callables(cache)
+
+        rs_helper = funcs["get_sound_horizon_rs_Mpc"]
+        with self.assertRaises(model_coder.SoundHorizonComputationError):
+            rs_helper(70.0, 1100.0)
+
 
 class TestRobustQuad(unittest.TestCase):
     """Validate the resilient quadrature wrapper used by generated models."""
@@ -311,6 +343,33 @@ class TestRobustQuad(unittest.TestCase):
         ]
         self.assertGreaterEqual(len(finite_segments), 2)
         mock_warning.assert_not_called()
+
+    def test_robust_quad_raises_when_warnings_persist(self):
+        """Persistent ``IntegrationWarning`` emissions must raise errors."""
+
+        def failing_quad(*_args, **_kwargs):
+            warnings.warn(
+                "forced failure for test coverage",
+                IntegrationWarning,
+            )
+
+        with mock.patch.object(
+            model_coder, "_SCIPY_QUAD", side_effect=failing_quad
+        ):
+            with self.assertRaises(model_coder.RobustQuadFailure) as context:
+                model_coder.robust_quad(lambda x: x, 0.0, 1.0, max_attempts=1)
+
+        self.assertIn("exhausted retries", str(context.exception))
+
+    def test_robust_quad_flags_logistic_divergence(self):
+        """Logistic divergence should trigger a ``RobustQuadFailure``."""
+
+        with self.assertRaises(model_coder.RobustQuadFailure):
+            model_coder.robust_quad(
+                lambda z_val: 1.0 / (1.0 + z_val),
+                1100.0,
+                math.inf,
+            )
 
 
 if __name__ == "__main__":  # pragma: no cover
