@@ -1,5 +1,5 @@
 # Copyright (c) 2025 Copernican Suite developers.
-# Last Updated: 2025-11-01
+# Last Updated: 2025-11-02
 # See LICENSE.md in the repository root for details.
 
 """Translate sanitized model YAML into executable NumPy-aware callables.
@@ -51,6 +51,31 @@ _LOGISTIC_SUPPORT_POINTS = (
 )
 
 _GENERATED_NAME_COUNTER = itertools.count(1)
+
+
+class RobustQuadFailure(RuntimeError):
+    """Raised when :func:`robust_quad` cannot avoid Integration warnings.
+
+    The resilient quadrature wrapper escalates SciPy's ``quad`` ``limit``
+    parameter, subdivides the integration interval and, for infinite bounds,
+    remaps the problem onto a logistic domain.  Previously the helper returned
+    the last numerical estimate even when every strategy still triggered
+    ``IntegrationWarning``.  Downstream code interpreted the value as
+    trustworthy and plotted BAO ratios near zero despite the divergence.  The
+    new exception signals that all remediation steps failed so callers can halt
+    gracefully rather than charting misleading results.
+    """
+
+    def __init__(self, *, lower, upper, attempts, last_result):
+        message = (
+            "robust_quad exhausted retries between "
+            f"{lower} and {upper} after {attempts} attempts"
+        )
+        super().__init__(message)
+        self.lower = lower
+        self.upper = upper
+        self.attempts = attempts
+        self.last_result = last_result
 
 
 class _GeneratedCallable:
@@ -275,6 +300,19 @@ class _VolumeAveragedDistance:
         return result
 
 
+class SoundHorizonComputationError(RuntimeError):
+    """Signal that the symbolic sound-horizon integral remains ill-behaved.
+
+    Generated BAO helpers rely on :func:`robust_quad` so that SciPy's
+    ``IntegrationWarning`` episodes become hard failures rather than silent
+    precision losses.  When even the resilient retries cannot tame the
+    integral we raise ``SoundHorizonComputationError`` so likelihoods can stop
+    before publishing impossible BAO ratios.  The dedicated exception keeps the
+    intent obvious to plugin consumers who catch and log domain-specific
+    failures at higher levels.
+    """
+
+
 class _SoundHorizonFromExpression:
     """Wrap a symbolic sound-horizon function in a picklable callable."""
 
@@ -284,7 +322,20 @@ class _SoundHorizonFromExpression:
         self._fn = fn
 
     def __call__(self, *params):
-        return float(self._fn(*params))
+        """Evaluate the symbolic expression and guard divergent integrals."""
+
+        try:
+            return float(self._fn(*params))
+        except RobustQuadFailure as exc:
+            LOGGER.error(
+                "Sound-horizon integral failed between %s and %s; "
+                "BAO ratios cannot be evaluated; the integral diverges.",
+                exc.lower,
+                exc.upper,
+            )
+            raise SoundHorizonComputationError(
+                "rs_expression diverged despite robust quadrature safeguards"
+            ) from exc
 
 
 class _DistanceModulusFromLuminosity:
@@ -635,13 +686,18 @@ def _robust_quad_core(
             current_limit,
             finite_points,
         )
-    LOGGER.warning(
-        "quad returned after exhausting retries between %s and %s; check the "
-        "model for singularities or provide explicit breakpoints.",
+    LOGGER.error(
+        "robust_quad exhausted retries between %s and %s; suppressing the "
+        "IntegrationWarning would mask a divergent integral.",
         a,
         b,
     )
-    return result
+    raise RobustQuadFailure(
+        lower=a,
+        upper=b,
+        attempts=attempts,
+        last_result=result,
+    )
 
 
 def _handle_infinite_interval(

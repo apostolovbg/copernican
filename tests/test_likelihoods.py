@@ -1,6 +1,6 @@
 """Unit tests for likelihood helper classes.
 
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-02
 """
 
 from __future__ import annotations
@@ -141,6 +141,49 @@ class LikelihoodTestCase(unittest.TestCase):
         self.assertGreater(fallback_plugin.calls["dm"], 0)
         self.assertGreater(fallback_plugin.calls["hz"], 0)
         self.assertGreater(fallback_plugin.calls["rs"], 0)
+
+    def test_bao_loglike_rejects_divergent_sound_horizon(self):
+        """Divergent sound-horizon integrals must abort BAO predictions."""
+
+        divergent_helper = model_coder._SoundHorizonFromExpression(
+            lambda *full_params: model_coder.robust_quad(
+                lambda z_val: 1.0 / (1.0 + z_val),
+                full_params[-1],
+                np.inf,
+            )[0]
+        )
+
+        class DivergentSoundHorizonPlugin:
+            """Proxy injecting a divergent ``rs_expression`` for regression."""
+
+            def __init__(self, base_plugin):
+                self._base = base_plugin
+
+            def __getattr__(self, name):
+                return getattr(self._base, name)
+
+            def get_camb_params(self, *_args, **_kwargs):
+                raise RuntimeError("CAMB disabled to exercise fallback path")
+
+            def get_sound_horizon_rs_Mpc(self, *params):
+                return divergent_helper(*params)
+
+        params = self.plugin.INITIAL_GUESSES
+        bao_df = self._prepare_bao()
+        divergent_plugin = DivergentSoundHorizonPlugin(self.plugin)
+        bao_like = likelihoods.BAOLike(
+            z=bao_df["redshift"].to_numpy(dtype=float),
+            obs_type=bao_df["observable_type"].to_numpy(),
+            obs_val=bao_df["value"].to_numpy(dtype=float),
+            obs_err=bao_df["error"].to_numpy(dtype=float),
+            model_plugin=divergent_plugin,
+            covariance_matrix_inv=bao_df.attrs.get("covariance_matrix_inv"),
+        )
+
+        loglike = bao_like.loglike(params)
+
+        self.assertEqual(loglike, float("-inf"))
+        self.assertIn("error", bao_like.state["metadata"])
 
     def test_joint_loglike_matches_component_sum(self):
         """The joint likelihood should equal the sum of its components."""
