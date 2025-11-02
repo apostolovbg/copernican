@@ -798,10 +798,23 @@ def fit_sne_parameters(
         float(np.max(acceptance)),
     )
 
-    try:
-        autocorr = sampler.get_autocorr_time()
-    except Exception:
-        autocorr = None
+    # ``emcee`` estimates autocorrelation times with a minimum window of 32
+    # steps (``min_n``) and typically raises ``AutocorrError`` when shorter
+    # chains are analysed.  Guard the call so tiny diagnostic runs return
+    # ``None`` rather than emitting a ``RuntimeWarning`` downstream.
+    autocorr = None
+    min_autocorr_window = max(32, 2 * max(int(ndim_active), 1))
+    if n_production >= min_autocorr_window:
+        try:
+            autocorr = sampler.get_autocorr_time()
+        except Exception:
+            autocorr = None
+    else:
+        logger.debug(
+            "Skipping autocorrelation estimate: production steps %d < %d",
+            int(n_production),
+            int(min_autocorr_window),
+        )
 
     return {
         "success": np.isfinite(chi2_best)

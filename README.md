@@ -1,25 +1,31 @@
-**Version:** 7.2.3
+**Version:** 7.2.4
 **Last Updated:** 2025-11-01
 
 ![Copernican Suite banner](docs/banner_github.png)
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and
-Cosmic Microwave Background (CMB) data. Version 7.2.3 keeps BAO and CMB runs in
-lockstep by returning :math:`D_\ell` spectra from the CAMB helper, restores a
-guarded BAO fallback that uses model-provided distance functions when CAMB
-parameters are absent, retains covariance integrity checks so trusted datasets
-without full matrices still load predictably, reintroduces the direct CAMB
-neutrino parameter pass-through used by earlier releases and aligns the
-regression harness with the neutrino defaults sent to CAMB so cached spectra
-match direct solver calls. Version 7.2.0 routes BAO
+Cosmic Microwave Background (CMB) data. Version 7.2.4 guards ensemble
+autocorrelation diagnostics so short exploratory runs skip ``emcee``'s
+minimum window and return ``None`` instead of emitting noisy
+``RuntimeWarning`` entries while still reporting acceptance fractions. The
+release keeps the acceptance and posterior summaries intact and continues to
+surface diagnostics in the NetCDF output so workflows that expect the field
+remain compatible. Version 7.2.3 keeps BAO and CMB runs in lockstep by
+returning :math:`D_\ell` spectra from the CAMB helper, restores a guarded BAO
+fallback that uses model-provided distance functions when CAMB parameters are
+absent, retains covariance integrity checks so trusted datasets without full
+matrices still load predictably, reintroduces the direct CAMB neutrino
+parameter pass-through used by earlier releases and aligns the regression
+harness with the neutrino defaults sent to CAMB so cached spectra match
+direct solver calls. Version 7.2.0 routes BAO
 BAO
 distances and sound-horizon calculations through the same CAMB configuration
 used by the CMB likelihood, enforcing strictly positive-definite covariance
 matrices and recording their condition numbers in the run manifest. The release
 also validates CAMB parameter maps declared in model YAML files so neutrino
 sector options such as ``Neff`` and ``sum_mnu`` remain consistent across
-engines. Version 7.2.3 keeps the neutrino masses, hierarchy flags and ``Neff``
+engines. Version 7.2.4 keeps the neutrino masses, hierarchy flags and ``Neff``
 adjustments in sync between cached spectra, background distances and
 regression comparisons.
 Version 7.1.4 extends the resilient quadrature helper with logistic remapping
@@ -137,7 +143,8 @@ Under the hood the program follows a clear pipeline:
    messages recorded in previous ΛCDM self-tests. The sampler draws its
    initial ensemble uniformly inside the declared bounds, performs an
    explicit burn-in phase before production sampling, records acceptance
-   fractions, autocorrelation estimates and log-probability traces and emits
+   fractions, autocorrelation estimates when the production run exceeds
+   ``emcee``'s minimum window, and log-probability traces and emits
    progress updates with percentage indicators for both burn-in and
    production stages. Each update now carries log-posterior mean, spread and
    extrema, an approximate Δχ² trend and occasional walker snapshots on the
