@@ -717,6 +717,14 @@ only a calendar date (no time component). The standard whitespace fixers,
 Ruff auto-fixes and formatting hooks run before the custom policy check to
 keep style adjustments automated.
 
+### Metadata self-check utility
+
+Run the metadata validator with ``python -m tools.check_meta`` whenever the
+release notes, README header or documentation timestamps change. The helper
+normalises "today" to Coordinated Universal Time so both the command-line
+tool and the accompanying regression tests agree on the current date when
+detecting future-dated markers or drifted version fields.
+
 The local `make-lock` hook now bootstraps a dedicated Python environment and
 installs `pip-tools==7.4.1` before executing `make lock`. This keeps
 `pip-compile` available for both developer workflows and CI runs without

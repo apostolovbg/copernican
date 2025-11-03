@@ -31,6 +31,9 @@ suffixes. Follow this template:
 - 2025-11-02: Realigned the metadata validation reference date with the updated
   documentation timestamps so CI recognizes the refreshed release metadata
   (OpenAI ChatGPT)
+- 2025-11-02: Updated the metadata regression tests to read the UTC-normalised
+  clock from ``tools.check_meta`` and documented the workflow for running the
+  validator alongside documentation updates (OpenAI ChatGPT)
 
 ## Version 7.2.4
 - 2025-11-01: Guarded autocorrelation estimation against undersized chains in

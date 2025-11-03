@@ -9,7 +9,10 @@ from pathlib import Path
 
 from tools import check_meta
 
-_REFERENCE_DATE = _dt.date(2025, 11, 2)
+# Capture the validator's notion of "today" so every scenario runs
+# against the same UTC-normalised reference date that
+# :func:`check_meta.validate_metadata` would use without an override.
+_REFERENCE_DATE = check_meta._utc_today()
 
 
 def test_validate_metadata_current_repo() -> None:
