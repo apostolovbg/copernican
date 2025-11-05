@@ -1,11 +1,22 @@
-**Version:** 7.2.5
-**Last Updated:** 2025-11-02
+**Version:** 7.2.7
+**Last Updated:** 2025-11-05
 
 ![Copernican Suite banner](docs/banner_github.png)
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and
-Cosmic Microwave Background (CMB) data. Version 7.2.5 elevates the resilient
+Cosmic Microwave Background (CMB) data. Version 7.2.7 teaches the
+``tools.update_lock`` helper to defer its ``piptools`` availability check until
+the command runs. Importing the module inside unit tests now leaves the
+process alive on developer machines that have not provisioned the optional
+dependency yet, while still emitting the actionable installation guidance when
+``pip-compile`` genuinely executes. The guard keeps the helper
+monkeypatch-friendly for lint hooks and regression runs. Version 7.2.6 replaces
+the ``make-lock`` timestamp workaround with a tested ``tools.update_lock``
+helper that recompiles dependencies in a temporary workspace, reuses the cached
+header whenever the body is unchanged and documents the process for
+contributors, eliminating the daily timestamp churn that blocked linted
+branches. Version 7.2.5 elevates the resilient
 quadrature guardrails so any ``rs_expression`` integral that still triggers
 SciPy ``IntegrationWarning`` emissions raises a dedicated
 ``SoundHorizonComputationError``. The BAO likelihood now logs the divergence

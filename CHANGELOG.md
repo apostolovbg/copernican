@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-02
+**Last Updated:** 2025-11-05
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,20 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 7.2.7
+- 2025-11-05: Deferred the ``piptools`` check in ``tools/update_lock.py`` so
+  importing the helper in regression tests no longer
+  triggers an unconditional ``SystemExit`` while preserving the actionable
+  guidance when ``pip-compile`` genuinely runs; expanded the accompanying test
+  suite and documentation to cover the lazy guard (OpenAI ChatGPT)
+
+## Version 7.2.6
+- 2025-11-05: Rebuilt the lockfile workflow around `tools/update_lock.py`,
+  regenerating dependencies in a temporary workspace, preserving existing
+  banners when the body is unchanged, documenting the process across the
+  toolkit and adding regression tests for the helper so the `make-lock` hook
+  remains deterministic (OpenAI ChatGPT)
 
 ## Version 7.2.5
 - 2025-11-02: Raised a dedicated ``SoundHorizonComputationError`` when robust
