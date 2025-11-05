@@ -22,10 +22,10 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 7.2.6
-- 2025-11-03: Regenerated the dependency lockfile so the `make-lock` hook no
-  longer rewrites `requirements.lock`, bumped the recorded version metadata and
-  refreshed the release notes to reflect the dependency maintenance (OpenAI
-  ChatGPT)
+- 2025-11-03: Replaced the lockfile timestamp workaround with a dedicated
+  generator that preserves `requirements.lock` when dependencies stay the same,
+  keeping the `make-lock` hook idempotent while still recording genuine updates
+  and refreshing the `iniconfig` pin emitted by `pip-compile` (OpenAI ChatGPT)
 
 ## Version 7.2.5
 - 2025-11-02: Raised a dedicated ``SoundHorizonComputationError`` when robust

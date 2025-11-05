@@ -27,11 +27,11 @@ before it reaches the cache or an engine and rejects the retired
 metadata-driven transforms, manifests and engine plugins all observe the same
 schema even when the original YAML attempted to declare redundant transforms.
 
-Version 7.2.6 realigns the generated dependency lockfile and version metadata
-with the packaging policy so pre-commit hooks no longer rewrite
-`requirements.lock` on clean branches.  The release keeps CI and local
-environments in sync by recording the refreshed version identifiers across the
-suite.
+Version 7.2.6 adds a dedicated ``tools/update_lock.py`` helper that only bumps
+the ``requirements.lock`` timestamp when ``pip-compile`` produces a different
+dependency body.  The ``make lock`` target now delegates to that helper so
+iterative lint runs stay clean while dependency updates still record a fresh
+``Last Updated`` marker.
 
 Version 7.2.5 promotes the resilient quadrature helper into a hard gate for
 sound-horizon calculations.  ``copernican_lib.model_coder`` now raises a
