@@ -1,22 +1,28 @@
-**Version:** 7.2.7
+**Version:** 7.2.8
 **Last Updated:** 2025-11-05
 
 ![Copernican Suite banner](docs/banner_github.png)
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and
-Cosmic Microwave Background (CMB) data. Version 7.2.7 teaches the
-``tools.update_lock`` helper to defer its ``piptools`` availability check until
-the command runs. Importing the module inside unit tests now leaves the
-process alive on developer machines that have not provisioned the optional
-dependency yet, while still emitting the actionable installation guidance when
-``pip-compile`` genuinely executes. The guard keeps the helper
-monkeypatch-friendly for lint hooks and regression runs. Version 7.2.6 replaces
-the ``make-lock`` timestamp workaround with a tested ``tools.update_lock``
-helper that recompiles dependencies in a temporary workspace, reuses the cached
-header whenever the body is unchanged and documents the process for
-contributors, eliminating the daily timestamp churn that blocked linted
-branches. Version 7.2.5 elevates the resilient
+Cosmic Microwave Background (CMB) data. Version 7.2.8 pins setuptools package
+discovery to the ``copernican_lib``, ``engines`` and ``models`` namespaces so
+macOS launchers that bootstrap with the bundled setuptools 79.0.1 release
+stop raising the "Multiple top-level packages discovered" error when
+reinstalling the suite. The explicit include list keeps packaging runs
+reproducible across platforms while leaving the data directories untouched for
+runtime loaders.
+Version 7.2.7 teaches the ``tools.update_lock`` helper to defer its
+``piptools`` availability check until the command runs. Importing the module
+inside unit tests now leaves the process alive on developer machines that have
+not provisioned the optional dependency yet, while still emitting the
+actionable installation guidance when ``pip-compile`` genuinely executes. The
+guard keeps the helper monkeypatch-friendly for lint hooks and regression runs.
+Version 7.2.6 replaces the ``make-lock`` timestamp workaround with a tested
+``tools.update_lock`` helper that recompiles dependencies in a temporary
+workspace, reuses the cached header whenever the body is unchanged and
+documents the process for contributors, eliminating the daily timestamp churn
+that blocked linted branches. Version 7.2.5 elevates the resilient
 quadrature guardrails so any ``rs_expression`` integral that still triggers
 SciPy ``IntegrationWarning`` emissions raises a dedicated
 ``SoundHorizonComputationError``. The BAO likelihood now logs the divergence

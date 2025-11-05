@@ -21,6 +21,14 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.2.8
+- 2025-11-05: Scoped setuptools package discovery to the ``copernican_lib``,
+  ``engines`` and ``models`` namespaces so macOS launchers running under the
+  bundled setuptools 79.0.1 release stop failing with the "Multiple top-level
+  packages discovered" error during ``pip install --no-deps .``; refreshed the
+  packaging guide, bumped user-facing metadata to 7.2.8 and added regression
+  coverage that enforces the include list (OpenAI ChatGPT)
+
 ## Version 7.2.7
 - 2025-11-05: Deferred the ``piptools`` check in ``tools/update_lock.py`` so
   importing the helper in regression tests no longer
