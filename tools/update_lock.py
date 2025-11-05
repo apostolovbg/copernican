@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-03
+# Last Updated: 2025-11-05
 """Generate a deterministic ``requirements.lock`` file for the suite.
 
 This helper wraps :mod:`piptools` so the ``make lock`` target can decide
@@ -13,6 +13,7 @@ underlying requirements differ.
 """
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import subprocess
 import sys
@@ -33,26 +34,32 @@ if (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REQ_IN = ROOT / "requirements.in"
-LOCK_PATH = ROOT / "requirements.lock"
 
 
 @dataclass(frozen=True)
 class LockFilePieces:
-    """Describe the pieces of a ``requirements.lock`` snapshot.
-
-    The helper splits the file into an optional ``Last Updated`` header
-    and the remaining dependency body so we can compare snapshots while
-    ignoring cosmetic timestamps.  Keeping the data in a typed structure
-    clarifies what ``normalise_lock`` returns and keeps the control flow
-    easy to follow for future maintainers.
-    """
+    """Describe the pieces of a ``requirements.lock`` snapshot."""
 
     last_updated: str | None
     body: List[str]
 
 
-def run_pip_compile(output_path: Path) -> None:
+def ensure_inputs(root: Path) -> tuple[Path, Path]:
+    """Return the ``requirements`` inputs and ensure they exist."""
+
+    req_in = root / "requirements.in"
+    lock_path = root / "requirements.lock"
+    if not req_in.exists():
+        raise SystemExit(
+            "requirements.in is missing; run the helper from the repository "
+            "root or provide --root with a valid project directory."
+        )
+    return req_in, lock_path
+
+
+def run_pip_compile(
+    root: Path, requirements_in: Path, output_path: Path
+) -> None:
     """Invoke ``pip-compile`` with the repository's canonical flags."""
 
     subprocess.run(
@@ -66,9 +73,9 @@ def run_pip_compile(output_path: Path) -> None:
             "--strip-extras",
             "--output-file",
             str(output_path),
-            "requirements.in",
+            requirements_in.name,
         ],
-        cwd=ROOT,
+        cwd=root,
         check=True,
     )
 
@@ -104,48 +111,90 @@ def split_last_updated(lines: Iterable[str]) -> LockFilePieces:
     return LockFilePieces(None, collected)
 
 
-def compile_new_lock() -> LockFilePieces:
+def compile_new_lock(root: Path, requirements_in: Path) -> LockFilePieces:
     """Generate a normalised lockfile snapshot without touching disk."""
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_lock = Path(tmpdir) / "requirements.lock"
-        run_pip_compile(tmp_lock)
+        run_pip_compile(root, requirements_in, tmp_lock)
         normalised = normalise_header(tmp_lock.read_text().splitlines())
     return split_last_updated(normalised)
 
 
-def read_existing_lock() -> LockFilePieces:
+def read_existing_lock(lock_path: Path) -> LockFilePieces:
     """Return the current ``requirements.lock`` pieces, if any."""
 
-    if not LOCK_PATH.exists():
+    if not lock_path.exists():
         return LockFilePieces(None, [])
-    return split_last_updated(LOCK_PATH.read_text().splitlines())
+    return split_last_updated(lock_path.read_text().splitlines())
 
 
 def choose_header(
-    previous: LockFilePieces, current_body: Sequence[str]
+    previous: LockFilePieces,
+    current_body: Sequence[str],
+    today: date,
 ) -> str:
     """Select the header to write for the upcoming lockfile update."""
 
-    today_banner = f"# Last Updated: {date.today().isoformat()}"
+    today_banner = f"# Last Updated: {today.isoformat()}"
     if previous.body == list(current_body) and previous.last_updated:
         return previous.last_updated
     return today_banner
 
 
-def write_lock(header: str, body: Sequence[str]) -> None:
+def write_lock(lock_path: Path, header: str, body: Sequence[str]) -> None:
     """Persist the reconstructed lockfile with ``header`` prepended."""
 
-    LOCK_PATH.write_text("\n".join([header, *body]) + "\n")
+    lock_path.write_text("\n".join([header, *body]) + "\n", encoding="utf-8")
+
+
+def update_lockfile(
+    root: Path,
+    *,
+    today: date | None = None,
+) -> bool:
+    """Refresh ``requirements.lock`` and return ``True`` when it changed."""
+
+    requirements_in, lock_path = ensure_inputs(root)
+    previous = read_existing_lock(lock_path)
+    compiled = compile_new_lock(root, requirements_in)
+    banner = choose_header(previous, compiled.body, today or date.today())
+    if previous.last_updated == banner and previous.body == compiled.body:
+        return False
+    write_lock(lock_path, banner, compiled.body)
+    return True
+
+
+def parse_args() -> argparse.Namespace:
+    """Return command-line arguments for the helper."""
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Regenerate requirements.lock while keeping the Last Updated "
+            "banner stable when the dependency body is unchanged."
+        )
+    )
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=ROOT,
+        help=(
+            "Project root containing requirements.in and requirements.lock. "
+            "Defaults to the repository root inferred from this script."
+        ),
+    )
+    return parser.parse_args()
 
 
 def main() -> None:
-    """Regenerate ``requirements.lock`` without spurious diffs."""
+    """Entry-point for the command-line interface."""
 
-    previous = read_existing_lock()
-    current = compile_new_lock()
-    header = choose_header(previous, current.body)
-    write_lock(header, current.body)
+    args = parse_args()
+    changed = update_lockfile(args.root)
+    if changed:
+        print("requirements.lock updated", file=sys.stdout)
+    else:
+        print("requirements.lock already up to date", file=sys.stdout)
 
 
 if __name__ == "__main__":

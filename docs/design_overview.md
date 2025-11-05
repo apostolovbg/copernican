@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-11-03
+**Last Updated:** 2025-11-05
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all
@@ -27,11 +27,14 @@ before it reaches the cache or an engine and rejects the retired
 metadata-driven transforms, manifests and engine plugins all observe the same
 schema even when the original YAML attempted to declare redundant transforms.
 
-Version 7.2.6 adds a dedicated ``tools/update_lock.py`` helper that only bumps
-the ``requirements.lock`` timestamp when ``pip-compile`` produces a different
-dependency body.  The ``make lock`` target now delegates to that helper so
-iterative lint runs stay clean while dependency updates still record a fresh
-``Last Updated`` marker.
+Version 7.2.6 rebuilds the ``make lock`` workflow around
+``tools/update_lock.py`` so the helper owns the entire pipeline.
+The helper now invokes ``pip-compile`` in a temporary workspace,
+normalises the generated header, compares the body against the
+repository copy and advances the ``Last Updated`` banner only when
+dependencies change.  The release ships companion unit tests so
+future refactors cannot resurrect the daily banner churn that
+previously broke lint runs.
 
 Version 7.2.5 promotes the resilient quadrature helper into a hard gate for
 sound-horizon calculations.  ``copernican_lib.model_coder`` now raises a
