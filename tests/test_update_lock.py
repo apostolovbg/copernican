@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import types
 from datetime import date
 from pathlib import Path
 
@@ -16,6 +17,16 @@ MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader  # for static analysis tools
 sys.modules.setdefault(SPEC.name, MODULE)
 SPEC.loader.exec_module(MODULE)
+
+
+def _force_missing_piptools(monkeypatch) -> None:
+    """Pretend ``piptools`` is unavailable during the test."""
+
+    def _missing_find_spec(name: str) -> types.ModuleType | None:
+        del name
+        return None
+
+    monkeypatch.setattr(MODULE.importlib.util, "find_spec", _missing_find_spec)
 
 
 def _write_lock(path: Path, header: str, body: list[str]) -> None:
@@ -94,3 +105,28 @@ def test_update_lockfile_requires_requirements_in(tmp_path) -> None:
         raise AssertionError(
             "update_lockfile did not abort without requirements.in"
         )
+
+
+def test_run_pip_compile_aborts_without_piptools(
+    tmp_path, monkeypatch
+) -> None:
+    """``run_pip_compile`` should stop early when ``piptools`` is missing."""
+
+    _force_missing_piptools(monkeypatch)
+
+    def _unexpected_run(*args, **kwargs):  # pragma: no cover - defensive guard
+        raise AssertionError("pip-compile executed despite missing piptools")
+
+    monkeypatch.setattr(MODULE.subprocess, "run", _unexpected_run)
+
+    dummy_in = tmp_path / "requirements.in"
+    dummy_in.write_text("", encoding="utf-8")
+
+    try:
+        MODULE.run_pip_compile(
+            tmp_path, dummy_in, tmp_path / "requirements.lock"
+        )
+    except SystemExit as exc:
+        assert "pip-tools is required" in str(exc)
+    else:  # pragma: no cover - defensive assertion
+        raise AssertionError("run_pip_compile did not abort without piptools")

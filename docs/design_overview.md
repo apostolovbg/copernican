@@ -27,6 +27,13 @@ before it reaches the cache or an engine and rejects the retired
 metadata-driven transforms, manifests and engine plugins all observe the same
 schema even when the original YAML attempted to declare redundant transforms.
 
+Version 7.2.7 keeps ``tools/update_lock.py`` import-friendly by deferring the
+``piptools`` availability check until the helper actually attempts to spawn
+``pip-compile``.  The lazily evaluated guard preserves the actionable guidance
+for developers who need to install the pinned dependency while allowing
+regression tests and lint hooks to import and monkeypatch the module without
+tearing down the entire process.
+
 Version 7.2.6 rebuilds the ``make lock`` workflow around
 ``tools/update_lock.py`` so the helper owns the entire pipeline.
 The helper now invokes ``pip-compile`` in a temporary workspace,

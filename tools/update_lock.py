@@ -23,16 +23,6 @@ from datetime import date
 from pathlib import Path
 from typing import Iterable, List, Sequence
 
-if (
-    importlib.util.find_spec("piptools") is None
-):  # pragma: no cover - developer guidance
-    raise SystemExit(
-        "pip-tools is required to regenerate requirements.lock. Install the "
-        "repository's pinned version with `python -m pip install "
-        "pip-tools==7.4.1`."
-    )
-
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -42,6 +32,22 @@ class LockFilePieces:
 
     last_updated: str | None
     body: List[str]
+
+
+def ensure_piptools_available() -> None:
+    """Abort with guidance when :mod:`piptools` is unavailable."""
+
+    # ``pip-compile`` ships inside the ``piptools`` package.  Import discovery
+    # keeps the helper safe to import even when the optional dependency is
+    # absent, so the unit tests can monkeypatch ``run_pip_compile`` without
+    # tripping the process-wide ``SystemExit`` that previously fired at module
+    # import time.
+    if importlib.util.find_spec("piptools") is None:
+        raise SystemExit(
+            "pip-tools is required to regenerate requirements.lock. Install "
+            "the repository's pinned version with `python -m pip install "
+            "pip-tools==7.4.1`."
+        )
 
 
 def ensure_inputs(root: Path) -> tuple[Path, Path]:
@@ -62,6 +68,7 @@ def run_pip_compile(
 ) -> None:
     """Invoke ``pip-compile`` with the repository's canonical flags."""
 
+    ensure_piptools_available()
     subprocess.run(
         [
             sys.executable,

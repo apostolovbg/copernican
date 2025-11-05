@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.2.7
+- 2025-11-05: Deferred the ``piptools`` check in ``tools/update_lock.py`` so
+  importing the helper in regression tests no longer
+  triggers an unconditional ``SystemExit`` while preserving the actionable
+  guidance when ``pip-compile`` genuinely runs; expanded the accompanying test
+  suite and documentation to cover the lazy guard (OpenAI ChatGPT)
+
 ## Version 7.2.6
 - 2025-11-05: Rebuilt the lockfile workflow around `tools/update_lock.py`,
   regenerating dependencies in a temporary workspace, preserving existing
