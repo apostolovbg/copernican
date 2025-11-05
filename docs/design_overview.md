@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-11-02
+**Last Updated:** 2025-11-03
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all
@@ -26,6 +26,12 @@ before it reaches the cache or an engine and rejects the retired
 `distribution` alias outright.  Canonicalisation guarantees that
 metadata-driven transforms, manifests and engine plugins all observe the same
 schema even when the original YAML attempted to declare redundant transforms.
+
+Version 7.2.6 realigns the generated dependency lockfile and version metadata
+with the packaging policy so pre-commit hooks no longer rewrite
+`requirements.lock` on clean branches.  The release keeps CI and local
+environments in sync by recording the refreshed version identifiers across the
+suite.
 
 Version 7.2.5 promotes the resilient quadrature helper into a hard gate for
 sound-horizon calculations.  ``copernican_lib.model_coder`` now raises a

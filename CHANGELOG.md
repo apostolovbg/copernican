@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-02
+**Last Updated:** 2025-11-03
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,12 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 7.2.6
+- 2025-11-03: Regenerated the dependency lockfile so the `make-lock` hook no
+  longer rewrites `requirements.lock`, bumped the recorded version metadata and
+  refreshed the release notes to reflect the dependency maintenance (OpenAI
+  ChatGPT)
 
 ## Version 7.2.5
 - 2025-11-02: Raised a dedicated ``SoundHorizonComputationError`` when robust
