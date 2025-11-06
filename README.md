@@ -1,17 +1,21 @@
-**Version:** 7.2.8
-**Last Updated:** 2025-11-05
+**Version:** 7.2.9
+**Last Updated:** 2025-11-06
 
 ![Copernican Suite banner](docs/banner_github.png)
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and
-Cosmic Microwave Background (CMB) data. Version 7.2.8 pins setuptools package
+Cosmic Microwave Background (CMB) data. Version 7.2.9 extends the setuptools
+include list to cover the ``models.*`` namespace so nested plugins remain
+packageable while the legacy macOS ``ensurepip`` build continues to avoid the
+"Multiple top-level packages discovered" guard. The packaging regression test
+now asserts both the include and exclude tuples so the configuration stays in
+sync with the documented behaviour. Version 7.2.8 pins setuptools package
 discovery to the ``copernican_lib``, ``engines`` and ``models`` namespaces so
-macOS launchers that bootstrap with the bundled setuptools 79.0.1 release
-stop raising the "Multiple top-level packages discovered" error when
-reinstalling the suite. The explicit include list keeps packaging runs
-reproducible across platforms while leaving the data directories untouched for
-runtime loaders.
+macOS launchers that bootstrap with the bundled setuptools 79.0.1 release stop
+raising the "Multiple top-level packages discovered" error when reinstalling
+the suite. The explicit include list keeps packaging runs reproducible across
+platforms while leaving the data directories untouched for runtime loaders.
 Version 7.2.7 teaches the ``tools.update_lock`` helper to defer its
 ``piptools`` availability check until the command runs. Importing the module
 inside unit tests now leaves the process alive on developer machines that have

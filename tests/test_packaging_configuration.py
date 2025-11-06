@@ -7,8 +7,8 @@ layout. The test ensures ``pyproject.toml`` pins the allowed namespaces so
 the "Multiple top-level packages discovered" guard never reappears.
 """
 
-from pathlib import Path
 import tomllib
+from pathlib import Path
 
 
 def test_pyproject_limits_package_discovery() -> None:
@@ -21,13 +21,15 @@ def test_pyproject_limits_package_discovery() -> None:
     include = tuple(finder.get("include", ()))
     exclude = tuple(finder.get("exclude", ()))
 
-    assert include == (
+    expected_include = (
         "copernican_lib",
         "copernican_lib.*",
         "engines",
         "engines.*",
         "models",
+        "models.*",
     )
+    expected_exclude = ("archive", "data", "licenses", "tests")
 
-    for unwanted in ("archive", "data", "licenses", "tests"):
-        assert unwanted in exclude
+    assert include == expected_include
+    assert exclude == expected_exclude
