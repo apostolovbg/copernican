@@ -1,4 +1,4 @@
-# Last Updated: 2025-10-31
+# Last Updated: 2025-11-05
 [build-system]
 requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]"]
 build-backend = "setuptools.build_meta"
@@ -47,9 +47,30 @@ dev = [
 copernican = "copernican:main_workflow"
 
 [tool.setuptools]
-packages = ["copernican_lib", "engines"]
 py-modules = ["copernican"]
 include-package-data = true
+# Explicitly scope package discovery so legacy setuptools builds that ship
+# with ensurepip never attempt to auto-discover every top-level directory.
+# macOS still bundles setuptools 79.0.1, which raises a fatal "Multiple
+# top-level packages discovered" error unless we teach it which namespaces
+# to include. The include/exclude filters mirror the runtime modules while
+# leaving data and archival folders untouched.
+
+[tool.setuptools.packages.find]
+include = [
+    "copernican_lib",
+    "copernican_lib.*",
+    "engines",
+    "engines.*",
+    "models",
+    "models.*",
+]
+exclude = [
+    "archive",
+    "data",
+    "licenses",
+    "tests",
+]
 
 [tool.setuptools.data-files]
 "licenses" = ["THIRD_PARTY_LICENSES.md", "licenses/*"]
