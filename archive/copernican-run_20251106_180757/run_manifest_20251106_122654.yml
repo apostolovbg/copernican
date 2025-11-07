@@ -1,5 +1,5 @@
 copernican:
-  version: 7.2.3
+  version: 7.2.9
 models:
 - name: LambdaCDM
   version: '1.0'
@@ -80,7 +80,7 @@ models:
 engine:
   name: engines.cosmo_engine_mcmc
   version: unknown
-seed: 2152442536
+seed: 2257708435
 datasets:
   jla_2014:
     name: Joint Light-curve Analysis 2014
@@ -95,7 +95,6 @@ datasets:
       tablef2.fit: 0db2aeab210523594c07ac7f89edca87c55a76601c51c4a831d338cc32ce3ff4
       tablef3.dat: 35db10c033fa4bc5326436d957eb732e76fd7a4d6db7c729bc3ce17aeb5de470
       tablef4.fit: a17a1e29a8ee1631669a4456adf84c27372a33f5448a65971dbdd50eb9a97a67
-      __pycache__/cosmo_parser_jla2014.cpython-311.pyc: 20be9aaba6bad86742c4c445595ff2024aae9338e2f184cb8e2ff86e78f757c0
     independence:
     - Type Ia supernova distance moduli are treated as statistically independent from
       BAO and CMB observables once their published covariance matrices are accounted
@@ -111,7 +110,6 @@ datasets:
       BAO_consensus_results_dM_Hz.txt: 30e784fa08e7eddb2fdd1ab09411424e67aa9b75df58f4bb330a889c9b9c478e
       BAO_consensus_results_dV_FAP.txt: e507d65dacedc814892609d2decca9990a954ef5836da79b57c663885fce4ef8
       metadata_bossdr12.yml: 821022b3851fda917a4c014d88d35da92f303e7295a1d9d6d373eaab541939ef
-      __pycache__/cosmo_parser_bossdr12.cpython-311.pyc: 28ae840a3d9516258948021762b63cb177a912a6cc2436568f9af6454fbf7ec3
     independence:
     - BAO distance measurements are assumed independent of SNe and CMB datasets because
       overlapping systematics are negligible at the current precision level.
@@ -125,13 +123,12 @@ datasets:
       cl_cmb_plik_v22.dat: dac0d9d493213e77c940a10a968cf0da3c5730bae60e1356c4cd8bcff96377ff
       metadata_planck2018lite.yml: ec760dece3ddba7da4db1720cc52fd3b8e01e14f6bf2ed60b7d8ecc391f7516c
       readme_baseline.md: ae6cef6886f2c4381147657fc195bed72742fbe3cc106208200f961af24caa73
-      __pycache__/cosmo_parser_cmb_planck2018lite.cpython-311.pyc: 0108deff6ee5b9f9e073b6a9f4b6ee18ae28cca729c61c81b54b9a2006479b56
     independence:
     - Planck-lite CMB spectra are modelled as independent from SNe and BAO summaries;
       cross-covariances are ignored consistently with published likelihood treatments.
     condition_number: null
 git:
-  commit: c57507e967b38a196071d0fa70a1275ed1af185d
+  commit: 2defa00962bc9f9f7fd23af3d7aa708c70f57bbb
   dirty: true
 camb:
   version: 1.6.3
