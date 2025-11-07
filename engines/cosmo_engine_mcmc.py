@@ -1,10 +1,10 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-01
+# Last Updated: 2025-11-07
 
 """Markov Chain Monte Carlo engine using :mod:`emcee`.
 
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-07
 
 The combined optimiser has been retired entirely, leaving this sampler as the
 sole runtime engine.  It continues to focus on Supernova Ia posteriors while
@@ -18,6 +18,13 @@ new :func:`copernican_lib.engine_interface.make_logposterior` helper so that
 posterior calculations automatically honour per-parameter priors, declared
 bounds and optional reparameterisation transforms while exposing diagnostic
 metadata alongside sampled chains.
+
+Version 7.2.10 extends the reproducibility contract by constructing every
+NumPy :class:`~numpy.random.Generator` from the shared
+:func:`copernican_lib.utils.get_random_seed` value.  The helper captures the
+seed supplied through the CLI prompt or ``COPERNICAN_SEED`` so subsequent
+engines observe the same pseudo-random stream without requiring callers to
+seed multiple subsystems manually.
 """
 
 from __future__ import annotations
@@ -42,6 +49,7 @@ from copernican_lib.statistics import (
     compute_cmb_spectrum,
     compute_cmb_spectrum_from_dict,
 )
+from copernican_lib.utils import get_random_seed
 
 ENGINE_KIND = "mcmc"
 ENGINE_LABEL = "Ensemble MCMC sampler"
@@ -605,7 +613,14 @@ def fit_sne_parameters(
     lower = lower_all[active_indices]
     upper = upper_all[active_indices]
 
-    rng = np.random.default_rng()
+    seed = get_random_seed()
+    if seed is None:
+        seed = 0
+    rng = np.random.default_rng(seed)
+    logger.debug(
+        "Initialising sampler RNG with seed %s for deterministic chains.",
+        seed,
+    )
 
     ndim_active = active_indices.size
     requested_pool = pool_size if pool_size not in (None, 0) else None

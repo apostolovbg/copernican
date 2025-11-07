@@ -23,6 +23,7 @@ if importlib.util.find_spec("arviz") is not None:
 else:
     ARVIZ_AVAILABLE = False
 from copernican_lib import engine_interface, model_coder, model_parser
+from copernican_lib.utils import set_random_seed
 from engines import cosmo_engine_mcmc
 from engines.cosmo_engine_mcmc import (
     _ActiveLogProbability,
@@ -286,6 +287,41 @@ class TestMCMCEngine(unittest.TestCase):
         )
         self.assertTrue(np.all(np.isfinite(new_coords)))
         self.assertTrue(np.all(np.isfinite(new_log_prob)))
+
+    def test_sampler_respects_shared_seed(self):
+        plugin = self._build_lcdm_plugin()
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01, 0.02],
+                "mu_obs": [40.0, 41.0],
+                "e_mu_obs": [0.1, 0.1],
+            }
+        )
+        set_random_seed(31415)
+        first = cosmo_engine_mcmc.fit_sne_parameters(
+            sne_df,
+            plugin,
+            n_walkers=4,
+            n_steps=4,
+            pool_size=1,
+            burn_in_steps=8,
+        )
+        set_random_seed(31415)
+        second = cosmo_engine_mcmc.fit_sne_parameters(
+            sne_df,
+            plugin,
+            n_walkers=4,
+            n_steps=4,
+            pool_size=1,
+            burn_in_steps=8,
+        )
+        np.testing.assert_array_equal(first["samples"], second["samples"])
+        np.testing.assert_array_equal(
+            first["log_probability"], second["log_probability"]
+        )
+        self.assertTrue(first["success"])  # sanity-check regression inputs
+        self.assertTrue(second["success"])  # matches the deterministic run
+        set_random_seed(0)
 
     def test_active_log_probability_expands_parameters(self):
         plugin = self._build_lcdm_plugin()

@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-06
+**Last Updated:** 2025-11-07
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,13 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 7.2.10
+- 2025-11-07: Seeded the MCMC engine's NumPy generator from the shared
+  ``copernican_lib.utils.get_random_seed`` value, added regression coverage that
+  replays ``fit_sne_parameters`` with a fixed seed to confirm the resulting
+  chains and log-probabilities remain identical, and documented the deterministic
+  contract across the run manifest and design overview guides (OpenAI ChatGPT)
 
 ## Version 7.2.9
 - 2025-11-06: Extended the setuptools include guard to cover the ``models.*``
