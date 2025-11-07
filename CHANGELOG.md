@@ -22,6 +22,10 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 7.3.2
+- 2025-11-07: Expanded the Quantum Relational Scale Field model description and
+  abstract, refreshed the README model overview and documented the entanglement
+  and relational release mechanisms so QRSF stands alone without USMF context
+  (OpenAI ChatGPT)
 - 2025-11-07: Consolidated the gravitational-wave standard siren placeholder
   under the GW loader, retired the redundant siren registry and refreshed
   documentation to frame the update as placeholder management ahead of the next
