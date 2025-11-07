@@ -12,9 +12,9 @@ legacy
 The helper modules previously stored under `scripts/` now live in the
 `copernican_lib/` package.
 The suite evaluates cosmological models against SNe Ia, BAO and CMB data.
-Support for additional observations such as gravitational waves and standard
-sirens is
-being prepared. Users interact with `copernican.py`, choose a model from
+Support for additional observations such as gravitational-wave standard sirens
+is being prepared alongside ongoing placeholder management. Users interact with
+`copernican.py`, choose a model from
 `./models/`, pick a computational engine from `./engines/` and choose data
 sources. Parsers reside alongside their data but are imported only when their
 SHA256 digest matches a vetted list to block untrusted files. Results are saved

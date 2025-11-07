@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.3.2
+- 2025-11-07: Consolidated the gravitational-wave standard siren placeholder
+  under the GW loader, retired the redundant siren registry and refreshed
+  documentation to frame the update as placeholder management ahead of the next
+  dataset rollout (OpenAI ChatGPT)
+
 ## Version 7.3.1
 - 2025-11-07: Replaced the sampler confirmation and post-run prompts with
   numbered menus aligned with the Copernican console style. Expanded Stage 2
@@ -1646,8 +1652,8 @@ suffixes. Follow this template:
   selection.
 
 ## Version 1.5f (Development Release)
-- Completed Phase 6: JSON schema extended with optional fields for CMB,
-  gravitational waves and standard sirens. Added placeholder parser modules
+- Completed Phase 6: JSON schema extended with optional fields for CMB and
+  gravitational-wave standard siren inputs. Added placeholder parser coverage
   and loader functions for these data types.
 - Updated documentation for version 1.5f.
 - Hotfix 5: Removed automatic dependency installer. Users are now instructed

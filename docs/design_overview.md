@@ -29,10 +29,15 @@ that foundation to deliver repeatable analyses.
 Every run produces a timestamped output directory containing plots, NetCDF
 chains and a manifest that records the engine, models, datasets, parameter
 choices and Git state.  The shared workflow means new probes—such as the
-planned gravitational-wave standard sirens—can reuse the same orchestration
-once their loaders and plugins register compatible metadata.
+planned gravitational-wave standard sirens—inherit the same orchestration as
+their placeholders are consolidated under a single loader entry.
 
 ## Historical context and recent changes
+
+Version 7.3.2 streamlines placeholder management by letting the GW loader own
+the forthcoming gravitational-wave standard siren datasets.  Retiring the
+separate siren registry keeps discovery focused on a single entry point while
+documentation quietly reflects the consolidation.
 
 Version 7.3.1 refreshes the interactive prompts that guard Stage 2.  The custom
 sampler questionnaire now closes with a numbered confirmation menu that spells

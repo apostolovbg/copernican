@@ -1,5 +1,5 @@
 # Data Directory Overview
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-11-07
 
 This document explains the layout of the `data/` directory and the role of the
 parser scripts stored with each dataset.
@@ -9,12 +9,12 @@ data/
   sne/        - Supernovae Type Ia datasets
   bao/        - Baryon Acoustic Oscillation measurements
   cmb/        - Cosmic Microwave Background spectra
-  gw/         - Gravitational wave observations (placeholder)
-  sirens/     - Standard siren events (placeholder)
+  gw/         - Gravitational-wave standard siren observations (placeholder)
 ```
 
-Note: The `gw` and `sirens` parsers are stubs that log a message and return
-`None`. Real data support is under development.
+Note: The `gw` parsers are stubs that log a message and return `None` while
+placeholder management consolidates upcoming gravitational-wave standard siren
+support.
 Each subdirectory contains one or more dataset sources. A Python file named
 `cosmo_parser_*.py` lives inside each source folder and registers a parser
 function via decorators from `copernican_lib.data_loaders`.
