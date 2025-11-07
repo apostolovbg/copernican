@@ -1,6 +1,6 @@
 """Integration tests for the ensemble MCMC engine.
 
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-07
 """
 
 import importlib.util
@@ -165,6 +165,15 @@ class TestMCMCEngine(unittest.TestCase):
         self.assertIsInstance(res["production_steps"], int)
         self.assertIsInstance(res["n_walkers"], int)
         self.assertIsInstance(res["pool_workers"], int)
+        diagnostics = res["diagnostics"]
+        for key in ("rhat", "ess_bulk", "ess_tail"):
+            self.assertIn(key, diagnostics)
+            self.assertTrue(diagnostics[key])
+            self.assertTrue(
+                all(
+                    math.isfinite(value) for value in diagnostics[key].values()
+                )
+            )
 
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "chain.nc")
