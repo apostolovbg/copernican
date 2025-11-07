@@ -3,100 +3,41 @@
 
 ![Copernican Suite banner](docs/banner_github.png)
 
-The Copernican Suite is a Python toolkit for testing cosmological models
-against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and
-Cosmic Microwave Background (CMB) data. Version 7.3.0 integrates
-``arviz``-powered convergence diagnostics into the ensemble sampler so every
-run surfaces rank-normalised :math:`\hat{R}` and both bulk and tail effective
-sample sizes alongside the posterior summaries. The engine logs compact
-statistics for these metrics, returns them in the runtime results dictionary
-and copies them into NetCDF exports. Authors can lift the values directly into
-figure captions without repeating calculations in notebooks. Version 7.2.10
-extends the setuptools
-include list to cover the ``models.*`` namespace so nested plugins remain
-packageable while the legacy macOS ``ensurepip`` build continues to avoid the
-"Multiple top-level packages discovered" guard. The packaging regression test
-now asserts both the include and exclude tuples so the configuration stays in
-sync with the documented behaviour. Version 7.2.8 pins setuptools package
-discovery to the ``copernican_lib``, ``engines`` and ``models`` namespaces so
-macOS launchers that bootstrap with the bundled setuptools 79.0.1 release stop
-raising the "Multiple top-level packages discovered" error when reinstalling
-the suite. The explicit include list keeps packaging runs reproducible across
-platforms while leaving the data directories untouched for runtime loaders.
-Version 7.2.7 teaches the ``tools.update_lock`` helper to defer its
-``piptools`` availability check until the command runs. Importing the module
-inside unit tests now leaves the process alive on developer machines that have
-not provisioned the optional dependency yet, while still emitting the
-actionable installation guidance when ``pip-compile`` genuinely executes. The
-guard keeps the helper monkeypatch-friendly for lint hooks and regression runs.
-Version 7.2.6 replaces the ``make-lock`` timestamp workaround with a tested
-``tools.update_lock`` helper that recompiles dependencies in a temporary
-workspace, reuses the cached header whenever the body is unchanged and
-documents the process for contributors, eliminating the daily timestamp churn
-that blocked linted branches. Version 7.2.5 elevates the resilient
-quadrature guardrails so any ``rs_expression`` integral that still triggers
-SciPy ``IntegrationWarning`` emissions raises a dedicated
-``SoundHorizonComputationError``. The BAO likelihood now logs the divergence
-explicitly and aborts ratio plots instead of propagating suppressed values,
-closing the loop uncovered by regression tests that integrate
-``\int_{z_{rec}}^{\infty} dz/(1+z)``. Version 7.2.4 guards ensemble
-autocorrelation diagnostics so short exploratory runs skip ``emcee``'s
-minimum window and return ``None`` instead of emitting noisy
-``RuntimeWarning`` entries while still reporting acceptance fractions. The
-release keeps the acceptance and posterior summaries intact and continues to
-surface diagnostics in the NetCDF output so workflows that expect the field
-remain compatible. Version 7.2.3 keeps BAO and CMB runs in lockstep by
-returning :math:`D_\ell` spectra from the CAMB helper, restores a guarded BAO
-fallback that uses model-provided distance functions when CAMB parameters are
-absent, retains covariance integrity checks so trusted datasets without full
-matrices still load predictably, reintroduces the direct CAMB neutrino
-parameter pass-through used by earlier releases and aligns the regression
-harness with the neutrino defaults sent to CAMB so cached spectra match
-direct solver calls. Version 7.2.0 routes BAO
-BAO
-distances and sound-horizon calculations through the same CAMB configuration
-used by the CMB likelihood, enforcing strictly positive-definite covariance
-matrices and recording their condition numbers in the run manifest. The release
-also validates CAMB parameter maps declared in model YAML files so neutrino
-sector options such as ``Neff`` and ``sum_mnu`` remain consistent across
-engines. Version 7.2.4 keeps the neutrino masses, hierarchy flags and ``Neff``
-adjustments in sync between cached spectra, background distances and
-regression comparisons.
-Version 7.1.4 extends the resilient quadrature helper with logistic remapping
-for semi-infinite and two-sided integrals. The helper now seeds breakpoints
-automatically so USMFv2-class theories no longer emit repeated fallback
-warnings when sound-horizon equations stretch into extreme redshifts. Version
-7.1.3 toughens the numerical
-integration pipeline so even wildly behaved theories—such as USMFv2 and its
-future descendants—sail through Stage 2 without flooding the console with
-SciPy ``IntegrationWarning`` messages. The resilient quadrature wrapper raises
-the subdivision ceiling automatically and slices the integration interval into
-manageable pieces when retries still fail, ensuring the sampler keeps running
-instead of stalling on exotic parameterisations. Version 7.1.2 refreshes the
-launchers with a concise primary menu, an environment-management submenu and a
-guided sampler questionnaire so new users understand every knob before Stage 2
-begins. Version 7.1.1 normalises every runtime timestamp to Coordinated
-Universal Time (UTC) so local runs match CI logs and manifest records
-regardless of locale. Version 7.1.0 introduces
-an interactive Stage 2 configuration menu that captures production steps,
-burn-in length, walker ensembles and multiprocessing pool sizes before the
-sampler launches. The selections are logged and mirrored in the parameter
-summary files so trimmed exploratory runs stay reproducible. Version 7.0.6
-removes the automatic sound-horizon fallback, requiring every BAO-capable
-model to declare its own `rs_expression` so fits never double-count photon
-densities and remain scientifically controlled. Version 7.0.5 retools the
-likelihood helpers so they cache numpy views of their input datasets and
-reuse residual buffers, eliminating repeated DataFrame conversions inside the
-multiprocessing pool and keeping the engine responsive even when Stage 2
-evaluates thousands of posterior calls per second. Version 7.0.4 hardens
-version discovery so the macOS launcher continues to boot even when
-``copernican_lib.version.get_version`` is missing from partially upgraded
-installations. Version 7.0.3 rebuilt the symbolic distance helpers as
-self-reconstructing wrappers so spawn-based multiprocessing pools can
-unpickle them deterministically, eliminating the missing attribute errors
-reported on macOS runners. Support for gravitational waves and standard
-sirens remains on the roadmap and the refined architecture keeps those
-additions straightforward to stage.
+The Copernican Suite is a Python toolkit that helps researchers test
+cosmological models against multi-probe observations. It orchestrates the full
+workflow from data ingestion through posterior exploration so teams can compare
+theoretical predictions with Supernovae Type Ia (SNe Ia), Baryon Acoustic
+Oscillation (BAO) and Cosmic Microwave Background (CMB) datasets using a single
+reproducible interface.
+
+The suite is organised around a handful of focused components:
+
+* `copernican.py` presents the command-line experience, guiding users through
+  dataset selection, model pairing and engine configuration.
+* `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
+  utilities, posterior builders, plotting helpers and shared diagnostics—that
+  keep every engine and plugin consistent.
+* `engines/` collects computational back ends. The default
+  ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
+  convergence checks, while the plugin protocol keeps room for additional
+  optimisers and hardware-specific accelerators.
+* `models/` stores YAML theories that declare priors, bounds, transforms and
+  dataset compatibility. Each definition is converted into a picklable engine
+  plugin so Stage 2 runs remain reproducible across processes.
+* `data/` curates vetted observations with companion parsers and metadata. The
+  loaders verify file digests, register provenance and attach citations to the
+  manifests and plot footers created for every run.
+
+All supported datasets share a uniform pipeline: parsers normalise the inputs,
+the joint likelihood composes SNe Ia, BAO and CMB components, and the engine
+records diagnostics, NetCDF chains and a manifest describing the chosen
+configuration. Upcoming work extends the same infrastructure to future probes
+such as gravitational-wave standard sirens without altering the user-facing
+workflow.
+
+Release highlights, breaking changes and historical notes now live exclusively
+in [`CHANGELOG.md`](CHANGELOG.md). Refer to the documentation set in `docs/` for
+deep dives into the architecture, data formats and contributor workflows.
 
 Engines, datasets and models stay fully pluggable. Generated YAML definitions
 are transformed into :class:`copernican_lib.plugins.EnginePlugin`

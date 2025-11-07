@@ -1,31 +1,38 @@
 # Copernican Suite Architecture
 **Last Updated:** 2025-11-07
 
-This short document explains the updated folder layout introduced in
-version 1.14.2.  The `copernican_lib` package now collects all
-reusable modules that were previously found under `scripts/`.  Engines
-and data parsers import utilities from this package so they can remain
-focused on numerical work.  As of version 4.3.26 the shared statistical
-helpers were extracted into `copernican_lib/statistics.py`, giving every engine
-a single implementation of the SNe, BAO and CMB chi-squared calculations.
-Version 6.1.0 introduces `copernican_lib/likelihoods/`, a dedicated package
-providing reusable log-likelihood helpers and a `JointLike` aggregator while
-`statistics.py` exposes thin wrappers for backward compatibility.  Version
-6.1.1 tidies the package exports so imports resolve deterministically across
-the suite's lint and packaging workflows.  Version 6.2.0 connects the MCMC
-engine directly to `JointLike` and the new
-`engine_interface.make_logposterior` helper so posterior evaluations apply
-model priors, declared bounds and optional sampling transforms uniformly across
-engines while surfacing component-level diagnostics for downstream analysis.
-Version 6.4.0 adds an explicit `fixed` prior to `copernican_lib/priors.py`,
-exposing deterministic parameters alongside the probabilistic uniform,
-Gaussian and log-uniform options.  Earlier releases (6.3.0 and 6.3.1)
-centralised validation, Jacobian handling and transform registration so every
-engine observes consistent metadata.  The parser now normalises each prior
-before it reaches the cache or an engine and rejects the retired
-`distribution` alias outright.  Canonicalisation guarantees that
-metadata-driven transforms, manifests and engine plugins all observe the same
-schema even when the original YAML attempted to declare redundant transforms.
+This document expands on the high-level summary in the README by tracing how
+the Copernican Suite organises its architecture.  The command-line launcher
+(`copernican.py`) steers each run, the `copernican_lib/` package gathers shared
+infrastructure, and the `engines/`, `models/` and `data/` directories plug into
+that foundation to deliver repeatable analyses.
+
+* `copernican.py` assembles run manifests, dispatches dataset loaders and
+  prepares engine inputs so Stage 2 sampling always starts from a consistent
+  configuration.
+* `copernican_lib/` contributes the reusable building blocks—data ingestion,
+  posterior construction, validation checks, plotting helpers and diagnostics.
+  Engines and parsers import from this package instead of reimplementing
+  numerical plumbing.
+* `engines/` contains back ends such as the default
+  ``cosmo_engine_mcmc.py``.  Engines consume `EnginePlugin` definitions,
+  evaluate joint likelihoods spanning SNe Ia, BAO and CMB data and surface
+  ArviZ-powered convergence diagnostics for downstream tooling.
+* `models/` holds YAML descriptions that declare bounds, priors, transforms and
+  dataset compatibility.  Each file is compiled into a picklable
+  :class:`copernican_lib.plugins.EnginePlugin` so multiprocessing pools can
+  reconstruct Stage 2 state deterministically.
+* `data/` curates vetted catalogues with parser code and metadata that record
+  citations, licensing information and SHA256 digests.  Loaders validate the
+  digests before the observations flow into the likelihood pipeline.
+
+Every run produces a timestamped output directory containing plots, NetCDF
+chains and a manifest that records the engine, models, datasets, parameter
+choices and Git state.  The shared workflow means new probes—such as the
+planned gravitational-wave standard sirens—can reuse the same orchestration
+once their loaders and plugins register compatible metadata.
+
+## Historical context and recent changes
 
 Version 7.2.7 keeps ``tools/update_lock.py`` import-friendly by deferring the
 ``piptools`` availability check until the helper actually attempts to spawn

@@ -22,6 +22,8 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 7.3.0
+- 2025-11-07: Rewrote the README introduction to highlight the suite's mission, components and supported datasets, synced the design overview summary and relocated release notes from the README into the changelog (OpenAI ChatGPT)
+
 - 2025-11-07: Integrated ArviZ convergence diagnostics into the ensemble MCMC
   engine, logging compact :math:`\hat{R}` and effective sample size summaries,
   returning the metrics alongside sampler results, extending the regression
