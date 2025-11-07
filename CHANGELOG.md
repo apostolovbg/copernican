@@ -1,11 +1,13 @@
 # Changelog
-**Last Updated:** 2025-10-29
+**Last Updated:** 2025-11-07
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
-latest version header. AI assistant warning: please, always check the current
-date when logging new changes, and datestamp them with a current date! Don't
-put dates that are in the future or in the past! Follow this template:
+latest version header. Always confirm the actual current date (for example with
+`date`) before logging new changes, and make sure each entry's timestamp keeps
+the changelog in chronological order—never back-date entries or record future
+dates. Record timestamps as ISO dates (`YYYY-MM-DD`) without times or timezone
+suffixes. Follow this template:
 ```
 ## Version 1.1.0
 - 2025-05-27: Added plotting and CSV (Apostol Apostolov)
@@ -18,6 +20,344 @@ put dates that are in the future or in the past! Follow this template:
 
 ```
 ## Log changes here
+
+## Version 7.3.2
+- 2025-11-07: Consolidated the gravitational-wave standard siren placeholder
+  under the GW loader, retired the redundant siren registry and refreshed
+  documentation to frame the update as placeholder management ahead of the next
+  dataset rollout (OpenAI ChatGPT)
+
+## Version 7.3.1
+- 2025-11-07: Replaced the sampler confirmation and post-run prompts with
+  numbered menus aligned with the Copernican console style. Expanded Stage 2
+  documentation to describe the clearer flows and added regression coverage for
+  the new helper before bumping the recorded version to 7.3.1 (OpenAI ChatGPT)
+
+## Version 7.3.0
+- 2025-11-07: Rewrote the README introduction to highlight the suite's mission, components and supported datasets, synced the design overview summary and relocated release notes from the README into the changelog (OpenAI ChatGPT)
+
+- 2025-11-07: Integrated ArviZ convergence diagnostics into the ensemble MCMC
+  engine, logging compact :math:`\hat{R}` and effective sample size summaries,
+  returning the metrics alongside sampler results, extending the regression
+  suite to assert finite diagnostics and documenting publication guidance for
+  the new statistics (OpenAI ChatGPT)
+
+## Version 7.2.10
+- 2025-11-07: Seeded the MCMC engine's NumPy generator from the shared
+  ``copernican_lib.utils.get_random_seed`` value, added regression coverage that
+  replays ``fit_sne_parameters`` with a fixed seed to confirm the resulting
+  chains and log-probabilities remain identical, and documented the deterministic
+  contract across the run manifest and design overview guides (OpenAI ChatGPT)
+
+## Version 7.2.9
+- 2025-11-06: Extended the setuptools include guard to cover the ``models.*``
+  namespace so nested plugins remain packageable and tightened the regression
+  test to assert both the include and exclude tuples stay aligned with the
+  documented packaging policy (OpenAI ChatGPT)
+
+## Version 7.2.8
+- 2025-11-05: Scoped setuptools package discovery to the ``copernican_lib``,
+  ``engines`` and ``models`` namespaces so macOS launchers running under the
+  bundled setuptools 79.0.1 release stop failing with the "Multiple top-level
+  packages discovered" error during ``pip install --no-deps .``; refreshed the
+  packaging guide, bumped user-facing metadata to 7.2.8 and added regression
+  coverage that enforces the include list (OpenAI ChatGPT)
+
+## Version 7.2.7
+- 2025-11-05: Deferred the ``piptools`` check in ``tools/update_lock.py`` so
+  importing the helper in regression tests no longer
+  triggers an unconditional ``SystemExit`` while preserving the actionable
+  guidance when ``pip-compile`` genuinely runs; expanded the accompanying test
+  suite and documentation to cover the lazy guard (OpenAI ChatGPT)
+
+## Version 7.2.6
+- 2025-11-05: Rebuilt the lockfile workflow around `tools/update_lock.py`,
+  regenerating dependencies in a temporary workspace, preserving existing
+  banners when the body is unchanged, documenting the process across the
+  toolkit and adding regression tests for the helper so the `make-lock` hook
+  remains deterministic (OpenAI ChatGPT)
+
+## Version 7.2.5
+- 2025-11-02: Raised a dedicated ``SoundHorizonComputationError`` when robust
+  quadrature exhausts its retries, taught the BAO likelihood to stop plotting
+  ratios once ``rs_expression`` integrals diverge, added regression tests that
+  integrate ``\int_{z_{rec}}^{\infty} dz/(1+z)`` to ensure the failure
+  propagates, refreshed documentation to describe the guardrails and bumped the
+  recorded version to 7.2.5 (OpenAI ChatGPT)
+- 2025-11-02: Realigned the metadata validation reference date with the updated
+  documentation timestamps so CI recognizes the refreshed release metadata
+  (OpenAI ChatGPT)
+- 2025-11-02: Updated the metadata regression tests to read the UTC-normalised
+  clock from ``tools.check_meta`` and documented the workflow for running the
+  validator alongside documentation updates (OpenAI ChatGPT)
+
+## Version 7.2.4
+- 2025-11-01: Guarded autocorrelation estimation against undersized chains in
+  the MCMC engine, added a regression test covering the short-chain scenario,
+  refreshed diagnostics documentation and bumped the recorded version to 7.2.4
+  (OpenAI ChatGPT)
+
+## Version 7.2.3
+- 2025-11-01: Synced the functional CAMB regression test with the restored
+  neutrino-sector pass-through so cached :math:`D_\ell` spectra match direct
+  solver calls, refreshed documentation to describe the alignment and bumped
+  project metadata to 7.2.3 (OpenAI ChatGPT)
+
+## Version 7.2.2
+- 2025-11-01: Restored the full neutrino-sector mapping for the CAMB helpers,
+  mirrored the configuration across the cached background observables, added
+  regression coverage that compares helper outputs against direct CAMB calls and
+  refreshed the architecture notes to highlight the restored pass-through
+  (OpenAI ChatGPT)
+
+## Version 7.2.1
+- 2025-11-01: Returned :math:`D_\ell` spectra from the CAMB helper, restored a
+  controlled BAO background fallback that reuses model distance functions when
+  CAMB parameters are unavailable, relaxed BAO covariance validation to fall
+  back to diagonal errors for trusted datasets and bumped the recorded version
+  to 7.2.1 (OpenAI ChatGPT)
+- 2025-11-01: Added regression coverage confirming the BAO likelihood falls back
+  to model distance functions when CAMB parameters are unavailable (OpenAI
+  ChatGPT)
+
+## Version 7.2.0
+- 2025-11-01: Routed BAO likelihood distances and sound-horizon evaluations
+  through the CAMB helpers shared with the CMB module, enforced positive-
+  definite BAO covariance matrices with condition-number reporting, validated
+  CAMB parameter maps in the engine interface, recorded CAMB configuration
+  details in run manifests, refreshed the sample models with explicit neutrino
+  sector parameters, added dedicated CAMB background tests and bumped the suite
+  version to 7.2.0 (OpenAI ChatGPT)
+
+## Version 7.1.4
+- 2025-11-01: Extended the resilient quadrature helper with logistic
+  remapping for infinite bounds, automatic breakpoint seeding and expanded
+  regression coverage so USMFv2-class models complete without repeated
+  fallback warnings, and refreshed the documentation plus recorded version
+  metadata (OpenAI ChatGPT)
+
+## Version 7.1.3
+- 2025-11-01: Hardened the symbolic quadrature pipeline with automatic limit
+  escalation, interval subdivision and targeted logging so wild theories such
+  as USMFv2 complete without SciPy ``IntegrationWarning`` spam, refreshed
+  documentation to describe the resilience improvements, bumped the recorded
+  version and added regression tests for the new helper (OpenAI ChatGPT)
+
+## Version 7.1.2
+- 2025-11-01: Refreshed every launcher with a concise primary menu, an
+  environment-management submenu and blank-line separators, added a guided
+  sampler questionnaire after CMB loading, updated documentation, synced the
+  recorded version and adjusted start-script tests for the new flows (OpenAI
+  ChatGPT)
+
+## Version 7.1.1
+- 2025-11-01: Normalised every runtime timestamp to Coordinated Universal Time
+  (UTC) across logging, manifests and filenames, updated metadata
+  validators and pre-commit checks to read the UTC clock, added targeted
+  unit coverage for the new helpers, refreshed documentation, and bumped
+  the recorded version (OpenAI ChatGPT)
+
+## Version 7.1.0
+- 2025-11-01: Added an interactive Stage 2 sampler configuration menu that
+  records production steps, burn-in length, walker counts and pool sizes,
+  ensured the MCMC engine honours explicit pool selections when sizing the
+  ensemble, persisted the sampler plan in parameter summaries, refreshed
+  documentation, bumped the recorded version and extended regression tests
+  for the new metadata (OpenAI ChatGPT)
+
+## Version 7.0.6
+- 2025-10-31: Retired the sound-horizon fallback, enforced explicit
+  ``rs_expression`` definitions, updated bundled models with integral
+  expressions, expanded unit tests, refreshed documentation and bumped the
+  recorded version (OpenAI ChatGPT)
+
+## Version 7.0.5
+- 2025-10-31: Cached SNe, BAO and CMB likelihood inputs as immutable NumPy
+  arrays to remove per-call DataFrame conversions, reusing residual buffers to
+  accelerate multiprocessing, added regression tests covering the caching
+  behaviour and refreshed documentation and metadata (OpenAI ChatGPT)
+
+## Version 7.0.4
+- 2025-10-31: Hardened runtime version discovery so the macOS launcher and
+  plotting stack tolerate missing ``copernican_lib.version.get_version`` during
+  partial upgrades, added regression tests covering the new fallbacks and
+  refreshed documentation and metadata (OpenAI ChatGPT)
+
+## Version 7.0.3
+- 2025-10-31: Wrapped SymPy-generated distance helpers in self-reconstructing
+  callables so spawn-based multiprocessing workers rebuild them from cached
+  expressions, refreshed the regression tests and documentation, and bumped
+  suite metadata (OpenAI ChatGPT)
+
+## Version 7.0.2
+- 2025-10-31: Replaced ``MappingProxyType`` wrappers inside engine plugins with
+  a picklable ``FrozenMapping`` helper, restored spawn-pool compatibility,
+  added regression coverage for plugin pickling and refreshed suite metadata
+  (OpenAI ChatGPT)
+
+## Version 7.0.1
+- 2025-10-31: Registered SymPy-generated distance helpers as module-level
+  callables so spawn-based pools launched from the macOS bootstrap
+  script remain stable, restored start.command usability, added
+  regression tests, and updated documentation and metadata (OpenAI
+  ChatGPT)
+
+## Version 7.0.0
+- 2025-10-31: Replaced the legacy engine interface with the picklable
+  `copernican_lib.plugins` package and a standalone posterior module, ensured
+  log-uniform transforms serialise cleanly, refreshed validation and
+  documentation, added regression tests covering posterior pickling and bumped
+  suite metadata (OpenAI ChatGPT)
+
+## Version 6.7.4
+- 2025-10-31: Made joint likelihood adapters and generated distance functions
+  picklable so spawn-based pools no longer crash, relaxed plugin validation when
+  distance metrics are disabled, added an optional burn-in override to
+  ``fit_sne_parameters`` and trimmed MCMC-heavy tests to keep CI fast. Updated
+  documentation and metadata accordingly (OpenAI ChatGPT)
+
+## Version 6.7.3
+- 2025-10-31: Replaced the nested posterior closure with a picklable adapter so
+  spawn-based multiprocessing pools can evaluate it, tightened unit coverage and
+  refreshed documentation and metadata (OpenAI ChatGPT)
+
+## Version 6.7.2
+- 2025-10-31: Removed `pip-tools` from runtime installs while retaining the
+  familiar developer workflow, refactored the Stage 2 log-probability adapter
+  so multiprocessing workers can pickle it reliably, added regression tests
+  for the new helper, refreshed dependency documentation and bumped suite
+  metadata (OpenAI ChatGPT)
+
+## Version 6.7.1
+- 2025-10-31: Ensured sampler progress logs enumerate every parameter, reused
+  diagnostic buffers to cut callback overhead, wrapped walker snapshots, updated
+  documentation, extended regression coverage and fixed lint issues (OpenAI
+  ChatGPT)
+
+## Version 6.7.0
+- 2025-10-31: Added granular sampler diagnostics with walker snapshots, auto-
+  configured multiprocessing, live BAO/CMB residual logging, regression tests,
+  documentation refreshes and bumped suite metadata (OpenAI ChatGPT)
+
+## Version 6.6.0
+- 2025-10-31: Enabled joint SNe/BAO/CMB sampling in the MCMC engine, updated
+  Stage 2 orchestration and downstream reporting to reuse the combined
+  likelihood diagnostics, refreshed documentation, expanded regression tests
+  and bumped suite metadata (OpenAI ChatGPT)
+
+## Version 6.5.4
+- 2025-10-31: Allowed "Last Updated" markers within the first three lines of
+  tracked files, removed time components from metadata fields, updated the CI
+  checks accordingly, refreshed documentation, and bumped suite metadata
+  (OpenAI ChatGPT)
+
+## Version 6.5.3
+- 2025-10-30: Ensured the managed launchers bootstrap `pip` with
+  `ensurepip` and a `get-pip.py` fallback so dependency installations never
+  fail on fresh interpreters, refreshed the quick-start documentation, and
+  bumped suite metadata (OpenAI ChatGPT)
+
+## Version 6.5.2
+- 2025-10-30: Hardened all launchers to purge Python 3.12 interpreters, added
+  explicit range guards to the bootstrap tests, refreshed documentation and
+  metadata, and bumped the recorded suite version (OpenAI ChatGPT)
+
+## Version 6.5.1
+- 2025-10-30: Reverted the managed interpreter to Python 3.11 across all
+  launchers so CAMB wheels install on macOS again, tightened packaging
+  metadata to block Python 3.12 environments until upstream wheels ship,
+  updated CI matrices, documentation and metadata, and bumped the suite
+  version (OpenAI ChatGPT)
+
+## Version 6.5.0
+- 2025-10-30: Centralised SNe/BAO/CMB dataset loading, recorded dataset names,
+  versions and independence statements in manifests, documented the new
+  `run_config` schema, refreshed metadata and bumped suite metadata (OpenAI
+  ChatGPT)
+
+## Version 6.4.0
+- 2025-10-30: Added an explicit `fixed` prior class with canonical
+  normalisation, enforced strict `type` fields in the model schema, promoted
+  equal-bound parameters to deterministic metadata in plugins, refreshed
+  models, documentation and regression tests, and bumped suite metadata
+  accordingly (OpenAI ChatGPT)
+
+## Version 6.3.1
+- 2025-10-30: Normalised parameter prior mappings during model parsing,
+  tightened validation errors, refreshed documentation, expanded regression
+  tests and bumped suite metadata (OpenAI ChatGPT)
+
+## Version 6.3.0
+- 2025-10-30: Added `copernican_lib/priors.py` with reusable prior classes,
+  extended model validation with log-uniform support, refreshed documentation,
+  expanded prior tests and bumped the suite version (OpenAI ChatGPT)
+
+## Version 6.2.0
+- 2025-10-30: Rewrote development laws to enforce chronological date checks,
+  normalised incorrect timestamps across documentation, and refreshed metadata
+  that slipped into the future (OpenAI ChatGPT)
+- 2025-10-30: Integrated JointLike-powered posterior assembly in the MCMC
+  engine, exposed `engine_interface.make_logposterior` for reusable prior
+  handling, expanded smoke tests with likelihood diagnostics, refreshed
+  documentation metadata and bumped the suite version (OpenAI ChatGPT)
+
+## Version 6.1.1
+- 2025-02-14: Restored import ordering in the likelihood package to satisfy
+  style linters, refreshed documentation metadata, and bumped the suite
+  version (OpenAI ChatGPT)
+
+## Version 6.1.0
+- 2025-10-30: Introduced the `copernican_lib/likelihoods` package with reusable
+  dataset log-likelihood helpers, migrated χ² logic out of `statistics.py`,
+  added a configurable joint likelihood aggregator, refreshed documentation
+  and bumped suite metadata (OpenAI ChatGPT)
+
+## Version 6.0.14
+- 2025-10-30: Normalised the dependency lock workflow by dropping the
+  Python interpreter banner, ensured the `make lock` helper keeps
+  cross-platform runs byte-identical, refreshed documentation and
+  bumped suite metadata (OpenAI ChatGPT)
+
+## Version 6.0.13
+- 2025-10-30: Normalised metadata and policy check outputs across Windows and
+  POSIX paths, pinned the lint workflow to pip-tools 7.4.1, made the lock
+  target explicit about --strip-extras and bumped suite metadata (OpenAI
+  ChatGPT)
+
+## Version 6.0.12
+- 2025-10-30: Added repository policy pre-commit checks for metadata dates,
+  version synchronisation and print-free libraries, expanded lint hooks and
+  documented the CI `pre-commit run --all-files` enforcement (OpenAI ChatGPT)
+
+## Version 6.0.11
+- 2025-10-30: Removed `pip` and `pip-tools` from the runtime lock so Windows
+  runs no longer attempt to replace the active installer, regenerated the
+  dependency snapshot, refreshed CI and developer guidance, and bumped the
+  recorded suite metadata (OpenAI ChatGPT)
+
+## Version 6.0.10
+- 2025-10-30: Rebuilt the dependency lock against currently published
+  wheels, pinned the bootstrapper to `pip==24.2`, updated CI workflows to
+  honour the stable installer and refreshed documentation and metadata so
+  Windows, macOS and Linux jobs all resolve packages without source builds
+  (OpenAI ChatGPT)
+
+## Version 6.0.9
+- 2025-10-30: Added a cross-platform GitHub Actions CI matrix for Python 3.12,
+  cached pip and CAMB assets, automated testing, packaging artifact uploads,
+  refreshed the documentation, stabilised the dependency lock hook by pinning
+  its pip toolchain and bumped the recorded suite version (OpenAI ChatGPT)
+
+## Version 6.0.8
+- 2025-10-30: Enforced Python 3.12+ across all start launchers, rebuilt the
+  dependency lock with the released ArviZ 0.22.0 for NumPy 2 support,
+  refreshed documentation and bumped suite metadata (OpenAI ChatGPT)
+
+## Version 6.0.7
+- 2025-10-30: Added a metadata validation script that enforces synchronized
+  release numbers and prevents future-dated documentation, refreshed release
+  notes and normalized Last Updated timestamps across the suite (OpenAI
+  ChatGPT)
 
 ## Version 6.0.6
 - 2025-10-29: Added a guarded parameter extraction helper so BAO and CMB
@@ -58,7 +398,7 @@ put dates that are in the future or in the past! Follow this template:
               Copernican Suite artwork so the documentation opens
               with the updated visual identity once the asset is
               supplied (OpenAI ChatGPT)
-- 2025-11-11: Added a tracked VERSION file, taught the runtime helper to read
+- 2025-10-30: Added a tracked VERSION file, taught the runtime helper to read
               it before falling back to setuptools_scm, embedded the suite
               version in run manifests, expanded packaging guidance and
               refreshed documentation for the new workflow (OpenAI ChatGPT)
@@ -329,7 +669,7 @@ put dates that are in the future or in the past! Follow this template:
 ## Version 3.9.26
 - 2025-08-25: Routed optimisation progress to ``stdout`` so runs no longer
               appear to hang on Linux (OpenAI ChatGPT)
-              
+
 ## Version 3.9.25
 - 2025-08-25: Flushed console output to prevent apparent hangs on Linux and
               restricted detailed environment information to the log file
@@ -1312,8 +1652,8 @@ put dates that are in the future or in the past! Follow this template:
   selection.
 
 ## Version 1.5f (Development Release)
-- Completed Phase 6: JSON schema extended with optional fields for CMB,
-  gravitational waves and standard sirens. Added placeholder parser modules
+- Completed Phase 6: JSON schema extended with optional fields for CMB and
+  gravitational-wave standard siren inputs. Added placeholder parser coverage
   and loader functions for these data types.
 - Updated documentation for version 1.5f.
 - Hotfix 5: Removed automatic dependency installer. Users are now instructed
@@ -1380,4 +1720,3 @@ put dates that are in the future or in the past! Follow this template:
 - Removed GPU code for stability.
 - Implemented robust multiprocessing using `psutil`.
 - Added test mode and cache cleanup loop.
-

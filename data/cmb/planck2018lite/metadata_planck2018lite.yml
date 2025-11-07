@@ -1,5 +1,6 @@
 dataset_name: Planck 2018 Lite TT/TE/EE
 dataset_id: planck_2018_lite
+version: "2018"
 description: >-
   Temperature and polarization power spectra from the Planck 2018 lite
   release with full covariance matrix

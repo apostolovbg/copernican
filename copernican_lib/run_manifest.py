@@ -1,22 +1,43 @@
 """Run manifest generator for the Copernican Suite.
 
-The manifest records critical information required to reproduce a run.
-It captures the Copernican Suite version, model and engine details,
-parameter priors, dataset hashes provided by the data loaders and the Git
-state.  Each run directory stores the resulting YAML file so that analyses can
-be traced back unambiguously.
+**Last Updated:** 2025-11-01
+
+The manifest records critical information required to reproduce a run. It
+captures the Copernican Suite version, model and engine details, parameter
+priors, dataset hashes provided by the data loaders and the Git state.  Each
+run directory stores the resulting YAML file so that analyses can be traced
+back unambiguously.
 """
 
 from __future__ import annotations
 
 import os
 import subprocess
-from typing import Dict, Iterable, Tuple
+from typing import Any, Dict, Iterable
 
 import yaml
 
 from . import utils
-from .version import get_version
+from . import version as version_module
+from .likelihoods import cmb as cmb_module
+
+
+def _copernican_version() -> str:
+    """Return the suite version while tolerating missing helpers.
+
+    Some macOS installations reported ``ImportError`` when
+    ``copernican_lib.version.get_version`` was unavailable even though the
+    module itself existed. Importing the attribute lazily keeps the
+    ``run_manifest`` module importable in that scenario so ``start.command``
+    can still launch and emit a manifest. Falling back to ``"0+unknown"``
+    mirrors the final stage inside :func:`copernican_lib.version.get_version`
+    and ensures the manifest always carries a deterministic placeholder.
+    """
+
+    getter = getattr(version_module, "get_version", None)
+    if callable(getter):
+        return getter()
+    return "0+unknown"
 
 
 def _git_info() -> dict:
@@ -50,10 +71,48 @@ def _git_info() -> dict:
     return {"commit": commit, "dirty": dirty}
 
 
+def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
+    """Return CAMB metadata for models that supply a CMB mapping."""
+
+    camb_models: list[object] = []
+    for plugin, _ in models:
+        if getattr(plugin, "valid_for_cmb", True) is False:
+            continue
+        param_map = getattr(plugin, "CMB_PARAM_MAP", {}) or {}
+        if param_map:
+            camb_models.append(plugin)
+    if not camb_models:
+        return None
+
+    try:  # pragma: no cover - graceful when CAMB absent in minimal envs
+        import camb  # type: ignore
+
+        version = getattr(camb, "__version__", "unknown")
+    except Exception:
+        version = "unavailable"
+
+    configuration = cmb_module.describe_camb_configuration()
+    models_meta: list[dict[str, Any]] = []
+    for plugin in camb_models:
+        keys = sorted(str(key) for key in getattr(plugin, "CMB_PARAM_MAP", {}))
+        models_meta.append(
+            {
+                "model": getattr(plugin, "MODEL_NAME", "unknown"),
+                "param_map_keys": keys,
+            }
+        )
+
+    return {
+        "version": version,
+        "configuration": configuration,
+        "models": models_meta,
+    }
+
+
 def build_manifest(
-    models: Iterable[Tuple[object, str]],
+    models: Iterable[tuple[object, str]],
     engine_module: object,
-    datasets: Iterable[Tuple[str, str, Dict[str, str]]],
+    datasets: Iterable[Dict[str, Any]],
 ) -> dict:
     """Collect manifest information for the current run.
 
@@ -67,13 +126,14 @@ def build_manifest(
         Selected engine module object.  ``ENGINE_VERSION`` is queried when
         available.
     datasets:
-        Iterable of ``(dataset_id, data_dir, file_hashes)`` tuples.  The
-        ``file_hashes`` mapping mirrors the ``file_hashes`` attribute attached
-        to the :class:`pandas.DataFrame` produced by the dataset loader.
+        Iterable of dictionaries describing each dataset.  Expected keys are
+        ``id``, ``name``, ``version``, ``path``, ``hashes`` and
+        ``independence``.  The manifest builder ignores missing keys so
+        callers may provide partial information when necessary.
     """
 
     manifest = {
-        "copernican": {"version": get_version()},
+        "copernican": {"version": _copernican_version()},
         "models": [],
         "engine": {
             "name": getattr(engine_module, "__name__", "unknown"),
@@ -102,11 +162,25 @@ def build_manifest(
             }
         )
 
-    for dataset_id, data_dir, file_hashes in datasets:
+    for dataset in datasets:
+        dataset_id = dataset.get("id")
+        if not dataset_id:
+            continue
+        independence = dataset.get("independence", [])
+        if isinstance(independence, str):
+            independence = [independence]
         manifest["datasets"][dataset_id] = {
-            "path": data_dir,
-            "hashes": file_hashes,
+            "name": dataset.get("name", dataset_id),
+            "version": dataset.get("version", "unknown"),
+            "path": dataset.get("path", ""),
+            "hashes": dataset.get("hashes", {}),
+            "independence": independence,
+            "condition_number": dataset.get("condition_number"),
         }
+
+    camb_details = _camb_info(models)
+    if camb_details is not None:
+        manifest["camb"] = camb_details
 
     return manifest
 

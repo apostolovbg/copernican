@@ -1,5 +1,6 @@
 dataset_name: BOSS DR12 BAO Consensus
 dataset_id: boss_dr12_bao
+version: "DR12"
 description: >-
   Consensus BAO distances for three redshift bins providing DM/rs, DH/rs and
   DV/rs with propagated block-diagonal covariance

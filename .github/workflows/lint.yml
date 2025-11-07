@@ -1,4 +1,4 @@
-# Last Updated: 2025-09-03
+# Last Updated: 2025-10-30
 name: Lint
 
 on:
@@ -15,17 +15,18 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
 
       - name: Set up virtual environment
         run: python -m venv .venv
 
       - name: Install dependencies
         run: |
-          .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -r requirements.lock
-          .venv/bin/pip install --no-deps .
-          .venv/bin/pip install pre-commit pip-tools
+          .venv/bin/python -m pip install pip==24.2
+          .venv/bin/python -m pip install -r requirements.lock
+          .venv/bin/python -m pip install --no-deps .
+          .venv/bin/python -m pip install pre-commit
+          .venv/bin/python -m pip install pip-tools==7.4.1
 
       - name: Run pre-commit
         run: .venv/bin/pre-commit run --all-files

@@ -1,5 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
+# Last Updated: 2025-11-07
 
 """Utilities for writing MCMC chains to NetCDF files.
 
@@ -14,6 +15,7 @@ location.
 from __future__ import annotations
 
 import os
+import warnings
 from typing import Iterable
 
 import numpy as np
@@ -71,7 +73,9 @@ def save_posterior(
         name: transposed[:, :, i] for i, name in enumerate(param_names)
     }
 
-    idata = az.from_dict(posterior=posterior_dict)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=UserWarning)
+        idata = az.from_dict(posterior=posterior_dict)
     if metadata:
         idata.attrs.update(metadata)
 

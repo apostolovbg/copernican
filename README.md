@@ -1,24 +1,53 @@
-**Version:** 6.0.6
-**Last Updated:** 2025-10-29
+**Version:** 7.3.2
+**Last Updated:** 2025-11-07
 
 ![Copernican Suite banner](docs/banner_github.png)
 
-The Copernican Suite is a Python toolkit for testing cosmological models
-against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO), and
-Cosmic Microwave Background (CMB) data.
-Support for gravitational waves and standard siren events is planned for
-future
-releases.
-The suite provides a modular architecture so new models, data parsers and
-computational engines can be plugged in with minimal effort.
-Additional design notes can be found under the `docs/` directory.
-Citation details are provided in [CITATION.cff](CITATION.cff).
+The Copernican Suite is a Python toolkit that helps researchers test
+cosmological models against multi-probe observations. It orchestrates the full
+workflow from data ingestion through posterior exploration so teams can compare
+theoretical predictions with Supernovae Type Ia (SNe Ia), Baryon Acoustic
+Oscillation (BAO) and Cosmic Microwave Background (CMB) datasets using a single
+reproducible interface.
 
-Plot summaries now report ``N/A`` for missing chi-squared totals so the
-visualisation workflow remains stable even when a dataset omits cross-dataset
-statistics. Supernova-only MCMC runs now populate ``χ²_Total`` with the SNe
-value so downstream summaries never display ``N/A`` when only the sampling
-engine is in play.
+The suite is organised around a handful of focused components:
+
+* `copernican.py` presents the command-line experience, guiding users through
+  dataset selection, model pairing and engine configuration.
+* `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
+  utilities, posterior builders, plotting helpers and shared diagnostics—that
+  keep every engine and plugin consistent.
+* `engines/` collects computational back ends. The default
+  ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
+  convergence checks, while the plugin protocol keeps room for additional
+  optimisers and hardware-specific accelerators.
+* `models/` stores YAML theories that declare priors, bounds, transforms and
+  dataset compatibility. Each definition is converted into a picklable engine
+  plugin so Stage 2 runs remain reproducible across processes.
+* `data/` curates vetted observations with companion parsers and metadata. The
+  loaders verify file digests, register provenance and attach citations to the
+  manifests and plot footers created for every run.
+
+All supported datasets share a uniform pipeline: parsers normalise the inputs,
+the joint likelihood composes SNe Ia, BAO and CMB components, and the engine
+records diagnostics, NetCDF chains and a manifest describing the chosen
+configuration. Upcoming work extends the same infrastructure to future probes
+such as gravitational-wave standard sirens while quietly refining placeholder
+management so new probes arrive without user-facing churn.
+
+Release highlights, breaking changes and historical notes now live exclusively
+in [`CHANGELOG.md`](CHANGELOG.md). See the documentation set in `docs/` for
+deep dives into the architecture, data formats and contributor workflows.
+
+Engines, datasets and models stay fully pluggable. Generated YAML definitions
+are transformed into :class:`copernican_lib.plugins.EnginePlugin`
+instances that
+declare dataset compatibility, bounds, priors and distance functions in a
+single serialisable object. Posterior construction lives in
+:mod:`copernican_lib.posterior`, ensuring every engine evaluates priors,
+transforms and bounds consistently while keeping the callable picklable for
+``spawn`` worker pools. Additional design notes live in the `docs/` directory
+and citation information appears in [CITATION.cff](CITATION.cff).
 
 ---
 
@@ -89,9 +118,15 @@ Under the hood the program follows a clear pipeline:
    messages recorded in previous ΛCDM self-tests. The sampler draws its
    initial ensemble uniformly inside the declared bounds, performs an
    explicit burn-in phase before production sampling, records acceptance
-   fractions, autocorrelation estimates and log-probability traces and emits
+   fractions, autocorrelation estimates when the production run exceeds
+   ``emcee``'s minimum window, and log-probability traces and emits
    progress updates with percentage indicators for both burn-in and
-   production stages. Shared chi-squared helpers live in
+   production stages. Each update now carries log-posterior mean, spread and
+   extrema, an approximate Δχ² trend and occasional walker snapshots on the
+   first four parameters so terminals remain readable. When no worker pool is
+   requested explicitly the engine auto-configures a multiprocessing pool sized
+   to the available CPUs, shaving minutes off expensive likelihoods while still
+   preserving single-core fallbacks. Shared chi-squared helpers live in
    `copernican_lib/statistics.py` so every backend calls the same routines
    without cross-importing engine modules. Constant values in a model's
    `cmb.param_map` are treated as additional fit parameters so CMB spectra
@@ -103,55 +138,99 @@ Under the hood the program follows a clear pipeline:
   path that resolves outside the repository is skipped. Folders named
   `placeholder` are ignored so unfinished datasets do not appear in the
   selection menus.
-4. **Parameter Fitting** – the MCMC engine samples the SNe posterior for the
-   ΛCDM baseline and the chosen alternative model. When both theories share
-   the same plugin (for example when testing ΛCDM against itself) the Stage 2
-   workflow compares `MODEL_FILENAME` values, reuses the first chain and
-   copies the chi-squared totals so BAO and CMB comparisons draw identical
-   predictions. Otherwise the ΛCDM reference and the alternative model are
-   sampled in turn with independent random seeds.
-5. **BAO Analysis** – BAO observables are computed using the MAP parameters
-   returned by the sampler and chi-squared statistics are reported. Shared
-   helpers from `copernican_lib.statistics` keep the calculations identical
-   regardless of the active engine, ensuring future backends remain
-   drop-in replacements. When a sampler reports failure or omits fitted
-   parameters the suite now skips BAO calculations for that model instead of
-   crashing, logging a warning so users can revisit their priors.
-6. **CMB Analysis** – CMB power spectra are generated using the fitted
-   cosmological parameters and any extra CMB-specific values supplied by the
-   engine. The chi-squared contribution is then calculated. As with the BAO
-   stage the orchestrator bypasses CMB processing gracefully when the
-   underlying fit does not yield cosmological parameters, preventing
-   `KeyError` exceptions at the end of long runs.
+4. **Joint Parameter Fitting** – Stage 2 now samples a combined posterior for
+   the ΛCDM baseline and the alternative model by evaluating SNe, BAO and CMB
+   likelihoods simultaneously through the `JointLike` aggregator. When both
+   theories share the same plugin (for example when testing ΛCDM against
+   itself) the workflow compares `MODEL_FILENAME` values, reuses the first
+   chain and copies the recorded dataset diagnostics so every component shares
+   the same walker history. Otherwise the ΛCDM reference and the alternative
+   model are sampled in turn with independent random seeds.
+   A confirmation menu now summarises the proposed sampler plan with numbered
+   options for accepting it, restarting the questionnaire, returning to the
+   defaults summary or cancelling entirely so the intent behind each choice is
+   explicit.
+5. **BAO Analysis** – Stage 3 reuses the sampler's diagnostics to report BAO
+   chi-squared contributions directly from the joint fit while still
+   generating smooth predictions for plots and CSV exports. Shared helpers
+   from `copernican_lib.statistics` compute the observables so future engines
+   remain drop-in replacements. When a sampler reports failure or omits
+   cosmological parameters the suite skips BAO plotting gracefully and logs a
+   warning instead of crashing. Live diagnostics now stream residual RMS, max
+   and median values for each observable type alongside the latest sound
+   horizon estimate, giving immediate feedback while curves render.
+6. **CMB Analysis** – Stage 4 mirrors the BAO workflow: it reads the CMB χ²
+   stored on the joint sampler state, regenerates spectra for plotting and
+   respects model compatibility flags. The orchestrator bypasses CMB
+   processing cleanly when the underlying fit does not provide cosmological
+   parameters, preventing `KeyError` exceptions at the end of long runs. Live
+   logging mirrors the BAO feed by reporting TT/TE/EE residual norms and
+   medians as spectra update, so users can gauge convergence while CAMB runs.
 7. **Spectra Caching** – unlensed CAMB spectra are cached using parameter
    keys rounded to six significant digits.
 8. **Output Generation** – `copernican_lib/logger.py`,
    `copernican_lib/plotter.py` and `copernican_lib/csv_writer.py` handle
    logs, plots and tables. The log file is renamed at the end of each run to
    match the output timestamp.
-9. **Loop or Exit** – the user may evaluate another model or quit, at which
-   point temporary cache files are cleaned automatically.
+ 9. **Loop or Exit** – a concluding menu explains how to launch another
+    evaluation or close the application instead of relying on a terse yes/no
+    prompt. Temporary cache files are still cleaned automatically either way.
+
+### Interpreting the new convergence diagnostics
+
+Stage 2 now records three convergence metrics for every free parameter: the
+rank-normalised :math:`\hat{R}` statistic and bulk and tail effective sample
+sizes (ESS) computed with :mod:`arviz`.  Values are logged once production
+sampling completes, saved in the returned results dictionary under
+``diagnostics`` and exported alongside the posterior NetCDF group so notebooks
+and manuscript tables share identical inputs.
+
+- **:math:`\hat{R}`** – Target values below ``1.01`` for production-quality
+  figures. Numbers between ``1.01`` and ``1.05`` indicate additional sampling
+  may reduce inter-chain variance, while values above ``1.05`` signal that the
+  chains have not yet mixed and the run should be extended or initialisation
+  revisited.
+- **Bulk ESS** – Represents the information content in the central posterior
+  mass. Aim for at least ``1000`` effective draws per published parameter so
+  mean estimates and 68% credible intervals stabilise. Anything below ``400``
+  warrants more iterations before trusting smoothed density plots.
+- **Tail ESS** – Captures stability in the 5%–95% quantiles. Publication plots
+  with aggressive tail shading should reach ``400`` effective draws or more;
+  lower scores imply that the sampler has yet to explore the extremes
+  adequately.
+
+When preparing figures, include the median ESS and worst-case :math:`\hat{R}`
+in captions or companion tables so readers can verify convergence. The logged
+summaries match the exported diagnostics exactly, making it straightforward to
+cite them without recomputation.
 
 ## Quick Start
 1. Run the platform-specific `start` script. macOS users should run
    `./start.command`, Windows users open `start.bat`, and Linux users can
-   execute `./start.sh`. The launcher downloads a private Python 3.12+ into
-   `.python`, creates `.venv`, upgrades `pip`, installs locked dependencies
-   and installs the project with `pip install
-   --no-deps .`. It skips errors when `VIRTUAL_ENV` is unset and deletes any
-   `build/` directory before and after installation to avoid stale artifacts.
-   If the activation script is missing the launcher recreates `.venv` once
-   before exiting with an error. Each launcher prints a notice before
-   invoking `sudo`, `brew` or `winget` so users know any password prompt
-   originates from the package manager and is never read or stored. `sudo -k`
-   and explicit prompts keep password handling within the operating system.
-   On Windows the launcher now delegates the download and extraction steps to
-   dedicated helper routines so the PowerShell commands execute outside the
-   bootstrap condition, preventing `cmd.exe` from mis-parsing closing
-   parentheses and restoring the interactive menu.
-2. Follow the interactive prompts to choose a model, preferred data sources
-   and
-   computation engine.
+   execute `./start.sh`. The launcher downloads a private Python 3.11 runtime
+   into `.python`, removes any bundled interpreter that falls outside the 3.11
+   series and recreates `.venv` automatically when its Python falls below the
+   minimum supported version. If the bundled interpreter omits `pip` the
+   helpers run `python -m ensurepip --upgrade` and fall back to
+   `get-pip.py` so dependency installation always succeeds before they
+   upgrade to the pinned 24.2 release. They install the locked stack, install
+   the project with `pip install --no-deps .`, skip errors when `VIRTUAL_ENV`
+   is unset and delete any `build/` directory before and after installation to
+   avoid stale artifacts. If the activation script is missing the launcher
+   recreates `.venv` once before exiting with an error. Each launcher prints a
+   notice before invoking `sudo`, `brew` or `winget` so users know any password
+   prompt originates from the package manager and is never read or stored.
+   `sudo -k` and explicit prompts keep password handling within the operating
+   system. On Windows the launcher now delegates the download and extraction
+   steps to dedicated helper routines so the PowerShell commands execute
+   outside the bootstrap condition, preventing `cmd.exe` from mis-parsing
+   closing parentheses and restoring the interactive menu.
+2. When the launcher prints "Copernican Suite <version> Launcher" press Enter
+   to start the suite immediately or enter one of the numbered options. Option
+   3 toggles strict-warning enforcement for the upcoming session. Option 4
+   opens the *Environment and dependency management* submenu where you can
+   update pinned dependencies, rebuild or remove the managed virtual
+   environment, and toggle automatic dependency installation for future runs.
 3. Choose "Run the unit test suite" from the launcher's menu or execute
    `python -m unittest discover -v` directly. The test runner reports
    informational messages, warnings and errors while verifying the
@@ -165,40 +244,55 @@ Under the hood the program follows a clear pipeline:
    folder under `output/` when the run completes.
 
 ## Dependencies
-The launchers automatically bootstrap a dedicated Python 3.12+ into
-`.python` and create `.venv` from it, so no pre-existing Python
-installation is needed. They verify that `.venv/bin/activate` exists and
-retry once before aborting. Inside the virtual environment this project
-relies on `numpy`, `scipy`, `matplotlib`, `pandas`, `sympy`, `jsonschema`,
-`camb==1.6.2`, `emcee`, `h5netcdf`, `h5py`, `xarray`, `typing_extensions`
-and `arviz` from a pinned commit archive.
-The launchers refuse to run when another virtual environment is active and
-reinstall pinned dependencies on every start so the suite always uses its
-managed `.venv`. ArviZ is pulled as a tarball from commit
-`01c8b9454349247eed2145a27b03f9231acb412f` to avoid the package's former
-`numpy<2` constraint without using a VCS URL.
+The launchers automatically bootstrap a dedicated Python 3.11 interpreter into
+`.python`, delete any interpreter that falls outside the 3.11 series and
+rebuild `.venv` whenever its Python falls below the supported floor. No
+pre-existing Python installation is needed. They verify that
+`.venv/bin/activate` exists and retry once before aborting. Inside the virtual
+environment this project relies on `numpy==1.26.4`, `scipy==1.12.0`,
+`matplotlib==3.8.2`, `pandas==2.2.1`, `sympy==1.13.0` and
+`jsonschema==4.21.1`, plus cosmology libraries `camb==1.6.3`, `emcee==3.1.4`,
+`h5netcdf==1.3.0`, `h5py==3.10.0`, `xarray==2023.12.0`,
+`typing_extensions==4.10.0` and the widely available `arviz==0.16.1`
+release so wheels exist on every platform. The launchers refuse to run when
+another virtual environment is active and reinstall pinned dependencies on
+every start so the suite always uses its managed `.venv`.
+
+CAMB has not yet published Python 3.12 wheels, so the project intentionally
+targets Python 3.11 until upstream support arrives. Packaging metadata blocks
+newer interpreters to avoid prompting users to build CAMB from source.
 
 Versions for all runtime dependencies are pinned in
-`requirements.lock`. This set now includes the `h5py` library for HDF5
-support, statistical helpers such as `xarray-einstats`, and typing
-backports via `typing_extensions` to keep ArviZ's linear algebra
-deterministic. Matplotlib's helper libraries (`contourpy`, `cycler`,
-`fonttools`, `kiwisolver`, `pillow` and `pyparsing`) and time zone tools
-(`python-dateutil`, `six`, `pytz` and `tzdata`) and numerical helper
-`mpmath` are pinned as well so installs remain
-reproducible. When a
-package is missing the program asks before running `pip install
--r requirements.lock` and verifies each import. Set
-`COPERNICAN_AUTO_INSTALL=1` to skip the prompt in automated environments. The
-same versions
-appear under `[project].dependencies` in `pyproject.toml`. Regenerate both
-files together whenever dependencies change.
-`pip-tools` now ships alongside the runtime stack so `python -m piptools
-compile` is always available before running `make lock`. Use the bundled
-start scripts to enter the managed environment before regenerating locks; they
-guarantee the module resolves to the pinned version. The `make lock` target
-wraps `python -m piptools compile --allow-unsafe`, so law 22 under
+`requirements.lock`. The manifest lists the same wheel-friendly releases as
+`pyproject.toml`, and the CI bootstrap upgrades `pip` to 24.2 before it
+resolves the lock so Windows installers never attempt to overwrite the
+running binary. Helper libraries such as `xarray-einstats==0.6.0`,
+`typing_extensions==4.10.0`, Matplotlib's rendering stack
+(`contourpy==1.2.0`, `cycler==0.12.1`, `fonttools==4.51.0`,
+`kiwisolver==1.4.5`, `pillow==10.3.0`, `pyparsing==3.1.1`), the timezone
+tooling (`python-dateutil==2.9.0.post0`, `six==1.16.0`, `pytz==2024.1`,
+`tzdata==2024.1`) and supporting libraries such as
+`packaging==24.2`, `attrs==23.2.0`, `jsonschema-specifications==2023.12.1`,
+`referencing==0.34.0`, `rpds-py==0.18.0`, `pyerfa==2.0.1.1` and
+`astropy-iers-data==0.2024.10.28.0.34.7` remain pinned to the published
+wheels. When a package is missing the program asks before running
+`pip install -r requirements.lock` and verifies each import. Set
+`COPERNICAN_AUTO_INSTALL=1`—or enable the launcher toggle inside the
+Environment submenu—to skip the prompt in automated environments.
+Regenerate both files together whenever dependencies change so the suite and
+published wheels remain in sync. The pre-commit hook provisions
+`pip-tools==7.4.1` on demand before it runs `make lock`, so the runtime
+environment no longer carries `pip-tools` or `pip` in the lock file.  The
+tool now lives exclusively in the optional `dev` extra and the pre-commit
+hook, keeping production installs lean while preserving the familiar lock
+workflow for contributors.  Use the bundled start scripts to enter the
+managed environment before regenerating locks; they guarantee the module
+resolves to the pinned version of `pip-tools`. The `make lock` target wraps
+`python -m piptools compile --allow-unsafe`, so law 22 under
 "AI-driven and human development" covers this workflow explicitly.
+To keep CI reproducible across Python 3.11 toolchains, the target
+normalises the generated header so reruns stop rewriting the
+interpreter banner.
 Running `copernican.py` directly now fails with a message directing you to
 use the `start.*` helpers. Future engines may also depend on `numba` or GPU
 libraries.
@@ -233,8 +327,21 @@ and does not need to be tracked in version control.
 
 The suite no longer ships standalone binaries. Launch with `start.bat`,
 `start.command` or `start.sh` to create a local `.venv` and install all
-dependencies automatically. Only a system-wide Python 3.12+ installation is
+dependencies automatically. Only a system-wide Python 3.11 installation is
 required. See [docs/packaging.md](docs/packaging.md) for launcher details.
+
+## Continuous Integration
+The GitHub Actions workflow named **CI** validates every pull request and each
+push to the `main` branch across `ubuntu-latest`, `macos-latest` and
+`windows-latest` runners using Python 3.11. The job checks out the repository,
+restores cached pip wheels through `actions/setup-python`, optionally reuses
+CAMB background data from `~/.camb`, installs the pinned dependencies from
+`requirements.lock`, executes `pytest -q` and then builds both the source
+distribution and wheel via `python -m build`. The resulting `dist/` directory
+is uploaded as a workflow artifact with `actions/upload-artifact` so
+maintainers can inspect the exact packages produced by CI. Branch protection
+requires the CI job to succeed before merges complete, so contributors should
+replicate this sequence locally to avoid surprises.
 
 Windows bootstrap reliability received an extra safeguard in 4.3.21.
 `start.bat` now computes release metadata such as the Python version,
@@ -267,6 +374,7 @@ copernican_lib/          - Helper modules
   data_loaders.py   - Data loading utilities
   utils.py          - Common helpers
   optim_utils.py    - Shared optimisation wrappers used by engines
+  likelihoods/      - Dataset-specific log-likelihood helpers
 ```
 All dataset tables and metadata are provided **only** as YAML files. JSON
 input is no longer supported as of version 3.0.0.
@@ -290,9 +398,18 @@ invokes its functions. New engines can therefore implement alternate
 strategies
 —such as SNe-only sampling or future joint optimisations—without modifying the
 rest of the codebase.
-Generic chi-squared helpers live in `copernican_lib/statistics.py` and are
-re-exported by each engine module, keeping `model_coder.py` focused on
-translating models.
+Generic chi-squared wrappers live in `copernican_lib/statistics.py` and now
+delegate to the dataset-specific helpers inside `copernican_lib/likelihoods`
+while remaining re-exported by each engine module. This keeps
+`model_coder.py` focused on translating models. Engines assemble posteriors via
+`engine_interface.make_logposterior`, which applies declared priors, honours
+parameter bounds and injects Jacobian corrections whenever models expose
+sampling transforms. Version 6.7.4 extends those guarantees by wrapping the
+joint likelihood in a picklable adapter, updating generated distance
+functions to avoid closure pickling pitfalls and exposing a `burn_in_steps`
+override so scripted workflows can tune warm-up costs explicitly. The default
+MCMC backend wires these helpers into the `JointLike` aggregator so every run
+records dataset-level diagnostics alongside the sampled chains.
 
 The helper `chi_squared_cmb` now accepts either a plugin and parameter
 vector or a ready CAMB dictionary. This flexibility lets future engines reuse
@@ -321,9 +438,10 @@ archive](https://data.sdss.org/sas/dr12/boss/) does not provide a
 - After each run you may choose to evaluate another model or exit. Cache files
   are cleaned automatically.
 - When a run finishes the suite prints the abstract text from each model along
-  with a summary of the best-fit parameters and individual chi-squared values
-for
-  SNe, BAO and CMB.
+  with a summary of the best-fit parameters, individual chi-squared values for
+  SNe, BAO and CMB, and the structured likelihood diagnostics returned by the
+  `JointLike` aggregator so downstream notebooks can reproduce the sampler
+  state without recomputing log-likelihoods.
 
 ## Plot Footers and Metadata
 Each generated plot includes a centered footer that documents the run.
@@ -347,6 +465,13 @@ being used. When generating file names the suite sanitizes dataset names,
 replacing spaces and characters like ``/`` with hyphens so output paths remain
 portable across operating systems.
 
+The canonical dataset selections, release versions and independence
+assumptions are documented in
+`copernican_lib/config_schemas/run_config.yml`.
+The schema is kept in sync with the loader attributes so automated tooling can
+validate run descriptors and the manifest always records the same statements
+presented to the user.
+
 ## Logging and Caching
 All console output and user prompts are captured in a timestamped log file in
 `./output/`. After initialisation the suite logs the Python version, OS, CPU
@@ -354,7 +479,12 @@ model and key package versions. A short summary appears on the console while
 full details are stored in the log file. The logger shortens absolute paths so
 logs remain portable and records the final filenames used for plots and tables.
 Progress indicators print to ``stdout`` and flush on every update so long
-optimisations do not appear stalled on Linux terminals.
+optimisations do not appear stalled on Linux terminals. The ensemble sampler's
+progress reporter now surfaces quantiles for every fitted parameter, never
+omitting late entries, and wraps walker snapshots so long parameter lists stay
+readable. Internally it reuses a scratch buffer for the expanded parameter
+matrix, shaving several percent off the time spent in diagnostic callbacks for
+long chains.
 Dependency checks reuse a cached import list stored in
 `.cache/dependency_scan.json`. The cache records the absolute path, size and
 modification time of every parsed module so unchanged worktrees skip the AST
@@ -370,7 +500,8 @@ fast during optimisation loops.
 
 Each run directory also contains a YAML manifest named
 `run_manifest_<timestamp>.yml` capturing the suite version, chosen models,
-engine, parameter priors, dataset hashes and the Git commit. See
+engine, parameter priors, dataset names, versions, SHA256 hashes, the
+independence statements declared by the loaders and the Git commit. See
 [docs/run_manifest.md](docs/run_manifest.md) for details on using this file to
 reproduce analyses.
 
@@ -390,11 +521,12 @@ See `cosmo_model_template.yml` for a detailed template.
    your model parameters. Explicit `*` is optional since implicit
 multiplication
    is now supported, though adding it can improve readability.
-4. Optionally provide an `rs_expression` in LaTeX for the sound horizon at
-   recombination or include the parameters `Omega_b`, `Omega_gamma` and either
-   `z_rec` or `z_recomb`. The suite will then
-   derive `r_s` automatically using a numerical integral. Use `\infty` when an
-   integral extends to infinity.
+4. Provide an `rs_expression` in LaTeX for the sound horizon at recombination
+   whenever the model advertises BAO support. The automatic fallback integral
+   has been removed; models that omit `rs_expression` must set
+   `valid_for_bao: false` or drop the BAO section entirely. Use `oo` (or
+   `\infty`) for upper limits that extend to infinity and repeat the model's
+   full `H(z)` formula inside the integrand.
 5. Python code must never appear in `cosmo_model_*.yml`; all expressions are
    written in LaTeX.
 6. Backslashes may be written normally; the parser automatically escapes them
@@ -409,8 +541,17 @@ multiplication
 8. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
 9. Each parameter may define a `prior` block describing sampling assumptions.
-   `type: gaussian` requires `mean` and `sigma` while `type: uniform` needs
-   `lower` and `upper`. Engines expose these via `PARAMETER_PRIORS`.
+   `type: gaussian` requires `mean` and `sigma`, `type: uniform` needs
+   `lower` and `upper`, and `type: loguniform` expects strictly positive
+   `lower`/`upper` bounds. When the declared bounds are identical the parser
+   elevates the parameter to `type: fixed` and stores the common value.  All
+   priors must declare their `type` explicitly; legacy aliases such as
+   `distribution` are no longer accepted.  Log-uniform priors automatically
+   activate a log-space transform whose Jacobian is tracked through
+   `copernican_lib.priors`. Engines expose the canonical dictionaries via
+   `PARAMETER_PRIORS`, instantiated helper objects via
+   `PARAMETER_PRIOR_OBJECTS` and deterministic constants through
+   `FIXED_PARAMS` so samplers can reuse consistent mechanics.
 10. Every parameter must define a `latex_name`. When a `python_var` field is
     omitted, a valid identifier is derived automatically from this LaTeX
     name. Provide an explicit `python_var` when you want short variable names
@@ -421,6 +562,14 @@ multiplication
     subscripts and superscripts when possible for easier reading. The
     conversion tables cover every Latin and Greek letter, digits and common
     operators.
+
+The parser rewrites every prior into a canonical dictionary before the
+sanitized cache file is written, clearing stray transform declarations when
+they do not match the selected prior, inserting `transform: log` entries
+whenever a log-uniform prior is declared and adding `type: fixed` stanzas for
+parameters whose bounds coincide.  This keeps the cached YAML
+human-readable while ensuring engines and manifests always observe the same
+schema, regardless of how the original model was authored.
 
 ### Updated example models
 The non-\LambdaCDM samples now demonstrate several design patterns:
@@ -437,9 +586,10 @@ The non-\LambdaCDM samples now demonstrate several design patterns:
 **Common mistakes**
 * Missing `*` between variables and parentheses results in a `'Symbol' object
   is not callable` error.
-* Using `oo` for infinite limits fails; write `\infty` instead.
-* Referencing `H(z)` inside `rs_expression` is unsupported—repeat the formula
-  or rely on the fallback parameters.
+* Using `oo` or `\infty` for infinite limits is supported; mixing the two
+  within the same expression can confuse the LaTeX cleaner.
+* Referencing `H(z)` inside `rs_expression` remains unsupported—repeat the
+  formula explicitly so the integral matches the model's declared background.
 
 The LaTeX parser supports a subset of math syntax including `\frac`,
 subscripts and superscripts, common functions (`\log`, `\ln`, `\exp`, `\sin`,
@@ -494,7 +644,6 @@ cmb:
     As: 2.1e-9
     ns: 0.965
 gravitational_waves: {}
-standard_sirens: {}
 abstract: short overview text
 description: longer explanation
 notes: any additional remarks
@@ -551,13 +700,31 @@ To start developing, install the suite in editable mode:
 pip install -e .
 ```
 
-Install and run the pre-commit hooks to apply Black, Isort, Ruff and Flake8
-checks:
+Install and run the pre-commit hooks to apply Black, Isort, Ruff, Flake8 and
+the Copernican policy checks:
 
 ```bash
 pre-commit install
-pre-commit run --files <changed files>
+pre-commit run --all-files
 ```
+
+The local `copernican-policy` hook verifies that no file declares a future
+"Last Updated" date, enforces version synchronisation between `README.md`,
+`CITATION.cff` and `copernican_lib/VERSION`, and forbids direct `print()`
+calls inside `copernican_lib/` modules outside the console helpers. The
+custom check now also confirms that each tracked file records a "Last
+Updated" marker within its first three lines and that the marker contains
+only a calendar date (no time component). The standard whitespace fixers,
+Ruff auto-fixes and formatting hooks run before the custom policy check to
+keep style adjustments automated.
+
+### Metadata self-check utility
+
+Run the metadata validator with ``python -m tools.check_meta`` whenever the
+release notes, README header or documentation timestamps change. The helper
+normalises "today" to Coordinated Universal Time so both the command-line
+tool and the accompanying regression tests agree on the current date when
+detecting future-dated markers or drifted version fields.
 
 The local `make-lock` hook now bootstraps a dedicated Python environment and
 installs `pip-tools==7.4.1` before executing `make lock`. This keeps
@@ -571,13 +738,14 @@ python -m unittest discover -v
 ```
 
 Set `COPERNICAN_STRICT_WARNINGS=1` to treat all warnings as errors during
-any run. Set `COPERNICAN_AUTO_INSTALL=1` to install missing dependencies
-without prompting.
+any run. Set `COPERNICAN_AUTO_INSTALL=1`—or enable the toggle inside the
+Environment and dependency management submenu—to install missing
+dependencies without prompting.
 
-Pull requests trigger a GitHub Actions workflow named ``Tests`` that runs
-pre-commit and the unit suite across Windows, macOS and Debian-based
-Linux. Each job executes inside a cached virtual environment for
-reproducibility and speed.
+Pull requests trigger the ``Lint`` workflow, which executes `pre-commit run
+--all-files`, and the ``Tests`` workflow, which runs the unit suite across
+Windows, macOS and Debian-based Linux. Each job executes inside a cached
+virtual environment for reproducibility and speed.
 
 Multiprocessing is used by several engines. The program enforces the `spawn`
 start method when it launches so that each worker process begins with a fresh
@@ -604,7 +772,8 @@ not modify them unless explicitly instructed.
 
 1.  **Dependency Check**: `copernican.py` scans for missing packages,
     prompts before installing them with `pip` and verifies the environment.
-    Set `COPERNICAN_AUTO_INSTALL=1` to skip the prompt in automated runs.
+    Set `COPERNICAN_AUTO_INSTALL=1`—or enable the launcher toggle inside the
+    Environment submenu—to skip the prompt in automated runs.
 2.  **Optional Tests**: Choose "Run the unit test suite" from the launcher
     or run `python -m unittest discover -v` to verify that the LCDM model
     and data parsers work as expected. This command performs unittest
@@ -708,10 +877,16 @@ accurately** convey their purpose without unnecessary length.
 >    Run `python -m piptools compile requirements.in --allow-unsafe
 >    --output-file requirements.lock` (or simply `make lock`), commit the
 >    updated `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`.
-> 23. **Verify every `Last Updated` field reflects the actual current date**
->     before committing. Investigate prior human edits to understand their
->     intent and never overwrite those timestamps without confirming they are
->     genuinely stale.
+> 23. **Validate every timestamp before recording it.** Confirm the real
+>     current date (for example with the `date` command) before updating any
+>     `Last Updated` field or logging changes, and cross-check changelog
+>     entries so their dates never jump backward or forward relative to prior
+>     records. Do not introduce historical gaps, future-dated entries or other
+>     chronological inconsistencies.
+> 24. **Preserve human-authored edits across the project.** Respect the
+>     structure, wording and intent of human-made changes—including timestamps
+>     and metadata—and only revise them when a human explicitly requests an
+>     update or when correcting objective errors they identify.
 >
 > Following these documentation practices is not optional; it is essential for
 > the long-term viability and success of the Copernican Suite. Failure to

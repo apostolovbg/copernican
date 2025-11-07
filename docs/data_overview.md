@@ -1,5 +1,5 @@
 # Data Directory Overview
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-11-07
 
 This document explains the layout of the `data/` directory and the role of the
 parser scripts stored with each dataset.
@@ -9,12 +9,12 @@ data/
   sne/        - Supernovae Type Ia datasets
   bao/        - Baryon Acoustic Oscillation measurements
   cmb/        - Cosmic Microwave Background spectra
-  gw/         - Gravitational wave observations (placeholder)
-  sirens/     - Standard siren events (placeholder)
+  gw/         - Gravitational-wave standard siren observations (placeholder)
 ```
 
-Note: The `gw` and `sirens` parsers are stubs that log a message and return
-`None`. Real data support is under development.
+Note: The `gw` parsers are stubs that log a message and return `None` while
+placeholder management consolidates upcoming gravitational-wave standard siren
+support.
 Each subdirectory contains one or more dataset sources. A Python file named
 `cosmo_parser_*.py` lives inside each source folder and registers a parser
 function via decorators from `copernican_lib.data_loaders`.
@@ -29,16 +29,19 @@ information (for example `title`, `volume`, `journal` and `DOI`) are read
 by `copernican_lib/data_loaders.py` after the parser returns so individual
 parsers remain metadata-agnostic. Parsed DataFrames expose the same
 information on their `.attrs` property, and `dataset_id` is used when
-constructing output filenames. The loaders also compute a SHA256 digest
-for every non-parser file in the dataset directory. These hashes are
-stored on `df.attrs['file_hashes']` and logged so manifests can reproduce
-exact inputs. BAO DataFrames additionally carry a `model_prediction`
-column which is populated during analysis and now remains consistent even
-when the suite compares a model against itself because the Stage 2 SNe
-chain is reused for both roles. See `dataset_metadata.md` for a full
-description of the metadata fields. The reference tables remain
-read-only, while parser `.py` files and accompanying `metadata_*.yml`
-files may be updated.
+constructing output filenames. The loaders now attach `dataset_version`
+and `data_path` so manifests retain the release tag and the exact source
+directory. They also populate `independence_assumptions` with the
+statements quoted in `copernican_lib/config_schemas/run_config.yml`.
+Finally, the loaders compute a SHA256 digest for every non-parser file in
+the dataset directory. These hashes are stored on `df.attrs['file_hashes']`
+and logged so manifests can reproduce exact inputs. BAO DataFrames
+additionally carry a `model_prediction` column which is populated during
+analysis and now remains consistent even when the suite compares a model
+against itself because the Stage 2 SNe chain is reused for both roles. See
+`dataset_metadata.md` for a full description of the metadata fields. The
+reference tables remain read-only, while parser `.py` files and
+accompanying `metadata_*.yml` files may be updated.
 
 When the MCMC engine runs it writes NetCDF chains that capture burn-in and
 production lengths, per-walker acceptance fractions, the complete

@@ -1,13 +1,21 @@
+**Last Updated:** 2025-11-06
 # Packaging Guide
-**Last Updated:** 2025-11-11
 This document explains how to prepare the suite for development or packaging.
 
-## Install Python 3.12+
+CAMB only publishes wheels for Python 3.11 today, so the suite intentionally
+sticks to that interpreter until upstream catches up. Blocking newer Python
+versions avoids forcing contributors to compile CAMB locally during bootstrap.
 
-The `start.*` launchers always download a private Python 3.12+ into
-`.python`, ignoring any system interpreter. They refuse to run when
-another virtual environment is active so the repository's `.venv` is
-always used. If the download fails the scripts exit with guidance.
+## Install Python 3.11
+
+The `start.*` launchers always download a private Python 3.11 interpreter into
+`.python`, ignoring any system interpreter. They now delete legacy downloads
+that fall outside the Python 3.11 series and rebuild `.venv` automatically
+whenever it points at an unsupported interpreter. They refuse to run when
+another virtual environment is active so the repository's `.venv` is always
+used. This guard also prunes stray Python 3.12 downloads before the
+environment is recreated, keeping the managed toolchain inside the supported
+window. If the download fails the scripts exit with guidance.
 
 On Windows the launcher now constructs the download URL without command
 continuations, exports it to PowerShell via environment variables and
@@ -32,16 +40,25 @@ start and ignores globally installed packages:
 - `start.sh` on Linux
 
 The script creates or reuses `.venv` from the bundled interpreter, upgrades
-`pip`, installs packages from `requirements.lock` and
-installs the project itself with `pip install --no-deps .`. ArviZ is installed
-separately to work around its stale NumPy requirement. Re-run the launcher
-after pulling updates to refresh the environment.
+`pip` to the latest stable release, installs packages from `requirements.lock`
+and installs the project itself with `pip install --no-deps .`.
+Because macOS still ships the legacy `setuptools 79.0.1` wheel through
+`ensurepip`, `pyproject.toml` pins package discovery to the
+`copernican_lib`, `engines`, `models` and `models.*` namespaces. The
+explicit include list ensures reinstalling the suite never hits the
+"Multiple top-level packages discovered" guard while still packaging any
+nested plugin modules.
+ArviZ now ships as the widely available `0.16.1` release alongside
+`numpy==1.26.4`, `scipy==1.12.0`, `matplotlib==3.8.2` and `pandas==2.2.1`,
+ensuring every platform pulls published wheels instead of attempting source
+builds. Re-run
+the launcher after pulling updates to refresh the environment.
 
-`requirements.lock` pins exact versions for all runtime
-dependencies. Adding or updating a package requires editing this file and the
-license summary in `THIRD_PARTY_LICENSES.md`. The introduction of
-`copernican_lib.statistics` consolidated existing helpers without adding new
-packages, so the lock file remained unchanged for this release.
+`requirements.lock` pins exact versions for all runtime dependencies.
+Adding or updating a package requires editing this file and the license
+summary in `THIRD_PARTY_LICENSES.md`. This release refreshed nearly every
+pin to match published wheels, so remember to keep the license table in
+sync when adjusting future dependencies.
 
 Development helpers such as `pre-commit` are installed without the
 `--no-deps` flag so their own dependencies are pulled in automatically.
@@ -65,6 +82,16 @@ release candidate. The runtime version helper reads the tracked file, so
 packaged wheels display the intended identifier even before a Git tag is cut.
 Keeping the two locations aligned prevents confusion between development
 snapshots and tagged releases.
+
+### Regenerating dependency locks
+
+Run `make lock` whenever `requirements.in` changes. The helper installs
+`pip-tools==7.4.1` on demand, strips the interpreter banner from the
+generated header and rewrites the `# Last Updated` marker so Python
+3.11 runs produce byte-for-byte identical lockfiles in CI.  Developers can
+either rely on the pre-commit hook to provision the tool automatically or
+install the optional `dev` extra (`pip install .[dev]`) when preparing
+packaging updates locally.
 
 ### Custom version strings
 

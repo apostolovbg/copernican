@@ -1,0 +1,163 @@
+copernican:
+  version: 7.2.9
+models:
+- name: LambdaCDM
+  version: '1.0'
+  filename: cosmo_model_lcdm.yml
+  priors:
+    H_0:
+      type: uniform
+      lower: 50.0
+      upper: 100.0
+    Omega_m0:
+      type: uniform
+      lower: 0.05
+      upper: 0.7
+    Omega_b:
+      type: uniform
+      lower: 0.01
+      upper: 0.1
+    Omega_gamma:
+      type: uniform
+      lower: 1.0e-05
+      upper: 0.0001
+    z_rec:
+      type: uniform
+      lower: 1000.0
+      upper: 1200.0
+- name: USMFv2
+  version: '2.0'
+  filename: cosmo_model_usmf2.yml
+  priors:
+    H_A:
+      type: uniform
+      lower: 50.0
+      upper: 100.0
+    p_alpha:
+      type: uniform
+      lower: 0.1
+      upper: 1.5
+    k_exp:
+      type: uniform
+      lower: -2.0
+      upper: 2.0
+    s_exp:
+      type: uniform
+      lower: 0.5
+      upper: 2.0
+    t_0_age:
+      type: uniform
+      lower: 10.0
+      upper: 20.0
+    A_osc:
+      type: uniform
+      lower: 0.0
+      upper: 0.05
+    omega_osc:
+      type: uniform
+      lower: 0.1
+      upper: 10.0
+    t_i_osc:
+      type: uniform
+      lower: 1.0
+      upper: 20.0
+    phi_osc:
+      type: uniform
+      lower: -3.1416
+      upper: 3.1416
+    Omega_b:
+      type: uniform
+      lower: 0.01
+      upper: 0.1
+    Omega_gamma:
+      type: uniform
+      lower: 1.0e-05
+      upper: 0.0001
+    z_rec:
+      type: uniform
+      lower: 1000.0
+      upper: 1200.0
+engine:
+  name: engines.cosmo_engine_mcmc
+  version: unknown
+seed: 2257708435
+datasets:
+  jla_2014:
+    name: Joint Light-curve Analysis 2014
+    version: '2014.09'
+    path: /Users/apostolov/Documents/GitHub/copernican/data/sne/jla2014
+    hashes:
+      +footg5.gif: 6d375d2d9a97f897b6bdadf61781d5ad49365a612b0eeda2e27b363e83546b89
+      +footg8.gif: c725331eae86cce9f3b27fc9b3b2476d611b9c0d8c1a760df4c4792a5f9022da
+      ReadMe.txt: 236793155d6572626a56259732b06e4d1141e1ebe5ee2f4ed83253aca403b3f9
+      metadata_jla2014.yml: 699a7435e1f5c014702d1c4b8e98770eef23420be98afd5fa84ff35aa9a891ec
+      tablef1.dat: d9b17b4c704b554d0e3df0b5efed7877e881d2f62c04f968b789a61b3fb80114
+      tablef2.fit: 0db2aeab210523594c07ac7f89edca87c55a76601c51c4a831d338cc32ce3ff4
+      tablef3.dat: 35db10c033fa4bc5326436d957eb732e76fd7a4d6db7c729bc3ce17aeb5de470
+      tablef4.fit: a17a1e29a8ee1631669a4456adf84c27372a33f5448a65971dbdd50eb9a97a67
+    independence:
+    - Type Ia supernova distance moduli are treated as statistically independent from
+      BAO and CMB observables once their published covariance matrices are accounted
+      for.
+    condition_number: null
+  boss_dr12_bao:
+    name: BOSS DR12 BAO Consensus
+    version: DR12
+    path: /Users/apostolov/Documents/GitHub/copernican/data/bao/bossdr12
+    hashes:
+      BAO_consensus_covtot_dM_Hz.txt: 05c04829c8edc117870efe809494593a23de6c35547f8b66760a5250804b65cf
+      BAO_consensus_covtot_dV_FAP.txt: cf5b760b34f4335bd90490fcce4540dbac0b0b54e3240544c4af133dd45c8300
+      BAO_consensus_results_dM_Hz.txt: 30e784fa08e7eddb2fdd1ab09411424e67aa9b75df58f4bb330a889c9b9c478e
+      BAO_consensus_results_dV_FAP.txt: e507d65dacedc814892609d2decca9990a954ef5836da79b57c663885fce4ef8
+      metadata_bossdr12.yml: 821022b3851fda917a4c014d88d35da92f303e7295a1d9d6d373eaab541939ef
+    independence:
+    - BAO distance measurements are assumed independent of SNe and CMB datasets because
+      overlapping systematics are negligible at the current precision level.
+    condition_number: 105.17851265861412
+  planck_2018_lite:
+    name: Planck 2018 Lite TT/TE/EE
+    version: '2018'
+    path: /Users/apostolov/Documents/GitHub/copernican/data/cmb/planck2018lite
+    hashes:
+      c_matrix_plik_v22.dat: ad90378c50bd67841764179c90ae6711fa4317c649966ab2b0712143b31e0a32
+      cl_cmb_plik_v22.dat: dac0d9d493213e77c940a10a968cf0da3c5730bae60e1356c4cd8bcff96377ff
+      metadata_planck2018lite.yml: ec760dece3ddba7da4db1720cc52fd3b8e01e14f6bf2ed60b7d8ecc391f7516c
+      readme_baseline.md: ae6cef6886f2c4381147657fc195bed72742fbe3cc106208200f961af24caa73
+    independence:
+    - Planck-lite CMB spectra are modelled as independent from SNe and BAO summaries;
+      cross-covariances are ignored consistently with published likelihood treatments.
+    condition_number: null
+git:
+  commit: 2defa00962bc9f9f7fd23af3d7aa708c70f57bbb
+  dirty: true
+camb:
+  version: 1.6.3
+  configuration:
+    lmax_padding: 300
+    lens_potential_accuracy: 0
+    reionization_model: optical_depth_tau
+    accuracy:
+      AccuracyBoost: 1.0
+      LAccuracyBoost: 1.0
+      KAccuracyBoost: 1.0
+  models:
+  - model: LambdaCDM
+    param_map_keys:
+    - As
+    - H0
+    - Neff
+    - ns
+    - num_massive_neutrinos
+    - ombh2
+    - omch2
+    - sum_mnu
+    - tau
+  - model: USMFv2
+    param_map_keys:
+    - As
+    - H0
+    - ns
+    - ombh2
+    - omch2
+    - omnuh2
+    - tau

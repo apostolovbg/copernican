@@ -1,4 +1,4 @@
-# Last Updated: 2025-09-02
+# Last Updated: 2025-11-07
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -9,6 +9,7 @@ import os
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 with mock.patch("sys.version_info", (3, 12, 0)):
@@ -117,6 +118,139 @@ class DependencyPromptTestCase(unittest.TestCase):
                 ],
                 check=True,
             )
+
+
+class SamplerConfigurationPromptTestCase(unittest.TestCase):
+    """Exercise the sampler configuration questionnaire."""
+
+    def setUp(self) -> None:
+        def fit_sne_parameters(
+            n_steps: int = 400, n_walkers: int = 64
+        ) -> None:
+            return None
+
+        self.engine = SimpleNamespace(
+            fit_sne_parameters=fit_sne_parameters,
+            _FIXED_BOUNDS_RTOL=1e-9,
+            _FIXED_BOUNDS_ATOL=1e-12,
+        )
+        self.lcdm_plugin = SimpleNamespace(
+            PARAMETER_BOUNDS=[(0.0, 1.0)] * 3,
+            PARAMETER_NAMES=["Ωm", "ΩΛ", "H0"],
+            MODEL_NAME="ΛCDM",
+        )
+        self.alt_plugin = SimpleNamespace(
+            PARAMETER_BOUNDS=[(0.0, 1.0)] * 4,
+            PARAMETER_NAMES=["w0", "wa", "Ωk", "Neff"],
+            MODEL_NAME="AltModel",
+        )
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    @mock.patch("copernican.os.cpu_count", return_value=16)
+    def test_defaults_selected_via_enter(
+        self, _cpu_mock, ask_mock, _write_mock
+    ) -> None:
+        """Pressing Enter chooses the recommended sampler plan."""
+
+        ask_mock.side_effect = [""]
+        plan = copernican.prompt_sampling_configuration(
+            self.engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+        )
+        self.assertEqual(
+            plan,
+            {
+                "n_steps": 400,
+                "burn_in_steps": 100,
+                "n_walkers": 64,
+                "pool_size": 16,
+            },
+        )
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    @mock.patch("copernican.os.cpu_count", return_value=12)
+    def test_custom_plan_collects_values(
+        self, _cpu_mock, ask_mock, _write_mock
+    ) -> None:
+        """Users can enter custom sampler values via the questionnaire."""
+
+        ask_mock.side_effect = ["2", "600", "", "80", "4", ""]
+        plan = copernican.prompt_sampling_configuration(
+            self.engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+        )
+        self.assertEqual(
+            plan,
+            {
+                "n_steps": 600,
+                "burn_in_steps": 120,
+                "n_walkers": 80,
+                "pool_size": 4,
+            },
+        )
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    @mock.patch("copernican.os.cpu_count", return_value=10)
+    def test_back_option_returns_to_summary(
+        self, _cpu_mock, ask_mock, _write_mock
+    ) -> None:
+        """Selecting back restarts the menu before launching."""
+
+        ask_mock.side_effect = ["2", "", "", "", "", "b", ""]
+        plan = copernican.prompt_sampling_configuration(
+            self.engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+        )
+        self.assertEqual(
+            plan,
+            {
+                "n_steps": 400,
+                "burn_in_steps": 100,
+                "n_walkers": 64,
+                "pool_size": 10,
+            },
+        )
+
+
+class PostRunMenuTestCase(unittest.TestCase):
+    """Validate the post-run navigation menu."""
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    def test_default_selection_runs_again(self, ask_mock, _write_mock) -> None:
+        """Pressing Enter launches another evaluation."""
+
+        ask_mock.side_effect = [""]
+        result = copernican.prompt_post_run_action()
+        self.assertTrue(result)
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    def test_cancel_option_exits(self, ask_mock, _write_mock) -> None:
+        """Choosing C exits the workflow."""
+
+        ask_mock.side_effect = ["c"]
+        result = copernican.prompt_post_run_action()
+        self.assertFalse(result)
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    def test_invalid_then_valid_choice(self, ask_mock, write_mock) -> None:
+        """The menu repeats until a valid answer is provided."""
+
+        ask_mock.side_effect = ["maybe", "1"]
+        result = copernican.prompt_post_run_action()
+        self.assertTrue(result)
+        write_calls = [
+            args[0] for args, _ in write_mock.call_args_list if args
+        ]
+        self.assertIn("Please choose 1 or C.", write_calls)
 
 
 if __name__ == "__main__":

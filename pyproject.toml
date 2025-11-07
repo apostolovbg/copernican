@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-11
+# Last Updated: 2025-11-05
 [build-system]
 requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]"]
 build-backend = "setuptools.build_meta"
@@ -9,40 +9,68 @@ description = "Evaluate cosmological models using observational data."
 dynamic = ["version"]
 authors = [{name = "Copernican Developers"}]
 license = {file = "LICENSE.md"}
-requires-python = ">=3.12"
+requires-python = ">=3.11,<3.12"
 dependencies = [
     # Keep versions in sync with requirements.lock.
-    "numpy==2.2.6",
-    "scipy==1.16.1",
-    "matplotlib==3.10.5",
-    "pandas==2.3.2",
-    "sympy==1.14.0",
-    "jsonschema==4.25.1",
-    "camb==1.6.2", # pin to ensure Python 3.12 wheels
-    "PyYAML==6.0.2",
-    "astropy==7.1.0",
-    "psutil==7.0.0",
-    "setuptools_scm==9.2.0",
-    "emcee==3.1.5",
-    "h5netcdf==1.6.4",
-    "h5py==3.14.0",
-    "xarray==2025.8.0",
-    "xarray-einstats==0.9.1",
-    "typing_extensions==4.15.0",
-    "pip-tools==7.4.1",  # ensure python -m piptools compile is available
-    "arviz @ https://github.com/arviz-devs/arviz/archive/01c8b9454349247eed2145a27b03f9231acb412f.tar.gz",
+    "numpy==1.26.4",
+    "scipy==1.12.0",
+    "matplotlib==3.8.2",
+    "pandas==2.2.1",
+    "sympy==1.13.0",
+    "jsonschema==4.21.1",
+    "camb==1.6.3",
+    "PyYAML==6.0.1",
+    "astropy==6.0.0",
+    "psutil==5.9.8",
+    "setuptools_scm==8.0.4",
+    "emcee==3.1.4",
+    "h5netcdf==1.3.0",
+    "h5py==3.10.0",
+    "xarray==2023.12.0",
+    "xarray-einstats==0.6.0",
+    "typing_extensions==4.10.0",
+    "arviz==0.16.1",
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: Implementation :: CPython",
 ]
 
 [project.optional-dependencies]
-dev = ["pip-tools==7.4.1"]
+dev = [
+    "pip-tools==7.4.1",
+]
 
 [project.scripts]
 copernican = "copernican:main_workflow"
 
 [tool.setuptools]
-packages = ["copernican_lib", "engines"]
 py-modules = ["copernican"]
 include-package-data = true
+# Explicitly scope package discovery so legacy setuptools builds that ship
+# with ensurepip never attempt to auto-discover every top-level directory.
+# macOS still bundles setuptools 79.0.1, which raises a fatal "Multiple
+# top-level packages discovered" error unless we teach it which namespaces
+# to include. The include/exclude filters mirror the runtime modules while
+# leaving data and archival folders untouched.
+
+[tool.setuptools.packages.find]
+include = [
+    "copernican_lib",
+    "copernican_lib.*",
+    "engines",
+    "engines.*",
+    "models",
+    "models.*",
+]
+exclude = [
+    "archive",
+    "data",
+    "licenses",
+    "tests",
+]
 
 [tool.setuptools.data-files]
 "licenses" = ["THIRD_PARTY_LICENSES.md", "licenses/*"]

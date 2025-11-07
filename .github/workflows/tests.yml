@@ -1,4 +1,4 @@
-# Last Updated: 2025-09-02
+# Last Updated: 2025-10-30
 name: Tests
 
 on:
@@ -18,7 +18,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
 
       - name: Set up virtual environment
         if: runner.os != 'Windows'
@@ -34,17 +34,17 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -r requirements.lock
-          .venv/bin/pip install --no-deps . pre-commit pip-tools
+          .venv/bin/python -m pip install pip==24.2
+          .venv/bin/python -m pip install -r requirements.lock
+          .venv/bin/python -m pip install --no-deps . pre-commit pip-tools
 
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          .\.venv\Scripts\python -m pip install --upgrade pip
-          .\.venv\Scripts\pip install -r requirements.lock
-          .\.venv\Scripts\pip install --no-deps . pre-commit pip-tools
+          .\.venv\Scripts\python -m pip install pip==24.2
+          .\.venv\Scripts\python -m pip install -r requirements.lock
+          .\.venv\Scripts\python -m pip install --no-deps . pre-commit pip-tools
 
       - name: Run unit tests
         if: runner.os != 'Windows'

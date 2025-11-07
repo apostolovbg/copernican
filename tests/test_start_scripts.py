@@ -24,6 +24,10 @@ class StartScriptTestCase(unittest.TestCase):
 
         super().setUpClass()
         cls.start_bat = (REPO_ROOT / "start.bat").read_text(encoding="utf-8")
+        cls.start_sh = (REPO_ROOT / "start.sh").read_text(encoding="utf-8")
+        cls.start_command = (REPO_ROOT / "start.command").read_text(
+            encoding="utf-8"
+        )
 
     def test_windows_launcher_defines_download_url(self) -> None:
         """Ensure the Windows launcher builds the Python URL explicitly."""
@@ -37,7 +41,7 @@ class StartScriptTestCase(unittest.TestCase):
             self.start_bat,
         )
         self.assertIn(
-            'set "URL_FILE=%URL_FILE%shared-install_only.tar.gz"',
+            'set "URL_FILE=%URL_FILE%install_only.tar.gz"',
             self.start_bat,
         )
         self.assertIn('set "URL=%URL_BASE%%URL_FILE%"', self.start_bat)
@@ -58,6 +62,46 @@ class StartScriptTestCase(unittest.TestCase):
         self.assertIn(
             'if not exist "%PYDIR%" mkdir "%PYDIR%"',
             self.start_bat,
+        )
+
+    def test_windows_launcher_limits_python_series(self) -> None:
+        """Confirm the launcher purges interpreters outside Python 3.11."""
+
+        self.assertIn(
+            "(3, 11) <= sys.version_info < (3, 12)",
+            self.start_bat,
+        )
+
+    def test_launchers_expose_environment_menu(self) -> None:
+        """Ensure every launcher prints the refreshed menu copy."""
+
+        self.assertIn(
+            "echo 4^) Environment and dependency management",
+            self.start_bat,
+        )
+        self.assertIn(
+            'echo "4) Environment and dependency management"',
+            self.start_sh,
+        )
+        self.assertIn(
+            'echo "4) Environment and dependency management"',
+            self.start_command,
+        )
+
+    def test_launchers_prompt_with_write_the_number_copy(self) -> None:
+        """Verify the new prompt text appears across start scripts."""
+
+        self.assertIn(
+            "set /p CHOICE=Write the number of choice:",
+            self.start_bat,
+        )
+        self.assertIn(
+            'read -r -p "Write the number of choice: " choice',
+            self.start_sh,
+        )
+        self.assertIn(
+            'read -r -p "Write the number of choice: " choice',
+            self.start_command,
         )
 
 

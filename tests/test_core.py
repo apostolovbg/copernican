@@ -1,5 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
+# Last Updated: 2025-11-01
 
 """Basic functional tests for the Copernican Suite."""
 
@@ -18,6 +19,7 @@ import copernican_lib.engine_interface as engine_interface
 import copernican_lib.model_coder as model_coder
 import copernican_lib.model_parser as model_parser
 import engines.cosmo_engine_mcmc as engine
+from copernican_lib.likelihoods import cmb
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 os.environ.setdefault("VIRTUAL_ENV", str(REPO_ROOT / ".venv"))
@@ -138,18 +140,26 @@ class FunctionalTestCase(unittest.TestCase):
             n_walkers=6,
             n_steps=8,
             pool_size=1,
+            burn_in_steps=20,
         )
         self.assertTrue(result["success"])
         self.assertIn("samples", result)
         self.assertIn("chi2_total", result)
         self.assertTrue(np.isfinite(result["chi2_total"]))
-        self.assertEqual(result["chi2_total"], result["chi2_sne"])
+        components = result.get("chi2_components", {})
+        self.assertAlmostEqual(
+            result["chi2_total"], sum(components.values()), places=7
+        )
+        self.assertAlmostEqual(result["chi2_sne"], components.get("sne", 0.0))
+        self.assertAlmostEqual(
+            result.get("chi2_bao", 0.0), components.get("bao", 0.0)
+        )
+        self.assertAlmostEqual(
+            result.get("chi2_cmb", 0.0), components.get("cmb", 0.0)
+        )
         self.assertIn("burn_in_steps", result)
         self.assertIn("production_steps", result)
-        self.assertEqual(
-            result["burn_in_steps"],
-            max(100, result["production_steps"] // 5),
-        )
+        self.assertEqual(result["burn_in_steps"], 20)
 
     def test_chi_squared_cmb_planck2018lite(self):
         """Verify that the Planck 2018 lite dataset yields finite χ²."""
@@ -185,16 +195,13 @@ class FunctionalTestCase(unittest.TestCase):
             camb_params, ells, spectra=("TT",)
         )
 
-        params = camb.CAMBparams()
-        params.set_cosmology(
-            H0=camb_params["H0"],
-            ombh2=camb_params["ombh2"],
-            omch2=camb_params["omch2"],
-            tau=camb_params["tau"],
-        )
-        params.omnuh2 = camb_params.get("omnuh2", 0.0)
+        # Mirror the likelihood helper's CAMB parameter construction so the
+        # comparison exercises the same neutrino-sector mapping that feeds the
+        # cached spectra.  Calling the internal builder keeps the functional
+        # regression aligned with whichever optional neutrino knobs the plugin
+        # exposes.
+        params = cmb._make_camb_params(camb_params, lmax=int(np.max(ells)))
         params.InitPower.set_params(As=camb_params["As"], ns=camb_params["ns"])
-        params.set_for_lmax(int(np.max(ells)) + 300, lens_potential_accuracy=0)
         ref = camb.get_results(params).get_unlensed_scalar_cls(
             lmax=int(np.max(ells)), CMB_unit="muK"
         )

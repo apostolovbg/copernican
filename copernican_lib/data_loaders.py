@@ -1,4 +1,5 @@
 # Copyright (c) 2025 Copernican Suite developers.
+# Last Updated: 2025-11-01
 # See LICENSE.md in the repository root for details.
 
 # copernican_suite/data_loaders.py
@@ -9,12 +10,21 @@ alongside their raw tables under ``data/<type>/<source>/`` and register
 themselves through decorators provided here.  At runtime
 ``copernican.py`` imports these modules to populate interactive menus and
 returns uniformly formatted :class:`pandas.DataFrame` objects with metadata
-stored on ``.attrs``.
+stored on ``.attrs``.  This refactor centralises dataset selection for the SNe,
+BAO and CMB loaders so every observable category now attaches a uniform set of
+attributes including reproducibility hashes, dataset versions and explicit
+statistical independence statements.  The additional metadata is consumed by
+the run manifest builder and keeps the suite honest about likelihood
+assumptions.
 """
 import hashlib
 import importlib
 import logging
 import os
+from collections.abc import Callable
+from typing import Any
+
+import numpy as np
 
 from . import console_output as console
 from .utils import check_dataset_id, compute_sha256, load_metadata_from_dir
@@ -35,7 +45,36 @@ SNE_PARSERS: dict = {}
 BAO_PARSERS: dict = {}
 CMB_PARSERS: dict = {}
 GW_PARSERS: dict = {}
-SIREN_PARSERS: dict = {}
+
+
+# The core cosmology pipelines treat the SNe, BAO and CMB likelihoods as
+# statistically independent.  Centralising the statements that justify that
+# assumption makes it easier to audit and copy the reasoning into manifests and
+# documentation.  Each list is intentionally single-element today so future
+# work can append additional caveats without altering the consumer code.
+INDEPENDENCE_ASSUMPTIONS: dict[str, list[str]] = {
+    "sne": [
+        (
+            "Type Ia supernova distance moduli are treated as statistically "
+            "independent from BAO and CMB observables once their published "
+            "covariance matrices are accounted for."
+        )
+    ],
+    "bao": [
+        (
+            "BAO distance measurements are assumed independent of SNe and CMB "
+            "datasets because overlapping systematics are negligible at the "
+            "current precision level."
+        )
+    ],
+    "cmb": [
+        (
+            "Planck-lite CMB spectra are modelled as independent from SNe and "
+            "BAO summaries; cross-covariances are ignored consistently with "
+            "published likelihood treatments."
+        )
+    ],
+}
 
 
 # --- Decorators to register parsers ---
@@ -126,27 +165,6 @@ def register_gw_parser(name=None, description="", data_dir=None):
     return decorator
 
 
-def register_siren_parser(name=None, description="", data_dir=None):
-    """Register a standard siren parser bound to a data source.
-
-    ``name`` acts as the temporary key and placeholder ``dataset_name`` until
-    discovery replaces it with the metadata ``dataset_id``.
-    """
-
-    def decorator(func):
-        """Store ``func`` in the standard siren parser registry."""
-        key = name or os.path.basename(data_dir or func.__name__)
-        SIREN_PARSERS[key] = {
-            "function": func,
-            "dataset_name": name or key,
-            "description": description,
-            "data_dir": data_dir,
-        }
-        return func
-
-    return decorator
-
-
 TRUSTED_PARSER_HASHES = {
     # ``relative_path`` -> ``sha256``
     "sne/pantheon/cosmo_parser_pantheon.py": (
@@ -165,10 +183,7 @@ TRUSTED_PARSER_HASHES = {
         "3017407d77779873a0eb145d9f8f420c0ea83da33431fab70ecfd8b5ee6a23de"
     ),
     "gw/placeholder/cosmo_parser_gw_placeholder.py": (
-        "10d0159cdd879a74324c852be92e877308b949ff0375c9e9609da3a95c0fe3e2"
-    ),
-    "sirens/placeholder/cosmo_parser_sirens_placeholder.py": (
-        "816f2624ff8452ae7fd41c138fcc73b5a5272117d931aae342c9eee6246d3f58"
+        "84895d496d9b39e8bb206103d0d92449ff333080e2fc833d694a66ee2858c21b"
     ),
 }
 
@@ -215,9 +230,8 @@ def _discover_parsers(base_dir: str | None = None):
         "bao": BAO_PARSERS,
         "cmb": CMB_PARSERS,
         "gw": GW_PARSERS,
-        "sirens": SIREN_PARSERS,
     }
-    for dtype in ("sne", "bao", "cmb", "gw", "sirens"):
+    for dtype in ("sne", "bao", "cmb", "gw"):
         type_dir = os.path.join(base_dir, dtype)
         # Skip symlinks or paths that resolve outside the data directory.
         if os.path.islink(type_dir):
@@ -323,6 +337,28 @@ def _discover_parsers(base_dir: str | None = None):
 _discover_parsers()
 
 
+# Bundle the registries and logging messages for observable categories whose
+# loaders now share the same control flow.  The shared structure keeps the
+# public ``load_*`` helpers concise while preserving informative log output.
+DATASET_CONFIG: dict[str, dict[str, Any]] = {
+    "sne": {
+        "label": "SNe",
+        "registry_name": "SNE_PARSERS",
+        "cancel_message": "SNe data loading canceled by user.",
+    },
+    "bao": {
+        "label": "BAO",
+        "registry_name": "BAO_PARSERS",
+        "cancel_message": "BAO data loading canceled by user.",
+    },
+    "cmb": {
+        "label": "CMB",
+        "registry_name": "CMB_PARSERS",
+        "cancel_message": "CMB data loading canceled by user.",
+    },
+}
+
+
 # --- Helper to list and select parsers ---
 def _select_source(parser_registry, data_type_name):
     """Display available data sources and return the chosen ``dataset_id``."""
@@ -383,6 +419,47 @@ def _log_dataset_info(df, data_type, logger):
                 f"{data_type} parser provided no usable covariance matrix; "
                 "using diagonal errors only.",
             )
+    cond_number = df.attrs.get("covariance_condition_number")
+    if cond_number is not None:
+        logger.info(
+            "%s covariance condition number: %.3e",
+            data_type,
+            cond_number,
+        )
+
+
+def _validate_bao_covariance(df, logger):
+    """Ensure BAO covariance matrices are symmetric and positive definite."""
+
+    inv_cov = df.attrs.get("covariance_matrix_inv")
+    if inv_cov is None:
+        logger.warning(
+            "BAO dataset is missing an inverse covariance matrix; "
+            "falling back to diagonal errors."
+        )
+        return False
+    inv_arr = np.asarray(inv_cov, dtype=float)
+    try:
+        if inv_arr.ndim != 2 or inv_arr.shape[0] != inv_arr.shape[1]:
+            raise ValueError("matrix must be square")
+        if not np.allclose(inv_arr, inv_arr.T, atol=1e-10):
+            raise ValueError("matrix is not symmetric")
+        eigenvalues = np.linalg.eigvalsh(inv_arr)
+        if np.any(eigenvalues <= 0.0):
+            raise ValueError("matrix must be positive definite")
+    except ValueError as exc:
+        logger.warning(
+            (
+                "Invalid BAO covariance inverse (%s); falling back to "
+                "diagonal errors."
+            ),
+            exc,
+        )
+        return False
+    cond_number = float(np.linalg.cond(inv_arr))
+    df.attrs["covariance_condition_number"] = cond_number
+    logger.info("BAO covariance condition number: %.3e", cond_number)
+    return True
 
 
 def _attach_file_hashes(df, data_dir, logger):
@@ -406,174 +483,144 @@ def _attach_file_hashes(df, data_dir, logger):
         logger.info("SHA256 %s: %s", rel, digest)
 
 
-# --- Main Loading Functions ---
-def load_sne_data(dataset_id=None, **kwargs):
-    """Load SNe data for the chosen ``dataset_id``."""
+def _load_dataset(
+    dataset_key: str,
+    dataset_id: str | None = None,
+    **kwargs: Any,
+):
+    """Return the dataset ``dataset_key`` refers to using the shared loader.
+
+    The helper consolidates all logic shared by the SNe, BAO and CMB loaders.
+    Keeping the implementation in a single place guarantees that metadata,
+    reproducibility hashes and independence statements remain perfectly
+    aligned across likelihood components.  ``dataset_id`` mirrors the human
+    selection when the caller overrides the interactive prompt.
+    """
+
     logger = logging.getLogger()
+    config = DATASET_CONFIG[dataset_key]
+    label = config["label"]
+    registry_name = config["registry_name"]
+    registry = globals().get(registry_name)
+    if registry is None:
+        logger.error("Dataset registry '%s' is unavailable.", registry_name)
+        return None
+    cancel_message = config["cancel_message"]
+
     if dataset_id is None:
-        dataset_id = _select_source(SNE_PARSERS, "SNe")
+        dataset_id = _select_source(registry, label)
         if dataset_id is None:
-            logger.info("SNe data loading canceled by user.")
+            logger.info(cancel_message)
             return None
 
-    if dataset_id not in SNE_PARSERS:
-        logger.error(f"No SNe parser registered for '{dataset_id}'")
+    if dataset_id not in registry:
+        logger.error(
+            f"No {label} parser registered for '{dataset_id}'",
+        )
         return None
 
-    entry = SNE_PARSERS[dataset_id]
-    parser_func = entry["function"]
+    entry = registry[dataset_id]
+    parser_func: Callable[..., Any] = entry["function"]
     data_dir = entry["data_dir"]
     try:
+        dataset_name = entry.get("dataset_name", dataset_id)
         logger.info(
-            f"Attempting to load SNe data from '{entry['dataset_name']}'",
+            "Attempting to load %s data from '%s'",
+            label,
+            dataset_name,
         )
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
-            meta = load_metadata_from_dir(data_dir)
+            meta = {}
+            if data_dir:
+                meta = load_metadata_from_dir(data_dir) or {}
             if meta:
                 entry["dataset_name"] = meta.get(
-                    "dataset_name", entry.get("dataset_name", "")
+                    "dataset_name",
+                    entry.get("dataset_name", dataset_id),
                 )
+                if "version" in meta:
+                    entry["dataset_version"] = meta["version"]
                 data_df.attrs.update(meta)
+            dataset_version = entry.get("dataset_version") or meta.get(
+                "version",
+                "unknown",
+            )
             data_df.attrs["dataset_name"] = entry["dataset_name"]
             data_df.attrs["dataset_id"] = check_dataset_id(dataset_id)
-            logger.info(
-                f"Successfully loaded {len(data_df)} SNe data points.",
+            data_df.attrs["dataset_version"] = dataset_version
+            data_df.attrs["data_path"] = data_dir
+            data_df.attrs["independence_assumptions"] = list(
+                INDEPENDENCE_ASSUMPTIONS.get(dataset_key, [])
             )
-            _attach_file_hashes(data_df, data_dir, logger)
-            _log_dataset_info(data_df, "SNe", logger)
+            if dataset_key == "bao":
+                has_cov = _validate_bao_covariance(data_df, logger)
+                if not has_cov:
+                    data_df.attrs.pop("covariance_matrix_inv", None)
+            logger.info(
+                "Successfully loaded %s %s data points.",
+                len(data_df),
+                label,
+            )
+            if data_dir:
+                _attach_file_hashes(data_df, data_dir, logger)
+            _log_dataset_info(data_df, label, logger)
         elif data_df is None:
             logger.error(
-                f"SNe parser '{dataset_id}' returned None.",
+                f"{label} parser '{dataset_id}' returned None.",
             )
         else:
             logger.error(
-                f"SNe parser '{dataset_id}' returned an empty DataFrame.",
+                f"{label} parser '{dataset_id}' returned an empty DataFrame.",
             )
         return data_df
-    except Exception as e:
+    except Exception as exc:  # pragma: no cover - defensive logging
         logger.critical(
-            f"CRITICAL Error during SNe data parsing ({dataset_id}): {e}",
+            "CRITICAL Error during %s data parsing (%s): %s",
+            label,
+            dataset_id,
+            exc,
             exc_info=True,
         )
         return None
+
+
+# --- Main Loading Functions ---
+def load_sne_data(dataset_id=None, **kwargs):
+    """Load SNe data for the chosen ``dataset_id``."""
+
+    return _load_dataset("sne", dataset_id=dataset_id, **kwargs)
 
 
 def load_bao_data(dataset_id=None, **kwargs):
     """Load BAO data for the chosen ``dataset_id``."""
-    logger = logging.getLogger()
-    if dataset_id is None:
-        dataset_id = _select_source(BAO_PARSERS, "BAO")
-        if dataset_id is None:
-            logger.info("BAO data loading canceled by user.")
-            return None
 
-    if dataset_id not in BAO_PARSERS:
-        logger.error(f"No BAO parser registered for '{dataset_id}'")
-        return None
-
-    entry = BAO_PARSERS[dataset_id]
-    parser_func = entry["function"]
-    data_dir = entry["data_dir"]
-    try:
-        logger.info(
-            f"Attempting to load BAO data from '{entry['dataset_name']}'",
-        )
-        data_df = parser_func(data_dir, **kwargs)
-        if data_df is not None and not data_df.empty:
-            meta = load_metadata_from_dir(data_dir)
-            if meta:
-                entry["dataset_name"] = meta.get(
-                    "dataset_name", entry.get("dataset_name", "")
-                )
-                data_df.attrs.update(meta)
-            data_df.attrs["dataset_name"] = entry["dataset_name"]
-            data_df.attrs["dataset_id"] = check_dataset_id(dataset_id)
-            logger.info(
-                f"Successfully loaded {len(data_df)} BAO data points.",
-            )
-            _attach_file_hashes(data_df, data_dir, logger)
-            _log_dataset_info(data_df, "BAO", logger)
-        elif data_df is None:
-            logger.error(
-                f"BAO parser '{dataset_id}' returned None.",
-            )
-        else:
-            logger.error(
-                f"BAO parser '{dataset_id}' returned an empty DataFrame.",
-            )
-        return data_df
-    except Exception as e:
-        logger.critical(
-            f"CRITICAL Error during BAO data parsing ({dataset_id}): {e}",
-            exc_info=True,
-        )
-        return None
+    return _load_dataset("bao", dataset_id=dataset_id, **kwargs)
 
 
 def load_cmb_data(dataset_id=None, **kwargs):
     """Load CMB data for the chosen ``dataset_id``."""
-    logger = logging.getLogger()
-    if dataset_id is None:
-        dataset_id = _select_source(CMB_PARSERS, "CMB")
-        if dataset_id is None:
-            logger.info("CMB data loading canceled by user.")
-            return None
 
-    if dataset_id not in CMB_PARSERS:
-        logger.error(f"No CMB parser registered for '{dataset_id}'")
-        return None
-
-    entry = CMB_PARSERS[dataset_id]
-    parser_func = entry["function"]
-    data_dir = entry["data_dir"]
-    try:
-        logger.info(
-            f"Attempting to load CMB data from '{entry['dataset_name']}'",
-        )
-        data_df = parser_func(data_dir, **kwargs)
-        if data_df is not None and not data_df.empty:
-            meta = load_metadata_from_dir(data_dir)
-            if meta:
-                entry["dataset_name"] = meta.get(
-                    "dataset_name", entry.get("dataset_name", "")
-                )
-                data_df.attrs.update(meta)
-            data_df.attrs["dataset_name"] = entry["dataset_name"]
-            data_df.attrs["dataset_id"] = check_dataset_id(dataset_id)
-            logger.info(
-                f"Successfully loaded {len(data_df)} CMB data points.",
-            )
-            _attach_file_hashes(data_df, data_dir, logger)
-            _log_dataset_info(data_df, "CMB", logger)
-        elif data_df is None:
-            logger.error(
-                f"CMB parser '{dataset_id}' returned None.",
-            )
-        else:
-            logger.error(
-                f"CMB parser '{dataset_id}' returned an empty DataFrame.",
-            )
-        return data_df
-    except Exception as e:
-        logger.critical(
-            f"CRITICAL Error during CMB data parsing ({dataset_id}): {e}",
-            exc_info=True,
-        )
-        return None
+    return _load_dataset("cmb", dataset_id=dataset_id, **kwargs)
 
 
 def load_gw_data(dataset_id=None, **kwargs):
-    """Load gravitational wave data for the chosen ``dataset_id``."""
+    """Load gravitational-wave standard siren data for ``dataset_id``."""
     logger = logging.getLogger()
     if dataset_id is None:
-        dataset_id = _select_source(GW_PARSERS, "GW")
+        dataset_id = _select_source(GW_PARSERS, "gravitational-wave")
         if dataset_id is None:
-            logger.info("Gravitational wave data loading canceled by user.")
+            logger.info(
+                "Gravitational-wave data loading canceled by user during "
+                "placeholder management."
+            )
             return None
 
     if dataset_id not in GW_PARSERS:
-        msg = f"No gravitational wave parser registered for '{dataset_id}'"
+        msg = (
+            "No gravitational-wave standard siren parser registered for "
+            f"'{dataset_id}'"
+        )
         logger.error(msg)
         return None
 
@@ -582,7 +629,8 @@ def load_gw_data(dataset_id=None, **kwargs):
     data_dir = entry["data_dir"]
     try:
         logger.info(
-            f"Attempting to load GW data from '{entry['dataset_name']}'",
+            "Attempting to load gravitational-wave standard siren data from "
+            f"'{entry['dataset_name']}'",
         )
         data_df = parser_func(data_dir, **kwargs)
         if data_df is not None and not data_df.empty:
@@ -595,10 +643,14 @@ def load_gw_data(dataset_id=None, **kwargs):
             data_df.attrs["dataset_name"] = entry["dataset_name"]
             data_df.attrs["dataset_id"] = check_dataset_id(dataset_id)
             logger.info(
-                f"Successfully loaded {len(data_df)} GW data points.",
+                "Successfully loaded %s gravitational-wave standard siren "
+                "data points.",
+                len(data_df),
             )
             _attach_file_hashes(data_df, data_dir, logger)
-            _log_dataset_info(data_df, "GW", logger)
+            _log_dataset_info(
+                data_df, "Gravitational-wave standard siren", logger
+            )
         elif data_df is None:
             logger.error(
                 f"GW parser '{dataset_id}' returned None.",
@@ -609,66 +661,9 @@ def load_gw_data(dataset_id=None, **kwargs):
             )
         return data_df
     except Exception as e:
-        logger.critical(
-            f"CRITICAL Error during GW data parsing ({dataset_id}): {e}",
-            exc_info=True,
-        )
-        return None
-
-
-def load_siren_data(dataset_id=None, **kwargs):
-    """Load standard siren data for the chosen ``dataset_id``."""
-    logger = logging.getLogger()
-    if dataset_id is None:
-        dataset_id = _select_source(SIREN_PARSERS, "standard siren")
-        if dataset_id is None:
-            logger.info("Standard siren data loading canceled by user.")
-            return None
-
-    if dataset_id not in SIREN_PARSERS:
-        logger.error(
-            f"No standard siren parser registered for '{dataset_id}'",
-        )
-        return None
-
-    entry = SIREN_PARSERS[dataset_id]
-    parser_func = entry["function"]
-    data_dir = entry["data_dir"]
-    try:
-        logger.info(
-            f"Attempting to load siren data from '{entry['dataset_name']}'",
-        )
-        data_df = parser_func(data_dir, **kwargs)
-        if data_df is not None and not data_df.empty:
-            meta = load_metadata_from_dir(data_dir)
-            if meta:
-                entry["dataset_name"] = meta.get(
-                    "dataset_name", entry.get("dataset_name", "")
-                )
-                data_df.attrs.update(meta)
-            data_df.attrs["dataset_name"] = entry["dataset_name"]
-            data_df.attrs["dataset_id"] = check_dataset_id(dataset_id)
-            msg = (
-                "Successfully loaded "
-                f"{len(data_df)} standard siren data points."
-            )
-            logger.info(msg)
-            _attach_file_hashes(data_df, data_dir, logger)
-            _log_dataset_info(data_df, "Standard siren", logger)
-        elif data_df is None:
-            logger.error(
-                f"Standard siren parser '{dataset_id}' returned None.",
-            )
-        else:
-            logger.error(
-                f"Standard siren parser '{dataset_id}' returned an empty "
-                f"DataFrame.",
-            )
-        return data_df
-    except Exception as e:
         err_msg = (
-            "CRITICAL Error during standard siren data parsing "
-            f"({dataset_id}): {e}"
+            "CRITICAL Error during gravitational-wave standard siren data "
+            f"parsing ({dataset_id}): {e}"
         )
         logger.critical(err_msg, exc_info=True)
         return None

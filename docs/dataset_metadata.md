@@ -1,9 +1,14 @@
 # Dataset Metadata Fields
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-11-02
 
 Each dataset folder contains a `metadata_*.yml` file that describes the
 source. All fields are optional except for `dataset_name`, `dataset_id`,
 `description` and `license`.
+
+Run ``python -m tools.check_meta`` after updating any of these metadata files
+or their documentation headers. The helper measures "today" in Coordinated
+Universal Time so both the command-line report and the regression tests catch
+future timestamps consistently across time zones.
 
 Example skeleton:
 
@@ -70,5 +75,8 @@ or analysis scripts.
 
 Model YAML files now support a `prior` block for each parameter. Priors carry
 their `type` and relevant numeric fields: Gaussian priors require `mean` and
-`sigma`, while uniform priors use `lower` and `upper`. Parsed models expose
-these details so engines can apply them during optimisation.
+`sigma`, uniform priors use `lower` and `upper`, and log-uniform priors
+demand strictly positive `lower`/`upper` pairs. Parsed models expose these
+details so engines can apply them during optimisation while
+`copernican_lib.priors.LogUniformPrior` injects the accompanying log-space
+transform automatically.

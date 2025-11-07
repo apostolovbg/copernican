@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-10-29
+**Last Updated:** 2025-11-07
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -12,9 +12,9 @@ legacy
 The helper modules previously stored under `scripts/` now live in the
 `copernican_lib/` package.
 The suite evaluates cosmological models against SNe Ia, BAO and CMB data.
-Support for additional observations such as gravitational waves and standard
-sirens is
-being prepared. Users interact with `copernican.py`, choose a model from
+Support for additional observations such as gravitational-wave standard sirens
+is being prepared alongside ongoing placeholder management. Users interact with
+`copernican.py`, choose a model from
 `./models/`, pick a computational engine from `./engines/` and choose data
 sources. Parsers reside alongside their data but are imported only when their
 SHA256 digest matches a vetted list to block untrusted files. Results are saved
@@ -55,19 +55,42 @@ Before any heavy computation, a tiny NumPy/SciPy calculation checks that the
 installed binaries match the CPU. If this fails the log explains possible CPU
 feature mismatches and suggests reinstalling with suitable wheels.
 
-The default engine is `engines/cosmo_engine_mcmc.py`. All model plugins are
-validated through `copernican_lib/engine_interface.py` before being passed to
-the sampler. The BAO χ² helper accepts pre-extracted arrays so callers can
-convert data frames once outside optimisation loops. This ensures the expected
-functions are present and callable. Chi-squared values for SNe, BAO and CMB are
-evaluated serially for clarity; shared helpers keep the behaviour identical
-across engines. When both models reference the same YAML file the Stage 2
-workflow compares `MODEL_FILENAME` values and reuses the initial posterior so
-BAO and CMB overlays align exactly during ΛCDM self-consistency checks. The
-engine emits step-by-step progress messages for both burn-in and production
-phases, displays percentage indicators and continues to return ``-np.inf``
-whenever a proposal falls outside declared parameter bounds or yields a
-non-finite chi-squared so the sampler rejects invalid walkers deterministically.
+The default engine is `engines/cosmo_engine_mcmc.py`. Model plugins are now
+constructed via `copernican_lib.plugins.build_engine_plugin` which produces a
+picklable dataclass describing bounds, priors, transforms and dataset
+compatibility. Posterior evaluation is handled by
+`copernican_lib.posterior.make_logposterior`, ensuring every engine shares the
+same prior, transform and bounds logic while remaining multiprocessing safe.
+The BAO χ² helper accepts pre-extracted arrays so callers can convert data
+frames once outside optimisation loops. Joint likelihoods use
+`copernican_lib.likelihoods.JointLike` so Stage 2 evaluates SNe, BAO and CMB data
+simultaneously, recording per-dataset χ² values in the sampler output. When both
+models reference the same YAML file the Stage 2 workflow compares
+`MODEL_FILENAME` values and reuses the initial posterior so BAO and CMB overlays
+align exactly during ΛCDM self-consistency checks. The engine emits step-by-step
+progress messages for both burn-in and production phases, displays percentage
+indicators and continues to return ``-np.inf`` whenever a proposal falls outside
+declared parameter bounds or yields a non-finite chi-squared so the sampler
+rejects invalid walkers deterministically.
+
+Version 7.1.1 standardises every runtime timestamp on Coordinated
+Universal Time (UTC) so log files, manifests and output directories
+match across developer machines and CI runners. Version 7.1.0 adds an
+interactive Stage 2 sampler menu. After the CMB dataset loads, the
+launcher now prompts for production steps, burn-in length, walker count
+and multiprocessing pool size, suggesting minimum values derived from
+the selected models. The chosen configuration is logged and written to
+the parameter summary files so trimmed exploratory runs and
+CPU-optimised batches remain auditable.
+Version 7.3.1 builds on that interaction by replacing terse confirmation
+and shutdown questions with numbered menus that spell out when an
+operator is accepting a plan, restarting the questionnaire, returning to
+the defaults summary or exiting the suite entirely.
+Parameter priors must now declare an explicit `type`; legacy `distribution`
+aliases are rejected.  The parser canonicalises every mapping, injects
+`type: fixed` for bounds whose endpoints coincide and surfaces deterministic
+constants via `plugin.FIXED_PARAMS` so downstream utilities can consume them
+without re-reading the YAML cache.
 Non-ΛCDM sample YAMLs (`cosmo_model_cfsc.yml`, `cosmo_model_cpc.yml`,
 `cosmo_model_qauc.yml` and `cosmo_model_usmf{3..7}.yml`) are maintained as
 parseable exemplars. Treat their `python_var` assignments and folded block
@@ -137,8 +160,9 @@ and must remain untracked so contributors keep private dependency metadata.
 Set `COPERNICAN_DEP_CACHE_DIR` to direct the cache to a custom location when
 the default path is read-only. The
 `start.*` launchers
-always download a private Python 3.12+ into ``.python`` and build ``.venv``
-from that interpreter, ignoring any system-wide Python. If the download fails
+always download a private Python 3.11 interpreter into ``.python`` and build
+``.venv`` from that interpreter, ignoring any system-wide Python. If the
+download fails
 they exit with guidance. When packages are missing the program asks before
 installing them with `pip install -r requirements.lock` and
 verifies the import before continuing. Set ``COPERNICAN_AUTO_INSTALL=1`` to
@@ -147,13 +171,14 @@ prompts the user to
 restart via the appropriate launcher. This lightweight approach works across
 Windows, macOS and Linux while allowing new engines to introduce additional
 dependencies without manual updates to the documentation.
-The launchers print a notice before invoking `sudo`, `brew` or `winget` so
-users know any password prompt originates from the package manager and is
-never read or stored. `sudo -k` and explicit prompts ensure the operating
-system handles all credential entry.
-ArviZ is installed from commit
-`01c8b9454349247eed2145a27b03f9231acb412f` of the upstream repository to
-avoid its former `numpy<2` restriction without maintaining a fork.
+The launchers delete bundled interpreters that fall outside the Python 3.11
+series, recreate `.venv` when its Python drifts beyond that window and print a
+notice before
+invoking `sudo`, `brew` or `winget` so users know any password prompt
+originates from the package manager and is never read or stored. `sudo -k`
+and explicit prompts ensure the operating system handles all credential
+entry. ArviZ ships as the released `0.22.0` build, which already supports
+NumPy 2 so the dependency set no longer relies on a pinned commit archive.
 
 `requirements.lock` pins exact versions for all runtime
 packages, and `[project].dependencies` in `pyproject.toml` mirrors these pins.
@@ -227,6 +252,12 @@ automatically; no manual Python implementation is required.
 The parser keeps unknown keys intact, ensuring the DSL stays backward
 compatible as new fields are introduced.
 
+Models that advertise BAO support must now declare an explicit
+``rs_expression``. The former numerical fallback has been removed because it
+double-counted photon densities whenever the model's ``H(z)`` already included
+radiation terms. Tests must cover every new integral to confirm the provided
+sound horizon matches the declared background dynamics.
+
 ### 4.2 Dataset compatibility flags
 
 Generated model plugins include boolean attributes
@@ -254,8 +285,9 @@ these rules:
 4. **Update documentation**, including this `AGENTS.md`, `README.md` and the
    `docs/` directory, whenever behaviour or structure changes. Each task must
    expand the documentation's scope and size, refresh version strings and
-   ensure every file carries a `Last Updated` field. Update that field on
-   every edit and add one when missing.
+   ensure every file carries a `Last Updated` field within its first three
+   lines. The marker must record only the ISO-8601 calendar date—never a time
+   of day. Update that field on every edit and add one when missing.
 5. **Keep these laws synchronized across `README.md` and `AGENTS.md`.**
    Amendments to any rule require an explicit human request.
 6. **Bump the project version according to Semantic Versioning whenever
@@ -271,8 +303,9 @@ these rules:
     convey their purpose without unnecessary length.**
 11. **Use raw strings or escape backslashes explicitly to avoid invalid escape
     sequence warnings in docstrings or string literals.**
-12. **Run `pre-commit` on all modified files before committing to enforce
-    Black, Isort, Ruff and Flake8 checks.**
+12. **Run `pre-commit run --all-files` before committing so Black, Isort, Ruff,
+    Flake8 and the Copernican policy hook enforce formatting, whitespace,
+    metadata and print-free library rules.**
 13. **Do not redistribute the Copernican Suite in full or assert patent
     claims; the license forbids these actions.**
 14. **Keep individual lines under 79 characters to maintain readability.**
@@ -306,12 +339,23 @@ these rules:
    --output-file requirements.lock` (or simply `make lock`), commit the
    updated `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`.
    The local pre-commit hook provisions `pip-tools==7.4.1` automatically
+
+   The lockfile header now strips Python version banners during the
+   `make lock` workflow so CI runs on Python 3.11 yield
+   identical results.
+
    before invoking `make lock` so the workflow succeeds even in clean CI
    environments.
-23. **Verify every `Last Updated` field reflects the actual current date**
-   before committing. Investigate prior human edits to understand their
-   intent and never overwrite those timestamps without confirming they are
-   genuinely stale.
+23. **Validate every timestamp before recording it.** Confirm the real
+    current date (for example with the `date` command) before updating any
+    `Last Updated` field or logging changes, and cross-check changelog entries
+    so their dates never jump backward or forward relative to prior records.
+    Do not introduce historical gaps, future-dated entries or other
+    chronological inconsistencies.
+24. **Preserve human-authored edits across the project.** Respect the
+    structure, wording and intent of human-made changes—including timestamps
+    and metadata—and only revise them when a human explicitly requests an
+    update or when correcting objective errors they identify.
 
 Failure to follow these guidelines will compromise the Copernican Suite.
 
@@ -326,4 +370,8 @@ and documentation all agree. Runtime code must obtain the current version via
 helper reads the tracked version file before falling back to package metadata
 or Git tags. Setting ``COPERNICAN_VERSION`` in the environment overrides the
 derived value so CI builds can embed custom prerelease identifiers that
-match the tracked version.
+match the tracked version. Version 7.0.4 added defensive lookups inside
+``copernican.py``, ``copernican_lib/run_manifest.py`` and
+``copernican_lib/plotter.py`` so the suite still boots when
+``copernican_lib.version.get_version`` is temporarily unavailable during
+partial upgrades.

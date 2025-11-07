@@ -1,4 +1,4 @@
-# Last Updated: 2025-10-29
+# Last Updated: 2025-11-07
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -21,7 +21,9 @@ import ast
 import copy
 import importlib
 import importlib.util
+import inspect
 import json
+import math
 import os
 import sys
 import platform
@@ -39,7 +41,11 @@ from pathlib import Path
 from copernican_lib import console_output as console
 from copernican_lib import run_manifest
 from copernican_lib import result_writer
-from copernican_lib.version import get_version
+from copernican_lib.diagnostics import (
+    bao_residual_diagnostics,
+    cmb_residual_diagnostics,
+)
+import copernican_lib.version as version_module
 
 # Verify interpreter version early so users see clear feedback
 MIN_PYTHON = (3, 11)
@@ -96,9 +102,30 @@ logger = None
 data_loaders = None
 
 # Retrieve the runtime version from installed package metadata. When the
-# distribution is not installed, ``get_version`` supplies ``"0+unknown"`` so
-# logs and plot footers still carry a version-like identifier.
-COPERNICAN_VERSION = get_version()
+# distribution is not installed, the helper below returns ``"0+unknown"`` so
+# logs and plot footers still carry a version-like identifier.  Importing the
+# attribute lazily avoids the ``ImportError`` seen on some macOS systems where
+# ``copernican_lib.version`` was importable but ``get_version`` was not
+# exported.
+
+
+def _copernican_version() -> str:
+    """Return the Copernican Suite version while tolerating missing helpers.
+
+    The launcher crashed on macOS when ``start.command`` re-imported this
+    module and ``copernican_lib.version.get_version`` was absent even though
+    the version module itself was available.  Looking up the attribute at
+    runtime allows the menu to load successfully and matches the fallbacks
+    inside :func:`copernican_lib.version.get_version`.
+    """
+
+    getter = getattr(version_module, "get_version", None)
+    if callable(getter):
+        return getter()
+    return "0+unknown"
+
+
+COPERNICAN_VERSION = _copernican_version()
 CURRENT_LOG_FILE = None
 
 DEPENDENCY_CACHE_ENV_VAR = "COPERNICAN_DEP_CACHE_DIR"
@@ -706,6 +733,267 @@ def select_from_list(options, prompt):
         console.write("Invalid selection. Try again.")
 
 
+def _count_active_parameters(plugin, *, engine_module) -> int:
+    """Return the number of free parameters declared by ``plugin``.
+
+    ``emcee`` mandates at least ``2 * ndim`` walkers.  The helper mirrors the
+    engine's fixed-parameter detection so the interactive prompt can recommend
+    an ensemble size that respects any effectively locked coordinates.
+    """
+
+    bounds = list(getattr(plugin, "PARAMETER_BOUNDS", []))
+    names = list(getattr(plugin, "PARAMETER_NAMES", []))
+    if not bounds or len(bounds) != len(names):
+        return max(len(names), 1)
+
+    rtol = getattr(engine_module, "_FIXED_BOUNDS_RTOL", 1e-9)
+    atol = getattr(engine_module, "_FIXED_BOUNDS_ATOL", 1e-12)
+
+    active = 0
+    for low, high in bounds:
+        lower = -math.inf if low is None else float(low)
+        upper = math.inf if high is None else float(high)
+        if math.isfinite(lower) and math.isfinite(upper):
+            width = upper - lower
+            centre = (upper + lower) / 2.0
+            scale = max(abs(centre), 1.0)
+            threshold = scale * rtol + atol
+            if math.isfinite(width) and width <= threshold:
+                continue
+        active += 1
+    return max(active, 1)
+
+
+def prompt_sampling_configuration(
+    engine_module,
+    lcdm_plugin,
+    alt_model_plugin,
+):
+    """Return user-selected sampler settings or ``None`` if cancelled."""
+
+    fit_sig = inspect.signature(engine_module.fit_sne_parameters)
+    try:
+        default_steps = int(fit_sig.parameters["n_steps"].default)
+    except (KeyError, ValueError, TypeError):
+        default_steps = 200
+    try:
+        default_walkers = int(fit_sig.parameters["n_walkers"].default)
+    except (KeyError, ValueError, TypeError):
+        default_walkers = 32
+
+    lcdm_active = _count_active_parameters(lcdm_plugin, engine_module=engine_module)
+    alt_active = _count_active_parameters(
+        alt_model_plugin,
+        engine_module=engine_module,
+    )
+    minimum_walkers = max(2 * max(lcdm_active, alt_active), 2)
+
+    cpu_total = os.cpu_count() or 0
+    default_pool = cpu_total if cpu_total > 0 else minimum_walkers
+    default_pool = max(default_pool, 1)
+
+    cpu_display = cpu_total if cpu_total and cpu_total > 0 else "unknown"
+    recommended_steps = default_steps
+    recommended_burn = max(100, recommended_steps // 5)
+    recommended_walkers = max(default_walkers, minimum_walkers)
+    recommended_pool = default_pool
+
+    def _format_pool(value: int | None) -> str:
+        return str(value) if value is not None else "auto"
+
+    def _collect_custom_plan() -> dict[str, int | None] | str | None:
+        """Gather a customised sampler configuration from the operator."""
+
+        while True:
+            console.write("")
+            console.write("Production steps control the total sampler iterations.")
+            console.write(f"  Recommended default: {recommended_steps}")
+            entry = console.ask(
+                f"Production steps [{recommended_steps}]: "
+            ).strip()
+            if not entry:
+                n_steps = recommended_steps
+            else:
+                try:
+                    n_steps = int(entry)
+                except ValueError:
+                    console.write("Steps must be an integer.", error=True)
+                    continue
+                if n_steps <= 0:
+                    console.write("Steps must be positive.", error=True)
+                    continue
+
+            default_burn = max(100, n_steps // 5)
+            quick_burn = max(1, n_steps // 5)
+            console.write("")
+            console.write(
+                "Burn-in steps discard the early samples so the chain can "
+                "stabilise."
+            )
+            console.write(f"  Recommended warm-up: {default_burn}")
+            console.write(
+                f"  A shorter option such as {quick_burn} trades certainty for "
+                "speed."
+            )
+            entry = console.ask(f"Burn-in steps [{default_burn}]: ").strip()
+            if not entry:
+                burn_in = default_burn
+            else:
+                try:
+                    burn_in = int(entry)
+                except ValueError:
+                    console.write("Burn-in must be an integer.", error=True)
+                    continue
+                if burn_in <= 0:
+                    console.write("Burn-in must be positive.", error=True)
+                    continue
+
+            walker_default = max(default_walkers, minimum_walkers)
+            console.write("")
+            console.write(
+                "Walkers sample the posterior in parallel; more walkers "
+                "increase convergence confidence."
+            )
+            console.write(f"  Required minimum: {minimum_walkers}")
+            console.write(f"  Recommended default: {walker_default}")
+            entry = console.ask(f"Number of walkers [{walker_default}]: ").strip()
+            if not entry:
+                n_walkers = walker_default
+            else:
+                try:
+                    n_walkers = int(entry)
+                except ValueError:
+                    console.write("Walker count must be an integer.", error=True)
+                    continue
+                if n_walkers < minimum_walkers:
+                    console.write(
+                        "Walker count is below the required minimum; the "
+                        "ensemble would stagnate.",
+                        error=True,
+                    )
+                    continue
+
+            console.write("")
+            console.write(
+                "Worker pools accelerate sampling by spreading walkers across "
+                "processes."
+            )
+            console.write(
+                "  Recommended pool size: "
+                f"{recommended_pool} (detected CPUs: {cpu_display})"
+            )
+            console.write("  Enter 0 to disable multiprocessing entirely.")
+            entry = console.ask(
+                f"Pool workers [{_format_pool(recommended_pool)}]: "
+            ).strip().lower()
+            if not entry:
+                pool_size: int | None = recommended_pool
+            elif entry in {"0", "none", "disable"}:
+                pool_size = None
+            else:
+                try:
+                    pool_value = int(entry)
+                except ValueError:
+                    console.write("Pool size must be an integer.", error=True)
+                    continue
+                if pool_value < 0:
+                    console.write("Pool size cannot be negative.", error=True)
+                    continue
+                pool_size = pool_value if pool_value > 0 else None
+
+            effective_pool = pool_size if pool_size is not None else None
+            adjusted_walkers = max(
+                n_walkers,
+                minimum_walkers,
+                effective_pool or 0,
+            )
+            if adjusted_walkers != n_walkers:
+                console.write("")
+                console.write(
+                    f"Walker count increased to {adjusted_walkers} to match the "
+                    "worker pool."
+                )
+                n_walkers = adjusted_walkers
+
+            console.write("")
+            console.write("Sampling plan summary:")
+            console.write(f"  Production steps: {n_steps}")
+            console.write(f"  Burn-in steps: {burn_in}")
+            console.write(f"  Walkers: {n_walkers}")
+            console.write(f"  Pool workers: {_format_pool(effective_pool)}")
+            console.write("")
+            console.write("How should we proceed?")
+            console.write("  1) Accept this sampler plan and continue")
+            console.write(
+                "  2) Revisit the questionnaire from the beginning"
+            )
+            console.write("  B) Back to the sampler defaults summary")
+            console.write("  C) Cancel sampler configuration")
+            console.write("")
+
+            confirm = console.ask("Select an option: ").strip().lower()
+            if confirm in {"", "1", "y", "yes"}:
+                return {
+                    "n_steps": n_steps,
+                    "burn_in_steps": burn_in,
+                    "n_walkers": n_walkers,
+                    "pool_size": effective_pool,
+                }
+            if confirm in {"c", "cancel"}:
+                return None
+            if confirm in {"b", "back"}:
+                return "back"
+            if confirm in {"2", "r", "restart", "n", "no"}:
+                console.write("")
+                console.write("Restarting the sampler questionnaire from step one.")
+                continue
+            console.write("Please choose 1, 2, B or C.", error=True)
+
+    while True:
+        console.write("")
+        console.write("Sampler defaults summary:")
+        console.write(f"  ΛCDM active parameters: {lcdm_active}")
+        console.write(
+            f"  {alt_model_plugin.MODEL_NAME} active parameters: {alt_active}"
+        )
+        console.write(
+            f"  Minimum walkers per emcee rule: {minimum_walkers}"
+        )
+        console.write(
+            f"  Recommended production steps: {recommended_steps}"
+        )
+        console.write(f"  Recommended burn-in steps: {recommended_burn}")
+        console.write(f"  Recommended walkers: {recommended_walkers}")
+        console.write(
+            f"  Recommended pool workers: {_format_pool(recommended_pool)}"
+        )
+        console.write("")
+        console.write("1) Run with default settings")
+        console.write("2) Change settings")
+        console.write("C) Cancel configuration")
+        console.write("")
+
+        choice = console.ask("Write the number of choice: ").strip().lower()
+        if choice in {"", "1"}:
+            return {
+                "n_steps": recommended_steps,
+                "burn_in_steps": recommended_burn,
+                "n_walkers": recommended_walkers,
+                "pool_size": recommended_pool,
+            }
+        if choice == "2":
+            custom_plan = _collect_custom_plan()
+            if custom_plan is None:
+                return None
+            if custom_plan == "back":
+                console.write("")
+                console.write("Returning to default sampler summary.")
+                continue
+            return custom_plan
+        if choice in {"c", "cancel"}:
+            return None
+        console.write("Please choose 1, 2 or C.", error=True)
+
 def cleanup_cache(base_dir):
     """Remove temporary files left behind by previous runs."""
 
@@ -813,6 +1101,24 @@ def _sanity_check_numpy_scipy(log):
         raise
 
 
+def prompt_post_run_action():
+    """Return ``True`` to launch another evaluation, ``False`` to exit."""
+
+    while True:
+        console.write("")
+        console.write("Next actions:")
+        console.write("  1) Start another evaluation run")
+        console.write("  C) Close the Copernican Suite")
+        console.write("")
+        choice = console.ask("Select an option: ").strip().lower()
+        if choice in {"", "1", "y", "yes"}:
+            console.write("")
+            return True
+        if choice in {"c", "cancel", "n", "no", "2"}:
+            return False
+        console.write("Please choose 1 or C.", error=True)
+
+
 def main_workflow():
     """Main workflow for the Copernican Suite."""
     # This routine coordinates the entire user interaction:
@@ -900,12 +1206,12 @@ def main_workflow():
             exit_clean(1)
         select_seed()
         logger.info("Using RNG seed %s", utils.get_random_seed())
-        start_ts = time.strftime("%y%m%d_%H%M%S")
-        run_start_dt = datetime.datetime.now()
+        run_start_dt = datetime.datetime.now(datetime.timezone.utc)
+        start_ts = run_start_dt.strftime("%y%m%d_%H%M%S")
         run_start_pc = time.perf_counter()
         logger.info(
             f"Copernican {COPERNICAN_VERSION} has initialized! "
-            f"Current timestamp is {start_ts}. Log file: {log_file}"
+            f"Current timestamp is {start_ts} UTC. Log file: {log_file}"
         )
         logger.info(
             "Using standard CPU (SciPy) computational backend with "
@@ -1003,17 +1309,65 @@ def main_workflow():
             console.write("")
             continue
         dataset_info = []
-        for df, registry in [
-            (sne_data_df, data_loaders.SNE_PARSERS),
-            (bao_data_df, data_loaders.BAO_PARSERS),
-            (cmb_data_df, data_loaders.CMB_PARSERS),
-        ]:
+        for df in (sne_data_df, bao_data_df, cmb_data_df):
             ds_id = df.attrs.get("dataset_id")
-            data_dir = registry.get(ds_id, {}).get("data_dir")
-            # ``file_hashes`` enables manifest reproducibility.
+            data_dir = df.attrs.get("data_path")
+            if not ds_id or not data_dir:
+                continue
             hashes = df.attrs.get("file_hashes", {})
-            if ds_id and data_dir:
-                dataset_info.append((ds_id, data_dir, hashes))
+            dataset_info.append(
+                {
+                    "id": ds_id,
+                    "name": df.attrs.get("dataset_name", ds_id),
+                    "version": df.attrs.get("dataset_version", "unknown"),
+                    "path": data_dir,
+                    "hashes": hashes,
+                    "independence": df.attrs.get(
+                        "independence_assumptions",
+                        [],
+                    ),
+                    "condition_number": df.attrs.get(
+                        "covariance_condition_number"
+                    ),
+                }
+            )
+
+        sampling_plan = prompt_sampling_configuration(
+            cosmo_engine_selected,
+            lcdm,
+            alt_model_plugin,
+        )
+        if sampling_plan is None:
+            logger.info("User cancelled sampling configuration; aborting run.")
+            _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
+            cleanup_cache(SCRIPT_DIR)
+            console.write("")
+            return
+
+        sampling_steps = int(sampling_plan["n_steps"])
+        sampling_burn_in = int(sampling_plan["burn_in_steps"])
+        sampling_walkers = int(sampling_plan["n_walkers"])
+        sampling_pool = sampling_plan["pool_size"]
+
+        pool_label = sampling_pool if sampling_pool is not None else "auto"
+        logger.info(
+            (
+                "Sampler configuration: steps=%d, burn-in=%d, walkers=%d, "
+                "pool=%s"
+            ),
+            sampling_steps,
+            sampling_burn_in,
+            sampling_walkers,
+            pool_label,
+        )
+        console.write(
+            f"Configured sampler: steps {sampling_steps}, burn-in "
+            f"{sampling_burn_in}."
+        )
+        console.write(
+            f"Walker ensemble {sampling_walkers}, pool {pool_label}."
+        )
 
         manifest = run_manifest.build_manifest(
             models=[
@@ -1045,8 +1399,15 @@ def main_workflow():
             console.write("")
             return
         t0 = time.perf_counter()
-        lcdm_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(
-            sne_data_df, lcdm
+        lcdm_fit_results = cosmo_engine_selected.fit_sne_parameters(
+            sne_data_df,
+            lcdm,
+            bao_data_df=bao_data_df,
+            cmb_data_df=cmb_data_df,
+            n_walkers=sampling_walkers,
+            n_steps=sampling_steps,
+            pool_size=sampling_pool,
+            burn_in_steps=sampling_burn_in,
         )
         lcdm_time += time.perf_counter() - t0
         same_name = (
@@ -1062,11 +1423,18 @@ def main_workflow():
                 "Alternative model matches ΛCDM; reusing SNe chain from %s.",
                 engine_label,
             )
-            alt_model_sne_fit_results = copy.deepcopy(lcdm_sne_fit_results)
+            alt_model_fit_results = copy.deepcopy(lcdm_fit_results)
         else:
             t0 = time.perf_counter()
-            alt_model_sne_fit_results = cosmo_engine_selected.fit_sne_parameters(
-                sne_data_df, alt_model_plugin
+            alt_model_fit_results = cosmo_engine_selected.fit_sne_parameters(
+                sne_data_df,
+                alt_model_plugin,
+                bao_data_df=bao_data_df,
+                cmb_data_df=cmb_data_df,
+                n_walkers=sampling_walkers,
+                n_steps=sampling_steps,
+                pool_size=sampling_pool,
+                burn_in_steps=sampling_burn_in,
             )
             alt_time += time.perf_counter() - t0
 
@@ -1075,13 +1443,24 @@ def main_workflow():
         # values, 1σ errors and the covariance matrix for each model.
         result_writer.save_summary(
             {
-                lcdm.MODEL_NAME: lcdm_sne_fit_results,
-                alt_model_plugin.MODEL_NAME: alt_model_sne_fit_results,
+                lcdm.MODEL_NAME: lcdm_fit_results,
+                alt_model_plugin.MODEL_NAME: alt_model_fit_results,
             },
             OUTPUT_DIR,
         )
 
         logger.info("\n--- Stage 3: BAO Analysis ---\n")
+
+        def _component_enabled(fit_results, component):
+            state = fit_results.get("likelihood_state", {}) if fit_results else {}
+            metadata = state.get("metadata", {})
+            components = metadata.get("components", {})
+            entry = components.get(component, {})
+            enabled_flag = entry.get("metadata", {}).get("enabled")
+            if enabled_flag is not None:
+                return bool(enabled_flag)
+            enabled_components = metadata.get("enabled_components", ())
+            return component in enabled_components
 
         min_z, max_z = (
             bao_data_df["redshift"].min(),
@@ -1089,25 +1468,40 @@ def main_workflow():
         )
         z_plot_smooth = np.geomspace(max(min_z * 0.8, 0.01), max_z * 1.2, 100)
 
-        def run_bao_analysis(model_plugin, sne_fit_results, z_smooth_arr):
-            """Helper to run BAO analysis for a given model."""
-            if not (sne_fit_results and sne_fit_results.get("success")):
+        def run_bao_analysis(model_plugin, fit_results, z_smooth_arr):
+            """Return BAO diagnostics and predictions for ``model_plugin``."""
+
+            summary = {
+                "sne_fit_results": fit_results,
+                "pred_df": None,
+                "rs_Mpc": np.nan,
+                "chi2_bao": float(
+                    (fit_results or {}).get("chi2_bao", float("inf"))
+                ),
+                "smooth_predictions": None,
+            }
+
+            if not (fit_results and fit_results.get("success")):
                 logger.warning(
                     (
                         f"{model_plugin.MODEL_NAME} fit failed; "
                         "skipping BAO analysis."
                     )
                 )
-                return {
-                    "sne_fit_results": sne_fit_results,
-                    "pred_df": None,
-                    "rs_Mpc": np.nan,
-                    "chi2_bao": np.inf,
-                    "smooth_predictions": None,
-                }
+                return summary
+
+            if not _component_enabled(fit_results, "bao"):
+                logger.info(
+                    (
+                        f"{model_plugin.MODEL_NAME} BAO likelihood disabled; "
+                        "skipping predictions."
+                    )
+                )
+                summary["chi2_bao"] = float("inf")
+                return summary
 
             fitted_cosmo_p = extract_cosmological_param_vector(
-                sne_fit_results,
+                fit_results,
                 model_plugin,
                 logger=logger,
             )
@@ -1118,13 +1512,9 @@ def main_workflow():
                         "cosmological parameters; skipping BAO analysis."
                     )
                 )
-                return {
-                    "sne_fit_results": sne_fit_results,
-                    "pred_df": None,
-                    "rs_Mpc": np.nan,
-                    "chi2_bao": np.inf,
-                    "smooth_predictions": None,
-                }
+                summary["chi2_bao"] = float("inf")
+                return summary
+
             pred_df, rs_Mpc, smooth_preds = (
                 cosmo_engine_selected.calculate_bao_observables(
                     bao_data_df,
@@ -1133,53 +1523,90 @@ def main_workflow():
                     z_smooth=z_smooth_arr,
                 )
             )
+            summary.update(
+                {
+                    "pred_df": pred_df,
+                    "rs_Mpc": rs_Mpc,
+                    "smooth_predictions": smooth_preds,
+                }
+            )
 
-            chi2_bao = np.inf
+            for line in bao_residual_diagnostics(
+                pred_df,
+                model_name=model_plugin.MODEL_NAME,
+            ):
+                logger.info(line)
+
+            chi2_bao = summary["chi2_bao"]
             if pred_df is not None and np.isfinite(rs_Mpc):
-                z = bao_data_df["redshift"].to_numpy(dtype=float)
-                obs_type = bao_data_df["observable_type"].to_numpy()
-                obs_val = bao_data_df["value"].to_numpy(dtype=float)
-                obs_err = bao_data_df["error"].to_numpy(dtype=float)
-                cov_inv = bao_data_df.attrs.get("covariance_matrix_inv")
-                chi2_bao = cosmo_engine_selected.chi_squared_bao(
-                    z,
-                    obs_type,
-                    obs_val,
-                    obs_err,
-                    model_plugin,
-                    fitted_cosmo_p,
-                    rs_Mpc,
-                    covariance_matrix_inv=cov_inv,
-                )
-                logger.info(
-                    (
-                        f"{model_plugin.MODEL_NAME} BAO: r_s = "
-                        f"{rs_Mpc:.2f} Mpc, "
-                        f"Chi2_BAO = {chi2_bao:.2f}"
+                if np.isfinite(chi2_bao):
+                    logger.info(
+                        (
+                            f"{model_plugin.MODEL_NAME} BAO: r_s = "
+                            f"{rs_Mpc:.2f} Mpc, "
+                            f"χ²_BAO = {chi2_bao:.2f}"
+                        )
                     )
-                )
+                else:
+                    logger.warning(
+                        (
+                            f"{model_plugin.MODEL_NAME} BAO predictions "
+                            "available but χ² is non-finite."
+                        )
+                    )
             else:
                 logger.warning(
                     f"{model_plugin.MODEL_NAME} BAO calculation failed or "
                     "produced invalid r_s."
                 )
 
-            return {
-                "sne_fit_results": sne_fit_results,
-                "pred_df": pred_df,
-                "rs_Mpc": rs_Mpc,
-                "chi2_bao": chi2_bao,
-                "smooth_predictions": smooth_preds,
+            return summary
+
+        t0 = time.perf_counter()
+        lcdm_bao_summary = run_bao_analysis(
+            lcdm,
+            lcdm_fit_results,
+            z_plot_smooth,
+        )
+        lcdm_time += time.perf_counter() - t0
+        t0 = time.perf_counter()
+        alt_bao_summary = run_bao_analysis(
+            alt_model_plugin,
+            alt_model_fit_results,
+            z_plot_smooth,
+        )
+        alt_time += time.perf_counter() - t0
+
+        if (
+            np.isfinite(lcdm_bao_summary.get("rs_Mpc", np.nan))
+            and np.isfinite(alt_bao_summary.get("rs_Mpc", np.nan))
+        ):
+            delta_rs = alt_bao_summary["rs_Mpc"] - lcdm_bao_summary["rs_Mpc"]
+            logger.info(
+                (
+                    f"{alt_model_plugin.MODEL_NAME} r_s offset relative to "
+                    f"{lcdm.MODEL_NAME}: {delta_rs:+.3f} Mpc"
+                )
+            )
+
+        logger.info("\n--- Stage 4: CMB Analysis ---\n")
+
+        def run_cmb_analysis(model_plugin, fit_results):
+            """Return CMB diagnostics and theory spectra for ``model_plugin``."""
+
+            summary = {
+                "chi2_cmb": float(
+                    (fit_results or {}).get("chi2_cmb", float("inf"))
+                ),
+                "theory_spectrum": None,
             }
 
-        def run_cmb_analysis(
-            cmb_df, model_plugin, cosmo_params, cmb_extras=None
-        ):
-            """Run CMB analysis for a given model."""
-            # Skip the CMB step entirely when the model declares it is invalid
-            # for such data. This prevents misleading chi-squared calculations
-            # and ensures plugin validation does not fail for missing CMB
-            # functions.
+            if not _component_enabled(fit_results, "cmb"):
+                return summary
+
+            if cmb_data_df is None or getattr(cmb_data_df, "empty", True):
+                return summary
+
             if getattr(model_plugin, "valid_for_cmb", True) is False:
                 logger.info(
                     (
@@ -1187,102 +1614,91 @@ def main_workflow():
                         "skipping analysis."
                     )
                 )
-                return {"chi2_cmb": np.inf, "theory_spectrum": None}
+                summary["chi2_cmb"] = float("inf")
+                return summary
 
-            if cmb_df is None or cmb_df.empty:
-                return {"chi2_cmb": np.inf, "theory_spectrum": None}
-
+            cosmo_params = extract_cosmological_param_vector(
+                fit_results,
+                model_plugin,
+                logger=logger,
+            )
             if cosmo_params is None:
                 logger.warning(
                     (
                         f"{model_plugin.MODEL_NAME} fit does not provide "
-                        "cosmological parameters; skipping CMB analysis."
+                        "cosmological parameters; skipping CMB predictions."
                     )
                 )
-                return {"chi2_cmb": np.inf, "theory_spectrum": None}
+                summary["chi2_cmb"] = float("inf")
+                return summary
 
-            # Convert the fitted cosmological parameters to CAMB's expected
-            # dictionary format using the helper provided by the model plugin.
-            camb_params = model_plugin.get_camb_params(cosmo_params)
-            # Append any additional CMB parameters supplied by the engine so
-            # that the theoretical spectrum reflects the actual optimisation
-            # result instead of falling back to defaults.
-            if cmb_extras:
-                camb_params.update(cmb_extras)
+            try:
+                camb_params = model_plugin.get_camb_params(cosmo_params)
+            except Exception as exc:
+                logger.warning(
+                    (
+                        f"{model_plugin.MODEL_NAME} failed to build CAMB "
+                        f"parameters: {exc}"
+                    )
+                )
+                summary["chi2_cmb"] = float("inf")
+                return summary
 
             components = ["TT"]
-            if "Dl_te_obs" in cmb_df.columns:
+            if "Dl_te_obs" in cmb_data_df.columns:
                 components.append("TE")
-            if "Dl_ee_obs" in cmb_df.columns:
+            if "Dl_ee_obs" in cmb_data_df.columns:
                 components.append("EE")
 
             theory = cosmo_engine_selected.compute_cmb_spectrum(
                 camb_params,
-                cmb_df["ell"].values,
+                cmb_data_df["ell"].values,
                 spectra=tuple(components),
             )
-            chi2_val = cosmo_engine_selected.chi_squared_cmb(
-                cosmo_params,
-                cmb_df,
-                model_plugin,
-                cmb_extras,
-            )
-            logger.info(
-                f"{model_plugin.MODEL_NAME} CMB chi2 = {chi2_val:.2f}"
-            )
-            return {"chi2_cmb": chi2_val, "theory_spectrum": theory}
+            summary["theory_spectrum"] = theory
+
+            for line in cmb_residual_diagnostics(
+                cmb_data_df,
+                theory,
+                model_name=model_plugin.MODEL_NAME,
+            ):
+                logger.info(line)
+
+            chi2_cmb = summary["chi2_cmb"]
+            if np.isfinite(chi2_cmb):
+                logger.info(
+                    f"{model_plugin.MODEL_NAME} CMB χ² = {chi2_cmb:.2f}"
+                )
+            else:
+                logger.info(
+                    (
+                        f"{model_plugin.MODEL_NAME} CMB likelihood disabled "
+                        "or returned a non-finite χ²."
+                    )
+                )
+
+            return summary
 
         t0 = time.perf_counter()
-        lcdm_full_results = run_bao_analysis(
-            lcdm, lcdm_sne_fit_results, z_plot_smooth
-        )
+        lcdm_cmb_summary = run_cmb_analysis(lcdm, lcdm_fit_results)
         lcdm_time += time.perf_counter() - t0
         t0 = time.perf_counter()
-        alt_model_full_results = run_bao_analysis(
-            alt_model_plugin, alt_model_sne_fit_results, z_plot_smooth
-        )
-        alt_time += time.perf_counter() - t0
-
-        logger.info("\n--- Stage 4: CMB Analysis ---\n")
-
-        lcdm_cosmo = extract_cosmological_param_vector(
-            lcdm_sne_fit_results,
-            lcdm,
-            logger=logger,
-        )
-        alt_cosmo = extract_cosmological_param_vector(
-            alt_model_sne_fit_results,
+        alt_cmb_summary = run_cmb_analysis(
             alt_model_plugin,
-            logger=logger,
-        )
-
-        t0 = time.perf_counter()
-        lcdm_cmb = run_cmb_analysis(
-            cmb_data_df,
-            lcdm,
-            lcdm_cosmo,
-            lcdm_sne_fit_results.get("fitted_cmb_params"),
-        )
-        lcdm_time += time.perf_counter() - t0
-        t0 = time.perf_counter()
-        alt_cmb = run_cmb_analysis(
-            cmb_data_df,
-            alt_model_plugin,
-            alt_cosmo,
-            alt_model_sne_fit_results.get("fitted_cmb_params"),
+            alt_model_fit_results,
         )
         alt_time += time.perf_counter() - t0
 
         logger.info("\n--- Stage 5: Generating Outputs ---\n")
         logger.info(
-            f"{lcdm.MODEL_NAME} CMB chi2 = {lcdm_cmb['chi2_cmb']:.2f}"
+            f"{lcdm.MODEL_NAME} CMB χ² = {lcdm_cmb_summary['chi2_cmb']:.2f}"
         )
         logger.info(
-            f"{alt_model_plugin.MODEL_NAME} CMB chi2 = "
-            f"{alt_cmb['chi2_cmb']:.2f}"
+            f"{alt_model_plugin.MODEL_NAME} CMB χ² = "
+            f"{alt_cmb_summary['chi2_cmb']:.2f}"
         )
 
-        run_end_dt = datetime.datetime.now()
+        run_end_dt = datetime.datetime.now(datetime.timezone.utc)
         end_ts = run_end_dt.strftime("%Y%m%d_%H%M%S")
         new_dir = os.path.join(
             OUTPUT_BASE_DIR, f"copernican-run_{end_ts}"
@@ -1310,8 +1726,8 @@ def main_workflow():
 
         plotter.plot_hubble_diagram(
             sne_data_df,
-            lcdm_sne_fit_results,
-            alt_model_sne_fit_results,
+            lcdm_fit_results,
+            alt_model_fit_results,
             lcdm,
             alt_model_plugin,
             plot_dir=OUTPUT_DIR,
@@ -1320,8 +1736,8 @@ def main_workflow():
         if bao_data_df is not None:
             plotter.plot_bao_observables(
                 bao_data_df,
-                lcdm_full_results,
-                alt_model_full_results,
+                lcdm_bao_summary,
+                alt_bao_summary,
                 lcdm,
                 alt_model_plugin,
                 sne_data_df,
@@ -1331,10 +1747,10 @@ def main_workflow():
         if cmb_data_df is not None:
             plotter.plot_cmb_spectrum(
                 cmb_data_df,
-                lcdm_cmb,
-                alt_cmb,
-                lcdm_sne_fit_results,
-                alt_model_sne_fit_results,
+                lcdm_cmb_summary,
+                alt_cmb_summary,
+                lcdm_fit_results,
+                alt_model_fit_results,
                 lcdm,
                 alt_model_plugin,
                 plot_dir=OUTPUT_DIR,
@@ -1348,25 +1764,25 @@ def main_workflow():
             f"{alt_model_plugin.MODEL_ABSTRACT}\n"
         )
 
-        def _print_fit(label, sne_res, bao_res, cmb_res, plugin):
+        def _print_fit(label, fit_res, bao_res, cmb_res, plugin):
             """Pretty-print χ² stats and fitted parameters for a model."""
             console.write(f"--- {label} Fit Report ---\n")
-            if sne_res:
+            if fit_res:
                 from copernican_lib import latex_utils
 
                 p_names = getattr(plugin, "PARAMETER_NAMES", [])
                 p_latex = getattr(plugin, "PARAMETER_LATEX_NAMES", [])
                 for name, latex_name in zip(p_names, p_latex):
-                    val = sne_res.get(
+                    val = fit_res.get(
                         "fitted_cosmological_params", {}
                     ).get(name)
                     if val is not None:
                         disp = latex_utils.latex_to_unicode(latex_name)
                         console.write(f"  {disp} = {val:.5g}")
-            chi2_sne = sne_res.get(
-                "chi2_sne", sne_res.get("chi2_min", float("nan"))
+            chi2_sne = fit_res.get(
+                "chi2_sne", fit_res.get("chi2_min", float("nan"))
             )
-            chi2_total = sne_res.get("chi2_total", float("nan"))
+            chi2_total = fit_res.get("chi2_total", float("nan"))
             console.write(f"  χ²_Total = {chi2_total:.2f}")
             console.write(f"  χ²_SNe = {chi2_sne:.2f}")
             if bao_res:
@@ -1380,13 +1796,13 @@ def main_workflow():
             console.write("")
 
         _print_fit(
-            "ΛCDM", lcdm_sne_fit_results, lcdm_full_results, lcdm_cmb, lcdm
+            "ΛCDM", lcdm_fit_results, lcdm_bao_summary, lcdm_cmb_summary, lcdm
         )
         _print_fit(
             alt_model_plugin.MODEL_NAME,
-            alt_model_sne_fit_results,
-            alt_model_full_results,
-            alt_cmb,
+            alt_model_fit_results,
+            alt_bao_summary,
+            alt_cmb_summary,
             alt_model_plugin,
         )
 
@@ -1396,8 +1812,8 @@ def main_workflow():
         # Save the detailed point-by-point SNe results CSV
         csv_writer.save_sne_results_detailed_csv(
             sne_data_df,
-            lcdm_sne_fit_results,
-            alt_model_sne_fit_results,
+            lcdm_fit_results,
+            alt_model_fit_results,
             lcdm,
             alt_model_plugin,
             csv_dir=OUTPUT_DIR,
@@ -1407,8 +1823,8 @@ def main_workflow():
         if bao_data_df is not None:
             csv_writer.save_bao_results_csv(
                 bao_data_df,
-                lcdm_full_results,
-                alt_model_full_results,
+                lcdm_bao_summary,
+                alt_bao_summary,
                 alt_model_name=alt_model_plugin.MODEL_NAME,
                 csv_dir=OUTPUT_DIR,
                 timestamp=end_ts,
@@ -1416,14 +1832,14 @@ def main_workflow():
         if cmb_data_df is not None:
             csv_writer.save_cmb_results_csv(
                 cmb_data_df,
-                lcdm_cmb,
-                alt_cmb,
+                lcdm_cmb_summary,
+                alt_cmb_summary,
                 alt_model_name=alt_model_plugin.MODEL_NAME,
                 csv_dir=OUTPUT_DIR,
                 timestamp=end_ts,
             )
 
-        if lcdm_sne_fit_results.get("samples") is not None:
+        if lcdm_fit_results.get("samples") is not None:
             fname = utils.generate_filename(
                 "posterior",
                 sne_data_df.attrs.get("dataset_id", "sne_data"),
@@ -1432,8 +1848,8 @@ def main_workflow():
                 timestamp=end_ts,
             )
             chain_io.save_posterior(
-                lcdm_sne_fit_results["samples"],
-                lcdm_sne_fit_results.get(
+                lcdm_fit_results["samples"],
+                lcdm_fit_results.get(
                     "param_names", lcdm.PARAMETER_NAMES
                 ),
                 os.path.join(OUTPUT_DIR, fname),
@@ -1442,7 +1858,7 @@ def main_workflow():
                     "dataset": sne_data_df.attrs.get("dataset_id", ""),
                 },
             )
-        if alt_model_sne_fit_results.get("samples") is not None:
+        if alt_model_fit_results.get("samples") is not None:
             fname = utils.generate_filename(
                 "posterior",
                 sne_data_df.attrs.get("dataset_id", "sne_data"),
@@ -1451,8 +1867,8 @@ def main_workflow():
                 timestamp=end_ts,
             )
             chain_io.save_posterior(
-                alt_model_sne_fit_results["samples"],
-                alt_model_sne_fit_results.get(
+                alt_model_fit_results["samples"],
+                alt_model_fit_results.get(
                     "param_names", alt_model_plugin.PARAMETER_NAMES
                 ),
                 os.path.join(OUTPUT_DIR, fname),
@@ -1472,13 +1888,13 @@ def main_workflow():
         cpu_model, cpu_freq = _get_cpu_info()
         os_info = platform.platform()
 
-        logger.info(f"Run completed at {end_ts}.")
+        logger.info(f"Run completed at {end_ts} UTC.")
 
         console.write(
-            f"Run started on {run_start_dt.strftime('%Y-%m-%d %H:%M:%S')}"
+            f"Run started on {run_start_dt.strftime('%Y-%m-%d %H:%M:%S')} UTC"
         )
         console.write(
-            f"Run ended on {run_end_dt.strftime('%Y-%m-%d %H:%M:%S')}"
+            f"Run ended on {run_end_dt.strftime('%Y-%m-%d %H:%M:%S')} UTC"
         )
         console.write(
             f"Run took {lcdm_time:.2f}s for LCDM and {alt_time:.2f}s for "
@@ -1488,25 +1904,12 @@ def main_workflow():
             f"under {os_info}"
         )
 
-        while True:
-            another_run = (
-                console.ask(
-                    "Would you like to run another evaluation? (yes/no): "
-                )
-                .strip()
-                .lower()
-            )
-            if another_run in ["yes", "y", "1"]:
-                break
-            elif another_run in ["no", "n", "2"]:
-                cleanup_cache(SCRIPT_DIR)
-                logger.info("Exiting Copernican Suite. Goodbye!")
-                console.write("")
-                return
-            else:
-                console.write("Invalid input. Please enter 'yes' or 'no'.")
-
+        run_again = prompt_post_run_action()
         cleanup_cache(SCRIPT_DIR)
+        if not run_again:
+            logger.info("Exiting Copernican Suite. Goodbye!")
+            console.write("")
+            return
 
 
 if __name__ == "__main__":
