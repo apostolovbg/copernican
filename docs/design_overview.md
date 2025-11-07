@@ -34,12 +34,13 @@ once their loaders and plugins register compatible metadata.
 
 ## Historical context and recent changes
 
-Version 7.2.7 keeps ``tools/update_lock.py`` import-friendly by deferring the
-``piptools`` availability check until the helper actually attempts to spawn
-``pip-compile``.  The lazily evaluated guard preserves the actionable guidance
-for developers who need to install the pinned dependency while allowing
-regression tests and lint hooks to import and monkeypatch the module without
-tearing down the entire process.
+Version 7.3.1 refreshes the interactive prompts that guard Stage 2.  The custom
+sampler questionnaire now closes with a numbered confirmation menu that spells
+out how to accept, restart, back up or cancel a plan, and the workflow ends
+with a matching post-run menu that distinguishes between launching another
+evaluation and shutting down cleanly.  These additions mirror the broader
+Copernican console style so contributors do not have to remember what terse
+single-letter responses stand for.
 
 Version 7.3.0 routes every Stage 2 run through :mod:`arviz` after sampling so
 the engine records rank-normalised :math:`\hat{R}` values together with bulk
@@ -47,6 +48,13 @@ and tail effective sample sizes.  The diagnostics are logged, saved in the
 engine result dictionary and embedded inside NetCDF exports.  Downstream tools
 and publication scripts therefore consume a single source of truth for
 convergence statistics without repeating calculations.
+
+Version 7.2.7 keeps ``tools/update_lock.py`` import-friendly by deferring the
+``piptools`` availability check until the helper actually attempts to spawn
+``pip-compile``.  The lazily evaluated guard preserves the actionable guidance
+for developers who need to install the pinned dependency while allowing
+regression tests and lint hooks to import and monkeypatch the module without
+tearing down the entire process.
 
 Version 7.2.6 rebuilds the ``make lock`` workflow around
 ``tools/update_lock.py`` so the helper owns the entire pipeline.

@@ -1,4 +1,4 @@
-# Last Updated: 2025-09-02
+# Last Updated: 2025-11-07
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -216,6 +216,41 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
                 "pool_size": 10,
             },
         )
+
+
+class PostRunMenuTestCase(unittest.TestCase):
+    """Validate the post-run navigation menu."""
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    def test_default_selection_runs_again(self, ask_mock, _write_mock) -> None:
+        """Pressing Enter launches another evaluation."""
+
+        ask_mock.side_effect = [""]
+        result = copernican.prompt_post_run_action()
+        self.assertTrue(result)
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    def test_cancel_option_exits(self, ask_mock, _write_mock) -> None:
+        """Choosing C exits the workflow."""
+
+        ask_mock.side_effect = ["c"]
+        result = copernican.prompt_post_run_action()
+        self.assertFalse(result)
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    def test_invalid_then_valid_choice(self, ask_mock, write_mock) -> None:
+        """The menu repeats until a valid answer is provided."""
+
+        ask_mock.side_effect = ["maybe", "1"]
+        result = copernican.prompt_post_run_action()
+        self.assertTrue(result)
+        write_calls = [
+            args[0] for args, _ in write_mock.call_args_list if args
+        ]
+        self.assertIn("Please choose 1 or C.", write_calls)
 
 
 if __name__ == "__main__":

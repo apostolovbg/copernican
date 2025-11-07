@@ -1,4 +1,4 @@
-**Version:** 7.3.0
+**Version:** 7.3.1
 **Last Updated:** 2025-11-07
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -36,7 +36,7 @@ such as gravitational-wave standard sirens without altering the user-facing
 workflow.
 
 Release highlights, breaking changes and historical notes now live exclusively
-in [`CHANGELOG.md`](CHANGELOG.md). Refer to the documentation set in `docs/` for
+in [`CHANGELOG.md`](CHANGELOG.md). See the documentation set in `docs/` for
 deep dives into the architecture, data formats and contributor workflows.
 
 Engines, datasets and models stay fully pluggable. Generated YAML definitions
@@ -146,6 +146,10 @@ Under the hood the program follows a clear pipeline:
    chain and copies the recorded dataset diagnostics so every component shares
    the same walker history. Otherwise the ΛCDM reference and the alternative
    model are sampled in turn with independent random seeds.
+   A confirmation menu now summarises the proposed sampler plan with numbered
+   options for accepting it, restarting the questionnaire, returning to the
+   defaults summary or cancelling entirely so the intent behind each choice is
+   explicit.
 5. **BAO Analysis** – Stage 3 reuses the sampler's diagnostics to report BAO
    chi-squared contributions directly from the joint fit while still
    generating smooth predictions for plots and CSV exports. Shared helpers
@@ -168,8 +172,9 @@ Under the hood the program follows a clear pipeline:
    `copernican_lib/plotter.py` and `copernican_lib/csv_writer.py` handle
    logs, plots and tables. The log file is renamed at the end of each run to
    match the output timestamp.
-9. **Loop or Exit** – the user may evaluate another model or quit, at which
-   point temporary cache files are cleaned automatically.
+ 9. **Loop or Exit** – a concluding menu explains how to launch another
+    evaluation or close the application instead of relying on a terse yes/no
+    prompt. Temporary cache files are still cleaned automatically either way.
 
 ### Interpreting the new convergence diagnostics
 

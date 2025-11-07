@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-07
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -82,6 +82,10 @@ and multiprocessing pool size, suggesting minimum values derived from
 the selected models. The chosen configuration is logged and written to
 the parameter summary files so trimmed exploratory runs and
 CPU-optimised batches remain auditable.
+Version 7.3.1 builds on that interaction by replacing terse confirmation
+and shutdown questions with numbered menus that spell out when an
+operator is accepting a plan, restarting the questionnaire, returning to
+the defaults summary or exiting the suite entirely.
 Parameter priors must now declare an explicit `type`; legacy `distribution`
 aliases are rejected.  The parser canonicalises every mapping, injects
 `type: fixed` for bounds whose endpoints coincide and surfaces deterministic
