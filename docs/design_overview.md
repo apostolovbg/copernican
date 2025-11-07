@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-11-05
+**Last Updated:** 2025-11-07
 
 This short document explains the updated folder layout introduced in
 version 1.14.2.  The `copernican_lib` package now collects all
@@ -134,6 +134,13 @@ log-probability trace so convergence diagnostics can be reviewed after a run
 without replaying the sampling session. The sampler reseeds any walkers that
 acquire ``nan`` coordinates during burn-in, preventing spurious emcee runtime
 warnings from polluting the logs.
+
+Deterministic reproducibility now extends to the initial walker ensemble as
+well.  The Stage 2 engine builds its NumPy generator from
+``copernican_lib.utils.get_random_seed``, the same value written to the run
+manifest via ``set_random_seed``.  When researchers replay a manifest with an
+identical seed, the sampler yields byte-identical chains and log-probability
+traces alongside the existing diagnostic summaries.
 
 `copernican.py` is launched through the `start.*` scripts which present a
 menu-driven interface. Runtime options are controlled via environment
