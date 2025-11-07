@@ -1,11 +1,18 @@
-**Version:** 7.2.10
+**Version:** 7.3.0
 **Last Updated:** 2025-11-07
 
 ![Copernican Suite banner](docs/banner_github.png)
 
 The Copernican Suite is a Python toolkit for testing cosmological models
 against Supernovae Type Ia (SNe Ia), Baryon Acoustic Oscillation (BAO) and
-Cosmic Microwave Background (CMB) data. Version 7.2.10 extends the setuptools
+Cosmic Microwave Background (CMB) data. Version 7.3.0 integrates
+``arviz``-powered convergence diagnostics into the ensemble sampler so every
+run surfaces rank-normalised :math:`\hat{R}` and both bulk and tail effective
+sample sizes alongside the posterior summaries. The engine logs compact
+statistics for these metrics, returns them in the runtime results dictionary
+and copies them into NetCDF exports. Authors can lift the values directly into
+figure captions without repeating calculations in notebooks. Version 7.2.10
+extends the setuptools
 include list to cover the ``models.*`` namespace so nested plugins remain
 packageable while the legacy macOS ``ensurepip`` build continues to avoid the
 "Multiple top-level packages discovered" guard. The packaging regression test
@@ -222,6 +229,34 @@ Under the hood the program follows a clear pipeline:
    match the output timestamp.
 9. **Loop or Exit** – the user may evaluate another model or quit, at which
    point temporary cache files are cleaned automatically.
+
+### Interpreting the new convergence diagnostics
+
+Stage 2 now records three convergence metrics for every free parameter: the
+rank-normalised :math:`\hat{R}` statistic and bulk and tail effective sample
+sizes (ESS) computed with :mod:`arviz`.  Values are logged once production
+sampling completes, saved in the returned results dictionary under
+``diagnostics`` and exported alongside the posterior NetCDF group so notebooks
+and manuscript tables share identical inputs.
+
+- **:math:`\hat{R}`** – Target values below ``1.01`` for production-quality
+  figures. Numbers between ``1.01`` and ``1.05`` indicate additional sampling
+  may reduce inter-chain variance, while values above ``1.05`` signal that the
+  chains have not yet mixed and the run should be extended or initialisation
+  revisited.
+- **Bulk ESS** – Represents the information content in the central posterior
+  mass. Aim for at least ``1000`` effective draws per published parameter so
+  mean estimates and 68% credible intervals stabilise. Anything below ``400``
+  warrants more iterations before trusting smoothed density plots.
+- **Tail ESS** – Captures stability in the 5%–95% quantiles. Publication plots
+  with aggressive tail shading should reach ``400`` effective draws or more;
+  lower scores imply that the sampler has yet to explore the extremes
+  adequately.
+
+When preparing figures, include the median ESS and worst-case :math:`\hat{R}`
+in captions or companion tables so readers can verify convergence. The logged
+summaries match the exported diagnostics exactly, making it straightforward to
+cite them without recomputation.
 
 ## Quick Start
 1. Run the platform-specific `start` script. macOS users should run

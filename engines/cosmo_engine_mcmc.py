@@ -33,8 +33,10 @@ import logging
 import math
 import multiprocessing as mp
 import textwrap
+import warnings
 from typing import Any, Callable, Iterable, Sequence
 
+import arviz as az
 import emcee
 import numpy as np
 import pandas as pd
@@ -50,6 +52,13 @@ from copernican_lib.statistics import (
     compute_cmb_spectrum_from_dict,
 )
 from copernican_lib.utils import get_random_seed
+
+warnings.filterwarnings(
+    "ignore",
+    message=r"More chains \(\d+\) than draws \(\d+\)",
+    module=r"arviz\\.data\\.base",
+    category=UserWarning,
+)
 
 ENGINE_KIND = "mcmc"
 ENGINE_LABEL = "Ensemble MCMC sampler"
@@ -805,6 +814,68 @@ def fit_sne_parameters(
         log_prior_best = log_posterior_best - loglike_best
 
     acceptance = sampler.acceptance_fraction
+    diagnostics: dict[str, dict[str, float]] = {
+        "rhat": {},
+        "ess_bulk": {},
+        "ess_tail": {},
+    }
+    try:
+        # ``arviz`` expects chains ordered as ``(n_chains, n_draws, ...)``.
+        # ``emcee`` stores them as ``(n_draws, n_chains, n_params)``, so swap
+        # the leading axes before building the ``InferenceData`` container.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            inference_data = az.from_dict(
+                posterior={"parameters": np.swapaxes(chain, 0, 1)},
+                coords={"parameter": list(names)},
+                dims={"parameters": ["parameter"]},
+            )
+            rhat_dataset = az.rhat(inference_data, method="rank")
+            ess_bulk_dataset = az.ess(inference_data, method="bulk")
+            ess_tail_dataset = az.ess(inference_data, method="tail")
+
+        def _dataset_to_dict(dataset: Any) -> dict[str, float]:
+            """Return scalar diagnostics keyed by parameter name."""
+
+            series = dataset["parameters"].to_series()
+            return {str(idx): float(value) for idx, value in series.items()}
+
+        diagnostics = {
+            "rhat": _dataset_to_dict(rhat_dataset),
+            "ess_bulk": _dataset_to_dict(ess_bulk_dataset),
+            "ess_tail": _dataset_to_dict(ess_tail_dataset),
+        }
+        if diagnostics["rhat"]:
+            rhat_values = np.fromiter(
+                diagnostics["rhat"].values(),
+                dtype=float,
+                count=len(diagnostics["rhat"]),
+            )
+            logger.info(
+                "Rank-normalised R-hat summary: min=%.3f median=%.3f max=%.3f",
+                float(np.min(rhat_values)),
+                float(np.median(rhat_values)),
+                float(np.max(rhat_values)),
+            )
+        if diagnostics["ess_bulk"]:
+            bulk_values = np.fromiter(
+                diagnostics["ess_bulk"].values(),
+                dtype=float,
+                count=len(diagnostics["ess_bulk"]),
+            )
+            tail_values = np.fromiter(
+                diagnostics["ess_tail"].values(),
+                dtype=float,
+                count=len(diagnostics["ess_tail"]),
+            )
+            logger.info(
+                "Effective sample sizes: bulk median=%.1f tail median=%.1f",
+                float(np.median(bulk_values)),
+                float(np.median(tail_values)),
+            )
+    except Exception as exc:  # pragma: no cover - defensive logging path
+        logger.debug("Failed to compute ArviZ diagnostics: %s", exc)
+
     logger.info(
         "MCMC acceptance for %s: mean=%.3f, min=%.3f, max=%.3f",
         getattr(model_plugin, "MODEL_NAME", "Unknown"),
@@ -858,6 +929,7 @@ def fit_sne_parameters(
         "n_walkers": int(n_walkers),
         "autocorrelation_time": autocorr,
         "pool_workers": int(pool_processes or 0),
+        "diagnostics": diagnostics,
         "progress_granularity": int(progress_granularity),
         "likelihood_state": likelihood_state,
         "chi2_components": {

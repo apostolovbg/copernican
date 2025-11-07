@@ -34,6 +34,13 @@ for developers who need to install the pinned dependency while allowing
 regression tests and lint hooks to import and monkeypatch the module without
 tearing down the entire process.
 
+Version 7.3.0 routes every Stage 2 run through :mod:`arviz` after sampling so
+the engine records rank-normalised :math:`\hat{R}` values together with bulk
+and tail effective sample sizes.  The diagnostics are logged, saved in the
+engine result dictionary and embedded inside NetCDF exports.  Downstream tools
+and publication scripts therefore consume a single source of truth for
+convergence statistics without repeating calculations.
+
 Version 7.2.6 rebuilds the ``make lock`` workflow around
 ``tools/update_lock.py`` so the helper owns the entire pipeline.
 The helper now invokes ``pip-compile`` in a temporary workspace,

@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.3.0
+- 2025-11-07: Integrated ArviZ convergence diagnostics into the ensemble MCMC
+  engine, logging compact :math:`\hat{R}` and effective sample size summaries,
+  returning the metrics alongside sampler results, extending the regression
+  suite to assert finite diagnostics and documenting publication guidance for
+  the new statistics (OpenAI ChatGPT)
+
 ## Version 7.2.10
 - 2025-11-07: Seeded the MCMC engine's NumPy generator from the shared
   ``copernican_lib.utils.get_random_seed`` value, added regression coverage that
