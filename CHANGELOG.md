@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.3.1
+- 2025-11-07: Replaced the sampler confirmation and post-run prompts with
+  numbered menus aligned with the Copernican console style. Expanded Stage 2
+  documentation to describe the clearer flows and added regression coverage for
+  the new helper before bumping the recorded version to 7.3.1 (OpenAI ChatGPT)
+
 ## Version 7.3.0
 - 2025-11-07: Rewrote the README introduction to highlight the suite's mission, components and supported datasets, synced the design overview summary and relocated release notes from the README into the changelog (OpenAI ChatGPT)
 

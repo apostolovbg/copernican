@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-01
+# Last Updated: 2025-11-07
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -922,11 +922,17 @@ def prompt_sampling_configuration(
             console.write(f"  Walkers: {n_walkers}")
             console.write(f"  Pool workers: {_format_pool(effective_pool)}")
             console.write("")
+            console.write("How should we proceed?")
+            console.write("  1) Accept this sampler plan and continue")
+            console.write(
+                "  2) Revisit the questionnaire from the beginning"
+            )
+            console.write("  B) Back to the sampler defaults summary")
+            console.write("  C) Cancel sampler configuration")
+            console.write("")
 
-            confirm = console.ask(
-                "Accept these settings? [Y/r/b/c]: "
-            ).strip().lower()
-            if confirm in {"", "y", "yes"}:
+            confirm = console.ask("Select an option: ").strip().lower()
+            if confirm in {"", "1", "y", "yes"}:
                 return {
                     "n_steps": n_steps,
                     "burn_in_steps": burn_in,
@@ -937,10 +943,11 @@ def prompt_sampling_configuration(
                 return None
             if confirm in {"b", "back"}:
                 return "back"
-            if confirm in {"r", "restart", "n", "no"}:
-                console.write("Restarting the sampler questionnaire.")
+            if confirm in {"2", "r", "restart", "n", "no"}:
+                console.write("")
+                console.write("Restarting the sampler questionnaire from step one.")
                 continue
-            console.write("Please respond with Y, R, B or C.")
+            console.write("Please choose 1, 2, B or C.", error=True)
 
     while True:
         console.write("")
@@ -1092,6 +1099,24 @@ def _sanity_check_numpy_scipy(log):
             exc_info=exc,
         )
         raise
+
+
+def prompt_post_run_action():
+    """Return ``True`` to launch another evaluation, ``False`` to exit."""
+
+    while True:
+        console.write("")
+        console.write("Next actions:")
+        console.write("  1) Start another evaluation run")
+        console.write("  C) Close the Copernican Suite")
+        console.write("")
+        choice = console.ask("Select an option: ").strip().lower()
+        if choice in {"", "1", "y", "yes"}:
+            console.write("")
+            return True
+        if choice in {"c", "cancel", "n", "no", "2"}:
+            return False
+        console.write("Please choose 1 or C.", error=True)
 
 
 def main_workflow():
@@ -1879,25 +1904,12 @@ def main_workflow():
             f"under {os_info}"
         )
 
-        while True:
-            another_run = (
-                console.ask(
-                    "Would you like to run another evaluation? (yes/no): "
-                )
-                .strip()
-                .lower()
-            )
-            if another_run in ["yes", "y", "1"]:
-                break
-            elif another_run in ["no", "n", "2"]:
-                cleanup_cache(SCRIPT_DIR)
-                logger.info("Exiting Copernican Suite. Goodbye!")
-                console.write("")
-                return
-            else:
-                console.write("Invalid input. Please enter 'yes' or 'no'.")
-
+        run_again = prompt_post_run_action()
         cleanup_cache(SCRIPT_DIR)
+        if not run_again:
+            logger.info("Exiting Copernican Suite. Goodbye!")
+            console.write("")
+            return
 
 
 if __name__ == "__main__":
