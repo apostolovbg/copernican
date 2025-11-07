@@ -1,4 +1,4 @@
-**Version:** 7.3.1
+**Version:** 7.3.2
 **Last Updated:** 2025-11-07
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -32,8 +32,8 @@ All supported datasets share a uniform pipeline: parsers normalise the inputs,
 the joint likelihood composes SNe Ia, BAO and CMB components, and the engine
 records diagnostics, NetCDF chains and a manifest describing the chosen
 configuration. Upcoming work extends the same infrastructure to future probes
-such as gravitational-wave standard sirens without altering the user-facing
-workflow.
+such as gravitational-wave standard sirens while quietly refining placeholder
+management so new probes arrive without user-facing churn.
 
 Release highlights, breaking changes and historical notes now live exclusively
 in [`CHANGELOG.md`](CHANGELOG.md). See the documentation set in `docs/` for
@@ -644,7 +644,6 @@ cmb:
     As: 2.1e-9
     ns: 0.965
 gravitational_waves: {}
-standard_sirens: {}
 abstract: short overview text
 description: longer explanation
 notes: any additional remarks
