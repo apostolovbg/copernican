@@ -8,7 +8,7 @@
 
 import os
 import textwrap
-from typing import Any
+from typing import Any, Iterable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -289,8 +289,75 @@ def compose_footer(base_line: str, data_attrs: dict) -> list[tuple[str, bool]]:
     return wrapped
 
 
+def _format_corner_footer_stats(
+    stats: dict[str, int | bool],
+) -> list[tuple[str, bool]]:
+    """Describe how posterior samples were prepared for the corner plot.
+
+    Corner plots are most useful when operators immediately understand how
+    many draws survived filtering and whether any automated thinning
+    occurred.  The statistics returned by :func:`_prepare_corner_inputs`
+    already contain that information, so this helper converts them into a set
+    of footer lines for :func:`plot_corner`.  The text favours short, direct
+    sentences so the details stay readable even on dense figures.
+    """
+
+    original = int(stats.get("original_count", 0))
+    finite = int(stats.get("finite_count", original))
+    processed = int(stats.get("processed_count", finite))
+    stride = int(stats.get("stride", 1))
+    downsampled = bool(stats.get("downsampled", False))
+    legacy = bool(stats.get("legacy_validator", False))
+
+    lines: list[tuple[str, bool]] = []
+    lines.append(
+        (
+            "Corner plot generation: "
+            f"{processed:,} samples used from {finite:,} finite draws.",
+            False,
+        ),
+    )
+    lines.append(
+        (
+            f"Original chain length {original:,}; stride {stride}.",
+            False,
+        ),
+    )
+
+    invalid = max(original - finite, 0)
+    if invalid:
+        lines.append(
+            (
+                f"Discarded {invalid:,} non-finite samples before plotting.",
+                False,
+            ),
+        )
+
+    if downsampled:
+        lines.append(
+            (
+                "Automatic thinning applied to satisfy MAX_CORNER_SAMPLES.",
+                False,
+            ),
+        )
+
+    if legacy:
+        lines.append(
+            (
+                "Legacy validator output detected; statistics inferred.",
+                False,
+            ),
+        )
+
+    return lines
+
+
 def build_footer_lines(
-    alt_model_plugin: Any, data_attrs: dict, timestamp: str | None = None
+    alt_model_plugin: Any,
+    data_attrs: dict,
+    timestamp: str | None = None,
+    *,
+    extra_lines: Iterable[tuple[str, bool]] | None = None,
 ) -> list[tuple[str, bool]]:
     """Return footer lines for a given dataset and model comparison.
 
@@ -305,7 +372,18 @@ def build_footer_lines(
         f"\u039bCDM vs {alt_model_plugin.MODEL_NAME} | Copernican Suite "
         f"{COPERNICAN_VERSION} | {timestamp or get_timestamp()}"
     )
-    return compose_footer(base_line, data_attrs)
+    composed = compose_footer(base_line, data_attrs)
+    if not extra_lines:
+        return composed
+
+    enriched: list[tuple[str, bool]] = []
+    if composed:
+        enriched.append(composed[0])
+        enriched.extend(extra_lines)
+        enriched.extend(composed[1:])
+        return enriched
+
+    return list(extra_lines)
 
 
 def _apply_common_style() -> None:
@@ -1573,19 +1651,21 @@ def plot_corner(
 
     _apply_common_style()
     font_sizes = {
-        "title": 20,
-        "label": 14,
-        "ticks": 10,
-        "footer": 10,
+        "title": 26,
+        "label": 18,
+        "ticks": 12,
+        "footer": 12,
     }
 
     # Each dimension receives its own row and column, mirroring the familiar
     # triangle plot layout popularised by corner.py while letting us reuse the
     # Copernican Suite's styling helpers and footers.
+    # A 4-inch panel keeps tick labels legible once exported to PNG or PDF.
+    panel_width = 4.0
     fig, axes = plt.subplots(
         n_params,
         n_params,
-        figsize=(3.0 * n_params, 3.0 * n_params),
+        figsize=(panel_width * n_params, panel_width * n_params),
     )
     if n_params == 1:
         axes = np.array([[axes]])
@@ -1638,8 +1718,8 @@ def plot_corner(
                     ax.scatter(
                         x,
                         y,
-                        s=2,
-                        alpha=0.2,
+                        s=6,
+                        alpha=0.25,
                         color="#4e79a7",
                     )
                 else:
@@ -1704,10 +1784,15 @@ def plot_corner(
         fontsize=font_sizes["title"],
     )
 
-    footer_lines = build_footer_lines(alt_model_plugin, attrs, timestamp)
-    line_height = 0.018
-    footer_bottom = 0.04 + len(footer_lines) * line_height
-    plt.subplots_adjust(bottom=footer_bottom, left=0.08, right=0.95, top=0.9)
+    footer_lines = build_footer_lines(
+        alt_model_plugin,
+        attrs,
+        timestamp,
+        extra_lines=_format_corner_footer_stats(stats),
+    )
+    line_height = 0.022
+    footer_bottom = 0.05 + len(footer_lines) * line_height
+    plt.subplots_adjust(bottom=footer_bottom, left=0.07, right=0.95, top=0.9)
 
     y = footer_bottom - line_height
     for idx, (line, is_bold) in enumerate(footer_lines):

@@ -120,6 +120,27 @@ def test_plot_corner_renders_expected_file(tmp_path) -> None:
     assert (tmp_path / expected_name).exists()
 
 
+def test_format_corner_footer_stats_reports_processing() -> None:
+    """Summaries should mention sample counts, stride and thinning."""
+
+    stats = {
+        "original_count": 1000,
+        "finite_count": 900,
+        "processed_count": 300,
+        "stride": 3,
+        "downsampled": True,
+        "legacy_validator": True,
+    }
+
+    lines = plotter._format_corner_footer_stats(stats)
+    rendered = [line for line, _ in lines]
+
+    assert any("300 samples used" in line for line in rendered)
+    assert any("stride 3" in line for line in rendered)
+    assert any("Automatic thinning" in line for line in rendered)
+    assert any("Legacy validator" in line for line in rendered)
+
+
 def test_plot_corner_downsamples_large_chains(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -156,6 +177,15 @@ def test_plot_corner_downsamples_large_chains(
         plotter, "_validate_corner_inputs", _recording_validator
     )
 
+    original_build_footer_lines = plotter.build_footer_lines
+    recorded: dict[str, Any] = {}
+
+    def _recording_footer(*args: Any, **kwargs: Any) -> list[tuple[str, bool]]:
+        recorded["extra"] = kwargs.get("extra_lines")
+        return original_build_footer_lines(*args, **kwargs)
+
+    monkeypatch.setattr(plotter, "build_footer_lines", _recording_footer)
+
     plotter.plot_corner(
         samples,
         _CornerPlugin,
@@ -167,6 +197,9 @@ def test_plot_corner_downsamples_large_chains(
     stats = captured["stats"]
     assert stats["downsampled"] is True
     assert stats["processed_count"] <= plotter.MAX_CORNER_SAMPLES
+    extra_lines = recorded["extra"]
+    assert extra_lines is not None
+    assert any("Corner plot generation" in line for line, _ in extra_lines)
 
 
 def test_plot_corner_handles_legacy_validator_signature(
