@@ -1,5 +1,5 @@
 **Version:** 7.3.2
-**Last Updated:** 2025-11-07
+**Last Updated:** 2025-11-08
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -582,12 +582,11 @@ The non-\LambdaCDM samples now demonstrate several design patterns:
   document different shrink-based expansion laws while keeping YAML easy to
   extend. These examples double as regression fixtures that should parse
   cleanly without hand-editing cached outputs.
-* `cosmo_model_qrsf.yml` introduces the Quantum Relational Scale Field theory,
-  detailing how a contracting relational scale attached to baryons reproduces
-  cold-matter inertia and late-time acceleration without a dark sector. The
-  expanded description explains the entanglement enhancement and relational
-  release mechanisms so new contributors can run QRSF without consulting
-  earlier USMF drafts.
+* `cosmo_model_qrsf.yml` now frames the Quantum Relational Scale Field as a
+  two-channel response to baryon-vacuum entanglement. A smooth high-to-low
+  redshift inertia transition preserves CMB and BAO support while a CPL-like
+  relational fluid captures late-time acceleration, letting newcomers work with
+  QRSF without digging through earlier drafts.
 
 **Common mistakes**
 * Missing `*` between variables and parentheses results in a `'Symbol' object

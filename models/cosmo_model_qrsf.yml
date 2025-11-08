@@ -1,49 +1,35 @@
-# Last Updated: 2025-11-07
+# Last Updated: 2025-11-08
 model_name: QRSF
-version: '1.0'
+version: '2.0'
 description: >-
   ### Quantum Relational Scale Field (QRSF)
 
-  The Quantum Relational Scale Field (QRSF) model reinterprets late-time
-  cosmic acceleration and the apparent need for dark matter as emergent
-  phenomena produced by a contracting relational scale carried by baryonic
-  matter. The observable expansion signal is encoded in the rate at which
-  atomic rulers and clocks lose entanglement with an inert universal affine
-  background. When the scale field S(t,ρ) is tightly coupled to the vacuum,
-  baryonic inertia is amplified and reproduces the cold-matter-like inertia
-  required by the cosmic microwave background and baryon acoustic oscillations
-  without invoking an unseen dark component. As structure formation progresses
-  and baryons decohere from the vacuum reservoir, the enhancement saturates and
-  gradually relaxes toward unity, allowing the background to appear to speed up
-  without a cosmological constant.
+  The Quantum Relational Scale Field model treats cosmic expansion as the
+  response of baryonic rulers and clocks to an entangled vacuum reservoir.
+  Baryons acquire additional inertial weight when they remain correlated with
+  the reservoir, while late-time decoherence releases stored relational energy
+  that pushes the universe into accelerated expansion. The framework keeps
+  early-universe physics intact by sourcing every correction from the baryon
+  and photon sectors rather than importing a particulate dark component.
 
-  QRSF tracks two linked processes. First, an entanglement enhancement sector
-  strengthens baryon inertia above a transition redshift z_star through a
-  saturating power law governed by ξ_run and n_run. Second, a relational release
-  sector captures how stored vacuum correlations reappear as a positive
-  effective pressure once contraction slows. The release activates through a
-  logistic window centered on z_rel with amplitude σ_rel and width Δ_rel,
-  driving apparent acceleration while conserving energy within the relational
-  picture. Both effects are defined entirely by baryonic and photonic inputs,
-  so the model retains standard early-universe physics and removes auxiliary
-  dark components.
-
-  The framework provides a pathway toward unification with quantum mechanics.
-  The scale field represents a coarse-grained phase of microscopic holonomies.
-  Its running parameters correspond to renormalisation-group coefficients that
-  track how entanglement entropy flows between the vacuum, bound structures and
-  observers. Laboratory measurements of dimensionless ratios, gravitational
-  lensing slips and redshift-drift signals probe the same field, offering
-  immediate experimental handles and a roadmap toward a theory in which gravity
-  and gauge interactions emerge from the relational phase spectrum.
+  Two ingredients control the expansion history. A scale-locking channel boosts
+  baryon inertia by a factor that transitions smoothly between a high-redshift
+  plateau and a low-redshift residual, ensuring the cosmic microwave background
+  and baryon acoustic oscillations see the matter support they require while
+  supernova distances follow a ΛCDM-like ladder today. A relational release
+  channel stores vacuum correlations as an effective fluid with a flexible
+  equation of state, letting the model emulate dark-energy behaviour without
+  abandoning its quantum-relational origin. Both channels share the same
+  microscopic motivation: the entanglement phase of baryons with the vacuum
+  reservoir evolves with redshift, and observables measure how that evolution
+  reshapes inertia and pressure.
 abstract: >-
-  Quantum Relational Scale Field cosmology replaces dark matter and dark energy
-  with a contracting relational scale carried by baryons. A high-redshift
-  entanglement enhancement reproduces cold-matter inertia, while a logistic
-  release of stored correlations generates late-time acceleration. Both
-  processes derive from the same holonomy-based quantum reservoir, matching
-  early-universe observations and linking cosmic dynamics to quantum
-  information flow.
+  Quantum Relational Scale Field cosmology links baryonic entanglement with the
+  vacuum to cosmic acceleration. A smooth transition between high- and low-
+  redshift inertia plateaus supplies the matter support demanded by BAO and CMB
+  data. A relational fluid with a tunable equation of state captures late-time
+  acceleration. The construction keeps early-universe physics intact and
+  frames cosmic dynamics as a response to changing vacuum correlations.
 parameters:
   - name: Hubble scale today
     bounds: [50.0, 100.0]
@@ -85,95 +71,130 @@ parameters:
       type: uniform
       lower: 900.0
       upper: 1200.0
-  - name: Entanglement enhancement
-    bounds: [0.0, 8.0]
+  - name: High-redshift entanglement boost
+    bounds: [0.0, 10.0]
     unit: ''
-    latex_name: \xi_{\rm run}
-    python_var: xi_run
-    definition: High-redshift boost of baryon inertia from entanglement.
+    latex_name: \xi_{\rm hi}
+    python_var: xi_high
+    definition: Plateau value of the baryon inertia enhancement at early times.
     prior:
       type: uniform
       lower: 0.0
-      upper: 8.0
-  - name: Running slope
-    bounds: [0.5, 5.0]
+      upper: 10.0
+  - name: Low-redshift entanglement residual
+    bounds: [0.0, 5.0]
     unit: ''
-    latex_name: n_{\rm run}
-    python_var: n_run
-    definition: Controls how quickly the enhancement saturates with redshift.
+    latex_name: \xi_{\rm lo}
+    python_var: xi_low
+    definition: Residual baryon inertia enhancement measured today.
     prior:
       type: uniform
-      lower: 0.5
+      lower: 0.0
       upper: 5.0
-  - name: Transition redshift
+  - name: Entanglement transition redshift
     bounds: [0.3, 20.0]
     unit: ''
-    latex_name: z_\star
-    python_var: z_star
-    definition: Redshift pivot where the entanglement enhancement approaches its plateau.
+    latex_name: z_{\rm trans}
+    python_var: z_trans
+    definition: Redshift where the inertia enhancement shifts between plateaus.
     prior:
       type: uniform
       lower: 0.3
       upper: 20.0
-  - name: Relational release amplitude
-    bounds: [0.0, 1.5]
+  - name: Entanglement transition slope
+    bounds: [1.0, 8.0]
     unit: ''
-    latex_name: \sigma_{\rm rel}
-    python_var: sigma_rel
-    definition: Strength of the late-time relational pressure release.
+    latex_name: n_{\rm trans}
+    python_var: n_trans
+    definition: Controls how quickly the enhancement crosses plateaus.
+    prior:
+      type: uniform
+      lower: 1.0
+      upper: 8.0
+  - name: Relational density today
+    bounds: [0.0, 1.2]
+    unit: ''
+    latex_name: \Omega_{\rm rel0}
+    python_var: Omega_rel0
+    definition: Present-day energy density of the relational release fluid.
     prior:
       type: uniform
       lower: 0.0
-      upper: 1.5
-  - name: Release midpoint redshift
-    bounds: [0.0, 3.0]
+      upper: 1.2
+  - name: Relational equation-of-state today
+    bounds: [-2.0, -0.1]
     unit: ''
-    latex_name: z_{\rm rel}
-    python_var: z_rel
-    definition: Logistic midpoint for the relational release activation.
+    latex_name: w_{\rm rel0}
+    python_var: w_rel0
+    definition: Equation-of-state parameter of the relational fluid at z=0.
     prior:
       type: uniform
-      lower: 0.0
-      upper: 3.0
-  - name: Release width
-    bounds: [0.1, 2.0]
+      lower: -2.0
+      upper: -0.1
+  - name: Relational evolution slope
+    bounds: [-2.0, 2.0]
     unit: ''
-    latex_name: \Delta_{\rm rel}
-    python_var: delta_rel
-    definition: Controls how sharply the release term turns on.
+    latex_name: w_{\rm rel,a}
+    python_var: w_rel_a
+    definition: CPL-like slope for the relational equation-of-state drift.
     prior:
       type: uniform
-      lower: 0.1
+      lower: -2.0
       upper: 2.0
+  - name: Speed of light
+    bounds: [299792.458, 299792.458]
+    unit: km/s
+    latex_name: c
+    python_var: c_light
+    definition: Fixed speed of light for distance and sound-horizon integrals.
+    prior:
+      type: fixed
+      value: 299792.458
 Hz_expression: >-
   H(z) = H_star * sqrt(
     Omega_b * (1 + z)**3 * (
-      1 + xi_run * ((1 + z)/(1 + z_star))**n_run
-          / (1 + ((1 + z)/(1 + z_star))**n_run)
+      1 + xi_low
+      + (xi_high - xi_low) * (
+        ((1 + z)/(1 + z_trans))**n_trans
+        / (1 + ((1 + z)/(1 + z_trans))**n_trans)
+      )
     )
     + Omega_gamma * (1 + z)**4
-    + sigma_rel / (1 + exp((z - z_rel)/delta_rel))
+    + Omega_rel0 * (1 + z)**(3 * (1 + w_rel0 + w_rel_a))
+        * exp(-3 * w_rel_a * z / (1 + z))
   )
 equations:
   sne:
-    - d_L(z) = (1+z) * Integral(299792.458 / H(zp), (zp, 0, z))
+    - d_L(z) = (1 + z) * Integral(c_light / H(zp), (zp, 0, z))
     - mu(z) = 5 * log10(d_L(z)) + 25
   bao:
-    - D_M(z) = Integral(299792.458 / H(zp), (zp, 0, z))
-    - D_H(z) = 299792.458 / H(z)
+    - D_M(z) = Integral(c_light / H(zp), (zp, 0, z))
+    - D_H(z) = c_light / H(z)
     - D_V(z) = (D_M(z)**2 * D_H(z))**(1/3)
 rs_expression: >-
   r_s = Integral(
-    299792.458 / sqrt(
-      3 * (1 + 3 * Omega_b / (4 * Omega_gamma) / (1 + z))
+    c_light / sqrt(
+      3 * (
+        1 + 3 * Omega_b * (
+          1 + xi_low
+          + (xi_high - xi_low) * (
+            ((1 + z)/(1 + z_trans))**n_trans
+            / (1 + ((1 + z)/(1 + z_trans))**n_trans)
+          )
+        ) / (4 * Omega_gamma * (1 + z))
+      )
     ) / (
       H_star * sqrt(
         Omega_b * (1 + z)**3 * (
-          1 + xi_run * ((1 + z)/(1 + z_star))**n_run
-              / (1 + ((1 + z)/(1 + z_star))**n_run)
+          1 + xi_low
+          + (xi_high - xi_low) * (
+            ((1 + z)/(1 + z_trans))**n_trans
+            / (1 + ((1 + z)/(1 + z_trans))**n_trans)
+          )
         )
         + Omega_gamma * (1 + z)**4
-        + sigma_rel / (1 + exp((z - z_rel)/delta_rel))
+        + Omega_rel0 * (1 + z)**(3 * (1 + w_rel0 + w_rel_a))
+            * exp(-3 * w_rel_a * z / (1 + z))
       )
     ), (z, z_rec, oo)
   )
@@ -184,7 +205,7 @@ cmb:
   param_map:
     H0: H_star
     ombh2: Omega_b * (H_star/100)**2
-    omch2: Omega_b * xi_run * (H_star/100)**2
+    omch2: Omega_b * xi_high * (H_star/100)**2
     omnuh2: Omega_gamma * (H_star/100)**2
     tau: 0.054
     As: 2.1e-09
@@ -193,10 +214,11 @@ cmb:
     num_massive_neutrinos: 3
     sum_mnu: 0.06
 notes: >-
-  Both the entanglement enhancement and the relational release go to zero for
-  z >> z_star and z >> z_rel respectively, so the early universe matches the
-  baryon+photon limit. CAMB receives an effective omch2 sourced by the same
-  entanglement term; interpret it as geometric inertia, not particulate dark
-  matter.
+  The entanglement enhancement saturates to xi_high at early times and relaxes
+  toward xi_low today, so CMB-era inertia matches a cold-matter analogue while
+  late-time distances preserve Supernova calibration. The relational release
+  fluid behaves like a CPL parameterisation with density Omega_rel0 and slopes
+  w_rel0, w_rel_a. Interpret the CAMB cold-dark-matter density as geometric
+  inertia arising from the entanglement channel rather than particulate matter.
 title: Quantum Relational Scale Field Cosmology
-date: '2025-11-07'
+date: '2025-11-08'
