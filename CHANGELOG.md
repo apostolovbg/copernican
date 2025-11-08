@@ -33,6 +33,8 @@ suffixes. Follow this template:
   `cosmo_model_lcdm.yml` is mandatory and formalised the policy of bumping
   internal model versions independently of the Copernican release (OpenAI
   ChatGPT)
+- 2025-11-08: Re-encoded the QRSFv2 CAMB baryon-density mapping as a folded
+  scalar so YAML parsers load the model without syntax errors (OpenAI ChatGPT)
 
 ## Version 7.4.4
 - 2025-11-08: Converted the `_validate_corner_inputs` alias into a documented

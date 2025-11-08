@@ -522,11 +522,12 @@ valid_for_cmb: true
 cmb:
   param_map:
     H0: H_star
-    ombh2: Omega_b * (
-      1
-      + A_coh * exp(-((z_rec - z_coh)**2) / (2 * sigma_coh**2))
-      + eta_tail * ((1 + z_coh)/(1 + z_rec))**nu_tail
-    ) * (H_star/100)**2
+    ombh2: >-
+      Omega_b * (
+        1
+        + A_coh * exp(-((z_rec - z_coh)**2) / (2 * sigma_coh**2))
+        + eta_tail * ((1 + z_coh)/(1 + z_rec))**nu_tail
+      ) * (H_star/100)**2
     omch2: 0.0
     omnuh2: 0.000645
     tau: 0.054
