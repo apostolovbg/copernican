@@ -37,6 +37,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 import random
 from pathlib import Path
+from typing import Any
 
 from copernican_lib import console_output as console
 from copernican_lib import run_manifest
@@ -1756,6 +1757,55 @@ def main_workflow():
                 plot_dir=OUTPUT_DIR,
                 timestamp=end_ts,
             )
+
+        posterior_attrs = {
+            "dataset_id": (
+                f"{sne_data_df.attrs.get('dataset_id', 'joint')}-posterior"
+            ),
+            "dataset_name": (
+                f"{sne_data_df.attrs.get('dataset_name', 'Joint dataset')} "
+                "Posterior Samples"
+            ),
+            "description": (
+                "Stage 2 corner plot summarising the joint posterior derived "
+                "from the combined SNe, BAO and CMB likelihood evaluation."
+            ),
+            "citation": sne_data_df.attrs.get("citation", ""),
+            "notes": sne_data_df.attrs.get("notes", ""),
+        }
+
+        def _maybe_plot_corner(
+            fit_results: Mapping[str, Any],
+            plugin: Any,
+            label: str,
+        ) -> None:
+            """Render a corner plot for ``fit_results`` when samples exist."""
+
+            samples = fit_results.get("samples") if fit_results else None
+            if samples is None:
+                return
+            param_names = fit_results.get("param_names") if fit_results else None
+            try:
+                plotter.plot_corner(
+                    samples,
+                    plugin,
+                    posterior_attrs,
+                    plot_dir=OUTPUT_DIR,
+                    parameter_names=param_names,
+                    timestamp=end_ts,
+                )
+            except Exception as exc:  # pragma: no cover - log path only
+                logger.error(
+                    "Failed to generate %s corner plot: %s",
+                    label,
+                    exc,
+                )
+
+        _maybe_plot_corner(
+            alt_model_fit_results,
+            alt_model_plugin,
+            alt_model_plugin.MODEL_NAME,
+        )
 
         console.write("\n--- Theory Abstracts ---\n")
         console.write(f"ΛCDM Abstract:\n{lcdm.MODEL_ABSTRACT}\n")

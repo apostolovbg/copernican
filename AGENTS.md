@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-07
+**Last Updated:** 2025-11-08
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -32,6 +32,11 @@ non-parser files in each dataset directory and store these hashes on the
 returned DataFrames. The manifest copies this mapping verbatim. Parsers
 must register under the `dataset_id` stated in their metadata so the
 loaders can locate them directly without discovery.
+
+Stage 5 now tolerates legacy corner-plot validators that only return
+flattened samples and labels. Custom tooling should adopt the newer
+three-value signature so thinning statistics remain explicit, but the
+fallback keeps archival plugins functional while developers migrate.
 
 A ``COPERNICAN_SEED`` environment variable overrides the interactive seed
 prompt.  When unset, the program asks users to accept the default ``0``, enter
