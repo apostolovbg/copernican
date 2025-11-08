@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.4.3
+- 2025-11-08: Renamed the Stage 5 sampler helper to `_prepare_corner_inputs`
+  while retaining `_validate_corner_inputs` as a compatibility alias so
+  downstream tooling keeps importing the legacy name without tripping lints.
+  Updated the regression tests, refreshed repository documentation and bumped
+  recorded metadata to 7.4.3 (OpenAI ChatGPT)
+
 ## Version 7.4.2
 - 2025-11-08: Restored compatibility with legacy corner-plot validators that
   still return only samples and labels by deriving thinning statistics inside

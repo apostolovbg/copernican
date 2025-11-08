@@ -136,7 +136,7 @@ def test_plot_corner_downsamples_large_chains(
     }
 
     captured: dict[str, Any] = {}
-    original_validator = plotter._validate_corner_inputs
+    original_validator = plotter._prepare_corner_inputs
 
     def _recording_validator(
         posterior_samples: np.ndarray, parameter_names: list[str]
@@ -149,6 +149,9 @@ def test_plot_corner_downsamples_large_chains(
         return processed, labels, stats
 
     monkeypatch.setattr(plotter, "MAX_CORNER_SAMPLES", 50)
+    monkeypatch.setattr(
+        plotter, "_prepare_corner_inputs", _recording_validator
+    )
     monkeypatch.setattr(
         plotter, "_validate_corner_inputs", _recording_validator
     )
@@ -191,6 +194,7 @@ def test_plot_corner_handles_legacy_validator_signature(
         )
         return flattened, parameter_names[: flattened.shape[1]]
 
+    monkeypatch.setattr(plotter, "_prepare_corner_inputs", _legacy_validator)
     monkeypatch.setattr(plotter, "_validate_corner_inputs", _legacy_validator)
 
     with caplog.at_level("INFO"):

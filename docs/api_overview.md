@@ -23,8 +23,10 @@ modules are:
   render the Stage 2 posterior as an automatically thinned corner plot with
   the suite's standard footer styling. Stage 5 now calls this helper after the
   probe-specific figures so every run records the sampler geometry alongside
-  Hubble, BAO and CMB outputs. Legacy validators that still return only samples
-  and labels are summarised automatically so plots render while helpers update.
+  Hubble, BAO and CMB outputs. The underlying `_prepare_corner_inputs`
+  validator flattens samples, derives thinning statistics and continues to be
+  reachable through the legacy `_validate_corner_inputs` alias so older tools
+  import the familiar name without modification.
 - `copernican_lib.posterior` – exposes
   :func:`copernican_lib.posterior.make_logposterior`, which now returns a
   picklable :class:`PosteriorEvaluator` combining priors, transforms and

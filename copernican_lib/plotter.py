@@ -27,7 +27,11 @@ from .utils import ensure_dir_exists, generate_filename, get_timestamp
 MAX_CORNER_SAMPLES = 100_000
 
 
-def _validate_corner_inputs(
+# NOTE: ``_prepare_corner_inputs`` used to be spelled
+# ``_validate_corner_inputs``.  The new name emphasises that the helper both
+# validates and flattens the raw sampler output.  A backwards-compatibility
+# alias keeps Stage 5 imports functional for older automation.
+def _prepare_corner_inputs(
     posterior_samples: np.ndarray,
     parameter_names: list[str],
 ) -> tuple[np.ndarray, list[str], dict[str, int | bool]]:
@@ -94,6 +98,15 @@ def _validate_corner_inputs(
 
     stats["downsampled"] = stats["processed_count"] < stats["finite_count"]
     return clean_samples, parameter_names[:n_params], stats
+
+
+# Backwards compatibility --------------------------------------------------
+#
+# Stage 5 previously imported ``_validate_corner_inputs`` directly, so the new
+# helper keeps that public spelling available.  The alias is defined after the
+# implementation so static analysers trace the canonical definition while CI
+# environments that still reference the historic name continue to operate.
+_validate_corner_inputs = _prepare_corner_inputs
 
 
 def _density_levels(
@@ -1552,14 +1565,14 @@ def plot_corner(
     )
     effective_names = parameter_names or default_names
 
-    validated = _validate_corner_inputs(
+    validated = _prepare_corner_inputs(
         posterior_samples,
         effective_names,
     )
 
     if not isinstance(validated, tuple):
         raise TypeError(
-            "_validate_corner_inputs must return a tuple of outputs",
+            "_prepare_corner_inputs must return a tuple of outputs",
         )
 
     if len(validated) == 3:
@@ -1576,7 +1589,7 @@ def plot_corner(
         }
     else:
         raise ValueError(
-            "_validate_corner_inputs returned an unexpected number of values",
+            "_prepare_corner_inputs returned an unexpected number of values",
         )
 
     # The legacy flag differentiates modern validators from fallback paths so
@@ -1586,7 +1599,7 @@ def plot_corner(
 
     if stats.get("legacy_validator", False):
         logger.info(
-            "_validate_corner_inputs returned the legacy two-value signature; "
+            "_prepare_corner_inputs returned the legacy two-value signature; "
             "derived summary statistics from the flattened samples",
         )
 

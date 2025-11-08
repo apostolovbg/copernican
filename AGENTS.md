@@ -36,7 +36,9 @@ loaders can locate them directly without discovery.
 Stage 5 now tolerates legacy corner-plot validators that only return
 flattened samples and labels. Custom tooling should adopt the newer
 three-value signature so thinning statistics remain explicit, but the
-fallback keeps archival plugins functional while developers migrate.
+fallback keeps archival plugins functional while developers migrate. Version
+7.4.3 renames the canonical helper to ``_prepare_corner_inputs`` while keeping
+``_validate_corner_inputs`` as a compatibility alias.
 
 A ``COPERNICAN_SEED`` environment variable overrides the interactive seed
 prompt.  When unset, the program asks users to accept the default ``0``, enter
