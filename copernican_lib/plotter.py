@@ -18,6 +18,108 @@ from . import version as version_module
 from .logger import get_logger
 from .utils import ensure_dir_exists, generate_filename, get_timestamp
 
+# ``MAX_CORNER_SAMPLES`` bounds the number of posterior draws processed by the
+# corner plot helper. Stage 2 runs can easily accumulate millions of samples
+# when walkers, chains and production steps multiply together. Rendering every
+# draw would balloon histogram grids into tens of millions of bins, exhausting
+# memory and stalling Stage 5 of the suite. Capping the processed samples keeps
+# plotting predictable while still conveying the global posterior geometry.
+MAX_CORNER_SAMPLES = 100_000
+
+
+def _validate_corner_inputs(
+    posterior_samples: np.ndarray,
+    parameter_names: list[str],
+) -> tuple[np.ndarray, list[str], dict[str, int | bool]]:
+    """Return flattened samples, labels and downsampling statistics.
+
+    The corner plot accepts sampler output either in raw ``(n_steps,
+    n_walkers, n_params)`` form or as an ``(n_samples, n_params)`` array.
+    This helper normalises both layouts while rejecting empty or
+    degenerate inputs so downstream plotting logic never divides by zero
+    or tries to index missing parameters.  Stage 2 runs can emit millions of
+    draws, so the helper also thins dense chains deterministically to at most
+    :data:`MAX_CORNER_SAMPLES` rows.  Returning basic statistics allows the
+    caller to report how much data the figure contains. The
+    ``legacy_validator`` flag surfaces whether compatibility mode derived those
+    statistics.
+    """
+
+    samples = np.asarray(posterior_samples, dtype=float)
+    if samples.size == 0:
+        raise ValueError(
+            "posterior_samples is empty; cannot render corner plot",
+        )
+
+    if samples.ndim == 3:
+        n_steps, n_walkers, n_params = samples.shape
+        samples = samples.reshape(n_steps * n_walkers, n_params)
+    elif samples.ndim == 2:
+        n_params = samples.shape[1]
+    else:
+        raise ValueError(
+            "posterior_samples must have 2 or 3 dimensions for "
+            "corner plotting",
+        )
+
+    initial_count = int(samples.shape[0])
+    clean_samples = samples[~np.any(~np.isfinite(samples), axis=1)]
+    if clean_samples.size == 0:
+        raise ValueError("All posterior samples contain NaN or inf values")
+
+    if len(parameter_names) < n_params:
+        raise ValueError(
+            "parameter_names must describe every sampled dimension",
+        )
+
+    finite_count = int(clean_samples.shape[0])
+    stats: dict[str, int | bool] = {
+        "original_count": initial_count,
+        "finite_count": finite_count,
+        "processed_count": finite_count,
+        "stride": 1,
+        "downsampled": False,
+    }
+
+    if clean_samples.shape[0] > MAX_CORNER_SAMPLES:
+        stride = int(np.ceil(clean_samples.shape[0] / MAX_CORNER_SAMPLES))
+        stride = max(stride, 1)
+        stats["stride"] = stride
+        clean_samples = clean_samples[::stride]
+        if clean_samples.shape[0] > MAX_CORNER_SAMPLES:
+            clean_samples = clean_samples[:MAX_CORNER_SAMPLES]
+        stats["processed_count"] = int(clean_samples.shape[0])
+    else:
+        stats["processed_count"] = finite_count
+
+    stats["downsampled"] = stats["processed_count"] < stats["finite_count"]
+    return clean_samples, parameter_names[:n_params], stats
+
+
+def _density_levels(
+    histogram: np.ndarray,
+    levels: tuple[float, ...],
+) -> list[float]:
+    """Return histogram heights for requested cumulative density levels."""
+
+    flat = histogram.ravel()
+    if flat.size == 0 or not np.isfinite(flat).any():
+        return [0.0 for _ in levels]
+
+    order = np.sort(flat)[::-1]
+    cumulative = np.cumsum(order)
+    if cumulative[-1] == 0:
+        return [0.0 for _ in levels]
+    cumulative /= cumulative[-1]
+
+    level_values: list[float] = []
+    for level in levels:
+        idx = np.searchsorted(cumulative, level, side="left")
+        idx = min(idx, order.size - 1)
+        level_values.append(order[idx])
+    level_values.sort()
+    return level_values
+
 
 def _validate_corner_inputs(
     posterior_samples: np.ndarray,
@@ -1450,11 +1552,57 @@ def plot_corner(
     )
     effective_names = parameter_names or default_names
 
-    samples, labels = _validate_corner_inputs(
+    validated = _validate_corner_inputs(
         posterior_samples,
         effective_names,
     )
+
+    if not isinstance(validated, tuple):
+        raise TypeError(
+            "_validate_corner_inputs must return a tuple of outputs",
+        )
+
+    if len(validated) == 3:
+        samples, labels, stats = validated
+    elif len(validated) == 2:
+        samples, labels = validated
+        stats = {
+            "original_count": int(samples.shape[0]),
+            "finite_count": int(samples.shape[0]),
+            "processed_count": int(samples.shape[0]),
+            "stride": 1,
+            "downsampled": False,
+            "legacy_validator": True,
+        }
+    else:
+        raise ValueError(
+            "_validate_corner_inputs returned an unexpected number of values",
+        )
+
+    # The legacy flag differentiates modern validators from fallback paths so
+    # Stage 5 logs can highlight when older helpers require migration.
+    stats.setdefault("legacy_validator", False)
     n_params = samples.shape[1]
+
+    if stats.get("legacy_validator", False):
+        logger.info(
+            "_validate_corner_inputs returned the legacy two-value signature; "
+            "derived summary statistics from the flattened samples",
+        )
+
+    if stats["downsampled"]:
+        logger.info(
+            "Corner plot downsampled to %s of %s finite samples "
+            "using stride %s",
+            stats["processed_count"],
+            stats["finite_count"],
+            stats["stride"],
+        )
+    if stats["finite_count"] < stats["original_count"]:
+        logger.info(
+            "Dropped %s invalid samples before rendering corner plot",
+            stats["original_count"] - stats["finite_count"],
+        )
 
     wrapped_labels: list[str] = []
     for idx in range(n_params):

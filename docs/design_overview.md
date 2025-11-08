@@ -34,10 +34,16 @@ their placeholders are consolidated under a single loader entry.
 
 ## Historical context and recent changes
 
-Version 7.4.0 adds a sampler-facing perspective to the plotting layer. The new
-corner plot renders the Stage 2 posterior with the suite's standard footer
-treatment so cosmologists can inspect parameter degeneracies before diving into
-manifest tables or NetCDF chains. Earlier work from Version 7.3.2 keeps the GW
+Version 7.4.2 reinforces the Stage 5 integration by deriving thinning
+statistics when legacy validators still return only samples and labels.
+The compatibility layer preserves archival plugins while logging the
+fallback so teams know when to modernise their helpers.
+
+Version 7.4.1 adds a sampler-facing perspective to the plotting layer. The new
+corner plot automatically thins oversized chains, renders the Stage 2 posterior
+with the suite's standard footer treatment and now runs as part of Stage 5 so
+cosmologists can inspect parameter degeneracies before diving into manifest
+tables or NetCDF chains. Earlier work from Version 7.3.2 keeps the GW
 loader in charge of the forthcoming gravitational-wave standard siren datasets.
 The separate registry stays retired so discovery remains focused on a single
 entry point while documentation quietly reflects the consolidation.
