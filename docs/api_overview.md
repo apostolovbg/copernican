@@ -1,6 +1,6 @@
 # Copernican Suite API Overview
 
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-08
 
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be
@@ -18,6 +18,15 @@ modules are:
   validation helpers. Import `REQUIRED_ATTRIBUTES` and `REQUIRED_FUNCTIONS`
   from here when building custom tooling that needs to confirm interface
   compliance.
+- `copernican_lib.plotter.plot_corner(samples, plugin, data_attrs,
+  plot_dir)` –
+  render the Stage 2 posterior as an automatically thinned corner plot with
+  the suite's standard footer styling. Stage 5 now calls this helper after the
+  probe-specific figures so every run records the sampler geometry alongside
+  Hubble, BAO and CMB outputs. The underlying `_prepare_corner_inputs`
+  validator flattens samples, derives thinning statistics and remains reachable
+  through the legacy `_validate_corner_inputs` wrapper so older tools import
+  the familiar name without modification while lint hooks stay satisfied.
 - `copernican_lib.posterior` – exposes
   :func:`copernican_lib.posterior.make_logposterior`, which now returns a
   picklable :class:`PosteriorEvaluator` combining priors, transforms and
@@ -139,8 +148,9 @@ relying on the command-line wrapper.
 The :mod:`result_writer` helper stores parameter estimates after optimisation
 or sampling.  Files named ``parameter-summary_<timestamp>.json`` and ``.yml``
 are created in the current run directory.  Each model entry contains
-``parameters``, ``errors_1sigma`` and ``covariance_matrix`` with ``param_names``
-and a numeric matrix.  When results originate from the MCMC engine the
+``parameters``, ``errors_1sigma`` and ``covariance_matrix`` with
+``param_names`` and a numeric matrix.  When results originate from the MCMC
+engine the
 summary also records the burn-in length, production steps, posterior means,
 log-probability arrays and the chi-squared value associated with the maximum
 posterior sample.  The data is fully serialisable so external analysis tools
