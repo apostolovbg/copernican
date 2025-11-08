@@ -585,11 +585,14 @@ The non-\LambdaCDM samples now demonstrate several design patterns:
   document different shrink-based expansion laws while keeping YAML easy to
   extend. These examples double as regression fixtures that should parse
   cleanly without hand-editing cached outputs.
-* `cosmo_model_qrsf.yml` now frames the Quantum Relational Scale Field as a
-  two-channel response to baryon-vacuum entanglement. A smooth high-to-low
-  redshift inertia transition preserves CMB and BAO support while a CPL-like
-  relational fluid captures late-time acceleration, letting newcomers work with
-  QRSF without digging through earlier drafts.
+* `cosmo_model_qrsf.yml` locks in the dual-channel Quantum Relational Scale
+  Field revision with its internal version raised to 2.0 so archival analyses
+  remain reproducible without inventing new particles.
+* `cosmo_model_qrsfv2.yml` builds on that foundation with the Quantum
+  Relational Synthesis Field v2 coherence kernel. The baryonic inertia
+  renormalisation now removes the dark sector entirely, ties the dynamics to
+  open-quantum-system physics and reduces the free-parameter count while
+  targeting BAO, CMB and supernova χ² improvements simultaneously.
 
 **Common mistakes**
 * Missing `*` between variables and parentheses results in a `'Symbol' object
@@ -617,6 +620,15 @@ evaluated with SciPy. Use `\infty` for an infinite upper bound and avoid
 referencing `H(z)` inside other expressions—repeat the formula instead.
 The suite validates the YAML, stores a sanitized copy under `models/cache/` as
 YAML, and auto-generates the necessary Python functions.
+
+Every model description now serves as the definitive manuscript for the theory.
+Write at least ten pages of context, derivations, observational strategy and
+falsifiability guidance in the `description` block so a reviewer can reproduce
+the science without leaving the YAML file. When a human or AI contributor
+updates an existing model, increment the model's internal `version` string even
+if the Copernican release number remains unchanged. Only
+`models/cosmo_model_lcdm.yml` is mandatory for the suite; the remaining models
+are exemplars that may evolve or be replaced as their theory texts mature.
 
 Initial guesses are derived automatically from each parameter's bounds.
 ### YAML Schema
@@ -653,7 +665,7 @@ cmb:
     ns: 0.965
 gravitational_waves: {}
 abstract: short overview text
-description: longer explanation
+  description: manuscript-length theory exposition (≥10 pages of detail)
 notes: any additional remarks
 ```
 When a `cmb.param_map` object is provided, the mapping is stored on the plugin
