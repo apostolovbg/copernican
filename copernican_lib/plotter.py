@@ -134,6 +134,73 @@ def _density_levels(
     return level_values
 
 
+def _validate_corner_inputs(
+    posterior_samples: np.ndarray,
+    parameter_names: list[str],
+) -> tuple[np.ndarray, list[str]]:
+    """Return flattened samples and validated parameter labels.
+
+    The corner plot accepts sampler output either in raw ``(n_steps,
+    n_walkers, n_params)`` form or as an ``(n_samples, n_params)`` array.
+    This helper normalises both layouts while rejecting empty or
+    degenerate inputs so downstream plotting logic never divides by zero
+    or tries to index missing parameters.
+    """
+
+    samples = np.asarray(posterior_samples, dtype=float)
+    if samples.size == 0:
+        raise ValueError(
+            "posterior_samples is empty; cannot render corner plot",
+        )
+
+    if samples.ndim == 3:
+        n_steps, n_walkers, n_params = samples.shape
+        samples = samples.reshape(n_steps * n_walkers, n_params)
+    elif samples.ndim == 2:
+        n_params = samples.shape[1]
+    else:
+        raise ValueError(
+            "posterior_samples must have 2 or 3 dimensions for "
+            "corner plotting",
+        )
+
+    clean_samples = samples[~np.any(~np.isfinite(samples), axis=1)]
+    if clean_samples.size == 0:
+        raise ValueError("All posterior samples contain NaN or inf values")
+
+    if len(parameter_names) < n_params:
+        raise ValueError(
+            "parameter_names must describe every sampled dimension",
+        )
+
+    return clean_samples, parameter_names[:n_params]
+
+
+def _density_levels(
+    histogram: np.ndarray,
+    levels: tuple[float, ...],
+) -> list[float]:
+    """Return histogram heights for requested cumulative density levels."""
+
+    flat = histogram.ravel()
+    if flat.size == 0 or not np.isfinite(flat).any():
+        return [0.0 for _ in levels]
+
+    order = np.sort(flat)[::-1]
+    cumulative = np.cumsum(order)
+    if cumulative[-1] == 0:
+        return [0.0 for _ in levels]
+    cumulative /= cumulative[-1]
+
+    level_values: list[float] = []
+    for level in levels:
+        idx = np.searchsorted(cumulative, level, side="left")
+        idx = min(idx, order.size - 1)
+        level_values.append(order[idx])
+    level_values.sort()
+    return level_values
+
+
 def _copernican_version() -> str:
     """Return the suite version while tolerating missing helpers.
 
