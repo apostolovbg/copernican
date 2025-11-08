@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.4.5
+- 2025-11-08: Enlarged the Stage 5 corner plot panels, increased font sizes and
+  added footer summaries describing sample filtering, thinning stride and
+  legacy fallbacks so posterior figures remain readable while preserving
+  compatibility. Updated regression tests, documentation references and bumped
+  recorded metadata to 7.4.5 (OpenAI ChatGPT)
+
 ## Version 7.4.4
 - 2025-11-08: Converted the `_validate_corner_inputs` alias into a documented
   wrapper around `_prepare_corner_inputs` so Stage 5 keeps the legacy import
