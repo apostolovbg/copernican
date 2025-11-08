@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-11-08
+**Last Updated:** 2025-11-07
 
 This document expands on the high-level summary in the README by tracing how
 the Copernican Suite organises its architecture.  The command-line launcher
@@ -38,13 +38,6 @@ Version 7.3.2 streamlines placeholder management by letting the GW loader own
 the forthcoming gravitational-wave standard siren datasets.  Retiring the
 separate siren registry keeps discovery focused on a single entry point while
 documentation quietly reflects the consolidation.
-
-The same release refreshes the Quantum Relational Scale Field background.
-Entanglement dressing now combines a logistic plateau with a low-redshift floor
-so BAO distances and SNe Ia ladders stay compatible, while the relational
-release term injects acceleration through the same H(z) expression used for CMB
-and sound-horizon calculations. Declaring the speed of light as a fixed
-parameter ensures the YAML equations render cleanly across the suite.
 
 Version 7.3.1 refreshes the interactive prompts that guard Stage 2.  The custom
 sampler questionnaire now closes with a numbered confirmation menu that spells
