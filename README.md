@@ -1,4 +1,4 @@
-**Version:** 7.3.2
+**Version:** 7.4.1
 **Last Updated:** 2025-11-08
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -16,7 +16,10 @@ The suite is organised around a handful of focused components:
   dataset selection, model pairing and engine configuration.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
-  keep every engine and plugin consistent.
+  keep every engine and plugin consistent. Version 7.4.1 extends the plotting
+  layer with a built-in, automatically downsampled corner plot so Stage 2
+  sampler diagnostics and posterior geometry live alongside the existing
+  probe-specific visuals without stalling long chains.
 * `engines/` collects computational back ends. The default
   ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
   convergence checks, while the plugin protocol keeps room for additional
