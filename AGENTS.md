@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-07
+**Last Updated:** 2025-11-08
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -257,6 +257,9 @@ Models that advertise BAO support must now declare an explicit
 double-counted photon densities whenever the model's ``H(z)`` already included
 radiation terms. Tests must cover every new integral to confirm the provided
 sound horizon matches the declared background dynamics.
+Declare physical constants, such as the speed of light, as ``type: fixed``
+parameters instead of numeric literals so rendered expressions remain compact
+and editable across the suite.
 
 ### 4.2 Dataset compatibility flags
 
