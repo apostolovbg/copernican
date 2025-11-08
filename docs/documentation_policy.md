@@ -1,5 +1,5 @@
 # Documentation Policy
-**Last Updated:** 2025-10-31
+**Last Updated:** 2025-11-08
 **Version:** 1.0
 
 The Copernican Suite treats documentation as a first-class component of the
@@ -23,6 +23,11 @@ more than fix typos.
 - Call out sampler stability updates (for example walker reseeding to remove
   emcee warnings) so run logs and archived outputs stay interpretable for
   researchers auditing LCDM self-tests.
+- Treat every model `description` block as a manuscript-length document.
+  Expand it to at least ten pages of theory, derivations and observational
+  context whenever a model changes, and bump the model's internal `version`
+  even if the suite version stays fixed. Only `cosmo_model_lcdm.yml` is
+  mandatory; all other models evolve as their documentation grows.
 
 Adhering to this policy keeps the suite's knowledge base accurate and protects
 our intellectual property by clearly documenting provenance and intent.
