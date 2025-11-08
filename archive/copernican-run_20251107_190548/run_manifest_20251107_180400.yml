@@ -1,5 +1,5 @@
 copernican:
-  version: 7.2.9
+  version: 7.3.2
 models:
 - name: LambdaCDM
   version: '1.0'
@@ -25,62 +25,54 @@ models:
       type: uniform
       lower: 1000.0
       upper: 1200.0
-- name: USMFv2
-  version: '2.0'
-  filename: cosmo_model_usmf2.yml
+- name: QRSF
+  version: '1.0'
+  filename: cosmo_model_qrsf.yml
   priors:
-    H_A:
+    H_star:
       type: uniform
       lower: 50.0
       upper: 100.0
-    p_alpha:
-      type: uniform
-      lower: 0.1
-      upper: 1.5
-    k_exp:
-      type: uniform
-      lower: -2.0
-      upper: 2.0
-    s_exp:
-      type: uniform
-      lower: 0.5
-      upper: 2.0
-    t_0_age:
-      type: uniform
-      lower: 10.0
-      upper: 20.0
-    A_osc:
-      type: uniform
-      lower: 0.0
-      upper: 0.05
-    omega_osc:
-      type: uniform
-      lower: 0.1
-      upper: 10.0
-    t_i_osc:
-      type: uniform
-      lower: 1.0
-      upper: 20.0
-    phi_osc:
-      type: uniform
-      lower: -3.1416
-      upper: 3.1416
     Omega_b:
       type: uniform
       lower: 0.01
-      upper: 0.1
+      upper: 0.12
     Omega_gamma:
       type: uniform
       lower: 1.0e-05
-      upper: 0.0001
+      upper: 0.001
     z_rec:
       type: uniform
-      lower: 1000.0
+      lower: 900.0
       upper: 1200.0
+    xi_run:
+      type: uniform
+      lower: 0.0
+      upper: 8.0
+    n_run:
+      type: uniform
+      lower: 0.5
+      upper: 5.0
+    z_star:
+      type: uniform
+      lower: 0.3
+      upper: 20.0
+    sigma_rel:
+      type: uniform
+      lower: 0.0
+      upper: 1.5
+    z_rel:
+      type: uniform
+      lower: 0.0
+      upper: 3.0
+    delta_rel:
+      type: uniform
+      lower: 0.1
+      upper: 2.0
 engine:
   name: engines.cosmo_engine_mcmc
   version: unknown
-seed: 2257708435
+seed: 1161905799
 datasets:
   jla_2014:
     name: Joint Light-curve Analysis 2014
@@ -95,6 +87,7 @@ datasets:
       tablef2.fit: 0db2aeab210523594c07ac7f89edca87c55a76601c51c4a831d338cc32ce3ff4
       tablef3.dat: 35db10c033fa4bc5326436d957eb732e76fd7a4d6db7c729bc3ce17aeb5de470
       tablef4.fit: a17a1e29a8ee1631669a4456adf84c27372a33f5448a65971dbdd50eb9a97a67
+      __pycache__/cosmo_parser_jla2014.cpython-311.pyc: 38eccbb7d08fc7b4e6f731751060bed2d7a0095ff7851a32e34d1f2782903d0d
     independence:
     - Type Ia supernova distance moduli are treated as statistically independent from
       BAO and CMB observables once their published covariance matrices are accounted
@@ -110,6 +103,7 @@ datasets:
       BAO_consensus_results_dM_Hz.txt: 30e784fa08e7eddb2fdd1ab09411424e67aa9b75df58f4bb330a889c9b9c478e
       BAO_consensus_results_dV_FAP.txt: e507d65dacedc814892609d2decca9990a954ef5836da79b57c663885fce4ef8
       metadata_bossdr12.yml: 821022b3851fda917a4c014d88d35da92f303e7295a1d9d6d373eaab541939ef
+      __pycache__/cosmo_parser_bossdr12.cpython-311.pyc: c5d24b57063a636b1d8694f201a8122f6a83adcce7805c84d4d84e8ee3f037f6
     independence:
     - BAO distance measurements are assumed independent of SNe and CMB datasets because
       overlapping systematics are negligible at the current precision level.
@@ -123,13 +117,14 @@ datasets:
       cl_cmb_plik_v22.dat: dac0d9d493213e77c940a10a968cf0da3c5730bae60e1356c4cd8bcff96377ff
       metadata_planck2018lite.yml: ec760dece3ddba7da4db1720cc52fd3b8e01e14f6bf2ed60b7d8ecc391f7516c
       readme_baseline.md: ae6cef6886f2c4381147657fc195bed72742fbe3cc106208200f961af24caa73
+      __pycache__/cosmo_parser_cmb_planck2018lite.cpython-311.pyc: c060b2ce547207c9f757c35d8d3977b58f6ec51640c81435e7eb888ab61a8419
     independence:
     - Planck-lite CMB spectra are modelled as independent from SNe and BAO summaries;
       cross-covariances are ignored consistently with published likelihood treatments.
     condition_number: null
 git:
-  commit: 2defa00962bc9f9f7fd23af3d7aa708c70f57bbb
-  dirty: true
+  commit: 8d17f69d324eda7400b48a0ed426c8e8434274c3
+  dirty: false
 camb:
   version: 1.6.3
   configuration:
@@ -152,12 +147,15 @@ camb:
     - omch2
     - sum_mnu
     - tau
-  - model: USMFv2
+  - model: QRSF
     param_map_keys:
     - As
     - H0
+    - Neff
     - ns
+    - num_massive_neutrinos
     - ombh2
     - omch2
     - omnuh2
+    - sum_mnu
     - tau
