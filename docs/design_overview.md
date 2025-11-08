@@ -34,6 +34,17 @@ their placeholders are consolidated under a single loader entry.
 
 ## Historical context and recent changes
 
+Within the 7.4.5 documentation window the model library gained the
+Quantum Relational Synthesis Field v2 definition. The YAML-only plugin
+removes the dark sector by renormalising baryonic inertia through a
+coherence kernel, reduces the free-parameter count relative to the
+archived QRSF implementation and documents the entire theory in a ten-page
+manuscript embedded directly in the `description` block. The update also
+formalises the policy that internal model versions increment independently
+of the Copernican release and that only `cosmo_model_lcdm.yml` is required
+for baseline runs; all other models exist as exemplars that may evolve as
+their manuscripts expand.
+
 Version 7.4.4 finalises the Stage 5 compatibility layer by turning
 `_validate_corner_inputs` into a thin wrapper that forwards directly to
 `_prepare_corner_inputs`.  The approach keeps archival automation importing the
