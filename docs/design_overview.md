@@ -34,12 +34,13 @@ their placeholders are consolidated under a single loader entry.
 
 ## Historical context and recent changes
 
-Version 7.4.3 reinforces the Stage 5 integration by promoting
-`_prepare_corner_inputs` as the canonical sampler validator while leaving
-`_validate_corner_inputs` as a compatibility alias. The helper still derives
-thinning statistics when legacy validators return only samples and labels so
-archival plugins keep working without tripping lint rules.  The regression
-suite and documentation track the rename to keep code and prose aligned.
+Version 7.4.4 finalises the Stage 5 compatibility layer by turning
+`_validate_corner_inputs` into a thin wrapper that forwards directly to
+`_prepare_corner_inputs`.  The approach keeps archival automation importing the
+legacy name while eliminating the linter redefinition warning that surfaced when
+the alias was a plain assignment.  Documentation mirrors the behaviour so code
+comments, guides and tests explain why the wrapper exists alongside the modern
+helper.
 
 Version 7.4.1 adds a sampler-facing perspective to the plotting layer. The new
 corner plot automatically thins oversized chains, renders the Stage 2 posterior

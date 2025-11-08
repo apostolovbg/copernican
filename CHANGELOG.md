@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.4.4
+- 2025-11-08: Converted the `_validate_corner_inputs` alias into a documented
+  wrapper around `_prepare_corner_inputs` so Stage 5 keeps the legacy import
+  path without triggering `flake8` redefinition warnings. Updated documentation
+  to explain the compatibility layer and bumped recorded metadata to 7.4.4
+  (OpenAI ChatGPT)
+
 ## Version 7.4.3
 - 2025-11-08: Renamed the Stage 5 sampler helper to `_prepare_corner_inputs`
   while retaining `_validate_corner_inputs` as a compatibility alias so

@@ -1,4 +1,4 @@
-**Version:** 7.4.3
+**Version:** 7.4.4
 **Last Updated:** 2025-11-08
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -16,12 +16,13 @@ The suite is organised around a handful of focused components:
   dataset selection, model pairing and engine configuration.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
-  keep every engine and plugin consistent. Version 7.4.3 keeps the Stage 5
-  corner plot responsive by renaming the canonical sampler validator to
-  `_prepare_corner_inputs` while retaining a `_validate_corner_inputs` alias.
-  The helper still derives thinning statistics when legacy validators provide
-  only samples and labels so archival plugins remain compatible while the
-  downsampled visuals stay within memory limits.
+  keep every engine and plugin consistent. Version 7.4.4 cements the Stage 5
+  corner plot validator as a dedicated wrapper so the legacy
+  `_validate_corner_inputs` entry point continues to function without triggering
+  linter redefinition warnings. The helper still derives thinning statistics
+  when older validators return only samples and labels, ensuring archival
+  plugins remain compatible while the downsampled visuals stay within memory
+  limits.
 * `engines/` collects computational back ends. The default
   ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
   convergence checks, while the plugin protocol keeps room for additional
