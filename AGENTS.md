@@ -225,6 +225,15 @@ engine.
 `model_parser.py` ignores unrecognized keys and copies them to the cache, so
 new metadata can be added without breaking older YAML files.
 
+Treat the `description` block as the journal article for the theory. Write at
+least ten pages of Markdown and LaTeX covering assumptions, derivations,
+observational comparisons, parameter motivation and reproducibility guidance.
+When a human or AI contributor revises a YAML model, increment the internal
+`version` field even if Copernican's overall release version does not change.
+Only `models/cosmo_model_lcdm.yml` is required for the suite to run; all other
+models ship as exemplars and may evolve or be replaced as their manuscripts
+improve.
+
 ## 5. Creating a New Model
 1. Copy an existing `cosmo_model_*.yml` file such as `cosmo_model_lcdm.yml`.
 2. Edit the YAML fields to describe your model, following the schema above.

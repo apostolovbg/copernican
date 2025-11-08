@@ -27,6 +27,19 @@ suffixes. Follow this template:
   legacy fallbacks so posterior figures remain readable while preserving
   compatibility. Updated regression tests, documentation references and bumped
   recorded metadata to 7.4.5 (OpenAI ChatGPT)
+- 2025-11-08: Added the Quantum Relational Synthesis Field v2 model with a
+  manuscript-length description, removed the dark sector from its dynamics,
+  documented the ten-page description requirement, clarified that only
+  `cosmo_model_lcdm.yml` is mandatory and formalised the policy of bumping
+  internal model versions independently of the Copernican release (OpenAI
+  ChatGPT)
+- 2025-11-08: Re-encoded the QRSFv2 CAMB baryon-density mapping as a folded
+  scalar so YAML parsers load the model without syntax errors (OpenAI ChatGPT)
+- 2025-11-08: Renamed the Quantum Relational Synthesis Field model to
+  `cosmo_model_qrsfv3.yml`, advanced its internal theory to version 3.0 with a
+  standalone manuscript-length description, and updated documentation to point
+  to the new file while keeping the Copernican program version at 7.4.5 (OpenAI
+  ChatGPT)
 
 ## Version 7.4.4
 - 2025-11-08: Converted the `_validate_corner_inputs` alias into a documented
