@@ -1,0 +1,616 @@
+2025-11-08 06:30:15,492 - INFO - Logging initialized with UTC timestamps. Log file: output/copernican-run_20251108_063015/copernican-run_20251108_063015.txt
+2025-11-08 06:30:15,493 - INFO - Warnings will be logged but not treated as errors
+2025-11-08 06:30:15,624 - INFO - Environment details:
+2025-11-08 06:30:15,624 - INFO -   Python: 3.11.14
+2025-11-08 06:30:15,625 - INFO -   OS: macOS-15.0.1-x86_64-i386-64bit
+2025-11-08 06:30:15,625 - INFO -   CPU: i386
+2025-11-08 06:30:15,625 - INFO -   numpy: 1.26.4
+2025-11-08 06:30:15,625 - INFO -   scipy: 1.12.0
+2025-11-08 06:30:15,625 - INFO -   matplotlib: 3.8.2
+2025-11-08 06:30:15,625 - INFO - Environment summary: Python 3.11.14; macOS-15.0.1-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2025-11-08 06:30:15,625 - INFO - Select RNG seed:
+2025-11-08 06:30:15,625 - INFO - 1) Use default seed 0
+2025-11-08 06:30:15,626 - INFO - 2) Enter a seed manually
+2025-11-08 06:30:15,626 - INFO - 3) Generate a random seed
+2025-11-08 06:32:46,705 - INFO - Choice [1-3]: 3
+2025-11-08 06:32:48,306 - INFO - Generated random seed 1274320463
+2025-11-08 06:32:49,764 - INFO - Global RNG seed set to 1274320463
+2025-11-08 06:32:49,765 - INFO - Using RNG seed 1274320463
+2025-11-08 06:32:49,765 - INFO - Copernican 7.3.2 has initialized! Current timestamp is 251108_063249 UTC. Log file: output/copernican-run_20251108_063015/copernican-run_20251108_063015.txt
+2025-11-08 06:32:49,765 - INFO - Using standard CPU (SciPy) computational backend with multiprocessing.
+2025-11-08 06:32:49,765 - INFO - Running from base directory: .
+2025-11-08 06:32:49,765 - INFO - All outputs will be saved to: output/copernican-run_20251108_063015
+2025-11-08 06:32:49,765 - INFO - 
+--- Stage 1: Configuration ---
+
+2025-11-08 06:32:49,766 - INFO - 
+Available cosmological models:
+2025-11-08 06:32:49,766 - INFO -   1. cosmo_model_cfsc.yml
+2025-11-08 06:32:49,766 - INFO -   2. cosmo_model_cpc.yml
+2025-11-08 06:32:49,766 - INFO -   3. cosmo_model_lcdm.yml
+2025-11-08 06:32:49,766 - INFO -   4. cosmo_model_qauc.yml
+2025-11-08 06:32:49,766 - INFO -   5. cosmo_model_qrsf.yml
+2025-11-08 06:32:49,766 - INFO -   6. cosmo_model_usmf2.yml
+2025-11-08 06:32:49,766 - INFO -   7. cosmo_model_usmf4.yml
+2025-11-08 06:32:49,766 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-08 06:32:54,978 - INFO - > 5
+2025-11-08 06:32:55,066 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2025-11-08 06:32:55,084 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2025-11-08 06:32:55,084 - INFO - Derived distance_modulus_model from luminosity distance.
+2025-11-08 06:32:55,095 - INFO - Loaded YAML model: QRSF
+2025-11-08 06:32:55,096 - INFO - 
+Available computation engines:
+2025-11-08 06:32:55,096 - INFO -   1. cosmo_engine_mcmc.py
+2025-11-08 06:32:55,096 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-08 06:32:58,387 - INFO - > 1
+2025-11-08 06:33:12,022 - INFO - 
+Available SNe data sources:
+2025-11-08 06:33:12,022 - INFO -   1. Joint Light-curve Analysis 2014 (Joint SDSS-II and SNLS supernova sample of 740 SNe Ia with distance moduli and full covariance matrix.)
+2025-11-08 06:33:12,022 - INFO -   2. Pantheon+SH0ES 2022 (Combined sample of 1701 Type Ia supernova distance moduli with full statistical and systematic covariance matrix)
+2025-11-08 06:33:12,022 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-08 06:33:29,763 - INFO - > 1
+2025-11-08 06:33:29,763 - INFO - Attempting to load SNe data from 'Joint Light-curve Analysis 2014'
+2025-11-08 06:33:34,412 - INFO - Successfully loaded 740 SNe data points.
+2025-11-08 06:33:34,592 - INFO - SHA256 +footg5.gif: 6d375d2d9a97f897b6bdadf61781d5ad49365a612b0eeda2e27b363e83546b89
+2025-11-08 06:33:34,592 - INFO - SHA256 +footg8.gif: c725331eae86cce9f3b27fc9b3b2476d611b9c0d8c1a760df4c4792a5f9022da
+2025-11-08 06:33:34,592 - INFO - SHA256 ReadMe.txt: 236793155d6572626a56259732b06e4d1141e1ebe5ee2f4ed83253aca403b3f9
+2025-11-08 06:33:34,592 - INFO - SHA256 metadata_jla2014.yml: 699a7435e1f5c014702d1c4b8e98770eef23420be98afd5fa84ff35aa9a891ec
+2025-11-08 06:33:34,592 - INFO - SHA256 tablef1.dat: d9b17b4c704b554d0e3df0b5efed7877e881d2f62c04f968b789a61b3fb80114
+2025-11-08 06:33:34,592 - INFO - SHA256 tablef2.fit: 0db2aeab210523594c07ac7f89edca87c55a76601c51c4a831d338cc32ce3ff4
+2025-11-08 06:33:34,592 - INFO - SHA256 tablef3.dat: 35db10c033fa4bc5326436d957eb732e76fd7a4d6db7c729bc3ce17aeb5de470
+2025-11-08 06:33:34,592 - INFO - SHA256 tablef4.fit: a17a1e29a8ee1631669a4456adf84c27372a33f5448a65971dbdd50eb9a97a67
+2025-11-08 06:33:34,592 - INFO - SHA256 __pycache__/cosmo_parser_jla2014.cpython-311.pyc: c9b0e1c6fa650064bc9043c6665431ec81063d952a5aeb65f3bef7b121ba8c66
+2025-11-08 06:33:34,592 - INFO - Loaded SNe dataset 'Joint Light-curve Analysis 2014' with 740 rows.
+2025-11-08 06:33:34,592 - INFO - SNe covariance matrix inverted successfully.
+2025-11-08 06:33:34,592 - INFO - 
+Available BAO data sources:
+2025-11-08 06:33:34,592 - INFO -   1. BOSS DR12 BAO Consensus (Consensus BAO distances for three redshift bins providing DM/rs, DH/rs and DV/rs with propagated block-diagonal covariance)
+2025-11-08 06:33:34,592 - INFO -   2. Compound BAO compilation (Compilation of BAO distance measurements without a covariance matrix)
+2025-11-08 06:33:34,592 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-08 06:33:36,318 - INFO - > 1
+2025-11-08 06:33:36,319 - INFO - Attempting to load BAO data from 'BOSS DR12 BAO Consensus'
+2025-11-08 06:33:36,319 - INFO - Loading BOSS DR12 data from /Users/apostolov/Documents/GitHub/copernican/data/bao/bossdr12
+2025-11-08 06:33:36,335 - INFO - BAO covariance condition number: 1.052e+02
+2025-11-08 06:33:36,335 - INFO - Successfully loaded 9 BAO data points.
+2025-11-08 06:33:36,337 - INFO - SHA256 BAO_consensus_covtot_dM_Hz.txt: 05c04829c8edc117870efe809494593a23de6c35547f8b66760a5250804b65cf
+2025-11-08 06:33:36,337 - INFO - SHA256 BAO_consensus_covtot_dV_FAP.txt: cf5b760b34f4335bd90490fcce4540dbac0b0b54e3240544c4af133dd45c8300
+2025-11-08 06:33:36,338 - INFO - SHA256 BAO_consensus_results_dM_Hz.txt: 30e784fa08e7eddb2fdd1ab09411424e67aa9b75df58f4bb330a889c9b9c478e
+2025-11-08 06:33:36,338 - INFO - SHA256 BAO_consensus_results_dV_FAP.txt: e507d65dacedc814892609d2decca9990a954ef5836da79b57c663885fce4ef8
+2025-11-08 06:33:36,338 - INFO - SHA256 metadata_bossdr12.yml: 821022b3851fda917a4c014d88d35da92f303e7295a1d9d6d373eaab541939ef
+2025-11-08 06:33:36,338 - INFO - SHA256 __pycache__/cosmo_parser_bossdr12.cpython-311.pyc: 2788ba1d7bcae29baead3b68a19cbc0a50eac7571226e64d92c9a38758e2e649
+2025-11-08 06:33:36,338 - INFO - Loaded BAO dataset 'BOSS DR12 BAO Consensus' with 9 rows.
+2025-11-08 06:33:36,338 - INFO - BAO covariance matrix inverted successfully.
+2025-11-08 06:33:36,338 - INFO - BAO covariance condition number: 1.052e+02
+2025-11-08 06:33:36,338 - INFO - 
+Available CMB data sources:
+2025-11-08 06:33:36,339 - INFO -   1. Planck 2018 Lite TT/TE/EE (Temperature and polarization power spectra from the Planck 2018 lite release with full covariance matrix)
+2025-11-08 06:33:36,339 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-08 06:33:37,367 - INFO - > 1
+2025-11-08 06:33:37,367 - INFO - Attempting to load CMB data from 'Planck 2018 Lite TT/TE/EE'
+2025-11-08 06:33:37,448 - INFO - Successfully loaded 215 CMB data points.
+2025-11-08 06:33:37,463 - INFO - SHA256 c_matrix_plik_v22.dat: ad90378c50bd67841764179c90ae6711fa4317c649966ab2b0712143b31e0a32
+2025-11-08 06:33:37,463 - INFO - SHA256 cl_cmb_plik_v22.dat: dac0d9d493213e77c940a10a968cf0da3c5730bae60e1356c4cd8bcff96377ff
+2025-11-08 06:33:37,463 - INFO - SHA256 metadata_planck2018lite.yml: ec760dece3ddba7da4db1720cc52fd3b8e01e14f6bf2ed60b7d8ecc391f7516c
+2025-11-08 06:33:37,463 - INFO - SHA256 readme_baseline.md: ae6cef6886f2c4381147657fc195bed72742fbe3cc106208200f961af24caa73
+2025-11-08 06:33:37,463 - INFO - SHA256 __pycache__/cosmo_parser_cmb_planck2018lite.cpython-311.pyc: 694470446e661f9eecfc6104984a923b1d65cc3841721884112006df38df260f
+2025-11-08 06:33:37,463 - INFO - Loaded CMB dataset 'Planck 2018 Lite TT/TE/EE' with 215 rows.
+2025-11-08 06:33:37,463 - INFO - CMB covariance matrix inverted successfully.
+2025-11-08 06:33:37,464 - INFO - 
+2025-11-08 06:33:37,464 - INFO - Sampler defaults summary:
+2025-11-08 06:33:37,464 - INFO -   ΛCDM active parameters: 5
+2025-11-08 06:33:37,464 - INFO -   QRSF active parameters: 11
+2025-11-08 06:33:37,464 - INFO -   Minimum walkers per emcee rule: 22
+2025-11-08 06:33:37,464 - INFO -   Recommended production steps: 200
+2025-11-08 06:33:37,464 - INFO -   Recommended burn-in steps: 100
+2025-11-08 06:33:37,464 - INFO -   Recommended walkers: 32
+2025-11-08 06:33:37,464 - INFO -   Recommended pool workers: 4
+2025-11-08 06:33:37,464 - INFO - 
+2025-11-08 06:33:37,464 - INFO - 1) Run with default settings
+2025-11-08 06:33:37,464 - INFO - 2) Change settings
+2025-11-08 06:33:37,464 - INFO - C) Cancel configuration
+2025-11-08 06:33:37,464 - INFO - 
+2025-11-08 06:33:45,943 - INFO - Write the number of choice: 2
+2025-11-08 06:33:45,943 - INFO - 
+2025-11-08 06:33:45,943 - INFO - Production steps control the total sampler iterations.
+2025-11-08 06:33:45,943 - INFO -   Recommended default: 200
+2025-11-08 06:33:51,263 - INFO - Production steps [200]: 10
+2025-11-08 06:33:51,263 - INFO - 
+2025-11-08 06:33:51,263 - INFO - Burn-in steps discard the early samples so the chain can stabilise.
+2025-11-08 06:33:51,263 - INFO -   Recommended warm-up: 100
+2025-11-08 06:33:51,263 - INFO -   A shorter option such as 2 trades certainty for speed.
+2025-11-08 06:33:55,362 - INFO - Burn-in steps [100]: 5
+2025-11-08 06:33:55,365 - INFO - 
+2025-11-08 06:33:55,366 - INFO - Walkers sample the posterior in parallel; more walkers increase convergence confidence.
+2025-11-08 06:33:55,366 - INFO -   Required minimum: 22
+2025-11-08 06:33:55,366 - INFO -   Recommended default: 32
+2025-11-08 06:34:03,643 - INFO - Number of walkers [32]: 32
+2025-11-08 06:34:03,654 - INFO - 
+2025-11-08 06:34:03,655 - INFO - Worker pools accelerate sampling by spreading walkers across processes.
+2025-11-08 06:34:03,655 - INFO -   Recommended pool size: 4 (detected CPUs: 4)
+2025-11-08 06:34:03,655 - INFO -   Enter 0 to disable multiprocessing entirely.
+2025-11-08 06:34:12,487 - INFO - Pool workers [4]: 3
+2025-11-08 06:34:12,489 - INFO - 
+2025-11-08 06:34:12,489 - INFO - Sampling plan summary:
+2025-11-08 06:34:12,489 - INFO -   Production steps: 10
+2025-11-08 06:34:12,489 - INFO -   Burn-in steps: 5
+2025-11-08 06:34:12,489 - INFO -   Walkers: 32
+2025-11-08 06:34:12,489 - INFO -   Pool workers: 3
+2025-11-08 06:34:12,489 - INFO - 
+2025-11-08 06:34:12,489 - INFO - How should we proceed?
+2025-11-08 06:34:12,490 - INFO -   1) Accept this sampler plan and continue
+2025-11-08 06:34:12,490 - INFO -   2) Revisit the questionnaire from the beginning
+2025-11-08 06:34:12,490 - INFO -   B) Back to the sampler defaults summary
+2025-11-08 06:34:12,490 - INFO -   C) Cancel sampler configuration
+2025-11-08 06:34:12,490 - INFO - 
+2025-11-08 06:34:20,311 - INFO - Select an option: 1
+2025-11-08 06:34:20,311 - INFO - Sampler configuration: steps=10, burn-in=5, walkers=32, pool=3
+2025-11-08 06:34:20,311 - INFO - Configured sampler: steps 10, burn-in 5.
+2025-11-08 06:34:20,311 - INFO - Walker ensemble 32, pool 3.
+2025-11-08 06:34:21,114 - INFO - 
+--- Stage 2: Ensemble MCMC sampler ---
+
+2025-11-08 06:34:21,125 - INFO - Using 32 walkers for 5 active parameter(s).
+2025-11-08 06:36:16,246 - INFO - Using requested multiprocessing pool with 3 worker(s).
+2025-11-08 06:36:19,940 - INFO - Starting MCMC burn-in stage for 5 steps...
+2025-11-08 06:38:54,787 - INFO - MCMC burn-in progress:  20% (1/5 steps)
+2025-11-08 06:38:55,374 - INFO -     logP μ=-5.358e+04 σ= 1.238e+05 max=-2.165e+03 Δχ²≈-0.000
+2025-11-08 06:38:56,615 - INFO -     H_0: med= 71.78 (-12/+17)
+2025-11-08 06:38:56,615 - INFO -     Omega_m0: med= 0.4359 (-0.2/+0.17)
+2025-11-08 06:38:56,615 - INFO -     Omega_b: med= 0.05896 (-0.022/+0.024)
+2025-11-08 06:38:56,615 - INFO -     Omega_gamma: med= 5.219e-05 (-3e-05/+1.9e-05)
+2025-11-08 06:38:56,615 - INFO -     z_rec: med= 1095 (-54/+75)
+2025-11-08 06:38:56,615 - INFO -     Walker[21] snapshot: H_0=78.96, Omega_m0=0.2388, Omega_b=0.04764,
+        Omega_gamma=5.624e-05, z_rec=1174
+2025-11-08 06:39:55,251 - INFO - MCMC burn-in progress:  40% (2/5 steps)
+2025-11-08 06:39:55,260 - INFO -     logP μ=-3.130e+04 σ= 3.965e+04 max=-2.165e+03 Δχ²≈-0.000
+2025-11-08 06:39:55,260 - INFO -     H_0: med= 71.9 (-12/+15)
+2025-11-08 06:39:55,260 - INFO -     Omega_m0: med= 0.4422 (-0.21/+0.16)
+2025-11-08 06:39:55,260 - INFO -     Omega_b: med= 0.05788 (-0.024/+0.024)
+2025-11-08 06:39:55,260 - INFO -     Omega_gamma: med= 4.847e-05 (-2.5e-05/+2.3e-05)
+2025-11-08 06:39:55,260 - INFO -     z_rec: med= 1095 (-54/+75)
+2025-11-08 06:40:49,153 - INFO - MCMC burn-in progress:  60% (3/5 steps)
+2025-11-08 06:40:49,202 - INFO -     logP μ=-2.677e+04 σ= 3.333e+04 max=-2.165e+03 Δχ²≈-0.000
+2025-11-08 06:40:49,202 - INFO -     H_0: med= 71.74 (-14/+15)
+2025-11-08 06:40:49,202 - INFO -     Omega_m0: med= 0.4416 (-0.19/+0.16)
+2025-11-08 06:40:49,202 - INFO -     Omega_b: med= 0.05511 (-0.019/+0.025)
+2025-11-08 06:40:49,202 - INFO -     Omega_gamma: med= 5.015e-05 (-2.6e-05/+1.9e-05)
+2025-11-08 06:40:49,202 - INFO -     z_rec: med= 1098 (-56/+60)
+2025-11-08 06:42:06,711 - INFO - MCMC burn-in progress:  80% (4/5 steps)
+2025-11-08 06:42:06,791 - INFO -     logP μ=-2.364e+04 σ= 3.128e+04 max=-2.165e+03 Δχ²≈-0.000
+2025-11-08 06:42:06,791 - INFO -     H_0: med= 69.76 (-10/+17)
+2025-11-08 06:42:06,791 - INFO -     Omega_m0: med= 0.4271 (-0.19/+0.17)
+2025-11-08 06:42:06,791 - INFO -     Omega_b: med= 0.06099 (-0.028/+0.016)
+2025-11-08 06:42:06,791 - INFO -     Omega_gamma: med= 4.495e-05 (-1.9e-05/+2.4e-05)
+2025-11-08 06:42:06,791 - INFO -     z_rec: med= 1100 (-58/+55)
+2025-11-08 06:43:07,604 - INFO - MCMC burn-in progress: 100% (5/5 steps)
+2025-11-08 06:43:09,492 - INFO -     logP μ=-1.592e+04 σ= 1.604e+04 max=-2.165e+03 Δχ²≈-0.000
+2025-11-08 06:43:09,492 - INFO -     H_0: med= 70.77 (-9.4/+14)
+2025-11-08 06:43:09,492 - INFO -     Omega_m0: med= 0.4322 (-0.18/+0.16)
+2025-11-08 06:43:09,492 - INFO -     Omega_b: med= 0.05644 (-0.023/+0.018)
+2025-11-08 06:43:09,492 - INFO -     Omega_gamma: med= 4.683e-05 (-1.7e-05/+2.2e-05)
+2025-11-08 06:43:09,492 - INFO -     z_rec: med= 1108 (-57/+48)
+2025-11-08 06:43:09,492 - INFO -     Walker[21] snapshot: H_0=78.96, Omega_m0=0.2388, Omega_b=0.04764,
+        Omega_gamma=5.624e-05, z_rec=1174
+2025-11-08 06:43:09,492 - INFO - Completed MCMC burn-in stage.
+2025-11-08 06:43:09,492 - INFO - Starting MCMC production stage for 10 steps...
+2025-11-08 06:44:55,775 - INFO - MCMC production progress:  10% (1/10 steps)
+2025-11-08 06:44:55,825 - INFO -     logP μ=-1.279e+04 σ= 1.017e+04 max=-2.165e+03 Δχ²≈-0.000
+2025-11-08 06:44:55,825 - INFO -     H_0: med= 70.76 (-9.3/+12)
+2025-11-08 06:44:55,825 - INFO -     Omega_m0: med= 0.4171 (-0.17/+0.12)
+2025-11-08 06:44:55,825 - INFO -     Omega_b: med= 0.056 (-0.022/+0.017)
+2025-11-08 06:44:55,825 - INFO -     Omega_gamma: med= 4.815e-05 (-1.8e-05/+2e-05)
+2025-11-08 06:44:55,826 - INFO -     z_rec: med= 1098 (-44/+55)
+2025-11-08 06:44:55,826 - INFO -     Walker[21] snapshot: H_0=78.96, Omega_m0=0.2388, Omega_b=0.04764,
+        Omega_gamma=5.624e-05, z_rec=1174
+2025-11-08 06:46:03,747 - INFO - MCMC production progress:  20% (2/10 steps)
+2025-11-08 06:46:04,351 - INFO -     logP μ=-1.226e+04 σ= 9.666e+03 max=-2.165e+03 Δχ²≈-0.000
+2025-11-08 06:46:04,591 - INFO -     H_0: med= 70.76 (-11/+11)
+2025-11-08 06:46:04,591 - INFO -     Omega_m0: med= 0.394 (-0.11/+0.16)
+2025-11-08 06:46:04,591 - INFO -     Omega_b: med= 0.05508 (-0.016/+0.018)
+2025-11-08 06:46:04,591 - INFO -     Omega_gamma: med= 4.969e-05 (-2e-05/+1.8e-05)
+2025-11-08 06:46:04,591 - INFO -     z_rec: med= 1098 (-44/+52)
+2025-11-08 06:47:14,344 - INFO - MCMC production progress:  30% (3/10 steps)
+2025-11-08 06:47:15,743 - INFO -     logP μ=-1.119e+04 σ= 9.507e+03 max=-1.158e+03 Δχ²≈-2013.961
+2025-11-08 06:47:15,759 - INFO -     H_0: med= 69.82 (-8.1/+10)
+2025-11-08 06:47:15,759 - INFO -     Omega_m0: med= 0.4076 (-0.11/+0.12)
+2025-11-08 06:47:15,759 - INFO -     Omega_b: med= 0.05577 (-0.015/+0.017)
+2025-11-08 06:47:15,759 - INFO -     Omega_gamma: med= 4.917e-05 (-1.9e-05/+1.9e-05)
+2025-11-08 06:47:15,759 - INFO -     z_rec: med= 1098 (-42/+52)
+2025-11-08 06:48:26,076 - INFO - MCMC production progress:  40% (4/10 steps)
+2025-11-08 06:48:26,105 - INFO -     logP μ=-9.826e+03 σ= 8.768e+03 max=-1.149e+03 Δχ²≈-2030.681
+2025-11-08 06:48:26,105 - INFO -     H_0: med= 69.82 (-9/+9.3)
+2025-11-08 06:48:26,105 - INFO -     Omega_m0: med= 0.4023 (-0.085/+0.12)
+2025-11-08 06:48:26,105 - INFO -     Omega_b: med= 0.05535 (-0.012/+0.016)
+2025-11-08 06:48:26,105 - INFO -     Omega_gamma: med= 5.218e-05 (-2.2e-05/+1.6e-05)
+2025-11-08 06:48:26,105 - INFO -     z_rec: med= 1098 (-45/+45)
+2025-11-08 06:49:36,260 - INFO - MCMC production progress:  50% (5/10 steps)
+2025-11-08 06:49:36,271 - INFO -     logP μ=-7.750e+03 σ= 4.896e+03 max=-1.149e+03 Δχ²≈-2030.681
+2025-11-08 06:49:36,271 - INFO -     H_0: med= 68.74 (-7.9/+8.5)
+2025-11-08 06:49:36,271 - INFO -     Omega_m0: med= 0.3734 (-0.075/+0.15)
+2025-11-08 06:49:36,271 - INFO -     Omega_b: med= 0.05593 (-0.014/+0.013)
+2025-11-08 06:49:36,271 - INFO -     Omega_gamma: med= 4.655e-05 (-1.5e-05/+2.2e-05)
+2025-11-08 06:49:36,271 - INFO -     z_rec: med= 1098 (-40/+54)
+2025-11-08 06:49:36,271 - INFO -     Walker[21] snapshot: H_0=71.38, Omega_m0=0.2605, Omega_b=0.04088,
+        Omega_gamma=6.818e-05, z_rec=1168
+2025-11-08 06:51:01,389 - INFO - MCMC production progress:  60% (6/10 steps)
+2025-11-08 06:51:01,414 - INFO -     logP μ=-6.566e+03 σ= 4.275e+03 max=-1.149e+03 Δχ²≈-2030.681
+2025-11-08 06:51:01,612 - INFO -     H_0: med= 67.92 (-7/+12)
+2025-11-08 06:51:01,612 - INFO -     Omega_m0: med= 0.3662 (-0.091/+0.14)
+2025-11-08 06:51:01,613 - INFO -     Omega_b: med= 0.05537 (-0.015/+0.013)
+2025-11-08 06:51:01,613 - INFO -     Omega_gamma: med= 4.859e-05 (-1.5e-05/+2e-05)
+2025-11-08 06:51:01,613 - INFO -     z_rec: med= 1093 (-39/+43)
+2025-11-08 06:52:25,935 - INFO - MCMC production progress:  70% (7/10 steps)
+2025-11-08 06:52:26,043 - INFO -     logP μ=-5.604e+03 σ= 3.922e+03 max=-1.087e+03 Δχ²≈-2154.229
+2025-11-08 06:52:26,043 - INFO -     H_0: med= 66.79 (-5.5/+11)
+2025-11-08 06:52:26,043 - INFO -     Omega_m0: med= 0.3707 (-0.076/+0.092)
+2025-11-08 06:52:26,043 - INFO -     Omega_b: med= 0.05512 (-0.011/+0.013)
+2025-11-08 06:52:26,043 - INFO -     Omega_gamma: med= 5.115e-05 (-1.7e-05/+1.6e-05)
+2025-11-08 06:52:26,043 - INFO -     z_rec: med= 1093 (-33/+43)
+2025-11-08 06:53:42,839 - INFO - MCMC production progress:  80% (8/10 steps)
+2025-11-08 06:53:42,851 - INFO -     logP μ=-4.921e+03 σ= 3.589e+03 max=-1.087e+03 Δχ²≈-2154.229
+2025-11-08 06:53:42,851 - INFO -     H_0: med= 66.72 (-5.4/+7)
+2025-11-08 06:53:42,851 - INFO -     Omega_m0: med= 0.3665 (-0.068/+0.096)
+2025-11-08 06:53:42,851 - INFO -     Omega_b: med= 0.05531 (-0.012/+0.012)
+2025-11-08 06:53:42,851 - INFO -     Omega_gamma: med= 4.877e-05 (-1.4e-05/+1.7e-05)
+2025-11-08 06:53:42,851 - INFO -     z_rec: med= 1093 (-33/+43)
+2025-11-08 06:55:11,583 - INFO - MCMC production progress:  90% (9/10 steps)
+2025-11-08 06:55:11,594 - INFO -     logP μ=-4.723e+03 σ= 3.507e+03 max=-1.087e+03 Δχ²≈-2154.229
+2025-11-08 06:55:11,594 - INFO -     H_0: med= 66.56 (-5.2/+7.1)
+2025-11-08 06:55:11,594 - INFO -     Omega_m0: med= 0.3665 (-0.068/+0.086)
+2025-11-08 06:55:11,594 - INFO -     Omega_b: med= 0.05582 (-0.012/+0.012)
+2025-11-08 06:55:11,594 - INFO -     Omega_gamma: med= 5.041e-05 (-1.4e-05/+1.4e-05)
+2025-11-08 06:55:11,594 - INFO -     z_rec: med= 1095 (-28/+41)
+2025-11-08 06:56:52,272 - INFO - MCMC production progress: 100% (10/10 steps)
+2025-11-08 06:56:52,301 - INFO -     logP μ=-4.111e+03 σ= 2.682e+03 max=-1.087e+03 Δχ²≈-2154.229
+2025-11-08 06:56:52,301 - INFO -     H_0: med= 66.56 (-6.6/+5.3)
+2025-11-08 06:56:52,301 - INFO -     Omega_m0: med= 0.3707 (-0.072/+0.081)
+2025-11-08 06:56:52,301 - INFO -     Omega_b: med= 0.05582 (-0.012/+0.011)
+2025-11-08 06:56:52,301 - INFO -     Omega_gamma: med= 4.984e-05 (-1.1e-05/+1.3e-05)
+2025-11-08 06:56:52,301 - INFO -     z_rec: med= 1099 (-32/+38)
+2025-11-08 06:56:52,301 - INFO -     Walker[21] snapshot: H_0=69.39, Omega_m0=0.2943, Omega_b=0.04454,
+        Omega_gamma=6.427e-05, z_rec=1164
+2025-11-08 06:56:52,302 - INFO - Completed MCMC production stage.
+2025-11-08 06:56:56,538 - INFO - Rank-normalised R-hat summary: min=3.287 median=3.622 max=3.669
+2025-11-08 06:56:56,538 - INFO - Effective sample sizes: bulk median=84.6 tail median=97.5
+2025-11-08 06:56:56,538 - INFO - MCMC acceptance for LambdaCDM: mean=0.387, min=0.000, max=0.700
+2025-11-08 06:56:56,540 - INFO - Treating 1 parameter(s) as fixed or numerically locked: c_light
+2025-11-08 06:56:56,541 - INFO - Using 32 walkers for 11 active parameter(s).
+2025-11-08 06:58:47,755 - INFO - Using requested multiprocessing pool with 3 worker(s).
+2025-11-08 06:58:48,313 - INFO - Starting MCMC burn-in stage for 5 steps...
+2025-11-08 07:01:28,191 - INFO - MCMC burn-in progress:  20% (1/5 steps)
+2025-11-08 07:01:28,201 - INFO -     logP μ=-7.010e+04 σ= 1.181e+05 max=-1.264e+03 Δχ²≈-0.000
+2025-11-08 07:01:28,201 - INFO -     H_star: med= 75.17 (-18/+17)
+2025-11-08 07:01:28,201 - INFO -     Omega_b: med= 0.05542 (-0.023/+0.044)
+2025-11-08 07:01:28,201 - INFO -     Omega_gamma: med= 0.0005413 (-0.00025/+0.00028)
+2025-11-08 07:01:28,202 - INFO -     z_rec: med= 1040 (-61/+1.2e+02)
+2025-11-08 07:01:28,202 - INFO -     xi_high: med= 3.945 (-1.9/+3.4)
+2025-11-08 07:01:28,202 - INFO -     xi_low: med= 2.517 (-1.8/+1.3)
+2025-11-08 07:01:28,202 - INFO -     z_trans: med= 9.576 (-6.1/+6.5)
+2025-11-08 07:01:28,202 - INFO -     n_trans: med= 3.929 (-2.1/+2.1)
+2025-11-08 07:01:28,202 - INFO -     Omega_rel0: med= 0.6648 (-0.41/+0.32)
+2025-11-08 07:01:28,202 - INFO -     w_rel0: med=-1.068 (-0.52/+0.7)
+2025-11-08 07:01:28,202 - INFO -     w_rel_a: med= 0.4206 (-1.3/+1.1)
+2025-11-08 07:01:28,202 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-08 07:01:28,202 - INFO -     Walker[10] snapshot: H_star=64.64, Omega_b=0.05604,
+        Omega_gamma=0.000821, z_rec=1064, xi_high=5.673, xi_low=4.657,
+        z_trans=14.97, n_trans=1.641, Omega_rel0=0.7132, w_rel0=-0.2167,
+        w_rel_a=-0.8841, c_light=2.998e+05
+2025-11-08 07:02:14,662 - INFO - MCMC burn-in progress:  40% (2/5 steps)
+2025-11-08 07:02:14,942 - INFO -     logP μ=-6.173e+04 σ= 1.083e+05 max=-1.264e+03 Δχ²≈-0.000
+2025-11-08 07:02:14,942 - INFO -     H_star: med= 75 (-16/+15)
+2025-11-08 07:02:14,942 - INFO -     Omega_b: med= 0.05643 (-0.024/+0.044)
+2025-11-08 07:02:14,942 - INFO -     Omega_gamma: med= 0.0005413 (-0.00023/+0.00027)
+2025-11-08 07:02:14,942 - INFO -     z_rec: med= 1040 (-60/+1.2e+02)
+2025-11-08 07:02:14,943 - INFO -     xi_high: med= 4.404 (-2.3/+2.7)
+2025-11-08 07:02:14,943 - INFO -     xi_low: med= 2.48 (-1.7/+1.4)
+2025-11-08 07:02:14,943 - INFO -     z_trans: med= 9.414 (-5.6/+5.6)
+2025-11-08 07:02:14,943 - INFO -     n_trans: med= 3.996 (-2.3/+2)
+2025-11-08 07:02:14,943 - INFO -     Omega_rel0: med= 0.6783 (-0.43/+0.3)
+2025-11-08 07:02:14,943 - INFO -     w_rel0: med=-1.091 (-0.49/+0.73)
+2025-11-08 07:02:14,943 - INFO -     w_rel_a: med= 0.5259 (-1.4/+0.88)
+2025-11-08 07:02:14,943 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-08 07:02:48,647 - INFO - MCMC burn-in progress:  60% (3/5 steps)
+2025-11-08 07:02:48,649 - INFO -     logP μ=-5.442e+04 σ= 1.074e+05 max=-1.264e+03 Δχ²≈-0.000
+2025-11-08 07:02:48,649 - INFO -     H_star: med= 74.04 (-15/+15)
+2025-11-08 07:02:48,649 - INFO -     Omega_b: med= 0.05963 (-0.022/+0.037)
+2025-11-08 07:02:48,649 - INFO -     Omega_gamma: med= 0.0005363 (-0.00022/+0.00023)
+2025-11-08 07:02:48,649 - INFO -     z_rec: med= 1058 (-82/+99)
+2025-11-08 07:02:48,649 - INFO -     xi_high: med= 3.945 (-1.7/+3)
+2025-11-08 07:02:48,649 - INFO -     xi_low: med= 2.533 (-1.8/+1.5)
+2025-11-08 07:02:48,649 - INFO -     z_trans: med= 9.414 (-4.9/+5.6)
+2025-11-08 07:02:48,649 - INFO -     n_trans: med= 4.04 (-2.4/+1.9)
+2025-11-08 07:02:48,649 - INFO -     Omega_rel0: med= 0.6884 (-0.35/+0.26)
+2025-11-08 07:02:48,649 - INFO -     w_rel0: med=-1.103 (-0.35/+0.64)
+2025-11-08 07:02:48,649 - INFO -     w_rel_a: med= 0.5693 (-1.5/+0.78)
+2025-11-08 07:02:48,649 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-08 07:03:44,140 - INFO - MCMC burn-in progress:  80% (4/5 steps)
+2025-11-08 07:03:44,199 - INFO -     logP μ=-4.158e+04 σ= 8.985e+04 max=-1.216e+03 Δχ²≈-96.510
+2025-11-08 07:03:44,291 - INFO -     H_star: med= 73.04 (-11/+13)
+2025-11-08 07:03:44,291 - INFO -     Omega_b: med= 0.05904 (-0.021/+0.029)
+2025-11-08 07:03:44,291 - INFO -     Omega_gamma: med= 0.0005396 (-0.00021/+0.00015)
+2025-11-08 07:03:44,291 - INFO -     z_rec: med= 1045 (-65/+1e+02)
+2025-11-08 07:03:44,291 - INFO -     xi_high: med= 4.237 (-2/+2.7)
+2025-11-08 07:03:44,291 - INFO -     xi_low: med= 2.571 (-1.1/+1.4)
+2025-11-08 07:03:44,291 - INFO -     z_trans: med= 9.375 (-4/+5.5)
+2025-11-08 07:03:44,291 - INFO -     n_trans: med= 3.929 (-2.2/+1.5)
+2025-11-08 07:03:44,291 - INFO -     Omega_rel0: med= 0.6884 (-0.29/+0.15)
+2025-11-08 07:03:44,291 - INFO -     w_rel0: med=-0.9542 (-0.48/+0.45)
+2025-11-08 07:03:44,291 - INFO -     w_rel_a: med= 0.5598 (-1.6/+0.79)
+2025-11-08 07:03:44,291 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-08 07:04:41,965 - INFO - MCMC burn-in progress: 100% (5/5 steps)
+2025-11-08 07:04:42,050 - INFO -     logP μ=-3.479e+04 σ= 8.611e+04 max=-1.216e+03 Δχ²≈-96.510
+2025-11-08 07:04:42,051 - INFO -     H_star: med= 71.54 (-8.1/+10)
+2025-11-08 07:04:42,051 - INFO -     Omega_b: med= 0.05589 (-0.018/+0.028)
+2025-11-08 07:04:42,051 - INFO -     Omega_gamma: med= 0.0005318 (-0.00013/+0.00015)
+2025-11-08 07:04:42,051 - INFO -     z_rec: med= 1047 (-50/+89)
+2025-11-08 07:04:42,051 - INFO -     xi_high: med= 4.243 (-1.3/+2.3)
+2025-11-08 07:04:42,051 - INFO -     xi_low: med= 2.442 (-0.96/+1.2)
+2025-11-08 07:04:42,051 - INFO -     z_trans: med= 9.672 (-4.1/+5)
+2025-11-08 07:04:42,051 - INFO -     n_trans: med= 4.043 (-2.2/+1.3)
+2025-11-08 07:04:42,051 - INFO -     Omega_rel0: med= 0.6894 (-0.28/+0.12)
+2025-11-08 07:04:42,051 - INFO -     w_rel0: med=-0.9893 (-0.44/+0.44)
+2025-11-08 07:04:42,051 - INFO -     w_rel_a: med= 0.5182 (-1.5/+0.72)
+2025-11-08 07:04:42,051 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-08 07:04:42,051 - INFO -     Walker[10] snapshot: H_star=64.61, Omega_b=0.05563,
+        Omega_gamma=0.000823, z_rec=1062, xi_high=5.643, xi_low=4.756,
+        z_trans=15.45, n_trans=1.458, Omega_rel0=0.7272, w_rel0=-0.1349,
+        w_rel_a=-1.027, c_light=2.998e+05
+2025-11-08 07:04:42,051 - INFO - Completed MCMC burn-in stage.
+2025-11-08 07:04:42,051 - INFO - Starting MCMC production stage for 10 steps...
+2025-11-08 07:06:54,907 - INFO - MCMC production progress:  10% (1/10 steps)
+2025-11-08 07:06:54,909 - INFO -     logP μ=-3.225e+04 σ= 8.637e+04 max=-1.151e+03 Δχ²≈-0.000
+2025-11-08 07:06:54,909 - INFO -     H_star: med= 70.95 (-5.8/+14)
+2025-11-08 07:06:54,909 - INFO -     Omega_b: med= 0.05655 (-0.019/+0.027)
+2025-11-08 07:06:54,909 - INFO -     Omega_gamma: med= 0.0005329 (-0.00013/+0.00015)
+2025-11-08 07:06:54,909 - INFO -     z_rec: med= 1044 (-53/+75)
+2025-11-08 07:06:54,909 - INFO -     xi_high: med= 4.222 (-1.3/+2.1)
+2025-11-08 07:06:54,909 - INFO -     xi_low: med= 2.508 (-0.82/+1.1)
+2025-11-08 07:06:54,909 - INFO -     z_trans: med= 9.831 (-2.9/+4.8)
+2025-11-08 07:06:54,909 - INFO -     n_trans: med= 4.018 (-2.2/+1.3)
+2025-11-08 07:06:54,909 - INFO -     Omega_rel0: med= 0.6834 (-0.25/+0.092)
+2025-11-08 07:06:54,910 - INFO -     w_rel0: med=-0.9482 (-0.31/+0.38)
+2025-11-08 07:06:54,910 - INFO -     w_rel_a: med= 0.5581 (-1.7/+0.68)
+2025-11-08 07:06:54,910 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-08 07:06:54,910 - INFO -     Walker[10] snapshot: H_star=65.17, Omega_b=0.05536,
+        Omega_gamma=0.0007542, z_rec=1041, xi_high=5.466, xi_low=3.981,
+        z_trans=15.25, n_trans=1.564, Omega_rel0=0.7099, w_rel0=-0.3027,
+        w_rel_a=-1.125, c_light=2.998e+05
+2025-11-08 07:08:27,836 - INFO - MCMC production progress:  20% (2/10 steps)
+2025-11-08 07:08:27,838 - INFO -     logP μ=-3.007e+04 σ= 8.672e+04 max=-1.151e+03 Δχ²≈-0.000
+2025-11-08 07:08:27,838 - INFO -     H_star: med= 70.95 (-5.5/+14)
+2025-11-08 07:08:27,838 - INFO -     Omega_b: med= 0.05655 (-0.014/+0.022)
+2025-11-08 07:08:27,838 - INFO -     Omega_gamma: med= 0.0005329 (-0.00013/+0.00014)
+2025-11-08 07:08:27,838 - INFO -     z_rec: med= 1045 (-54/+67)
+2025-11-08 07:08:27,838 - INFO -     xi_high: med= 4.202 (-1.3/+1.5)
+2025-11-08 07:08:27,838 - INFO -     xi_low: med= 2.361 (-0.53/+1.3)
+2025-11-08 07:08:27,839 - INFO -     z_trans: med= 9.828 (-2.5/+4)
+2025-11-08 07:08:27,839 - INFO -     n_trans: med= 4.075 (-1.9/+1.3)
+2025-11-08 07:08:27,839 - INFO -     Omega_rel0: med= 0.6671 (-0.21/+0.1)
+2025-11-08 07:08:27,839 - INFO -     w_rel0: med=-0.9823 (-0.27/+0.36)
+2025-11-08 07:08:27,839 - INFO -     w_rel_a: med= 0.4824 (-1.6/+0.75)
+2025-11-08 07:08:27,839 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-08 07:09:39,743 - INFO - MCMC production progress:  30% (3/10 steps)
+2025-11-08 07:09:39,745 - INFO -     logP μ=-2.866e+04 σ= 8.693e+04 max=-1.151e+03 Δχ²≈-0.000
+2025-11-08 07:09:39,745 - INFO -     H_star: med= 70.99 (-5.1/+11)
+2025-11-08 07:09:39,745 - INFO -     Omega_b: med= 0.05655 (-0.014/+0.02)
+2025-11-08 07:09:39,745 - INFO -     Omega_gamma: med= 0.0005274 (-9.9e-05/+0.00015)
+2025-11-08 07:09:39,745 - INFO -     z_rec: med= 1046 (-54/+44)
+2025-11-08 07:09:39,745 - INFO -     xi_high: med= 4.25 (-1/+1.2)
+2025-11-08 07:09:39,745 - INFO -     xi_low: med= 2.354 (-0.49/+1.3)
+2025-11-08 07:09:39,745 - INFO -     z_trans: med= 10.17 (-1.9/+3.7)
+2025-11-08 07:09:39,745 - INFO -     n_trans: med= 4.007 (-1.8/+1.1)
+2025-11-08 07:09:39,745 - INFO -     Omega_rel0: med= 0.6671 (-0.14/+0.11)
+2025-11-08 07:09:39,746 - INFO -     w_rel0: med=-0.9989 (-0.17/+0.35)
+2025-11-08 07:09:39,746 - INFO -     w_rel_a: med= 0.3332 (-1.1/+0.9)
+2025-11-08 07:09:39,746 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-08 07:10:44,193 - INFO - MCMC production progress:  40% (4/10 steps)
+2025-11-08 07:10:44,198 - INFO -     logP μ=-2.408e+04 σ= 8.299e+04 max=-1.135e+03 Δχ²≈-30.745
+2025-11-08 07:10:44,198 - INFO -     H_star: med= 71.15 (-5.2/+8.7)
+2025-11-08 07:10:44,198 - INFO -     Omega_b: med= 0.05479 (-0.011/+0.021)
+2025-11-08 07:10:44,198 - INFO -     Omega_gamma: med= 0.0005453 (-0.00014/+0.00013)
+2025-11-08 07:10:44,198 - INFO -     z_rec: med= 1042 (-47/+48)
+2025-11-08 07:10:44,198 - INFO -     xi_high: med= 4.25 (-0.94/+1.3)
+2025-11-08 07:10:44,198 - INFO -     xi_low: med= 2.425 (-0.5/+1.2)
+2025-11-08 07:10:44,198 - INFO -     z_trans: med= 9.854 (-1.6/+4)
+2025-11-08 07:10:44,198 - INFO -     n_trans: med= 4.093 (-1.9/+0.91)
+2025-11-08 07:10:44,198 - INFO -     Omega_rel0: med= 0.6671 (-0.14/+0.098)
+2025-11-08 07:10:44,198 - INFO -     w_rel0: med=-0.9814 (-0.18/+0.32)
+2025-11-08 07:10:44,198 - INFO -     w_rel_a: med= 0.3507 (-1.1/+0.94)
+2025-11-08 07:10:44,198 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-08 07:11:52,670 - INFO - MCMC production progress:  50% (5/10 steps)
+2025-11-08 07:11:52,671 - INFO -     logP μ=-2.016e+04 σ= 6.407e+04 max=-1.135e+03 Δχ²≈-30.745
+2025-11-08 07:11:52,671 - INFO -     H_star: med= 70.98 (-5.5/+8.8)
+2025-11-08 07:11:52,671 - INFO -     Omega_b: med= 0.05468 (-0.011/+0.018)
+2025-11-08 07:11:52,671 - INFO -     Omega_gamma: med= 0.0005447 (-0.00014/+0.00013)
+2025-11-08 07:11:52,671 - INFO -     z_rec: med= 1042 (-47/+69)
+2025-11-08 07:11:52,671 - INFO -     xi_high: med= 4.25 (-0.94/+1.3)
+2025-11-08 07:11:52,671 - INFO -     xi_low: med= 2.662 (-0.73/+0.99)
+2025-11-08 07:11:52,672 - INFO -     z_trans: med= 10.17 (-1.8/+3.6)
+2025-11-08 07:11:52,672 - INFO -     n_trans: med= 3.81 (-1.6/+1.2)
+2025-11-08 07:11:52,672 - INFO -     Omega_rel0: med= 0.6671 (-0.14/+0.098)
+2025-11-08 07:11:52,672 - INFO -     w_rel0: med=-0.9849 (-0.12/+0.32)
+2025-11-08 07:11:52,672 - INFO -     w_rel_a: med= 0.3295 (-1.1/+0.95)
+2025-11-08 07:11:52,672 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-08 07:11:52,672 - INFO -     Walker[2] snapshot: H_star=70.18, Omega_b=0.04298,
+        Omega_gamma=0.0002407, z_rec=1039, xi_high=5.595, xi_low=2.643,
+        z_trans=5.362, n_trans=4.557, Omega_rel0=0.7645, w_rel0=-0.8145,
+        w_rel_a=0.5144, c_light=2.998e+05
+2025-11-08 07:13:06,249 - INFO - MCMC production progress:  60% (6/10 steps)
+2025-11-08 07:13:06,251 - INFO -     logP μ=-1.340e+04 σ= 3.787e+04 max=-1.135e+03 Δχ²≈-30.745
+2025-11-08 07:13:06,251 - INFO -     H_star: med= 70.51 (-5.2/+6)
+2025-11-08 07:13:06,251 - INFO -     Omega_b: med= 0.05507 (-0.0087/+0.021)
+2025-11-08 07:13:06,251 - INFO -     Omega_gamma: med= 0.0005392 (-0.00011/+0.00014)
+2025-11-08 07:13:06,252 - INFO -     z_rec: med= 1045 (-44/+56)
+2025-11-08 07:13:06,252 - INFO -     xi_high: med= 4.25 (-0.77/+1.2)
+2025-11-08 07:13:06,252 - INFO -     xi_low: med= 2.662 (-0.8/+0.99)
+2025-11-08 07:13:06,252 - INFO -     z_trans: med= 10.62 (-3.3/+3.1)
+2025-11-08 07:13:06,252 - INFO -     n_trans: med= 3.915 (-1.5/+0.91)
+2025-11-08 07:13:06,252 - INFO -     Omega_rel0: med= 0.6672 (-0.12/+0.098)
+2025-11-08 07:13:06,252 - INFO -     w_rel0: med=-0.9878 (-0.26/+0.32)
+2025-11-08 07:13:06,252 - INFO -     w_rel_a: med= 0.2213 (-0.97/+0.76)
+2025-11-08 07:13:06,252 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-08 07:14:27,853 - INFO - MCMC production progress:  70% (7/10 steps)
+2025-11-08 07:14:27,855 - INFO -     logP μ=-1.270e+04 σ= 3.798e+04 max=-1.135e+03 Δχ²≈-30.745
+2025-11-08 07:14:27,855 - INFO -     H_star: med= 70.11 (-4.8/+6.3)
+2025-11-08 07:14:27,855 - INFO -     Omega_b: med= 0.05441 (-0.011/+0.017)
+2025-11-08 07:14:27,855 - INFO -     Omega_gamma: med= 0.000532 (-0.0001/+0.00011)
+2025-11-08 07:14:27,855 - INFO -     z_rec: med= 1040 (-39/+38)
+2025-11-08 07:14:27,855 - INFO -     xi_high: med= 4.312 (-0.9/+1.1)
+2025-11-08 07:14:27,855 - INFO -     xi_low: med= 2.662 (-0.58/+0.95)
+2025-11-08 07:14:27,855 - INFO -     z_trans: med= 9.82 (-1.3/+4.1)
+2025-11-08 07:14:27,855 - INFO -     n_trans: med= 3.912 (-1.6/+0.89)
+2025-11-08 07:14:27,855 - INFO -     Omega_rel0: med= 0.6695 (-0.12/+0.096)
+2025-11-08 07:14:27,855 - INFO -     w_rel0: med=-0.9878 (-0.18/+0.32)
+2025-11-08 07:14:27,855 - INFO -     w_rel_a: med= 0.1702 (-0.97/+0.77)
+2025-11-08 07:14:27,855 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-08 07:15:41,957 - INFO - MCMC production progress:  80% (8/10 steps)
+2025-11-08 07:15:41,959 - INFO -     logP μ=-1.223e+04 σ= 3.804e+04 max=-1.135e+03 Δχ²≈-30.745
+2025-11-08 07:15:41,959 - INFO -     H_star: med= 70.05 (-4/+6.4)
+2025-11-08 07:15:41,959 - INFO -     Omega_b: med= 0.05409 (-0.01/+0.016)
+2025-11-08 07:15:41,959 - INFO -     Omega_gamma: med= 0.0005591 (-0.00012/+8.6e-05)
+2025-11-08 07:15:41,959 - INFO -     z_rec: med= 1040 (-44/+38)
+2025-11-08 07:15:41,959 - INFO -     xi_high: med= 4.312 (-0.9/+1.1)
+2025-11-08 07:15:41,959 - INFO -     xi_low: med= 2.701 (-0.57/+0.73)
+2025-11-08 07:15:41,959 - INFO -     z_trans: med= 10.39 (-1.7/+3.5)
+2025-11-08 07:15:41,959 - INFO -     n_trans: med= 3.775 (-1.5/+1)
+2025-11-08 07:15:41,959 - INFO -     Omega_rel0: med= 0.6567 (-0.1/+0.11)
+2025-11-08 07:15:41,960 - INFO -     w_rel0: med=-0.8953 (-0.29/+0.2)
+2025-11-08 07:15:41,960 - INFO -     w_rel_a: med= 0.1418 (-0.94/+0.79)
+2025-11-08 07:15:41,960 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-08 07:16:59,029 - INFO - MCMC production progress:  90% (9/10 steps)
+2025-11-08 07:16:59,031 - INFO -     logP μ=-1.186e+04 σ= 3.811e+04 max=-1.135e+03 Δχ²≈-30.745
+2025-11-08 07:16:59,031 - INFO -     H_star: med= 71.02 (-4.7/+5.4)
+2025-11-08 07:16:59,031 - INFO -     Omega_b: med= 0.05426 (-0.011/+0.016)
+2025-11-08 07:16:59,031 - INFO -     Omega_gamma: med= 0.0005427 (-0.0001/+9.8e-05)
+2025-11-08 07:16:59,032 - INFO -     z_rec: med= 1040 (-44/+35)
+2025-11-08 07:16:59,032 - INFO -     xi_high: med= 4.342 (-0.93/+1.1)
+2025-11-08 07:16:59,032 - INFO -     xi_low: med= 2.733 (-0.88/+0.7)
+2025-11-08 07:16:59,032 - INFO -     z_trans: med= 10.52 (-1.9/+2.6)
+2025-11-08 07:16:59,032 - INFO -     n_trans: med= 3.683 (-1.5/+1)
+2025-11-08 07:16:59,032 - INFO -     Omega_rel0: med= 0.6943 (-0.14/+0.043)
+2025-11-08 07:16:59,032 - INFO -     w_rel0: med=-0.8881 (-0.22/+0.19)
+2025-11-08 07:16:59,032 - INFO -     w_rel_a: med= 0.1639 (-0.66/+0.77)
+2025-11-08 07:16:59,032 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-08 07:18:22,845 - INFO - MCMC production progress: 100% (10/10 steps)
+2025-11-08 07:18:22,847 - INFO -     logP μ=-1.121e+04 σ= 3.810e+04 max=-1.066e+03 Δχ²≈-168.785
+2025-11-08 07:18:22,847 - INFO -     H_star: med= 70.29 (-3.8/+6.1)
+2025-11-08 07:18:22,847 - INFO -     Omega_b: med= 0.05371 (-0.006/+0.0091)
+2025-11-08 07:18:22,847 - INFO -     Omega_gamma: med= 0.0005421 (-9.9e-05/+0.0001)
+2025-11-08 07:18:22,847 - INFO -     z_rec: med= 1045 (-31/+29)
+2025-11-08 07:18:22,847 - INFO -     xi_high: med= 4.366 (-0.84/+0.93)
+2025-11-08 07:18:22,847 - INFO -     xi_low: med= 2.654 (-0.47/+0.77)
+2025-11-08 07:18:22,848 - INFO -     z_trans: med= 10.74 (-2/+2.4)
+2025-11-08 07:18:22,848 - INFO -     n_trans: med= 3.651 (-1.4/+1)
+2025-11-08 07:18:22,848 - INFO -     Omega_rel0: med= 0.6978 (-0.15/+0.026)
+2025-11-08 07:18:22,848 - INFO -     w_rel0: med=-0.9061 (-0.21/+0.21)
+2025-11-08 07:18:22,848 - INFO -     w_rel_a: med= 0.1474 (-0.65/+0.74)
+2025-11-08 07:18:22,848 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-08 07:18:22,848 - INFO -     Walker[2] snapshot: H_star=68.88, Omega_b=0.04789,
+        Omega_gamma=0.0003662, z_rec=1049, xi_high=5.269, xi_low=2.334,
+        z_trans=8.508, n_trans=3.992, Omega_rel0=0.7506, w_rel0=-0.8936,
+        w_rel_a=0.05245, c_light=2.998e+05
+2025-11-08 07:18:22,848 - INFO - Completed MCMC production stage.
+2025-11-08 07:18:26,587 - WARNING - /Users/apostolov/Documents/GitHub/copernican/.venv/lib/python3.11/site-packages/arviz/stats/diagnostics.py:592: RuntimeWarning: invalid value encountered in scalar divide
+2025-11-08 07:18:26,605 - INFO - Rank-normalised R-hat summary: min=nan median=nan max=nan
+2025-11-08 07:18:26,605 - INFO - Effective sample sizes: bulk median=84.1 tail median=92.1
+2025-11-08 07:18:26,605 - INFO - MCMC acceptance for QRSF: mean=0.356, min=0.000, max=0.700
+2025-11-08 07:18:26,614 - INFO - 
+--- Stage 3: BAO Analysis ---
+
+2025-11-08 07:18:26,616 - INFO - Calculating BAO observables for LambdaCDM with parameters: [69.39, 0.2943, 0.04454, 6.427e-05, 1164]
+2025-11-08 07:18:26,618 - INFO - Successfully calculated r_s for LambdaCDM: 152.381 Mpc
+2025-11-08 07:18:26,625 - INFO - LambdaCDM BAO residual RMS=0.759, max=1.67, median=-0.524 (N=9)
+2025-11-08 07:18:26,625 - INFO -     DH_over_rs: rms=1.04, max=1.67, median=-0.692 (N=3)
+2025-11-08 07:18:26,625 - INFO -     DM_over_rs: rms=0.616, max=0.764, median=-0.621 (N=3)
+2025-11-08 07:18:26,625 - INFO -     DV_over_rs: rms=0.505, max=0.524, median=-0.502 (N=3)
+2025-11-08 07:18:26,625 - INFO - LambdaCDM BAO: r_s = 152.38 Mpc, χ²_BAO = 10.34
+2025-11-08 07:18:26,626 - INFO - Calculating BAO observables for QRSF with parameters: [68.88, 0.04789, 0.0003662, 1049, 5.269, 2.334, 8.508, 3.992, 0.7506, -0.8936, 0.05245, 2.998e+05]
+2025-11-08 07:18:26,628 - INFO - Successfully calculated r_s for QRSF: 95.408 Mpc
+2025-11-08 07:18:26,635 - INFO - QRSF BAO residual RMS=11.5, max=16.1, median=+10 (N=9)
+2025-11-08 07:18:26,635 - INFO -     DH_over_rs: rms=15.9, max=16.1, median=+16 (N=3)
+2025-11-08 07:18:26,635 - INFO -     DM_over_rs: rms=8.52, max=10.1, median=+8.57 (N=3)
+2025-11-08 07:18:26,636 - INFO -     DV_over_rs: rms=8.4, max=10, median=+8.43 (N=3)
+2025-11-08 07:18:26,636 - INFO - QRSF BAO: r_s = 95.41 Mpc, χ²_BAO = 4.41
+2025-11-08 07:18:26,636 - INFO - QRSF r_s offset relative to LambdaCDM: -56.974 Mpc
+2025-11-08 07:18:26,636 - INFO - 
+--- Stage 4: CMB Analysis ---
+
+2025-11-08 07:18:28,826 - INFO - LambdaCDM CMB TT rms=68.5, max=343, median=+9.08 (N=215)
+2025-11-08 07:18:28,827 - INFO - LambdaCDM CMB TE rms=7.91, max=21.4, median=+0.849 (N=199)
+2025-11-08 07:18:28,827 - INFO - LambdaCDM CMB EE rms=7.71, max=53.6, median=-0.0225 (N=199)
+2025-11-08 07:18:28,827 - INFO - LambdaCDM CMB χ² = 648.60
+2025-11-08 07:18:30,795 - INFO - QRSF CMB TT rms=56.3, max=291, median=+2.61 (N=215)
+2025-11-08 07:18:30,796 - INFO - QRSF CMB TE rms=5.73, max=18.9, median=-0.131 (N=199)
+2025-11-08 07:18:30,797 - INFO - QRSF CMB EE rms=7.59, max=54.4, median=+0.0632 (N=199)
+2025-11-08 07:18:30,797 - INFO - QRSF CMB χ² = 378.35
+2025-11-08 07:18:30,798 - INFO - 
+--- Stage 5: Generating Outputs ---
+
+2025-11-08 07:18:30,798 - INFO - LambdaCDM CMB χ² = 648.60
+2025-11-08 07:18:30,798 - INFO - QRSF CMB χ² = 378.35
+2025-11-08 07:18:30,807 - INFO - Log file renamed to copernican-run_20251108_071830.txt
+2025-11-08 07:18:30,808 - INFO - Generating Hubble Diagram for Joint Light-curve Analysis 2014...
+2025-11-08 07:18:36,487 - INFO - Hubble diagram saved to hubble-plot-vs-QRSF-jla_2014_20251108_071830.png
+2025-11-08 07:18:36,488 - INFO - Generating BAO Plot for BOSS DR12 BAO Consensus...
+2025-11-08 07:18:40,405 - INFO - BAO plot saved to bao-plot-vs-QRSF-boss_dr12_bao_20251108_071830.png
+2025-11-08 07:18:40,405 - INFO - Generating CMB Spectrum Plot for Planck 2018 Lite TT/TE/EE...
+2025-11-08 07:18:46,213 - INFO - CMB plot saved to cmb-plot-vs-QRSF-planck_2018_lite_20251108_071830.png
+2025-11-08 07:18:46,214 - INFO - 
+--- Theory Abstracts ---
+
+2025-11-08 07:18:46,214 - INFO - ΛCDM Abstract:
+LambdaCDM model describes a flat universe dominated by cold dark matter and a cosmological constant serving as the reference model.
+
+2025-11-08 07:18:46,214 - INFO - QRSF Abstract:
+Quantum Relational Scale Field cosmology links baryonic entanglement with the vacuum to cosmic acceleration. A smooth transition between high- and low- redshift inertia plateaus supplies the matter support demanded by BAO and CMB data. A relational fluid with a tunable equation of state captures late-time acceleration. The construction keeps early-universe physics intact and frames cosmic dynamics as a response to changing vacuum correlations.
+
+2025-11-08 07:18:46,214 - INFO - --- ΛCDM Fit Report ---
+
+2025-11-08 07:18:46,215 - INFO -   H₀ = 69.388
+2025-11-08 07:18:46,215 - INFO -   Ωₘ₀ = 0.29427
+2025-11-08 07:18:46,216 - INFO -   Ωb = 0.04454
+2025-11-08 07:18:46,218 - INFO -   Ωᵧ = 6.427e-05
+2025-11-08 07:18:46,219 - INFO -   zᵣₑc = 1164.2
+2025-11-08 07:18:46,219 - INFO -   χ²_Total = 2180.77
+2025-11-08 07:18:46,219 - INFO -   χ²_SNe = 1521.83
+2025-11-08 07:18:46,219 - INFO -   χ²_BAO = 10.34
+2025-11-08 07:18:46,219 - INFO -   χ²_CMB = 648.60
+2025-11-08 07:18:46,219 - INFO - 
+2025-11-08 07:18:46,219 - INFO - --- QRSF Fit Report ---
+
+2025-11-08 07:18:46,219 - INFO -   H_\star = 68.879
+2025-11-08 07:18:46,219 - INFO -   Ωb = 0.047893
+2025-11-08 07:18:46,220 - INFO -   Ω_γ = 0.00036621
+2025-11-08 07:18:46,220 - INFO -   zᵣₑc = 1048.5
+2025-11-08 07:18:46,220 - INFO -   ξₕᵢ = 5.269
+2025-11-08 07:18:46,220 - INFO -   ξₗₒ = 2.3336
+2025-11-08 07:18:46,220 - INFO -   zₜᵣₐₙₛ = 8.5083
+2025-11-08 07:18:46,221 - INFO -   nₜᵣₐₙₛ = 3.9917
+2025-11-08 07:18:46,221 - INFO -   Ωᵣₑₗ₀ = 0.75059
+2025-11-08 07:18:46,221 - INFO -   wᵣₑₗ₀ = -0.89356
+2025-11-08 07:18:46,221 - INFO -   wᵣₑₗ,ₐ = 0.052451
+2025-11-08 07:18:46,221 - INFO -   c = 2.9979e+05
+2025-11-08 07:18:46,221 - INFO -   χ²_Total = 2109.51
+2025-11-08 07:18:46,221 - INFO -   χ²_SNe = 1726.74
+2025-11-08 07:18:46,222 - INFO -   χ²_BAO = 4.41
+2025-11-08 07:18:46,222 - INFO -   χ²_CMB = 378.35
+2025-11-08 07:18:46,222 - INFO - 
+2025-11-08 07:18:46,261 - INFO - SNe detailed results CSV saved to sne-data-vs-QRSF-jla_2014_20251108_071830.csv
+2025-11-08 07:18:46,266 - INFO - BAO detailed results CSV saved to bao-data-vs-QRSF-boss_dr12_bao_20251108_071830.csv
+2025-11-08 07:18:46,280 - INFO - CMB detailed results CSV saved to cmb-data-vs-QRSF-planck_2018_lite_20251108_071830.csv
+2025-11-08 07:18:46,358 - INFO - Posterior samples saved to /Users/apostolov/Documents/GitHub/copernican/output/copernican-run_20251108_071830/posterior-LambdaCDM-jla_2014_20251108_071830.nc
+2025-11-08 07:18:46,440 - INFO - Posterior samples saved to /Users/apostolov/Documents/GitHub/copernican/output/copernican-run_20251108_071830/posterior-QRSF-jla_2014_20251108_071830.nc
+2025-11-08 07:18:46,440 - INFO - 
+==================================================
+2025-11-08 07:18:46,440 - INFO - Evaluation complete. All files saved to the 'output' directory.
+2025-11-08 07:18:46,440 - INFO - ==================================================
+
+2025-11-08 07:18:47,325 - INFO - Run completed at 20251108_071830 UTC.
+2025-11-08 07:18:47,639 - INFO - Run started on 2025-11-08 06:32:49 UTC
+2025-11-08 07:18:47,639 - INFO - Run ended on 2025-11-08 07:18:30 UTC
+2025-11-08 07:18:47,639 - INFO - Run took 1357.69s for LCDM and 1292.07s for QRSF, or 2756.76s in total, on a system with a i386 3.50 GHz, under macOS-15.0.1-x86_64-i386-64bit
+2025-11-08 07:18:47,639 - INFO - 
+2025-11-08 07:18:47,639 - INFO - Next actions:
+2025-11-08 07:18:47,639 - INFO -   1) Start another evaluation run
+2025-11-08 07:18:47,639 - INFO -   C) Close the Copernican Suite
+2025-11-08 07:18:47,640 - INFO - 
