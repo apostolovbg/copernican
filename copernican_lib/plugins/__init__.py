@@ -1,6 +1,6 @@
 """Runtime plugin assembly utilities for engine integrations.
 
-**Last Updated:** 2025-10-31
+**Last Updated:** 2025-11-08
 
 The legacy :mod:`copernican_lib.engine_interface` module combined plugin
 construction, validation, CAMB parameter synthesis and posterior helpers in a
@@ -137,7 +137,10 @@ class CAMBParameterEvaluator:
     def _replace_latex(self, expr: str) -> str:
         cleaned = expr
         for latex, name in self._replacements.items():
-            cleaned = cleaned.replace(latex, name)
+            pattern = re.compile(
+                rf"(?<![A-Za-z0-9_]){re.escape(latex)}(?![A-Za-z0-9_])"
+            )
+            cleaned = pattern.sub(name, cleaned)
         return cleaned
 
     def _eval_expression(self, expr: str, env: Mapping[str, float]) -> float:

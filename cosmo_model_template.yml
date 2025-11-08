@@ -1,8 +1,13 @@
 model_name: YourModelName
 version: "1.0"
 description: |
-  A one-to-two page resume of the theory with full explanation
-  and any necessary math expressions written in LaTeX.
+  A comprehensive manuscript-level exposition of the theory. Treat
+  this field as the canonical paper for the model: include at least ten
+  pages of context, derivations, observational strategy, parameter
+  justification and falsifiability criteria written in Markdown and
+  LaTeX. Capture every assumption, historical motivation and
+  reproducibility note so the YAML file alone lets a reviewer
+  reconstruct the entire theory without consulting external material.
 abstract: |
   A concise abstract paragraph that summarises the entire theory,
   including key equations and their roles.
