@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-07
+**Last Updated:** 2025-11-08
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -22,6 +22,11 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 7.3.2
+- 2025-11-08: Rebuilt the Quantum Relational Scale Field model with dual
+  entanglement and relational-fluid channels so BAO and Supernova datasets fit
+  alongside the already-strong CMB results, promoted the speed of light to a
+  fixed parameter for cleaner LaTeX output and refreshed documentation to match
+  the new description (OpenAI ChatGPT)
 - 2025-11-07: Expanded the Quantum Relational Scale Field model description and
   abstract, refreshed the README model overview and documented the entanglement
   and relational release mechanisms so QRSF stands alone without USMF context
