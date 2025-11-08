@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-11-07
+**Last Updated:** 2025-11-08
 
 This document expands on the high-level summary in the README by tracing how
 the Copernican Suite organises its architecture.  The command-line launcher
@@ -34,10 +34,22 @@ their placeholders are consolidated under a single loader entry.
 
 ## Historical context and recent changes
 
-Version 7.3.2 streamlines placeholder management by letting the GW loader own
-the forthcoming gravitational-wave standard siren datasets.  Retiring the
-separate siren registry keeps discovery focused on a single entry point while
-documentation quietly reflects the consolidation.
+Version 7.4.4 finalises the Stage 5 compatibility layer by turning
+`_validate_corner_inputs` into a thin wrapper that forwards directly to
+`_prepare_corner_inputs`.  The approach keeps archival automation importing the
+legacy name while eliminating the linter redefinition warning that surfaced when
+the alias was a plain assignment.  Documentation mirrors the behaviour so code
+comments, guides and tests explain why the wrapper exists alongside the modern
+helper.
+
+Version 7.4.1 adds a sampler-facing perspective to the plotting layer. The new
+corner plot automatically thins oversized chains, renders the Stage 2 posterior
+with the suite's standard footer treatment and now runs as part of Stage 5 so
+cosmologists can inspect parameter degeneracies before diving into manifest
+tables or NetCDF chains. Earlier work from Version 7.3.2 keeps the GW
+loader in charge of the forthcoming gravitational-wave standard siren datasets.
+The separate registry stays retired so discovery remains focused on a single
+entry point while documentation quietly reflects the consolidation.
 
 Version 7.3.1 refreshes the interactive prompts that guard Stage 2.  The custom
 sampler questionnaire now closes with a numbered confirmation menu that spells
