@@ -21,6 +21,32 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.4.3
+- 2025-11-08: Renamed the Stage 5 sampler helper to `_prepare_corner_inputs`
+  while retaining `_validate_corner_inputs` as a compatibility alias so
+  downstream tooling keeps importing the legacy name without tripping lints.
+  Updated the regression tests, refreshed repository documentation and bumped
+  recorded metadata to 7.4.3 (OpenAI ChatGPT)
+
+## Version 7.4.2
+- 2025-11-08: Restored compatibility with legacy corner-plot validators that
+  still return only samples and labels by deriving thinning statistics inside
+  `plotter.plot_corner`, logging the fallback, extending regression coverage and
+  refreshing the documentation set while bumping recorded metadata to 7.4.2
+  (OpenAI ChatGPT)
+
+## Version 7.4.1
+- 2025-11-08: Thinned Stage 2 corner plots before rendering, wired the helper
+  into Stage 5 output generation, refreshed documentation and bumped recorded
+  version metadata to 7.4.1 so long chains no longer stall during plotting
+  (OpenAI ChatGPT)
+
+## Version 7.4.0
+- 2025-11-08: Added a corner plot to the plotting suite so Stage 2 runs expose
+  sampler geometry with Copernican footers, introduced automated filename
+  handling, refreshed documentation and bumped the recorded version metadata
+  (OpenAI ChatGPT)
+
 ## Version 7.3.2
 - 2025-11-08: Rebuilt the Quantum Relational Scale Field model with dual
   entanglement and relational-fluid channels so BAO and Supernova datasets fit
