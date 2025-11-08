@@ -19,6 +19,73 @@ from .logger import get_logger
 from .utils import ensure_dir_exists, generate_filename, get_timestamp
 
 
+def _validate_corner_inputs(
+    posterior_samples: np.ndarray,
+    parameter_names: list[str],
+) -> tuple[np.ndarray, list[str]]:
+    """Return flattened samples and validated parameter labels.
+
+    The corner plot accepts sampler output either in raw ``(n_steps,
+    n_walkers, n_params)`` form or as an ``(n_samples, n_params)`` array.
+    This helper normalises both layouts while rejecting empty or
+    degenerate inputs so downstream plotting logic never divides by zero
+    or tries to index missing parameters.
+    """
+
+    samples = np.asarray(posterior_samples, dtype=float)
+    if samples.size == 0:
+        raise ValueError(
+            "posterior_samples is empty; cannot render corner plot",
+        )
+
+    if samples.ndim == 3:
+        n_steps, n_walkers, n_params = samples.shape
+        samples = samples.reshape(n_steps * n_walkers, n_params)
+    elif samples.ndim == 2:
+        n_params = samples.shape[1]
+    else:
+        raise ValueError(
+            "posterior_samples must have 2 or 3 dimensions for "
+            "corner plotting",
+        )
+
+    clean_samples = samples[~np.any(~np.isfinite(samples), axis=1)]
+    if clean_samples.size == 0:
+        raise ValueError("All posterior samples contain NaN or inf values")
+
+    if len(parameter_names) < n_params:
+        raise ValueError(
+            "parameter_names must describe every sampled dimension",
+        )
+
+    return clean_samples, parameter_names[:n_params]
+
+
+def _density_levels(
+    histogram: np.ndarray,
+    levels: tuple[float, ...],
+) -> list[float]:
+    """Return histogram heights for requested cumulative density levels."""
+
+    flat = histogram.ravel()
+    if flat.size == 0 or not np.isfinite(flat).any():
+        return [0.0 for _ in levels]
+
+    order = np.sort(flat)[::-1]
+    cumulative = np.cumsum(order)
+    if cumulative[-1] == 0:
+        return [0.0 for _ in levels]
+    cumulative /= cumulative[-1]
+
+    level_values: list[float] = []
+    for level in levels:
+        idx = np.searchsorted(cumulative, level, side="left")
+        idx = min(idx, order.size - 1)
+        level_values.append(order[idx])
+    level_values.sort()
+    return level_values
+
+
 def _copernican_version() -> str:
     """Return the suite version while tolerating missing helpers.
 
@@ -1325,5 +1392,243 @@ def plot_cmb_spectrum(
         logger.info(f"CMB plot saved to {filename}")
     except Exception as exc:
         logger.error(f"Error saving CMB plot: {exc}")
+    finally:
+        plt.close(fig)
+
+
+def plot_corner(
+    posterior_samples: np.ndarray,
+    alt_model_plugin: Any,
+    data_attrs: dict[str, Any] | None,
+    plot_dir: str = ".",
+    parameter_names: list[str] | None = None,
+    timestamp: str | None = None,
+) -> None:
+    """Generate a corner plot for the joint posterior samples.
+
+    Parameters
+    ----------
+    posterior_samples:
+        Sampler output arranged as ``(n_steps, n_walkers, n_params)`` or a
+        two-dimensional ``(n_samples, n_params)`` array. Samples may contain
+        NaNs or infinities; these are dropped before plotting to avoid
+        distorting the marginal distributions.
+    alt_model_plugin:
+        Plugin describing the alternative model in the Stage 2 comparison.
+        The helper inspects ``PARAMETER_NAMES`` and ``PARAMETER_LATEX_NAMES``
+        when axis labels are not supplied explicitly. The model name also
+        drives filename generation and footer text so plots tie back to the
+        original run directory.
+    data_attrs:
+        Metadata dictionary associated with the combined dataset. The
+        ``dataset_id`` and ``dataset_name`` entries are used both for the
+        output filename and for the footer lines rendered below the plot. Pass
+        ``None`` to fall back to generic identifiers when metadata is
+        unavailable.
+    plot_dir:
+        Directory that will receive the rendered figure. Directories are
+        created automatically so callers can supply fresh output folders.
+    parameter_names:
+        Optional overrides for the parameter labels. When omitted the
+        plugin-provided names are reused.
+    timestamp:
+        Fixed timestamp passed from the caller so filenames and footer
+        content remain deterministic during tests. The current time is used
+        when the argument is ``None``.
+    """
+
+    ensure_dir_exists(plot_dir)
+    logger = get_logger()
+    logger.info("Generating corner plot for posterior samples...")
+    attrs = data_attrs or {}
+
+    default_names = list(getattr(alt_model_plugin, "PARAMETER_NAMES", []))
+    # Store the LaTeX-friendly labels separately so that axis rendering falls
+    # back to readable parameter names when the plugin omits a mapping.
+    label_candidates = list(
+        getattr(alt_model_plugin, "PARAMETER_LATEX_NAMES", []),
+    )
+    effective_names = parameter_names or default_names
+
+    samples, labels = _validate_corner_inputs(
+        posterior_samples,
+        effective_names,
+    )
+    n_params = samples.shape[1]
+
+    wrapped_labels: list[str] = []
+    for idx in range(n_params):
+        latex_name = None
+        if idx < len(label_candidates):
+            latex_name = label_candidates[idx]
+        label = latex_name or labels[idx]
+        wrapped_labels.append(_wrap_math(label))
+
+    _apply_common_style()
+    font_sizes = {
+        "title": 20,
+        "label": 14,
+        "ticks": 10,
+        "footer": 10,
+    }
+
+    # Each dimension receives its own row and column, mirroring the familiar
+    # triangle plot layout popularised by corner.py while letting us reuse the
+    # Copernican Suite's styling helpers and footers.
+    fig, axes = plt.subplots(
+        n_params,
+        n_params,
+        figsize=(3.0 * n_params, 3.0 * n_params),
+    )
+    if n_params == 1:
+        axes = np.array([[axes]])
+
+    bins = max(25, int(np.sqrt(samples.shape[0]) // 2))
+    percentile_lines = (16.0, 50.0, 84.0)
+    contour_levels = (0.68, 0.95)
+
+    for row in range(n_params):
+        for col in range(n_params):
+            ax = axes[row, col]
+            if row < col:
+                # Hide the upper-triangular panels so the plot reads as a
+                # triangle, matching the Copernican documentation.
+                ax.axis("off")
+                continue
+
+            if row == col:
+                param_samples = samples[:, col]
+                ax.hist(
+                    param_samples,
+                    bins=bins,
+                    density=True,
+                    color="#4e79a7",
+                    alpha=0.7,
+                    edgecolor="white",
+                )
+                quantiles = np.percentile(param_samples, percentile_lines)
+                for quantile, style in zip(
+                    quantiles,
+                    ["dashed", "solid", "dashed"],
+                ):
+                    ax.axvline(
+                        quantile,
+                        color="#e15759",
+                        linestyle=style,
+                        linewidth=1.2,
+                    )
+                ax.set_ylabel("Density", fontsize=font_sizes["label"])
+            else:
+                x = samples[:, col]
+                y = samples[:, row]
+                hist, x_edges, y_edges = np.histogram2d(
+                    x,
+                    y,
+                    bins=bins,
+                    density=True,
+                )
+                if np.allclose(hist, 0.0):
+                    ax.scatter(
+                        x,
+                        y,
+                        s=2,
+                        alpha=0.2,
+                        color="#4e79a7",
+                    )
+                else:
+                    x_centers = 0.5 * (x_edges[1:] + x_edges[:-1])
+                    y_centers = 0.5 * (y_edges[1:] + y_edges[:-1])
+                    levels = np.array(
+                        _density_levels(hist, contour_levels),
+                        dtype=float,
+                    )
+                    levels = levels[levels > 0]
+                    levels = np.unique(levels)
+                    high_level = float(hist.max())
+                    if levels.size == 0:
+                        levels = np.array([high_level])
+                    filled_levels = [0.0]
+                    filled_levels.extend(levels.tolist())
+                    top_level = high_level
+                    if top_level <= filled_levels[-1]:
+                        top_level = filled_levels[-1] + np.finfo(float).eps
+                    filled_levels.append(top_level)
+                    ax.contourf(
+                        x_centers,
+                        y_centers,
+                        hist.T,
+                        levels=filled_levels,
+                        colors=["#dbe9f6", "#afc5e5", "#7da0d4"],
+                        alpha=0.9,
+                    )
+                    # Draw thin outlines so the contour levels remain legible
+                    # when exported to PDF or scaled PNG assets.
+                    ax.contour(
+                        x_centers,
+                        y_centers,
+                        hist.T,
+                        levels=levels.tolist(),
+                        colors="#2a5176",
+                        linewidths=1.0,
+                    )
+                ax.grid(True, alpha=0.3)
+
+            if row == n_params - 1:
+                ax.set_xlabel(
+                    wrapped_labels[col],
+                    fontsize=font_sizes["label"],
+                )
+            else:
+                ax.set_xticklabels([])
+
+            if col == 0:
+                ax.set_ylabel(
+                    wrapped_labels[row],
+                    fontsize=font_sizes["label"],
+                )
+            elif row != col:
+                ax.set_yticklabels([])
+
+            ax.tick_params(axis="both", labelsize=font_sizes["ticks"])
+
+    alt_name = getattr(alt_model_plugin, "MODEL_NAME", "AltModel")
+    fig.suptitle(
+        f"Posterior corner plot: {alt_name}",
+        fontsize=font_sizes["title"],
+    )
+
+    footer_lines = build_footer_lines(alt_model_plugin, attrs, timestamp)
+    line_height = 0.018
+    footer_bottom = 0.04 + len(footer_lines) * line_height
+    plt.subplots_adjust(bottom=footer_bottom, left=0.08, right=0.95, top=0.9)
+
+    y = footer_bottom - line_height
+    for idx, (line, is_bold) in enumerate(footer_lines):
+        weight = "bold" if is_bold else "normal"
+        fig.text(
+            0.5,
+            y - idx * line_height,
+            line,
+            ha="center",
+            fontsize=font_sizes["footer"],
+            fontweight=weight,
+            wrap=True,
+        )
+
+    dataset_id = attrs.get("dataset_id", "joint")
+    alt_model_name = alt_name.replace(" ", "_").replace(".", "")
+    filename = generate_filename(
+        "corner-plot",
+        dataset_id,
+        "png",
+        model_name=f"vs-{alt_model_name}",
+        timestamp=timestamp,
+    )
+
+    try:
+        plt.savefig(os.path.join(plot_dir, filename), dpi=300)
+        logger.info(f"Corner plot saved to {filename}")
+    except Exception as exc:  # pragma: no cover - log path only
+        logger.error(f"Error saving corner plot: {exc}")
     finally:
         plt.close(fig)

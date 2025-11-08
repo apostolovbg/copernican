@@ -1,6 +1,6 @@
 # Copernican Suite API Overview
 
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-08
 
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be
@@ -18,6 +18,9 @@ modules are:
   validation helpers. Import `REQUIRED_ATTRIBUTES` and `REQUIRED_FUNCTIONS`
   from here when building custom tooling that needs to confirm interface
   compliance.
+- `copernican_lib.plotter.plot_corner(samples, plugin, data_attrs, plot_dir)` –
+  render the Stage 2 posterior as a corner plot with the suite's standard
+  footer styling, complementing the existing probe-specific plots.
 - `copernican_lib.posterior` – exposes
   :func:`copernican_lib.posterior.make_logposterior`, which now returns a
   picklable :class:`PosteriorEvaluator` combining priors, transforms and
