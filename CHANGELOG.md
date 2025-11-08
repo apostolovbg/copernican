@@ -35,6 +35,15 @@ suffixes. Follow this template:
   ChatGPT)
 - 2025-11-08: Re-encoded the QRSFv2 CAMB baryon-density mapping as a folded
   scalar so YAML parsers load the model without syntax errors (OpenAI ChatGPT)
+- 2025-11-08: Renamed the Quantum Relational Synthesis Field model to
+  `cosmo_model_qrsfv3.yml`, advanced its internal theory to version 3.0 with a
+  standalone manuscript-length description, and updated documentation to point
+  to the new file while keeping the Copernican program version at 7.4.5 (OpenAI
+  ChatGPT)
+- 2025-11-08: Hardened the CAMB parameter evaluator against latex-token
+  collisions so single-letter symbols such as `c` no longer corrupt mixed-case
+  parameter names, restoring finite BAO and CMB chi-squared values for
+  `cosmo_model_qrsfv3.yml` (OpenAI ChatGPT)
 
 ## Version 7.4.4
 - 2025-11-08: Converted the `_validate_corner_inputs` alias into a documented

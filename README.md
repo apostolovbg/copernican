@@ -588,11 +588,10 @@ The non-\LambdaCDM samples now demonstrate several design patterns:
 * `cosmo_model_qrsf.yml` locks in the dual-channel Quantum Relational Scale
   Field revision with its internal version raised to 2.0 so archival analyses
   remain reproducible without inventing new particles.
-* `cosmo_model_qrsfv2.yml` builds on that foundation with the Quantum
-  Relational Synthesis Field v2 coherence kernel. The baryonic inertia
-  renormalisation now removes the dark sector entirely, ties the dynamics to
-  open-quantum-system physics and reduces the free-parameter count while
-  targeting BAO, CMB and supernova χ² improvements simultaneously.
+* `cosmo_model_qrsfv3.yml` advances that lineage with a Quantum Relational
+  Synthesis Field coherence kernel that removes the dark sector, grounds the
+  dynamics in open-quantum-system physics and limits the free-parameter count
+  while targeting simultaneous BAO, CMB and supernova χ² improvements.
 
 **Common mistakes**
 * Missing `*` between variables and parentheses results in a `'Symbol' object
