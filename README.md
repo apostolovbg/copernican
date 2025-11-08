@@ -1,5 +1,5 @@
 **Version:** 7.3.2
-**Last Updated:** 2025-11-07
+**Last Updated:** 2025-11-08
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -34,6 +34,12 @@ records diagnostics, NetCDF chains and a manifest describing the chosen
 configuration. Upcoming work extends the same infrastructure to future probes
 such as gravitational-wave standard sirens while quietly refining placeholder
 management so new probes arrive without user-facing churn.
+
+Recent theory updates keep multi-probe fits consistent. The Quantum Relational
+Scale Field model now treats its entanglement dressing and relational release
+with logistic transitions that preserve BAO distances, supernova ladders and
+the CMB sound horizon while presenting the speed of light as a fixed parameter
+inside the YAML definition.
 
 Release highlights, breaking changes and historical notes now live exclusively
 in [`CHANGELOG.md`](CHANGELOG.md). See the documentation set in `docs/` for
