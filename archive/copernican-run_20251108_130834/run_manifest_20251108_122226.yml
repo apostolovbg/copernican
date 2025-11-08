@@ -1,5 +1,5 @@
 copernican:
-  version: 7.3.2
+  version: 7.4.5
 models:
 - name: LambdaCDM
   version: '1.0'
@@ -79,7 +79,7 @@ models:
 engine:
   name: engines.cosmo_engine_mcmc
   version: unknown
-seed: 1274320463
+seed: 172776856
 datasets:
   jla_2014:
     name: Joint Light-curve Analysis 2014
@@ -94,7 +94,7 @@ datasets:
       tablef2.fit: 0db2aeab210523594c07ac7f89edca87c55a76601c51c4a831d338cc32ce3ff4
       tablef3.dat: 35db10c033fa4bc5326436d957eb732e76fd7a4d6db7c729bc3ce17aeb5de470
       tablef4.fit: a17a1e29a8ee1631669a4456adf84c27372a33f5448a65971dbdd50eb9a97a67
-      __pycache__/cosmo_parser_jla2014.cpython-311.pyc: c9b0e1c6fa650064bc9043c6665431ec81063d952a5aeb65f3bef7b121ba8c66
+      __pycache__/cosmo_parser_jla2014.cpython-311.pyc: 8aee1e9a3e502c83ae9e2a3f4e066e8ae46c6d5d85874622de347cf58caa95ad
     independence:
     - Type Ia supernova distance moduli are treated as statistically independent from
       BAO and CMB observables once their published covariance matrices are accounted
@@ -110,7 +110,7 @@ datasets:
       BAO_consensus_results_dM_Hz.txt: 30e784fa08e7eddb2fdd1ab09411424e67aa9b75df58f4bb330a889c9b9c478e
       BAO_consensus_results_dV_FAP.txt: e507d65dacedc814892609d2decca9990a954ef5836da79b57c663885fce4ef8
       metadata_bossdr12.yml: 821022b3851fda917a4c014d88d35da92f303e7295a1d9d6d373eaab541939ef
-      __pycache__/cosmo_parser_bossdr12.cpython-311.pyc: 2788ba1d7bcae29baead3b68a19cbc0a50eac7571226e64d92c9a38758e2e649
+      __pycache__/cosmo_parser_bossdr12.cpython-311.pyc: c348ab86ee0cfc7a140f4bf3cfb817b44cd6dfd2f343b244151f8741afcd2d99
     independence:
     - BAO distance measurements are assumed independent of SNe and CMB datasets because
       overlapping systematics are negligible at the current precision level.
@@ -124,13 +124,13 @@ datasets:
       cl_cmb_plik_v22.dat: dac0d9d493213e77c940a10a968cf0da3c5730bae60e1356c4cd8bcff96377ff
       metadata_planck2018lite.yml: ec760dece3ddba7da4db1720cc52fd3b8e01e14f6bf2ed60b7d8ecc391f7516c
       readme_baseline.md: ae6cef6886f2c4381147657fc195bed72742fbe3cc106208200f961af24caa73
-      __pycache__/cosmo_parser_cmb_planck2018lite.cpython-311.pyc: 694470446e661f9eecfc6104984a923b1d65cc3841721884112006df38df260f
+      __pycache__/cosmo_parser_cmb_planck2018lite.cpython-311.pyc: 7fee4899bbdf1ee35fe457f0907406f5757e054bb242b928d39fef090475a6d9
     independence:
     - Planck-lite CMB spectra are modelled as independent from SNe and BAO summaries;
       cross-covariances are ignored consistently with published likelihood treatments.
     condition_number: null
 git:
-  commit: 6d84c74e217e029b57b7bf93a2cfaeb10e5a579b
+  commit: b7f5a31d1688bc4fa705ae6d4f687e2c14a2c8d6
   dirty: false
 camb:
   version: 1.6.3
