@@ -103,6 +103,12 @@ same YAML file the helper
 reuses the ΛCDM measurement directly instead of executing the alternative
 branch a second time.
 
+Version 7.6.10 raises that standard further by rendering each bar with Unicode
+partial-block glyphs and rewriting weighted move tables so every terminal sees
+per-walker refreshes. The higher fidelity keeps macOS, Linux and Windows
+terminals animating smoothly even when carriage-return repaints would
+otherwise coalesce multiple walker updates into a single character.
+
 Version 7.1.1 standardises every runtime timestamp on Coordinated
 Universal Time (UTC) so log files, manifests and output directories
 match across developer machines and CI runners. Version 7.1.0 adds an

@@ -522,6 +522,20 @@ class _BatchProgressBar:
     """
 
     _BAR_WIDTH = 50
+    # ``_PARTIAL_BLOCKS`` renders 1/8th increments so short-lived walker
+    # updates remain visible even when they do not advance a full character.
+    # ``""`` represents no fill so the join logic can keep the width fixed.
+    _PARTIAL_BLOCKS: tuple[str, ...] = (
+        "",
+        "▏",
+        "▎",
+        "▍",
+        "▌",
+        "▋",
+        "▊",
+        "▉",
+    )
+    _FULL_BLOCK = "█"
 
     def __init__(
         self,
@@ -539,7 +553,7 @@ class _BatchProgressBar:
         self._current_span = 0
         self._active = False
         self._last_percent = -1
-        self._last_units = -1
+        self._last_bar = ""
 
     def start_batch(self, batch_start: int, batch_end: int) -> None:
         """Announce a new batch spanning ``batch_start`` to ``batch_end``."""
@@ -555,7 +569,7 @@ class _BatchProgressBar:
         )
         self._active = True
         self._last_percent = -1
-        self._last_units = -1
+        self._last_bar = ""
         span = self._current_end - self._current_start + 1
         step_word = "step" if span == 1 else "steps"
         console.write(
@@ -586,13 +600,48 @@ class _BatchProgressBar:
         fraction = (completed_before + step_progress) / batch_size
         fraction = min(max(fraction, 0.0), 1.0)
         percent = int(round(fraction * 100))
-        filled = int(round(fraction * self._BAR_WIDTH))
-        filled = max(0, min(self._BAR_WIDTH, filled))
-        if filled == self._last_units and percent == self._last_percent:
+        # ``exact_units`` keeps the floating-point representation of the bar so
+        # we can emit partial Unicode blocks when the fill does not cover an
+        # entire cell.  The guard clamps the value to the configured width in
+        # case rounding nudges it outside the legal range.
+        exact_units = min(
+            max(fraction * self._BAR_WIDTH, 0.0), self._BAR_WIDTH
+        )
+        full_units = int(math.floor(exact_units))
+        remainder = exact_units - full_units
+        # The eight partial glyphs represent the 1/8, 2/8, …, 7/8 fills.  The
+        # ``round`` keeps the rendered character stable across architectures
+        # whose floating-point arithmetic may drift by <1e-9.
+        partial_levels = len(self._PARTIAL_BLOCKS) - 1
+        partial_index = int(round(remainder * partial_levels))
+        if partial_index > partial_levels:
+            partial_index = partial_levels
+        if (
+            partial_index == partial_levels
+            and remainder > 0
+            and full_units < self._BAR_WIDTH
+        ):
+            # Rounding up to the final partial block signals that the glyph is
+            # visually indistinguishable from a full cell.  Promote it so the
+            # bar can advance to the next column cleanly.
+            full_units += 1
+            partial_index = 0
+        full_units = min(full_units, self._BAR_WIDTH)
+        bar_segments = [self._FULL_BLOCK * full_units]
+        if partial_index and full_units < self._BAR_WIDTH:
+            bar_segments.append(self._PARTIAL_BLOCKS[partial_index])
+        remaining_cells = (
+            self._BAR_WIDTH
+            - full_units
+            - (1 if partial_index and full_units < self._BAR_WIDTH else 0)
+        )
+        if remaining_cells > 0:
+            bar_segments.append("-" * remaining_cells)
+        bar = "".join(bar_segments)
+        if bar == self._last_bar and percent == self._last_percent:
             return None
         self._last_percent = percent
-        self._last_units = filled
-        bar = "#" * filled + "-" * (self._BAR_WIDTH - filled)
+        self._last_bar = bar
         completed_steps = completed_before + (1 if step_progress >= 1.0 else 0)
         completed_steps = min(completed_steps, batch_size)
         remaining = max(batch_size - completed_steps, 0)
@@ -614,10 +663,10 @@ class _BatchProgressBar:
         if not self._active or not self._display:
             return
         self._active = False
-        if self._last_units >= 0:
+        if self._last_bar:
             console.write("")
         self._last_percent = -1
-        self._last_units = -1
+        self._last_bar = ""
         self._current_span = 0
 
     @property
@@ -765,13 +814,64 @@ def _configure_sampler_progress_reporting(
     """Ensure sampler moves forward updates to ``notifier`` when available."""
 
     moves_attr = getattr(sampler, "_moves", [])
-    for index, move in enumerate(moves_attr):
-        if isinstance(move, _ReportingStretchMove):
-            move.set_progress_notifier(notifier)
-        elif isinstance(move, moves.StretchMove):
-            moves_attr[index] = _ReportingStretchMove.from_existing(
-                move, progress_notifier=notifier
+    if not moves_attr:
+        return
+
+    # ``emcee`` stores its move strategies either as bare instances or as
+    # weight-move tuples/lists depending on how callers configured the sampler.
+    # macOS terminals previously stalled because weighted entries skipped the
+    # notifier injection entirely; normalising the layout here ensures every
+    # stretch move reports walker-level progress regardless of how it was
+    # registered.
+    updated_moves: list[Any] = []
+    for entry in moves_attr:
+        orientation = "bare"
+        weight: Any | None = None
+        move_obj: Any = entry
+
+        if isinstance(entry, tuple) and len(entry) == 2:
+            first, second = entry
+            if isinstance(first, moves.Move):
+                move_obj = first
+                weight = second
+                orientation = "move_weight"
+            elif isinstance(second, moves.Move):
+                move_obj = second
+                weight = first
+                orientation = "weight_move"
+        elif isinstance(entry, list) and len(entry) == 2:
+            first, second = entry
+            if isinstance(first, moves.Move):
+                move_obj = first
+                weight = second
+                orientation = "move_weight_list"
+            elif isinstance(second, moves.Move):
+                move_obj = second
+                weight = first
+                orientation = "weight_move_list"
+
+        if isinstance(move_obj, _ReportingStretchMove):
+            move_obj.set_progress_notifier(notifier)
+        elif isinstance(move_obj, moves.StretchMove):
+            move_obj = _ReportingStretchMove.from_existing(
+                move_obj, progress_notifier=notifier
             )
+
+        if orientation == "move_weight":
+            updated_moves.append((move_obj, weight))
+        elif orientation == "weight_move":
+            updated_moves.append((weight, move_obj))
+        elif orientation == "move_weight_list":
+            updated_moves.append([move_obj, weight])
+        elif orientation == "weight_move_list":
+            updated_moves.append([weight, move_obj])
+        else:
+            updated_moves.append(move_obj)
+
+    if isinstance(moves_attr, tuple):
+        sampler._moves = tuple(updated_moves)
+    else:
+        sampler._moves = list(updated_moves)
 
 
 def _run_stage_with_progress(
