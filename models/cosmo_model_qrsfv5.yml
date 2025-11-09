@@ -1,0 +1,295 @@
+# Last Updated: 2025-11-09
+model_name: QRSFv5
+version: '5.0'
+title: Quantum Relational Synthesis Field Cosmology v5
+date: 2025-11-09
+
+abstract: |
+  This model specifies a baryonic, coherence-driven modification of the
+  background expansion without introducing a cold dark matter sector. A
+  smooth, monotonic kernel multiplies the baryon term and rises toward
+  low redshift while remaining negligible at recombination. Radiation is
+  standard and inferred from the CMB temperature through the usual h
+  scaling. A vacuum component with a Chevallier–Polarski–Linder form
+  controls late-time acceleration. Supernova, BAO, and CMB predictions
+  are produced within one consistent cosmology, with CAMB serving as the
+  forward model for linear-theory quantities.
+
+description: |
+  Purpose
+  -------
+  The aim is to encode a computable cosmology in which baryons acquire
+  a redshift-dependent effective inertia that increases at low redshift
+  and is negligible at the acoustic epoch. This effect is represented by
+  a logistic kernel applied to the baryon term in H(z). Radiation follows
+  the standard photon background with the correct dependence on the
+  present Hubble parameter. A vacuum density with a CPL equation of
+  state models late-time acceleration in a transparent and tractable
+  way. All expressions are in closed form and suitable for sanitized
+  symbolic parsing and numerical evaluation.
+
+  Expansion law
+  -------------
+  The Hubble rate H(z) combines three ingredients. The baryon term is
+  Ω_b (1+z)^3 multiplied by a kernel K(z) that is unity at high redshift
+  and rises smoothly as redshift decreases. The kernel is
+  K(z) = 1 + A_k / [1 + X(z)^{n_k}]^{m_k} with X(z) = (1+z)/(1+z_t).
+  Radiation enters as Ω_γ(h) (1+z)^4 with Ω_γ(h) = ω_γ / h^2 and
+  h = H_star / 100. The constant ω_γ ≈ 2.469×10^-5 encodes the CMB
+  monopole. A vacuum component follows the CPL form
+  ρ_vac ∝ (1+z)^{3(1+w0+wa)} exp[-3 wa z/(1+z)].
+
+  Probes and mapping
+  ------------------
+  Supernova distances use the standard luminosity distance integral of
+  c/H(z). BAO predictions use consistent background distances. For
+  production runs the sound horizon should be taken from CAMB to ensure
+  internal consistency. The CMB interface maps model parameters to CAMB
+  with an explicit parameter map. CAMB is used as a forward model only.
+  Fitting and uncertainty quantification are performed by the sampler
+  against the joint likelihood.
+
+  Parameters and priors
+  ---------------------
+  The sampled parameters are H_star (H0), Ω_b, the kernel controls
+  (A_k, z_t, n_k, m_k), and a vacuum density with CPL parameters
+  (Ω_rel0, w_rel0, w_rel_a). The primordial sector parameters τ, A_s,
+  and n_s are also sampled with informative priors so the CMB likelihood
+  can constrain them within standard assumptions. Bounds are chosen to
+  maintain numerical stability and physical plausibility across all
+  probes supported by the suite.
+
+  Physical behaviour
+  ------------------
+  The kernel satisfies K(z) → 1 for z ≫ z_t, leaving the acoustic-era
+  physics standard given τ, A_s, and n_s. At intermediate redshifts the
+  kernel increases the effective inertia carried by baryons, modifying
+  distances and H(z) in a controlled manner. The CPL vacuum term governs
+  the very late universe. The construction yields falsifiable and
+  reproducible predictions across supernovae, BAO, and CMB.
+
+  Reproducibility
+  ---------------
+  All parameters, bounds, priors, and expressions are explicit. The map
+  to CAMB declares only the necessary inputs and avoids hidden defaults.
+  The model lists its probe capabilities and is suitable for non
+  interactive execution and joint inference within the suite.
+
+parameters:
+  - name: Hubble scale today
+    bounds: [50.0, 85.0]
+    unit: km/s/Mpc
+    latex_name: H_\star
+    python_var: H_star
+    definition: Present-day Hubble parameter.
+    prior:
+      type: uniform
+      lower: 50.0
+      upper: 85.0
+
+  - name: Baryon density
+    bounds: [0.03, 0.08]
+    unit: ''
+    latex_name: \Omega_b
+    python_var: Omega_b
+    definition: Baryon density fraction.
+    prior:
+      type: uniform
+      lower: 0.03
+      upper: 0.08
+
+  - name: Kernel amplitude
+    bounds: [0.0, 20.0]
+    unit: ''
+    latex_name: A_k
+    python_var: A_k
+    definition: Low-redshift inertia enhancement amplitude.
+    prior:
+      type: uniform
+      lower: 0.0
+      upper: 20.0
+
+  - name: Kernel transition redshift
+    bounds: [0.2, 25.0]
+    unit: ''
+    latex_name: z_t
+    python_var: z_t
+    definition: Redshift where the kernel begins to rise.
+    prior:
+      type: uniform
+      lower: 0.2
+      upper: 25.0
+
+  - name: Kernel steepness
+    bounds: [0.5, 10.0]
+    unit: ''
+    latex_name: n_k
+    python_var: n_k
+    definition: Steepness exponent of the kernel rise.
+    prior:
+      type: uniform
+      lower: 0.5
+      upper: 10.0
+
+  - name: Kernel saturation exponent
+    bounds: [0.5, 8.0]
+    unit: ''
+    latex_name: m_k
+    python_var: m_k
+    definition: Saturation exponent of the kernel.
+    prior:
+      type: uniform
+      lower: 0.5
+      upper: 8.0
+
+  - name: Relational-vacuum density today
+    bounds: [0.0, 1.2]
+    unit: ''
+    latex_name: \Omega_{\rm rel0}
+    python_var: Omega_rel0
+    definition: Effective vacuum-like density at z=0.
+    prior:
+      type: uniform
+      lower: 0.0
+      upper: 1.2
+
+  - name: CPL w0
+    bounds: [-2.5, 0.3]
+    unit: ''
+    latex_name: w_{\rm rel0}
+    python_var: w_rel0
+    definition: CPL equation-of-state parameter at a=1.
+    prior:
+      type: uniform
+      lower: -2.5
+      upper: 0.3
+
+  - name: CPL wa
+    bounds: [-2.5, 2.5]
+    unit: ''
+    latex_name: w_{\rm rel\,a}
+    python_var: w_rel_a
+    definition: CPL running parameter.
+    prior:
+      type: uniform
+      lower: -2.5
+      upper: 2.5
+
+  - name: Optical depth
+    bounds: [0.01, 0.12]
+    unit: ''
+    latex_name: \tau
+    python_var: tau
+    definition: Reionization optical depth.
+    prior:
+      type: gaussian
+      mean: 0.054
+      sigma: 0.007
+
+  - name: Scalar amplitude A_s
+    bounds: [1.0e-9, 5.0e-9]
+    unit: ''
+    latex_name: A_s
+    python_var: As
+    definition: Scalar amplitude at k=0.05 Mpc^-1.
+    prior:
+      type: loguniform
+      lower: 1.0e-9
+      upper: 5.0e-9
+
+  - name: Scalar spectral index
+    bounds: [0.9, 1.05]
+    unit: ''
+    latex_name: n_s
+    python_var: ns
+    definition: Scalar spectral index of the primordial spectrum.
+    prior:
+      type: gaussian
+      mean: 0.965
+      sigma: 0.02
+
+  - name: Recombination redshift
+    bounds: [1089.0, 1089.0]
+    unit: ''
+    latex_name: z_{\rm rec}
+    python_var: z_rec
+    definition: Reference redshift for mapping and r_s.
+    prior:
+      type: fixed
+      value: 1089.0
+
+  - name: Speed of light
+    bounds: [299792.458, 299792.458]
+    unit: km/s
+    latex_name: c
+    python_var: c_light
+    definition: Speed of light used in distance integrals.
+    prior:
+      type: fixed
+      value: 299792.458
+
+Hz_expression: >-
+  H(z) = H_star * sqrt(
+    Omega_b * (1 + z)**3 * (
+      1 + A_k / (1 + ((1 + z)/(1 + z_t))**n_k )**m_k
+    )
+    + (2.469e-5 / (H_star/100)**2) * (1 + z)**4
+    + Omega_rel0 * (1 + z)**(3 * (1 + w_rel0 + w_rel_a))
+      * exp(-3 * w_rel_a * z / (1 + z))
+  )
+
+equations:
+  sne:
+    - d_L(z) = (1 + z) * Integral(c_light / H(zp), (zp, 0, z))
+    - mu(z) = 5 * log10(d_L(z)) + 25
+  bao:
+    - D_M(z) = Integral(c_light / H(zp), (zp, 0, z))
+    - D_H(z) = c_light / H(z)
+    - D_V(z) = (D_M(z)**2 * D_H(z))**(1/3)
+
+rs_expression: >-
+  r_s = Integral(
+    c_light / sqrt(
+      3 * (
+        1 + 3 * Omega_b * (
+          1 + A_k / (1 + ((1 + z)/(1 + z_t))**n_k )**m_k
+        ) / (4 * (2.469e-5 / (H_star/100)**2) * (1 + z))
+      )
+    ) / (
+      H_star * sqrt(
+        Omega_b * (1 + z)**3 * (
+          1 + A_k / (1 + ((1 + z)/(1 + z_t))**n_k )**m_k
+        )
+        + (2.469e-5 / (H_star/100)**2) * (1 + z)**4
+        + Omega_rel0 * (1 + z)**(3 * (1 + w_rel0 + w_rel_a))
+          * exp(-3 * w_rel_a * z / (1 + z))
+      )
+    ), (z, z_rec, oo)
+  )
+
+predicts_bao: true
+valid_for_bao: true
+valid_for_cmb: true
+
+cmb:
+  param_map:
+    H0: H_star
+    ombh2: Omega_b * (H_star/100)**2
+    omch2: 0.0
+    tau: tau
+    As: As
+    ns: ns
+    Neff: 3.044
+    num_massive_neutrinos: 3
+    sum_mnu: 0.06
+
+notes: |
+  The kernel multiplies the baryon term in H(z) and is unity at high
+  redshift. Radiation in H(z) uses Ω_γ(h) = ω_γ / h^2 with ω_γ fixed by
+  the CMB monopole and h = H_star/100. The sound-horizon integral is
+  provided as a definition and diagnostic. For production usage, BAO and
+  CMB should obtain r_d from CAMB to ensure internal consistency. The
+  CMB map omits an explicit ων entry and supplies the summed neutrino
+  mass and effective number only. The parameter map does not multiply
+  the kernel into ombh2, which keeps the early-time input explicit and
+  avoids a static renormalisation of the baryon density at recombination.
