@@ -543,9 +543,10 @@ def build_footer_lines(
     composed = compose_footer(base_line, data_attrs)
     if not include_dataset_details and composed:
         # Corner plots speak for the combined posterior rather than a specific
-        # observational catalogue.  Drop the dataset description while
-        # preserving citation lines so operators still see provenance.
-        composed = [composed[0]] + [line for line in composed[1:] if line[1]]
+        # observational catalogue.  Drop the dataset description and citation
+        # when dataset details are intentionally hidden.  The footer then
+        # emphasises the comparison requested by Stage 5 operators.
+        composed = [composed[0]]
     if not extra_lines:
         return composed
 
