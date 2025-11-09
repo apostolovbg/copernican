@@ -1,5 +1,5 @@
 copernican:
-  version: 7.6.4
+  version: 7.6.6
 models:
 - name: LambdaCDM
   version: '1.0'
@@ -25,51 +25,61 @@ models:
       type: uniform
       lower: 1000.0
       upper: 1200.0
-- name: QRSFv3
-  version: '3.0'
-  filename: cosmo_model_qrsfv3.yml
+- name: QRSF
+  version: '2.0'
+  filename: cosmo_model_qrsf.yml
   priors:
     H_star:
       type: uniform
       lower: 50.0
-      upper: 90.0
+      upper: 100.0
     Omega_b:
       type: uniform
-      lower: 0.03
-      upper: 0.08
+      lower: 0.01
+      upper: 0.12
     Omega_gamma:
-      type: fixed
-      value: 5.38e-05
-    A_coh:
+      type: uniform
+      lower: 1.0e-05
+      upper: 0.001
+    z_rec:
+      type: uniform
+      lower: 900.0
+      upper: 1200.0
+    xi_high:
       type: uniform
       lower: 0.0
-      upper: 4.0
-    sigma_coh:
+      upper: 10.0
+    xi_low:
       type: uniform
-      lower: 0.5
-      upper: 20.0
-    z_coh:
+      lower: 0.0
+      upper: 5.0
+    z_trans:
       type: uniform
       lower: 0.3
-      upper: 25.0
-    eta_tail:
+      upper: 20.0
+    n_trans:
+      type: uniform
+      lower: 1.0
+      upper: 8.0
+    Omega_rel0:
       type: uniform
       lower: 0.0
-      upper: 2.5
-    nu_tail:
+      upper: 1.2
+    w_rel0:
       type: uniform
-      lower: 0.5
-      upper: 4.0
-    z_rec:
-      type: fixed
-      value: 1089.0
+      lower: -2.0
+      upper: -0.1
+    w_rel_a:
+      type: uniform
+      lower: -2.0
+      upper: 2.0
     c_light:
       type: fixed
       value: 299792.458
 engine:
   name: engines.cosmo_engine_mcmc
   version: unknown
-seed: 462738375
+seed: 3277295244
 datasets:
   jla_2014:
     name: Joint Light-curve Analysis 2014
@@ -120,7 +130,7 @@ datasets:
       cross-covariances are ignored consistently with published likelihood treatments.
     condition_number: null
 git:
-  commit: c468db27605e8f5502863d1397098e3267a4484a
+  commit: a1797e264eb035444bb54833cec921c619b6e538
   dirty: false
 camb:
   version: 1.6.3
@@ -144,7 +154,7 @@ camb:
     - omch2
     - sum_mnu
     - tau
-  - model: QRSFv3
+  - model: QRSF
     param_map_keys:
     - As
     - H0
