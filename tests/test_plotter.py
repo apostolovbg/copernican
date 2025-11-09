@@ -361,3 +361,56 @@ def test_density_levels_are_strictly_increasing() -> None:
     hist = np.full((2, 2), 0.25)
     levels = plotter._density_levels(hist, (0.5, 0.9))
     assert levels[0] < levels[1]
+
+
+def test_build_contour_levels_produce_increasing_sequences() -> None:
+    """Even plateaued histograms should yield strictly increasing levels."""
+
+    hist = np.array([[0.4, 0.4], [0.4, 0.1]])
+    filled, lines = plotter._build_contour_levels(hist, (0.68, 0.95))
+
+    assert np.all(np.diff(filled) > 0.0)
+    assert np.all(np.diff(lines) > 0.0)
+    assert filled[0] == pytest.approx(0.0)
+
+
+def test_plot_corner_omits_dataset_metadata_from_footer(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Corner plots should no longer repeat dataset descriptions in footers."""
+
+    rng = np.random.default_rng(7)
+    samples = rng.normal(size=(20, 3, 3))
+
+    attrs = {
+        "dataset_id": "joint_posterior",
+        "dataset_name": "Joint posterior",
+        "description": "Synthetic description",  # Should be stripped
+        "citation": "Corner validation stub",
+    }
+
+    captured: dict[str, Any] = {}
+    original_footer = plotter.build_footer_lines
+
+    def _recording_footer(*args: Any, **kwargs: Any):
+        captured["include_dataset_details"] = kwargs.get(
+            "include_dataset_details"
+        )
+        lines = original_footer(*args, **kwargs)
+        captured["lines"] = lines
+        return lines
+
+    monkeypatch.setattr(plotter, "build_footer_lines", _recording_footer)
+
+    plotter.plot_corner(
+        samples,
+        _CornerPlugin,
+        attrs,
+        plot_dir=str(tmp_path),
+        timestamp="20251109_120000",
+    )
+
+    assert captured["include_dataset_details"] is False
+    footer_text = [line for line, _ in captured["lines"]]
+    assert all("Observational dataset" not in line for line in footer_text)
+    assert any("Corner plot generation" in line for line in footer_text)

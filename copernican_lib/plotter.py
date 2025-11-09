@@ -8,7 +8,7 @@
 
 import os
 import textwrap
-from typing import Any, Iterable
+from typing import Any, Iterable, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -160,6 +160,93 @@ def _density_levels(
         cleaned_levels.append(finite_value)
         last_value = finite_value
     return cleaned_levels
+
+
+def _ensure_strictly_increasing(
+    values: Sequence[float], *, start: float | None = None
+) -> np.ndarray:
+    """Return ``values`` as a strictly increasing numpy array.
+
+    ``matplotlib.contour`` requires strictly increasing level thresholds.  The
+    Stage 5 grid occasionally feeds in degenerate heights—plateaus, repeated
+    bins or NaN placeholders—which would otherwise trigger ``ValueError``
+    exceptions.  The helper nudges duplicate or non-finite entries forward by
+    one machine epsilon so the final sequence is monotonically increasing while
+    remaining numerically close to the original targets.
+    """
+
+    arr = np.asarray(values, dtype=float)
+    if arr.size == 0:
+        return arr
+
+    result = arr.copy()
+    if start is not None:
+        result[0] = float(start)
+
+    eps = np.finfo(float).eps
+    last = result[0]
+    if not np.isfinite(last):
+        last = eps
+        result[0] = last
+
+    for idx in range(1, result.size):
+        current = result[idx]
+        if not np.isfinite(current):
+            current = last
+        if current <= last:
+            current = np.nextafter(last, np.inf)
+        result[idx] = current
+        last = current
+
+    return result
+
+
+def _build_contour_levels(
+    histogram: np.ndarray,
+    cumulative_levels: Sequence[float],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return level arrays safe for ``contourf`` and ``contour`` calls.
+
+    The helper extracts positive density thresholds for the requested
+    cumulative levels.  When the histogram is nearly flat—or rounds the highest
+    bin down to zero—it synthesises a gentle ramp towards the maximum density
+    so contour rendering still succeeds without collapsing to a scatter plot.
+    """
+
+    finite = histogram[np.isfinite(histogram)]
+    if finite.size == 0:
+        eps = np.nextafter(0.0, np.inf)
+        filled = np.array([0.0, eps], dtype=float)
+        return filled, filled[1:]
+
+    max_density = float(np.max(finite))
+    if max_density <= 0.0 or not np.isfinite(max_density):
+        max_density = np.nextafter(0.0, np.inf)
+
+    derived = [
+        level
+        for level in _density_levels(histogram, tuple(cumulative_levels))
+        if level > 0.0
+    ]
+
+    if not derived:
+        fractions = np.linspace(0.35, 0.85, max(len(cumulative_levels), 1))
+        base_levels = max_density * fractions
+    else:
+        base_levels = np.array(derived, dtype=float)
+
+    base_levels = np.asarray(base_levels, dtype=float)
+    base_levels.sort()
+    base_levels = _ensure_strictly_increasing(base_levels)
+
+    top_level = max_density
+    if top_level <= base_levels[-1] or not np.isfinite(top_level):
+        top_level = np.nextafter(base_levels[-1], np.inf)
+
+    filled_levels = np.concatenate(([0.0], base_levels, [top_level]))
+    filled_levels = _ensure_strictly_increasing(filled_levels, start=0.0)
+
+    return filled_levels, base_levels
 
 
 def _copernican_version() -> str:
@@ -438,6 +525,7 @@ def build_footer_lines(
     timestamp: str | None = None,
     *,
     extra_lines: Iterable[tuple[str, bool]] | None = None,
+    include_dataset_details: bool = True,
 ) -> list[tuple[str, bool]]:
     """Return footer lines for a given dataset and model comparison.
 
@@ -453,6 +541,11 @@ def build_footer_lines(
         f"{COPERNICAN_VERSION} | {timestamp or get_timestamp()}"
     )
     composed = compose_footer(base_line, data_attrs)
+    if not include_dataset_details and composed:
+        # Corner plots speak for the combined posterior rather than a specific
+        # observational catalogue.  Drop the dataset description while
+        # preserving citation lines so operators still see provenance.
+        composed = [composed[0]] + [line for line in composed[1:] if line[1]]
     if not extra_lines:
         return composed
 
@@ -1735,6 +1828,7 @@ def plot_corner(
         attrs,
         timestamp,
         extra_lines=_format_corner_footer_stats(stats),
+        include_dataset_details=False,
     )
 
     _apply_common_style()
@@ -1811,21 +1905,13 @@ def plot_corner(
                 else:
                     x_centers = 0.5 * (x_edges[1:] + x_edges[:-1])
                     y_centers = 0.5 * (y_edges[1:] + y_edges[:-1])
-                    levels = np.array(
-                        _density_levels(hist, contour_levels),
-                        dtype=float,
+                    # Robustly derive contour levels so even plateaued
+                    # histograms render without raising ``ValueError``
+                    # exceptions inside Matplotlib.
+                    filled_levels, line_levels = _build_contour_levels(
+                        hist,
+                        contour_levels,
                     )
-                    levels = levels[levels > 0]
-                    levels = np.unique(levels)
-                    high_level = float(hist.max())
-                    if levels.size == 0:
-                        levels = np.array([high_level])
-                    filled_levels = [0.0]
-                    filled_levels.extend(levels.tolist())
-                    top_level = high_level
-                    if top_level <= filled_levels[-1]:
-                        top_level = filled_levels[-1] + np.finfo(float).eps
-                    filled_levels.append(top_level)
                     ax.contourf(
                         x_centers,
                         y_centers,
@@ -1840,7 +1926,7 @@ def plot_corner(
                         x_centers,
                         y_centers,
                         hist.T,
-                        levels=levels.tolist(),
+                        levels=line_levels.tolist(),
                         colors="#2a5176",
                         linewidths=1.0,
                     )

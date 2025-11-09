@@ -1,4 +1,4 @@
-**Version:** 7.6.4
+**Version:** 7.6.5
 **Last Updated:** 2025-11-09
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -13,11 +13,14 @@ reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. Build 7.6.4 keeps
+  dataset selection, model pairing and engine configuration. Build 7.6.5 keeps
   the structured Stage 1 seed selector introduced in 7.5.0, surfaces detailed
   validation reasons when alternative models fail to load, tidies the startup
   banner spacing and focuses Stage 2 messaging on the fifty-character progress
   bars. The sampler now streams per-walker updates so each bar fills smoothly
+  while the Stage 5 plotting step hardens the corner plot by synthesising
+  strictly increasing contour levels and aligning its footer with the other
+  comparison figures.
   beneath its batch heading without recycling legacy runtime estimates, and
   the splash screen now explicitly imports the standard-library timer so the
   introductory pause never raises a `NameError` during launches.
@@ -481,10 +484,12 @@ archive](https://data.sdss.org/sas/dr12/boss/) does not provide a
 ## Plot Footers and Metadata
 Each generated plot includes a centered footer that documents the run.
 The first line shows the model comparison, Copernican Suite version and a
-timestamp. The second line lists the observational dataset and processing
-notes, and the third line provides the citation. The first and third lines are
-bold, while the dataset name on the second line retains its original spacing
-via MathText's ``\mathbf`` command.
+timestamp. The second line normally lists the observational dataset and
+processing notes, and the third line provides the citation. The first and
+third lines are bold, while the dataset name on the second line retains its
+original spacing via MathText's ``\mathbf`` command. Stage 5's corner plot
+skips the dataset description entirely so the footer mirrors the other Stage 2
+figures while still presenting the citation and sample-processing summary.
 
 Metadata values are read from ``metadata_*.yml`` files stored next to each
 dataset. These files include a ``license`` field pointing to usage terms.

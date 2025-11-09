@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.5
+- 2025-11-09: Hardened Stage 5 corner plotting by synthesising strictly
+  increasing contour levels, removed redundant dataset metadata from the
+  posterior footer so it matches the other Stage 2 figures, expanded the
+  plotting tests to cover the new behaviour and bumped project metadata to
+  7.6.5 (OpenAI ChatGPT)
+
 ## Version 7.6.4
 - 2025-11-09: Imported the standard-library timing helper inside
   ``copernican.py`` so the splash screen delay no longer raises ``NameError``
