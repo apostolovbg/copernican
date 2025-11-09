@@ -19,22 +19,23 @@ a fresh checkout can execute with minimal setup.
 
 import ast
 import copy
+import datetime
+import faulthandler
 import importlib
 import importlib.util
 import inspect
 import json
 import math
 import os
-import sys
 import platform
+import random
 import shutil
-import datetime
-import subprocess
-import faulthandler
 import signal
+import subprocess
+import sys
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass
-import random
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -407,6 +408,9 @@ def show_splash_screen():
     ]
     for line in banner:
         console.write(line)
+    # ``time.sleep`` pauses briefly so operators can read the banner.
+    # Importing ``time`` at module scope keeps the helper available even when
+    # tests stub timing utilities.
     time.sleep(1)
     console.write(
         "Follow the prompts to configure a run. Results are saved in the "

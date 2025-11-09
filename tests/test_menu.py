@@ -31,6 +31,33 @@ with mock.patch("sys.version_info", (3, 12, 0)):
 import copernican_lib.data_loaders
 
 
+class SplashScreenTestCase(unittest.TestCase):
+    """Ensure the splash screen renders and pauses as expected."""
+
+    def test_show_splash_screen_waits_briefly(self) -> None:
+        """The helper should print the banner once and sleep for one second."""
+
+        captured: list[str] = []
+
+        def _record(message: str, *, error: bool = False) -> None:
+            """Collect console output while mirroring the console signature."""
+
+            prefix = "ERROR: " if error else ""
+            captured.append(f"{prefix}{message}")
+
+        with (
+            mock.patch("copernican.console.write", _record),
+            mock.patch("copernican.time.sleep") as sleep_mock,
+        ):
+            copernican.show_splash_screen()
+
+        self.assertTrue(
+            any("C O P E R N I C A N" in line for line in captured),
+            "Splash banner text was not written to the console.",
+        )
+        sleep_mock.assert_called_once_with(1)
+
+
 class MenuRunTestsTestCase(unittest.TestCase):
     """Verify the menu invokes ``python -m unittest`` discovery."""
 

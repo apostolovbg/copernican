@@ -50,10 +50,10 @@ except Exception:  # pragma: no cover - SciPy layout varies
 
 import arviz as az
 import emcee
-from emcee import moves
-from emcee.state import State
 import numpy as np
 import pandas as pd
+from emcee import moves
+from emcee.state import State
 
 from copernican_lib import console_output as console
 from copernican_lib import engine_interface
@@ -550,7 +550,9 @@ class _BatchProgressBar:
         self._batch_index += 1
         self._current_start = int(batch_start)
         self._current_end = int(batch_end)
-        self._current_span = max(self._current_end - self._current_start + 1, 0)
+        self._current_span = max(
+            self._current_end - self._current_start + 1, 0
+        )
         self._active = True
         self._last_percent = -1
         self._last_units = -1
@@ -733,7 +735,12 @@ class _ReportingStretchMove(moves.StretchMove):
             S1 = inds == split
             sets = [state.coords[inds == j] for j in range(self.nsplits)]
             s = sets[split]
-            c = sets[:split] + sets[split + 1 :]
+            # Build a view of every coordinate block except the active split so
+            # the proposal compares against peers without relying on slice
+            # syntax that triggers formatter disagreements.
+            c = [
+                sets[index] for index in range(self.nsplits) if index != split
+            ]
 
             q, factors = self.get_proposal(s, c, model.random)
             new_log_probs, new_blobs = model.compute_log_prob_fn(q)
@@ -765,6 +772,8 @@ def _configure_sampler_progress_reporting(
             moves_attr[index] = _ReportingStretchMove.from_existing(
                 move, progress_notifier=notifier
             )
+
+
 def _run_stage_with_progress(
     sampler: emcee.EnsembleSampler,
     initial_state: np.ndarray,
@@ -816,7 +825,9 @@ def _run_stage_with_progress(
     progress_bar.start_batch(batch_start, batch_end)
 
     state = None
-    iterator = sampler.sample(initial_state, iterations=n_steps, progress=False)
+    iterator = sampler.sample(
+        initial_state, iterations=n_steps, progress=False
+    )
     for idx in range(1, n_steps + 1):
         if notifier is not None:
             notifier.start(idx, sampler.nwalkers)

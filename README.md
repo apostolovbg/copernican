@@ -1,4 +1,4 @@
-**Version:** 7.6.3
+**Version:** 7.6.4
 **Last Updated:** 2025-11-09
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -13,18 +13,21 @@ reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. Build 7.6.3 keeps
+  dataset selection, model pairing and engine configuration. Build 7.6.4 keeps
   the structured Stage 1 seed selector introduced in 7.5.0, surfaces detailed
   validation reasons when alternative models fail to load, tidies the startup
   banner spacing and focuses Stage 2 messaging on the fifty-character progress
   bars. The sampler now streams per-walker updates so each bar fills smoothly
-  beneath its batch heading without recycling legacy runtime estimates.
+  beneath its batch heading without recycling legacy runtime estimates, and
+  the splash screen now explicitly imports the standard-library timer so the
+  introductory pause never raises a `NameError` during launches.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
-  keep every engine and plugin consistent. Version 7.6.3 documents the live
-  progress instrumentation, removes obsolete runtime-estimation hooks and
-  reiterates that Stage 2 requires ArviZ so convergence diagnostics remain a
-  first-class part of every run.
+  keep every engine and plugin consistent. Version 7.6.4 continues to document
+  the live progress instrumentation, removes obsolete runtime-estimation hooks
+  and reiterates that Stage 2 requires ArviZ so convergence diagnostics remain
+  a first-class part of every run while noting that launcher utilities depend
+  on explicit standard-library imports for deterministic availability.
 * `engines/` collects computational back ends. The default
   ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
   convergence checks that run on every batch, while the plugin protocol keeps
@@ -164,10 +167,11 @@ Under the hood the program follows a clear pipeline:
    A confirmation menu now summarises the proposed sampler plan with numbered
    options for accepting it, restarting the questionnaire, returning to the
   defaults summary or cancelling entirely so the intent behind each choice is
-  explicit. Version 7.6.3 streams per-walker progress updates so each
+  explicit. Version 7.6.4 streams per-walker progress updates so each
   fifty-character bar fills smoothly beneath the batch heading and enforces
   ArviZ diagnostics on every batch, keeping long runs easy to monitor without
-  speculative timing estimates.
+  speculative timing estimates while preserving the splash screen's
+  introductory pause through an explicit timing import.
 5. **BAO Analysis** – Stage 3 reuses the sampler's diagnostics to report BAO
    chi-squared contributions directly from the joint fit while still
    generating smooth predictions for plots and CSV exports. Shared helpers
