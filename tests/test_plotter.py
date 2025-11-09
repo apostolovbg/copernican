@@ -164,6 +164,7 @@ def test_plot_corner_scales_layout_with_dimension(
                 dict[str, float],
                 float,
                 dict[str, float],
+                float,
             ],
         ]
     ] = []
@@ -224,6 +225,133 @@ def test_plot_corner_scales_layout_with_dimension(
 
     assert recorded_figsizes[0] == small_figsize
     assert recorded_figsizes[1] == large_figsize
+
+    small_line_height = small_layout[2]
+    large_line_height = large_layout[2]
+    assert small_line_height == pytest.approx(
+        plotter._CORNER_BASE_LINE_HEIGHT,
+        rel=0.01,
+    )
+    assert large_line_height >= plotter._CORNER_BASE_LINE_HEIGHT
+
+    small_footer_pad = small_layout[4]
+    large_footer_pad = large_layout[4]
+    assert small_footer_pad == pytest.approx(
+        plotter._CORNER_FOOTER_PADDING,
+        rel=1e-9,
+    )
+    assert large_footer_pad == pytest.approx(small_footer_pad, rel=1e-9)
+
+    base_panel_width = 3.6
+    for n_params, footer_lines, layout in layout_calls:
+        margins = layout[3]
+        line_height = layout[2]
+        footer_pad = layout[4]
+        footer_block = footer_lines * line_height
+        axes_bottom = margins["bottom"]
+        assert axes_bottom >= plotter._CORNER_MIN_BOTTOM - 1e-9
+        assert axes_bottom <= plotter._CORNER_MAX_BOTTOM + 1e-9
+        assert (
+            axes_bottom - footer_block
+            >= plotter._CORNER_FOOTER_CLEARANCE - 1e-9
+        )
+        assert footer_pad == pytest.approx(plotter._CORNER_FOOTER_PADDING)
+        footer_start = axes_bottom - footer_pad
+        lowest_line = footer_start - (footer_lines - 1) * line_height
+        assert lowest_line >= plotter._CORNER_FOOTER_CLEARANCE - 1e-6
+        assert axes_bottom - footer_start == pytest.approx(
+            plotter._CORNER_FOOTER_PADDING
+        )
+
+        side_length = layout[0][0]
+        panel_width = side_length / float(n_params)
+        scale = max(panel_width / base_panel_width, 0.55)
+        shrink_penalty = max(0.0, 1.0 - min(scale, 1.0))
+        expected_top = np.clip(
+            0.93 + 0.008 * shrink_penalty,
+            0.91,
+            0.945,
+        )
+        assert margins["top"] == pytest.approx(expected_top)
+
+
+def test_plot_corner_positions_title_and_footer(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The title and footer should respect the configured clearances."""
+
+    rng = np.random.default_rng(2)
+    samples = rng.normal(size=(12, 2, 3))
+
+    attrs = {
+        "dataset_id": "joint_posterior",
+        "dataset_name": "Joint posterior",
+        "description": "Spacing guard test",
+        "citation": "Corner validation stub",
+    }
+
+    import matplotlib.figure as mpl_fig
+
+    recorded_suptitles: list[dict[str, Any]] = []
+    original_suptitle = mpl_fig.Figure.suptitle
+
+    def _recording_suptitle(self, *args: Any, **kwargs: Any):
+        recorded_suptitles.append(kwargs.copy())
+        return original_suptitle(self, *args, **kwargs)
+
+    monkeypatch.setattr(mpl_fig.Figure, "suptitle", _recording_suptitle)
+
+    recorded_text_y: list[float] = []
+    original_text = mpl_fig.Figure.text
+
+    def _recording_text(self, *args: Any, **kwargs: Any):
+        recorded_text_y.append(float(args[1]))
+        return original_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(mpl_fig.Figure, "text", _recording_text)
+
+    captured_layout: dict[str, Any] = {}
+    original_layout = plotter._compute_corner_layout
+
+    def _capturing_layout(n_params: int, footer_lines: int):
+        layout = original_layout(n_params, footer_lines)
+        captured_layout["value"] = (n_params, footer_lines, layout)
+        return layout
+
+    monkeypatch.setattr(plotter, "_compute_corner_layout", _capturing_layout)
+
+    plotter.plot_corner(
+        samples,
+        _CornerPlugin,
+        attrs,
+        plot_dir=str(tmp_path),
+        timestamp="20251108_000200",
+    )
+
+    assert recorded_suptitles
+    suptitle_kwargs = recorded_suptitles[-1]
+    assert suptitle_kwargs.get("y") == pytest.approx(plotter._CORNER_TITLE_Y)
+
+    assert "value" in captured_layout
+    _, footer_lines, layout = captured_layout["value"]
+    margins = layout[3]
+    line_height = layout[2]
+    footer_pad = layout[4]
+
+    footer_positions = [
+        value for value in recorded_text_y if value <= margins["bottom"] + 1e-6
+    ]
+    assert footer_positions
+    first_line = max(footer_positions)
+    lowest_line = min(footer_positions)
+    gap_to_axes = margins["bottom"] - first_line
+    assert footer_pad == pytest.approx(plotter._CORNER_FOOTER_PADDING)
+    assert gap_to_axes == pytest.approx(footer_pad)
+    assert first_line == pytest.approx(margins["bottom"] - footer_pad)
+    assert lowest_line >= plotter._CORNER_FOOTER_CLEARANCE - 1e-6
+    expected_span = (footer_lines - 1) * line_height
+    actual_span = first_line - lowest_line
+    assert actual_span == pytest.approx(expected_span)
 
 
 def test_format_corner_footer_stats_reports_processing() -> None:
