@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-09
+# Last Updated: 2025-11-07
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -33,7 +33,7 @@ import datetime
 import subprocess
 import faulthandler
 import signal
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 import random
 from pathlib import Path
@@ -311,14 +311,13 @@ def get_runtime_options() -> RuntimeOptions:
 
 
 def select_seed() -> int:
-    """Prompt the user for an RNG seed and explain reproducibility controls.
+    """Prompt the user for an RNG seed.
 
-    The ``COPERNICAN_SEED`` environment variable bypasses the interactive
-    menu so scripted runs remain deterministic. When it is absent the
-    operator can accept the canonical seed ``0``, supply their own integer or
-    request a freshly generated value for exploratory sessions. The selected
-    seed is applied immediately through
-    :func:`copernican_lib.utils.set_random_seed`.
+    The ``COPERNICAN_SEED`` environment variable overrides the interactive
+    prompt so automated runs remain deterministic.  When unset users may
+    accept the default ``0``, enter a manual value or request a random
+    seed.  The selected value is applied via :func:`utils.set_random_seed`
+    and returned for convenience.
     """
 
     from copernican_lib import utils as _utils
@@ -327,273 +326,34 @@ def select_seed() -> int:
     if env_seed is not None:
         seed = int(env_seed)
         _utils.set_random_seed(seed)
-        console.write(
-            "Environment variable COPERNICAN_SEED provided the RNG seed."
-        )
-        console.write("")
         return seed
 
-    console.write("--- Reproducibility Controls ---")
-    console.write(
-        "The random seed anchors every stochastic element of this run so "
-        "results remain comparable."
-    )
-    console.write(
-        "Choose one of the options below. A brief summary follows each "
-        "choice so the intention stays clear."
-    )
-    console.write("")
-    console.write("  1) Use the canonical seed 0 (fully reproducible)")
-    console.write(
-        "  2) Enter a custom integer (repeatable when the same number is reused)"
-    )
-    console.write(
-        "  3) Ask Copernican to roll a fresh random seed for exploratory runs"
-    )
-    console.write("")
+    console.write("Select RNG seed:")
+    console.write("1) Use default seed 0")
+    console.write("2) Enter a seed manually")
+    console.write("3) Generate a random seed")
     while True:
-        choice = console.ask("Seed menu choice [1-3]: ").strip() or "1"
+        choice = input("Choice [1-3]: ").strip() or "1"
         if choice == "1":
             seed = 0
             break
         if choice == "2":
             while True:
-                entry = console.ask("Type an integer seed: ").strip()
+                entry = input("Enter integer seed: ").strip()
                 try:
                     seed = int(entry)
                     break
                 except ValueError:
-                    console.write("Seeds must be integers.", error=True)
+                    console.write("Seed must be an integer.", error=True)
             break
         if choice == "3":
             seed = random.randint(0, 2**32 - 1)
             console.write(f"Generated random seed {seed}")
             break
-        console.write("Please respond with 1, 2 or 3.", error=True)
+        console.write("Please choose 1, 2 or 3.", error=True)
 
     _utils.set_random_seed(seed)
-    console.write("")
     return seed
-
-
-def _format_stage_one_reasons(*reasons: object) -> list[str]:
-    """Return formatted bullet points explaining Stage 1 failures."""
-
-    formatted: list[str] = []
-    seen: set[str] = set()
-    visited_exceptions: set[int] = set()
-
-    def _record(text: str) -> None:
-        for raw_line in str(text).splitlines():
-            clean_line = raw_line.strip()
-            if not clean_line:
-                continue
-            segments = [
-                frag.strip() for frag in clean_line.split(";") if frag.strip()
-            ]
-            if not segments:
-                segments = [clean_line]
-            for segment in segments:
-                if segment not in seen:
-                    formatted.append(segment)
-                    seen.add(segment)
-
-    def _expand_exception(exc: BaseException, *, prefix: str | None = None) -> None:
-        exc_id = id(exc)
-        if exc_id in visited_exceptions:
-            return
-        visited_exceptions.add(exc_id)
-        summary = str(exc).strip()
-        label = exc.__class__.__name__
-        if summary:
-            head = f"{label}: {summary}"
-        else:
-            head = f"{label}: no additional detail was provided."
-        if prefix:
-            head = f"{prefix} {head}"
-        _record(head)
-        for attr in ("diagnostics", "errors", "messages", "reasons"):
-            payload = getattr(exc, attr, None)
-            if payload:
-                _expand(payload)
-        cause = getattr(exc, "__cause__", None)
-        if cause is not None:
-            _expand_exception(cause, prefix="Caused by")
-        context = getattr(exc, "__context__", None)
-        if context is not None and context is not cause:
-            _expand_exception(context, prefix="Context")
-
-    def _expand(reason: object) -> None:
-        if reason is None:
-            return
-        if isinstance(reason, BaseException):
-            _expand_exception(reason)
-            return
-        if isinstance(reason, Mapping):
-            for key, value in reason.items():
-                if isinstance(value, (str, bytes, bytearray)):
-                    _record(f"{key}: {value}")
-                else:
-                    _record(f"{key}: {value}")
-                    _expand(value)
-            return
-        if isinstance(reason, Sequence) and not isinstance(
-            reason, (str, bytes, bytearray)
-        ):
-            for item in reason:
-                _expand(item)
-            return
-        _record(str(reason))
-
-    for entry in reasons:
-        _expand(entry)
-
-    if not formatted:
-        return ["Unknown validation failure"]
-    return formatted
-
-
-def _prompt_stage_one_retry(reasons: list[str]) -> bool:
-    """Explain Stage 1 validation failures and return ``True`` to retry."""
-
-    console.write("")
-    console.write("Stage 1 could not continue because:")
-    for entry in reasons:
-        console.write(f"  • {entry}")
-    console.write("")
-    console.write("How should we proceed?")
-    console.write("  1) Restart Stage 1 from the very beginning")
-    console.write("  C) Close the Copernican Suite")
-    console.write("")
-    while True:
-        decision = console.ask("Select an option: ").strip().lower()
-        if decision in {"", "1", "y", "yes"}:
-            console.write("")
-            console.write("Restarting Stage 1 configuration.")
-            console.write("")
-            return True
-        if decision in {"c", "cancel", "n", "no"}:
-            return False
-        console.write("Please choose 1 or C.", error=True)
-
-
-def _estimate_runtime_seconds(
-    *,
-    n_steps: int,
-    burn_in_steps: int,
-    n_walkers: int,
-    pool_size: int | None,
-    lcdm_plugin,
-    alt_plugin,
-    dataset_stats: Mapping[str, float] | None,
-) -> dict[str, dict[str, float]]:
-    """Return heuristic runtime estimates for the configured sampler."""
-
-    pool_eff = pool_size if pool_size is not None else os.cpu_count() or 1
-    pool_eff = max(pool_eff, 1)
-
-    def _active_params(plugin) -> int:
-        bounds = list(getattr(plugin, "PARAMETER_BOUNDS", []))
-        names = list(getattr(plugin, "PARAMETER_NAMES", []))
-        if not bounds or len(bounds) != len(names):
-            return max(len(names), 1)
-        active = 0
-        for low, high in bounds:
-            lower = float(low) if low is not None else -math.inf
-            upper = float(high) if high is not None else math.inf
-            if math.isfinite(lower) and math.isfinite(upper):
-                width = upper - lower
-                centre = (upper + lower) / 2.0
-                scale = max(abs(centre), 1.0)
-                threshold = scale * 1e-9 + 1e-12
-                if math.isfinite(width) and width <= threshold:
-                    continue
-            active += 1
-        return max(active, 1)
-
-    stats = dataset_stats or {}
-    sne_rows = float(stats.get("sne_rows", 1700))
-    bao_rows = float(stats.get("bao_rows", 30))
-    cmb_points = float(stats.get("cmb_points", 45))
-
-    base_cost = (
-        math.log1p(sne_rows) * 0.015
-        + math.log1p(bao_rows) * 0.02
-        + math.log1p(cmb_points) * 0.025
-    )
-
-    def _model_cost(plugin) -> float:
-        active = _active_params(plugin)
-        return base_cost * (1.0 + 0.18 * math.sqrt(active))
-
-    lcdm_cost = _model_cost(lcdm_plugin)
-    alt_cost = _model_cost(alt_plugin)
-
-    identical = (
-        getattr(lcdm_plugin, "MODEL_NAME", "").casefold()
-        == getattr(alt_plugin, "MODEL_NAME", "").casefold()
-        and getattr(lcdm_plugin, "MODEL_FILENAME", "")
-        == getattr(alt_plugin, "MODEL_FILENAME", "")
-        and type(lcdm_plugin) is type(alt_plugin)
-    )
-
-    walkers_factor = max(n_walkers / pool_eff, 1.0)
-    burn_seconds = burn_in_steps * walkers_factor
-    prod_seconds = n_steps * walkers_factor
-
-    lcdm_burn = burn_seconds * lcdm_cost
-    lcdm_prod = prod_seconds * lcdm_cost
-
-    if identical:
-        alt_burn = 0.0
-        alt_prod = 0.0
-    else:
-        alt_burn = burn_seconds * alt_cost
-        alt_prod = prod_seconds * alt_cost
-
-    return {
-        "lcdm": {"burn": lcdm_burn, "production": lcdm_prod},
-        "alt": {"burn": alt_burn, "production": alt_prod},
-    }
-
-
-def _render_runtime_estimate(
-    estimates: Mapping[str, Mapping[str, float]],
-) -> tuple[str, str, str]:
-    """Return formatted strings describing runtime estimates."""
-
-    def _format(seconds: float) -> str:
-        seconds = max(seconds, 0.0)
-        if seconds < 1:
-            return f"{seconds * 1000:.0f} ms"
-        if seconds < 120:
-            return f"{seconds:.1f} s"
-        minutes = seconds / 60.0
-        if minutes < 120:
-            return f"{minutes:.1f} min"
-        hours = minutes / 60.0
-        return f"{hours:.2f} h"
-
-    lcdm = estimates.get("lcdm", {})
-    alt = estimates.get("alt", {})
-    lcdm_total = lcdm.get("burn", 0.0) + lcdm.get("production", 0.0)
-    alt_total = alt.get("burn", 0.0) + alt.get("production", 0.0)
-    combined = lcdm_total + alt_total
-
-    lcdm_line = (
-        "  ΛCDM sampler: "
-        f"burn-in {_format(lcdm.get('burn', 0.0))}, "
-        f"production {_format(lcdm.get('production', 0.0))}, "
-        f"total {_format(lcdm_total)}"
-    )
-    alt_line = (
-        "  Alternative sampler: "
-        f"burn-in {_format(alt.get('burn', 0.0))}, "
-        f"production {_format(alt.get('production', 0.0))}, "
-        f"total {_format(alt_total)}"
-    )
-    combined_line = f"  Estimated Stage 2 wall time: {_format(combined)}"
-    return lcdm_line, alt_line, combined_line
 
 
 def show_splash_screen():
@@ -1009,14 +769,8 @@ def prompt_sampling_configuration(
     engine_module,
     lcdm_plugin,
     alt_model_plugin,
-    *,
-    dataset_stats: Mapping[str, float] | None = None,
 ):
-    """Return user-selected sampler settings or ``None`` if cancelled.
-
-    ``dataset_stats`` provides optional dataset counts for runtime estimates.
-    When omitted the estimator falls back to fiducial catalogue sizes.
-    """
+    """Return user-selected sampler settings or ``None`` if cancelled."""
 
     fit_sig = inspect.signature(engine_module.fit_sne_parameters)
     try:
@@ -1047,50 +801,6 @@ def prompt_sampling_configuration(
 
     def _format_pool(value: int | None) -> str:
         return str(value) if value is not None else "auto"
-
-    def _show_estimate(
-        *,
-        n_steps_val: int,
-        burn_in_val: int,
-        n_walkers_val: int,
-        pool_val: int | None,
-    ) -> str:
-        """Display a runtime estimate and return the operator's choice."""
-
-        console.write("")
-        console.write("--- Sampler Time Estimate ---")
-        estimates = _estimate_runtime_seconds(
-            n_steps=n_steps_val,
-            burn_in_steps=burn_in_val,
-            n_walkers=n_walkers_val,
-            pool_size=pool_val,
-            lcdm_plugin=lcdm_plugin,
-            alt_plugin=alt_model_plugin,
-            dataset_stats=dataset_stats,
-        )
-        lcdm_line, alt_line, combined_line = _render_runtime_estimate(estimates)
-        console.write(
-            "The following durations assume all walkers remain active across "
-            "the worker pool."
-        )
-        console.write(lcdm_line)
-        console.write(alt_line)
-        console.write(combined_line)
-        console.write("")
-        console.write("Next actions:")
-        console.write("  1) Continue with this sampler plan")
-        console.write("  B) Return to the previous menu")
-        console.write("  C) Cancel configuration and exit")
-        console.write("")
-        while True:
-            response = console.ask("Select an option: ").strip().lower()
-            if response in {"", "1", "y", "yes"}:
-                return "continue"
-            if response in {"b", "back"}:
-                return "back"
-            if response in {"c", "cancel", "n", "no"}:
-                return "cancel"
-            console.write("Please choose 1, B or C.", error=True)
 
     def _collect_custom_plan() -> dict[str, int | None] | str | None:
         """Gather a customised sampler configuration from the operator."""
@@ -1218,7 +928,6 @@ def prompt_sampling_configuration(
             console.write(
                 "  2) Revisit the questionnaire from the beginning"
             )
-            console.write("  E) Estimate runtime before committing")
             console.write("  B) Back to the sampler defaults summary")
             console.write("  C) Cancel sampler configuration")
             console.write("")
@@ -1231,25 +940,6 @@ def prompt_sampling_configuration(
                     "n_walkers": n_walkers,
                     "pool_size": effective_pool,
                 }
-            if confirm in {"e", "estimate"}:
-                decision = _show_estimate(
-                    n_steps_val=n_steps,
-                    burn_in_val=burn_in,
-                    n_walkers_val=n_walkers,
-                    pool_val=effective_pool,
-                )
-                if decision == "continue":
-                    return {
-                        "n_steps": n_steps,
-                        "burn_in_steps": burn_in,
-                        "n_walkers": n_walkers,
-                        "pool_size": effective_pool,
-                    }
-                if decision == "cancel":
-                    return None
-                console.write("")
-                console.write("Resuming the questionnaire.")
-                continue
             if confirm in {"c", "cancel"}:
                 return None
             if confirm in {"b", "back"}:
@@ -1258,7 +948,7 @@ def prompt_sampling_configuration(
                 console.write("")
                 console.write("Restarting the sampler questionnaire from step one.")
                 continue
-            console.write("Please choose 1, 2, E, B or C.", error=True)
+            console.write("Please choose 1, 2, B or C.", error=True)
 
     while True:
         console.write("")
@@ -1281,7 +971,6 @@ def prompt_sampling_configuration(
         console.write("")
         console.write("1) Run with default settings")
         console.write("2) Change settings")
-        console.write("3) View a runtime estimate for these defaults")
         console.write("C) Cancel configuration")
         console.write("")
 
@@ -1302,28 +991,9 @@ def prompt_sampling_configuration(
                 console.write("Returning to default sampler summary.")
                 continue
             return custom_plan
-        if choice == "3":
-            selection = _show_estimate(
-                n_steps_val=recommended_steps,
-                burn_in_val=recommended_burn,
-                n_walkers_val=recommended_walkers,
-                pool_val=recommended_pool,
-            )
-            if selection == "continue":
-                return {
-                    "n_steps": recommended_steps,
-                    "burn_in_steps": recommended_burn,
-                    "n_walkers": recommended_walkers,
-                    "pool_size": recommended_pool,
-                }
-            if selection == "cancel":
-                return None
-            console.write("")
-            console.write("Back to the sampler defaults summary.")
-            continue
         if choice in {"c", "cancel"}:
             return None
-        console.write("Please choose 1, 2, 3 or C.", error=True)
+        console.write("Please choose 1, 2 or C.", error=True)
 
 def cleanup_cache(base_dir):
     """Remove temporary files left behind by previous runs."""
@@ -1535,16 +1205,15 @@ def main_workflow():
             _sanity_check_numpy_scipy(logger)
         except Exception:
             exit_clean(1)
+        select_seed()
+        logger.info("Using RNG seed %s", utils.get_random_seed())
         run_start_dt = datetime.datetime.now(datetime.timezone.utc)
         start_ts = run_start_dt.strftime("%y%m%d_%H%M%S")
         run_start_pc = time.perf_counter()
         logger.info(
-            (
-                f"Copernican {COPERNICAN_VERSION} has initialized! "
-                f"Current timestamp is {start_ts} UTC. Log file: {log_file}"
-            )
+            f"Copernican {COPERNICAN_VERSION} has initialized! "
+            f"Current timestamp is {start_ts} UTC. Log file: {log_file}"
         )
-        console.write("")
         logger.info(
             "Using standard CPU (SciPy) computational backend with "
             "multiprocessing."
@@ -1552,143 +1221,70 @@ def main_workflow():
         logger.info(f"Running from base directory: {SCRIPT_DIR}")
         logger.info(f"All outputs will be saved to: {OUTPUT_DIR}")
 
-        alt_model_plugin = None
-        parsed = None
-        cosmo_engine_selected = None
-        engine_choice = None
-        stage_one_complete = False
-        while not stage_one_complete:
-            logger.info("\n--- Stage 1: Configuration ---\n")
-            console.write("--- Stage 1: Configuration ---")
-            console.write(
-                "Stage 1 secures reproducibility, chooses the alternative "
-                "theory and selects the numerical engine."
-            )
-            console.write("")
+        logger.info("\n--- Stage 1: Configuration ---\n")
 
-            seed_value = select_seed()
-            logger.info(
-                "Using RNG seed %s",
-                utils.get_random_seed(),
-                extra={"console_capture": True},
-            )
-            console.write(f"Seed recorded: {seed_value}. This value is written")
-            console.write("to manifests and passed to every engine.")
-            console.write("")
-
-            models_dir = os.path.join(SCRIPT_DIR, "models")
-            model_files = sorted(
-                [
-                    f
-                    for f in os.listdir(models_dir)
-                    if f.startswith("cosmo_model_") and f.endswith(".yml")
-                ]
-            )
-            console.write("Model selection:")
-            selected_model = select_from_list(
-                model_files, "Select cosmological model"
-            )
-            if not selected_model:
-                _delete_log_file(log_file)
-                _remove_run_dir(OUTPUT_DIR)
-                cleanup_cache(SCRIPT_DIR)
-                console.write("")
-                return
-            yaml_path = os.path.join(models_dir, selected_model)
-            cache_dir = os.path.join(models_dir, "cache")
-            try:
-                cache_path = model_parser.parse_model(yaml_path, cache_dir)
-            except Exception as exc:
-                logger.error(
-                    "Stage 1 model parsing failed for %s", selected_model,
-                    exc_info=True,
-                )
-                reasons = _format_stage_one_reasons(
-                    f"Could not parse {selected_model}.",
-                    exc,
-                )
-                if _prompt_stage_one_retry(reasons):
-                    continue
-                _delete_log_file(log_file)
-                _remove_run_dir(OUTPUT_DIR)
-                cleanup_cache(SCRIPT_DIR)
-                console.write("")
-                return
-            try:
-                func_dict, parsed = model_coder.generate_callables(cache_path)
-                alt_model_plugin = engine_interface.build_plugin(
-                    parsed, func_dict
-                )
-                alt_model_plugin.MODEL_FILENAME = os.path.basename(yaml_path)
-                logger.info(
-                    "Loaded YAML model: %s",
-                    parsed.get("model_name"),
-                    extra={"console_capture": True},
-                )
-            except Exception as exc:
-                logger.error(
-                    "Error generating model from YAML: %s",
-                    exc,
-                    exc_info=True,
-                )
-                reasons = _format_stage_one_reasons(
-                    f"{selected_model} failed engine validation.",
-                    exc,
-                )
-                if _prompt_stage_one_retry(reasons):
-                    continue
-                _delete_log_file(log_file)
-                _remove_run_dir(OUTPUT_DIR)
-                cleanup_cache(SCRIPT_DIR)
-                console.write("")
-                return
-
-            if not alt_model_plugin:
-                reasons = _format_stage_one_reasons(
-                    f"{selected_model} did not return a usable engine plugin."
-                )
-                if _prompt_stage_one_retry(reasons):
-                    continue
-                _delete_log_file(log_file)
-                _remove_run_dir(OUTPUT_DIR)
-                cleanup_cache(SCRIPT_DIR)
-                console.write("")
-                return
-
-            engines_dir = os.path.join(SCRIPT_DIR, "engines")
-            engine_files = sorted(
-                [
-                    f
-                    for f in os.listdir(engines_dir)
-                    if f.startswith("cosmo_engine_") and f.endswith(".py")
-                ]
-            )
-            console.write("Engine selection:")
-            engine_choice = select_from_list(
-                engine_files, "Select computation engine"
-            )
-            if not engine_choice:
-                _delete_log_file(log_file)
-                _remove_run_dir(OUTPUT_DIR)
-                cleanup_cache(SCRIPT_DIR)
-                console.write("")
-                return
-            engine_module = importlib.import_module(
-                f"engines.{engine_choice[:-3]}"
-            )
-            cosmo_engine_selected = engine_module
-            stage_one_complete = True
-
-        console.write("")
-        console.write("Stage 1 summary:")
-        console.write(f"  Alternative theory: {parsed.get('model_name', 'unknown')}")
-        engine_label = getattr(
-            cosmo_engine_selected,
-            "ENGINE_LABEL",
-            engine_choice[:-3] if engine_choice else "Engine",
+        models_dir = os.path.join(SCRIPT_DIR, "models")
+        model_files = sorted(
+            [
+                f
+                for f in os.listdir(models_dir)
+                if f.startswith("cosmo_model_") and f.endswith(".yml")
+            ]
         )
-        console.write(f"  Computational engine: {engine_label}")
-        console.write("")
+        selected_model = select_from_list(
+            model_files, "Select cosmological model"
+        )
+        if not selected_model:
+            _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
+            cleanup_cache(SCRIPT_DIR)
+            console.write("")
+            return
+        yaml_path = os.path.join(models_dir, selected_model)
+        cache_dir = os.path.join(models_dir, "cache")
+        try:
+            cache_path = model_parser.parse_model(yaml_path, cache_dir)
+        except Exception as e:
+            logger.error(str(e))
+            continue
+        try:
+            func_dict, parsed = model_coder.generate_callables(cache_path)
+            alt_model_plugin = engine_interface.build_plugin(
+                parsed, func_dict
+            )
+            alt_model_plugin.MODEL_FILENAME = os.path.basename(yaml_path)
+            logger.info(f"Loaded YAML model: {parsed.get('model_name')}")
+        except Exception as e:
+            logger.error(
+                f"Error generating model from YAML: {e}",
+                exc_info=True,
+            )
+            continue
+
+        if not alt_model_plugin:
+            continue
+
+        engines_dir = os.path.join(SCRIPT_DIR, "engines")
+        engine_files = sorted(
+            [
+                f
+                for f in os.listdir(engines_dir)
+                if f.startswith("cosmo_engine_") and f.endswith(".py")
+            ]
+        )
+        engine_choice = select_from_list(
+            engine_files, "Select computation engine"
+        )
+        if not engine_choice:
+            _delete_log_file(log_file)
+            _remove_run_dir(OUTPUT_DIR)
+            cleanup_cache(SCRIPT_DIR)
+            console.write("")
+            return
+        engine_module = importlib.import_module(
+            f"engines.{engine_choice[:-3]}"
+        )
+        cosmo_engine_selected = engine_module
 
         sne_data_df = data_loaders.load_sne_data()
         if sne_data_df is None:
@@ -1713,11 +1309,6 @@ def main_workflow():
             cleanup_cache(SCRIPT_DIR)
             console.write("")
             continue
-        dataset_stats = {
-            "sne_rows": float(len(sne_data_df)) if sne_data_df is not None else 0.0,
-            "bao_rows": float(len(bao_data_df)) if bao_data_df is not None else 0.0,
-            "cmb_points": float(len(cmb_data_df)) if cmb_data_df is not None else 0.0,
-        }
         dataset_info = []
         for df in (sne_data_df, bao_data_df, cmb_data_df):
             ds_id = df.attrs.get("dataset_id")
@@ -1746,7 +1337,6 @@ def main_workflow():
             cosmo_engine_selected,
             lcdm,
             alt_model_plugin,
-            dataset_stats=dataset_stats,
         )
         if sampling_plan is None:
             logger.info("User cancelled sampling configuration; aborting run.")
@@ -1779,38 +1369,6 @@ def main_workflow():
         console.write(
             f"Walker ensemble {sampling_walkers}, pool {pool_label}."
         )
-
-        console.write("")
-        console.write("--- Stage 2: Ensemble Sampling ---")
-        console.write(
-            "Stage 2 first establishes a ΛCDM baseline and then applies the same "
-            f"sampler to {alt_model_plugin.MODEL_NAME}."
-        )
-        console.write(
-            f"The {engine_label} engine steers both theories with matched "
-            "settings."
-        )
-        console.write(
-            "Each batch displays a filling progress bar until the next "
-            "checkpoint report."
-        )
-        console.write("")
-        console.write("ΛCDM plan:")
-        console.write(f"  Burn-in: {sampling_burn_in} steps")
-        console.write(f"  Production: {sampling_steps} steps")
-        console.write(f"  Walkers: {sampling_walkers}")
-        console.write(f"  Worker pool: {pool_label}")
-        console.write("")
-        console.write("Alternative theory plan:")
-        console.write(f"  Model: {alt_model_plugin.MODEL_NAME}")
-        console.write("  Burn-in and production reuse the same sampler settings.")
-        console.write("")
-        console.write("--- ΛCDM Baseline Run ---")
-        console.write(
-            "Burn-in begins now and flows directly into production once the "
-            "progress bar reaches each checkpoint."
-        )
-        console.write("")
 
         manifest = run_manifest.build_manifest(
             models=[
@@ -1852,14 +1410,7 @@ def main_workflow():
             pool_size=sampling_pool,
             burn_in_steps=sampling_burn_in,
         )
-        lcdm_elapsed = time.perf_counter() - t0
-        lcdm_time += lcdm_elapsed
-        console.write(
-            "ΛCDM sampling complete. Preparing the alternative model with the "
-            "same sampler settings."
-        )
-        console.write(f"ΛCDM elapsed time: {lcdm_elapsed:.2f} seconds.")
-        console.write("")
+        lcdm_time += time.perf_counter() - t0
         same_name = (
             getattr(lcdm, "MODEL_NAME", "").casefold()
             == getattr(alt_model_plugin, "MODEL_NAME", "").casefold()
@@ -1873,27 +1424,8 @@ def main_workflow():
                 "Alternative model matches ΛCDM; reusing SNe chain from %s.",
                 engine_label,
             )
-            console.write(
-                f"{alt_model_plugin.MODEL_NAME} shares the ΛCDM configuration; "
-                "no additional sampling is required."
-            )
-            console.write(
-                "Stage 2 proceeds with shared diagnostics and skips a second "
-                "progress bar."
-            )
-            console.write("")
             alt_model_fit_results = copy.deepcopy(lcdm_fit_results)
         else:
-            console.write("--- Alternative Theory Run ---")
-            console.write(
-                f"{alt_model_plugin.MODEL_NAME} now begins burn-in before "
-                "transitioning into production."
-            )
-            console.write(
-                "Watch the progress bar fill; each completion triggers a "
-                "detailed log update."
-            )
-            console.write("")
             t0 = time.perf_counter()
             alt_model_fit_results = cosmo_engine_selected.fit_sne_parameters(
                 sne_data_df,
@@ -1905,13 +1437,7 @@ def main_workflow():
                 pool_size=sampling_pool,
                 burn_in_steps=sampling_burn_in,
             )
-            alt_elapsed = time.perf_counter() - t0
-            alt_time += alt_elapsed
-            console.write(
-                f"{alt_model_plugin.MODEL_NAME} sampling complete in "
-                f"{alt_elapsed:.2f} seconds."
-            )
-            console.write("")
+            alt_time += time.perf_counter() - t0
 
         # Persist parameter estimates so external tools can inspect the
         # numerical results without parsing logs.  The summary includes fitted

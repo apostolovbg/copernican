@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-11-08
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -94,10 +94,6 @@ Version 7.3.1 builds on that interaction by replacing terse confirmation
 and shutdown questions with numbered menus that spell out when an
 operator is accepting a plan, restarting the questionnaire, returning to
 the defaults summary or exiting the suite entirely.
-Version 7.5.0 relocates the RNG seed prompt to Stage 1, adds narrated
-Stage 2 banners and displays a textual progress bar for each sampling
-batch. The sampler questionnaire now offers deterministic run-time
-estimates before the operator confirms a plan.
 Parameter priors must now declare an explicit `type`; legacy `distribution`
 aliases are rejected.  The parser canonicalises every mapping, injects
 `type: fixed` for bounds whose endpoints coincide and surfaces deterministic
