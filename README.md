@@ -1,4 +1,4 @@
-**Version:** 7.6.7
+**Version:** 7.6.8
 **Last Updated:** 2025-11-09
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -13,29 +13,28 @@ reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. Build 7.6.7 keeps
+  dataset selection, model pairing and engine configuration. Build 7.6.8 keeps
   the structured Stage 1 seed selector introduced in 7.5.0, surfaces detailed
   validation reasons when alternative models fail to load, tidies the startup
   banner spacing and focuses Stage 2 messaging on the fifty-character progress
   bars. The sampler now streams per-walker updates so each bar fills smoothly
-  while the Stage 5 plotting step harmonises the corner plot footer cadence
-  with the rest of the suite, enforces twin guard bands that stop the footer
-  from ever touching the axes and repositions the figure title so it no longer
-  clings to the canvas edge.
+  while the Stage 5 plotting step deepens the corner plot safeguards: the
+  footer sits further below the axes, the text block carries a guaranteed
+  clearance from the canvas edge, and the suptitle is anchored lower so the
+  figure mirrors the spacing used across the other summary plots.
   beneath its batch heading without recycling legacy runtime estimates, and
   the splash screen now explicitly imports the standard-library timer so the
   introductory pause never raises a `NameError` during launches.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
-  keep every engine and plugin consistent. Version 7.6.7 doubles down on the
-  Stage 5 spacing guarantees by adding a footer clearance floor, clamping the
-  subplot margins so axes never drift into the footer and pinning the corner
-  plot title just below the canvas edge while retaining the shared 0.015
-  cadence. The update builds on the live progress instrumentation, removes
-  obsolete runtime-estimation hooks and reiterates that Stage 2 requires ArviZ
-  so convergence diagnostics remain a first-class part of every run while
-  noting that launcher utilities depend on explicit standard-library imports
-  for deterministic availability.
+  keep every engine and plugin consistent. Version 7.6.8 widens the Stage 5
+  guard bands by lifting the footer padding, enforcing a minimum baseline for
+  the lowest footer line and retuning the subplot margins so the grid rides
+  higher without crowding the canvas. The update builds on the live progress
+  instrumentation, removes obsolete runtime-estimation hooks and reiterates
+  that Stage 2 requires ArviZ so convergence diagnostics remain a first-class
+  part of every run while noting that launcher utilities depend on explicit
+  standard-library imports for deterministic availability.
 * `engines/` collects computational back ends. The default
   ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
   convergence checks that run on every batch, while the plugin protocol keeps

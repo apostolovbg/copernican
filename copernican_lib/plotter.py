@@ -289,12 +289,27 @@ def _wrap_math(text: str) -> str:
 # into the axes or leaving it stranded far from the plot.  An explicit title
 # anchor ensures the figure banner never hugs the canvas edge.
 _CORNER_BASE_LINE_HEIGHT = 0.015
-_CORNER_FOOTER_PADDING = 0.028
-_CORNER_FOOTER_CLEARANCE = 0.024
-_CORNER_BASE_BOTTOM_MARGIN = 0.05
-_CORNER_MIN_BOTTOM = 0.12
-_CORNER_MAX_BOTTOM = 0.38
-_CORNER_TITLE_Y = 0.965
+# ``_CORNER_FOOTER_PADDING`` keeps a consistent gap between the axes and the
+# first footer line.  Stage 5 draws bold text here, so we budget extra vertical
+# breathing room to mirror the rest of the plotting suite.
+_CORNER_FOOTER_PADDING = 0.038
+# ``_CORNER_FOOTER_CLEARANCE`` now tracks the minimum spacing between the
+# lowest footer baseline and the figure edge.  Guarding this distance stops
+# exported PDFs from clipping the text block even when downstream helpers add
+# extra diagnostic lines.
+_CORNER_FOOTER_CLEARANCE = 0.035
+# The base bottom margin provides a buffer before the per-line adjustments
+# below kick in.  A taller baseline matches the rest of the suite and raises
+# the grid so the footer never feels cramped.
+_CORNER_BASE_BOTTOM_MARGIN = 0.07
+# Corner plots can feature tall footers when add-ons append diagnostics.  We
+# therefore lift the minimum bottom margin to keep the panels safely above the
+# text while leaving headroom for Matplotlib legends or colour bars.
+_CORNER_MIN_BOTTOM = 0.18
+_CORNER_MAX_BOTTOM = 0.42
+# Pull the title a touch lower so it mirrors the summary plots.  This echoes
+# the user feedback that the previous 0.965 anchor hugged the canvas edge.
+_CORNER_TITLE_Y = 0.952
 
 
 def _compute_corner_layout(
@@ -355,14 +370,19 @@ def _compute_corner_layout(
     line_height = float(
         _CORNER_BASE_LINE_HEIGHT * (1.0 + 0.1 * shrink_penalty)
     )
-    bottom_margin = dynamic_bottom + _CORNER_FOOTER_PADDING
 
     footer_block = footer_line_count * line_height
+    footer_span = max(footer_line_count - 1, 0) * line_height
     base_bottom = _CORNER_BASE_BOTTOM_MARGIN + footer_block
-    clearance_bottom = footer_block + _CORNER_FOOTER_CLEARANCE
+    pad_guard = footer_block + _CORNER_FOOTER_PADDING
+    clearance_floor = (
+        _CORNER_FOOTER_PADDING + footer_span + _CORNER_FOOTER_CLEARANCE
+        if footer_line_count
+        else _CORNER_FOOTER_CLEARANCE
+    )
     axes_bottom = float(
         np.clip(
-            max(base_bottom, clearance_bottom),
+            max(base_bottom, pad_guard, clearance_floor),
             _CORNER_MIN_BOTTOM,
             _CORNER_MAX_BOTTOM,
         )
@@ -370,13 +390,17 @@ def _compute_corner_layout(
 
     bottom_margin = axes_bottom
 
+    bottom_margin = axes_bottom
+
     # Stretch horizontal margins slightly as the panels shrink so tick labels
-    # do not overlap the figure edge.  The adjustments remain subtle to keep
-    # the grid centred regardless of dimensionality.
+    # do not overlap the figure edge.  The top margin mirrors the Stage 3 and
+    # Stage 4 figures by pulling the grid downward just enough to clear the
+    # lowered suptitle, while the adjustments remain subtle to keep the grid
+    # centred regardless of dimensionality.
     margins = {
         "left": 0.07 + 0.01 * shrink_penalty,
         "right": 0.95 - 0.01 * shrink_penalty,
-        "top": float(np.clip(0.94 - 0.015 * shrink_penalty, 0.9, 0.965)),
+        "top": float(np.clip(0.93 + 0.008 * shrink_penalty, 0.91, 0.945)),
         "bottom": bottom_margin,
     }
 
@@ -2012,13 +2036,12 @@ def plot_corner(
     lowest_line = (
         y - (len(footer_lines) - 1) * line_height if footer_lines else y
     )
-    if lowest_line < 0.02:
-        # Maintain a small guard band above the figure edge in the unlikely
-        # event that future footer variants add extra lines.  Nudging the
-        # stack upward still preserves the minimum gap beneath the axes because
-        # ``footer_padding`` stays intact.
-        shift = 0.02 - lowest_line
-        y += shift
+    if lowest_line < _CORNER_FOOTER_CLEARANCE - 1e-6:
+        # Layout rounding should keep ``lowest_line`` above the clearance
+        # floor.  Protect against pathological floating-point surprises by
+        # nudging the stack just enough to meet the promise, mirroring the
+        # safeguards used by the Stage 3 plots.
+        y += _CORNER_FOOTER_CLEARANCE - lowest_line
 
     for idx, (line, is_bold) in enumerate(footer_lines):
         weight = "bold" if is_bold else "normal"

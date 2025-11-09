@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.8
+- 2025-11-09: Deepened the Stage 5 corner plot clearances by lifting the footer
+  padding, enforcing a lowest-line floor and retuning the subplot margins so
+  the grid rides higher, anchored the suptitle lower to mirror other figures,
+  refreshed the regression tests to lock in the new spacing contract and bumped
+  project metadata to 7.6.8 (OpenAI ChatGPT)
+
 ## Version 7.6.7
 - 2025-11-09: Expanded the Stage 5 corner layout with dual footer clearances,
   tightened the top margin so titles no longer hug the canvas, refreshed the
