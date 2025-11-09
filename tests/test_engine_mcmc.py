@@ -16,8 +16,12 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from copernican_lib import chain_io
-from copernican_lib import engine_interface, model_coder, model_parser
+from copernican_lib import (
+    chain_io,
+    engine_interface,
+    model_coder,
+    model_parser,
+)
 from copernican_lib.utils import set_random_seed
 from engines import cosmo_engine_mcmc
 from engines.cosmo_engine_mcmc import (

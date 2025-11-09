@@ -21,6 +21,14 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.4
+- 2025-11-09: Imported the standard-library timing helper inside
+  ``copernican.py`` so the splash screen delay no longer raises ``NameError``
+  exceptions, added regression coverage for the banner pause, refreshed
+  documentation accordingly, adjusted the stretch-move helper to rebuild split
+  comparisons without formatter-conflicting slice syntax and bumped project
+  metadata to 7.6.4 (OpenAI ChatGPT)
+
 ## Version 7.6.3
 - 2025-11-09: Restored ArviZ as a mandatory dependency so Stage 2 always
   records convergence diagnostics, updated the MCMC engine and tests

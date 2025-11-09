@@ -13,9 +13,10 @@ that foundation to deliver repeatable analyses.
   surfaces every validation error encountered while loading alternative models
   and leaves a deliberate blank spacer after logging initialisation so the
   console flow stays tidy without repeating legacy "has initialised" banners.
-  Version 7.6.3 feeds per-walker progress updates directly into the
-  fifty-character bars so operators see continuous movement without any
-  runtime-estimation overlay.
+  Version 7.6.4 keeps the per-walker progress updates introduced previously and
+  now imports the timing helper explicitly so the splash screen's one-second
+  pause never raises a launcher `NameError` even in heavily patched test
+  harnesses.
 * `copernican_lib/` contributes the reusable building blocks—data ingestion,
   posterior construction, validation checks, plotting helpers and diagnostics.
   Engines and parsers import from this package instead of reimplementing
@@ -23,9 +24,10 @@ that foundation to deliver repeatable analyses.
 * `engines/` contains back ends such as the default
   ``cosmo_engine_mcmc.py``.  Engines consume `EnginePlugin` definitions,
   evaluate joint likelihoods spanning SNe Ia, BAO and CMB data and surface
-  ArviZ-powered convergence diagnostics for downstream tooling.  Version 7.6.3
-  reinstates the hard dependency on ArviZ so every run records R-hat and
-  effective sample size summaries.
+  ArviZ-powered convergence diagnostics for downstream tooling.  Version 7.6.4
+  reiterates the hard dependency on ArviZ so every run records R-hat and
+  effective sample size summaries while keeping supporting utilities resilient
+  to module-level monkeypatching.
 * `models/` holds YAML descriptions that declare bounds, priors, transforms and
   dataset compatibility.  Each file is compiled into a picklable
   :class:`copernican_lib.plugins.EnginePlugin` so multiprocessing pools can
@@ -104,13 +106,15 @@ evaluation and shutting down cleanly.  These additions mirror the broader
 Copernican console style so contributors do not have to remember what terse
 single-letter responses stand for.
 
-Version 7.6.3 finalises the removal of the short-lived runtime estimator from
+Version 7.6.4 finalises the removal of the short-lived runtime estimator from
 the sampler menu. The launcher now focuses solely on presenting the requested
 plan while streaming per-walker progress updates so the fifty-character bar
 fills smoothly beneath each batch heading. Operators can accept, adjust or
 cancel without speculative timing data, and blank lines continue to separate
 batches so long chains remain readable. The release also reiterates the hard
-requirement on ArviZ so convergence summaries never quietly disappear.
+requirement on ArviZ so convergence summaries never quietly disappear and notes
+that the splash screen now imports its delay helper explicitly to avoid
+`NameError` regressions during suite launches.
 
 Version 7.3.0 routes every Stage 2 run through :mod:`arviz` after sampling so
 the engine records rank-normalised :math:`\hat{R}` values together with bulk
