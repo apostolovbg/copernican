@@ -413,4 +413,48 @@ def test_plot_corner_omits_dataset_metadata_from_footer(
     assert captured["include_dataset_details"] is False
     footer_text = [line for line, _ in captured["lines"]]
     assert all("Observational dataset" not in line for line in footer_text)
+    assert all("Corner validation stub" not in line for line in footer_text)
     assert any("Corner plot generation" in line for line in footer_text)
+
+
+def test_build_footer_lines_preserves_citation_by_default() -> None:
+    """Citation strings should remain when dataset details are shown."""
+
+    attrs = {
+        "dataset_name": "Joint posterior",
+        "description": "Synthetic description",
+        "citation": "Corner validation stub",
+    }
+
+    footer_lines = plotter.build_footer_lines(
+        _CornerPlugin, attrs, "20250101_000000"
+    )
+
+    assert any("Corner validation stub" in line for line, _ in footer_lines)
+
+
+def test_build_footer_lines_omits_citation_when_dataset_details_disabled() -> (
+    None
+):
+    """Suppressing dataset details should also hide citation metadata."""
+
+    attrs = {
+        "dataset_name": "Joint posterior",
+        "description": "Synthetic description",
+        "citation": "Corner validation stub",
+    }
+
+    extra_lines = [("Corner plot generation: 12 samples used", False)]
+    footer_lines = plotter.build_footer_lines(
+        _CornerPlugin,
+        attrs,
+        "20250101_000000",
+        extra_lines=extra_lines,
+        include_dataset_details=False,
+    )
+
+    footer_text = [line for line, _ in footer_lines]
+    assert footer_text[0].startswith("ΛCDM vs")
+    assert "Corner validation stub" not in "\n".join(footer_text)
+    generation_line = "Corner plot generation: 12 samples used"
+    assert footer_text.count(generation_line) == 1
