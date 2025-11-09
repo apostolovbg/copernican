@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-07
+# Last Updated: 2025-11-09
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -214,6 +214,64 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
                 "burn_in_steps": 100,
                 "n_walkers": 64,
                 "pool_size": 10,
+            },
+        )
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    @mock.patch("copernican.os.cpu_count", return_value=8)
+    def test_time_estimate_accepts_defaults(
+        self, _cpu_mock, ask_mock, _write_mock
+    ) -> None:
+        """Estimate screen keeps the default sampler plan intact."""
+
+        ask_mock.side_effect = ["3", ""]
+        plan = copernican.prompt_sampling_configuration(
+            self.engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+            dataset_stats={
+                "sne_rows": 100.0,
+                "bao_rows": 10.0,
+                "cmb_points": 5.0,
+            },
+        )
+        self.assertEqual(
+            plan,
+            {
+                "n_steps": 400,
+                "burn_in_steps": 100,
+                "n_walkers": 64,
+                "pool_size": 8,
+            },
+        )
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    @mock.patch("copernican.os.cpu_count", return_value=6)
+    def test_time_estimate_from_custom_plan(
+        self, _cpu_mock, ask_mock, _write_mock
+    ) -> None:
+        """Custom plans can inspect the estimate before continuing."""
+
+        ask_mock.side_effect = ["2", "", "", "", "", "e", "1"]
+        plan = copernican.prompt_sampling_configuration(
+            self.engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+            dataset_stats={
+                "sne_rows": 150.0,
+                "bao_rows": 12.0,
+                "cmb_points": 7.0,
+            },
+        )
+        self.assertEqual(
+            plan,
+            {
+                "n_steps": 400,
+                "burn_in_steps": 100,
+                "n_walkers": 64,
+                "pool_size": 6,
             },
         )
 

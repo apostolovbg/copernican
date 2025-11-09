@@ -1,4 +1,4 @@
-**Version:** 7.4.6
+**Version:** 7.5.0
 **Last Updated:** 2025-11-09
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -13,14 +13,14 @@ reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration.
+  dataset selection, model pairing and engine configuration. Version 7.5.0 moves
+  random seed selection into Stage 1, adds narrated checkpoints for Stage 2 and
+  provides run-time estimates for sampler settings.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
-  keep every engine and plugin consistent. Version 7.4.6 retains the large-panel
-  presentation while introducing responsive sizing for the Stage 5 corner plot.
-  Figures clamp to twelve-inch canvases, rescale fonts automatically and
-  preserve footer spacing so the posterior geometry stays legible even when
-  probing high-dimensional models.
+  keep every engine and plugin consistent. Version 7.5.0 introduces a textual
+  progress bar for the ensemble sampler so batch progress is visible between
+  log updates.
 * `engines/` collects computational back ends. The default
   ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
   convergence checks, while the plugin protocol keeps room for additional

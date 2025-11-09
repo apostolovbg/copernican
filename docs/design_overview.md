@@ -53,13 +53,11 @@ the alias was a plain assignment.  Documentation mirrors the behaviour so code
 comments, guides and tests explain why the wrapper exists alongside the modern
 helper.
 
-Version 7.4.6 extends that polishing work by teaching the Stage 5 corner plot
-to resize itself automatically.  The new geometry helper clamps the overall
-figure to twelve inches on each side, scales fonts according to the resulting
-panel width and recalibrates footer spacing so text remains legible regardless
-of how many parameters a sampler exposes.  The responsive sizing keeps
-high-dimensional comparisons from overwhelming Matplotlib while still presenting
-the classic large-panel aesthetic for the familiar three-parameter ΛCDM checks.
+Version 7.5.0 extends that polishing work by relocating seed selection into
+Stage 1, adding sampler time estimates ahead of Stage 2 and introducing a
+console progress bar that signals how close each batch is to completion.
+Announcing the ΛCDM baseline and alternative runs explicitly keeps operators
+oriented while the sampler progresses.
 
 Version 7.4.1 adds a sampler-facing perspective to the plotting layer. The new
 corner plot automatically thins oversized chains, renders the Stage 2 posterior
