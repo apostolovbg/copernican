@@ -1,0 +1,612 @@
+2025-11-09 15:36:53,543 - INFO - Logging initialized with UTC timestamps. Log file: output/copernican-run_20251109_153653/copernican-run_20251109_153653.txt
+2025-11-09 15:36:53,543 - INFO - 
+2025-11-09 15:36:53,544 - INFO - Warnings will be logged but not treated as errors
+2025-11-09 15:36:53,585 - INFO - Environment details:
+2025-11-09 15:36:53,585 - INFO -   Python: 3.11.14
+2025-11-09 15:36:53,585 - INFO -   OS: macOS-15.0.1-x86_64-i386-64bit
+2025-11-09 15:36:53,585 - INFO -   CPU: i386
+2025-11-09 15:36:53,585 - INFO -   numpy: 1.26.4
+2025-11-09 15:36:53,585 - INFO -   scipy: 1.12.0
+2025-11-09 15:36:53,585 - INFO -   matplotlib: 3.8.2
+2025-11-09 15:36:53,585 - INFO - Environment summary: Python 3.11.14; macOS-15.0.1-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2025-11-09 15:36:53,586 - INFO - 
+2025-11-09 15:36:53,587 - INFO - Using standard CPU (SciPy) computational backend with multiprocessing.
+2025-11-09 15:36:53,587 - INFO - Running from base directory: .
+2025-11-09 15:36:53,587 - INFO - All outputs will be saved to: output/copernican-run_20251109_153653
+2025-11-09 15:36:53,587 - INFO - 
+--- Stage 1: Configuration ---
+
+2025-11-09 15:36:53,587 - INFO - 
+2025-11-09 15:36:53,587 - INFO - Stage 1 – Configuration
+2025-11-09 15:36:53,587 - INFO - -----------------------
+2025-11-09 15:36:53,587 - INFO - We will set the random seed, pick an alternative model and select the computation engine before loading data.
+2025-11-09 15:36:53,587 - INFO - 
+2025-11-09 15:36:53,587 - INFO - 
+2025-11-09 15:36:53,587 - INFO - Random Seed Selection
+2025-11-09 15:36:53,587 - INFO - ---------------------
+2025-11-09 15:36:53,587 - INFO - This seed initialises every random number generator used by Copernican so runs can be repeated exactly.
+2025-11-09 15:36:53,587 - INFO - 
+2025-11-09 15:36:53,588 - INFO - Please choose how to seed the sampler:
+2025-11-09 15:36:53,588 - INFO -   1) Accept the default seed (0)
+2025-11-09 15:36:53,588 - INFO -   2) Enter a custom integer seed
+2025-11-09 15:36:53,588 - INFO -   3) Generate a random seed (uniform in [0, 2^32 - 1])
+2025-11-09 15:36:53,588 - INFO - 
+2025-11-09 15:37:07,931 - INFO - Select an option: 3
+2025-11-09 15:37:07,931 - INFO - Generated random seed 462738375.
+2025-11-09 15:37:08,153 - INFO - Global RNG seed set to 462738375
+2025-11-09 15:37:08,154 - INFO - Using RNG seed 462738375
+2025-11-09 15:37:08,155 - INFO - 
+Available cosmological models:
+2025-11-09 15:37:08,155 - INFO -   1. cosmo_model_cfsc.yml
+2025-11-09 15:37:08,155 - INFO -   2. cosmo_model_cpc.yml
+2025-11-09 15:37:08,155 - INFO -   3. cosmo_model_lcdm.yml
+2025-11-09 15:37:08,155 - INFO -   4. cosmo_model_qauc.yml
+2025-11-09 15:37:08,155 - INFO -   5. cosmo_model_qrsf.yml
+2025-11-09 15:37:08,155 - INFO -   6. cosmo_model_qrsfv2.yml
+2025-11-09 15:37:08,155 - INFO -   7. cosmo_model_qrsfv3.yml
+2025-11-09 15:37:08,155 - INFO -   8. cosmo_model_qrsfv4.yml
+2025-11-09 15:37:08,155 - INFO -   9. cosmo_model_qrsfv5.yml
+2025-11-09 15:37:08,156 - INFO -   10. cosmo_model_usmf2.yml
+2025-11-09 15:37:08,156 - INFO -   11. cosmo_model_usmf4.yml
+2025-11-09 15:37:08,156 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-09 15:37:27,183 - INFO - > 7
+2025-11-09 15:37:27,289 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2025-11-09 15:37:27,302 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2025-11-09 15:37:27,302 - INFO - Derived distance_modulus_model from luminosity distance.
+2025-11-09 15:37:27,327 - INFO - Loaded YAML model: QRSFv3
+2025-11-09 15:37:27,327 - INFO - 
+Available computation engines:
+2025-11-09 15:37:27,327 - INFO -   1. cosmo_engine_mcmc.py
+2025-11-09 15:37:27,327 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-09 15:37:31,495 - INFO - > 1
+2025-11-09 15:37:31,953 - INFO - 
+Available SNe data sources:
+2025-11-09 15:37:31,953 - INFO -   1. Joint Light-curve Analysis 2014 (Joint SDSS-II and SNLS supernova sample of 740 SNe Ia with distance moduli and full covariance matrix.)
+2025-11-09 15:37:31,954 - INFO -   2. Pantheon+SH0ES 2022 (Combined sample of 1701 Type Ia supernova distance moduli with full statistical and systematic covariance matrix)
+2025-11-09 15:37:31,954 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-09 15:37:32,939 - INFO - > 1
+2025-11-09 15:37:32,939 - INFO - Attempting to load SNe data from 'Joint Light-curve Analysis 2014'
+2025-11-09 15:37:33,882 - INFO - Successfully loaded 740 SNe data points.
+2025-11-09 15:37:34,000 - INFO - SHA256 +footg5.gif: 6d375d2d9a97f897b6bdadf61781d5ad49365a612b0eeda2e27b363e83546b89
+2025-11-09 15:37:34,000 - INFO - SHA256 +footg8.gif: c725331eae86cce9f3b27fc9b3b2476d611b9c0d8c1a760df4c4792a5f9022da
+2025-11-09 15:37:34,001 - INFO - SHA256 ReadMe.txt: 236793155d6572626a56259732b06e4d1141e1ebe5ee2f4ed83253aca403b3f9
+2025-11-09 15:37:34,001 - INFO - SHA256 metadata_jla2014.yml: 699a7435e1f5c014702d1c4b8e98770eef23420be98afd5fa84ff35aa9a891ec
+2025-11-09 15:37:34,002 - INFO - SHA256 tablef1.dat: d9b17b4c704b554d0e3df0b5efed7877e881d2f62c04f968b789a61b3fb80114
+2025-11-09 15:37:34,002 - INFO - SHA256 tablef2.fit: 0db2aeab210523594c07ac7f89edca87c55a76601c51c4a831d338cc32ce3ff4
+2025-11-09 15:37:34,002 - INFO - SHA256 tablef3.dat: 35db10c033fa4bc5326436d957eb732e76fd7a4d6db7c729bc3ce17aeb5de470
+2025-11-09 15:37:34,002 - INFO - SHA256 tablef4.fit: a17a1e29a8ee1631669a4456adf84c27372a33f5448a65971dbdd50eb9a97a67
+2025-11-09 15:37:34,002 - INFO - SHA256 __pycache__/cosmo_parser_jla2014.cpython-311.pyc: b626dc5da7eb63bdadb373e84ac1b81ac035d7a3ff9104db9e98fc4422c943a5
+2025-11-09 15:37:34,002 - INFO - Loaded SNe dataset 'Joint Light-curve Analysis 2014' with 740 rows.
+2025-11-09 15:37:34,002 - INFO - SNe covariance matrix inverted successfully.
+2025-11-09 15:37:34,002 - INFO - 
+Available BAO data sources:
+2025-11-09 15:37:34,003 - INFO -   1. BOSS DR12 BAO Consensus (Consensus BAO distances for three redshift bins providing DM/rs, DH/rs and DV/rs with propagated block-diagonal covariance)
+2025-11-09 15:37:34,003 - INFO -   2. Compound BAO compilation (Compilation of BAO distance measurements without a covariance matrix)
+2025-11-09 15:37:34,003 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-09 15:37:34,787 - INFO - > 1
+2025-11-09 15:37:34,787 - INFO - Attempting to load BAO data from 'BOSS DR12 BAO Consensus'
+2025-11-09 15:37:34,787 - INFO - Loading BOSS DR12 data from /Users/apostolov/Documents/GitHub/copernican/data/bao/bossdr12
+2025-11-09 15:37:34,811 - INFO - BAO covariance condition number: 1.052e+02
+2025-11-09 15:37:34,811 - INFO - Successfully loaded 9 BAO data points.
+2025-11-09 15:37:34,813 - INFO - SHA256 BAO_consensus_covtot_dM_Hz.txt: 05c04829c8edc117870efe809494593a23de6c35547f8b66760a5250804b65cf
+2025-11-09 15:37:34,813 - INFO - SHA256 BAO_consensus_covtot_dV_FAP.txt: cf5b760b34f4335bd90490fcce4540dbac0b0b54e3240544c4af133dd45c8300
+2025-11-09 15:37:34,813 - INFO - SHA256 BAO_consensus_results_dM_Hz.txt: 30e784fa08e7eddb2fdd1ab09411424e67aa9b75df58f4bb330a889c9b9c478e
+2025-11-09 15:37:34,813 - INFO - SHA256 BAO_consensus_results_dV_FAP.txt: e507d65dacedc814892609d2decca9990a954ef5836da79b57c663885fce4ef8
+2025-11-09 15:37:34,813 - INFO - SHA256 metadata_bossdr12.yml: 821022b3851fda917a4c014d88d35da92f303e7295a1d9d6d373eaab541939ef
+2025-11-09 15:37:34,813 - INFO - SHA256 __pycache__/cosmo_parser_bossdr12.cpython-311.pyc: 3a60b77e9f1dbbc5aba7dca9f50cf9cf4f0c8062d1a7d464ce6930f441cb1069
+2025-11-09 15:37:34,813 - INFO - Loaded BAO dataset 'BOSS DR12 BAO Consensus' with 9 rows.
+2025-11-09 15:37:34,813 - INFO - BAO covariance matrix inverted successfully.
+2025-11-09 15:37:34,813 - INFO - BAO covariance condition number: 1.052e+02
+2025-11-09 15:37:34,813 - INFO - 
+Available CMB data sources:
+2025-11-09 15:37:34,813 - INFO -   1. Planck 2018 Lite TT/TE/EE (Temperature and polarization power spectra from the Planck 2018 lite release with full covariance matrix)
+2025-11-09 15:37:34,813 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-09 15:37:35,595 - INFO - > 1
+2025-11-09 15:37:35,595 - INFO - Attempting to load CMB data from 'Planck 2018 Lite TT/TE/EE'
+2025-11-09 15:37:35,646 - INFO - Successfully loaded 215 CMB data points.
+2025-11-09 15:37:35,657 - INFO - SHA256 c_matrix_plik_v22.dat: ad90378c50bd67841764179c90ae6711fa4317c649966ab2b0712143b31e0a32
+2025-11-09 15:37:35,657 - INFO - SHA256 cl_cmb_plik_v22.dat: dac0d9d493213e77c940a10a968cf0da3c5730bae60e1356c4cd8bcff96377ff
+2025-11-09 15:37:35,657 - INFO - SHA256 metadata_planck2018lite.yml: ec760dece3ddba7da4db1720cc52fd3b8e01e14f6bf2ed60b7d8ecc391f7516c
+2025-11-09 15:37:35,657 - INFO - SHA256 readme_baseline.md: ae6cef6886f2c4381147657fc195bed72742fbe3cc106208200f961af24caa73
+2025-11-09 15:37:35,657 - INFO - SHA256 __pycache__/cosmo_parser_cmb_planck2018lite.cpython-311.pyc: 8ba66ebc3b387f7dbe39050e55b3602353eb00e832f53e1d3b6b0c184e1e1140
+2025-11-09 15:37:35,657 - INFO - Loaded CMB dataset 'Planck 2018 Lite TT/TE/EE' with 215 rows.
+2025-11-09 15:37:35,657 - INFO - CMB covariance matrix inverted successfully.
+2025-11-09 15:37:35,657 - INFO - 
+2025-11-09 15:37:35,657 - INFO - Sampler defaults summary:
+2025-11-09 15:37:35,657 - INFO -   ΛCDM active parameters: 5
+2025-11-09 15:37:35,658 - INFO -   QRSFv3 active parameters: 7
+2025-11-09 15:37:35,658 - INFO -   Minimum walkers per emcee rule: 14
+2025-11-09 15:37:35,658 - INFO -   Recommended production steps: 200
+2025-11-09 15:37:35,658 - INFO -   Recommended burn-in steps: 100
+2025-11-09 15:37:35,658 - INFO -   Recommended walkers: 32
+2025-11-09 15:37:35,658 - INFO -   Recommended pool workers: 4
+2025-11-09 15:37:35,658 - INFO - 
+2025-11-09 15:37:35,658 - INFO - 1) Run with default settings
+2025-11-09 15:37:35,658 - INFO - 2) Change settings
+2025-11-09 15:37:35,658 - INFO - C) Cancel configuration
+2025-11-09 15:37:35,658 - INFO - 
+2025-11-09 15:37:40,223 - INFO - Write the number of choice: 2
+2025-11-09 15:37:40,223 - INFO - 
+2025-11-09 15:37:40,223 - INFO - Production steps control the total sampler iterations.
+2025-11-09 15:37:40,223 - INFO -   Recommended default: 200
+2025-11-09 15:37:43,179 - INFO - Production steps [200]: 5
+2025-11-09 15:37:43,179 - INFO - 
+2025-11-09 15:37:43,179 - INFO - Burn-in steps discard the early samples so the chain can stabilise.
+2025-11-09 15:37:43,179 - INFO -   Recommended warm-up: 100
+2025-11-09 15:37:43,179 - INFO -   A shorter option such as 1 trades certainty for speed.
+2025-11-09 15:37:44,243 - INFO - Burn-in steps [100]: 2
+2025-11-09 15:37:44,243 - INFO - 
+2025-11-09 15:37:44,243 - INFO - Walkers sample the posterior in parallel; more walkers increase convergence confidence.
+2025-11-09 15:37:44,243 - INFO -   Required minimum: 14
+2025-11-09 15:37:44,243 - INFO -   Recommended default: 32
+2025-11-09 15:37:49,471 - INFO - Number of walkers [32]: 14
+2025-11-09 15:37:49,471 - INFO - 
+2025-11-09 15:37:49,471 - INFO - Worker pools accelerate sampling by spreading walkers across processes.
+2025-11-09 15:37:49,471 - INFO -   Recommended pool size: 4 (detected CPUs: 4)
+2025-11-09 15:37:49,471 - INFO -   Enter 0 to disable multiprocessing entirely.
+2025-11-09 15:37:52,087 - INFO - Pool workers [4]: 4
+2025-11-09 15:37:52,087 - INFO - 
+2025-11-09 15:37:52,087 - INFO - Sampling plan summary:
+2025-11-09 15:37:52,087 - INFO -   Production steps: 5
+2025-11-09 15:37:52,087 - INFO -   Burn-in steps: 2
+2025-11-09 15:37:52,087 - INFO -   Walkers: 14
+2025-11-09 15:37:52,087 - INFO -   Pool workers: 4
+2025-11-09 15:37:52,087 - INFO - 
+2025-11-09 15:37:52,087 - INFO - How should we proceed?
+2025-11-09 15:37:52,087 - INFO -   1) Accept this sampler plan and continue
+2025-11-09 15:37:52,088 - INFO -   2) Revisit the questionnaire from the beginning
+2025-11-09 15:37:52,088 - INFO -   B) Back to the sampler defaults summary
+2025-11-09 15:37:52,088 - INFO -   C) Cancel sampler configuration
+2025-11-09 15:37:52,088 - INFO - 
+2025-11-09 15:37:54,343 - INFO - Select an option: 1
+2025-11-09 15:37:54,343 - INFO - Sampler configuration: steps=5, burn-in=2, walkers=14, pool=4
+2025-11-09 15:37:54,343 - INFO - Configured sampler: steps 5, burn-in 2.
+2025-11-09 15:37:54,343 - INFO - Walker ensemble 14, pool 4.
+2025-11-09 15:37:54,479 - INFO - 
+--- Stage 2: Ensemble MCMC sampler ---
+
+2025-11-09 15:37:54,480 - INFO - 
+2025-11-09 15:37:54,480 - INFO - Stage 2 – Ensemble MCMC sampler
+2025-11-09 15:37:54,480 - INFO - ------------------------------
+2025-11-09 15:37:54,480 - INFO - Stage 2 estimates parameters for the ΛCDM reference model and then the selected alternative theory.
+2025-11-09 15:37:54,480 - INFO - Burn-in prepares the chains; production accumulates posterior samples for analysis.
+2025-11-09 15:37:54,480 - INFO - Each sampler phase announces its start and the fifty-character progress bar fills continuously with per-walker updates for every batch so lengthy runs remain easy to follow.
+2025-11-09 15:37:54,480 - INFO - 
+2025-11-09 15:37:54,480 - INFO - ΛCDM reference chain
+2025-11-09 15:37:54,480 - INFO -   Burn-in steps: 2
+2025-11-09 15:37:54,480 - INFO -   Production steps: 5
+2025-11-09 15:37:54,480 - INFO -   Walkers: 14
+2025-11-09 15:37:54,480 - INFO -   Worker pool: 4
+2025-11-09 15:37:54,481 - INFO -   Starting ΛCDM sampler...
+2025-11-09 15:37:54,481 - INFO - 
+2025-11-09 15:37:54,494 - INFO - Using 14 walkers for 5 active parameter(s).
+2025-11-09 15:38:28,555 - INFO - Using requested multiprocessing pool with 4 worker(s).
+2025-11-09 15:38:28,652 - INFO - Starting MCMC burn-in stage for 2 steps...
+2025-11-09 15:38:28,652 - INFO - LambdaCDM burn-in batch 1 (2 steps) progress:
+2025-11-09 15:38:28,652 - INFO - [--------------------------------------------------]   0% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:39:14,257 - INFO - [##------------------------------------------------]   4% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:39:14,258 - INFO - [####----------------------------------------------]   7% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:39:14,258 - INFO - [#####---------------------------------------------]  11% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:39:14,258 - INFO - [#######-------------------------------------------]  14% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:39:14,258 - INFO - [#########-----------------------------------------]  18% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:39:14,258 - INFO - [###########---------------------------------------]  21% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:39:14,258 - INFO - [############--------------------------------------]  25% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:39:22,344 - INFO - [##############------------------------------------]  29% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:39:22,344 - INFO - [################----------------------------------]  32% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:39:22,344 - INFO - [##################--------------------------------]  36% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:39:22,344 - INFO - [####################------------------------------]  39% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:39:22,344 - INFO - [#####################-----------------------------]  43% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:39:22,344 - INFO - [#######################---------------------------]  46% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:39:22,344 - INFO - [#########################-------------------------]  50% (step 1 of 2 steps, 1 step remaining)
+2025-11-09 15:39:22,346 - INFO - MCMC burn-in progress:  50% (1/2 steps)
+2025-11-09 15:39:22,354 - INFO -     logP μ=-6.990e+04 σ= 1.199e+05 max=-1.178e+03 Δχ²≈-0.000
+2025-11-09 15:39:22,354 - INFO -     H_0: med= 71.37 (-8.9/+13)
+2025-11-09 15:39:22,354 - INFO -     Omega_m0: med= 0.2512 (-0.13/+0.24)
+2025-11-09 15:39:22,354 - INFO -     Omega_b: med= 0.04889 (-0.02/+0.012)
+2025-11-09 15:39:22,354 - INFO -     Omega_gamma: med= 5.714e-05 (-2.2e-05/+2.1e-05)
+2025-11-09 15:39:22,354 - INFO -     z_rec: med= 1105 (-63/+47)
+2025-11-09 15:39:22,354 - INFO -     Walker[1] snapshot: H_0=62.41, Omega_m0=0.3784, Omega_b=0.05237,
+        Omega_gamma=5.735e-05, z_rec=1040
+2025-11-09 15:39:32,275 - INFO - [###########################-----------------------]  54% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:39:32,277 - INFO - [#############################---------------------]  57% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:39:32,277 - INFO - [##############################--------------------]  61% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:39:32,277 - INFO - [################################------------------]  64% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:39:32,277 - INFO - [##################################----------------]  68% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:39:32,277 - INFO - [####################################--------------]  71% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:39:32,278 - INFO - [######################################------------]  75% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:39:42,694 - INFO - [#######################################-----------]  79% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:39:42,695 - INFO - [#########################################---------]  82% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:39:42,695 - INFO - [###########################################-------]  86% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:39:42,695 - INFO - [#############################################-----]  89% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:39:42,695 - INFO - [##############################################----]  93% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:39:42,695 - INFO - [################################################--]  96% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:39:42,695 - INFO - [##################################################] 100% (step 2 of 2 steps, 0 steps remaining)
+2025-11-09 15:39:42,695 - INFO - 
+2025-11-09 15:39:42,695 - INFO - MCMC burn-in progress: 100% (2/2 steps)
+2025-11-09 15:39:42,696 - INFO -     logP μ=-3.537e+04 σ= 4.946e+04 max=-1.178e+03 Δχ²≈-0.000
+2025-11-09 15:39:42,696 - INFO -     H_0: med= 72.16 (-9.2/+8.2)
+2025-11-09 15:39:42,696 - INFO -     Omega_m0: med= 0.3014 (-0.13/+0.22)
+2025-11-09 15:39:42,696 - INFO -     Omega_b: med= 0.04865 (-0.016/+0.0077)
+2025-11-09 15:39:42,696 - INFO -     Omega_gamma: med= 5.714e-05 (-1.8e-05/+2e-05)
+2025-11-09 15:39:42,696 - INFO -     z_rec: med= 1105 (-46/+29)
+2025-11-09 15:39:42,696 - INFO - Completed MCMC burn-in stage.
+2025-11-09 15:39:42,696 - INFO - Starting MCMC production stage for 5 steps...
+2025-11-09 15:39:42,697 - INFO - LambdaCDM production batch 1 (5 steps) progress:
+2025-11-09 15:39:42,697 - INFO - [--------------------------------------------------]   0% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:40:22,980 - INFO - [#-------------------------------------------------]   1% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:40:22,981 - INFO - [#-------------------------------------------------]   3% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:40:22,981 - INFO - [##------------------------------------------------]   4% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:40:22,981 - INFO - [###-----------------------------------------------]   6% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:40:22,981 - INFO - [####----------------------------------------------]   7% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:40:22,981 - INFO - [####----------------------------------------------]   9% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:40:22,981 - INFO - [#####---------------------------------------------]  10% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:40:36,927 - INFO - [######--------------------------------------------]  11% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:40:36,928 - INFO - [######--------------------------------------------]  13% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:40:36,928 - INFO - [#######-------------------------------------------]  14% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:40:36,929 - INFO - [########------------------------------------------]  16% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:40:36,929 - INFO - [#########-----------------------------------------]  17% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:40:36,929 - INFO - [#########-----------------------------------------]  19% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:40:36,929 - INFO - [##########----------------------------------------]  20% (step 1 of 5 steps, 4 steps remaining)
+2025-11-09 15:40:36,929 - INFO - MCMC production progress:  20% (1/5 steps)
+2025-11-09 15:40:36,930 - INFO -     logP μ=-2.591e+04 σ= 3.896e+04 max=-1.178e+03 Δχ²≈-0.000
+2025-11-09 15:40:36,930 - INFO -     H_0: med= 71.64 (-4.3/+4)
+2025-11-09 15:40:36,930 - INFO -     Omega_m0: med= 0.3438 (-0.17/+0.15)
+2025-11-09 15:40:36,930 - INFO -     Omega_b: med= 0.04812 (-0.012/+0.0091)
+2025-11-09 15:40:36,930 - INFO -     Omega_gamma: med= 5.767e-05 (-1.8e-05/+2.2e-05)
+2025-11-09 15:40:36,930 - INFO -     z_rec: med= 1098 (-29/+37)
+2025-11-09 15:40:36,930 - INFO -     Walker[1] snapshot: H_0=62.41, Omega_m0=0.3784, Omega_b=0.05237,
+        Omega_gamma=5.735e-05, z_rec=1040
+2025-11-09 15:40:48,097 - INFO - [###########---------------------------------------]  21% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:40:48,100 - INFO - [###########---------------------------------------]  23% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:40:48,100 - INFO - [############--------------------------------------]  24% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:40:48,100 - INFO - [#############-------------------------------------]  26% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:40:48,100 - INFO - [##############------------------------------------]  27% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:40:48,100 - INFO - [##############------------------------------------]  29% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:40:48,100 - INFO - [###############-----------------------------------]  30% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:41:00,367 - INFO - [################----------------------------------]  31% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:41:00,367 - INFO - [################----------------------------------]  33% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:41:00,368 - INFO - [#################---------------------------------]  34% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:41:00,368 - INFO - [##################--------------------------------]  36% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:41:00,368 - INFO - [###################-------------------------------]  37% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:41:00,368 - INFO - [###################-------------------------------]  39% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:41:00,368 - INFO - [####################------------------------------]  40% (step 2 of 5 steps, 3 steps remaining)
+2025-11-09 15:41:12,131 - INFO - [#####################-----------------------------]  41% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:41:12,131 - INFO - [#####################-----------------------------]  43% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:41:12,131 - INFO - [######################----------------------------]  44% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:41:12,131 - INFO - [#######################---------------------------]  46% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:41:12,131 - INFO - [########################--------------------------]  47% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:41:12,132 - INFO - [########################--------------------------]  49% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:41:12,132 - INFO - [#########################-------------------------]  50% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:41:24,569 - INFO - [##########################------------------------]  51% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:41:24,569 - INFO - [##########################------------------------]  53% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:41:24,570 - INFO - [###########################-----------------------]  54% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:41:24,570 - INFO - [############################----------------------]  56% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:41:24,570 - INFO - [#############################---------------------]  57% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:41:24,570 - INFO - [#############################---------------------]  59% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:41:24,570 - INFO - [##############################--------------------]  60% (step 3 of 5 steps, 2 steps remaining)
+2025-11-09 15:41:34,838 - INFO - [###############################-------------------]  61% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:41:34,839 - INFO - [###############################-------------------]  63% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:41:34,839 - INFO - [################################------------------]  64% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:41:34,839 - INFO - [#################################-----------------]  66% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:41:34,839 - INFO - [##################################----------------]  67% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:41:34,839 - INFO - [##################################----------------]  69% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:41:34,839 - INFO - [###################################---------------]  70% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:41:50,364 - INFO - [####################################--------------]  71% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:41:50,364 - INFO - [####################################--------------]  73% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:41:50,364 - INFO - [#####################################-------------]  74% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:41:50,364 - INFO - [######################################------------]  76% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:41:50,364 - INFO - [#######################################-----------]  77% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:41:50,365 - INFO - [#######################################-----------]  79% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:41:50,365 - INFO - [########################################----------]  80% (step 4 of 5 steps, 1 step remaining)
+2025-11-09 15:41:58,860 - INFO - [#########################################---------]  81% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:41:58,861 - INFO - [#########################################---------]  83% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:41:58,861 - INFO - [##########################################--------]  84% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:41:58,861 - INFO - [###########################################-------]  86% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:41:58,861 - INFO - [############################################------]  87% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:41:58,861 - INFO - [############################################------]  89% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:41:58,861 - INFO - [#############################################-----]  90% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:42:10,707 - INFO - [##############################################----]  91% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:42:10,707 - INFO - [##############################################----]  93% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:42:10,708 - INFO - [###############################################---]  94% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:42:10,708 - INFO - [################################################--]  96% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:42:10,708 - INFO - [#################################################-]  97% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:42:10,708 - INFO - [#################################################-]  99% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:42:10,708 - INFO - [##################################################] 100% (step 5 of 5 steps, 0 steps remaining)
+2025-11-09 15:42:10,708 - INFO - 
+2025-11-09 15:42:10,708 - INFO - MCMC production progress: 100% (5/5 steps)
+2025-11-09 15:42:10,709 - INFO -     logP μ=-8.673e+03 σ= 8.203e+03 max=-9.664e+02 Δχ²≈-423.431
+2025-11-09 15:42:10,709 - INFO -     H_0: med= 71.2 (-3.9/+9.5)
+2025-11-09 15:42:10,709 - INFO -     Omega_m0: med= 0.31 (-0.063/+0.16)
+2025-11-09 15:42:10,709 - INFO -     Omega_b: med= 0.04593 (-0.0073/+0.0093)
+2025-11-09 15:42:10,709 - INFO -     Omega_gamma: med= 5.704e-05 (-1.7e-05/+1.9e-05)
+2025-11-09 15:42:10,709 - INFO -     z_rec: med= 1107 (-55/+23)
+2025-11-09 15:42:10,709 - INFO - Completed MCMC production stage.
+2025-11-09 15:42:13,461 - INFO - Rank-normalised R-hat summary: min=3.495 median=5.078 max=7.623
+2025-11-09 15:42:13,461 - INFO - Effective sample sizes: bulk median=97.9 tail median=97.9
+2025-11-09 15:42:13,461 - INFO - MCMC acceptance for LambdaCDM: mean=0.400, min=0.000, max=0.800
+2025-11-09 15:42:13,463 - INFO - 
+2025-11-09 15:42:13,463 - INFO - Alternative model: QRSFv3
+2025-11-09 15:42:13,463 - INFO -   Burn-in steps: 2
+2025-11-09 15:42:13,463 - INFO -   Production steps: 5
+2025-11-09 15:42:13,463 - INFO -   Walkers: 14
+2025-11-09 15:42:13,463 - INFO -   Worker pool: 4
+2025-11-09 15:42:13,463 - INFO -   Starting alternative sampler...
+2025-11-09 15:42:13,463 - INFO - 
+2025-11-09 15:42:13,464 - INFO - Treating 3 parameter(s) as fixed or numerically locked: Omega_gamma, z_rec, c_light
+2025-11-09 15:42:13,464 - INFO - Using 14 walkers for 7 active parameter(s).
+2025-11-09 15:42:59,914 - INFO - Using requested multiprocessing pool with 4 worker(s).
+2025-11-09 15:42:59,952 - INFO - Starting MCMC burn-in stage for 2 steps...
+2025-11-09 15:42:59,953 - INFO - QRSFv3 burn-in batch 1 (2 steps) progress:
+2025-11-09 15:42:59,954 - INFO - [--------------------------------------------------]   0% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:44:02,846 - INFO - [##------------------------------------------------]   4% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:44:02,849 - INFO - [####----------------------------------------------]   7% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:44:02,850 - INFO - [#####---------------------------------------------]  11% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:44:02,850 - INFO - [#######-------------------------------------------]  14% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:44:02,850 - INFO - [#########-----------------------------------------]  18% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:44:02,850 - INFO - [###########---------------------------------------]  21% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:44:02,850 - INFO - [############--------------------------------------]  25% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:44:08,961 - INFO - [##############------------------------------------]  29% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:44:08,961 - INFO - [################----------------------------------]  32% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:44:08,961 - INFO - [##################--------------------------------]  36% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:44:08,961 - INFO - [####################------------------------------]  39% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:44:08,961 - INFO - [#####################-----------------------------]  43% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:44:08,961 - INFO - [#######################---------------------------]  46% (step 1 of 2 steps, 2 steps remaining)
+2025-11-09 15:44:08,962 - INFO - [#########################-------------------------]  50% (step 1 of 2 steps, 1 step remaining)
+2025-11-09 15:44:08,962 - INFO - MCMC burn-in progress:  50% (1/2 steps)
+2025-11-09 15:44:08,963 - INFO -     logP μ=-5.783e+05 σ= 2.157e+05 max=-3.180e+05 Δχ²≈-0.000
+2025-11-09 15:44:08,963 - INFO -     H_star: med= 69.21 (-14/+10)
+2025-11-09 15:44:08,963 - INFO -     Omega_b: med= 0.05108 (-0.014/+0.013)
+2025-11-09 15:44:08,963 - INFO -     Omega_gamma: med= 5.38e-05 (-0/+0)
+2025-11-09 15:44:08,963 - INFO -     A_coh: med= 1.163 (-0.71/+1.6)
+2025-11-09 15:44:08,963 - INFO -     sigma_coh: med= 9.201 (-3.3/+6.3)
+2025-11-09 15:44:08,963 - INFO -     z_coh: med= 10.08 (-7.7/+2.6)
+2025-11-09 15:44:08,963 - INFO -     eta_tail: med= 1.176 (-0.71/+0.73)
+2025-11-09 15:44:08,964 - INFO -     nu_tail: med= 2.577 (-1.3/+0.89)
+2025-11-09 15:44:08,964 - INFO -     z_rec: med= 1089 (-0/+0)
+2025-11-09 15:44:08,964 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-09 15:44:08,964 - INFO -     Walker[4] snapshot: H_star=79.81, Omega_b=0.06955,
+        Omega_gamma=5.38e-05, A_coh=3.358, sigma_coh=19.76, z_coh=0.871,
+        eta_tail=1.336, nu_tail=3.543, z_rec=1089, c_light=2.998e+05
+2025-11-09 15:44:22,271 - INFO - [###########################-----------------------]  54% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:44:22,272 - INFO - [#############################---------------------]  57% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:44:22,272 - INFO - [##############################--------------------]  61% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:44:22,272 - INFO - [################################------------------]  64% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:44:22,272 - INFO - [##################################----------------]  68% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:44:22,272 - INFO - [####################################--------------]  71% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:44:22,272 - INFO - [######################################------------]  75% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:44:38,364 - INFO - [#######################################-----------]  79% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:44:38,365 - INFO - [#########################################---------]  82% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:44:38,365 - INFO - [###########################################-------]  86% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:44:38,365 - INFO - [#############################################-----]  89% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:44:38,365 - INFO - [##############################################----]  93% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:44:38,365 - INFO - [################################################--]  96% (step 2 of 2 steps, 1 step remaining)
+2025-11-09 15:44:38,365 - INFO - [##################################################] 100% (step 2 of 2 steps, 0 steps remaining)
+2025-11-09 15:44:38,365 - INFO - 
+2025-11-09 15:44:38,366 - INFO - MCMC burn-in progress: 100% (2/2 steps)
+2025-11-09 15:44:38,367 - INFO -     logP μ=-5.460e+05 σ= 1.561e+05 max=-3.180e+05 Δχ²≈-0.000
+2025-11-09 15:44:38,367 - INFO -     H_star: med= 69.21 (-13/+10)
+2025-11-09 15:44:38,367 - INFO -     Omega_b: med= 0.05123 (-0.011/+0.013)
+2025-11-09 15:44:38,367 - INFO -     Omega_gamma: med= 5.38e-05 (-0/+0)
+2025-11-09 15:44:38,367 - INFO -     A_coh: med= 1.335 (-0.71/+1.6)
+2025-11-09 15:44:38,367 - INFO -     sigma_coh: med= 9.317 (-3.4/+7.9)
+2025-11-09 15:44:38,367 - INFO -     z_coh: med= 9.993 (-7.7/+5.5)
+2025-11-09 15:44:38,367 - INFO -     eta_tail: med= 1.152 (-0.69/+0.69)
+2025-11-09 15:44:38,367 - INFO -     nu_tail: med= 2.241 (-0.95/+1.2)
+2025-11-09 15:44:38,367 - INFO -     z_rec: med= 1089 (-0/+0)
+2025-11-09 15:44:38,367 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-09 15:44:38,367 - INFO - Completed MCMC burn-in stage.
+2025-11-09 15:44:38,367 - INFO - Starting MCMC production stage for 5 steps...
+2025-11-09 15:44:38,367 - INFO - QRSFv3 production batch 1 (5 steps) progress:
+2025-11-09 15:44:38,367 - INFO - [--------------------------------------------------]   0% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:45:32,801 - INFO - [#-------------------------------------------------]   1% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:45:32,802 - INFO - [#-------------------------------------------------]   3% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:45:32,802 - INFO - [##------------------------------------------------]   4% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:45:32,802 - INFO - [###-----------------------------------------------]   6% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:45:32,802 - INFO - [####----------------------------------------------]   7% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:45:32,802 - INFO - [####----------------------------------------------]   9% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:45:32,802 - INFO - [#####---------------------------------------------]  10% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:45:51,975 - INFO - [######--------------------------------------------]  11% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:45:51,975 - INFO - [######--------------------------------------------]  13% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:45:51,975 - INFO - [#######-------------------------------------------]  14% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:45:51,975 - INFO - [########------------------------------------------]  16% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:45:51,975 - INFO - [#########-----------------------------------------]  17% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:45:51,975 - INFO - [#########-----------------------------------------]  19% (step 1 of 5 steps, 5 steps remaining)
+2025-11-09 15:45:51,976 - INFO - [##########----------------------------------------]  20% (step 1 of 5 steps, 4 steps remaining)
+2025-11-09 15:45:51,976 - INFO - MCMC production progress:  20% (1/5 steps)
+2025-11-09 15:45:51,977 - INFO -     logP μ=-5.250e+05 σ= 1.387e+05 max=-3.180e+05 Δχ²≈-0.000
+2025-11-09 15:45:51,977 - INFO -     H_star: med= 69.28 (-8.8/+9.9)
+2025-11-09 15:45:51,977 - INFO -     Omega_b: med= 0.05364 (-0.012/+0.011)
+2025-11-09 15:45:51,977 - INFO -     Omega_gamma: med= 5.38e-05 (-0/+0)
+2025-11-09 15:45:51,977 - INFO -     A_coh: med= 1.402 (-0.76/+1.5)
+2025-11-09 15:45:51,977 - INFO -     sigma_coh: med= 10.01 (-2.3/+7.1)
+2025-11-09 15:45:51,977 - INFO -     z_coh: med= 10.54 (-7.4/+5.1)
+2025-11-09 15:45:51,977 - INFO -     eta_tail: med= 1.042 (-0.59/+0.85)
+2025-11-09 15:45:51,977 - INFO -     nu_tail: med= 2.241 (-0.89/+1.2)
+2025-11-09 15:45:51,977 - INFO -     z_rec: med= 1089 (-0/+0)
+2025-11-09 15:45:51,977 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-09 15:45:51,977 - INFO -     Walker[4] snapshot: H_star=79.81, Omega_b=0.06955,
+        Omega_gamma=5.38e-05, A_coh=3.358, sigma_coh=19.76, z_coh=0.871,
+        eta_tail=1.336, nu_tail=3.543, z_rec=1089, c_light=2.998e+05
+2025-11-09 15:46:04,953 - INFO - [###########---------------------------------------]  21% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:46:04,954 - INFO - [###########---------------------------------------]  23% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:46:04,954 - INFO - [############--------------------------------------]  24% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:46:04,954 - INFO - [#############-------------------------------------]  26% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:46:04,954 - INFO - [##############------------------------------------]  27% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:46:04,954 - INFO - [##############------------------------------------]  29% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:46:04,954 - INFO - [###############-----------------------------------]  30% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:46:17,568 - INFO - [################----------------------------------]  31% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:46:17,568 - INFO - [################----------------------------------]  33% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:46:17,568 - INFO - [#################---------------------------------]  34% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:46:17,569 - INFO - [##################--------------------------------]  36% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:46:17,569 - INFO - [###################-------------------------------]  37% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:46:17,569 - INFO - [###################-------------------------------]  39% (step 2 of 5 steps, 4 steps remaining)
+2025-11-09 15:46:17,569 - INFO - [####################------------------------------]  40% (step 2 of 5 steps, 3 steps remaining)
+2025-11-09 15:46:36,912 - INFO - [#####################-----------------------------]  41% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:46:36,914 - INFO - [#####################-----------------------------]  43% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:46:36,914 - INFO - [######################----------------------------]  44% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:46:36,914 - INFO - [#######################---------------------------]  46% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:46:36,914 - INFO - [########################--------------------------]  47% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:46:36,914 - INFO - [########################--------------------------]  49% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:46:36,914 - INFO - [#########################-------------------------]  50% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:46:55,887 - INFO - [##########################------------------------]  51% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:46:55,888 - INFO - [##########################------------------------]  53% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:46:55,888 - INFO - [###########################-----------------------]  54% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:46:55,888 - INFO - [############################----------------------]  56% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:46:55,888 - INFO - [#############################---------------------]  57% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:46:55,888 - INFO - [#############################---------------------]  59% (step 3 of 5 steps, 3 steps remaining)
+2025-11-09 15:46:55,888 - INFO - [##############################--------------------]  60% (step 3 of 5 steps, 2 steps remaining)
+2025-11-09 15:47:09,219 - INFO - [###############################-------------------]  61% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:47:09,219 - INFO - [###############################-------------------]  63% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:47:09,219 - INFO - [################################------------------]  64% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:47:09,219 - INFO - [#################################-----------------]  66% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:47:09,219 - INFO - [##################################----------------]  67% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:47:09,219 - INFO - [##################################----------------]  69% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:47:09,220 - INFO - [###################################---------------]  70% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:47:22,185 - INFO - [####################################--------------]  71% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:47:22,185 - INFO - [####################################--------------]  73% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:47:22,185 - INFO - [#####################################-------------]  74% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:47:22,185 - INFO - [######################################------------]  76% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:47:22,185 - INFO - [#######################################-----------]  77% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:47:22,185 - INFO - [#######################################-----------]  79% (step 4 of 5 steps, 2 steps remaining)
+2025-11-09 15:47:22,185 - INFO - [########################################----------]  80% (step 4 of 5 steps, 1 step remaining)
+2025-11-09 15:47:34,851 - INFO - [#########################################---------]  81% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:47:34,851 - INFO - [#########################################---------]  83% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:47:34,851 - INFO - [##########################################--------]  84% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:47:34,851 - INFO - [###########################################-------]  86% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:47:34,851 - INFO - [############################################------]  87% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:47:34,851 - INFO - [############################################------]  89% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:47:34,851 - INFO - [#############################################-----]  90% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:47:44,363 - INFO - [##############################################----]  91% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:47:44,363 - INFO - [##############################################----]  93% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:47:44,363 - INFO - [###############################################---]  94% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:47:44,363 - INFO - [################################################--]  96% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:47:44,364 - INFO - [#################################################-]  97% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:47:44,364 - INFO - [#################################################-]  99% (step 5 of 5 steps, 1 step remaining)
+2025-11-09 15:47:44,364 - INFO - [##################################################] 100% (step 5 of 5 steps, 0 steps remaining)
+2025-11-09 15:47:44,364 - INFO - 
+2025-11-09 15:47:44,364 - INFO - MCMC production progress: 100% (5/5 steps)
+2025-11-09 15:47:44,365 - INFO -     logP μ=-4.848e+05 σ= 1.132e+05 max=-3.180e+05 Δχ²≈-0.000
+2025-11-09 15:47:44,365 - INFO -     H_star: med= 70.92 (-6.3/+8.8)
+2025-11-09 15:47:44,365 - INFO -     Omega_b: med= 0.05205 (-0.0059/+0.013)
+2025-11-09 15:47:44,365 - INFO -     Omega_gamma: med= 5.38e-05 (-0/+0)
+2025-11-09 15:47:44,365 - INFO -     A_coh: med= 1.462 (-0.78/+1.6)
+2025-11-09 15:47:44,365 - INFO -     sigma_coh: med= 11.28 (-3.2/+6.7)
+2025-11-09 15:47:44,365 - INFO -     z_coh: med= 9.096 (-5.2/+7.9)
+2025-11-09 15:47:44,365 - INFO -     eta_tail: med= 1.133 (-0.71/+0.65)
+2025-11-09 15:47:44,365 - INFO -     nu_tail: med= 2.399 (-1/+0.65)
+2025-11-09 15:47:44,365 - INFO -     z_rec: med= 1089 (-0/+0)
+2025-11-09 15:47:44,365 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-09 15:47:44,366 - INFO - Completed MCMC production stage.
+2025-11-09 15:47:44,884 - WARNING - /Users/apostolov/Documents/GitHub/copernican/.venv/lib/python3.11/site-packages/arviz/stats/diagnostics.py:592: RuntimeWarning: invalid value encountered in scalar divide
+2025-11-09 15:47:44,902 - INFO - Rank-normalised R-hat summary: min=nan median=nan max=nan
+2025-11-09 15:47:44,903 - INFO - Effective sample sizes: bulk median=97.9 tail median=56.0
+2025-11-09 15:47:44,903 - INFO - MCMC acceptance for QRSFv3: mean=0.314, min=0.000, max=0.800
+2025-11-09 15:47:44,903 - INFO - Completed alternative sampling for QRSFv3.
+2025-11-09 15:47:44,903 - INFO - 
+2025-11-09 15:47:44,903 - INFO - Stage 2 sampling complete.
+2025-11-09 15:47:44,903 - INFO - 
+2025-11-09 15:47:44,911 - INFO - 
+--- Stage 3: BAO Analysis ---
+
+2025-11-09 15:47:44,912 - INFO - Calculating BAO observables for LambdaCDM with parameters: [67.82, 0.3015, 0.04671, 4.289e-05, 1061]
+2025-11-09 15:47:44,917 - INFO - Successfully calculated r_s for LambdaCDM: 171.367 Mpc
+2025-11-09 15:47:44,935 - INFO - LambdaCDM BAO residual RMS=2.21, max=3.86, median=-1.82 (N=9)
+2025-11-09 15:47:44,935 - INFO -     DH_over_rs: rms=2.98, max=3.86, median=-2.74 (N=3)
+2025-11-09 15:47:44,935 - INFO -     DM_over_rs: rms=1.79, max=2.14, median=-1.8 (N=3)
+2025-11-09 15:47:44,935 - INFO -     DV_over_rs: rms=1.62, max=1.82, median=-1.66 (N=3)
+2025-11-09 15:47:44,935 - INFO - LambdaCDM BAO: r_s = 171.37 Mpc, χ²_BAO = 4.26
+2025-11-09 15:47:44,936 - INFO - Calculating BAO observables for QRSFv3 with parameters: [79.81, 0.06955, 5.38e-05, 3.358, 19.76, 0.871, 1.336, 3.543, 1089, 2.998e+05]
+2025-11-09 15:47:44,938 - INFO - Successfully calculated r_s for QRSFv3: 186.262 Mpc
+2025-11-09 15:47:44,943 - INFO - QRSFv3 BAO residual RMS=5.49, max=8.59, median=-4.71 (N=9)
+2025-11-09 15:47:44,944 - INFO -     DH_over_rs: rms=7.26, max=8.59, median=-6.97 (N=3)
+2025-11-09 15:47:44,944 - INFO -     DM_over_rs: rms=4.53, max=5.33, median=-4.58 (N=3)
+2025-11-09 15:47:44,944 - INFO -     DV_over_rs: rms=4.15, max=4.71, median=-4.21 (N=3)
+2025-11-09 15:47:44,944 - INFO - QRSFv3 BAO: r_s = 186.26 Mpc, χ²_BAO = 577.62
+2025-11-09 15:47:44,944 - INFO - QRSFv3 r_s offset relative to LambdaCDM: +14.895 Mpc
+2025-11-09 15:47:44,944 - INFO - 
+--- Stage 4: CMB Analysis ---
+
+2025-11-09 15:47:46,051 - INFO - LambdaCDM CMB TT rms=56.8, max=280, median=-4.29 (N=215)
+2025-11-09 15:47:46,051 - INFO - LambdaCDM CMB TE rms=6.17, max=20.5, median=+0.956 (N=199)
+2025-11-09 15:47:46,051 - INFO - LambdaCDM CMB EE rms=7.6, max=54.4, median=-0.047 (N=199)
+2025-11-09 15:47:46,051 - INFO - LambdaCDM CMB χ² = 374.79
+2025-11-09 15:47:47,666 - INFO - QRSFv3 CMB TT rms=3.49e+03, max=1.05e+04, median=-712 (N=215)
+2025-11-09 15:47:47,666 - INFO - QRSFv3 CMB TE rms=124, max=352, median=-3.84 (N=199)
+2025-11-09 15:47:47,666 - INFO - QRSFv3 CMB EE rms=18.2, max=54.4, median=-0.894 (N=199)
+2025-11-09 15:47:47,666 - INFO - QRSFv3 CMB χ² = 633117.42
+2025-11-09 15:47:47,666 - INFO - 
+--- Stage 5: Generating Outputs ---
+
+2025-11-09 15:47:47,666 - INFO - LambdaCDM CMB χ² = 374.79
+2025-11-09 15:47:47,666 - INFO - QRSFv3 CMB χ² = 633117.42
+2025-11-09 15:47:47,667 - INFO - Log file renamed to copernican-run_20251109_154747.txt
+2025-11-09 15:47:47,667 - INFO - Generating Hubble Diagram for Joint Light-curve Analysis 2014...
+2025-11-09 15:47:52,121 - INFO - Hubble diagram saved to hubble-plot-vs-QRSFv3-jla_2014_20251109_154747.png
+2025-11-09 15:47:52,121 - INFO - Generating BAO Plot for BOSS DR12 BAO Consensus...
+2025-11-09 15:47:55,772 - INFO - BAO plot saved to bao-plot-vs-QRSFv3-boss_dr12_bao_20251109_154747.png
+2025-11-09 15:47:55,773 - INFO - Generating CMB Spectrum Plot for Planck 2018 Lite TT/TE/EE...
+2025-11-09 15:48:00,548 - INFO - CMB plot saved to cmb-plot-vs-QRSFv3-planck_2018_lite_20251109_154747.png
+2025-11-09 15:48:00,549 - INFO - Generating corner plot for posterior samples...
+2025-11-09 15:48:02,027 - ERROR - Failed to generate QRSFv3 corner plot: Contour levels must be increasing
+2025-11-09 15:48:02,027 - INFO - 
+--- Theory Abstracts ---
+
+2025-11-09 15:48:02,027 - INFO - ΛCDM Abstract:
+LambdaCDM model describes a flat universe dominated by cold dark matter and a cosmological constant serving as the reference model.
+
+2025-11-09 15:48:02,027 - INFO - QRSFv3 Abstract:
+QRSFv3 introduces a quantum coherence kernel that renormalises baryonic
+inertia while keeping General Relativity intact. The streamlined model
+removes the dark sector, limits the free-parameter count to seven and targets
+simultaneous improvements in BAO, CMB and supernova chi-squared statistics
+without relying on phenomenological dark fluids.
+
+
+2025-11-09 15:48:02,027 - INFO - --- ΛCDM Fit Report ---
+
+2025-11-09 15:48:02,028 - INFO -   H₀ = 67.824
+2025-11-09 15:48:02,028 - INFO -   Ωₘ₀ = 0.30147
+2025-11-09 15:48:02,028 - INFO -   Ωb = 0.046714
+2025-11-09 15:48:02,028 - INFO -   Ωᵧ = 4.2889e-05
+2025-11-09 15:48:02,028 - INFO -   zᵣₑc = 1061
+2025-11-09 15:48:02,028 - INFO -   χ²_Total = 1938.61
+2025-11-09 15:48:02,029 - INFO -   χ²_SNe = 1559.55
+2025-11-09 15:48:02,029 - INFO -   χ²_BAO = 4.26
+2025-11-09 15:48:02,029 - INFO -   χ²_CMB = 374.79
+2025-11-09 15:48:02,029 - INFO - 
+2025-11-09 15:48:02,029 - INFO - --- QRSFv3 Fit Report ---
+
+2025-11-09 15:48:02,029 - INFO -   H_\star = 79.812
+2025-11-09 15:48:02,029 - INFO -   Ωb = 0.06955
+2025-11-09 15:48:02,029 - INFO -   Ω_γ = 5.38e-05
+2025-11-09 15:48:02,029 - INFO -   Acₒₕ = 3.3577
+2025-11-09 15:48:02,029 - INFO -   σcₒₕ = 19.765
+2025-11-09 15:48:02,030 - INFO -   zcₒₕ = 0.87104
+2025-11-09 15:48:02,030 - INFO -   ηₜₐᵢₗ = 1.3361
+2025-11-09 15:48:02,030 - INFO -   νₜₐᵢₗ = 3.5429
+2025-11-09 15:48:02,030 - INFO -   zᵣₑc = 1089
+2025-11-09 15:48:02,030 - INFO -   c = 2.9979e+05
+2025-11-09 15:48:02,030 - INFO -   χ²_Total = 635987.58
+2025-11-09 15:48:02,030 - INFO -   χ²_SNe = 2292.54
+2025-11-09 15:48:02,030 - INFO -   χ²_BAO = 577.62
+2025-11-09 15:48:02,030 - INFO -   χ²_CMB = 633117.42
+2025-11-09 15:48:02,030 - INFO - 
+2025-11-09 15:48:02,089 - INFO - SNe detailed results CSV saved to sne-data-vs-QRSFv3-jla_2014_20251109_154747.csv
+2025-11-09 15:48:02,092 - INFO - BAO detailed results CSV saved to bao-data-vs-QRSFv3-boss_dr12_bao_20251109_154747.csv
+2025-11-09 15:48:02,104 - INFO - CMB detailed results CSV saved to cmb-data-vs-QRSFv3-planck_2018_lite_20251109_154747.csv
+2025-11-09 15:48:02,322 - INFO - Posterior samples saved to /Users/apostolov/Documents/GitHub/copernican/output/copernican-run_20251109_154747/posterior-LambdaCDM-jla_2014_20251109_154747.nc
+2025-11-09 15:48:02,386 - INFO - Posterior samples saved to /Users/apostolov/Documents/GitHub/copernican/output/copernican-run_20251109_154747/posterior-QRSFv3-jla_2014_20251109_154747.nc
+2025-11-09 15:48:02,386 - INFO - 
+==================================================
+2025-11-09 15:48:02,386 - INFO - Evaluation complete. All files saved to the 'output' directory.
+2025-11-09 15:48:02,386 - INFO - ==================================================
+
+2025-11-09 15:48:02,430 - INFO - Run completed at 20251109_154747 UTC.
+2025-11-09 15:48:02,430 - INFO - Run started on 2025-11-09 15:36:53 UTC
+2025-11-09 15:48:02,431 - INFO - Run ended on 2025-11-09 15:47:47 UTC
+2025-11-09 15:48:02,431 - INFO - System summary: i386 3.50 GHz running macOS-15.0.1-x86_64-i386-64bit
+2025-11-09 15:48:02,431 - INFO - 
+2025-11-09 15:48:02,431 - INFO - Next actions:
+2025-11-09 15:48:02,431 - INFO -   1) Start another evaluation run
+2025-11-09 15:48:02,431 - INFO -   C) Close the Copernican Suite
+2025-11-09 15:48:02,431 - INFO - 

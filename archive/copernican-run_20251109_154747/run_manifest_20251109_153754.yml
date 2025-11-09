@@ -1,5 +1,5 @@
 copernican:
-  version: 7.6.0
+  version: 7.6.4
 models:
 - name: LambdaCDM
   version: '1.0'
@@ -25,9 +25,9 @@ models:
       type: uniform
       lower: 1000.0
       upper: 1200.0
-- name: QRSFv2
-  version: '2.0'
-  filename: cosmo_model_qrsfv2.yml
+- name: QRSFv3
+  version: '3.0'
+  filename: cosmo_model_qrsfv3.yml
   priors:
     H_star:
       type: uniform
@@ -69,7 +69,7 @@ models:
 engine:
   name: engines.cosmo_engine_mcmc
   version: unknown
-seed: 1557704196
+seed: 462738375
 datasets:
   jla_2014:
     name: Joint Light-curve Analysis 2014
@@ -120,7 +120,7 @@ datasets:
       cross-covariances are ignored consistently with published likelihood treatments.
     condition_number: null
 git:
-  commit: fe5f2ce689d14b18efe897b7251236f5696f36e9
+  commit: c468db27605e8f5502863d1397098e3267a4484a
   dirty: false
 camb:
   version: 1.6.3
@@ -144,7 +144,7 @@ camb:
     - omch2
     - sum_mnu
     - tau
-  - model: QRSFv2
+  - model: QRSFv3
     param_map_keys:
     - As
     - H0
