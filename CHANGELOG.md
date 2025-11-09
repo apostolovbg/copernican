@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.5.3
+- 2025-11-09: Updated the Stage 2 runtime estimator to benchmark a single
+  burn-in and production step per model, reuse ΛCDM timings when both plugins
+  share the same YAML definition, expand documentation and bump release
+  metadata to 7.5.3 so runtime forecasts remain trustworthy (OpenAI ChatGPT)
+
 ## Version 7.5.2
 - 2025-11-09: Expanded Stage 1 documentation, refreshed inline comments around
   Stage 2 progress reporting and bumped release metadata to 7.5.2 so the policy

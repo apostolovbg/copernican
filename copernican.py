@@ -826,18 +826,14 @@ def _estimate_sampler_timing(
     n_walkers = int(plan["n_walkers"])
     pool_size = plan.get("pool_size")
 
-    def _trial_length(target: int, minimum: int, cap: int) -> int:
-        if target <= 0:
-            return 0
-        scaled = max(target // 10, minimum)
-        return max(1, min(target, cap, scaled))
-
-    trial_burn = _trial_length(burn_in_target, minimum=5, cap=32)
-    trial_prod = _trial_length(production_target, minimum=10, cap=64)
-    if burn_in_target and trial_burn == 0:
-        trial_burn = 1
-    if production_target and trial_prod == 0:
-        trial_prod = 1
+    # Probe the sampler with a single iteration for each requested phase.  The
+    # previous heuristic scaled trial lengths with the requested totals, but
+    # that often overshot and distorted estimates when operators experimented
+    # with long production chains.  Running precisely one step for burn-in and
+    # one for production captures the ensemble and pool overhead while keeping
+    # the measurement lightweight.
+    trial_burn = 1 if burn_in_target > 0 else 0
+    trial_prod = 1 if production_target > 0 else 0
 
     def _run_trial(plugin) -> float:
         start = time.perf_counter()
@@ -847,9 +843,9 @@ def _estimate_sampler_timing(
             bao_data_df=bao_df,
             cmb_data_df=cmb_df,
             n_walkers=n_walkers,
-            n_steps=max(trial_prod, 1),
+            n_steps=trial_prod,
             pool_size=pool_size,
-            burn_in_steps=max(trial_burn, 0),
+            burn_in_steps=trial_burn,
             progress_granularity=max(1, min(trial_prod, 5)),
             display_progress=False,
         )
@@ -875,9 +871,18 @@ def _estimate_sampler_timing(
     if not (same_name and same_file and type(lcdm_plugin) is type(alt_model_plugin)):
         alt_duration = _run_trial(alt_model_plugin)
 
-    steps_in_trial = max(trial_burn + trial_prod, 1)
-    lcdm_per_step = lcdm_duration / steps_in_trial
-    alt_per_step = alt_duration / steps_in_trial if alt_duration else lcdm_per_step
+    steps_in_trial = trial_burn + trial_prod
+    # When at least one phase was sampled, extrapolate totals using the average
+    # per-step duration.  Otherwise, retain zero-filled estimates so callers can
+    # present a consistent structure even when the operator skips Stage 2.
+    if steps_in_trial:
+        lcdm_per_step = lcdm_duration / steps_in_trial
+        alt_per_step = (
+            alt_duration / steps_in_trial if alt_duration else lcdm_per_step
+        )
+    else:
+        lcdm_per_step = 0.0
+        alt_per_step = 0.0
 
     def _split_duration(per_step: float) -> tuple[float, float, float]:
         burn = per_step * burn_in_target

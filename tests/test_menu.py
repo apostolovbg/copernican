@@ -4,6 +4,7 @@
 
 """Tests for menu interaction helpers in ``copernican.py``."""
 
+import collections.abc as collections_abc
 import importlib
 import os
 import sys
@@ -11,6 +12,15 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
+
+if not hasattr(collections_abc, "Buffer"):
+
+    class _DummyBufferProtocol:  # pragma: no cover - shim for Python 3.11
+        """Lightweight stand-in so NumPy imports succeed during tests."""
+
+        pass
+
+    collections_abc.Buffer = _DummyBufferProtocol
 
 with mock.patch("sys.version_info", (3, 12, 0)):
     with mock.patch.dict(
@@ -246,7 +256,7 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
             "lcdm": {"burn_in": 1.0, "production": 2.0, "total": 3.0},
             "alt": {"burn_in": 0.5, "production": 0.5, "total": 1.0},
             "combined": 4.0,
-            "trial": {"burn_in": 5, "production": 5},
+            "trial": {"burn_in": 1, "production": 1},
         }
         ask_mock.side_effect = ["3", "1"]
 
@@ -269,6 +279,141 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
             },
         )
         estimate_mock.assert_called_once()
+
+
+class SamplerTimingEstimateTestCase(unittest.TestCase):
+    """Validate the single-step runtime estimation helper."""
+
+    def setUp(self) -> None:
+        self.lcdm_plugin = SimpleNamespace(
+            MODEL_NAME="ΛCDM",
+            MODEL_FILENAME="lcdm.yml",
+        )
+        self.alt_plugin = SimpleNamespace(
+            MODEL_NAME="Alt",
+            MODEL_FILENAME="alt.yml",
+        )
+
+    @mock.patch("copernican.time.perf_counter")
+    def test_runs_one_iteration_per_phase(self, perf_counter_mock) -> None:
+        """The helper should run exactly one burn-in and production step."""
+
+        perf_counter_mock.side_effect = [0.0, 0.5, 0.5, 1.0]
+        calls: list[dict[str, int | None]] = []
+
+        def fit_sne_parameters(
+            sne_data_df,
+            model_plugin,
+            *,
+            bao_data_df=None,
+            cmb_data_df=None,
+            n_walkers,
+            n_steps,
+            pool_size,
+            burn_in_steps,
+            progress_granularity,
+            display_progress,
+        ) -> dict[str, bool]:
+            calls.append(
+                {
+                    "plugin": model_plugin,
+                    "n_steps": n_steps,
+                    "burn_in_steps": burn_in_steps,
+                    "pool_size": pool_size,
+                }
+            )
+            return {"success": True}
+
+        engine = SimpleNamespace(fit_sne_parameters=fit_sne_parameters)
+        plan = {
+            "n_steps": 40,
+            "burn_in_steps": 20,
+            "n_walkers": 8,
+            "pool_size": 4,
+        }
+
+        estimate = copernican._estimate_sampler_timing(
+            engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+            plan,
+            sne_df=object(),
+            bao_df=None,
+            cmb_df=None,
+        )
+
+        self.assertEqual(len(calls), 2)
+        for invocation in calls:
+            self.assertEqual(invocation["n_steps"], 1)
+            self.assertEqual(invocation["burn_in_steps"], 1)
+            self.assertEqual(invocation["pool_size"], 4)
+        self.assertEqual(estimate["trial"], {"burn_in": 1, "production": 1})
+        self.assertAlmostEqual(estimate["lcdm"]["burn_in"], 5.0)
+        self.assertAlmostEqual(estimate["lcdm"]["production"], 10.0)
+        self.assertAlmostEqual(estimate["alt"]["total"], 15.0)
+        self.assertAlmostEqual(estimate["combined"], 30.0)
+
+    @mock.patch("copernican.time.perf_counter")
+    def test_reuses_lcdm_when_plugins_match(self, perf_counter_mock) -> None:
+        """Skips the second run when both plugins point to the same model."""
+
+        perf_counter_mock.side_effect = [0.0, 0.25]
+        calls: list[dict[str, int | None]] = []
+
+        def fit_sne_parameters(
+            sne_data_df,
+            model_plugin,
+            *,
+            bao_data_df=None,
+            cmb_data_df=None,
+            n_walkers,
+            n_steps,
+            pool_size,
+            burn_in_steps,
+            progress_granularity,
+            display_progress,
+        ) -> dict[str, bool]:
+            calls.append(
+                {
+                    "plugin": model_plugin,
+                    "n_steps": n_steps,
+                    "burn_in_steps": burn_in_steps,
+                }
+            )
+            return {"success": True}
+
+        engine = SimpleNamespace(fit_sne_parameters=fit_sne_parameters)
+        shared_plugin = SimpleNamespace(
+            MODEL_NAME="ΛCDM",
+            MODEL_FILENAME="lcdm.yml",
+        )
+        plan = {
+            "n_steps": 30,
+            "burn_in_steps": 10,
+            "n_walkers": 8,
+            "pool_size": None,
+        }
+
+        estimate = copernican._estimate_sampler_timing(
+            engine,
+            shared_plugin,
+            shared_plugin,
+            plan,
+            sne_df=object(),
+            bao_df=None,
+            cmb_df=None,
+        )
+
+        self.assertEqual(len(calls), 1)
+        invocation = calls[0]
+        self.assertEqual(invocation["n_steps"], 1)
+        self.assertEqual(invocation["burn_in_steps"], 1)
+        self.assertAlmostEqual(estimate["lcdm"]["total"], 5.0)
+        self.assertAlmostEqual(
+            estimate["alt"]["total"], estimate["lcdm"]["total"]
+        )
+        self.assertEqual(estimate["trial"], {"burn_in": 1, "production": 1})
+        self.assertAlmostEqual(estimate["combined"], 10.0)
 
 
 class PostRunMenuTestCase(unittest.TestCase):

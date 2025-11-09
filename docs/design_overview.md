@@ -9,10 +9,13 @@ that foundation to deliver repeatable analyses.
 
 * `copernican.py` assembles run manifests, dispatches dataset loaders and
   prepares engine inputs so Stage 2 sampling always starts from a consistent
-  configuration. The 7.5.2 release keeps the structured Stage 1 seed selector,
+  configuration. The 7.5.3 release keeps the structured Stage 1 seed selector,
   surfaces every validation error encountered while loading alternative models
   and leaves a deliberate blank spacer after logging initialisation so the
   console flow stays tidy without repeating legacy "has initialised" banners.
+  Runtime projections now measure exactly one burn-in and production step per
+  model, reducing the estimator's footprint while keeping extrapolations
+  proportional to the requested sampler plan.
 * `copernican_lib/` contributes the reusable building blocks—data ingestion,
   posterior construction, validation checks, plotting helpers and diagnostics.
   Engines and parsers import from this package instead of reimplementing
