@@ -1,10 +1,10 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-09
+# Last Updated: 2025-11-07
 
 """Markov Chain Monte Carlo engine using :mod:`emcee`.
 
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-11-07
 
 The combined optimiser has been retired entirely, leaving this sampler as the
 sole runtime engine.  It continues to focus on Supernova Ia posteriors while
@@ -41,7 +41,7 @@ import emcee
 import numpy as np
 import pandas as pd
 
-from copernican_lib import console_output, engine_interface
+from copernican_lib import engine_interface
 from copernican_lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
 from copernican_lib.statistics import (
     calculate_bao_observables,
@@ -312,29 +312,6 @@ class _SamplingProgressReporter:
         return self._scratch
 
 
-def _render_progress_bar(
-    stage_name: str,
-    completed: int,
-    target: int,
-    *,
-    final: bool,
-) -> None:
-    """Display a textual progress bar for the current sampling batch."""
-
-    total = max(target, 1)
-    ratio = min(max(completed / total, 0.0), 1.0)
-    width = 24
-    filled = int(round(ratio * width))
-    bar = "█" * filled + "░" * (width - filled)
-    message = " ".join(
-        [f"{stage_name} checkpoint", bar, f"{completed}/{target}", "steps"]
-    )
-    end = "\n" if final else "\r"
-    console_output.write(message, end=end)
-    if final:
-        console_output.write("")
-
-
 def _build_sne_logposterior(
     model_plugin: Any,
     sne_data_df: Any,
@@ -550,34 +527,10 @@ def _run_stage_with_progress(
 
     interval = max(1, n_steps // progress_granularity)
     state = None
-    last_checkpoint = 0
-    next_checkpoint = min(interval, n_steps)
-    bar_width = 24
-    batch_span = max(next_checkpoint - last_checkpoint, 1)
-    bar_stride = max(1, batch_span // bar_width)
     for idx, state in enumerate(
         sampler.sample(initial_state, iterations=n_steps, progress=False),
         start=1,
     ):
-        if (
-            idx == last_checkpoint + 1
-            or idx == n_steps
-            or idx % bar_stride == 0
-            or idx >= next_checkpoint
-        ):
-            completed = idx - last_checkpoint
-            target = max(next_checkpoint - last_checkpoint, 1)
-            _render_progress_bar(
-                stage_name,
-                completed,
-                target,
-                final=idx >= next_checkpoint,
-            )
-        if idx >= next_checkpoint:
-            last_checkpoint = next_checkpoint
-            next_checkpoint = min(last_checkpoint + interval, n_steps)
-            batch_span = max(next_checkpoint - last_checkpoint, 1)
-            bar_stride = max(1, batch_span // bar_width)
         if idx == 1 or idx % interval == 0 or idx == n_steps:
             percent = int(round(idx / n_steps * 100))
             logger.info(

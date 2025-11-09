@@ -21,13 +21,6 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
-## Version 7.5.0
-- 2025-11-09: Moved the RNG seed prompt into Stage 1, added narrated Stage 2
-  checkpoints, introduced sampler time estimates with an interactive recap and
-  replaced the blinking sampler indicator with a filled progress bar. Updated
-  documentation, version metadata and tests to describe the new workflow
-  (OpenAI ChatGPT)
-
 ## Version 7.4.6
 - 2025-11-09: Added a responsive sizing helper for Stage 5 corner plots that
   caps figures at twelve inches per side, derives typography from the computed
