@@ -176,6 +176,71 @@ def _wrap_math(text: str) -> str:
     return latex_utils.wrap_math(text)
 
 
+def _compute_corner_layout(
+    n_params: int,
+    footer_line_count: int,
+) -> tuple[tuple[float, float], dict[str, float], float, dict[str, float]]:
+    """Return responsive geometry and typography settings for corner plots.
+
+    The Stage 5 report must adapt to wildly different parameter counts: a
+    single-parameter posterior should not sprawl across a poster-sized
+    canvas while a ten-parameter run still needs legible labels once
+    exported.  The helper keeps the familiar "large panel" look for small
+    systems, gradually shrinking each cell while clamping the overall
+    figure to twelve inches per side so Matplotlib never allocates
+    oversized canvases.  Font sizes and footer spacing scale with the
+    resulting panel width which keeps axis labels readable when the figure
+    is downscaled in documentation or embeds.
+    """
+
+    if n_params <= 0:
+        raise ValueError("Corner plots require at least one parameter")
+
+    # Maintain the previous four-inch baseline while constraining the rendered
+    # canvas to a printable footprint.  The minimum prevents collapsed panels
+    # when developers request a single-parameter diagnostic.
+    base_panel_width = 3.6
+    max_side_length = 12.0
+    min_side_length = 3.6
+    unclamped_side = float(base_panel_width * n_params)
+    side_length = min(max(unclamped_side, min_side_length), max_side_length)
+    panel_width = side_length / float(n_params)
+
+    # Derive typography from the ratio between the current panel width and the
+    # Stage 5 baseline.  Bounding the scaling factor prevents microscopic text
+    # for high-dimensional posteriors while retaining the original sizes for
+    # the typical three-parameter comparison plots.
+    scale = max(panel_width / base_panel_width, 0.55)
+    font_sizes = {
+        "title": float(np.clip(26.0 * scale, 18.0, 30.0)),
+        "label": float(np.clip(18.0 * scale, 12.0, 20.0)),
+        "ticks": float(np.clip(12.0 * scale, 8.0, 14.0)),
+        "footer": float(np.clip(12.0 * scale, 9.0, 14.0)),
+    }
+
+    # Footer line spacing mirrors the footer font so multi-line summaries stay
+    # readable without colliding with the axes.  The range matches the legacy
+    # default while allowing taller text to breathe.
+    line_height = float(np.clip(0.018 + 0.004 * scale, 0.018, 0.03))
+    bottom_margin = float(
+        np.clip(0.05 + footer_line_count * line_height, 0.08, 0.32)
+    )
+
+    # Stretch horizontal margins slightly as the panels shrink so tick labels
+    # do not overlap the figure edge.  The adjustments remain subtle to keep
+    # the grid centred regardless of dimensionality.
+    shrink_penalty = max(0.0, 1.0 - min(scale, 1.0))
+    margins = {
+        "left": 0.07 + 0.01 * shrink_penalty,
+        "right": 0.95 - 0.01 * shrink_penalty,
+        "top": 0.9 - 0.02 * shrink_penalty,
+        "bottom": bottom_margin,
+    }
+
+    figsize = (side_length, side_length)
+    return figsize, font_sizes, line_height, margins
+
+
 def _smooth_line(
     x: np.ndarray, y: np.ndarray, points: int = 200
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -1649,23 +1714,29 @@ def plot_corner(
         label = latex_name or labels[idx]
         wrapped_labels.append(_wrap_math(label))
 
+    alt_name = getattr(alt_model_plugin, "MODEL_NAME", "AltModel")
+    footer_lines = build_footer_lines(
+        alt_model_plugin,
+        attrs,
+        timestamp,
+        extra_lines=_format_corner_footer_stats(stats),
+    )
+
     _apply_common_style()
-    font_sizes = {
-        "title": 26,
-        "label": 18,
-        "ticks": 12,
-        "footer": 12,
-    }
+    figsize, font_sizes, line_height, margins = _compute_corner_layout(
+        n_params,
+        len(footer_lines),
+    )
 
     # Each dimension receives its own row and column, mirroring the familiar
     # triangle plot layout popularised by corner.py while letting us reuse the
-    # Copernican Suite's styling helpers and footers.
-    # A 4-inch panel keeps tick labels legible once exported to PNG or PDF.
-    panel_width = 4.0
+    # Copernican Suite's styling helpers and footers.  The geometry is now
+    # derived from ``_compute_corner_layout`` so the panels resize gracefully
+    # as the dimensionality grows while remaining within a manageable figure.
     fig, axes = plt.subplots(
         n_params,
         n_params,
-        figsize=(panel_width * n_params, panel_width * n_params),
+        figsize=figsize,
     )
     if n_params == 1:
         axes = np.array([[axes]])
@@ -1778,21 +1849,14 @@ def plot_corner(
 
             ax.tick_params(axis="both", labelsize=font_sizes["ticks"])
 
-    alt_name = getattr(alt_model_plugin, "MODEL_NAME", "AltModel")
     fig.suptitle(
         f"Posterior corner plot: {alt_name}",
         fontsize=font_sizes["title"],
     )
 
-    footer_lines = build_footer_lines(
-        alt_model_plugin,
-        attrs,
-        timestamp,
-        extra_lines=_format_corner_footer_stats(stats),
-    )
-    line_height = 0.022
-    footer_bottom = 0.05 + len(footer_lines) * line_height
-    plt.subplots_adjust(bottom=footer_bottom, left=0.07, right=0.95, top=0.9)
+    plt.subplots_adjust(**margins)
+
+    footer_bottom = margins["bottom"]
 
     y = footer_bottom - line_height
     for idx, (line, is_bold) in enumerate(footer_lines):

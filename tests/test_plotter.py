@@ -120,6 +120,112 @@ def test_plot_corner_renders_expected_file(tmp_path) -> None:
     assert (tmp_path / expected_name).exists()
 
 
+def test_plot_corner_scales_layout_with_dimension(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Verify responsive geometry shrinks panels and fonts for larger grids."""
+
+    rng = np.random.default_rng(4)
+    small_samples = rng.normal(size=(6, 2, 2))
+    large_samples = rng.normal(size=(6, 2, 6))
+
+    class _SixParamPlugin(_CornerPlugin):
+        PARAMETER_NAMES = [
+            "alpha",
+            "beta",
+            "gamma",
+            "delta",
+            "epsilon",
+            "zeta",
+        ]
+        PARAMETER_LATEX_NAMES = [
+            r"\alpha",
+            r"\beta",
+            r"\gamma",
+            r"\delta",
+            r"\epsilon",
+            r"\zeta",
+        ]
+
+    attrs = {
+        "dataset_id": "joint_posterior",
+        "dataset_name": "Joint posterior",
+        "description": "Responsive layout check",
+        "citation": "Corner validation stub",
+    }
+
+    recorded_figsizes: list[tuple[float, float] | None] = []
+    layout_calls: list[
+        tuple[
+            int,
+            int,
+            tuple[
+                tuple[float, float],
+                dict[str, float],
+                float,
+                dict[str, float],
+            ],
+        ]
+    ] = []
+
+    original_subplots = plotter.plt.subplots
+
+    def _recording_subplots(*args: Any, **kwargs: Any):
+        if "figsize" in kwargs:
+            recorded_figsizes.append(kwargs["figsize"])
+        elif len(args) >= 3:
+            recorded_figsizes.append(args[2])
+        else:
+            recorded_figsizes.append(None)
+        return original_subplots(*args, **kwargs)
+
+    monkeypatch.setattr(plotter.plt, "subplots", _recording_subplots)
+
+    original_layout = plotter._compute_corner_layout
+
+    def _recording_layout(n_params: int, footer_line_count: int):
+        layout = original_layout(n_params, footer_line_count)
+        layout_calls.append((n_params, footer_line_count, layout))
+        return layout
+
+    monkeypatch.setattr(plotter, "_compute_corner_layout", _recording_layout)
+
+    plotter.plot_corner(
+        small_samples,
+        _SixParamPlugin,
+        attrs,
+        plot_dir=str(tmp_path),
+        timestamp="20251108_000000",
+    )
+
+    plotter.plot_corner(
+        large_samples,
+        _SixParamPlugin,
+        attrs,
+        plot_dir=str(tmp_path),
+        timestamp="20251108_000100",
+    )
+
+    assert len(layout_calls) == 2
+    small_layout = layout_calls[0][2]
+    large_layout = layout_calls[1][2]
+
+    small_figsize = small_layout[0]
+    large_figsize = large_layout[0]
+
+    assert small_figsize[0] == pytest.approx(small_figsize[1])
+    assert large_figsize[0] == pytest.approx(large_figsize[1])
+    assert large_figsize[0] == pytest.approx(12.0)
+    assert small_figsize[0] < large_figsize[0]
+
+    assert small_layout[1]["label"] > large_layout[1]["label"]
+    assert small_layout[1]["ticks"] > large_layout[1]["ticks"]
+    assert large_layout[1]["ticks"] >= 8.0
+
+    assert recorded_figsizes[0] == small_figsize
+    assert recorded_figsizes[1] == large_figsize
+
+
 def test_format_corner_footer_stats_reports_processing() -> None:
     """Summaries should mention sample counts, stride and thinning."""
 
