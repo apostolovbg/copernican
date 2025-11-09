@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-11-08
+**Last Updated:** 2025-11-09
 
 This document expands on the high-level summary in the README by tracing how
 the Copernican Suite organises its architecture.  The command-line launcher
@@ -52,6 +52,14 @@ legacy name while eliminating the linter redefinition warning that surfaced when
 the alias was a plain assignment.  Documentation mirrors the behaviour so code
 comments, guides and tests explain why the wrapper exists alongside the modern
 helper.
+
+Version 7.4.6 extends that polishing work by teaching the Stage 5 corner plot
+to resize itself automatically.  The new geometry helper clamps the overall
+figure to twelve inches on each side, scales fonts according to the resulting
+panel width and recalibrates footer spacing so text remains legible regardless
+of how many parameters a sampler exposes.  The responsive sizing keeps
+high-dimensional comparisons from overwhelming Matplotlib while still presenting
+the classic large-panel aesthetic for the familiar three-parameter ΛCDM checks.
 
 Version 7.4.1 adds a sampler-facing perspective to the plotting layer. The new
 corner plot automatically thins oversized chains, renders the Stage 2 posterior

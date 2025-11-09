@@ -1,6 +1,6 @@
 # Copernican Suite API Overview
 
-**Last Updated:** 2025-11-08
+**Last Updated:** 2025-11-09
 
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be
@@ -19,13 +19,15 @@ modules are:
   from here when building custom tooling that needs to confirm interface
   compliance.
 - `copernican_lib.plotter.plot_corner(samples, plugin, data_attrs,
-  plot_dir)` –
-  render the Stage 2 posterior as an automatically thinned corner plot with
-  enlarged panels, larger typography and a footer that details the sample
-  processing. Stage 5 now calls this helper after the probe-specific figures
-  so every run records the sampler geometry alongside Hubble, BAO and CMB
-  outputs. The underlying `_prepare_corner_inputs` validator flattens samples,
-  derives thinning statistics and remains reachable through the legacy
+  plot_dir)` – render the Stage 2 posterior as an automatically thinned
+  corner plot whose panel size and typography respond to the number of
+  parameters. Figures clamp to a twelve-inch canvas, fonts scale with the
+  derived panel width and the footer still details how samples were filtered or
+  thinned.
+  Stage 5 calls this helper after the probe-specific figures so every run
+  records the sampler geometry alongside Hubble, BAO and CMB outputs. The
+  underlying `_prepare_corner_inputs` validator flattens samples, derives
+  thinning statistics and remains reachable through the legacy
   `_validate_corner_inputs` wrapper so older tools import the familiar name
   without modification while lint hooks stay satisfied.
 - `copernican_lib.posterior` – exposes

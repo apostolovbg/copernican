@@ -1,5 +1,5 @@
-**Version:** 7.4.5
-**Last Updated:** 2025-11-08
+**Version:** 7.4.6
+**Last Updated:** 2025-11-09
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -16,10 +16,11 @@ The suite is organised around a handful of focused components:
   dataset selection, model pairing and engine configuration.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
-  keep every engine and plugin consistent. Version 7.4.5 enlarges the Stage 5
-  corner plot panels, increases typography and adds footer text describing how
-  the samples were filtered or thinned so posterior geometry remains readable
-  while legacy validators stay compatible.
+  keep every engine and plugin consistent. Version 7.4.6 retains the large-panel
+  presentation while introducing responsive sizing for the Stage 5 corner plot.
+  Figures clamp to twelve-inch canvases, rescale fonts automatically and
+  preserve footer spacing so the posterior geometry stays legible even when
+  probing high-dimensional models.
 * `engines/` collects computational back ends. The default
   ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
   convergence checks, while the plugin protocol keeps room for additional

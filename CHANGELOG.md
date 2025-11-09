@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-08
+**Last Updated:** 2025-11-09
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,12 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 7.4.6
+- 2025-11-09: Added a responsive sizing helper for Stage 5 corner plots that
+  caps figures at twelve inches per side, derives typography from the computed
+  layout and refreshes regression tests, documentation and release metadata to
+  describe the new behaviour (OpenAI ChatGPT)
 
 ## Version 7.4.5
 - 2025-11-08: Enlarged the Stage 5 corner plot panels, increased font sizes and
