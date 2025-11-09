@@ -24,10 +24,11 @@ modules are:
   parameters. Figures clamp to a twelve-inch canvas, fonts scale with the
   derived panel width and the footer still details how samples were filtered or
   thinned.
-  Version 7.6.5 synthesises strictly increasing contour thresholds so
-  Matplotlib never rejects the levels array, and the footer now mirrors the
-  other Stage 2 figures by omitting redundant dataset metadata while retaining
-  the citation line.
+  Version 7.6.6 keeps the strictly increasing contour thresholds so Matplotlib
+  never rejects the levels array, harmonises the footer line spacing with the
+  suite-wide 0.015 cadence and adds a fixed pad beneath the axes so exported
+  figures leave a consistent gap above the footer block while continuing to
+  omit redundant dataset metadata and retain the citation line.
   Stage 5 calls this helper after the probe-specific figures so every run
   records the sampler geometry alongside Hubble, BAO and CMB outputs. The
   underlying `_prepare_corner_inputs` validator flattens samples, derives
