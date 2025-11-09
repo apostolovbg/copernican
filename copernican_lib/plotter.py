@@ -283,11 +283,18 @@ def _wrap_math(text: str) -> str:
 # Corner plots share a common footer cadence with the other Stage 5 figures.
 # The constants below centralise the cadence so both the layout helper and the
 # regression tests can assert consistent spacing.  The fixed padding keeps a
-# visible gap between the footer block and the axes regardless of the number of
-# footer lines rendered for the current comparison.
+# visible gap between the footer block and the axes while the clearance figure
+# enforces a second guard band that scales with the footer height.  The minimum
+# and maximum bounds prevent extreme dimensionalities from crushing the footer
+# into the axes or leaving it stranded far from the plot.  An explicit title
+# anchor ensures the figure banner never hugs the canvas edge.
 _CORNER_BASE_LINE_HEIGHT = 0.015
-_CORNER_FOOTER_PADDING = 0.012
+_CORNER_FOOTER_PADDING = 0.028
+_CORNER_FOOTER_CLEARANCE = 0.024
 _CORNER_BASE_BOTTOM_MARGIN = 0.05
+_CORNER_MIN_BOTTOM = 0.12
+_CORNER_MAX_BOTTOM = 0.38
+_CORNER_TITLE_Y = 0.965
 
 
 def _compute_corner_layout(
@@ -348,15 +355,20 @@ def _compute_corner_layout(
     line_height = float(
         _CORNER_BASE_LINE_HEIGHT * (1.0 + 0.1 * shrink_penalty)
     )
+    bottom_margin = dynamic_bottom + _CORNER_FOOTER_PADDING
 
-    dynamic_bottom = float(
+    footer_block = footer_line_count * line_height
+    base_bottom = _CORNER_BASE_BOTTOM_MARGIN + footer_block
+    clearance_bottom = footer_block + _CORNER_FOOTER_CLEARANCE
+    axes_bottom = float(
         np.clip(
-            _CORNER_BASE_BOTTOM_MARGIN + footer_line_count * line_height,
-            0.08 - _CORNER_FOOTER_PADDING,
-            0.32 - _CORNER_FOOTER_PADDING,
+            max(base_bottom, clearance_bottom),
+            _CORNER_MIN_BOTTOM,
+            _CORNER_MAX_BOTTOM,
         )
     )
-    bottom_margin = dynamic_bottom + _CORNER_FOOTER_PADDING
+
+    bottom_margin = axes_bottom
 
     # Stretch horizontal margins slightly as the panels shrink so tick labels
     # do not overlap the figure edge.  The adjustments remain subtle to keep
@@ -364,7 +376,7 @@ def _compute_corner_layout(
     margins = {
         "left": 0.07 + 0.01 * shrink_penalty,
         "right": 0.95 - 0.01 * shrink_penalty,
-        "top": 0.9 - 0.02 * shrink_penalty,
+        "top": float(np.clip(0.94 - 0.015 * shrink_penalty, 0.9, 0.965)),
         "bottom": bottom_margin,
     }
 
@@ -1989,6 +2001,7 @@ def plot_corner(
     fig.suptitle(
         f"Posterior corner plot: {alt_name}",
         fontsize=font_sizes["title"],
+        y=_CORNER_TITLE_Y,
     )
 
     plt.subplots_adjust(**margins)
@@ -1996,6 +2009,17 @@ def plot_corner(
     footer_bottom = margins["bottom"]
 
     y = footer_bottom - footer_padding
+    lowest_line = (
+        y - (len(footer_lines) - 1) * line_height if footer_lines else y
+    )
+    if lowest_line < 0.02:
+        # Maintain a small guard band above the figure edge in the unlikely
+        # event that future footer variants add extra lines.  Nudging the
+        # stack upward still preserves the minimum gap beneath the axes because
+        # ``footer_padding`` stays intact.
+        shift = 0.02 - lowest_line
+        y += shift
+
     for idx, (line, is_bold) in enumerate(footer_lines):
         weight = "bold" if is_bold else "normal"
         fig.text(

@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.7
+- 2025-11-09: Expanded the Stage 5 corner layout with dual footer clearances,
+  tightened the top margin so titles no longer hug the canvas, refreshed the
+  regression tests to assert the new spacing and bumped project metadata to
+  7.6.7 (OpenAI ChatGPT)
+
 ## Version 7.6.6
 - 2025-11-09: Standardised the Stage 5 corner plot footer cadence on the shared
   0.015 spacing, added fixed padding to keep the footer clear of the axes,

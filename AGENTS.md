@@ -41,6 +41,14 @@ fallback keeps archival plugins functional while developers migrate. Version
 ``_prepare_corner_inputs`` helper so the legacy import path stays alive
 without triggering linter redefinition warnings.
 
+Corner plots must now obey the dual-clearance policy introduced in 7.6.7.
+The layout helper enforces both a fixed padding between the axes and footer
+and a footer-height-aware clearance floor so no combination of footer
+lines can overlap the grid.  Contributors tweaking Stage 5 visuals should
+keep the `_CORNER_FOOTER_PADDING` and `_CORNER_FOOTER_CLEARANCE` constants in
+their tests and update the shared documentation whenever the guard bands or
+title anchor move.
+
 A ``COPERNICAN_SEED`` environment variable overrides the interactive seed
 prompt.  When unset, the program asks users to accept the default ``0``, enter
 their own value or generate a random seed.  The final choice is stored in the

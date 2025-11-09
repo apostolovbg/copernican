@@ -88,14 +88,15 @@ of how many parameters a sampler exposes.  The responsive sizing keeps
 high-dimensional comparisons from overwhelming Matplotlib while preserving the
 classic large-panel aesthetic for the familiar three-parameter ΛCDM checks.
 
-Version 7.6.6 follows up by keeping the strictly increasing contour levels when
+Version 7.6.7 follows up by keeping the strictly increasing contour levels when
 posterior histograms plateau, preventing Matplotlib from rejecting the grid
 with "Contour levels must be increasing" errors.  The same pass now harmonises
-the footer line height with the suite-wide 0.015 cadence, inserts a fixed pad
-between the axes and the footer block and continues to omit redundant dataset
-descriptions so the corner figure matches the visual hierarchy used by the
-Hubble, BAO and CMB plots while still displaying the citation and sampling
-statistics.
+the footer line height with the suite-wide 0.015 cadence, adds a second
+clearance floor beneath the axes, clamps the subplot margins so the grids
+never slide into the footer and locks the title position to mirror the other
+Stage 5 figures.  The footer continues to omit redundant dataset descriptions
+so the corner figure matches the visual hierarchy used by the Hubble, BAO and
+CMB plots while still displaying the citation and sampling statistics.
 
 Version 7.4.1 adds a sampler-facing perspective to the plotting layer. The new
 corner plot automatically thins oversized chains, renders the Stage 2 posterior
