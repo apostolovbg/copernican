@@ -21,6 +21,25 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.3
+- 2025-11-09: Restored ArviZ as a mandatory dependency so Stage 2 always
+  records convergence diagnostics, updated the MCMC engine and tests
+  accordingly and refreshed documentation to reiterate the requirement while
+  bumping metadata to 7.6.3 (OpenAI ChatGPT)
+
+## Version 7.6.2
+- 2025-11-09: Streamed per-walker updates into the Stage 2 fifty-character
+  progress bars, removed all runtime-estimation logic from the CLI and
+  documentation, taught the sampler to skip ArviZ diagnostics gracefully when
+  the dependency is missing, refreshed progress-bar tests and bumped project
+  metadata to 7.6.2 (OpenAI ChatGPT)
+
+## Version 7.6.1
+- 2025-11-09: Retired the Stage 2 runtime estimator, rebuilt the sampler progress
+  bars around a fifty-character display, repaired the QRSFv2 corner plot contour
+  level calculation and updated documentation, tests and metadata for version
+  7.6.1 (OpenAI ChatGPT)
+
 ## Version 7.6.0
 - 2025-11-09: Extended the Stage 2 progress system to surface per-batch timing
   snapshots, calculate sampler throughput on a one-second cadence, stream live

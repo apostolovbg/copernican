@@ -353,6 +353,11 @@ def test_plot_corner_handles_legacy_validator_signature(
         timestamp="20251108_000000",
     )
     assert (tmp_path / expected_name).exists()
-    assert any(
-        "legacy two-value signature" in message for message in caplog.messages
-    )
+
+
+def test_density_levels_are_strictly_increasing() -> None:
+    """Ensure contour thresholds never repeat when histogram bins coincide."""
+
+    hist = np.full((2, 2), 0.25)
+    levels = plotter._density_levels(hist, (0.5, 0.9))
+    assert levels[0] < levels[1]

@@ -1,4 +1,4 @@
-**Version:** 7.6.0
+**Version:** 7.6.3
 **Last Updated:** 2025-11-09
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -13,23 +13,23 @@ reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. Build 7.6.0 keeps
+  dataset selection, model pairing and engine configuration. Build 7.6.3 keeps
   the structured Stage 1 seed selector introduced in 7.5.0, surfaces detailed
   validation reasons when alternative models fail to load, tidies the startup
-  banner spacing and now streams combined Stage 2 runtime estimates directly on
-  the console. Live progress bars report per-batch elapsed time, remaining
-  duration and throughput while the orchestrator aggregates those timings across
-  both theories after the very first sampler iteration.
+  banner spacing and focuses Stage 2 messaging on the fifty-character progress
+  bars. The sampler now streams per-walker updates so each bar fills smoothly
+  beneath its batch heading without recycling legacy runtime estimates.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
-  keep every engine and plugin consistent. Version 7.5.0 adds interactive
-  sampler runtime estimates, console progress bars for burn-in and production
-  batches, and more descriptive Stage 2 status messaging while retaining the
-  responsive Stage 5 corner plot sizing introduced previously.
+  keep every engine and plugin consistent. Version 7.6.3 documents the live
+  progress instrumentation, removes obsolete runtime-estimation hooks and
+  reiterates that Stage 2 requires ArviZ so convergence diagnostics remain a
+  first-class part of every run.
 * `engines/` collects computational back ends. The default
   ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
-  convergence checks, while the plugin protocol keeps room for additional
-  optimisers and hardware-specific accelerators.
+  convergence checks that run on every batch, while the plugin protocol keeps
+  room for additional optimisers and hardware-specific
+  accelerators.
 * `models/` stores YAML theories that declare priors, bounds, transforms and
   dataset compatibility. Each definition is converted into a picklable engine
   plugin so Stage 2 runs remain reproducible across processes.
@@ -163,14 +163,11 @@ Under the hood the program follows a clear pipeline:
    model are sampled in turn with independent random seeds.
    A confirmation menu now summarises the proposed sampler plan with numbered
    options for accepting it, restarting the questionnaire, returning to the
-   defaults summary or cancelling entirely so the intent behind each choice is
-   explicit. Version 7.5.0 layers in a live runtime estimator that times short
-   trial runs for both ΛCDM and the alternative theory using the selected
-   sampler settings, displaying burn-in, production and combined projections
-   before the operator continues. Stage 2 console output now highlights when
-   burn-in and production batches begin for each model and renders a progress
-   bar that fills gradually for every batch, making long chains easier to
-   monitor.
+  defaults summary or cancelling entirely so the intent behind each choice is
+  explicit. Version 7.6.3 streams per-walker progress updates so each
+  fifty-character bar fills smoothly beneath the batch heading and enforces
+  ArviZ diagnostics on every batch, keeping long runs easy to monitor without
+  speculative timing estimates.
 5. **BAO Analysis** – Stage 3 reuses the sampler's diagnostics to report BAO
    chi-squared contributions directly from the joint fit while still
    generating smooth predictions for plots and CSV exports. Shared helpers
@@ -207,9 +204,8 @@ prints the collected reasons as bullet points before offering to restart Stage�
 or exit, ensuring even multi-cause exceptions—such as conflicting bounds and
 missing likelihood hooks—are explained without consulting the log file. The
 sampler questionnaire concludes Stage 1 with a summary of recommended settings,
-live runtime estimates for burn-in and production (both individually and
-combined across ΛCDM and the alternative theory), and a menu that lets users
-continue, revisit earlier questions or cancel the run entirely.
+an explanation of how the per-batch progress bars will animate during Stage 2
+and a menu that lets users continue, revisit earlier questions or cancel the run entirely.
 
 ### Interpreting the new convergence diagnostics
 
