@@ -390,6 +390,8 @@ def _compute_corner_layout(
 
     bottom_margin = axes_bottom
 
+    bottom_margin = axes_bottom
+
     # Stretch horizontal margins slightly as the panels shrink so tick labels
     # do not overlap the figure edge.  The top margin mirrors the Stage 3 and
     # Stage 4 figures by pulling the grid downward just enough to clear the
