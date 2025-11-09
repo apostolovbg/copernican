@@ -10,6 +10,7 @@ import unittest
 from types import SimpleNamespace
 
 from copernican_lib import engine_interface
+from copernican_lib.plugins import PluginValidationError
 
 MAKE_POSTERIOR = engine_interface.make_logposterior
 
@@ -61,8 +62,9 @@ class EngineInterfaceTestCase(unittest.TestCase):
         """A plugin lacking required attributes is rejected."""
         bad = SimpleNamespace()
         with self.assertLogs(level="ERROR") as cm:
-            self.assertFalse(engine_interface.validate_plugin(bad))
-        self.assertIn("Plugin validation failed", "".join(cm.output))
+            with self.assertRaises(PluginValidationError):
+                engine_interface.validate_plugin(bad)
+        self.assertIn("Plugin validation issue", "".join(cm.output))
 
     def test_get_camb_params_expression(self):
         """LaTeX expressions in ``cmb.param_map`` evaluate correctly."""

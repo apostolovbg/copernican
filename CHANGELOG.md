@@ -21,6 +21,26 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.5.2
+- 2025-11-09: Expanded Stage 1 documentation, refreshed inline comments around
+  Stage 2 progress reporting and bumped release metadata to 7.5.2 so the policy
+  record stays accurate (OpenAI ChatGPT)
+
+## Version 7.5.1
+- 2025-11-09: Replaced the obsolete "Copernican has initialised" banner with a
+  blank spacer so the Stage 1 menu retains its pacing without repeating
+  redundant messaging. Updated documentation, guidance notes and version
+  metadata to match the refined startup flow (OpenAI ChatGPT)
+
+## Version 7.5.0
+- 2025-11-09: Refined Stage 1 to present the random-seed menu after the
+  configuration banner, added a restart/exit dialog when model validation fails
+  and surfaced detailed validation reasons via `PluginValidationError`.
+  Stage 2 now announces burn-in and production phases for each model, renders a
+  gradual progress bar for every sampler batch and exposes a live runtime
+  estimator from the sampler menu. Documentation, unit tests and release
+  metadata were updated to cover the new workflows (OpenAI ChatGPT)
+
 ## Version 7.4.6
 - 2025-11-09: Added a responsive sizing helper for Stage 5 corner plots that
   caps figures at twelve inches per side, derives typography from the computed

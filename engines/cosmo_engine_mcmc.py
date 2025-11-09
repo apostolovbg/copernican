@@ -4,7 +4,7 @@
 
 """Markov Chain Monte Carlo engine using :mod:`emcee`.
 
-**Last Updated:** 2025-11-07
+**Last Updated:** 2025-11-09
 
 The combined optimiser has been retired entirely, leaving this sampler as the
 sole runtime engine.  It continues to focus on Supernova Ia posteriors while
@@ -41,6 +41,7 @@ import emcee
 import numpy as np
 import pandas as pd
 
+from copernican_lib import console_output as console
 from copernican_lib import engine_interface
 from copernican_lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
 from copernican_lib.statistics import (
@@ -495,6 +496,91 @@ def _reseed_invalid_walkers(
     return coords, log_prob
 
 
+class _BatchProgressBar:
+    """Render textual progress bars for sampler batches.
+
+    Stage 2 reports sampler progress in fixed-size batches so long runs do
+    not spam the console. This helper draws a bar that fills gradually to
+    100% for each batch, prints an empty line once the batch is complete and
+    then announces the next batch. The spacing mirrors the interactive design
+    brief from the orchestrator so operators can see how far the current
+    batch has advanced before the next update arrives.
+    """
+
+    _BAR_WIDTH = 28
+
+    def __init__(
+        self,
+        stage_label: str,
+        total_steps: int,
+        *,
+        display: bool = True,
+    ) -> None:
+        self._stage_label = stage_label
+        self._total_steps = max(int(total_steps), 0)
+        self._display = bool(display and self._total_steps > 0)
+        self._batch_index = 0
+        self._current_start = 1
+        self._current_end = 0
+        self._active = False
+        self._last_percent = -1
+
+    def start_batch(self, batch_start: int, batch_end: int) -> None:
+        """Announce a new batch spanning ``batch_start`` to ``batch_end``."""
+
+        if not self._display or batch_end < batch_start:
+            self._active = False
+            return
+        self._batch_index += 1
+        self._current_start = int(batch_start)
+        self._current_end = int(batch_end)
+        self._active = True
+        self._last_percent = -1
+        span = self._current_end - self._current_start + 1
+        console.write(
+            f"{self._stage_label} batch {self._batch_index} "
+            f"({span} step(s)) progress:"
+        )
+
+    def update(self, step_index: int) -> None:
+        """Update the bar to reflect ``step_index`` progress."""
+
+        if not self._active or not self._display:
+            return
+        batch_size = self._current_end - self._current_start + 1
+        if batch_size <= 0:
+            return
+        completed = max(0, step_index - self._current_start + 1)
+        completed = min(completed, batch_size)
+        fraction = completed / batch_size
+        percent = int(round(fraction * 100))
+        if percent == self._last_percent and completed < batch_size:
+            return
+        self._last_percent = percent
+        filled = int(round(fraction * self._BAR_WIDTH))
+        filled = max(0, min(self._BAR_WIDTH, filled))
+        bar = "#" * filled + "-" * (self._BAR_WIDTH - filled)
+        remaining = max(self._current_end - step_index, 0)
+        # ``console.write`` flushes after every call, so emitting a carriage
+        # return keeps the latest bar on a single line while it fills.
+        line = (
+            f"\r[{bar}] {percent:>3d}% "
+            f"(batch {completed}/{batch_size}, {remaining} step(s) remaining)"
+        )
+        console.write(line, end="")
+
+    def finish_batch(self) -> None:
+        """Close the current batch, inserting required spacing."""
+
+        if not self._active or not self._display:
+            return
+        self._active = False
+        if self._last_percent >= 0:
+            console.write("")
+        console.write("")
+        self._last_percent = -1
+
+
 def _run_stage_with_progress(
     sampler: emcee.EnsembleSampler,
     initial_state: np.ndarray,
@@ -506,6 +592,8 @@ def _run_stage_with_progress(
     summary_callback: (
         Callable[[int, emcee.State], Sequence[str]] | None
     ) = None,
+    progress_label: str | None = None,
+    display_progress: bool = True,
 ):
     """Iterate ``sampler.sample`` while logging percentage progress.
 
@@ -525,12 +613,27 @@ def _run_stage_with_progress(
     if progress_granularity <= 0:
         progress_granularity = 1
 
+    label = progress_label or f"{stage_name.title()} stage"
+    progress_bar = _BatchProgressBar(label, n_steps, display=display_progress)
     interval = max(1, n_steps // progress_granularity)
+    batch_start = 1
+    batch_end = min(interval, n_steps)
+    progress_bar.start_batch(batch_start, batch_end)
+
     state = None
     for idx, state in enumerate(
         sampler.sample(initial_state, iterations=n_steps, progress=False),
         start=1,
     ):
+        progress_bar.update(idx)
+        if idx == batch_end and idx < n_steps:
+            progress_bar.finish_batch()
+            batch_start = idx + 1
+            batch_end = min(batch_start + interval - 1, n_steps)
+            progress_bar.start_batch(batch_start, batch_end)
+        elif idx == n_steps:
+            progress_bar.finish_batch()
+
         if idx == 1 or idx % interval == 0 or idx == n_steps:
             percent = int(round(idx / n_steps * 100))
             logger.info(
@@ -562,6 +665,7 @@ def fit_sne_parameters(
     pool_size: int | None = None,
     progress_granularity: int = 20,
     burn_in_steps: int | None = None,
+    display_progress: bool = True,
 ) -> dict[str, Any]:
     """Sample cosmological parameters with joint dataset support.
 
@@ -573,7 +677,9 @@ def fit_sne_parameters(
     how many progress updates appear per stage and therefore also the cadence
     of the accompanying diagnostics.  When ``pool_size`` is provided the
     walker ensemble expands as needed so every worker process remains busy
-    throughout burn-in and production.
+    throughout burn-in and production.  ``display_progress`` disables the
+    console progress bar when ``False`` so automated runtime estimations can
+    execute quietly.
     """
 
     logger = logging.getLogger()
@@ -718,6 +824,8 @@ def fit_sne_parameters(
             logger=logger,
             progress_granularity=progress_granularity,
             summary_callback=burnin_reporter,
+            progress_label=f"{model_plugin.MODEL_NAME} burn-in",
+            display_progress=display_progress,
         )
         try:
             coords, log_prob = _reseed_invalid_walkers(
@@ -747,6 +855,8 @@ def fit_sne_parameters(
             logger=logger,
             progress_granularity=progress_granularity,
             summary_callback=production_reporter,
+            progress_label=f"{model_plugin.MODEL_NAME} production",
+            display_progress=display_progress,
         )
     finally:
         if pool is not None:

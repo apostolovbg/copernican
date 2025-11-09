@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-08
+**Last Updated:** 2025-11-09
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -44,7 +44,10 @@ without triggering linter redefinition warnings.
 A ``COPERNICAN_SEED`` environment variable overrides the interactive seed
 prompt.  When unset, the program asks users to accept the default ``0``, enter
 their own value or generate a random seed.  The final choice is stored in the
-run manifest and logged so analyses can be reproduced.
+run manifest and logged so analyses can be reproduced.  The launcher keeps a
+blank spacer after logging initialisation—replacing the retired "Copernican has
+initialised" banner—so the Stage 1 configuration menu aligns with historical
+spacing without repeating redundant text.
 
 The program enables Python's ``faulthandler`` at startup and registers
 ``SIGILL``, ``SIGSEGV`` and ``SIGFPE`` handlers. When triggered, they dump

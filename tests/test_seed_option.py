@@ -35,23 +35,26 @@ class SeedMenuTestCase(unittest.TestCase):
     def test_manual_seed_prompt(self):
         """User-entered seeds are applied."""
         with mock.patch.dict(os.environ, {}, clear=True):
-            with mock.patch("builtins.input", side_effect=["2", "42"]):
-                copernican.select_seed()
+            with mock.patch("copernican.console.ask", side_effect=["2", "42"]):
+                with mock.patch("copernican.console.write"):
+                    copernican.select_seed()
         self.assertEqual(utils.get_random_seed(), 42)
 
     def test_random_seed_prompt(self):
         """Random seed generation stores the value."""
         with mock.patch.dict(os.environ, {}, clear=True):
-            with mock.patch("builtins.input", side_effect=["3"]):
-                with mock.patch("random.randint", return_value=99):
-                    copernican.select_seed()
+            with mock.patch("copernican.console.ask", side_effect=["3"]):
+                with mock.patch("copernican.console.write"):
+                    with mock.patch("random.randint", return_value=99):
+                        copernican.select_seed()
         self.assertEqual(utils.get_random_seed(), 99)
 
     def test_default_seed_prompt(self):
         """Accepting the default seed stores zero."""
         with mock.patch.dict(os.environ, {}, clear=True):
-            with mock.patch("builtins.input", side_effect=[""]):
-                copernican.select_seed()
+            with mock.patch("copernican.console.ask", side_effect=[""]):
+                with mock.patch("copernican.console.write"):
+                    copernican.select_seed()
         self.assertEqual(utils.get_random_seed(), 0)
 
 
