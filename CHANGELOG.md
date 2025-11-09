@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.6
+- 2025-11-09: Standardised the Stage 5 corner plot footer cadence on the shared
+  0.015 spacing, added fixed padding to keep the footer clear of the axes,
+  refreshed the regression tests and bumped project metadata to 7.6.6 (OpenAI
+  ChatGPT)
+
 ## Version 7.6.5
 - 2025-11-09: Hardened Stage 5 corner plotting by synthesising strictly
   increasing contour levels, removed redundant dataset metadata from the

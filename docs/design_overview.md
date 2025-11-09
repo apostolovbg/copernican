@@ -40,9 +40,10 @@ that foundation to deliver repeatable analyses.
 
 `copernican.py`'s Stage 1 loop prints a dedicated banner before invoking the
 seed dialog so users immediately see that reproducibility is the first
-configuration step. The helper honours ``COPERNICAN_SEED`` overrides, echoes the
-choice to the console and logger, and provides numbered options for accepting
-the default, entering a custom integer or sampling a random seed from the full
+configuration step. The helper honours ``COPERNICAN_SEED`` overrides, echoes
+the choice to the console and logger, and provides numbered options for
+accepting the default, entering a custom integer or sampling a random seed
+from the full
 32-bit space. When the alternative model fails to parse or validate, or when an
 engine import raises, ``_normalise_failure_reasons`` flattens exceptions into a
 bullet list. ``_prompt_stage1_retry`` then presents a small menu that either
@@ -87,12 +88,14 @@ of how many parameters a sampler exposes.  The responsive sizing keeps
 high-dimensional comparisons from overwhelming Matplotlib while preserving the
 classic large-panel aesthetic for the familiar three-parameter ΛCDM checks.
 
-Version 7.6.5 follows up by synthesising strictly increasing contour levels
-whenever the posterior histogram plateaus, preventing Matplotlib from
-rejecting the grid with "Contour levels must be increasing" errors.  The same
-pass removes redundant dataset descriptions from the Stage 5 footer so the
-corner figure matches the visual hierarchy used by the Hubble, BAO and CMB
-plots while still displaying the citation and sampling statistics.
+Version 7.6.6 follows up by keeping the strictly increasing contour levels when
+posterior histograms plateau, preventing Matplotlib from rejecting the grid
+with "Contour levels must be increasing" errors.  The same pass now harmonises
+the footer line height with the suite-wide 0.015 cadence, inserts a fixed pad
+between the axes and the footer block and continues to omit redundant dataset
+descriptions so the corner figure matches the visual hierarchy used by the
+Hubble, BAO and CMB plots while still displaying the citation and sampling
+statistics.
 
 Version 7.4.1 adds a sampler-facing perspective to the plotting layer. The new
 corner plot automatically thins oversized chains, renders the Stage 2 posterior

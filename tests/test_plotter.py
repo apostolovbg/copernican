@@ -164,6 +164,7 @@ def test_plot_corner_scales_layout_with_dimension(
                 dict[str, float],
                 float,
                 dict[str, float],
+                float,
             ],
         ]
     ] = []
@@ -224,6 +225,40 @@ def test_plot_corner_scales_layout_with_dimension(
 
     assert recorded_figsizes[0] == small_figsize
     assert recorded_figsizes[1] == large_figsize
+
+    small_line_height = small_layout[2]
+    large_line_height = large_layout[2]
+    assert small_line_height == pytest.approx(
+        plotter._CORNER_BASE_LINE_HEIGHT,
+        rel=0.01,
+    )
+    assert large_line_height >= plotter._CORNER_BASE_LINE_HEIGHT
+
+    small_footer_pad = small_layout[4]
+    large_footer_pad = large_layout[4]
+    assert small_footer_pad == pytest.approx(
+        plotter._CORNER_FOOTER_PADDING,
+        rel=1e-9,
+    )
+    assert large_footer_pad == pytest.approx(small_footer_pad, rel=1e-9)
+
+    for n_params, footer_lines, layout in layout_calls:
+        margins = layout[3]
+        line_height = layout[2]
+        footer_pad = layout[4]
+        dynamic_bottom = margins["bottom"] - footer_pad
+        expected_dynamic = plotter._CORNER_BASE_BOTTOM_MARGIN + (
+            footer_lines * line_height
+        )
+        clipped_expected = min(
+            max(
+                expected_dynamic,
+                0.08 - plotter._CORNER_FOOTER_PADDING,
+            ),
+            0.32 - plotter._CORNER_FOOTER_PADDING,
+        )
+        assert dynamic_bottom == pytest.approx(clipped_expected)
+        assert margins["bottom"] - dynamic_bottom == pytest.approx(footer_pad)
 
 
 def test_format_corner_footer_stats_reports_processing() -> None:
