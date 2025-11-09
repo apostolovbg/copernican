@@ -103,8 +103,9 @@ same YAML file the helper
 reuses the ΛCDM measurement directly instead of executing the alternative
 branch a second time.
 
-Version 7.6.9 raises that standard further by rendering each bar with Unicode
-partial-block glyphs. The higher fidelity keeps macOS, Linux and Windows
+Version 7.6.10 raises that standard further by rendering each bar with Unicode
+partial-block glyphs and rewriting weighted move tables so every terminal sees
+per-walker refreshes. The higher fidelity keeps macOS, Linux and Windows
 terminals animating smoothly even when carriage-return repaints would
 otherwise coalesce multiple walker updates into a single character.
 

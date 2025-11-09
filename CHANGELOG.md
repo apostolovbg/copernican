@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.10
+- 2025-11-09: Patched the Stage 2 notifier bridge so weighted `emcee` move
+  tables receive reporting wrappers, restoring per-walker progress updates on
+  macOS terminals, refreshed the progress bar tests to cover weighted tuples
+  and bumped project metadata to 7.6.10 (OpenAI ChatGPT)
+
 ## Version 7.6.9
 - 2025-11-09: Rebuilt the Stage 2 batch progress renderer with Unicode
   partial-block glyphs so interactive terminals match the smooth updates already

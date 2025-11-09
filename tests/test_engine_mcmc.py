@@ -15,6 +15,7 @@ from unittest import mock
 import numpy as np
 import pandas as pd
 import xarray as xr
+from emcee import moves
 
 from copernican_lib import (
     chain_io,
@@ -689,6 +690,46 @@ class BatchProgressBarTestCase(unittest.TestCase):
             partial_set = set(partial_blocks)
             has_partial = bool(set(inner) & partial_set)
             self.assertTrue(has_partial)
+
+
+class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):
+    """Ensure sampler move collections attach progress notifiers."""
+
+    def test_weight_first_pair_wraps_stretch_move(self) -> None:
+        """Tuples storing ``(weight, move)`` gain reporting wrappers."""
+
+        sampler = SimpleNamespace(_moves=[(0.75, moves.StretchMove())])
+        notifier = object()
+
+        cosmo_engine_mcmc._configure_sampler_progress_reporting(
+            sampler, notifier
+        )
+
+        weight, move_obj = sampler._moves[0]
+        self.assertEqual(weight, 0.75)
+        self.assertIsInstance(
+            move_obj, cosmo_engine_mcmc._ReportingStretchMove
+        )
+        self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
+
+    def test_move_first_pair_wraps_stretch_move(self) -> None:
+        """Tuples storing ``(move, weight)`` gain reporting wrappers."""
+
+        base_move = moves.StretchMove(a=3.5)
+        sampler = SimpleNamespace(_moves=[(base_move, 0.5)])
+        notifier = object()
+
+        cosmo_engine_mcmc._configure_sampler_progress_reporting(
+            sampler, notifier
+        )
+
+        move_obj, weight = sampler._moves[0]
+        self.assertEqual(weight, 0.5)
+        self.assertIsInstance(
+            move_obj, cosmo_engine_mcmc._ReportingStretchMove
+        )
+        self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
+        self.assertEqual(getattr(move_obj, "a"), getattr(base_move, "a"))
 
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation

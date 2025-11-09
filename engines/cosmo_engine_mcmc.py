@@ -814,13 +814,64 @@ def _configure_sampler_progress_reporting(
     """Ensure sampler moves forward updates to ``notifier`` when available."""
 
     moves_attr = getattr(sampler, "_moves", [])
-    for index, move in enumerate(moves_attr):
-        if isinstance(move, _ReportingStretchMove):
-            move.set_progress_notifier(notifier)
-        elif isinstance(move, moves.StretchMove):
-            moves_attr[index] = _ReportingStretchMove.from_existing(
-                move, progress_notifier=notifier
+    if not moves_attr:
+        return
+
+    # ``emcee`` stores its move strategies either as bare instances or as
+    # weight-move tuples/lists depending on how callers configured the sampler.
+    # macOS terminals previously stalled because weighted entries skipped the
+    # notifier injection entirely; normalising the layout here ensures every
+    # stretch move reports walker-level progress regardless of how it was
+    # registered.
+    updated_moves: list[Any] = []
+    for entry in moves_attr:
+        orientation = "bare"
+        weight: Any | None = None
+        move_obj: Any = entry
+
+        if isinstance(entry, tuple) and len(entry) == 2:
+            first, second = entry
+            if isinstance(first, moves.Move):
+                move_obj = first
+                weight = second
+                orientation = "move_weight"
+            elif isinstance(second, moves.Move):
+                move_obj = second
+                weight = first
+                orientation = "weight_move"
+        elif isinstance(entry, list) and len(entry) == 2:
+            first, second = entry
+            if isinstance(first, moves.Move):
+                move_obj = first
+                weight = second
+                orientation = "move_weight_list"
+            elif isinstance(second, moves.Move):
+                move_obj = second
+                weight = first
+                orientation = "weight_move_list"
+
+        if isinstance(move_obj, _ReportingStretchMove):
+            move_obj.set_progress_notifier(notifier)
+        elif isinstance(move_obj, moves.StretchMove):
+            move_obj = _ReportingStretchMove.from_existing(
+                move_obj, progress_notifier=notifier
             )
+
+        if orientation == "move_weight":
+            updated_moves.append((move_obj, weight))
+        elif orientation == "weight_move":
+            updated_moves.append((weight, move_obj))
+        elif orientation == "move_weight_list":
+            updated_moves.append([move_obj, weight])
+        elif orientation == "weight_move_list":
+            updated_moves.append([weight, move_obj])
+        else:
+            updated_moves.append(move_obj)
+
+    if isinstance(moves_attr, tuple):
+        sampler._moves = tuple(updated_moves)
+    else:
+        sampler._moves = list(updated_moves)
 
 
 def _run_stage_with_progress(

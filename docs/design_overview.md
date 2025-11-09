@@ -54,8 +54,9 @@ stage: it enumerates recommended defaults, allows a full restart, explains
 how the fifty-character progress bars will animate during Stage 2 and lets
 the operator continue, return to the summary or exit the suite entirely.
 That preview now showcases the Unicode partial-block renderer introduced in
-version 7.6.9 so contributors can immediately see how individual walker
-updates glide across the bar even when they fall short of a full character.
+version 7.6.9 and the weighted-move notifier bridge from version 7.6.10 so
+contributors can immediately see how individual walker updates glide across the
+bar even when they fall short of a full character.
 
 Every run produces a timestamped output directory containing plots, NetCDF
 chains and a manifest that records the engine, models, datasets, parameter
