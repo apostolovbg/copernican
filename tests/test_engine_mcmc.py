@@ -647,6 +647,7 @@ class BatchProgressBarTestCase(unittest.TestCase):
             self.assertEqual(
                 len(inner), cosmo_engine_mcmc._BatchProgressBar._BAR_WIDTH
             )
+            self.assertIn("█", inner)
             later_line = bar.update(2, step_progress=0.0)
             self.assertIn("step 2 of 4 steps", later_line)
             self.assertIn("3 steps remaining", later_line)
@@ -660,6 +661,34 @@ class BatchProgressBarTestCase(unittest.TestCase):
             any("Test stage batch 1" in message for message in captured)
         )
         self.assertTrue(any(message == "\n" for message in captured))
+
+    def test_progress_bar_emits_partial_block_during_small_updates(
+        self,
+    ) -> None:
+        """Fractional updates render the Unicode sub-block glyphs."""
+
+        bar = cosmo_engine_mcmc._BatchProgressBar(
+            "Unicode stage",
+            10,
+            display=True,
+        )
+        with mock.patch(
+            "engines.cosmo_engine_mcmc.console.write",
+            side_effect=lambda *args, **kwargs: None,
+        ):
+            bar.start_batch(1, 5)
+            fractional_line = bar.update(1, step_progress=0.05)
+            self.assertIsNotNone(fractional_line)
+            start = fractional_line.index("[") + 1
+            end = fractional_line.index("]")
+            inner = fractional_line[start:end]
+            # Confirm the partial-block glyphs render before a full column.
+            partial_blocks = (
+                cosmo_engine_mcmc._BatchProgressBar._PARTIAL_BLOCKS[1:]
+            )
+            partial_set = set(partial_blocks)
+            has_partial = bool(set(inner) & partial_set)
+            self.assertTrue(has_partial)
 
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation
