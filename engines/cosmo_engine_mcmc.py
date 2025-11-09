@@ -1,6 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-07
+# Last Updated: 2025-11-09
 
 """Markov Chain Monte Carlo engine using :mod:`emcee`.
 
@@ -33,7 +33,9 @@ import logging
 import math
 import multiprocessing as mp
 import textwrap
+import time
 import warnings
+from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Sequence
 
 import arviz as az
@@ -496,6 +498,18 @@ def _reseed_invalid_walkers(
     return coords, log_prob
 
 
+@dataclass(slots=True)
+class _BatchTimingSnapshot:
+    """Describe the timing state for the current batch update."""
+
+    timestamp: float
+    elapsed: float
+    remaining_seconds: float | None
+    speed: float | None
+    completed_steps: int
+    batch_size: int
+
+
 class _BatchProgressBar:
     """Render textual progress bars for sampler batches.
 
@@ -515,6 +529,7 @@ class _BatchProgressBar:
         total_steps: int,
         *,
         display: bool = True,
+        clock: Callable[[], float] | None = None,
     ) -> None:
         self._stage_label = stage_label
         self._total_steps = max(int(total_steps), 0)
@@ -524,6 +539,10 @@ class _BatchProgressBar:
         self._current_end = 0
         self._active = False
         self._last_percent = -1
+        self._clock = clock or time.perf_counter
+        self._batch_started_at: float | None = None
+        self._last_metrics_time: float | None = None
+        self._last_snapshot: _BatchTimingSnapshot | None = None
 
     def start_batch(self, batch_start: int, batch_end: int) -> None:
         """Announce a new batch spanning ``batch_start`` to ``batch_end``."""
@@ -536,26 +555,51 @@ class _BatchProgressBar:
         self._current_end = int(batch_end)
         self._active = True
         self._last_percent = -1
+        self._batch_started_at = self._clock()
+        self._last_metrics_time = None
+        self._last_snapshot = None
         span = self._current_end - self._current_start + 1
         console.write(
             f"{self._stage_label} batch {self._batch_index} "
             f"({span} step(s)) progress:"
         )
 
-    def update(self, step_index: int) -> None:
-        """Update the bar to reflect ``step_index`` progress."""
+    def update(
+        self, step_index: int
+    ) -> tuple[str | None, _BatchTimingSnapshot | None]:
+        """Return the rendered progress line and optional timing snapshot."""
 
         if not self._active or not self._display:
-            return
+            return None, None
         batch_size = self._current_end - self._current_start + 1
         if batch_size <= 0:
-            return
+            return None, None
         completed = max(0, step_index - self._current_start + 1)
         completed = min(completed, batch_size)
         fraction = completed / batch_size
         percent = int(round(fraction * 100))
-        if percent == self._last_percent and completed < batch_size:
-            return
+        now = self._clock()
+        snapshot = self._compute_snapshot(now, completed, batch_size)
+        metrics_due = snapshot is not None and (
+            self._last_snapshot is None
+            or now - (self._last_metrics_time or 0.0) >= 1.0
+            or completed >= batch_size
+        )
+        emit_snapshot: _BatchTimingSnapshot | None = None
+        if metrics_due and snapshot is not None:
+            self._last_metrics_time = now
+            self._last_snapshot = snapshot
+            emit_snapshot = snapshot
+        elif snapshot is not None and self._last_snapshot is None:
+            self._last_snapshot = snapshot
+            self._last_metrics_time = now
+            emit_snapshot = snapshot
+        if (
+            percent == self._last_percent
+            and completed < batch_size
+            and not metrics_due
+        ):
+            return None, None
         self._last_percent = percent
         filled = int(round(fraction * self._BAR_WIDTH))
         filled = max(0, min(self._BAR_WIDTH, filled))
@@ -563,11 +607,13 @@ class _BatchProgressBar:
         remaining = max(self._current_end - step_index, 0)
         # ``console.write`` flushes after every call, so emitting a carriage
         # return keeps the latest bar on a single line while it fills.
+        timing_text = self._format_timing(self._last_snapshot)
         line = (
             f"\r[{bar}] {percent:>3d}% "
             f"(batch {completed}/{batch_size}, {remaining} step(s) remaining)"
+            f" | {timing_text}"
         )
-        console.write(line, end="")
+        return line, emit_snapshot
 
     def finish_batch(self) -> None:
         """Close the current batch, inserting required spacing."""
@@ -579,6 +625,68 @@ class _BatchProgressBar:
             console.write("")
         console.write("")
         self._last_percent = -1
+        self._batch_started_at = None
+        self._last_snapshot = None
+        self._last_metrics_time = None
+
+    @property
+    def batch_index(self) -> int:
+        """Return the index of the current batch for diagnostics."""
+
+        return self._batch_index
+
+    def _compute_snapshot(
+        self,
+        timestamp: float,
+        completed: int,
+        batch_size: int,
+    ) -> _BatchTimingSnapshot | None:
+        """Return the latest timing snapshot for the active batch."""
+
+        if self._batch_started_at is None:
+            return None
+        elapsed = max(timestamp - self._batch_started_at, 0.0)
+        if completed <= 0 and elapsed <= 0.0:
+            return None
+        denom = elapsed if elapsed > 0.0 else None
+        speed = None
+        if denom is not None:
+            speed = completed / denom if completed > 0 else None
+        remaining_steps = batch_size - completed
+        remaining_seconds = None
+        if speed:
+            remaining_seconds = remaining_steps / speed if speed > 0 else None
+        return _BatchTimingSnapshot(
+            timestamp=timestamp,
+            elapsed=elapsed,
+            remaining_seconds=remaining_seconds,
+            speed=speed,
+            completed_steps=completed,
+            batch_size=batch_size,
+        )
+
+    @staticmethod
+    def _format_seconds(value: float | None) -> str:
+        """Format ``value`` seconds as ``HH:MM:SS`` or a placeholder."""
+
+        if value is None or value < 0.0:
+            return "--:--:--"
+        total_seconds = int(round(value))
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+    def _format_timing(self, snapshot: _BatchTimingSnapshot | None) -> str:
+        """Build the textual timing summary for the progress bar line."""
+
+        if snapshot is None:
+            return "elapsed --:--:-- | eta --:--:-- | speed -- step/s"
+        elapsed = self._format_seconds(snapshot.elapsed)
+        eta = self._format_seconds(snapshot.remaining_seconds)
+        speed_text = "speed -- step/s"
+        if snapshot.speed and snapshot.speed > 0.0:
+            speed_text = f"speed {snapshot.speed:.2f} step/s"
+        return f"elapsed {elapsed} | eta {eta} | {speed_text}"
 
 
 def _run_stage_with_progress(
@@ -594,6 +702,8 @@ def _run_stage_with_progress(
     ) = None,
     progress_label: str | None = None,
     display_progress: bool = True,
+    progress_listener: Callable[[dict[str, Any]], str | None] | None = None,
+    clock: Callable[[], float] | None = None,
 ):
     """Iterate ``sampler.sample`` while logging percentage progress.
 
@@ -614,18 +724,46 @@ def _run_stage_with_progress(
         progress_granularity = 1
 
     label = progress_label or f"{stage_name.title()} stage"
-    progress_bar = _BatchProgressBar(label, n_steps, display=display_progress)
+    progress_bar = _BatchProgressBar(
+        label,
+        n_steps,
+        display=display_progress,
+        clock=clock,
+    )
     interval = max(1, n_steps // progress_granularity)
     batch_start = 1
     batch_end = min(interval, n_steps)
     progress_bar.start_batch(batch_start, batch_end)
 
     state = None
+    now_fn = clock or time.perf_counter
+    stage_started_at = now_fn()
     for idx, state in enumerate(
         sampler.sample(initial_state, iterations=n_steps, progress=False),
         start=1,
     ):
-        progress_bar.update(idx)
+        line, snapshot = progress_bar.update(idx)
+        message: str | None = None
+        if progress_listener is not None and snapshot is not None:
+            stage_elapsed = max(snapshot.timestamp - stage_started_at, 0.0)
+            payload = {
+                "stage": stage_name,
+                "steps_completed": idx,
+                "total_steps": n_steps,
+                "batch_index": progress_bar.batch_index,
+                "batch_completed": snapshot.completed_steps,
+                "batch_size": snapshot.batch_size,
+                "batch_elapsed": snapshot.elapsed,
+                "batch_eta": snapshot.remaining_seconds,
+                "speed": snapshot.speed,
+                "timestamp": snapshot.timestamp,
+                "stage_elapsed": stage_elapsed,
+            }
+            message = progress_listener(payload)
+        if message:
+            console.write(message)
+        if line:
+            console.write(line, end="")
         if idx == batch_end and idx < n_steps:
             progress_bar.finish_batch()
             batch_start = idx + 1
@@ -666,6 +804,7 @@ def fit_sne_parameters(
     progress_granularity: int = 20,
     burn_in_steps: int | None = None,
     display_progress: bool = True,
+    progress_listener: Callable[[dict[str, Any]], str | None] | None = None,
 ) -> dict[str, Any]:
     """Sample cosmological parameters with joint dataset support.
 
@@ -804,6 +943,20 @@ def fit_sne_parameters(
     )
     burn_in = max(1, int(burn_in))
     try:
+
+        def _emit_progress(event: dict[str, Any]) -> str | None:
+            """Augment ``event`` with model metadata before forwarding."""
+
+            if progress_listener is None:
+                return None
+            payload = dict(event)
+            payload["model_name"] = getattr(
+                model_plugin,
+                "MODEL_NAME",
+                "Model",
+            )
+            return progress_listener(payload)
+
         sampler = emcee.EnsembleSampler(
             n_walkers,
             ndim_active,
@@ -826,6 +979,7 @@ def fit_sne_parameters(
             summary_callback=burnin_reporter,
             progress_label=f"{model_plugin.MODEL_NAME} burn-in",
             display_progress=display_progress,
+            progress_listener=_emit_progress,
         )
         try:
             coords, log_prob = _reseed_invalid_walkers(
@@ -857,6 +1011,7 @@ def fit_sne_parameters(
             summary_callback=production_reporter,
             progress_label=f"{model_plugin.MODEL_NAME} production",
             display_progress=display_progress,
+            progress_listener=_emit_progress,
         )
     finally:
         if pool is not None:

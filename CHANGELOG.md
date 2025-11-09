@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.0
+- 2025-11-09: Extended the Stage 2 progress system to surface per-batch timing
+  snapshots, calculate sampler throughput on a one-second cadence, stream live
+  combined runtime estimates for both theories and cover the behaviour with
+  deterministic unit tests and documentation updates (OpenAI ChatGPT)
+
 ## Version 7.5.3
 - 2025-11-09: Updated the Stage 2 runtime estimator to benchmark a single
   burn-in and production step per model, reuse ΛCDM timings when both plugins

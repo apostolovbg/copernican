@@ -1,4 +1,4 @@
-**Version:** 7.5.3
+**Version:** 7.6.0
 **Last Updated:** 2025-11-09
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -13,13 +13,13 @@ reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. Build 7.5.3 keeps
+  dataset selection, model pairing and engine configuration. Build 7.6.0 keeps
   the structured Stage 1 seed selector introduced in 7.5.0, surfaces detailed
   validation reasons when alternative models fail to load, tidies the startup
-  banner spacing and preserves the richer Stage 2 narration and progress bars
-  added alongside the sampler runtime estimator. The latest release now times a
-  single burn-in and production step per model so runtime forecasts scale
-  linearly with the plan instead of extrapolating from oversized dry runs.
+  banner spacing and now streams combined Stage 2 runtime estimates directly on
+  the console. Live progress bars report per-batch elapsed time, remaining
+  duration and throughput while the orchestrator aggregates those timings across
+  both theories after the very first sampler iteration.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
   keep every engine and plugin consistent. Version 7.5.0 adds interactive
