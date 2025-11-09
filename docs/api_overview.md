@@ -74,7 +74,10 @@ modules are:
   ``max(100, n_steps // 5)`` warm-up, keeping scripted workflows nimble, and
   the ``pool_size`` keyword enforces user-selected multiprocessing pools
   while automatically expanding the walker ensemble to keep every worker
-  busy. The private `_reseed_invalid_walkers` utility reseeds walkers that
+  busy. The optional ``progress_listener`` callback receives one-second timing
+  snapshots for each batch so orchestrators can surface combined runtime
+  estimates alongside per-model progress. The private `_reseed_invalid_walkers`
+  utility reseeds walkers that
   emit `nan` coordinates after burn-in so downstream API consumers never need
   to handle undefined sampler states. The interactive CLI now collects the
   production steps, burn-in length, walker count and pool size before

@@ -48,6 +48,7 @@ from copernican_lib.diagnostics import (
 )
 import copernican_lib.version as version_module
 from copernican_lib.plugins import PluginValidationError
+from copernican_lib.stage2_runtime import StageTwoRuntimeTracker
 
 # Verify interpreter version early so users see clear feedback
 MIN_PYTHON = (3, 11)
@@ -1289,6 +1290,7 @@ def prompt_sampling_configuration(
             return None
         console.write("Please choose 1, 2, 3 or C.", error=True)
 
+
 def cleanup_cache(base_dir):
     """Remove temporary files left behind by previous runs."""
 
@@ -1734,6 +1736,37 @@ def main_workflow():
         )
         run_manifest.save_manifest(manifest, OUTPUT_DIR)
 
+        lcdm_name = getattr(lcdm, "MODEL_NAME", "ΛCDM")
+        alt_name = getattr(alt_model_plugin, "MODEL_NAME", "Alternative")
+        same_name = lcdm_name.casefold() == alt_name.casefold()
+        lcdm_file = getattr(lcdm, "MODEL_FILENAME", "")
+        alt_file = getattr(alt_model_plugin, "MODEL_FILENAME", "")
+        reuse_alt = same_name and lcdm_file == alt_file and (
+            type(lcdm) is type(alt_model_plugin)
+        )
+        stage_plan: list[tuple[str, str, int]] = []
+        if sampling_burn_in > 0:
+            stage_plan.append((lcdm_name, "burn-in", sampling_burn_in))
+        if sampling_steps > 0:
+            stage_plan.append((lcdm_name, "production", sampling_steps))
+        if not reuse_alt:
+            if sampling_burn_in > 0:
+                stage_plan.append((alt_name, "burn-in", sampling_burn_in))
+            if sampling_steps > 0:
+                stage_plan.append((alt_name, "production", sampling_steps))
+        runtime_tracker = (
+            StageTwoRuntimeTracker(stage_plan)
+            if stage_plan
+            else None
+        )
+
+        def _dispatch_runtime_update(event: Mapping[str, Any]) -> str | None:
+            """Forward sampler metrics to the combined runtime tracker."""
+
+            if runtime_tracker is None:
+                return None
+            return runtime_tracker.update(event)
+
         lcdm_time = 0.0
         alt_time = 0.0
         engine_label = getattr(
@@ -1786,17 +1819,10 @@ def main_workflow():
             n_steps=sampling_steps,
             pool_size=sampling_pool,
             burn_in_steps=sampling_burn_in,
+            progress_listener=_dispatch_runtime_update,
         )
         lcdm_time += time.perf_counter() - t0
-        same_name = (
-            getattr(lcdm, "MODEL_NAME", "").casefold()
-            == getattr(alt_model_plugin, "MODEL_NAME", "").casefold()
-        )
-        same_file = (
-            getattr(lcdm, "MODEL_FILENAME", "")
-            == getattr(alt_model_plugin, "MODEL_FILENAME", "")
-        )
-        if same_name and same_file and type(lcdm) is type(alt_model_plugin):
+        if reuse_alt:
             logger.info(
                 "Alternative model matches ΛCDM; reusing SNe chain from %s.",
                 engine_label,
@@ -1826,6 +1852,7 @@ def main_workflow():
                 n_steps=sampling_steps,
                 pool_size=sampling_pool,
                 burn_in_steps=sampling_burn_in,
+                progress_listener=_dispatch_runtime_update,
             )
             alt_time += time.perf_counter() - t0
             console.write(
