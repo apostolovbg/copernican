@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-07
+# Last Updated: 2025-11-09
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -125,9 +125,12 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
 
     def setUp(self) -> None:
         def fit_sne_parameters(
-            n_steps: int = 400, n_walkers: int = 64
-        ) -> None:
-            return None
+            n_steps: int = 400,
+            n_walkers: int = 64,
+            burn_in_steps: int | None = None,
+            **_kwargs,
+        ) -> dict[str, bool]:
+            return {"success": True}
 
         self.engine = SimpleNamespace(
             fit_sne_parameters=fit_sne_parameters,
@@ -158,6 +161,9 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
             self.engine,
             self.lcdm_plugin,
             self.alt_plugin,
+            None,
+            None,
+            None,
         )
         self.assertEqual(
             plan,
@@ -182,6 +188,9 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
             self.engine,
             self.lcdm_plugin,
             self.alt_plugin,
+            None,
+            None,
+            None,
         )
         self.assertEqual(
             plan,
@@ -206,6 +215,9 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
             self.engine,
             self.lcdm_plugin,
             self.alt_plugin,
+            None,
+            None,
+            None,
         )
         self.assertEqual(
             plan,
@@ -216,6 +228,47 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
                 "pool_size": 10,
             },
         )
+
+    @mock.patch("copernican._estimate_sampler_timing")
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    @mock.patch("copernican.os.cpu_count", return_value=8)
+    def test_runtime_estimate_menu(
+        self,
+        _cpu_mock,
+        ask_mock,
+        _write_mock,
+        estimate_mock,
+    ) -> None:
+        """Selecting the runtime estimate can proceed directly to Stage 2."""
+
+        estimate_mock.return_value = {
+            "lcdm": {"burn_in": 1.0, "production": 2.0, "total": 3.0},
+            "alt": {"burn_in": 0.5, "production": 0.5, "total": 1.0},
+            "combined": 4.0,
+            "trial": {"burn_in": 5, "production": 5},
+        }
+        ask_mock.side_effect = ["3", "1"]
+
+        plan = copernican.prompt_sampling_configuration(
+            self.engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+            None,
+            None,
+            None,
+        )
+
+        self.assertEqual(
+            plan,
+            {
+                "n_steps": 400,
+                "burn_in_steps": 100,
+                "n_walkers": 64,
+                "pool_size": 8,
+            },
+        )
+        estimate_mock.assert_called_once()
 
 
 class PostRunMenuTestCase(unittest.TestCase):

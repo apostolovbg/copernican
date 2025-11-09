@@ -9,7 +9,10 @@ that foundation to deliver repeatable analyses.
 
 * `copernican.py` assembles run manifests, dispatches dataset loaders and
   prepares engine inputs so Stage 2 sampling always starts from a consistent
-  configuration.
+  configuration. The 7.5.2 release keeps the structured Stage 1 seed selector,
+  surfaces every validation error encountered while loading alternative models
+  and leaves a deliberate blank spacer after logging initialisation so the
+  console flow stays tidy without repeating legacy "has initialised" banners.
 * `copernican_lib/` contributes the reusable building blocks—data ingestion,
   posterior construction, validation checks, plotting helpers and diagnostics.
   Engines and parsers import from this package instead of reimplementing
@@ -25,6 +28,24 @@ that foundation to deliver repeatable analyses.
 * `data/` curates vetted catalogues with parser code and metadata that record
   citations, licensing information and SHA256 digests.  Loaders validate the
   digests before the observations flow into the likelihood pipeline.
+
+### Stage 1 orchestration
+
+`copernican.py`'s Stage 1 loop prints a dedicated banner before invoking the
+seed dialog so users immediately see that reproducibility is the first
+configuration step. The helper honours ``COPERNICAN_SEED`` overrides, echoes the
+choice to the console and logger, and provides numbered options for accepting
+the default, entering a custom integer or sampling a random seed from the full
+32-bit space. When the alternative model fails to parse or validate, or when an
+engine import raises, ``_normalise_failure_reasons`` flattens exceptions into a
+bullet list. ``_prompt_stage1_retry`` then presents a small menu that either
+restarts Stage 1 from the top or exits gracefully, ensuring even multi-part
+errors—such as missing callable hooks and incompatible bounds—are explained at
+the terminal without consulting logs. The sampler questionnaire closes the
+stage: it enumerates recommended defaults, allows a full restart, exposes a
+runtime estimator that times short burn-in and production trials for both ΛCDM
+and the alternative model, and lets the operator continue, return to the
+summary or exit the suite entirely.
 
 Every run produces a timestamped output directory containing plots, NetCDF
 chains and a manifest that records the engine, models, datasets, parameter
@@ -48,18 +69,17 @@ their manuscripts expand.
 Version 7.4.4 finalises the Stage 5 compatibility layer by turning
 `_validate_corner_inputs` into a thin wrapper that forwards directly to
 `_prepare_corner_inputs`.  The approach keeps archival automation importing the
-legacy name while eliminating the linter redefinition warning that surfaced when
-the alias was a plain assignment.  Documentation mirrors the behaviour so code
-comments, guides and tests explain why the wrapper exists alongside the modern
-helper.
+legacy name while eliminating the linter warning that appeared when the alias
+was a plain assignment.  Documentation mirrors the behaviour so code comments,
+guides and tests explain why the wrapper exists alongside the modern helper.
 
 Version 7.4.6 extends that polishing work by teaching the Stage 5 corner plot
 to resize itself automatically.  The new geometry helper clamps the overall
 figure to twelve inches on each side, scales fonts according to the resulting
 panel width and recalibrates footer spacing so text remains legible regardless
 of how many parameters a sampler exposes.  The responsive sizing keeps
-high-dimensional comparisons from overwhelming Matplotlib while still presenting
-the classic large-panel aesthetic for the familiar three-parameter ΛCDM checks.
+high-dimensional comparisons from overwhelming Matplotlib while preserving the
+classic large-panel aesthetic for the familiar three-parameter ΛCDM checks.
 
 Version 7.4.1 adds a sampler-facing perspective to the plotting layer. The new
 corner plot automatically thins oversized chains, renders the Stage 2 posterior
@@ -79,6 +99,15 @@ with a matching post-run menu that distinguishes between launching another
 evaluation and shutting down cleanly.  These additions mirror the broader
 Copernican console style so contributors do not have to remember what terse
 single-letter responses stand for.
+
+Version 7.5.0 builds on that foundation by adding a live runtime estimator to
+the sampler menu. The launcher times short trial runs for both the ΛCDM
+reference and the alternative model using the current settings, reports the
+projected burn-in, production and combined durations and lets operators accept
+the plan immediately. Stage 2 console output now announces when burn-in and
+production batches begin and renders a textual progress bar that fills
+gradually for each batch, with blank lines separating batches so long chains
+remain readable.
 
 Version 7.3.0 routes every Stage 2 run through :mod:`arviz` after sampling so
 the engine records rank-normalised :math:`\hat{R}` values together with bulk

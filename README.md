@@ -1,4 +1,4 @@
-**Version:** 7.4.6
+**Version:** 7.5.2
 **Last Updated:** 2025-11-09
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -13,14 +13,17 @@ reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration.
+  dataset selection, model pairing and engine configuration. Build 7.5.2 keeps
+  the structured Stage 1 seed selector introduced in 7.5.0, surfaces detailed
+  validation reasons when alternative models fail to load, tidies the startup
+  banner spacing and preserves the richer Stage 2 narration and progress bars
+  added alongside the sampler runtime estimator.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
-  keep every engine and plugin consistent. Version 7.4.6 retains the large-panel
-  presentation while introducing responsive sizing for the Stage 5 corner plot.
-  Figures clamp to twelve-inch canvases, rescale fonts automatically and
-  preserve footer spacing so the posterior geometry stays legible even when
-  probing high-dimensional models.
+  keep every engine and plugin consistent. Version 7.5.0 adds interactive
+  sampler runtime estimates, console progress bars for burn-in and production
+  batches, and more descriptive Stage 2 status messaging while retaining the
+  responsive Stage 5 corner plot sizing introduced previously.
 * `engines/` collects computational back ends. The default
   ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
   convergence checks, while the plugin protocol keeps room for additional
@@ -102,12 +105,18 @@ Under the hood the program follows a clear pipeline:
    feature mismatches before heavy computation begins.
 2. **Initialization** – a run-specific output directory is created and
    logging begins.
-3. **Configuration** – the user chooses a model and a computation engine
-   from `./engines/`. Engines are discovered dynamically by the
-   `cosmo_engine_*.py` naming convention so additional deterministic or
-   stochastic solvers can be dropped in later without touching the launcher.
-   The current default, `cosmo_engine_mcmc.py`, uses an `emcee` ensemble
-   sampler to explore the SNe posterior. Its distance calculations are
+3. **Configuration (Stage 1)** – a Stage 1 banner introduces the configuration
+   flow before the random-seed menu appears. Operators can accept the default,
+   enter a custom integer, request a random value or honour ``COPERNICAN_SEED``
+   when CI needs deterministic runs. Should model parsing, plugin validation or
+   engine imports fail, the console lists every collected reason and offers a
+   menu to restart Stage 1 or exit cleanly. Once the models load successfully,
+   the user chooses a computation engine from `./engines/`. Engines are
+   discovered dynamically by the `cosmo_engine_*.py` naming convention so
+   additional deterministic or stochastic solvers can be dropped in later
+   without touching the launcher. The current default,
+   `cosmo_engine_mcmc.py`, uses an `emcee` ensemble sampler to explore the SNe
+   posterior. Its distance calculations are
    vectorised for responsiveness and invalid proposals return ``-np.inf``
    directly so walkers outside the allowed region or producing non-finite
    chi-squared values are rejected unambiguously. The sampler automatically
@@ -153,7 +162,13 @@ Under the hood the program follows a clear pipeline:
    A confirmation menu now summarises the proposed sampler plan with numbered
    options for accepting it, restarting the questionnaire, returning to the
    defaults summary or cancelling entirely so the intent behind each choice is
-   explicit.
+   explicit. Version 7.5.0 layers in a live runtime estimator that times short
+   trial runs for both ΛCDM and the alternative theory using the selected
+   sampler settings, displaying burn-in, production and combined projections
+   before the operator continues. Stage 2 console output now highlights when
+   burn-in and production batches begin for each model and renders a progress
+   bar that fills gradually for every batch, making long chains easier to
+   monitor.
 5. **BAO Analysis** – Stage 3 reuses the sampler's diagnostics to report BAO
    chi-squared contributions directly from the joint fit while still
    generating smooth predictions for plots and CSV exports. Shared helpers
@@ -176,9 +191,23 @@ Under the hood the program follows a clear pipeline:
    `copernican_lib/plotter.py` and `copernican_lib/csv_writer.py` handle
    logs, plots and tables. The log file is renamed at the end of each run to
    match the output timestamp.
- 9. **Loop or Exit** – a concluding menu explains how to launch another
+9. **Loop or Exit** – a concluding menu explains how to launch another
     evaluation or close the application instead of relying on a terse yes/no
     prompt. Temporary cache files are still cleaned automatically either way.
+
+### Stage 1 configuration experience
+
+The configuration banner keeps the console organised by placing seed selection
+directly after the Stage 1 heading. Each option explains how the seed affects
+reproducibility, and environment overrides are echoed so CI logs document the
+chosen value. When any alternative model fails validation the orchestrator
+prints the collected reasons as bullet points before offering to restart Stage 1
+or exit, ensuring even multi-cause exceptions—such as conflicting bounds and
+missing likelihood hooks—are explained without consulting the log file. The
+sampler questionnaire concludes Stage 1 with a summary of recommended settings,
+live runtime estimates for burn-in and production (both individually and
+combined across ΛCDM and the alternative theory), and a menu that lets users
+continue, revisit earlier questions or cancel the run entirely.
 
 ### Interpreting the new convergence diagnostics
 

@@ -1,6 +1,6 @@
 """Compatibility layer exposing plugin builders to numerical engines.
 
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-09
 
 The interface now validates CAMB parameter mappings declared in YAML models so
 neutrino sector options remain consistent with the helpers in
@@ -19,6 +19,7 @@ from .plugins import (
     REQUIRED_ATTRIBUTES,
     REQUIRED_FUNCTIONS,
     EnginePlugin,
+    PluginValidationError,
     build_engine_plugin,
 )
 from .plugins import validate_plugin as _validate_plugin
@@ -100,9 +101,14 @@ def build_plugin(
 def validate_plugin(plugin: EnginePlugin) -> bool:
     """Validate that ``plugin`` exposes the required interface."""
 
-    result = _validate_plugin(plugin)
-    _validate_cmb_param_map(plugin)
-    return result
+    try:
+        _validate_plugin(plugin)
+        _validate_cmb_param_map(plugin)
+    except PluginValidationError:
+        raise
+    except ValueError as exc:
+        raise PluginValidationError(str(exc)) from exc
+    return True
 
 
 __all__ = [

@@ -64,6 +64,8 @@ class PriorParsingTestCase(unittest.TestCase):
         cache_dir = Path(tmp_path).parent
         cache_path = model_parser.parse_model(tmp_path, cache_dir)
         funcs, parsed = model_coder.generate_callables(cache_path)
+        for name in engine_interface.REQUIRED_FUNCTIONS:
+            funcs.setdefault(name, lambda *args, **kwargs: 0.0)
         plugin = engine_interface.build_plugin(parsed, funcs)
         prior_obj = plugin.PARAMETER_PRIOR_OBJECTS[0]
         self.assertIsInstance(prior_obj, prior_mod.LogUniformPrior)
@@ -105,6 +107,8 @@ class PriorParsingTestCase(unittest.TestCase):
         try:
             cache_path = model_parser.parse_model(tmp_path, cache_dir)
             funcs, parsed = model_coder.generate_callables(cache_path)
+            for name in engine_interface.REQUIRED_FUNCTIONS:
+                funcs.setdefault(name, lambda *args, **kwargs: 0.0)
             plugin = engine_interface.build_plugin(parsed, funcs)
             prior_obj = plugin.PARAMETER_PRIOR_OBJECTS[0]
             self.assertIsInstance(prior_obj, prior_mod.FixedPrior)
