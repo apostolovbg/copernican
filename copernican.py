@@ -28,7 +28,6 @@ import os
 import sys
 import platform
 import shutil
-import time
 import datetime
 import subprocess
 import faulthandler
@@ -48,7 +47,6 @@ from copernican_lib.diagnostics import (
 )
 import copernican_lib.version as version_module
 from copernican_lib.plugins import PluginValidationError
-from copernican_lib.stage2_runtime import StageTwoRuntimeTracker
 
 # Verify interpreter version early so users see clear feedback
 MIN_PYTHON = (3, 11)
@@ -810,108 +808,6 @@ def _prompt_stage1_retry(reasons: Iterable[str]) -> bool:
         console.write("Please choose 1 to restart or C to exit.", error=True)
 
 
-def _estimate_sampler_timing(
-    engine_module,
-    lcdm_plugin,
-    alt_model_plugin,
-    plan: Mapping[str, int | None],
-    *,
-    sne_df,
-    bao_df,
-    cmb_df,
-) -> dict[str, Any]:
-    """Return timing estimates for the provided sampler ``plan``."""
-
-    burn_in_target = max(int(plan["burn_in_steps"]), 0)
-    production_target = max(int(plan["n_steps"]), 0)
-    n_walkers = int(plan["n_walkers"])
-    pool_size = plan.get("pool_size")
-
-    # Probe the sampler with a single iteration for each requested phase.  The
-    # previous heuristic scaled trial lengths with the requested totals, but
-    # that often overshot and distorted estimates when operators experimented
-    # with long production chains.  Running precisely one step for burn-in and
-    # one for production captures the ensemble and pool overhead while keeping
-    # the measurement lightweight.
-    trial_burn = 1 if burn_in_target > 0 else 0
-    trial_prod = 1 if production_target > 0 else 0
-
-    def _run_trial(plugin) -> float:
-        start = time.perf_counter()
-        result = engine_module.fit_sne_parameters(
-            sne_df,
-            plugin,
-            bao_data_df=bao_df,
-            cmb_data_df=cmb_df,
-            n_walkers=n_walkers,
-            n_steps=trial_prod,
-            pool_size=pool_size,
-            burn_in_steps=trial_burn,
-            progress_granularity=max(1, min(trial_prod, 5)),
-            display_progress=False,
-        )
-        duration = time.perf_counter() - start
-        if not result.get("success", False):
-            raise RuntimeError(
-                f"Trial sampling for {getattr(plugin, 'MODEL_NAME', 'model')} "
-                "did not succeed; unable to project runtime."
-            )
-        return duration
-
-    lcdm_duration = _run_trial(lcdm_plugin) if (trial_burn or trial_prod) else 0.0
-
-    same_name = (
-        getattr(lcdm_plugin, "MODEL_NAME", "").casefold()
-        == getattr(alt_model_plugin, "MODEL_NAME", "").casefold()
-    )
-    same_file = (
-        getattr(lcdm_plugin, "MODEL_FILENAME", "")
-        == getattr(alt_model_plugin, "MODEL_FILENAME", "")
-    )
-    alt_duration = 0.0
-    if not (same_name and same_file and type(lcdm_plugin) is type(alt_model_plugin)):
-        alt_duration = _run_trial(alt_model_plugin)
-
-    steps_in_trial = trial_burn + trial_prod
-    # When at least one phase was sampled, extrapolate totals using the average
-    # per-step duration.  Otherwise, retain zero-filled estimates so callers can
-    # present a consistent structure even when the operator skips Stage 2.
-    if steps_in_trial:
-        lcdm_per_step = lcdm_duration / steps_in_trial
-        alt_per_step = (
-            alt_duration / steps_in_trial if alt_duration else lcdm_per_step
-        )
-    else:
-        lcdm_per_step = 0.0
-        alt_per_step = 0.0
-
-    def _split_duration(per_step: float) -> tuple[float, float, float]:
-        burn = per_step * burn_in_target
-        prod = per_step * production_target
-        return burn, prod, burn + prod
-
-    lcdm_components = _split_duration(lcdm_per_step)
-    alt_components = _split_duration(alt_per_step)
-
-    return {
-        "lcdm": {
-            "burn_in": lcdm_components[0],
-            "production": lcdm_components[1],
-            "total": lcdm_components[2],
-        },
-        "alt": {
-            "burn_in": alt_components[0],
-            "production": alt_components[1],
-            "total": alt_components[2],
-        },
-        "combined": lcdm_components[2] + alt_components[2],
-        "trial": {
-            "burn_in": trial_burn,
-            "production": trial_prod,
-        },
-    }
-
-
 def _count_active_parameters(plugin, *, engine_module) -> int:
     """Return the number of free parameters declared by ``plugin``.
 
@@ -982,91 +878,6 @@ def prompt_sampling_configuration(
 
     def _format_pool(value: int | None) -> str:
         return str(value) if value is not None else "auto"
-
-    def _handle_time_estimate(plan: Mapping[str, int | None]) -> str:
-        """Return next action after displaying runtime estimates."""
-
-        console.write("")
-        console.write("Calculating live runtime estimate...")
-        try:
-            estimate = _estimate_sampler_timing(
-                engine_module,
-                lcdm_plugin,
-                alt_model_plugin,
-                plan,
-                sne_df=sne_data_df,
-                bao_df=bao_data_df,
-                cmb_df=cmb_data_df,
-            )
-        except Exception as exc:
-            console.write(f"Unable to estimate runtime: {exc}", error=True)
-            console.write("")
-            return "back"
-
-        def _format_duration(seconds: float) -> str:
-            seconds = max(0.0, float(seconds))
-            hours, remainder = divmod(seconds, 3600.0)
-            minutes, secs = divmod(remainder, 60.0)
-            parts: list[str] = []
-            if hours >= 1.0:
-                parts.append(f"{int(hours)}h")
-            if minutes >= 1.0 or hours >= 1.0:
-                parts.append(f"{int(minutes)}m")
-            parts.append(f"{secs:.1f}s")
-            return " ".join(parts)
-
-        console.write("")
-        console.write("Runtime estimate")
-        console.write("----------------")
-        console.write(
-            "Trial sample sizes: "
-            f"burn-in {estimate['trial']['burn_in']} step(s), production "
-            f"{estimate['trial']['production']} step(s)."
-        )
-        console.write("")
-        console.write(
-            f"ΛCDM burn-in ≈ {_format_duration(estimate['lcdm']['burn_in'])}"
-        )
-        console.write(
-            f"ΛCDM production ≈ {_format_duration(estimate['lcdm']['production'])}"
-        )
-        console.write(
-            f"ΛCDM total ≈ {_format_duration(estimate['lcdm']['total'])}"
-        )
-        if estimate["alt"]["total"] <= 1e-6:
-            console.write(
-                "Alternative model reuses the ΛCDM chain; no extra sampling "
-                "time expected."
-            )
-        else:
-            console.write(
-                f"Alternative burn-in ≈ {_format_duration(estimate['alt']['burn_in'])}"
-            )
-            console.write(
-                "Alternative production ≈ "
-                f"{_format_duration(estimate['alt']['production'])}"
-            )
-            console.write(
-                f"Alternative total ≈ {_format_duration(estimate['alt']['total'])}"
-            )
-        console.write(
-            f"Combined sampler time ≈ {_format_duration(estimate['combined'])}"
-        )
-        console.write("")
-        console.write("1) Continue with these settings")
-        console.write("B) Return to the sampler menu")
-        console.write("C) Exit the Copernican Suite")
-        console.write("")
-
-        while True:
-            choice = console.ask("Select an option: ").strip().lower()
-            if choice in {"", "1", "continue"}:
-                return "continue"
-            if choice in {"b", "back"}:
-                return "back"
-            if choice in {"c", "cancel", "exit"}:
-                return "exit"
-            console.write("Please choose 1, B or C.", error=True)
 
     def _collect_custom_plan() -> dict[str, int | None] | str | None:
         """Gather a customised sampler configuration from the operator."""
@@ -1194,9 +1005,6 @@ def prompt_sampling_configuration(
             console.write(
                 "  2) Revisit the questionnaire from the beginning"
             )
-            console.write(
-                "  3) Estimate runtime with these settings"
-            )
             console.write("  B) Back to the sampler defaults summary")
             console.write("  C) Cancel sampler configuration")
             console.write("")
@@ -1214,20 +1022,11 @@ def prompt_sampling_configuration(
                 return None
             if confirm in {"b", "back"}:
                 return "back"
-            if confirm in {"3", "estimate", "e"}:
-                outcome = _handle_time_estimate(current_plan)
-                if outcome == "continue":
-                    return current_plan
-                if outcome == "exit":
-                    return None
-                console.write("")
-                console.write("Returning to the sampler confirmation menu.")
-                continue
             if confirm in {"2", "r", "restart", "n", "no"}:
                 console.write("")
                 console.write("Restarting the sampler questionnaire from step one.")
                 continue
-            console.write("Please choose 1, 2, 3, B or C.", error=True)
+            console.write("Please choose 1, 2, B or C.", error=True)
 
     while True:
         console.write("")
@@ -1250,7 +1049,6 @@ def prompt_sampling_configuration(
         console.write("")
         console.write("1) Run with default settings")
         console.write("2) Change settings")
-        console.write("3) Estimate runtime with default settings")
         console.write("C) Cancel configuration")
         console.write("")
 
@@ -1271,24 +1069,9 @@ def prompt_sampling_configuration(
                 console.write("Returning to default sampler summary.")
                 continue
             return custom_plan
-        if choice == "3":
-            defaults = {
-                "n_steps": recommended_steps,
-                "burn_in_steps": recommended_burn,
-                "n_walkers": recommended_walkers,
-                "pool_size": recommended_pool,
-            }
-            outcome = _handle_time_estimate(defaults)
-            if outcome == "continue":
-                return defaults
-            if outcome == "exit":
-                return None
-            console.write("")
-            console.write("Returning to the sampler defaults summary.")
-            continue
         if choice in {"c", "cancel"}:
             return None
-        console.write("Please choose 1, 2, 3 or C.", error=True)
+        console.write("Please choose 1, 2 or C.", error=True)
 
 
 def cleanup_cache(base_dir):
@@ -1507,7 +1290,6 @@ def main_workflow():
         except Exception:
             exit_clean(1)
         run_start_dt = datetime.datetime.now(datetime.timezone.utc)
-        run_start_pc = time.perf_counter()
         logger.info("")
         logger.info(
             "Using standard CPU (SciPy) computational backend with "
@@ -1744,31 +1526,6 @@ def main_workflow():
         reuse_alt = same_name and lcdm_file == alt_file and (
             type(lcdm) is type(alt_model_plugin)
         )
-        stage_plan: list[tuple[str, str, int]] = []
-        if sampling_burn_in > 0:
-            stage_plan.append((lcdm_name, "burn-in", sampling_burn_in))
-        if sampling_steps > 0:
-            stage_plan.append((lcdm_name, "production", sampling_steps))
-        if not reuse_alt:
-            if sampling_burn_in > 0:
-                stage_plan.append((alt_name, "burn-in", sampling_burn_in))
-            if sampling_steps > 0:
-                stage_plan.append((alt_name, "production", sampling_steps))
-        runtime_tracker = (
-            StageTwoRuntimeTracker(stage_plan)
-            if stage_plan
-            else None
-        )
-
-        def _dispatch_runtime_update(event: Mapping[str, Any]) -> str | None:
-            """Forward sampler metrics to the combined runtime tracker."""
-
-            if runtime_tracker is None:
-                return None
-            return runtime_tracker.update(event)
-
-        lcdm_time = 0.0
-        alt_time = 0.0
         engine_label = getattr(
             cosmo_engine_selected,
             "ENGINE_LABEL",
@@ -1787,8 +1544,9 @@ def main_workflow():
             "samples for analysis."
         )
         console.write(
-            "Each sampler phase announces its start and progress bars fill "
-            "gradually for every batch so lengthy runs remain easy to follow."
+            "Each sampler phase announces its start and the fifty-character "
+            "progress bar fills continuously with per-walker updates for "
+            "every batch so lengthy runs remain easy to follow."
         )
         console.write("")
         if not hasattr(cosmo_engine_selected, "fit_sne_parameters"):
@@ -1809,7 +1567,6 @@ def main_workflow():
         console.write(f"  Worker pool: {pool_label}")
         console.write("  Starting ΛCDM sampler...")
         console.write("")
-        t0 = time.perf_counter()
         lcdm_fit_results = cosmo_engine_selected.fit_sne_parameters(
             sne_data_df,
             lcdm,
@@ -1819,9 +1576,7 @@ def main_workflow():
             n_steps=sampling_steps,
             pool_size=sampling_pool,
             burn_in_steps=sampling_burn_in,
-            progress_listener=_dispatch_runtime_update,
         )
-        lcdm_time += time.perf_counter() - t0
         if reuse_alt:
             logger.info(
                 "Alternative model matches ΛCDM; reusing SNe chain from %s.",
@@ -1842,7 +1597,6 @@ def main_workflow():
             console.write(f"  Worker pool: {pool_label}")
             console.write("  Starting alternative sampler...")
             console.write("")
-            t0 = time.perf_counter()
             alt_model_fit_results = cosmo_engine_selected.fit_sne_parameters(
                 sne_data_df,
                 alt_model_plugin,
@@ -1852,9 +1606,7 @@ def main_workflow():
                 n_steps=sampling_steps,
                 pool_size=sampling_pool,
                 burn_in_steps=sampling_burn_in,
-                progress_listener=_dispatch_runtime_update,
             )
-            alt_time += time.perf_counter() - t0
             console.write(
                 f"Completed alternative sampling for {alt_model_plugin.MODEL_NAME}."
             )
@@ -1987,20 +1739,16 @@ def main_workflow():
 
             return summary
 
-        t0 = time.perf_counter()
         lcdm_bao_summary = run_bao_analysis(
             lcdm,
             lcdm_fit_results,
             z_plot_smooth,
         )
-        lcdm_time += time.perf_counter() - t0
-        t0 = time.perf_counter()
         alt_bao_summary = run_bao_analysis(
             alt_model_plugin,
             alt_model_fit_results,
             z_plot_smooth,
         )
-        alt_time += time.perf_counter() - t0
 
         if (
             np.isfinite(lcdm_bao_summary.get("rs_Mpc", np.nan))
@@ -2104,15 +1852,11 @@ def main_workflow():
 
             return summary
 
-        t0 = time.perf_counter()
         lcdm_cmb_summary = run_cmb_analysis(lcdm, lcdm_fit_results)
-        lcdm_time += time.perf_counter() - t0
-        t0 = time.perf_counter()
         alt_cmb_summary = run_cmb_analysis(
             alt_model_plugin,
             alt_model_fit_results,
         )
-        alt_time += time.perf_counter() - t0
 
         logger.info("\n--- Stage 5: Generating Outputs ---\n")
         logger.info(
@@ -2358,7 +2102,6 @@ def main_workflow():
         )
         console.write("=" * 50 + "\n")
 
-        total_time = time.perf_counter() - run_start_pc
         cpu_model, cpu_freq = _get_cpu_info()
         os_info = platform.platform()
 
@@ -2371,11 +2114,8 @@ def main_workflow():
             f"Run ended on {run_end_dt.strftime('%Y-%m-%d %H:%M:%S')} UTC"
         )
         console.write(
-            f"Run took {lcdm_time:.2f}s for LCDM and {alt_time:.2f}s for "
-            f"{alt_model_plugin.MODEL_NAME}, "
-            f"or {total_time:.2f}s in total, on a system with a {cpu_model} "
-            f"{cpu_freq}, "
-            f"under {os_info}"
+            "System summary: "
+            f"{cpu_model} {cpu_freq} running {os_info}"
         )
 
         run_again = prompt_post_run_action()

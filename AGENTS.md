@@ -84,12 +84,15 @@ indicators and continues to return ``-np.inf`` whenever a proposal falls outside
 declared parameter bounds or yields a non-finite chi-squared so the sampler
 rejects invalid walkers deterministically.
 
-Version 7.5.3 further tightens those projections: the runtime estimator now
-benchmarks exactly one burn-in and production iteration per model before
-extrapolating totals, preserving the accuracy of linear scaling without
-expending extra time on oversized dry runs. When both model plugins resolve to
-the same YAML file the helper reuses the ΛCDM measurement directly instead of
-executing the alternative branch a second time.
+Version 7.6.3 removes the retired runtime estimator entirely. Stage 2 now
+streams per-walker updates into the fifty-character progress bars so operators
+see continuous movement without speculative timing extrapolations. The release
+also reiterates that ArviZ remains a hard dependency:
+convergence diagnostics must succeed for every batch, and provisioning
+fails fast when the package is missing. When both model plugins resolve to the
+same YAML file the helper
+reuses the ΛCDM measurement directly instead of executing the alternative
+branch a second time.
 
 Version 7.1.1 standardises every runtime timestamp on Coordinated
 Universal Time (UTC) so log files, manifests and output directories

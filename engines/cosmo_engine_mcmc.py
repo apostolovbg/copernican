@@ -33,13 +33,25 @@ import logging
 import math
 import multiprocessing as mp
 import textwrap
-import time
 import warnings
-from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Sequence
+
+# ArviZ expects ``scipy.signal.gaussian`` which moved in newer SciPy releases.
+try:  # pragma: no cover - compatibility shim
+    from scipy.signal import gaussian  # type: ignore # noqa: F401
+except Exception:  # pragma: no cover - SciPy layout varies
+    try:
+        import scipy.signal as _signal
+        from scipy.signal.windows import gaussian  # type: ignore # noqa: F401
+
+        _signal.gaussian = gaussian
+    except Exception:  # pragma: no cover
+        pass
 
 import arviz as az
 import emcee
+from emcee import moves
+from emcee.state import State
 import numpy as np
 import pandas as pd
 
@@ -498,30 +510,18 @@ def _reseed_invalid_walkers(
     return coords, log_prob
 
 
-@dataclass(slots=True)
-class _BatchTimingSnapshot:
-    """Describe the timing state for the current batch update."""
-
-    timestamp: float
-    elapsed: float
-    remaining_seconds: float | None
-    speed: float | None
-    completed_steps: int
-    batch_size: int
-
-
 class _BatchProgressBar:
     """Render textual progress bars for sampler batches.
 
     Stage 2 reports sampler progress in fixed-size batches so long runs do
-    not spam the console. This helper draws a bar that fills gradually to
-    100% for each batch, prints an empty line once the batch is complete and
-    then announces the next batch. The spacing mirrors the interactive design
-    brief from the orchestrator so operators can see how far the current
-    batch has advanced before the next update arrives.
+    not spam the console. The bar fills in place beneath the batch heading,
+    mirroring the interactive specification shared with the Stage 2 menu.
+    Every update rewrites the same console line so the animation reads as a
+    single, continuously filling bar without stray carriage returns or
+    trailing timing text.
     """
 
-    _BAR_WIDTH = 28
+    _BAR_WIDTH = 50
 
     def __init__(
         self,
@@ -529,7 +529,6 @@ class _BatchProgressBar:
         total_steps: int,
         *,
         display: bool = True,
-        clock: Callable[[], float] | None = None,
     ) -> None:
         self._stage_label = stage_label
         self._total_steps = max(int(total_steps), 0)
@@ -537,12 +536,10 @@ class _BatchProgressBar:
         self._batch_index = 0
         self._current_start = 1
         self._current_end = 0
+        self._current_span = 0
         self._active = False
         self._last_percent = -1
-        self._clock = clock or time.perf_counter
-        self._batch_started_at: float | None = None
-        self._last_metrics_time: float | None = None
-        self._last_snapshot: _BatchTimingSnapshot | None = None
+        self._last_units = -1
 
     def start_batch(self, batch_start: int, batch_end: int) -> None:
         """Announce a new batch spanning ``batch_start`` to ``batch_end``."""
@@ -553,67 +550,61 @@ class _BatchProgressBar:
         self._batch_index += 1
         self._current_start = int(batch_start)
         self._current_end = int(batch_end)
+        self._current_span = max(self._current_end - self._current_start + 1, 0)
         self._active = True
         self._last_percent = -1
-        self._batch_started_at = self._clock()
-        self._last_metrics_time = None
-        self._last_snapshot = None
+        self._last_units = -1
         span = self._current_end - self._current_start + 1
+        step_word = "step" if span == 1 else "steps"
         console.write(
             f"{self._stage_label} batch {self._batch_index} "
-            f"({span} step(s)) progress:"
+            f"({span} {step_word}) progress:"
         )
 
     def update(
-        self, step_index: int
-    ) -> tuple[str | None, _BatchTimingSnapshot | None]:
-        """Return the rendered progress line and optional timing snapshot."""
+        self,
+        step_index: int,
+        step_progress: float | None = None,
+    ) -> str | None:
+        """Return the rendered progress line for the active batch."""
 
         if not self._active or not self._display:
-            return None, None
-        batch_size = self._current_end - self._current_start + 1
+            return None
+        batch_size = self._current_span
         if batch_size <= 0:
-            return None, None
-        completed = max(0, step_index - self._current_start + 1)
-        completed = min(completed, batch_size)
-        fraction = completed / batch_size
+            return None
+        if step_progress is None:
+            step_progress = 1.0
+        step_progress = float(step_progress)
+        if not math.isfinite(step_progress):
+            step_progress = 1.0
+        step_progress = min(max(step_progress, 0.0), 1.0)
+        completed_before = max(0, step_index - self._current_start)
+        completed_before = min(completed_before, batch_size)
+        fraction = (completed_before + step_progress) / batch_size
+        fraction = min(max(fraction, 0.0), 1.0)
         percent = int(round(fraction * 100))
-        now = self._clock()
-        snapshot = self._compute_snapshot(now, completed, batch_size)
-        metrics_due = snapshot is not None and (
-            self._last_snapshot is None
-            or now - (self._last_metrics_time or 0.0) >= 1.0
-            or completed >= batch_size
-        )
-        emit_snapshot: _BatchTimingSnapshot | None = None
-        if metrics_due and snapshot is not None:
-            self._last_metrics_time = now
-            self._last_snapshot = snapshot
-            emit_snapshot = snapshot
-        elif snapshot is not None and self._last_snapshot is None:
-            self._last_snapshot = snapshot
-            self._last_metrics_time = now
-            emit_snapshot = snapshot
-        if (
-            percent == self._last_percent
-            and completed < batch_size
-            and not metrics_due
-        ):
-            return None, None
-        self._last_percent = percent
         filled = int(round(fraction * self._BAR_WIDTH))
         filled = max(0, min(self._BAR_WIDTH, filled))
+        if filled == self._last_units and percent == self._last_percent:
+            return None
+        self._last_percent = percent
+        self._last_units = filled
         bar = "#" * filled + "-" * (self._BAR_WIDTH - filled)
-        remaining = max(self._current_end - step_index, 0)
+        completed_steps = completed_before + (1 if step_progress >= 1.0 else 0)
+        completed_steps = min(completed_steps, batch_size)
+        remaining = max(batch_size - completed_steps, 0)
+        remaining_word = "step" if remaining == 1 else "steps"
+        progress_word = "step" if batch_size == 1 else "steps"
+        current_step = min(step_index, self._current_end)
         # ``console.write`` flushes after every call, so emitting a carriage
         # return keeps the latest bar on a single line while it fills.
-        timing_text = self._format_timing(self._last_snapshot)
         line = (
             f"\r[{bar}] {percent:>3d}% "
-            f"(batch {completed}/{batch_size}, {remaining} step(s) remaining)"
-            f" | {timing_text}"
+            f"(step {current_step} of {batch_size} {progress_word}, "
+            f"{remaining} {remaining_word} remaining)"
         )
-        return line, emit_snapshot
+        return line
 
     def finish_batch(self) -> None:
         """Close the current batch, inserting required spacing."""
@@ -621,13 +612,11 @@ class _BatchProgressBar:
         if not self._active or not self._display:
             return
         self._active = False
-        if self._last_percent >= 0:
+        if self._last_units >= 0:
             console.write("")
-        console.write("")
         self._last_percent = -1
-        self._batch_started_at = None
-        self._last_snapshot = None
-        self._last_metrics_time = None
+        self._last_units = -1
+        self._current_span = 0
 
     @property
     def batch_index(self) -> int:
@@ -635,60 +624,147 @@ class _BatchProgressBar:
 
         return self._batch_index
 
-    def _compute_snapshot(
-        self,
-        timestamp: float,
-        completed: int,
-        batch_size: int,
-    ) -> _BatchTimingSnapshot | None:
-        """Return the latest timing snapshot for the active batch."""
 
-        if self._batch_started_at is None:
-            return None
-        elapsed = max(timestamp - self._batch_started_at, 0.0)
-        if completed <= 0 and elapsed <= 0.0:
-            return None
-        denom = elapsed if elapsed > 0.0 else None
-        speed = None
-        if denom is not None:
-            speed = completed / denom if completed > 0 else None
-        remaining_steps = batch_size - completed
-        remaining_seconds = None
-        if speed:
-            remaining_seconds = remaining_steps / speed if speed > 0 else None
-        return _BatchTimingSnapshot(
-            timestamp=timestamp,
-            elapsed=elapsed,
-            remaining_seconds=remaining_seconds,
-            speed=speed,
-            completed_steps=completed,
-            batch_size=batch_size,
+class _StepProgressEmitter:
+    """Bridge sampler move callbacks to batch progress updates."""
+
+    __slots__ = ("_progress_bar", "_active_step", "_walker_total")
+
+    def __init__(self, progress_bar: _BatchProgressBar) -> None:
+        self._progress_bar = progress_bar
+        self._active_step: int | None = None
+        self._walker_total = 1
+
+    def start(self, step_index: int, walker_total: int) -> None:
+        """Prepare to track ``step_index`` with ``walker_total`` updates."""
+
+        self._active_step = int(step_index)
+        self._walker_total = max(int(walker_total), 1)
+        line = self._progress_bar.update(step_index, step_progress=0.0)
+        if line:
+            console.write(line, end="")
+
+    def clear(self) -> None:
+        """Disable updates until the next step begins."""
+
+        self._active_step = None
+        self._walker_total = 1
+
+    def __call__(self, processed: int, total: int) -> None:
+        """Forward partial progress updates to the active batch."""
+
+        if self._active_step is None:
+            return
+        effective_total = max(int(total) if total else self._walker_total, 1)
+        fraction = min(max(processed / effective_total, 0.0), 1.0)
+        line = self._progress_bar.update(
+            self._active_step,
+            step_progress=fraction,
         )
-
-    @staticmethod
-    def _format_seconds(value: float | None) -> str:
-        """Format ``value`` seconds as ``HH:MM:SS`` or a placeholder."""
-
-        if value is None or value < 0.0:
-            return "--:--:--"
-        total_seconds = int(round(value))
-        hours, remainder = divmod(total_seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-
-    def _format_timing(self, snapshot: _BatchTimingSnapshot | None) -> str:
-        """Build the textual timing summary for the progress bar line."""
-
-        if snapshot is None:
-            return "elapsed --:--:-- | eta --:--:-- | speed -- step/s"
-        elapsed = self._format_seconds(snapshot.elapsed)
-        eta = self._format_seconds(snapshot.remaining_seconds)
-        speed_text = "speed -- step/s"
-        if snapshot.speed and snapshot.speed > 0.0:
-            speed_text = f"speed {snapshot.speed:.2f} step/s"
-        return f"elapsed {elapsed} | eta {eta} | {speed_text}"
+        if line:
+            console.write(line, end="")
 
 
+class _ReportingStretchMove(moves.StretchMove):
+    """Stretch move variant that emits per-walker progress notifications."""
+
+    def __init__(
+        self,
+        *args: Any,
+        progress_notifier: Callable[[int, int], None] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self._progress_notifier = progress_notifier
+
+    @classmethod
+    def from_existing(
+        cls,
+        move: moves.StretchMove,
+        *,
+        progress_notifier: Callable[[int, int], None] | None = None,
+    ) -> "_ReportingStretchMove":
+        """Clone ``move`` while attaching ``progress_notifier``."""
+
+        new_move = cls(
+            getattr(move, "a", 2.0),
+            nsplits=getattr(move, "nsplits", 2),
+            randomize_split=getattr(move, "randomize_split", True),
+            live_dangerously=getattr(move, "live_dangerously", False),
+            progress_notifier=progress_notifier,
+        )
+        return new_move
+
+    def set_progress_notifier(
+        self, notifier: Callable[[int, int], None] | None
+    ) -> None:
+        """Update the callable receiving per-walker updates."""
+
+        self._progress_notifier = notifier
+
+    def _notify(self, processed: int, total: int) -> None:
+        if self._progress_notifier is None:
+            return
+        try:
+            self._progress_notifier(processed, total)
+        except Exception:  # pragma: no cover - defensive safeguard
+            pass
+
+    def propose(self, model, state):  # type: ignore[override]
+        """Generate proposals while reporting per-walker progress."""
+
+        nwalkers, ndim = state.coords.shape
+        if nwalkers < 2 * ndim and not self.live_dangerously:
+            raise RuntimeError(
+                "It is unadvisable to use a red-blue move "
+                "with fewer walkers than twice the number of dimensions."
+            )
+
+        self.setup(state.coords)
+        accepted = np.zeros(nwalkers, dtype=bool)
+        all_inds = np.arange(nwalkers)
+        inds = all_inds % self.nsplits
+        if self.randomize_split:
+            model.random.shuffle(inds)
+        total_updates = max(nwalkers, 1)
+        processed = 0
+
+        for split in range(self.nsplits):
+            S1 = inds == split
+            sets = [state.coords[inds == j] for j in range(self.nsplits)]
+            s = sets[split]
+            c = sets[:split] + sets[split + 1 :]
+
+            q, factors = self.get_proposal(s, c, model.random)
+            new_log_probs, new_blobs = model.compute_log_prob_fn(q)
+
+            for j, f, nlp in zip(all_inds[S1], factors, new_log_probs):
+                lnpdiff = f + nlp - state.log_prob[j]
+                if lnpdiff > np.log(model.random.rand()):
+                    accepted[j] = True
+                processed += 1
+                self._notify(processed, total_updates)
+
+            new_state = State(q, log_prob=new_log_probs, blobs=new_blobs)
+            state = self.update(state, new_state, accepted, S1)
+
+        return state, accepted
+
+
+def _configure_sampler_progress_reporting(
+    sampler: emcee.EnsembleSampler,
+    notifier: Callable[[int, int], None] | None,
+) -> None:
+    """Ensure sampler moves forward updates to ``notifier`` when available."""
+
+    moves_attr = getattr(sampler, "_moves", [])
+    for index, move in enumerate(moves_attr):
+        if isinstance(move, _ReportingStretchMove):
+            move.set_progress_notifier(notifier)
+        elif isinstance(move, moves.StretchMove):
+            moves_attr[index] = _ReportingStretchMove.from_existing(
+                move, progress_notifier=notifier
+            )
 def _run_stage_with_progress(
     sampler: emcee.EnsembleSampler,
     initial_state: np.ndarray,
@@ -702,8 +778,6 @@ def _run_stage_with_progress(
     ) = None,
     progress_label: str | None = None,
     display_progress: bool = True,
-    progress_listener: Callable[[dict[str, Any]], str | None] | None = None,
-    clock: Callable[[], float] | None = None,
 ):
     """Iterate ``sampler.sample`` while logging percentage progress.
 
@@ -728,40 +802,28 @@ def _run_stage_with_progress(
         label,
         n_steps,
         display=display_progress,
-        clock=clock,
     )
-    interval = max(1, n_steps // progress_granularity)
+    notifier: _StepProgressEmitter | None = None
+    if display_progress:
+        notifier = _StepProgressEmitter(progress_bar)
+    _configure_sampler_progress_reporting(sampler, notifier)
+    if n_steps <= progress_granularity:
+        interval = max(1, n_steps)
+    else:
+        interval = max(1, math.ceil(n_steps / progress_granularity))
     batch_start = 1
     batch_end = min(interval, n_steps)
     progress_bar.start_batch(batch_start, batch_end)
 
     state = None
-    now_fn = clock or time.perf_counter
-    stage_started_at = now_fn()
-    for idx, state in enumerate(
-        sampler.sample(initial_state, iterations=n_steps, progress=False),
-        start=1,
-    ):
-        line, snapshot = progress_bar.update(idx)
-        message: str | None = None
-        if progress_listener is not None and snapshot is not None:
-            stage_elapsed = max(snapshot.timestamp - stage_started_at, 0.0)
-            payload = {
-                "stage": stage_name,
-                "steps_completed": idx,
-                "total_steps": n_steps,
-                "batch_index": progress_bar.batch_index,
-                "batch_completed": snapshot.completed_steps,
-                "batch_size": snapshot.batch_size,
-                "batch_elapsed": snapshot.elapsed,
-                "batch_eta": snapshot.remaining_seconds,
-                "speed": snapshot.speed,
-                "timestamp": snapshot.timestamp,
-                "stage_elapsed": stage_elapsed,
-            }
-            message = progress_listener(payload)
-        if message:
-            console.write(message)
+    iterator = sampler.sample(initial_state, iterations=n_steps, progress=False)
+    for idx in range(1, n_steps + 1):
+        if notifier is not None:
+            notifier.start(idx, sampler.nwalkers)
+        state = next(iterator)
+        if notifier is not None:
+            notifier.clear()
+        line = progress_bar.update(idx, step_progress=1.0)
         if line:
             console.write(line, end="")
         if idx == batch_end and idx < n_steps:
@@ -804,7 +866,6 @@ def fit_sne_parameters(
     progress_granularity: int = 20,
     burn_in_steps: int | None = None,
     display_progress: bool = True,
-    progress_listener: Callable[[dict[str, Any]], str | None] | None = None,
 ) -> dict[str, Any]:
     """Sample cosmological parameters with joint dataset support.
 
@@ -817,8 +878,8 @@ def fit_sne_parameters(
     of the accompanying diagnostics.  When ``pool_size`` is provided the
     walker ensemble expands as needed so every worker process remains busy
     throughout burn-in and production.  ``display_progress`` disables the
-    console progress bar when ``False`` so automated runtime estimations can
-    execute quietly.
+    console progress bar when ``False`` so automated pipelines can execute
+    quietly.
     """
 
     logger = logging.getLogger()
@@ -944,19 +1005,6 @@ def fit_sne_parameters(
     burn_in = max(1, int(burn_in))
     try:
 
-        def _emit_progress(event: dict[str, Any]) -> str | None:
-            """Augment ``event`` with model metadata before forwarding."""
-
-            if progress_listener is None:
-                return None
-            payload = dict(event)
-            payload["model_name"] = getattr(
-                model_plugin,
-                "MODEL_NAME",
-                "Model",
-            )
-            return progress_listener(payload)
-
         sampler = emcee.EnsembleSampler(
             n_walkers,
             ndim_active,
@@ -979,7 +1027,6 @@ def fit_sne_parameters(
             summary_callback=burnin_reporter,
             progress_label=f"{model_plugin.MODEL_NAME} burn-in",
             display_progress=display_progress,
-            progress_listener=_emit_progress,
         )
         try:
             coords, log_prob = _reseed_invalid_walkers(
@@ -1011,7 +1058,6 @@ def fit_sne_parameters(
             summary_callback=production_reporter,
             progress_label=f"{model_plugin.MODEL_NAME} production",
             display_progress=display_progress,
-            progress_listener=_emit_progress,
         )
     finally:
         if pool is not None:

@@ -142,9 +142,24 @@ def _density_levels(
     for level in levels:
         idx = np.searchsorted(cumulative, level, side="left")
         idx = min(idx, order.size - 1)
-        level_values.append(order[idx])
+        level_values.append(float(order[idx]))
+
     level_values.sort()
-    return level_values
+    cleaned_levels: list[float] = []
+    last_value = -np.inf
+    epsilon = np.finfo(float).eps
+    for value in level_values:
+        finite_value = value if np.isfinite(value) else 0.0
+        finite_value = max(finite_value, 0.0)
+        if finite_value <= last_value:
+            finite_value = (
+                np.nextafter(last_value, np.inf)
+                if np.isfinite(last_value)
+                else epsilon
+            )
+        cleaned_levels.append(finite_value)
+        last_value = finite_value
+    return cleaned_levels
 
 
 def _copernican_version() -> str:

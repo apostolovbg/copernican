@@ -13,9 +13,9 @@ that foundation to deliver repeatable analyses.
   surfaces every validation error encountered while loading alternative models
   and leaves a deliberate blank spacer after logging initialisation so the
   console flow stays tidy without repeating legacy "has initialised" banners.
-  Runtime projections now measure exactly one burn-in and production step per
-  model, reducing the estimator's footprint while keeping extrapolations
-  proportional to the requested sampler plan.
+  Version 7.6.3 feeds per-walker progress updates directly into the
+  fifty-character bars so operators see continuous movement without any
+  runtime-estimation overlay.
 * `copernican_lib/` contributes the reusable building blocks—data ingestion,
   posterior construction, validation checks, plotting helpers and diagnostics.
   Engines and parsers import from this package instead of reimplementing
@@ -23,7 +23,9 @@ that foundation to deliver repeatable analyses.
 * `engines/` contains back ends such as the default
   ``cosmo_engine_mcmc.py``.  Engines consume `EnginePlugin` definitions,
   evaluate joint likelihoods spanning SNe Ia, BAO and CMB data and surface
-  ArviZ-powered convergence diagnostics for downstream tooling.
+  ArviZ-powered convergence diagnostics for downstream tooling.  Version 7.6.3
+  reinstates the hard dependency on ArviZ so every run records R-hat and
+  effective sample size summaries.
 * `models/` holds YAML descriptions that declare bounds, priors, transforms and
   dataset compatibility.  Each file is compiled into a picklable
   :class:`copernican_lib.plugins.EnginePlugin` so multiprocessing pools can
@@ -45,10 +47,9 @@ bullet list. ``_prompt_stage1_retry`` then presents a small menu that either
 restarts Stage 1 from the top or exits gracefully, ensuring even multi-part
 errors—such as missing callable hooks and incompatible bounds—are explained at
 the terminal without consulting logs. The sampler questionnaire closes the
-stage: it enumerates recommended defaults, allows a full restart, exposes a
-runtime estimator that times short burn-in and production trials for both ΛCDM
-and the alternative model, and lets the operator continue, return to the
-summary or exit the suite entirely.
+stage: it enumerates recommended defaults, allows a full restart, explains
+how the fifty-character progress bars will animate during Stage 2 and lets
+the operator continue, return to the summary or exit the suite entirely.
 
 Every run produces a timestamped output directory containing plots, NetCDF
 chains and a manifest that records the engine, models, datasets, parameter
@@ -103,14 +104,13 @@ evaluation and shutting down cleanly.  These additions mirror the broader
 Copernican console style so contributors do not have to remember what terse
 single-letter responses stand for.
 
-Version 7.5.0 builds on that foundation by adding a live runtime estimator to
-the sampler menu. The launcher times short trial runs for both the ΛCDM
-reference and the alternative model using the current settings, reports the
-projected burn-in, production and combined durations and lets operators accept
-the plan immediately. Stage 2 console output now announces when burn-in and
-production batches begin and renders a textual progress bar that fills
-gradually for each batch, with blank lines separating batches so long chains
-remain readable.
+Version 7.6.3 finalises the removal of the short-lived runtime estimator from
+the sampler menu. The launcher now focuses solely on presenting the requested
+plan while streaming per-walker progress updates so the fifty-character bar
+fills smoothly beneath each batch heading. Operators can accept, adjust or
+cancel without speculative timing data, and blank lines continue to separate
+batches so long chains remain readable. The release also reiterates the hard
+requirement on ArviZ so convergence summaries never quietly disappear.
 
 Version 7.3.0 routes every Stage 2 run through :mod:`arviz` after sampling so
 the engine records rank-normalised :math:`\hat{R}` values together with bulk
@@ -118,6 +118,9 @@ and tail effective sample sizes.  The diagnostics are logged, saved in the
 engine result dictionary and embedded inside NetCDF exports.  Downstream tools
 and publication scripts therefore consume a single source of truth for
 convergence statistics without repeating calculations.
+The suite now treats ArviZ as a hard dependency.
+Environment provisioning fails fast when the package is missing.
+Every run retains its convergence evidence.
 
 Version 7.2.7 keeps ``tools/update_lock.py`` import-friendly by deferring the
 ``piptools`` availability check until the helper actually attempts to spawn

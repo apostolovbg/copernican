@@ -3,7 +3,6 @@
 **Last Updated:** 2025-11-09
 """
 
-import importlib.util
 import logging
 import math
 import os
@@ -17,14 +16,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-if importlib.util.find_spec("arviz") is not None:
-    from copernican_lib import chain_io
-
-    ARVIZ_AVAILABLE = True
-else:
-    ARVIZ_AVAILABLE = False
+from copernican_lib import chain_io
 from copernican_lib import engine_interface, model_coder, model_parser
-from copernican_lib.stage2_runtime import StageTwoRuntimeTracker
 from copernican_lib.utils import set_random_seed
 from engines import cosmo_engine_mcmc
 from engines.cosmo_engine_mcmc import (
@@ -108,7 +101,6 @@ def _build_short_chain_plugin():
     )
 
 
-@unittest.skipUnless(ARVIZ_AVAILABLE, "arviz not installed")
 class TestMCMCEngine(unittest.TestCase):
     """Verify that the MCMC engine produces chains and NetCDF output."""
 
@@ -617,22 +609,11 @@ class TestAutocorrelationGuard(unittest.TestCase):
 
 
 class BatchProgressBarTestCase(unittest.TestCase):
-    """Exercise the sampler progress bar timing formatter."""
+    """Exercise the sampler progress bar without timing metadata."""
 
-    def test_progress_bar_emits_snapshot_with_one_second_cadence(self):
-        """Snapshots appear after the first step and once per second."""
+    def test_progress_bar_reports_pluralisation_and_width(self) -> None:
+        """Progress lines reflect partial updates and honour the width."""
 
-        class _FakeClock:
-            def __init__(self) -> None:
-                self._value = 0.0
-
-            def advance(self, delta: float) -> None:
-                self._value += float(delta)
-
-            def __call__(self) -> float:
-                return self._value
-
-        fake_clock = _FakeClock()
         captured: list[str] = []
 
         def _capture(
@@ -642,84 +623,39 @@ class BatchProgressBarTestCase(unittest.TestCase):
 
         bar = cosmo_engine_mcmc._BatchProgressBar(
             "Test stage",
-            5,
+            4,
             display=True,
-            clock=fake_clock,
         )
         with mock.patch(
             "engines.cosmo_engine_mcmc.console.write",
             side_effect=_capture,
         ):
-            bar.start_batch(1, 5)
-            fake_clock.advance(1.2)
-            line, snapshot = bar.update(1)
-            self.assertIsNotNone(line)
-            self.assertIsNotNone(snapshot)
-            self.assertAlmostEqual(snapshot.completed_steps, 1)
-            self.assertAlmostEqual(snapshot.elapsed, 1.2, places=2)
-            self.assertGreater(snapshot.speed or 0.0, 0.0)
-            self.assertIn("elapsed 00:00:01", line)
-            fake_clock.advance(0.3)
-            line, snapshot = bar.update(2)
-            self.assertIsNotNone(line)
-            self.assertIsNone(snapshot)
-            self.assertIn("(batch 2/5", line)
-            fake_clock.advance(1.0)
-            line, snapshot = bar.update(3)
-            self.assertIsNotNone(line)
-            self.assertIsNotNone(snapshot)
-            self.assertAlmostEqual(snapshot.completed_steps, 3)
-            self.assertIn("elapsed", line)
+            bar.start_batch(1, 4)
+            initial_line = bar.update(1, step_progress=0.0)
+            self.assertIsInstance(initial_line, str)
+            self.assertIn("  0%", initial_line)
+            half_line = bar.update(1, step_progress=0.5)
+            self.assertIn("step 1 of 4 steps", half_line)
+            self.assertIn("4 steps remaining", half_line)
+            start = half_line.index("[") + 1
+            end = half_line.index("]")
+            inner = half_line[start:end]
+            self.assertEqual(
+                len(inner), cosmo_engine_mcmc._BatchProgressBar._BAR_WIDTH
+            )
+            later_line = bar.update(2, step_progress=0.0)
+            self.assertIn("step 2 of 4 steps", later_line)
+            self.assertIn("3 steps remaining", later_line)
+            near_end = bar.update(3, step_progress=1.0)
+            self.assertIn("1 step remaining", near_end)
+            final_line = bar.update(4, step_progress=1.0)
+            self.assertIn("0 steps remaining", final_line)
             bar.finish_batch()
-        self.assertGreaterEqual(len(captured), 1)
 
-
-class StageTwoRuntimeTrackerTestCase(unittest.TestCase):
-    """Validate the combined Stage 2 runtime estimates."""
-
-    def test_tracker_combines_models_and_throttles_updates(self):
-        """Runtime tracker should throttle updates and sum multiple stages."""
-
-        tracker = StageTwoRuntimeTracker(
-            [
-                ("ΛCDM", "burn-in", 2),
-                ("Alt", "production", 3),
-            ]
+        self.assertTrue(
+            any("Test stage batch 1" in message for message in captured)
         )
-        first = tracker.update(
-            {
-                "model_name": "ΛCDM",
-                "stage": "burn-in",
-                "timestamp": 1.0,
-                "steps_completed": 1,
-                "speed": 0.5,
-            }
-        )
-        self.assertIsNotNone(first)
-        self.assertIn("throughput 0.50 step/s", first)
-        throttled = tracker.update(
-            {
-                "model_name": "ΛCDM",
-                "stage": "burn-in",
-                "timestamp": 1.3,
-                "steps_completed": 2,
-                "speed": 0.5,
-            }
-        )
-        self.assertIsNone(throttled)
-        second = tracker.update(
-            {
-                "model_name": "Alt",
-                "stage": "production",
-                "timestamp": 2.2,
-                "steps_completed": 1,
-                "speed": 0.4,
-            }
-        )
-        self.assertIsNotNone(second)
-        self.assertIn("Stage 2 runtime estimate", second)
-        self.assertIn("remaining 00:00:01", second)
-        self.assertIn("throughput", second)
+        self.assertTrue(any(message == "\n" for message in captured))
 
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation
