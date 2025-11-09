@@ -355,6 +355,7 @@ def _compute_corner_layout(
     line_height = float(
         _CORNER_BASE_LINE_HEIGHT * (1.0 + 0.1 * shrink_penalty)
     )
+    bottom_margin = dynamic_bottom + _CORNER_FOOTER_PADDING
 
     footer_block = footer_line_count * line_height
     base_bottom = _CORNER_BASE_BOTTOM_MARGIN + footer_block
