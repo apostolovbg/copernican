@@ -1,0 +1,542 @@
+2025-11-09 13:35:49,831 - INFO - Logging initialized with UTC timestamps. Log file: output/copernican-run_20251109_133549/copernican-run_20251109_133549.txt
+2025-11-09 13:35:49,831 - INFO - 
+2025-11-09 13:35:49,831 - INFO - Warnings will be logged but not treated as errors
+2025-11-09 13:35:49,879 - INFO - Environment details:
+2025-11-09 13:35:49,882 - INFO -   Python: 3.11.14
+2025-11-09 13:35:49,882 - INFO -   OS: macOS-15.0.1-x86_64-i386-64bit
+2025-11-09 13:35:49,882 - INFO -   CPU: i386
+2025-11-09 13:35:49,882 - INFO -   numpy: 1.26.4
+2025-11-09 13:35:49,882 - INFO -   scipy: 1.12.0
+2025-11-09 13:35:49,882 - INFO -   matplotlib: 3.8.2
+2025-11-09 13:35:49,882 - INFO - Environment summary: Python 3.11.14; macOS-15.0.1-x86_64-i386-64bit; CPU i386; numpy 1.26.4, scipy 1.12.0, matplotlib 3.8.2
+2025-11-09 13:35:49,883 - INFO - 
+2025-11-09 13:35:49,883 - INFO - Using standard CPU (SciPy) computational backend with multiprocessing.
+2025-11-09 13:35:49,883 - INFO - Running from base directory: .
+2025-11-09 13:35:49,883 - INFO - All outputs will be saved to: output/copernican-run_20251109_133549
+2025-11-09 13:35:49,883 - INFO - 
+--- Stage 1: Configuration ---
+
+2025-11-09 13:35:49,883 - INFO - 
+2025-11-09 13:35:49,884 - INFO - Stage 1 – Configuration
+2025-11-09 13:35:49,884 - INFO - -----------------------
+2025-11-09 13:35:49,884 - INFO - We will set the random seed, pick an alternative model and select the computation engine before loading data.
+2025-11-09 13:35:49,884 - INFO - 
+2025-11-09 13:35:49,884 - INFO - 
+2025-11-09 13:35:49,884 - INFO - Random Seed Selection
+2025-11-09 13:35:49,884 - INFO - ---------------------
+2025-11-09 13:35:49,884 - INFO - This seed initialises every random number generator used by Copernican so runs can be repeated exactly.
+2025-11-09 13:35:49,885 - INFO - 
+2025-11-09 13:35:49,885 - INFO - Please choose how to seed the sampler:
+2025-11-09 13:35:49,885 - INFO -   1) Accept the default seed (0)
+2025-11-09 13:35:49,886 - INFO -   2) Enter a custom integer seed
+2025-11-09 13:35:49,886 - INFO -   3) Generate a random seed (uniform in [0, 2^32 - 1])
+2025-11-09 13:35:49,886 - INFO - 
+2025-11-09 14:03:14,956 - INFO - Select an option: 3
+2025-11-09 14:03:14,959 - INFO - Generated random seed 1557704196.
+2025-11-09 14:03:14,964 - INFO - Global RNG seed set to 1557704196
+2025-11-09 14:03:14,966 - INFO - Using RNG seed 1557704196
+2025-11-09 14:03:14,968 - INFO - 
+Available cosmological models:
+2025-11-09 14:03:14,968 - INFO -   1. cosmo_model_cfsc.yml
+2025-11-09 14:03:14,968 - INFO -   2. cosmo_model_cpc.yml
+2025-11-09 14:03:14,969 - INFO -   3. cosmo_model_lcdm.yml
+2025-11-09 14:03:14,969 - INFO -   4. cosmo_model_qauc.yml
+2025-11-09 14:03:14,969 - INFO -   5. cosmo_model_qrsf.yml
+2025-11-09 14:03:14,969 - INFO -   6. cosmo_model_qrsfv2.yml
+2025-11-09 14:03:14,969 - INFO -   7. cosmo_model_qrsfv3.yml
+2025-11-09 14:03:14,969 - INFO -   8. cosmo_model_qrsfv4.yml
+2025-11-09 14:03:14,969 - INFO -   9. cosmo_model_qrsfv5.yml
+2025-11-09 14:03:14,969 - INFO -   10. cosmo_model_usmf2.yml
+2025-11-09 14:03:14,969 - INFO -   11. cosmo_model_usmf4.yml
+2025-11-09 14:03:14,969 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-09 14:03:56,399 - INFO - > 6
+2025-11-09 14:03:56,524 - INFO - Derived distance functions from symbolic Hz_expression in model YAML.
+2025-11-09 14:03:56,535 - INFO - Derived r_s from symbolic rs_expression in model YAML.
+2025-11-09 14:03:56,536 - INFO - Derived distance_modulus_model from luminosity distance.
+2025-11-09 14:03:56,560 - INFO - Loaded YAML model: QRSFv2
+2025-11-09 14:03:56,561 - INFO - 
+Available computation engines:
+2025-11-09 14:03:56,561 - INFO -   1. cosmo_engine_mcmc.py
+2025-11-09 14:03:56,561 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-09 14:03:59,214 - INFO - > 1
+2025-11-09 14:03:59,606 - INFO - 
+Available SNe data sources:
+2025-11-09 14:03:59,606 - INFO -   1. Joint Light-curve Analysis 2014 (Joint SDSS-II and SNLS supernova sample of 740 SNe Ia with distance moduli and full covariance matrix.)
+2025-11-09 14:03:59,606 - INFO -   2. Pantheon+SH0ES 2022 (Combined sample of 1701 Type Ia supernova distance moduli with full statistical and systematic covariance matrix)
+2025-11-09 14:03:59,606 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-09 14:04:04,551 - INFO - > 1
+2025-11-09 14:04:04,551 - INFO - Attempting to load SNe data from 'Joint Light-curve Analysis 2014'
+2025-11-09 14:04:05,182 - INFO - Successfully loaded 740 SNe data points.
+2025-11-09 14:04:05,285 - INFO - SHA256 +footg5.gif: 6d375d2d9a97f897b6bdadf61781d5ad49365a612b0eeda2e27b363e83546b89
+2025-11-09 14:04:05,285 - INFO - SHA256 +footg8.gif: c725331eae86cce9f3b27fc9b3b2476d611b9c0d8c1a760df4c4792a5f9022da
+2025-11-09 14:04:05,285 - INFO - SHA256 ReadMe.txt: 236793155d6572626a56259732b06e4d1141e1ebe5ee2f4ed83253aca403b3f9
+2025-11-09 14:04:05,285 - INFO - SHA256 metadata_jla2014.yml: 699a7435e1f5c014702d1c4b8e98770eef23420be98afd5fa84ff35aa9a891ec
+2025-11-09 14:04:05,285 - INFO - SHA256 tablef1.dat: d9b17b4c704b554d0e3df0b5efed7877e881d2f62c04f968b789a61b3fb80114
+2025-11-09 14:04:05,285 - INFO - SHA256 tablef2.fit: 0db2aeab210523594c07ac7f89edca87c55a76601c51c4a831d338cc32ce3ff4
+2025-11-09 14:04:05,285 - INFO - SHA256 tablef3.dat: 35db10c033fa4bc5326436d957eb732e76fd7a4d6db7c729bc3ce17aeb5de470
+2025-11-09 14:04:05,285 - INFO - SHA256 tablef4.fit: a17a1e29a8ee1631669a4456adf84c27372a33f5448a65971dbdd50eb9a97a67
+2025-11-09 14:04:05,285 - INFO - SHA256 __pycache__/cosmo_parser_jla2014.cpython-311.pyc: b626dc5da7eb63bdadb373e84ac1b81ac035d7a3ff9104db9e98fc4422c943a5
+2025-11-09 14:04:05,286 - INFO - Loaded SNe dataset 'Joint Light-curve Analysis 2014' with 740 rows.
+2025-11-09 14:04:05,286 - INFO - SNe covariance matrix inverted successfully.
+2025-11-09 14:04:05,286 - INFO - 
+Available BAO data sources:
+2025-11-09 14:04:05,286 - INFO -   1. BOSS DR12 BAO Consensus (Consensus BAO distances for three redshift bins providing DM/rs, DH/rs and DV/rs with propagated block-diagonal covariance)
+2025-11-09 14:04:05,286 - INFO -   2. Compound BAO compilation (Compilation of BAO distance measurements without a covariance matrix)
+2025-11-09 14:04:05,286 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-09 14:04:08,518 - INFO - > 1
+2025-11-09 14:04:08,518 - INFO - Attempting to load BAO data from 'BOSS DR12 BAO Consensus'
+2025-11-09 14:04:08,518 - INFO - Loading BOSS DR12 data from /Users/apostolov/Documents/GitHub/copernican/data/bao/bossdr12
+2025-11-09 14:04:08,541 - INFO - BAO covariance condition number: 1.052e+02
+2025-11-09 14:04:08,541 - INFO - Successfully loaded 9 BAO data points.
+2025-11-09 14:04:08,543 - INFO - SHA256 BAO_consensus_covtot_dM_Hz.txt: 05c04829c8edc117870efe809494593a23de6c35547f8b66760a5250804b65cf
+2025-11-09 14:04:08,543 - INFO - SHA256 BAO_consensus_covtot_dV_FAP.txt: cf5b760b34f4335bd90490fcce4540dbac0b0b54e3240544c4af133dd45c8300
+2025-11-09 14:04:08,544 - INFO - SHA256 BAO_consensus_results_dM_Hz.txt: 30e784fa08e7eddb2fdd1ab09411424e67aa9b75df58f4bb330a889c9b9c478e
+2025-11-09 14:04:08,544 - INFO - SHA256 BAO_consensus_results_dV_FAP.txt: e507d65dacedc814892609d2decca9990a954ef5836da79b57c663885fce4ef8
+2025-11-09 14:04:08,544 - INFO - SHA256 metadata_bossdr12.yml: 821022b3851fda917a4c014d88d35da92f303e7295a1d9d6d373eaab541939ef
+2025-11-09 14:04:08,544 - INFO - SHA256 __pycache__/cosmo_parser_bossdr12.cpython-311.pyc: 3a60b77e9f1dbbc5aba7dca9f50cf9cf4f0c8062d1a7d464ce6930f441cb1069
+2025-11-09 14:04:08,544 - INFO - Loaded BAO dataset 'BOSS DR12 BAO Consensus' with 9 rows.
+2025-11-09 14:04:08,544 - INFO - BAO covariance matrix inverted successfully.
+2025-11-09 14:04:08,544 - INFO - BAO covariance condition number: 1.052e+02
+2025-11-09 14:04:08,544 - INFO - 
+Available CMB data sources:
+2025-11-09 14:04:08,544 - INFO -   1. Planck 2018 Lite TT/TE/EE (Temperature and polarization power spectra from the Planck 2018 lite release with full covariance matrix)
+2025-11-09 14:04:08,544 - INFO - Write the number of your preferred choice or 'c' to cancel:
+2025-11-09 14:04:10,406 - INFO - > 1
+2025-11-09 14:04:10,407 - INFO - Attempting to load CMB data from 'Planck 2018 Lite TT/TE/EE'
+2025-11-09 14:04:10,455 - INFO - Successfully loaded 215 CMB data points.
+2025-11-09 14:04:10,465 - INFO - SHA256 c_matrix_plik_v22.dat: ad90378c50bd67841764179c90ae6711fa4317c649966ab2b0712143b31e0a32
+2025-11-09 14:04:10,466 - INFO - SHA256 cl_cmb_plik_v22.dat: dac0d9d493213e77c940a10a968cf0da3c5730bae60e1356c4cd8bcff96377ff
+2025-11-09 14:04:10,466 - INFO - SHA256 metadata_planck2018lite.yml: ec760dece3ddba7da4db1720cc52fd3b8e01e14f6bf2ed60b7d8ecc391f7516c
+2025-11-09 14:04:10,466 - INFO - SHA256 readme_baseline.md: ae6cef6886f2c4381147657fc195bed72742fbe3cc106208200f961af24caa73
+2025-11-09 14:04:10,466 - INFO - SHA256 __pycache__/cosmo_parser_cmb_planck2018lite.cpython-311.pyc: 8ba66ebc3b387f7dbe39050e55b3602353eb00e832f53e1d3b6b0c184e1e1140
+2025-11-09 14:04:10,466 - INFO - Loaded CMB dataset 'Planck 2018 Lite TT/TE/EE' with 215 rows.
+2025-11-09 14:04:10,466 - INFO - CMB covariance matrix inverted successfully.
+2025-11-09 14:04:10,466 - INFO - 
+2025-11-09 14:04:10,466 - INFO - Sampler defaults summary:
+2025-11-09 14:04:10,466 - INFO -   ΛCDM active parameters: 5
+2025-11-09 14:04:10,466 - INFO -   QRSFv2 active parameters: 7
+2025-11-09 14:04:10,466 - INFO -   Minimum walkers per emcee rule: 14
+2025-11-09 14:04:10,466 - INFO -   Recommended production steps: 200
+2025-11-09 14:04:10,466 - INFO -   Recommended burn-in steps: 100
+2025-11-09 14:04:10,466 - INFO -   Recommended walkers: 32
+2025-11-09 14:04:10,467 - INFO -   Recommended pool workers: 4
+2025-11-09 14:04:10,467 - INFO - 
+2025-11-09 14:04:10,467 - INFO - 1) Run with default settings
+2025-11-09 14:04:10,467 - INFO - 2) Change settings
+2025-11-09 14:04:10,467 - INFO - 3) Estimate runtime with default settings
+2025-11-09 14:04:10,467 - INFO - C) Cancel configuration
+2025-11-09 14:04:10,467 - INFO - 
+2025-11-09 14:04:27,418 - INFO - Write the number of choice: 2
+2025-11-09 14:04:27,418 - INFO - 
+2025-11-09 14:04:27,419 - INFO - Production steps control the total sampler iterations.
+2025-11-09 14:04:27,419 - INFO -   Recommended default: 200
+2025-11-09 14:04:30,590 - INFO - Production steps [200]: 5
+2025-11-09 14:04:30,590 - INFO - 
+2025-11-09 14:04:30,590 - INFO - Burn-in steps discard the early samples so the chain can stabilise.
+2025-11-09 14:04:30,590 - INFO -   Recommended warm-up: 100
+2025-11-09 14:04:30,590 - INFO -   A shorter option such as 1 trades certainty for speed.
+2025-11-09 14:04:32,510 - INFO - Burn-in steps [100]: 2
+2025-11-09 14:04:32,510 - INFO - 
+2025-11-09 14:04:32,510 - INFO - Walkers sample the posterior in parallel; more walkers increase convergence confidence.
+2025-11-09 14:04:32,510 - INFO -   Required minimum: 14
+2025-11-09 14:04:32,510 - INFO -   Recommended default: 32
+2025-11-09 14:04:39,166 - INFO - Number of walkers [32]: 14
+2025-11-09 14:04:39,166 - INFO - 
+2025-11-09 14:04:39,166 - INFO - Worker pools accelerate sampling by spreading walkers across processes.
+2025-11-09 14:04:39,166 - INFO -   Recommended pool size: 4 (detected CPUs: 4)
+2025-11-09 14:04:39,166 - INFO -   Enter 0 to disable multiprocessing entirely.
+2025-11-09 14:04:41,614 - INFO - Pool workers [4]: 4
+2025-11-09 14:04:41,614 - INFO - 
+2025-11-09 14:04:41,614 - INFO - Sampling plan summary:
+2025-11-09 14:04:41,614 - INFO -   Production steps: 5
+2025-11-09 14:04:41,614 - INFO -   Burn-in steps: 2
+2025-11-09 14:04:41,614 - INFO -   Walkers: 14
+2025-11-09 14:04:41,614 - INFO -   Pool workers: 4
+2025-11-09 14:04:41,614 - INFO - 
+2025-11-09 14:04:41,614 - INFO - How should we proceed?
+2025-11-09 14:04:41,614 - INFO -   1) Accept this sampler plan and continue
+2025-11-09 14:04:41,614 - INFO -   2) Revisit the questionnaire from the beginning
+2025-11-09 14:04:41,614 - INFO -   3) Estimate runtime with these settings
+2025-11-09 14:04:41,615 - INFO -   B) Back to the sampler defaults summary
+2025-11-09 14:04:41,615 - INFO -   C) Cancel sampler configuration
+2025-11-09 14:04:41,615 - INFO - 
+2025-11-09 14:04:43,798 - INFO - Select an option: 1
+2025-11-09 14:04:43,798 - INFO - Sampler configuration: steps=5, burn-in=2, walkers=14, pool=4
+2025-11-09 14:04:43,798 - INFO - Configured sampler: steps 5, burn-in 2.
+2025-11-09 14:04:43,798 - INFO - Walker ensemble 14, pool 4.
+2025-11-09 14:04:43,992 - INFO - 
+--- Stage 2: Ensemble MCMC sampler ---
+
+2025-11-09 14:04:43,992 - INFO - 
+2025-11-09 14:04:43,993 - INFO - Stage 2 – Ensemble MCMC sampler
+2025-11-09 14:04:43,993 - INFO - ------------------------------
+2025-11-09 14:04:43,993 - INFO - Stage 2 estimates parameters for the ΛCDM reference model and then the selected alternative theory.
+2025-11-09 14:04:43,993 - INFO - Burn-in prepares the chains; production accumulates posterior samples for analysis.
+2025-11-09 14:04:43,993 - INFO - Each sampler phase announces its start and progress bars fill gradually for every batch so lengthy runs remain easy to follow.
+2025-11-09 14:04:43,993 - INFO - 
+2025-11-09 14:04:43,993 - INFO - ΛCDM reference chain
+2025-11-09 14:04:43,993 - INFO -   Burn-in steps: 2
+2025-11-09 14:04:43,993 - INFO -   Production steps: 5
+2025-11-09 14:04:43,993 - INFO -   Walkers: 14
+2025-11-09 14:04:43,993 - INFO -   Worker pool: 4
+2025-11-09 14:04:43,993 - INFO -   Starting ΛCDM sampler...
+2025-11-09 14:04:43,993 - INFO - 
+2025-11-09 14:04:44,008 - INFO - Using 14 walkers for 5 active parameter(s).
+2025-11-09 14:05:12,904 - INFO - Using requested multiprocessing pool with 4 worker(s).
+2025-11-09 14:05:13,008 - INFO - Starting MCMC burn-in stage for 2 steps...
+2025-11-09 14:05:13,009 - INFO - LambdaCDM burn-in batch 1 (1 step(s)) progress:
+2025-11-09 14:06:03,091 - INFO - Stage 2 runtime estimate: elapsed 00:00:00, remaining 00:10:51, total 00:10:51, throughput 0.02 step/s
+2025-11-09 14:06:03,092 - INFO - [############################] 100% (batch 1/1, 0 step(s) remaining) | elapsed 00:00:50 | eta 00:00:00 | speed 0.02 step/s
+2025-11-09 14:06:03,092 - INFO - 
+2025-11-09 14:06:03,092 - INFO - 
+2025-11-09 14:06:03,092 - INFO - LambdaCDM burn-in batch 2 (1 step(s)) progress:
+2025-11-09 14:06:03,092 - INFO - MCMC burn-in progress:  50% (1/2 steps)
+2025-11-09 14:06:03,099 - INFO -     logP μ=-3.365e+04 σ= 7.189e+04 max=-2.902e+03 Δχ²≈-0.000
+2025-11-09 14:06:03,099 - INFO -     H_0: med= 71.48 (-13/+12)
+2025-11-09 14:06:03,100 - INFO -     Omega_m0: med= 0.4251 (-0.089/+0.14)
+2025-11-09 14:06:03,100 - INFO -     Omega_b: med= 0.05533 (-0.01/+0.014)
+2025-11-09 14:06:03,100 - INFO -     Omega_gamma: med= 5.42e-05 (-1.8e-05/+1.4e-05)
+2025-11-09 14:06:03,100 - INFO -     z_rec: med= 1086 (-42/+44)
+2025-11-09 14:06:03,100 - INFO -     Walker[7] snapshot: H_0=58.11, Omega_m0=0.4956, Omega_b=0.0491,
+        Omega_gamma=8.987e-05, z_rec=1163
+2025-11-09 14:06:24,962 - INFO - Stage 2 runtime estimate: elapsed 00:00:22, remaining 00:02:11, total 00:02:33, throughput 0.09 step/s
+2025-11-09 14:06:24,962 - INFO - [############################] 100% (batch 1/1, 0 step(s) remaining) | elapsed 00:00:22 | eta 00:00:00 | speed 0.05 step/s
+2025-11-09 14:06:24,962 - INFO - 
+2025-11-09 14:06:24,962 - INFO - 
+2025-11-09 14:06:24,962 - INFO - MCMC burn-in progress: 100% (2/2 steps)
+2025-11-09 14:06:24,963 - INFO -     logP μ=-1.360e+04 σ= 8.578e+03 max=-2.902e+03 Δχ²≈-0.000
+2025-11-09 14:06:24,963 - INFO -     H_0: med= 71.65 (-14/+4.9)
+2025-11-09 14:06:24,963 - INFO -     Omega_m0: med= 0.4251 (-0.089/+0.097)
+2025-11-09 14:06:24,963 - INFO -     Omega_b: med= 0.05565 (-0.011/+0.014)
+2025-11-09 14:06:24,964 - INFO -     Omega_gamma: med= 5.45e-05 (-1.9e-05/+1.2e-05)
+2025-11-09 14:06:24,964 - INFO -     z_rec: med= 1086 (-42/+14)
+2025-11-09 14:06:24,964 - INFO - Completed MCMC burn-in stage.
+2025-11-09 14:06:24,964 - INFO - Starting MCMC production stage for 5 steps...
+2025-11-09 14:06:24,964 - INFO - LambdaCDM production batch 1 (1 step(s)) progress:
+2025-11-09 14:07:01,964 - INFO - Stage 2 runtime estimate: elapsed 00:00:59, remaining 00:03:36, total 00:04:35, throughput 0.05 step/s
+2025-11-09 14:07:01,964 - INFO - [############################] 100% (batch 1/1, 0 step(s) remaining) | elapsed 00:00:37 | eta 00:00:00 | speed 0.03 step/s
+2025-11-09 14:07:01,964 - INFO - 
+2025-11-09 14:07:01,964 - INFO - 
+2025-11-09 14:07:01,964 - INFO - LambdaCDM production batch 2 (1 step(s)) progress:
+2025-11-09 14:07:01,964 - INFO - MCMC production progress:  20% (1/5 steps)
+2025-11-09 14:07:01,965 - INFO -     logP μ=-1.252e+04 σ= 8.534e+03 max=-2.902e+03 Δχ²≈-0.000
+2025-11-09 14:07:01,965 - INFO -     H_0: med= 68.98 (-11/+7.2)
+2025-11-09 14:07:01,965 - INFO -     Omega_m0: med= 0.4237 (-0.088/+0.097)
+2025-11-09 14:07:01,965 - INFO -     Omega_b: med= 0.05073 (-0.01/+0.019)
+2025-11-09 14:07:01,965 - INFO -     Omega_gamma: med= 5.412e-05 (-1.8e-05/+1e-05)
+2025-11-09 14:07:01,966 - INFO -     z_rec: med= 1086 (-28/+44)
+2025-11-09 14:07:01,966 - INFO -     Walker[7] snapshot: H_0=58.11, Omega_m0=0.4956, Omega_b=0.0491,
+        Omega_gamma=8.987e-05, z_rec=1163
+2025-11-09 14:07:18,038 - INFO - Stage 2 runtime estimate: elapsed 00:01:15, remaining 00:03:07, total 00:04:22, throughput 0.05 step/s
+2025-11-09 14:07:18,038 - INFO - [############################] 100% (batch 1/1, 0 step(s) remaining) | elapsed 00:00:16 | eta 00:00:00 | speed 0.06 step/s
+2025-11-09 14:07:18,038 - INFO - 
+2025-11-09 14:07:18,038 - INFO - 
+2025-11-09 14:07:18,038 - INFO - LambdaCDM production batch 3 (1 step(s)) progress:
+2025-11-09 14:07:18,038 - INFO - MCMC production progress:  40% (2/5 steps)
+2025-11-09 14:07:18,039 - INFO -     logP μ=-1.134e+04 σ= 8.496e+03 max=-1.405e+03 Δχ²≈-2992.612
+2025-11-09 14:07:18,039 - INFO -     H_0: med= 68.82 (-11/+6)
+2025-11-09 14:07:18,039 - INFO -     Omega_m0: med= 0.42 (-0.08/+0.1)
+2025-11-09 14:07:18,039 - INFO -     Omega_b: med= 0.05073 (-0.011/+0.019)
+2025-11-09 14:07:18,039 - INFO -     Omega_gamma: med= 5.743e-05 (-2.1e-05/+1.4e-05)
+2025-11-09 14:07:18,039 - INFO -     z_rec: med= 1082 (-33/+48)
+2025-11-09 14:07:36,419 - INFO - Stage 2 runtime estimate: elapsed 00:01:33, remaining 00:02:48, total 00:04:21, throughput 0.05 step/s
+2025-11-09 14:07:36,422 - INFO - [############################] 100% (batch 1/1, 0 step(s) remaining) | elapsed 00:00:18 | eta 00:00:00 | speed 0.05 step/s
+2025-11-09 14:07:36,422 - INFO - 
+2025-11-09 14:07:36,422 - INFO - 
+2025-11-09 14:07:36,422 - INFO - LambdaCDM production batch 4 (1 step(s)) progress:
+2025-11-09 14:07:36,422 - INFO - MCMC production progress:  60% (3/5 steps)
+2025-11-09 14:07:36,423 - INFO -     logP μ=-9.908e+03 σ= 8.766e+03 max=-1.405e+03 Δχ²≈-2992.612
+2025-11-09 14:07:36,423 - INFO -     H_0: med= 68.82 (-10/+5.9)
+2025-11-09 14:07:36,423 - INFO -     Omega_m0: med= 0.42 (-0.076/+0.1)
+2025-11-09 14:07:36,423 - INFO -     Omega_b: med= 0.05317 (-0.0092/+0.0074)
+2025-11-09 14:07:36,423 - INFO -     Omega_gamma: med= 5.999e-05 (-2.4e-05/+5.8e-06)
+2025-11-09 14:07:36,423 - INFO -     z_rec: med= 1078 (-29/+52)
+2025-11-09 14:07:54,045 - INFO - Stage 2 runtime estimate: elapsed 00:01:51, remaining 00:02:28, total 00:04:19, throughput 0.05 step/s
+2025-11-09 14:07:54,045 - INFO - [############################] 100% (batch 1/1, 0 step(s) remaining) | elapsed 00:00:18 | eta 00:00:00 | speed 0.06 step/s
+2025-11-09 14:07:54,045 - INFO - 
+2025-11-09 14:07:54,045 - INFO - 
+2025-11-09 14:07:54,045 - INFO - LambdaCDM production batch 5 (1 step(s)) progress:
+2025-11-09 14:07:54,045 - INFO - MCMC production progress:  80% (4/5 steps)
+2025-11-09 14:07:54,046 - INFO -     logP μ=-9.254e+03 σ= 8.511e+03 max=-1.405e+03 Δχ²≈-2992.612
+2025-11-09 14:07:54,046 - INFO -     H_0: med= 66.78 (-8.4/+7.8)
+2025-11-09 14:07:54,046 - INFO -     Omega_m0: med= 0.4198 (-0.077/+0.11)
+2025-11-09 14:07:54,046 - INFO -     Omega_b: med= 0.05101 (-0.0067/+0.017)
+2025-11-09 14:07:54,046 - INFO -     Omega_gamma: med= 5.999e-05 (-2.2e-05/+1.1e-05)
+2025-11-09 14:07:54,046 - INFO -     z_rec: med= 1078 (-32/+49)
+2025-11-09 14:08:17,733 - INFO - Stage 2 runtime estimate: elapsed 00:02:15, remaining 00:02:15, total 00:04:29, throughput 0.05 step/s
+2025-11-09 14:08:17,736 - INFO - [############################] 100% (batch 1/1, 0 step(s) remaining) | elapsed 00:00:24 | eta 00:00:00 | speed 0.04 step/s
+2025-11-09 14:08:17,736 - INFO - 
+2025-11-09 14:08:17,736 - INFO - 
+2025-11-09 14:08:17,736 - INFO - MCMC production progress: 100% (5/5 steps)
+2025-11-09 14:08:17,737 - INFO -     logP μ=-8.519e+03 σ= 6.605e+03 max=-1.405e+03 Δχ²≈-2992.612
+2025-11-09 14:08:17,737 - INFO -     H_0: med= 66.78 (-8.8/+7.8)
+2025-11-09 14:08:17,737 - INFO -     Omega_m0: med= 0.415 (-0.072/+0.12)
+2025-11-09 14:08:17,737 - INFO -     Omega_b: med= 0.04966 (-0.0053/+0.018)
+2025-11-09 14:08:17,737 - INFO -     Omega_gamma: med= 5.999e-05 (-1.6e-05/+1.1e-05)
+2025-11-09 14:08:17,737 - INFO -     z_rec: med= 1074 (-27/+53)
+2025-11-09 14:08:17,737 - INFO -     Walker[11] snapshot: H_0=61.73, Omega_m0=0.4103, Omega_b=0.05398,
+        Omega_gamma=6.014e-05, z_rec=1047
+2025-11-09 14:08:17,737 - INFO - Completed MCMC production stage.
+2025-11-09 14:08:20,349 - INFO - Rank-normalised R-hat summary: min=4.338 median=6.780 max=11.703
+2025-11-09 14:08:20,349 - INFO - Effective sample sizes: bulk median=97.9 tail median=97.9
+2025-11-09 14:08:20,349 - INFO - MCMC acceptance for LambdaCDM: mean=0.329, min=0.000, max=0.800
+2025-11-09 14:08:20,351 - INFO - 
+2025-11-09 14:08:20,351 - INFO - Alternative model: QRSFv2
+2025-11-09 14:08:20,351 - INFO -   Burn-in steps: 2
+2025-11-09 14:08:20,351 - INFO -   Production steps: 5
+2025-11-09 14:08:20,351 - INFO -   Walkers: 14
+2025-11-09 14:08:20,351 - INFO -   Worker pool: 4
+2025-11-09 14:08:20,351 - INFO -   Starting alternative sampler...
+2025-11-09 14:08:20,351 - INFO - 
+2025-11-09 14:08:20,352 - INFO - Treating 3 parameter(s) as fixed or numerically locked: Omega_gamma, z_rec, c_light
+2025-11-09 14:08:20,352 - INFO - Using 14 walkers for 7 active parameter(s).
+2025-11-09 14:09:04,960 - INFO - Using requested multiprocessing pool with 4 worker(s).
+2025-11-09 14:09:04,989 - INFO - Starting MCMC burn-in stage for 2 steps...
+2025-11-09 14:09:04,991 - INFO - QRSFv2 burn-in batch 1 (1 step(s)) progress:
+2025-11-09 14:10:15,209 - INFO - Stage 2 runtime estimate: elapsed 00:04:12, remaining 00:03:09, total 00:07:21, throughput 0.03 step/s
+2025-11-09 14:10:15,209 - INFO - [############################] 100% (batch 1/1, 0 step(s) remaining) | elapsed 00:01:10 | eta 00:00:00 | speed 0.01 step/s
+2025-11-09 14:10:15,209 - INFO - 
+2025-11-09 14:10:15,209 - INFO - 
+2025-11-09 14:10:15,209 - INFO - QRSFv2 burn-in batch 2 (1 step(s)) progress:
+2025-11-09 14:10:15,209 - INFO - MCMC burn-in progress:  50% (1/2 steps)
+2025-11-09 14:10:15,210 - INFO -     logP μ=-4.957e+05 σ= 1.461e+05 max=-3.441e+05 Δχ²≈-0.000
+2025-11-09 14:10:15,211 - INFO -     H_star: med= 69.13 (-8.2/+9.1)
+2025-11-09 14:10:15,211 - INFO -     Omega_b: med= 0.05708 (-0.0075/+0.011)
+2025-11-09 14:10:15,211 - INFO -     Omega_gamma: med= 5.38e-05 (-0/+0)
+2025-11-09 14:10:15,211 - INFO -     A_coh: med= 2.259 (-1.2/+0.33)
+2025-11-09 14:10:15,211 - INFO -     sigma_coh: med= 11.08 (-3.9/+2)
+2025-11-09 14:10:15,211 - INFO -     z_coh: med= 11.36 (-9.2/+7.5)
+2025-11-09 14:10:15,211 - INFO -     eta_tail: med= 1.209 (-0.67/+0.77)
+2025-11-09 14:10:15,211 - INFO -     nu_tail: med= 1.982 (-0.89/+0.35)
+2025-11-09 14:10:15,211 - INFO -     z_rec: med= 1089 (-0/+0)
+2025-11-09 14:10:15,211 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-09 14:10:15,211 - INFO -     Walker[1] snapshot: H_star=78.34, Omega_b=0.05816,
+        Omega_gamma=5.38e-05, A_coh=0.2335, sigma_coh=4.725,
+        z_coh=1.637, eta_tail=1.268, nu_tail=1.846, z_rec=1089,
+        c_light=2.998e+05
+2025-11-09 14:10:43,719 - INFO - Stage 2 runtime estimate: elapsed 00:04:41, remaining 00:02:36, total 00:07:17, throughput 0.03 step/s
+2025-11-09 14:10:43,719 - INFO - [############################] 100% (batch 1/1, 0 step(s) remaining) | elapsed 00:00:29 | eta 00:00:00 | speed 0.04 step/s
+2025-11-09 14:10:43,719 - INFO - 
+2025-11-09 14:10:43,719 - INFO - 
+2025-11-09 14:10:43,719 - INFO - MCMC burn-in progress: 100% (2/2 steps)
+2025-11-09 14:10:43,720 - INFO -     logP μ=-4.700e+05 σ= 1.325e+05 max=-3.441e+05 Δχ²≈-0.000
+2025-11-09 14:10:43,720 - INFO -     H_star: med= 69.94 (-8/+8.3)
+2025-11-09 14:10:43,720 - INFO -     Omega_b: med= 0.05708 (-0.0068/+0.01)
+2025-11-09 14:10:43,720 - INFO -     Omega_gamma: med= 5.38e-05 (-0/+0)
+2025-11-09 14:10:43,720 - INFO -     A_coh: med= 2.035 (-1/+0.55)
+2025-11-09 14:10:43,720 - INFO -     sigma_coh: med= 11 (-3.6/+2.4)
+2025-11-09 14:10:43,720 - INFO -     z_coh: med= 9.261 (-6.3/+9.6)
+2025-11-09 14:10:43,720 - INFO -     eta_tail: med= 1.241 (-0.69/+0.57)
+2025-11-09 14:10:43,720 - INFO -     nu_tail: med= 1.895 (-0.89/+0.38)
+2025-11-09 14:10:43,720 - INFO -     z_rec: med= 1089 (-0/+0)
+2025-11-09 14:10:43,721 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-09 14:10:43,721 - INFO - Completed MCMC burn-in stage.
+2025-11-09 14:10:43,721 - INFO - Starting MCMC production stage for 5 steps...
+2025-11-09 14:10:43,721 - INFO - QRSFv2 production batch 1 (1 step(s)) progress:
+2025-11-09 14:11:52,630 - INFO - Stage 2 runtime estimate: elapsed 00:05:50, remaining 00:02:20, total 00:08:09, throughput 0.03 step/s
+2025-11-09 14:11:52,630 - INFO - [############################] 100% (batch 1/1, 0 step(s) remaining) | elapsed 00:01:09 | eta 00:00:00 | speed 0.01 step/s
+2025-11-09 14:11:52,630 - INFO - 
+2025-11-09 14:11:52,630 - INFO - 
+2025-11-09 14:11:52,630 - INFO - QRSFv2 production batch 2 (1 step(s)) progress:
+2025-11-09 14:11:52,630 - INFO - MCMC production progress:  20% (1/5 steps)
+2025-11-09 14:11:52,631 - INFO -     logP μ=-4.506e+05 σ= 9.118e+04 max=-3.441e+05 Δχ²≈-0.000
+2025-11-09 14:11:52,631 - INFO -     H_star: med= 69.94 (-7.9/+8.3)
+2025-11-09 14:11:52,631 - INFO -     Omega_b: med= 0.05708 (-0.0068/+0.011)
+2025-11-09 14:11:52,632 - INFO -     Omega_gamma: med= 5.38e-05 (-0/+0)
+2025-11-09 14:11:52,632 - INFO -     A_coh: med= 2.089 (-1.1/+0.49)
+2025-11-09 14:11:52,632 - INFO -     sigma_coh: med= 10.44 (-3.2/+2.5)
+2025-11-09 14:11:52,632 - INFO -     z_coh: med= 9.261 (-7.1/+7.5)
+2025-11-09 14:11:52,632 - INFO -     eta_tail: med= 1.201 (-0.65/+0.63)
+2025-11-09 14:11:52,632 - INFO -     nu_tail: med= 1.926 (-0.92/+0.31)
+2025-11-09 14:11:52,632 - INFO -     z_rec: med= 1089 (-0/+0)
+2025-11-09 14:11:52,632 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-09 14:11:52,632 - INFO -     Walker[1] snapshot: H_star=78.34, Omega_b=0.05816,
+        Omega_gamma=5.38e-05, A_coh=0.2335, sigma_coh=4.725,
+        z_coh=1.637, eta_tail=1.268, nu_tail=1.846, z_rec=1089,
+        c_light=2.998e+05
+2025-11-09 14:12:14,408 - INFO - Stage 2 runtime estimate: elapsed 00:06:11, remaining 00:01:41, total 00:07:53, throughput 0.03 step/s
+2025-11-09 14:12:14,408 - INFO - [############################] 100% (batch 1/1, 0 step(s) remaining) | elapsed 00:00:22 | eta 00:00:00 | speed 0.05 step/s
+2025-11-09 14:12:14,408 - INFO - 
+2025-11-09 14:12:14,408 - INFO - 
+2025-11-09 14:12:14,408 - INFO - QRSFv2 production batch 3 (1 step(s)) progress:
+2025-11-09 14:12:14,408 - INFO - MCMC production progress:  40% (2/5 steps)
+2025-11-09 14:12:14,409 - INFO -     logP μ=-4.430e+05 σ= 8.987e+04 max=-3.383e+05 Δχ²≈-11582.456
+2025-11-09 14:12:14,410 - INFO -     H_star: med= 70.64 (-7.2/+7.5)
+2025-11-09 14:12:14,410 - INFO -     Omega_b: med= 0.05713 (-0.0072/+0.01)
+2025-11-09 14:12:14,410 - INFO -     Omega_gamma: med= 5.38e-05 (-0/+0)
+2025-11-09 14:12:14,410 - INFO -     A_coh: med= 2.089 (-1.1/+0.49)
+2025-11-09 14:12:14,410 - INFO -     sigma_coh: med= 10.36 (-3.1/+2.9)
+2025-11-09 14:12:14,410 - INFO -     z_coh: med= 9.215 (-7.8/+7.5)
+2025-11-09 14:12:14,410 - INFO -     eta_tail: med= 1.22 (-0.67/+0.61)
+2025-11-09 14:12:14,410 - INFO -     nu_tail: med= 1.926 (-1/+0.38)
+2025-11-09 14:12:14,410 - INFO -     z_rec: med= 1089 (-0/+0)
+2025-11-09 14:12:14,410 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-09 14:12:43,220 - INFO - Stage 2 runtime estimate: elapsed 00:06:40, remaining 00:01:07, total 00:07:47, throughput 0.03 step/s
+2025-11-09 14:12:43,220 - INFO - [############################] 100% (batch 1/1, 0 step(s) remaining) | elapsed 00:00:29 | eta 00:00:00 | speed 0.03 step/s
+2025-11-09 14:12:43,220 - INFO - 
+2025-11-09 14:12:43,220 - INFO - 
+2025-11-09 14:12:43,221 - INFO - QRSFv2 production batch 4 (1 step(s)) progress:
+2025-11-09 14:12:43,221 - INFO - MCMC production progress:  60% (3/5 steps)
+2025-11-09 14:12:43,222 - INFO -     logP μ=-4.331e+05 σ= 8.072e+04 max=-3.383e+05 Δχ²≈-11582.456
+2025-11-09 14:12:43,222 - INFO -     H_star: med= 72.74 (-9.3/+5.4)
+2025-11-09 14:12:43,222 - INFO -     Omega_b: med= 0.05609 (-0.0061/+0.0089)
+2025-11-09 14:12:43,222 - INFO -     Omega_gamma: med= 5.38e-05 (-0/+0)
+2025-11-09 14:12:43,222 - INFO -     A_coh: med= 2.059 (-1.1/+0.52)
+2025-11-09 14:12:43,222 - INFO -     sigma_coh: med= 10.05 (-2.8/+3.2)
+2025-11-09 14:12:43,222 - INFO -     z_coh: med= 8.953 (-7.5/+7.4)
+2025-11-09 14:12:43,222 - INFO -     eta_tail: med= 1.285 (-0.73/+0.42)
+2025-11-09 14:12:43,222 - INFO -     nu_tail: med= 1.895 (-0.97/+0.12)
+2025-11-09 14:12:43,222 - INFO -     z_rec: med= 1089 (-0/+0)
+2025-11-09 14:12:43,222 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-09 14:13:11,529 - INFO - Stage 2 runtime estimate: elapsed 00:07:08, remaining 00:00:33, total 00:07:41, throughput 0.03 step/s
+2025-11-09 14:13:11,529 - INFO - [############################] 100% (batch 1/1, 0 step(s) remaining) | elapsed 00:00:28 | eta 00:00:00 | speed 0.04 step/s
+2025-11-09 14:13:11,529 - INFO - 
+2025-11-09 14:13:11,529 - INFO - 
+2025-11-09 14:13:11,529 - INFO - QRSFv2 production batch 5 (1 step(s)) progress:
+2025-11-09 14:13:11,529 - INFO - MCMC production progress:  80% (4/5 steps)
+2025-11-09 14:13:11,530 - INFO -     logP μ=-4.325e+05 σ= 8.046e+04 max=-3.383e+05 Δχ²≈-11582.456
+2025-11-09 14:13:11,530 - INFO -     H_star: med= 72.74 (-9.3/+5.4)
+2025-11-09 14:13:11,530 - INFO -     Omega_b: med= 0.05609 (-0.0061/+0.0089)
+2025-11-09 14:13:11,530 - INFO -     Omega_gamma: med= 5.38e-05 (-0/+0)
+2025-11-09 14:13:11,530 - INFO -     A_coh: med= 2.059 (-1.1/+0.53)
+2025-11-09 14:13:11,531 - INFO -     sigma_coh: med= 10.05 (-2.8/+3.3)
+2025-11-09 14:13:11,531 - INFO -     z_coh: med= 8.867 (-7.5/+8.2)
+2025-11-09 14:13:11,531 - INFO -     eta_tail: med= 1.285 (-0.68/+0.42)
+2025-11-09 14:13:11,531 - INFO -     nu_tail: med= 1.895 (-0.97/+0.11)
+2025-11-09 14:13:11,531 - INFO -     z_rec: med= 1089 (-0/+0)
+2025-11-09 14:13:11,531 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-09 14:13:48,561 - INFO - Stage 2 runtime estimate: elapsed 00:07:45, remaining 00:00:00, total 00:07:45, throughput 0.03 step/s
+2025-11-09 14:13:48,561 - INFO - [############################] 100% (batch 1/1, 0 step(s) remaining) | elapsed 00:00:37 | eta 00:00:00 | speed 0.03 step/s
+2025-11-09 14:13:48,561 - INFO - 
+2025-11-09 14:13:48,561 - INFO - 
+2025-11-09 14:13:48,561 - INFO - MCMC production progress: 100% (5/5 steps)
+2025-11-09 14:13:48,562 - INFO -     logP μ=-4.201e+05 σ= 7.257e+04 max=-3.383e+05 Δχ²≈-11582.456
+2025-11-09 14:13:48,562 - INFO -     H_star: med= 73.47 (-9.8/+8)
+2025-11-09 14:13:48,562 - INFO -     Omega_b: med= 0.05448 (-0.0044/+0.011)
+2025-11-09 14:13:48,562 - INFO -     Omega_gamma: med= 5.38e-05 (-0/+0)
+2025-11-09 14:13:48,562 - INFO -     A_coh: med= 2.059 (-1.3/+0.53)
+2025-11-09 14:13:48,562 - INFO -     sigma_coh: med= 10.05 (-1.4/+3.3)
+2025-11-09 14:13:48,563 - INFO -     z_coh: med= 8.808 (-7.4/+8.2)
+2025-11-09 14:13:48,563 - INFO -     eta_tail: med= 1.286 (-0.45/+0.42)
+2025-11-09 14:13:48,563 - INFO -     nu_tail: med= 1.891 (-0.97/+0.11)
+2025-11-09 14:13:48,563 - INFO -     z_rec: med= 1089 (-0/+0)
+2025-11-09 14:13:48,563 - INFO -     c_light: med= 2.998e+05 (-0/+0)
+2025-11-09 14:13:48,563 - INFO -     Walker[12] snapshot: H_star=82.52, Omega_b=0.04996,
+        Omega_gamma=5.38e-05, A_coh=0.4543, sigma_coh=14.17,
+        z_coh=1.286, eta_tail=0.9236, nu_tail=0.6525, z_rec=1089,
+        c_light=2.998e+05
+2025-11-09 14:13:48,563 - INFO - Completed MCMC production stage.
+2025-11-09 14:13:52,086 - WARNING - /Users/apostolov/Documents/GitHub/copernican/.venv/lib/python3.11/site-packages/arviz/stats/diagnostics.py:592: RuntimeWarning: invalid value encountered in scalar divide
+2025-11-09 14:13:52,104 - INFO - Rank-normalised R-hat summary: min=nan median=nan max=nan
+2025-11-09 14:13:52,105 - INFO - Effective sample sizes: bulk median=97.9 tail median=97.9
+2025-11-09 14:13:52,105 - INFO - MCMC acceptance for QRSFv2: mean=0.243, min=0.000, max=0.400
+2025-11-09 14:13:52,105 - INFO - Completed alternative sampling for QRSFv2.
+2025-11-09 14:13:52,105 - INFO - 
+2025-11-09 14:13:52,105 - INFO - Stage 2 sampling complete.
+2025-11-09 14:13:52,105 - INFO - 
+2025-11-09 14:13:52,112 - INFO - 
+--- Stage 3: BAO Analysis ---
+
+2025-11-09 14:13:52,114 - INFO - Calculating BAO observables for LambdaCDM with parameters: [61.73, 0.4103, 0.05398, 6.014e-05, 1047]
+2025-11-09 14:13:52,117 - INFO - Successfully calculated r_s for LambdaCDM: 164.966 Mpc
+2025-11-09 14:13:52,131 - INFO - LambdaCDM BAO residual RMS=1.1, max=2.19, median=-0.796 (N=9)
+2025-11-09 14:13:52,132 - INFO -     DH_over_rs: rms=1.66, max=2.19, median=-1.51 (N=3)
+2025-11-09 14:13:52,132 - INFO -     DM_over_rs: rms=0.651, max=0.869, median=-0.636 (N=3)
+2025-11-09 14:13:52,132 - INFO -     DV_over_rs: rms=0.676, max=0.796, median=-0.688 (N=3)
+2025-11-09 14:13:52,132 - INFO - LambdaCDM BAO: r_s = 164.97 Mpc, χ²_BAO = 179.12
+2025-11-09 14:13:52,132 - INFO - Calculating BAO observables for QRSFv2 with parameters: [82.52, 0.04996, 5.38e-05, 0.4543, 14.17, 1.286, 0.9236, 0.6525, 1089, 2.998e+05]
+2025-11-09 14:13:52,135 - INFO - Successfully calculated r_s for QRSFv2: 195.651 Mpc
+2025-11-09 14:13:52,140 - INFO - QRSFv2 BAO residual RMS=4.76, max=5.99, median=+4.64 (N=9)
+2025-11-09 14:13:52,140 - INFO -     DH_over_rs: rms=5.27, max=5.99, median=+5.11 (N=3)
+2025-11-09 14:13:52,140 - INFO -     DM_over_rs: rms=4.9, max=5.35, median=+4.97 (N=3)
+2025-11-09 14:13:52,140 - INFO -     DV_over_rs: rms=4.03, max=4.39, median=+4.09 (N=3)
+2025-11-09 14:13:52,140 - INFO - QRSFv2 BAO: r_s = 195.65 Mpc, χ²_BAO = 1437.76
+2025-11-09 14:13:52,140 - INFO - QRSFv2 r_s offset relative to LambdaCDM: +30.685 Mpc
+2025-11-09 14:13:52,140 - INFO - 
+--- Stage 4: CMB Analysis ---
+
+2025-11-09 14:13:53,216 - INFO - LambdaCDM CMB TT rms=158, max=630, median=+32.2 (N=215)
+2025-11-09 14:13:53,217 - INFO - LambdaCDM CMB TE rms=6.51, max=19.7, median=+1.66 (N=199)
+2025-11-09 14:13:53,217 - INFO - LambdaCDM CMB EE rms=7.6, max=53.8, median=+0.204 (N=199)
+2025-11-09 14:13:53,217 - INFO - LambdaCDM CMB χ² = 748.51
+2025-11-09 14:13:54,903 - INFO - QRSFv2 CMB TT rms=3.45e+03, max=1.01e+04, median=-953 (N=215)
+2025-11-09 14:13:54,903 - INFO - QRSFv2 CMB TE rms=124, max=349, median=+0.822 (N=199)
+2025-11-09 14:13:54,903 - INFO - QRSFv2 CMB EE rms=20.1, max=53.1, median=-4.28 (N=199)
+2025-11-09 14:13:54,903 - INFO - QRSFv2 CMB χ² = 660041.41
+2025-11-09 14:13:54,903 - INFO - 
+--- Stage 5: Generating Outputs ---
+
+2025-11-09 14:13:54,904 - INFO - LambdaCDM CMB χ² = 748.51
+2025-11-09 14:13:54,904 - INFO - QRSFv2 CMB χ² = 660041.41
+2025-11-09 14:13:54,905 - INFO - Log file renamed to copernican-run_20251109_141354.txt
+2025-11-09 14:13:54,905 - INFO - Generating Hubble Diagram for Joint Light-curve Analysis 2014...
+2025-11-09 14:14:00,077 - INFO - Hubble diagram saved to hubble-plot-vs-QRSFv2-jla_2014_20251109_141354.png
+2025-11-09 14:14:00,077 - INFO - Generating BAO Plot for BOSS DR12 BAO Consensus...
+2025-11-09 14:14:03,723 - INFO - BAO plot saved to bao-plot-vs-QRSFv2-boss_dr12_bao_20251109_141354.png
+2025-11-09 14:14:03,723 - INFO - Generating CMB Spectrum Plot for Planck 2018 Lite TT/TE/EE...
+2025-11-09 14:14:08,490 - INFO - CMB plot saved to cmb-plot-vs-QRSFv2-planck_2018_lite_20251109_141354.png
+2025-11-09 14:14:08,491 - INFO - Generating corner plot for posterior samples...
+2025-11-09 14:14:10,158 - ERROR - Failed to generate QRSFv2 corner plot: Contour levels must be increasing
+2025-11-09 14:14:10,158 - INFO - 
+--- Theory Abstracts ---
+
+2025-11-09 14:14:10,158 - INFO - ΛCDM Abstract:
+LambdaCDM model describes a flat universe dominated by cold dark matter and a cosmological constant serving as the reference model.
+
+2025-11-09 14:14:10,158 - INFO - QRSFv2 Abstract:
+QRSFv2 replaces the relational-fluid component of the original QRSF with a
+quantum coherence kernel that renormalises baryonic inertia while keeping
+General Relativity intact. The streamlined model removes the dark sector,
+reduces the free-parameter count from eleven to seven and retains the near-
+perfect CMB performance seen in archived runs while promising tighter BAO and
+supernova fits.
+
+
+2025-11-09 14:14:10,158 - INFO - --- ΛCDM Fit Report ---
+
+2025-11-09 14:14:10,159 - INFO -   H₀ = 61.726
+2025-11-09 14:14:10,159 - INFO -   Ωₘ₀ = 0.41029
+2025-11-09 14:14:10,159 - INFO -   Ωb = 0.053979
+2025-11-09 14:14:10,159 - INFO -   Ωᵧ = 6.0137e-05
+2025-11-09 14:14:10,160 - INFO -   zᵣₑc = 1046.6
+2025-11-09 14:14:10,160 - INFO -   χ²_Total = 2816.69
+2025-11-09 14:14:10,160 - INFO -   χ²_SNe = 1889.06
+2025-11-09 14:14:10,160 - INFO -   χ²_BAO = 179.12
+2025-11-09 14:14:10,160 - INFO -   χ²_CMB = 748.51
+2025-11-09 14:14:10,160 - INFO - 
+2025-11-09 14:14:10,160 - INFO - --- QRSFv2 Fit Report ---
+
+2025-11-09 14:14:10,160 - INFO -   H_\star = 82.518
+2025-11-09 14:14:10,160 - INFO -   Ωb = 0.049961
+2025-11-09 14:14:10,160 - INFO -   Ω_γ = 5.38e-05
+2025-11-09 14:14:10,160 - INFO -   Acₒₕ = 0.45429
+2025-11-09 14:14:10,161 - INFO -   σcₒₕ = 14.172
+2025-11-09 14:14:10,161 - INFO -   zcₒₕ = 1.2856
+2025-11-09 14:14:10,161 - INFO -   ηₜₐᵢₗ = 0.92363
+2025-11-09 14:14:10,161 - INFO -   νₜₐᵢₗ = 0.65254
+2025-11-09 14:14:10,161 - INFO -   zᵣₑc = 1089
+2025-11-09 14:14:10,161 - INFO -   c = 2.9979e+05
+2025-11-09 14:14:10,161 - INFO -   χ²_Total = 676602.65
+2025-11-09 14:14:10,161 - INFO -   χ²_SNe = 15123.47
+2025-11-09 14:14:10,162 - INFO -   χ²_BAO = 1437.76
+2025-11-09 14:14:10,162 - INFO -   χ²_CMB = 660041.41
+2025-11-09 14:14:10,162 - INFO - 
+2025-11-09 14:14:10,272 - INFO - SNe detailed results CSV saved to sne-data-vs-QRSFv2-jla_2014_20251109_141354.csv
+2025-11-09 14:14:10,276 - INFO - BAO detailed results CSV saved to bao-data-vs-QRSFv2-boss_dr12_bao_20251109_141354.csv
+2025-11-09 14:14:10,304 - INFO - CMB detailed results CSV saved to cmb-data-vs-QRSFv2-planck_2018_lite_20251109_141354.csv
+2025-11-09 14:14:10,547 - INFO - Posterior samples saved to /Users/apostolov/Documents/GitHub/copernican/output/copernican-run_20251109_141354/posterior-LambdaCDM-jla_2014_20251109_141354.nc
+2025-11-09 14:14:10,614 - INFO - Posterior samples saved to /Users/apostolov/Documents/GitHub/copernican/output/copernican-run_20251109_141354/posterior-QRSFv2-jla_2014_20251109_141354.nc
+2025-11-09 14:14:10,614 - INFO - 
+==================================================
+2025-11-09 14:14:10,614 - INFO - Evaluation complete. All files saved to the 'output' directory.
+2025-11-09 14:14:10,614 - INFO - ==================================================
+
+2025-11-09 14:14:10,667 - INFO - Run completed at 20251109_141354 UTC.
+2025-11-09 14:14:10,667 - INFO - Run started on 2025-11-09 13:35:49 UTC
+2025-11-09 14:14:10,667 - INFO - Run ended on 2025-11-09 14:13:54 UTC
+2025-11-09 14:14:10,667 - INFO - Run took 217.46s for LCDM and 333.45s for QRSFv2, or 2300.81s in total, on a system with a i386 3.50 GHz, under macOS-15.0.1-x86_64-i386-64bit
+2025-11-09 14:14:10,667 - INFO - 
+2025-11-09 14:14:10,667 - INFO - Next actions:
+2025-11-09 14:14:10,667 - INFO -   1) Start another evaluation run
+2025-11-09 14:14:10,667 - INFO -   C) Close the Copernican Suite
+2025-11-09 14:14:10,667 - INFO - 
