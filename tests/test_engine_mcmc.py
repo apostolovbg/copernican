@@ -12,6 +12,7 @@ import warnings
 from types import SimpleNamespace
 from unittest import mock
 
+import emcee
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -23,17 +24,21 @@ from copernican_lib import (
     model_coder,
     model_parser,
 )
+from copernican_lib import progress as progress_helpers
+from copernican_lib.progress import (
+    BatchProgressBar,
+    StepProgressEmitter,
+    configure_sampler_progress_reporting,
+)
 from copernican_lib.utils import set_random_seed
 from engines import cosmo_engine_mcmc
 from engines.cosmo_engine_mcmc import (
     _ActiveLogProbability,
-    _BatchProgressBar,
     _build_sne_logposterior,
     _classify_parameter_bounds,
     _estimate_condition_number,
     _initialise_active_walkers,
     _reseed_invalid_walkers,
-    _StepProgressEmitter,
 )
 
 
@@ -542,7 +547,7 @@ class TestStepProgressEmitter(unittest.TestCase):
                 return f"line-{len(self.calls)}"
 
         dummy_bar = _DummyBar()
-        emitter = _StepProgressEmitter(dummy_bar)
+        emitter = StepProgressEmitter(dummy_bar)
         idle_times = [0.0]
 
         def _fake_timer() -> float:
@@ -697,14 +702,14 @@ class BatchProgressBarTestCase(unittest.TestCase):
         ) -> None:
             captured.append((msg, end))
 
-        bar = cosmo_engine_mcmc._BatchProgressBar(
+        bar = BatchProgressBar(
             "Test stage",
             4,
             display=True,
         )
         with (
             mock.patch(
-                "engines.cosmo_engine_mcmc.console.write",
+                "copernican_lib.progress.console.write",
                 side_effect=_capture,
             ),
         ):
@@ -712,9 +717,7 @@ class BatchProgressBarTestCase(unittest.TestCase):
             self.assertTrue(bar.uses_live_display)
             initial_line = bar.start_step(1, walker_total=8)
             self.assertIn("  0%", initial_line)
-            spinner_frames = set(
-                cosmo_engine_mcmc._BatchProgressBar._SPINNER_FRAMES
-            )
+            spinner_frames = set(BatchProgressBar._SPINNER_FRAMES)
             self.assertTrue(spinner_frames & set(initial_line))
             half_line = bar.update(1, processed=4, total=8)
             self.assertIn("step 1 of 4 steps", half_line)
@@ -723,7 +726,7 @@ class BatchProgressBarTestCase(unittest.TestCase):
             bar_segment = half_line.lstrip("\r").split(" ", 1)[0]
             self.assertEqual(
                 len(bar_segment),
-                cosmo_engine_mcmc._BatchProgressBar._BAR_WIDTH,
+                BatchProgressBar._BAR_WIDTH,
             )
             self.assertIn("█", bar_segment)
             self.assertIn("4/8", half_line)
@@ -733,7 +736,7 @@ class BatchProgressBarTestCase(unittest.TestCase):
             walker_bar_segment, walker_counts = walker_segment.rsplit(" ", 1)
             self.assertEqual(
                 len(walker_bar_segment),
-                cosmo_engine_mcmc._BatchProgressBar._WALKER_BAR_WIDTH,
+                BatchProgressBar._WALKER_BAR_WIDTH,
             )
             self.assertEqual(walker_counts, "4/8")
             later_line = bar.start_step(2, walker_total=8)
@@ -764,14 +767,14 @@ class BatchProgressBarTestCase(unittest.TestCase):
     ) -> None:
         """Fractional updates render the Unicode sub-block glyphs."""
 
-        bar = cosmo_engine_mcmc._BatchProgressBar(
+        bar = BatchProgressBar(
             "Unicode stage",
             10,
             display=True,
         )
         with (
             mock.patch(
-                "engines.cosmo_engine_mcmc.console.write",
+                "copernican_lib.progress.console.write",
                 side_effect=lambda *args, **kwargs: None,
             ),
         ):
@@ -782,23 +785,19 @@ class BatchProgressBarTestCase(unittest.TestCase):
             bar_segment = partial_line.lstrip("\r").split(" ", 1)[0]
             self.assertEqual(
                 len(bar_segment),
-                cosmo_engine_mcmc._BatchProgressBar._BAR_WIDTH,
+                BatchProgressBar._BAR_WIDTH,
             )
-            partial_set = set(
-                cosmo_engine_mcmc._BatchProgressBar._PARTIAL_GLYPHS
-            )
+            partial_set = set(BatchProgressBar._PARTIAL_GLYPHS)
             has_partial = bool(set(bar_segment) & partial_set)
             self.assertTrue(has_partial)
-            spinner_frames = set(
-                cosmo_engine_mcmc._BatchProgressBar._SPINNER_FRAMES
-            )
+            spinner_frames = set(BatchProgressBar._SPINNER_FRAMES)
             self.assertTrue(set(partial_line) & spinner_frames)
 
     def test_force_update_rerenders_identical_text(self) -> None:
         """Explicitly forced updates repaint even when text is stable."""
 
-        with mock.patch("engines.cosmo_engine_mcmc.console.write") as patched:
-            bar = _BatchProgressBar("Forced stage", 2, display=True)
+        with mock.patch("copernican_lib.progress.console.write") as patched:
+            bar = BatchProgressBar("Forced stage", 2, display=True)
             bar.start_batch(1, 2)
             bar.start_step(1, 4)
             with mock.patch.object(bar, "_next_spinner", return_value="⠋"):
@@ -813,8 +812,8 @@ class BatchProgressBarTestCase(unittest.TestCase):
     def test_finish_batch_clears_active_line(self) -> None:
         """Closing a batch wipes the progress line before spacing."""
 
-        with mock.patch("engines.cosmo_engine_mcmc.console.write") as patched:
-            bar = _BatchProgressBar("Cleanup stage", 1, display=True)
+        with mock.patch("copernican_lib.progress.console.write") as patched:
+            bar = BatchProgressBar("Cleanup stage", 1, display=True)
             bar.start_batch(1, 1)
             bar.start_step(1, 4)
             bar.update(1, processed=4, total=4)
@@ -824,6 +823,110 @@ class BatchProgressBarTestCase(unittest.TestCase):
             blank_call = patched.call_args_list[0]
             self.assertTrue(blank_call.args[0].startswith("\r"))
             self.assertTrue(set(blank_call.args[0][1:]) <= {" "})
+
+    def test_finish_batch_clears_line_without_updates(self) -> None:
+        """Initial 0% renders are tracked so cleanup blanks the console."""
+
+        with mock.patch("copernican_lib.progress.console.write") as patched:
+            bar = BatchProgressBar("Idle stage", 2, display=True)
+            bar.start_batch(1, 2)
+            patched.reset_mock()
+            bar.finish_batch()
+            self.assertGreaterEqual(patched.call_count, 3)
+            blank_calls = [
+                call.args[0] for call in patched.call_args_list if call.args
+            ]
+            self.assertTrue(
+                any(
+                    msg.startswith("\r") and set(msg[1:]) <= {" "}
+                    for msg in blank_calls
+                )
+            )
+
+
+class ProgressIntegrationTestCase(unittest.TestCase):
+    """Ensure sampler hooks stream live walker updates."""
+
+    def test_sampler_emits_walker_progress_before_step_finishes(self) -> None:
+        """Instrumented sampler writes partial walker counts to the bar."""
+
+        def _log_prob(coord: np.ndarray) -> float:
+            vec = np.atleast_1d(coord)
+            return float(-0.5 * np.dot(vec, vec))
+
+        sampler = emcee.EnsembleSampler(6, 2, _log_prob)
+        bar = BatchProgressBar("Integration stage", 1, display=True)
+        emitter = StepProgressEmitter(bar)
+        configure_sampler_progress_reporting(sampler, emitter)
+        initial = np.random.default_rng(42).standard_normal((6, 2))
+        iterator = sampler.sample(initial, iterations=1, progress=False)
+
+        with mock.patch("copernican_lib.progress.console.write") as patched:
+            bar.start_batch(1, 1)
+            emitter.start(1, sampler.nwalkers)
+            next(iterator)
+            emitter.clear()
+            bar.update(
+                1,
+                processed=sampler.nwalkers,
+                total=sampler.nwalkers,
+                step_progress=1.0,
+            )
+            bar.finish_batch()
+
+        walker_prefix = f"/{sampler.nwalkers}"
+        walker_updates = [
+            call.args[0]
+            for call in patched.call_args_list
+            if call.args and walker_prefix in call.args[0]
+        ]
+        self.assertGreaterEqual(len(walker_updates), 2)
+        self.assertTrue(
+            any(f"1{walker_prefix}" in msg for msg in walker_updates)
+        )
+
+    def test_stage_cleanup_wipes_progress_when_sampler_errors(self) -> None:
+        """Failing samplers still trigger a final console clear."""
+
+        class _FailingSampler:
+            def __init__(self) -> None:
+                self.nwalkers = 4
+                self._moves = [moves.StretchMove()]
+
+            def sample(
+                self, *args, **kwargs
+            ):  # pragma: no cover - generator stub
+                raise RuntimeError("sampler failure")
+
+            def get_last_sample(self):  # pragma: no cover - unused guard
+                raise AssertionError("should not be called")
+
+        sampler = _FailingSampler()
+        initial_state = np.zeros((sampler.nwalkers, 2))
+
+        with mock.patch("copernican_lib.progress.console.write") as patched:
+            with self.assertRaises(RuntimeError):
+                cosmo_engine_mcmc._run_stage_with_progress(
+                    sampler,
+                    initial_state,
+                    3,
+                    stage_name="error-prone",
+                    logger=logging.getLogger("copernican.tests"),
+                    progress_granularity=2,
+                    summary_callback=None,
+                    progress_label="Failing stage",
+                    display_progress=True,
+                )
+
+        blank_calls = [
+            call.args[0] for call in patched.call_args_list if call.args
+        ]
+        self.assertTrue(
+            any(
+                msg.startswith("\r") and set(msg[1:]) <= {" "}
+                for msg in blank_calls
+            )
+        )
 
 
 class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):
@@ -835,15 +938,11 @@ class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):
         sampler = SimpleNamespace(_moves=[(0.75, moves.StretchMove())])
         notifier = object()
 
-        cosmo_engine_mcmc._configure_sampler_progress_reporting(
-            sampler, notifier
-        )
+        configure_sampler_progress_reporting(sampler, notifier)
 
         weight, move_obj = sampler._moves[0]
         self.assertEqual(weight, 0.75)
-        self.assertIsInstance(
-            move_obj, cosmo_engine_mcmc._ReportingStretchMove
-        )
+        self.assertIsInstance(move_obj, progress_helpers._ReportingStretchMove)
         self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
 
     def test_move_first_pair_wraps_stretch_move(self) -> None:
@@ -853,15 +952,11 @@ class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):
         sampler = SimpleNamespace(_moves=[(base_move, 0.5)])
         notifier = object()
 
-        cosmo_engine_mcmc._configure_sampler_progress_reporting(
-            sampler, notifier
-        )
+        configure_sampler_progress_reporting(sampler, notifier)
 
         move_obj, weight = sampler._moves[0]
         self.assertEqual(weight, 0.5)
-        self.assertIsInstance(
-            move_obj, cosmo_engine_mcmc._ReportingStretchMove
-        )
+        self.assertIsInstance(move_obj, progress_helpers._ReportingStretchMove)
         self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
         self.assertEqual(getattr(move_obj, "a"), getattr(base_move, "a"))
 

@@ -1,6 +1,6 @@
 # Copernican Suite API Overview
 
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-11-10
 
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be
@@ -18,6 +18,14 @@ modules are:
   validation helpers. Import `REQUIRED_ATTRIBUTES` and `REQUIRED_FUNCTIONS`
   from here when building custom tooling that needs to confirm interface
   compliance.
+- `copernican_lib.progress` – shared progress bars, walker notifiers and
+  sampler integration helpers. Engines import `BatchProgressBar`,
+  `StepProgressEmitter` and `configure_sampler_progress_reporting` so live
+  Stage 2 updates stay consistent even outside the default MCMC engine. Version
+  7.6.22 additionally records the very first frame emitted for each batch and
+  closes every sampling stage inside a finally block so clean-up always clears
+  the console, even when an engine aborts before walkers finish their first
+  proposals.
 - `copernican_lib.plotter.plot_corner(samples, plugin, data_attrs,
   plot_dir)` – render the Stage 2 posterior as an automatically thinned
   corner plot whose panel size and typography respond to the number of
