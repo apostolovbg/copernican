@@ -619,49 +619,12 @@ class BatchProgressBarTestCase(unittest.TestCase):
     def test_progress_bar_reports_pluralisation_and_width(self) -> None:
         """Progress lines reflect partial updates and honour the width."""
 
-        class FakeTqdm:
-            instances: list = []
-
-            def __init__(self, *args, **kwargs) -> None:
-                self.total = float(kwargs.get("total", 0.0))
-                self.n = 0.0
-                self.closed = False
-                self.postfix = ""
-                self.desc = ""
-                self.miniters = kwargs.get("miniters")
-                self.maxinterval = kwargs.get("maxinterval")
-                self.dynamic_miniters = kwargs.get("dynamic_miniters")
-                FakeTqdm.instances.append(self)
-
-            def set_description_str(self, value: str) -> None:
-                self.desc = value
-
-            def set_postfix_str(
-                self, value: str, refresh: bool = True
-            ) -> None:
-                self.postfix = value
-
-            def update(self, delta: float) -> None:
-                self.n += delta
-
-            def refresh(self) -> None:
-                return
-
-            def close(self) -> None:
-                self.closed = True
-
-            def reset(self, total: float | None = None) -> None:
-                self.n = 0.0
-                if total is not None:
-                    self.total = float(total)
-
-        FakeTqdm.instances = []
-        captured: list[str] = []
+        captured: list[tuple[str, str]] = []
 
         def _capture(
             msg: str = "", *, end: str = "\n", error: bool = False
         ) -> None:
-            captured.append(msg + ("" if end == "" else end))
+            captured.append((msg, end))
 
         bar = cosmo_engine_mcmc._BatchProgressBar(
             "Test stage",
@@ -669,7 +632,6 @@ class BatchProgressBarTestCase(unittest.TestCase):
             display=True,
         )
         with (
-            mock.patch("engines.cosmo_engine_mcmc.tqdm", FakeTqdm),
             mock.patch(
                 "engines.cosmo_engine_mcmc.console.write",
                 side_effect=_capture,
@@ -679,7 +641,6 @@ class BatchProgressBarTestCase(unittest.TestCase):
             self.assertTrue(bar.uses_live_display)
             initial_line = bar.start_step(1, walker_total=8)
             self.assertIn("  0%", initial_line)
-            self.assertIn("  0%", FakeTqdm.instances[0].postfix)
             spinner_frames = set(
                 cosmo_engine_mcmc._BatchProgressBar._SPINNER_FRAMES
             )
@@ -713,51 +674,22 @@ class BatchProgressBarTestCase(unittest.TestCase):
             self.assertIn("0 steps remaining", final_line)
             bar.finish_batch()
 
-        self.assertTrue(
-            any("Test stage batch 1" in message for message in captured)
-        )
-        self.assertTrue(any(message == "\n" for message in captured))
-        self.assertTrue(FakeTqdm.instances)
-        self.assertAlmostEqual(FakeTqdm.instances[0].total, 32.0)
-        self.assertGreater(FakeTqdm.instances[0].n, 0.0)
-        self.assertTrue(FakeTqdm.instances[0].closed)
-        self.assertEqual(FakeTqdm.instances[0].miniters, 1)
-        self.assertEqual(FakeTqdm.instances[0].maxinterval, 0.0)
-        self.assertFalse(FakeTqdm.instances[0].dynamic_miniters)
+        announcements = [msg for msg, _ in captured if "batch" in msg]
+        self.assertTrue(announcements)
+        newline_calls = [end for msg, end in captured if msg == ""]
+        self.assertIn("\n", newline_calls)
+        emitted_lines = [msg for msg, end in captured if end == ""]
+        self.assertTrue(emitted_lines)
+        # Spinner frames appear in subsequent captured repaint strings.
+        spinner_hits = [
+            set(msg) & spinner_frames for msg, end in captured if end == ""
+        ]
+        self.assertTrue(any(hit for hit in spinner_hits))
 
     def test_progress_bar_emits_partial_block_during_small_updates(
         self,
     ) -> None:
         """Fractional updates render the Unicode sub-block glyphs."""
-
-        class FakeTqdm:
-            instances: list = []
-
-            def __init__(self, *args, **kwargs) -> None:
-                self.postfix = ""
-                FakeTqdm.instances.append(self)
-
-            def set_description_str(self, value: str) -> None:
-                return
-
-            def set_postfix_str(
-                self, value: str, refresh: bool = True
-            ) -> None:
-                self.postfix = value
-
-            def update(self, delta: float) -> None:
-                return
-
-            def refresh(self) -> None:
-                return
-
-            def close(self) -> None:
-                return
-
-            def reset(self, total: float | None = None) -> None:
-                return
-
-        FakeTqdm.instances = []
 
         bar = cosmo_engine_mcmc._BatchProgressBar(
             "Unicode stage",
@@ -765,7 +697,6 @@ class BatchProgressBarTestCase(unittest.TestCase):
             display=True,
         )
         with (
-            mock.patch("engines.cosmo_engine_mcmc.tqdm", FakeTqdm),
             mock.patch(
                 "engines.cosmo_engine_mcmc.console.write",
                 side_effect=lambda *args, **kwargs: None,
@@ -781,8 +712,10 @@ class BatchProgressBarTestCase(unittest.TestCase):
             partial_set = set("▏▎▍▌▋▊▉")
             has_partial = bool(set(inner) & partial_set)
             self.assertTrue(has_partial)
-            self.assertTrue(FakeTqdm.instances)
-            self.assertTrue(set(FakeTqdm.instances[0].postfix) & partial_set)
+            spinner_frames = set(
+                cosmo_engine_mcmc._BatchProgressBar._SPINNER_FRAMES
+            )
+            self.assertTrue(set(partial_line) & spinner_frames)
 
 
 class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):

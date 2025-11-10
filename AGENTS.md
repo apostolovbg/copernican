@@ -103,15 +103,14 @@ same YAML file the helper
 reuses the ΛCDM measurement directly instead of executing the alternative
 branch a second time.
 
-Version 7.6.11 raises that standard further by routing Stage 2 progress through
-`tqdm`, preserving the Unicode partial-block fallback while ensuring macOS,
-Linux and Windows terminals all animate every walker without coalescing updates.
-Version 7.6.12 locks that smooth animation in place by disabling `tqdm`'s
-adaptive throttling and mirroring the Unicode glyphs inside the live display so
-every walker update repaints instantly on all terminals. Version 7.6.13 adds a
-dedicated walker-progress meter and animated spinner to the live renderer so the
-bar advances on every callback while the logged Unicode glyphs remain identical
-to the interactive output.
+Version 7.6.11 raised that standard further by routing Stage 2 progress through
+`tqdm`, Version 7.6.12 locked the smooth animation in place by disabling the
+library's adaptive throttling and mirroring the Unicode glyphs inside the live
+display, Version 7.6.13 added a dedicated walker-progress meter plus an animated
+spinner, and Version 7.6.14 retires `tqdm` entirely in favour of a native
+carriage-return renderer so macOS, Linux and Windows terminals repaint every
+walker update on a single console line while the logged Unicode glyphs remain
+identical to the interactive output.
 
 Version 7.1.1 standardises every runtime timestamp on Coordinated
 Universal Time (UTC) so log files, manifests and output directories

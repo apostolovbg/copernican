@@ -513,18 +513,14 @@ def _reseed_invalid_walkers(
 
 
 class _BatchProgressBar:
-    """Render Stage 2 progress using :mod:`tqdm` with walker-level motion.
+    """Render Stage 2 progress with direct carriage-return repainting.
 
-    The original ASCII renderer mirrored console output into the log file by
-    emitting carriage-returned strings through :func:`console.write`.  That
-    approach worked well on Linux and CI runners but macOS terminal widgets
-    tended to coalesce multiple in-place refreshes, so the bar appeared to jump
-    only twice per sampler step.  The revised :mod:`tqdm` wrapper now keeps a
-    dedicated per-step walker meter and an animated spinner alongside the
-    fifty-character batch bar.  Each walker update advances the live display,
-    ensuring humans always see motion even when the overall percentage barely
-    moves, while the textual fallback retains identical Unicode glyphs so log
-    files and headless runs stay perfectly aligned across platforms.
+    The bar rebuilds the legacy carriage-return flow so console output and log
+    captures stay byte-identical while adding a walker meter and spinner.
+    Every
+    walker notification rotates the spinner even when the bar text itself would
+    otherwise remain unchanged, guaranteeing visible motion on terminals that
+    previously coalesced in-place updates.
     """
 
     _BAR_WIDTH = 50
@@ -542,7 +538,6 @@ class _BatchProgressBar:
         "⠇",
         "⠏",
     )
-    _TQDM_BAR_FORMAT = "{desc}: {postfix}"
 
     def __init__(
         self,
@@ -561,13 +556,9 @@ class _BatchProgressBar:
         self._active = False
         self._last_percent = -1
         self._last_line = ""
-        self._current_units = 0.0
-        self._unit_scale = 1.0
-        self._scale_locked = False
         self._current_step_total = 1
         self._current_step_processed = 0
         self._spinner_index = -1
-        self._tqdm: tqdm | None = None
 
     def _build_bar(self, fraction: float, width: int) -> str:
         """Return a Unicode bar ``width`` cells wide for ``fraction``."""
@@ -646,53 +637,6 @@ class _BatchProgressBar:
         line = f"\r{display_line}"
         return line, percent, display_line
 
-    def _ensure_tqdm(self) -> None:
-        """Create the live :mod:`tqdm` instance when progress is visible."""
-
-        if self._tqdm is not None or not self._display:
-            return
-        total_units = float(self._current_span * self._unit_scale)
-        self._tqdm = tqdm(
-            total=total_units,
-            leave=False,
-            mininterval=0.0,
-            maxinterval=0.0,
-            miniters=1,
-            smoothing=0.0,
-            dynamic_ncols=False,
-            ncols=self._BAR_WIDTH + 96,
-            bar_format=self._TQDM_BAR_FORMAT,
-            file=sys.stdout,
-            ascii=False,
-        )
-        self._tqdm.set_description_str(self._stage_label)
-        _, _, display_line = self._render_line(
-            self._current_start,
-            processed=0,
-            total=max(int(self._unit_scale), 1),
-            batch_size=max(self._current_span, 1),
-        )
-        self._tqdm.set_postfix_str(display_line, refresh=False)
-        self._tqdm.refresh()
-
-    def _update_scale(self, new_scale: int) -> None:
-        """Rescale internal counters when the walker total becomes known."""
-
-        new_scale = max(int(new_scale), 1)
-        if new_scale == int(self._unit_scale):
-            return
-        if self._unit_scale <= 0:
-            factor = float(new_scale)
-        else:
-            factor = float(new_scale) / float(self._unit_scale)
-        self._unit_scale = float(new_scale)
-        self._current_units *= factor
-        if self._tqdm is not None:
-            total_units = float(self._current_span * self._unit_scale)
-            self._tqdm.total = total_units
-            self._tqdm.n = min(self._current_units, total_units)
-            self._tqdm.refresh()
-
     def start_batch(self, batch_start: int, batch_end: int) -> None:
         """Announce a new batch spanning ``batch_start`` to ``batch_end``."""
 
@@ -708,9 +652,6 @@ class _BatchProgressBar:
         self._active = True
         self._last_percent = -1
         self._last_line = ""
-        self._current_units = 0.0
-        self._unit_scale = 1.0
-        self._scale_locked = False
         self._current_step_total = 1
         self._current_step_processed = 0
         self._spinner_index = -1
@@ -720,24 +661,14 @@ class _BatchProgressBar:
             f"{self._stage_label} batch {self._batch_index} "
             f"({span} {step_word}) progress:"
         )
-        if self._current_span > 0:
-            self._ensure_tqdm()
-            if self._tqdm is not None:
-                self._tqdm.reset(
-                    total=float(self._current_span * self._unit_scale)
-                )
-                remaining_label = (
-                    "step" if self._current_span == 1 else "steps"
-                )
-                self._tqdm.set_postfix_str(
-                    (
-                        f"step {self._current_start - 1} of "
-                        f"{self._current_span} {remaining_label}, "
-                        f"{self._current_span} steps remaining"
-                    ),
-                    refresh=False,
-                )
-                self._tqdm.refresh()
+        if self._current_span > 0 and self._display:
+            line, _, _ = self._render_line(
+                self._current_start,
+                processed=0,
+                total=max(self._current_step_total, 1),
+                batch_size=self._current_span,
+            )
+            console.write(line, end="")
 
     def start_step(
         self, step_index: int, walker_total: int | None = None
@@ -751,11 +682,6 @@ class _BatchProgressBar:
         walker_total = max(int(walker_total), 1)
         self._current_step_total = walker_total
         self._current_step_processed = 0
-        if not self._scale_locked:
-            self._update_scale(walker_total)
-            self._scale_locked = True
-        else:
-            self._update_scale(walker_total)
         return self.update(
             step_index,
             processed=0,
@@ -780,11 +706,6 @@ class _BatchProgressBar:
         if total is not None:
             total_int = max(int(total), 1)
             self._current_step_total = total_int
-            if not self._scale_locked:
-                self._update_scale(total_int)
-                self._scale_locked = True
-            else:
-                self._update_scale(total_int)
         else:
             total_int = self._current_step_total
         if processed is None:
@@ -810,34 +731,12 @@ class _BatchProgressBar:
             batch_size=batch_size,
         )
 
-        total_units = float(self._current_span * self._unit_scale)
-        new_units = min(
-            max(
-                (
-                    (step_index - self._current_start) * self._unit_scale
-                    + step_progress * self._unit_scale
-                ),
-                0.0,
-            ),
-            total_units,
-        )
-        delta = max(new_units - self._current_units, 0.0)
-        self._current_units += delta
-
-        if self._tqdm is not None:
-            if delta > 0.0:
-                self._tqdm.update(delta)
-            self._tqdm.set_postfix_str(display_line, refresh=False)
-            self._tqdm.refresh()
-
-        if (
-            percent == self._last_percent
-            and display_line == self._last_line
-            and self._tqdm is not None
-        ):
+        if percent == self._last_percent and display_line == self._last_line:
             return None
         self._last_percent = percent
         self._last_line = display_line
+        if self._display:
+            console.write(line, end="")
         return line
 
     def finish_batch(self) -> None:
@@ -845,26 +744,12 @@ class _BatchProgressBar:
 
         if not self._active:
             return
-        if self._tqdm is not None:
-            _, _, display_line = self._render_line(
-                self._current_end,
-                processed=self._current_step_total,
-                total=max(self._current_step_total, 1),
-                batch_size=max(self._current_span, 1),
-            )
-            self._tqdm.set_postfix_str(display_line, refresh=False)
-            self._tqdm.close()
-            self._tqdm = None
-            console.write("")
-        elif self._last_line:
+        if self._last_line:
             console.write("")
         self._active = False
         self._last_percent = -1
         self._last_line = ""
-        self._current_units = 0.0
         self._current_span = 0
-        self._unit_scale = 1.0
-        self._scale_locked = False
         self._current_step_total = 1
         self._current_step_processed = 0
         self._spinner_index = -1
@@ -877,9 +762,9 @@ class _BatchProgressBar:
 
     @property
     def uses_live_display(self) -> bool:
-        """Return ``True`` when :mod:`tqdm` renders the bar."""
+        """Return ``True`` when the bar repaints the console directly."""
 
-        return self._display and self._tqdm is not None
+        return self._display
 
 
 class _StepProgressEmitter:

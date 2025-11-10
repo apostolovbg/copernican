@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.14
+- 2025-11-10: Replaced the Stage 2 `tqdm` wrapper with a direct carriage-return
+  renderer so macOS and other terminals keep progress confined to a single
+  line while still repainting on every walker callback, removed the runtime
+  dependency, refreshed the notifier-driven unit tests and updated suite
+  documentation and metadata to 7.6.14 (OpenAI ChatGPT)
+
 ## Version 7.6.13
 - 2025-11-10: Retuned the Stage 2 progress bar to accumulate walker-level
   updates, layering a dedicated spinner and walker-progress meter over the
