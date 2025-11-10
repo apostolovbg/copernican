@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.18
+- 2025-11-10: Hardened the Stage 2 progress bar regression tests to cover the
+  bracket-free layout, ensuring the Unicode bar width and spinner glyphs stay
+  verified across platforms, and bumped repository metadata to version 7.6.18
+  (OpenAI ChatGPT)
+
 ## Version 7.6.17
 - 2025-11-10: Removed the Stage 2 progress bar brackets so console and log
   captures share the same alignment, refreshed the unit tests and
