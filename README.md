@@ -1,4 +1,4 @@
-**Version:** 7.6.16
+**Version:** 7.6.17
 **Last Updated:** 2025-11-10
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -13,7 +13,7 @@ reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. Build 7.6.16 keeps
+  dataset selection, model pairing and engine configuration. Build 7.6.17 keeps
   the structured Stage 1 seed selector introduced in 7.5.0, surfaces detailed
   validation reasons when alternative models fail to load, tidies the startup
   banner spacing and now drives Stage 2 progress through a dedicated
@@ -22,11 +22,14 @@ The suite is organised around a handful of focused components:
   repaint on every walker update without spilling into multiple lines because
   the live bar advances per walker, the spinner now ticks forward even during
   sparse walker notifications and the logged glyph sequence matches what
-  operators see on screen. The sampler still rewrites weighted `emcee` move
+  operators see on screen. The progress preview now omits the historical square
+  brackets around the bars so console captures and log copies stay aligned
+  while keeping the spacing introduced alongside the timer-driven spinner
+  refresh. The sampler still rewrites weighted `emcee` move
   tables to keep notifier hooks alive and deepens the Stage 5 safeguards: the
   footer sits further below the axes, the text block carries a guaranteed
   clearance from the canvas edge, and the suptitle is anchored lower so the
-  figure mirrors the spacing used across the other summary plots. Build 7.6.16
+  figure mirrors the spacing used across the other summary plots. Build 7.6.17
   also keeps the dormant `tqdm` import removed from the default engine so
   packaging metadata and lint checks stay aligned with dependency manifests that
   reflect the native progress renderer without dangling fallbacks. The live
@@ -50,8 +53,10 @@ The suite is organised around a handful of focused components:
   in favour of a native carriage-return renderer that keeps macOS consoles on a
   single line while still mirroring every glyph into the logs. Version 7.6.15
   finalised that transition by pruning the dormant import paths from the engine
-  module, and Version 7.6.16 adds timer-driven idle ticks so the spinner keeps
-  animating between sparse walker callbacks. The update builds on the live
+  module, Version 7.6.16 adds timer-driven idle ticks so the spinner keeps
+  animating between sparse walker callbacks, and Version 7.6.17 removes the
+  legacy square brackets from both bars so the fallback text and console capture
+  share identical alignment. The update builds on the live
   progress instrumentation, removes obsolete runtime-estimation hooks and
   reiterates that Stage 2 requires ArviZ so convergence diagnostics remain a
   first-class part of every run while noting that launcher utilities depend on
@@ -215,9 +220,10 @@ Under the hood the program follows a clear pipeline:
   carriage-return renderer so macOS consoles stay on a single line while still
   mirroring every glyph into the logs, Version 7.6.15 removed the final dormant
   shim from the engine module so linting and dependency audits confirm the
-  external wrapper is gone for good, and Version 7.6.16 layers a timer-driven
-  idle spinner tick so live consoles keep animating even when only a single
-  walker reports progress between full-step updates.
+  external wrapper is gone for good, Version 7.6.16 layers a timer-driven idle
+  spinner tick so live consoles keep animating even when only a single walker
+  reports progress between full-step updates, and Version 7.6.17 retires the
+  enclosing brackets so the rendered bars line up perfectly in transcripts.
 5. **BAO Analysis** – Stage 3 reuses the sampler's diagnostics to report BAO
    chi-squared contributions directly from the joint fit while still
    generating smooth predictions for plots and CSV exports. Shared helpers
@@ -253,12 +259,13 @@ chosen value. When any alternative model fails validation the orchestrator
 prints the collected reasons as bullet points before offering to restart
 Stage 1 or exit, ensuring even multi-cause exceptions—such as conflicting
 bounds and missing likelihood hooks—are explained without consulting the log
-file. The
-sampler questionnaire concludes Stage 1 with a summary of recommended settings,
-an explanation of how the per-batch progress bars will animate during Stage 2
-and now includes a preview of the Unicode sub-block fills introduced in version
-7.6.9. The summary concludes with a menu that lets users continue, revisit
-earlier questions or cancel the run entirely.
+file. The sampler questionnaire concludes Stage 1 with a summary of recommended
+settings, an explanation of how the per-batch progress bars will animate during
+Stage 2 and now includes a preview of the Unicode sub-block fills introduced in
+version 7.6.9. Version 7.6.17 extends the preview by showing the bracket-free
+bar layout so operators recognise the flush alignment recorded in live logs.
+The summary concludes with a menu that lets users continue, revisit earlier
+questions or cancel the run entirely.
 
 ### Interpreting the new convergence diagnostics
 

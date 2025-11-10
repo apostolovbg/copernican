@@ -627,9 +627,14 @@ class _BatchProgressBar:
             f"step {min(step_index, self._current_end)} of {batch_size} "
             f"{progress_word}, {remaining} {remaining_word} remaining"
         )
-        walker_postfix = f"[{walker_bar}] {walker_processed}/{walker_total}"
+        # The bars intentionally omit the legacy square brackets so the
+        # Unicode blocks start flush with the carriage return prefix while the
+        # spacing after each bar mirrors the gap that followed the closing
+        # bracket.  This keeps percentage and walker counters aligned with
+        # earlier captures without carrying the extra delimiters in logs.
+        walker_postfix = f"{walker_bar} {walker_processed}/{walker_total}"
         display_line = (
-            f"[{bar}] {percent:>3d}% {spinner} ("
+            f"{bar} {percent:>3d}% {spinner} ("
             f"{postfix}; {walker_postfix}, "
             f"{walker_remaining} {walker_word} left)"
         )
