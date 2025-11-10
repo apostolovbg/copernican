@@ -21,6 +21,14 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.13
+- 2025-11-10: Retuned the Stage 2 progress bar to accumulate walker-level
+  updates, layering a dedicated spinner and walker-progress meter over the
+  Unicode batch bar so terminals repaint on every callback, refreshed the
+  notifier bridge and unit tests to exercise the new `start_step` contract, and
+  updated suite documentation and metadata to 7.6.13 while keeping CI checks
+  green (OpenAI ChatGPT)
+
 ## Version 7.6.12
 - 2025-11-10: Forced Stage 2 progress bars to repaint on every walker update by
   disabling `tqdm`'s adaptive throttling, mirroring the Unicode partial-block

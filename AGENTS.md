@@ -108,7 +108,10 @@ Version 7.6.11 raises that standard further by routing Stage 2 progress throug
 Linux and Windows terminals all animate every walker without coalescing updates.
 Version 7.6.12 locks that smooth animation in place by disabling `tqdm`'s
 adaptive throttling and mirroring the Unicode glyphs inside the live display so
-every walker update repaints instantly on all terminals.
+every walker update repaints instantly on all terminals. Version 7.6.13 adds a
+dedicated walker-progress meter and animated spinner to the live renderer so the
+bar advances on every callback while the logged Unicode glyphs remain identical
+to the interactive output.
 
 Version 7.1.1 standardises every runtime timestamp on Coordinated
 Universal Time (UTC) so log files, manifests and output directories

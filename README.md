@@ -1,4 +1,4 @@
-**Version:** 7.6.12
+**Version:** 7.6.13
 **Last Updated:** 2025-11-10
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -13,19 +13,19 @@ reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. Build 7.6.12 keeps
+  dataset selection, model pairing and engine configuration. Build 7.6.13 keeps
   the structured Stage 1 seed selector introduced in 7.5.0, surfaces detailed
   validation reasons when alternative models fail to load, tidies the startup
   banner spacing and now drives Stage 2 progress through a `tqdm`-backed
-  renderer that mirrors the Unicode partial-block fallback. macOS, Linux and
-  Windows terminals repaint on every walker update because the adaptive
-  throttling is disabled, the live bar shares the exact glyph sequence seen in
-  logs, and lint hooks block duplicate test fixtures before commits land. The
-  sampler still rewrites weighted `emcee` move tables to keep notifier hooks
-  alive and deepens the Stage 5 safeguards: the footer sits further below the
-  axes, the text block carries a guaranteed clearance from the canvas edge, and
-  the suptitle is anchored lower so the figure mirrors the spacing used across
-  the other summary plots.
+  renderer that layers a walker-progress meter and spinner on top of the
+  Unicode partial-block fallback. macOS, Linux and Windows terminals repaint on
+  every walker update because the live bar advances per walker, the spinner
+  animates constantly and the logged glyph sequence matches what operators see
+  on screen. The sampler still rewrites weighted `emcee` move tables to keep
+  notifier hooks alive and deepens the Stage 5 safeguards: the footer sits
+  further below the axes, the text block carries a guaranteed clearance from
+  the canvas edge, and the suptitle is anchored lower so the figure mirrors the
+  spacing used across the other summary plots.
   beneath its batch heading without recycling legacy runtime estimates, and
   the splash screen now explicitly imports the standard-library timer so the
   introductory pause never raises a `NameError` during launches.
@@ -39,9 +39,11 @@ The suite is organised around a handful of focused components:
   records the notifier bridge that rewrites weighted move tables so Stage 2
   keeps updating on every walker, Version 7.6.11 captures the `tqdm`
   integration that unifies terminal behaviour across platforms while the log
-  keeps its intervalled snapshots, and Version 7.6.12 disables adaptive
-  throttling so live terminals repaint on every walker while mirroring the
-  Unicode glyphs used in the textual fallback. The update builds on the live
+  keeps its intervalled snapshots, Version 7.6.12 disables adaptive throttling
+  so live terminals repaint on every walker while mirroring the Unicode glyphs
+  used in the textual fallback, and Version 7.6.13 layers a walker-progress
+  meter plus spinner over the `tqdm` bar so console output moves on every
+  callback without diverging from logged frames. The update builds on the live
   progress instrumentation, removes obsolete runtime-estimation hooks and
   reiterates that Stage 2 requires ArviZ so convergence diagnostics remain a
   first-class part of every run while noting that launcher utilities depend on

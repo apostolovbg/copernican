@@ -109,7 +109,9 @@ keep the notifier bridge active. Version 7.6.11 hands the live display to
 terminals animate every walker without collapsing refreshes into two frames per
 step, and Version 7.6.12 locks that smoothness in place by disabling adaptive
 throttling so every walker update repaints instantly while the live renderer
-and textual fallback share the same glyph set.
+and textual fallback share the same glyph set. Version 7.6.13 layers a dedicated
+walker-progress meter and spinner atop the `tqdm` bar so the console animates on
+every callback without diverging from the logged Unicode glyphs.
 
 Version 7.4.1 adds a sampler-facing perspective to the plotting layer. The new
 corner plot automatically thins oversized chains, renders the Stage 2 posterior

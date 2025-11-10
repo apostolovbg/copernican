@@ -677,12 +677,17 @@ class BatchProgressBarTestCase(unittest.TestCase):
         ):
             bar.start_batch(1, 4)
             self.assertTrue(bar.uses_live_display)
-            initial_line = bar.update(1, step_progress=0.0)
+            initial_line = bar.start_step(1, walker_total=8)
             self.assertIn("  0%", initial_line)
             self.assertIn("  0%", FakeTqdm.instances[0].postfix)
-            half_line = bar.update(1, step_progress=0.5)
+            spinner_frames = set(
+                cosmo_engine_mcmc._BatchProgressBar._SPINNER_FRAMES
+            )
+            self.assertTrue(spinner_frames & set(initial_line))
+            half_line = bar.update(1, processed=4, total=8)
             self.assertIn("step 1 of 4 steps", half_line)
             self.assertIn("4 steps remaining", half_line)
+            self.assertTrue(spinner_frames & set(half_line))
             start = half_line.index("[") + 1
             end = half_line.index("]")
             inner = half_line[start:end]
@@ -690,12 +695,21 @@ class BatchProgressBarTestCase(unittest.TestCase):
                 len(inner), cosmo_engine_mcmc._BatchProgressBar._BAR_WIDTH
             )
             self.assertIn("█", inner)
-            later_line = bar.update(2, step_progress=0.0)
+            self.assertIn("[", half_line.split(";")[-1])
+            self.assertIn("4/8", half_line)
+            walker_inner = half_line.split("[")[2].split("]")[0]
+            self.assertEqual(
+                len(walker_inner),
+                cosmo_engine_mcmc._BatchProgressBar._WALKER_BAR_WIDTH,
+            )
+            later_line = bar.start_step(2, walker_total=8)
             self.assertIn("step 2 of 4 steps", later_line)
             self.assertIn("3 steps remaining", later_line)
-            near_end = bar.update(3, step_progress=1.0)
+            bar.start_step(3, walker_total=8)
+            near_end = bar.update(3, processed=8, total=8)
             self.assertIn("1 step remaining", near_end)
-            final_line = bar.update(4, step_progress=1.0)
+            bar.start_step(4, walker_total=8)
+            final_line = bar.update(4, processed=8, total=8)
             self.assertIn("0 steps remaining", final_line)
             bar.finish_batch()
 
@@ -704,7 +718,7 @@ class BatchProgressBarTestCase(unittest.TestCase):
         )
         self.assertTrue(any(message == "\n" for message in captured))
         self.assertTrue(FakeTqdm.instances)
-        self.assertAlmostEqual(FakeTqdm.instances[0].total, 4.0)
+        self.assertAlmostEqual(FakeTqdm.instances[0].total, 32.0)
         self.assertGreater(FakeTqdm.instances[0].n, 0.0)
         self.assertTrue(FakeTqdm.instances[0].closed)
         self.assertEqual(FakeTqdm.instances[0].miniters, 1)
@@ -758,84 +772,17 @@ class BatchProgressBarTestCase(unittest.TestCase):
             ),
         ):
             bar.start_batch(1, 5)
-            fractional_line = bar.update(1, step_progress=0.05)
+            fractional_line = bar.start_step(1, walker_total=20)
+            partial_line = bar.update(1, processed=1, total=20)
             self.assertIsNotNone(fractional_line)
-            start = fractional_line.index("[") + 1
-            end = fractional_line.index("]")
-            inner = fractional_line[start:end]
+            start = partial_line.index("[") + 1
+            end = partial_line.index("]")
+            inner = partial_line[start:end]
             partial_set = set("▏▎▍▌▋▊▉")
             has_partial = bool(set(inner) & partial_set)
             self.assertTrue(has_partial)
             self.assertTrue(FakeTqdm.instances)
             self.assertTrue(set(FakeTqdm.instances[0].postfix) & partial_set)
-
-
-class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):
-    """Ensure sampler move collections attach progress notifiers."""
-
-    def test_weight_first_pair_wraps_stretch_move(self) -> None:
-        """Tuples storing ``(weight, move)`` gain reporting wrappers."""
-
-        sampler = SimpleNamespace(_moves=[(0.75, moves.StretchMove())])
-        notifier = object()
-
-        cosmo_engine_mcmc._configure_sampler_progress_reporting(
-            sampler, notifier
-        )
-
-        weight, move_obj = sampler._moves[0]
-        self.assertEqual(weight, 0.75)
-        self.assertIsInstance(
-            move_obj, cosmo_engine_mcmc._ReportingStretchMove
-        )
-        self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
-
-    def test_move_first_pair_wraps_stretch_move(self) -> None:
-        """Tuples storing ``(move, weight)`` gain reporting wrappers."""
-
-        base_move = moves.StretchMove(a=3.5)
-        sampler = SimpleNamespace(_moves=[(base_move, 0.5)])
-        notifier = object()
-
-        cosmo_engine_mcmc._configure_sampler_progress_reporting(
-            sampler, notifier
-        )
-
-        move_obj, weight = sampler._moves[0]
-        self.assertEqual(weight, 0.5)
-        self.assertIsInstance(
-            move_obj, cosmo_engine_mcmc._ReportingStretchMove
-        )
-        self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
-        self.assertEqual(getattr(move_obj, "a"), getattr(base_move, "a"))
-
-    def test_progress_bar_emits_partial_block_during_small_updates(
-        self,
-    ) -> None:
-        """Fractional updates render the Unicode sub-block glyphs."""
-
-        bar = cosmo_engine_mcmc._BatchProgressBar(
-            "Unicode stage",
-            10,
-            display=True,
-        )
-        with mock.patch(
-            "engines.cosmo_engine_mcmc.console.write",
-            side_effect=lambda *args, **kwargs: None,
-        ):
-            bar.start_batch(1, 5)
-            fractional_line = bar.update(1, step_progress=0.05)
-            self.assertIsNotNone(fractional_line)
-            start = fractional_line.index("[") + 1
-            end = fractional_line.index("]")
-            inner = fractional_line[start:end]
-            # Confirm the partial-block glyphs render before a full column.
-            partial_blocks = (
-                cosmo_engine_mcmc._BatchProgressBar._PARTIAL_BLOCKS[1:]
-            )
-            partial_set = set(partial_blocks)
-            has_partial = bool(set(inner) & partial_set)
-            self.assertTrue(has_partial)
 
 
 class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):
