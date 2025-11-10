@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-11-10
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,21 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 7.6.12
+- 2025-11-10: Forced Stage 2 progress bars to repaint on every walker update by
+  disabling `tqdm`'s adaptive throttling, mirroring the Unicode partial-block
+  renderer inside the live display, extending the unit tests to assert the new
+  configuration and ensuring lint hooks flag duplicate class names before any
+  commit ships. Also bumped suite metadata and refreshed documentation to
+  7.6.12 (OpenAI ChatGPT)
+
+## Version 7.6.11
+- 2025-11-09: Replaced the home-grown Stage 2 progress renderer with a
+  :mod:`tqdm`-backed console display so macOS terminals see smooth per-walker
+  updates, refreshed the notifier glue and unit tests to exercise the live
+  integration, documented the dependency addition across the suite and bumped
+  project metadata to 7.6.11 (OpenAI ChatGPT)
 
 ## Version 7.6.10
 - 2025-11-09: Patched the Stage 2 notifier bridge so weighted `emcee` move

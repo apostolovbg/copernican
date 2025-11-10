@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-11-10
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -103,11 +103,12 @@ same YAML file the helper
 reuses the ΛCDM measurement directly instead of executing the alternative
 branch a second time.
 
-Version 7.6.10 raises that standard further by rendering each bar with Unicode
-partial-block glyphs and rewriting weighted move tables so every terminal sees
-per-walker refreshes. The higher fidelity keeps macOS, Linux and Windows
-terminals animating smoothly even when carriage-return repaints would
-otherwise coalesce multiple walker updates into a single character.
+Version 7.6.11 raises that standard further by routing Stage 2 progress through
+`tqdm`, preserving the Unicode partial-block fallback while ensuring macOS,
+Linux and Windows terminals all animate every walker without coalescing updates.
+Version 7.6.12 locks that smooth animation in place by disabling `tqdm`'s
+adaptive throttling and mirroring the Unicode glyphs inside the live display so
+every walker update repaints instantly on all terminals.
 
 Version 7.1.1 standardises every runtime timestamp on Coordinated
 Universal Time (UTC) so log files, manifests and output directories
