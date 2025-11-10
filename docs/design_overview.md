@@ -56,9 +56,10 @@ the operator continue, return to the summary or exit the suite entirely.
 That preview now showcases the Unicode partial-block renderer introduced in
 version 7.6.9, the weighted-move notifier bridge from version 7.6.10 and the
 native carriage-return animator from version 7.6.14 plus the 7.6.15 cleanup
-that excises the dormant `tqdm` import so contributors can immediately see how
-individual walker updates glide across the bar without spilling into multiple
-console lines.
+that excises the dormant `tqdm` import and the 7.6.16 refresh that layers
+timer-driven idle ticks so contributors can immediately see how individual
+walker updates glide across the bar without spilling into multiple console
+lines.
 
 Every run produces a timestamped output directory containing plots, NetCDF
 chains and a manifest that records the engine, models, datasets, parameter
@@ -108,11 +109,12 @@ partial-block glyphs while Version 7.6.10 ensures weighted `emcee` move tables
 keep the notifier bridge active. Version 7.6.11 briefly handed the live display
 to `tqdm`, Version 7.6.12 disabled adaptive throttling so every walker update
 repainted instantly, Version 7.6.13 layered a dedicated walker-progress meter
-and spinner over the bar, Version 7.6.14 retires the third-party wrapper in
-favour of a native carriage-return renderer that keeps macOS terminals on a
-single line while mirroring every glyph into the logs, and Version 7.6.15
-removes the final dormant shim from the engine module so progress now depends
-solely on the bundled renderer.
+ and spinner over the bar, Version 7.6.14 retires the third-party wrapper in
+ favour of a native carriage-return renderer that keeps macOS terminals on a
+ single line while mirroring every glyph into the logs, Version 7.6.15 removes
+ the final dormant shim from the engine module so progress now depends solely
+ on the bundled renderer, and Version 7.6.16 adds timer-driven idle ticks so
+ the spinner continues to animate even when walker callbacks arrive slowly.
 
 Version 7.4.1 adds a sampler-facing perspective to the plotting layer. The new
 corner plot automatically thins oversized chains, renders the Stage 2 posterior

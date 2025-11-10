@@ -32,6 +32,7 @@ from engines.cosmo_engine_mcmc import (
     _estimate_condition_number,
     _initialise_active_walkers,
     _reseed_invalid_walkers,
+    _StepProgressEmitter,
 )
 
 
@@ -509,6 +510,73 @@ class TestMCMCEngine(unittest.TestCase):
             ]
         )
         np.testing.assert_allclose(arr, loop)
+
+
+class TestStepProgressEmitter(unittest.TestCase):
+    """Exercise the idle spinner helper under deterministic timing."""
+
+    def test_idle_tick_repaints_after_single_update(self) -> None:
+        """``tick`` repaints repeatedly after a lone walker update."""
+
+        class _DummyBar:
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, int, int]] = []
+                self.uses_live_display = True
+
+            def start_step(self, step_index: int, walker_total: int) -> str:
+                self.calls.append(("start", step_index, walker_total))
+                return ""
+
+            def update(
+                self,
+                step_index: int,
+                *,
+                processed: int,
+                total: int,
+                step_progress: float | None = None,
+            ) -> str:
+                self.calls.append(("update", processed, total))
+                return f"line-{len(self.calls)}"
+
+        dummy_bar = _DummyBar()
+        emitter = _StepProgressEmitter(dummy_bar)
+        idle_times = [0.0]
+
+        def _fake_timer() -> float:
+            return idle_times[0]
+
+        def _update_count() -> int:
+            count = 0
+            for call in dummy_bar.calls:
+                if call[0] == "update":
+                    count += 1
+            return count
+
+        emitter._timer = _fake_timer  # type: ignore[attr-defined]
+        emitter._idle_interval = 0.1  # type: ignore[attr-defined]
+        emitter.start(1, 1)
+        idle_times[0] = 0.05
+        emitter(1, 1)
+        initial_updates = _update_count()
+        idle_times[0] = 0.14
+        emitter.tick()
+        self.assertEqual(_update_count(), initial_updates)
+        idle_times[0] = 0.16
+        emitter.tick()
+        idle_times[0] = 0.30
+        emitter.tick()
+        self.assertGreaterEqual(
+            _update_count(),
+            initial_updates + 2,
+        )
+        final_count = _update_count()
+        emitter.clear()
+        idle_times[0] = 0.50
+        emitter.tick()
+        self.assertEqual(
+            _update_count(),
+            final_count,
+        )
 
 
 class TestMCMCHelpers(unittest.TestCase):
