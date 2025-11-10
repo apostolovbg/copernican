@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.15
+- 2025-11-10: Removed dormant `tqdm` and `sys` imports from the MCMC engine so
+  the documented native progress renderer matches the code, refreshed
+  repository metadata to version 7.6.15 and reran the lint suite to keep CI
+  hooks green (OpenAI ChatGPT)
+
 ## Version 7.6.14
 - 2025-11-10: Replaced the Stage 2 `tqdm` wrapper with a direct carriage-return
   renderer so macOS and other terminals keep progress confined to a single
