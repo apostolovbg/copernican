@@ -717,7 +717,7 @@ class BatchProgressBarTestCase(unittest.TestCase):
             self.assertIn("step 1 of 4 steps", half_line)
             self.assertIn("4 steps remaining", half_line)
             self.assertTrue(spinner_frames & set(half_line))
-            bar_segment = half_line.split(" ", 1)[0]
+            bar_segment = half_line.lstrip("\r").split(" ", 1)[0]
             self.assertEqual(
                 len(bar_segment),
                 cosmo_engine_mcmc._BatchProgressBar._BAR_WIDTH,
@@ -776,11 +776,15 @@ class BatchProgressBarTestCase(unittest.TestCase):
             fractional_line = bar.start_step(1, walker_total=20)
             partial_line = bar.update(1, processed=1, total=20)
             self.assertIsNotNone(fractional_line)
-            start = partial_line.index("[") + 1
-            end = partial_line.index("]")
-            inner = partial_line[start:end]
-            partial_set = set("▏▎▍▌▋▊▉")
-            has_partial = bool(set(inner) & partial_set)
+            bar_segment = partial_line.lstrip("\r").split(" ", 1)[0]
+            self.assertEqual(
+                len(bar_segment),
+                cosmo_engine_mcmc._BatchProgressBar._BAR_WIDTH,
+            )
+            partial_set = set(
+                cosmo_engine_mcmc._BatchProgressBar._PARTIAL_GLYPHS
+            )
+            has_partial = bool(set(bar_segment) & partial_set)
             self.assertTrue(has_partial)
             spinner_frames = set(
                 cosmo_engine_mcmc._BatchProgressBar._SPINNER_FRAMES
