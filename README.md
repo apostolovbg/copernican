@@ -1,4 +1,4 @@
-**Version:** 7.6.18
+**Version:** 7.6.20
 **Last Updated:** 2025-11-10
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -13,31 +13,31 @@ reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. Build 7.6.18 keeps
+  dataset selection, model pairing and engine configuration. Build 7.6.20 keeps
   the structured Stage 1 seed selector introduced in 7.5.0, surfaces detailed
-  validation reasons when alternative models fail to load, tidies the startup
-  banner spacing and now drives Stage 2 progress through a dedicated
-  carriage-return renderer that layers a walker-progress meter and spinner on
-  top of the Unicode partial-block fallback. macOS, Linux and Windows terminals
-  repaint on every walker update without spilling into multiple lines because
-  the live bar advances per walker, the spinner now ticks forward even during
-  sparse walker notifications and the logged glyph sequence matches what
-  operators see on screen. The progress preview now omits the historical square
-  brackets around the bars so console captures and log copies stay aligned
-  while keeping the spacing introduced alongside the timer-driven spinner
-  refresh, and the regression suite added in 7.6.18 confirms the bracket-free
-  layout retains the intended bar width and Unicode sub-block coverage on every
-  supported platform. The sampler still rewrites weighted `emcee` move
-  tables to keep notifier hooks alive and deepens the Stage 5 safeguards: the
-  footer sits further below the axes, the text block carries a guaranteed
-  clearance from the canvas edge, and the suptitle is anchored lower so the
-  figure mirrors the spacing used across the other summary plots. Build 7.6.18
-  also keeps the dormant `tqdm` import removed from the default engine so
-  packaging metadata and lint checks stay aligned with dependency manifests that
-  reflect the native progress renderer without dangling fallbacks. The live
-  status indicator still sits beneath its batch heading without recycling
-  legacy runtime estimates, and the splash screen now explicitly imports the
-  standard-library timer so the introductory pause never raises a `NameError`
+  validation reasons when alternative models fail to load and tidies the startup
+  banner spacing. The Stage 1 and Stage 2 menus now step directly into their
+  prompts with a single spacer, removing the repeated prose that previously
+  scrolled by on every restart while preserving the historical pacing. Stage 2
+  progress continues to rely on the dedicated carriage-return renderer layering
+  a walker-progress meter and spinner on top of the Unicode partial-block
+  fallback. The repaint pump now forces regular refreshes even when `emcee`
+  batches momentarily stall, keeping both the spinner and the bar visibly
+  active, and the renderer clears its line whenever a batch completes so old
+  progress bars never linger in captured transcripts. The bar is now exclusively
+  a live console feature—the logger no longer mirrors carriage-return updates—so
+  operators see fluid motion multiple times per second without drowning the log
+  in redundant lines. The sampler still rewrites weighted `emcee` move tables to
+  keep notifier hooks alive and deepens the Stage 5 safeguards: the footer sits
+  further below the axes, the text block carries a guaranteed clearance from the
+  canvas edge, and the suptitle is anchored lower so the figure mirrors the
+  spacing used across the other summary plots. Build 7.6.20 also keeps the
+  dormant `tqdm` import removed from the default engine so packaging metadata
+  and lint checks stay aligned with dependency manifests that reflect the native
+  progress renderer without dangling fallbacks. The live status indicator still
+  sits beneath its batch heading without recycling legacy runtime estimates, and
+  the splash screen now explicitly imports the standard-library timer so the
+  introductory pause never raises a `NameError`
   during launches.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
@@ -56,13 +56,16 @@ The suite is organised around a handful of focused components:
   single line while still mirroring every glyph into the logs. Version 7.6.15
   finalised that transition by pruning the dormant import paths from the engine
   module, Version 7.6.16 adds timer-driven idle ticks so the spinner keeps
-  animating between sparse walker callbacks, and Version 7.6.18 removes the
-  legacy square brackets from both bars so the fallback text and console capture
-  share identical alignment. The update builds on the live
-  progress instrumentation, removes obsolete runtime-estimation hooks and
-  reiterates that Stage 2 requires ArviZ so convergence diagnostics remain a
-  first-class part of every run while noting that launcher utilities depend on
-  explicit standard-library imports for deterministic availability.
+  animating between sparse walker callbacks, Version 7.6.18 removes the legacy
+  square brackets from both bars so the fallback text and console capture share
+  identical alignment, and Version 7.6.20 retires walker snapshot logging while
+  delegating spinner refreshes to a background pump that keeps the live bar
+  active even when sampler iterations take seconds to complete. The update
+  builds on the live progress instrumentation, removes obsolete
+  runtime-estimation hooks and reiterates that Stage 2 requires ArviZ so
+  convergence diagnostics remain a first-class part of every run while noting
+  that launcher utilities depend on explicit standard-library imports for
+  deterministic availability.
 * `engines/` collects computational back ends. The default
   ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
   convergence checks that run on every batch, while the plugin protocol keeps
@@ -174,9 +177,10 @@ Under the hood the program follows a clear pipeline:
    fractions, autocorrelation estimates when the production run exceeds
    ``emcee``'s minimum window, and log-probability traces and emits
    progress updates with percentage indicators for both burn-in and
-   production stages. Each update now carries log-posterior mean, spread and
-   extrema, an approximate Δχ² trend and occasional walker snapshots on the
-   first four parameters so terminals remain readable. When no worker pool is
+  production stages. Each update now carries log-posterior mean, spread and
+  extrema, an approximate Δχ² trend and percentile summaries for the first four
+  parameters so terminals remain readable, dropping the former walker snapshots
+  that duplicated the same information across multiple lines. When no worker pool is
    requested explicitly the engine auto-configures a multiprocessing pool sized
    to the available CPUs, shaving minutes off expensive likelihoods while still
    preserving single-core fallbacks. Shared chi-squared helpers live in
@@ -224,8 +228,12 @@ Under the hood the program follows a clear pipeline:
   shim from the engine module so linting and dependency audits confirm the
   external wrapper is gone for good, Version 7.6.16 layers a timer-driven idle
   spinner tick so live consoles keep animating even when only a single walker
-  reports progress between full-step updates, and Version 7.6.18 retires the
-  enclosing brackets so the rendered bars line up perfectly in transcripts.
+  reports progress between full-step updates, Version 7.6.18 retires the
+  enclosing brackets so the rendered bars line up perfectly in transcripts, and
+  Version 7.6.20 stops mirroring the bar into the log, removes the walker
+  snapshot overlays from periodic diagnostics and introduces a repaint pump
+  thread so the spinner visibly advances several times per second regardless of
+  how long individual sampler iterations take.
 5. **BAO Analysis** – Stage 3 reuses the sampler's diagnostics to report BAO
    chi-squared contributions directly from the joint fit while still
    generating smooth predictions for plots and CSV exports. Shared helpers
@@ -255,7 +263,7 @@ Under the hood the program follows a clear pipeline:
 ### Stage 1 configuration experience
 
 The configuration banner keeps the console organised by placing seed selection
-directly after the Stage 1 heading. Each option explains how the seed affects
+directly after the Stage 1 spacer. Each option explains how the seed affects
 reproducibility, and environment overrides are echoed so CI logs document the
 chosen value. When any alternative model fails validation the orchestrator
 prints the collected reasons as bullet points before offering to restart
@@ -264,8 +272,9 @@ bounds and missing likelihood hooks—are explained without consulting the log
 file. The sampler questionnaire concludes Stage 1 with a summary of recommended
 settings, an explanation of how the per-batch progress bars will animate during
 Stage 2 and now includes a preview of the Unicode sub-block fills introduced in
-version 7.6.9. Version 7.6.18 keeps the bracket-free
-bar layout so operators recognise the flush alignment recorded in live logs.
+  version 7.6.9. Version 7.6.20 keeps the bracket-free bar layout while clarifying
+that progress updates now live exclusively on the console instead of mirroring
+into the log file.
 The summary concludes with a menu that lets users continue, revisit earlier
 questions or cancel the run entirely.
 
@@ -575,11 +584,11 @@ full details are stored in the log file. The logger shortens absolute paths so
 logs remain portable and records the final filenames used for plots and tables.
 Progress indicators print to ``stdout`` and flush on every update so long
 optimisations do not appear stalled on Linux terminals. The ensemble sampler's
-progress reporter now surfaces quantiles for every fitted parameter, never
-omitting late entries, and wraps walker snapshots so long parameter lists stay
-readable. Internally it reuses a scratch buffer for the expanded parameter
-matrix, shaving several percent off the time spent in diagnostic callbacks for
-long chains.
+progress reporter now surfaces quantiles for every fitted parameter without
+emitting legacy walker snapshot dumps, keeping logs concise even when parameter
+lists run long. Internally it reuses a scratch buffer for the expanded
+parameter matrix, shaving several percent off the time spent in diagnostic
+callbacks for long chains.
 Dependency checks reuse a cached import list stored in
 `.cache/dependency_scan.json`. The cache records the absolute path, size and
 modification time of every parsed module so unchanged worktrees skip the AST

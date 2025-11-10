@@ -21,6 +21,22 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.20
+- 2025-11-10: Forced the Stage 2 progress renderer to repaint on a timer even
+  when walker callbacks pause, added an explicit clearing pass so completed
+  batches leave behind only blank spacer lines, extended the regression suite to
+  cover the forced repaints and console clearing logic, refreshed documentation
+  to describe the behaviour and bumped repository metadata to version 7.6.20
+  (OpenAI ChatGPT)
+
+## Version 7.6.19
+- 2025-11-10: Simplified the Stage 1 and Stage 2 banners to single-line spacers,
+  removed walker snapshot logging while keeping percentile diagnostics, stopped
+  mirroring progress bars into the log, introduced a background spinner pump so
+  live updates repaint multiple times per second, refreshed the documentation
+  and regression tests, and bumped repository metadata to version 7.6.19 (OpenAI
+  ChatGPT)
+
 ## Version 7.6.18
 - 2025-11-10: Hardened the Stage 2 progress bar regression tests to cover the
   bracket-free layout, ensuring the Unicode bar width and spinner glyphs stay

@@ -412,10 +412,10 @@ def show_splash_screen():
     # Importing ``time`` at module scope keeps the helper available even when
     # tests stub timing utilities.
     time.sleep(1)
-    console.write(
-        "Follow the prompts to configure a run. Results are saved in the "
-        "'output' directory.\n\n"
-    )
+    # The runtime banner now concludes with a single spacer so subsequent
+    # prompts sit on a clean line without repeating explanatory text that the
+    # documentation already covers.
+    console.write("")
 
 
 # --- System Dependency and Sanity Checker ---
@@ -1311,13 +1311,10 @@ def main_workflow():
         # relaunching the suite.
         while True:
             logger.info("\n--- Stage 1: Configuration ---\n")
-            console.write("")
-            console.write("Stage 1 – Configuration")
-            console.write("-----------------------")
-            console.write(
-                "We will set the random seed, pick an alternative model "
-                "and select the computation engine before loading data."
-            )
+            # Stage 1 previously reiterated a heading and explanatory block for
+            # every restart.  Replacing the prose with a single spacer keeps the
+            # familiar rhythm while letting the workflow dive straight into the
+            # interactive prompts.
             console.write("")
 
             # Seed selection appears directly after the banner so the
@@ -1536,22 +1533,9 @@ def main_workflow():
             getattr(cosmo_engine_selected, "__name__", "Engine"),
         )
         logger.info("\n--- Stage 2: %s ---\n", engine_label)
-        console.write("")
-        console.write(f"Stage 2 – {engine_label}")
-        console.write("------------------------------")
-        console.write(
-            "Stage 2 estimates parameters for the ΛCDM reference model and "
-            "then the selected alternative theory."
-        )
-        console.write(
-            "Burn-in prepares the chains; production accumulates posterior "
-            "samples for analysis."
-        )
-        console.write(
-            "Each sampler phase announces its start and the fifty-character "
-            "progress bar fills continuously with per-walker updates for "
-            "every batch so lengthy runs remain easy to follow."
-        )
+        # Stage 2 mirrors the Stage 1 simplification by retaining only the
+        # spacer. The engine banner now focuses entirely on the live progress
+        # display and logging output.
         console.write("")
         if not hasattr(cosmo_engine_selected, "fit_sne_parameters"):
             logger.error(
