@@ -20,7 +20,9 @@ that foundation to deliver repeatable analyses.
 * `copernican_lib/` contributes the reusable building blocks—data ingestion,
   posterior construction, validation checks, plotting helpers and diagnostics.
   Engines and parsers import from this package instead of reimplementing
-  numerical plumbing.
+  numerical plumbing. Version 7.6.21 moves the Stage 2 progress bar, spinner
+  pump and notifier bridge into `copernican_lib.progress` so additional engines
+  can reuse the console renderer without depending on the default MCMC module.
 * `engines/` contains back ends such as the default
   ``cosmo_engine_mcmc.py``.  Engines consume `EnginePlugin` definitions,
   evaluate joint likelihoods spanning SNe Ia, BAO and CMB data and surface

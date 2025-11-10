@@ -21,6 +21,14 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.21
+- 2025-11-10: Extracted the Stage 2 progress renderer, spinner pump and notifier
+  bridge into `copernican_lib.progress`, restored live per-walker updates by
+  refitting the sampler hooks, added a suspension context so console logs never
+  leave stale bars behind, expanded the regression suite, refreshed
+  documentation and bumped repository metadata to version 7.6.21 (OpenAI
+  ChatGPT)
+
 ## Version 7.6.20
 - 2025-11-10: Forced the Stage 2 progress renderer to repaint on a timer even
   when walker callbacks pause, added an explicit clearing pass so completed
