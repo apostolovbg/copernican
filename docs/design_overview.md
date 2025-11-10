@@ -53,6 +53,11 @@ the terminal without consulting logs. The sampler questionnaire closes the
 stage: it enumerates recommended defaults, allows a full restart, explains
 how the fifty-character progress bars will animate during Stage 2 and lets
 the operator continue, return to the summary or exit the suite entirely.
+That preview now showcases the Unicode partial-block renderer introduced in
+version 7.6.9, the weighted-move notifier bridge from version 7.6.10 and the
+`tqdm`-backed animation from version 7.6.11 so contributors can immediately see
+how individual walker updates glide across the bar even when they fall short of
+a full character.
 
 Every run produces a timestamped output directory containing plots, NetCDF
 chains and a manifest that records the engine, models, datasets, parameter
@@ -96,6 +101,13 @@ Stage 5 figures.  The suptitle shifts downward to match the Stage 3 and Stage 4
 plots, preserving the consistent visual hierarchy while retaining the
 strictly increasing contour levels, 0.015 line cadence and trimmed dataset
 descriptions introduced earlier.
+
+Version 7.6.9 retools the Stage 2 batch progress renderer with Unicode
+partial-block glyphs while Version 7.6.10 ensures weighted `emcee` move tables
+keep the notifier bridge active. Version 7.6.11 hands the live display to
+`tqdm`, keeping the Unicode fallback for logs while macOS, Linux and Windows
+terminals animate every walker without collapsing refreshes into two frames per
+step.
 
 Version 7.4.1 adds a sampler-facing perspective to the plotting layer. The new
 corner plot automatically thins oversized chains, renders the Stage 2 posterior

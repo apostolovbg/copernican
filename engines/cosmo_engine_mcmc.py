@@ -32,6 +32,7 @@ from __future__ import annotations
 import logging
 import math
 import multiprocessing as mp
+import sys
 import textwrap
 import warnings
 from typing import Any, Callable, Iterable, Sequence
@@ -54,6 +55,7 @@ import numpy as np
 import pandas as pd
 from emcee import moves
 from emcee.state import State
+from tqdm import tqdm
 
 from copernican_lib import console_output as console
 from copernican_lib import engine_interface
@@ -511,17 +513,19 @@ def _reseed_invalid_walkers(
 
 
 class _BatchProgressBar:
-    """Render textual progress bars for sampler batches.
+    """Render Stage 2 progress using :mod:`tqdm` for smooth animation.
 
-    Stage 2 reports sampler progress in fixed-size batches so long runs do
-    not spam the console. The bar fills in place beneath the batch heading,
-    mirroring the interactive specification shared with the Stage 2 menu.
-    Every update rewrites the same console line so the animation reads as a
-    single, continuously filling bar without stray carriage returns or
-    trailing timing text.
+    The original ASCII renderer mirrored console output into the log file by
+    emitting carriage-returned strings through :func:`console.write`.  That
+    approach worked well on Linux and CI runners but macOS terminal widgets
+    tended to coalesce multiple in-place refreshes, so the bar appeared to jump
+    only twice per sampler step.  A thin :mod:`tqdm` wrapper keeps the
+    visibility benefits of live rendering while reusing the textual fallback
+    when progress output is disabled.
     """
 
     _BAR_WIDTH = 50
+    _TQDM_BAR_FORMAT = "{desc}: [{bar:50}] {percentage:>3.0f}% ({postfix})"
 
     def __init__(
         self,
@@ -539,7 +543,83 @@ class _BatchProgressBar:
         self._current_span = 0
         self._active = False
         self._last_percent = -1
-        self._last_units = -1
+        self._last_bar = ""
+        self._current_units = 0.0
+        self._tqdm: tqdm | None = None
+
+    def _render_line(
+        self,
+        step_index: int,
+        *,
+        step_progress: float,
+        batch_size: int,
+    ) -> tuple[str, int, str, int]:
+        """Return the textual bar, percent, progress label and remaining."""
+
+        completed_before = max(0, step_index - self._current_start)
+        completed_before = min(completed_before, batch_size)
+        fraction = (completed_before + step_progress) / max(batch_size, 1)
+        fraction = min(max(fraction, 0.0), 1.0)
+        percent = int(round(fraction * 100))
+        exact_units = min(
+            max(fraction * self._BAR_WIDTH, 0.0), self._BAR_WIDTH
+        )
+        full_units = int(math.floor(exact_units))
+        remainder = exact_units - full_units
+        partial_levels = 7  # 1/8th increments across the bar width.
+        partial_index = int(round(remainder * partial_levels))
+        if partial_index > partial_levels:
+            partial_index = partial_levels
+        if (
+            partial_index == partial_levels
+            and remainder > 0
+            and full_units < self._BAR_WIDTH
+        ):
+            full_units += 1
+            partial_index = 0
+        full_units = min(full_units, self._BAR_WIDTH)
+        # ``▏▎▍▌▋▊▉`` spans the Unicode eighth-block family and keeps the
+        # textual fallback aligned with the :mod:`tqdm` output when logging is
+        # redirected to files or the live renderer is disabled.
+        if partial_index and full_units < self._BAR_WIDTH:
+            partial = "▏▎▍▌▋▊▉"[partial_index - 1]
+        else:
+            partial = ""
+        remaining_cells = self._BAR_WIDTH - full_units - len(partial)
+        bar = f"{'█' * full_units}{partial}{'-' * max(remaining_cells, 0)}"
+        completed_steps = completed_before + (1 if step_progress >= 1.0 else 0)
+        completed_steps = min(completed_steps, batch_size)
+        remaining = max(batch_size - completed_steps, 0)
+        remaining_word = "step" if remaining == 1 else "steps"
+        progress_word = "step" if batch_size == 1 else "steps"
+        postfix = (
+            f"step {min(step_index, self._current_end)} of {batch_size} "
+            f"{progress_word}, {remaining} {remaining_word} remaining"
+        )
+        line = f"\r[{bar}] {percent:>3d}% ({postfix})"
+        return line, percent, postfix, remaining
+
+    def _ensure_tqdm(self) -> None:
+        """Create the live :mod:`tqdm` instance when progress is visible."""
+
+        if self._tqdm is not None or not self._display:
+            return
+        self._tqdm = tqdm(
+            total=float(self._current_span),
+            leave=False,
+            mininterval=0.0,
+            smoothing=0.0,
+            dynamic_ncols=False,
+            ncols=self._BAR_WIDTH + 72,
+            bar_format=self._TQDM_BAR_FORMAT,
+            file=sys.stdout,
+            ascii=False,
+        )
+        self._tqdm.set_description_str(self._stage_label)
+        self._tqdm.set_postfix_str(
+            "step 0 of 0 steps, 0 steps remaining", refresh=False
+        )
+        self._tqdm.refresh()
 
     def start_batch(self, batch_start: int, batch_end: int) -> None:
         """Announce a new batch spanning ``batch_start`` to ``batch_end``."""
@@ -555,13 +635,30 @@ class _BatchProgressBar:
         )
         self._active = True
         self._last_percent = -1
-        self._last_units = -1
+        self._last_bar = ""
+        self._current_units = 0.0
         span = self._current_end - self._current_start + 1
         step_word = "step" if span == 1 else "steps"
         console.write(
             f"{self._stage_label} batch {self._batch_index} "
             f"({span} {step_word}) progress:"
         )
+        if self._current_span > 0:
+            self._ensure_tqdm()
+            if self._tqdm is not None:
+                self._tqdm.reset(total=float(self._current_span))
+                remaining_label = (
+                    "step" if self._current_span == 1 else "steps"
+                )
+                self._tqdm.set_postfix_str(
+                    (
+                        f"step {self._current_start - 1} of "
+                        f"{self._current_span} {remaining_label}, "
+                        f"{self._current_span} steps remaining"
+                    ),
+                    refresh=False,
+                )
+                self._tqdm.refresh()
 
     def update(
         self,
@@ -570,54 +667,65 @@ class _BatchProgressBar:
     ) -> str | None:
         """Return the rendered progress line for the active batch."""
 
-        if not self._active or not self._display:
+        if not self._active:
             return None
         batch_size = self._current_span
         if batch_size <= 0:
             return None
-        if step_progress is None:
+        if step_progress is None or not math.isfinite(step_progress):
             step_progress = 1.0
-        step_progress = float(step_progress)
-        if not math.isfinite(step_progress):
-            step_progress = 1.0
-        step_progress = min(max(step_progress, 0.0), 1.0)
-        completed_before = max(0, step_index - self._current_start)
-        completed_before = min(completed_before, batch_size)
-        fraction = (completed_before + step_progress) / batch_size
-        fraction = min(max(fraction, 0.0), 1.0)
-        percent = int(round(fraction * 100))
-        filled = int(round(fraction * self._BAR_WIDTH))
-        filled = max(0, min(self._BAR_WIDTH, filled))
-        if filled == self._last_units and percent == self._last_percent:
+        step_progress = float(min(max(step_progress, 0.0), 1.0))
+        line, percent, postfix, remaining = self._render_line(
+            step_index,
+            step_progress=step_progress,
+            batch_size=batch_size,
+        )
+
+        new_units = min(
+            max(
+                (step_index - self._current_start) + step_progress,
+                0.0,
+            ),
+            batch_size,
+        )
+        delta = max(new_units - self._current_units, 0.0)
+        self._current_units += delta
+
+        if self._tqdm is not None and delta > 0.0:
+            self._tqdm.update(delta)
+            self._tqdm.set_postfix_str(postfix, refresh=False)
+            self._tqdm.refresh()
+
+        if (
+            percent == self._last_percent
+            and line == self._last_bar
+            and self._tqdm is not None
+        ):
             return None
         self._last_percent = percent
-        self._last_units = filled
-        bar = "#" * filled + "-" * (self._BAR_WIDTH - filled)
-        completed_steps = completed_before + (1 if step_progress >= 1.0 else 0)
-        completed_steps = min(completed_steps, batch_size)
-        remaining = max(batch_size - completed_steps, 0)
-        remaining_word = "step" if remaining == 1 else "steps"
-        progress_word = "step" if batch_size == 1 else "steps"
-        current_step = min(step_index, self._current_end)
-        # ``console.write`` flushes after every call, so emitting a carriage
-        # return keeps the latest bar on a single line while it fills.
-        line = (
-            f"\r[{bar}] {percent:>3d}% "
-            f"(step {current_step} of {batch_size} {progress_word}, "
-            f"{remaining} {remaining_word} remaining)"
-        )
+        self._last_bar = line
         return line
 
     def finish_batch(self) -> None:
         """Close the current batch, inserting required spacing."""
 
-        if not self._active or not self._display:
+        if not self._active:
             return
-        self._active = False
-        if self._last_units >= 0:
+        if self._tqdm is not None:
+            self._tqdm.set_postfix_str(
+                f"step {self._current_end} of {self._current_span} steps, "
+                "0 steps remaining",
+                refresh=False,
+            )
+            self._tqdm.close()
+            self._tqdm = None
             console.write("")
+        elif self._last_bar:
+            console.write("")
+        self._active = False
         self._last_percent = -1
-        self._last_units = -1
+        self._last_bar = ""
+        self._current_units = 0.0
         self._current_span = 0
 
     @property
@@ -625,6 +733,12 @@ class _BatchProgressBar:
         """Return the index of the current batch for diagnostics."""
 
         return self._batch_index
+
+    @property
+    def uses_live_display(self) -> bool:
+        """Return ``True`` when :mod:`tqdm` renders the bar."""
+
+        return self._display and self._tqdm is not None
 
 
 class _StepProgressEmitter:
@@ -643,7 +757,7 @@ class _StepProgressEmitter:
         self._active_step = int(step_index)
         self._walker_total = max(int(walker_total), 1)
         line = self._progress_bar.update(step_index, step_progress=0.0)
-        if line:
+        if line and not self._progress_bar.uses_live_display:
             console.write(line, end="")
 
     def clear(self) -> None:
@@ -663,7 +777,7 @@ class _StepProgressEmitter:
             self._active_step,
             step_progress=fraction,
         )
-        if line:
+        if line and not self._progress_bar.uses_live_display:
             console.write(line, end="")
 
 
@@ -765,13 +879,64 @@ def _configure_sampler_progress_reporting(
     """Ensure sampler moves forward updates to ``notifier`` when available."""
 
     moves_attr = getattr(sampler, "_moves", [])
-    for index, move in enumerate(moves_attr):
-        if isinstance(move, _ReportingStretchMove):
-            move.set_progress_notifier(notifier)
-        elif isinstance(move, moves.StretchMove):
-            moves_attr[index] = _ReportingStretchMove.from_existing(
-                move, progress_notifier=notifier
+    if not moves_attr:
+        return
+
+    # ``emcee`` stores its move strategies either as bare instances or as
+    # weight-move tuples/lists depending on how callers configured the sampler.
+    # macOS terminals previously stalled because weighted entries skipped the
+    # notifier injection entirely; normalising the layout here ensures every
+    # stretch move reports walker-level progress regardless of how it was
+    # registered.
+    updated_moves: list[Any] = []
+    for entry in moves_attr:
+        orientation = "bare"
+        weight: Any | None = None
+        move_obj: Any = entry
+
+        if isinstance(entry, tuple) and len(entry) == 2:
+            first, second = entry
+            if isinstance(first, moves.Move):
+                move_obj = first
+                weight = second
+                orientation = "move_weight"
+            elif isinstance(second, moves.Move):
+                move_obj = second
+                weight = first
+                orientation = "weight_move"
+        elif isinstance(entry, list) and len(entry) == 2:
+            first, second = entry
+            if isinstance(first, moves.Move):
+                move_obj = first
+                weight = second
+                orientation = "move_weight_list"
+            elif isinstance(second, moves.Move):
+                move_obj = second
+                weight = first
+                orientation = "weight_move_list"
+
+        if isinstance(move_obj, _ReportingStretchMove):
+            move_obj.set_progress_notifier(notifier)
+        elif isinstance(move_obj, moves.StretchMove):
+            move_obj = _ReportingStretchMove.from_existing(
+                move_obj, progress_notifier=notifier
             )
+
+        if orientation == "move_weight":
+            updated_moves.append((move_obj, weight))
+        elif orientation == "weight_move":
+            updated_moves.append((weight, move_obj))
+        elif orientation == "move_weight_list":
+            updated_moves.append([move_obj, weight])
+        elif orientation == "weight_move_list":
+            updated_moves.append([weight, move_obj])
+        else:
+            updated_moves.append(move_obj)
+
+    if isinstance(moves_attr, tuple):
+        sampler._moves = tuple(updated_moves)
+    else:
+        sampler._moves = list(updated_moves)
 
 
 def _run_stage_with_progress(
@@ -835,7 +1000,7 @@ def _run_stage_with_progress(
         if notifier is not None:
             notifier.clear()
         line = progress_bar.update(idx, step_progress=1.0)
-        if line:
+        if line and not progress_bar.uses_live_display:
             console.write(line, end="")
         if idx == batch_end and idx < n_steps:
             progress_bar.finish_batch()

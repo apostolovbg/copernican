@@ -103,6 +103,10 @@ same YAML file the helper
 reuses the ΛCDM measurement directly instead of executing the alternative
 branch a second time.
 
+Version 7.6.11 raises that standard further by routing Stage 2 progress through
+`tqdm`, preserving the Unicode partial-block fallback while ensuring macOS,
+Linux and Windows terminals all animate every walker without coalescing updates.
+
 Version 7.1.1 standardises every runtime timestamp on Coordinated
 Universal Time (UTC) so log files, manifests and output directories
 match across developer machines and CI runners. Version 7.1.0 adds an

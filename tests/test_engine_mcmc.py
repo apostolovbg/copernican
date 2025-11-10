@@ -15,6 +15,7 @@ from unittest import mock
 import numpy as np
 import pandas as pd
 import xarray as xr
+from emcee import moves
 
 from copernican_lib import (
     chain_io,
@@ -618,6 +619,40 @@ class BatchProgressBarTestCase(unittest.TestCase):
     def test_progress_bar_reports_pluralisation_and_width(self) -> None:
         """Progress lines reflect partial updates and honour the width."""
 
+        class FakeTqdm:
+            instances: list = []
+
+            def __init__(self, *args, **kwargs) -> None:
+                self.total = float(kwargs.get("total", 0.0))
+                self.n = 0.0
+                self.closed = False
+                self.postfix = ""
+                self.desc = ""
+                FakeTqdm.instances.append(self)
+
+            def set_description_str(self, value: str) -> None:
+                self.desc = value
+
+            def set_postfix_str(
+                self, value: str, refresh: bool = True
+            ) -> None:
+                self.postfix = value
+
+            def update(self, delta: float) -> None:
+                self.n += delta
+
+            def refresh(self) -> None:
+                return
+
+            def close(self) -> None:
+                self.closed = True
+
+            def reset(self, total: float | None = None) -> None:
+                self.n = 0.0
+                if total is not None:
+                    self.total = float(total)
+
+        FakeTqdm.instances = []
         captured: list[str] = []
 
         def _capture(
@@ -630,13 +665,16 @@ class BatchProgressBarTestCase(unittest.TestCase):
             4,
             display=True,
         )
-        with mock.patch(
-            "engines.cosmo_engine_mcmc.console.write",
-            side_effect=_capture,
+        with (
+            mock.patch("engines.cosmo_engine_mcmc.tqdm", FakeTqdm),
+            mock.patch(
+                "engines.cosmo_engine_mcmc.console.write",
+                side_effect=_capture,
+            ),
         ):
             bar.start_batch(1, 4)
+            self.assertTrue(bar.uses_live_display)
             initial_line = bar.update(1, step_progress=0.0)
-            self.assertIsInstance(initial_line, str)
             self.assertIn("  0%", initial_line)
             half_line = bar.update(1, step_progress=0.5)
             self.assertIn("step 1 of 4 steps", half_line)
@@ -647,6 +685,7 @@ class BatchProgressBarTestCase(unittest.TestCase):
             self.assertEqual(
                 len(inner), cosmo_engine_mcmc._BatchProgressBar._BAR_WIDTH
             )
+            self.assertIn("█", inner)
             later_line = bar.update(2, step_progress=0.0)
             self.assertIn("step 2 of 4 steps", later_line)
             self.assertIn("3 steps remaining", later_line)
@@ -660,6 +699,101 @@ class BatchProgressBarTestCase(unittest.TestCase):
             any("Test stage batch 1" in message for message in captured)
         )
         self.assertTrue(any(message == "\n" for message in captured))
+        self.assertTrue(FakeTqdm.instances)
+        self.assertAlmostEqual(FakeTqdm.instances[0].total, 4.0)
+        self.assertGreater(FakeTqdm.instances[0].n, 0.0)
+        self.assertTrue(FakeTqdm.instances[0].closed)
+
+    def test_progress_bar_emits_partial_block_during_small_updates(
+        self,
+    ) -> None:
+        """Fractional updates render the Unicode sub-block glyphs."""
+
+        class FakeTqdm:
+            def __init__(self, *args, **kwargs) -> None:
+                self.total = kwargs.get("total", 0.0)
+
+            def set_description_str(self, value: str) -> None:
+                return
+
+            def set_postfix_str(
+                self, value: str, refresh: bool = True
+            ) -> None:
+                return
+
+            def update(self, delta: float) -> None:
+                return
+
+            def refresh(self) -> None:
+                return
+
+            def close(self) -> None:
+                return
+
+            def reset(self, total: float | None = None) -> None:
+                return
+
+        bar = cosmo_engine_mcmc._BatchProgressBar(
+            "Unicode stage",
+            10,
+            display=True,
+        )
+        with (
+            mock.patch("engines.cosmo_engine_mcmc.tqdm", FakeTqdm),
+            mock.patch(
+                "engines.cosmo_engine_mcmc.console.write",
+                side_effect=lambda *args, **kwargs: None,
+            ),
+        ):
+            bar.start_batch(1, 5)
+            fractional_line = bar.update(1, step_progress=0.05)
+            self.assertIsNotNone(fractional_line)
+            start = fractional_line.index("[") + 1
+            end = fractional_line.index("]")
+            inner = fractional_line[start:end]
+            partial_set = set("▏▎▍▌▋▊▉")
+            has_partial = bool(set(inner) & partial_set)
+            self.assertTrue(has_partial)
+
+
+class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):
+    """Ensure sampler move collections attach progress notifiers."""
+
+    def test_weight_first_pair_wraps_stretch_move(self) -> None:
+        """Tuples storing ``(weight, move)`` gain reporting wrappers."""
+
+        sampler = SimpleNamespace(_moves=[(0.75, moves.StretchMove())])
+        notifier = object()
+
+        cosmo_engine_mcmc._configure_sampler_progress_reporting(
+            sampler, notifier
+        )
+
+        weight, move_obj = sampler._moves[0]
+        self.assertEqual(weight, 0.75)
+        self.assertIsInstance(
+            move_obj, cosmo_engine_mcmc._ReportingStretchMove
+        )
+        self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
+
+    def test_move_first_pair_wraps_stretch_move(self) -> None:
+        """Tuples storing ``(move, weight)`` gain reporting wrappers."""
+
+        base_move = moves.StretchMove(a=3.5)
+        sampler = SimpleNamespace(_moves=[(base_move, 0.5)])
+        notifier = object()
+
+        cosmo_engine_mcmc._configure_sampler_progress_reporting(
+            sampler, notifier
+        )
+
+        move_obj, weight = sampler._moves[0]
+        self.assertEqual(weight, 0.5)
+        self.assertIsInstance(
+            move_obj, cosmo_engine_mcmc._ReportingStretchMove
+        )
+        self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
+        self.assertEqual(getattr(move_obj, "a"), getattr(base_move, "a"))
 
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation
