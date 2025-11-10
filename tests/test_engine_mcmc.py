@@ -12,10 +12,10 @@ import warnings
 from types import SimpleNamespace
 from unittest import mock
 
+import emcee
 import numpy as np
 import pandas as pd
 import xarray as xr
-import emcee
 from emcee import moves
 
 from copernican_lib import (
@@ -23,6 +23,11 @@ from copernican_lib import (
     engine_interface,
     model_coder,
     model_parser,
+)
+from copernican_lib.progress import (
+    BatchProgressBar,
+    StepProgressEmitter,
+    configure_sampler_progress_reporting,
 )
 from copernican_lib.utils import set_random_seed
 from engines import cosmo_engine_mcmc
@@ -33,11 +38,6 @@ from engines.cosmo_engine_mcmc import (
     _estimate_condition_number,
     _initialise_active_walkers,
     _reseed_invalid_walkers,
-)
-from copernican_lib.progress import (
-    BatchProgressBar,
-    StepProgressEmitter,
-    configure_sampler_progress_reporting,
 )
 
 
@@ -823,6 +823,25 @@ class BatchProgressBarTestCase(unittest.TestCase):
             self.assertTrue(blank_call.args[0].startswith("\r"))
             self.assertTrue(set(blank_call.args[0][1:]) <= {" "})
 
+    def test_finish_batch_clears_line_without_updates(self) -> None:
+        """Initial 0% renders are tracked so cleanup blanks the console."""
+
+        with mock.patch("engines.cosmo_engine_mcmc.console.write") as patched:
+            bar = BatchProgressBar("Idle stage", 2, display=True)
+            bar.start_batch(1, 2)
+            patched.reset_mock()
+            bar.finish_batch()
+            self.assertGreaterEqual(patched.call_count, 3)
+            blank_calls = [
+                call.args[0] for call in patched.call_args_list if call.args
+            ]
+            self.assertTrue(
+                any(
+                    msg.startswith("\r") and set(msg[1:]) <= {" "}
+                    for msg in blank_calls
+                )
+            )
+
 
 class ProgressIntegrationTestCase(unittest.TestCase):
     """Ensure sampler hooks stream live walker updates."""
@@ -863,6 +882,49 @@ class ProgressIntegrationTestCase(unittest.TestCase):
         self.assertGreaterEqual(len(walker_updates), 2)
         self.assertTrue(
             any(f"1{walker_prefix}" in msg for msg in walker_updates)
+        )
+
+    def test_stage_cleanup_wipes_progress_when_sampler_errors(self) -> None:
+        """Failing samplers still trigger a final console clear."""
+
+        class _FailingSampler:
+            def __init__(self) -> None:
+                self.nwalkers = 4
+                self._moves = [moves.StretchMove()]
+
+            def sample(
+                self, *args, **kwargs
+            ):  # pragma: no cover - generator stub
+                raise RuntimeError("sampler failure")
+
+            def get_last_sample(self):  # pragma: no cover - unused guard
+                raise AssertionError("should not be called")
+
+        sampler = _FailingSampler()
+        initial_state = np.zeros((sampler.nwalkers, 2))
+
+        with mock.patch("copernican_lib.progress.console.write") as patched:
+            with self.assertRaises(RuntimeError):
+                cosmo_engine_mcmc._run_stage_with_progress(
+                    sampler,
+                    initial_state,
+                    3,
+                    stage_name="error-prone",
+                    logger=logging.getLogger("copernican.tests"),
+                    progress_granularity=2,
+                    summary_callback=None,
+                    progress_label="Failing stage",
+                    display_progress=True,
+                )
+
+        blank_calls = [
+            call.args[0] for call in patched.call_args_list if call.args
+        ]
+        self.assertTrue(
+            any(
+                msg.startswith("\r") and set(msg[1:]) <= {" "}
+                for msg in blank_calls
+            )
         )
 
 

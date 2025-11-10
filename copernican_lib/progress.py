@@ -206,7 +206,7 @@ class BatchProgressBar:
                 f"({span} {step_word}) progress:"
             )
             if self._current_span > 0 and self._display:
-                line, _, _ = self._render_line(
+                line, percent, display_line = self._render_line(
                     self._current_start,
                     processed=0,
                     total=max(self._current_step_total, 1),
@@ -214,6 +214,9 @@ class BatchProgressBar:
                 )
                 console.write(line, end="")
                 self._last_rendered = line
+                self._last_line = display_line
+                self._last_percent = percent
+                self._last_rendered_length = len(display_line)
 
     def start_step(
         self, step_index: int, walker_total: int | None = None

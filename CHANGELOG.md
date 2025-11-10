@@ -21,6 +21,14 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.22
+- 2025-11-10: Patched the Stage 2 progress helpers to record the very first
+  batch render so cleanup removes orphaned 0% bars, forced sampler stages to
+  finish inside a shared `finally` block so even exceptions blank the console,
+  extended the regression suite with failure-mode coverage, refreshed the
+  documentation to describe the safety nets and bumped repository metadata to
+  version 7.6.22 (OpenAI ChatGPT)
+
 ## Version 7.6.21
 - 2025-11-10: Extracted the Stage 2 progress renderer, spinner pump and notifier
   bridge into `copernican_lib.progress`, restored live per-walker updates by

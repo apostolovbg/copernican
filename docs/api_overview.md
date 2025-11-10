@@ -21,7 +21,11 @@ modules are:
 - `copernican_lib.progress` – shared progress bars, walker notifiers and
   sampler integration helpers. Engines import `BatchProgressBar`,
   `StepProgressEmitter` and `configure_sampler_progress_reporting` so live
-  Stage 2 updates stay consistent even outside the default MCMC engine.
+  Stage 2 updates stay consistent even outside the default MCMC engine. Version
+  7.6.22 additionally records the very first frame emitted for each batch and
+  closes every sampling stage inside a finally block so clean-up always clears
+  the console, even when an engine aborts before walkers finish their first
+  proposals.
 - `copernican_lib.plotter.plot_corner(samples, plugin, data_attrs,
   plot_dir)` – render the Stage 2 posterior as an automatically thinned
   corner plot whose panel size and typography respond to the number of

@@ -42,7 +42,7 @@ import math
 import multiprocessing as mp
 import threading
 import warnings
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any, Callable, Iterable, Iterator, Sequence
 
 # ArviZ expects ``scipy.signal.gaussian`` which moved in newer SciPy releases.
 try:  # pragma: no cover - compatibility shim
@@ -60,10 +60,7 @@ import arviz as az
 import emcee
 import numpy as np
 import pandas as pd
-from emcee import moves
-from emcee.state import State
 
-from copernican_lib import console_output as console
 from copernican_lib import engine_interface
 from copernican_lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
 from copernican_lib.progress import (
@@ -572,10 +569,11 @@ def _run_stage_with_progress(
         pump_thread.start()
 
     state = None
-    iterator = sampler.sample(
-        initial_state, iterations=n_steps, progress=False
-    )
+    iterator: Iterator[emcee.State] | None = None
     try:
+        iterator = sampler.sample(
+            initial_state, iterations=n_steps, progress=False
+        )
         for idx in range(1, n_steps + 1):
             if notifier is not None:
                 notifier.start(idx, sampler.nwalkers)
@@ -610,6 +608,7 @@ def _run_stage_with_progress(
             pump_stop.set()
         if pump_thread is not None:
             pump_thread.join()
+        progress_bar.finish_batch()
 
     if state is None:
         raise RuntimeError("Sampler produced no states during %s" % stage_name)
