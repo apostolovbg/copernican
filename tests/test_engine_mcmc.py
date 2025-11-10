@@ -809,6 +809,74 @@ class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):
         self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
         self.assertEqual(getattr(move_obj, "a"), getattr(base_move, "a"))
 
+    def test_progress_bar_emits_partial_block_during_small_updates(
+        self,
+    ) -> None:
+        """Fractional updates render the Unicode sub-block glyphs."""
+
+        bar = cosmo_engine_mcmc._BatchProgressBar(
+            "Unicode stage",
+            10,
+            display=True,
+        )
+        with mock.patch(
+            "engines.cosmo_engine_mcmc.console.write",
+            side_effect=lambda *args, **kwargs: None,
+        ):
+            bar.start_batch(1, 5)
+            fractional_line = bar.update(1, step_progress=0.05)
+            self.assertIsNotNone(fractional_line)
+            start = fractional_line.index("[") + 1
+            end = fractional_line.index("]")
+            inner = fractional_line[start:end]
+            # Confirm the partial-block glyphs render before a full column.
+            partial_blocks = (
+                cosmo_engine_mcmc._BatchProgressBar._PARTIAL_BLOCKS[1:]
+            )
+            partial_set = set(partial_blocks)
+            has_partial = bool(set(inner) & partial_set)
+            self.assertTrue(has_partial)
+
+
+class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):
+    """Ensure sampler move collections attach progress notifiers."""
+
+    def test_weight_first_pair_wraps_stretch_move(self) -> None:
+        """Tuples storing ``(weight, move)`` gain reporting wrappers."""
+
+        sampler = SimpleNamespace(_moves=[(0.75, moves.StretchMove())])
+        notifier = object()
+
+        cosmo_engine_mcmc._configure_sampler_progress_reporting(
+            sampler, notifier
+        )
+
+        weight, move_obj = sampler._moves[0]
+        self.assertEqual(weight, 0.75)
+        self.assertIsInstance(
+            move_obj, cosmo_engine_mcmc._ReportingStretchMove
+        )
+        self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
+
+    def test_move_first_pair_wraps_stretch_move(self) -> None:
+        """Tuples storing ``(move, weight)`` gain reporting wrappers."""
+
+        base_move = moves.StretchMove(a=3.5)
+        sampler = SimpleNamespace(_moves=[(base_move, 0.5)])
+        notifier = object()
+
+        cosmo_engine_mcmc._configure_sampler_progress_reporting(
+            sampler, notifier
+        )
+
+        move_obj, weight = sampler._moves[0]
+        self.assertEqual(weight, 0.5)
+        self.assertIsInstance(
+            move_obj, cosmo_engine_mcmc._ReportingStretchMove
+        )
+        self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
+        self.assertEqual(getattr(move_obj, "a"), getattr(base_move, "a"))
+
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation
     unittest.main()
