@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.16
+- 2025-11-10: Extended the Stage 2 progress notifier with a timer-driven idle
+  spinner tick so consoles keep animating when walker updates arrive slowly,
+  updated the deterministic unit tests to patch the new timer helper, refreshed
+  the documentation to describe the behaviour and bumped project metadata to
+  version 7.6.16 (OpenAI ChatGPT)
+
 ## Version 7.6.15
 - 2025-11-10: Removed dormant `tqdm` and `sys` imports from the MCMC engine so
   the documented native progress renderer matches the code, refreshed

@@ -33,6 +33,7 @@ import logging
 import math
 import multiprocessing as mp
 import textwrap
+import time
 import warnings
 from typing import Any, Callable, Iterable, Sequence
 
@@ -768,27 +769,53 @@ class _BatchProgressBar:
 class _StepProgressEmitter:
     """Bridge sampler move callbacks to batch progress updates."""
 
-    __slots__ = ("_progress_bar", "_active_step", "_walker_total")
+    _IDLE_REPAINT_INTERVAL = 0.1
+
+    __slots__ = (
+        "_progress_bar",
+        "_active_step",
+        "_walker_total",
+        "_timer",
+        "_idle_interval",
+        "_last_repaint",
+        "_last_processed",
+        "_last_total",
+    )
 
     def __init__(self, progress_bar: _BatchProgressBar) -> None:
         self._progress_bar = progress_bar
         self._active_step: int | None = None
         self._walker_total = 1
+        # ``time.monotonic`` gives a drift-free timer that tests can patch to
+        # drive deterministic repaint scheduling.
+        self._timer = time.monotonic
+        # Allow tests to override the interval without mutating the class
+        # constant so they can accelerate idle repaint assertions.
+        self._idle_interval = float(self._IDLE_REPAINT_INTERVAL)
+        self._last_repaint: float | None = None
+        self._last_processed = 0
+        self._last_total = 1
 
     def start(self, step_index: int, walker_total: int) -> None:
         """Prepare to track ``step_index`` with ``walker_total`` updates."""
 
         self._active_step = int(step_index)
         self._walker_total = max(int(walker_total), 1)
+        self._last_processed = 0
+        self._last_total = self._walker_total
         line = self._progress_bar.start_step(step_index, self._walker_total)
         if line and not self._progress_bar.uses_live_display:
             console.write(line, end="")
+        self._last_repaint = self._timer()
 
     def clear(self) -> None:
         """Disable updates until the next step begins."""
 
         self._active_step = None
         self._walker_total = 1
+        self._last_repaint = None
+        self._last_processed = 0
+        self._last_total = 1
 
     def __call__(self, processed: int, total: int) -> None:
         """Forward partial progress updates to the active batch."""
@@ -796,6 +823,8 @@ class _StepProgressEmitter:
         if self._active_step is None:
             return
         effective_total = max(int(total) if total else self._walker_total, 1)
+        self._last_processed = int(processed)
+        self._last_total = effective_total
         line = self._progress_bar.update(
             self._active_step,
             processed=processed,
@@ -803,6 +832,31 @@ class _StepProgressEmitter:
         )
         if line and not self._progress_bar.uses_live_display:
             console.write(line, end="")
+        if line:
+            self._last_repaint = self._timer()
+
+    def tick(self) -> None:
+        """Rotate the spinner when idle so live displays keep animating."""
+
+        if self._active_step is None:
+            return
+        if not self._progress_bar.uses_live_display:
+            return
+        if self._last_repaint is None:
+            # Initial calls prime the timestamp without forcing an extra
+            # repaint, mirroring the behaviour of live walker updates.
+            self._last_repaint = self._timer()
+            return
+        now = self._timer()
+        if now - self._last_repaint < self._idle_interval:
+            return
+        line = self._progress_bar.update(
+            self._active_step,
+            processed=self._last_processed,
+            total=self._last_total,
+        )
+        if line:
+            self._last_repaint = now
 
 
 class _ReportingStretchMove(moves.StretchMove):
@@ -1020,8 +1074,11 @@ def _run_stage_with_progress(
     for idx in range(1, n_steps + 1):
         if notifier is not None:
             notifier.start(idx, sampler.nwalkers)
+        if notifier is not None:
+            notifier.tick()
         state = next(iterator)
         if notifier is not None:
+            notifier.tick()
             notifier.clear()
         line = progress_bar.update(
             idx,
