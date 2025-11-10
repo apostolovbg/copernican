@@ -19,6 +19,7 @@ h5py==3.10.0
 xarray==2023.12.0
 xarray-einstats==0.6.0
 typing_extensions==4.10.0
+tqdm==4.66.5
 pytest==8.2.2
 arviz==0.16.1
 attrs==23.2.0

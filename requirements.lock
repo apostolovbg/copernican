@@ -150,6 +150,8 @@ sympy==1.13.0
     # via
     #   -r requirements.in
     #   camb
+tqdm==4.66.5
+    # via -r requirements.in
 typing-extensions==4.10.0
     # via
     #   -r requirements.in

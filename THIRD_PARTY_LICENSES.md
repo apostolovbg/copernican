@@ -30,6 +30,7 @@ users can review the full terms offline.
 | xarray-einstats | 0.6.0 | [Apache-2.0](licenses/Apache-2.0.txt) |
 | packaging | 24.2 | [Apache-2.0](licenses/Apache-2.0.txt) |
 | typing_extensions | 4.10.0 | [MIT](licenses/MIT.txt) |
+| tqdm | 4.66.5 | [MIT](licenses/MIT.txt) |
 | pip | 24.2 | [MIT](licenses/MIT.txt) |
 | pyproject-hooks | 1.2.0 | [MIT](licenses/MIT.txt) |
 | arviz | 0.16.1 | [Apache-2.0](licenses/Apache-2.0.txt) |
