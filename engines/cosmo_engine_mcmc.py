@@ -19,11 +19,12 @@ posterior calculations automatically honour per-parameter priors, declared
 bounds and optional reparameterisation transforms while exposing diagnostic
 metadata alongside sampled chains.
 
-Version 7.6.19 removes walker snapshot logging entirely, dedicates the output
-channel to concise diagnostics and pumps the live progress bar from a
-background thread so the spinner keeps animating even when sampler steps take
-several seconds to complete. The bar no longer mirrors its state to the log
-file, leaving the console display as the single source of progress updates
+Version 7.6.20 removes walker snapshot logging entirely, dedicates the output
+channel to concise diagnostics, keeps a background repaint pump alive so the
+spinner and bar animate even when sampler steps take several seconds to
+complete, and clears each console line when a batch finishes so transcripts
+never retain stale progress bars. The bar no longer mirrors its state to the
+log file, leaving the console display as the single source of progress updates
 while the logger concentrates on statistical summaries.
 
 Version 7.2.10 extends the reproducibility contract by constructing every
@@ -539,6 +540,7 @@ class _BatchProgressBar:
         self._active = False
         self._last_percent = -1
         self._last_line = ""
+        self._last_rendered_length = 0
         self._current_step_total = 1
         self._current_step_processed = 0
         self._spinner_index = -1
@@ -629,6 +631,17 @@ class _BatchProgressBar:
         line = f"\r{display_line}"
         return line, percent, display_line
 
+    def _clear_line(self) -> None:
+        """Erase the previously rendered progress line from the console."""
+
+        if not self._display:
+            return
+        if not self._last_line:
+            return
+        blank = "\r" + (" " * self._last_rendered_length)
+        console.write(blank, end="")
+        console.write("\r", end="")
+
     def start_batch(self, batch_start: int, batch_end: int) -> None:
         """Announce a new batch spanning ``batch_start`` to ``batch_end``."""
 
@@ -645,6 +658,7 @@ class _BatchProgressBar:
             self._active = True
             self._last_percent = -1
             self._last_line = ""
+            self._last_rendered_length = 0
             self._current_step_total = 1
             self._current_step_processed = 0
             self._spinner_index = -1
@@ -689,6 +703,7 @@ class _BatchProgressBar:
         processed: int | None = None,
         total: int | None = None,
         step_progress: float | None = None,
+        force: bool = False,
     ) -> str | None:
         """Return the rendered progress line for the active batch."""
 
@@ -727,12 +742,14 @@ class _BatchProgressBar:
             )
 
             if (
-                percent == self._last_percent
+                not force
+                and percent == self._last_percent
                 and display_line == self._last_line
             ):
                 return None
             self._last_percent = percent
             self._last_line = display_line
+            self._last_rendered_length = len(display_line)
             if self._display:
                 console.write(line, end="")
             return line
@@ -744,10 +761,12 @@ class _BatchProgressBar:
             if not self._active:
                 return
             if self._last_line:
+                self._clear_line()
                 console.write("")
             self._active = False
             self._last_percent = -1
             self._last_line = ""
+            self._last_rendered_length = 0
             self._current_span = 0
             self._current_step_total = 1
             self._current_step_processed = 0
@@ -850,6 +869,7 @@ class _StepProgressEmitter:
             self._active_step,
             processed=self._last_processed,
             total=self._last_total,
+            force=True,
         )
         if line:
             self._last_repaint = now

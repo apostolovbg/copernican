@@ -1,4 +1,4 @@
-**Version:** 7.6.19
+**Version:** 7.6.20
 **Last Updated:** 2025-11-10
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -13,7 +13,7 @@ reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. Build 7.6.19 keeps
+  dataset selection, model pairing and engine configuration. Build 7.6.20 keeps
   the structured Stage 1 seed selector introduced in 7.5.0, surfaces detailed
   validation reasons when alternative models fail to load and tidies the startup
   banner spacing. The Stage 1 and Stage 2 menus now step directly into their
@@ -21,15 +21,17 @@ The suite is organised around a handful of focused components:
   scrolled by on every restart while preserving the historical pacing. Stage 2
   progress continues to rely on the dedicated carriage-return renderer layering
   a walker-progress meter and spinner on top of the Unicode partial-block
-  fallback, and a new background repaint pump keeps the spinner animated even
-  when long sampler steps delay walker callbacks. The bar is now exclusively a
-  live console feature—the logger no longer mirrors carriage-return updates—so
+  fallback. The repaint pump now forces regular refreshes even when `emcee`
+  batches momentarily stall, keeping both the spinner and the bar visibly
+  active, and the renderer clears its line whenever a batch completes so old
+  progress bars never linger in captured transcripts. The bar is now exclusively
+  a live console feature—the logger no longer mirrors carriage-return updates—so
   operators see fluid motion multiple times per second without drowning the log
   in redundant lines. The sampler still rewrites weighted `emcee` move tables to
   keep notifier hooks alive and deepens the Stage 5 safeguards: the footer sits
   further below the axes, the text block carries a guaranteed clearance from the
   canvas edge, and the suptitle is anchored lower so the figure mirrors the
-  spacing used across the other summary plots. Build 7.6.19 also keeps the
+  spacing used across the other summary plots. Build 7.6.20 also keeps the
   dormant `tqdm` import removed from the default engine so packaging metadata
   and lint checks stay aligned with dependency manifests that reflect the native
   progress renderer without dangling fallbacks. The live status indicator still
@@ -56,7 +58,7 @@ The suite is organised around a handful of focused components:
   module, Version 7.6.16 adds timer-driven idle ticks so the spinner keeps
   animating between sparse walker callbacks, Version 7.6.18 removes the legacy
   square brackets from both bars so the fallback text and console capture share
-  identical alignment, and Version 7.6.19 retires walker snapshot logging while
+  identical alignment, and Version 7.6.20 retires walker snapshot logging while
   delegating spinner refreshes to a background pump that keeps the live bar
   active even when sampler iterations take seconds to complete. The update
   builds on the live progress instrumentation, removes obsolete
@@ -228,7 +230,7 @@ Under the hood the program follows a clear pipeline:
   spinner tick so live consoles keep animating even when only a single walker
   reports progress between full-step updates, Version 7.6.18 retires the
   enclosing brackets so the rendered bars line up perfectly in transcripts, and
-  Version 7.6.19 stops mirroring the bar into the log, removes the walker
+  Version 7.6.20 stops mirroring the bar into the log, removes the walker
   snapshot overlays from periodic diagnostics and introduces a repaint pump
   thread so the spinner visibly advances several times per second regardless of
   how long individual sampler iterations take.
@@ -270,7 +272,7 @@ bounds and missing likelihood hooks—are explained without consulting the log
 file. The sampler questionnaire concludes Stage 1 with a summary of recommended
 settings, an explanation of how the per-batch progress bars will animate during
 Stage 2 and now includes a preview of the Unicode sub-block fills introduced in
-version 7.6.9. Version 7.6.19 keeps the bracket-free bar layout while clarifying
+  version 7.6.9. Version 7.6.20 keeps the bracket-free bar layout while clarifying
 that progress updates now live exclusively on the console instead of mirroring
 into the log file.
 The summary concludes with a menu that lets users continue, revisit earlier

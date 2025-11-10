@@ -59,11 +59,13 @@ native carriage-return animator from version 7.6.14 plus the 7.6.15 cleanup
 that excises the dormant `tqdm` import. The 7.6.16 refresh layers
 timer-driven idle ticks so contributors can immediately see how individual
 walker updates glide across the bar without spilling into multiple console
-lines, 7.6.18 keeps the historical square brackets retired while the
-regression suite confirms the bracket-free bars align identically in live
-consoles and captured logs, and 7.6.19 routes idle spinner repaints through a
-background pump while dropping walker snapshot logging so the console remains
-the single source of progress updates.
+ lines, 7.6.18 keeps the historical square brackets retired while the
+ regression suite confirms the bracket-free bars align identically in live
+ consoles and captured logs, 7.6.19 routes idle spinner repaints through a
+ background pump while dropping walker snapshot logging so the console remains
+ the single source of progress updates, and 7.6.20 forces repaint cycles even
+ when `emcee` batches pause while clearing finished bars so transcripts never
+ retain stale progress lines.
 
 Every run produces a timestamped output directory containing plots, NetCDF
 chains and a manifest that records the engine, models, datasets, parameter

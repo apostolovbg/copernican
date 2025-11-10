@@ -27,6 +27,7 @@ from copernican_lib.utils import set_random_seed
 from engines import cosmo_engine_mcmc
 from engines.cosmo_engine_mcmc import (
     _ActiveLogProbability,
+    _BatchProgressBar,
     _build_sne_logposterior,
     _classify_parameter_bounds,
     _estimate_condition_number,
@@ -535,6 +536,7 @@ class TestStepProgressEmitter(unittest.TestCase):
                 processed: int,
                 total: int,
                 step_progress: float | None = None,
+                force: bool = False,
             ) -> str:
                 self.calls.append(("update", processed, total))
                 return f"line-{len(self.calls)}"
@@ -791,6 +793,37 @@ class BatchProgressBarTestCase(unittest.TestCase):
                 cosmo_engine_mcmc._BatchProgressBar._SPINNER_FRAMES
             )
             self.assertTrue(set(partial_line) & spinner_frames)
+
+    def test_force_update_rerenders_identical_text(self) -> None:
+        """Explicitly forced updates repaint even when text is stable."""
+
+        with mock.patch("engines.cosmo_engine_mcmc.console.write") as patched:
+            bar = _BatchProgressBar("Forced stage", 2, display=True)
+            bar.start_batch(1, 2)
+            bar.start_step(1, 4)
+            with mock.patch.object(bar, "_next_spinner", return_value="⠋"):
+                first_line = bar.update(1, processed=2, total=4)
+                self.assertIsNotNone(first_line)
+                patched.reset_mock()
+                self.assertIsNone(bar.update(1, processed=2, total=4))
+                forced_line = bar.update(1, processed=2, total=4, force=True)
+            self.assertIsNotNone(forced_line)
+            patched.assert_called()
+
+    def test_finish_batch_clears_active_line(self) -> None:
+        """Closing a batch wipes the progress line before spacing."""
+
+        with mock.patch("engines.cosmo_engine_mcmc.console.write") as patched:
+            bar = _BatchProgressBar("Cleanup stage", 1, display=True)
+            bar.start_batch(1, 1)
+            bar.start_step(1, 4)
+            bar.update(1, processed=4, total=4)
+            patched.reset_mock()
+            bar.finish_batch()
+            self.assertGreaterEqual(patched.call_count, 3)
+            blank_call = patched.call_args_list[0]
+            self.assertTrue(blank_call.args[0].startswith("\r"))
+            self.assertTrue(set(blank_call.args[0][1:]) <= {" "})
 
 
 class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):
