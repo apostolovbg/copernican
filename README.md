@@ -1,5 +1,5 @@
-**Version:** 7.6.8
-**Last Updated:** 2025-11-09
+**Version:** 7.6.14
+**Last Updated:** 2025-11-10
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -13,15 +13,20 @@ reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. Build 7.6.8 keeps
+  dataset selection, model pairing and engine configuration. Build 7.6.14 keeps
   the structured Stage 1 seed selector introduced in 7.5.0, surfaces detailed
   validation reasons when alternative models fail to load, tidies the startup
-  banner spacing and focuses Stage 2 messaging on the fifty-character progress
-  bars. The sampler now streams per-walker updates so each bar fills smoothly
-  while the Stage 5 plotting step deepens the corner plot safeguards: the
-  footer sits further below the axes, the text block carries a guaranteed
-  clearance from the canvas edge, and the suptitle is anchored lower so the
-  figure mirrors the spacing used across the other summary plots.
+  banner spacing and now drives Stage 2 progress through a dedicated
+  carriage-return renderer that layers a walker-progress meter and spinner on
+  top of the Unicode partial-block fallback. macOS, Linux and Windows terminals
+  repaint on every walker update without spilling into multiple lines because
+  the live bar advances per walker, the spinner animates constantly and the
+  logged glyph sequence matches what operators see on screen. The sampler still
+  rewrites weighted `emcee` move tables to keep
+  notifier hooks alive and deepens the Stage 5 safeguards: the footer sits
+  further below the axes, the text block carries a guaranteed clearance from
+  the canvas edge, and the suptitle is anchored lower so the figure mirrors the
+  spacing used across the other summary plots.
   beneath its batch heading without recycling legacy runtime estimates, and
   the splash screen now explicitly imports the standard-library timer so the
   introductory pause never raises a `NameError` during launches.
@@ -30,11 +35,20 @@ The suite is organised around a handful of focused components:
   keep every engine and plugin consistent. Version 7.6.8 widens the Stage 5
   guard bands by lifting the footer padding, enforcing a minimum baseline for
   the lowest footer line and retuning the subplot margins so the grid rides
-  higher without crowding the canvas. The update builds on the live progress
-  instrumentation, removes obsolete runtime-estimation hooks and reiterates
-  that Stage 2 requires ArviZ so convergence diagnostics remain a first-class
-  part of every run while noting that launcher utilities depend on explicit
-  standard-library imports for deterministic availability.
+  higher without crowding the canvas. Version 7.6.9 documents the Unicode
+  fallback renderer that mirrors the new live progress bar, Version 7.6.10
+  records the notifier bridge that rewrites weighted move tables so Stage 2
+  keeps updating on every walker, Version 7.6.11 captured the intermediate
+  `tqdm` integration, Version 7.6.12 disabled adaptive throttling so live
+  terminals repainted on every walker while mirroring the Unicode glyphs used
+  in the textual fallback, Version 7.6.13 layered a walker-progress meter plus
+  spinner over the display, and Version 7.6.14 drops the external dependency in
+  favour of a native carriage-return renderer that keeps macOS consoles on a
+  single line while still mirroring every glyph into the logs. The update builds
+  on the live progress instrumentation, removes obsolete runtime-estimation
+  hooks and reiterates that Stage 2 requires ArviZ so convergence diagnostics
+  remain a first-class part of every run while noting that launcher utilities
+  depend on explicit standard-library imports for deterministic availability.
 * `engines/` collects computational back ends. The default
   ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
   convergence checks that run on every batch, while the plugin protocol keeps
@@ -178,7 +192,20 @@ Under the hood the program follows a clear pipeline:
   fifty-character bar fills smoothly beneath the batch heading and enforces
   ArviZ diagnostics on every batch, keeping long runs easy to monitor without
   speculative timing estimates while preserving the splash screen's
-  introductory pause through an explicit timing import.
+  introductory pause through an explicit timing import. Version 7.6.9 refines
+  that renderer with Unicode partial-block glyphs so macOS, Linux and Windows
+  terminals all display fluid sub-character progress instead of jumping in
+  coarse steps when carriage returns repaint the bar in place. Version 7.6.10
+  ensures the notifier bridge activates even when `emcee` stores moves
+  alongside weights, Version 7.6.11 briefly routed those updates through a
+  `tqdm`-backed renderer so macOS terminals no longer coalesced frames into just
+  two refreshes per step while the log kept its intervalled summaries, Version
+  7.6.12 turned off adaptive throttling so every walker increment repainted
+  instantly while the live bar reused the Unicode glyphs logged for archival
+  runs, Version 7.6.13 layered a walker-progress meter and animated spinner over
+  the display, and Version 7.6.14 replaces `tqdm` entirely with a native
+  carriage-return renderer so macOS consoles stay on a single line while still
+  mirroring every glyph into the logs.
 5. **BAO Analysis** – Stage 3 reuses the sampler's diagnostics to report BAO
    chi-squared contributions directly from the joint fit while still
    generating smooth predictions for plots and CSV exports. Shared helpers
@@ -217,8 +244,9 @@ bounds and missing likelihood hooks—are explained without consulting the log
 file. The
 sampler questionnaire concludes Stage 1 with a summary of recommended settings,
 an explanation of how the per-batch progress bars will animate during Stage 2
-and a menu that lets users continue, revisit earlier questions or cancel the
-run entirely.
+and now includes a preview of the Unicode sub-block fills introduced in version
+7.6.9. The summary concludes with a menu that lets users continue, revisit
+earlier questions or cancel the run entirely.
 
 ### Interpreting the new convergence diagnostics
 

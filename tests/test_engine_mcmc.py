@@ -1,6 +1,6 @@
 """Integration tests for the ensemble MCMC engine.
 
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-11-10
 """
 
 import logging
@@ -15,6 +15,7 @@ from unittest import mock
 import numpy as np
 import pandas as pd
 import xarray as xr
+from emcee import moves
 
 from copernican_lib import (
     chain_io,
@@ -618,48 +619,143 @@ class BatchProgressBarTestCase(unittest.TestCase):
     def test_progress_bar_reports_pluralisation_and_width(self) -> None:
         """Progress lines reflect partial updates and honour the width."""
 
-        captured: list[str] = []
+        captured: list[tuple[str, str]] = []
 
         def _capture(
             msg: str = "", *, end: str = "\n", error: bool = False
         ) -> None:
-            captured.append(msg + ("" if end == "" else end))
+            captured.append((msg, end))
 
         bar = cosmo_engine_mcmc._BatchProgressBar(
             "Test stage",
             4,
             display=True,
         )
-        with mock.patch(
-            "engines.cosmo_engine_mcmc.console.write",
-            side_effect=_capture,
+        with (
+            mock.patch(
+                "engines.cosmo_engine_mcmc.console.write",
+                side_effect=_capture,
+            ),
         ):
             bar.start_batch(1, 4)
-            initial_line = bar.update(1, step_progress=0.0)
-            self.assertIsInstance(initial_line, str)
+            self.assertTrue(bar.uses_live_display)
+            initial_line = bar.start_step(1, walker_total=8)
             self.assertIn("  0%", initial_line)
-            half_line = bar.update(1, step_progress=0.5)
+            spinner_frames = set(
+                cosmo_engine_mcmc._BatchProgressBar._SPINNER_FRAMES
+            )
+            self.assertTrue(spinner_frames & set(initial_line))
+            half_line = bar.update(1, processed=4, total=8)
             self.assertIn("step 1 of 4 steps", half_line)
             self.assertIn("4 steps remaining", half_line)
+            self.assertTrue(spinner_frames & set(half_line))
             start = half_line.index("[") + 1
             end = half_line.index("]")
             inner = half_line[start:end]
             self.assertEqual(
                 len(inner), cosmo_engine_mcmc._BatchProgressBar._BAR_WIDTH
             )
-            later_line = bar.update(2, step_progress=0.0)
+            self.assertIn("█", inner)
+            self.assertIn("[", half_line.split(";")[-1])
+            self.assertIn("4/8", half_line)
+            walker_inner = half_line.split("[")[2].split("]")[0]
+            self.assertEqual(
+                len(walker_inner),
+                cosmo_engine_mcmc._BatchProgressBar._WALKER_BAR_WIDTH,
+            )
+            later_line = bar.start_step(2, walker_total=8)
             self.assertIn("step 2 of 4 steps", later_line)
             self.assertIn("3 steps remaining", later_line)
-            near_end = bar.update(3, step_progress=1.0)
+            bar.start_step(3, walker_total=8)
+            near_end = bar.update(3, processed=8, total=8)
             self.assertIn("1 step remaining", near_end)
-            final_line = bar.update(4, step_progress=1.0)
+            bar.start_step(4, walker_total=8)
+            final_line = bar.update(4, processed=8, total=8)
             self.assertIn("0 steps remaining", final_line)
             bar.finish_batch()
 
-        self.assertTrue(
-            any("Test stage batch 1" in message for message in captured)
+        announcements = [msg for msg, _ in captured if "batch" in msg]
+        self.assertTrue(announcements)
+        newline_calls = [end for msg, end in captured if msg == ""]
+        self.assertIn("\n", newline_calls)
+        emitted_lines = [msg for msg, end in captured if end == ""]
+        self.assertTrue(emitted_lines)
+        # Spinner frames appear in subsequent captured repaint strings.
+        spinner_hits = [
+            set(msg) & spinner_frames for msg, end in captured if end == ""
+        ]
+        self.assertTrue(any(hit for hit in spinner_hits))
+
+    def test_progress_bar_emits_partial_block_during_small_updates(
+        self,
+    ) -> None:
+        """Fractional updates render the Unicode sub-block glyphs."""
+
+        bar = cosmo_engine_mcmc._BatchProgressBar(
+            "Unicode stage",
+            10,
+            display=True,
         )
-        self.assertTrue(any(message == "\n" for message in captured))
+        with (
+            mock.patch(
+                "engines.cosmo_engine_mcmc.console.write",
+                side_effect=lambda *args, **kwargs: None,
+            ),
+        ):
+            bar.start_batch(1, 5)
+            fractional_line = bar.start_step(1, walker_total=20)
+            partial_line = bar.update(1, processed=1, total=20)
+            self.assertIsNotNone(fractional_line)
+            start = partial_line.index("[") + 1
+            end = partial_line.index("]")
+            inner = partial_line[start:end]
+            partial_set = set("▏▎▍▌▋▊▉")
+            has_partial = bool(set(inner) & partial_set)
+            self.assertTrue(has_partial)
+            spinner_frames = set(
+                cosmo_engine_mcmc._BatchProgressBar._SPINNER_FRAMES
+            )
+            self.assertTrue(set(partial_line) & spinner_frames)
+
+
+class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):
+    """Ensure sampler move collections attach progress notifiers."""
+
+    def test_weight_first_pair_wraps_stretch_move(self) -> None:
+        """Tuples storing ``(weight, move)`` gain reporting wrappers."""
+
+        sampler = SimpleNamespace(_moves=[(0.75, moves.StretchMove())])
+        notifier = object()
+
+        cosmo_engine_mcmc._configure_sampler_progress_reporting(
+            sampler, notifier
+        )
+
+        weight, move_obj = sampler._moves[0]
+        self.assertEqual(weight, 0.75)
+        self.assertIsInstance(
+            move_obj, cosmo_engine_mcmc._ReportingStretchMove
+        )
+        self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
+
+    def test_move_first_pair_wraps_stretch_move(self) -> None:
+        """Tuples storing ``(move, weight)`` gain reporting wrappers."""
+
+        base_move = moves.StretchMove(a=3.5)
+        sampler = SimpleNamespace(_moves=[(base_move, 0.5)])
+        notifier = object()
+
+        cosmo_engine_mcmc._configure_sampler_progress_reporting(
+            sampler, notifier
+        )
+
+        move_obj, weight = sampler._moves[0]
+        self.assertEqual(weight, 0.5)
+        self.assertIsInstance(
+            move_obj, cosmo_engine_mcmc._ReportingStretchMove
+        )
+        self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
+        self.assertEqual(getattr(move_obj, "a"), getattr(base_move, "a"))
 
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation

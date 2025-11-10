@@ -1,10 +1,10 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-09
+# Last Updated: 2025-11-10
 
 """Markov Chain Monte Carlo engine using :mod:`emcee`.
 
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-11-10
 
 The combined optimiser has been retired entirely, leaving this sampler as the
 sole runtime engine.  It continues to focus on Supernova Ia posteriors while
@@ -511,17 +511,31 @@ def _reseed_invalid_walkers(
 
 
 class _BatchProgressBar:
-    """Render textual progress bars for sampler batches.
+    """Render Stage 2 progress with direct carriage-return repainting.
 
-    Stage 2 reports sampler progress in fixed-size batches so long runs do
-    not spam the console. The bar fills in place beneath the batch heading,
-    mirroring the interactive specification shared with the Stage 2 menu.
-    Every update rewrites the same console line so the animation reads as a
-    single, continuously filling bar without stray carriage returns or
-    trailing timing text.
+    The bar rebuilds the legacy carriage-return flow so console output and log
+    captures stay byte-identical while adding a walker meter and spinner.
+    Every
+    walker notification rotates the spinner even when the bar text itself would
+    otherwise remain unchanged, guaranteeing visible motion on terminals that
+    previously coalesced in-place updates.
     """
 
     _BAR_WIDTH = 50
+    _WALKER_BAR_WIDTH = 12
+    _PARTIAL_GLYPHS = "▏▎▍▌▋▊▉"
+    _SPINNER_FRAMES = (
+        "⠋",
+        "⠙",
+        "⠹",
+        "⠸",
+        "⠼",
+        "⠴",
+        "⠦",
+        "⠧",
+        "⠇",
+        "⠏",
+    )
 
     def __init__(
         self,
@@ -539,7 +553,87 @@ class _BatchProgressBar:
         self._current_span = 0
         self._active = False
         self._last_percent = -1
-        self._last_units = -1
+        self._last_line = ""
+        self._current_step_total = 1
+        self._current_step_processed = 0
+        self._spinner_index = -1
+
+    def _build_bar(self, fraction: float, width: int) -> str:
+        """Return a Unicode bar ``width`` cells wide for ``fraction``."""
+
+        fraction = min(max(fraction, 0.0), 1.0)
+        exact_units = min(max(fraction * width, 0.0), float(width))
+        full_units = int(math.floor(exact_units))
+        remainder = exact_units - full_units
+        partial_levels = len(self._PARTIAL_GLYPHS)
+        partial_index = int(round(remainder * partial_levels))
+        if partial_index > partial_levels:
+            partial_index = partial_levels
+        if (
+            partial_index == partial_levels
+            and remainder > 0
+            and full_units < width
+        ):
+            full_units += 1
+            partial_index = 0
+        full_units = min(full_units, width)
+        if partial_index and full_units < width:
+            partial = self._PARTIAL_GLYPHS[partial_index - 1]
+        else:
+            partial = ""
+        remaining_cells = width - full_units - len(partial)
+        return f"{'█' * full_units}{partial}{'-' * max(remaining_cells, 0)}"
+
+    def _next_spinner(self) -> str:
+        """Advance and return the animated spinner glyph."""
+
+        if not self._SPINNER_FRAMES:
+            return ""
+        self._spinner_index = (self._spinner_index + 1) % len(
+            self._SPINNER_FRAMES
+        )
+        return self._SPINNER_FRAMES[self._spinner_index]
+
+    def _render_line(
+        self,
+        step_index: int,
+        *,
+        processed: int,
+        total: int,
+        batch_size: int,
+    ) -> tuple[str, int, str]:
+        """Return the console line, percentage and display text."""
+
+        walker_total = max(total, 1)
+        walker_processed = min(max(processed, 0), walker_total)
+        step_progress = walker_processed / walker_total
+        completed_before = max(0, step_index - self._current_start)
+        completed_before = min(completed_before, batch_size)
+        fraction = (completed_before + step_progress) / max(batch_size, 1)
+        fraction = min(max(fraction, 0.0), 1.0)
+        percent = int(round(fraction * 100))
+        bar = self._build_bar(fraction, self._BAR_WIDTH)
+        walker_bar = self._build_bar(step_progress, self._WALKER_BAR_WIDTH)
+        completed_steps = completed_before + (1 if step_progress >= 1.0 else 0)
+        completed_steps = min(completed_steps, batch_size)
+        remaining = max(batch_size - completed_steps, 0)
+        remaining_word = "step" if remaining == 1 else "steps"
+        progress_word = "step" if batch_size == 1 else "steps"
+        walker_remaining = max(walker_total - walker_processed, 0)
+        walker_word = "walker" if walker_remaining == 1 else "walkers"
+        spinner = self._next_spinner()
+        postfix = (
+            f"step {min(step_index, self._current_end)} of {batch_size} "
+            f"{progress_word}, {remaining} {remaining_word} remaining"
+        )
+        walker_postfix = f"[{walker_bar}] {walker_processed}/{walker_total}"
+        display_line = (
+            f"[{bar}] {percent:>3d}% {spinner} ("
+            f"{postfix}; {walker_postfix}, "
+            f"{walker_remaining} {walker_word} left)"
+        )
+        line = f"\r{display_line}"
+        return line, percent, display_line
 
     def start_batch(self, batch_start: int, batch_end: int) -> None:
         """Announce a new batch spanning ``batch_start`` to ``batch_end``."""
@@ -555,76 +649,120 @@ class _BatchProgressBar:
         )
         self._active = True
         self._last_percent = -1
-        self._last_units = -1
+        self._last_line = ""
+        self._current_step_total = 1
+        self._current_step_processed = 0
+        self._spinner_index = -1
         span = self._current_end - self._current_start + 1
         step_word = "step" if span == 1 else "steps"
         console.write(
             f"{self._stage_label} batch {self._batch_index} "
             f"({span} {step_word}) progress:"
         )
+        if self._current_span > 0 and self._display:
+            line, _, _ = self._render_line(
+                self._current_start,
+                processed=0,
+                total=max(self._current_step_total, 1),
+                batch_size=self._current_span,
+            )
+            console.write(line, end="")
+
+    def start_step(
+        self, step_index: int, walker_total: int | None = None
+    ) -> str | None:
+        """Register the walker total for ``step_index`` and render progress."""
+
+        if not self._active:
+            return None
+        if walker_total is None:
+            walker_total = self._current_step_total
+        walker_total = max(int(walker_total), 1)
+        self._current_step_total = walker_total
+        self._current_step_processed = 0
+        return self.update(
+            step_index,
+            processed=0,
+            total=self._current_step_total,
+        )
 
     def update(
         self,
         step_index: int,
+        *,
+        processed: int | None = None,
+        total: int | None = None,
         step_progress: float | None = None,
     ) -> str | None:
         """Return the rendered progress line for the active batch."""
 
-        if not self._active or not self._display:
+        if not self._active:
             return None
         batch_size = self._current_span
         if batch_size <= 0:
             return None
-        if step_progress is None:
-            step_progress = 1.0
-        step_progress = float(step_progress)
-        if not math.isfinite(step_progress):
-            step_progress = 1.0
-        step_progress = min(max(step_progress, 0.0), 1.0)
-        completed_before = max(0, step_index - self._current_start)
-        completed_before = min(completed_before, batch_size)
-        fraction = (completed_before + step_progress) / batch_size
-        fraction = min(max(fraction, 0.0), 1.0)
-        percent = int(round(fraction * 100))
-        filled = int(round(fraction * self._BAR_WIDTH))
-        filled = max(0, min(self._BAR_WIDTH, filled))
-        if filled == self._last_units and percent == self._last_percent:
+        if total is not None:
+            total_int = max(int(total), 1)
+            self._current_step_total = total_int
+        else:
+            total_int = self._current_step_total
+        if processed is None:
+            if step_progress is None or not math.isfinite(step_progress):
+                processed_int = total_int
+            else:
+                processed_int = int(
+                    round(min(max(step_progress, 0.0), 1.0) * total_int)
+                )
+        else:
+            processed_int = int(processed)
+        processed_int = min(max(processed_int, 0), total_int)
+        self._current_step_processed = processed_int
+        if step_progress is None or not math.isfinite(step_progress):
+            step_progress = processed_int / max(total_int, 1)
+        else:
+            step_progress = float(min(max(step_progress, 0.0), 1.0))
+
+        line, percent, display_line = self._render_line(
+            step_index,
+            processed=processed_int,
+            total=total_int,
+            batch_size=batch_size,
+        )
+
+        if percent == self._last_percent and display_line == self._last_line:
             return None
         self._last_percent = percent
-        self._last_units = filled
-        bar = "#" * filled + "-" * (self._BAR_WIDTH - filled)
-        completed_steps = completed_before + (1 if step_progress >= 1.0 else 0)
-        completed_steps = min(completed_steps, batch_size)
-        remaining = max(batch_size - completed_steps, 0)
-        remaining_word = "step" if remaining == 1 else "steps"
-        progress_word = "step" if batch_size == 1 else "steps"
-        current_step = min(step_index, self._current_end)
-        # ``console.write`` flushes after every call, so emitting a carriage
-        # return keeps the latest bar on a single line while it fills.
-        line = (
-            f"\r[{bar}] {percent:>3d}% "
-            f"(step {current_step} of {batch_size} {progress_word}, "
-            f"{remaining} {remaining_word} remaining)"
-        )
+        self._last_line = display_line
+        if self._display:
+            console.write(line, end="")
         return line
 
     def finish_batch(self) -> None:
         """Close the current batch, inserting required spacing."""
 
-        if not self._active or not self._display:
+        if not self._active:
             return
-        self._active = False
-        if self._last_units >= 0:
+        if self._last_line:
             console.write("")
+        self._active = False
         self._last_percent = -1
-        self._last_units = -1
+        self._last_line = ""
         self._current_span = 0
+        self._current_step_total = 1
+        self._current_step_processed = 0
+        self._spinner_index = -1
 
     @property
     def batch_index(self) -> int:
         """Return the index of the current batch for diagnostics."""
 
         return self._batch_index
+
+    @property
+    def uses_live_display(self) -> bool:
+        """Return ``True`` when the bar repaints the console directly."""
+
+        return self._display
 
 
 class _StepProgressEmitter:
@@ -642,8 +780,8 @@ class _StepProgressEmitter:
 
         self._active_step = int(step_index)
         self._walker_total = max(int(walker_total), 1)
-        line = self._progress_bar.update(step_index, step_progress=0.0)
-        if line:
+        line = self._progress_bar.start_step(step_index, self._walker_total)
+        if line and not self._progress_bar.uses_live_display:
             console.write(line, end="")
 
     def clear(self) -> None:
@@ -658,12 +796,12 @@ class _StepProgressEmitter:
         if self._active_step is None:
             return
         effective_total = max(int(total) if total else self._walker_total, 1)
-        fraction = min(max(processed / effective_total, 0.0), 1.0)
         line = self._progress_bar.update(
             self._active_step,
-            step_progress=fraction,
+            processed=processed,
+            total=effective_total,
         )
-        if line:
+        if line and not self._progress_bar.uses_live_display:
             console.write(line, end="")
 
 
@@ -765,13 +903,64 @@ def _configure_sampler_progress_reporting(
     """Ensure sampler moves forward updates to ``notifier`` when available."""
 
     moves_attr = getattr(sampler, "_moves", [])
-    for index, move in enumerate(moves_attr):
-        if isinstance(move, _ReportingStretchMove):
-            move.set_progress_notifier(notifier)
-        elif isinstance(move, moves.StretchMove):
-            moves_attr[index] = _ReportingStretchMove.from_existing(
-                move, progress_notifier=notifier
+    if not moves_attr:
+        return
+
+    # ``emcee`` stores its move strategies either as bare instances or as
+    # weight-move tuples/lists depending on how callers configured the sampler.
+    # macOS terminals previously stalled because weighted entries skipped the
+    # notifier injection entirely; normalising the layout here ensures every
+    # stretch move reports walker-level progress regardless of how it was
+    # registered.
+    updated_moves: list[Any] = []
+    for entry in moves_attr:
+        orientation = "bare"
+        weight: Any | None = None
+        move_obj: Any = entry
+
+        if isinstance(entry, tuple) and len(entry) == 2:
+            first, second = entry
+            if isinstance(first, moves.Move):
+                move_obj = first
+                weight = second
+                orientation = "move_weight"
+            elif isinstance(second, moves.Move):
+                move_obj = second
+                weight = first
+                orientation = "weight_move"
+        elif isinstance(entry, list) and len(entry) == 2:
+            first, second = entry
+            if isinstance(first, moves.Move):
+                move_obj = first
+                weight = second
+                orientation = "move_weight_list"
+            elif isinstance(second, moves.Move):
+                move_obj = second
+                weight = first
+                orientation = "weight_move_list"
+
+        if isinstance(move_obj, _ReportingStretchMove):
+            move_obj.set_progress_notifier(notifier)
+        elif isinstance(move_obj, moves.StretchMove):
+            move_obj = _ReportingStretchMove.from_existing(
+                move_obj, progress_notifier=notifier
             )
+
+        if orientation == "move_weight":
+            updated_moves.append((move_obj, weight))
+        elif orientation == "weight_move":
+            updated_moves.append((weight, move_obj))
+        elif orientation == "move_weight_list":
+            updated_moves.append([move_obj, weight])
+        elif orientation == "weight_move_list":
+            updated_moves.append([weight, move_obj])
+        else:
+            updated_moves.append(move_obj)
+
+    if isinstance(moves_attr, tuple):
+        sampler._moves = tuple(updated_moves)
+    else:
+        sampler._moves = list(updated_moves)
 
 
 def _run_stage_with_progress(
@@ -834,8 +1023,13 @@ def _run_stage_with_progress(
         state = next(iterator)
         if notifier is not None:
             notifier.clear()
-        line = progress_bar.update(idx, step_progress=1.0)
-        if line:
+        line = progress_bar.update(
+            idx,
+            processed=sampler.nwalkers,
+            total=sampler.nwalkers,
+            step_progress=1.0,
+        )
+        if line and not progress_bar.uses_live_display:
             console.write(line, end="")
         if idx == batch_end and idx < n_steps:
             progress_bar.finish_batch()

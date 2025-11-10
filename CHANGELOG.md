@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-11-10
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,48 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 7.6.14
+- 2025-11-10: Replaced the Stage 2 `tqdm` wrapper with a direct carriage-return
+  renderer so macOS and other terminals keep progress confined to a single
+  line while still repainting on every walker callback, removed the runtime
+  dependency, refreshed the notifier-driven unit tests and updated suite
+  documentation and metadata to 7.6.14 (OpenAI ChatGPT)
+
+## Version 7.6.13
+- 2025-11-10: Retuned the Stage 2 progress bar to accumulate walker-level
+  updates, layering a dedicated spinner and walker-progress meter over the
+  Unicode batch bar so terminals repaint on every callback, refreshed the
+  notifier bridge and unit tests to exercise the new `start_step` contract, and
+  updated suite documentation and metadata to 7.6.13 while keeping CI checks
+  green (OpenAI ChatGPT)
+
+## Version 7.6.12
+- 2025-11-10: Forced Stage 2 progress bars to repaint on every walker update by
+  disabling `tqdm`'s adaptive throttling, mirroring the Unicode partial-block
+  renderer inside the live display, extending the unit tests to assert the new
+  configuration and ensuring lint hooks flag duplicate class names before any
+  commit ships. Also bumped suite metadata and refreshed documentation to
+  7.6.12 (OpenAI ChatGPT)
+
+## Version 7.6.11
+- 2025-11-09: Replaced the home-grown Stage 2 progress renderer with a
+  :mod:`tqdm`-backed console display so macOS terminals see smooth per-walker
+  updates, refreshed the notifier glue and unit tests to exercise the live
+  integration, documented the dependency addition across the suite and bumped
+  project metadata to 7.6.11 (OpenAI ChatGPT)
+
+## Version 7.6.10
+- 2025-11-09: Patched the Stage 2 notifier bridge so weighted `emcee` move
+  tables receive reporting wrappers, restoring per-walker progress updates on
+  macOS terminals, refreshed the progress bar tests to cover weighted tuples
+  and bumped project metadata to 7.6.10 (OpenAI ChatGPT)
+
+## Version 7.6.9
+- 2025-11-09: Rebuilt the Stage 2 batch progress renderer with Unicode
+  partial-block glyphs so interactive terminals match the smooth updates already
+  captured in logs, refreshed the accompanying unit tests, documentation and
+  contributor guidance, and bumped project metadata to 7.6.9 (OpenAI ChatGPT)
 
 ## Version 7.6.8
 - 2025-11-09: Deepened the Stage 5 corner plot clearances by lifting the footer

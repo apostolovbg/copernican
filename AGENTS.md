@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-09
+**Last Updated:** 2025-11-10
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -102,6 +102,15 @@ fails fast when the package is missing. When both model plugins resolve to the
 same YAML file the helper
 reuses the ΛCDM measurement directly instead of executing the alternative
 branch a second time.
+
+Version 7.6.11 raised that standard further by routing Stage 2 progress through
+`tqdm`, Version 7.6.12 locked the smooth animation in place by disabling the
+library's adaptive throttling and mirroring the Unicode glyphs inside the live
+display, Version 7.6.13 added a dedicated walker-progress meter plus an animated
+spinner, and Version 7.6.14 retires `tqdm` entirely in favour of a native
+carriage-return renderer so macOS, Linux and Windows terminals repaint every
+walker update on a single console line while the logged Unicode glyphs remain
+identical to the interactive output.
 
 Version 7.1.1 standardises every runtime timestamp on Coordinated
 Universal Time (UTC) so log files, manifests and output directories
