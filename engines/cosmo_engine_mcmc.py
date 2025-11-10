@@ -32,7 +32,6 @@ from __future__ import annotations
 import logging
 import math
 import multiprocessing as mp
-import sys
 import textwrap
 import warnings
 from typing import Any, Callable, Iterable, Sequence
@@ -55,7 +54,6 @@ import numpy as np
 import pandas as pd
 from emcee import moves
 from emcee.state import State
-from tqdm import tqdm
 
 from copernican_lib import console_output as console
 from copernican_lib import engine_interface
