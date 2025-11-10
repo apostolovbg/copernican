@@ -717,20 +717,22 @@ class BatchProgressBarTestCase(unittest.TestCase):
             self.assertIn("step 1 of 4 steps", half_line)
             self.assertIn("4 steps remaining", half_line)
             self.assertTrue(spinner_frames & set(half_line))
-            start = half_line.index("[") + 1
-            end = half_line.index("]")
-            inner = half_line[start:end]
+            bar_segment = half_line.split(" ", 1)[0]
             self.assertEqual(
-                len(inner), cosmo_engine_mcmc._BatchProgressBar._BAR_WIDTH
+                len(bar_segment),
+                cosmo_engine_mcmc._BatchProgressBar._BAR_WIDTH,
             )
-            self.assertIn("█", inner)
-            self.assertIn("[", half_line.split(";")[-1])
+            self.assertIn("█", bar_segment)
             self.assertIn("4/8", half_line)
-            walker_inner = half_line.split("[")[2].split("]")[0]
+            walker_segment = (
+                half_line.split(";", 1)[1].strip().split(",", 1)[0]
+            )
+            walker_bar_segment, walker_counts = walker_segment.rsplit(" ", 1)
             self.assertEqual(
-                len(walker_inner),
+                len(walker_bar_segment),
                 cosmo_engine_mcmc._BatchProgressBar._WALKER_BAR_WIDTH,
             )
+            self.assertEqual(walker_counts, "4/8")
             later_line = bar.start_step(2, walker_total=8)
             self.assertIn("step 2 of 4 steps", later_line)
             self.assertIn("3 steps remaining", later_line)

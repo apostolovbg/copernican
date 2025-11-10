@@ -56,10 +56,11 @@ the operator continue, return to the summary or exit the suite entirely.
 That preview now showcases the Unicode partial-block renderer introduced in
 version 7.6.9, the weighted-move notifier bridge from version 7.6.10 and the
 native carriage-return animator from version 7.6.14 plus the 7.6.15 cleanup
-that excises the dormant `tqdm` import and the 7.6.16 refresh that layers
+that excises the dormant `tqdm` import. The 7.6.16 refresh layers
 timer-driven idle ticks so contributors can immediately see how individual
 walker updates glide across the bar without spilling into multiple console
-lines.
+lines, and 7.6.17 removes the historical square brackets so the bars align
+identically in live consoles and captured logs.
 
 Every run produces a timestamped output directory containing plots, NetCDF
 chains and a manifest that records the engine, models, datasets, parameter

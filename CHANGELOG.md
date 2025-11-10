@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.6.17
+- 2025-11-10: Removed the Stage 2 progress bar brackets so console and log
+  captures share the same alignment, refreshed the unit tests and
+  documentation to assert the bracket-free layout and bumped repository
+  metadata to version 7.6.17 (OpenAI ChatGPT)
+
 ## Version 7.6.16
 - 2025-11-10: Extended the Stage 2 progress notifier with a timer-driven idle
   spinner tick so consoles keep animating when walker updates arrive slowly,
