@@ -214,10 +214,11 @@ class TestMCMCEngine(unittest.TestCase):
 
         joined = "\n".join(captured.output)
         self.assertIn("logP μ=", joined)
-        self.assertIn("Walker[", joined)
+        self.assertNotIn("Walker[", joined)
         for name in plugin.PARAMETER_NAMES:
             self.assertIn(f"    {name}:", joined)
         self.assertNotIn("omitted", joined)
+        self.assertNotIn("snapshot", joined)
 
     def test_explicit_pool_size_respected(self):
         plugin = self._build_lcdm_plugin()

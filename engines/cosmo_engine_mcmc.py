@@ -19,6 +19,13 @@ posterior calculations automatically honour per-parameter priors, declared
 bounds and optional reparameterisation transforms while exposing diagnostic
 metadata alongside sampled chains.
 
+Version 7.6.19 removes walker snapshot logging entirely, dedicates the output
+channel to concise diagnostics and pumps the live progress bar from a
+background thread so the spinner keeps animating even when sampler steps take
+several seconds to complete. The bar no longer mirrors its state to the log
+file, leaving the console display as the single source of progress updates
+while the logger concentrates on statistical summaries.
+
 Version 7.2.10 extends the reproducibility contract by constructing every
 NumPy :class:`~numpy.random.Generator` from the shared
 :func:`copernican_lib.utils.get_random_seed` value.  The helper captures the
@@ -32,7 +39,7 @@ from __future__ import annotations
 import logging
 import math
 import multiprocessing as mp
-import textwrap
+import threading
 import time
 import warnings
 from typing import Any, Callable, Iterable, Sequence
@@ -278,29 +285,6 @@ class _SamplingProgressReporter:
                 lines.append(
                     "    ... %d additional parameter(s) omitted." % remaining
                 )
-
-        if np.any(finite_mask) and (
-            self._report_count == 1
-            or self._report_count % self._sample_interval == 0
-        ):
-            walker_idx = int(np.argmax(log_prob[finite_mask]))
-            full_idx = np.flatnonzero(finite_mask)[walker_idx]
-            snapshot_vals = expanded[full_idx]
-            snapshot_pairs = [
-                f"{name}={snapshot_vals[idx]:.4g}"
-                for idx, name in enumerate(
-                    self._param_names[: self._max_params_to_show]
-                )
-            ]
-            snapshot_text = ", ".join(snapshot_pairs)
-            lines.append(
-                textwrap.fill(
-                    snapshot_text,
-                    width=self._wrap_width,
-                    initial_indent=f"    Walker[{full_idx}] snapshot: ",
-                    subsequent_indent=" " * 8,
-                )
-            )
 
         return lines
 
@@ -558,6 +542,10 @@ class _BatchProgressBar:
         self._current_step_total = 1
         self._current_step_processed = 0
         self._spinner_index = -1
+        # Progress updates originate from both the sampler thread and a
+        # dedicated repaint pump.  A re-entrant lock keeps those writers in
+        # sequence so Unicode bar updates never interleave on the console.
+        self._lock = threading.RLock()
 
     def _build_bar(self, fraction: float, width: int) -> str:
         """Return a Unicode bar ``width`` cells wide for ``fraction``."""
@@ -644,48 +632,50 @@ class _BatchProgressBar:
     def start_batch(self, batch_start: int, batch_end: int) -> None:
         """Announce a new batch spanning ``batch_start`` to ``batch_end``."""
 
-        if not self._display or batch_end < batch_start:
-            self._active = False
-            return
-        self._batch_index += 1
-        self._current_start = int(batch_start)
-        self._current_end = int(batch_end)
-        self._current_span = max(
-            self._current_end - self._current_start + 1, 0
-        )
-        self._active = True
-        self._last_percent = -1
-        self._last_line = ""
-        self._current_step_total = 1
-        self._current_step_processed = 0
-        self._spinner_index = -1
-        span = self._current_end - self._current_start + 1
-        step_word = "step" if span == 1 else "steps"
-        console.write(
-            f"{self._stage_label} batch {self._batch_index} "
-            f"({span} {step_word}) progress:"
-        )
-        if self._current_span > 0 and self._display:
-            line, _, _ = self._render_line(
-                self._current_start,
-                processed=0,
-                total=max(self._current_step_total, 1),
-                batch_size=self._current_span,
+        with self._lock:
+            if not self._display or batch_end < batch_start:
+                self._active = False
+                return
+            self._batch_index += 1
+            self._current_start = int(batch_start)
+            self._current_end = int(batch_end)
+            self._current_span = max(
+                self._current_end - self._current_start + 1, 0
             )
-            console.write(line, end="")
+            self._active = True
+            self._last_percent = -1
+            self._last_line = ""
+            self._current_step_total = 1
+            self._current_step_processed = 0
+            self._spinner_index = -1
+            span = self._current_end - self._current_start + 1
+            step_word = "step" if span == 1 else "steps"
+            console.write(
+                f"{self._stage_label} batch {self._batch_index} "
+                f"({span} {step_word}) progress:"
+            )
+            if self._current_span > 0 and self._display:
+                line, _, _ = self._render_line(
+                    self._current_start,
+                    processed=0,
+                    total=max(self._current_step_total, 1),
+                    batch_size=self._current_span,
+                )
+                console.write(line, end="")
 
     def start_step(
         self, step_index: int, walker_total: int | None = None
     ) -> str | None:
         """Register the walker total for ``step_index`` and render progress."""
 
-        if not self._active:
-            return None
-        if walker_total is None:
-            walker_total = self._current_step_total
-        walker_total = max(int(walker_total), 1)
-        self._current_step_total = walker_total
-        self._current_step_processed = 0
+        with self._lock:
+            if not self._active:
+                return None
+            if walker_total is None:
+                walker_total = self._current_step_total
+            walker_total = max(int(walker_total), 1)
+            self._current_step_total = walker_total
+            self._current_step_processed = 0
         return self.update(
             step_index,
             processed=0,
@@ -702,61 +692,66 @@ class _BatchProgressBar:
     ) -> str | None:
         """Return the rendered progress line for the active batch."""
 
-        if not self._active:
-            return None
-        batch_size = self._current_span
-        if batch_size <= 0:
-            return None
-        if total is not None:
-            total_int = max(int(total), 1)
-            self._current_step_total = total_int
-        else:
-            total_int = self._current_step_total
-        if processed is None:
-            if step_progress is None or not math.isfinite(step_progress):
-                processed_int = total_int
+        with self._lock:
+            if not self._active:
+                return None
+            batch_size = self._current_span
+            if batch_size <= 0:
+                return None
+            if total is not None:
+                total_int = max(int(total), 1)
+                self._current_step_total = total_int
             else:
-                processed_int = int(
-                    round(min(max(step_progress, 0.0), 1.0) * total_int)
-                )
-        else:
-            processed_int = int(processed)
-        processed_int = min(max(processed_int, 0), total_int)
-        self._current_step_processed = processed_int
-        if step_progress is None or not math.isfinite(step_progress):
-            step_progress = processed_int / max(total_int, 1)
-        else:
-            step_progress = float(min(max(step_progress, 0.0), 1.0))
+                total_int = self._current_step_total
+            if processed is None:
+                if step_progress is None or not math.isfinite(step_progress):
+                    processed_int = total_int
+                else:
+                    processed_int = int(
+                        round(min(max(step_progress, 0.0), 1.0) * total_int)
+                    )
+            else:
+                processed_int = int(processed)
+            processed_int = min(max(processed_int, 0), total_int)
+            self._current_step_processed = processed_int
+            if step_progress is None or not math.isfinite(step_progress):
+                step_progress = processed_int / max(total_int, 1)
+            else:
+                step_progress = float(min(max(step_progress, 0.0), 1.0))
 
-        line, percent, display_line = self._render_line(
-            step_index,
-            processed=processed_int,
-            total=total_int,
-            batch_size=batch_size,
-        )
+            line, percent, display_line = self._render_line(
+                step_index,
+                processed=processed_int,
+                total=total_int,
+                batch_size=batch_size,
+            )
 
-        if percent == self._last_percent and display_line == self._last_line:
-            return None
-        self._last_percent = percent
-        self._last_line = display_line
-        if self._display:
-            console.write(line, end="")
-        return line
+            if (
+                percent == self._last_percent
+                and display_line == self._last_line
+            ):
+                return None
+            self._last_percent = percent
+            self._last_line = display_line
+            if self._display:
+                console.write(line, end="")
+            return line
 
     def finish_batch(self) -> None:
         """Close the current batch, inserting required spacing."""
 
-        if not self._active:
-            return
-        if self._last_line:
-            console.write("")
-        self._active = False
-        self._last_percent = -1
-        self._last_line = ""
-        self._current_span = 0
-        self._current_step_total = 1
-        self._current_step_processed = 0
-        self._spinner_index = -1
+        with self._lock:
+            if not self._active:
+                return
+            if self._last_line:
+                console.write("")
+            self._active = False
+            self._last_percent = -1
+            self._last_line = ""
+            self._current_span = 0
+            self._current_step_total = 1
+            self._current_step_processed = 0
+            self._spinner_index = -1
 
     @property
     def batch_index(self) -> int:
@@ -808,9 +803,7 @@ class _StepProgressEmitter:
         self._walker_total = max(int(walker_total), 1)
         self._last_processed = 0
         self._last_total = self._walker_total
-        line = self._progress_bar.start_step(step_index, self._walker_total)
-        if line and not self._progress_bar.uses_live_display:
-            console.write(line, end="")
+        self._progress_bar.start_step(step_index, self._walker_total)
         self._last_repaint = self._timer()
 
     def clear(self) -> None:
@@ -830,14 +823,12 @@ class _StepProgressEmitter:
         effective_total = max(int(total) if total else self._walker_total, 1)
         self._last_processed = int(processed)
         self._last_total = effective_total
-        line = self._progress_bar.update(
+        self._progress_bar.update(
             self._active_step,
             processed=processed,
             total=effective_total,
         )
-        if line and not self._progress_bar.uses_live_display:
-            console.write(line, end="")
-        if line:
+        if self._progress_bar.uses_live_display:
             self._last_repaint = self._timer()
 
     def tick(self) -> None:
@@ -862,6 +853,12 @@ class _StepProgressEmitter:
         )
         if line:
             self._last_repaint = now
+
+    @property
+    def idle_interval(self) -> float:
+        """Return the maximum delay between spinner refresh attempts."""
+
+        return self._idle_interval
 
 
 class _ReportingStretchMove(moves.StretchMove):
@@ -1072,47 +1069,65 @@ def _run_stage_with_progress(
     batch_end = min(interval, n_steps)
     progress_bar.start_batch(batch_start, batch_end)
 
+    pump_thread: threading.Thread | None = None
+    pump_stop: threading.Event | None = None
+    if notifier is not None and progress_bar.uses_live_display:
+        pump_stop = threading.Event()
+
+        def _pump() -> None:
+            """Repaint the spinner while sampler steps are in flight."""
+
+            interval = max(0.05, notifier.idle_interval / 2.0)
+            while not pump_stop.is_set():
+                notifier.tick()
+                if pump_stop.wait(interval):
+                    break
+
+        pump_thread = threading.Thread(
+            target=_pump,
+            name=f"copernican-mcmc-{stage_name}-pump",
+            daemon=True,
+        )
+        pump_thread.start()
+
     state = None
     iterator = sampler.sample(
         initial_state, iterations=n_steps, progress=False
     )
-    for idx in range(1, n_steps + 1):
-        if notifier is not None:
-            notifier.start(idx, sampler.nwalkers)
-        if notifier is not None:
-            notifier.tick()
-        state = next(iterator)
-        if notifier is not None:
-            notifier.tick()
-            notifier.clear()
-        line = progress_bar.update(
-            idx,
-            processed=sampler.nwalkers,
-            total=sampler.nwalkers,
-            step_progress=1.0,
-        )
-        if line and not progress_bar.uses_live_display:
-            console.write(line, end="")
-        if idx == batch_end and idx < n_steps:
-            progress_bar.finish_batch()
-            batch_start = idx + 1
-            batch_end = min(batch_start + interval - 1, n_steps)
-            progress_bar.start_batch(batch_start, batch_end)
-        elif idx == n_steps:
-            progress_bar.finish_batch()
-
-        if idx == 1 or idx % interval == 0 or idx == n_steps:
-            percent = int(round(idx / n_steps * 100))
-            logger.info(
-                "MCMC %s progress: %3d%% (%d/%d steps)",
-                stage_name,
-                percent,
+    try:
+        for idx in range(1, n_steps + 1):
+            if notifier is not None:
+                notifier.start(idx, sampler.nwalkers)
+            if notifier is not None:
+                notifier.tick()
+            state = next(iterator)
+            if notifier is not None:
+                notifier.tick()
+                notifier.clear()
+            progress_bar.update(
                 idx,
-                n_steps,
+                processed=sampler.nwalkers,
+                total=sampler.nwalkers,
+                step_progress=1.0,
             )
-            if summary_callback is not None:
+            if idx == batch_end and idx < n_steps:
+                progress_bar.finish_batch()
+                batch_start = idx + 1
+                batch_end = min(batch_start + interval - 1, n_steps)
+                progress_bar.start_batch(batch_start, batch_end)
+            elif idx == n_steps:
+                progress_bar.finish_batch()
+
+            if summary_callback is not None and (
+                idx == 1 or idx % interval == 0 or idx == n_steps
+            ):
                 for line in summary_callback(idx, state):
                     logger.info("%s", line)
+    finally:
+        if pump_stop is not None:
+            pump_stop.set()
+        if pump_thread is not None:
+            pump_thread.join()
 
     if state is None:
         raise RuntimeError("Sampler produced no states during %s" % stage_name)
