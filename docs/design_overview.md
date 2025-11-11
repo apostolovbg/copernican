@@ -131,6 +131,13 @@ repainted instantly, Version 7.6.13 layered a dedicated walker-progress meter
  on the bundled renderer, and Version 7.6.16 adds timer-driven idle ticks so
  the spinner continues to animate even when walker callbacks arrive slowly.
 
+Version 7.7.0 introduces ``engines.cosmo_engine_nested``, a nested-sampling
+backend that shares the plugin interface with the MCMC engine while reporting
+log-evidence estimates and live-point diagnostics. Stage 2 now branches its
+questionnaire based on the selected backend so operators configure walkers and
+worker pools for MCMC runs or manage live points, evidence tolerances and
+enlargement factors for nested sampling without manual overrides.
+
 Version 7.4.1 adds a sampler-facing perspective to the plotting layer. The new
 corner plot automatically thins oversized chains, renders the Stage 2 posterior
 with enlarged panels and a footer that details how many samples survived

@@ -1,6 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-01
+# Last Updated: 2025-11-11
 
 """Utilities for saving parameter fit summaries.
 
@@ -13,8 +13,10 @@ contain ``fitted_cosmological_params`` with best-fit values, optional
 ``parameter_errors`` describing 1σ uncertainties and an optional
 ``covariance_matrix``.  Starting with version 7.1.0 the summary also embeds
 the sampler configuration—production steps, burn-in length, walker count and
-worker pool size—so output files mirror the interactive configuration
-menu. NumPy arrays are converted to plain Python lists to keep the output
+worker pool size—so output files mirror the interactive configuration menu.
+Version 7.7.0 extends this metadata with nested-sampling attributes such as
+live-point counts and evidence tolerances so both backends emit comparable
+records. NumPy arrays are converted to plain Python lists to keep the output
 fully serialisable.
 """
 
@@ -93,6 +95,14 @@ def save_summary(
             ("burn_in_steps", "burn_in_steps"),
             ("n_walkers", "n_walkers"),
             ("pool_workers", "pool_workers"),
+            ("n_live_points", "n_live_points"),
+            ("max_iterations", "max_iterations"),
+            ("evidence_tolerance", "evidence_tolerance"),
+            (
+                "enlargement_fraction",
+                "enlargement_fraction",
+            ),
+            ("iterations_completed", "iterations_completed"),
         )
         for out_key, res_key in sampling_fields:
             value = res.get(res_key)

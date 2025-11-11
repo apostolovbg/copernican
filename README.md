@@ -1,4 +1,4 @@
-**Version:** 7.6.23
+**Version:** 7.7.0
 **Last Updated:** 2025-11-11
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -13,7 +13,10 @@ using a single reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. Build 7.6.22 keeps
+  dataset selection, model pairing and engine configuration. Build 7.7.0 adds
+  the nested-sampling backend to the Stage 2 menu and branches the
+  configuration prompts so each engine exposes its own terminology while
+  preserving manifest compatibility. Build 7.6.22 keeps
   the structured Stage 1 seed selector introduced in 7.5.0, surfaces detailed
   validation reasons when alternative models fail to load and tidies the
   startup banner spacing. The Stage 1 and Stage 2 menus now open with a single
@@ -77,9 +80,11 @@ The suite is organised around a handful of focused components:
   deterministic availability.
 * `engines/` collects computational back ends. The default
   ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
-  convergence checks that run on every batch, while the plugin protocol keeps
-  room for additional optimisers and hardware-specific
-  accelerators.
+  convergence checks that run on every batch, while the new
+  ``cosmo_engine_nested`` module wraps a lightweight nested-sampling routine
+  that reports log-evidence estimates and accepts live-point specific
+  configuration. The shared plugin protocol keeps room for additional
+  optimisers and hardware-specific accelerators.
 * `models/` stores YAML theories that declare priors, bounds, transforms and
   dataset compatibility. Each definition is converted into a picklable engine
   plugin so Stage 2 runs remain reproducible across processes.
@@ -918,10 +923,14 @@ not modify them unless explicitly instructed.
     to the log and run manifest.
 5.  **Configuration**: The user specifies the file paths for the model and
     data files.
-6.  **SNe Ia Sampling**: The active engine—currently `cosmo_engine_mcmc`—
-    samples the parameters of both the ΛCDM model and the alternative model
-    against the SNe Ia data. Matching models reuse the first chain to avoid
-    redundant computation.
+6.  **SNe Ia Sampling**: The active engine—either the default
+    `cosmo_engine_mcmc` ensemble sampler or the new `cosmo_engine_nested`
+    nested-sampling backend—fits both the ΛCDM model and the alternative
+    model against the SNe Ia data. Stage 2 now surfaces prompts tailored to
+    each backend, covering burn-in, walker counts and worker pools for MCMC,
+    or live-point budgets, evidence tolerances and enlargement factors for
+    nested sampling. Matching models reuse the first chain to avoid redundant
+    computation.
 7.  **BAO Analysis**: Using the MAP parameters returned by the sampler, the
     engine calculates BAO observables for each model.
 8.  **CMB Analysis**: Each model's CMB spectrum is evaluated against the

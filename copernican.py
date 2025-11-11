@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-09
+# Last Updated: 2025-11-11
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -843,6 +843,246 @@ def _count_active_parameters(plugin, *, engine_module) -> int:
     return max(active, 1)
 
 
+def _prompt_nested_configuration(
+    engine_module,
+    lcdm_plugin,
+    alt_model_plugin,
+) -> dict[str, int | float] | str | None:
+    """Collect configuration parameters for the nested sampler backend."""
+
+    fit_sig = inspect.signature(engine_module.fit_sne_parameters)
+
+    def _default_int(param: str, fallback: int) -> int:
+        try:
+            value = fit_sig.parameters[param].default
+        except (KeyError, AttributeError):
+            return fallback
+        if value is inspect._empty:
+            return fallback
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return fallback
+
+    def _default_float(param: str, fallback: float) -> float:
+        try:
+            value = fit_sig.parameters[param].default
+        except (KeyError, AttributeError):
+            return fallback
+        if value is inspect._empty:
+            return fallback
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return fallback
+
+    lcdm_active = _count_active_parameters(lcdm_plugin, engine_module=engine_module)
+    alt_active = _count_active_parameters(alt_model_plugin, engine_module=engine_module)
+    max_active = max(lcdm_active, alt_active)
+    min_live = max(20, 4 * max_active)
+
+    recommended_live = max(_default_int("n_live_points", min_live), min_live)
+    recommended_max_iter = max(
+        _default_int("max_iterations", recommended_live * 50),
+        recommended_live * 25,
+    )
+    recommended_tol = max(
+        _default_float("evidence_tolerance", 1e-3),
+        1e-12,
+    )
+    recommended_enlargement = max(
+        _default_float("enlargement_fraction", 1.5),
+        1.0,
+    )
+
+    def _collect_custom_plan() -> dict[str, int | float] | str | None:
+        while True:
+            console.write("")
+            console.write("Live points control the resolution of nested contours.")
+            console.write(f"  Minimum required: {min_live}")
+            console.write(f"  Recommended default: {recommended_live}")
+            entry = console.ask(
+                f"Number of live points [{recommended_live}]: "
+            ).strip()
+            if not entry:
+                live_points = recommended_live
+            else:
+                try:
+                    live_points = int(entry)
+                except ValueError:
+                    console.write(
+                        "Live points must be an integer.",
+                        error=True,
+                    )
+                    continue
+                if live_points < min_live:
+                    console.write(
+                        "Live points below the minimum risk under-sampling.",
+                        error=True,
+                    )
+                    continue
+
+            console.write("")
+            console.write(
+                "Maximum iterations set the hard cap on nested replacements."
+            )
+            console.write(f"  Recommended default: {recommended_max_iter}")
+            entry = console.ask(
+                f"Maximum iterations [{recommended_max_iter}]: "
+            ).strip()
+            if not entry:
+                max_iter = recommended_max_iter
+            else:
+                try:
+                    max_iter = int(entry)
+                except ValueError:
+                    console.write(
+                        "Maximum iterations must be an integer.",
+                        error=True,
+                    )
+                    continue
+                if max_iter <= live_points:
+                    console.write(
+                        "Iterations must exceed the live-point count.",
+                        error=True,
+                    )
+                    continue
+
+            console.write("")
+            console.write(
+                "Evidence tolerance stops sampling once remaining weight is"
+            )
+            console.write(
+                "  sufficiently small. Smaller values increase convergence"
+            )
+            console.write("  certainty at the cost of runtime.")
+            entry = console.ask(
+                f"Evidence tolerance [{recommended_tol:g}]: "
+            ).strip()
+            if not entry:
+                tol = recommended_tol
+            else:
+                try:
+                    tol = float(entry)
+                except ValueError:
+                    console.write(
+                        "Tolerance must be a floating-point number.",
+                        error=True,
+                    )
+                    continue
+                if tol <= 0:
+                    console.write(
+                        "Tolerance must be strictly positive.",
+                        error=True,
+                    )
+                    continue
+
+            console.write("")
+            console.write(
+                "Enlargement fraction widens proposal clouds around live points."
+            )
+            console.write(
+                "  Values near 1.0 follow the tightest ellipsoid, larger values"
+            )
+            console.write("  trade efficiency for robustness.")
+            entry = console.ask(
+                f"Enlargement fraction [{recommended_enlargement:g}]: "
+            ).strip()
+            if not entry:
+                enlarge = recommended_enlargement
+            else:
+                try:
+                    enlarge = float(entry)
+                except ValueError:
+                    console.write(
+                        "Enlargement must be a floating-point number.",
+                        error=True,
+                    )
+                    continue
+                if enlarge < 1.0:
+                    console.write(
+                        "Enlargement cannot be below 1.0.",
+                        error=True,
+                    )
+                    continue
+
+            console.write("")
+            console.write("Nested sampler plan summary:")
+            console.write(f"  Live points: {live_points}")
+            console.write(f"  Max iterations: {max_iter}")
+            console.write(f"  Evidence tolerance: {tol:g}")
+            console.write(f"  Enlargement fraction: {enlarge:g}")
+            console.write("")
+            console.write("How should we proceed?")
+            console.write("  1) Accept this nested plan and continue")
+            console.write("  2) Revisit the questionnaire from the beginning")
+            console.write("  B) Back to the nested defaults summary")
+            console.write("  C) Cancel sampler configuration")
+            console.write("")
+
+            confirm = console.ask("Select an option: ").strip().lower()
+            current_plan = {
+                "engine_kind": "nested",
+                "n_live_points": live_points,
+                "max_iterations": max_iter,
+                "evidence_tolerance": tol,
+                "enlargement_fraction": enlarge,
+            }
+            if confirm in {"", "1", "y", "yes"}:
+                return current_plan
+            if confirm in {"c", "cancel"}:
+                return None
+            if confirm in {"b", "back"}:
+                return "back"
+            if confirm in {"2", "r", "restart", "n", "no"}:
+                console.write("")
+                console.write("Restarting the nested questionnaire from step one.")
+                continue
+            console.write("Please choose 1, 2, B or C.", error=True)
+
+    while True:
+        console.write("")
+        console.write("Nested sampler defaults summary:")
+        console.write(f"  ΛCDM active parameters: {lcdm_active}")
+        console.write(
+            f"  {alt_model_plugin.MODEL_NAME} active parameters: {alt_active}"
+        )
+        console.write(f"  Minimum live points: {min_live}")
+        console.write(f"  Recommended live points: {recommended_live}")
+        console.write(f"  Recommended max iterations: {recommended_max_iter}")
+        console.write(f"  Recommended evidence tolerance: {recommended_tol:g}")
+        console.write(
+            f"  Recommended enlargement fraction: {recommended_enlargement:g}"
+        )
+        console.write("")
+        console.write("1) Run with default settings")
+        console.write("2) Change settings")
+        console.write("C) Cancel configuration")
+        console.write("")
+
+        choice = console.ask("Write the number of choice: ").strip().lower()
+        if choice in {"", "1"}:
+            return {
+                "engine_kind": "nested",
+                "n_live_points": recommended_live,
+                "max_iterations": recommended_max_iter,
+                "evidence_tolerance": recommended_tol,
+                "enlargement_fraction": recommended_enlargement,
+            }
+        if choice == "2":
+            custom_plan = _collect_custom_plan()
+            if custom_plan is None:
+                return None
+            if custom_plan == "back":
+                console.write("")
+                console.write("Returning to nested defaults summary.")
+                continue
+            return custom_plan
+        if choice in {"c", "cancel"}:
+            return None
+        console.write("Please choose 1, 2 or C.", error=True)
+
+
 def prompt_sampling_configuration(
     engine_module,
     lcdm_plugin,
@@ -852,6 +1092,14 @@ def prompt_sampling_configuration(
     cmb_data_df,
 ):
     """Return user-selected sampler settings or ``None`` if cancelled."""
+
+    engine_kind = str(getattr(engine_module, "ENGINE_KIND", "mcmc")).lower()
+    if engine_kind == "nested":
+        return _prompt_nested_configuration(
+            engine_module,
+            lcdm_plugin,
+            alt_model_plugin,
+        )
 
     fit_sig = inspect.signature(engine_module.fit_sne_parameters)
     try:
@@ -1015,6 +1263,7 @@ def prompt_sampling_configuration(
 
             confirm = console.ask("Select an option: ").strip().lower()
             current_plan = {
+                "engine_kind": "mcmc",
                 "n_steps": n_steps,
                 "burn_in_steps": burn_in,
                 "n_walkers": n_walkers,
@@ -1059,6 +1308,7 @@ def prompt_sampling_configuration(
         choice = console.ask("Write the number of choice: ").strip().lower()
         if choice in {"", "1"}:
             return {
+                "engine_kind": "mcmc",
                 "n_steps": recommended_steps,
                 "burn_in_steps": recommended_burn,
                 "n_walkers": recommended_walkers,
@@ -1485,29 +1735,52 @@ def main_workflow():
             console.write("")
             return
 
-        sampling_steps = int(sampling_plan["n_steps"])
-        sampling_burn_in = int(sampling_plan["burn_in_steps"])
-        sampling_walkers = int(sampling_plan["n_walkers"])
-        sampling_pool = sampling_plan["pool_size"]
+        plan_kind = sampling_plan.get("engine_kind", "mcmc").lower()
+        if plan_kind == "nested":
+            sampling_live = int(sampling_plan["n_live_points"])
+            sampling_max_iter = int(sampling_plan["max_iterations"])
+            sampling_tol = float(sampling_plan["evidence_tolerance"])
+            sampling_enlarge = float(sampling_plan["enlargement_fraction"])
+            logger.info(
+                "Nested sampler configuration: live=%d, max_iter=%d, tol=%g, "
+                "enlarge=%.2f",
+                sampling_live,
+                sampling_max_iter,
+                sampling_tol,
+                sampling_enlarge,
+            )
+            console.write(
+                f"Configured nested sampler: live points {sampling_live}, "
+                f"max iterations {sampling_max_iter}."
+            )
+            console.write(
+                f"Evidence tolerance {sampling_tol:g}, enlargement "
+                f"fraction {sampling_enlarge:g}."
+            )
+        else:
+            sampling_steps = int(sampling_plan["n_steps"])
+            sampling_burn_in = int(sampling_plan["burn_in_steps"])
+            sampling_walkers = int(sampling_plan["n_walkers"])
+            sampling_pool = sampling_plan["pool_size"]
 
-        pool_label = sampling_pool if sampling_pool is not None else "auto"
-        logger.info(
-            (
-                "Sampler configuration: steps=%d, burn-in=%d, walkers=%d, "
-                "pool=%s"
-            ),
-            sampling_steps,
-            sampling_burn_in,
-            sampling_walkers,
-            pool_label,
-        )
-        console.write(
-            f"Configured sampler: steps {sampling_steps}, burn-in "
-            f"{sampling_burn_in}."
-        )
-        console.write(
-            f"Walker ensemble {sampling_walkers}, pool {pool_label}."
-        )
+            pool_label = sampling_pool if sampling_pool is not None else "auto"
+            logger.info(
+                (
+                    "Sampler configuration: steps=%d, burn-in=%d, walkers=%d, "
+                    "pool=%s"
+                ),
+                sampling_steps,
+                sampling_burn_in,
+                sampling_walkers,
+                pool_label,
+            )
+            console.write(
+                f"Configured sampler: steps {sampling_steps}, burn-in "
+                f"{sampling_burn_in}."
+            )
+            console.write(
+                f"Walker ensemble {sampling_walkers}, pool {pool_label}."
+            )
 
         manifest = run_manifest.build_manifest(
             models=[
@@ -1549,22 +1822,40 @@ def main_workflow():
             console.write("")
             return
         console.write("ΛCDM reference chain")
-        console.write(f"  Burn-in steps: {sampling_burn_in}")
-        console.write(f"  Production steps: {sampling_steps}")
-        console.write(f"  Walkers: {sampling_walkers}")
-        console.write(f"  Worker pool: {pool_label}")
-        console.write("  Starting ΛCDM sampler...")
-        console.write("")
-        lcdm_fit_results = cosmo_engine_selected.fit_sne_parameters(
-            sne_data_df,
-            lcdm,
-            bao_data_df=bao_data_df,
-            cmb_data_df=cmb_data_df,
-            n_walkers=sampling_walkers,
-            n_steps=sampling_steps,
-            pool_size=sampling_pool,
-            burn_in_steps=sampling_burn_in,
-        )
+        if plan_kind == "nested":
+            console.write(f"  Live points: {sampling_live}")
+            console.write(f"  Max iterations: {sampling_max_iter}")
+            console.write(f"  Evidence tolerance: {sampling_tol:g}")
+            console.write(f"  Enlargement fraction: {sampling_enlarge:g}")
+            console.write("  Starting ΛCDM sampler...")
+            console.write("")
+            lcdm_fit_results = cosmo_engine_selected.fit_sne_parameters(
+                sne_data_df,
+                lcdm,
+                bao_data_df=bao_data_df,
+                cmb_data_df=cmb_data_df,
+                n_live_points=sampling_live,
+                max_iterations=sampling_max_iter,
+                evidence_tolerance=sampling_tol,
+                enlargement_fraction=sampling_enlarge,
+            )
+        else:
+            console.write(f"  Burn-in steps: {sampling_burn_in}")
+            console.write(f"  Production steps: {sampling_steps}")
+            console.write(f"  Walkers: {sampling_walkers}")
+            console.write(f"  Worker pool: {pool_label}")
+            console.write("  Starting ΛCDM sampler...")
+            console.write("")
+            lcdm_fit_results = cosmo_engine_selected.fit_sne_parameters(
+                sne_data_df,
+                lcdm,
+                bao_data_df=bao_data_df,
+                cmb_data_df=cmb_data_df,
+                n_walkers=sampling_walkers,
+                n_steps=sampling_steps,
+                pool_size=sampling_pool,
+                burn_in_steps=sampling_burn_in,
+            )
         if reuse_alt:
             logger.info(
                 "Alternative model matches ΛCDM; reusing SNe chain from %s.",
@@ -1579,22 +1870,40 @@ def main_workflow():
         else:
             console.write("")
             console.write(f"Alternative model: {alt_model_plugin.MODEL_NAME}")
-            console.write(f"  Burn-in steps: {sampling_burn_in}")
-            console.write(f"  Production steps: {sampling_steps}")
-            console.write(f"  Walkers: {sampling_walkers}")
-            console.write(f"  Worker pool: {pool_label}")
-            console.write("  Starting alternative sampler...")
-            console.write("")
-            alt_model_fit_results = cosmo_engine_selected.fit_sne_parameters(
-                sne_data_df,
-                alt_model_plugin,
-                bao_data_df=bao_data_df,
-                cmb_data_df=cmb_data_df,
-                n_walkers=sampling_walkers,
-                n_steps=sampling_steps,
-                pool_size=sampling_pool,
-                burn_in_steps=sampling_burn_in,
-            )
+            if plan_kind == "nested":
+                console.write(f"  Live points: {sampling_live}")
+                console.write(f"  Max iterations: {sampling_max_iter}")
+                console.write(f"  Evidence tolerance: {sampling_tol:g}")
+                console.write(f"  Enlargement fraction: {sampling_enlarge:g}")
+                console.write("  Starting alternative sampler...")
+                console.write("")
+                alt_model_fit_results = cosmo_engine_selected.fit_sne_parameters(
+                    sne_data_df,
+                    alt_model_plugin,
+                    bao_data_df=bao_data_df,
+                    cmb_data_df=cmb_data_df,
+                    n_live_points=sampling_live,
+                    max_iterations=sampling_max_iter,
+                    evidence_tolerance=sampling_tol,
+                    enlargement_fraction=sampling_enlarge,
+                )
+            else:
+                console.write(f"  Burn-in steps: {sampling_burn_in}")
+                console.write(f"  Production steps: {sampling_steps}")
+                console.write(f"  Walkers: {sampling_walkers}")
+                console.write(f"  Worker pool: {pool_label}")
+                console.write("  Starting alternative sampler...")
+                console.write("")
+                alt_model_fit_results = cosmo_engine_selected.fit_sne_parameters(
+                    sne_data_df,
+                    alt_model_plugin,
+                    bao_data_df=bao_data_df,
+                    cmb_data_df=cmb_data_df,
+                    n_walkers=sampling_walkers,
+                    n_steps=sampling_steps,
+                    pool_size=sampling_pool,
+                    burn_in_steps=sampling_burn_in,
+                )
             console.write(
                 f"Completed alternative sampling for {alt_model_plugin.MODEL_NAME}."
             )

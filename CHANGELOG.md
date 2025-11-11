@@ -21,6 +21,11 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.7.0
+- 2025-11-11: Added the `cosmo_engine_nested` backend with nested-sampling
+              configuration prompts, manifest/test coverage and documentation
+              updates (OpenAI ChatGPT)
+
 ## Version 7.6.23
 - 2025-11-11: Lowered the Stage 5 corner footer stack so elongated axis labels
   and forthcoming gravitational-wave annotations clear the metadata block,
