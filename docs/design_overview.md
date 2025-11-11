@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-11-10
+**Last Updated:** 2025-11-11
 
 This document expands on the high-level summary in the README by tracing how
 the Copernican Suite organises its architecture.  The command-line launcher
@@ -20,10 +20,10 @@ that foundation to deliver repeatable analyses.
 * `copernican_lib/` contributes the reusable building blocks—data ingestion,
   posterior construction, validation checks, plotting helpers and diagnostics.
   Engines and parsers import from this package instead of reimplementing
-  numerical plumbing. Version 7.6.22 moves the Stage 2 progress bar, spinner
+  numerical plumbing. Version 7.6.23 moves the Stage 2 progress bar, spinner
   pump and notifier bridge into `copernican_lib.progress` so additional engines
   can reuse the console renderer without depending on the default MCMC module.
-  The latest revision also records the very first frame each batch emits and
+  The revision also records the very first frame each batch emits and
   routes all sampler exits through a shared cleanup path so even abrupt
   exceptions cannot leave an orphaned 0% progress bar cluttering subsequent
   diagnostics.
@@ -114,7 +114,10 @@ subplot margins lift the grid to mirror the spacing used throughout the other
 Stage 5 figures.  The suptitle shifts downward to match the Stage 3 and Stage 4
 plots, preserving the consistent visual hierarchy while retaining the
 strictly increasing contour levels, 0.015 line cadence and trimmed dataset
-descriptions introduced earlier.
+descriptions introduced earlier. Version 7.6.23 extends the clearance by
+dropping the entire footer stack by its remaining line span so the top line
+clears elongated axis labels and forthcoming gravitational-wave annotations
+while staying above the shared clearance floor.
 
 Version 7.6.9 retools the Stage 2 batch progress renderer with Unicode
 partial-block glyphs while Version 7.6.10 ensures weighted `emcee` move tables

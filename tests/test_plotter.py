@@ -346,8 +346,26 @@ def test_plot_corner_positions_title_and_footer(
     lowest_line = min(footer_positions)
     gap_to_axes = margins["bottom"] - first_line
     assert footer_pad == pytest.approx(plotter._CORNER_FOOTER_PADDING)
-    assert gap_to_axes == pytest.approx(footer_pad)
-    assert first_line == pytest.approx(margins["bottom"] - footer_pad)
+
+    stack_offset = max(footer_lines - 1, 0) * line_height
+    expected_first_line = margins["bottom"] - footer_pad - stack_offset
+    expected_lowest_line = (
+        expected_first_line - (footer_lines - 1) * line_height
+        if footer_lines
+        else expected_first_line
+    )
+    if (
+        footer_lines
+        and expected_lowest_line < plotter._CORNER_FOOTER_CLEARANCE - 1e-6
+    ):
+        delta = plotter._CORNER_FOOTER_CLEARANCE - expected_lowest_line
+        expected_first_line += delta
+        expected_lowest_line += delta
+
+    expected_gap = margins["bottom"] - expected_first_line
+    assert gap_to_axes == pytest.approx(expected_gap)
+    assert first_line == pytest.approx(expected_first_line)
+    assert lowest_line == pytest.approx(expected_lowest_line)
     assert lowest_line >= plotter._CORNER_FOOTER_CLEARANCE - 1e-6
     expected_span = (footer_lines - 1) * line_height
     actual_span = first_line - lowest_line

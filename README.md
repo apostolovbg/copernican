@@ -1,54 +1,45 @@
-**Version:** 7.6.22
-**Last Updated:** 2025-11-10
+**Version:** 7.6.23
+**Last Updated:** 2025-11-11
 
 ![Copernican Suite banner](docs/banner_github.png)
 
 The Copernican Suite is a Python toolkit that helps researchers test
 cosmological models against multi-probe observations. It orchestrates the full
-  workflow from data ingestion through posterior exploration so teams can compare
-  theoretical predictions with Supernovae Type Ia (SNe Ia), Baryon Acoustic
-  Oscillation (BAO) and Cosmic Microwave Background (CMB) datasets using a single
-  reproducible interface.
+workflow from data ingestion through posterior exploration so teams can
+compare theoretical predictions with Supernovae Type Ia (SNe Ia), Baryon
+Acoustic Oscillation (BAO) and Cosmic Microwave Background (CMB) datasets
+using a single reproducible interface.
 
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
   dataset selection, model pairing and engine configuration. Build 7.6.22 keeps
   the structured Stage 1 seed selector introduced in 7.5.0, surfaces detailed
-  validation reasons when alternative models fail to load and tidies the startup
-  banner spacing. The Stage 1 and Stage 2 menus now step directly into their
-  prompts with a single spacer, removing the repeated prose that previously
-  scrolled by on every restart while preserving the historical pacing. Stage 2
-  progress now resides in the shared `copernican_lib.progress` module so every
-  engine can reuse the carriage-return renderer without inheriting MCMC
-  internals. The relocated helpers keep the Unicode partial-block fallback, the
-  walker-progress meter and the animated spinner while guaranteeing per-walker
-  updates stream live throughout each step. The notifier wiring no longer
-  depends on private engine classes, the repaint pump continues to drive idle
-  refreshes and a new suspension context clears the active line before other
-  console output so stale 0% bars never linger above diagnostic snapshots. Build
-  7.6.22 also tracks the very first render each batch emits so even if the
-  sampler aborts before walkers move, the final cleanup wipes the console clean
-  instead of leaving a frozen 0% bar behind diagnostic summaries. The sampler
-  now finishes every stage inside a dedicated `finally` block, guaranteeing that
-  pump threads are stopped and the console is blanked before exceptions bubble
-  out of Stage 2. The bar remains a live-only feature, keeping the logger free of
-  redundant carriage returns, and the sampler still rewrites weighted `emcee`
-  move tables to keep notifier hooks active. Stage 5 safeguards stay intact: the
-  footer sits further below the axes, the text block carries a guaranteed
-  clearance from the canvas edge, and the suptitle is anchored lower so the
-  figure mirrors the spacing used across the other summary plots. Build 7.6.22
-  also keeps the dormant
-  `tqdm` import removed from the default engine so packaging metadata and lint
-  checks stay aligned with dependency manifests that reflect the native progress
-  renderer without dangling fallbacks. The live status indicator still sits
-  beneath its batch heading without recycling legacy runtime estimates, and the
-  splash screen now explicitly imports the standard-library timer so the
-  introductory pause never raises a `NameError`
-  during launches.
+  validation reasons when alternative models fail to load and tidies the
+  startup banner spacing. The Stage 1 and Stage 2 menus now open with a single
+  spacer so historical pacing stays intact without repeating boilerplate prose.
+  Stage 2 progress now lives in `copernican_lib.progress` so all engines reuse
+  the carriage-return renderer without inheriting MCMC internals. The relocated
+  helpers keep the Unicode partial-block fallback alongside the walker-progress
+  meter and the animated spinner while guaranteeing per-walker updates stream
+  throughout each step. The notifier wiring no longer depends on private
+  engine classes, the repaint pump continues to drive idle refreshes and a
+  new suspension context clears the active line before other console output
+  so stale 0% bars never linger above diagnostic snapshots. Build 7.6.23
+  pushes the Stage 5 footer stack further beneath the axes so elongated
+  labels and future gravitational-wave annotations never collide with
+  metadata. Build 7.6.23 also
+  records the very first render each batch emits so the sampler always wipes
+  frozen 0% bars, forces every stage through a dedicated `finally` block so
+  pump threads stop cleanly and keeps the dormant `tqdm` import out of the
+  default engine so packaging metadata and lint checks align. The live status
+  indicator remains beneath its batch heading without reviving the retired
+  runtime estimates, and the splash screen explicitly imports the
+  standard-library timer so the introductory pause never raises a
+  `NameError` during launches.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
-  keep every engine and plugin consistent. Version 7.6.22 extracts the Stage 2
+  keep every engine and plugin consistent. Version 7.6.23 extracts the Stage 2
   progress helpers into the shared `copernican_lib.progress` module, adds a
   suspension context so console output never leaves stale bars behind, records
   the initial render for each batch and routes every sampler exit through a
@@ -58,7 +49,11 @@ The suite is organised around a handful of focused components:
   7.6.8 widens the Stage 5
   guard bands by lifting the footer padding, enforcing a minimum baseline for
   the lowest footer line and retuning the subplot margins so the grid rides
-  higher without crowding the canvas. Version 7.6.9 documents the Unicode
+  higher without crowding the canvas. Version 7.6.23 lowers the stacked
+  footer block by an additional span so future gravitational-wave panels and
+  extended axis labels clear the metadata column without manual tweaking.
+  Version 7.6.9
+  documents the Unicode
   fallback renderer that mirrors the new live progress bar, Version 7.6.10
   records the notifier bridge that rewrites weighted move tables so Stage 2
   keeps updating on every walker, Version 7.6.11 captured the intermediate
@@ -192,10 +187,10 @@ Under the hood the program follows a clear pipeline:
    ``emcee``'s minimum window, and log-probability traces and emits
    progress updates with percentage indicators for both burn-in and
   production stages. Each update now carries log-posterior mean, spread and
-  extrema, an approximate Δχ² trend and percentile summaries for the first four
-  parameters so terminals remain readable, dropping the former walker snapshots
-  that duplicated the same information across multiple lines. When no worker pool is
-   requested explicitly the engine auto-configures a multiprocessing pool sized
+  extrema, an approximate Δχ² trend and percentile summaries for the first
+  four parameters so terminals remain readable, dropping the former walker
+  snapshots that duplicated the same information across multiple lines.
+  When no worker pool is requested explicitly the engine auto-configures a
    to the available CPUs, shaving minutes off expensive likelihoods while still
    preserving single-core fallbacks. Shared chi-squared helpers live in
    `copernican_lib/statistics.py` so every backend calls the same routines
@@ -286,9 +281,9 @@ bounds and missing likelihood hooks—are explained without consulting the log
 file. The sampler questionnaire concludes Stage 1 with a summary of recommended
 settings, an explanation of how the per-batch progress bars will animate during
 Stage 2 and now includes a preview of the Unicode sub-block fills introduced in
-  version 7.6.9. Version 7.6.20 keeps the bracket-free bar layout while clarifying
-that progress updates now live exclusively on the console instead of mirroring
-into the log file.
+  version 7.6.9. Version 7.6.20 keeps the bracket-free bar layout while
+  clarifying that progress updates now live exclusively on the console
+  instead of mirroring into the log file.
 The summary concludes with a menu that lets users continue, revisit earlier
 questions or cancel the run entirely.
 

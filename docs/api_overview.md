@@ -1,6 +1,6 @@
 # Copernican Suite API Overview
 
-**Last Updated:** 2025-11-10
+**Last Updated:** 2025-11-11
 
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be
@@ -22,7 +22,7 @@ modules are:
   sampler integration helpers. Engines import `BatchProgressBar`,
   `StepProgressEmitter` and `configure_sampler_progress_reporting` so live
   Stage 2 updates stay consistent even outside the default MCMC engine. Version
-  7.6.22 additionally records the very first frame emitted for each batch and
+  7.6.23 additionally records the very first frame emitted for each batch and
   closes every sampling stage inside a finally block so clean-up always clears
   the console, even when an engine aborts before walkers finish their first
   proposals.
@@ -35,7 +35,10 @@ modules are:
   Version 7.6.8 extends the responsive layout by deepening the footer guard
   bands, guaranteeing both the gap beneath the axes and the distance to the
   canvas edge while nudging the suptitle lower so the figure matches the rest
-  of the Stage 5 catalogue. The contour thresholds remain strictly increasing,
+  of the Stage 5 catalogue. Version 7.6.23 lowers the entire footer stack by an
+  additional span so the first line clears elongated axis labels and upcoming
+  gravitational-wave annotations without manual tweaking. The contour
+  thresholds remain strictly increasing,
   preserving the Matplotlib compatibility introduced in earlier releases while
   the helper continues to elide redundant dataset metadata and retain the
   citation line.
