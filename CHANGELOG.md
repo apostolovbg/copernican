@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-10
+**Last Updated:** 2025-11-11
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,13 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 7.6.23
+- 2025-11-11: Lowered the Stage 5 corner footer stack so elongated axis labels
+  and forthcoming gravitational-wave annotations clear the metadata block,
+  updated the responsive layout test to verify the deeper spacing, refreshed
+  documentation to describe the added headroom and bumped repository metadata
+  to version 7.6.23 (OpenAI ChatGPT)
 
 ## Version 7.6.22
 - 2025-11-10: Patched the Stage 2 progress helpers to record the very first

@@ -2032,7 +2032,15 @@ def plot_corner(
 
     footer_bottom = margins["bottom"]
 
-    y = footer_bottom - footer_padding
+    footer_stack_offset = max(len(footer_lines) - 1, 0) * line_height
+    # Drop the entire footer stack further below the axes so the first line
+    # lands at least one span beneath the axis labels.  Earlier builds anchored
+    # the top line directly beneath ``footer_bottom`` which still allowed
+    # overlaps whenever the x-labels protruded downward.  Offsetting by the
+    # remaining line span keeps the Stage 5 cadence while guaranteeing extra
+    # clearance for dense annotations and future plots that reuse the layout
+    # helper.
+    y = footer_bottom - footer_padding - footer_stack_offset
     lowest_line = (
         y - (len(footer_lines) - 1) * line_height if footer_lines else y
     )
