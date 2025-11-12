@@ -94,13 +94,20 @@ modules are:
   while automatically expanding the walker ensemble to keep every worker
   busy. The private `_reseed_invalid_walkers` utility reseeds walkers that
   emit `nan` coordinates after burn-in so downstream API consumers never need
-  to handle undefined sampler states. The interactive CLI now collects the
-  production steps, burn-in length, walker count and pool size before
-  launching Stage 2, mirroring the available function arguments for scripted
-  workflows.
+  to handle undefined sampler states. When the CLI selects this backend, Stage 2
+  prompts for production steps, burn-in length, walker counts and worker pools,
+  mirroring the available function arguments for scripted workflows.
+- `engines.cosmo_engine_nested.fit_sne_parameters` – wraps a lightweight
+  nested-sampling routine that evaluates the same plugin-provided posterior
+  while reporting log-evidence estimates, live-point counts, enlargement
+  factors and iteration diagnostics. The CLI surfaces backend-specific prompts
+  for live points, evidence tolerances and enlargement fractions so
+  interactive runs align with scripted calls that specify the same keyword
+  arguments.
 - `result_writer.save_summary(results, output_dir)` – serialize fitted
   parameters, 1σ errors, covariance matrices and the recorded sampling
-  configuration to JSON and YAML for later analysis.
+  configuration—including nested-sampling metadata such as live-point counts
+  and evidence tolerances—to JSON and YAML for later analysis.
   - `engines.cosmo_engine_mcmc` – lightweight `emcee` sampler for SNe
     posteriors. Walkers are initialised uniformly within declared
     parameter bounds, a burn-in run precedes production sampling and the
@@ -112,6 +119,12 @@ modules are:
     sentinels, and verbose progress updates report percentage completion
     for burn-in and production stages. Future engines can adopt the same
     public API to remain plug compatible with the suite.
+  - `engines.cosmo_engine_nested` – nested-sampling backend that draws live
+    points within declared bounds, replaces the lowest-likelihood point with
+    constrained proposals and tracks log-evidence accumulation alongside the
+    familiar χ² component breakdown. The result dictionary mirrors the
+    structure produced by the MCMC engine while adding nested-specific
+    diagnostics so downstream tooling remains backend agnostic.
 
 Plugins are validated through ``engine_interface.validate_plugin``—a thin
 wrapper around :func:`copernican_lib.plugins.validate_plugin`—before use.

@@ -2,6 +2,7 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
+# Last Updated: 2025-11-11
 """Tests for menu interaction helpers in ``copernican.py``."""
 
 import collections.abc as collections_abc
@@ -173,6 +174,7 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
             fit_sne_parameters=fit_sne_parameters,
             _FIXED_BOUNDS_RTOL=1e-9,
             _FIXED_BOUNDS_ATOL=1e-12,
+            ENGINE_KIND="mcmc",
         )
         self.lcdm_plugin = SimpleNamespace(
             PARAMETER_BOUNDS=[(0.0, 1.0)] * 3,
@@ -205,6 +207,7 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
         self.assertEqual(
             plan,
             {
+                "engine_kind": "mcmc",
                 "n_steps": 400,
                 "burn_in_steps": 100,
                 "n_walkers": 64,
@@ -232,6 +235,7 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
         self.assertEqual(
             plan,
             {
+                "engine_kind": "mcmc",
                 "n_steps": 600,
                 "burn_in_steps": 120,
                 "n_walkers": 80,
@@ -259,10 +263,123 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
         self.assertEqual(
             plan,
             {
+                "engine_kind": "mcmc",
                 "n_steps": 400,
                 "burn_in_steps": 100,
                 "n_walkers": 64,
                 "pool_size": 10,
+            },
+        )
+
+
+class NestedSamplerConfigurationPromptTestCase(unittest.TestCase):
+    """Exercise the nested-sampling configuration questionnaire."""
+
+    def setUp(self) -> None:
+        def fit_sne_parameters(
+            *,
+            n_live_points: int = 128,
+            max_iterations: int = 5000,
+            evidence_tolerance: float = 1e-3,
+            enlargement_fraction: float = 1.5,
+            **_kwargs,
+        ) -> dict[str, bool]:
+            return {"success": True}
+
+        self.engine = SimpleNamespace(
+            fit_sne_parameters=fit_sne_parameters,
+            ENGINE_KIND="nested",
+        )
+        self.lcdm_plugin = SimpleNamespace(
+            PARAMETER_BOUNDS=[(0.0, 1.0)] * 3,
+            PARAMETER_NAMES=["Ωm", "ΩΛ", "H0"],
+            MODEL_NAME="ΛCDM",
+        )
+        self.alt_plugin = SimpleNamespace(
+            PARAMETER_BOUNDS=[(0.0, 1.0)] * 4,
+            PARAMETER_NAMES=["w0", "wa", "Ωk", "Neff"],
+            MODEL_NAME="AltModel",
+        )
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    def test_nested_defaults_selected(self, ask_mock, _write_mock) -> None:
+        """Pressing Enter should accept the recommended nested plan."""
+
+        ask_mock.side_effect = [""]
+        plan = copernican.prompt_sampling_configuration(
+            self.engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+            None,
+            None,
+            None,
+        )
+        self.assertEqual(
+            plan,
+            {
+                "engine_kind": "nested",
+                "n_live_points": 128,
+                "max_iterations": 5000,
+                "evidence_tolerance": 1e-3,
+                "enlargement_fraction": 1.5,
+            },
+        )
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    def test_nested_custom_plan(self, ask_mock, _write_mock) -> None:
+        """Operators can customise nested-sampling parameters."""
+
+        ask_mock.side_effect = [
+            "2",
+            "256",
+            "10000",
+            "5e-4",
+            "2.0",
+            "",
+        ]
+        plan = copernican.prompt_sampling_configuration(
+            self.engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+            None,
+            None,
+            None,
+        )
+        self.assertEqual(
+            plan,
+            {
+                "engine_kind": "nested",
+                "n_live_points": 256,
+                "max_iterations": 10000,
+                "evidence_tolerance": 5e-4,
+                "enlargement_fraction": 2.0,
+            },
+        )
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    def test_nested_back_option(self, ask_mock, _write_mock) -> None:
+        """Backtracking returns to the defaults summary before exiting."""
+
+        ask_mock.side_effect = ["2", "", "", "", "", "b", ""]
+        plan = copernican.prompt_sampling_configuration(
+            self.engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+            None,
+            None,
+            None,
+        )
+        self.assertEqual(
+            plan,
+            {
+                "engine_kind": "nested",
+                "n_live_points": 128,
+                "max_iterations": 5000,
+                "evidence_tolerance": 1e-3,
+                "enlargement_fraction": 1.5,
             },
         )
 
