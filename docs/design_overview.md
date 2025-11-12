@@ -33,9 +33,10 @@ that foundation to deliver repeatable analyses.
   ArviZ-powered convergence diagnostics for downstream tooling.  Version 7.6.4
   reiterates the hard dependency on ArviZ so every run records R-hat and
   effective sample size summaries while keeping supporting utilities resilient
-  to module-level monkeypatching. Version 7.7.2 routes the nested sampler through
-  the shared Stage 2 progress renderer so both engines clear and repaint the
-  carriage-return bar identically.
+  to module-level monkeypatching. Version 7.7.3 keeps the nested sampler on the
+  shared Stage 2 progress renderer, switches its counters from walkers to
+  iterations and clamps repainting to a single console line so both engines
+  clear and redraw the carriage-return bar identically.
 * `models/` holds YAML descriptions that declare bounds, priors, transforms and
   dataset compatibility.  Each file is compiled into a picklable
   :class:`copernican_lib.plugins.EnginePlugin` so multiprocessing pools can
@@ -133,10 +134,11 @@ repainted instantly, Version 7.6.13 layered a dedicated walker-progress meter
  on the bundled renderer, and Version 7.6.16 adds timer-driven idle ticks so
  the spinner continues to animate even when walker callbacks arrive slowly.
 
-  Version 7.7.2 keeps ``engines.cosmo_engine_nested`` aligned with the MCMC
+  Version 7.7.3 keeps ``engines.cosmo_engine_nested`` aligned with the MCMC
   backend by wiring the nested sampler into the shared progress helpers,
-  updating the surrounding documentation and continuing to report log-evidence
-  estimates and live-point diagnostics. Stage 2 now branches its questionnaire
+  renaming its counters to iterations, ensuring the bar never prints extra
+  lines and continuing to report log-evidence estimates and live-point
+  diagnostics. Stage 2 now branches its questionnaire
   based on the selected backend so operators configure walkers and worker pools
   for MCMC runs or manage live points, evidence tolerances and enlargement
   factors for nested sampling without manual overrides.

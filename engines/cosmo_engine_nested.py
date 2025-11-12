@@ -364,10 +364,15 @@ def fit_sne_parameters(
         progress_label,
         progress_total,
         display=bool(display_progress),
+        subunit_labels=("iteration", "iterations"),
     )
     progress_active = max_iterations > 0
     if progress_active:
-        progress_bar.start_batch(1, progress_total)
+        # Treat the entire nested run as a single progress step so the console
+        # keeps repainting the same line instead of announcing a new step for
+        # every iteration.  The fractional progress is injected through the
+        # per-update ``step_progress`` argument below.
+        progress_bar.start_batch(1, 1)
 
     try:
         while iterations < max_iterations and live_points:
@@ -383,10 +388,15 @@ def fit_sne_parameters(
             log_weights.append(log_weight)
 
             if progress_active:
+                # Clamp the fractional completion so early convergence still
+                # renders a sensible percentage and never exceeds 100% during
+                # over-specified iteration budgets.
+                fraction = min(iterations / progress_total, 1.0)
                 progress_bar.update(
-                    iterations,
+                    1,
                     processed=iterations,
                     total=progress_total,
+                    step_progress=fraction,
                 )
 
             target = worst_point.log_likelihood

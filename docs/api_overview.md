@@ -25,8 +25,10 @@ modules are:
   7.6.23 additionally records the very first frame emitted for each batch and
   closes every sampling stage inside a finally block so clean-up always clears
   the console, even when an engine aborts before walkers finish their first
-  proposals. Version 7.7.2 routes the nested sampler through the same helpers so
-  Stage 2 progress now mirrors the MCMC backend regardless of engine choice.
+  proposals. Version 7.7.3 keeps the nested sampler on the same helpers while
+  renaming its counters to iterations and constraining the renderer to a single
+  console line so Stage 2 progress now mirrors the MCMC backend regardless of
+  engine choice.
 - `copernican_lib.plotter.plot_corner(samples, plugin, data_attrs,
   plot_dir)` – render the Stage 2 posterior as an automatically thinned
   corner plot whose panel size and typography respond to the number of

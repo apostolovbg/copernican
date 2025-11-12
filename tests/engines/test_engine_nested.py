@@ -152,8 +152,16 @@ class TestNestedEngine(unittest.TestCase):
         _, kwargs = bar_cls.call_args
         self.assertIn("display", kwargs)
         self.assertFalse(kwargs["display"])
-        bar_instance.start_batch.assert_called_once_with(1, 12)
+        self.assertEqual(kwargs["subunit_labels"], ("iteration", "iterations"))
+        bar_instance.start_batch.assert_called_once_with(1, 1)
         self.assertGreaterEqual(bar_instance.update.call_count, 1)
+        for call in bar_instance.update.call_args_list:
+            args, call_kwargs = call
+            self.assertEqual(args[0], 1)
+            self.assertIn("step_progress", call_kwargs)
+            self.assertLessEqual(call_kwargs["step_progress"], 1.0)
+            self.assertGreaterEqual(call_kwargs["step_progress"], 0.0)
+            self.assertEqual(call_kwargs["total"], 12)
         bar_instance.finish_batch.assert_called()
 
     @mock.patch("engines.cosmo_engine_nested.BatchProgressBar")

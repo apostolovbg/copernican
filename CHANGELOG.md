@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.7.3
+- 2025-11-12: Smoothed the nested sampler's progress feed so the carriage-return
+              bar stays on a single line, introduced iteration-focused labels via
+              a configurable progress helper and refreshed documentation and
+              tests to cover the new rendering behaviour (OpenAI ChatGPT)
+
 ## Version 7.7.2
 - 2025-11-12: Wired the nested sampler into the shared Stage 2 progress
               infrastructure so BatchProgressBar tracks every iteration,

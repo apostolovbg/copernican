@@ -1,4 +1,4 @@
-**Version:** 7.7.2
+**Version:** 7.7.3
 **Last Updated:** 2025-11-12
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -13,7 +13,11 @@ using a single reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. Build 7.7.2 wires
+  dataset selection, model pairing and engine configuration. Build 7.7.3 keeps
+  the nested-sampling backend on a single carriage-return line, renames its
+  progress counters from walkers to iterations and ensures both engines share
+  the same console helpers so operators see consistent terminology while the bar
+  fills smoothly. Build 7.7.2 wires
   the nested-sampling backend into the shared Stage 2 progress helpers so both
   engines animate the same carriage-return bar, keeps configuration prompts
   engine-specific and preserves manifest compatibility. Build 7.6.22 keeps

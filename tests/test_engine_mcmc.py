@@ -1,6 +1,6 @@
 """Integration tests for the ensemble MCMC engine.
 
-**Last Updated:** 2025-11-10
+**Last Updated:** 2025-11-12
 """
 
 import logging
@@ -792,6 +792,35 @@ class BatchProgressBarTestCase(unittest.TestCase):
             self.assertTrue(has_partial)
             spinner_frames = set(BatchProgressBar._SPINNER_FRAMES)
             self.assertTrue(set(partial_line) & spinner_frames)
+
+    def test_progress_bar_accepts_custom_subunit_labels(self) -> None:
+        """Alternative engines can rename the per-step subunit labels."""
+
+        captured: list[str] = []
+
+        def _capture(
+            msg: str = "", *, end: str = "\n", error: bool = False
+        ) -> None:
+            captured.append(msg)
+
+        bar = BatchProgressBar(
+            "Custom stage",
+            5,
+            display=True,
+            subunit_labels=("iteration", "iterations"),
+        )
+        with mock.patch(
+            "copernican_lib.progress.console.write",
+            side_effect=_capture,
+        ):
+            bar.start_batch(1, 1)
+            line = bar.update(1, processed=2, total=5, step_progress=0.4)
+            self.assertIsNotNone(line)
+            rendered = line.lstrip("\r")
+            self.assertIn("iteration", rendered)
+            self.assertIn("iterations left", rendered)
+            bar.finish_batch()
+        self.assertTrue(any("iterations left" in msg for msg in captured))
 
     def test_force_update_rerenders_identical_text(self) -> None:
         """Explicitly forced updates repaint even when text is stable."""
