@@ -5,6 +5,7 @@ import os
 import tempfile
 import unittest
 from types import SimpleNamespace
+from unittest import mock
 
 import pandas as pd
 import xarray as xr
@@ -125,6 +126,70 @@ class TestNestedEngine(unittest.TestCase):
         self.assertEqual(
             engine_entry.get("version"), cosmo_engine_nested.ENGINE_VERSION
         )
+
+    @mock.patch("engines.cosmo_engine_nested.BatchProgressBar")
+    def test_progress_bar_initialises_and_updates(self, bar_cls):
+        plugin = self._build_lcdm_plugin()
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01, 0.02, 0.03],
+                "mu_obs": [40.0, 41.0, 42.0],
+                "e_mu_obs": [0.1, 0.1, 0.1],
+            }
+        )
+        bar_instance = mock.MagicMock()
+        bar_cls.return_value = bar_instance
+
+        cosmo_engine_nested.fit_sne_parameters(
+            sne_df,
+            plugin,
+            n_live_points=16,
+            max_iterations=12,
+            display_progress=False,
+        )
+
+        bar_cls.assert_called_once()
+        _, kwargs = bar_cls.call_args
+        self.assertIn("display", kwargs)
+        self.assertFalse(kwargs["display"])
+        self.assertEqual(kwargs["subunit_labels"], ("iteration", "iterations"))
+        bar_instance.start_batch.assert_called_once_with(1, 1)
+        self.assertGreaterEqual(bar_instance.update.call_count, 1)
+        for call in bar_instance.update.call_args_list:
+            args, call_kwargs = call
+            self.assertEqual(args[0], 1)
+            self.assertIn("step_progress", call_kwargs)
+            self.assertLessEqual(call_kwargs["step_progress"], 1.0)
+            self.assertGreaterEqual(call_kwargs["step_progress"], 0.0)
+            self.assertEqual(call_kwargs["total"], 12)
+        bar_instance.finish_batch.assert_called()
+
+    @mock.patch("engines.cosmo_engine_nested.BatchProgressBar")
+    def test_progress_bar_finishes_on_exception(self, bar_cls):
+        plugin = self._build_lcdm_plugin()
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01, 0.02, 0.03],
+                "mu_obs": [40.0, 41.0, 42.0],
+                "e_mu_obs": [0.1, 0.1, 0.1],
+            }
+        )
+        bar_instance = mock.MagicMock()
+        bar_cls.return_value = bar_instance
+
+        with mock.patch(
+            "engines.cosmo_engine_nested._replacement_sample",
+            side_effect=RuntimeError("replacement failure"),
+        ):
+            with self.assertRaises(RuntimeError):
+                cosmo_engine_nested.fit_sne_parameters(
+                    sne_df,
+                    plugin,
+                    n_live_points=8,
+                    max_iterations=5,
+                )
+
+        bar_instance.finish_batch.assert_called()
 
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation

@@ -1,10 +1,10 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-10
+# Last Updated: 2025-11-12
 
 """Console progress helpers shared across Copernican engines.
 
-**Last Updated:** 2025-11-10
+**Last Updated:** 2025-11-12
 
 The previous implementations lived directly inside
 ``engines.cosmo_engine_mcmc`` which made the sampler difficult to reuse.
@@ -72,10 +72,19 @@ class BatchProgressBar:
         total_steps: int,
         *,
         display: bool = True,
+        subunit_labels: tuple[str, str] | None = ("walker", "walkers"),
     ) -> None:
         self._stage_label = stage_label
         self._total_steps = max(int(total_steps), 0)
         self._display = bool(display and self._total_steps > 0)
+        # The per-step subunit defaults to "walker" terminology so ensemble
+        # samplers keep their historical output, while alternative engines can
+        # override the labels to describe their own iteration units.
+        if subunit_labels is None:
+            self._subunit_labels: tuple[str, str] | None = None
+        else:
+            singular, plural = subunit_labels
+            self._subunit_labels = (str(singular), str(plural))
         self._batch_index = 0
         self._current_start = 1
         self._current_end = 0
@@ -159,10 +168,17 @@ class BatchProgressBar:
             f"{progress_word}, {remaining} {remaining_word} remaining"
         )
         walker_postfix = f"{walker_bar} {walker_processed}/{walker_total}"
+        if self._subunit_labels is None:
+            walker_fragment = walker_postfix
+        else:
+            singular, plural = self._subunit_labels
+            walker_word = singular if walker_remaining == 1 else plural
+            walker_fragment = (
+                f"{walker_postfix}, {walker_remaining} {walker_word} left"
+            )
         display_line = (
             f"{bar} {percent:>3d}% {spinner} ("
-            f"{postfix}; {walker_postfix}, "
-            f"{walker_remaining} {walker_word} left)"
+            f"{postfix}; {walker_fragment})"
         )
         line = f"\r{display_line}"
         return line, percent, display_line
