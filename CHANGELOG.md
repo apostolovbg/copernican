@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-11
+**Last Updated:** 2025-11-12
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,11 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 7.7.1
+- 2025-11-12: Wrapped nested-sampling helper code to respect line-length
+              policies, refreshed documentation for the polish and restored
+              green lint checks (OpenAI ChatGPT)
 
 ## Version 7.7.0
 - 2025-11-11: Added the `cosmo_engine_nested` backend with nested-sampling

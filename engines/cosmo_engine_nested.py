@@ -1,10 +1,10 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-11
+# Last Updated: 2025-11-12
 
 """Nested sampling cosmology engine.
 
-**Last Updated:** 2025-11-11
+**Last Updated:** 2025-11-12
 
 This backend implements a lightweight nested-sampling routine that remains
 compatible with the Copernican plugin architecture.  The sampler focuses on
@@ -266,7 +266,11 @@ def _prepare_bounds(
     for idx, (lo, hi) in enumerate(bounds):
         lower[idx] = -math.inf if lo is None else float(lo)
         upper[idx] = math.inf if hi is None else float(hi)
-        if math.isfinite(lower[idx]) and math.isfinite(upper[idx]) and upper[idx] < lower[idx]:
+        if (
+            math.isfinite(lower[idx])
+            and math.isfinite(upper[idx])
+            and upper[idx] < lower[idx]
+        ):
             raise ValueError("parameter bounds inverted")
     if initial is None or len(initial) != len(bounds):
         initial_arr = np.zeros(len(bounds), dtype=float)
@@ -316,7 +320,10 @@ def fit_sne_parameters(
     rng = np.random.default_rng(get_random_seed())
     live_points: list[_Sample] = []
     attempts = 0
-    while len(live_points) < max(1, n_live_points) and attempts < _MAX_INITIAL_ATTEMPTS:
+    while (
+        len(live_points) < max(1, n_live_points)
+        and attempts < _MAX_INITIAL_ATTEMPTS
+    ):
         attempts += 1
         candidate = _initial_live_point(rng, lower, upper, initial)
         evaluated = _evaluate_point(posterior, joint_like, candidate)
@@ -325,7 +332,8 @@ def fit_sne_parameters(
         live_points.append(evaluated)
     if len(live_points) < max(5, int(0.5 * n_live_points)):
         logger.error(
-            "Nested sampler failed to initialise %d live points (obtained %d).",
+            "Nested sampler failed to initialise %d live points "
+            "(obtained %d).",
             n_live_points,
             len(live_points),
         )
@@ -360,14 +368,19 @@ def fit_sne_parameters(
             evaluated = _evaluate_point(posterior, joint_like, proposal)
             if evaluated is None:
                 continue
-            if evaluated.log_likelihood <= target and attempt < (_MAX_REPLACEMENT_ATTEMPTS // 2):
+            if evaluated.log_likelihood <= target and attempt < (
+                _MAX_REPLACEMENT_ATTEMPTS // 2
+            ):
                 continue
             live_points[worst_index] = evaluated
             replaced = True
             break
         if not replaced:
             logger.warning(
-                "Nested sampler terminated early after %d iterations; no valid replacement found.",
+                (
+                    "Nested sampler terminated early after %d iterations; "
+                    "no valid replacement found."
+                ),
                 iterations,
             )
             break
@@ -395,7 +408,10 @@ def fit_sne_parameters(
 
     points = np.array([s.params for s in samples], dtype=float)
     log_posterior = np.array([s.log_posterior for s in samples], dtype=float)
-    log_likelihoods = np.array([s.log_likelihood for s in samples], dtype=float)
+    log_likelihoods = np.array(
+        [s.log_likelihood for s in samples],
+        dtype=float,
+    )
     log_weights_arr = np.array(log_weights, dtype=float)
     weights = _weights_from_logs(log_weights_arr)
 
@@ -419,12 +435,10 @@ def fit_sne_parameters(
         for idx, name in enumerate(param_names)
     }
     posterior_mean = {
-        name: float(mean_vector[idx])
-        for idx, name in enumerate(param_names)
+        name: float(mean_vector[idx]) for idx, name in enumerate(param_names)
     }
     parameter_errors = {
-        name: float(std_dev[idx])
-        for idx, name in enumerate(param_names)
+        name: float(std_dev[idx]) for idx, name in enumerate(param_names)
     }
 
     sne_points = int(len(sne_data_df) if sne_data_df is not None else 0)
@@ -449,7 +463,9 @@ def fit_sne_parameters(
     log_prob_chain = log_posterior[:, None]
 
     return {
-        "success": math.isfinite(chi2_total) and math.isfinite(log_posterior.max()),
+        "success": (
+            math.isfinite(chi2_total) and math.isfinite(log_posterior.max())
+        ),
         "samples": chain,
         "log_probability": log_prob_chain,
         "fitted_cosmological_params": fitted,

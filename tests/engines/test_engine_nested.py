@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-11
+# Last Updated: 2025-11-12
 """Integration tests for the nested sampling engine."""
 
 import os
@@ -70,7 +70,9 @@ class TestNestedEngine(unittest.TestCase):
         total = sum(chi2_components.values())
         self.assertAlmostEqual(result["chi2_total"], total)
         mean_params = result.get("posterior_mean_params", {})
-        self.assertSetEqual(set(mean_params.keys()), set(plugin.PARAMETER_NAMES))
+        self.assertSetEqual(
+            set(mean_params.keys()), set(plugin.PARAMETER_NAMES)
+        )
 
     def test_chain_serialisation_to_netcdf(self):
         plugin = self._build_lcdm_plugin()
@@ -104,7 +106,9 @@ class TestNestedEngine(unittest.TestCase):
             MODEL_NAME="Demo",
             MODEL_FILENAME="demo.py",
             PARAMETER_NAMES=("Ωm",),
-            PARAMETER_PRIORS=({"type": "uniform", "lower": 0.0, "upper": 1.0},),
+            PARAMETER_PRIORS=(
+                {"type": "uniform", "lower": 0.0, "upper": 1.0},
+            ),
         )
         manifest = run_manifest.build_manifest(
             models=[(plugin, "1.0")],
@@ -114,7 +118,9 @@ class TestNestedEngine(unittest.TestCase):
         engine_entry = manifest.get("engine", {})
         self.assertEqual(
             engine_entry.get("name"),
-            getattr(cosmo_engine_nested, "__name__", "engines.cosmo_engine_nested"),
+            getattr(
+                cosmo_engine_nested, "__name__", "engines.cosmo_engine_nested"
+            ),
         )
         self.assertEqual(
             engine_entry.get("version"), cosmo_engine_nested.ENGINE_VERSION
