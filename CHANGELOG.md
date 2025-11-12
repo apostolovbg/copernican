@@ -21,6 +21,14 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.7.2
+- 2025-11-12: Wired the nested sampler into the shared Stage 2 progress
+              infrastructure so BatchProgressBar tracks every iteration,
+              added configuration plumbing so Stage 2 toggles progress across
+              both engines, expanded the regression suite with progress spies
+              and refreshed the documentation to describe the live updates
+              (OpenAI ChatGPT)
+
 ## Version 7.7.1
 - 2025-11-12: Wrapped nested-sampling helper code to respect line-length
               policies, refreshed documentation for the polish and restored
