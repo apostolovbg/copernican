@@ -36,6 +36,7 @@ import pandas as pd
 
 from copernican_lib import engine_interface
 from copernican_lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
+from copernican_lib.progress import BatchProgressBar
 from copernican_lib.statistics import (
     calculate_bao_observables,
     chi_squared_bao,
@@ -48,7 +49,7 @@ from copernican_lib.utils import get_random_seed
 
 ENGINE_KIND = "nested"
 ENGINE_LABEL = "Nested sampling engine"
-ENGINE_VERSION = "1.0.0"
+ENGINE_VERSION = "1.1.0"
 
 _DEFAULT_LIVE_POINTS = 400
 _DEFAULT_MAX_ITERATIONS = 20000
@@ -300,8 +301,15 @@ def fit_sne_parameters(
     max_iterations: int = _DEFAULT_MAX_ITERATIONS,
     evidence_tolerance: float = _DEFAULT_EVIDENCE_TOLERANCE,
     enlargement_fraction: float = _DEFAULT_ENLARGEMENT_FRACTION,
+    display_progress: bool = True,
 ) -> Mapping[str, Any]:
-    """Return posterior samples and diagnostics using nested sampling."""
+    """Return posterior samples and diagnostics using nested sampling.
+
+    ``display_progress`` mirrors the MCMC engine's toggle so Stage 2 can
+    disable console updates during scripted runs while still wiring the nested
+    sampler through the shared progress helpers.  Live progress remains enabled
+    by default for interactive sessions.
+    """
 
     logger = logging.getLogger(__name__)
     posterior, joint_like, param_names = _build_joint_logposterior(
@@ -345,55 +353,85 @@ def fit_sne_parameters(
     log_weights: list[float] = []
     iterations = 0
 
-    while iterations < max_iterations and live_points:
-        iterations += 1
-        worst_index = int(np.argmin([p.log_likelihood for p in live_points]))
-        worst_point = live_points[worst_index]
-        log_width -= 1.0 / max(n_live_points, 1)
-        log_weight = log_width + worst_point.log_likelihood
-        log_evidence = _logsumexp_pair(log_evidence, log_weight)
-        samples.append(worst_point)
-        log_weights.append(log_weight)
+    progress_label = (
+        f"{getattr(model_plugin, 'MODEL_NAME', 'Model')} nested sampling"
+    )
+    # ``BatchProgressBar`` expects a positive upper bound.  Clamp the maximum
+    # to at least one step so the helper remains initialisable when callers
+    # request zero iterations (for example during dry-run tests).
+    progress_total = max(int(max_iterations), 1)
+    progress_bar = BatchProgressBar(
+        progress_label,
+        progress_total,
+        display=bool(display_progress),
+    )
+    progress_active = max_iterations > 0
+    if progress_active:
+        progress_bar.start_batch(1, progress_total)
 
-        target = worst_point.log_likelihood
-        replaced = False
-        for attempt in range(_MAX_REPLACEMENT_ATTEMPTS):
-            proposal = _replacement_sample(
-                rng,
-                live_points,
-                lower,
-                upper,
-                enlargement_fraction,
+    try:
+        while iterations < max_iterations and live_points:
+            iterations += 1
+            worst_index = int(
+                np.argmin([p.log_likelihood for p in live_points])
             )
-            evaluated = _evaluate_point(posterior, joint_like, proposal)
-            if evaluated is None:
-                continue
-            if evaluated.log_likelihood <= target and attempt < (
-                _MAX_REPLACEMENT_ATTEMPTS // 2
-            ):
-                continue
-            live_points[worst_index] = evaluated
-            replaced = True
-            break
-        if not replaced:
-            logger.warning(
-                (
-                    "Nested sampler terminated early after %d iterations; "
-                    "no valid replacement found."
-                ),
-                iterations,
-            )
-            break
+            worst_point = live_points[worst_index]
+            log_width -= 1.0 / max(n_live_points, 1)
+            log_weight = log_width + worst_point.log_likelihood
+            log_evidence = _logsumexp_pair(log_evidence, log_weight)
+            samples.append(worst_point)
+            log_weights.append(log_weight)
 
-        remaining_best = max(p.log_likelihood for p in live_points)
-        if (
-            iterations > n_live_points
-            and math.isfinite(remaining_best)
-            and math.isfinite(log_evidence)
-        ):
-            ratio = remaining_best + log_width - log_evidence
-            if ratio < math.log(max(evidence_tolerance, _MIN_WEIGHT_FLOOR)):
+            if progress_active:
+                progress_bar.update(
+                    iterations,
+                    processed=iterations,
+                    total=progress_total,
+                )
+
+            target = worst_point.log_likelihood
+            replaced = False
+            for attempt in range(_MAX_REPLACEMENT_ATTEMPTS):
+                proposal = _replacement_sample(
+                    rng,
+                    live_points,
+                    lower,
+                    upper,
+                    enlargement_fraction,
+                )
+                evaluated = _evaluate_point(posterior, joint_like, proposal)
+                if evaluated is None:
+                    continue
+                if evaluated.log_likelihood <= target and attempt < (
+                    _MAX_REPLACEMENT_ATTEMPTS // 2
+                ):
+                    continue
+                live_points[worst_index] = evaluated
+                replaced = True
                 break
+            if not replaced:
+                logger.warning(
+                    (
+                        "Nested sampler terminated early after %d iterations; "
+                        "no valid replacement found."
+                    ),
+                    iterations,
+                )
+                break
+
+            remaining_best = max(p.log_likelihood for p in live_points)
+            if (
+                iterations > n_live_points
+                and math.isfinite(remaining_best)
+                and math.isfinite(log_evidence)
+            ):
+                ratio = remaining_best + log_width - log_evidence
+                if ratio < math.log(
+                    max(evidence_tolerance, _MIN_WEIGHT_FLOOR)
+                ):
+                    break
+    finally:
+        progress_bar.finish_batch()
 
     if live_points:
         log_width -= 1.0 / max(n_live_points, 1)
