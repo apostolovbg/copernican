@@ -1,6 +1,6 @@
 """Integration tests for the ensemble MCMC engine.
 
-**Last Updated:** 2025-11-10
+**Last Updated:** 2025-11-12
 """
 
 import logging
@@ -754,11 +754,11 @@ class BatchProgressBarTestCase(unittest.TestCase):
         self.assertTrue(announcements)
         newline_calls = [end for msg, end in captured if msg == ""]
         self.assertIn("\n", newline_calls)
-        emitted_lines = [msg for msg, end in captured if end == ""]
+        emitted_lines = [msg for msg, end in captured if end == "\r"]
         self.assertTrue(emitted_lines)
         # Spinner frames appear in subsequent captured repaint strings.
         spinner_hits = [
-            set(msg) & spinner_frames for msg, end in captured if end == ""
+            set(msg) & spinner_frames for msg, end in captured if end == "\r"
         ]
         self.assertTrue(any(hit for hit in spinner_hits))
 
@@ -793,6 +793,35 @@ class BatchProgressBarTestCase(unittest.TestCase):
             spinner_frames = set(BatchProgressBar._SPINNER_FRAMES)
             self.assertTrue(set(partial_line) & spinner_frames)
 
+    def test_progress_bar_accepts_custom_subunit_labels(self) -> None:
+        """Alternative engines can rename the per-step subunit labels."""
+
+        captured: list[str] = []
+
+        def _capture(
+            msg: str = "", *, end: str = "\n", error: bool = False
+        ) -> None:
+            captured.append(msg)
+
+        bar = BatchProgressBar(
+            "Custom stage",
+            5,
+            display=True,
+            subunit_labels=("iteration", "iterations"),
+        )
+        with mock.patch(
+            "copernican_lib.progress.console.write",
+            side_effect=_capture,
+        ):
+            bar.start_batch(1, 1)
+            line = bar.update(1, processed=2, total=5, step_progress=0.4)
+            self.assertIsNotNone(line)
+            rendered = line.lstrip("\r")
+            self.assertIn("iteration", rendered)
+            self.assertIn("iterations left", rendered)
+            bar.finish_batch()
+        self.assertTrue(any("iterations left" in msg for msg in captured))
+
     def test_force_update_rerenders_identical_text(self) -> None:
         """Explicitly forced updates repaint even when text is stable."""
 
@@ -821,8 +850,8 @@ class BatchProgressBarTestCase(unittest.TestCase):
             bar.finish_batch()
             self.assertGreaterEqual(patched.call_count, 3)
             blank_call = patched.call_args_list[0]
-            self.assertTrue(blank_call.args[0].startswith("\r"))
-            self.assertTrue(set(blank_call.args[0][1:]) <= {" "})
+            self.assertTrue(set(blank_call.args[0]) <= {" "})
+            self.assertEqual(blank_call.kwargs.get("end"), "\r")
 
     def test_finish_batch_clears_line_without_updates(self) -> None:
         """Initial 0% renders are tracked so cleanup blanks the console."""
@@ -834,12 +863,13 @@ class BatchProgressBarTestCase(unittest.TestCase):
             bar.finish_batch()
             self.assertGreaterEqual(patched.call_count, 3)
             blank_calls = [
-                call.args[0] for call in patched.call_args_list if call.args
+                call for call in patched.call_args_list if call.args
             ]
             self.assertTrue(
                 any(
-                    msg.startswith("\r") and set(msg[1:]) <= {" "}
-                    for msg in blank_calls
+                    set(entry.args[0]) <= {" "}
+                    and entry.kwargs.get("end") == "\r"
+                    for entry in blank_calls
                 )
             )
 
@@ -918,13 +948,11 @@ class ProgressIntegrationTestCase(unittest.TestCase):
                     display_progress=True,
                 )
 
-        blank_calls = [
-            call.args[0] for call in patched.call_args_list if call.args
-        ]
+        blank_calls = [entry for entry in patched.call_args_list if entry.args]
         self.assertTrue(
             any(
-                msg.startswith("\r") and set(msg[1:]) <= {" "}
-                for msg in blank_calls
+                set(entry.args[0]) <= {" "} and entry.kwargs.get("end") == "\r"
+                for entry in blank_calls
             )
         )
 

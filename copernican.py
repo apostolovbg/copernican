@@ -1736,6 +1736,8 @@ def main_workflow():
             return
 
         plan_kind = sampling_plan.get("engine_kind", "mcmc").lower()
+        display_progress = bool(sampling_plan.get("display_progress", True))
+
         if plan_kind == "nested":
             sampling_live = int(sampling_plan["n_live_points"])
             sampling_max_iter = int(sampling_plan["max_iterations"])
@@ -1838,6 +1840,7 @@ def main_workflow():
                 max_iterations=sampling_max_iter,
                 evidence_tolerance=sampling_tol,
                 enlargement_fraction=sampling_enlarge,
+                display_progress=display_progress,
             )
         else:
             console.write(f"  Burn-in steps: {sampling_burn_in}")
@@ -1855,6 +1858,7 @@ def main_workflow():
                 n_steps=sampling_steps,
                 pool_size=sampling_pool,
                 burn_in_steps=sampling_burn_in,
+                display_progress=display_progress,
             )
         if reuse_alt:
             logger.info(
@@ -1886,6 +1890,7 @@ def main_workflow():
                     max_iterations=sampling_max_iter,
                     evidence_tolerance=sampling_tol,
                     enlargement_fraction=sampling_enlarge,
+                    display_progress=display_progress,
                 )
             else:
                 console.write(f"  Burn-in steps: {sampling_burn_in}")
@@ -1903,6 +1908,7 @@ def main_workflow():
                     n_steps=sampling_steps,
                     pool_size=sampling_pool,
                     burn_in_steps=sampling_burn_in,
+                    display_progress=display_progress,
                 )
             console.write(
                 f"Completed alternative sampling for {alt_model_plugin.MODEL_NAME}."

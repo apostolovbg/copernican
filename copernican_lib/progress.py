@@ -1,10 +1,10 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-10
+# Last Updated: 2025-11-12
 
 """Console progress helpers shared across Copernican engines.
 
-**Last Updated:** 2025-11-10
+**Last Updated:** 2025-11-12
 
 The previous implementations lived directly inside
 ``engines.cosmo_engine_mcmc`` which made the sampler difficult to reuse.
@@ -72,10 +72,19 @@ class BatchProgressBar:
         total_steps: int,
         *,
         display: bool = True,
+        subunit_labels: tuple[str, str] | None = ("walker", "walkers"),
     ) -> None:
         self._stage_label = stage_label
         self._total_steps = max(int(total_steps), 0)
         self._display = bool(display and self._total_steps > 0)
+        # The per-step subunit defaults to "walker" terminology so ensemble
+        # samplers keep their historical output, while alternative engines can
+        # override the labels to describe their own iteration units.
+        if subunit_labels is None:
+            self._subunit_labels: tuple[str, str] | None = None
+        else:
+            singular, plural = subunit_labels
+            self._subunit_labels = (str(singular), str(plural))
         self._batch_index = 0
         self._current_start = 1
         self._current_end = 0
@@ -159,13 +168,42 @@ class BatchProgressBar:
             f"{progress_word}, {remaining} {remaining_word} remaining"
         )
         walker_postfix = f"{walker_bar} {walker_processed}/{walker_total}"
+        if self._subunit_labels is None:
+            walker_fragment = walker_postfix
+        else:
+            singular, plural = self._subunit_labels
+            walker_word = singular if walker_remaining == 1 else plural
+            walker_fragment = (
+                f"{walker_postfix}, {walker_remaining} {walker_word} left"
+            )
         display_line = (
             f"{bar} {percent:>3d}% {spinner} ("
-            f"{postfix}; {walker_postfix}, "
-            f"{walker_remaining} {walker_word} left)"
+            f"{postfix}; {walker_fragment})"
         )
         line = f"\r{display_line}"
         return line, percent, display_line
+
+    def _render_raw(self, rendered_text: str) -> None:
+        """Write ``rendered_text`` to the console using a carriage return."""
+
+        if not self._display:
+            return
+        console.write(rendered_text, end="\r")
+        self._last_rendered = rendered_text
+
+    def _emit_display_line(self, display_line: str) -> None:
+        """Render text while padding trailing remnants."""
+
+        if not self._display:
+            return
+        previous_width = self._last_rendered_length
+        current_width = len(display_line)
+        if previous_width > current_width:
+            padded = display_line + (" " * (previous_width - current_width))
+        else:
+            padded = display_line
+        self._last_rendered_length = max(previous_width, current_width)
+        self._render_raw(padded)
 
     def _clear_line(self) -> None:
         """Erase the previously rendered progress line from the console."""
@@ -174,9 +212,8 @@ class BatchProgressBar:
             return
         if not self._last_line:
             return
-        blank = "\r" + (" " * self._last_rendered_length)
-        console.write(blank, end="")
-        console.write("\r", end="")
+        blank = " " * self._last_rendered_length
+        self._render_raw(blank)
         self._last_rendered = ""
 
     def start_batch(self, batch_start: int, batch_end: int) -> None:
@@ -212,11 +249,9 @@ class BatchProgressBar:
                     total=max(self._current_step_total, 1),
                     batch_size=self._current_span,
                 )
-                console.write(line, end="")
-                self._last_rendered = line
+                self._emit_display_line(display_line)
                 self._last_line = display_line
                 self._last_percent = percent
-                self._last_rendered_length = len(display_line)
 
     def start_step(
         self, step_index: int, walker_total: int | None = None
@@ -290,10 +325,7 @@ class BatchProgressBar:
                 return None
             self._last_percent = percent
             self._last_line = display_line
-            self._last_rendered_length = len(display_line)
-            if self._display:
-                console.write(line, end="")
-                self._last_rendered = line
+            self._emit_display_line(display_line)
             return line
 
     def finish_batch(self) -> None:
@@ -330,8 +362,7 @@ class BatchProgressBar:
         finally:
             if active and self._display and rendered_line:
                 with self._lock:
-                    console.write(rendered_line, end="")
-                    self._last_rendered = rendered_line
+                    self._render_raw(rendered_line)
 
     @property
     def batch_index(self) -> int:
