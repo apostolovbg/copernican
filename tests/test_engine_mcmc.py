@@ -1,8 +1,9 @@
 """Integration tests for the ensemble MCMC engine.
 
-**Last Updated:** 2025-11-10
+**Last Updated:** 2025-11-13
 """
 
+import contextlib
 import logging
 import math
 import os
@@ -469,25 +470,101 @@ class TestMCMCEngine(unittest.TestCase):
         bao_df.attrs["covariance_matrix_inv"] = np.eye(1)
 
         ells = np.arange(30, 34)
-        camb_params = plugin.get_camb_params(initial)
-        dl_vals = cosmo_engine_mcmc.compute_cmb_spectrum(
-            camb_params,
-            ells,
-            spectra=("TT",),
-        )
-        cmb_df = pd.DataFrame({"ell": ells, "Dl_obs": dl_vals})
-        cmb_df.attrs["covariance_matrix_inv"] = np.eye(len(ells))
+        ell_arr = np.asarray(ells, dtype=float)
+        simulated = 1200.0 / (ell_arr + 3.0)
 
-        result = cosmo_engine_mcmc.fit_sne_parameters(
-            sne_df,
-            plugin,
-            bao_data_df=bao_df,
-            cmb_data_df=cmb_df,
-            n_walkers=6,
-            n_steps=6,
-            pool_size=1,
-            burn_in_steps=12,
-        )
+        def _fake_cmb_from_dict(param_dict, ell_values, *, spectra=("TT",)):
+            data = {spec: simulated.copy() for spec in spectra}
+            if len(data) == 1:
+                return next(iter(data.values()))
+            return data
+
+        def _fake_get_results(params):
+            class _FakeResults:
+                def get_unlensed_scalar_cls(self, lmax=None, CMB_unit="muK"):
+                    size = (
+                        int(lmax) + 1 if lmax is not None else simulated.size
+                    )
+                    cls = np.zeros((max(size, simulated.size), 4), dtype=float)
+                    cls[: simulated.size, 0] = simulated
+                    cls[: simulated.size, 1] = simulated / 2.0
+                    cls[: simulated.size, 3] = simulated / 3.0
+                    return cls
+
+                def get_derived_params(self):
+                    return {"rdrag": 147.0}
+
+                def comoving_radial_distance(self, z):
+                    return float(z) * 1000.0
+
+                def angular_diameter_distance(self, z):
+                    return float(z) * 100.0
+
+                def hubble_parameter(self, z):
+                    return 70.0
+
+            return _FakeResults()
+
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(
+                mock.patch(
+                    "copernican_lib.likelihoods.cmb."
+                    "compute_cmb_spectrum_from_dict",
+                    side_effect=_fake_cmb_from_dict,
+                )
+            )
+            stack.enter_context(
+                mock.patch(
+                    "copernican_lib.likelihoods."
+                    "compute_cmb_spectrum_from_dict",
+                    side_effect=_fake_cmb_from_dict,
+                )
+            )
+            stack.enter_context(
+                mock.patch(
+                    "copernican_lib.statistics."
+                    "compute_cmb_spectrum_from_dict",
+                    side_effect=_fake_cmb_from_dict,
+                )
+            )
+            stack.enter_context(
+                mock.patch(
+                    "copernican_lib.statistics.compute_cmb_spectrum",
+                    side_effect=_fake_cmb_from_dict,
+                )
+            )
+            stack.enter_context(
+                mock.patch(
+                    "copernican_lib.likelihoods.cmb._cached_cmb",
+                    return_value={"TT": simulated.copy()},
+                )
+            )
+            stack.enter_context(
+                mock.patch(
+                    "copernican_lib.likelihoods.cmb.camb.get_results",
+                    side_effect=_fake_get_results,
+                )
+            )
+
+            camb_params = plugin.get_camb_params(initial)
+            dl_vals = cosmo_engine_mcmc.compute_cmb_spectrum(
+                camb_params,
+                ells,
+                spectra=("TT",),
+            )
+            cmb_df = pd.DataFrame({"ell": ells, "Dl_obs": dl_vals})
+            cmb_df.attrs["covariance_matrix_inv"] = np.eye(len(ells))
+
+            result = cosmo_engine_mcmc.fit_sne_parameters(
+                sne_df,
+                plugin,
+                bao_data_df=bao_df,
+                cmb_data_df=cmb_df,
+                n_walkers=4,
+                n_steps=2,
+                pool_size=1,
+                burn_in_steps=2,
+            )
         components = result.get("chi2_components", {})
         total = sum(components.values())
         self.assertTrue(result["success"])
@@ -756,10 +833,9 @@ class BatchProgressBarTestCase(unittest.TestCase):
         self.assertIn("\n", newline_calls)
         emitted_lines = [msg for msg, end in captured if end == ""]
         self.assertTrue(emitted_lines)
+        self.assertTrue(all(msg.startswith("\r") for msg in emitted_lines))
         # Spinner frames appear in subsequent captured repaint strings.
-        spinner_hits = [
-            set(msg) & spinner_frames for msg, end in captured if end == ""
-        ]
+        spinner_hits = [set(msg) & spinner_frames for msg in emitted_lines]
         self.assertTrue(any(hit for hit in spinner_hits))
 
     def test_progress_bar_emits_partial_block_during_small_updates(
@@ -793,6 +869,35 @@ class BatchProgressBarTestCase(unittest.TestCase):
             spinner_frames = set(BatchProgressBar._SPINNER_FRAMES)
             self.assertTrue(set(partial_line) & spinner_frames)
 
+    def test_progress_bar_accepts_custom_subunit_labels(self) -> None:
+        """Alternative engines can rename the per-step subunit labels."""
+
+        captured: list[str] = []
+
+        def _capture(
+            msg: str = "", *, end: str = "\n", error: bool = False
+        ) -> None:
+            captured.append(msg)
+
+        bar = BatchProgressBar(
+            "Custom stage",
+            5,
+            display=True,
+            subunit_labels=("iteration", "iterations"),
+        )
+        with mock.patch(
+            "copernican_lib.progress.console.write",
+            side_effect=_capture,
+        ):
+            bar.start_batch(1, 1)
+            line = bar.update(1, processed=2, total=5, step_progress=0.4)
+            self.assertIsNotNone(line)
+            rendered = line.lstrip("\r")
+            self.assertIn("iteration", rendered)
+            self.assertIn("iterations left", rendered)
+            bar.finish_batch()
+        self.assertTrue(any("iterations left" in msg for msg in captured))
+
     def test_force_update_rerenders_identical_text(self) -> None:
         """Explicitly forced updates repaint even when text is stable."""
 
@@ -821,8 +926,11 @@ class BatchProgressBarTestCase(unittest.TestCase):
             bar.finish_batch()
             self.assertGreaterEqual(patched.call_count, 3)
             blank_call = patched.call_args_list[0]
-            self.assertTrue(blank_call.args[0].startswith("\r"))
-            self.assertTrue(set(blank_call.args[0][1:]) <= {" "})
+            self.assertTrue(
+                blank_call.args[0].startswith("\r")
+                and set(blank_call.args[0].lstrip("\r")) <= {" "}
+            )
+            self.assertEqual(blank_call.kwargs.get("end"), "")
 
     def test_finish_batch_clears_line_without_updates(self) -> None:
         """Initial 0% renders are tracked so cleanup blanks the console."""
@@ -834,12 +942,14 @@ class BatchProgressBarTestCase(unittest.TestCase):
             bar.finish_batch()
             self.assertGreaterEqual(patched.call_count, 3)
             blank_calls = [
-                call.args[0] for call in patched.call_args_list if call.args
+                call for call in patched.call_args_list if call.args
             ]
             self.assertTrue(
                 any(
-                    msg.startswith("\r") and set(msg[1:]) <= {" "}
-                    for msg in blank_calls
+                    entry.args[0].startswith("\r")
+                    and set(entry.args[0].lstrip("\r")) <= {" "}
+                    and entry.kwargs.get("end") == ""
+                    for entry in blank_calls
                 )
             )
 
@@ -918,13 +1028,13 @@ class ProgressIntegrationTestCase(unittest.TestCase):
                     display_progress=True,
                 )
 
-        blank_calls = [
-            call.args[0] for call in patched.call_args_list if call.args
-        ]
+        blank_calls = [entry for entry in patched.call_args_list if entry.args]
         self.assertTrue(
             any(
-                msg.startswith("\r") and set(msg[1:]) <= {" "}
-                for msg in blank_calls
+                entry.args[0].startswith("\r")
+                and set(entry.args[0].lstrip("\r")) <= {" "}
+                and entry.kwargs.get("end") == ""
+                for entry in blank_calls
             )
         )
 

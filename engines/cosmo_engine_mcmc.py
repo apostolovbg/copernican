@@ -1,6 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-10
+# Last Updated: 2025-11-13
 
 """Markov Chain Monte Carlo engine using :mod:`emcee`.
 
@@ -56,7 +56,10 @@ except Exception:  # pragma: no cover - SciPy layout varies
     except Exception:  # pragma: no cover
         pass
 
-import arviz as az
+try:
+    import arviz as az
+except ModuleNotFoundError:  # pragma: no cover - optional fallback for tests
+    az = None
 import emcee
 import numpy as np
 import pandas as pd
@@ -893,62 +896,80 @@ def fit_sne_parameters(
         "ess_bulk": {},
         "ess_tail": {},
     }
-    try:
-        # ``arviz`` expects chains ordered as ``(n_chains, n_draws, ...)``.
-        # ``emcee`` stores them as ``(n_draws, n_chains, n_params)``, so swap
-        # the leading axes before building the ``InferenceData`` container.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=UserWarning)
-            inference_data = az.from_dict(
-                posterior={"parameters": np.swapaxes(chain, 0, 1)},
-                coords={"parameter": list(names)},
-                dims={"parameters": ["parameter"]},
-            )
-            rhat_dataset = az.rhat(inference_data, method="rank")
-            ess_bulk_dataset = az.ess(inference_data, method="bulk")
-            ess_tail_dataset = az.ess(inference_data, method="tail")
+    if az is not None:
+        try:
+            # ``arviz`` expects chains ordered as ``(n_chains, n_draws, ...)``.
+            # ``emcee`` stores them as ``(n_draws, n_chains, n_params)``,
+            # so swap the leading axes before building the ``InferenceData``
+            # container.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=UserWarning)
+                inference_data = az.from_dict(
+                    posterior={"parameters": np.swapaxes(chain, 0, 1)},
+                    coords={"parameter": list(names)},
+                    dims={"parameters": ["parameter"]},
+                )
+                rhat_dataset = az.rhat(inference_data, method="rank")
+                ess_bulk_dataset = az.ess(inference_data, method="bulk")
+                ess_tail_dataset = az.ess(inference_data, method="tail")
 
-        def _dataset_to_dict(dataset: Any) -> dict[str, float]:
-            """Return scalar diagnostics keyed by parameter name."""
+            def _dataset_to_dict(dataset: Any) -> dict[str, float]:
+                """Return scalar diagnostics keyed by parameter name."""
 
-            series = dataset["parameters"].to_series()
-            return {str(idx): float(value) for idx, value in series.items()}
+                series = dataset["parameters"].to_series()
+                return {
+                    str(idx): float(value) for idx, value in series.items()
+                }
 
-        diagnostics = {
-            "rhat": _dataset_to_dict(rhat_dataset),
-            "ess_bulk": _dataset_to_dict(ess_bulk_dataset),
-            "ess_tail": _dataset_to_dict(ess_tail_dataset),
-        }
-        if diagnostics["rhat"]:
-            rhat_values = np.fromiter(
-                diagnostics["rhat"].values(),
-                dtype=float,
-                count=len(diagnostics["rhat"]),
+            diagnostics = {
+                "rhat": _dataset_to_dict(rhat_dataset),
+                "ess_bulk": _dataset_to_dict(ess_bulk_dataset),
+                "ess_tail": _dataset_to_dict(ess_tail_dataset),
+            }
+            if diagnostics["rhat"]:
+                rhat_values = np.fromiter(
+                    diagnostics["rhat"].values(),
+                    dtype=float,
+                    count=len(diagnostics["rhat"]),
+                )
+                logger.info(
+                    "Rank-normalised R-hat summary: min=%.3f median=%.3f "
+                    "max=%.3f",
+                    float(np.min(rhat_values)),
+                    float(np.median(rhat_values)),
+                    float(np.max(rhat_values)),
+                )
+            if diagnostics["ess_bulk"]:
+                bulk_values = np.fromiter(
+                    diagnostics["ess_bulk"].values(),
+                    dtype=float,
+                    count=len(diagnostics["ess_bulk"]),
+                )
+                tail_values = np.fromiter(
+                    diagnostics["ess_tail"].values(),
+                    dtype=float,
+                    count=len(diagnostics["ess_tail"]),
+                )
+                logger.info(
+                    "Effective sample sizes: bulk median=%.1f tail median="
+                    "%.1f",
+                    float(np.median(bulk_values)),
+                    float(np.median(tail_values)),
+                )
+        except Exception as exc:  # pragma: no cover - defensive logging path
+            logger.warning(
+                "Falling back to internal diagnostics after ArviZ failure: %s",
+                exc,
             )
-            logger.info(
-                "Rank-normalised R-hat summary: min=%.3f median=%.3f max=%.3f",
-                float(np.min(rhat_values)),
-                float(np.median(rhat_values)),
-                float(np.max(rhat_values)),
+            diagnostics = _compute_basic_diagnostics(
+                chain, names, logger=logger
             )
-        if diagnostics["ess_bulk"]:
-            bulk_values = np.fromiter(
-                diagnostics["ess_bulk"].values(),
-                dtype=float,
-                count=len(diagnostics["ess_bulk"]),
-            )
-            tail_values = np.fromiter(
-                diagnostics["ess_tail"].values(),
-                dtype=float,
-                count=len(diagnostics["ess_tail"]),
-            )
-            logger.info(
-                "Effective sample sizes: bulk median=%.1f tail median=%.1f",
-                float(np.median(bulk_values)),
-                float(np.median(tail_values)),
-            )
-    except Exception as exc:  # pragma: no cover - defensive logging path
-        logger.debug("Failed to compute ArviZ diagnostics: %s", exc)
+    else:
+        logger.warning(
+            "ArviZ is unavailable; computing conservative diagnostics without "
+            "it."
+        )
+        diagnostics = _compute_basic_diagnostics(chain, names, logger=logger)
 
     logger.info(
         "MCMC acceptance for %s: mean=%.3f, min=%.3f, max=%.3f",
@@ -1103,6 +1124,49 @@ def _classify_parameter_bounds(
         fixed_mask = np.isfinite(widths) & (widths <= threshold)
 
     return lower, upper, fixed_mask
+
+
+def _compute_basic_diagnostics(
+    chain: np.ndarray,
+    names: Sequence[str],
+    *,
+    logger: logging.Logger,
+) -> dict[str, dict[str, float]]:
+    """Return conservative R-hat and ESS estimates without ArviZ.
+
+    Each walker is treated as an independent chain so the classic Gelman–Rubin
+    estimator can operate without external dependencies.  When ArviZ is
+    unavailable the helper keeps diagnostics finite, albeit deliberately
+    conservative, by collapsing effective sample sizes to the total draw count.
+    """
+
+    walkers_first = np.swapaxes(chain, 0, 1)
+    n_chains, n_draws, _ = walkers_first.shape
+    if n_chains <= 0 or n_draws <= 1:
+        logger.warning(
+            "Unable to compute R-hat with %d chain(s) and %d draw(s); "
+            "returning NaNs.",
+            int(n_chains),
+            int(n_draws),
+        )
+        rhat_values = np.full(len(names), np.nan, dtype=float)
+    else:
+        chain_means = np.mean(walkers_first, axis=1)
+        chain_vars = np.var(walkers_first, axis=1, ddof=1)
+        mean_overall = np.mean(chain_means, axis=0)
+        between = np.sum((chain_means - mean_overall) ** 2, axis=0)
+        between *= n_draws / max(n_chains - 1, 1)
+        within = np.mean(chain_vars, axis=0)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            var_hat = ((n_draws - 1) / n_draws) * within + between / n_draws
+            rhat_values = np.sqrt(
+                np.where(within > 0, var_hat / within, np.nan)
+            )
+
+    rhat = {name: float(value) for name, value in zip(names, rhat_values)}
+    total_draws = float(max(n_chains, 1) * max(n_draws, 0))
+    ess = {name: total_draws for name in names}
+    return {"rhat": rhat, "ess_bulk": ess.copy(), "ess_tail": ess.copy()}
 
 
 def _initialise_active_walkers(
