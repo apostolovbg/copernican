@@ -1,6 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-07
+# Last Updated: 2025-11-13
 
 """Utilities for writing MCMC chains to NetCDF files.
 
@@ -19,6 +19,7 @@ import warnings
 from typing import Iterable
 
 import numpy as np
+import xarray as xr
 
 # ArviZ expects ``scipy.signal.gaussian`` which moved in newer SciPy.
 try:  # pragma: no cover - compatibility shim
@@ -31,7 +32,13 @@ except Exception:  # pragma: no cover - SciPy layout varies
         _signal.gaussian = gaussian
     except Exception:  # pragma: no cover
         pass
-import arviz as az
+
+try:
+    import arviz as az
+except (
+    ModuleNotFoundError
+):  # pragma: no cover - exercised in minimal test envs
+    az = None
 
 from .logger import get_logger
 from .utils import ensure_dir_exists
@@ -73,15 +80,42 @@ def save_posterior(
         name: transposed[:, :, i] for i, name in enumerate(param_names)
     }
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=UserWarning)
-        idata = az.from_dict(posterior=posterior_dict)
+    if az is not None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            idata = az.from_dict(posterior=posterior_dict)
+        if metadata:
+            idata.attrs.update(metadata)
+
+        try:
+            idata.to_netcdf(filepath)
+            logger.info("Posterior samples saved to %s", filepath)
+        except Exception as exc:  # pragma: no cover - file errors uncommon
+            logger.error("Failed saving posterior to %s: %s", filepath, exc)
+        return
+
+    # Minimal fallback when ArviZ is unavailable during lightweight test runs.
+    coords = {
+        "chain": np.arange(transposed.shape[0], dtype=int),
+        "draw": np.arange(transposed.shape[1], dtype=int),
+    }
+    dataset = xr.Dataset(
+        {
+            name: (("chain", "draw"), transposed[:, :, i])
+            for i, name in enumerate(param_names)
+        }
+    )
+    dataset = dataset.assign_coords(coords)
     if metadata:
-        idata.attrs.update(metadata)
+        dataset.attrs.update(metadata)
 
     try:
-        idata.to_netcdf(filepath)
-        logger.info("Posterior samples saved to %s", filepath)
+        dataset.to_netcdf(filepath)
+        logger.info(
+            "Posterior samples saved to %s using xarray fallback "
+            "(ArviZ missing)",
+            filepath,
+        )
     except Exception as exc:  # pragma: no cover - file errors uncommon
         logger.error("Failed saving posterior to %s: %s", filepath, exc)
 

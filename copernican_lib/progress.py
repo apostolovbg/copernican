@@ -1,10 +1,10 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-12
+# Last Updated: 2025-11-13
 
 """Console progress helpers shared across Copernican engines.
 
-**Last Updated:** 2025-11-12
+**Last Updated:** 2025-11-13
 
 The previous implementations lived directly inside
 ``engines.cosmo_engine_mcmc`` which made the sampler difficult to reuse.
@@ -183,6 +183,33 @@ class BatchProgressBar:
         line = f"\r{display_line}"
         return line, percent, display_line
 
+    def _render_raw(self, rendered_text: str) -> None:
+        """Write ``rendered_text`` to the console using a carriage return."""
+
+        if not self._display:
+            return
+        # Prefix the payload with ``\r`` and request no trailing characters so
+        # the terminal rewinds to column zero without emitting implicit
+        # newlines. The old implementation relied on ``end="\r"`` which worked
+        # interactively but left blank spacer rows in logs that captured the
+        # trailing carriage return as a standalone line feed.
+        console.write(f"\r{rendered_text}", end="")
+        self._last_rendered = rendered_text
+
+    def _emit_display_line(self, display_line: str) -> None:
+        """Render text while padding trailing remnants."""
+
+        if not self._display:
+            return
+        previous_width = self._last_rendered_length
+        current_width = len(display_line)
+        if previous_width > current_width:
+            padded = display_line + (" " * (previous_width - current_width))
+        else:
+            padded = display_line
+        self._last_rendered_length = max(previous_width, current_width)
+        self._render_raw(padded)
+
     def _clear_line(self) -> None:
         """Erase the previously rendered progress line from the console."""
 
@@ -190,9 +217,8 @@ class BatchProgressBar:
             return
         if not self._last_line:
             return
-        blank = "\r" + (" " * self._last_rendered_length)
-        console.write(blank, end="")
-        console.write("\r", end="")
+        blank = " " * self._last_rendered_length
+        self._render_raw(blank)
         self._last_rendered = ""
 
     def start_batch(self, batch_start: int, batch_end: int) -> None:
@@ -228,11 +254,9 @@ class BatchProgressBar:
                     total=max(self._current_step_total, 1),
                     batch_size=self._current_span,
                 )
-                console.write(line, end="")
-                self._last_rendered = line
+                self._emit_display_line(display_line)
                 self._last_line = display_line
                 self._last_percent = percent
-                self._last_rendered_length = len(display_line)
 
     def start_step(
         self, step_index: int, walker_total: int | None = None
@@ -306,10 +330,7 @@ class BatchProgressBar:
                 return None
             self._last_percent = percent
             self._last_line = display_line
-            self._last_rendered_length = len(display_line)
-            if self._display:
-                console.write(line, end="")
-                self._last_rendered = line
+            self._emit_display_line(display_line)
             return line
 
     def finish_batch(self) -> None:
@@ -346,8 +367,7 @@ class BatchProgressBar:
         finally:
             if active and self._display and rendered_line:
                 with self._lock:
-                    console.write(rendered_line, end="")
-                    self._last_rendered = rendered_line
+                    self._render_raw(rendered_line)
 
     @property
     def batch_index(self) -> int:

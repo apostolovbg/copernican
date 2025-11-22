@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-12
+# Last Updated: 2025-11-13
 """Integration tests for the nested sampling engine."""
 
 import os
@@ -98,7 +98,11 @@ class TestNestedEngine(unittest.TestCase):
                 path,
                 metadata={"model": plugin.MODEL_NAME},
             )
-            with xr.open_dataset(path, group="posterior") as ds:
+            try:
+                ds = xr.open_dataset(path, group="posterior")
+            except ValueError:
+                ds = xr.open_dataset(path)
+            with ds:
                 for name in plugin.PARAMETER_NAMES:
                     self.assertIn(name, ds.data_vars)
 
