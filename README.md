@@ -1,5 +1,5 @@
-**Version:** 7.7.7
-**Last Updated:** 2025-11-20
+**Version:** 7.7.8
+**Last Updated:** 2025-11-22
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -92,6 +92,9 @@ The suite is organised around a handful of focused components:
   lean CI environment omits ArviZ, logging the downgrade while keeping tests
   green, while Version 7.7.7 introduces the ``COPERNICAN_FAKE_CMB`` hook so CI
   runs can bypass slow CAMB evaluations without altering production behaviour.
+  Version 7.7.8 extends the shared renderer so closing a batch clears any
+  active bar and inserts a deliberate spacer, keeping nested sampling and
+  ensemble outputs tidy even when a progress line never advanced beyond 0%.
 * `engines/` collects computational back ends. The default
   ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
   convergence checks that run on every batch, falling back to the same

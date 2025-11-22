@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-20
+**Last Updated:** 2025-11-22
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,13 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 7.7.8
+- 2025-11-22: Ensured the shared Stage 2 progress renderer clears its active
+              line and emits a spacer when batches close, keeping nested and
+              ensemble transcripts free of stale 0% bars and updating
+              accompanying documentation and metadata to 7.7.8 (OpenAI
+              ChatGPT)
 
 ## Version 7.7.7
 - 2025-11-20: Added a lightweight CMB stub pathway for CI and Windows runners

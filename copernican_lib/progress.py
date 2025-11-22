@@ -1,10 +1,10 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-13
+# Last Updated: 2025-11-22
 
 """Console progress helpers shared across Copernican engines.
 
-**Last Updated:** 2025-11-13
+**Last Updated:** 2025-11-22
 
 The previous implementations lived directly inside
 ``engines.cosmo_engine_mcmc`` which made the sampler difficult to reuse.
@@ -341,10 +341,18 @@ class BatchProgressBar:
                 return
             if self._last_line:
                 self._clear_line()
+            if self._display:
+                # Finalise the cleared line and leave a spacer so subsequent
+                # console output never collides with the retired bar. Keeping
+                # the spacer separate from the clearing pass ensures captured
+                # transcripts still include the blank line even when the
+                # renderer was idle at 0%.
+                console.write("")
                 console.write("")
             self._active = False
             self._last_percent = -1
             self._last_line = ""
+            self._last_rendered = ""
             self._last_rendered_length = 0
             self._current_span = 0
             self._current_step_total = 1

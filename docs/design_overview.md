@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-11-20
+**Last Updated:** 2025-11-22
 
 This document expands on the high-level summary in the README by tracing how
 the Copernican Suite organises its architecture.  The command-line launcher
@@ -26,7 +26,9 @@ that foundation to deliver repeatable analyses.
   The revision also records the very first frame each batch emits and
   routes all sampler exits through a shared cleanup path so even abrupt
   exceptions cannot leave an orphaned 0% progress bar cluttering subsequent
-  diagnostics.
+  diagnostics. Version 7.7.8 adds explicit teardown spacing so any rendered
+  bar is wiped and followed by a blank spacer, keeping captured transcripts
+  readable when a batch ends immediately after initialisation.
 * `engines/` contains back ends such as the default
   ``cosmo_engine_mcmc.py``.  Engines consume `EnginePlugin` definitions,
   evaluate joint likelihoods spanning SNe Ia, BAO and CMB data and surface
