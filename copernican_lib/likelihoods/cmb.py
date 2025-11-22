@@ -1,6 +1,6 @@
 r"""Cosmic Microwave Background likelihood helper.
 
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-20
 
 Provides cache-aware CAMB interfaces shared by the CMB likelihood and the BAO
 background evaluator.  Earlier revisions duplicated CAMB configuration across
@@ -15,10 +15,11 @@ against published Planck-lite tables use consistent conventions.
 from __future__ import annotations
 
 import logging
+import os
 import re
 from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 import camb
 import numpy as np
@@ -31,6 +32,20 @@ _LMAX_PADDING = 300
 _LENS_POTENTIAL_ACCURACY = 0
 _CACHE_PRECISION = 15
 _MNU_PATTERN = re.compile(r"^mnu(\d+)$")
+_FAKE_CMB_BASELINE = 1200.0
+_FAKE_CMB_OFFSET = 3.0
+
+# CI and developer workstations occasionally lack usable CAMB wheels.  A
+# dedicated stub hook lets tests swap out the heavy numerical path for a
+# deterministic placeholder spectrum so regression suites avoid hour-long
+# physics evaluations while still exercising the chi-squared plumbing.
+_FAKE_CMB_PROVIDER: (
+    Callable[
+        [Mapping[str, float], Iterable[int], Sequence[str]],
+        Mapping[str, np.ndarray] | np.ndarray,
+    ]
+    | None
+) = None
 
 
 def _normalise_value(value: Any) -> Any:
@@ -59,6 +74,60 @@ def _restore_dict(items: tuple[tuple[str, Any], ...]) -> dict[str, Any]:
     for key, value in items:
         restored[str(key)] = value
     return restored
+
+
+def _coerce_fake_output(
+    fake: Mapping[str, np.ndarray] | np.ndarray,
+    spectra: Sequence[str],
+) -> Mapping[str, np.ndarray] | np.ndarray:
+    """Normalise stubbed spectra for deterministic test execution.
+
+    The injected provider may return a bare array for single-spectrum
+    scenarios.  This helper mirrors :func:`compute_cmb_spectrum_from_dict`
+    by forwarding single entries directly while ensuring multi-spectrum
+    runs respect the requested ordering.
+    """
+
+    if isinstance(fake, Mapping):
+        result: dict[str, np.ndarray] = {}
+        for spec in spectra:
+            value = fake.get(spec)
+            if value is None:
+                continue
+            result[str(spec)] = np.asarray(value, dtype=float)
+        return result
+
+    coerced = np.asarray(fake, dtype=float)
+    if len(spectra) == 1:
+        return coerced
+    return {spec: coerced for spec in spectra}
+
+
+def _fake_cmb_enabled() -> bool:
+    """Return ``True`` when the CMB helper should bypass CAMB entirely."""
+
+    flag = os.environ.get("COPERNICAN_FAKE_CMB", "")
+    return flag.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _fake_background_payload(z_arr: np.ndarray) -> dict[str, np.ndarray]:
+    """Return deterministic background observables for CI-only runs."""
+
+    rs_drag = np.full(1, 147.0, dtype=float)
+    dm_vals = z_arr * 1000.0
+    dh_vals = np.full_like(z_arr, 1000.0)
+    da_vals = np.divide(dm_vals, 1.0 + z_arr, dtype=float)
+    dv_vals = np.power(dm_vals * np.square(1.0 + z_arr), 1.0 / 3.0)
+    hz_vals = np.full_like(z_arr, 70.0)
+    return {
+        "rs_drag": rs_drag,
+        "DM": dm_vals,
+        "DH": dh_vals,
+        "DA": da_vals,
+        "DV": dv_vals,
+        "Hz": hz_vals,
+        "z": z_arr.copy(),
+    }
 
 
 def _make_camb_params(
@@ -242,8 +311,20 @@ def compute_camb_background_observables(
     """Return CAMB background quantities for ``redshifts``.
 
     The helper shares the same caching layer as the spectrum generator so
-    BAO evaluations reuse cosmologies computed for the CMB likelihood.
+    BAO evaluations reuse cosmologies computed for the CMB likelihood. When
+    ``COPERNICAN_FAKE_CMB`` is active the computation returns synthetic but
+    deterministic observables to keep CI runs fast while preserving production
+    behaviour.
     """
+
+    if _fake_cmb_enabled() or _FAKE_CMB_PROVIDER is not None:
+        logger = logging.getLogger()
+        logger.info(
+            "(compute_camb_background_observables): Using synthetic "
+            "background observables in lieu of CAMB",
+        )
+        z_arr = np.asarray(redshifts, dtype=float)
+        return _fake_background_payload(z_arr)
 
     z_arr = np.asarray(redshifts, dtype=float)
     z_tuple = tuple(
@@ -292,9 +373,32 @@ def compute_cmb_spectrum_from_dict(
     *,
     spectra: Sequence[str] = ("TT",),
 ) -> np.ndarray | Mapping[str, np.ndarray]:
-    r"""Return theoretical :math:`D_\ell` spectra using CAMB with caching."""
+    r"""Return theoretical :math:`D_\ell` spectra using CAMB with caching.
+
+    Tests inject ``_FAKE_CMB_PROVIDER`` or set ``COPERNICAN_FAKE_CMB=1`` to
+    bypass real CAMB calls when the dependency is missing or too slow for CI
+    timeouts.  Production runs continue down the cached CAMB path to preserve
+    scientific fidelity.
+    """
 
     logger = logging.getLogger()
+    fake_provider = _FAKE_CMB_PROVIDER
+    if fake_provider is not None:
+        logger.info(
+            "(compute_cmb_spectrum_from_dict): Using injected CMB stub "
+            "provider",
+        )
+        fake = fake_provider(param_dict, ells, spectra=spectra)
+        return _coerce_fake_output(fake, spectra)
+
+    if _fake_cmb_enabled():
+        ell_arr = np.asarray(list(ells), dtype=int)
+        template = _FAKE_CMB_BASELINE / (ell_arr + _FAKE_CMB_OFFSET)
+        result = {spec: template.copy() for spec in spectra}
+        if len(result) == 1:
+            return template
+        return result
+
     try:
         items = _normalise_items(param_dict)
         lmax = int(np.max(list(ells)))

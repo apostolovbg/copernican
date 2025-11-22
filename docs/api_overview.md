@@ -1,6 +1,6 @@
 # Copernican Suite API Overview
 
-**Last Updated:** 2025-11-11
+**Last Updated:** 2025-11-20
 
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be
@@ -25,7 +25,14 @@ modules are:
   7.6.23 additionally records the very first frame emitted for each batch and
   closes every sampling stage inside a finally block so clean-up always clears
   the console, even when an engine aborts before walkers finish their first
-  proposals.
+  proposals. Version 7.7.3 keeps the nested sampler on the same helpers while
+  renaming its counters to iterations and constraining the renderer to a single
+  console line so Stage 2 progress now mirrors the MCMC backend regardless of
+  engine choice. Version 7.7.4 switches the renderer to trailing carriage
+  returns to keep the console on a single row, and Version 7.7.5 prefixes each
+  repaint with a leading carriage return while omitting trailing end characters
+  so log captures no longer collect blank spacer rows during long nested
+  sampling runs.
 - `copernican_lib.plotter.plot_corner(samples, plugin, data_attrs,
   plot_dir)` – render the Stage 2 posterior as an automatically thinned
   corner plot whose panel size and typography respond to the number of
@@ -59,6 +66,9 @@ modules are:
   orchestration layers. The helpers expose SNe chi-squared evaluations that
   always return finite values for physically meaningful proposals so MCMC
   reseeding can fall back to them reliably.
+  CI runners that lack CAMB can opt into ``COPERNICAN_FAKE_CMB=1`` so the CMB
+  helpers return deterministic synthetic spectra instead of performing heavy
+  physics evaluations, leaving production calculations untouched.
   - `data_loaders.load_sne_data(dataset_id)`,
     `load_bao_data(dataset_id)`,
     `load_cmb_data(dataset_id)` – load datasets by their identifiers. The
@@ -78,7 +88,8 @@ modules are:
   helper underpins logging, result writers and manifest builders so outputs
   from CI and local runs align chronologically.
 - `chain_io.save_posterior(chain, param_names, path, metadata)` – store
-  posterior samples in NetCDF format using ArviZ.
+  posterior samples in NetCDF format using ArviZ, or xarray when the
+  dependency is unavailable during lightweight tests.
 - `csv_writer.save_sne_results_detailed_csv`,
   `save_bao_results_csv` and `save_cmb_results_csv` – persist fitting
   results with filenames that encode the dataset, model and timestamp.
@@ -96,7 +107,10 @@ modules are:
   emit `nan` coordinates after burn-in so downstream API consumers never need
   to handle undefined sampler states. When the CLI selects this backend, Stage 2
   prompts for production steps, burn-in length, walker counts and worker pools,
-  mirroring the available function arguments for scripted workflows.
+  mirroring the available function arguments for scripted workflows. The
+  diagnostic bundle still includes R-hat and effective sample sizes when ArviZ
+  is missing by falling back to an internal Gelman–Rubin estimator so headless
+  tests remain deterministic.
 - `engines.cosmo_engine_nested.fit_sne_parameters` – wraps a lightweight
   nested-sampling routine that evaluates the same plugin-provided posterior
   while reporting log-evidence estimates, live-point counts, enlargement

@@ -1,5 +1,5 @@
-**Version:** 7.7.1
-**Last Updated:** 2025-11-12
+**Version:** 7.7.7
+**Last Updated:** 2025-11-20
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -13,10 +13,20 @@ using a single reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. Build 7.7.1
-  retains the nested-sampling backend introduced previously, polishes its
-  documentation and keeps the configuration prompts engine-specific while
-  preserving manifest compatibility. Build 7.6.22 keeps
+  dataset selection, model pairing and engine configuration. Build 7.7.5
+  rewinds every repaint with a leading carriage return and omits trailing end
+  characters so the nested sampler no longer leaves blank spacer rows in saved
+  transcripts while the interactive console still animates in place. Build
+  7.7.4 keeps the nested-sampling backend pinned to one console row by switching
+  the shared progress helper to carriage-return endings, preserving the spinner
+  animation and iteration terminology. Build 7.7.3 keeps the nested-sampling
+  backend on a
+  single carriage-return line, renames its progress counters from walkers to
+  iterations and ensures both engines share the same console helpers so
+  operators see consistent terminology while the bar fills smoothly. Build 7.7.2 wires
+  the nested-sampling backend into the shared Stage 2 progress helpers so both
+  engines animate the same carriage-return bar, keeps configuration prompts
+  engine-specific and preserves manifest compatibility. Build 7.6.22 keeps
   the structured Stage 1 seed selector introduced in 7.5.0, surfaces detailed
   validation reasons when alternative models fail to load and tidies the
   startup banner spacing. The Stage 1 and Stage 2 menus now open with a single
@@ -77,10 +87,15 @@ The suite is organised around a handful of focused components:
   runtime-estimation hooks and reiterates that Stage 2 requires ArviZ so
   convergence diagnostics remain a first-class part of every run while noting
   that launcher utilities depend on explicit standard-library imports for
-  deterministic availability.
+  deterministic availability. Version 7.7.6 supplements that guarantee with a
+  conservative fallback that emits Gelman–Rubin-based summaries whenever a
+  lean CI environment omits ArviZ, logging the downgrade while keeping tests
+  green, while Version 7.7.7 introduces the ``COPERNICAN_FAKE_CMB`` hook so CI
+  runs can bypass slow CAMB evaluations without altering production behaviour.
 * `engines/` collects computational back ends. The default
   ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
-  convergence checks that run on every batch, while the new
+  convergence checks that run on every batch, falling back to the same
+  conservative diagnostics when ArviZ is missing, while the new
   ``cosmo_engine_nested`` module wraps a lightweight nested-sampling routine
   that reports log-evidence estimates and accepts live-point specific
   configuration. The shared plugin protocol keeps room for additional
@@ -152,7 +167,8 @@ software.
 Users select models, datasets, and computational engines at runtime through a
 simple command line interface. Each execution creates a dedicated
 `output/copernican-run_YYYYMMDD_HHMMSS` folder that stores plots, CSV tables
-and posterior chains in NetCDF format.
+and posterior chains in NetCDF format, even when ArviZ is absent—an xarray
+fallback builds the same structure during lean CI runs.
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages,
    installs missing ones and verifies each import. The scan now caches its

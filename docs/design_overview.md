@@ -1,5 +1,5 @@
 # Copernican Suite Architecture
-**Last Updated:** 2025-11-12
+**Last Updated:** 2025-11-20
 
 This document expands on the high-level summary in the README by tracing how
 the Copernican Suite organises its architecture.  The command-line launcher
@@ -33,7 +33,22 @@ that foundation to deliver repeatable analyses.
   ArviZ-powered convergence diagnostics for downstream tooling.  Version 7.6.4
   reiterates the hard dependency on ArviZ so every run records R-hat and
   effective sample size summaries while keeping supporting utilities resilient
-  to module-level monkeypatching.
+  to module-level monkeypatching. Version 7.7.6 adds a conservative,
+  Gelman–Rubin-based fallback so headless CI jobs that intentionally omit
+  ArviZ still receive finite diagnostics while the suite logs that the preferred
+  dependency is missing. Version 7.7.7 layers in a ``COPERNICAN_FAKE_CMB``
+  shortcut so continuous-integration runners can bypass CAMB entirely during
+  synthetic CMB regressions while production calculations continue to query the
+  physics engine. Version 7.7.3 keeps the nested sampler on the
+  shared Stage 2 progress renderer, switches its counters from walkers to
+  iterations and clamps repainting to a single console line so both engines
+  clear and redraw the carriage-return bar identically. Version 7.7.4 further
+  updates the renderer to emit trailing carriage returns instead of prefixed
+  resets, preventing blank rows from accumulating in long-running transcripts
+  while the spinner and fractional iteration markers continue to animate, and
+  Version 7.7.5 prefixes each repaint with a leading carriage return while
+  suppressing trailing end characters so captured logs mirror the single-line
+  console output during deep nested-sampling runs.
 * `models/` holds YAML descriptions that declare bounds, priors, transforms and
   dataset compatibility.  Each file is compiled into a picklable
   :class:`copernican_lib.plugins.EnginePlugin` so multiprocessing pools can
@@ -131,13 +146,14 @@ repainted instantly, Version 7.6.13 layered a dedicated walker-progress meter
  on the bundled renderer, and Version 7.6.16 adds timer-driven idle ticks so
  the spinner continues to animate even when walker callbacks arrive slowly.
 
-  Version 7.7.1 keeps ``engines.cosmo_engine_nested`` aligned with the MCMC
-  backend by tightening helper formatting for lint compliance, updating the
-  surrounding documentation and continuing to report log-evidence estimates and
-  live-point diagnostics. Stage 2 now branches its questionnaire based on the
-  selected backend so operators configure walkers and worker pools for MCMC runs
-  or manage live points, evidence tolerances and enlargement factors for nested
-  sampling without manual overrides.
+  Version 7.7.3 keeps ``engines.cosmo_engine_nested`` aligned with the MCMC
+  backend by wiring the nested sampler into the shared progress helpers,
+  renaming its counters to iterations, ensuring the bar never prints extra
+  lines and continuing to report log-evidence estimates and live-point
+  diagnostics. Stage 2 now branches its questionnaire
+  based on the selected backend so operators configure walkers and worker pools
+  for MCMC runs or manage live points, evidence tolerances and enlargement
+  factors for nested sampling without manual overrides.
 
 Version 7.4.1 adds a sampler-facing perspective to the plotting layer. The new
 corner plot automatically thins oversized chains, renders the Stage 2 posterior
@@ -282,7 +298,10 @@ tables these folders may contain NetCDF chains produced by
 `copernican_lib.chain_io` when the MCMC engine is used.  Chains now record
 burn-in length, production steps, per-walker acceptance fractions and the
 log-probability trace so convergence diagnostics can be reviewed after a run
-without replaying the sampling session. The sampler reseeds any walkers that
+without replaying the sampling session. When ArviZ is unavailable in lean
+environments the writer falls back to constructing the NetCDF file directly
+with xarray so the surrounding workflow and metadata remain unchanged. The
+sampler reseeds any walkers that
 acquire ``nan`` coordinates during burn-in, preventing spurious emcee runtime
 warnings from polluting the logs.
 
