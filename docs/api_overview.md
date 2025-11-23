@@ -38,6 +38,9 @@ modules are:
   labels or future gravitational-wave annotations. Contour thresholds remain
   strictly increasing, preserving Matplotlib compatibility while eliding
   redundant dataset text and retaining the citation line.
+  When Tk support is missing the helper retries with Matplotlib's Agg backend
+  so headless CI jobs still render corner plots without optional GUI
+  dependencies.
   Stage 5 calls this helper after the probe-specific figures so every run
   records the sampler geometry alongside Hubble, BAO and CMB outputs. The
   underlying `_prepare_corner_inputs` validator flattens samples, derives

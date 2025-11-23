@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-23
 """Unit tests for :mod:`copernican_lib.plotter`.
 
 These tests ensure summary formatting tolerates incomplete optimisation
@@ -7,6 +8,7 @@ prevents GUI failures during post-processing.
 
 from __future__ import annotations
 
+import tkinter
 import types
 from typing import Any
 
@@ -452,6 +454,51 @@ def test_plot_corner_downsamples_large_chains(
     extra_lines = recorded["extra"]
     assert extra_lines is not None
     assert any("Corner plot generation" in line for line, _ in extra_lines)
+
+
+def test_plot_corner_falls_back_to_agg_backend(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Switch to the Agg backend when GUI rendering fails."""
+
+    rng = np.random.default_rng(3)
+    samples = rng.normal(size=(10, 2, 2))
+
+    attrs = {
+        "dataset_id": "joint_posterior",
+        "dataset_name": "Joint posterior",
+        "description": "Backend resilience check",
+        "citation": "Corner validation stub",
+    }
+
+    attempts = {"count": 0}
+    original_subplots = plotter.plt.subplots
+    original_switch = plotter.plt.switch_backend
+    switched: list[str] = []
+
+    def _flaky_subplots(*args: Any, **kwargs: Any):
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            raise tkinter.TclError("missing tk")
+        return original_subplots(*args, **kwargs)
+
+    def _recording_switch(backend: str) -> None:
+        switched.append(backend)
+        original_switch(backend)
+
+    monkeypatch.setattr(plotter.plt, "subplots", _flaky_subplots)
+    monkeypatch.setattr(plotter.plt, "switch_backend", _recording_switch)
+
+    plotter.plot_corner(
+        samples,
+        _CornerPlugin,
+        attrs,
+        plot_dir=str(tmp_path),
+        timestamp="20251108_000000",
+    )
+
+    assert attempts["count"] == 2
+    assert switched == ["Agg"]
 
 
 def test_plot_corner_handles_legacy_validator_signature(

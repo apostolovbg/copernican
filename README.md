@@ -1,4 +1,4 @@
-**Version:** 7.7.11
+**Version:** 7.7.12
 **Last Updated:** 2025-11-23
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -519,6 +519,12 @@ dataset. These files include a ``license`` field pointing to usage terms.
 returned by each parser so both plot footers and CSV headers reflect the
 official dataset description and citation. Individual parsers never access
 metadata files directly.
+
+Stage 5 automatically falls back to Matplotlib's Agg backend when Tk support
+is unavailable so headless CI jobs still write corner plots without requiring
+GUI toolkits. Synthetic fixtures under ``tests/data/synthetic`` are pinned to
+LF line endings via ``.gitattributes`` so their logged SHA256 hashes stay
+identical across Windows and Unix checkouts.
 
 During configuration each loader prints a summary indicating whether the
 dataset's covariance matrix was inverted successfully or if diagonal errors

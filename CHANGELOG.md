@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.7.12
+- 2025-11-23: Added a headless fallback to the corner-plot renderer so Tkless
+              CI runners switch to the Agg backend automatically, enforced LF
+              line endings for synthetic fixtures to keep cross-platform file
+              hashes stable and bumped suite metadata to 7.7.12 (OpenAI
+              ChatGPT)
+
 ## Version 7.7.11
 - 2025-11-23: Ensured posterior NetCDF files carry provenance on both the
               inference-data root and posterior group so model metadata remains
