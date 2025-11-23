@@ -1,6 +1,6 @@
 # Copernican Suite API Overview
 
-**Last Updated:** 2025-11-20
+**Last Updated:** 2025-11-23
 
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be
@@ -21,34 +21,23 @@ modules are:
 - `copernican_lib.progress` – shared progress bars, walker notifiers and
   sampler integration helpers. Engines import `BatchProgressBar`,
   `StepProgressEmitter` and `configure_sampler_progress_reporting` so live
-  Stage 2 updates stay consistent even outside the default MCMC engine. Version
-  7.6.23 additionally records the very first frame emitted for each batch and
-  closes every sampling stage inside a finally block so clean-up always clears
-  the console, even when an engine aborts before walkers finish their first
-  proposals. Version 7.7.3 keeps the nested sampler on the same helpers while
-  renaming its counters to iterations and constraining the renderer to a single
-  console line so Stage 2 progress now mirrors the MCMC backend regardless of
-  engine choice. Version 7.7.4 switches the renderer to trailing carriage
-  returns to keep the console on a single row, and Version 7.7.5 prefixes each
-  repaint with a leading carriage return while omitting trailing end characters
-  so log captures no longer collect blank spacer rows during long nested
-  sampling runs.
+  Stage 2 updates stay consistent even outside the default MCMC engine. The
+  helpers record the first frame emitted for each batch, stream walker-level
+  updates with Unicode sub-blocks and always clear the console on teardown so
+  captured logs never contain stale bars, even when a sampler aborts early.
+  Nested sampling and ensemble MCMC reuse the same renderer, keeping labels and
+  spinners aligned regardless of backend choice.
 - `copernican_lib.plotter.plot_corner(samples, plugin, data_attrs,
   plot_dir)` – render the Stage 2 posterior as an automatically thinned
   corner plot whose panel size and typography respond to the number of
   parameters. Figures clamp to a twelve-inch canvas, fonts scale with the
   derived panel width and the footer still details how samples were filtered or
   thinned.
-  Version 7.6.8 extends the responsive layout by deepening the footer guard
-  bands, guaranteeing both the gap beneath the axes and the distance to the
-  canvas edge while nudging the suptitle lower so the figure matches the rest
-  of the Stage 5 catalogue. Version 7.6.23 lowers the entire footer stack by an
-  additional span so the first line clears elongated axis labels and upcoming
-  gravitational-wave annotations without manual tweaking. The contour
-  thresholds remain strictly increasing,
-  preserving the Matplotlib compatibility introduced in earlier releases while
-  the helper continues to elide redundant dataset metadata and retain the
-  citation line.
+  Footer guard bands preserve both the gap beneath the axes and the distance to
+  the canvas edge, keeping metadata clear of the grid even with elongated axis
+  labels or future gravitational-wave annotations. Contour thresholds remain
+  strictly increasing, preserving Matplotlib compatibility while eliding
+  redundant dataset text and retaining the citation line.
   Stage 5 calls this helper after the probe-specific figures so every run
   records the sampler geometry alongside Hubble, BAO and CMB outputs. The
   underlying `_prepare_corner_inputs` validator flattens samples, derives

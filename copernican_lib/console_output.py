@@ -1,5 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
+# Last Updated: 2025-11-23
 
 """Console I/O helpers shared across the Copernican Suite.
 
@@ -7,6 +8,9 @@ All user facing text is funneled through this module so that console
 messages and prompts are handled in one place.  The logger patches
 ``print`` and ``input`` to capture output verbatim; these helpers provide
 the indirection necessary to keep that behaviour consistent everywhere.
+Keeping the wrapper centralised also ensures the project never writes
+directly to ``stdout`` or ``stderr`` without passing through the
+logging-aware hooks defined in :mod:`copernican_lib.logger`.
 """
 
 import sys

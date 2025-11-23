@@ -1,5 +1,5 @@
 **Version:** 7.7.8
-**Last Updated:** 2025-11-22
+**Last Updated:** 2025-11-23
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -13,99 +13,33 @@ using a single reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. Build 7.7.5
-  rewinds every repaint with a leading carriage return and omits trailing end
-  characters so the nested sampler no longer leaves blank spacer rows in saved
-  transcripts while the interactive console still animates in place. Build
-  7.7.4 keeps the nested-sampling backend pinned to one console row by switching
-  the shared progress helper to carriage-return endings, preserving the spinner
-  animation and iteration terminology. Build 7.7.3 keeps the nested-sampling
-  backend on a
-  single carriage-return line, renames its progress counters from walkers to
-  iterations and ensures both engines share the same console helpers so
-  operators see consistent terminology while the bar fills smoothly. Build 7.7.2 wires
-  the nested-sampling backend into the shared Stage 2 progress helpers so both
-  engines animate the same carriage-return bar, keeps configuration prompts
-  engine-specific and preserves manifest compatibility. Build 7.6.22 keeps
-  the structured Stage 1 seed selector introduced in 7.5.0, surfaces detailed
-  validation reasons when alternative models fail to load and tidies the
-  startup banner spacing. The Stage 1 and Stage 2 menus now open with a single
-  spacer so historical pacing stays intact without repeating boilerplate prose.
-  Stage 2 progress now lives in `copernican_lib.progress` so all engines reuse
-  the carriage-return renderer without inheriting MCMC internals. The relocated
-  helpers keep the Unicode partial-block fallback alongside the walker-progress
-  meter and the animated spinner while guaranteeing per-walker updates stream
-  throughout each step. The notifier wiring no longer depends on private
-  engine classes, the repaint pump continues to drive idle refreshes and a
-  new suspension context clears the active line before other console output
-  so stale 0% bars never linger above diagnostic snapshots. Build 7.6.23
-  pushes the Stage 5 footer stack further beneath the axes so elongated
-  labels and future gravitational-wave annotations never collide with
-  metadata. Build 7.6.23 also
-  records the very first render each batch emits so the sampler always wipes
-  frozen 0% bars, forces every stage through a dedicated `finally` block so
-  pump threads stop cleanly and keeps the dormant `tqdm` import out of the
-  default engine so packaging metadata and lint checks align. The live status
-  indicator remains beneath its batch heading without reviving the retired
-  runtime estimates, and the splash screen explicitly imports the
-  standard-library timer so the introductory pause never raises a
-  `NameError` during launches.
+  dataset selection, model pairing and engine configuration. The launcher
+  renders progress with carriage-return repainting, honours seeded and
+  interactive workflows alike and keeps Stage 1 focused on reproducibility by
+  leading with the seed dialog. It surfaces every validation reason collected
+  during model parsing or engine import so operators can restart Stage 1 with
+  clear context instead of re-reading logs. The same console helpers power
+  both engines so nested sampling and ensemble MCMC display consistent labels,
+  spinners and walker-level updates.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
-  keep every engine and plugin consistent. Version 7.6.23 extracts the Stage 2
-  progress helpers into the shared `copernican_lib.progress` module, adds a
-  suspension context so console output never leaves stale bars behind, records
-  the initial render for each batch and routes every sampler exit through a
-  shared cleanup path so abrupt failures still wipe the console. The regression
-  suite now verifies both the live walker updates and the failure-mode cleanup
-  so transcripts never trap stale bars above the diagnostic snapshots. Version
-  7.6.8 widens the Stage 5
-  guard bands by lifting the footer padding, enforcing a minimum baseline for
-  the lowest footer line and retuning the subplot margins so the grid rides
-  higher without crowding the canvas. Version 7.6.23 lowers the stacked
-  footer block by an additional span so future gravitational-wave panels and
-  extended axis labels clear the metadata column without manual tweaking.
-  Version 7.6.9
-  documents the Unicode
-  fallback renderer that mirrors the new live progress bar, Version 7.6.10
-  records the notifier bridge that rewrites weighted move tables so Stage 2
-  keeps updating on every walker, Version 7.6.11 captured the intermediate
-  `tqdm` integration, Version 7.6.12 disabled adaptive throttling so live
-  terminals repainted on every walker while mirroring the Unicode glyphs used
-  in the textual fallback, Version 7.6.13 layered a walker-progress meter plus
-  spinner over the display, and Version 7.6.14 dropped the external dependency
-  in favour of a native carriage-return renderer that keeps macOS consoles on a
-  single line while still mirroring every glyph into the logs. Version 7.6.15
-  finalised that transition by pruning the dormant import paths from the engine
-  module, Version 7.6.16 adds timer-driven idle ticks so the spinner keeps
-  animating between sparse walker callbacks, Version 7.6.18 removes the legacy
-  square brackets from both bars so the fallback text and console capture share
-  identical alignment, and Version 7.6.20 retires walker snapshot logging while
-  delegating spinner refreshes to a background pump that keeps the live bar
-  active even when sampler iterations take seconds to complete. The update
-  builds on the live progress instrumentation, removes obsolete
-  runtime-estimation hooks and reiterates that Stage 2 requires ArviZ so
-  convergence diagnostics remain a first-class part of every run while noting
-  that launcher utilities depend on explicit standard-library imports for
-  deterministic availability. Version 7.7.6 supplements that guarantee with a
-  conservative fallback that emits Gelman–Rubin-based summaries whenever a
-  lean CI environment omits ArviZ, logging the downgrade while keeping tests
-  green, while Version 7.7.7 introduces the ``COPERNICAN_FAKE_CMB`` hook so CI
-  runs can bypass slow CAMB evaluations without altering production behaviour.
-  Version 7.7.8 extends the shared renderer so closing a batch clears any
-  active bar and inserts a deliberate spacer, keeping nested sampling and
-  ensemble outputs tidy even when a progress line never advanced beyond 0%.
+  keep every engine and plugin consistent. Progress rendering, notifier
+  bridges and suspension contexts sit here so console output stays tidy even
+  when samplers emit dense logs. Plotting helpers respect the enlarged footer
+  guard bands and responsive layouts expected by Stage 5, while the
+  corner-plot validator continues to expose a legacy wrapper for tools that
+  still import the original function name.
 * `engines/` collects computational back ends. The default
-  ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
-  convergence checks that run on every batch, falling back to the same
-  conservative diagnostics when ArviZ is missing, while the new
-  ``cosmo_engine_nested`` module wraps a lightweight nested-sampling routine
-  that reports log-evidence estimates and accepts live-point specific
-  configuration. The shared plugin protocol keeps room for additional
-  optimisers and hardware-specific accelerators.
+  ``cosmo_engine_mcmc`` couples the ``emcee`` ensemble sampler with ArviZ
+  diagnostics when available and conservative fallbacks when not. The
+  ``cosmo_engine_nested`` backend mirrors the joint output schema while
+  emitting log-evidence estimates and respecting the same bounds, priors and
+  transforms defined by the plugin system. Both engines reuse the shared
+  progress renderer, manifest builder and posterior evaluator so downstream
+  tooling never has to special-case the chosen sampler.
 * `models/` stores YAML theories that declare priors, bounds, transforms and
   dataset compatibility. Each definition is converted into a picklable engine
-  plugin so Stage 2 runs remain reproducible across processes.
+  plugin so Stage 2 runs remain reproducible across processes.
 * `data/` curates vetted observations with companion parsers and metadata. The
   loaders verify file digests, register provenance and attach citations to the
   manifests and plot footers created for every run.
@@ -117,9 +51,9 @@ configuration. Upcoming work extends the same infrastructure to future probes
 such as gravitational-wave standard sirens while quietly refining placeholder
 management so new probes arrive without user-facing churn.
 
-Release highlights, breaking changes and historical notes now live exclusively
-in [`CHANGELOG.md`](CHANGELOG.md). See the documentation set in `docs/` for
-deep dives into the architecture, data formats and contributor workflows.
+Release highlights, breaking changes and historical notes live exclusively in
+[`CHANGELOG.md`](CHANGELOG.md). The `docs/` directory holds focused guides on
+architecture, datasets, manifest structure and packaging routines.
 
 Engines, datasets and models stay fully pluggable. Generated YAML definitions
 are transformed into :class:`copernican_lib.plugins.EnginePlugin`
@@ -236,37 +170,20 @@ Under the hood the program follows a clear pipeline:
    chain and copies the recorded dataset diagnostics so every component shares
    the same walker history. Otherwise the ΛCDM reference and the alternative
    model are sampled in turn with independent random seeds.
-   A confirmation menu now summarises the proposed sampler plan with numbered
-   options for accepting it, restarting the questionnaire, returning to the
+  A confirmation menu summarises the proposed sampler plan with numbered
+  options for accepting it, restarting the questionnaire, returning to the
   defaults summary or cancelling entirely so the intent behind each choice is
-  explicit. Version 7.6.4 streams per-walker progress updates so each
-  fifty-character bar fills smoothly beneath the batch heading and enforces
-  ArviZ diagnostics on every batch, keeping long runs easy to monitor without
-  speculative timing estimates while preserving the splash screen's
-  introductory pause through an explicit timing import. Version 7.6.9 refines
-  that renderer with Unicode partial-block glyphs so macOS, Linux and Windows
-  terminals all display fluid sub-character progress instead of jumping in
-  coarse steps when carriage returns repaint the bar in place. Version 7.6.10
-  ensures the notifier bridge activates even when `emcee` stores moves
-  alongside weights, Version 7.6.11 briefly routed those updates through a
-  `tqdm`-backed renderer so macOS terminals no longer coalesced frames into
-  just two refreshes per step while the log kept its intervalled summaries, and
-  Version 7.6.12 turned off adaptive throttling so every walker increment
-  repainted instantly while the live bar reused the Unicode glyphs logged for
-  archival runs, Version 7.6.13 layered a walker-progress meter and animated
-  spinner over
-  the display, Version 7.6.14 replaces `tqdm` entirely with a native
-  carriage-return renderer so macOS consoles stay on a single line while still
-  mirroring every glyph into the logs, Version 7.6.15 removed the final dormant
-  shim from the engine module so linting and dependency audits confirm the
-  external wrapper is gone for good, Version 7.6.16 layers a timer-driven idle
-  spinner tick so live consoles keep animating even when only a single walker
-  reports progress between full-step updates, Version 7.6.18 retires the
-  enclosing brackets so the rendered bars line up perfectly in transcripts, and
-  Version 7.6.20 stops mirroring the bar into the log, removes the walker
-  snapshot overlays from periodic diagnostics and introduces a repaint pump
-  thread so the spinner visibly advances several times per second regardless of
-  how long individual sampler iterations take.
+  explicit. Stage 2 progress always streams through the shared
+  carriage-return renderer with Unicode partial-block glyphs, walker-level
+  meters and an animated spinner. The helper throttles repainting enough to
+  keep transcripts readable while still showing sub-character movement during
+  long iterations. Console output is always resumed after diagnostic messages
+  with a final blank spacer so stale bars never linger in logs. When ArviZ is
+  available the sampler reports convergence diagnostics on every batch; when
+  it is missing the engine falls back to conservative Gelman–Rubin summaries
+  while logging the downgrade. The notifier bridge persists even when ``emcee``
+  stores weights alongside moves so live updates remain accurate across
+  sampler implementations.
 5. **BAO Analysis** – Stage 3 reuses the sampler's diagnostics to report BAO
    chi-squared contributions directly from the joint fit while still
    generating smooth predictions for plots and CSV exports. Shared helpers
@@ -302,12 +219,12 @@ chosen value. When any alternative model fails validation the orchestrator
 prints the collected reasons as bullet points before offering to restart
 Stage 1 or exit, ensuring even multi-cause exceptions—such as conflicting
 bounds and missing likelihood hooks—are explained without consulting the log
-file. The sampler questionnaire concludes Stage 1 with a summary of recommended
-settings, an explanation of how the per-batch progress bars will animate during
-Stage 2 and now includes a preview of the Unicode sub-block fills introduced in
-  version 7.6.9. Version 7.6.20 keeps the bracket-free bar layout while
-  clarifying that progress updates now live exclusively on the console
-  instead of mirroring into the log file.
+file. The sampler questionnaire concludes Stage 1 with a summary of
+recommended settings, an explanation of how the per-batch progress bars will
+animate during Stage 2 and a preview of the Unicode sub-block fills and
+bracket-free layout used by the live renderer. Progress updates stay on the
+console so logs capture only the surrounding diagnostics instead of partial
+progress lines.
 The summary concludes with a menu that lets users continue, revisit earlier
 questions or cancel the run entirely.
 
@@ -539,12 +456,12 @@ while remaining re-exported by each engine module. This keeps
 `model_coder.py` focused on translating models. Engines assemble posteriors via
 `engine_interface.make_logposterior`, which applies declared priors, honours
 parameter bounds and injects Jacobian corrections whenever models expose
-sampling transforms. Version 6.7.4 extends those guarantees by wrapping the
-joint likelihood in a picklable adapter, updating generated distance
-functions to avoid closure pickling pitfalls and exposing a `burn_in_steps`
-override so scripted workflows can tune warm-up costs explicitly. The default
-MCMC backend wires these helpers into the `JointLike` aggregator so every run
-records dataset-level diagnostics alongside the sampled chains.
+sampling transforms. The helper wraps the joint likelihood in a picklable
+adapter, updates generated distance functions to avoid closure pickling
+pitfalls and exposes a `burn_in_steps` override so scripted workflows can tune
+warm-up costs explicitly. The default MCMC backend wires these helpers into the
+`JointLike` aggregator so every run records dataset-level diagnostics alongside
+the sampled chains.
 
 The helper `chi_squared_cmb` now accepts either a plugin and parameter
 vector or a ready CAMB dictionary. This flexibility lets future engines reuse

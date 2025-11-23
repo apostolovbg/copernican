@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-01
+# Last Updated: 2025-11-23
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -60,6 +60,9 @@ def _patch_builtins(base_dir: str) -> None:
     """Mirror print and input to the logger with path sanitisation."""
 
     logger = logging.getLogger()
+    # Avoid patching multiple times when modules reload during tests. The
+    # marker attribute keeps repeated calls idempotent while still allowing
+    # other libraries to introspect the wrapped functions.
     if getattr(builtins.print, "__copernican_patched__", False):
         return
 

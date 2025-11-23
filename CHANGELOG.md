@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-22
+**Last Updated:** 2025-11-23
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -22,6 +22,11 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 7.7.8
+- 2025-11-23: Refreshed README and design/api documentation to remove release
+              recaps, add deeper explanations of the Stage 1 configuration,
+              progress renderer, dataset integrity checks and plugin
+              interfaces, and aligned console logging comments and metadata
+              headers with current behaviour (OpenAI ChatGPT)
 - 2025-11-22: Ensured the shared Stage 2 progress renderer clears its active
               line and emits a spacer when batches close, keeping nested and
               ensemble transcripts free of stale 0% bars and updating
