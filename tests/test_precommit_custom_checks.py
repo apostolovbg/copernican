@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-01
+# Last Updated: 2025-11-23
 
 """Unit tests for the custom pre-commit policy checks."""
 
@@ -123,3 +123,54 @@ def test_utc_today_requests_utc_clock(monkeypatch) -> None:
     result = MODULE._utc_today()
     assert result == dt.date(2025, 1, 1)
     assert _DummyDateTime.called
+
+
+def test_enforce_last_updated_freshness_requires_today(tmp_path) -> None:
+    """Files changed today must refresh their ``Last Updated`` headers."""
+
+    target = tmp_path / "README.md"
+    target.write_text("**Last Updated:** 2025-01-01\n", encoding="utf-8")
+    today = dt.date(2025, 1, 2)
+
+    errors = MODULE._enforce_last_updated_freshness(tmp_path, [target], today)
+
+    assert errors
+    assert "2025-01-02" in errors[0]
+
+
+def test_ensure_changelog_updated_demands_entry(tmp_path) -> None:
+    """Any change outside the changelog should force a new entry."""
+
+    tracked = tmp_path / "README.md"
+    tracked.write_text("**Last Updated:** 2025-01-01\n", encoding="utf-8")
+    (tmp_path / "CHANGELOG.md").write_text("# Changelog\n", encoding="utf-8")
+
+    errors = MODULE._ensure_changelog_updated(tmp_path, [tracked])
+
+    assert errors
+    assert "CHANGELOG.md" in errors[0]
+
+
+def test_new_modules_require_tests(tmp_path) -> None:
+    """Adding modules should be paired with fresh or updated tests."""
+
+    module_root = tmp_path / "copernican_lib"
+    module_root.mkdir()
+    module = module_root / "fresh.py"
+    module.write_text("# Last Updated: 2025-01-02\n", encoding="utf-8")
+
+    errors = MODULE._check_new_modules_have_tests(tmp_path, [module], [module])
+
+    assert errors
+    assert "tests/" in errors[0]
+
+    test_dir = tmp_path / "tests"
+    test_dir.mkdir()
+    test_file = test_dir / "test_fresh.py"
+    test_file.write_text("# Last Updated: 2025-01-02\n", encoding="utf-8")
+
+    errors = MODULE._check_new_modules_have_tests(
+        tmp_path, [module], [module, test_file]
+    )
+
+    assert not errors

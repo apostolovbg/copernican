@@ -358,7 +358,11 @@ these rules:
     sequence warnings in docstrings or string literals.**
 12. **Run `pre-commit run --all-files` before committing so Black, Isort, Ruff,
     Flake8 and the Copernican policy hook enforce formatting, whitespace,
-    metadata and print-free library rules.**
+    metadata and print-free library rules.** The policy hook now requires fresh
+    "Last Updated" headers on modified files, refuses changes without
+    accompanying changelog entries, keeps `README.md` synchronised with
+    `copernican_lib/VERSION` and blocks new modules that do not ship with
+    associated tests.
 13. **Do not redistribute the Copernican Suite in full or assert patent
     claims; the license forbids these actions.**
 14. **Keep individual lines under 79 characters to maintain readability.**

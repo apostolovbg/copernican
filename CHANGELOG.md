@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.7.14
+- 2025-11-23: Hardened the policy hook and CI gate so Last Updated headers are
+              fresh, changelog entries accompany file edits, README metadata
+              stays aligned with `copernican_lib/VERSION` and new modules ship
+              with accompanying tests; bumped suite metadata to 7.7.14 (OpenAI
+              ChatGPT)
+
 ## Version 7.7.13
 - 2025-11-23: Added a cross-engine ΛCDM validation playbook covering trimmed
               Pantheon+SH0ES and full BOSS DR12 BAO data, documented reference
