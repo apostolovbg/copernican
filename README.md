@@ -1,4 +1,4 @@
-**Version:** 7.7.12
+**Version:** 7.7.13
 **Last Updated:** 2025-11-23
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -53,7 +53,9 @@ management so new probes arrive without user-facing churn.
 
 Release highlights, breaking changes and historical notes live exclusively in
 [`CHANGELOG.md`](CHANGELOG.md). The `docs/` directory holds focused guides on
-architecture, datasets, manifest structure and packaging routines.
+architecture, datasets, manifest structure and packaging routines. A dedicated
+validation playbook under `docs/validation/` exercises both engines against
+public ΛCDM baselines and documents the tolerances used for routine checks.
 
 Engines, datasets and models stay fully pluggable. Generated YAML definitions
 are transformed into :class:`copernican_lib.plugins.EnginePlugin`
@@ -79,18 +81,19 @@ and citation information appears in [CITATION.cff](CITATION.cff).
 9. [Using the Suite](#using-the-suite)
 10. [Plot Footers and Metadata](#plot-footers-and-metadata)
 11. [Logging and Caching](#logging-and-caching)
-12. [Creating New Models](#creating-new-models)
-13. [Developer Guide](#developer-guide)
+12. [Validation Checks](#validation-checks)
+13. [Creating New Models](#creating-new-models)
+14. [Developer Guide](#developer-guide)
     - [Workflow Overview](#workflow-overview)
     - [Development History & Roadmap](#development-history--roadmap)
     - [AI-driven and human development laws and
       protocols](#ai-driven-and-human-development-laws-and-protocols)
-14. [License](#license)
-15. [Versioning Policy](#versioning-policy)
-16. [API Overview](docs/api_overview.md)
-17. [Packaging Guide](docs/packaging.md)
-18. [Documentation Policy](docs/documentation_policy.md)
-19. [Run Manifest](docs/run_manifest.md)
+15. [License](#license)
+16. [Versioning Policy](#versioning-policy)
+17. [API Overview](docs/api_overview.md)
+18. [Packaging Guide](docs/packaging.md)
+19. [Documentation Policy](docs/documentation_policy.md)
+20. [Run Manifest](docs/run_manifest.md)
 
 ---
 
@@ -575,6 +578,17 @@ reproduce analyses.
 
 Fatal signals such as ``SIGILL``, ``SIGSEGV`` or ``SIGFPE`` trigger handlers
 that dump stack traces to the console and active log file before termination.
+
+## Validation Checks
+Lightweight cross-engine checks live in
+`docs/validation/lcdm_engine_validation.py` and are described in
+`docs/validation/README.md`. The helper loads the first 40 Pantheon+SH0ES 2022
+entries with diagonal uncertainties, pairs them with the BOSS DR12 BAO
+covariance and evaluates the Planck 2018 base-ΛCDM parameters. Run
+`python docs/validation/lcdm_engine_validation.py` from the repository root to
+compare each engine's posterior means and χ² breakdown against the recorded
+reference values. Acceptable drift tolerances are documented alongside the
+reference χ² totals in the validation readme.
 
 ## Creating New Models
 All model details, including theory text and equations, must be stored in a
