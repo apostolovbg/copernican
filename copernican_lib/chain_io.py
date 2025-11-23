@@ -1,6 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-13
+# Last Updated: 2025-11-23
 
 """Utilities for writing MCMC chains to NetCDF files.
 
@@ -80,12 +80,19 @@ def save_posterior(
         name: transposed[:, :, i] for i, name in enumerate(param_names)
     }
 
+    metadata = metadata or {}
+
     if az is not None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
             idata = az.from_dict(posterior=posterior_dict)
         if metadata:
             idata.attrs.update(metadata)
+            # Persist metadata on the posterior group as well so callers that
+            # open only that group still recover provenance details such as the
+            # model name and dataset identifier when using NetCDF backends that
+            # support grouping.
+            idata.posterior.attrs.update(metadata)
 
         try:
             idata.to_netcdf(filepath)
@@ -108,6 +115,9 @@ def save_posterior(
     dataset = dataset.assign_coords(coords)
     if metadata:
         dataset.attrs.update(metadata)
+    # The SciPy NetCDF backend does not support groups, so the fallback writes
+    # everything to the root group and records a flag for downstream callers.
+    dataset.attrs.setdefault("posterior_group", "/")
 
     try:
         dataset.to_netcdf(filepath)

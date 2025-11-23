@@ -21,6 +21,36 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.7.12
+- 2025-11-23: Added a headless fallback to the corner-plot renderer so Tkless
+              CI runners switch to the Agg backend automatically, enforced LF
+              line endings for synthetic fixtures to keep cross-platform file
+              hashes stable and bumped suite metadata to 7.7.12 (OpenAI
+              ChatGPT)
+
+## Version 7.7.11
+- 2025-11-23: Ensured posterior NetCDF files carry provenance on both the
+              inference-data root and posterior group so model metadata remains
+              visible regardless of backend group support, documented the
+              change and bumped suite metadata to 7.7.11 (OpenAI ChatGPT)
+
+## Version 7.7.10
+- 2025-11-23: Scoped the synthetic CMB toggle to the synthetic integration
+              harness so BAO and CMB regression tests continue to exercise real
+              CAMB outputs, hardened the NetCDF fallback reader to handle
+              SciPy-backed files without groups and bumped suite metadata to
+              7.7.10 (OpenAI ChatGPT)
+
+## Version 7.7.9
+- 2025-11-23: Added deterministic synthetic SNe, BAO and CMB fixtures under
+              ``tests/data`` plus an integration test that drives both the
+              default MCMC and nested engines through the manifest, summary
+              writer and hash logging paths to ensure reproducible outputs
+              (OpenAI ChatGPT)
+- 2025-11-23: Synced ``CITATION.cff`` with the tracked version metadata to
+              satisfy the repository policy hooks and CI gating (OpenAI
+              ChatGPT)
+
 ## Version 7.7.8
 - 2025-11-23: Refreshed README and design/api documentation to remove release
               recaps, add deeper explanations of the Stage 1 configuration,

@@ -1,4 +1,5 @@
 # Copyright (c) 2025 Copernican Suite developers.
+# Last Updated: 2025-11-23
 # See LICENSE.md in the repository root for details.
 
 # Copernican Suite Plotter
@@ -1909,16 +1910,41 @@ def plot_corner(
         len(footer_lines),
     )
 
+    def _build_corner_figure():
+        """Render the corner plot grid, retrying with a headless backend.
+
+        Some CI environments lack Tk support even when Matplotlib defaults to
+        the TkAgg backend.  Creating a figure in those contexts raises
+        ``tkinter.TclError`` before any axes exist.  Retrying with the Agg
+        backend keeps plotting deterministic and sidesteps GUI dependencies
+        while leaving interactive environments untouched.
+        """
+
+        try:
+            return plt.subplots(
+                n_params,
+                n_params,
+                figsize=figsize,
+            )
+        except Exception as error:
+            logger.warning(
+                "Corner plot backend %s failed (%s); forcing Agg fallback.",
+                plt.get_backend(),
+                error,
+            )
+            plt.switch_backend("Agg")
+            return plt.subplots(
+                n_params,
+                n_params,
+                figsize=figsize,
+            )
+
     # Each dimension receives its own row and column, mirroring the familiar
     # triangle plot layout popularised by corner.py while letting us reuse the
     # Copernican Suite's styling helpers and footers.  The geometry is now
     # derived from ``_compute_corner_layout`` so the panels resize gracefully
     # as the dimensionality grows while remaining within a manageable figure.
-    fig, axes = plt.subplots(
-        n_params,
-        n_params,
-        figsize=figsize,
-    )
+    fig, axes = _build_corner_figure()
     if n_params == 1:
         axes = np.array([[axes]])
 

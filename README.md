@@ -1,4 +1,4 @@
-**Version:** 7.7.8
+**Version:** 7.7.12
 **Last Updated:** 2025-11-23
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -105,7 +105,9 @@ Users select models, datasets, and computational engines at runtime through a
 simple command line interface. Each execution creates a dedicated
 `output/copernican-run_YYYYMMDD_HHMMSS` folder that stores plots, CSV tables
 and posterior chains in NetCDF format, even when ArviZ is absent—an xarray
-fallback builds the same structure during lean CI runs.
+fallback builds the same structure during lean CI runs. Metadata such as the
+model name is written to both the root attributes and the posterior group so
+readers opening only the posterior block still recover the full provenance.
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages,
    installs missing ones and verifies each import. The scan now caches its
@@ -289,6 +291,12 @@ cite them without recomputation.
    reference model and parsers. Toggle strict warning mode from the menu
    or set `COPERNICAN_STRICT_WARNINGS=1` to upgrade warnings to errors for
    reproducible CI runs.
+   The suite now also includes a synthetic end-to-end harness that exercises
+   SNe, BAO and CMB pipelines with tiny deterministic datasets so the
+   manifest writer and hash logger stay reproducible across both default and
+   nested engines. Keep the `COPERNICAN_FAKE_CMB` toggle scoped to that
+   harness so the rest of the suite continues to exercise real CAMB
+   integrations.
 4. When prompted, choose an RNG seed or set `COPERNICAN_SEED=<n>` in the
    environment to skip the prompt. The seed defaults to `0` and is applied to
    NumPy, Python's ``random`` module and supported engines.
@@ -511,6 +519,12 @@ dataset. These files include a ``license`` field pointing to usage terms.
 returned by each parser so both plot footers and CSV headers reflect the
 official dataset description and citation. Individual parsers never access
 metadata files directly.
+
+Stage 5 automatically falls back to Matplotlib's Agg backend when Tk support
+is unavailable so headless CI jobs still write corner plots without requiring
+GUI toolkits. Synthetic fixtures under ``tests/data/synthetic`` are pinned to
+LF line endings via ``.gitattributes`` so their logged SHA256 hashes stay
+identical across Windows and Unix checkouts.
 
 During configuration each loader prints a summary indicating whether the
 dataset's covariance matrix was inverted successfully or if diagonal errors
