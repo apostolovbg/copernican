@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.7.13
+- 2025-11-23: Added a cross-engine ΛCDM validation playbook covering trimmed
+              Pantheon+SH0ES and full BOSS DR12 BAO data, documented reference
+              χ² tolerances for both samplers and bumped suite metadata to
+              7.7.13 (OpenAI ChatGPT)
+
 ## Version 7.7.12
 - 2025-11-23: Added a headless fallback to the corner-plot renderer so Tkless
               CI runners switch to the Agg backend automatically, enforced LF
