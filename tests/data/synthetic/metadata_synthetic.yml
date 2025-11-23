@@ -1,0 +1,8 @@
+dataset_name: Synthetic Integration Suite
+dataset_id: synthetic_integration
+version: "0.1"
+description: >-
+  Minimal deterministic datasets for integration tests covering SNe, BAO and
+  CMB stages.
+citation: Test authors
+license: CC0

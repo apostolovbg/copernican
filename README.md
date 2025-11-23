@@ -1,4 +1,4 @@
-**Version:** 7.7.8
+**Version:** 7.7.9
 **Last Updated:** 2025-11-23
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -289,6 +289,10 @@ cite them without recomputation.
    reference model and parsers. Toggle strict warning mode from the menu
    or set `COPERNICAN_STRICT_WARNINGS=1` to upgrade warnings to errors for
    reproducible CI runs.
+   The suite now also includes a synthetic end-to-end harness that exercises
+   SNe, BAO and CMB pipelines with tiny deterministic datasets so the
+   manifest writer and hash logger stay reproducible across both default and
+   nested engines.
 4. When prompted, choose an RNG seed or set `COPERNICAN_SEED=<n>` in the
    environment to skip the prompt. The seed defaults to `0` and is applied to
    NumPy, Python's ``random`` module and supported engines.

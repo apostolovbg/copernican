@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.7.9
+- 2025-11-23: Added deterministic synthetic SNe, BAO and CMB fixtures under
+              ``tests/data`` plus an integration test that drives both the
+              default MCMC and nested engines through the manifest, summary
+              writer and hash logging paths to ensure reproducible outputs
+              (OpenAI ChatGPT)
+
 ## Version 7.7.8
 - 2025-11-23: Refreshed README and design/api documentation to remove release
               recaps, add deeper explanations of the Stage 1 configuration,
