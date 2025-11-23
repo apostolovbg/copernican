@@ -27,6 +27,9 @@ suffixes. Follow this template:
               default MCMC and nested engines through the manifest, summary
               writer and hash logging paths to ensure reproducible outputs
               (OpenAI ChatGPT)
+- 2025-11-23: Synced ``CITATION.cff`` with the tracked version metadata to
+              satisfy the repository policy hooks and CI gating (OpenAI
+              ChatGPT)
 
 ## Version 7.7.8
 - 2025-11-23: Refreshed README and design/api documentation to remove release

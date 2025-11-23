@@ -15,7 +15,9 @@ _DATA_DIR = Path(__file__).parent
 _MODEL_PATH = _DATA_DIR / "model.yml"
 
 
-def _comoving_distance(z: np.ndarray, h0: float, omega_m0: float) -> np.ndarray:
+def _comoving_distance(
+    z: np.ndarray, h0: float, omega_m0: float
+) -> np.ndarray:
     z_arr = np.asarray(z, dtype=float)
     return 2997.92458 * z_arr / h0
 
