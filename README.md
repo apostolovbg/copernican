@@ -1,4 +1,4 @@
-**Version:** 7.7.10
+**Version:** 7.7.11
 **Last Updated:** 2025-11-23
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -105,7 +105,9 @@ Users select models, datasets, and computational engines at runtime through a
 simple command line interface. Each execution creates a dedicated
 `output/copernican-run_YYYYMMDD_HHMMSS` folder that stores plots, CSV tables
 and posterior chains in NetCDF format, even when ArviZ is absent—an xarray
-fallback builds the same structure during lean CI runs.
+fallback builds the same structure during lean CI runs. Metadata such as the
+model name is written to both the root attributes and the posterior group so
+readers opening only the posterior block still recover the full provenance.
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages,
    installs missing ones and verifies each import. The scan now caches its

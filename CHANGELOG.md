@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.7.11
+- 2025-11-23: Ensured posterior NetCDF files carry provenance on both the
+              inference-data root and posterior group so model metadata remains
+              visible regardless of backend group support, documented the
+              change and bumped suite metadata to 7.7.11 (OpenAI ChatGPT)
+
 ## Version 7.7.10
 - 2025-11-23: Scoped the synthetic CMB toggle to the synthetic integration
               harness so BAO and CMB regression tests continue to exercise real

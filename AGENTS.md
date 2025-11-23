@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-10
+**Last Updated:** 2025-11-23
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -32,6 +32,11 @@ non-parser files in each dataset directory and store these hashes on the
 returned DataFrames. The manifest copies this mapping verbatim. Parsers
 must register under the `dataset_id` stated in their metadata so the
 loaders can locate them directly without discovery.
+
+Posterior NetCDF files store provenance on both the inference-data root and
+inside the posterior group so callers opening only the posterior dataset still
+recover the model name, dataset identifier and other metadata without reading
+the top-level attributes.
 
 Stage 5 now tolerates legacy corner-plot validators that only return
 flattened samples and labels. Custom tooling should adopt the newer

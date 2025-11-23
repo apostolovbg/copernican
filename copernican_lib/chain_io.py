@@ -80,12 +80,19 @@ def save_posterior(
         name: transposed[:, :, i] for i, name in enumerate(param_names)
     }
 
+    metadata = metadata or {}
+
     if az is not None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
             idata = az.from_dict(posterior=posterior_dict)
         if metadata:
             idata.attrs.update(metadata)
+            # Persist metadata on the posterior group as well so callers that
+            # open only that group still recover provenance details such as the
+            # model name and dataset identifier when using NetCDF backends that
+            # support grouping.
+            idata.posterior.attrs.update(metadata)
 
         try:
             idata.to_netcdf(filepath)

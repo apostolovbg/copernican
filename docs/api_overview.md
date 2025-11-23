@@ -78,7 +78,10 @@ modules are:
   from CI and local runs align chronologically.
 - `chain_io.save_posterior(chain, param_names, path, metadata)` – store
   posterior samples in NetCDF format using ArviZ, or xarray when the
-  dependency is unavailable during lightweight tests.
+  dependency is unavailable during lightweight tests. Metadata is stamped on
+  both the InferenceData root and the posterior group so callers opening just
+  the posterior block still see the model, dataset and other provenance
+  details.
 - `csv_writer.save_sne_results_detailed_csv`,
   `save_bao_results_csv` and `save_cmb_results_csv` – persist fitting
   results with filenames that encode the dataset, model and timestamp.
