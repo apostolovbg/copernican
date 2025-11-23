@@ -1,6 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-13
+# Last Updated: 2025-11-23
 
 """Utilities for writing MCMC chains to NetCDF files.
 
@@ -108,6 +108,9 @@ def save_posterior(
     dataset = dataset.assign_coords(coords)
     if metadata:
         dataset.attrs.update(metadata)
+    # The SciPy NetCDF backend does not support groups, so the fallback writes
+    # everything to the root group and records a flag for downstream callers.
+    dataset.attrs.setdefault("posterior_group", "/")
 
     try:
         dataset.to_netcdf(filepath)

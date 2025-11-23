@@ -1,4 +1,4 @@
-**Version:** 7.7.9
+**Version:** 7.7.10
 **Last Updated:** 2025-11-23
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -292,7 +292,9 @@ cite them without recomputation.
    The suite now also includes a synthetic end-to-end harness that exercises
    SNe, BAO and CMB pipelines with tiny deterministic datasets so the
    manifest writer and hash logger stay reproducible across both default and
-   nested engines.
+   nested engines. Keep the `COPERNICAN_FAKE_CMB` toggle scoped to that
+   harness so the rest of the suite continues to exercise real CAMB
+   integrations.
 4. When prompted, choose an RNG seed or set `COPERNICAN_SEED=<n>` in the
    environment to skip the prompt. The seed defaults to `0` and is applied to
    NumPy, Python's ``random`` module and supported engines.

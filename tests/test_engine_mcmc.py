@@ -1,6 +1,6 @@
 """Integration tests for the ensemble MCMC engine.
 
-**Last Updated:** 2025-11-20
+**Last Updated:** 2025-11-23
 """
 
 import contextlib
@@ -193,10 +193,26 @@ class TestMCMCEngine(unittest.TestCase):
             # Use a context manager so Windows can remove the file when the
             # temporary directory cleans up. Without explicitly closing the
             # dataset the cleanup step fails because the file handle remains
-            # open on that platform.
-            with xr.open_dataset(path, group="posterior") as ds:
+            # open on that platform. ArviZ writes the "posterior" group when
+            # the netCDF4 backend is available. The lightweight xarray
+            # fallback uses the SciPy engine, which lacks group support, so the
+            # dataset lives at the root and records that choice via
+            # ``posterior_group``.
+            try:
+                open_kwargs = {"group": "posterior"}
+                dataset = xr.open_dataset(path, **open_kwargs)
+                expects_group = True
+            except ValueError:
+                open_kwargs = {}
+                dataset = xr.open_dataset(path, **open_kwargs)
+                expects_group = False
+
+            with dataset as ds:
                 for name in plugin.PARAMETER_NAMES:
                     self.assertIn(name, ds.data_vars)
+                self.assertEqual(ds.attrs.get("model"), plugin.MODEL_NAME)
+                if not expects_group:
+                    self.assertEqual(ds.attrs.get("posterior_group"), "/")
 
     def test_progress_logging_reports_statistics(self):
         plugin = self._build_lcdm_plugin()

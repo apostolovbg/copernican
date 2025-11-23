@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import importlib
 import importlib.util as importlib_util
-import os
 
 import numpy as np
 import pytest
@@ -18,8 +17,23 @@ from tests.data.synthetic import model_plugin
 # Restore ``importlib.util`` attribute removed by the frozen importlib shim.
 setattr(importlib, "util", importlib_util)
 
-os.environ.setdefault("COPERNICAN_FAKE_CMB", "1")
-os.environ.setdefault("PYTHONDONTWRITEBYTECODE", "1")
+
+@pytest.fixture(autouse=True)
+def _temporary_fake_cmb(monkeypatch):
+    """Isolate the synthetic CMB toggle to this module's execution.
+
+    The synthetic dataset relies on ``COPERNICAN_FAKE_CMB`` to bypass CAMB so
+    the integration suite runs quickly. Applying the flag globally polluted
+    other tests with the stubbed spectra and background values, causing
+    regressions across the BAO and CMB likelihood checks. Scoping the
+    environment variables to each test keeps the optimisation fast without
+    altering the remainder of the suite.
+    """
+
+    monkeypatch.setenv("COPERNICAN_FAKE_CMB", "1")
+    monkeypatch.setenv("PYTHONDONTWRITEBYTECODE", "1")
+    yield
+
 
 _EXPECTED_HASHES = {
     "bao.csv": (

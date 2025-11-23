@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 7.7.10
+- 2025-11-23: Scoped the synthetic CMB toggle to the synthetic integration
+              harness so BAO and CMB regression tests continue to exercise real
+              CAMB outputs, hardened the NetCDF fallback reader to handle
+              SciPy-backed files without groups and bumped suite metadata to
+              7.7.10 (OpenAI ChatGPT)
+
 ## Version 7.7.9
 - 2025-11-23: Added deterministic synthetic SNe, BAO and CMB fixtures under
               ``tests/data`` plus an integration test that drives both the
