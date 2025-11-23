@@ -1,4 +1,4 @@
-**Version:** 7.7.13
+**Version:** 7.7.14
 **Last Updated:** 2025-11-23
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -844,6 +844,9 @@ Pull requests trigger the ``Lint`` workflow, which executes `pre-commit run
 --all-files`, and the ``Tests`` workflow, which runs the unit suite across
 Windows, macOS and Debian-based Linux. Each job executes inside a cached
 virtual environment for reproducibility and speed.
+The local policy hook fails early when modified files lack fresh "Last
+Updated" headers, miss changelog entries, drift out of sync with
+`copernican_lib/VERSION` or introduce new modules without companion tests.
 
 Multiprocessing is used by several engines. The program enforces the `spawn`
 start method when it launches so that each worker process begins with a fresh
