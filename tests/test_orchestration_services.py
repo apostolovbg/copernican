@@ -1,8 +1,8 @@
 # Last Updated: 2025-11-24
 """Tests for the GUI-safe orchestration service descriptors."""
 
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 from copernican_lib import orchestration
 
@@ -17,7 +17,8 @@ class OrchestrationServiceMapTestCase(unittest.TestCase):
             "copernican_lib.model_spec_validator",
         )
         self.assertIn(
-            "validate_and_cache_model", service_map.config_validation.entrypoints
+            "validate_and_cache_model",
+            service_map.config_validation.entrypoints,
         )
         self.assertEqual(
             service_map.manifest_generation.module,
@@ -30,9 +31,7 @@ class OrchestrationServiceMapTestCase(unittest.TestCase):
             service_map.run_control.module,
             "copernican_lib.result_writer",
         )
-        self.assertIn(
-            "save_summary", service_map.run_control.entrypoints
-        )
+        self.assertIn("save_summary", service_map.run_control.entrypoints)
 
     def test_in_process_controller_defaults(self) -> None:
         controller = orchestration.InProcessRunController(lambda _: "token")

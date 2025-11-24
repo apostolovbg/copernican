@@ -17,7 +17,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Callable, Iterable, Protocol, Sequence
 
-from copernican_lib import run_manifest, result_writer
+from copernican_lib import result_writer, run_manifest
 from copernican_lib.cli import dependencies
 from copernican_lib.model_spec_validator import validate_and_cache_model
 

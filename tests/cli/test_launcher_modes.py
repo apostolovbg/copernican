@@ -3,8 +3,8 @@
 
 import importlib
 import os
-from pathlib import Path
 import unittest
+from pathlib import Path
 from unittest import mock
 
 
@@ -50,9 +50,11 @@ class LaunchArgParsingTestCase(unittest.TestCase):
         self.assertTrue(legacy)
 
     def test_override_flag_enables_legacy_menu(self) -> None:
-        _, legacy = self.copernican._parse_launch_args([
-            "--enable-legacy-stage-menu",
-        ])
+        _, legacy = self.copernican._parse_launch_args(
+            [
+                "--enable-legacy-stage-menu",
+            ]
+        )
         self.assertTrue(legacy)
 
     def test_legacy_stage_menu_enabled_respects_override(self) -> None:
