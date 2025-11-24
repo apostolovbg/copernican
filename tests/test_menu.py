@@ -57,6 +57,29 @@ class SplashScreenTestCase(unittest.TestCase):
         sleep_mock.assert_called_once_with(1)
 
 
+class DashboardMenuInputTestCase(unittest.TestCase):
+    """Confirm the dashboard relies on single-key navigation."""
+
+    def test_dashboard_menu_uses_read_keypress(self) -> None:
+        """Selections should use the keypress helper without echoes."""
+
+        state = copernican.DashboardState()
+
+        with (
+            mock.patch(
+                "copernican.console.read_keypress", return_value="2"
+            ) as keypress_mock,
+            mock.patch("copernican.console.write"),
+        ):
+            choice = copernican._display_dashboard_menu(state)
+
+        self.assertEqual(choice, "2")
+        args, kwargs = keypress_mock.call_args
+        self.assertIn("Press a key to open a section", kwargs["prompt"])
+        self.assertIn("1", args[0])
+        self.assertIn("outputs", args[0])
+
+
 class MenuRunTestsTestCase(unittest.TestCase):
     """Verify the menu invokes ``python -m unittest`` discovery."""
 
@@ -103,59 +126,40 @@ class SelectSourceDisplayTestCase(unittest.TestCase):
 
 
 class DependencyPromptTestCase(unittest.TestCase):
-    """Test dependency installer confirmation and CI override."""
+    """Test dependency check reporting inside the managed environment."""
 
     @mock.patch("copernican.Path")
-    def test_installs_after_confirmation(self, path_mock):
+    def test_reports_missing_packages_and_aborts(self, path_mock):
         path_mock.return_value.resolve.return_value.name = ".venv"
         with (
             mock.patch(
                 "copernican._gather_required_packages", return_value=["demo"]
             ),
             mock.patch("importlib.util.find_spec", return_value=None),
-            mock.patch("copernican.console.ask", return_value="y") as ask_mock,
-            mock.patch("subprocess.run") as run_mock,
-            mock.patch("importlib.import_module"),
+            mock.patch("copernican.console.write") as write_mock,
+            mock.patch("copernican.exit_clean") as exit_mock,
         ):
             copernican.check_dependencies()
-            ask_mock.assert_called_once()
-            run_mock.assert_called_once_with(
-                [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "-r",
-                    "requirements.lock",
-                ],
-                check=True,
-            )
+            write_calls = [call.args[0] for call in write_mock.call_args_list]
+            self.assertIn("❌ Missing packages detected: demo", write_calls)
+            exit_mock.assert_called_once_with(1)
 
     @mock.patch("copernican.Path")
-    def test_auto_confirm_skips_prompt(self, path_mock):
+    def test_passes_when_dependencies_exist(self, path_mock):
         path_mock.return_value.resolve.return_value.name = ".venv"
         with (
             mock.patch(
                 "copernican._gather_required_packages", return_value=["demo"]
             ),
-            mock.patch("importlib.util.find_spec", return_value=None),
-            mock.patch("copernican.console.ask") as ask_mock,
-            mock.patch("subprocess.run") as run_mock,
-            mock.patch("importlib.import_module"),
+            mock.patch("importlib.util.find_spec", return_value=mock.Mock()),
+            mock.patch("copernican.console.write") as write_mock,
+            mock.patch("copernican.exit_clean") as exit_mock,
         ):
-            copernican.check_dependencies(auto_confirm=True)
-            ask_mock.assert_not_called()
-            run_mock.assert_called_once_with(
-                [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "-r",
-                    "requirements.lock",
-                ],
-                check=True,
+            copernican.check_dependencies()
+            write_mock.assert_any_call(
+                "✅ System Dependency Check Passed. Continuing...\n"
             )
+            exit_mock.assert_not_called()
 
 
 class SamplerConfigurationPromptTestCase(unittest.TestCase):
@@ -390,29 +394,29 @@ class PostRunMenuTestCase(unittest.TestCase):
     """Validate the post-run navigation menu."""
 
     @mock.patch("copernican.console.write")
-    @mock.patch("copernican.console.ask")
-    def test_default_selection_runs_again(self, ask_mock, _write_mock) -> None:
+    @mock.patch("copernican.console.read_keypress")
+    def test_default_selection_runs_again(self, key_mock, _write_mock) -> None:
         """Pressing Enter launches another evaluation."""
 
-        ask_mock.side_effect = [""]
+        key_mock.side_effect = [""]
         result = copernican.prompt_post_run_action()
         self.assertTrue(result)
 
     @mock.patch("copernican.console.write")
-    @mock.patch("copernican.console.ask")
-    def test_cancel_option_exits(self, ask_mock, _write_mock) -> None:
+    @mock.patch("copernican.console.read_keypress")
+    def test_cancel_option_exits(self, key_mock, _write_mock) -> None:
         """Choosing C exits the workflow."""
 
-        ask_mock.side_effect = ["c"]
+        key_mock.side_effect = ["c"]
         result = copernican.prompt_post_run_action()
         self.assertFalse(result)
 
     @mock.patch("copernican.console.write")
-    @mock.patch("copernican.console.ask")
-    def test_invalid_then_valid_choice(self, ask_mock, write_mock) -> None:
+    @mock.patch("copernican.console.read_keypress")
+    def test_invalid_then_valid_choice(self, key_mock, write_mock) -> None:
         """The menu repeats until a valid answer is provided."""
 
-        ask_mock.side_effect = ["maybe", "1"]
+        key_mock.side_effect = ["maybe", "1"]
         result = copernican.prompt_post_run_action()
         self.assertTrue(result)
         write_calls = [

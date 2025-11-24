@@ -1,6 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-23
+# Last Updated: 2025-11-24
 
 """Console I/O helpers shared across the Copernican Suite.
 
@@ -13,7 +13,46 @@ directly to ``stdout`` or ``stderr`` without passing through the
 logging-aware hooks defined in :mod:`copernican_lib.logger`.
 """
 
+import os
 import sys
+
+
+def _read_from_windows(valid_inputs: set[str]) -> str:
+    """Read a single keypress on Windows without echoing the input."""
+
+    import msvcrt
+
+    while True:
+        key = msvcrt.getwch()
+        if key == "\x03":  # Ctrl+C
+            raise KeyboardInterrupt
+        lower = key.lower()
+        if lower in valid_inputs:
+            return lower
+
+
+def _read_from_posix(valid_inputs: set[str]) -> str:
+    """Read a single keypress on POSIX terminals without echoing."""
+
+    import termios
+
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    new_settings = termios.tcgetattr(fd)
+    new_settings[3] &= ~(termios.ECHO | termios.ICANON)
+    termios.tcsetattr(fd, termios.TCSADRAIN, new_settings)
+    try:
+        while True:
+            key = sys.stdin.read(1)
+            if not key:
+                continue
+            if key == "\x03":  # Ctrl+C
+                raise KeyboardInterrupt
+            lower = key.lower()
+            if lower in valid_inputs:
+                return lower
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
 def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
@@ -57,3 +96,44 @@ def ask(prompt: str = "") -> str:
     intent and avoids scattering raw ``input`` calls across the codebase.
     """
     return input(prompt)
+
+
+def read_keypress(valid_inputs: set[str], *, prompt: str = "") -> str:
+    """Capture a single keypress without requiring the Enter key.
+
+    The dashboard menus keep their layout intact while waiting for input by
+    suppressing character echo and consuming exactly one keystroke. The
+    helper normalises keys to lower-case to simplify downstream comparisons
+    and falls back to the standard :func:`input` prompt when stdin is not a
+    terminal, such as during unit tests or automated runs.
+
+    Parameters
+    ----------
+    valid_inputs : set[str]
+        Normalised list of accepted keys. The function blocks until one of
+        these values is pressed.
+    prompt : str, optional
+        Prompt displayed before listening for keypresses. Defaults to a blank
+        string so menus can remain on screen.
+
+    Returns
+    -------
+    str
+        The selected key, always lower-case.
+    """
+
+    write(prompt, end="")
+    normalised = {value.lower() for value in valid_inputs}
+    if not normalised:
+        return ""
+
+    if not sys.stdin.isatty():
+        return ask(prompt).strip().lower()
+
+    if os.name == "nt":
+        selected = _read_from_windows(normalised)
+    else:
+        selected = _read_from_posix(normalised)
+
+    write("")
+    return selected
