@@ -52,7 +52,9 @@ class EngineInterfaceTestCase(unittest.TestCase):
         }
         req = engine_plugin_validation.REQUIRED_FUNCTIONS
         funcs = {name: _dummy_func for name in req}
-        self.plugin = engine_plugin_validation.build_plugin(self.model_data, funcs)
+        self.plugin = engine_plugin_validation.build_plugin(
+            self.model_data, funcs
+        )
 
     def test_plugin_validation(self):
         """Plugin built from minimal data should validate."""
@@ -100,7 +102,8 @@ class EngineInterfaceTestCase(unittest.TestCase):
         bad_model = dict(self.model_data)
         bad_model["cmb"] = {"param_map": {"H0": "H_0", "bad_key": 1}}
         funcs = {
-            name: _dummy_func for name in engine_plugin_validation.REQUIRED_FUNCTIONS
+            name: _dummy_func
+            for name in engine_plugin_validation.REQUIRED_FUNCTIONS
         }
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(bad_model, funcs)
@@ -119,7 +122,8 @@ class EngineInterfaceTestCase(unittest.TestCase):
             }
         }
         funcs = {
-            name: _dummy_func for name in engine_plugin_validation.REQUIRED_FUNCTIONS
+            name: _dummy_func
+            for name in engine_plugin_validation.REQUIRED_FUNCTIONS
         }
         with self.assertRaises(ValueError):
             engine_plugin_validation.build_plugin(clash, funcs)

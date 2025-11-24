@@ -29,6 +29,9 @@ suffixes. Follow this template:
               (including ``validate_and_cache_model``), refreshed CLI code,
               engines, parsers, documentation and tests to match the clearer
               terminology, and bumped suite metadata to 8.0.0 (OpenAI ChatGPT)
+- 2025-11-24: Reformatted the dataset registry and engine plugin validation
+              tests and reinforced the policy hook expectations so linting
+              gates remain green without manual reminders (OpenAI ChatGPT)
 
 ## Version 7.7.15
 - 2025-11-24: Renamed the sampling entry points to

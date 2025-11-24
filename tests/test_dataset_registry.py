@@ -148,7 +148,9 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
             dataset_registry.SNE_PARSERS = prev_parsers
             dataset_registry.TRUSTED_PARSER_HASHES = prev_hashes
 
-    @mock.patch("copernican_lib.dataset_registry.console.ask", return_value="1")
+    @mock.patch(
+        "copernican_lib.dataset_registry.console.ask", return_value="1"
+    )
     def test_select_source_uses_dataset_name(self, ask_mock):
         """Interactive selection should display names and return the id."""
         registry = {
