@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.1.1
+- 2025-11-24: Enabled single-key dashboard navigation with persistent menus,
+              added console keypress helpers plus menu tests, refreshed
+              documentation and bumped release metadata to 10.1.1
+              (OpenAI ChatGPT)
+
 ## Version 10.1.0
 - 2025-11-24: Added the persistent dashboard command loop covering configuration,
               engine/model selection, dataset toggles, run control, outputs and

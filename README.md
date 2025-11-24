@@ -1,4 +1,4 @@
-**Version:** 10.1.0
+**Version:** 10.1.1
 **Last Updated:** 2025-11-24
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -124,7 +124,10 @@ Under the hood the program follows a clear pipeline:
    *Outputs* recalls the most recent output directory, and *Settings* toggles
    live progress rendering. Operators can revisit any section after a run
    finishes without restarting the process, ensuring model swaps, sampler
-   changes or dataset mixes happen immediately.
+   changes or dataset mixes happen immediately. The dashboard stays visible
+   while waiting for input and each section accepts single-key shortcuts, so
+   pressing the highlighted number or letter activates the target menu without
+   hitting Enter.
 3. **Joint Parameter Fitting** – the dashboard feeds the selected models into
    a combined posterior evaluation built on the `JointLike` aggregator. When
    both theories share the same plugin the workflow reuses the initial chain

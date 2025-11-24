@@ -379,8 +379,11 @@ def select_seed() -> int:
 
     seed = 0
     while True:
-        choice = console.ask("Select an option: ").strip().lower()
-        if choice in {"1", "", "default"}:
+        choice = _wait_for_menu_choice(
+            {"1", "2", "3", "", "default", "custom", "random", "\r", "\n"},
+            prompt="Press 1, 2 or 3: ",
+        )
+        if choice in {"1", "", "default", "\r", "\n"}:
             seed = 0
             console.write("Default seed 0 selected.")
             break
@@ -825,7 +828,10 @@ def _prompt_configuration_retry(reasons: Iterable[str]) -> bool:
     console.write("")
 
     while True:
-        decision = console.ask("Select an option: ").strip().lower()
+        decision = _wait_for_menu_choice(
+            {"1", "c", "restart", "retry", "cancel", "exit", "dashboard"},
+            prompt="Press 1 to retry or C to return: ",
+        )
         if decision in {"", "1", "restart", "retry"}:
             console.write("")
             console.write("Restarting the configuration prompts.")
@@ -926,8 +932,14 @@ def _prompt_nested_configuration(
         except (TypeError, ValueError):
             return fallback
 
-    lcdm_active = _count_active_parameters(lcdm_plugin, engine_module=engine_module)
-    alt_active = _count_active_parameters(alt_model_plugin, engine_module=engine_module)
+    lcdm_active = _count_active_parameters(
+        lcdm_plugin,
+        engine_module=engine_module,
+    )
+    alt_active = _count_active_parameters(
+        alt_model_plugin,
+        engine_module=engine_module,
+    )
     max_active = max(lcdm_active, alt_active)
     min_live = max(20, 4 * max_active)
 
@@ -948,7 +960,9 @@ def _prompt_nested_configuration(
     def _collect_custom_plan() -> dict[str, int | float] | str | None:
         while True:
             console.write("")
-            console.write("Live points control the resolution of nested contours.")
+            console.write(
+                "Live points control the resolution of nested contours."
+            )
             console.write(f"  Minimum required: {min_live}")
             console.write(f"  Recommended default: {recommended_live}")
             entry = console.ask(
@@ -1029,10 +1043,12 @@ def _prompt_nested_configuration(
 
             console.write("")
             console.write(
-                "Enlargement fraction widens proposal clouds around live points."
+                "Enlargement fraction widens proposal clouds around live "
+                "points."
             )
             console.write(
-                "  Values near 1.0 follow the tightest ellipsoid, larger values"
+                "  Values near 1.0 follow the tightest ellipsoid, larger "
+                "values"
             )
             console.write("  trade efficiency for robustness.")
             entry = console.ask(
@@ -1070,7 +1086,23 @@ def _prompt_nested_configuration(
             console.write("  C) Cancel sampler configuration")
             console.write("")
 
-            confirm = console.ask("Select an option: ").strip().lower()
+            confirm = _wait_for_menu_choice(
+                {
+                    "1",
+                    "2",
+                    "b",
+                    "c",
+                    "y",
+                    "yes",
+                    "r",
+                    "restart",
+                    "n",
+                    "no",
+                    "cancel",
+                    "back",
+                },
+                prompt="Press a key to accept, restart or exit: ",
+            )
             current_plan = {
                 "engine_kind": "nested",
                 "n_live_points": live_points,
@@ -1086,7 +1118,9 @@ def _prompt_nested_configuration(
                 return "back"
             if confirm in {"2", "r", "restart", "n", "no"}:
                 console.write("")
-                console.write("Restarting the nested questionnaire from step one.")
+                console.write(
+                    "Restarting the nested questionnaire from step one."
+                )
                 continue
             console.write("Please choose 1, 2, B or C.", error=True)
 
@@ -1162,7 +1196,10 @@ def prompt_sampling_configuration(
     except (KeyError, ValueError, TypeError):
         default_walkers = 32
 
-    lcdm_active = _count_active_parameters(lcdm_plugin, engine_module=engine_module)
+    lcdm_active = _count_active_parameters(
+        lcdm_plugin,
+        engine_module=engine_module,
+    )
     alt_active = _count_active_parameters(
         alt_model_plugin,
         engine_module=engine_module,
@@ -1187,7 +1224,9 @@ def prompt_sampling_configuration(
 
         while True:
             console.write("")
-            console.write("Production steps control the total sampler iterations.")
+            console.write(
+                "Production steps control the total sampler iterations."
+            )
             console.write(f"  Recommended default: {recommended_steps}")
             entry = console.ask(
                 f"Production steps [{recommended_steps}]: "
@@ -1213,10 +1252,12 @@ def prompt_sampling_configuration(
             )
             console.write(f"  Recommended warm-up: {default_burn}")
             console.write(
-                f"  A shorter option such as {quick_burn} trades certainty for "
-                "speed."
+                f"  A shorter option such as {quick_burn} trades certainty "
+                "for speed."
             )
-            entry = console.ask(f"Burn-in steps [{default_burn}]: ").strip()
+            entry = console.ask(
+                f"Burn-in steps [{default_burn}]: "
+            ).strip()
             if not entry:
                 burn_in = default_burn
             else:
@@ -1237,14 +1278,19 @@ def prompt_sampling_configuration(
             )
             console.write(f"  Required minimum: {minimum_walkers}")
             console.write(f"  Recommended default: {walker_default}")
-            entry = console.ask(f"Number of walkers [{walker_default}]: ").strip()
+            entry = console.ask(
+                f"Number of walkers [{walker_default}]: "
+            ).strip()
             if not entry:
                 n_walkers = walker_default
             else:
                 try:
                     n_walkers = int(entry)
                 except ValueError:
-                    console.write("Walker count must be an integer.", error=True)
+                    console.write(
+                        "Walker count must be an integer.",
+                        error=True,
+                    )
                     continue
                 if n_walkers < minimum_walkers:
                     console.write(
@@ -1291,8 +1337,8 @@ def prompt_sampling_configuration(
             if adjusted_walkers != n_walkers:
                 console.write("")
                 console.write(
-                    f"Walker count increased to {adjusted_walkers} to match the "
-                    "worker pool."
+                    f"Walker count increased to {adjusted_walkers} "
+                    "to match the worker pool."
                 )
                 n_walkers = adjusted_walkers
 
@@ -1312,7 +1358,23 @@ def prompt_sampling_configuration(
             console.write("  C) Cancel sampler configuration")
             console.write("")
 
-            confirm = console.ask("Select an option: ").strip().lower()
+            confirm = _wait_for_menu_choice(
+                {
+                    "1",
+                    "2",
+                    "b",
+                    "c",
+                    "y",
+                    "yes",
+                    "r",
+                    "restart",
+                    "n",
+                    "no",
+                    "cancel",
+                    "back",
+                },
+                prompt="Press a key to accept, restart or exit: ",
+            )
             current_plan = {
                 "engine_kind": "mcmc",
                 "n_steps": n_steps,
@@ -1328,7 +1390,9 @@ def prompt_sampling_configuration(
                 return "back"
             if confirm in {"2", "r", "restart", "n", "no"}:
                 console.write("")
-                console.write("Restarting the sampler questionnaire from step one.")
+                console.write(
+                    "Restarting the sampler questionnaire from step one."
+                )
                 continue
             console.write("Please choose 1, 2, B or C.", error=True)
 
@@ -1478,9 +1542,9 @@ def _sanity_check_numpy_scipy(log):
         _linalg.det([[1.0]])
     except Exception as exc:  # pragma: no cover - depends on local install
         log.error(
-            "Basic NumPy/SciPy check failed. This often points to CPU feature "
-            "mismatches or a corrupted install. Reinstall NumPy and SciPy with "
-            "wheels built for your machine.",
+            "Basic NumPy/SciPy check failed. This often points to "
+            "CPU feature mismatches or a corrupted install. "
+            "Reinstall NumPy and SciPy with wheels built for your machine.",
             exc_info=exc,
         )
         raise
@@ -1506,13 +1570,24 @@ def _summarise_sampling_plan(plan: Mapping[str, Any] | None) -> str:
     )
 
 
+def _wait_for_menu_choice(valid_options: Iterable[str], prompt: str) -> str:
+    """Return a single-key menu selection while leaving the menu on screen."""
+
+    return console.read_keypress(
+        {option.lower() for option in valid_options},
+        prompt=prompt,
+    )
+
+
 def _display_dashboard_menu(state: DashboardState) -> str:
     """Render the dashboard overview and return the chosen section key."""
 
     console.write("")
     console.write("Copernican Dashboard")
     console.write("---------------------")
-    console.write(f"Seed: {state.seed if state.seed is not None else 'not set'}")
+    console.write(
+        f"Seed: {state.seed if state.seed is not None else 'not set'}"
+    )
     console.write(
         "Model: "
         + (
@@ -1526,6 +1601,52 @@ def _display_dashboard_menu(state: DashboardState) -> str:
         or getattr(state.engine_module, "__name__", "not selected")
         if state.engine_module
         else "not selected"
+    )
+    console.write(f"Engine: {engine_label}")
+    console.write(
+        f"Datasets: SNe on | BAO {'on' if state.use_bao else 'off'} | "
+        f"CMB {'on' if state.use_cmb else 'off'}"
+    )
+    console.write(
+        f"Sampler: {_summarise_sampling_plan(state.sampling_plan)}"
+    )
+    if state.last_output_dir:
+        console.write(f"Last output: {state.last_output_dir}")
+    console.write("")
+    console.write("Sections:")
+    console.write("  1) Configuration (seed and sampler)")
+    console.write("  2) Engine and model selection")
+    console.write("  3) Dataset toggles")
+    console.write("  4) Run control")
+    console.write("  5) Outputs")
+    console.write("  6) Settings")
+    console.write("  C) Close the Copernican Suite")
+    console.write("")
+    return _wait_for_menu_choice(
+        {
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "c",
+            "close",
+            "q",
+            "quit",
+            "exit",
+            "config",
+            "configuration",
+            "engine",
+            "model",
+            "dataset",
+            "datasets",
+            "run",
+            "output",
+            "outputs",
+            "settings",
+        },
+        prompt="Press a key to open a section (no Enter needed): ",
     )
     console.write(f"Engine: {engine_label}")
     console.write(f"Datasets: SNe on | BAO {'on' if state.use_bao else 'off'} | "
@@ -1546,6 +1667,26 @@ def _display_dashboard_menu(state: DashboardState) -> str:
     return console.ask("Select a section: ").strip().lower()
 
 
+def prompt_post_run_action() -> bool:
+    """Ask whether to launch another evaluation from the dashboard."""
+
+    console.write("What next?")
+    console.write("  1) Run another evaluation")
+    console.write("  C) Return to the dashboard")
+    console.write("")
+
+    while True:
+        choice = _wait_for_menu_choice(
+            {"1", "c", "cancel", ""},
+            prompt="Press 1 to run again or C to return: ",
+        )
+        if choice in {"", "1"}:
+            return True
+        if choice in {"c", "cancel"}:
+            return False
+        console.write("Please choose 1 or C.", error=True)
+
+
 def _configuration_section(state: DashboardState, lcdm_plugin) -> None:
     """Handle seed and sampler configuration from the dashboard."""
 
@@ -1553,10 +1694,14 @@ def _configuration_section(state: DashboardState, lcdm_plugin) -> None:
         console.write("")
         console.write("Configuration")
         console.write("--------------")
-        console.write(
-            f"Current seed: {state.seed if state.seed is not None else 'not set'}"
+        seed_label = (
+            "Current seed: "
+            f"{state.seed if state.seed is not None else 'not set'}"
         )
-        console.write(f"Sampler plan: {_summarise_sampling_plan(state.sampling_plan)}")
+        console.write(seed_label)
+        console.write(
+            f"Sampler plan: {_summarise_sampling_plan(state.sampling_plan)}"
+        )
         console.write("")
         console.write("  1) Set or change the random seed")
         console.write("  2) Configure sampler settings")
@@ -1564,7 +1709,10 @@ def _configuration_section(state: DashboardState, lcdm_plugin) -> None:
         console.write("  B) Back to dashboard")
         console.write("")
 
-        choice = console.ask("Select an option: ").strip().lower()
+        choice = _wait_for_menu_choice(
+            {"1", "2", "3", "b", "back"},
+            prompt="Press a key to configure or return: ",
+        )
         if choice in {"", "b", "back"}:
             return
         if choice == "1":
@@ -1628,7 +1776,10 @@ def _engine_model_section(state: DashboardState, script_dir: str) -> None:
         console.write("  B) Back to dashboard")
         console.write("")
 
-        choice = console.ask("Select an option: ").strip().lower()
+        choice = _wait_for_menu_choice(
+            {"1", "2", "3", "b", "back"},
+            prompt="Press a key to select or return: ",
+        )
         if choice in {"", "b", "back"}:
             return
         if choice == "3":
@@ -1639,7 +1790,10 @@ def _engine_model_section(state: DashboardState, script_dir: str) -> None:
             console.write("Model and engine selections cleared.")
             continue
         if choice not in {"1", "2"}:
-            console.write("Please choose one of the listed options.", error=True)
+            console.write(
+                "Please choose one of the listed options.",
+                error=True,
+            )
             continue
 
         if choice == "1":
@@ -1664,14 +1818,20 @@ def _engine_model_section(state: DashboardState, script_dir: str) -> None:
                     cache_path = model_spec_validator.validate_and_cache_model(
                         yaml_path, cache_dir
                     )
-                    func_dict, parsed = model_coder.generate_callables(cache_path)
-                    plugin = engine_plugin_validation.build_plugin(parsed, func_dict)
+                    func_dict, parsed = model_coder.generate_callables(
+                        cache_path
+                    )
+                    plugin = engine_plugin_validation.build_plugin(
+                        parsed,
+                        func_dict,
+                    )
                     plugin.MODEL_FILENAME = os.path.basename(yaml_path)
                     state.alt_model_plugin = plugin
                     state.alt_model_parsed = parsed
                     state.selected_model = selected_model
                     console.write(
-                        f"Loaded YAML model: {parsed.get('model_name', selected_model)}"
+                        "Loaded YAML model: "
+                        f"{parsed.get('model_name', selected_model)}"
                     )
                     break
                 except PluginValidationError as exc:
@@ -1679,7 +1839,8 @@ def _engine_model_section(state: DashboardState, script_dir: str) -> None:
                     if _prompt_configuration_retry(reasons):
                         continue
                     break
-                except Exception as exc:  # pragma: no cover - defensive log path
+                except Exception as exc:
+                    # pragma: no cover - defensive log path
                     reasons = _normalise_failure_reasons(str(exc))
                     if _prompt_configuration_retry(reasons):
                         continue
@@ -1707,7 +1868,8 @@ def _engine_model_section(state: DashboardState, script_dir: str) -> None:
                 )
                 state.engine_module = engine_module
                 console.write(
-                    f"Selected engine: {getattr(engine_module, 'ENGINE_LABEL', engine_choice)}"
+                    "Selected engine: "
+                    f"{getattr(engine_module, 'ENGINE_LABEL', engine_choice)}"
                 )
                 break
             except Exception as exc:  # pragma: no cover - runtime import guard
@@ -1734,16 +1896,23 @@ def _dataset_toggle_section(state: DashboardState) -> None:
         console.write("  B) Back to dashboard")
         console.write("")
 
-        choice = console.ask("Select an option: ").strip().lower()
+        choice = _wait_for_menu_choice(
+            {"1", "2", "3", "b", "back"},
+            prompt="Press a key to toggle or return: ",
+        )
         if choice in {"", "b", "back"}:
             return
         if choice == "1":
             state.use_bao = not state.use_bao
-            console.write(f"BAO dataset {'enabled' if state.use_bao else 'disabled'}.")
+            console.write(
+                f"BAO dataset {'enabled' if state.use_bao else 'disabled'}."
+            )
             continue
         if choice == "2":
             state.use_cmb = not state.use_cmb
-            console.write(f"CMB dataset {'enabled' if state.use_cmb else 'disabled'}.")
+            console.write(
+                f"CMB dataset {'enabled' if state.use_cmb else 'disabled'}."
+            )
             continue
         if choice == "3":
             state.use_bao = True
@@ -1760,7 +1929,9 @@ def _settings_section(state: DashboardState, opts: RuntimeOptions) -> None:
         console.write("")
         console.write("Settings")
         console.write("--------")
-        console.write(f"Progress display: {'on' if state.display_progress else 'off'}")
+        console.write(
+            f"Progress display: {'on' if state.display_progress else 'off'}"
+        )
         console.write(
             f"Strict warnings: {'on' if opts.strict_warnings else 'off'}"
         )
@@ -1769,13 +1940,17 @@ def _settings_section(state: DashboardState, opts: RuntimeOptions) -> None:
         console.write("  B) Back to dashboard")
         console.write("")
 
-        choice = console.ask("Select an option: ").strip().lower()
+        choice = _wait_for_menu_choice(
+            {"1", "b", "back"},
+            prompt="Press a key to adjust or return: ",
+        )
         if choice in {"", "b", "back"}:
             return
         if choice == "1":
             state.display_progress = not state.display_progress
             console.write(
-                f"Progress display {'enabled' if state.display_progress else 'disabled'}."
+                "Progress display "
+                f"{'enabled' if state.display_progress else 'disabled'}."
             )
             continue
         console.write("Please choose a listed option.", error=True)
@@ -1844,7 +2019,9 @@ def _run_dashboard_evaluation(
     logger = log_mod.get_logger()
     error_handler.configure_warnings(strict=opts.strict_warnings)
     if opts.strict_warnings:
-        logger.info("Strict warnings mode enabled; treating warnings as errors")
+        logger.info(
+            "Strict warnings mode enabled; treating warnings as errors"
+        )
     else:
         logger.info("Warnings will be logged but not treated as errors")
 
@@ -1862,7 +2039,8 @@ def _run_dashboard_evaluation(
     logger.info("Using RNG seed %s", utils.get_random_seed())
     logger.info("")
     logger.info(
-        "Using standard CPU (SciPy) computational backend with multiprocessing."
+        "Using standard CPU (SciPy) computational backend with "
+        "multiprocessing."
     )
     logger.info(f"Running from base directory: {script_dir}")
     logger.info(f"All outputs will be saved to: {output_dir}")
@@ -1940,17 +2118,21 @@ def _run_dashboard_evaluation(
         sampling_tol = float(sampling_plan["evidence_tolerance"])
         sampling_enlarge = float(sampling_plan["enlargement_fraction"])
         logger.info(
-            "Nested sampler configuration: live=%d, max_iter=%d, tol=%g, enlarge=%.2f",
+            "Nested sampler configuration: "
+            "live=%d, max_iter=%d, tol=%g, enlarge=%.2f",
             sampling_live,
             sampling_max_iter,
             sampling_tol,
             sampling_enlarge,
         )
         console.write(
-            f"Configured nested sampler: live points {sampling_live}, max iterations {sampling_max_iter}."
+            "Configured nested sampler: "
+            f"live points {sampling_live}, "
+            f"max iterations {sampling_max_iter}."
         )
         console.write(
-            f"Evidence tolerance {sampling_tol:g}, enlargement fraction {sampling_enlarge:g}."
+            f"Evidence tolerance {sampling_tol:g}, "
+            f"enlargement fraction {sampling_enlarge:g}."
         )
     else:
         sampling_steps = int(sampling_plan["n_steps"])
@@ -1961,7 +2143,8 @@ def _run_dashboard_evaluation(
         pool_label = sampling_pool if sampling_pool is not None else "auto"
         logger.info(
             (
-                "Sampler configuration: steps=%d, burn-in=%d, walkers=%d, pool=%s"
+                "Sampler configuration: steps=%d, burn-in=%d, "
+                "walkers=%d, pool=%s"
             ),
             sampling_steps,
             sampling_burn_in,
@@ -1969,7 +2152,8 @@ def _run_dashboard_evaluation(
             pool_label,
         )
         console.write(
-            f"Configured sampler: steps {sampling_steps}, burn-in {sampling_burn_in}."
+            "Configured sampler: "
+            f"steps {sampling_steps}, burn-in {sampling_burn_in}."
         )
         console.write(
             f"Walker ensemble {sampling_walkers}, pool {pool_label}."
@@ -2006,7 +2190,8 @@ def _run_dashboard_evaluation(
     except AttributeError:
         logger.error(
             (
-                "Selected engine %s lacks a cosmology fitting entry point; aborting run."
+                "Selected engine %s lacks a cosmology fitting entry point; "
+                "aborting run."
             ),
             getattr(state.engine_module, "__name__", "unknown"),
         )
@@ -2055,7 +2240,8 @@ def _run_dashboard_evaluation(
             engine_label,
         )
         console.write(
-            "Alternative model matches ΛCDM; reusing the completed ΛCDM chain for further analysis."
+            "Alternative model matches ΛCDM; reusing the completed ΛCDM "
+            "chain for further analysis."
         )
         console.write("")
         alt_model_fit_results = copy.deepcopy(lcdm_fit_results)
@@ -2085,23 +2271,24 @@ def _run_dashboard_evaluation(
             console.write(f"  Production steps: {sampling_steps}")
             console.write(f"  Walkers: {sampling_walkers}")
             console.write(f"  Worker pool: {pool_label}")
-            console.write("  Starting alternative sampler...")
-            console.write("")
-            alt_model_fit_results = fit_fn(
-                sne_data_df,
-                alt_model_plugin,
-                bao_data_df=bao_data_df,
-                cmb_data_df=cmb_data_df,
-                n_walkers=sampling_walkers,
-                n_steps=sampling_steps,
-                pool_size=sampling_pool,
-                burn_in_steps=sampling_burn_in,
-                display_progress=display_progress,
-            )
-        console.write(
-            f"Completed alternative sampling for {alt_model_plugin.MODEL_NAME}."
-        )
+        console.write("  Starting alternative sampler...")
         console.write("")
+        alt_model_fit_results = fit_fn(
+            sne_data_df,
+            alt_model_plugin,
+            bao_data_df=bao_data_df,
+            cmb_data_df=cmb_data_df,
+            n_walkers=sampling_walkers,
+            n_steps=sampling_steps,
+            pool_size=sampling_pool,
+            burn_in_steps=sampling_burn_in,
+            display_progress=display_progress,
+        )
+    console.write(
+        "Completed alternative sampling for "
+        f"{alt_model_plugin.MODEL_NAME}."
+    )
+    console.write("")
 
     console.write("Sampling complete.")
     console.write("")
@@ -2120,7 +2307,9 @@ def _run_dashboard_evaluation(
         logger.info("\n--- BAO Analysis ---\n")
 
         def _component_enabled(fit_results, component):
-            state_map = fit_results.get("likelihood_state", {}) if fit_results else {}
+            state_map = (
+                fit_results.get("likelihood_state", {}) if fit_results else {}
+            )
             metadata = state_map.get("metadata", {})
             components = metadata.get("components", {})
             entry = components.get(component, {})
@@ -2246,7 +2435,8 @@ def _run_dashboard_evaluation(
             delta_rs = alt_bao_summary["rs_Mpc"] - lcdm_bao_summary["rs_Mpc"]
             logger.info(
                 (
-                    f"{alt_model_plugin.MODEL_NAME} r_s offset relative to {lcdm_plugin.MODEL_NAME}: {delta_rs:+.3f} Mpc"
+                    f"{alt_model_plugin.MODEL_NAME} r_s offset relative to "
+                    f"{lcdm_plugin.MODEL_NAME}: {delta_rs:+.3f} Mpc"
                 )
             )
     else:
@@ -2258,7 +2448,9 @@ def _run_dashboard_evaluation(
         logger.info("\n--- CMB Analysis ---\n")
 
         def _component_enabled(fit_results, component):
-            state_map = fit_results.get("likelihood_state", {}) if fit_results else {}
+            state_map = (
+                fit_results.get("likelihood_state", {}) if fit_results else {}
+            )
             metadata = state_map.get("metadata", {})
             components = metadata.get("components", {})
             entry = components.get(component, {})
@@ -2269,7 +2461,7 @@ def _run_dashboard_evaluation(
             return component in enabled_components
 
         def run_cmb_analysis(model_plugin, fit_results):
-            """Return CMB diagnostics and theory spectra for ``model_plugin``."""
+            """Return CMB diagnostics and spectra for ``model_plugin``."""
 
             summary = {
                 "chi2_cmb": float(
@@ -2360,11 +2552,13 @@ def _run_dashboard_evaluation(
     logger.info("\n--- Generating Outputs ---\n")
     if lcdm_cmb_summary:
         logger.info(
-            f"{lcdm_plugin.MODEL_NAME} CMB χ² = {lcdm_cmb_summary.get('chi2_cmb', float('nan')):.2f}"
+            f"{lcdm_plugin.MODEL_NAME} CMB χ² = "
+            f"{lcdm_cmb_summary.get('chi2_cmb', float('nan')):.2f}"
         )
     if alt_cmb_summary:
         logger.info(
-            f"{alt_model_plugin.MODEL_NAME} CMB χ² = {alt_cmb_summary.get('chi2_cmb', float('nan')):.2f}"
+            f"{alt_model_plugin.MODEL_NAME} CMB χ² = "
+            f"{alt_cmb_summary.get('chi2_cmb', float('nan')):.2f}"
         )
 
     run_end_dt = datetime.datetime.now(datetime.timezone.utc)
@@ -2433,7 +2627,8 @@ def _run_dashboard_evaluation(
             "Posterior Samples"
         ),
         "description": (
-            "Corner plot summarising the joint posterior derived from the configured likelihood evaluation."
+            "Corner plot summarising the joint posterior derived from the "
+            "configured likelihood evaluation."
         ),
         "citation": sne_data_df.attrs.get("citation", ""),
         "notes": sne_data_df.attrs.get("notes", ""),
@@ -2512,7 +2707,11 @@ def _run_dashboard_evaluation(
         console.write("")
 
     _print_fit(
-        "ΛCDM", lcdm_fit_results, lcdm_bao_summary, lcdm_cmb_summary, lcdm_plugin
+        "ΛCDM",
+        lcdm_fit_results,
+        lcdm_bao_summary,
+        lcdm_cmb_summary,
+        lcdm_plugin,
     )
     _print_fit(
         alt_model_plugin.MODEL_NAME,
@@ -2635,13 +2834,17 @@ def main_workflow():
         success = run_startup_tests()
         exit_clean(0 if success else 1)
 
-    global np, plt, mp, model_spec_validator, model_coder, engine_plugin_validation, \
-        dataset_registry, plotter, csv_writer, log_mod, logger, error_handler
+    global np, plt, mp, model_spec_validator, model_coder
+    global engine_plugin_validation
+    global dataset_registry, plotter, csv_writer, log_mod, logger
+    global error_handler
     import numpy as np
     import matplotlib.pyplot as plt
     import multiprocessing as mp
-    from copernican_lib import model_spec_validator, model_coder, engine_plugin_validation
     from copernican_lib import (
+        model_spec_validator,
+        model_coder,
+        engine_plugin_validation,
         dataset_registry,
         plotter,
         csv_writer,
