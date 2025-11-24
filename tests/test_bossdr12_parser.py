@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-24
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -18,9 +19,9 @@ from pathlib import Path
 
 import numpy as np
 
-import copernican_lib.engine_interface as engine_interface
+import copernican_lib.engine_plugin_validation as engine_plugin_validation
 import copernican_lib.model_coder as model_coder
-import copernican_lib.model_parser as model_parser
+import copernican_lib.model_spec_validator as model_spec_validator
 from copernican_lib.statistics import chi_squared_bao
 
 
@@ -47,10 +48,12 @@ class BossDR12ParserTestCase(unittest.TestCase):
         models_dir = base / "models"
         yaml_path = models_dir / "cosmo_model_lcdm.yml"
         cache_dir = models_dir / "cache"
-        cache_path = model_parser.parse_model(yaml_path, cache_dir)
+        cache_path = model_spec_validator.validate_and_cache_model(
+            yaml_path, cache_dir
+        )
         funcs, parsed = model_coder.generate_callables(cache_path)
-        cls.plugin = engine_interface.build_plugin(parsed, funcs)
-        engine_interface.validate_plugin(cls.plugin)
+        cls.plugin = engine_plugin_validation.build_plugin(parsed, funcs)
+        engine_plugin_validation.validate_plugin(cls.plugin)
 
     def test_dataframe_shape_and_covariance(self):
         """Return nine observables with a 9x9 inverse covariance."""

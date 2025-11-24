@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-23
+**Last Updated:** 2025-11-24
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -158,7 +158,7 @@ data/             - Observation files under ``data/<type>/<source>/``. Each
                     full `author` list and BibTeX keys such as `title`,
                     `volume`, `journal` and `DOI`. Metadata is loaded
                     exclusively by
-                    `copernican_lib/data_loaders.py` after each parser runs.
+                    `copernican_lib/dataset_registry.py` after each parser runs.
   cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance
 output/           - Per-run folders with plots, tables and NetCDF chains
 AGENTS.md         - Development specification and contributor rules
@@ -189,7 +189,7 @@ evaluation counters now live in ``copernican_lib/optim_utils.py`` and are
 imported
 by the engines instead of being reimplemented inside each backend.
 
-The ``_eval_safe`` helper in ``engine_interface`` caps recursion depth and
+The ``_eval_safe`` helper in ``engine_plugin_validation`` caps recursion depth and
 AST node count when parsing expressions for ``get_camb_params`` to block
 runaway evaluation on malicious or overly complex inputs.
 
@@ -253,12 +253,12 @@ raw Python code is not permitted.
 The schema requires `model_name`, `version`, `parameters`, `equations`,
 `abstract` and `description`.
 Optional fields such as `unit` and `latex_name` provide additional context.
-`copernican_lib/model_parser.py` validates the YAML and writes a sanitized
+`copernican_lib/model_spec_validator.py` validates the YAML and writes a sanitized
 copy to `models/cache/`. `copernican_lib/model_coder.py` transforms the
 equations into NumPy callables. These callables are validated by
-`copernican_lib/engine_interface.py` before being passed to the chosen
+`copernican_lib/engine_plugin_validation.py` before being passed to the chosen
 engine.
-`model_parser.py` ignores unrecognized keys and copies them to the cache, so
+`model_spec_validator.py` ignores unrecognized keys and copies them to the cache, so
 new metadata can be added without breaking older YAML files.
 
 Treat the `description` block as the journal article for the theory. Write at
@@ -300,7 +300,7 @@ equations:
 Initial guesses are computed automatically as the midpoint of each
 parameter's bounds.
 
-`model_parser.py` and `model_coder.py` handle validation and code generation
+`model_spec_validator.py` and `model_coder.py` handle validation and code generation
 automatically; no manual Python implementation is required.
 The parser keeps unknown keys intact, ensuring the DSL stays backward
 compatible as new fields are introduced.

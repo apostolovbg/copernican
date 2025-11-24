@@ -1,7 +1,8 @@
+# Last Updated: 2025-11-24
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Tests for ``copernican_lib.data_loaders`` registration helpers."""
+"""Tests for ``copernican_lib.dataset_registry`` registration helpers."""
 
 import os
 import tempfile
@@ -11,7 +12,7 @@ from unittest import mock
 import pandas as pd
 import yaml
 
-from copernican_lib import data_loaders
+from copernican_lib import dataset_registry
 from copernican_lib.utils import load_metadata_from_dir
 
 
@@ -20,7 +21,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
 
     def test_register_and_load_sne_parser(self):
         """A temporary SNe parser should load data and metadata."""
-        prev = data_loaders.SNE_PARSERS.copy()
+        prev = dataset_registry.SNE_PARSERS.copy()
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 meta = {
@@ -36,7 +37,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                 ) as fh:
                     yaml.safe_dump(meta, fh)
 
-                @data_loaders.register_sne_parser(
+                @dataset_registry.register_sne_parser(
                     name="dummy_sne",
                     data_dir=tmp,
                 )
@@ -49,7 +50,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                         }
                     )
 
-                df = data_loaders.load_sne_data("dummy_sne")
+                df = dataset_registry.load_sne_data("dummy_sne")
                 self.assertEqual(df.attrs["dataset_name"], "Dummy SNe")
                 self.assertEqual(df.attrs["dataset_id"], "dummy_sne")
                 self.assertEqual(len(df), 1)
@@ -57,15 +58,15 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                 self.assertEqual(df.attrs["data_path"], tmp)
                 self.assertEqual(
                     df.attrs["independence_assumptions"],
-                    data_loaders.INDEPENDENCE_ASSUMPTIONS["sne"],
+                    dataset_registry.INDEPENDENCE_ASSUMPTIONS["sne"],
                 )
         finally:
-            data_loaders.SNE_PARSERS = prev
+            dataset_registry.SNE_PARSERS = prev
 
     def test_hash_mismatch_skips_parser(self):
         """Hash mismatches prevent parser import."""
-        prev_parsers = data_loaders.SNE_PARSERS.copy()
-        prev_hashes = data_loaders.TRUSTED_PARSER_HASHES.copy()
+        prev_parsers = dataset_registry.SNE_PARSERS.copy()
+        prev_hashes = dataset_registry.TRUSTED_PARSER_HASHES.copy()
         try:
             with tempfile.TemporaryDirectory() as base:
                 sne_dir = os.path.join(base, "sne", "rogue2")
@@ -82,7 +83,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     yaml.safe_dump(meta, fh)
                 parser_path = os.path.join(sne_dir, "cosmo_parser_rogue2.py")
                 code = (
-                    "from copernican_lib.data_loaders "
+                    "from copernican_lib.dataset_registry "
                     "import register_sne_parser\n"
                     "@register_sne_parser(name='rogue2_sne', data_dir=r'"
                     + sne_dir
@@ -93,18 +94,18 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                 with open(parser_path, "w", encoding="utf-8") as fh:
                     fh.write(code)
                 rel_path = os.path.relpath(parser_path, base)
-                data_loaders.TRUSTED_PARSER_HASHES[rel_path] = "0" * 64
-                data_loaders.SNE_PARSERS = {}
-                data_loaders._discover_parsers(base_dir=base)
-                self.assertNotIn("rogue2_sne", data_loaders.SNE_PARSERS)
+                dataset_registry.TRUSTED_PARSER_HASHES[rel_path] = "0" * 64
+                dataset_registry.SNE_PARSERS = {}
+                dataset_registry._discover_parsers(base_dir=base)
+                self.assertNotIn("rogue2_sne", dataset_registry.SNE_PARSERS)
         finally:
-            data_loaders.SNE_PARSERS = prev_parsers
-            data_loaders.TRUSTED_PARSER_HASHES = prev_hashes
+            dataset_registry.SNE_PARSERS = prev_parsers
+            dataset_registry.TRUSTED_PARSER_HASHES = prev_hashes
 
     def test_windows_separators_are_normalized(self):
         """Trusted modules load even when ``relpath`` returns backslashes."""
-        prev_parsers = data_loaders.SNE_PARSERS.copy()
-        prev_hashes = data_loaders.TRUSTED_PARSER_HASHES.copy()
+        prev_parsers = dataset_registry.SNE_PARSERS.copy()
+        prev_hashes = dataset_registry.TRUSTED_PARSER_HASHES.copy()
         try:
             with tempfile.TemporaryDirectory() as base:
                 sne_dir = os.path.join(base, "sne", "trusted")
@@ -121,7 +122,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     yaml.safe_dump(meta, fh)
                 parser_path = os.path.join(sne_dir, "cosmo_parser_trusted.py")
                 code = (
-                    "from copernican_lib.data_loaders "
+                    "from copernican_lib.dataset_registry "
                     "import register_sne_parser\n"
                     "@register_sne_parser(name='trusted_sne', data_dir=r'"
                     + sne_dir
@@ -132,22 +133,24 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                 with open(parser_path, "w", encoding="utf-8") as fh:
                     fh.write(code)
                 rel_key = os.path.relpath(parser_path, base).replace("\\", "/")
-                digest = data_loaders._file_sha256(parser_path)
-                data_loaders.TRUSTED_PARSER_HASHES[rel_key] = digest
-                data_loaders.SNE_PARSERS = {}
+                digest = dataset_registry._file_sha256(parser_path)
+                dataset_registry.TRUSTED_PARSER_HASHES[rel_key] = digest
+                dataset_registry.SNE_PARSERS = {}
                 orig_relpath = os.path.relpath
 
                 def fake_relpath(path, start):
                     return orig_relpath(path, start).replace("/", "\\")
 
                 with mock.patch("os.path.relpath", side_effect=fake_relpath):
-                    data_loaders._discover_parsers(base_dir=base)
-                self.assertIn("trusted_sne", data_loaders.SNE_PARSERS)
+                    dataset_registry._discover_parsers(base_dir=base)
+                self.assertIn("trusted_sne", dataset_registry.SNE_PARSERS)
         finally:
-            data_loaders.SNE_PARSERS = prev_parsers
-            data_loaders.TRUSTED_PARSER_HASHES = prev_hashes
+            dataset_registry.SNE_PARSERS = prev_parsers
+            dataset_registry.TRUSTED_PARSER_HASHES = prev_hashes
 
-    @mock.patch("copernican_lib.data_loaders.console.ask", return_value="1")
+    @mock.patch(
+        "copernican_lib.dataset_registry.console.ask", return_value="1"
+    )
     def test_select_source_uses_dataset_name(self, ask_mock):
         """Interactive selection should display names and return the id."""
         registry = {
@@ -160,10 +163,10 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
         }
         captured = []
         with mock.patch(
-            "copernican_lib.data_loaders.console.write",
+            "copernican_lib.dataset_registry.console.write",
             lambda msg: captured.append(msg),
         ):
-            ds_id = data_loaders._select_source(registry, "SNe")
+            ds_id = dataset_registry._select_source(registry, "SNe")
         self.assertEqual(ds_id, "dummy_sne")
         output = "".join(captured)
         self.assertIn("Dummy SNe", output)
@@ -180,7 +183,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
 
     def test_untrusted_parser_is_skipped(self):
         """Modules not whitelisted should never be imported."""
-        prev = data_loaders.SNE_PARSERS.copy()
+        prev = dataset_registry.SNE_PARSERS.copy()
         try:
             with tempfile.TemporaryDirectory() as base:
                 sne_dir = os.path.join(base, "sne", "rogue")
@@ -197,7 +200,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     yaml.safe_dump(meta, fh)
                 parser_path = os.path.join(sne_dir, "cosmo_parser_rogue.py")
                 code = (
-                    "from copernican_lib.data_loaders "
+                    "from copernican_lib.dataset_registry "
                     "import register_sne_parser\n"
                     "@register_sne_parser(name='rogue_sne', data_dir=r'"
                     + sne_dir
@@ -207,11 +210,11 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                 )
                 with open(parser_path, "w", encoding="utf-8") as fh:
                     fh.write(code)
-                data_loaders.SNE_PARSERS = {}
-                data_loaders._discover_parsers(base_dir=base)
-                self.assertNotIn("rogue_sne", data_loaders.SNE_PARSERS)
+                dataset_registry.SNE_PARSERS = {}
+                dataset_registry._discover_parsers(base_dir=base)
+                self.assertNotIn("rogue_sne", dataset_registry.SNE_PARSERS)
         finally:
-            data_loaders.SNE_PARSERS = prev
+            dataset_registry.SNE_PARSERS = prev
 
 
 if __name__ == "__main__":

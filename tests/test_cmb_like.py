@@ -1,6 +1,6 @@
 """Unit tests for CAMB-backed CMB helpers.
 
-**Last Updated:** 2025-11-01
+# Last Updated: 2025-11-24
 """
 
 from __future__ import annotations
@@ -12,7 +12,11 @@ from pathlib import Path
 import camb
 import numpy as np
 
-from copernican_lib import engine_interface, model_coder, model_parser
+from copernican_lib import (
+    engine_plugin_validation,
+    model_coder,
+    model_spec_validator,
+)
 from copernican_lib.likelihoods import cmb
 
 
@@ -27,9 +31,11 @@ class CMBBackgroundTestCase(unittest.TestCase):
         os.environ.setdefault("VIRTUAL_ENV", str(repo_root / ".venv"))
         yaml_path = repo_root / "models" / "cosmo_model_lcdm.yml"
         cache_dir = repo_root / "models" / "cache"
-        cache_path = model_parser.parse_model(yaml_path, cache_dir)
+        cache_path = model_spec_validator.validate_and_cache_model(
+            yaml_path, cache_dir
+        )
         funcs, parsed = model_coder.generate_callables(cache_path)
-        cls.plugin = engine_interface.build_plugin(parsed, funcs)
+        cls.plugin = engine_plugin_validation.build_plugin(parsed, funcs)
 
     def test_background_observables_match_input_length(self) -> None:
         """Background helper should return one entry per requested redshift."""

@@ -10,11 +10,11 @@ The combined optimiser has been retired entirely, leaving this sampler as the
 sole runtime engine.  It continues to focus on Supernova Ia posteriors while
 delegating shared χ² helpers to :mod:`copernican_lib.statistics` so the module
 acts as the canonical engine façade.  Future backends can slot in beside it
-without changing the orchestration code.  Verbose progress logging tracks both
-burn-in and production phases with percentage updates so long chains always
-report their status.  Version 6.2.0 routes all likelihood evaluations through
-the :class:`copernican_lib.likelihoods.JointLike` aggregator and the
-new :func:`copernican_lib.engine_interface.make_logposterior` helper so that
+without changing the orchestration code.  Verbose progress logging tracks
+both burn-in and production phases with percentage updates so long chains
+always report their status.  Version 6.2.0 routes all likelihood evaluations
+through the :class:`copernican_lib.likelihoods.JointLike` aggregator and the
+new :func:`copernican_lib.engine_plugin_validation.make_logposterior` helper so
 posterior calculations automatically honour per-parameter priors, declared
 bounds and optional reparameterisation transforms while exposing diagnostic
 metadata alongside sampled chains.
@@ -64,7 +64,7 @@ import emcee
 import numpy as np
 import pandas as pd
 
-from copernican_lib import engine_interface
+from copernican_lib import engine_plugin_validation
 from copernican_lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
 from copernican_lib.progress import (
     BatchProgressBar,
@@ -333,7 +333,7 @@ def _build_joint_logposterior(
     helper therefore pre-computes the reusable :class:`JointLike` aggregator
     once, attaches the plugin's bounds and optional transformations to the
     underlying log-likelihood callable and finally hands everything to
-    :func:`engine_interface.make_logposterior` so priors and Jacobian
+    :func:`engine_plugin_validation.make_logposterior` so priors and Jacobian
     adjustments remain consistent across engines.
     """
 
@@ -420,7 +420,7 @@ def _build_joint_logposterior(
     priors = getattr(model_plugin, "PARAMETER_PRIOR_OBJECTS", None)
     if priors is None:
         priors = getattr(model_plugin, "PARAMETER_PRIORS", [])
-    posterior = engine_interface.make_logposterior(loglike, priors)
+    posterior = engine_plugin_validation.make_logposterior(loglike, priors)
     return posterior, loglike, joint_like
 
 
@@ -654,7 +654,7 @@ def fit_cosmology_parameters(
     """
 
     logger = logging.getLogger()
-    engine_interface.validate_plugin(model_plugin)
+    engine_plugin_validation.validate_plugin(model_plugin)
 
     posterior_full, loglike_full, joint_like = _build_joint_logposterior(
         model_plugin,

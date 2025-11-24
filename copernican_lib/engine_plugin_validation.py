@@ -1,10 +1,12 @@
-"""Compatibility layer exposing plugin builders to numerical engines.
+# Copyright (c) 2025 Copernican Suite developers.
+# Last Updated: 2025-11-24
+# See LICENSE.md in the repository root for details.
 
-**Last Updated:** 2025-11-09
+"""Validation and bridge helpers for engine plugins.
 
 The interface now validates CAMB parameter mappings declared in YAML models so
 neutrino sector options remain consistent with the helpers in
-``copernican_lib.likelihoods.cmb``.  Allow-listing the supported keys prevents
+``copernican_lib.likelihoods.cmb``. Allow-listing the supported keys prevents
 mislabelled photon densities (the old ``omnuh2`` issue) and catches
 incompatible combinations such as specifying both ``sum_mnu`` and individual
 mass entries.

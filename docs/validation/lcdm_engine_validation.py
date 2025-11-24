@@ -19,10 +19,10 @@ import numpy as np
 import pandas as pd
 
 from copernican_lib import (
-    data_loaders,
-    engine_interface,
+    dataset_registry,
+    engine_plugin_validation,
     model_coder,
-    model_parser,
+    model_spec_validator,
 )
 from engines import cosmo_engine_mcmc, cosmo_engine_nested
 
@@ -79,9 +79,11 @@ def _build_plugin():
 
     _ensure_importlib_util()
     CACHE_DIR.mkdir(exist_ok=True)
-    cache_path = model_parser.parse_model(str(MODEL_PATH), str(CACHE_DIR))
+    cache_path = model_spec_validator.validate_and_cache_model(
+        str(MODEL_PATH), str(CACHE_DIR)
+    )
     func_dict, parsed = model_coder.generate_callables(cache_path)
-    return engine_interface.build_plugin(parsed, func_dict)
+    return engine_plugin_validation.build_plugin(parsed, func_dict)
 
 
 def _trim_sne_dataset(full_df: pd.DataFrame) -> pd.DataFrame:
@@ -98,8 +100,8 @@ def load_validation_datasets() -> tuple[pd.DataFrame, pd.DataFrame]:
     """Load the trimmed Pantheon+SH0ES sample and full BOSS DR12 table."""
 
     _ensure_importlib_util()
-    sne_df = data_loaders.load_sne_data(SNE_DATASET_ID)
-    bao_df = data_loaders.load_bao_data(BAO_DATASET_ID)
+    sne_df = dataset_registry.load_sne_data(SNE_DATASET_ID)
+    bao_df = dataset_registry.load_bao_data(BAO_DATASET_ID)
     if sne_df is None or bao_df is None:
         msg = "Validation datasets could not be loaded."
         raise RuntimeError(msg)

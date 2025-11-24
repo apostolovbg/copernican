@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 import yaml
 
-from copernican_lib import data_loaders, result_writer, run_manifest, utils
+from copernican_lib import dataset_registry, result_writer, run_manifest, utils
 from engines import cosmo_engine_mcmc, cosmo_engine_nested
 from tests.data.synthetic import model_plugin
 
@@ -71,9 +71,9 @@ def synthetic_plugin():
 def _load_datasets():
     import tests.data.synthetic.cosmo_parser_synthetic  # noqa: F401
 
-    sne_df = data_loaders.load_sne_data("synthetic_integration")
-    bao_df = data_loaders.load_bao_data("synthetic_integration")
-    cmb_df = data_loaders.load_cmb_data("synthetic_integration")
+    sne_df = dataset_registry.load_sne_data("synthetic_integration")
+    bao_df = dataset_registry.load_bao_data("synthetic_integration")
+    cmb_df = dataset_registry.load_cmb_data("synthetic_integration")
     return sne_df, bao_df, cmb_df
 
 

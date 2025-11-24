@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-24
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -25,7 +26,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from copernican_lib.data_loaders import register_bao_parser
+from copernican_lib.dataset_registry import register_bao_parser
 
 # Speed of light in km/s used to convert ``H(z)`` into ``D_H``.
 C_LIGHT = 299792.458

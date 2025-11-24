@@ -1,8 +1,9 @@
+# Last Updated: 2025-11-24
 import importlib
 import os
 import unittest
 
-from copernican_lib import data_loaders, utils
+from copernican_lib import dataset_registry, utils
 
 
 class DataHashingTest(unittest.TestCase):
@@ -11,7 +12,7 @@ class DataHashingTest(unittest.TestCase):
     def test_bao_compound_hashes(self):
         importlib.import_module("data.bao.compound.cosmo_parser_compound")
         with self.assertLogs(level="INFO") as log:
-            df = data_loaders.load_bao_data(dataset_id="compound_bao_set")
+            df = dataset_registry.load_bao_data(dataset_id="compound_bao_set")
         hashes = df.attrs.get("file_hashes", {})
         fname = os.path.join("data", "bao", "compound", "compound.yml")
         expected = utils.compute_sha256(fname)

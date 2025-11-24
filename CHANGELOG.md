@@ -21,6 +21,18 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 8.0.0
+- 2025-11-24: Replaced legacy naming across the engine plugin, dataset and
+              model specification layers by renaming the modules to
+              ``engine_plugin_validation``, ``dataset_registry`` and
+              ``model_spec_validator``, updated the associated APIs
+              (including ``validate_and_cache_model``), refreshed CLI code,
+              engines, parsers, documentation and tests to match the clearer
+              terminology, and bumped suite metadata to 8.0.0 (OpenAI ChatGPT)
+- 2025-11-24: Reformatted the dataset registry and engine plugin validation
+              tests and reinforced the policy hook expectations so linting
+              gates remain green without manual reminders (OpenAI ChatGPT)
+
 ## Version 7.7.15
 - 2025-11-24: Renamed the sampling entry points to
               ``fit_cosmology_parameters`` with deprecated
@@ -674,7 +686,7 @@ suffixes. Follow this template:
   normalised incorrect timestamps across documentation, and refreshed metadata
   that slipped into the future (OpenAI ChatGPT)
 - 2025-10-30: Integrated JointLike-powered posterior assembly in the MCMC
-  engine, exposed `engine_interface.make_logposterior` for reusable prior
+  engine, exposed `engine_plugin_validation.make_logposterior` for reusable prior
   handling, expanded smoke tests with likelihood diagnostics, refreshed
   documentation metadata and bumped the suite version (OpenAI ChatGPT)
 
@@ -1181,7 +1193,7 @@ suffixes. Follow this template:
   `copernican_lib/utils.py` and `engines/cosmo_engine_comb.py` (AI assistant)
 
 ## Version 3.8.1
-- 2025-08-21: Removed unused `get_user_input_filepath` and `parse_model_header`
+- 2025-08-21: Removed unused `get_user_input_filepath` and `validate_and_cache_model_header`
   helpers from `copernican.py` (AI assistant)
 
 ## Version 3.8.0
@@ -1360,7 +1372,7 @@ suffixes. Follow this template:
   aligned Flake8 line length with Black and shortened long lines for
   lint compliance (AI assistant)
 - 2025-08-09: Wrapped long lines in `copernican_lib/csv_writer.py`,
-  `model_coder.py`, `model_parser.py`, `optim_utils.py` and `utils.py`
+  `model_coder.py`, `model_spec_validator.py`, `optim_utils.py` and `utils.py`
   for 79-column compliance (AI assistant)
 - 2025-08-09: Wrapped `generate_filename` for 79-char limit (AI assistant)
 
@@ -1369,7 +1381,7 @@ suffixes. Follow this template:
   79-column compliance (AI assistant)
 
 ## Version 3.6.5
-- 2025-08-09: Wrapped long line in `copernican_lib/model_parser.py` to
+- 2025-08-09: Wrapped long line in `copernican_lib/model_spec_validator.py` to
   enforce 79-character limit (AI assistant)
 
 ## Version 3.6.4
@@ -1435,7 +1447,7 @@ suffixes. Follow this template:
   names and synchronized documentation (AI assistant)
 
 ## Version 3.4.0
-- 2025-08-04: Centralised dataset metadata loading in `data_loaders.py`,
+- 2025-08-04: Centralised dataset metadata loading in `dataset_registry.py`,
   removed metadata handling from parsers and updated documentation (AI
   assistant)
 
@@ -2060,7 +2072,7 @@ suffixes. Follow this template:
   packages are missing.
 
 ## Version 1.5c (Development Release)
-- Completed Phase 3: engine_interface now validates plugins and engines use
+- Completed Phase 3: engine_plugin_validation now validates plugins and engines use
   the
   new abstraction layer.
 - Updated documentation and headers for version 1.5c.

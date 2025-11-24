@@ -1,6 +1,6 @@
 """Unit tests for likelihood helper classes.
 
-**Last Updated:** 2025-11-02
+# Last Updated: 2025-11-24
 """
 
 from __future__ import annotations
@@ -11,11 +11,11 @@ from pathlib import Path
 
 import numpy as np
 
-import copernican_lib.data_loaders as data_loaders
-import copernican_lib.engine_interface as engine_interface
+import copernican_lib.dataset_registry as dataset_registry
+import copernican_lib.engine_plugin_validation as engine_plugin_validation
 import copernican_lib.likelihoods as likelihoods
 import copernican_lib.model_coder as model_coder
-import copernican_lib.model_parser as model_parser
+import copernican_lib.model_spec_validator as model_spec_validator
 
 
 class LikelihoodTestCase(unittest.TestCase):
@@ -31,13 +31,15 @@ class LikelihoodTestCase(unittest.TestCase):
         models_dir = repo_root / "models"
         yaml_path = models_dir / "cosmo_model_lcdm.yml"
         cache_dir = models_dir / "cache"
-        cache_path = model_parser.parse_model(yaml_path, cache_dir)
+        cache_path = model_spec_validator.validate_and_cache_model(
+            yaml_path, cache_dir
+        )
         funcs, parsed = model_coder.generate_callables(cache_path)
-        cls.plugin = engine_interface.build_plugin(parsed, funcs)
-        engine_interface.validate_plugin(cls.plugin)
+        cls.plugin = engine_plugin_validation.build_plugin(parsed, funcs)
+        engine_plugin_validation.validate_plugin(cls.plugin)
 
     def _prepare_sne(self):
-        sne_df = data_loaders.load_sne_data("jla_2014").head(3).copy()
+        sne_df = dataset_registry.load_sne_data("jla_2014").head(3).copy()
         if sne_df.attrs.get("covariance_matrix_inv") is not None:
             attrs = sne_df.attrs
             cov = attrs["covariance_matrix_inv"]
@@ -47,7 +49,7 @@ class LikelihoodTestCase(unittest.TestCase):
         return sne_df
 
     def _prepare_bao(self):
-        bao_df = data_loaders.load_bao_data("boss_dr12_bao").head(3).copy()
+        bao_df = dataset_registry.load_bao_data("boss_dr12_bao").head(3).copy()
         cov_inv = bao_df.attrs.get("covariance_matrix_inv")
         if cov_inv is not None:
             bao_df.attrs["covariance_matrix_inv"] = cov_inv[:3, :3]
@@ -80,7 +82,7 @@ class LikelihoodTestCase(unittest.TestCase):
         self.assertTrue(np.isfinite(bao_like.loglike(params)))
         self.assertTrue(np.isfinite(bao_like.state["chi2"]))
 
-        cmb_df = data_loaders.load_cmb_data("planck_2018_lite")
+        cmb_df = dataset_registry.load_cmb_data("planck_2018_lite")
         cmb_like = likelihoods.CMBLike(cmb_df, self.plugin)
         self.assertTrue(np.isfinite(cmb_like.loglike(params)))
         self.assertTrue(np.isfinite(cmb_like.state["chi2"]))
@@ -205,7 +207,7 @@ class LikelihoodTestCase(unittest.TestCase):
             rs_override=rs_value,
         )
         cmb_like = likelihoods.CMBLike(
-            data_loaders.load_cmb_data("planck_2018_lite"),
+            dataset_registry.load_cmb_data("planck_2018_lite"),
             self.plugin,
         )
 
@@ -315,12 +317,12 @@ class LikelihoodTestCase(unittest.TestCase):
             bao_baseline,
         )
 
-        cmb_df = data_loaders.load_cmb_data("planck_2018_lite").copy()
+        cmb_df = dataset_registry.load_cmb_data("planck_2018_lite").copy()
         cmb_like = likelihoods.CMBLike(cmb_df, self.plugin)
         cmb_baseline = cmb_like.loglike(params)
         cmb_df.loc[:, "Dl_obs"] = 0.0
         self.assertAlmostEqual(cmb_like.loglike(params), cmb_baseline)
-        cmb_mutated = data_loaders.load_cmb_data("planck_2018_lite").copy()
+        cmb_mutated = dataset_registry.load_cmb_data("planck_2018_lite").copy()
         cmb_mutated.loc[:, "Dl_obs"] += 5.0
         cmb_like_mutated = likelihoods.CMBLike(cmb_mutated, self.plugin)
         self.assertNotAlmostEqual(

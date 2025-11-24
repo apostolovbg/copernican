@@ -94,14 +94,14 @@ np = None
 plt = None
 mp = None
 
-model_parser = None
+model_spec_validator = None
 model_coder = None
-engine_interface = None
+engine_plugin_validation = None
 plotter = None
 csv_writer = None
 log_mod = None
 logger = None
-data_loaders = None
+dataset_registry = None
 
 # Retrieve the runtime version from installed package metadata. When the
 # distribution is not installed, the helper below returns ``"0+unknown"`` so
@@ -583,7 +583,9 @@ def _gather_required_packages(
         "traceback",
         "typing",
         # Local modules within this repository (under ``copernican_lib``)
-        "data_loaders",
+        "dataset_registry",
+        "engine_plugin_validation",
+        "model_spec_validator",
         "csv_writer",
         "plotter",
         "logger",
@@ -720,7 +722,7 @@ def load_alternative_model_plugin(model_filepath):
         alt_model_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(alt_model_module)
         try:
-            engine_interface.validate_plugin(alt_model_module)
+            engine_plugin_validation.validate_plugin(alt_model_module)
         except PluginValidationError as exc:
             logger.error(
                 (
@@ -1497,14 +1499,14 @@ def main_workflow():
         exit_clean(0 if success else 1)
 
     # Import optional third-party packages after confirming they are installed
-    global np, plt, mp, model_parser, model_coder, engine_interface, \
-        data_loaders, plotter, csv_writer, log_mod, logger, error_handler
+    global np, plt, mp, model_spec_validator, model_coder, engine_plugin_validation, \
+        dataset_registry, plotter, csv_writer, log_mod, logger, error_handler
     import numpy as np
     import matplotlib.pyplot as plt
     import multiprocessing as mp
-    from copernican_lib import model_parser, model_coder, engine_interface
+    from copernican_lib import model_spec_validator, model_coder, engine_plugin_validation
     from copernican_lib import (
-        data_loaders,
+        dataset_registry,
         plotter,
         csv_writer,
         logger as log_mod,
@@ -1529,15 +1531,15 @@ def main_workflow():
         models_dir = os.path.join(SCRIPT_DIR, "models")
         yaml_path = os.path.join(models_dir, "cosmo_model_lcdm.yml")
         cache_dir = os.path.join(models_dir, "cache")
-        cache_path = model_parser.parse_model(yaml_path, cache_dir)
+        cache_path = model_spec_validator.validate_and_cache_model(yaml_path, cache_dir)
         func_dict, parsed = model_coder.generate_callables(cache_path)
-        plugin = engine_interface.build_plugin(parsed, func_dict)
+        plugin = engine_plugin_validation.build_plugin(parsed, func_dict)
         plugin.MODEL_FILENAME = os.path.basename(yaml_path)
         return plugin, parsed
 
     global lcdm, lcdm_parsed
     lcdm, lcdm_parsed = _load_lcdm_model()
-    engine_interface.validate_plugin(lcdm)
+    engine_plugin_validation.validate_plugin(lcdm)
 
     while True:
         run_start_ts = utils.get_timestamp()
@@ -1621,9 +1623,9 @@ def main_workflow():
             yaml_path = os.path.join(models_dir, selected_model)
             cache_dir = os.path.join(models_dir, "cache")
             try:
-                cache_path = model_parser.parse_model(yaml_path, cache_dir)
+                cache_path = model_spec_validator.validate_and_cache_model(yaml_path, cache_dir)
                 func_dict, parsed = model_coder.generate_callables(cache_path)
-                alt_model_plugin = engine_interface.build_plugin(
+                alt_model_plugin = engine_plugin_validation.build_plugin(
                     parsed, func_dict
                 )
                 alt_model_plugin.MODEL_FILENAME = os.path.basename(yaml_path)
@@ -1700,7 +1702,7 @@ def main_workflow():
             cosmo_engine_selected = engine_module
             break
 
-        sne_data_df = data_loaders.load_sne_data()
+        sne_data_df = dataset_registry.load_sne_data()
         if sne_data_df is None:
             _delete_log_file(log_file)
             _remove_run_dir(OUTPUT_DIR)
@@ -1708,7 +1710,7 @@ def main_workflow():
             console.write("")
             continue
 
-        bao_data_df = data_loaders.load_bao_data()
+        bao_data_df = dataset_registry.load_bao_data()
         if bao_data_df is None:
             _delete_log_file(log_file)
             _remove_run_dir(OUTPUT_DIR)
@@ -1716,7 +1718,7 @@ def main_workflow():
             console.write("")
             continue
 
-        cmb_data_df = data_loaders.load_cmb_data()
+        cmb_data_df = dataset_registry.load_cmb_data()
         if cmb_data_df is None:
             _delete_log_file(log_file)
             _remove_run_dir(OUTPUT_DIR)

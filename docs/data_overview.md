@@ -1,5 +1,5 @@
 # Data Directory Overview
-**Last Updated:** 2025-11-07
+**Last Updated:** 2025-11-24
 
 This document explains the layout of the `data/` directory and the role of the
 parser scripts stored with each dataset.
@@ -17,7 +17,7 @@ placeholder management consolidates upcoming gravitational-wave standard siren
 support.
 Each subdirectory contains one or more dataset sources. A Python file named
 `cosmo_parser_*.py` lives inside each source folder and registers a parser
-function via decorators from `copernican_lib.data_loaders`.
+function via decorators from `copernican_lib.dataset_registry`.
 Folders named `placeholder` are ignored during automatic discovery so work-in-
 progress datasets do not appear in interactive menus. When a dataset becomes
 usable simply rename the folder and supply a valid parser and metadata file.
@@ -26,7 +26,7 @@ Every dataset folder also provides a `metadata_*.yml` describing the
 source. Fields such as `dataset_name`, `dataset_id`, `description`,
 `citation`, `license`, the full `author` list and accompanying BibTeX
 information (for example `title`, `volume`, `journal` and `DOI`) are read
-by `copernican_lib/data_loaders.py` after the parser returns so individual
+by `copernican_lib/dataset_registry.py` after the parser returns so individual
 parsers remain metadata-agnostic. Parsed DataFrames expose the same
 information on their `.attrs` property, and `dataset_id` is used when
 constructing output filenames. The loaders now attach `dataset_version`

@@ -1,7 +1,14 @@
 # Copyright (c) 2025 Copernican Suite developers.
+# Last Updated: 2025-11-24
 # See LICENSE.md in the repository root for details.
 
-"""Model parser for Copernican Suite YAML models."""
+"""Validate and sanitise Copernican Suite YAML model specifications.
+
+This module performs schema validation, normalises LaTeX-heavy fields and
+writes a cleaned cache file used by child processes. The behaviour evolved
+beyond simple parsing, so the name now reflects its responsibility for
+validation, sanitisation and cache management rather than mere text parsing.
+"""
 
 # This module validates model definition files against a JSON schema and writes
 # a sanitized copy to ``models/cache/``. The sanitized file is used by child
@@ -89,7 +96,7 @@ MODEL_SCHEMA = {
 }
 
 
-def parse_model(path, cache_dir):
+def validate_and_cache_model(path, cache_dir):
     """Validate ``path`` and write cleaned YAML to ``cache_dir``.
 
     Validation is performed only in the main process. Worker processes simply
