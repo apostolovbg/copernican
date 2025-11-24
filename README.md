@@ -1,4 +1,4 @@
-**Version:** 10.0.0
+**Version:** 10.1.1
 **Last Updated:** 2025-11-24
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -13,22 +13,20 @@ using a single reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. The launcher
-  renders progress with carriage-return repainting, honours seeded and
-  interactive workflows alike and keeps Stage 1 focused on reproducibility by
-  leading with the seed dialog. It surfaces every validation reason collected
-  during model parsing or engine import so operators can restart Stage 1 with
-  clear context instead of re-reading logs. The same console helpers power
-  both engines so nested sampling and ensemble MCMC display consistent labels,
-  spinners and walker-level updates.
+  dataset selection, model pairing and engine configuration. The persistent
+  dashboard keeps configuration, engine and model selection, dataset toggles,
+  run control, outputs and settings visible at all times so adjustments never
+  require restarting the process. Progress still uses carriage-return
+  repainting and the shared console helpers keep nested sampling and ensemble
+  MCMC aligned with consistent labels, spinners and walker-level updates.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
   keep every engine and plugin consistent. Progress rendering, notifier
   bridges and suspension contexts sit here so console output stays tidy even
   when samplers emit dense logs. Plotting helpers respect the enlarged footer
-  guard bands and responsive layouts expected by Stage 5, while the
-  corner-plot validator continues to expose a legacy wrapper for tools that
-  still import the original function name.
+  guard bands and responsive layouts expected across the plotting suite, while
+  the corner-plot validator continues to expose a legacy wrapper for tools
+  that still import the original function name.
 * `engines/` collects computational back ends. The default
   ``cosmo_engine_mcmc`` couples the ``emcee`` ensemble sampler with ArviZ
   diagnostics when available and conservative fallbacks when not. The
@@ -39,7 +37,7 @@ The suite is organised around a handful of focused components:
   tooling never has to special-case the chosen sampler.
 * `models/` stores YAML theories that declare priors, bounds, transforms and
   dataset compatibility. Each definition is converted into a picklable engine
-  plugin so Stage 2 runs remain reproducible across processes.
+  plugin so runs remain reproducible across processes.
 * `data/` curates vetted observations with companion parsers and metadata. The
   loaders verify file digests, register provenance and attach citations to the
   manifests and plot footers created for every run.
@@ -118,124 +116,67 @@ Under the hood the program follows a clear pipeline:
    unchanged, so repeated launches skip the expensive AST parse and return to
    the menu promptly. A tiny NumPy/SciPy calculation then runs to catch CPU
    feature mismatches before heavy computation begins.
-2. **Initialization** – a run-specific output directory is created and
-   logging begins.
-3. **Configuration (Stage 1)** – a Stage 1 banner introduces the configuration
-   flow before the random-seed menu appears. Operators can accept the default,
-   enter a custom integer, request a random value or honour ``COPERNICAN_SEED``
-   when CI needs deterministic runs. Should model parsing, plugin validation or
-   engine imports fail, the console lists every collected reason and offers a
-   menu to restart Stage 1 or exit cleanly. Once the models load successfully,
-   the user chooses a computation engine from `./engines/`. Engines are
-   discovered dynamically by the `cosmo_engine_*.py` naming convention so
-   additional deterministic or stochastic solvers can be dropped in later
-   without touching the launcher. The current default,
-   `cosmo_engine_mcmc.py`, uses an `emcee` ensemble sampler to explore the SNe
-   posterior. Its distance calculations are
-   vectorised for responsiveness and invalid proposals return ``-np.inf``
-   directly so walkers outside the allowed region or producing non-finite
-   chi-squared values are rejected unambiguously. The sampler automatically
-   classifies parameters whose bounds collapse to a point—or a numerically
-   indistinguishable sliver—as fixed so arbitrary model plugins remain
-   compatible. Initial walkers now expand adaptively until their condition
-   number falls below the guardrail enforced by ``emcee``, ensuring even wildly
-   scaled models and exotic bound combinations initialise without manual
-   tuning. After burn-in any walkers
-   that drift into ``nan`` coordinates are reseeded near the ensemble mean,
-   removing the `RuntimeWarning: invalid value encountered in scalar subtract`
-   messages recorded in previous ΛCDM self-tests. The sampler draws its
-   initial ensemble uniformly inside the declared bounds, performs an
-   explicit burn-in phase before production sampling, records acceptance
-   fractions, autocorrelation estimates when the production run exceeds
-   ``emcee``'s minimum window, and log-probability traces and emits
-   progress updates with percentage indicators for both burn-in and
-  production stages. Each update now carries log-posterior mean, spread and
-  extrema, an approximate Δχ² trend and percentile summaries for the first
-  four parameters so terminals remain readable, dropping the former walker
-  snapshots that duplicated the same information across multiple lines.
-  When no worker pool is requested explicitly the engine auto-configures a
-   to the available CPUs, shaving minutes off expensive likelihoods while still
-   preserving single-core fallbacks. Shared chi-squared helpers live in
-   `copernican_lib/statistics.py` so every backend calls the same routines
-   without cross-importing engine modules. Constant values in a model's
-   `cmb.param_map` are treated as additional fit parameters so CMB spectra
-   can be matched precisely. Data
-   parsers are discovered automatically under
-  `data/<type>/<source>` and models are loaded from `cosmo_model_*.yml`.
-  Only parser modules whose SHA256 digest matches a vetted list are imported,
-  ensuring untrusted files are ignored. Symbolic links are rejected and any
-  path that resolves outside the repository is skipped. Folders named
-  `placeholder` are ignored so unfinished datasets do not appear in the
-  selection menus.
-4. **Joint Parameter Fitting** – Stage 2 now samples a combined posterior for
-   the ΛCDM baseline and the alternative model by evaluating SNe, BAO and CMB
-   likelihoods simultaneously through the `JointLike` aggregator. When both
-   theories share the same plugin (for example when testing ΛCDM against
-   itself) the workflow compares `MODEL_FILENAME` values, reuses the first
-   chain and copies the recorded dataset diagnostics so every component shares
-   the same walker history. Otherwise the ΛCDM reference and the alternative
-   model are sampled in turn with independent random seeds.
-  A confirmation menu summarises the proposed sampler plan with numbered
-  options for accepting it, restarting the questionnaire, returning to the
-  defaults summary or cancelling entirely so the intent behind each choice is
-  explicit. Stage 2 progress always streams through the shared
-  carriage-return renderer with Unicode partial-block glyphs, walker-level
-  meters and an animated spinner. The helper throttles repainting enough to
-  keep transcripts readable while still showing sub-character movement during
-  long iterations. Console output is always resumed after diagnostic messages
-  with a final blank spacer so stale bars never linger in logs. When ArviZ is
-  available the sampler reports convergence diagnostics on every batch; when
-  it is missing the engine falls back to conservative Gelman–Rubin summaries
-  while logging the downgrade. The notifier bridge persists even when ``emcee``
-  stores weights alongside moves so live updates remain accurate across
-  sampler implementations.
-5. **BAO Analysis** – Stage 3 reuses the sampler's diagnostics to report BAO
-   chi-squared contributions directly from the joint fit while still
-   generating smooth predictions for plots and CSV exports. Shared helpers
-   from `copernican_lib.statistics` compute the observables so future engines
-   remain drop-in replacements. When a sampler reports failure or omits
-   cosmological parameters the suite skips BAO plotting gracefully and logs a
-   warning instead of crashing. Live diagnostics now stream residual RMS, max
-   and median values for each observable type alongside the latest sound
-   horizon estimate, giving immediate feedback while curves render.
-6. **CMB Analysis** – Stage 4 mirrors the BAO workflow: it reads the CMB χ²
-   stored on the joint sampler state, regenerates spectra for plotting and
-   respects model compatibility flags. The orchestrator bypasses CMB
-   processing cleanly when the underlying fit does not provide cosmological
-   parameters, preventing `KeyError` exceptions at the end of long runs. Live
-   logging mirrors the BAO feed by reporting TT/TE/EE residual norms and
-   medians as spectra update, so users can gauge convergence while CAMB runs.
-7. **Spectra Caching** – unlensed CAMB spectra are cached using parameter
-   keys rounded to six significant digits.
-8. **Output Generation** – `copernican_lib/logger.py`,
-   `copernican_lib/plotter.py` and `copernican_lib/csv_writer.py` handle
-   logs, plots and tables. The log file is renamed at the end of each run to
-   match the output timestamp.
-9. **Loop or Exit** – a concluding menu explains how to launch another
-    evaluation or close the application instead of relying on a terse yes/no
-    prompt. Temporary cache files are still cleaned automatically either way.
+2. **Dashboard Navigation** – the persistent dashboard keeps every major
+   action one keystroke away. The *Configuration* section covers seeds and the
+   sampler questionnaire, *Engine and model selection* handles YAML models and
+   computational back ends, *Dataset toggles* switch BAO or CMB participation
+   on and off, *Run control* launches a run with the current settings,
+   *Outputs* recalls the most recent output directory, and *Settings* toggles
+   live progress rendering. Operators can revisit any section after a run
+   finishes without restarting the process, ensuring model swaps, sampler
+   changes or dataset mixes happen immediately. The dashboard stays visible
+   while waiting for input and each section accepts single-key shortcuts, so
+   pressing the highlighted number or letter activates the target menu without
+   hitting Enter.
+3. **Joint Parameter Fitting** – the dashboard feeds the selected models into
+   a combined posterior evaluation built on the `JointLike` aggregator. When
+   both theories share the same plugin the workflow reuses the initial chain
+   and dataset diagnostics so BAO and CMB overlays align perfectly; otherwise
+   the ΛCDM reference and alternative model sample in sequence with the shared
+   renderer and notifier bridge. Progress uses carriage-return repainting,
+   Unicode partial blocks, walker-level meters and convergence diagnostics
+   whenever ArviZ is available.
+4. **BAO Analysis** – BAO chi-squared contributions stream directly from the
+   joint fit while the diagnostics report residual RMS, maxima and medians for
+   each observable type plus the current sound-horizon estimate. Shared
+   helpers from `copernican_lib.statistics` keep the calculations consistent
+   across engines, and missing cosmological parameters short-circuit the
+   plotting path with clear warnings instead of crashes.
+5. **CMB Analysis** – the CMB helper mirrors the BAO workflow, translating fit
+   parameters into CAMB inputs, computing spectra for the available TT, TE and
+   EE channels and logging residual statistics. Models that opt out of CMB
+   participation set ``valid_for_cmb = False`` so the dashboard records the
+   choice without treating it as an error.
+6. **Output Generation** – plots, CSV exports and NetCDF posteriors land in
+   the run-specific folder alongside the manifest and log file. Corner plots
+   inherit the shared footer layout, and CSV exports continue to mirror the
+   plotted observables for reproducibility.
+Additional safeguards remain in effect: unlensed CAMB spectra are cached using
+parameter keys rounded to six significant digits, and `copernican_lib/logger.py`,
+`copernican_lib/plotter.py` and `copernican_lib/csv_writer.py` continue to
+rename log files at the end of each run so filenames match the output
+timestamp. The dashboard returns to the overview after each run and cleans
+temporary caches automatically.
 
-### Stage 1 configuration experience
+### Dashboard configuration experience
 
 The configuration banner keeps the console organised by placing seed selection
-directly after the Stage 1 spacer. Each option explains how the seed affects
-reproducibility, and environment overrides are echoed so CI logs document the
-chosen value. When any alternative model fails validation the orchestrator
-prints the collected reasons as bullet points before offering to restart
-Stage 1 or exit, ensuring even multi-cause exceptions—such as conflicting
-bounds and missing likelihood hooks—are explained without consulting the log
-file. The sampler questionnaire concludes Stage 1 with a summary of
-recommended settings, an explanation of how the per-batch progress bars will
-animate during Stage 2 and a preview of the Unicode sub-block fills and
+directly after the dashboard overview. Each option explains how the seed
+affects reproducibility, and environment overrides are echoed so CI logs
+document the chosen value. When any alternative model fails validation the
+orchestrator prints the collected reasons as bullet points before offering to
+retry the configuration or return to the dashboard, ensuring even multi-cause
+exceptions—such as conflicting bounds and missing likelihood hooks—are
+explained without consulting the log file. The sampler questionnaire concludes
+with a summary of recommended settings, an explanation of how the per-batch
+progress bars will animate and a preview of the Unicode sub-block fills and
 bracket-free layout used by the live renderer. Progress updates stay on the
 console so logs capture only the surrounding diagnostics instead of partial
 progress lines.
-The summary concludes with a menu that lets users continue, revisit earlier
-questions or cancel the run entirely.
 
 ### Interpreting the new convergence diagnostics
 
-Stage 2 now records three convergence metrics for every free parameter: the
+The sampler records three convergence metrics for every free parameter: the
 rank-normalised :math:`\hat{R}` statistic and bulk and tail effective sample
 sizes (ESS) computed with :mod:`arviz`.  Values are logged once production
 sampling completes, saved in the returned results dictionary under
@@ -510,10 +451,10 @@ Each generated plot includes a centered footer that documents the run.
 The first line shows the model comparison, Copernican Suite version and a
 timestamp. The second line normally lists the observational dataset and
 processing notes, and the third line provides the citation. The first and
-third lines are bold, while the dataset name on the second line retains its
-original spacing via MathText's ``\mathbf`` command. Stage 5's corner plot
-skips the dataset description entirely so the footer mirrors the other Stage 2
-figures while still presenting the citation and sample-processing summary.
+  third lines are bold, while the dataset name on the second line retains its
+  original spacing via MathText's ``\mathbf`` command. Corner plots skip the
+  dataset description entirely so their footers mirror the other figures while
+  still presenting the citation and sample-processing summary.
 
 Metadata values are read from ``metadata_*.yml`` files stored next to each
 dataset. These files include a ``license`` field pointing to usage terms.
@@ -529,9 +470,9 @@ independence statements attached to each DataFrame live under
 ``OBSERVATION_INDEPENDENCE_NOTES`` before being copied into
 ``independence_assumptions`` attributes for plotting and manifest export.
 
-Stage 5 automatically falls back to Matplotlib's Agg backend when Tk support
-is unavailable so headless CI jobs still write corner plots without requiring
-GUI toolkits. The corner helper now probes the active backend with a temporary
+  Corner plotting automatically falls back to Matplotlib's Agg backend when Tk
+  support is unavailable so headless CI jobs still write corner plots without
+  requiring GUI toolkits. The corner helper now probes the active backend with a temporary
 figure so deterministic sizing survives Tk failures without spawning multiple
 subplot grids. If a Tk failure still occurs during ``plt.subplots`` creation,
 the helper switches to Agg and retries once so CI logs record the backend
@@ -912,14 +853,14 @@ not modify them unless explicitly instructed.
     to the log and run manifest.
 5.  **Configuration**: The user specifies the file paths for the model and
     data files.
-6.  **SNe Ia Sampling**: The active engine—either the default
-    `cosmo_engine_mcmc` ensemble sampler or the new `cosmo_engine_nested`
-    nested-sampling backend—fits both the ΛCDM model and the alternative
-    model against the SNe Ia data. Stage 2 now surfaces prompts tailored to
-    each backend, covering burn-in, walker counts and worker pools for MCMC,
-    or live-point budgets, evidence tolerances and enlargement factors for
-    nested sampling. Matching models reuse the first chain to avoid redundant
-    computation.
+  6.  **SNe Ia Sampling**: The active engine—either the default
+      `cosmo_engine_mcmc` ensemble sampler or the new `cosmo_engine_nested`
+      nested-sampling backend—fits both the ΛCDM model and the alternative
+      model against the SNe Ia data. The sampler prompts are tailored to each
+      backend, covering burn-in, walker counts and worker pools for MCMC, or
+      live-point budgets, evidence tolerances and enlargement factors for
+      nested sampling. Matching models reuse the first chain to avoid
+      redundant computation.
 7.  **BAO Analysis**: Using the MAP parameters returned by the sampler, the
     engine calculates BAO observables for each model.
 8.  **CMB Analysis**: Each model's CMB spectrum is evaluated against the

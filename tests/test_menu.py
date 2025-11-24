@@ -57,6 +57,29 @@ class SplashScreenTestCase(unittest.TestCase):
         sleep_mock.assert_called_once_with(1)
 
 
+class DashboardMenuInputTestCase(unittest.TestCase):
+    """Confirm the dashboard relies on single-key navigation."""
+
+    def test_dashboard_menu_uses_read_keypress(self) -> None:
+        """Selections should use the keypress helper without echoes."""
+
+        state = copernican.DashboardState()
+
+        with (
+            mock.patch(
+                "copernican.console.read_keypress", return_value="2"
+            ) as keypress_mock,
+            mock.patch("copernican.console.write"),
+        ):
+            choice = copernican._display_dashboard_menu(state)
+
+        self.assertEqual(choice, "2")
+        args, kwargs = keypress_mock.call_args
+        self.assertIn("Press a key to open a section", kwargs["prompt"])
+        self.assertIn("1", args[0])
+        self.assertIn("outputs", args[0])
+
+
 class MenuRunTestsTestCase(unittest.TestCase):
     """Verify the menu invokes ``python -m unittest`` discovery."""
 
@@ -390,29 +413,29 @@ class PostRunMenuTestCase(unittest.TestCase):
     """Validate the post-run navigation menu."""
 
     @mock.patch("copernican.console.write")
-    @mock.patch("copernican.console.ask")
-    def test_default_selection_runs_again(self, ask_mock, _write_mock) -> None:
+    @mock.patch("copernican.console.read_keypress")
+    def test_default_selection_runs_again(self, key_mock, _write_mock) -> None:
         """Pressing Enter launches another evaluation."""
 
-        ask_mock.side_effect = [""]
+        key_mock.side_effect = [""]
         result = copernican.prompt_post_run_action()
         self.assertTrue(result)
 
     @mock.patch("copernican.console.write")
-    @mock.patch("copernican.console.ask")
-    def test_cancel_option_exits(self, ask_mock, _write_mock) -> None:
+    @mock.patch("copernican.console.read_keypress")
+    def test_cancel_option_exits(self, key_mock, _write_mock) -> None:
         """Choosing C exits the workflow."""
 
-        ask_mock.side_effect = ["c"]
+        key_mock.side_effect = ["c"]
         result = copernican.prompt_post_run_action()
         self.assertFalse(result)
 
     @mock.patch("copernican.console.write")
-    @mock.patch("copernican.console.ask")
-    def test_invalid_then_valid_choice(self, ask_mock, write_mock) -> None:
+    @mock.patch("copernican.console.read_keypress")
+    def test_invalid_then_valid_choice(self, key_mock, write_mock) -> None:
         """The menu repeats until a valid answer is provided."""
 
-        ask_mock.side_effect = ["maybe", "1"]
+        key_mock.side_effect = ["maybe", "1"]
         result = copernican.prompt_post_run_action()
         self.assertTrue(result)
         write_calls = [
