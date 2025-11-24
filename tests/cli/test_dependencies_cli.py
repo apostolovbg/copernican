@@ -2,7 +2,6 @@
 """Tests for CLI dependency handling helpers."""
 
 import os
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -51,10 +50,12 @@ class DependencyCacheTestCase(unittest.TestCase):
 
 
 class CheckDependenciesPromptTestCase(unittest.TestCase):
-    """Validate the interactive dependency installer flow."""
+    """Validate the dependency guard now that auto-install is removed."""
 
     @mock.patch("copernican_lib.cli.dependencies.Path")
-    def test_auto_confirm_skips_prompt(self, path_mock) -> None:
+    def test_missing_dependencies_exit_with_instruction(
+        self, path_mock
+    ) -> None:
         path_mock.return_value.resolve.return_value.name = ".venv"
         with (
             mock.patch(
@@ -63,24 +64,15 @@ class CheckDependenciesPromptTestCase(unittest.TestCase):
             ),
             mock.patch("importlib.util.find_spec", return_value=None),
             mock.patch(
-                "copernican_lib.cli.dependencies.console.ask"
-            ) as ask_mock,
+                "copernican_lib.cli.dependencies.console.write"
+            ) as write,
             mock.patch("subprocess.run") as run_mock,
-            mock.patch("importlib.import_module"),
         ):
-            dependencies.check_dependencies(auto_confirm=True)
-            ask_mock.assert_not_called()
-            run_mock.assert_called_once_with(
-                [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "-r",
-                    "requirements.lock",
-                ],
-                check=True,
-            )
+            with self.assertRaises(SystemExit):
+                dependencies.check_dependencies()
+            write.assert_called()
+            self.assertIn("start script", write.call_args[0][0])
+            run_mock.assert_not_called()
 
 
 if __name__ == "__main__":  # pragma: no cover - manual execution hook

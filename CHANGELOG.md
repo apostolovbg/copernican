@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.1.2
+- 2025-11-24: Removed in-program dependency installation, updated CLI
+              dependency checks, launcher scripts, documentation and tests to
+              direct missing packages back to the start helpers, and bumped
+              release metadata to 10.1.2 (OpenAI ChatGPT)
+
 ## Version 10.1.1
 - 2025-11-24: Restored the legacy ``copernican.select_seed`` entry point as a
               shim over ``copernican_lib.cli.menus.select_seed`` so seed

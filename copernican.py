@@ -948,7 +948,7 @@ def main_workflow():
     #  * repeatedly ask the user for models, data sources and engines
     #  * produce plots and CSV files with the results
     opts = cli_dependencies.get_runtime_options()
-    cli_dependencies.check_dependencies(auto_confirm=opts.auto_confirm)
+    cli_dependencies.check_dependencies()
     if opts.run_tests:
         success = cli_dependencies.run_startup_tests()
         exit_clean(0 if success else 1)

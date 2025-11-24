@@ -214,14 +214,13 @@ the default path is read-only. The
 always download a private Python 3.11 interpreter into ``.python`` and build
 ``.venv`` from that interpreter, ignoring any system-wide Python. If the
 download fails
-they exit with guidance. When packages are missing the program asks before
-installing them with `pip install -r requirements.lock` and
-verifies the import before continuing. Set ``COPERNICAN_AUTO_INSTALL=1`` to
-bypass the prompt in non-interactive environments. Running outside ``.venv``
-prompts the user to
-restart via the appropriate launcher. This lightweight approach works across
-Windows, macOS and Linux while allowing new engines to introduce additional
-dependencies without manual updates to the documentation.
+they exit with guidance. When packages are missing the program now fails fast
+and instructs the operator to rerun the launcher to rebuild the managed
+environment instead of invoking `pip` from inside ``copernican.py``. Running
+outside ``.venv`` prompts the user to restart via the appropriate launcher.
+This lightweight approach works across Windows, macOS and Linux while
+allowing new engines to introduce additional dependencies without manual
+updates to the documentation.
 The launchers delete bundled interpreters that fall outside the Python 3.11
 series, recreate `.venv` when its Python drifts beyond that window and print a
 notice before

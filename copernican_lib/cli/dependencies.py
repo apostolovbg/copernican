@@ -34,7 +34,6 @@ class RuntimeOptions:
 
     run_tests: bool = False
     strict_warnings: bool = False
-    auto_confirm: bool = False
 
 
 def get_runtime_options() -> RuntimeOptions:
@@ -43,7 +42,6 @@ def get_runtime_options() -> RuntimeOptions:
     return RuntimeOptions(
         run_tests=os.environ.get("COPERNICAN_RUN_TESTS") == "1",
         strict_warnings=os.environ.get("COPERNICAN_STRICT_WARNINGS") == "1",
-        auto_confirm=os.environ.get("COPERNICAN_AUTO_INSTALL") == "1",
     )
 
 
@@ -234,8 +232,17 @@ def _gather_required_packages(
     return filtered
 
 
-def check_dependencies(auto_confirm: bool = False) -> None:
-    """Ensure required packages exist inside the local ``.venv``."""
+def check_dependencies() -> None:
+    """Ensure required packages exist inside the local ``.venv``.
+
+    The helper no longer attempts to install dependencies on the user's
+    behalf. Failing fast when packages are missing keeps the CLI aligned with
+    the managed launcher scripts, which already provision the pinned
+    ``requirements.lock`` set before handing control to ``copernican.py``.
+    Operators encountering missing wheels must re-run the appropriate
+    ``start.*`` helper to rebuild the environment rather than invoking ``pip``
+    from inside the program.
+    """
 
     console.write("--- Running System Dependency Check ---")
 
@@ -262,55 +269,17 @@ def check_dependencies(auto_confirm: bool = False) -> None:
                 missing.append(pkg)
 
     if missing:
-        console.write(f"Missing packages detected: {', '.join(missing)}")
-        if not auto_confirm:
-            reply = console.ask("Install missing packages? [y/N] ")
-            if reply.lower() not in {"y", "yes"}:
-                console.write(
-                    "Dependency installation aborted by user.",
-                    error=True,
-                )
-                sys.exit(1)
-        try:
-            subprocess.run(
-                [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "-r",
-                    "requirements.lock",
-                ],
-                check=True,
-            )
-        except subprocess.CalledProcessError:
-            console.write(
-                (
-                    "Automatic installation failed. Please check the log and "
-                    "install the required packages manually."
-                ),
-                error=True,
-            )
-            sys.exit(1)
+        console.write(
+            (
+                "Missing packages detected: "
+                f"{', '.join(sorted(missing))}. Please rerun the "
+                "appropriate start script to rebuild the managed environment."
+            ),
+            error=True,
+        )
+        sys.exit(1)
 
-        failed = []
-        for pkg in missing:
-            try:
-                importlib.import_module(pkg)
-            except Exception:
-                failed.append(pkg)
-        if failed:
-            console.write(
-                (
-                    "Still missing packages after installation: "
-                    f"{', '.join(failed)}"
-                ),
-                error=True,
-            )
-            sys.exit(1)
-        console.write("✅ Packages installed successfully. Continuing...\n")
-    else:
-        console.write("✅ System Dependency Check Passed. Continuing...\n")
+    console.write("✅ System Dependency Check Passed. Continuing...\n")
 
 
 def load_third_party_modules():

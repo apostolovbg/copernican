@@ -1,4 +1,4 @@
-**Version:** 10.1.1
+**Version:** 10.1.2
 **Last Updated:** 2025-11-24
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -341,10 +341,9 @@ tooling (`python-dateutil==2.9.0.post0`, `six==1.16.0`, `pytz==2024.1`,
 `packaging==24.2`, `attrs==23.2.0`, `jsonschema-specifications==2023.12.1`,
 `referencing==0.34.0`, `rpds-py==0.18.0`, `pyerfa==2.0.1.1` and
 `astropy-iers-data==0.2024.10.28.0.34.7` remain pinned to the published
-wheels. When a package is missing the program asks before running
-`pip install -r requirements.lock` and verifies each import. Set
-`COPERNICAN_AUTO_INSTALL=1`—or enable the launcher toggle inside the
-Environment submenu—to skip the prompt in automated environments.
+wheels. When a package is missing the program now exits with guidance to rerun
+the launcher so the managed environment can be rebuilt from
+`requirements.lock` instead of invoking `pip` from inside the suite.
 Regenerate both files together whenever dependencies change so the suite and
 published wheels remain in sync. The pre-commit hook provisions
 `pip-tools==7.4.1` on demand before it runs `make lock`, so the runtime
@@ -861,9 +860,9 @@ python -m unittest discover -v
 ```
 
 Set `COPERNICAN_STRICT_WARNINGS=1` to treat all warnings as errors during
-any run. Set `COPERNICAN_AUTO_INSTALL=1`—or enable the toggle inside the
-Environment and dependency management submenu—to install missing
-dependencies without prompting.
+any run. Dependency installation now occurs exclusively through the start
+scripts so missing wheels trigger a failure with guidance to rebuild the
+managed environment.
 
 Pull requests trigger the ``Lint`` workflow, which executes `pre-commit run
 --all-files`, and the ``Tests`` workflow, which runs the unit suite across
@@ -896,10 +895,9 @@ not modify them unless explicitly instructed.
 
 ### Workflow Overview
 
-1.  **Dependency Check**: `copernican.py` scans for missing packages,
-    prompts before installing them with `pip` and verifies the environment.
-    Set `COPERNICAN_AUTO_INSTALL=1`—or enable the launcher toggle inside the
-    Environment submenu—to skip the prompt in automated runs.
+1.  **Dependency Check**: `copernican.py` scans for missing packages and
+    exits with guidance to rerun the appropriate launcher when any are
+    absent, keeping installation duties inside the start scripts.
 2.  **Optional Tests**: Choose "Run the unit test suite" from the launcher
     or run `python -m unittest discover -v` to verify that the LCDM model
     and data parsers work as expected. This command performs unittest
