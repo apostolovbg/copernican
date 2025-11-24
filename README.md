@@ -1,4 +1,4 @@
-**Version:** 9.0.3
+**Version:** 10.0.0
 **Last Updated:** 2025-11-24
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -560,6 +560,11 @@ All console output and user prompts are captured in a timestamped log file in
 model and key package versions. A short summary appears on the console while
 full details are stored in the log file. The logger shortens absolute paths so
 logs remain portable and records the final filenames used for plots and tables.
+Program diagnostics such as menu navigation, queue preparation and manifest
+loading also stream to a rotating suite log under `./logs/` (ignored by Git)
+that rolls over around 10 MB to avoid unbounded growth during long sessions.
+Per-run logs inside each `copernican-run_*` directory remain unchanged so
+reproducibility bundles stay self contained.
 Progress indicators print to ``stdout`` and flush on every update so long
 optimisations do not appear stalled on Linux terminals. The ensemble sampler's
 progress reporter now surfaces quantiles for every fitted parameter without
@@ -793,6 +798,10 @@ explicitly name the files or subsystems touched. Before committing, compare
 `git diff --name-only` with the latest changelog entry so the policy hook never
 blocks on missing metadata. Legacy `dev_note` headers embedded in source files
 have been removed in favour of changelog entries.
+The suite is presently developed in a forward-only mode: legacy prompts, staged
+menus and backward-compatibility shims are intentionally absent while the
+interactive shell evolves toward the forthcoming GUI. Contributors should avoid
+reintroducing fallbacks unless a future roadmap explicitly calls for them.
 Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md`
 and
