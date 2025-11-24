@@ -1,5 +1,5 @@
 # Copyright (c) 2025 Copernican Suite developers.
-# Last Updated: 2025-11-23
+# Last Updated: 2025-11-24
 # See LICENSE.md in the repository root for details.
 
 # Copernican Suite Plotter
@@ -1910,34 +1910,45 @@ def plot_corner(
         len(footer_lines),
     )
 
-    def _build_corner_figure():
-        """Render the corner plot grid, retrying with a headless backend.
+    def _ensure_corner_backend() -> None:
+        """Switch to a headless backend before creating the corner figure.
 
-        Some CI environments lack Tk support even when Matplotlib defaults to
-        the TkAgg backend.  Creating a figure in those contexts raises
-        ``tkinter.TclError`` before any axes exist.  Retrying with the Agg
-        backend keeps plotting deterministic and sidesteps GUI dependencies
-        while leaving interactive environments untouched.
+        Windows CI runners routinely ship without a working Tk installation.
+        Matplotlib raises ``TclError`` as soon as it tries to open a window in
+        that environment.  Probing the current backend with a temporary figure
+        keeps the main ``plt.subplots`` call to a single execution—matching the
+        regression tests' expectations—while retaining interactive backends on
+        developer machines that can open GUI windows.
         """
 
+        backend = plt.get_backend()
         try:
-            return plt.subplots(
-                n_params,
-                n_params,
-                figsize=figsize,
-            )
+            probe_fig = plt.figure()
+            plt.close(probe_fig)
         except Exception as error:
             logger.warning(
                 "Corner plot backend %s failed (%s); forcing Agg fallback.",
-                plt.get_backend(),
+                backend,
                 error,
             )
             plt.switch_backend("Agg")
-            return plt.subplots(
-                n_params,
-                n_params,
-                figsize=figsize,
-            )
+
+    def _build_corner_figure():
+        """Render the corner plot grid after validating the backend.
+
+        Some CI environments lack Tk support even when Matplotlib defaults to
+        the TkAgg backend.  Warming up the backend with a temporary figure
+        allows the helper to fall back to Agg before calling ``plt.subplots``
+        so the corner grid is only created once per invocation while remaining
+        interactive on developer machines with working GUI stacks.
+        """
+
+        _ensure_corner_backend()
+        return plt.subplots(
+            n_params,
+            n_params,
+            figsize=figsize,
+        )
 
     # Each dimension receives its own row and column, mirroring the familiar
     # triangle plot layout popularised by corner.py while letting us reuse the
