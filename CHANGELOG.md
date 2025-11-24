@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.1.0
+- 2025-11-24: Added the persistent dashboard command loop covering configuration,
+              engine/model selection, dataset toggles, run control, outputs and
+              settings, refreshed documentation to match the new navigation
+              model, and bumped release metadata to 10.1.0 (OpenAI ChatGPT)
+
 ## Version 10.0.0
 - 2025-11-24: Added a rotating diagnostics log under `./logs/` that keeps
               suite-level events separate from per-run logs, documented the
