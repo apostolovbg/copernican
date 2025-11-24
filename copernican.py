@@ -117,6 +117,19 @@ COPERNICAN_VERSION = _copernican_version()
 CURRENT_LOG_FILE = None
 
 
+def select_seed() -> int:
+    """Compatibility wrapper around the CLI seed selection prompt.
+
+    Earlier releases exposed :func:`select_seed` directly from this module
+    and several integration tests still import it from ``copernican``.  The
+    interactive logic now resides in :mod:`copernican_lib.cli.menus`, so this
+    thin shim delegates to the new implementation while keeping the legacy
+    entry point stable.
+    """
+
+    return cli_menus.select_seed()
+
+
 def _handle_fatal_signal(signum: int, _frame: object) -> None:
     """Dump a stack trace to the log and console then exit cleanly.
 

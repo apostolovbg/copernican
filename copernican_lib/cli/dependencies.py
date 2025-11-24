@@ -158,7 +158,9 @@ def _store_dependency_cache(
         console.write("Warning: Unable to update dependency cache.")
 
 
-def _gather_required_packages(search_dirs: list[str] | None = None) -> set[str]:
+def _gather_required_packages(
+    search_dirs: list[str] | None = None,
+) -> set[str]:
     """Inspect the source tree to derive external dependencies.
 
     Parameters
@@ -188,7 +190,9 @@ def _gather_required_packages(search_dirs: list[str] | None = None) -> set[str]:
             continue
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
-                pkg_names.update(alias.name.split(".")[0] for alias in node.names)
+                pkg_names.update(
+                    alias.name.split(".")[0] for alias in node.names
+                )
             elif isinstance(node, ast.ImportFrom):
                 if node.module is None:
                     continue
@@ -312,8 +316,9 @@ def check_dependencies(auto_confirm: bool = False) -> None:
 def load_third_party_modules():
     """Import heavy optional dependencies lazily for CLI use."""
 
-    import numpy as np  # local import to defer heavy wheels
-    import matplotlib.pyplot as plt
     import multiprocessing as mp
+
+    import matplotlib.pyplot as plt
+    import numpy as np  # local import to defer heavy wheels
 
     return np, plt, mp

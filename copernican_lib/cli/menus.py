@@ -22,9 +22,9 @@ def show_splash_screen(version: str) -> None:
         "\n",
         "=" * 70,
         "\n",
-        (
-            "A tool for rapid development, prototyping and testing of\n"
-        ).center(70),
+        ("A tool for rapid development, prototyping and testing of\n").center(
+            70
+        ),
         (
             "alternative cosmological frameworks against observational data\n"
         ).center(70),
@@ -61,19 +61,14 @@ def select_seed() -> int:
                 error=True,
             )
         else:
-            console.write(
-                "Using environment-provided seed: "
-                f"{seed}"
-            )
+            console.write(f"Using environment-provided seed: {seed}")
             utils.set_random_seed(seed)
             return seed
 
     console.write("Please choose how to seed the sampler:")
     console.write("  1) Accept the default seed (0)")
     console.write("  2) Enter a custom integer seed")
-    console.write(
-        "  3) Generate a random seed (uniform in [0, 2^32 - 1])"
-    )
+    console.write("  3) Generate a random seed (uniform in [0, 2^32 - 1])")
     console.write("")
 
     while True:

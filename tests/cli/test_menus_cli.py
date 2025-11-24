@@ -22,7 +22,7 @@ class SplashScreenTestCase(unittest.TestCase):
             mock.patch("copernican_lib.cli.menus.console.write", _record),
             mock.patch("copernican_lib.cli.menus.time.sleep") as sleep_mock,
         ):
-            menus.show_splash_screen("10.1.0")
+            menus.show_splash_screen("10.1.1")
 
         self.assertTrue(
             any("C O P E R N I C A N" in line for line in captured),
@@ -46,8 +46,12 @@ class SelectSeedTestCase(unittest.TestCase):
     def test_default_seed_selection(self) -> None:
         with mock.patch.dict(os.environ, {}, clear=True):
             with (
-                mock.patch("copernican_lib.cli.menus.console.ask", return_value=""),
-                mock.patch("copernican_lib.cli.menus.utils.set_random_seed") as seed_mock,
+                mock.patch(
+                    "copernican_lib.cli.menus.console.ask", return_value=""
+                ),
+                mock.patch(
+                    "copernican_lib.cli.menus.utils.set_random_seed"
+                ) as seed_mock,
             ):
                 seed = menus.select_seed()
         self.assertEqual(seed, 0)

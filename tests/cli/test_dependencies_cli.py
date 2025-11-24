@@ -25,7 +25,8 @@ class DependencyCacheTestCase(unittest.TestCase):
             encoding="utf-8",
         )
         patcher = mock.patch.dict(
-            os.environ, {dependencies.DEPENDENCY_CACHE_ENV_VAR: str(self.cache_dir)}
+            os.environ,
+            {dependencies.DEPENDENCY_CACHE_ENV_VAR: str(self.cache_dir)},
         )
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -39,9 +40,13 @@ class DependencyCacheTestCase(unittest.TestCase):
         self.assertIn("pandas", first)
         with mock.patch(
             "copernican_lib.cli.dependencies.ast.parse",
-            side_effect=AssertionError("AST should not be invoked on cache hit"),
+            side_effect=AssertionError(
+                "AST should not be invoked on cache hit"
+            ),
         ):
-            cached = dependencies._gather_required_packages(search_dirs=search_dirs)
+            cached = dependencies._gather_required_packages(
+                search_dirs=search_dirs
+            )
         self.assertEqual(first, cached)
 
 
@@ -57,7 +62,9 @@ class CheckDependenciesPromptTestCase(unittest.TestCase):
                 return_value={"demo"},
             ),
             mock.patch("importlib.util.find_spec", return_value=None),
-            mock.patch("copernican_lib.cli.dependencies.console.ask") as ask_mock,
+            mock.patch(
+                "copernican_lib.cli.dependencies.console.ask"
+            ) as ask_mock,
             mock.patch("subprocess.run") as run_mock,
             mock.patch("importlib.import_module"),
         ):
