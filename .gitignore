@@ -22,3 +22,6 @@ build/
 /.cache
 /.cache/
 .cache/
+/logs
+/logs/
+logs/
