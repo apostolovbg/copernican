@@ -76,13 +76,14 @@ Stage 1 focuses on reproducibility and validation:
 * The seed selector honours ``COPERNICAN_SEED`` when set, otherwise offers to
   accept the default value, enter a custom integer or generate a random seed.
   The choice is logged and written to the manifest before any sampling.
-* Model parsing normalises YAML files via :mod:`copernican_lib.model_spec_validator` and
-  compiles the expressions into NumPy-ready callables through
-  :mod:`copernican_lib.model_coder`. Engine plugins built with
-  :func:`copernican_lib.engine_plugin_validation.build_plugin` collect bounds, priors,
-  transforms and optional CMB parameter mappings. Validation errors are
-  aggregated and displayed as bullet points before the user is asked whether to
-  restart Stage 1 or exit entirely.
+* Model parsing normalises YAML files via
+  :mod:`copernican_lib.model_spec_validator` and compiles the expressions into
+  NumPy-ready callables through :mod:`copernican_lib.model_coder`. Engine
+  plugins built with
+  :func:`copernican_lib.engine_plugin_validation.build_plugin` collect bounds,
+  priors, transforms and optional CMB parameter mappings.
+  Validation errors are aggregated and displayed as bullet points before the
+  user is asked whether to restart Stage 1 or exit entirely.
 * Engine selection is dynamic: any file matching `engines/cosmo_engine_*.py`
   appears in the menu. Prompts reflect the selected backend so ensemble MCMC
   users configure burn-in, walkers and worker pools while nested sampling users
@@ -112,25 +113,26 @@ conservative Gelman–Rubin fallback.
 
 ### Stage 3–4 post-processing
 
-BAO and CMB analyses reuse the sampler output. BAO observables are computed from
-maximum-posterior parameters and logged alongside residual norms so operators
-can monitor fit quality as plots render. CMB spectra pull additional
+BAO and CMB analyses reuse the sampler output. BAO observables are computed
+from maximum-posterior parameters and logged alongside residual norms so
+operators can monitor fit quality as plots render. CMB spectra pull additional
 plugin-provided constants from `cmb.param_map` when present and stream TT/TE/EE
 residual statistics to the console. Both stages respect dataset independence
-statements stored in :mod:`copernican_lib.dataset_registry` so assumptions remain
-explicit in manifests and plots.
+statements stored in :mod:`copernican_lib.dataset_registry` so assumptions
+remain explicit in manifests and plots.
 
 ### Stage 5 visualisation
 
-Stage 5 produces publication-ready figures. `copernican_lib.plotter` responds to
-the number of parameters by adjusting canvas size, font scale and corner-plot
-grid dimensions. Footer guard bands keep three lines of metadata clear of the
-axes: the model comparison, dataset description and citation. Footer spacing
-maintains both a fixed gap above the axes and a clearance above the canvas
-edge so long labels or future gravitational-wave annotations do not collide
-with data. The corner-plot validator thins samples when necessary, labels every
-parameter using the names stored on the plugin and exposes a legacy wrapper so
-older tooling can still import `_validate_corner_inputs` without linter noise.
+Stage 5 produces publication-ready figures. `copernican_lib.plotter` responds
+to the number of parameters by adjusting canvas size, font scale and
+corner-plot grid dimensions. Footer guard bands keep three lines of metadata
+clear of the axes: the model comparison, dataset description and citation.
+Footer spacing maintains both a fixed gap above the axes and a clearance above
+the canvas edge so long labels or future gravitational-wave annotations do not
+collide with data. The corner-plot validator thins samples when necessary,
+labels every parameter using the names stored on the plugin and exposes a
+legacy wrapper so older tooling can still import `_validate_corner_inputs`
+without linter noise.
 
 ### Stage 6 outputs and manifests
 
@@ -143,20 +145,23 @@ manuscripts can reference them consistently.
 
 ## Dataset integrity and parsers
 
-Dataset loaders live in :mod:`copernican_lib.dataset_registry` and expose decorators
-that register parser functions for each `dataset_id`. SHA256 digests for every
-non-parser file in a dataset directory are computed and stored on the returned
-DataFrame `.attrs` mapping. Parsers only load when their hashes match the
-vetted list stored in the corresponding metadata file. Each loader logs
-whether a covariance matrix was used or diagonal errors were applied and
-records the dataset version in the manifest. Independence statements are
-centralised so manifests and console summaries always describe which probes are
-assumed uncorrelated.
+Dataset loaders live in :mod:`copernican_lib.dataset_registry` and expose
+decorators that register parser functions for each `dataset_id`. Parser
+dictionaries now follow explicit ``*_PARSER_REGISTRY`` names and are collected
+via the ``get_parser_registries`` helper so discovery code cannot be confused
+with individual loader functions. SHA256 digests for every non-parser file in a
+dataset directory are computed and stored on the returned DataFrame `.attrs`
+mapping. Parsers only load when their hashes match the vetted list stored in
+the corresponding metadata file. Each loader logs whether a covariance matrix
+was used or diagonal errors were applied and records the dataset version in the
+manifest. Independence statements are centralised so manifests and console
+summaries always describe which probes are assumed uncorrelated.
 
 ## Plugin interface and posterior construction
 
-Plugins produced by :func:`copernican_lib.engine_plugin_validation.build_plugin` expose
-dataset compatibility flags (`valid_for_distance_metrics`, `valid_for_bao`,
+Plugins produced by
+:func:`copernican_lib.engine_plugin_validation.build_plugin` expose dataset
+compatibility flags (`valid_for_distance_metrics`, `valid_for_bao`,
 `valid_for_cmb`) and optional `cmb.param_map` entries for engines that compute
 spectra. The interface includes required attributes and functions listed in
 :mod:`copernican_lib.plugins`; validation errors identify missing hooks and
@@ -168,12 +173,12 @@ spawn-based worker pools on macOS and Linux.
 
 ## Console and error handling
 
-All console I/O flows through :mod:`copernican_lib.console_output` so the logger
-can mirror it faithfully. Unicode encoding errors are caught and replaced with
-ASCII fallbacks to keep runs alive on limited terminals. The launcher enables
-`faulthandler` and registers handlers for SIGILL, SIGSEGV and SIGFPE so any
-crash produces a stack trace on both the console and log before exiting. All
-Python warnings are forwarded to the central logger, and the
+All console I/O flows through :mod:`copernican_lib.console_output` so the
+logger can mirror it faithfully. Unicode encoding errors are caught and
+replaced with ASCII fallbacks to keep runs alive on limited terminals. The
+launcher enables `faulthandler` and registers handlers for SIGILL, SIGSEGV and
+SIGFPE so any crash produces a stack trace on both the console and log before
+exiting. All Python warnings are forwarded to the central logger, and the
 ``COPERNICAN_STRICT_WARNINGS`` environment variable can promote them to errors
 during CI runs.
 

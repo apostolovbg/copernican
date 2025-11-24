@@ -21,7 +21,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
 
     def test_register_and_load_sne_parser(self):
         """A temporary SNe parser should load data and metadata."""
-        prev = dataset_registry.SNE_PARSERS.copy()
+        prev = dataset_registry.SNE_PARSER_REGISTRY.copy()
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 meta = {
@@ -58,15 +58,15 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                 self.assertEqual(df.attrs["data_path"], tmp)
                 self.assertEqual(
                     df.attrs["independence_assumptions"],
-                    dataset_registry.INDEPENDENCE_ASSUMPTIONS["sne"],
+                    dataset_registry.OBSERVATION_INDEPENDENCE_NOTES["sne"],
                 )
         finally:
-            dataset_registry.SNE_PARSERS = prev
+            dataset_registry.SNE_PARSER_REGISTRY = prev
 
     def test_hash_mismatch_skips_parser(self):
         """Hash mismatches prevent parser import."""
-        prev_parsers = dataset_registry.SNE_PARSERS.copy()
-        prev_hashes = dataset_registry.TRUSTED_PARSER_HASHES.copy()
+        prev_parsers = dataset_registry.SNE_PARSER_REGISTRY.copy()
+        prev_hashes = dataset_registry.TRUSTED_PARSER_DIGESTS.copy()
         try:
             with tempfile.TemporaryDirectory() as base:
                 sne_dir = os.path.join(base, "sne", "rogue2")
@@ -94,18 +94,20 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                 with open(parser_path, "w", encoding="utf-8") as fh:
                     fh.write(code)
                 rel_path = os.path.relpath(parser_path, base)
-                dataset_registry.TRUSTED_PARSER_HASHES[rel_path] = "0" * 64
-                dataset_registry.SNE_PARSERS = {}
-                dataset_registry._discover_parsers(base_dir=base)
-                self.assertNotIn("rogue2_sne", dataset_registry.SNE_PARSERS)
+                dataset_registry.TRUSTED_PARSER_DIGESTS[rel_path] = "0" * 64
+                dataset_registry.SNE_PARSER_REGISTRY = {}
+                dataset_registry.discover_trusted_parsers(base_dir=base)
+                self.assertNotIn(
+                    "rogue2_sne", dataset_registry.SNE_PARSER_REGISTRY
+                )
         finally:
-            dataset_registry.SNE_PARSERS = prev_parsers
-            dataset_registry.TRUSTED_PARSER_HASHES = prev_hashes
+            dataset_registry.SNE_PARSER_REGISTRY = prev_parsers
+            dataset_registry.TRUSTED_PARSER_DIGESTS = prev_hashes
 
     def test_windows_separators_are_normalized(self):
         """Trusted modules load even when ``relpath`` returns backslashes."""
-        prev_parsers = dataset_registry.SNE_PARSERS.copy()
-        prev_hashes = dataset_registry.TRUSTED_PARSER_HASHES.copy()
+        prev_parsers = dataset_registry.SNE_PARSER_REGISTRY.copy()
+        prev_hashes = dataset_registry.TRUSTED_PARSER_DIGESTS.copy()
         try:
             with tempfile.TemporaryDirectory() as base:
                 sne_dir = os.path.join(base, "sne", "trusted")
@@ -134,24 +136,26 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     fh.write(code)
                 rel_key = os.path.relpath(parser_path, base).replace("\\", "/")
                 digest = dataset_registry._file_sha256(parser_path)
-                dataset_registry.TRUSTED_PARSER_HASHES[rel_key] = digest
-                dataset_registry.SNE_PARSERS = {}
+                dataset_registry.TRUSTED_PARSER_DIGESTS[rel_key] = digest
+                dataset_registry.SNE_PARSER_REGISTRY = {}
                 orig_relpath = os.path.relpath
 
                 def fake_relpath(path, start):
                     return orig_relpath(path, start).replace("/", "\\")
 
                 with mock.patch("os.path.relpath", side_effect=fake_relpath):
-                    dataset_registry._discover_parsers(base_dir=base)
-                self.assertIn("trusted_sne", dataset_registry.SNE_PARSERS)
+                    dataset_registry.discover_trusted_parsers(base_dir=base)
+                self.assertIn(
+                    "trusted_sne", dataset_registry.SNE_PARSER_REGISTRY
+                )
         finally:
-            dataset_registry.SNE_PARSERS = prev_parsers
-            dataset_registry.TRUSTED_PARSER_HASHES = prev_hashes
+            dataset_registry.SNE_PARSER_REGISTRY = prev_parsers
+            dataset_registry.TRUSTED_PARSER_DIGESTS = prev_hashes
 
     @mock.patch(
         "copernican_lib.dataset_registry.console.ask", return_value="1"
     )
-    def test_select_source_uses_dataset_name(self, ask_mock):
+    def testprompt_dataset_selection_uses_dataset_name(self, ask_mock):
         """Interactive selection should display names and return the id."""
         registry = {
             "dummy_sne": {
@@ -166,7 +170,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
             "copernican_lib.dataset_registry.console.write",
             lambda msg: captured.append(msg),
         ):
-            ds_id = dataset_registry._select_source(registry, "SNe")
+            ds_id = dataset_registry.prompt_dataset_selection(registry, "SNe")
         self.assertEqual(ds_id, "dummy_sne")
         output = "".join(captured)
         self.assertIn("Dummy SNe", output)
@@ -183,7 +187,7 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
 
     def test_untrusted_parser_is_skipped(self):
         """Modules not whitelisted should never be imported."""
-        prev = dataset_registry.SNE_PARSERS.copy()
+        prev = dataset_registry.SNE_PARSER_REGISTRY.copy()
         try:
             with tempfile.TemporaryDirectory() as base:
                 sne_dir = os.path.join(base, "sne", "rogue")
@@ -210,11 +214,13 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                 )
                 with open(parser_path, "w", encoding="utf-8") as fh:
                     fh.write(code)
-                dataset_registry.SNE_PARSERS = {}
-                dataset_registry._discover_parsers(base_dir=base)
-                self.assertNotIn("rogue_sne", dataset_registry.SNE_PARSERS)
+                dataset_registry.SNE_PARSER_REGISTRY = {}
+                dataset_registry.discover_trusted_parsers(base_dir=base)
+                self.assertNotIn(
+                    "rogue_sne", dataset_registry.SNE_PARSER_REGISTRY
+                )
         finally:
-            dataset_registry.SNE_PARSERS = prev
+            dataset_registry.SNE_PARSER_REGISTRY = prev
 
 
 if __name__ == "__main__":

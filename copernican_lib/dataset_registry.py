@@ -1,20 +1,20 @@
-# Copyright (c) 2025 Copernican Suite developers.
 # Last Updated: 2025-11-24
+# Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
 """Dataset registry and loader helpers.
 
 The suite treats observational data as pluggable components. Parsers live
 alongside their raw tables under ``data/<type>/<source>/`` and register
-themselves through decorators provided here. At runtime
-``copernican.py`` imports these modules to populate interactive menus and
-returns uniformly formatted :class:`pandas.DataFrame` objects with metadata
-stored on ``.attrs``. This refactor centralises dataset selection for the SNe,
-BAO and CMB loaders so every observable category now attaches a uniform set of
-attributes including reproducibility hashes, dataset versions and explicit
-statistical independence statements. The additional metadata is consumed by
-the run manifest builder and keeps the suite honest about likelihood
-assumptions.
+themselves through decorators provided here. At runtime ``copernican.py``
+imports these modules to populate interactive menus and returns uniformly
+formatted :class:`pandas.DataFrame` objects with metadata stored on
+``.attrs``. The registry terminology below now emphasises the dictionary nature
+of each lookup table so callers no longer confuse the registries with
+single-function entry points. Each observable category attaches a uniform set
+of attributes including reproducibility hashes, dataset versions and explicit
+statistical independence statements. The additional metadata is consumed by the
+run manifest builder and keeps the suite honest about likelihood assumptions.
 """
 import hashlib
 import importlib
@@ -40,10 +40,34 @@ from .utils import check_dataset_id, compute_sha256, load_metadata_from_dir
 # decorators below when they are imported.  ``dataset_id`` values are derived
 # from the metadata files located next to the raw tables and are therefore
 # mandatory.
-SNE_PARSERS: dict = {}
-BAO_PARSERS: dict = {}
-CMB_PARSERS: dict = {}
-GW_PARSERS: dict = {}
+SNE_PARSER_REGISTRY: dict = {}
+BAO_PARSER_REGISTRY: dict = {}
+CMB_PARSER_REGISTRY: dict = {}
+GW_PARSER_REGISTRY: dict = {}
+
+
+def get_parser_registries() -> dict[str, dict]:
+    """Return the live mapping of dataset types to parser registries."""
+
+    return {
+        "sne": SNE_PARSER_REGISTRY,
+        "bao": BAO_PARSER_REGISTRY,
+        "cmb": CMB_PARSER_REGISTRY,
+        "gw": GW_PARSER_REGISTRY,
+    }
+
+
+def get_parser_registry(dataset_key: str) -> dict:
+    """Return the registry associated with ``dataset_key``.
+
+    The helper resolves the current registry objects each time so test suites
+    that replace the module-level dictionaries receive the updated mappings.
+    """
+
+    registries = get_parser_registries()
+    if dataset_key not in registries:
+        raise KeyError(f"Unknown dataset registry '{dataset_key}'")
+    return registries[dataset_key]
 
 
 # The core cosmology pipelines treat the SNe, BAO and CMB likelihoods as
@@ -51,7 +75,7 @@ GW_PARSERS: dict = {}
 # assumption makes it easier to audit and copy the reasoning into manifests and
 # documentation.  Each list is intentionally single-element today so future
 # work can append additional caveats without altering the consumer code.
-INDEPENDENCE_ASSUMPTIONS: dict[str, list[str]] = {
+OBSERVATION_INDEPENDENCE_NOTES: dict[str, list[str]] = {
     "sne": [
         (
             "Type Ia supernova distance moduli are treated as statistically "
@@ -89,7 +113,7 @@ def register_sne_parser(name=None, description="", data_dir=None):
     def decorator(func):
         """Store ``func`` in the SNe parser registry under a temporary key."""
         key = name or os.path.basename(data_dir or func.__name__)
-        SNE_PARSERS[key] = {
+        SNE_PARSER_REGISTRY[key] = {
             "function": func,
             "dataset_name": name or key,
             "description": description,
@@ -111,7 +135,7 @@ def register_bao_parser(name=None, description="", data_dir=None):
     def decorator(func):
         """Store ``func`` in the BAO parser registry under a temporary key."""
         key = name or os.path.basename(data_dir or func.__name__)
-        BAO_PARSERS[key] = {
+        BAO_PARSER_REGISTRY[key] = {
             "function": func,
             "dataset_name": name or key,
             "description": description,
@@ -132,7 +156,7 @@ def register_cmb_parser(name=None, description="", data_dir=None):
     def decorator(func):
         """Store ``func`` in the CMB parser registry under a temporary key."""
         key = name or os.path.basename(data_dir or func.__name__)
-        CMB_PARSERS[key] = {
+        CMB_PARSER_REGISTRY[key] = {
             "function": func,
             "dataset_name": name or key,
             "description": description,
@@ -153,7 +177,7 @@ def register_gw_parser(name=None, description="", data_dir=None):
     def decorator(func):
         """Store ``func`` in the GW parser registry under a temporary key."""
         key = name or os.path.basename(data_dir or func.__name__)
-        GW_PARSERS[key] = {
+        GW_PARSER_REGISTRY[key] = {
             "function": func,
             "dataset_name": name or key,
             "description": description,
@@ -164,7 +188,7 @@ def register_gw_parser(name=None, description="", data_dir=None):
     return decorator
 
 
-TRUSTED_PARSER_HASHES = {
+TRUSTED_PARSER_DIGESTS = {
     # ``relative_path`` -> ``sha256``
     "sne/pantheon/cosmo_parser_pantheon.py": (
         "0bea7c904884b28fc5f30f38dd350116bddf5f7c8096dd136da8127056a84652"
@@ -203,14 +227,14 @@ def _file_sha256(path: str) -> str:
 
 
 # --- Dynamic Discovery of Parser Modules ---
-def _discover_parsers(base_dir: str | None = None):
+def discover_trusted_parsers(base_dir: str | None = None):
     """Import parser modules and populate registries with dataset metadata.
 
     The scan walks ``data/`` recursively, ignoring ``placeholder`` folders so
     unfinished datasets stay hidden.  Candidate paths are resolved with
     ``os.path.realpath`` and rejected if they are symlinks or if the resolved
     location escapes ``base_dir``.  Each parser is then verified against
-    ``TRUSTED_PARSER_HASHES`` before import to guard against tampering.  Only
+    ``TRUSTED_PARSER_DIGESTS`` before import to guard against tampering.  Only
     trusted modules are executed, keeping the discovery step resilient to
     untrusted files shipped alongside the data tables.
     Metadata is read here to keep the parser implementations small and focused
@@ -224,12 +248,6 @@ def _discover_parsers(base_dir: str | None = None):
     # verify that candidate entries never escape the repository via symlinks
     # or ".." components.
     base_dir = os.path.realpath(base_dir)
-    registry_map = {
-        "sne": SNE_PARSERS,
-        "bao": BAO_PARSERS,
-        "cmb": CMB_PARSERS,
-        "gw": GW_PARSERS,
-    }
     for dtype in ("sne", "bao", "cmb", "gw"):
         type_dir = os.path.join(base_dir, dtype)
         # Skip symlinks or paths that resolve outside the data directory.
@@ -275,7 +293,7 @@ def _discover_parsers(base_dir: str | None = None):
                     rel_path = os.path.relpath(file_path, base_dir)
                     # Normalise path separators for cross-platform hash lookup.
                     rel_path = rel_path.replace("\\", "/")
-                    expected_hash = TRUSTED_PARSER_HASHES.get(rel_path)
+                    expected_hash = TRUSTED_PARSER_DIGESTS.get(rel_path)
                     if expected_hash is None:
                         logging.getLogger().warning(
                             "Skipping untrusted parser %s", file_path
@@ -309,7 +327,7 @@ def _discover_parsers(base_dir: str | None = None):
                         logging.getLogger().error(
                             "Missing loader for parser module %s", file_path
                         )
-                    registry = registry_map[dtype]
+                    registry = get_parser_registry(dtype)
                     key = None
                     if placeholder_key in registry:
                         key = placeholder_key
@@ -333,7 +351,7 @@ def _discover_parsers(base_dir: str | None = None):
 # Discover parsers at import time so that functions like
 # ``load_sne_data`` can simply refer to the registries without
 # additional setup.
-_discover_parsers()
+discover_trusted_parsers()
 
 
 # Bundle the registries and logging messages for observable categories whose
@@ -342,24 +360,21 @@ _discover_parsers()
 DATASET_CONFIG: dict[str, dict[str, Any]] = {
     "sne": {
         "label": "SNe",
-        "registry_name": "SNE_PARSERS",
         "cancel_message": "SNe data loading canceled by user.",
     },
     "bao": {
         "label": "BAO",
-        "registry_name": "BAO_PARSERS",
         "cancel_message": "BAO data loading canceled by user.",
     },
     "cmb": {
         "label": "CMB",
-        "registry_name": "CMB_PARSERS",
         "cancel_message": "CMB data loading canceled by user.",
     },
 }
 
 
 # --- Helper to list and select parsers ---
-def _select_source(parser_registry, data_type_name):
+def prompt_dataset_selection(parser_registry, data_type_name):
     """Display available data sources and return the chosen ``dataset_id``."""
     logger = logging.getLogger()
     if not parser_registry:
@@ -499,15 +514,11 @@ def _load_dataset(
     logger = logging.getLogger()
     config = DATASET_CONFIG[dataset_key]
     label = config["label"]
-    registry_name = config["registry_name"]
-    registry = globals().get(registry_name)
-    if registry is None:
-        logger.error("Dataset registry '%s' is unavailable.", registry_name)
-        return None
+    registry = get_parser_registry(dataset_key)
     cancel_message = config["cancel_message"]
 
     if dataset_id is None:
-        dataset_id = _select_source(registry, label)
+        dataset_id = prompt_dataset_selection(registry, label)
         if dataset_id is None:
             logger.info(cancel_message)
             return None
@@ -550,7 +561,7 @@ def _load_dataset(
             data_df.attrs["dataset_version"] = dataset_version
             data_df.attrs["data_path"] = data_dir
             data_df.attrs["independence_assumptions"] = list(
-                INDEPENDENCE_ASSUMPTIONS.get(dataset_key, [])
+                OBSERVATION_INDEPENDENCE_NOTES.get(dataset_key, [])
             )
             if dataset_key == "bao":
                 has_cov = _validate_bao_covariance(data_df, logger)
@@ -606,8 +617,11 @@ def load_cmb_data(dataset_id=None, **kwargs):
 def load_gw_data(dataset_id=None, **kwargs):
     """Load gravitational-wave standard siren data for ``dataset_id``."""
     logger = logging.getLogger()
+    registry = get_parser_registry("gw")
     if dataset_id is None:
-        dataset_id = _select_source(GW_PARSERS, "gravitational-wave")
+        dataset_id = prompt_dataset_selection(
+            registry, "gravitational-wave"
+        )
         if dataset_id is None:
             logger.info(
                 "Gravitational-wave data loading canceled by user during "
@@ -615,7 +629,7 @@ def load_gw_data(dataset_id=None, **kwargs):
             )
             return None
 
-    if dataset_id not in GW_PARSERS:
+    if dataset_id not in registry:
         msg = (
             "No gravitational-wave standard siren parser registered for "
             f"'{dataset_id}'"
@@ -623,7 +637,7 @@ def load_gw_data(dataset_id=None, **kwargs):
         logger.error(msg)
         return None
 
-    entry = GW_PARSERS[dataset_id]
+    entry = registry[dataset_id]
     parser_func = entry["function"]
     data_dir = entry["data_dir"]
     try:
