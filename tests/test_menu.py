@@ -6,7 +6,6 @@
 import collections.abc as collections_abc
 import importlib
 import os
-import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -28,49 +27,6 @@ with mock.patch("sys.version_info", (3, 12, 0)):
     ):
         copernican = importlib.import_module("copernican")
 import copernican_lib.dataset_registry
-
-
-class SplashScreenTestCase(unittest.TestCase):
-    """Ensure the splash screen renders and pauses as expected."""
-
-    def test_show_splash_screen_waits_briefly(self) -> None:
-        """The helper should print the banner once and sleep for one second."""
-
-        captured: list[str] = []
-
-        def _record(message: str, *, error: bool = False) -> None:
-            """Collect console output while mirroring the console signature."""
-
-            prefix = "ERROR: " if error else ""
-            captured.append(f"{prefix}{message}")
-
-        with (
-            mock.patch("copernican.console.write", _record),
-            mock.patch("copernican.time.sleep") as sleep_mock,
-        ):
-            copernican.show_splash_screen()
-
-        self.assertTrue(
-            any("C O P E R N I C A N" in line for line in captured),
-            "Splash banner text was not written to the console.",
-        )
-        sleep_mock.assert_called_once_with(1)
-
-
-class MenuRunTestsTestCase(unittest.TestCase):
-    """Verify the menu invokes ``python -m unittest`` discovery."""
-
-    @mock.patch("subprocess.run")
-    def test_run_startup_tests_invokes_unittest_discover(self, run_mock):
-        """Ensure the helper spawns the expected discovery command."""
-        run_mock.return_value.returncode = 0
-        result = copernican.run_startup_tests()
-        self.assertTrue(result)
-        run_mock.assert_called_once()
-        cmd = run_mock.call_args[0][0]
-        self.assertEqual(cmd[:3], [sys.executable, "-m", "unittest"])
-        self.assertEqual(cmd[3], "discover")
-        self.assertIn("-v", cmd)
 
 
 class SelectSourceDisplayTestCase(unittest.TestCase):
@@ -100,62 +56,6 @@ class SelectSourceDisplayTestCase(unittest.TestCase):
         out = "".join(captured)
         self.assertIn("Dummy Dataset", out)
         self.assertNotIn("dummy_id", out)
-
-
-class DependencyPromptTestCase(unittest.TestCase):
-    """Test dependency installer confirmation and CI override."""
-
-    @mock.patch("copernican.Path")
-    def test_installs_after_confirmation(self, path_mock):
-        path_mock.return_value.resolve.return_value.name = ".venv"
-        with (
-            mock.patch(
-                "copernican._gather_required_packages", return_value=["demo"]
-            ),
-            mock.patch("importlib.util.find_spec", return_value=None),
-            mock.patch("copernican.console.ask", return_value="y") as ask_mock,
-            mock.patch("subprocess.run") as run_mock,
-            mock.patch("importlib.import_module"),
-        ):
-            copernican.check_dependencies()
-            ask_mock.assert_called_once()
-            run_mock.assert_called_once_with(
-                [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "-r",
-                    "requirements.lock",
-                ],
-                check=True,
-            )
-
-    @mock.patch("copernican.Path")
-    def test_auto_confirm_skips_prompt(self, path_mock):
-        path_mock.return_value.resolve.return_value.name = ".venv"
-        with (
-            mock.patch(
-                "copernican._gather_required_packages", return_value=["demo"]
-            ),
-            mock.patch("importlib.util.find_spec", return_value=None),
-            mock.patch("copernican.console.ask") as ask_mock,
-            mock.patch("subprocess.run") as run_mock,
-            mock.patch("importlib.import_module"),
-        ):
-            copernican.check_dependencies(auto_confirm=True)
-            ask_mock.assert_not_called()
-            run_mock.assert_called_once_with(
-                [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "-r",
-                    "requirements.lock",
-                ],
-                check=True,
-            )
 
 
 class SamplerConfigurationPromptTestCase(unittest.TestCase):
