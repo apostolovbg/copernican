@@ -1,4 +1,4 @@
-**Version:** 10.1.2
+**Version:** 10.1.3
 **Last Updated:** 2025-11-24
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -9,6 +9,10 @@ workflow from data ingestion through posterior exploration so teams can
 compare theoretical predictions with Supernovae Type Ia (SNe Ia), Baryon
 Acoustic Oscillation (BAO) and Cosmic Microwave Background (CMB) datasets
 using a single reproducible interface.
+
+The launcher seeds placeholders for optional scientific modules before
+dependency validation, ensuring that early exits triggered by missing
+packages still reach Matplotlib cleanup paths without raising ``NameError``.
 
 The suite is organised around a handful of focused components:
 

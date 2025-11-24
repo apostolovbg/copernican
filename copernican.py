@@ -52,6 +52,14 @@ from copernican_lib.plugins import PluginValidationError
 # Verify interpreter version early so users see clear feedback
 MIN_PYTHON = (3, 11)
 
+# Optional scientific dependencies are populated lazily so that early exits,
+# including dependency checks, still leave the module with defined attributes
+# for the ``__main__`` cleanup path. Defaults remain ``None`` until the
+# dependency loader replaces them with live modules after validation.
+np = None
+plt = None
+mp = None
+
 
 def exit_clean(code: int = 0) -> None:
     """Exit the program after printing a newline."""

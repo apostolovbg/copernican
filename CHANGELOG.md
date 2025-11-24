@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.1.3
+- 2025-11-24: Seeded placeholder references for optional scientific modules so
+              dependency failures reach Matplotlib cleanup safely, added a
+              regression test, refreshed documentation and bumped release
+              metadata to 10.1.3 (OpenAI ChatGPT)
+
 ## Version 10.1.2
 - 2025-11-24: Removed in-program dependency installation, updated CLI
               dependency checks, launcher scripts, documentation and tests to

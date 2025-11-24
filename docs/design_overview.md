@@ -20,7 +20,9 @@ described throughout this document.
   leading with the seed dialog, surfaces every validation error encountered
   during model parsing or engine import and leaves a deliberate spacer after
   logging initialisation so the console flow stays tidy without redundant
-  banners.
+  banners. It seeds placeholders for optional scientific modules before
+  dependency validation so emergency exits still pass through the Matplotlib
+  cleanup path without raising ``NameError``.
 * `copernican_lib/` contributes the reusable building blocks—data ingestion,
   posterior construction, validation checks, plotting helpers and diagnostics.
   Engines and parsers import from this package instead of reimplementing
