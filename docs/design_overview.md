@@ -1,260 +1,211 @@
-# Copernican Suite Architecture
-**Last Updated:** 2025-11-08
+**Last Updated:** 2025-11-24
 
 This document expands on the high-level summary in the README by tracing how
-the Copernican Suite organises its architecture.  The command-line launcher
+the Copernican Suite organises its architecture. The command-line launcher
 (`copernican.py`) steers each run, the `copernican_lib/` package gathers shared
 infrastructure, and the `engines/`, `models/` and `data/` directories plug into
 that foundation to deliver repeatable analyses.
 
+## Architectural map
+
 * `copernican.py` assembles run manifests, dispatches dataset loaders and
-  prepares engine inputs so Stage 2 sampling always starts from a consistent
-  configuration.
+  prepares engine inputs so Stage 2 sampling always starts from a consistent
+  configuration. The launcher keeps Stage 1 focused on reproducibility by
+  leading with the seed dialog, surfaces every validation error encountered
+  during model parsing or engine import and leaves a deliberate spacer after
+  logging initialisation so the console flow stays tidy without redundant
+  banners.
 * `copernican_lib/` contributes the reusable building blocks—data ingestion,
   posterior construction, validation checks, plotting helpers and diagnostics.
   Engines and parsers import from this package instead of reimplementing
-  numerical plumbing.
-* `engines/` contains back ends such as the default
-  ``cosmo_engine_mcmc.py``.  Engines consume `EnginePlugin` definitions,
-  evaluate joint likelihoods spanning SNe Ia, BAO and CMB data and surface
-  ArviZ-powered convergence diagnostics for downstream tooling.
+  numerical plumbing. Shared progress helpers live in
+  `copernican_lib.progress`, along with the spinner pump, notifier bridge and
+  suspension context that keeps console output coherent even when diagnostics
+  print between walker updates. The helpers record the first render emitted by
+  each batch and always wipe the console line with a spacer on teardown so
+  captured transcripts never trap stale 0% bars.
+* `engines/` contains back ends such as the default ``cosmo_engine_mcmc.py``.
+  Engines consume `EnginePlugin` definitions, evaluate joint likelihoods
+  spanning SNe Ia, BAO and CMB data and surface ArviZ-powered convergence
+  diagnostics for downstream tooling. When ArviZ is unavailable the code falls
+  back to a conservative Gelman–Rubin summary while logging the downgrade.
+  CI runners that cannot call CAMB can opt into the ``COPERNICAN_FAKE_CMB``
+  shortcut while production evaluations still query the physics engine. Nested
+  sampling and ensemble MCMC both rely on the shared Stage 2 renderer so the
+  carriage-return bar, spinner and walker metrics stay consistent regardless of
+  backend.
 * `models/` holds YAML descriptions that declare bounds, priors, transforms and
-  dataset compatibility.  Each file is compiled into a picklable
+  dataset compatibility. Each file is compiled into a picklable
   :class:`copernican_lib.plugins.EnginePlugin` so multiprocessing pools can
-  reconstruct Stage 2 state deterministically.
+  reconstruct Stage 2 state deterministically. Plugin validation allows only
+  vetted attributes and functions and preserves constants, transforms and
+  priors exactly as written in the model file.
 * `data/` curates vetted catalogues with parser code and metadata that record
-  citations, licensing information and SHA256 digests.  Loaders validate the
-  digests before the observations flow into the likelihood pipeline.
+  citations, licensing information and SHA256 digests. Loaders validate the
+  digests before the observations flow into the likelihood pipeline. Parsers
+  must register under the `dataset_id` stated in their metadata so discovery
+  remains deterministic, and loaders reject symbolic links or paths that would
+  escape the repository tree. Folders named `placeholder` are ignored so
+  unfinished datasets never pollute the menus.
+* `docs/` stores focused guidance on data formats, manifest contents,
+  packaging, LaTeX conventions and the scripting API. README sections link into
+  these files rather than repeating their full contents.
 
-Every run produces a timestamped output directory containing plots, NetCDF
-chains and a manifest that records the engine, models, datasets, parameter
-choices and Git state.  The shared workflow means new probes—such as the
-planned gravitational-wave standard sirens—inherit the same orchestration as
-their placeholders are consolidated under a single loader entry.
+## Stage-by-stage flow
 
-## Historical context and recent changes
+### Dependency priming and logging
 
-Within the 7.4.5 documentation window the model library gained the
-Quantum Relational Synthesis Field v2 definition. The YAML-only plugin
-removes the dark sector by renormalising baryonic inertia through a
-coherence kernel, reduces the free-parameter count relative to the
-archived QRSF implementation and documents the entire theory in a ten-page
-manuscript embedded directly in the `description` block. The update also
-formalises the policy that internal model versions increment independently
-of the Copernican release and that only `cosmo_model_lcdm.yml` is required
-for baseline runs; all other models exist as exemplars that may evolve as
-their manuscripts expand.
+The launcher opens by checking Python dependencies and offering to install any
+missing ones. It caches the AST scan so repeat invocations can skip re-sourcing
+modules whose paths and modification times have not changed. A short
+NumPy/SciPy calculation verifies that compiled binaries match the available CPU
+features before heavy work begins.
 
-Version 7.4.4 finalises the Stage 5 compatibility layer by turning
-`_validate_corner_inputs` into a thin wrapper that forwards directly to
-`_prepare_corner_inputs`.  The approach keeps archival automation importing the
-legacy name while eliminating the linter redefinition warning that surfaced when
-the alias was a plain assignment.  Documentation mirrors the behaviour so code
-comments, guides and tests explain why the wrapper exists alongside the modern
-helper.
+Logging is initialised immediately after the cache check. Console messages and
+prompts flow through :mod:`copernican_lib.console_output` so patched `print`
+and `input` hooks in :mod:`copernican_lib.logger` can mirror them into the log
+file without duplication. The logger strips repository paths from messages,
+records system details and timestamps in UTC and keeps a deliberate blank
+spacer after initialisation so Stage 1 banners align with prior releases while
+avoiding redundant status text.
 
-Version 7.4.1 adds a sampler-facing perspective to the plotting layer. The new
-corner plot automatically thins oversized chains, renders the Stage 2 posterior
-with enlarged panels and a footer that details how many samples survived
-filtering, which stride produced the figure and whether thinning was required.
-It now runs as part of Stage 5 so cosmologists can inspect parameter
-degeneracies before diving into manifest tables or NetCDF chains. Earlier work
-from Version 7.3.2 keeps the GW
-loader in charge of the forthcoming gravitational-wave standard siren datasets.
-The separate registry stays retired so discovery remains focused on a single
-entry point while documentation quietly reflects the consolidation.
+### Stage 1 orchestration
 
-Version 7.3.1 refreshes the interactive prompts that guard Stage 2.  The custom
-sampler questionnaire now closes with a numbered confirmation menu that spells
-out how to accept, restart, back up or cancel a plan, and the workflow ends
-with a matching post-run menu that distinguishes between launching another
-evaluation and shutting down cleanly.  These additions mirror the broader
-Copernican console style so contributors do not have to remember what terse
-single-letter responses stand for.
+Stage 1 focuses on reproducibility and validation:
 
-Version 7.3.0 routes every Stage 2 run through :mod:`arviz` after sampling so
-the engine records rank-normalised :math:`\hat{R}` values together with bulk
-and tail effective sample sizes.  The diagnostics are logged, saved in the
-engine result dictionary and embedded inside NetCDF exports.  Downstream tools
-and publication scripts therefore consume a single source of truth for
-convergence statistics without repeating calculations.
+* The seed selector honours ``COPERNICAN_SEED`` when set, otherwise offers to
+  accept the default value, enter a custom integer or generate a random seed.
+  The choice is logged and written to the manifest before any sampling.
+* Model parsing normalises YAML files via
+  :mod:`copernican_lib.model_spec_validator` and compiles the expressions into
+  NumPy-ready callables through :mod:`copernican_lib.model_coder`. Engine
+  plugins built with
+  :func:`copernican_lib.engine_plugin_validation.build_plugin` collect bounds,
+  priors, transforms and optional CMB parameter mappings.
+  Validation errors are aggregated and displayed as bullet points before the
+  user is asked whether to restart Stage 1 or exit entirely.
+* Engine selection is dynamic: any file matching `engines/cosmo_engine_*.py`
+  appears in the menu. Prompts reflect the selected backend so ensemble MCMC
+  users configure burn-in, walkers and worker pools while nested sampling users
+  pick live-point budgets and evidence tolerances. A confirmation summary makes
+  the intended plan explicit and provides options to restart the questionnaire
+  or cancel the run cleanly.
 
-Version 7.2.7 keeps ``tools/update_lock.py`` import-friendly by deferring the
-``piptools`` availability check until the helper actually attempts to spawn
-``pip-compile``.  The lazily evaluated guard preserves the actionable guidance
-for developers who need to install the pinned dependency while allowing
-regression tests and lint hooks to import and monkeypatch the module without
-tearing down the entire process.
+### Stage 2 sampling and progress
 
-Version 7.2.6 rebuilds the ``make lock`` workflow around
-``tools/update_lock.py`` so the helper owns the entire pipeline.
-The helper now invokes ``pip-compile`` in a temporary workspace,
-normalises the generated header, compares the body against the
-repository copy and advances the ``Last Updated`` banner only when
-dependencies change.  The release ships companion unit tests so
-future refactors cannot resurrect the daily banner churn that
-previously broke lint runs.
+Once both models and datasets are prepared, Stage 2 draws from the joint
+posterior built by :func:`copernican_lib.posterior.make_logposterior`. The
+helper injects Jacobian corrections for transformed parameters, applies bounds
+and assembles the combined SNe, BAO and CMB likelihoods via
+:class:`copernican_lib.likelihoods.JointLike`. Engines receive a picklable
+:class:`copernican_lib.posterior.PosteriorEvaluator` so multiprocessing pools
+can reuse the same callable safely.
 
-Version 7.2.5 promotes the resilient quadrature helper into a hard gate for
-sound-horizon calculations.  ``copernican_lib.model_coder`` now raises a
-``SoundHorizonComputationError`` whenever ``rs_expression`` integrals still
-trigger suppressed SciPy ``IntegrationWarning`` instances.  The BAO likelihood
-records the failure in its ``LikelihoodState`` metadata and aborts ratio plots
-so datasets never display near-zero curves sourced from divergent integrals.
+The shared renderer in :mod:`copernican_lib.progress` keeps interactive output
+stable across engines. It paints a fifty-character carriage-return bar with
+Unicode sub-blocks, a walker-progress meter and an animated spinner. Updates
+flush on every write to keep terminals responsive, while a suspension context
+allows diagnostic messages to print without corrupting the bar. When a batch
+ends the renderer clears the line and inserts a spacer so transcripts never
+contain half-drawn bars. If ArviZ is installed the engine records R-hat and
+effective sample sizes for every parameter on each batch; otherwise it logs a
+conservative Gelman–Rubin fallback.
 
-Version 7.2.3 restores the direct pass-through of neutrino-sector CAMB
-arguments so model plugins can once again specify `Neff`, individual `mnuN`
-entries or mass hierarchies without bespoke likelihood code while keeping the
-regression harness synchronised with those choices.
+### Stage 3–4 post-processing
 
-Version 7.0.4 adds resilient version discovery so the macOS launcher continues
-to boot even when `copernican_lib.version.get_version` is temporarily missing
-during partial upgrades.  The runtime now defers attribute lookups until a
-version string is required, mirroring the fallbacks in
-`copernican_lib.version.get_version` so manifests and plot footers still record
-``"0+unknown"`` when the helper cannot be imported directly.
+BAO and CMB analyses reuse the sampler output. BAO observables are computed
+from maximum-posterior parameters and logged alongside residual norms so
+operators can monitor fit quality as plots render. CMB spectra pull additional
+plugin-provided constants from `cmb.param_map` when present and stream TT/TE/EE
+residual statistics to the console. Both stages respect dataset independence
+statements stored in :mod:`copernican_lib.dataset_registry` so assumptions
+remain explicit in manifests and plots.
 
-Version 7.0.5 eliminates repeated DataFrame-to-NumPy conversions inside the
-likelihood helpers.  `copernican_lib.likelihoods.SNeLike`, `BAOLike` and
-`CMBLike` now cache immutable arrays and residual scratch buffers during
-initialisation so multiprocessing workers evaluate log-likelihoods without
-allocating fresh arrays on every call.  The refactor keeps engine plugins
-pluggable while allowing the MCMC sampler to saturate all configured worker
-processes.
+### Stage 5 visualisation
 
-Version 6.7.4 kept the multiprocessing contract intact by making both the
-joint likelihood wrapper and the generated distance functions picklable.
-Version 7.0.0 replaced the legacy `engine_interface` monolith with the
-`copernican_lib.plugins` package and the `copernican_lib.posterior` module so
-posterior construction became an explicit, picklable dataclass workflow.
-Version
-7.0.1 cements that transition by registering every SymPy-derived helper
-on `copernican_lib.model_coder` using stable names, eliminating the
-`_lambdifygenerated` pickling failures that blocked spawn pools launched from
-`start.command`. Version 7.0.2 extends the protection to the plugin metadata
-by replacing ``MappingProxyType`` wrappers with the picklable
-``copernican_lib.plugins.FrozenMapping`` helper, ensuring engine plugins stay
-serialisable across macOS and Linux spawn pools. Version 7.0.3 completes the
-story by turning the symbolic distance helpers into self-rebuilding wrappers so
-spawn workers reconstruct them from the cached SymPy expressions instead of
-expecting parent-only module attributes.
+Stage 5 produces publication-ready figures. `copernican_lib.plotter` responds
+to the number of parameters by adjusting canvas size, font scale and
+corner-plot grid dimensions. Footer guard bands keep three lines of metadata
+clear of the axes: the model comparison, dataset description and citation.
+Footer spacing maintains both a fixed gap above the axes and a clearance above
+the canvas edge so long labels or future gravitational-wave annotations do not
+collide with data. The corner-plot validator thins samples when necessary,
+labels every parameter using the names stored on the plugin and exposes a
+legacy wrapper so older tooling can still import `_validate_corner_inputs`
+without linter noise.
 
-With the retirement of the deterministic combined optimiser the suite now
-ships solely with the `cosmo_engine_mcmc` backend.  Engines remain pluggable
-via the `cosmo_engine_*.py` naming convention so GPU solvers or new
-optimisation strategies can be introduced without altering the orchestration
-logic in `copernican.py`.  The shared helpers and validation routines therefore
-remain the authoritative source of truth for statistical behaviour.
+### Stage 6 outputs and manifests
 
-To keep emcee initialisation numerically stable the sampler treats any
-parameter whose lower and upper bounds are identical—or numerically
-indistinguishable—as fixed.  The parser installs a canonical `type: fixed`
-prior in these cases and the engine publishes the resulting constants via
-`plugin.FIXED_PARAMS`.  Models such as Conformal Stationary Field Cosmology can
-therefore keep the speed of light hard-coded without tripping emcee's
-condition-number safeguard.  When a model defines only a handful of truly free
-parameters the engine inflates the initial walker cloud adaptively until the
-ensemble's condition number satisfies ``emcee``'s guardrail, so YAML plugins
-with wildly different scales or exotic bound combinations no longer require
-manual tuning before sampling begins.
+All artefacts land in a run-specific `output/copernican-run_YYYYMMDD_HHMMSS`
+directory. The manifest recorded by :mod:`copernican_lib.run_manifest` captures
+the suite version, model filenames, engine choice, sampler settings, dataset
+hashes, CMB metadata, seed and Git state. CSV summaries, NetCDF chains and
+Matplotlib figures share the same naming scheme so downstream notebooks and
+manuscripts can reference them consistently.
 
-```
-/engines/          - Computational backends
-/copernican_lib/   - Shared utilities (data loading, plotting, etc.)
-/models/           - YAML model definitions
-/data/             - Observational datasets and their parsers
-/tests/            - Unit and functional tests
-```
+## Dataset integrity and parsers
 
-All observational data and accompanying metadata are stored exclusively
-as YAML files.  Legacy JSON support was removed in version 3.0.0 so that
-all parsers operate on a single consistent format.
+Dataset loaders live in :mod:`copernican_lib.dataset_registry` and expose
+decorators that register parser functions for each `dataset_id`. Parser
+dictionaries now follow explicit ``*_PARSER_REGISTRY`` names and are collected
+via the ``get_parser_registries`` helper so discovery code cannot be confused
+with individual loader functions. SHA256 digests for every non-parser file in a
+dataset directory are computed and stored on the returned DataFrame `.attrs`
+mapping. Parsers only load when their hashes match the vetted list stored in
+the corresponding metadata file. Each loader logs whether a covariance matrix
+was used or diagonal errors were applied and records the dataset version in the
+manifest. Independence statements are centralised so manifests and console
+summaries always describe which probes are assumed uncorrelated.
 
-Plotting helpers inside ``copernican_lib/plotter.py`` translate missing
-chi-squared totals into ``N/A`` markers before drawing the summary insets. The
-guard ensures sampling-only engines no longer interrupt the rendering
-pipeline. Supernova-only results also populate ``χ²_Total`` with the SNe
-contribution so LCDM self-checks never display ``N/A`` rows when no joint
-optimiser is present.
+## Plugin interface and posterior construction
 
-Each evaluation now writes its outputs to a dedicated
-`output/copernican-run_YYYYMMDD_HHMMSS` directory.  Besides plots and CSV
-tables these folders may contain NetCDF chains produced by
-`copernican_lib.chain_io` when the MCMC engine is used.  Chains now record
-burn-in length, production steps, per-walker acceptance fractions and the
-log-probability trace so convergence diagnostics can be reviewed after a run
-without replaying the sampling session. The sampler reseeds any walkers that
-acquire ``nan`` coordinates during burn-in, preventing spurious emcee runtime
-warnings from polluting the logs.
+Plugins produced by
+:func:`copernican_lib.engine_plugin_validation.build_plugin` expose dataset
+compatibility flags (`valid_for_distance_metrics`, `valid_for_bao`,
+`valid_for_cmb`) and optional `cmb.param_map` entries for engines that compute
+spectra. The interface includes required attributes and functions listed in
+:mod:`copernican_lib.plugins`; validation errors identify missing hooks and
+incompatible parameter maps, preventing engines from receiving incomplete
+models. Posterior evaluation routes through
+:func:`copernican_lib.posterior.make_logposterior`, which merges priors,
+transforms and likelihood callables into a picklable evaluator suitable for
+spawn-based worker pools on macOS and Linux.
 
-Deterministic reproducibility now extends to the initial walker ensemble as
-well.  The Stage 2 engine builds its NumPy generator from
-``copernican_lib.utils.get_random_seed``, the same value written to the run
-manifest via ``set_random_seed``.  When researchers replay a manifest with an
-identical seed, the sampler yields byte-identical chains and log-probability
-traces alongside the existing diagnostic summaries.
+## Console and error handling
 
-`copernican.py` is launched through the `start.*` scripts which present a
-menu-driven interface. Runtime options are controlled via environment
-variables, and the module orchestrates model selection, data loading and
-result generation. The package name emphasises that these modules are part
-of the suite's core library and not mere scripts. To keep the menu responsive
-the dependency scanner records a JSON snapshot of every parsed module under
-`.cache/dependency_scan.json` and reuses it when file sizes and modification
-times are unchanged. The cache path honours the `COPERNICAN_DEP_CACHE_DIR`
-environment variable so automated pipelines can redirect it to writable
-storage. The `.cache/` directory is created when needed and is not tracked by
-Git, ensuring the scanner's working data never appears in commits.
+All console I/O flows through :mod:`copernican_lib.console_output` so the
+logger can mirror it faithfully. Unicode encoding errors are caught and
+replaced with ASCII fallbacks to keep runs alive on limited terminals. The
+launcher enables `faulthandler` and registers handlers for SIGILL, SIGSEGV and
+SIGFPE so any crash produces a stack trace on both the console and log before
+exiting. All Python warnings are forwarded to the central logger, and the
+``COPERNICAN_STRICT_WARNINGS`` environment variable can promote them to errors
+during CI runs.
 
-LaTeX translations rely on `copernican_lib/latex_utils.py` which reads symbol
-and function mappings from `latex_mappings.yml`. New commands can be added
-there without touching the code.
-The helper also exposes `latex_to_unicode` for rendering parameter names with
-Greek letters and subscripts in console logs.
-Console messages are emitted through `copernican_lib/console_output.py` so
-that
-all output passes through a single function. The logger patches `print` and
-`input` to capture these messages verbatim.
+## Dependency management and packaging
 
-Distance integrals produced by `model_coder.generate_callables` are now
-vectorised using a cumulative trapezoid scheme. Arrays of redshifts are
-integrated in one pass, keeping MCMC sampling responsive even with large
-datasets. When a model requests scalar quadrature the generated helper calls a
-resilient wrapper around SciPy's `quad`. The wrapper automatically increases
-the subdivision limit and, if necessary, slices the interval into multiple
-segments before retrying. Version 7.1.4 further remaps semi-infinite and
-two-sided infinite integrals onto a logistic domain, inserting supportive
-breakpoints automatically so exotic theories—USMFv2 included—no longer emit
-repeated fallback warnings when their equations probe extreme redshifts.
+`tools/update_lock.py` and the accompanying `make lock` target regenerate the
+pinned `requirements.lock` file using `pip-tools`, avoiding implicit Python
+version headers so CI runs remain deterministic. A small helper ensures
+`pip-tools==7.4.1` is available before the lock step executes, even in clean CI
+environments. The packaging guide in `docs/packaging.md` details how to build
+wheels and source distributions while keeping runtime metadata aligned with the
+tracked version file.
 
-Version 7.0.6 removes the automatic sound-horizon fallback. Models that
-advertise BAO support must provide an `rs_expression` matching their own
-`H(z)` so the integrand never injects duplicate photon terms. The regression
-suite now exercises these integrals directly, comparing the generated callable
-against a hand-coded quadrature to confirm perfect agreement.
+## Launcher parity and CI
 
-Plots and tabular outputs are generated by `copernican_lib/plotter.py` and
-`copernican_lib/csv_writer.py`.  Both modules share filename helpers from
-`copernican_lib.utils` to ensure results include the dataset identifier,
-model name and timestamp.  This consistent naming scheme simplifies later
-comparison between runs.
+The cross-platform launchers (`start.sh`, `start.command`, `start.bat`) all set
+the managed virtual environment and pipe environment variables into
+`copernican.py`. Each launcher keeps multi-line PowerShell calls inside helper
+routines to avoid parser confusion on Windows. The CI suite mirrors these
+launchers by invoking the same dependency checks, sampler smoke tests and
+metadata validators across Linux, macOS and Windows runners.
 
-Engines follow a strict interface. `engine_interface.validate_plugin` ensures
-that any model plugin supplies the callable hooks required by a backend. This
-allows alternative engines—GPU-accelerated solvers, for example—to be swapped
-in without touching the high-level orchestration in `copernican.py`. The MCMC
-engine now reuses an existing SNe chain when both selected models share the
-same `MODEL_FILENAME`, guaranteeing that downstream BAO and CMB comparisons
-remain perfectly aligned when the suite performs self-consistency checks such
-as ΛCDM versus ΛCDM runs.
+## Future probes and extensibility
 
-To keep multiprocessing predictable, the suite sets the start method to
-``spawn`` and validates model YAML only in the main process. Worker processes
-operate on sanitised cached models which avoids repeated schema checks and
-keeps startup costs low.
-
-Caching is deliberately explicit. Parsed models are written to
-`models/cache/` and cleared only when the user exits the program. This
-approach
-allows repeated runs with different datasets without re-parsing YAML files,
-while still letting contributors inspect the generated intermediate files.
+The current architecture keeps engines, parsers and models pluggable. New
+datasets can register via the loader decorators, and new engines need only
+honour the progress, logging and plugin interfaces to fit seamlessly into the
+menu system. Placeholder directories allow in-progress probes—such as
+gravitational-wave standard sirens—to coexist without appearing in user menus
+until their metadata and digests are finalised.

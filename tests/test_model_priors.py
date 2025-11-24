@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-24
 """Tests for parameter prior parsing and exposure."""
 
 import math
@@ -7,9 +8,9 @@ from pathlib import Path
 
 import yaml
 
-import copernican_lib.engine_interface as engine_interface
+import copernican_lib.engine_plugin_validation as engine_plugin_validation
 import copernican_lib.model_coder as model_coder
-import copernican_lib.model_parser as model_parser
+import copernican_lib.model_spec_validator as model_spec_validator
 from copernican_lib import priors as prior_mod
 
 
@@ -21,9 +22,11 @@ class PriorParsingTestCase(unittest.TestCase):
         models_dir = base / "models"
         yaml_path = models_dir / "cosmo_model_lcdm.yml"
         cache_dir = models_dir / "cache"
-        cache_path = model_parser.parse_model(yaml_path, cache_dir)
+        cache_path = model_spec_validator.validate_and_cache_model(
+            yaml_path, cache_dir
+        )
         funcs, parsed = model_coder.generate_callables(cache_path)
-        self.plugin = engine_interface.build_plugin(parsed, funcs)
+        self.plugin = engine_plugin_validation.build_plugin(parsed, funcs)
 
     def test_priors_exposed(self):
         """PARAMETER_PRIORS should mirror YAML prior blocks."""
@@ -62,9 +65,13 @@ class PriorParsingTestCase(unittest.TestCase):
             yaml.safe_dump(model, tmp, sort_keys=False)
             tmp_path = tmp.name
         cache_dir = Path(tmp_path).parent
-        cache_path = model_parser.parse_model(tmp_path, cache_dir)
+        cache_path = model_spec_validator.validate_and_cache_model(
+            tmp_path, cache_dir
+        )
         funcs, parsed = model_coder.generate_callables(cache_path)
-        plugin = engine_interface.build_plugin(parsed, funcs)
+        for name in engine_plugin_validation.REQUIRED_FUNCTIONS:
+            funcs.setdefault(name, lambda *args, **kwargs: 0.0)
+        plugin = engine_plugin_validation.build_plugin(parsed, funcs)
         prior_obj = plugin.PARAMETER_PRIOR_OBJECTS[0]
         self.assertIsInstance(prior_obj, prior_mod.LogUniformPrior)
         mapping = plugin.PARAMETER_PRIORS[0]
@@ -76,7 +83,7 @@ class PriorParsingTestCase(unittest.TestCase):
         self.assertAlmostEqual(jac, -math.log(0.1))
         log_density = prior_obj.log_density(0.1)
         self.assertTrue(math.isfinite(log_density))
-        posterior = engine_interface.make_logposterior(
+        posterior = engine_plugin_validation.make_logposterior(
             lambda vals: 0.0, plugin.PARAMETER_PRIOR_OBJECTS
         )
         self.assertEqual(float(posterior([0.1])), log_density)
@@ -103,9 +110,13 @@ class PriorParsingTestCase(unittest.TestCase):
         cache_dir = Path(tmp_path).parent
         cache_path = None
         try:
-            cache_path = model_parser.parse_model(tmp_path, cache_dir)
+            cache_path = model_spec_validator.validate_and_cache_model(
+                tmp_path, cache_dir
+            )
             funcs, parsed = model_coder.generate_callables(cache_path)
-            plugin = engine_interface.build_plugin(parsed, funcs)
+            for name in engine_plugin_validation.REQUIRED_FUNCTIONS:
+                funcs.setdefault(name, lambda *args, **kwargs: 0.0)
+            plugin = engine_plugin_validation.build_plugin(parsed, funcs)
             prior_obj = plugin.PARAMETER_PRIOR_OBJECTS[0]
             self.assertIsInstance(prior_obj, prior_mod.FixedPrior)
             mapping = plugin.PARAMETER_PRIORS[0]
@@ -147,7 +158,9 @@ class PriorValidationTestCase(unittest.TestCase):
         cache_dir = Path(tmp_path).parent
         try:
             with self.assertRaises(ValueError):
-                model_parser.parse_model(tmp_path, cache_dir)
+                model_spec_validator.validate_and_cache_model(
+                    tmp_path, cache_dir
+                )
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 
@@ -178,7 +191,9 @@ class PriorValidationTestCase(unittest.TestCase):
         cache_dir = Path(tmp_path).parent
         try:
             with self.assertRaises(ValueError):
-                model_parser.parse_model(tmp_path, cache_dir)
+                model_spec_validator.validate_and_cache_model(
+                    tmp_path, cache_dir
+                )
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 
@@ -205,7 +220,9 @@ class PriorValidationTestCase(unittest.TestCase):
         cache_dir = Path(tmp_path).parent
         try:
             with self.assertRaises(ValueError):
-                model_parser.parse_model(tmp_path, cache_dir)
+                model_spec_validator.validate_and_cache_model(
+                    tmp_path, cache_dir
+                )
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 
@@ -236,7 +253,9 @@ class PriorValidationTestCase(unittest.TestCase):
         cache_dir = Path(tmp_path).parent
         try:
             with self.assertRaises(ValueError):
-                model_parser.parse_model(tmp_path, cache_dir)
+                model_spec_validator.validate_and_cache_model(
+                    tmp_path, cache_dir
+                )
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 
@@ -263,7 +282,9 @@ class PriorValidationTestCase(unittest.TestCase):
         cache_dir = Path(tmp_path).parent
         try:
             with self.assertRaises(ValueError):
-                model_parser.parse_model(tmp_path, cache_dir)
+                model_spec_validator.validate_and_cache_model(
+                    tmp_path, cache_dir
+                )
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 
@@ -310,7 +331,11 @@ class PriorValidationTestCase(unittest.TestCase):
         cache_dir = Path(tmp_path).parent
         cache_path = None
         try:
-            cache_path = Path(model_parser.parse_model(tmp_path, cache_dir))
+            cache_path = Path(
+                model_spec_validator.validate_and_cache_model(
+                    tmp_path, cache_dir
+                )
+            )
             with cache_path.open("r") as handle:
                 cached = yaml.safe_load(handle)
             first_param = cached["parameters"][0]

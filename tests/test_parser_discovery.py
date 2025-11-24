@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-24
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -18,7 +19,7 @@ from pathlib import Path
 
 import yaml
 
-from copernican_lib import data_loaders
+from copernican_lib import dataset_registry
 
 
 class ParserDiscoverySecurityTestCase(unittest.TestCase):
@@ -26,8 +27,8 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
 
     def test_only_whitelisted_modules_imported(self) -> None:
         """Ensure discovery loads only vetted modules and skips others."""
-        prev_parsers = data_loaders.SNE_PARSERS.copy()
-        prev_hashes = data_loaders.TRUSTED_PARSER_HASHES.copy()
+        prev_parsers = dataset_registry.SNE_PARSER_REGISTRY.copy()
+        prev_hashes = dataset_registry.TRUSTED_PARSER_DIGESTS.copy()
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 base = Path(tmp)
@@ -41,7 +42,7 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
                     yaml.safe_dump(meta, fh)
                 parser_path = good_dir / "cosmo_parser_trusted.py"
                 code = (
-                    "from copernican_lib.data_loaders "
+                    "from copernican_lib.dataset_registry "
                     "import register_sne_parser\n"
                     "@register_sne_parser(name='trusted', data_dir=r'"
                     f"{good_dir}')\n"
@@ -50,8 +51,8 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
                 )
                 parser_path.write_text(code, encoding="utf-8")
                 rel_key = os.path.relpath(parser_path, base).replace("\\", "/")
-                digest = data_loaders._file_sha256(parser_path)
-                data_loaders.TRUSTED_PARSER_HASHES[rel_key] = digest
+                digest = dataset_registry._file_sha256(parser_path)
+                dataset_registry.TRUSTED_PARSER_DIGESTS[rel_key] = digest
 
                 # --- Malicious parser setup ---
                 bad_dir = base / "sne" / "rogue"
@@ -72,23 +73,23 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
                 bad_parser.write_text(bad_code, encoding="utf-8")
                 os.environ["MAL_SENTINEL"] = str(sentinel)
 
-                data_loaders.SNE_PARSERS = {}
-                data_loaders._discover_parsers(base_dir=tmp)
-                self.assertIn("trusted", data_loaders.SNE_PARSERS)
-                self.assertNotIn("rogue", data_loaders.SNE_PARSERS)
+                dataset_registry.SNE_PARSER_REGISTRY = {}
+                dataset_registry.discover_trusted_parsers(base_dir=tmp)
+                self.assertIn("trusted", dataset_registry.SNE_PARSER_REGISTRY)
+                self.assertNotIn("rogue", dataset_registry.SNE_PARSER_REGISTRY)
                 self.assertFalse(sentinel.exists())
                 self.assertNotIn(
                     "data.sne.rogue.cosmo_parser_rogue", sys.modules
                 )
         finally:
-            data_loaders.SNE_PARSERS = prev_parsers
-            data_loaders.TRUSTED_PARSER_HASHES = prev_hashes
+            dataset_registry.SNE_PARSER_REGISTRY = prev_parsers
+            dataset_registry.TRUSTED_PARSER_DIGESTS = prev_hashes
             os.environ.pop("MAL_SENTINEL", None)
 
     def test_symlinked_paths_are_skipped(self) -> None:
         """Symlinked directories and parsers must never be imported."""
-        prev_parsers = data_loaders.SNE_PARSERS.copy()
-        prev_hashes = data_loaders.TRUSTED_PARSER_HASHES.copy()
+        prev_parsers = dataset_registry.SNE_PARSER_REGISTRY.copy()
+        prev_hashes = dataset_registry.TRUSTED_PARSER_DIGESTS.copy()
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 base = Path(tmp)
@@ -125,13 +126,13 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
                     yaml.safe_dump(meta, fh)
                 (real_dir / "cosmo_parser_real.py").symlink_to(bad_parser)
 
-                data_loaders.SNE_PARSERS = {}
-                data_loaders._discover_parsers(base_dir=tmp)
+                dataset_registry.SNE_PARSER_REGISTRY = {}
+                dataset_registry.discover_trusted_parsers(base_dir=tmp)
                 self.assertFalse(sentinel.exists())
-                self.assertEqual(data_loaders.SNE_PARSERS, {})
+                self.assertEqual(dataset_registry.SNE_PARSER_REGISTRY, {})
         finally:
-            data_loaders.SNE_PARSERS = prev_parsers
-            data_loaders.TRUSTED_PARSER_HASHES = prev_hashes
+            dataset_registry.SNE_PARSER_REGISTRY = prev_parsers
+            dataset_registry.TRUSTED_PARSER_DIGESTS = prev_hashes
             os.environ.pop("LINK_SENTINEL", None)
 
 

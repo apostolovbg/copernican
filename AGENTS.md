@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-08
+**Last Updated:** 2025-11-24
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -33,6 +33,11 @@ returned DataFrames. The manifest copies this mapping verbatim. Parsers
 must register under the `dataset_id` stated in their metadata so the
 loaders can locate them directly without discovery.
 
+Posterior NetCDF files store provenance on both the inference-data root and
+inside the posterior group so callers opening only the posterior dataset still
+recover the model name, dataset identifier and other metadata without reading
+the top-level attributes.
+
 Stage 5 now tolerates legacy corner-plot validators that only return
 flattened samples and labels. Custom tooling should adopt the newer
 three-value signature so thinning statistics remain explicit, but the
@@ -41,10 +46,22 @@ fallback keeps archival plugins functional while developers migrate. Version
 ``_prepare_corner_inputs`` helper so the legacy import path stays alive
 without triggering linter redefinition warnings.
 
+Corner plots must now obey the deepened dual-clearance policy introduced in
+7.6.8. The layout helper enforces both a fixed padding between the axes and
+footer, keeps the lowest footer line above a dedicated clearance floor and
+raises the grid so no combination of footer lines can overlap the axes.  The
+Stage 5 suptitle now sits lower to mirror the rest of the plotting suite.
+Contributors tweaking Stage 5 visuals should keep the `_CORNER_FOOTER_PADDING`
+and `_CORNER_FOOTER_CLEARANCE` constants in their tests and update the shared
+documentation whenever the guard bands or title anchor move.
+
 A ``COPERNICAN_SEED`` environment variable overrides the interactive seed
 prompt.  When unset, the program asks users to accept the default ``0``, enter
 their own value or generate a random seed.  The final choice is stored in the
-run manifest and logged so analyses can be reproduced.
+run manifest and logged so analyses can be reproduced.  The launcher keeps a
+blank spacer after logging initialisation—replacing the retired "Copernican has
+initialised" banner—so the Stage 1 configuration menu aligns with historical
+spacing without repeating redundant text.
 
 The program enables Python's ``faulthandler`` at startup and registers
 ``SIGILL``, ``SIGSEGV`` and ``SIGFPE`` handlers. When triggered, they dump
@@ -80,6 +97,25 @@ progress messages for both burn-in and production phases, displays percentage
 indicators and continues to return ``-np.inf`` whenever a proposal falls outside
 declared parameter bounds or yields a non-finite chi-squared so the sampler
 rejects invalid walkers deterministically.
+
+Version 7.6.3 removes the retired runtime estimator entirely. Stage 2 now
+streams per-walker updates into the fifty-character progress bars so operators
+see continuous movement without speculative timing extrapolations. The release
+also reiterates that ArviZ remains a hard dependency:
+convergence diagnostics must succeed for every batch, and provisioning
+fails fast when the package is missing. When both model plugins resolve to the
+same YAML file the helper
+reuses the ΛCDM measurement directly instead of executing the alternative
+branch a second time.
+
+Version 7.6.11 raised that standard further by routing Stage 2 progress through
+`tqdm`, Version 7.6.12 locked the smooth animation in place by disabling the
+library's adaptive throttling and mirroring the Unicode glyphs inside the live
+display, Version 7.6.13 added a dedicated walker-progress meter plus an animated
+spinner, and Version 7.6.14 retires `tqdm` entirely in favour of a native
+carriage-return renderer so macOS, Linux and Windows terminals repaint every
+walker update on a single console line while the logged Unicode glyphs remain
+identical to the interactive output.
 
 Version 7.1.1 standardises every runtime timestamp on Coordinated
 Universal Time (UTC) so log files, manifests and output directories
@@ -122,7 +158,7 @@ data/             - Observation files under ``data/<type>/<source>/``. Each
                     full `author` list and BibTeX keys such as `title`,
                     `volume`, `journal` and `DOI`. Metadata is loaded
                     exclusively by
-                    `copernican_lib/data_loaders.py` after each parser runs.
+                    `copernican_lib/dataset_registry.py` after each parser runs.
   cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance
 output/           - Per-run folders with plots, tables and NetCDF chains
 AGENTS.md         - Development specification and contributor rules
@@ -153,7 +189,7 @@ evaluation counters now live in ``copernican_lib/optim_utils.py`` and are
 imported
 by the engines instead of being reimplemented inside each backend.
 
-The ``_eval_safe`` helper in ``engine_interface`` caps recursion depth and
+The ``_eval_safe`` helper in ``engine_plugin_validation`` caps recursion depth and
 AST node count when parsing expressions for ``get_camb_params`` to block
 runaway evaluation on malicious or overly complex inputs.
 
@@ -217,12 +253,12 @@ raw Python code is not permitted.
 The schema requires `model_name`, `version`, `parameters`, `equations`,
 `abstract` and `description`.
 Optional fields such as `unit` and `latex_name` provide additional context.
-`copernican_lib/model_parser.py` validates the YAML and writes a sanitized
+`copernican_lib/model_spec_validator.py` validates the YAML and writes a sanitized
 copy to `models/cache/`. `copernican_lib/model_coder.py` transforms the
 equations into NumPy callables. These callables are validated by
-`copernican_lib/engine_interface.py` before being passed to the chosen
+`copernican_lib/engine_plugin_validation.py` before being passed to the chosen
 engine.
-`model_parser.py` ignores unrecognized keys and copies them to the cache, so
+`model_spec_validator.py` ignores unrecognized keys and copies them to the cache, so
 new metadata can be added without breaking older YAML files.
 
 Treat the `description` block as the journal article for the theory. Write at
@@ -264,7 +300,7 @@ equations:
 Initial guesses are computed automatically as the midpoint of each
 parameter's bounds.
 
-`model_parser.py` and `model_coder.py` handle validation and code generation
+`model_spec_validator.py` and `model_coder.py` handle validation and code generation
 automatically; no manual Python implementation is required.
 The parser keeps unknown keys intact, ensuring the DSL stays backward
 compatible as new fields are introduced.
@@ -291,8 +327,11 @@ derived from the model's variables or constants.
 ## AI-driven and human development laws and protocols
 To keep the project maintainable all contributors, human or AI, must follow
 these rules:
-1. **Summarize every change in `CHANGELOG.md` using the changelog template.**
-   Legacy `dev_note` headers should be migrated to the changelog when touched.
+1. **Summarize every change in `CHANGELOG.md` using the changelog template**
+   **and list every touched file or subsystem.** Compare
+   `git diff --name-only` against the newest changelog entry before every
+   commit so nothing escapes the `copernican-policy` hook. Legacy `dev_note`
+   headers should be migrated to the changelog when touched.
 2. **Comment the code extensively.** Explain the "why" as well as the "what",
    clarifying both obvious and non-obvious, simple or complex logic or
    algorithms.
@@ -322,7 +361,11 @@ these rules:
     sequence warnings in docstrings or string literals.**
 12. **Run `pre-commit run --all-files` before committing so Black, Isort, Ruff,
     Flake8 and the Copernican policy hook enforce formatting, whitespace,
-    metadata and print-free library rules.**
+    metadata and print-free library rules.** The policy hook now requires fresh
+    "Last Updated" headers on modified files, refuses changes without
+    accompanying changelog entries, keeps `README.md` synchronised with
+    `copernican_lib/VERSION` and blocks new modules that do not ship with
+    associated tests.
 13. **Do not redistribute the Copernican Suite in full or assert patent
     claims; the license forbids these actions.**
 14. **Keep individual lines under 79 characters to maintain readability.**

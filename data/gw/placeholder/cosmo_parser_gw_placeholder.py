@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-24
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -6,7 +7,7 @@
 import logging
 import os
 
-from copernican_lib.data_loaders import register_gw_parser
+from copernican_lib.dataset_registry import register_gw_parser
 
 DATA_DIR = os.path.dirname(__file__)
 

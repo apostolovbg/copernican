@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-08
+**Last Updated:** 2025-11-24
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,349 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 9.0.1
+- 2025-11-24: Strengthened the development rules, README and contributing
+              guide to emphasise that every change must be logged in
+              `CHANGELOG.md` alongside the touched files so the
+              `copernican-policy` hook stays green, refreshed the
+              gravitational-wave loader formatting to satisfy Black and bumped
+              version metadata to 9.0.1 (OpenAI ChatGPT)
+
+## Version 9.0.0
+- 2025-11-24: Renamed the parser dictionaries to explicit
+              ``*_PARSER_REGISTRY`` identifiers, introduced the shared
+              ``PARSER_REGISTRIES`` index, retitled the observational
+              independence annotations as
+              ``OBSERVATION_INDEPENDENCE_NOTES`` and replaced the parser
+              discovery and menu helpers with clearer
+              ``discover_trusted_parsers`` and
+              ``prompt_dataset_selection`` entry points. Updated
+              documentation, tests and release metadata to reflect the
+              clarified naming (OpenAI ChatGPT)
+
+## Version 8.0.0
+- 2025-11-24: Replaced legacy naming across the engine plugin, dataset and
+              model specification layers by renaming the modules to
+              ``engine_plugin_validation``, ``dataset_registry`` and
+              ``model_spec_validator``, updated the associated APIs
+              (including ``validate_and_cache_model``), refreshed CLI code,
+              engines, parsers, documentation and tests to match the clearer
+              terminology, and bumped suite metadata to 8.0.0 (OpenAI ChatGPT)
+- 2025-11-24: Reformatted the dataset registry and engine plugin validation
+              tests and reinforced the policy hook expectations so linting
+              gates remain green without manual reminders (OpenAI ChatGPT)
+
+## Version 7.7.15
+- 2025-11-24: Renamed the sampling entry points to
+              ``fit_cosmology_parameters`` with deprecated
+              ``fit_sne_parameters`` shims, updated the CLI to resolve the new
+              name while warning on legacy usage, refreshed documentation and
+              tests to reflect the broader scope and bumped suite metadata to
+              7.7.15 (OpenAI ChatGPT)
+
+## Version 7.7.14
+- 2025-11-23: Hardened the policy hook and CI gate so Last Updated headers are
+              fresh, changelog entries accompany file edits, README metadata
+              stays aligned with `copernican_lib/VERSION` and new modules ship
+              with accompanying tests; bumped suite metadata to 7.7.14 (OpenAI
+              ChatGPT)
+
+## Version 7.7.13
+- 2025-11-23: Added a cross-engine ΛCDM validation playbook covering trimmed
+              Pantheon+SH0ES and full BOSS DR12 BAO data, documented reference
+              χ² tolerances for both samplers and bumped suite metadata to
+              7.7.13 (OpenAI ChatGPT)
+
+## Version 7.7.12
+- 2025-11-23: Added a headless fallback to the corner-plot renderer so Tkless
+              CI runners switch to the Agg backend automatically, enforced LF
+              line endings for synthetic fixtures to keep cross-platform file
+              hashes stable and bumped suite metadata to 7.7.12 (OpenAI
+              ChatGPT)
+
+## Version 7.7.11
+- 2025-11-23: Ensured posterior NetCDF files carry provenance on both the
+              inference-data root and posterior group so model metadata remains
+              visible regardless of backend group support, documented the
+              change and bumped suite metadata to 7.7.11 (OpenAI ChatGPT)
+
+## Version 7.7.10
+- 2025-11-23: Scoped the synthetic CMB toggle to the synthetic integration
+              harness so BAO and CMB regression tests continue to exercise real
+              CAMB outputs, hardened the NetCDF fallback reader to handle
+              SciPy-backed files without groups and bumped suite metadata to
+              7.7.10 (OpenAI ChatGPT)
+
+## Version 7.7.9
+- 2025-11-23: Added deterministic synthetic SNe, BAO and CMB fixtures under
+              ``tests/data`` plus an integration test that drives both the
+              default MCMC and nested engines through the manifest, summary
+              writer and hash logging paths to ensure reproducible outputs
+              (OpenAI ChatGPT)
+- 2025-11-23: Synced ``CITATION.cff`` with the tracked version metadata to
+              satisfy the repository policy hooks and CI gating (OpenAI
+              ChatGPT)
+
+## Version 7.7.8
+- 2025-11-23: Refreshed README and design/api documentation to remove release
+              recaps, add deeper explanations of the Stage 1 configuration,
+              progress renderer, dataset integrity checks and plugin
+              interfaces, and aligned console logging comments and metadata
+              headers with current behaviour (OpenAI ChatGPT)
+- 2025-11-22: Ensured the shared Stage 2 progress renderer clears its active
+              line and emits a spacer when batches close, keeping nested and
+              ensemble transcripts free of stale 0% bars and updating
+              accompanying documentation and metadata to 7.7.8 (OpenAI
+              ChatGPT)
+
+## Version 7.7.7
+- 2025-11-20: Added a lightweight CMB stub pathway for CI and Windows runners
+              that cannot afford CAMB evaluations, wiring the MCMC regression
+              to the new hook so chi-squared tests exit quickly while keeping
+              production behaviour unchanged (OpenAI ChatGPT)
+
+## Version 7.7.6
+- 2025-11-13: Added conservative diagnostics that keep the MCMC engine
+              functional when ArviZ is unavailable, taught the NetCDF writer to
+              persist samples through an xarray fallback and adjusted the joint
+              χ² regression to rely on fast synthetic CMB spectra so Stage 2
+              tests pass consistently (OpenAI ChatGPT)
+
+## Version 7.7.5
+- 2025-11-13: Prefixed the Stage 2 progress renderer with explicit carriage
+              returns and suppressed trailing end characters so nested sampling
+              logs no longer accumulate blank spacer rows, updated the unit
+              tests to assert the newline-free behaviour and refreshed suite
+              metadata to version 7.7.5 (OpenAI ChatGPT)
+
+## Version 7.7.4
+- 2025-11-12: Updated the shared Stage 2 progress renderer to emit trailing
+              carriage returns so nested sampling stays on a single console
+              line without leaving blank spacers, refreshed the tests to
+              assert the new end characters and documented the fix across the
+              README and design notes (OpenAI ChatGPT)
+
+## Version 7.7.3
+- 2025-11-12: Smoothed the nested sampler's progress feed so the carriage-return
+              bar stays on a single line, introduced iteration-focused labels via
+              a configurable progress helper and refreshed documentation and
+              tests to cover the new rendering behaviour (OpenAI ChatGPT)
+
+## Version 7.7.2
+- 2025-11-12: Wired the nested sampler into the shared Stage 2 progress
+              infrastructure so BatchProgressBar tracks every iteration,
+              added configuration plumbing so Stage 2 toggles progress across
+              both engines, expanded the regression suite with progress spies
+              and refreshed the documentation to describe the live updates
+              (OpenAI ChatGPT)
+
+## Version 7.7.1
+- 2025-11-12: Wrapped nested-sampling helper code to respect line-length
+              policies, refreshed documentation for the polish and restored
+              green lint checks (OpenAI ChatGPT)
+
+## Version 7.7.0
+- 2025-11-11: Added the `cosmo_engine_nested` backend with nested-sampling
+              configuration prompts, manifest/test coverage and documentation
+              updates (OpenAI ChatGPT)
+
+## Version 7.6.23
+- 2025-11-11: Lowered the Stage 5 corner footer stack so elongated axis labels
+  and forthcoming gravitational-wave annotations clear the metadata block,
+  updated the responsive layout test to verify the deeper spacing, refreshed
+  documentation to describe the added headroom and bumped repository metadata
+  to version 7.6.23 (OpenAI ChatGPT)
+
+## Version 7.6.22
+- 2025-11-10: Patched the Stage 2 progress helpers to record the very first
+  batch render so cleanup removes orphaned 0% bars, forced sampler stages to
+  finish inside a shared `finally` block so even exceptions blank the console,
+  extended the regression suite with failure-mode coverage, refreshed the
+  documentation to describe the safety nets and bumped repository metadata to
+  version 7.6.22 (OpenAI ChatGPT)
+
+## Version 7.6.21
+- 2025-11-10: Extracted the Stage 2 progress renderer, spinner pump and notifier
+  bridge into `copernican_lib.progress`, restored live per-walker updates by
+  refitting the sampler hooks, added a suspension context so console logs never
+  leave stale bars behind, expanded the regression suite, refreshed
+  documentation and bumped repository metadata to version 7.6.21 (OpenAI
+  ChatGPT)
+
+## Version 7.6.20
+- 2025-11-10: Forced the Stage 2 progress renderer to repaint on a timer even
+  when walker callbacks pause, added an explicit clearing pass so completed
+  batches leave behind only blank spacer lines, extended the regression suite to
+  cover the forced repaints and console clearing logic, refreshed documentation
+  to describe the behaviour and bumped repository metadata to version 7.6.20
+  (OpenAI ChatGPT)
+
+## Version 7.6.19
+- 2025-11-10: Simplified the Stage 1 and Stage 2 banners to single-line spacers,
+  removed walker snapshot logging while keeping percentile diagnostics, stopped
+  mirroring progress bars into the log, introduced a background spinner pump so
+  live updates repaint multiple times per second, refreshed the documentation
+  and regression tests, and bumped repository metadata to version 7.6.19 (OpenAI
+  ChatGPT)
+
+## Version 7.6.18
+- 2025-11-10: Hardened the Stage 2 progress bar regression tests to cover the
+  bracket-free layout, ensuring the Unicode bar width and spinner glyphs stay
+  verified across platforms, and bumped repository metadata to version 7.6.18
+  (OpenAI ChatGPT)
+
+## Version 7.6.17
+- 2025-11-10: Removed the Stage 2 progress bar brackets so console and log
+  captures share the same alignment, refreshed the unit tests and
+  documentation to assert the bracket-free layout and bumped repository
+  metadata to version 7.6.17 (OpenAI ChatGPT)
+
+## Version 7.6.16
+- 2025-11-10: Extended the Stage 2 progress notifier with a timer-driven idle
+  spinner tick so consoles keep animating when walker updates arrive slowly,
+  updated the deterministic unit tests to patch the new timer helper, refreshed
+  the documentation to describe the behaviour and bumped project metadata to
+  version 7.6.16 (OpenAI ChatGPT)
+
+## Version 7.6.15
+- 2025-11-10: Removed dormant `tqdm` and `sys` imports from the MCMC engine so
+  the documented native progress renderer matches the code, refreshed
+  repository metadata to version 7.6.15 and reran the lint suite to keep CI
+  hooks green (OpenAI ChatGPT)
+
+## Version 7.6.14
+- 2025-11-10: Replaced the Stage 2 `tqdm` wrapper with a direct carriage-return
+  renderer so macOS and other terminals keep progress confined to a single
+  line while still repainting on every walker callback, removed the runtime
+  dependency, refreshed the notifier-driven unit tests and updated suite
+  documentation and metadata to 7.6.14 (OpenAI ChatGPT)
+
+## Version 7.6.13
+- 2025-11-10: Retuned the Stage 2 progress bar to accumulate walker-level
+  updates, layering a dedicated spinner and walker-progress meter over the
+  Unicode batch bar so terminals repaint on every callback, refreshed the
+  notifier bridge and unit tests to exercise the new `start_step` contract, and
+  updated suite documentation and metadata to 7.6.13 while keeping CI checks
+  green (OpenAI ChatGPT)
+
+## Version 7.6.12
+- 2025-11-10: Forced Stage 2 progress bars to repaint on every walker update by
+  disabling `tqdm`'s adaptive throttling, mirroring the Unicode partial-block
+  renderer inside the live display, extending the unit tests to assert the new
+  configuration and ensuring lint hooks flag duplicate class names before any
+  commit ships. Also bumped suite metadata and refreshed documentation to
+  7.6.12 (OpenAI ChatGPT)
+
+## Version 7.6.11
+- 2025-11-09: Replaced the home-grown Stage 2 progress renderer with a
+  :mod:`tqdm`-backed console display so macOS terminals see smooth per-walker
+  updates, refreshed the notifier glue and unit tests to exercise the live
+  integration, documented the dependency addition across the suite and bumped
+  project metadata to 7.6.11 (OpenAI ChatGPT)
+
+## Version 7.6.10
+- 2025-11-09: Patched the Stage 2 notifier bridge so weighted `emcee` move
+  tables receive reporting wrappers, restoring per-walker progress updates on
+  macOS terminals, refreshed the progress bar tests to cover weighted tuples
+  and bumped project metadata to 7.6.10 (OpenAI ChatGPT)
+
+## Version 7.6.9
+- 2025-11-09: Rebuilt the Stage 2 batch progress renderer with Unicode
+  partial-block glyphs so interactive terminals match the smooth updates already
+  captured in logs, refreshed the accompanying unit tests, documentation and
+  contributor guidance, and bumped project metadata to 7.6.9 (OpenAI ChatGPT)
+
+## Version 7.6.8
+- 2025-11-09: Deepened the Stage 5 corner plot clearances by lifting the footer
+  padding, enforcing a lowest-line floor and retuning the subplot margins so
+  the grid rides higher, anchored the suptitle lower to mirror other figures,
+  refreshed the regression tests to lock in the new spacing contract and bumped
+  project metadata to 7.6.8 (OpenAI ChatGPT)
+
+## Version 7.6.7
+- 2025-11-09: Expanded the Stage 5 corner layout with dual footer clearances,
+  tightened the top margin so titles no longer hug the canvas, refreshed the
+  regression tests to assert the new spacing and bumped project metadata to
+  7.6.7 (OpenAI ChatGPT)
+
+## Version 7.6.6
+- 2025-11-09: Standardised the Stage 5 corner plot footer cadence on the shared
+  0.015 spacing, added fixed padding to keep the footer clear of the axes,
+  refreshed the regression tests and bumped project metadata to 7.6.6 (OpenAI
+  ChatGPT)
+
+## Version 7.6.5
+- 2025-11-09: Hardened Stage 5 corner plotting by synthesising strictly
+  increasing contour levels, removed redundant dataset metadata from the
+  posterior footer so it matches the other Stage 2 figures, expanded the
+  plotting tests to cover the new behaviour and bumped project metadata to
+  7.6.5 (OpenAI ChatGPT)
+
+## Version 7.6.4
+- 2025-11-09: Imported the standard-library timing helper inside
+  ``copernican.py`` so the splash screen delay no longer raises ``NameError``
+  exceptions, added regression coverage for the banner pause, refreshed
+  documentation accordingly, adjusted the stretch-move helper to rebuild split
+  comparisons without formatter-conflicting slice syntax and bumped project
+  metadata to 7.6.4 (OpenAI ChatGPT)
+
+## Version 7.6.3
+- 2025-11-09: Restored ArviZ as a mandatory dependency so Stage 2 always
+  records convergence diagnostics, updated the MCMC engine and tests
+  accordingly and refreshed documentation to reiterate the requirement while
+  bumping metadata to 7.6.3 (OpenAI ChatGPT)
+
+## Version 7.6.2
+- 2025-11-09: Streamed per-walker updates into the Stage 2 fifty-character
+  progress bars, removed all runtime-estimation logic from the CLI and
+  documentation, taught the sampler to skip ArviZ diagnostics gracefully when
+  the dependency is missing, refreshed progress-bar tests and bumped project
+  metadata to 7.6.2 (OpenAI ChatGPT)
+
+## Version 7.6.1
+- 2025-11-09: Retired the Stage 2 runtime estimator, rebuilt the sampler progress
+  bars around a fifty-character display, repaired the QRSFv2 corner plot contour
+  level calculation and updated documentation, tests and metadata for version
+  7.6.1 (OpenAI ChatGPT)
+
+## Version 7.6.0
+- 2025-11-09: Extended the Stage 2 progress system to surface per-batch timing
+  snapshots, calculate sampler throughput on a one-second cadence, stream live
+  combined runtime estimates for both theories and cover the behaviour with
+  deterministic unit tests and documentation updates (OpenAI ChatGPT)
+
+## Version 7.5.3
+- 2025-11-09: Updated the Stage 2 runtime estimator to benchmark a single
+  burn-in and production step per model, reuse ΛCDM timings when both plugins
+  share the same YAML definition, expand documentation and bump release
+  metadata to 7.5.3 so runtime forecasts remain trustworthy (OpenAI ChatGPT)
+
+## Version 7.5.2
+- 2025-11-09: Expanded Stage 1 documentation, refreshed inline comments around
+  Stage 2 progress reporting and bumped release metadata to 7.5.2 so the policy
+  record stays accurate (OpenAI ChatGPT)
+
+## Version 7.5.1
+- 2025-11-09: Replaced the obsolete "Copernican has initialised" banner with a
+  blank spacer so the Stage 1 menu retains its pacing without repeating
+  redundant messaging. Updated documentation, guidance notes and version
+  metadata to match the refined startup flow (OpenAI ChatGPT)
+
+## Version 7.5.0
+- 2025-11-09: Refined Stage 1 to present the random-seed menu after the
+  configuration banner, added a restart/exit dialog when model validation fails
+  and surfaced detailed validation reasons via `PluginValidationError`.
+  Stage 2 now announces burn-in and production phases for each model, renders a
+  gradual progress bar for every sampler batch and exposes a live runtime
+  estimator from the sampler menu. Documentation, unit tests and release
+  metadata were updated to cover the new workflows (OpenAI ChatGPT)
+
+## Version 7.4.6
+- 2025-11-09: Added a responsive sizing helper for Stage 5 corner plots that
+  caps figures at twelve inches per side, derives typography from the computed
+  layout and refreshes regression tests, documentation and release metadata to
+  describe the new behaviour (OpenAI ChatGPT)
 
 ## Version 7.4.5
 - 2025-11-08: Enlarged the Stage 5 corner plot panels, increased font sizes and
@@ -363,7 +706,7 @@ suffixes. Follow this template:
   normalised incorrect timestamps across documentation, and refreshed metadata
   that slipped into the future (OpenAI ChatGPT)
 - 2025-10-30: Integrated JointLike-powered posterior assembly in the MCMC
-  engine, exposed `engine_interface.make_logposterior` for reusable prior
+  engine, exposed `engine_plugin_validation.make_logposterior` for reusable prior
   handling, expanded smoke tests with likelihood diagnostics, refreshed
   documentation metadata and bumped the suite version (OpenAI ChatGPT)
 
@@ -870,7 +1213,7 @@ suffixes. Follow this template:
   `copernican_lib/utils.py` and `engines/cosmo_engine_comb.py` (AI assistant)
 
 ## Version 3.8.1
-- 2025-08-21: Removed unused `get_user_input_filepath` and `parse_model_header`
+- 2025-08-21: Removed unused `get_user_input_filepath` and `validate_and_cache_model_header`
   helpers from `copernican.py` (AI assistant)
 
 ## Version 3.8.0
@@ -1049,7 +1392,7 @@ suffixes. Follow this template:
   aligned Flake8 line length with Black and shortened long lines for
   lint compliance (AI assistant)
 - 2025-08-09: Wrapped long lines in `copernican_lib/csv_writer.py`,
-  `model_coder.py`, `model_parser.py`, `optim_utils.py` and `utils.py`
+  `model_coder.py`, `model_spec_validator.py`, `optim_utils.py` and `utils.py`
   for 79-column compliance (AI assistant)
 - 2025-08-09: Wrapped `generate_filename` for 79-char limit (AI assistant)
 
@@ -1058,7 +1401,7 @@ suffixes. Follow this template:
   79-column compliance (AI assistant)
 
 ## Version 3.6.5
-- 2025-08-09: Wrapped long line in `copernican_lib/model_parser.py` to
+- 2025-08-09: Wrapped long line in `copernican_lib/model_spec_validator.py` to
   enforce 79-character limit (AI assistant)
 
 ## Version 3.6.4
@@ -1124,7 +1467,7 @@ suffixes. Follow this template:
   names and synchronized documentation (AI assistant)
 
 ## Version 3.4.0
-- 2025-08-04: Centralised dataset metadata loading in `data_loaders.py`,
+- 2025-08-04: Centralised dataset metadata loading in `dataset_registry.py`,
   removed metadata handling from parsers and updated documentation (AI
   assistant)
 
@@ -1749,7 +2092,7 @@ suffixes. Follow this template:
   packages are missing.
 
 ## Version 1.5c (Development Release)
-- Completed Phase 3: engine_interface now validates plugins and engines use
+- Completed Phase 3: engine_plugin_validation now validates plugins and engines use
   the
   new abstraction layer.
 - Updated documentation and headers for version 1.5c.

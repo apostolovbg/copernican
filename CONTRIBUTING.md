@@ -1,10 +1,11 @@
 # Contributing to the Copernican Suite
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-11-24
 
 Thank you for considering a contribution. Before opening a pull request,
-please
-read `AGENTS.md` for the full development specification. The quick checklist
-is:
+please read `AGENTS.md` for the full development specification. Log every
+change in `CHANGELOG.md` with the date, author and the files or subsystems you
+touched, and compare `git diff --name-only` with your entry before pushing so
+the `copernican-policy` hook remains satisfied. The quick checklist is:
 
 1. Run `pre-commit run --all-files` to apply Black, Isort, Ruff, Flake8 and the
    Copernican policy hook that validates version metadata, date fields and

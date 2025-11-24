@@ -1,9 +1,9 @@
-# Last Updated: 2025-11-07
+# Last Updated: 2025-11-24
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-
 """Tests for menu interaction helpers in ``copernican.py``."""
 
+import collections.abc as collections_abc
 import importlib
 import os
 import sys
@@ -12,13 +12,49 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+if not hasattr(collections_abc, "Buffer"):
+
+    class _DummyBufferProtocol:  # pragma: no cover - shim for Python 3.11
+        """Lightweight stand-in so NumPy imports succeed during tests."""
+
+        pass
+
+    collections_abc.Buffer = _DummyBufferProtocol
+
 with mock.patch("sys.version_info", (3, 12, 0)):
     with mock.patch.dict(
         os.environ,
         {"VIRTUAL_ENV": str(Path(__file__).resolve().parents[1] / ".venv")},
     ):
         copernican = importlib.import_module("copernican")
-import copernican_lib.data_loaders
+import copernican_lib.dataset_registry
+
+
+class SplashScreenTestCase(unittest.TestCase):
+    """Ensure the splash screen renders and pauses as expected."""
+
+    def test_show_splash_screen_waits_briefly(self) -> None:
+        """The helper should print the banner once and sleep for one second."""
+
+        captured: list[str] = []
+
+        def _record(message: str, *, error: bool = False) -> None:
+            """Collect console output while mirroring the console signature."""
+
+            prefix = "ERROR: " if error else ""
+            captured.append(f"{prefix}{message}")
+
+        with (
+            mock.patch("copernican.console.write", _record),
+            mock.patch("copernican.time.sleep") as sleep_mock,
+        ):
+            copernican.show_splash_screen()
+
+        self.assertTrue(
+            any("C O P E R N I C A N" in line for line in captured),
+            "Splash banner text was not written to the console.",
+        )
+        sleep_mock.assert_called_once_with(1)
 
 
 class MenuRunTestsTestCase(unittest.TestCase):
@@ -40,8 +76,10 @@ class MenuRunTestsTestCase(unittest.TestCase):
 class SelectSourceDisplayTestCase(unittest.TestCase):
     """Ensure selection prompts show names and return identifiers."""
 
-    @mock.patch("copernican_lib.data_loaders.console.ask", return_value="1")
-    def test_select_source_shows_name(self, _ask_mock):
+    @mock.patch(
+        "copernican_lib.dataset_registry.console.ask", return_value="1"
+    )
+    def test_prompt_dataset_selection_shows_name(self, _ask_mock):
         registry = {
             "dummy_id": {
                 "dataset_name": "Dummy Dataset",
@@ -52,10 +90,10 @@ class SelectSourceDisplayTestCase(unittest.TestCase):
         }
         captured = []
         with mock.patch(
-            "copernican_lib.data_loaders.console.write",
+            "copernican_lib.dataset_registry.console.write",
             lambda msg: captured.append(msg),
         ):
-            result = copernican_lib.data_loaders._select_source(
+            result = copernican_lib.dataset_registry.prompt_dataset_selection(
                 registry, "SNe"
             )
         self.assertEqual(result, "dummy_id")
@@ -124,15 +162,20 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
     """Exercise the sampler configuration questionnaire."""
 
     def setUp(self) -> None:
-        def fit_sne_parameters(
-            n_steps: int = 400, n_walkers: int = 64
-        ) -> None:
-            return None
+        def fit_cosmology_parameters(
+            n_steps: int = 400,
+            n_walkers: int = 64,
+            burn_in_steps: int | None = None,
+            **_kwargs,
+        ) -> dict[str, bool]:
+            return {"success": True}
 
         self.engine = SimpleNamespace(
-            fit_sne_parameters=fit_sne_parameters,
+            fit_cosmology_parameters=fit_cosmology_parameters,
+            fit_sne_parameters=fit_cosmology_parameters,
             _FIXED_BOUNDS_RTOL=1e-9,
             _FIXED_BOUNDS_ATOL=1e-12,
+            ENGINE_KIND="mcmc",
         )
         self.lcdm_plugin = SimpleNamespace(
             PARAMETER_BOUNDS=[(0.0, 1.0)] * 3,
@@ -158,10 +201,14 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
             self.engine,
             self.lcdm_plugin,
             self.alt_plugin,
+            None,
+            None,
+            None,
         )
         self.assertEqual(
             plan,
             {
+                "engine_kind": "mcmc",
                 "n_steps": 400,
                 "burn_in_steps": 100,
                 "n_walkers": 64,
@@ -182,10 +229,14 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
             self.engine,
             self.lcdm_plugin,
             self.alt_plugin,
+            None,
+            None,
+            None,
         )
         self.assertEqual(
             plan,
             {
+                "engine_kind": "mcmc",
                 "n_steps": 600,
                 "burn_in_steps": 120,
                 "n_walkers": 80,
@@ -206,14 +257,131 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
             self.engine,
             self.lcdm_plugin,
             self.alt_plugin,
+            None,
+            None,
+            None,
         )
         self.assertEqual(
             plan,
             {
+                "engine_kind": "mcmc",
                 "n_steps": 400,
                 "burn_in_steps": 100,
                 "n_walkers": 64,
                 "pool_size": 10,
+            },
+        )
+
+
+class NestedSamplerConfigurationPromptTestCase(unittest.TestCase):
+    """Exercise the nested-sampling configuration questionnaire."""
+
+    def setUp(self) -> None:
+        def fit_cosmology_parameters(
+            *,
+            n_live_points: int = 128,
+            max_iterations: int = 5000,
+            evidence_tolerance: float = 1e-3,
+            enlargement_fraction: float = 1.5,
+            **_kwargs,
+        ) -> dict[str, bool]:
+            return {"success": True}
+
+        self.engine = SimpleNamespace(
+            fit_cosmology_parameters=fit_cosmology_parameters,
+            fit_sne_parameters=fit_cosmology_parameters,
+            ENGINE_KIND="nested",
+        )
+        self.lcdm_plugin = SimpleNamespace(
+            PARAMETER_BOUNDS=[(0.0, 1.0)] * 3,
+            PARAMETER_NAMES=["Ωm", "ΩΛ", "H0"],
+            MODEL_NAME="ΛCDM",
+        )
+        self.alt_plugin = SimpleNamespace(
+            PARAMETER_BOUNDS=[(0.0, 1.0)] * 4,
+            PARAMETER_NAMES=["w0", "wa", "Ωk", "Neff"],
+            MODEL_NAME="AltModel",
+        )
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    def test_nested_defaults_selected(self, ask_mock, _write_mock) -> None:
+        """Pressing Enter should accept the recommended nested plan."""
+
+        ask_mock.side_effect = [""]
+        plan = copernican.prompt_sampling_configuration(
+            self.engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+            None,
+            None,
+            None,
+        )
+        self.assertEqual(
+            plan,
+            {
+                "engine_kind": "nested",
+                "n_live_points": 128,
+                "max_iterations": 5000,
+                "evidence_tolerance": 1e-3,
+                "enlargement_fraction": 1.5,
+            },
+        )
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    def test_nested_custom_plan(self, ask_mock, _write_mock) -> None:
+        """Operators can customise nested-sampling parameters."""
+
+        ask_mock.side_effect = [
+            "2",
+            "256",
+            "10000",
+            "5e-4",
+            "2.0",
+            "",
+        ]
+        plan = copernican.prompt_sampling_configuration(
+            self.engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+            None,
+            None,
+            None,
+        )
+        self.assertEqual(
+            plan,
+            {
+                "engine_kind": "nested",
+                "n_live_points": 256,
+                "max_iterations": 10000,
+                "evidence_tolerance": 5e-4,
+                "enlargement_fraction": 2.0,
+            },
+        )
+
+    @mock.patch("copernican.console.write")
+    @mock.patch("copernican.console.ask")
+    def test_nested_back_option(self, ask_mock, _write_mock) -> None:
+        """Backtracking returns to the defaults summary before exiting."""
+
+        ask_mock.side_effect = ["2", "", "", "", "", "b", ""]
+        plan = copernican.prompt_sampling_configuration(
+            self.engine,
+            self.lcdm_plugin,
+            self.alt_plugin,
+            None,
+            None,
+            None,
+        )
+        self.assertEqual(
+            plan,
+            {
+                "engine_kind": "nested",
+                "n_live_points": 128,
+                "max_iterations": 5000,
+                "evidence_tolerance": 1e-3,
+                "enlargement_fraction": 1.5,
             },
         )
 

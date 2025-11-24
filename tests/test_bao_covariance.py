@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-24
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -7,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
-from copernican_lib import engine_interface
+from copernican_lib import engine_plugin_validation
 from copernican_lib.statistics import chi_squared_bao
 
 
@@ -48,8 +49,8 @@ class BaoCovarianceTestCase(unittest.TestCase):
             "get_DV_Mpc": _zero,
             "get_sound_horizon_rs_Mpc": lambda *_: 150.0,
         }
-        cls.plugin = engine_interface.build_plugin(model_data, funcs)
-        engine_interface.validate_plugin(cls.plugin)
+        cls.plugin = engine_plugin_validation.build_plugin(model_data, funcs)
+        engine_plugin_validation.validate_plugin(cls.plugin)
 
     def test_covariance_changes_chi2(self):
         """Using the covariance matrix yields a distinct chi-squared value."""

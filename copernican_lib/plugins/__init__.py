@@ -1,18 +1,21 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# Last Updated: 2025-11-24
+# See LICENSE.md in the repository root for details.
+
 """Runtime plugin assembly utilities for engine integrations.
 
-**Last Updated:** 2025-11-08
-
-The legacy :mod:`copernican_lib.engine_interface` module combined plugin
-construction, validation, CAMB parameter synthesis and posterior helpers in a
-single 500+ line file. That structure complicated multiprocessing support and
-made it difficult to reason about picklability when new features were added.
-The refreshed layout promotes plugin assembly into a dedicated package so the
-API surface is explicit, picklable and thoroughly documented. Engines now
-operate on the :class:`EnginePlugin` dataclass, which stores metadata, dataset
-compatibility toggles and distance functions in a predictable, serialisable
-form. Optional helpers such as ``compute_cmb_spectrum`` are captured in an
-``extras`` mapping so future extensions remain backwards compatible without
-silently mutating ``__dict__`` structures.
+The legacy :mod:`copernican_lib.engine_plugin_validation` module combined
+plugin construction, validation, CAMB parameter synthesis and posterior
+helpers in a single 500+ line file. That structure complicated
+multiprocessing support and made it difficult to reason about picklability
+when new features were added. The refreshed layout promotes plugin assembly
+into a dedicated package so the API surface is explicit, picklable and
+thoroughly documented. Engines now operate on the :class:`EnginePlugin`
+dataclass, which stores metadata, dataset compatibility toggles and distance
+functions in a predictable, serialisable form. Optional helpers such as
+``compute_cmb_spectrum`` are captured in an ``extras`` mapping so future
+extensions remain backwards compatible without silently mutating
+``__dict__`` structures.
 
 The module exposes three primary entry points:
 
@@ -486,14 +489,13 @@ def build_engine_plugin(
 def validate_plugin(plugin: EnginePlugin) -> bool:
     """Validate that ``plugin`` exposes required attributes and callables."""
 
+    errors: list[str] = []
     missing_attrs = [
         attr for attr in REQUIRED_ATTRIBUTES if not hasattr(plugin, attr)
     ]
     if missing_attrs:
-        LOGGER.error(
-            "Plugin validation failed. Missing attributes: %s", missing_attrs
-        )
-        return False
+        missing_list = ", ".join(sorted(missing_attrs))
+        errors.append(f"Missing attributes: {missing_list}")
 
     required_funcs: list[str] = []
     if getattr(plugin, "valid_for_distance_metrics", True):
@@ -514,23 +516,29 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
     for fname in required_funcs:
         func = getattr(plugin, fname, None)
         if not callable(func):
-            LOGGER.error(
-                "Plugin validation failed. Missing function '%s'.", fname
-            )
-            return False
+            errors.append(f"Missing callable '{fname}'")
+            continue
         try:
             sig = inspect.signature(func)
         except (TypeError, ValueError):
-            LOGGER.error(
-                "Plugin validation failed. Unable to inspect '%s'.", fname
-            )
-            return False
+            errors.append(f"Unable to inspect callable '{fname}'")
+            continue
         if not sig.parameters:
-            LOGGER.error(
-                "Plugin validation failed. Function '%s' has no parameters.",
-                fname,
+            errors.append(
+                f"Callable '{fname}' must accept at least one parameter"
             )
-            return False
+
+    if errors:
+        model_name = getattr(plugin, "MODEL_NAME", "engine plugin")
+        joined = "; ".join(errors)
+        for entry in errors:
+            LOGGER.error(
+                "Plugin validation issue for %s: %s", model_name, entry
+            )
+        raise PluginValidationError(
+            f"Validation failed for {model_name}: {joined}"
+        )
+
     return True
 
 

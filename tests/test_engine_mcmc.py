@@ -1,9 +1,9 @@
 """Integration tests for the ensemble MCMC engine.
 
-**Last Updated:** 2025-11-07
+# Last Updated: 2025-11-24
 """
 
-import importlib.util
+import contextlib
 import logging
 import math
 import os
@@ -11,23 +11,31 @@ import tempfile
 import unittest
 import warnings
 from types import SimpleNamespace
+from unittest import mock
 
+import emcee
 import numpy as np
 import pandas as pd
 import xarray as xr
+from emcee import moves
 
-if importlib.util.find_spec("arviz") is not None:
-    from copernican_lib import chain_io
-
-    ARVIZ_AVAILABLE = True
-else:
-    ARVIZ_AVAILABLE = False
-from copernican_lib import engine_interface, model_coder, model_parser
+from copernican_lib import (
+    chain_io,
+    engine_plugin_validation,
+    model_coder,
+    model_spec_validator,
+)
+from copernican_lib import progress as progress_helpers
+from copernican_lib.progress import (
+    BatchProgressBar,
+    StepProgressEmitter,
+    configure_sampler_progress_reporting,
+)
 from copernican_lib.utils import set_random_seed
 from engines import cosmo_engine_mcmc
 from engines.cosmo_engine_mcmc import (
     _ActiveLogProbability,
-    _build_sne_logposterior,
+    _build_joint_logposterior,
     _classify_parameter_bounds,
     _estimate_condition_number,
     _initialise_active_walkers,
@@ -45,9 +53,11 @@ def _build_model_plugin(yaml_filename: str):
     models_dir = os.path.join(os.path.dirname(__file__), "..", "models")
     yaml_path = os.path.join(models_dir, yaml_filename)
     cache_dir = os.path.join(models_dir, "cache")
-    cache_path = model_parser.parse_model(yaml_path, cache_dir)
+    cache_path = model_spec_validator.validate_and_cache_model(
+        yaml_path, cache_dir
+    )
     func_dict, parsed = model_coder.generate_callables(cache_path)
-    return engine_interface.build_plugin(parsed, func_dict)
+    return engine_plugin_validation.build_plugin(parsed, func_dict)
 
 
 def _build_short_chain_plugin():
@@ -106,7 +116,6 @@ def _build_short_chain_plugin():
     )
 
 
-@unittest.skipUnless(ARVIZ_AVAILABLE, "arviz not installed")
 class TestMCMCEngine(unittest.TestCase):
     """Verify that the MCMC engine produces chains and NetCDF output."""
 
@@ -125,7 +134,7 @@ class TestMCMCEngine(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        res = cosmo_engine_mcmc.fit_sne_parameters(
+        res = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -175,6 +184,34 @@ class TestMCMCEngine(unittest.TestCase):
                 )
             )
 
+    def test_legacy_fit_alias_warns_and_runs(self):
+        plugin = self._build_lcdm_plugin()
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01, 0.02],
+                "mu_obs": [40.0, 41.0],
+                "e_mu_obs": [0.1, 0.1],
+            }
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            res = cosmo_engine_mcmc.fit_sne_parameters(
+                sne_df,
+                plugin,
+                n_walkers=4,
+                n_steps=4,
+                pool_size=1,
+                burn_in_steps=2,
+                display_progress=False,
+            )
+        self.assertTrue(res["success"])
+        self.assertTrue(
+            any(
+                "fit_sne_parameters is deprecated" in str(warning.message)
+                for warning in caught
+            )
+        )
+
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "chain.nc")
             chain_io.save_posterior(
@@ -186,10 +223,26 @@ class TestMCMCEngine(unittest.TestCase):
             # Use a context manager so Windows can remove the file when the
             # temporary directory cleans up. Without explicitly closing the
             # dataset the cleanup step fails because the file handle remains
-            # open on that platform.
-            with xr.open_dataset(path, group="posterior") as ds:
+            # open on that platform. ArviZ writes the "posterior" group when
+            # the netCDF4 backend is available. The lightweight xarray
+            # fallback uses the SciPy engine, which lacks group support, so the
+            # dataset lives at the root and records that choice via
+            # ``posterior_group``.
+            try:
+                open_kwargs = {"group": "posterior"}
+                dataset = xr.open_dataset(path, **open_kwargs)
+                expects_group = True
+            except ValueError:
+                open_kwargs = {}
+                dataset = xr.open_dataset(path, **open_kwargs)
+                expects_group = False
+
+            with dataset as ds:
                 for name in plugin.PARAMETER_NAMES:
                     self.assertIn(name, ds.data_vars)
+                self.assertEqual(ds.attrs.get("model"), plugin.MODEL_NAME)
+                if not expects_group:
+                    self.assertEqual(ds.attrs.get("posterior_group"), "/")
 
     def test_progress_logging_reports_statistics(self):
         plugin = self._build_lcdm_plugin()
@@ -202,7 +255,7 @@ class TestMCMCEngine(unittest.TestCase):
         )
 
         with self.assertLogs(level="INFO") as captured:
-            cosmo_engine_mcmc.fit_sne_parameters(
+            cosmo_engine_mcmc.fit_cosmology_parameters(
                 sne_df,
                 plugin,
                 n_walkers=4,
@@ -214,10 +267,11 @@ class TestMCMCEngine(unittest.TestCase):
 
         joined = "\n".join(captured.output)
         self.assertIn("logP μ=", joined)
-        self.assertIn("Walker[", joined)
+        self.assertNotIn("Walker[", joined)
         for name in plugin.PARAMETER_NAMES:
             self.assertIn(f"    {name}:", joined)
         self.assertNotIn("omitted", joined)
+        self.assertNotIn("snapshot", joined)
 
     def test_explicit_pool_size_respected(self):
         plugin = self._build_lcdm_plugin()
@@ -228,7 +282,7 @@ class TestMCMCEngine(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        res = cosmo_engine_mcmc.fit_sne_parameters(
+        res = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -248,7 +302,7 @@ class TestMCMCEngine(unittest.TestCase):
                 "e_mu_obs": [0.1],
             }
         )
-        posterior, _, _ = _build_sne_logposterior(
+        posterior, _, _ = _build_joint_logposterior(
             plugin,
             sne_df,
         )
@@ -279,7 +333,7 @@ class TestMCMCEngine(unittest.TestCase):
                 np.full(ndim, np.nan),
             ]
         )
-        posterior, _, _ = _build_sne_logposterior(
+        posterior, _, _ = _build_joint_logposterior(
             plugin,
             sne_df,
         )
@@ -307,7 +361,7 @@ class TestMCMCEngine(unittest.TestCase):
             }
         )
         set_random_seed(31415)
-        first = cosmo_engine_mcmc.fit_sne_parameters(
+        first = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -316,7 +370,7 @@ class TestMCMCEngine(unittest.TestCase):
             burn_in_steps=8,
         )
         set_random_seed(31415)
-        second = cosmo_engine_mcmc.fit_sne_parameters(
+        second = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -341,7 +395,7 @@ class TestMCMCEngine(unittest.TestCase):
                 "e_mu_obs": [0.1],
             }
         )
-        posterior, _, _ = _build_sne_logposterior(plugin, sne_df)
+        posterior, _, _ = _build_joint_logposterior(plugin, sne_df)
         bounds = plugin.PARAMETER_BOUNDS
         lower, upper, fixed_mask = _classify_parameter_bounds(
             bounds, logger=logging.getLogger()
@@ -378,7 +432,7 @@ class TestMCMCEngine(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        result = cosmo_engine_mcmc.fit_sne_parameters(
+        result = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -399,7 +453,7 @@ class TestMCMCEngine(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        result = cosmo_engine_mcmc.fit_sne_parameters(
+        result = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=30,
@@ -423,7 +477,7 @@ class TestMCMCEngine(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        result = cosmo_engine_mcmc.fit_sne_parameters(
+        result = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -462,25 +516,37 @@ class TestMCMCEngine(unittest.TestCase):
         bao_df.attrs["covariance_matrix_inv"] = np.eye(1)
 
         ells = np.arange(30, 34)
-        camb_params = plugin.get_camb_params(initial)
-        dl_vals = cosmo_engine_mcmc.compute_cmb_spectrum(
-            camb_params,
-            ells,
-            spectra=("TT",),
-        )
-        cmb_df = pd.DataFrame({"ell": ells, "Dl_obs": dl_vals})
-        cmb_df.attrs["covariance_matrix_inv"] = np.eye(len(ells))
+        ell_arr = np.asarray(ells, dtype=float)
+        simulated = 1200.0 / (ell_arr + 3.0)
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(
+                mock.patch.dict(
+                    os.environ,
+                    {"COPERNICAN_FAKE_CMB": "1"},
+                    clear=False,
+                )
+            )
 
-        result = cosmo_engine_mcmc.fit_sne_parameters(
-            sne_df,
-            plugin,
-            bao_data_df=bao_df,
-            cmb_data_df=cmb_df,
-            n_walkers=6,
-            n_steps=6,
-            pool_size=1,
-            burn_in_steps=12,
-        )
+            camb_params = plugin.get_camb_params(initial)
+            dl_vals = cosmo_engine_mcmc.compute_cmb_spectrum(
+                camb_params,
+                ells,
+                spectra=("TT",),
+            )
+            np.testing.assert_allclose(dl_vals, simulated)
+            cmb_df = pd.DataFrame({"ell": ells, "Dl_obs": dl_vals})
+            cmb_df.attrs["covariance_matrix_inv"] = np.eye(len(ells))
+
+            result = cosmo_engine_mcmc.fit_cosmology_parameters(
+                sne_df,
+                plugin,
+                bao_data_df=bao_df,
+                cmb_data_df=cmb_df,
+                n_walkers=4,
+                n_steps=2,
+                pool_size=1,
+                burn_in_steps=2,
+            )
         components = result.get("chi2_components", {})
         total = sum(components.values())
         self.assertTrue(result["success"])
@@ -510,6 +576,74 @@ class TestMCMCEngine(unittest.TestCase):
             ]
         )
         np.testing.assert_allclose(arr, loop)
+
+
+class TestStepProgressEmitter(unittest.TestCase):
+    """Exercise the idle spinner helper under deterministic timing."""
+
+    def test_idle_tick_repaints_after_single_update(self) -> None:
+        """``tick`` repaints repeatedly after a lone walker update."""
+
+        class _DummyBar:
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, int, int]] = []
+                self.uses_live_display = True
+
+            def start_step(self, step_index: int, walker_total: int) -> str:
+                self.calls.append(("start", step_index, walker_total))
+                return ""
+
+            def update(
+                self,
+                step_index: int,
+                *,
+                processed: int,
+                total: int,
+                step_progress: float | None = None,
+                force: bool = False,
+            ) -> str:
+                self.calls.append(("update", processed, total))
+                return f"line-{len(self.calls)}"
+
+        dummy_bar = _DummyBar()
+        emitter = StepProgressEmitter(dummy_bar)
+        idle_times = [0.0]
+
+        def _fake_timer() -> float:
+            return idle_times[0]
+
+        def _update_count() -> int:
+            count = 0
+            for call in dummy_bar.calls:
+                if call[0] == "update":
+                    count += 1
+            return count
+
+        emitter._timer = _fake_timer  # type: ignore[attr-defined]
+        emitter._idle_interval = 0.1  # type: ignore[attr-defined]
+        emitter.start(1, 1)
+        idle_times[0] = 0.05
+        emitter(1, 1)
+        initial_updates = _update_count()
+        idle_times[0] = 0.14
+        emitter.tick()
+        self.assertEqual(_update_count(), initial_updates)
+        idle_times[0] = 0.16
+        emitter.tick()
+        idle_times[0] = 0.30
+        emitter.tick()
+        self.assertGreaterEqual(
+            _update_count(),
+            initial_updates + 2,
+        )
+        final_count = _update_count()
+        emitter.clear()
+        idle_times[0] = 0.50
+        emitter.tick()
+        self.assertEqual(
+            _update_count(),
+            final_count,
+        )
 
 
 class TestMCMCHelpers(unittest.TestCase):
@@ -567,7 +701,7 @@ class TestMCMCHelpers(unittest.TestCase):
             }
         )
 
-        result = cosmo_engine_mcmc.fit_sne_parameters(
+        result = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=10,
@@ -596,7 +730,7 @@ class TestAutocorrelationGuard(unittest.TestCase):
         )
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always", RuntimeWarning)
-            result = cosmo_engine_mcmc.fit_sne_parameters(
+            result = cosmo_engine_mcmc.fit_cosmology_parameters(
                 sne_df,
                 plugin,
                 n_walkers=4,
@@ -612,6 +746,311 @@ class TestAutocorrelationGuard(unittest.TestCase):
         ]
         self.assertIsNone(result.get("autocorrelation_time"))
         self.assertFalse(runtime_warnings)
+
+
+class BatchProgressBarTestCase(unittest.TestCase):
+    """Exercise the sampler progress bar without timing metadata."""
+
+    def test_progress_bar_reports_pluralisation_and_width(self) -> None:
+        """Progress lines reflect partial updates and honour the width."""
+
+        captured: list[tuple[str, str]] = []
+
+        def _capture(
+            msg: str = "", *, end: str = "\n", error: bool = False
+        ) -> None:
+            captured.append((msg, end))
+
+        bar = BatchProgressBar(
+            "Test stage",
+            4,
+            display=True,
+        )
+        with (
+            mock.patch(
+                "copernican_lib.progress.console.write",
+                side_effect=_capture,
+            ),
+        ):
+            bar.start_batch(1, 4)
+            self.assertTrue(bar.uses_live_display)
+            initial_line = bar.start_step(1, walker_total=8)
+            self.assertIn("  0%", initial_line)
+            spinner_frames = set(BatchProgressBar._SPINNER_FRAMES)
+            self.assertTrue(spinner_frames & set(initial_line))
+            half_line = bar.update(1, processed=4, total=8)
+            self.assertIn("step 1 of 4 steps", half_line)
+            self.assertIn("4 steps remaining", half_line)
+            self.assertTrue(spinner_frames & set(half_line))
+            bar_segment = half_line.lstrip("\r").split(" ", 1)[0]
+            self.assertEqual(
+                len(bar_segment),
+                BatchProgressBar._BAR_WIDTH,
+            )
+            self.assertIn("█", bar_segment)
+            self.assertIn("4/8", half_line)
+            walker_segment = (
+                half_line.split(";", 1)[1].strip().split(",", 1)[0]
+            )
+            walker_bar_segment, walker_counts = walker_segment.rsplit(" ", 1)
+            self.assertEqual(
+                len(walker_bar_segment),
+                BatchProgressBar._WALKER_BAR_WIDTH,
+            )
+            self.assertEqual(walker_counts, "4/8")
+            later_line = bar.start_step(2, walker_total=8)
+            self.assertIn("step 2 of 4 steps", later_line)
+            self.assertIn("3 steps remaining", later_line)
+            bar.start_step(3, walker_total=8)
+            near_end = bar.update(3, processed=8, total=8)
+            self.assertIn("1 step remaining", near_end)
+            bar.start_step(4, walker_total=8)
+            final_line = bar.update(4, processed=8, total=8)
+            self.assertIn("0 steps remaining", final_line)
+            bar.finish_batch()
+
+        announcements = [msg for msg, _ in captured if "batch" in msg]
+        self.assertTrue(announcements)
+        newline_calls = [end for msg, end in captured if msg == ""]
+        self.assertIn("\n", newline_calls)
+        emitted_lines = [msg for msg, end in captured if end == ""]
+        self.assertTrue(emitted_lines)
+        self.assertTrue(all(msg.startswith("\r") for msg in emitted_lines))
+        # Spinner frames appear in subsequent captured repaint strings.
+        spinner_hits = [set(msg) & spinner_frames for msg in emitted_lines]
+        self.assertTrue(any(hit for hit in spinner_hits))
+
+    def test_progress_bar_emits_partial_block_during_small_updates(
+        self,
+    ) -> None:
+        """Fractional updates render the Unicode sub-block glyphs."""
+
+        bar = BatchProgressBar(
+            "Unicode stage",
+            10,
+            display=True,
+        )
+        with (
+            mock.patch(
+                "copernican_lib.progress.console.write",
+                side_effect=lambda *args, **kwargs: None,
+            ),
+        ):
+            bar.start_batch(1, 5)
+            fractional_line = bar.start_step(1, walker_total=20)
+            partial_line = bar.update(1, processed=1, total=20)
+            self.assertIsNotNone(fractional_line)
+            bar_segment = partial_line.lstrip("\r").split(" ", 1)[0]
+            self.assertEqual(
+                len(bar_segment),
+                BatchProgressBar._BAR_WIDTH,
+            )
+            partial_set = set(BatchProgressBar._PARTIAL_GLYPHS)
+            has_partial = bool(set(bar_segment) & partial_set)
+            self.assertTrue(has_partial)
+            spinner_frames = set(BatchProgressBar._SPINNER_FRAMES)
+            self.assertTrue(set(partial_line) & spinner_frames)
+
+    def test_progress_bar_accepts_custom_subunit_labels(self) -> None:
+        """Alternative engines can rename the per-step subunit labels."""
+
+        captured: list[str] = []
+
+        def _capture(
+            msg: str = "", *, end: str = "\n", error: bool = False
+        ) -> None:
+            captured.append(msg)
+
+        bar = BatchProgressBar(
+            "Custom stage",
+            5,
+            display=True,
+            subunit_labels=("iteration", "iterations"),
+        )
+        with mock.patch(
+            "copernican_lib.progress.console.write",
+            side_effect=_capture,
+        ):
+            bar.start_batch(1, 1)
+            line = bar.update(1, processed=2, total=5, step_progress=0.4)
+            self.assertIsNotNone(line)
+            rendered = line.lstrip("\r")
+            self.assertIn("iteration", rendered)
+            self.assertIn("iterations left", rendered)
+            bar.finish_batch()
+        self.assertTrue(any("iterations left" in msg for msg in captured))
+
+    def test_force_update_rerenders_identical_text(self) -> None:
+        """Explicitly forced updates repaint even when text is stable."""
+
+        with mock.patch("copernican_lib.progress.console.write") as patched:
+            bar = BatchProgressBar("Forced stage", 2, display=True)
+            bar.start_batch(1, 2)
+            bar.start_step(1, 4)
+            with mock.patch.object(bar, "_next_spinner", return_value="⠋"):
+                first_line = bar.update(1, processed=2, total=4)
+                self.assertIsNotNone(first_line)
+                patched.reset_mock()
+                self.assertIsNone(bar.update(1, processed=2, total=4))
+                forced_line = bar.update(1, processed=2, total=4, force=True)
+            self.assertIsNotNone(forced_line)
+            patched.assert_called()
+
+    def test_finish_batch_clears_active_line(self) -> None:
+        """Closing a batch wipes the progress line before spacing."""
+
+        with mock.patch("copernican_lib.progress.console.write") as patched:
+            bar = BatchProgressBar("Cleanup stage", 1, display=True)
+            bar.start_batch(1, 1)
+            bar.start_step(1, 4)
+            bar.update(1, processed=4, total=4)
+            patched.reset_mock()
+            bar.finish_batch()
+            self.assertGreaterEqual(patched.call_count, 3)
+            blank_call = patched.call_args_list[0]
+            self.assertTrue(
+                blank_call.args[0].startswith("\r")
+                and set(blank_call.args[0].lstrip("\r")) <= {" "}
+            )
+            self.assertEqual(blank_call.kwargs.get("end"), "")
+
+    def test_finish_batch_clears_line_without_updates(self) -> None:
+        """Initial 0% renders are tracked so cleanup blanks the console."""
+
+        with mock.patch("copernican_lib.progress.console.write") as patched:
+            bar = BatchProgressBar("Idle stage", 2, display=True)
+            bar.start_batch(1, 2)
+            patched.reset_mock()
+            bar.finish_batch()
+            self.assertGreaterEqual(patched.call_count, 3)
+            blank_calls = [
+                call for call in patched.call_args_list if call.args
+            ]
+            self.assertTrue(
+                any(
+                    entry.args[0].startswith("\r")
+                    and set(entry.args[0].lstrip("\r")) <= {" "}
+                    and entry.kwargs.get("end") == ""
+                    for entry in blank_calls
+                )
+            )
+
+
+class ProgressIntegrationTestCase(unittest.TestCase):
+    """Ensure sampler hooks stream live walker updates."""
+
+    def test_sampler_emits_walker_progress_before_step_finishes(self) -> None:
+        """Instrumented sampler writes partial walker counts to the bar."""
+
+        def _log_prob(coord: np.ndarray) -> float:
+            vec = np.atleast_1d(coord)
+            return float(-0.5 * np.dot(vec, vec))
+
+        sampler = emcee.EnsembleSampler(6, 2, _log_prob)
+        bar = BatchProgressBar("Integration stage", 1, display=True)
+        emitter = StepProgressEmitter(bar)
+        configure_sampler_progress_reporting(sampler, emitter)
+        initial = np.random.default_rng(42).standard_normal((6, 2))
+        iterator = sampler.sample(initial, iterations=1, progress=False)
+
+        with mock.patch("copernican_lib.progress.console.write") as patched:
+            bar.start_batch(1, 1)
+            emitter.start(1, sampler.nwalkers)
+            next(iterator)
+            emitter.clear()
+            bar.update(
+                1,
+                processed=sampler.nwalkers,
+                total=sampler.nwalkers,
+                step_progress=1.0,
+            )
+            bar.finish_batch()
+
+        walker_prefix = f"/{sampler.nwalkers}"
+        walker_updates = [
+            call.args[0]
+            for call in patched.call_args_list
+            if call.args and walker_prefix in call.args[0]
+        ]
+        self.assertGreaterEqual(len(walker_updates), 2)
+        self.assertTrue(
+            any(f"1{walker_prefix}" in msg for msg in walker_updates)
+        )
+
+    def test_stage_cleanup_wipes_progress_when_sampler_errors(self) -> None:
+        """Failing samplers still trigger a final console clear."""
+
+        class _FailingSampler:
+            def __init__(self) -> None:
+                self.nwalkers = 4
+                self._moves = [moves.StretchMove()]
+
+            def sample(
+                self, *args, **kwargs
+            ):  # pragma: no cover - generator stub
+                raise RuntimeError("sampler failure")
+
+            def get_last_sample(self):  # pragma: no cover - unused guard
+                raise AssertionError("should not be called")
+
+        sampler = _FailingSampler()
+        initial_state = np.zeros((sampler.nwalkers, 2))
+
+        with mock.patch("copernican_lib.progress.console.write") as patched:
+            with self.assertRaises(RuntimeError):
+                cosmo_engine_mcmc._run_stage_with_progress(
+                    sampler,
+                    initial_state,
+                    3,
+                    stage_name="error-prone",
+                    logger=logging.getLogger("copernican.tests"),
+                    progress_granularity=2,
+                    summary_callback=None,
+                    progress_label="Failing stage",
+                    display_progress=True,
+                )
+
+        blank_calls = [entry for entry in patched.call_args_list if entry.args]
+        self.assertTrue(
+            any(
+                entry.args[0].startswith("\r")
+                and set(entry.args[0].lstrip("\r")) <= {" "}
+                and entry.kwargs.get("end") == ""
+                for entry in blank_calls
+            )
+        )
+
+
+class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):
+    """Ensure sampler move collections attach progress notifiers."""
+
+    def test_weight_first_pair_wraps_stretch_move(self) -> None:
+        """Tuples storing ``(weight, move)`` gain reporting wrappers."""
+
+        sampler = SimpleNamespace(_moves=[(0.75, moves.StretchMove())])
+        notifier = object()
+
+        configure_sampler_progress_reporting(sampler, notifier)
+
+        weight, move_obj = sampler._moves[0]
+        self.assertEqual(weight, 0.75)
+        self.assertIsInstance(move_obj, progress_helpers._ReportingStretchMove)
+        self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
+
+    def test_move_first_pair_wraps_stretch_move(self) -> None:
+        """Tuples storing ``(move, weight)`` gain reporting wrappers."""
+
+        base_move = moves.StretchMove(a=3.5)
+        sampler = SimpleNamespace(_moves=[(base_move, 0.5)])
+        notifier = object()
+
+        configure_sampler_progress_reporting(sampler, notifier)
+
+        move_obj, weight = sampler._moves[0]
+        self.assertEqual(weight, 0.5)
+        self.assertIsInstance(move_obj, progress_helpers._ReportingStretchMove)
+        self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
+        self.assertEqual(getattr(move_obj, "a"), getattr(base_move, "a"))
 
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation

@@ -1,2 +1,6 @@
+# Last Updated: 2025-11-23
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Preserve deterministic synthetic fixture hashes across platforms
+tests/data/synthetic/* text eol=lf

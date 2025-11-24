@@ -1,23 +1,31 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-07
+# Last Updated: 2025-11-24
 
 """Markov Chain Monte Carlo engine using :mod:`emcee`.
 
-**Last Updated:** 2025-11-07
+**Last Updated:** 2025-11-24
 
 The combined optimiser has been retired entirely, leaving this sampler as the
 sole runtime engine.  It continues to focus on Supernova Ia posteriors while
 delegating shared χ² helpers to :mod:`copernican_lib.statistics` so the module
 acts as the canonical engine façade.  Future backends can slot in beside it
-without changing the orchestration code.  Verbose progress logging tracks both
-burn-in and production phases with percentage updates so long chains always
-report their status.  Version 6.2.0 routes all likelihood evaluations through
-the :class:`copernican_lib.likelihoods.JointLike` aggregator and the
-new :func:`copernican_lib.engine_interface.make_logposterior` helper so that
+without changing the orchestration code.  Verbose progress logging tracks
+both burn-in and production phases with percentage updates so long chains
+always report their status.  Version 6.2.0 routes all likelihood evaluations
+through the :class:`copernican_lib.likelihoods.JointLike` aggregator and the
+new :func:`copernican_lib.engine_plugin_validation.make_logposterior` helper so
 posterior calculations automatically honour per-parameter priors, declared
 bounds and optional reparameterisation transforms while exposing diagnostic
 metadata alongside sampled chains.
+
+Version 7.6.20 removes walker snapshot logging entirely, dedicates the output
+channel to concise diagnostics, keeps a background repaint pump alive so the
+spinner and bar animate even when sampler steps take several seconds to
+complete, and clears each console line when a batch finishes so transcripts
+never retain stale progress bars. The bar no longer mirrors its state to the
+log file, leaving the console display as the single source of progress updates
+while the logger concentrates on statistical summaries.
 
 Version 7.2.10 extends the reproducibility contract by constructing every
 NumPy :class:`~numpy.random.Generator` from the shared
@@ -32,17 +40,37 @@ from __future__ import annotations
 import logging
 import math
 import multiprocessing as mp
-import textwrap
+import threading
 import warnings
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any, Callable, Iterable, Iterator, Sequence
 
-import arviz as az
+# ArviZ expects ``scipy.signal.gaussian`` which moved in newer SciPy releases.
+try:  # pragma: no cover - compatibility shim
+    from scipy.signal import gaussian  # type: ignore # noqa: F401
+except Exception:  # pragma: no cover - SciPy layout varies
+    try:
+        import scipy.signal as _signal
+        from scipy.signal.windows import gaussian  # type: ignore # noqa: F401
+
+        _signal.gaussian = gaussian
+    except Exception:  # pragma: no cover
+        pass
+
+try:
+    import arviz as az
+except ModuleNotFoundError:  # pragma: no cover - optional fallback for tests
+    az = None
 import emcee
 import numpy as np
 import pandas as pd
 
-from copernican_lib import engine_interface
+from copernican_lib import engine_plugin_validation
 from copernican_lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
+from copernican_lib.progress import (
+    BatchProgressBar,
+    StepProgressEmitter,
+    configure_sampler_progress_reporting,
+)
 from copernican_lib.statistics import (
     calculate_bao_observables,
     chi_squared_bao,
@@ -99,7 +127,7 @@ class _ActiveLogProbability:
         active_indices: np.ndarray,
     ) -> None:
         # ``posterior`` already encapsulates priors and likelihood terms via
-        # ``_build_sne_logposterior``.  We retain it verbatim and only manage
+        # ``_build_joint_logposterior``.  We retain it verbatim and only manage
         # the vector assembly around it.
         self._posterior = posterior
         # ``template_params`` stores the baseline parameter vector with fixed
@@ -263,29 +291,6 @@ class _SamplingProgressReporter:
                     "    ... %d additional parameter(s) omitted." % remaining
                 )
 
-        if np.any(finite_mask) and (
-            self._report_count == 1
-            or self._report_count % self._sample_interval == 0
-        ):
-            walker_idx = int(np.argmax(log_prob[finite_mask]))
-            full_idx = np.flatnonzero(finite_mask)[walker_idx]
-            snapshot_vals = expanded[full_idx]
-            snapshot_pairs = [
-                f"{name}={snapshot_vals[idx]:.4g}"
-                for idx, name in enumerate(
-                    self._param_names[: self._max_params_to_show]
-                )
-            ]
-            snapshot_text = ", ".join(snapshot_pairs)
-            lines.append(
-                textwrap.fill(
-                    snapshot_text,
-                    width=self._wrap_width,
-                    initial_indent=f"    Walker[{full_idx}] snapshot: ",
-                    subsequent_indent=" " * 8,
-                )
-            )
-
         return lines
 
     def _expand_coordinates(self, coords: np.ndarray) -> np.ndarray:
@@ -312,7 +317,7 @@ class _SamplingProgressReporter:
         return self._scratch
 
 
-def _build_sne_logposterior(
+def _build_joint_logposterior(
     model_plugin: Any,
     sne_data_df: Any,
     bao_data_df: Any | None = None,
@@ -328,7 +333,7 @@ def _build_sne_logposterior(
     helper therefore pre-computes the reusable :class:`JointLike` aggregator
     once, attaches the plugin's bounds and optional transformations to the
     underlying log-likelihood callable and finally hands everything to
-    :func:`engine_interface.make_logposterior` so priors and Jacobian
+    :func:`engine_plugin_validation.make_logposterior` so priors and Jacobian
     adjustments remain consistent across engines.
     """
 
@@ -415,8 +420,13 @@ def _build_sne_logposterior(
     priors = getattr(model_plugin, "PARAMETER_PRIOR_OBJECTS", None)
     if priors is None:
         priors = getattr(model_plugin, "PARAMETER_PRIORS", [])
-    posterior = engine_interface.make_logposterior(loglike, priors)
+    posterior = engine_plugin_validation.make_logposterior(loglike, priors)
     return posterior, loglike, joint_like
+
+
+# Backward compatibility for legacy imports that still reference the
+# supernova-specific helper name.
+_build_sne_logposterior = _build_joint_logposterior
 
 
 def _reseed_invalid_walkers(
@@ -506,6 +516,8 @@ def _run_stage_with_progress(
     summary_callback: (
         Callable[[int, emcee.State], Sequence[str]] | None
     ) = None,
+    progress_label: str | None = None,
+    display_progress: bool = True,
 ):
     """Iterate ``sampler.sample`` while logging percentage progress.
 
@@ -525,24 +537,86 @@ def _run_stage_with_progress(
     if progress_granularity <= 0:
         progress_granularity = 1
 
-    interval = max(1, n_steps // progress_granularity)
+    label = progress_label or f"{stage_name.title()} stage"
+    progress_bar = BatchProgressBar(
+        label,
+        n_steps,
+        display=display_progress,
+    )
+    notifier: StepProgressEmitter | None = None
+    if display_progress:
+        notifier = StepProgressEmitter(progress_bar)
+    configure_sampler_progress_reporting(sampler, notifier)
+    if n_steps <= progress_granularity:
+        interval = max(1, n_steps)
+    else:
+        interval = max(1, math.ceil(n_steps / progress_granularity))
+    batch_start = 1
+    batch_end = min(interval, n_steps)
+    progress_bar.start_batch(batch_start, batch_end)
+
+    pump_thread: threading.Thread | None = None
+    pump_stop: threading.Event | None = None
+    if notifier is not None and progress_bar.uses_live_display:
+        pump_stop = threading.Event()
+
+        def _pump() -> None:
+            """Repaint the spinner while sampler steps are in flight."""
+
+            interval = max(0.05, notifier.idle_interval / 2.0)
+            while not pump_stop.is_set():
+                notifier.tick()
+                if pump_stop.wait(interval):
+                    break
+
+        pump_thread = threading.Thread(
+            target=_pump,
+            name=f"copernican-mcmc-{stage_name}-pump",
+            daemon=True,
+        )
+        pump_thread.start()
+
     state = None
-    for idx, state in enumerate(
-        sampler.sample(initial_state, iterations=n_steps, progress=False),
-        start=1,
-    ):
-        if idx == 1 or idx % interval == 0 or idx == n_steps:
-            percent = int(round(idx / n_steps * 100))
-            logger.info(
-                "MCMC %s progress: %3d%% (%d/%d steps)",
-                stage_name,
-                percent,
+    iterator: Iterator[emcee.State] | None = None
+    try:
+        iterator = sampler.sample(
+            initial_state, iterations=n_steps, progress=False
+        )
+        for idx in range(1, n_steps + 1):
+            if notifier is not None:
+                notifier.start(idx, sampler.nwalkers)
+            if notifier is not None:
+                notifier.tick()
+            state = next(iterator)
+            if notifier is not None:
+                notifier.tick()
+                notifier.clear()
+            progress_bar.update(
                 idx,
-                n_steps,
+                processed=sampler.nwalkers,
+                total=sampler.nwalkers,
+                step_progress=1.0,
             )
-            if summary_callback is not None:
-                for line in summary_callback(idx, state):
-                    logger.info("%s", line)
+            if idx == batch_end and idx < n_steps:
+                progress_bar.finish_batch()
+                batch_start = idx + 1
+                batch_end = min(batch_start + interval - 1, n_steps)
+                progress_bar.start_batch(batch_start, batch_end)
+            elif idx == n_steps:
+                progress_bar.finish_batch()
+
+            if summary_callback is not None and (
+                idx == 1 or idx % interval == 0 or idx == n_steps
+            ):
+                with progress_bar.suspend_display():
+                    for line in summary_callback(idx, state):
+                        logger.info("%s", line)
+    finally:
+        if pump_stop is not None:
+            pump_stop.set()
+        if pump_thread is not None:
+            pump_thread.join()
+        progress_bar.finish_batch()
 
     if state is None:
         raise RuntimeError("Sampler produced no states during %s" % stage_name)
@@ -551,7 +625,7 @@ def _run_stage_with_progress(
     return state
 
 
-def fit_sne_parameters(
+def fit_cosmology_parameters(
     sne_data_df: Any,
     model_plugin: Any,
     *,
@@ -562,6 +636,7 @@ def fit_sne_parameters(
     pool_size: int | None = None,
     progress_granularity: int = 20,
     burn_in_steps: int | None = None,
+    display_progress: bool = True,
 ) -> dict[str, Any]:
     """Sample cosmological parameters with joint dataset support.
 
@@ -573,13 +648,15 @@ def fit_sne_parameters(
     how many progress updates appear per stage and therefore also the cadence
     of the accompanying diagnostics.  When ``pool_size`` is provided the
     walker ensemble expands as needed so every worker process remains busy
-    throughout burn-in and production.
+    throughout burn-in and production.  ``display_progress`` disables the
+    console progress bar when ``False`` so automated pipelines can execute
+    quietly.
     """
 
     logger = logging.getLogger()
-    engine_interface.validate_plugin(model_plugin)
+    engine_plugin_validation.validate_plugin(model_plugin)
 
-    posterior_full, loglike_full, joint_like = _build_sne_logposterior(
+    posterior_full, loglike_full, joint_like = _build_joint_logposterior(
         model_plugin,
         sne_data_df,
         bao_data_df,
@@ -698,6 +775,7 @@ def fit_sne_parameters(
     )
     burn_in = max(1, int(burn_in))
     try:
+
         sampler = emcee.EnsembleSampler(
             n_walkers,
             ndim_active,
@@ -718,6 +796,8 @@ def fit_sne_parameters(
             logger=logger,
             progress_granularity=progress_granularity,
             summary_callback=burnin_reporter,
+            progress_label=f"{model_plugin.MODEL_NAME} burn-in",
+            display_progress=display_progress,
         )
         try:
             coords, log_prob = _reseed_invalid_walkers(
@@ -747,6 +827,8 @@ def fit_sne_parameters(
             logger=logger,
             progress_granularity=progress_granularity,
             summary_callback=production_reporter,
+            progress_label=f"{model_plugin.MODEL_NAME} production",
+            display_progress=display_progress,
         )
     finally:
         if pool is not None:
@@ -819,62 +901,80 @@ def fit_sne_parameters(
         "ess_bulk": {},
         "ess_tail": {},
     }
-    try:
-        # ``arviz`` expects chains ordered as ``(n_chains, n_draws, ...)``.
-        # ``emcee`` stores them as ``(n_draws, n_chains, n_params)``, so swap
-        # the leading axes before building the ``InferenceData`` container.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=UserWarning)
-            inference_data = az.from_dict(
-                posterior={"parameters": np.swapaxes(chain, 0, 1)},
-                coords={"parameter": list(names)},
-                dims={"parameters": ["parameter"]},
-            )
-            rhat_dataset = az.rhat(inference_data, method="rank")
-            ess_bulk_dataset = az.ess(inference_data, method="bulk")
-            ess_tail_dataset = az.ess(inference_data, method="tail")
+    if az is not None:
+        try:
+            # ``arviz`` expects chains ordered as ``(n_chains, n_draws, ...)``.
+            # ``emcee`` stores them as ``(n_draws, n_chains, n_params)``,
+            # so swap the leading axes before building the ``InferenceData``
+            # container.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=UserWarning)
+                inference_data = az.from_dict(
+                    posterior={"parameters": np.swapaxes(chain, 0, 1)},
+                    coords={"parameter": list(names)},
+                    dims={"parameters": ["parameter"]},
+                )
+                rhat_dataset = az.rhat(inference_data, method="rank")
+                ess_bulk_dataset = az.ess(inference_data, method="bulk")
+                ess_tail_dataset = az.ess(inference_data, method="tail")
 
-        def _dataset_to_dict(dataset: Any) -> dict[str, float]:
-            """Return scalar diagnostics keyed by parameter name."""
+            def _dataset_to_dict(dataset: Any) -> dict[str, float]:
+                """Return scalar diagnostics keyed by parameter name."""
 
-            series = dataset["parameters"].to_series()
-            return {str(idx): float(value) for idx, value in series.items()}
+                series = dataset["parameters"].to_series()
+                return {
+                    str(idx): float(value) for idx, value in series.items()
+                }
 
-        diagnostics = {
-            "rhat": _dataset_to_dict(rhat_dataset),
-            "ess_bulk": _dataset_to_dict(ess_bulk_dataset),
-            "ess_tail": _dataset_to_dict(ess_tail_dataset),
-        }
-        if diagnostics["rhat"]:
-            rhat_values = np.fromiter(
-                diagnostics["rhat"].values(),
-                dtype=float,
-                count=len(diagnostics["rhat"]),
+            diagnostics = {
+                "rhat": _dataset_to_dict(rhat_dataset),
+                "ess_bulk": _dataset_to_dict(ess_bulk_dataset),
+                "ess_tail": _dataset_to_dict(ess_tail_dataset),
+            }
+            if diagnostics["rhat"]:
+                rhat_values = np.fromiter(
+                    diagnostics["rhat"].values(),
+                    dtype=float,
+                    count=len(diagnostics["rhat"]),
+                )
+                logger.info(
+                    "Rank-normalised R-hat summary: min=%.3f median=%.3f "
+                    "max=%.3f",
+                    float(np.min(rhat_values)),
+                    float(np.median(rhat_values)),
+                    float(np.max(rhat_values)),
+                )
+            if diagnostics["ess_bulk"]:
+                bulk_values = np.fromiter(
+                    diagnostics["ess_bulk"].values(),
+                    dtype=float,
+                    count=len(diagnostics["ess_bulk"]),
+                )
+                tail_values = np.fromiter(
+                    diagnostics["ess_tail"].values(),
+                    dtype=float,
+                    count=len(diagnostics["ess_tail"]),
+                )
+                logger.info(
+                    "Effective sample sizes: bulk median=%.1f tail median="
+                    "%.1f",
+                    float(np.median(bulk_values)),
+                    float(np.median(tail_values)),
+                )
+        except Exception as exc:  # pragma: no cover - defensive logging path
+            logger.warning(
+                "Falling back to internal diagnostics after ArviZ failure: %s",
+                exc,
             )
-            logger.info(
-                "Rank-normalised R-hat summary: min=%.3f median=%.3f max=%.3f",
-                float(np.min(rhat_values)),
-                float(np.median(rhat_values)),
-                float(np.max(rhat_values)),
+            diagnostics = _compute_basic_diagnostics(
+                chain, names, logger=logger
             )
-        if diagnostics["ess_bulk"]:
-            bulk_values = np.fromiter(
-                diagnostics["ess_bulk"].values(),
-                dtype=float,
-                count=len(diagnostics["ess_bulk"]),
-            )
-            tail_values = np.fromiter(
-                diagnostics["ess_tail"].values(),
-                dtype=float,
-                count=len(diagnostics["ess_tail"]),
-            )
-            logger.info(
-                "Effective sample sizes: bulk median=%.1f tail median=%.1f",
-                float(np.median(bulk_values)),
-                float(np.median(tail_values)),
-            )
-    except Exception as exc:  # pragma: no cover - defensive logging path
-        logger.debug("Failed to compute ArviZ diagnostics: %s", exc)
+    else:
+        logger.warning(
+            "ArviZ is unavailable; computing conservative diagnostics without "
+            "it."
+        )
+        diagnostics = _compute_basic_diagnostics(chain, names, logger=logger)
 
     logger.info(
         "MCMC acceptance for %s: mean=%.3f, min=%.3f, max=%.3f",
@@ -946,6 +1046,50 @@ def fit_sne_parameters(
     }
 
 
+def fit_sne_parameters(
+    sne_data_df: Any,
+    model_plugin: Any,
+    *,
+    bao_data_df: Any | None = None,
+    cmb_data_df: Any | None = None,
+    n_walkers: int = 32,
+    n_steps: int = 200,
+    pool_size: int | None = None,
+    progress_granularity: int = 20,
+    burn_in_steps: int | None = None,
+    display_progress: bool = True,
+) -> dict[str, Any]:
+    """Compatibility wrapper for :func:`fit_cosmology_parameters`.
+
+    The helper preserves the legacy API for callers that still refer to
+    supernova-specific naming even though the engine now fits BAO and CMB
+    datasets alongside SNe Ia.  New code should invoke
+    :func:`fit_cosmology_parameters` directly so telemetry and documentation
+    align with the broader scope.
+    """
+
+    warnings.warn(
+        (
+            "fit_sne_parameters is deprecated; "
+            "use fit_cosmology_parameters instead."
+        ),
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return fit_cosmology_parameters(
+        sne_data_df,
+        model_plugin,
+        bao_data_df=bao_data_df,
+        cmb_data_df=cmb_data_df,
+        n_walkers=n_walkers,
+        n_steps=n_steps,
+        pool_size=pool_size,
+        progress_granularity=progress_granularity,
+        burn_in_steps=burn_in_steps,
+        display_progress=display_progress,
+    )
+
+
 __all__ = [
     "ENGINE_KIND",
     "ENGINE_LABEL",
@@ -955,6 +1099,7 @@ __all__ = [
     "chi_squared_sne",
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_from_dict",
+    "fit_cosmology_parameters",
     "fit_sne_parameters",
 ]
 
@@ -1029,6 +1174,49 @@ def _classify_parameter_bounds(
         fixed_mask = np.isfinite(widths) & (widths <= threshold)
 
     return lower, upper, fixed_mask
+
+
+def _compute_basic_diagnostics(
+    chain: np.ndarray,
+    names: Sequence[str],
+    *,
+    logger: logging.Logger,
+) -> dict[str, dict[str, float]]:
+    """Return conservative R-hat and ESS estimates without ArviZ.
+
+    Each walker is treated as an independent chain so the classic Gelman–Rubin
+    estimator can operate without external dependencies.  When ArviZ is
+    unavailable the helper keeps diagnostics finite, albeit deliberately
+    conservative, by collapsing effective sample sizes to the total draw count.
+    """
+
+    walkers_first = np.swapaxes(chain, 0, 1)
+    n_chains, n_draws, _ = walkers_first.shape
+    if n_chains <= 0 or n_draws <= 1:
+        logger.warning(
+            "Unable to compute R-hat with %d chain(s) and %d draw(s); "
+            "returning NaNs.",
+            int(n_chains),
+            int(n_draws),
+        )
+        rhat_values = np.full(len(names), np.nan, dtype=float)
+    else:
+        chain_means = np.mean(walkers_first, axis=1)
+        chain_vars = np.var(walkers_first, axis=1, ddof=1)
+        mean_overall = np.mean(chain_means, axis=0)
+        between = np.sum((chain_means - mean_overall) ** 2, axis=0)
+        between *= n_draws / max(n_chains - 1, 1)
+        within = np.mean(chain_vars, axis=0)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            var_hat = ((n_draws - 1) / n_draws) * within + between / n_draws
+            rhat_values = np.sqrt(
+                np.where(within > 0, var_hat / within, np.nan)
+            )
+
+    rhat = {name: float(value) for name, value in zip(names, rhat_values)}
+    total_draws = float(max(n_chains, 1) * max(n_draws, 0))
+    ess = {name: total_draws for name in names}
+    return {"rhat": rhat, "ess_bulk": ess.copy(), "ess_tail": ess.copy()}
 
 
 def _initialise_active_walkers(

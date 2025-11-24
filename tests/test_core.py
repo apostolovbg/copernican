@@ -1,6 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-01
+# Last Updated: 2025-11-24
 
 """Basic functional tests for the Copernican Suite."""
 
@@ -14,10 +14,10 @@ import camb
 import numpy as np
 import pandas as pd
 
-import copernican_lib.data_loaders as data_loaders
-import copernican_lib.engine_interface as engine_interface
+import copernican_lib.dataset_registry as dataset_registry
+import copernican_lib.engine_plugin_validation as engine_plugin_validation
 import copernican_lib.model_coder as model_coder
-import copernican_lib.model_parser as model_parser
+import copernican_lib.model_spec_validator as model_spec_validator
 import engines.cosmo_engine_mcmc as engine
 from copernican_lib.likelihoods import cmb
 
@@ -62,10 +62,12 @@ class FunctionalTestCase(unittest.TestCase):
         models_dir = base / "models"
         yaml_path = models_dir / "cosmo_model_lcdm.yml"
         cache_dir = models_dir / "cache"
-        cache_path = model_parser.parse_model(yaml_path, cache_dir)
+        cache_path = model_spec_validator.validate_and_cache_model(
+            yaml_path, cache_dir
+        )
         funcs, parsed = model_coder.generate_callables(cache_path)
-        cls.plugin = engine_interface.build_plugin(parsed, funcs)
-        engine_interface.validate_plugin(cls.plugin)
+        cls.plugin = engine_plugin_validation.build_plugin(parsed, funcs)
+        engine_plugin_validation.validate_plugin(cls.plugin)
 
     def test_plugin_validation(self):
         """Ensure the constructed plugin exposes the expected API."""
@@ -73,7 +75,7 @@ class FunctionalTestCase(unittest.TestCase):
 
     def test_engine_routines(self):
         """Run a smoke test across the main engine routines."""
-        sne_df = data_loaders.load_sne_data("jla_2014")
+        sne_df = dataset_registry.load_sne_data("jla_2014")
         self.assertIsNotNone(sne_df)
         sne_df = sne_df.head(3)
         if sne_df.attrs.get("covariance_matrix_inv") is not None:
@@ -83,11 +85,11 @@ class FunctionalTestCase(unittest.TestCase):
             ]
             attrs["diag_errors_for_plot"] = attrs["diag_errors_for_plot"][:3]
 
-        bao_df = data_loaders.load_bao_data("compound_bao_set")
+        bao_df = dataset_registry.load_bao_data("compound_bao_set")
         self.assertIsNotNone(bao_df)
         bao_df = bao_df.head(3)
 
-        cmb_df = data_loaders.load_cmb_data("planck_2018_lite")
+        cmb_df = dataset_registry.load_cmb_data("planck_2018_lite")
         self.assertIsNotNone(cmb_df)
 
         params = self.plugin.INITIAL_GUESSES
@@ -127,14 +129,14 @@ class FunctionalTestCase(unittest.TestCase):
 
     def test_mcmc_fit_returns_expected_fields(self):
         """Return posterior diagnostics and χ² totals from the MCMC engine."""
-        sne_df = data_loaders.load_sne_data("jla_2014").head(3)
+        sne_df = dataset_registry.load_sne_data("jla_2014").head(3)
         if sne_df.attrs.get("covariance_matrix_inv") is not None:
             attrs = sne_df.attrs
             attrs["covariance_matrix_inv"] = attrs["covariance_matrix_inv"][
                 :3, :3
             ]
             attrs["diag_errors_for_plot"] = attrs["diag_errors_for_plot"][:3]
-        result = engine.fit_sne_parameters(
+        result = engine.fit_cosmology_parameters(
             sne_df,
             self.plugin,
             n_walkers=6,
@@ -163,7 +165,7 @@ class FunctionalTestCase(unittest.TestCase):
 
     def test_chi_squared_cmb_planck2018lite(self):
         """Verify that the Planck 2018 lite dataset yields finite χ²."""
-        cmb_df = data_loaders.load_cmb_data("planck_2018_lite")
+        cmb_df = dataset_registry.load_cmb_data("planck_2018_lite")
         params = self.plugin.INITIAL_GUESSES
         chi2 = engine.chi_squared_cmb(params, cmb_df, self.plugin)
         self.assertTrue(np.isfinite(chi2))
@@ -188,7 +190,7 @@ class FunctionalTestCase(unittest.TestCase):
 
     def test_cmb_spectrum_is_d_ell(self):
         """Ensure cached CAMB spectra match Dl convention."""
-        cmb_df = data_loaders.load_cmb_data("planck_2018_lite")
+        cmb_df = dataset_registry.load_cmb_data("planck_2018_lite")
         ells = cmb_df["ell"].values[:5]
         camb_params = self.plugin.get_camb_params(self.plugin.INITIAL_GUESSES)
         result = engine.compute_cmb_spectrum_from_dict(

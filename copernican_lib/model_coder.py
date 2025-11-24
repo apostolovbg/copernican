@@ -1,5 +1,5 @@
 # Copyright (c) 2025 Copernican Suite developers.
-# Last Updated: 2025-11-02
+# Last Updated: 2025-11-24
 # See LICENSE.md in the repository root for details.
 
 """Translate sanitized model YAML into executable NumPy-aware callables.
@@ -905,7 +905,8 @@ def generate_callables(cache_path):
     Parameters
     ----------
     cache_path : str or Path
-        Path to the sanitized model YAML produced by :func:`parse_model`.
+        Path to the sanitized model YAML produced by
+        :func:`validate_and_cache_model`.
 
     Returns
     -------

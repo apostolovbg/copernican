@@ -1,32 +1,45 @@
-**Version:** 7.4.5
-**Last Updated:** 2025-11-08
+**Version:** 9.0.1
+**Last Updated:** 2025-11-24
 
 ![Copernican Suite banner](docs/banner_github.png)
 
 The Copernican Suite is a Python toolkit that helps researchers test
 cosmological models against multi-probe observations. It orchestrates the full
-workflow from data ingestion through posterior exploration so teams can compare
-theoretical predictions with Supernovae Type Ia (SNe Ia), Baryon Acoustic
-Oscillation (BAO) and Cosmic Microwave Background (CMB) datasets using a single
-reproducible interface.
+workflow from data ingestion through posterior exploration so teams can
+compare theoretical predictions with Supernovae Type Ia (SNe Ia), Baryon
+Acoustic Oscillation (BAO) and Cosmic Microwave Background (CMB) datasets
+using a single reproducible interface.
 
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration.
+  dataset selection, model pairing and engine configuration. The launcher
+  renders progress with carriage-return repainting, honours seeded and
+  interactive workflows alike and keeps Stage 1 focused on reproducibility by
+  leading with the seed dialog. It surfaces every validation reason collected
+  during model parsing or engine import so operators can restart Stage 1 with
+  clear context instead of re-reading logs. The same console helpers power
+  both engines so nested sampling and ensemble MCMC display consistent labels,
+  spinners and walker-level updates.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
-  keep every engine and plugin consistent. Version 7.4.5 enlarges the Stage 5
-  corner plot panels, increases typography and adds footer text describing how
-  the samples were filtered or thinned so posterior geometry remains readable
-  while legacy validators stay compatible.
+  keep every engine and plugin consistent. Progress rendering, notifier
+  bridges and suspension contexts sit here so console output stays tidy even
+  when samplers emit dense logs. Plotting helpers respect the enlarged footer
+  guard bands and responsive layouts expected by Stage 5, while the
+  corner-plot validator continues to expose a legacy wrapper for tools that
+  still import the original function name.
 * `engines/` collects computational back ends. The default
-  ``cosmo_engine_mcmc`` couples the emcee ensemble sampler with ArviZ-driven
-  convergence checks, while the plugin protocol keeps room for additional
-  optimisers and hardware-specific accelerators.
+  ``cosmo_engine_mcmc`` couples the ``emcee`` ensemble sampler with ArviZ
+  diagnostics when available and conservative fallbacks when not. The
+  ``cosmo_engine_nested`` backend mirrors the joint output schema while
+  emitting log-evidence estimates and respecting the same bounds, priors and
+  transforms defined by the plugin system. Both engines reuse the shared
+  progress renderer, manifest builder and posterior evaluator so downstream
+  tooling never has to special-case the chosen sampler.
 * `models/` stores YAML theories that declare priors, bounds, transforms and
   dataset compatibility. Each definition is converted into a picklable engine
-  plugin so Stage 2 runs remain reproducible across processes.
+  plugin so Stage 2 runs remain reproducible across processes.
 * `data/` curates vetted observations with companion parsers and metadata. The
   loaders verify file digests, register provenance and attach citations to the
   manifests and plot footers created for every run.
@@ -38,9 +51,11 @@ configuration. Upcoming work extends the same infrastructure to future probes
 such as gravitational-wave standard sirens while quietly refining placeholder
 management so new probes arrive without user-facing churn.
 
-Release highlights, breaking changes and historical notes now live exclusively
-in [`CHANGELOG.md`](CHANGELOG.md). See the documentation set in `docs/` for
-deep dives into the architecture, data formats and contributor workflows.
+Release highlights, breaking changes and historical notes live exclusively in
+[`CHANGELOG.md`](CHANGELOG.md). The `docs/` directory holds focused guides on
+architecture, datasets, manifest structure and packaging routines. A dedicated
+validation playbook under `docs/validation/` exercises both engines against
+public ΛCDM baselines and documents the tolerances used for routine checks.
 
 Engines, datasets and models stay fully pluggable. Generated YAML definitions
 are transformed into :class:`copernican_lib.plugins.EnginePlugin`
@@ -66,18 +81,19 @@ and citation information appears in [CITATION.cff](CITATION.cff).
 9. [Using the Suite](#using-the-suite)
 10. [Plot Footers and Metadata](#plot-footers-and-metadata)
 11. [Logging and Caching](#logging-and-caching)
-12. [Creating New Models](#creating-new-models)
-13. [Developer Guide](#developer-guide)
+12. [Validation Checks](#validation-checks)
+13. [Creating New Models](#creating-new-models)
+14. [Developer Guide](#developer-guide)
     - [Workflow Overview](#workflow-overview)
     - [Development History & Roadmap](#development-history--roadmap)
     - [AI-driven and human development laws and
       protocols](#ai-driven-and-human-development-laws-and-protocols)
-14. [License](#license)
-15. [Versioning Policy](#versioning-policy)
-16. [API Overview](docs/api_overview.md)
-17. [Packaging Guide](docs/packaging.md)
-18. [Documentation Policy](docs/documentation_policy.md)
-19. [Run Manifest](docs/run_manifest.md)
+15. [License](#license)
+16. [Versioning Policy](#versioning-policy)
+17. [API Overview](docs/api_overview.md)
+18. [Packaging Guide](docs/packaging.md)
+19. [Documentation Policy](docs/documentation_policy.md)
+20. [Run Manifest](docs/run_manifest.md)
 
 ---
 
@@ -91,7 +107,10 @@ software.
 Users select models, datasets, and computational engines at runtime through a
 simple command line interface. Each execution creates a dedicated
 `output/copernican-run_YYYYMMDD_HHMMSS` folder that stores plots, CSV tables
-and posterior chains in NetCDF format.
+and posterior chains in NetCDF format, even when ArviZ is absent—an xarray
+fallback builds the same structure during lean CI runs. Metadata such as the
+model name is written to both the root attributes and the posterior group so
+readers opening only the posterior block still recover the full provenance.
 Under the hood the program follows a clear pipeline:
 1. **Dependency Check** – `copernican.py` scans for required packages,
    installs missing ones and verifies each import. The scan now caches its
@@ -101,12 +120,18 @@ Under the hood the program follows a clear pipeline:
    feature mismatches before heavy computation begins.
 2. **Initialization** – a run-specific output directory is created and
    logging begins.
-3. **Configuration** – the user chooses a model and a computation engine
-   from `./engines/`. Engines are discovered dynamically by the
-   `cosmo_engine_*.py` naming convention so additional deterministic or
-   stochastic solvers can be dropped in later without touching the launcher.
-   The current default, `cosmo_engine_mcmc.py`, uses an `emcee` ensemble
-   sampler to explore the SNe posterior. Its distance calculations are
+3. **Configuration (Stage 1)** – a Stage 1 banner introduces the configuration
+   flow before the random-seed menu appears. Operators can accept the default,
+   enter a custom integer, request a random value or honour ``COPERNICAN_SEED``
+   when CI needs deterministic runs. Should model parsing, plugin validation or
+   engine imports fail, the console lists every collected reason and offers a
+   menu to restart Stage 1 or exit cleanly. Once the models load successfully,
+   the user chooses a computation engine from `./engines/`. Engines are
+   discovered dynamically by the `cosmo_engine_*.py` naming convention so
+   additional deterministic or stochastic solvers can be dropped in later
+   without touching the launcher. The current default,
+   `cosmo_engine_mcmc.py`, uses an `emcee` ensemble sampler to explore the SNe
+   posterior. Its distance calculations are
    vectorised for responsiveness and invalid proposals return ``-np.inf``
    directly so walkers outside the allowed region or producing non-finite
    chi-squared values are rejected unambiguously. The sampler automatically
@@ -124,10 +149,11 @@ Under the hood the program follows a clear pipeline:
    fractions, autocorrelation estimates when the production run exceeds
    ``emcee``'s minimum window, and log-probability traces and emits
    progress updates with percentage indicators for both burn-in and
-   production stages. Each update now carries log-posterior mean, spread and
-   extrema, an approximate Δχ² trend and occasional walker snapshots on the
-   first four parameters so terminals remain readable. When no worker pool is
-   requested explicitly the engine auto-configures a multiprocessing pool sized
+  production stages. Each update now carries log-posterior mean, spread and
+  extrema, an approximate Δχ² trend and percentile summaries for the first
+  four parameters so terminals remain readable, dropping the former walker
+  snapshots that duplicated the same information across multiple lines.
+  When no worker pool is requested explicitly the engine auto-configures a
    to the available CPUs, shaving minutes off expensive likelihoods while still
    preserving single-core fallbacks. Shared chi-squared helpers live in
    `copernican_lib/statistics.py` so every backend calls the same routines
@@ -149,10 +175,20 @@ Under the hood the program follows a clear pipeline:
    chain and copies the recorded dataset diagnostics so every component shares
    the same walker history. Otherwise the ΛCDM reference and the alternative
    model are sampled in turn with independent random seeds.
-   A confirmation menu now summarises the proposed sampler plan with numbered
-   options for accepting it, restarting the questionnaire, returning to the
-   defaults summary or cancelling entirely so the intent behind each choice is
-   explicit.
+  A confirmation menu summarises the proposed sampler plan with numbered
+  options for accepting it, restarting the questionnaire, returning to the
+  defaults summary or cancelling entirely so the intent behind each choice is
+  explicit. Stage 2 progress always streams through the shared
+  carriage-return renderer with Unicode partial-block glyphs, walker-level
+  meters and an animated spinner. The helper throttles repainting enough to
+  keep transcripts readable while still showing sub-character movement during
+  long iterations. Console output is always resumed after diagnostic messages
+  with a final blank spacer so stale bars never linger in logs. When ArviZ is
+  available the sampler reports convergence diagnostics on every batch; when
+  it is missing the engine falls back to conservative Gelman–Rubin summaries
+  while logging the downgrade. The notifier bridge persists even when ``emcee``
+  stores weights alongside moves so live updates remain accurate across
+  sampler implementations.
 5. **BAO Analysis** – Stage 3 reuses the sampler's diagnostics to report BAO
    chi-squared contributions directly from the joint fit while still
    generating smooth predictions for plots and CSV exports. Shared helpers
@@ -175,9 +211,27 @@ Under the hood the program follows a clear pipeline:
    `copernican_lib/plotter.py` and `copernican_lib/csv_writer.py` handle
    logs, plots and tables. The log file is renamed at the end of each run to
    match the output timestamp.
- 9. **Loop or Exit** – a concluding menu explains how to launch another
+9. **Loop or Exit** – a concluding menu explains how to launch another
     evaluation or close the application instead of relying on a terse yes/no
     prompt. Temporary cache files are still cleaned automatically either way.
+
+### Stage 1 configuration experience
+
+The configuration banner keeps the console organised by placing seed selection
+directly after the Stage 1 spacer. Each option explains how the seed affects
+reproducibility, and environment overrides are echoed so CI logs document the
+chosen value. When any alternative model fails validation the orchestrator
+prints the collected reasons as bullet points before offering to restart
+Stage 1 or exit, ensuring even multi-cause exceptions—such as conflicting
+bounds and missing likelihood hooks—are explained without consulting the log
+file. The sampler questionnaire concludes Stage 1 with a summary of
+recommended settings, an explanation of how the per-batch progress bars will
+animate during Stage 2 and a preview of the Unicode sub-block fills and
+bracket-free layout used by the live renderer. Progress updates stay on the
+console so logs capture only the surrounding diagnostics instead of partial
+progress lines.
+The summary concludes with a menu that lets users continue, revisit earlier
+questions or cancel the run entirely.
 
 ### Interpreting the new convergence diagnostics
 
@@ -240,6 +294,12 @@ cite them without recomputation.
    reference model and parsers. Toggle strict warning mode from the menu
    or set `COPERNICAN_STRICT_WARNINGS=1` to upgrade warnings to errors for
    reproducible CI runs.
+   The suite now also includes a synthetic end-to-end harness that exercises
+   SNe, BAO and CMB pipelines with tiny deterministic datasets so the
+   manifest writer and hash logger stay reproducible across both default and
+   nested engines. Keep the `COPERNICAN_FAKE_CMB` toggle scoped to that
+   harness so the rest of the suite continues to exercise real CAMB
+   integrations.
 4. When prompted, choose an RNG seed or set `COPERNICAN_SEED=<n>` in the
    environment to skip the prompt. The seed defaults to `0` and is applied to
    NumPy, Python's ``random`` module and supported engines.
@@ -374,7 +434,7 @@ copernican_lib/          - Helper modules
   console_output.py - Console output helpers
   plotter.py        - Plotting functions
   csv_writer.py     - CSV output helpers
-  data_loaders.py   - Data loading utilities
+  dataset_registry.py   - Dataset parser registries and loading helpers
   utils.py          - Common helpers
   optim_utils.py    - Shared optimisation wrappers used by engines
   likelihoods/      - Dataset-specific log-likelihood helpers
@@ -387,15 +447,14 @@ modified when necessary.
 
 ## Engine and Plugin Architecture
 The program compiles model equations into Python functions at runtime. When a
-`cosmo_model_*.yml` file is selected, `copernican_lib/model_parser.py`
+`cosmo_model_*.yml` file is selected, `copernican_lib/model_spec_validator.py`
 validates the
 content and `copernican_lib/model_coder.py` converts the symbolic expressions
-into
-NumPy-ready callables. `copernican_lib/engine_interface.build_plugin` attaches
-these
+into NumPy-ready callables.
+`copernican_lib/engine_plugin_validation.build_plugin` attaches these
 functions to a lightweight plugin object that exposes a stable API. Every
-engine
-operates solely through this plugin and decides how parameters are fitted. The
+engine operates solely through this plugin and decides how parameters are
+fitted. The
 main workflow simply loads the plugin, selects an engine from `./engines/` and
 invokes its functions. New engines can therefore implement alternate
 strategies
@@ -405,14 +464,14 @@ Generic chi-squared wrappers live in `copernican_lib/statistics.py` and now
 delegate to the dataset-specific helpers inside `copernican_lib/likelihoods`
 while remaining re-exported by each engine module. This keeps
 `model_coder.py` focused on translating models. Engines assemble posteriors via
-`engine_interface.make_logposterior`, which applies declared priors, honours
-parameter bounds and injects Jacobian corrections whenever models expose
-sampling transforms. Version 6.7.4 extends those guarantees by wrapping the
-joint likelihood in a picklable adapter, updating generated distance
-functions to avoid closure pickling pitfalls and exposing a `burn_in_steps`
-override so scripted workflows can tune warm-up costs explicitly. The default
-MCMC backend wires these helpers into the `JointLike` aggregator so every run
-records dataset-level diagnostics alongside the sampled chains.
+`engine_plugin_validation.make_logposterior`, which applies declared priors,
+honours parameter bounds and injects Jacobian corrections whenever models
+expose sampling transforms. The helper wraps the joint likelihood in a
+picklable adapter, updates generated distance functions to avoid closure
+pickling pitfalls and exposes a `burn_in_steps` override so scripted workflows
+can tune warm-up costs explicitly. The default MCMC backend wires these helpers
+into the `JointLike` aggregator so every run records dataset-level diagnostics
+alongside the sampled chains.
 
 The helper `chi_squared_cmb` now accepts either a plugin and parameter
 vector or a ready CAMB dictionary. This flexibility lets future engines reuse
@@ -436,7 +495,7 @@ archive](https://data.sdss.org/sas/dr12/boss/) does not provide a
   are
   discovered automatically when their source folders are imported.
 - Model plugins must be validated once using
-  `engine_interface.validate_plugin` before passing them to engine
+  `engine_plugin_validation.validate_plugin` before passing them to engine
   routines or chi-squared helpers.
 - After each run you may choose to evaluate another model or exit. Cache files
   are cleaned automatically.
@@ -449,17 +508,32 @@ archive](https://data.sdss.org/sas/dr12/boss/) does not provide a
 ## Plot Footers and Metadata
 Each generated plot includes a centered footer that documents the run.
 The first line shows the model comparison, Copernican Suite version and a
-timestamp. The second line lists the observational dataset and processing
-notes, and the third line provides the citation. The first and third lines are
-bold, while the dataset name on the second line retains its original spacing
-via MathText's ``\mathbf`` command.
+timestamp. The second line normally lists the observational dataset and
+processing notes, and the third line provides the citation. The first and
+third lines are bold, while the dataset name on the second line retains its
+original spacing via MathText's ``\mathbf`` command. Stage 5's corner plot
+skips the dataset description entirely so the footer mirrors the other Stage 2
+figures while still presenting the citation and sample-processing summary.
 
 Metadata values are read from ``metadata_*.yml`` files stored next to each
 dataset. These files include a ``license`` field pointing to usage terms.
-``copernican_lib/data_loaders.py`` attaches this metadata to the DataFrame
+``copernican_lib/dataset_registry.py`` attaches this metadata to the DataFrame
 returned by each parser so both plot footers and CSV headers reflect the
 official dataset description and citation. Individual parsers never access
 metadata files directly.
+
+Parser registries now use explicit ``*_PARSER_REGISTRY`` names and are
+collected through the ``get_parser_registries`` helper so discovery and menu
+prompts cannot be mistaken for standalone loader functions. The observational
+independence statements attached to each DataFrame live under
+``OBSERVATION_INDEPENDENCE_NOTES`` before being copied into
+``independence_assumptions`` attributes for plotting and manifest export.
+
+Stage 5 automatically falls back to Matplotlib's Agg backend when Tk support
+is unavailable so headless CI jobs still write corner plots without requiring
+GUI toolkits. Synthetic fixtures under ``tests/data/synthetic`` are pinned to
+LF line endings via ``.gitattributes`` so their logged SHA256 hashes stay
+identical across Windows and Unix checkouts.
 
 During configuration each loader prints a summary indicating whether the
 dataset's covariance matrix was inverted successfully or if diagonal errors
@@ -483,11 +557,11 @@ full details are stored in the log file. The logger shortens absolute paths so
 logs remain portable and records the final filenames used for plots and tables.
 Progress indicators print to ``stdout`` and flush on every update so long
 optimisations do not appear stalled on Linux terminals. The ensemble sampler's
-progress reporter now surfaces quantiles for every fitted parameter, never
-omitting late entries, and wraps walker snapshots so long parameter lists stay
-readable. Internally it reuses a scratch buffer for the expanded parameter
-matrix, shaving several percent off the time spent in diagnostic callbacks for
-long chains.
+progress reporter now surfaces quantiles for every fitted parameter without
+emitting legacy walker snapshot dumps, keeping logs concise even when parameter
+lists run long. Internally it reuses a scratch buffer for the expanded
+parameter matrix, shaving several percent off the time spent in diagnostic
+callbacks for long chains.
 Dependency checks reuse a cached import list stored in
 `.cache/dependency_scan.json`. The cache records the absolute path, size and
 modification time of every parsed module so unchanged worktrees skip the AST
@@ -510,6 +584,17 @@ reproduce analyses.
 
 Fatal signals such as ``SIGILL``, ``SIGSEGV`` or ``SIGFPE`` trigger handlers
 that dump stack traces to the console and active log file before termination.
+
+## Validation Checks
+Lightweight cross-engine checks live in
+`docs/validation/lcdm_engine_validation.py` and are described in
+`docs/validation/README.md`. The helper loads the first 40 Pantheon+SH0ES 2022
+entries with diagonal uncertainties, pairs them with the BOSS DR12 BAO
+covariance and evaluates the Planck 2018 base-ΛCDM parameters. Run
+`python docs/validation/lcdm_engine_validation.py` from the repository root to
+compare each engine's posterior means and χ² breakdown against the recorded
+reference values. Acceptable drift tolerances are documented alongside the
+reference χ² totals in the validation readme.
 
 ## Creating New Models
 All model details, including theory text and equations, must be stored in a
@@ -685,22 +770,24 @@ chi-squared. The CMB plotter draws separate TT, TE and EE panels with
 residuals, uses a logarithmic scale for temperature and $E$-mode spectra and
 shows cosmic-variance and observational uncertainty bands. Titles now use
 minimal padding so each label fits neatly between CMB subplots.
-`model_parser.py` accepts unknown keys and simply copies them to the sanitized
-cache. This allows the domain-specific YAML language to evolve while remaining
-compatible with older models.
-`model_parser.py` validates this structure and `model_coder.py` translates the
-LaTeX expressions into NumPy-ready callables. When `Hz_expression` is present
-it is
-compiled into `get_Hz_per_Mpc` and related distance functions used by
-`engine_interface.py`. If an `rs_expression` or the parameters `Omega_b`,
-`Omega_gamma` and either `z_rec` or `z_recomb` are provided, a callable
-`get_sound_horizon_rs_Mpc` is also generated.
+`model_spec_validator.py` accepts unknown keys and simply copies them to the
+sanitized cache. This allows the domain-specific YAML language to evolve while
+remaining compatible with older models.
+`model_spec_validator.py` validates this structure and `model_coder.py`
+translates the LaTeX expressions into NumPy-ready callables. When
+`Hz_expression` is present it is compiled into `get_Hz_per_Mpc` and related
+distance functions used by `engine_plugin_validation.py`. If an
+`rs_expression` or the parameters `Omega_b`, `Omega_gamma` and either `z_rec`
+or `z_recomb` are provided, a callable `get_sound_horizon_rs_Mpc` is also
+generated.
 
 ## Developer Guide
 Document every change in `CHANGELOG.md`. Each substantive update must add an
-entry using the template `- YYYY-MM-DD: short summary (author)`.
-Legacy `dev_note` headers embedded in source files have been removed in favour
-of changelog entries.
+entry using the template `- YYYY-MM-DD: short summary (author)` and should
+explicitly name the files or subsystems touched. Before committing, compare
+`git diff --name-only` with the latest changelog entry so the policy hook never
+blocks on missing metadata. Legacy `dev_note` headers embedded in source files
+have been removed in favour of changelog entries.
 Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md`
 and
@@ -765,6 +852,9 @@ Pull requests trigger the ``Lint`` workflow, which executes `pre-commit run
 --all-files`, and the ``Tests`` workflow, which runs the unit suite across
 Windows, macOS and Debian-based Linux. Each job executes inside a cached
 virtual environment for reproducibility and speed.
+The local policy hook fails early when modified files lack fresh "Last
+Updated" headers, miss changelog entries, drift out of sync with
+`copernican_lib/VERSION` or introduce new modules without companion tests.
 
 Multiprocessing is used by several engines. The program enforces the `spawn`
 start method when it launches so that each worker process begins with a fresh
@@ -782,7 +872,7 @@ New models are described entirely by YAML. Copy an existing file from
 and consult `cosmo_model_template.yml` for the full schema. Additional engines
 may
 be placed under `engines/` and must follow the interface in
-`copernican_lib/engine_interface.py`.
+`copernican_lib/engine_plugin_validation.py`.
 
 **Note:** The current plotting style and algorithms are considered stable. Do
 not modify them unless explicitly instructed.
@@ -808,10 +898,14 @@ not modify them unless explicitly instructed.
     to the log and run manifest.
 5.  **Configuration**: The user specifies the file paths for the model and
     data files.
-6.  **SNe Ia Sampling**: The active engine—currently `cosmo_engine_mcmc`—
-    samples the parameters of both the ΛCDM model and the alternative model
-    against the SNe Ia data. Matching models reuse the first chain to avoid
-    redundant computation.
+6.  **SNe Ia Sampling**: The active engine—either the default
+    `cosmo_engine_mcmc` ensemble sampler or the new `cosmo_engine_nested`
+    nested-sampling backend—fits both the ΛCDM model and the alternative
+    model against the SNe Ia data. Stage 2 now surfaces prompts tailored to
+    each backend, covering burn-in, walker counts and worker pools for MCMC,
+    or live-point budgets, evidence tolerances and enlargement factors for
+    nested sampling. Matching models reuse the first chain to avoid redundant
+    computation.
 7.  **BAO Analysis**: Using the MAP parameters returned by the sampler, the
     engine calculates BAO observables for each model.
 8.  **CMB Analysis**: Each model's CMB spectrum is evaluated against the
@@ -838,8 +932,10 @@ must be followed. The `AGENTS.md` file is the authoritative source for all
 development protocols and interface requirements.
 >
 > 1. **Summarize every change in `CHANGELOG.md` using the changelog**
-> template.** Legacy `dev_note` headers should be migrated to the changelog
-> when touched.
+> template and list every touched file or subsystem.** Compare
+> `git diff --name-only` against the newest changelog entry before every
+> commit so nothing slips past the `copernican-policy` hook. Legacy
+> `dev_note` headers should be migrated to the changelog when touched.
 > 2. **Comment the code extensively.** Explain the "why" as well as the
 > "what", clarifying both obvious and non-obvious, simple or complex logic or
 > algorithms.

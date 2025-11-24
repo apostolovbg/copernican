@@ -1,4 +1,5 @@
 # Copyright (c) 2025 Copernican Suite developers.
+# Last Updated: 2025-11-23
 # See LICENSE.md in the repository root for details.
 
 # Copernican Suite Plotter
@@ -8,7 +9,7 @@
 
 import os
 import textwrap
-from typing import Any, Iterable
+from typing import Any, Iterable, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -142,9 +143,111 @@ def _density_levels(
     for level in levels:
         idx = np.searchsorted(cumulative, level, side="left")
         idx = min(idx, order.size - 1)
-        level_values.append(order[idx])
+        level_values.append(float(order[idx]))
+
     level_values.sort()
-    return level_values
+    cleaned_levels: list[float] = []
+    last_value = -np.inf
+    epsilon = np.finfo(float).eps
+    for value in level_values:
+        finite_value = value if np.isfinite(value) else 0.0
+        finite_value = max(finite_value, 0.0)
+        if finite_value <= last_value:
+            finite_value = (
+                np.nextafter(last_value, np.inf)
+                if np.isfinite(last_value)
+                else epsilon
+            )
+        cleaned_levels.append(finite_value)
+        last_value = finite_value
+    return cleaned_levels
+
+
+def _ensure_strictly_increasing(
+    values: Sequence[float], *, start: float | None = None
+) -> np.ndarray:
+    """Return ``values`` as a strictly increasing numpy array.
+
+    ``matplotlib.contour`` requires strictly increasing level thresholds.  The
+    Stage 5 grid occasionally feeds in degenerate heights—plateaus, repeated
+    bins or NaN placeholders—which would otherwise trigger ``ValueError``
+    exceptions.  The helper nudges duplicate or non-finite entries forward by
+    one machine epsilon so the final sequence is monotonically increasing while
+    remaining numerically close to the original targets.
+    """
+
+    arr = np.asarray(values, dtype=float)
+    if arr.size == 0:
+        return arr
+
+    result = arr.copy()
+    if start is not None:
+        result[0] = float(start)
+
+    eps = np.finfo(float).eps
+    last = result[0]
+    if not np.isfinite(last):
+        last = eps
+        result[0] = last
+
+    for idx in range(1, result.size):
+        current = result[idx]
+        if not np.isfinite(current):
+            current = last
+        if current <= last:
+            current = np.nextafter(last, np.inf)
+        result[idx] = current
+        last = current
+
+    return result
+
+
+def _build_contour_levels(
+    histogram: np.ndarray,
+    cumulative_levels: Sequence[float],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return level arrays safe for ``contourf`` and ``contour`` calls.
+
+    The helper extracts positive density thresholds for the requested
+    cumulative levels.  When the histogram is nearly flat—or rounds the highest
+    bin down to zero—it synthesises a gentle ramp towards the maximum density
+    so contour rendering still succeeds without collapsing to a scatter plot.
+    """
+
+    finite = histogram[np.isfinite(histogram)]
+    if finite.size == 0:
+        eps = np.nextafter(0.0, np.inf)
+        filled = np.array([0.0, eps], dtype=float)
+        return filled, filled[1:]
+
+    max_density = float(np.max(finite))
+    if max_density <= 0.0 or not np.isfinite(max_density):
+        max_density = np.nextafter(0.0, np.inf)
+
+    derived = [
+        level
+        for level in _density_levels(histogram, tuple(cumulative_levels))
+        if level > 0.0
+    ]
+
+    if not derived:
+        fractions = np.linspace(0.35, 0.85, max(len(cumulative_levels), 1))
+        base_levels = max_density * fractions
+    else:
+        base_levels = np.array(derived, dtype=float)
+
+    base_levels = np.asarray(base_levels, dtype=float)
+    base_levels.sort()
+    base_levels = _ensure_strictly_increasing(base_levels)
+
+    top_level = max_density
+    if top_level <= base_levels[-1] or not np.isfinite(top_level):
+        top_level = np.nextafter(base_levels[-1], np.inf)
+
+    filled_levels = np.concatenate(([0.0], base_levels, [top_level]))
+    filled_levels = _ensure_strictly_increasing(filled_levels, start=0.0)
+
+    return filled_levels, base_levels
 
 
 def _copernican_version() -> str:
@@ -174,6 +277,136 @@ def _wrap_math(text: str) -> str:
     # sanitisation rules are shared across plotting,
     # parsing and code generation.
     return latex_utils.wrap_math(text)
+
+
+# Corner layout tuning -----------------------------------------------------
+#
+# Corner plots share a common footer cadence with the other Stage 5 figures.
+# The constants below centralise the cadence so both the layout helper and the
+# regression tests can assert consistent spacing.  The fixed padding keeps a
+# visible gap between the footer block and the axes while the clearance figure
+# enforces a second guard band that scales with the footer height.  The minimum
+# and maximum bounds prevent extreme dimensionalities from crushing the footer
+# into the axes or leaving it stranded far from the plot.  An explicit title
+# anchor ensures the figure banner never hugs the canvas edge.
+_CORNER_BASE_LINE_HEIGHT = 0.015
+# ``_CORNER_FOOTER_PADDING`` keeps a consistent gap between the axes and the
+# first footer line.  Stage 5 draws bold text here, so we budget extra vertical
+# breathing room to mirror the rest of the plotting suite.
+_CORNER_FOOTER_PADDING = 0.038
+# ``_CORNER_FOOTER_CLEARANCE`` now tracks the minimum spacing between the
+# lowest footer baseline and the figure edge.  Guarding this distance stops
+# exported PDFs from clipping the text block even when downstream helpers add
+# extra diagnostic lines.
+_CORNER_FOOTER_CLEARANCE = 0.035
+# The base bottom margin provides a buffer before the per-line adjustments
+# below kick in.  A taller baseline matches the rest of the suite and raises
+# the grid so the footer never feels cramped.
+_CORNER_BASE_BOTTOM_MARGIN = 0.07
+# Corner plots can feature tall footers when add-ons append diagnostics.  We
+# therefore lift the minimum bottom margin to keep the panels safely above the
+# text while leaving headroom for Matplotlib legends or colour bars.
+_CORNER_MIN_BOTTOM = 0.18
+_CORNER_MAX_BOTTOM = 0.42
+# Pull the title a touch lower so it mirrors the summary plots.  This echoes
+# the user feedback that the previous 0.965 anchor hugged the canvas edge.
+_CORNER_TITLE_Y = 0.952
+
+
+def _compute_corner_layout(
+    n_params: int,
+    footer_line_count: int,
+) -> tuple[
+    tuple[float, float],
+    dict[str, float],
+    float,
+    dict[str, float],
+    float,
+]:
+    """Return responsive geometry and typography settings for corner plots.
+
+    The Stage 5 report must adapt to wildly different parameter counts: a
+    single-parameter posterior should not sprawl across a poster-sized
+    canvas while a ten-parameter run still needs legible labels once
+    exported.  The helper keeps the familiar "large panel" look for small
+    systems, gradually shrinking each cell while clamping the overall
+    figure to twelve inches per side so Matplotlib never allocates
+    oversized canvases.  Font sizes and footer spacing scale with the
+    resulting panel width which keeps axis labels readable when the figure
+    is downscaled in documentation or embeds.  The return value includes a
+    dedicated footer padding entry so callers can position the text block
+    just below the axes while preserving a uniform gap across layouts.
+    """
+
+    if n_params <= 0:
+        raise ValueError("Corner plots require at least one parameter")
+
+    # Maintain the previous four-inch baseline while constraining the rendered
+    # canvas to a printable footprint.  The minimum prevents collapsed panels
+    # when developers request a single-parameter diagnostic.
+    base_panel_width = 3.6
+    max_side_length = 12.0
+    min_side_length = 3.6
+    unclamped_side = float(base_panel_width * n_params)
+    side_length = min(max(unclamped_side, min_side_length), max_side_length)
+    panel_width = side_length / float(n_params)
+
+    # Derive typography from the ratio between the current panel width and the
+    # Stage 5 baseline.  Bounding the scaling factor prevents microscopic text
+    # for high-dimensional posteriors while retaining the original sizes for
+    # the typical three-parameter comparison plots.
+    scale = max(panel_width / base_panel_width, 0.55)
+    font_sizes = {
+        "title": float(np.clip(26.0 * scale, 18.0, 30.0)),
+        "label": float(np.clip(18.0 * scale, 12.0, 20.0)),
+        "ticks": float(np.clip(12.0 * scale, 8.0, 14.0)),
+        "footer": float(np.clip(12.0 * scale, 9.0, 14.0)),
+    }
+
+    # Align the footer cadence with the other plotting helpers so the Suite's
+    # figures share identical leading.  Tiny adjustments accommodate the
+    # shrunken panels used for higher-dimensional runs without letting the
+    # spacing collapse.
+    shrink_penalty = max(0.0, 1.0 - min(scale, 1.0))
+    line_height = float(
+        _CORNER_BASE_LINE_HEIGHT * (1.0 + 0.1 * shrink_penalty)
+    )
+
+    footer_block = footer_line_count * line_height
+    footer_span = max(footer_line_count - 1, 0) * line_height
+    base_bottom = _CORNER_BASE_BOTTOM_MARGIN + footer_block
+    pad_guard = footer_block + _CORNER_FOOTER_PADDING
+    clearance_floor = (
+        _CORNER_FOOTER_PADDING + footer_span + _CORNER_FOOTER_CLEARANCE
+        if footer_line_count
+        else _CORNER_FOOTER_CLEARANCE
+    )
+    axes_bottom = float(
+        np.clip(
+            max(base_bottom, pad_guard, clearance_floor),
+            _CORNER_MIN_BOTTOM,
+            _CORNER_MAX_BOTTOM,
+        )
+    )
+
+    bottom_margin = axes_bottom
+
+    bottom_margin = axes_bottom
+
+    # Stretch horizontal margins slightly as the panels shrink so tick labels
+    # do not overlap the figure edge.  The top margin mirrors the Stage 3 and
+    # Stage 4 figures by pulling the grid downward just enough to clear the
+    # lowered suptitle, while the adjustments remain subtle to keep the grid
+    # centred regardless of dimensionality.
+    margins = {
+        "left": 0.07 + 0.01 * shrink_penalty,
+        "right": 0.95 - 0.01 * shrink_penalty,
+        "top": float(np.clip(0.93 + 0.008 * shrink_penalty, 0.91, 0.945)),
+        "bottom": bottom_margin,
+    }
+
+    figsize = (side_length, side_length)
+    return figsize, font_sizes, line_height, margins, _CORNER_FOOTER_PADDING
 
 
 def _smooth_line(
@@ -358,6 +591,7 @@ def build_footer_lines(
     timestamp: str | None = None,
     *,
     extra_lines: Iterable[tuple[str, bool]] | None = None,
+    include_dataset_details: bool = True,
 ) -> list[tuple[str, bool]]:
     """Return footer lines for a given dataset and model comparison.
 
@@ -373,6 +607,12 @@ def build_footer_lines(
         f"{COPERNICAN_VERSION} | {timestamp or get_timestamp()}"
     )
     composed = compose_footer(base_line, data_attrs)
+    if not include_dataset_details and composed:
+        # Corner plots speak for the combined posterior rather than a specific
+        # observational catalogue.  Drop the dataset description and citation
+        # when dataset details are intentionally hidden.  The footer then
+        # emphasises the comparison requested by Stage 5 operators.
+        composed = [composed[0]]
     if not extra_lines:
         return composed
 
@@ -1649,24 +1889,62 @@ def plot_corner(
         label = latex_name or labels[idx]
         wrapped_labels.append(_wrap_math(label))
 
+    alt_name = getattr(alt_model_plugin, "MODEL_NAME", "AltModel")
+    footer_lines = build_footer_lines(
+        alt_model_plugin,
+        attrs,
+        timestamp,
+        extra_lines=_format_corner_footer_stats(stats),
+        include_dataset_details=False,
+    )
+
     _apply_common_style()
-    font_sizes = {
-        "title": 26,
-        "label": 18,
-        "ticks": 12,
-        "footer": 12,
-    }
+    (
+        figsize,
+        font_sizes,
+        line_height,
+        margins,
+        footer_padding,
+    ) = _compute_corner_layout(
+        n_params,
+        len(footer_lines),
+    )
+
+    def _build_corner_figure():
+        """Render the corner plot grid, retrying with a headless backend.
+
+        Some CI environments lack Tk support even when Matplotlib defaults to
+        the TkAgg backend.  Creating a figure in those contexts raises
+        ``tkinter.TclError`` before any axes exist.  Retrying with the Agg
+        backend keeps plotting deterministic and sidesteps GUI dependencies
+        while leaving interactive environments untouched.
+        """
+
+        try:
+            return plt.subplots(
+                n_params,
+                n_params,
+                figsize=figsize,
+            )
+        except Exception as error:
+            logger.warning(
+                "Corner plot backend %s failed (%s); forcing Agg fallback.",
+                plt.get_backend(),
+                error,
+            )
+            plt.switch_backend("Agg")
+            return plt.subplots(
+                n_params,
+                n_params,
+                figsize=figsize,
+            )
 
     # Each dimension receives its own row and column, mirroring the familiar
     # triangle plot layout popularised by corner.py while letting us reuse the
-    # Copernican Suite's styling helpers and footers.
-    # A 4-inch panel keeps tick labels legible once exported to PNG or PDF.
-    panel_width = 4.0
-    fig, axes = plt.subplots(
-        n_params,
-        n_params,
-        figsize=(panel_width * n_params, panel_width * n_params),
-    )
+    # Copernican Suite's styling helpers and footers.  The geometry is now
+    # derived from ``_compute_corner_layout`` so the panels resize gracefully
+    # as the dimensionality grows while remaining within a manageable figure.
+    fig, axes = _build_corner_figure()
     if n_params == 1:
         axes = np.array([[axes]])
 
@@ -1725,21 +2003,13 @@ def plot_corner(
                 else:
                     x_centers = 0.5 * (x_edges[1:] + x_edges[:-1])
                     y_centers = 0.5 * (y_edges[1:] + y_edges[:-1])
-                    levels = np.array(
-                        _density_levels(hist, contour_levels),
-                        dtype=float,
+                    # Robustly derive contour levels so even plateaued
+                    # histograms render without raising ``ValueError``
+                    # exceptions inside Matplotlib.
+                    filled_levels, line_levels = _build_contour_levels(
+                        hist,
+                        contour_levels,
                     )
-                    levels = levels[levels > 0]
-                    levels = np.unique(levels)
-                    high_level = float(hist.max())
-                    if levels.size == 0:
-                        levels = np.array([high_level])
-                    filled_levels = [0.0]
-                    filled_levels.extend(levels.tolist())
-                    top_level = high_level
-                    if top_level <= filled_levels[-1]:
-                        top_level = filled_levels[-1] + np.finfo(float).eps
-                    filled_levels.append(top_level)
                     ax.contourf(
                         x_centers,
                         y_centers,
@@ -1754,7 +2024,7 @@ def plot_corner(
                         x_centers,
                         y_centers,
                         hist.T,
-                        levels=levels.tolist(),
+                        levels=line_levels.tolist(),
                         colors="#2a5176",
                         linewidths=1.0,
                     )
@@ -1778,23 +2048,35 @@ def plot_corner(
 
             ax.tick_params(axis="both", labelsize=font_sizes["ticks"])
 
-    alt_name = getattr(alt_model_plugin, "MODEL_NAME", "AltModel")
     fig.suptitle(
         f"Posterior corner plot: {alt_name}",
         fontsize=font_sizes["title"],
+        y=_CORNER_TITLE_Y,
     )
 
-    footer_lines = build_footer_lines(
-        alt_model_plugin,
-        attrs,
-        timestamp,
-        extra_lines=_format_corner_footer_stats(stats),
-    )
-    line_height = 0.022
-    footer_bottom = 0.05 + len(footer_lines) * line_height
-    plt.subplots_adjust(bottom=footer_bottom, left=0.07, right=0.95, top=0.9)
+    plt.subplots_adjust(**margins)
 
-    y = footer_bottom - line_height
+    footer_bottom = margins["bottom"]
+
+    footer_stack_offset = max(len(footer_lines) - 1, 0) * line_height
+    # Drop the entire footer stack further below the axes so the first line
+    # lands at least one span beneath the axis labels.  Earlier builds anchored
+    # the top line directly beneath ``footer_bottom`` which still allowed
+    # overlaps whenever the x-labels protruded downward.  Offsetting by the
+    # remaining line span keeps the Stage 5 cadence while guaranteeing extra
+    # clearance for dense annotations and future plots that reuse the layout
+    # helper.
+    y = footer_bottom - footer_padding - footer_stack_offset
+    lowest_line = (
+        y - (len(footer_lines) - 1) * line_height if footer_lines else y
+    )
+    if lowest_line < _CORNER_FOOTER_CLEARANCE - 1e-6:
+        # Layout rounding should keep ``lowest_line`` above the clearance
+        # floor.  Protect against pathological floating-point surprises by
+        # nudging the stack just enough to meet the promise, mirroring the
+        # safeguards used by the Stage 3 plots.
+        y += _CORNER_FOOTER_CLEARANCE - lowest_line
+
     for idx, (line, is_bold) in enumerate(footer_lines):
         weight = "bold" if is_bold else "normal"
         fig.text(
