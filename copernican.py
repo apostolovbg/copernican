@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-11
+# Last Updated: 2025-11-24
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -843,6 +843,32 @@ def _count_active_parameters(plugin, *, engine_module) -> int:
     return max(active, 1)
 
 
+def _resolve_fit_function(engine_module):
+    """Return the engine's cosmology fitting callable and its name."""
+
+    fit_fn = getattr(engine_module, "fit_cosmology_parameters", None)
+    if fit_fn is not None:
+        return fit_fn, "fit_cosmology_parameters"
+
+    legacy_fn = getattr(engine_module, "fit_sne_parameters", None)
+    if legacy_fn is not None:
+        warning_logger = log_mod.get_logger() if log_mod else None
+        if warning_logger:
+            warning_logger.warning(
+                (
+                    "Engine %s exposes the legacy fit_sne_parameters; "
+                    "prefer fit_cosmology_parameters to match the "
+                    "multi-probe workflow."
+                ),
+                getattr(engine_module, "__name__", engine_module),
+            )
+        return legacy_fn, "fit_sne_parameters"
+
+    raise AttributeError(
+        "Engine lacks fit_cosmology_parameters and fit_sne_parameters"
+    )
+
+
 def _prompt_nested_configuration(
     engine_module,
     lcdm_plugin,
@@ -850,7 +876,8 @@ def _prompt_nested_configuration(
 ) -> dict[str, int | float] | str | None:
     """Collect configuration parameters for the nested sampler backend."""
 
-    fit_sig = inspect.signature(engine_module.fit_sne_parameters)
+    fit_fn, _ = _resolve_fit_function(engine_module)
+    fit_sig = inspect.signature(fit_fn)
 
     def _default_int(param: str, fallback: int) -> int:
         try:
@@ -1101,7 +1128,8 @@ def prompt_sampling_configuration(
             alt_model_plugin,
         )
 
-    fit_sig = inspect.signature(engine_module.fit_sne_parameters)
+    fit_fn, _ = _resolve_fit_function(engine_module)
+    fit_sig = inspect.signature(fit_fn)
     try:
         default_steps = int(fit_sig.parameters["n_steps"].default)
     except (KeyError, ValueError, TypeError):
@@ -1812,10 +1840,14 @@ def main_workflow():
         # spacer. The engine banner now focuses entirely on the live progress
         # display and logging output.
         console.write("")
-        if not hasattr(cosmo_engine_selected, "fit_sne_parameters"):
+        try:
+            fit_fn, _ = _resolve_fit_function(cosmo_engine_selected)
+        except AttributeError:
             logger.error(
-                "Selected engine %s does not expose fit_sne_parameters;"
-                " aborting run.",
+                (
+                    "Selected engine %s lacks a cosmology fitting "
+                    "entry point; aborting run."
+                ),
                 getattr(cosmo_engine_selected, "__name__", "unknown"),
             )
             _delete_log_file(log_file)
@@ -1831,7 +1863,7 @@ def main_workflow():
             console.write(f"  Enlargement fraction: {sampling_enlarge:g}")
             console.write("  Starting ΛCDM sampler...")
             console.write("")
-            lcdm_fit_results = cosmo_engine_selected.fit_sne_parameters(
+            lcdm_fit_results = fit_fn(
                 sne_data_df,
                 lcdm,
                 bao_data_df=bao_data_df,
@@ -1849,7 +1881,7 @@ def main_workflow():
             console.write(f"  Worker pool: {pool_label}")
             console.write("  Starting ΛCDM sampler...")
             console.write("")
-            lcdm_fit_results = cosmo_engine_selected.fit_sne_parameters(
+            lcdm_fit_results = fit_fn(
                 sne_data_df,
                 lcdm,
                 bao_data_df=bao_data_df,
@@ -1881,7 +1913,7 @@ def main_workflow():
                 console.write(f"  Enlargement fraction: {sampling_enlarge:g}")
                 console.write("  Starting alternative sampler...")
                 console.write("")
-                alt_model_fit_results = cosmo_engine_selected.fit_sne_parameters(
+                alt_model_fit_results = fit_fn(
                     sne_data_df,
                     alt_model_plugin,
                     bao_data_df=bao_data_df,
@@ -1899,7 +1931,7 @@ def main_workflow():
                 console.write(f"  Worker pool: {pool_label}")
                 console.write("  Starting alternative sampler...")
                 console.write("")
-                alt_model_fit_results = cosmo_engine_selected.fit_sne_parameters(
+                alt_model_fit_results = fit_fn(
                     sne_data_df,
                     alt_model_plugin,
                     bao_data_df=bao_data_df,

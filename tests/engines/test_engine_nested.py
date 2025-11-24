@@ -1,9 +1,10 @@
-# Last Updated: 2025-11-13
+# Last Updated: 2025-11-24
 """Integration tests for the nested sampling engine."""
 
 import os
 import tempfile
 import unittest
+import warnings
 from types import SimpleNamespace
 from unittest import mock
 
@@ -46,7 +47,7 @@ class TestNestedEngine(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1, 0.1],
             }
         )
-        result = cosmo_engine_nested.fit_sne_parameters(
+        result = cosmo_engine_nested.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_live_points=32,
@@ -84,7 +85,7 @@ class TestNestedEngine(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        result = cosmo_engine_nested.fit_sne_parameters(
+        result = cosmo_engine_nested.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_live_points=24,
@@ -105,6 +106,34 @@ class TestNestedEngine(unittest.TestCase):
             with ds:
                 for name in plugin.PARAMETER_NAMES:
                     self.assertIn(name, ds.data_vars)
+
+    def test_legacy_alias_warns_and_runs(self):
+        plugin = self._build_lcdm_plugin()
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01, 0.02],
+                "mu_obs": [40.0, 41.0],
+                "e_mu_obs": [0.1, 0.1],
+            }
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = cosmo_engine_nested.fit_sne_parameters(
+                sne_df,
+                plugin,
+                n_live_points=24,
+                max_iterations=60,
+                evidence_tolerance=1e-2,
+                enlargement_fraction=1.2,
+                display_progress=False,
+            )
+        self.assertTrue(result["success"])
+        self.assertTrue(
+            any(
+                "fit_sne_parameters is deprecated" in str(warning.message)
+                for warning in caught
+            )
+        )
 
     def test_manifest_integration_records_engine(self):
         plugin = SimpleNamespace(
@@ -144,7 +173,7 @@ class TestNestedEngine(unittest.TestCase):
         bar_instance = mock.MagicMock()
         bar_cls.return_value = bar_instance
 
-        cosmo_engine_nested.fit_sne_parameters(
+        cosmo_engine_nested.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_live_points=16,
@@ -186,7 +215,7 @@ class TestNestedEngine(unittest.TestCase):
             side_effect=RuntimeError("replacement failure"),
         ):
             with self.assertRaises(RuntimeError):
-                cosmo_engine_nested.fit_sne_parameters(
+                cosmo_engine_nested.fit_cosmology_parameters(
                     sne_df,
                     plugin,
                     n_live_points=8,

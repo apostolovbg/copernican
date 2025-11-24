@@ -1,6 +1,6 @@
 # Copernican Suite API Overview
 
-**Last Updated:** 2025-11-23
+**Last Updated:** 2025-11-24
 
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be
@@ -89,30 +89,30 @@ modules are:
   `save_bao_results_csv` and `save_cmb_results_csv` – persist fitting
   results with filenames that encode the dataset, model and timestamp.
 
-- `engines.cosmo_engine_mcmc.fit_sne_parameters` – returns a dictionary with
-  posterior samples, joint chi-squared diagnostics for the SNe/BAO/CMB
-  components, dataset-level point counts, burn-in length, acceptance fractions
-  and a sanitised log-probability trace. BAO and CMB data frames can be passed
-  via the `bao_data_df` and `cmb_data_df` keyword arguments to enable joint
-  sampling in a single call. ``burn_in_steps`` overrides the default
-  ``max(100, n_steps // 5)`` warm-up, keeping scripted workflows nimble, and
-  the ``pool_size`` keyword enforces user-selected multiprocessing pools
-  while automatically expanding the walker ensemble to keep every worker
-  busy. The private `_reseed_invalid_walkers` utility reseeds walkers that
-  emit `nan` coordinates after burn-in so downstream API consumers never need
-  to handle undefined sampler states. When the CLI selects this backend, Stage 2
+- `engines.cosmo_engine_mcmc.fit_cosmology_parameters` – returns a dictionary
+  with posterior samples, joint chi-squared diagnostics for the SNe/BAO/CMB
+  components, dataset-level point counts, burn-in length, acceptance
+  fractions and a sanitised log-probability trace. BAO and CMB data frames can
+  be passed via the `bao_data_df` and `cmb_data_df` keyword arguments to
+  enable joint sampling in a single call. ``burn_in_steps`` overrides the
+  default ``max(100, n_steps // 5)`` warm-up, keeping scripted workflows
+  nimble, and the ``pool_size`` keyword enforces user-selected multiprocessing
+  pools while automatically expanding the walker ensemble to keep every worker
+  busy. The private `_reseed_invalid_walkers` utility reseeds walkers that emit
+  `nan` coordinates after burn-in so downstream API consumers never need to
+  handle undefined sampler states. When the CLI selects this backend, Stage 2
   prompts for production steps, burn-in length, walker counts and worker pools,
-  mirroring the available function arguments for scripted workflows. The
-  diagnostic bundle still includes R-hat and effective sample sizes when ArviZ
-  is missing by falling back to an internal Gelman–Rubin estimator so headless
-  tests remain deterministic.
-- `engines.cosmo_engine_nested.fit_sne_parameters` – wraps a lightweight
+  mirroring the available function arguments for scripted workflows. A legacy
+  ``fit_sne_parameters`` alias remains for backward compatibility but now logs
+  a deprecation warning.
+- `engines.cosmo_engine_nested.fit_cosmology_parameters` – wraps a lightweight
   nested-sampling routine that evaluates the same plugin-provided posterior
   while reporting log-evidence estimates, live-point counts, enlargement
   factors and iteration diagnostics. The CLI surfaces backend-specific prompts
   for live points, evidence tolerances and enlargement fractions so
   interactive runs align with scripted calls that specify the same keyword
-  arguments.
+  arguments. The legacy ``fit_sne_parameters`` name still resolves to this
+  function but is deprecated.
 - `result_writer.save_summary(results, output_dir)` – serialize fitted
   parameters, 1σ errors, covariance matrices and the recorded sampling
   configuration—including nested-sampling metadata such as live-point counts
@@ -179,7 +179,7 @@ cache = model_parser.parse_model(
 funcs, parsed = model_coder.generate_callables(cache)
 plugin = engine_interface.build_plugin(parsed, funcs)
 sne = data_loaders.load_sne_data('jla_2014')
-result = engine.fit_sne_parameters(sne, plugin, burn_in_steps=20)
+result = engine.fit_cosmology_parameters(sne, plugin, burn_in_steps=20)
 ```
 
 Because the API is intentionally thin, advanced users can orchestrate custom

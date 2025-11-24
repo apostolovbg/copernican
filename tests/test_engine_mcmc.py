@@ -1,6 +1,6 @@
 """Integration tests for the ensemble MCMC engine.
 
-**Last Updated:** 2025-11-23
+**Last Updated:** 2025-11-24
 """
 
 import contextlib
@@ -35,7 +35,7 @@ from copernican_lib.utils import set_random_seed
 from engines import cosmo_engine_mcmc
 from engines.cosmo_engine_mcmc import (
     _ActiveLogProbability,
-    _build_sne_logposterior,
+    _build_joint_logposterior,
     _classify_parameter_bounds,
     _estimate_condition_number,
     _initialise_active_walkers,
@@ -132,7 +132,7 @@ class TestMCMCEngine(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        res = cosmo_engine_mcmc.fit_sne_parameters(
+        res = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -182,6 +182,34 @@ class TestMCMCEngine(unittest.TestCase):
                 )
             )
 
+    def test_legacy_fit_alias_warns_and_runs(self):
+        plugin = self._build_lcdm_plugin()
+        sne_df = pd.DataFrame(
+            {
+                "zcmb": [0.01, 0.02],
+                "mu_obs": [40.0, 41.0],
+                "e_mu_obs": [0.1, 0.1],
+            }
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            res = cosmo_engine_mcmc.fit_sne_parameters(
+                sne_df,
+                plugin,
+                n_walkers=4,
+                n_steps=4,
+                pool_size=1,
+                burn_in_steps=2,
+                display_progress=False,
+            )
+        self.assertTrue(res["success"])
+        self.assertTrue(
+            any(
+                "fit_sne_parameters is deprecated" in str(warning.message)
+                for warning in caught
+            )
+        )
+
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "chain.nc")
             chain_io.save_posterior(
@@ -225,7 +253,7 @@ class TestMCMCEngine(unittest.TestCase):
         )
 
         with self.assertLogs(level="INFO") as captured:
-            cosmo_engine_mcmc.fit_sne_parameters(
+            cosmo_engine_mcmc.fit_cosmology_parameters(
                 sne_df,
                 plugin,
                 n_walkers=4,
@@ -252,7 +280,7 @@ class TestMCMCEngine(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        res = cosmo_engine_mcmc.fit_sne_parameters(
+        res = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -272,7 +300,7 @@ class TestMCMCEngine(unittest.TestCase):
                 "e_mu_obs": [0.1],
             }
         )
-        posterior, _, _ = _build_sne_logposterior(
+        posterior, _, _ = _build_joint_logposterior(
             plugin,
             sne_df,
         )
@@ -303,7 +331,7 @@ class TestMCMCEngine(unittest.TestCase):
                 np.full(ndim, np.nan),
             ]
         )
-        posterior, _, _ = _build_sne_logposterior(
+        posterior, _, _ = _build_joint_logposterior(
             plugin,
             sne_df,
         )
@@ -331,7 +359,7 @@ class TestMCMCEngine(unittest.TestCase):
             }
         )
         set_random_seed(31415)
-        first = cosmo_engine_mcmc.fit_sne_parameters(
+        first = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -340,7 +368,7 @@ class TestMCMCEngine(unittest.TestCase):
             burn_in_steps=8,
         )
         set_random_seed(31415)
-        second = cosmo_engine_mcmc.fit_sne_parameters(
+        second = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -365,7 +393,7 @@ class TestMCMCEngine(unittest.TestCase):
                 "e_mu_obs": [0.1],
             }
         )
-        posterior, _, _ = _build_sne_logposterior(plugin, sne_df)
+        posterior, _, _ = _build_joint_logposterior(plugin, sne_df)
         bounds = plugin.PARAMETER_BOUNDS
         lower, upper, fixed_mask = _classify_parameter_bounds(
             bounds, logger=logging.getLogger()
@@ -402,7 +430,7 @@ class TestMCMCEngine(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        result = cosmo_engine_mcmc.fit_sne_parameters(
+        result = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -423,7 +451,7 @@ class TestMCMCEngine(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        result = cosmo_engine_mcmc.fit_sne_parameters(
+        result = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=30,
@@ -447,7 +475,7 @@ class TestMCMCEngine(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        result = cosmo_engine_mcmc.fit_sne_parameters(
+        result = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=4,
@@ -507,7 +535,7 @@ class TestMCMCEngine(unittest.TestCase):
             cmb_df = pd.DataFrame({"ell": ells, "Dl_obs": dl_vals})
             cmb_df.attrs["covariance_matrix_inv"] = np.eye(len(ells))
 
-            result = cosmo_engine_mcmc.fit_sne_parameters(
+            result = cosmo_engine_mcmc.fit_cosmology_parameters(
                 sne_df,
                 plugin,
                 bao_data_df=bao_df,
@@ -671,7 +699,7 @@ class TestMCMCHelpers(unittest.TestCase):
             }
         )
 
-        result = cosmo_engine_mcmc.fit_sne_parameters(
+        result = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=10,
@@ -700,7 +728,7 @@ class TestAutocorrelationGuard(unittest.TestCase):
         )
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always", RuntimeWarning)
-            result = cosmo_engine_mcmc.fit_sne_parameters(
+            result = cosmo_engine_mcmc.fit_cosmology_parameters(
                 sne_df,
                 plugin,
                 n_walkers=4,

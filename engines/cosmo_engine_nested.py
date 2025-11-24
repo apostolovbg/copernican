@@ -1,10 +1,10 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-12
+# Last Updated: 2025-11-24
 
 """Nested sampling cosmology engine.
 
-**Last Updated:** 2025-11-12
+**Last Updated:** 2025-11-24
 
 This backend implements a lightweight nested-sampling routine that remains
 compatible with the Copernican plugin architecture.  The sampler focuses on
@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import logging
 import math
+import warnings
 from dataclasses import dataclass
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -291,7 +292,7 @@ def _weights_from_logs(log_weights: np.ndarray) -> np.ndarray:
     return shifted / total
 
 
-def fit_sne_parameters(
+def fit_cosmology_parameters(
     sne_data_df: pd.DataFrame,
     model_plugin: Any,
     *,
@@ -559,6 +560,47 @@ def fit_sne_parameters(
     }
 
 
+def fit_sne_parameters(
+    sne_data_df: pd.DataFrame,
+    model_plugin: Any,
+    *,
+    bao_data_df: pd.DataFrame | None = None,
+    cmb_data_df: pd.DataFrame | None = None,
+    n_live_points: int = _DEFAULT_LIVE_POINTS,
+    max_iterations: int = _DEFAULT_MAX_ITERATIONS,
+    evidence_tolerance: float = _DEFAULT_EVIDENCE_TOLERANCE,
+    enlargement_fraction: float = _DEFAULT_ENLARGEMENT_FRACTION,
+    display_progress: bool = True,
+) -> Mapping[str, Any]:
+    """Compatibility wrapper for :func:`fit_cosmology_parameters`.
+
+    Nested-sampling now supports the same multi-probe datasets as the MCMC
+    engine, so the legacy SNe-focused name remains only for backwards
+    compatibility.  Prefer :func:`fit_cosmology_parameters` to avoid the
+    misleading scope and to align with the CLI terminology.
+    """
+
+    warnings.warn(
+        (
+            "fit_sne_parameters is deprecated; "
+            "use fit_cosmology_parameters instead."
+        ),
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return fit_cosmology_parameters(
+        sne_data_df,
+        model_plugin,
+        bao_data_df=bao_data_df,
+        cmb_data_df=cmb_data_df,
+        n_live_points=n_live_points,
+        max_iterations=max_iterations,
+        evidence_tolerance=evidence_tolerance,
+        enlargement_fraction=enlargement_fraction,
+        display_progress=display_progress,
+    )
+
+
 __all__ = [
     "ENGINE_KIND",
     "ENGINE_LABEL",
@@ -569,5 +611,6 @@ __all__ = [
     "chi_squared_sne",
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_from_dict",
+    "fit_cosmology_parameters",
     "fit_sne_parameters",
 ]
