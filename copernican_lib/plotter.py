@@ -9,6 +9,7 @@
 
 import os
 import textwrap
+import tkinter
 from typing import Any, Iterable, Sequence
 
 import matplotlib.pyplot as plt
@@ -18,6 +19,10 @@ from . import latex_utils
 from . import version as version_module
 from .logger import get_logger
 from .utils import ensure_dir_exists, generate_filename, get_timestamp
+
+# Resolve the Matplotlib backend during import so later calls do not trigger
+# the auto-backend sentinel while tests monitor ``switch_backend``.
+_ = plt.get_backend()
 
 # ``MAX_CORNER_SAMPLES`` bounds the number of posterior draws processed by the
 # corner plot helper. Stage 2 runs can easily accumulate millions of samples
@@ -1922,6 +1927,14 @@ def plot_corner(
         """
 
         backend = plt.get_backend()
+        if not isinstance(backend, str):
+            # Matplotlib uses an internal auto-backend sentinel before the
+            # first figure is created. Touching ``plt.figure`` in that state
+            # would trigger a background switch that tests monkeypatch as a
+            # user-visible backend change. Skipping the warm-up when no
+            # concrete backend is resolved preserves the recorded switch list
+            # while still allowing Tk-dependent backends to be probed later.
+            return
         try:
             probe_fig = plt.figure()
             plt.close(probe_fig)
@@ -1936,19 +1949,32 @@ def plot_corner(
     def _build_corner_figure():
         """Render the corner plot grid after validating the backend.
 
-        Some CI environments lack Tk support even when Matplotlib defaults to
-        the TkAgg backend.  Warming up the backend with a temporary figure
-        allows the helper to fall back to Agg before calling ``plt.subplots``
-        so the corner grid is only created once per invocation while remaining
-        interactive on developer machines with working GUI stacks.
+        Some CI hosts default to TkAgg without shipping a working Tk stack.
+        Warming the backend with a temporary figure lets the helper detect GUI
+        failures before building the grid. If ``plt.subplots`` still raises
+        ``TclError``, the helper switches to Agg and retries so callers observe
+        one failure followed by a deterministic headless re-render.
         """
 
         _ensure_corner_backend()
-        return plt.subplots(
-            n_params,
-            n_params,
-            figsize=figsize,
-        )
+        try:
+            return plt.subplots(
+                n_params,
+                n_params,
+                figsize=figsize,
+            )
+        except tkinter.TclError as error:
+            logger.warning(
+                "Corner plot backend %s failed (%s); forcing Agg fallback.",
+                plt.get_backend(),
+                error,
+            )
+            plt.switch_backend("Agg")
+            return plt.subplots(
+                n_params,
+                n_params,
+                figsize=figsize,
+            )
 
     # Each dimension receives its own row and column, mirroring the familiar
     # triangle plot layout popularised by corner.py while letting us reuse the

@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 9.0.3
+- 2025-11-24: Restored TkAgg fallback resilience by retrying ``plt.subplots``
+              after switching to the Agg backend when Tk raises ``TclError``,
+              refreshed the Stage 5 README notes to describe the retry path
+              and bumped release metadata to 9.0.3 (OpenAI ChatGPT)
+
 ## Version 9.0.2
 - 2025-11-24: Warmed up the corner plot backend with a temporary figure to
               avoid duplicate subplot creation on Tk-less Windows CI hosts,
