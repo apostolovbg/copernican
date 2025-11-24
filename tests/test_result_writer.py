@@ -1,6 +1,6 @@
 """Tests for the parameter summary writer.
 
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-24
 """
 
 import json
@@ -42,7 +42,7 @@ class TestResultWriter(unittest.TestCase):
                 "e_mu_obs": [0.1, 0.1],
             }
         )
-        res = cosmo_engine_mcmc.fit_sne_parameters(
+        res = cosmo_engine_mcmc.fit_cosmology_parameters(
             sne_df,
             plugin,
             n_walkers=4,

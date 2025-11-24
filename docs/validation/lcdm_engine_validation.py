@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-23
+# Last Updated: 2025-11-24
 """Lightweight ΛCDM regression test for both sampling engines.
 
 The runner loads a trimmed Pantheon+SH0ES 2022 supernova slice and the full
@@ -124,7 +124,7 @@ def compute_reference_chi2(
 ) -> dict[str, float]:
     """Evaluate χ² for the Planck 2018 reference point."""
 
-    _, loglike, joint_like = cosmo_engine_mcmc._build_sne_logposterior(
+    _, loglike, joint_like = cosmo_engine_mcmc._build_joint_logposterior(
         plugin,
         sne_df,
         bao_df,
@@ -155,7 +155,7 @@ def run_mcmc_validation(
     """Run the MCMC engine with conservative iteration counts."""
 
     _patch_cpu_count_for_tests()
-    return cosmo_engine_mcmc.fit_sne_parameters(  # type: ignore[no-any-return]
+    return cosmo_engine_mcmc.fit_cosmology_parameters(
         sne_df,
         plugin,
         bao_data_df=bao_df,
@@ -171,7 +171,7 @@ def run_nested_validation(
 ) -> dict[str, Any]:
     """Run the nested sampler with limited live points for speed."""
 
-    return cosmo_engine_nested.fit_sne_parameters(
+    return cosmo_engine_nested.fit_cosmology_parameters(
         sne_df,
         plugin,
         bao_data_df=bao_df,

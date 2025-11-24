@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-23
+**Last Updated:** 2025-11-24
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,14 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 7.7.15
+- 2025-11-24: Renamed the sampling entry points to
+              ``fit_cosmology_parameters`` with deprecated
+              ``fit_sne_parameters`` shims, updated the CLI to resolve the new
+              name while warning on legacy usage, refreshed documentation and
+              tests to reflect the broader scope and bumped suite metadata to
+              7.7.15 (OpenAI ChatGPT)
 
 ## Version 7.7.14
 - 2025-11-23: Hardened the policy hook and CI gate so Last Updated headers are

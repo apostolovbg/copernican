@@ -1,6 +1,6 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-01
+# Last Updated: 2025-11-24
 
 """Basic functional tests for the Copernican Suite."""
 
@@ -134,7 +134,7 @@ class FunctionalTestCase(unittest.TestCase):
                 :3, :3
             ]
             attrs["diag_errors_for_plot"] = attrs["diag_errors_for_plot"][:3]
-        result = engine.fit_sne_parameters(
+        result = engine.fit_cosmology_parameters(
             sne_df,
             self.plugin,
             n_walkers=6,

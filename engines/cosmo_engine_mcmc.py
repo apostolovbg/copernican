@@ -1,10 +1,10 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-13
+# Last Updated: 2025-11-24
 
 """Markov Chain Monte Carlo engine using :mod:`emcee`.
 
-**Last Updated:** 2025-11-10
+**Last Updated:** 2025-11-24
 
 The combined optimiser has been retired entirely, leaving this sampler as the
 sole runtime engine.  It continues to focus on Supernova Ia posteriors while
@@ -127,7 +127,7 @@ class _ActiveLogProbability:
         active_indices: np.ndarray,
     ) -> None:
         # ``posterior`` already encapsulates priors and likelihood terms via
-        # ``_build_sne_logposterior``.  We retain it verbatim and only manage
+        # ``_build_joint_logposterior``.  We retain it verbatim and only manage
         # the vector assembly around it.
         self._posterior = posterior
         # ``template_params`` stores the baseline parameter vector with fixed
@@ -317,7 +317,7 @@ class _SamplingProgressReporter:
         return self._scratch
 
 
-def _build_sne_logposterior(
+def _build_joint_logposterior(
     model_plugin: Any,
     sne_data_df: Any,
     bao_data_df: Any | None = None,
@@ -422,6 +422,11 @@ def _build_sne_logposterior(
         priors = getattr(model_plugin, "PARAMETER_PRIORS", [])
     posterior = engine_interface.make_logposterior(loglike, priors)
     return posterior, loglike, joint_like
+
+
+# Backward compatibility for legacy imports that still reference the
+# supernova-specific helper name.
+_build_sne_logposterior = _build_joint_logposterior
 
 
 def _reseed_invalid_walkers(
@@ -620,7 +625,7 @@ def _run_stage_with_progress(
     return state
 
 
-def fit_sne_parameters(
+def fit_cosmology_parameters(
     sne_data_df: Any,
     model_plugin: Any,
     *,
@@ -651,7 +656,7 @@ def fit_sne_parameters(
     logger = logging.getLogger()
     engine_interface.validate_plugin(model_plugin)
 
-    posterior_full, loglike_full, joint_like = _build_sne_logposterior(
+    posterior_full, loglike_full, joint_like = _build_joint_logposterior(
         model_plugin,
         sne_data_df,
         bao_data_df,
@@ -1041,6 +1046,50 @@ def fit_sne_parameters(
     }
 
 
+def fit_sne_parameters(
+    sne_data_df: Any,
+    model_plugin: Any,
+    *,
+    bao_data_df: Any | None = None,
+    cmb_data_df: Any | None = None,
+    n_walkers: int = 32,
+    n_steps: int = 200,
+    pool_size: int | None = None,
+    progress_granularity: int = 20,
+    burn_in_steps: int | None = None,
+    display_progress: bool = True,
+) -> dict[str, Any]:
+    """Compatibility wrapper for :func:`fit_cosmology_parameters`.
+
+    The helper preserves the legacy API for callers that still refer to
+    supernova-specific naming even though the engine now fits BAO and CMB
+    datasets alongside SNe Ia.  New code should invoke
+    :func:`fit_cosmology_parameters` directly so telemetry and documentation
+    align with the broader scope.
+    """
+
+    warnings.warn(
+        (
+            "fit_sne_parameters is deprecated; "
+            "use fit_cosmology_parameters instead."
+        ),
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return fit_cosmology_parameters(
+        sne_data_df,
+        model_plugin,
+        bao_data_df=bao_data_df,
+        cmb_data_df=cmb_data_df,
+        n_walkers=n_walkers,
+        n_steps=n_steps,
+        pool_size=pool_size,
+        progress_granularity=progress_granularity,
+        burn_in_steps=burn_in_steps,
+        display_progress=display_progress,
+    )
+
+
 __all__ = [
     "ENGINE_KIND",
     "ENGINE_LABEL",
@@ -1050,6 +1099,7 @@ __all__ = [
     "chi_squared_sne",
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_from_dict",
+    "fit_cosmology_parameters",
     "fit_sne_parameters",
 ]
 

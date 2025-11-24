@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-23
+# Last Updated: 2025-11-24
 """Integration test covering synthetic SNe, BAO and CMB stages."""
 
 from __future__ import annotations
@@ -115,7 +115,7 @@ def test_synthetic_pipeline(
         _assert_hashes(frame)
 
     if engine_module is cosmo_engine_mcmc:
-        fit = engine_module.fit_sne_parameters(
+        fit = engine_module.fit_cosmology_parameters(
             sne_df,
             synthetic_plugin,
             bao_data_df=bao_df,
@@ -127,7 +127,7 @@ def test_synthetic_pipeline(
             display_progress=False,
         )
     else:
-        fit = engine_module.fit_sne_parameters(
+        fit = engine_module.fit_cosmology_parameters(
             sne_df,
             synthetic_plugin,
             bao_data_df=bao_df,

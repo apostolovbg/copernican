@@ -1,8 +1,6 @@
-# Last Updated: 2025-11-09
+# Last Updated: 2025-11-24
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-
-# Last Updated: 2025-11-11
 """Tests for menu interaction helpers in ``copernican.py``."""
 
 import collections.abc as collections_abc
@@ -162,7 +160,7 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
     """Exercise the sampler configuration questionnaire."""
 
     def setUp(self) -> None:
-        def fit_sne_parameters(
+        def fit_cosmology_parameters(
             n_steps: int = 400,
             n_walkers: int = 64,
             burn_in_steps: int | None = None,
@@ -171,7 +169,8 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
             return {"success": True}
 
         self.engine = SimpleNamespace(
-            fit_sne_parameters=fit_sne_parameters,
+            fit_cosmology_parameters=fit_cosmology_parameters,
+            fit_sne_parameters=fit_cosmology_parameters,
             _FIXED_BOUNDS_RTOL=1e-9,
             _FIXED_BOUNDS_ATOL=1e-12,
             ENGINE_KIND="mcmc",
@@ -276,7 +275,7 @@ class NestedSamplerConfigurationPromptTestCase(unittest.TestCase):
     """Exercise the nested-sampling configuration questionnaire."""
 
     def setUp(self) -> None:
-        def fit_sne_parameters(
+        def fit_cosmology_parameters(
             *,
             n_live_points: int = 128,
             max_iterations: int = 5000,
@@ -287,7 +286,8 @@ class NestedSamplerConfigurationPromptTestCase(unittest.TestCase):
             return {"success": True}
 
         self.engine = SimpleNamespace(
-            fit_sne_parameters=fit_sne_parameters,
+            fit_cosmology_parameters=fit_cosmology_parameters,
+            fit_sne_parameters=fit_cosmology_parameters,
             ENGINE_KIND="nested",
         )
         self.lcdm_plugin = SimpleNamespace(
