@@ -1,4 +1,4 @@
-**Version:** 9.0.1
+**Version:** 9.0.3
 **Last Updated:** 2025-11-24
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -531,7 +531,12 @@ independence statements attached to each DataFrame live under
 
 Stage 5 automatically falls back to Matplotlib's Agg backend when Tk support
 is unavailable so headless CI jobs still write corner plots without requiring
-GUI toolkits. Synthetic fixtures under ``tests/data/synthetic`` are pinned to
+GUI toolkits. The corner helper now probes the active backend with a temporary
+figure so deterministic sizing survives Tk failures without spawning multiple
+subplot grids. If a Tk failure still occurs during ``plt.subplots`` creation,
+the helper switches to Agg and retries once so CI logs record the backend
+swap while the grid renders exactly once. Synthetic fixtures under
+``tests/data/synthetic`` are pinned to
 LF line endings via ``.gitattributes`` so their logged SHA256 hashes stay
 identical across Windows and Unix checkouts.
 
