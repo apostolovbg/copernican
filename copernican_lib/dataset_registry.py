@@ -619,9 +619,7 @@ def load_gw_data(dataset_id=None, **kwargs):
     logger = logging.getLogger()
     registry = get_parser_registry("gw")
     if dataset_id is None:
-        dataset_id = prompt_dataset_selection(
-            registry, "gravitational-wave"
-        )
+        dataset_id = prompt_dataset_selection(registry, "gravitational-wave")
         if dataset_id is None:
             logger.info(
                 "Gravitational-wave data loading canceled by user during "

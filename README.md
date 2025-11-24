@@ -1,4 +1,4 @@
-**Version:** 9.0.0
+**Version:** 9.0.1
 **Last Updated:** 2025-11-24
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -783,9 +783,11 @@ generated.
 
 ## Developer Guide
 Document every change in `CHANGELOG.md`. Each substantive update must add an
-entry using the template `- YYYY-MM-DD: short summary (author)`.
-Legacy `dev_note` headers embedded in source files have been removed in favour
-of changelog entries.
+entry using the template `- YYYY-MM-DD: short summary (author)` and should
+explicitly name the files or subsystems touched. Before committing, compare
+`git diff --name-only` with the latest changelog entry so the policy hook never
+blocks on missing metadata. Legacy `dev_note` headers embedded in source files
+have been removed in favour of changelog entries.
 Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md`
 and
@@ -930,8 +932,10 @@ must be followed. The `AGENTS.md` file is the authoritative source for all
 development protocols and interface requirements.
 >
 > 1. **Summarize every change in `CHANGELOG.md` using the changelog**
-> template.** Legacy `dev_note` headers should be migrated to the changelog
-> when touched.
+> template and list every touched file or subsystem.** Compare
+> `git diff --name-only` against the newest changelog entry before every
+> commit so nothing slips past the `copernican-policy` hook. Legacy
+> `dev_note` headers should be migrated to the changelog when touched.
 > 2. **Comment the code extensively.** Explain the "why" as well as the
 > "what", clarifying both obvious and non-obvious, simple or complex logic or
 > algorithms.
