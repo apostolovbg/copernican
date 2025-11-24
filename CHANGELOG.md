@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.0.0
+- 2025-11-24: Added a rotating diagnostics log under `./logs/` that keeps
+              suite-level events separate from per-run logs, documented the
+              forward-only development stance, synced release metadata to
+              10.0.0 and introduced tests covering program-log rollover
+              (OpenAI ChatGPT)
+
 ## Version 9.0.3
 - 2025-11-24: Restored TkAgg fallback resilience by retrying ``plt.subplots``
               after switching to the Agg backend when Tk raises ``TclError``,

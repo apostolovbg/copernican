@@ -8,6 +8,8 @@
 # fmt: off
 """Copernican Suite - Main Orchestrator.
 
+Last Updated: 2025-11-24
+
 This script ties together model selection, dataset loading, dependency
 checks and result generation.  Runtime behaviour is configured through
 environment variables set by the cross-platform ``start`` launchers, so
@@ -1522,6 +1524,19 @@ def main_workflow():
 
     OUTPUT_BASE_DIR = os.path.join(SCRIPT_DIR, "output")
     os.makedirs(OUTPUT_BASE_DIR, exist_ok=True)
+    LOGS_DIR = os.path.join(SCRIPT_DIR, "logs")
+
+    program_log_file = log_mod.setup_program_logging(
+        log_dir=LOGS_DIR,
+        base_dir=SCRIPT_DIR,
+        rollover_mb=10.0,
+    )
+    program_logger = log_mod.get_program_logger()
+    program_logger.info(
+        "Diagnostics logging active at %s; outputs live under %s",
+        program_log_file,
+        LOGS_DIR,
+    )
 
     show_splash_screen()
 
@@ -1547,6 +1562,11 @@ def main_workflow():
             OUTPUT_BASE_DIR, f"copernican-run_{run_start_ts}"
         )
         utils.ensure_dir_exists(OUTPUT_DIR)
+        program_logger.info(
+            "Run %s initialised with output directory %s",
+            run_start_ts,
+            OUTPUT_DIR,
+        )
         global CURRENT_LOG_FILE
         log_file = log_mod.setup_logging(
             log_dir=OUTPUT_DIR, base_dir=SCRIPT_DIR
@@ -1615,6 +1635,11 @@ def main_workflow():
                 model_files, "Select cosmological model"
             )
             if not selected_model:
+                program_logger.info(
+                    "Run %s cancelled before model selection; removing %s",
+                    run_start_ts,
+                    OUTPUT_DIR,
+                )
                 _delete_log_file(log_file)
                 _remove_run_dir(OUTPUT_DIR)
                 cleanup_cache(SCRIPT_DIR)
@@ -2459,6 +2484,11 @@ def main_workflow():
         cleanup_cache(SCRIPT_DIR)
         if not run_again:
             logger.info("Exiting Copernican Suite. Goodbye!")
+            program_logger.info(
+                "Session closed after run %s saved to %s",
+                run_start_ts,
+                OUTPUT_DIR,
+            )
             console.write("")
             return
 
