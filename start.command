@@ -1,5 +1,5 @@
 #!/bin/bash
-# Last Updated: 2025-11-01
+# Last Updated: 2025-11-24
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -25,11 +25,7 @@ else
     SUITE_VERSION="unknown"
 fi
 
-AUTO=0
 STRICT=0
-if [ "${COPERNICAN_AUTO_INSTALL:-}" = "1" ]; then
-    AUTO=1
-fi
 if [ "${COPERNICAN_STRICT_WARNINGS:-}" = "1" ]; then
     STRICT=1
 fi
@@ -86,15 +82,10 @@ environment_menu() {
             echo "1) Update dependencies in the managed virtual environment"
             echo "2) Remove the managed virtual environment"
             echo "3) Rebuild the managed virtual environment"
-            if [ "$AUTO" -eq 1 ]; then
-                echo "4) Disable automatic dependency installation"
-            else
-                echo "4) Enable automatic dependency installation"
-            fi
-            echo "5) Back"
+            echo "4) Back"
             echo
             read -r -p "Write the number of choice: " env_choice
-            env_choice=${env_choice:-5}
+            env_choice=${env_choice:-4}
             case "$env_choice" in
                 1)
                     if ! update_dependencies; then
@@ -108,54 +99,27 @@ environment_menu() {
                     rebuild_environment
                     ;;
                 4)
-                    if [ "$AUTO" -eq 1 ]; then
-                        AUTO=0
-                        echo
-                        echo "Automatic dependency installation disabled."
-                    else
-                        AUTO=1
-                        echo
-                        echo "Automatic dependency installation enabled."
-                    fi
-                    ;;
-                5)
                     return
                     ;;
                 *)
-                    echo "Please enter a number between 1 and 5."
+                    echo "Please enter a number between 1 and 4."
                     ;;
             esac
         else
             echo "1) Create the managed virtual environment and install dependencies"
-            if [ "$AUTO" -eq 1 ]; then
-                echo "2) Disable automatic dependency installation"
-            else
-                echo "2) Enable automatic dependency installation"
-            fi
-            echo "3) Back"
+            echo "2) Back"
             echo
             read -r -p "Write the number of choice: " env_choice
-            env_choice=${env_choice:-3}
+            env_choice=${env_choice:-2}
             case "$env_choice" in
                 1)
                     rebuild_environment
                     ;;
                 2)
-                    if [ "$AUTO" -eq 1 ]; then
-                        AUTO=0
-                        echo
-                        echo "Automatic dependency installation disabled."
-                    else
-                        AUTO=1
-                        echo
-                        echo "Automatic dependency installation enabled."
-                    fi
-                    ;;
-                3)
                     return
                     ;;
                 *)
-                    echo "Please enter 1, 2 or 3."
+                    echo "Please enter 1 or 2."
                     ;;
             esac
         fi
@@ -236,11 +200,9 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
         case "$choice" in
             1)
                 COPERNICAN_STRICT_WARNINGS=$STRICT \
-                COPERNICAN_AUTO_INSTALL=$AUTO \
                 exec python copernican.py ;;
             2)
                 COPERNICAN_STRICT_WARNINGS=$STRICT \
-                COPERNICAN_AUTO_INSTALL=$AUTO \
                 exec python -m unittest discover -v ;;
             3)
                 if [ "$STRICT" -eq 1 ]; then STRICT=0; else STRICT=1; fi ;;
