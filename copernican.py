@@ -321,6 +321,25 @@ class DashboardState:
     last_run_finished: datetime.datetime | None = None
 
 
+@dataclass
+class DashboardState:
+    """Track dashboard selections across configuration cycles."""
+
+    seed: int | None = None
+    selected_model: str = ""
+    alt_model_plugin: Any | None = None
+    alt_model_parsed: dict[str, Any] | None = None
+    engine_module: Any | None = None
+    sampling_plan: dict[str, Any] | None = None
+    use_bao: bool = True
+    use_cmb: bool = True
+    display_progress: bool = True
+    last_output_dir: str | None = None
+    last_log_file: str | None = None
+    last_run_started: datetime.datetime | None = None
+    last_run_finished: datetime.datetime | None = None
+
+
 def get_runtime_options() -> RuntimeOptions:
     """Return options from ``COPERNICAN_*`` environment variables."""
 
@@ -1603,6 +1622,61 @@ def _display_dashboard_menu(state: DashboardState) -> str:
         },
         prompt="Press a key to open a section (no Enter needed): ",
     )
+    if state.last_output_dir:
+        console.write(f"Last output: {state.last_output_dir}")
+    console.write("")
+    console.write("Sections:")
+    console.write("  1) Configuration (seed and sampler)")
+    console.write("  2) Engine and model selection")
+    console.write("  3) Dataset toggles")
+    console.write("  4) Run control")
+    console.write("  5) Outputs")
+    console.write("  6) Settings")
+    console.write("  C) Close the Copernican Suite")
+    console.write("")
+    return _wait_for_menu_choice(
+        {
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "c",
+            "close",
+            "q",
+            "quit",
+            "exit",
+            "config",
+            "configuration",
+            "engine",
+            "model",
+            "dataset",
+            "datasets",
+            "run",
+            "output",
+            "outputs",
+            "settings",
+        },
+        prompt="Press a key to open a section (no Enter needed): ",
+    )
+    console.write(f"Engine: {engine_label}")
+    console.write(f"Datasets: SNe on | BAO {'on' if state.use_bao else 'off'} | "
+                  f"CMB {'on' if state.use_cmb else 'off'}")
+    console.write(f"Sampler: {_summarise_sampling_plan(state.sampling_plan)}")
+    if state.last_output_dir:
+        console.write(f"Last output: {state.last_output_dir}")
+    console.write("")
+    console.write("Sections:")
+    console.write("  1) Configuration (seed and sampler)")
+    console.write("  2) Engine and model selection")
+    console.write("  3) Dataset toggles")
+    console.write("  4) Run control")
+    console.write("  5) Outputs")
+    console.write("  6) Settings")
+    console.write("  C) Close the Copernican Suite")
+    console.write("")
+    return console.ask("Select a section: ").strip().lower()
 
 
 def prompt_post_run_action() -> bool:
@@ -2281,8 +2355,7 @@ def _run_dashboard_evaluation(
             if not (fit_results and fit_results.get("success")):
                 logger.warning(
                     (
-                        f"{model_plugin.MODEL_NAME} fit failed; "
-                        "skipping BAO analysis."
+                        f"{model_plugin.MODEL_NAME} fit failed; skipping BAO analysis."
                     )
                 )
                 return summary
@@ -2290,8 +2363,7 @@ def _run_dashboard_evaluation(
             if not _component_enabled(fit_results, "bao"):
                 logger.info(
                     (
-                        f"{model_plugin.MODEL_NAME} BAO likelihood disabled; "
-                        "skipping predictions."
+                        f"{model_plugin.MODEL_NAME} BAO likelihood disabled; skipping predictions."
                     )
                 )
                 summary["chi2_bao"] = float("inf")
@@ -2305,8 +2377,7 @@ def _run_dashboard_evaluation(
             if fitted_cosmo_p is None:
                 logger.warning(
                     (
-                        f"{model_plugin.MODEL_NAME} fit does not expose "
-                        "cosmological parameters; skipping BAO analysis."
+                        f"{model_plugin.MODEL_NAME} fit does not expose cosmological parameters; skipping BAO analysis."
                     )
                 )
                 summary["chi2_bao"] = float("inf")
@@ -2348,14 +2419,12 @@ def _run_dashboard_evaluation(
                 else:
                     logger.warning(
                         (
-                            f"{model_plugin.MODEL_NAME} BAO predictions "
-                            "available but χ² is non-finite."
+                            f"{model_plugin.MODEL_NAME} BAO predictions available but χ² is non-finite."
                         )
                     )
             else:
                 logger.warning(
-                    f"{model_plugin.MODEL_NAME} BAO calculation failed or "
-                    "produced invalid r_s."
+                    f"{model_plugin.MODEL_NAME} BAO calculation failed or produced invalid r_s."
                 )
 
             return summary
@@ -2419,8 +2488,7 @@ def _run_dashboard_evaluation(
             if getattr(model_plugin, "valid_for_cmb", True) is False:
                 logger.info(
                     (
-                        f"{model_plugin.MODEL_NAME} does not support CMB; "
-                        "skipping analysis."
+                        f"{model_plugin.MODEL_NAME} does not support CMB; skipping analysis."
                     )
                 )
                 summary["chi2_cmb"] = float("inf")
@@ -2434,8 +2502,7 @@ def _run_dashboard_evaluation(
             if cosmo_params is None:
                 logger.warning(
                     (
-                        f"{model_plugin.MODEL_NAME} fit does not provide "
-                        "cosmological parameters; skipping CMB predictions."
+                        f"{model_plugin.MODEL_NAME} fit does not provide cosmological parameters; skipping CMB predictions."
                     )
                 )
                 summary["chi2_cmb"] = float("inf")
@@ -2446,8 +2513,7 @@ def _run_dashboard_evaluation(
             except Exception as exc:
                 logger.warning(
                     (
-                        f"{model_plugin.MODEL_NAME} failed to build CAMB "
-                        f"parameters: {exc}"
+                        f"{model_plugin.MODEL_NAME} failed to build CAMB parameters: {exc}"
                     )
                 )
                 summary["chi2_cmb"] = float("inf")
@@ -2481,8 +2547,7 @@ def _run_dashboard_evaluation(
             else:
                 logger.info(
                     (
-                        f"{model_plugin.MODEL_NAME} CMB likelihood disabled "
-                        "or returned a non-finite χ²."
+                        f"{model_plugin.MODEL_NAME} CMB likelihood disabled or returned a non-finite χ²."
                     )
                 )
 
