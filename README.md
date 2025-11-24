@@ -1,4 +1,4 @@
-**Version:** 10.1.2
+**Version:** 10.1.3
 **Last Updated:** 2025-11-24
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -580,12 +580,14 @@ modification time of every parsed module so unchanged worktrees skip the AST
 walk entirely. The `.cache/` directory is created on demand and is now ignored
 by Git so each contributor keeps a private cache that never pollutes commits.
 Set `COPERNICAN_DEP_CACHE_DIR` to point the cache at a custom location when
-running the suite from read-only media or temporary clones.
-Model YAML files are
-sanitised and cached under `models/cache/` for the duration of the session,
-avoiding repeated schema validation. For CMB analyses unlensed CAMB spectra
-are cached by rounded parameter tuples which keeps successive evaluations
-fast during optimisation loops.
+running the suite from read-only media or temporary clones. The scanner skips
+relative imports inside the Copernican packages so bundled likelihood helpers
+and plugins never trigger false missing-package warnings; unexpected missing
+dependency messages usually mean the managed virtual environment was bypassed.
+Model YAML files are sanitised and cached under `models/cache/` for the
+duration of the session, avoiding repeated schema validation. For CMB analyses
+unlensed CAMB spectra are cached by rounded parameter tuples which keeps
+successive evaluations fast during optimisation loops.
 
 Each run directory also contains a YAML manifest named
 `run_manifest_<timestamp>.yml` capturing the suite version, chosen models,

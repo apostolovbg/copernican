@@ -48,6 +48,23 @@ class DependencyCacheTestCase(unittest.TestCase):
             )
         self.assertEqual(first, cached)
 
+    def test_relative_imports_are_ignored(self) -> None:
+        """Relative imports should not be flagged as missing dependencies."""
+
+        package_root = Path(self.tmp.name) / "pkg"
+        package_root.mkdir(parents=True, exist_ok=True)
+        (package_root / "__init__.py").write_text("", encoding="utf-8")
+        (package_root / "_protocol.py").write_text("pass\n", encoding="utf-8")
+        (package_root / "module.py").write_text(
+            "from . import _protocol\n", encoding="utf-8"
+        )
+
+        required = dependencies._gather_required_packages(
+            search_dirs=[str(package_root)]
+        )
+
+        self.assertNotIn("_protocol", required)
+
 
 class CheckDependenciesPromptTestCase(unittest.TestCase):
     """Validate the dependency guard now that auto-install is removed."""

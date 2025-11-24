@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.1.3
+- 2025-11-24: Skipped relative imports in the dependency scanner to prevent
+              false missing-package alerts, guarded matplotlib cleanup against
+              early exits, refreshed documentation and tests (including
+              `tests/cli/test_dependencies_cli.py`), and bumped release
+              metadata to 10.1.3 (OpenAI ChatGPT)
+
 ## Version 10.1.2
 - 2025-11-24: Removed in-program dependency installation, updated CLI
               dependency checks, launcher scripts, documentation and tests to

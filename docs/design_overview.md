@@ -63,9 +63,12 @@ described throughout this document.
 
 The launcher opens by checking Python dependencies and offering to install any
 missing ones. It caches the AST scan so repeat invocations can skip re-sourcing
-modules whose paths and modification times have not changed. A short
-NumPy/SciPy calculation verifies that compiled binaries match the available CPU
-features before heavy work begins.
+modules whose paths and modification times have not changed. Relative imports
+inside the bundled likelihood package are ignored during the scan so the
+console never reports those internal modules as missing; unexpected warnings
+usually mean the managed `.venv` was skipped. A short NumPy/SciPy calculation
+verifies that compiled binaries match the available CPU features before heavy
+work begins.
 
 Logging is initialised immediately after the cache check. Console messages and
 prompts flow through :mod:`copernican_lib.console_output` so patched `print`

@@ -192,6 +192,11 @@ def _gather_required_packages(
                     alias.name.split(".")[0] for alias in node.names
                 )
             elif isinstance(node, ast.ImportFrom):
+                if node.level and node.level > 0:
+                    # Relative imports always target modules inside the
+                    # Copernican tree, so they should never be treated as
+                    # external dependencies.
+                    continue
                 if node.module is None:
                     continue
                 pkg_names.add(node.module.split(".")[0])
