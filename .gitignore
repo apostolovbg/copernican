@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-24
 **/.DS_Store
 *.pyc
 .DS_Store
@@ -10,6 +11,8 @@ __pycache__/
 data/**/.DS_Store
 output/
 output/.DS_Store
+.logs/
+logs/
 .vscode/
 /.vscode
 copernican_suite.egg-info

@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-23
+# Last Updated: 2025-11-24
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -22,9 +22,14 @@ import os
 import platform
 import sys
 import time
+from logging.handlers import RotatingFileHandler
 
 from . import console_output
 from .utils import ensure_dir_exists, get_timestamp
+
+_PROGRAM_LOGGER_NAME = "copernican.program"
+_DEFAULT_PROGRAM_LOG_PREFIX = "copernican-program"
+_PROGRAM_LOGGER: logging.Logger | None = None
 
 
 class _PathFilter(logging.Filter):
@@ -103,6 +108,63 @@ def _patch_builtins(base_dir: str) -> None:
     builtins.input = input_patch
 
 
+def setup_program_logging(
+    log_dir: str = "logs",
+    *,
+    base_dir: str | None = None,
+    rollover_mb: float = 10.0,
+    backup_count: int = 3,
+) -> str:
+    """Initialise the rotating diagnostics log for the suite shell.
+
+    Program-level events such as menu navigation, queue operations and
+    configuration loading are captured separately from per-run logs so
+    developers can inspect launcher issues without combing through
+    scientific results.  The handler rotates automatically when
+    ``rollover_mb`` is exceeded to prevent unbounded growth during long
+    sessions.  Logs live outside the run directories to keep Git history
+    clean and to avoid bundling diagnostics with reproducibility
+    artifacts.
+    """
+
+    ensure_dir_exists(log_dir)
+    log_tag = f"{_DEFAULT_PROGRAM_LOG_PREFIX}_{get_timestamp()}.txt"
+    log_path = os.path.join(log_dir, log_tag)
+
+    logger_obj = logging.getLogger(_PROGRAM_LOGGER_NAME)
+    logger_obj.setLevel(logging.INFO)
+    logger_obj.propagate = False
+    for handler in logger_obj.handlers[:]:
+        logger_obj.removeHandler(handler)
+
+    max_bytes = max(1, int(rollover_mb * 1024 * 1024))
+    rotating_handler = RotatingFileHandler(
+        log_path,
+        maxBytes=max_bytes,
+        backupCount=backup_count,
+    )
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    formatter.converter = time.gmtime
+    rotating_handler.setFormatter(formatter)
+    if base_dir:
+        rotating_handler.addFilter(_PathFilter(base_dir))
+    logger_obj.addHandler(rotating_handler)
+
+    logger_obj.info(
+        (
+            "Program diagnostics log initialised at %s (rollover %.2f MB, "
+            "backup count %d)"
+        ),
+        log_path,
+        max_bytes / (1024 * 1024),
+        backup_count,
+    )
+
+    global _PROGRAM_LOGGER
+    _PROGRAM_LOGGER = logger_obj
+    return log_path
+
+
 def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
     """Initialise logging and return the log file path.
 
@@ -179,6 +241,15 @@ def log_environment_info() -> None:
         f"{n} {v}" for n, v in pkgs.items()
     )
     console_output.write(f"Environment summary: {summary}")
+
+
+def get_program_logger() -> logging.Logger:
+    """Return the suite-level diagnostics logger."""
+
+    global _PROGRAM_LOGGER
+    if _PROGRAM_LOGGER is None:
+        _PROGRAM_LOGGER = logging.getLogger(_PROGRAM_LOGGER_NAME)
+    return _PROGRAM_LOGGER
 
 
 def get_logger():

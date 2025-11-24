@@ -25,6 +25,10 @@ lines are bold, while the dataset name on the second line is bolded
 using Matplotlib's standard text rendering. Dataset names retain their
 original spacing and the second line wraps after 190 characters when
 necessary.
+During the current refactor the suite is forward-only: legacy staged menus and
+backward-compatibility shims are intentionally absent to keep the interactive
+shell lean while the GUI evolves. Avoid reintroducing fallbacks unless the
+roadmap later requests them explicitly.
 Each run directory also includes a `run_manifest_*.yml` file listing the
 selected models, engine, dataset hashes and Git state to aid
 reproducibility. The data loaders compute and log SHA256 digests for all
