@@ -10,7 +10,10 @@ legacy
 
 ## 1. Program Overview
 The helper modules previously stored under `scripts/` now live in the
-`copernican_lib/` package.
+`copernican_lib/` package. CLI-specific helpers sit under
+`copernican_lib/cli/` so dependency validation and menu rendering stay
+modular while the launcher loads only the lightest prerequisites at
+startup.
 The suite evaluates cosmological models against SNe Ia, BAO and CMB data.
 Support for additional observations such as gravitational-wave standard sirens
 is being prepared alongside ongoing placeholder management. Users interact with

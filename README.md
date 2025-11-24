@@ -1,4 +1,4 @@
-**Version:** 10.0.0
+**Version:** 10.1.1
 **Last Updated:** 2025-11-24
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -13,7 +13,10 @@ using a single reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. The launcher
+  dataset selection, model pairing and engine configuration. The launcher now
+  delegates dependency verification and menu rendering to
+  `copernican_lib/cli/dependencies.py` and `copernican_lib/cli/menus.py` so the
+  entrypoint imports only lightweight helpers before Stage 1 begins. It
   renders progress with carriage-return repainting, honours seeded and
   interactive workflows alike and keeps Stage 1 focused on reproducibility by
   leading with the seed dialog. It surfaces every validation reason collected

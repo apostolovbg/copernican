@@ -21,6 +21,19 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.1.1
+- 2025-11-24: Restored the legacy ``copernican.select_seed`` entry point as a
+              shim over ``copernican_lib.cli.menus.select_seed`` so seed
+              prompts remain importable, refreshed the splash-banner test
+              version string, and synced README/CITATION/version metadata to
+              10.1.1 (OpenAI ChatGPT)
+
+## Version 10.1.0
+- 2025-11-24: Moved CLI dependency checks and menu rendering into
+              ``copernican_lib/cli`` helpers, slimmed ``copernican.py`` imports,
+              added focused CLI tests and bumped release metadata to 10.1.0
+              (OpenAI ChatGPT)
+
 ## Version 10.0.0
 - 2025-11-24: Added a rotating diagnostics log under `./logs/` that keeps
               suite-level events separate from per-run logs, documented the

@@ -6,6 +6,12 @@ the Copernican Suite organises its architecture. The command-line launcher
 infrastructure, and the `engines/`, `models/` and `data/` directories plug into
 that foundation to deliver repeatable analyses.
 
+The `copernican_lib/cli/` namespace now houses the dependency scanner and menu
+renderers invoked by the launcher. Keeping those prompts in a dedicated
+package trims the startup import surface so users reach the Stage 1 seed dialog
+faster while retaining the existing logging, validation and manifest pipelines
+described throughout this document.
+
 ## Architectural map
 
 * `copernican.py` assembles run manifests, dispatches dataset loaders and
