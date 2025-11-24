@@ -1,4 +1,4 @@
-**Version:** 8.0.0
+**Version:** 9.0.1
 **Last Updated:** 2025-11-24
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -434,7 +434,7 @@ copernican_lib/          - Helper modules
   console_output.py - Console output helpers
   plotter.py        - Plotting functions
   csv_writer.py     - CSV output helpers
-  dataset_registry.py   - Dataset registry and loading helpers
+  dataset_registry.py   - Dataset parser registries and loading helpers
   utils.py          - Common helpers
   optim_utils.py    - Shared optimisation wrappers used by engines
   likelihoods/      - Dataset-specific log-likelihood helpers
@@ -450,12 +450,11 @@ The program compiles model equations into Python functions at runtime. When a
 `cosmo_model_*.yml` file is selected, `copernican_lib/model_spec_validator.py`
 validates the
 content and `copernican_lib/model_coder.py` converts the symbolic expressions
-into
-NumPy-ready callables. `copernican_lib/engine_plugin_validation.build_plugin` attaches
-these
+into NumPy-ready callables.
+`copernican_lib/engine_plugin_validation.build_plugin` attaches these
 functions to a lightweight plugin object that exposes a stable API. Every
-engine
-operates solely through this plugin and decides how parameters are fitted. The
+engine operates solely through this plugin and decides how parameters are
+fitted. The
 main workflow simply loads the plugin, selects an engine from `./engines/` and
 invokes its functions. New engines can therefore implement alternate
 strategies
@@ -465,14 +464,14 @@ Generic chi-squared wrappers live in `copernican_lib/statistics.py` and now
 delegate to the dataset-specific helpers inside `copernican_lib/likelihoods`
 while remaining re-exported by each engine module. This keeps
 `model_coder.py` focused on translating models. Engines assemble posteriors via
-`engine_plugin_validation.make_logposterior`, which applies declared priors, honours
-parameter bounds and injects Jacobian corrections whenever models expose
-sampling transforms. The helper wraps the joint likelihood in a picklable
-adapter, updates generated distance functions to avoid closure pickling
-pitfalls and exposes a `burn_in_steps` override so scripted workflows can tune
-warm-up costs explicitly. The default MCMC backend wires these helpers into the
-`JointLike` aggregator so every run records dataset-level diagnostics alongside
-the sampled chains.
+`engine_plugin_validation.make_logposterior`, which applies declared priors,
+honours parameter bounds and injects Jacobian corrections whenever models
+expose sampling transforms. The helper wraps the joint likelihood in a
+picklable adapter, updates generated distance functions to avoid closure
+pickling pitfalls and exposes a `burn_in_steps` override so scripted workflows
+can tune warm-up costs explicitly. The default MCMC backend wires these helpers
+into the `JointLike` aggregator so every run records dataset-level diagnostics
+alongside the sampled chains.
 
 The helper `chi_squared_cmb` now accepts either a plugin and parameter
 vector or a ready CAMB dictionary. This flexibility lets future engines reuse
@@ -522,6 +521,13 @@ dataset. These files include a ``license`` field pointing to usage terms.
 returned by each parser so both plot footers and CSV headers reflect the
 official dataset description and citation. Individual parsers never access
 metadata files directly.
+
+Parser registries now use explicit ``*_PARSER_REGISTRY`` names and are
+collected through the ``get_parser_registries`` helper so discovery and menu
+prompts cannot be mistaken for standalone loader functions. The observational
+independence statements attached to each DataFrame live under
+``OBSERVATION_INDEPENDENCE_NOTES`` before being copied into
+``independence_assumptions`` attributes for plotting and manifest export.
 
 Stage 5 automatically falls back to Matplotlib's Agg backend when Tk support
 is unavailable so headless CI jobs still write corner plots without requiring
@@ -764,22 +770,24 @@ chi-squared. The CMB plotter draws separate TT, TE and EE panels with
 residuals, uses a logarithmic scale for temperature and $E$-mode spectra and
 shows cosmic-variance and observational uncertainty bands. Titles now use
 minimal padding so each label fits neatly between CMB subplots.
-`model_spec_validator.py` accepts unknown keys and simply copies them to the sanitized
-cache. This allows the domain-specific YAML language to evolve while remaining
-compatible with older models.
-`model_spec_validator.py` validates this structure and `model_coder.py` translates the
-LaTeX expressions into NumPy-ready callables. When `Hz_expression` is present
-it is
-compiled into `get_Hz_per_Mpc` and related distance functions used by
-`engine_plugin_validation.py`. If an `rs_expression` or the parameters `Omega_b`,
-`Omega_gamma` and either `z_rec` or `z_recomb` are provided, a callable
-`get_sound_horizon_rs_Mpc` is also generated.
+`model_spec_validator.py` accepts unknown keys and simply copies them to the
+sanitized cache. This allows the domain-specific YAML language to evolve while
+remaining compatible with older models.
+`model_spec_validator.py` validates this structure and `model_coder.py`
+translates the LaTeX expressions into NumPy-ready callables. When
+`Hz_expression` is present it is compiled into `get_Hz_per_Mpc` and related
+distance functions used by `engine_plugin_validation.py`. If an
+`rs_expression` or the parameters `Omega_b`, `Omega_gamma` and either `z_rec`
+or `z_recomb` are provided, a callable `get_sound_horizon_rs_Mpc` is also
+generated.
 
 ## Developer Guide
 Document every change in `CHANGELOG.md`. Each substantive update must add an
-entry using the template `- YYYY-MM-DD: short summary (author)`.
-Legacy `dev_note` headers embedded in source files have been removed in favour
-of changelog entries.
+entry using the template `- YYYY-MM-DD: short summary (author)` and should
+explicitly name the files or subsystems touched. Before committing, compare
+`git diff --name-only` with the latest changelog entry so the policy hook never
+blocks on missing metadata. Legacy `dev_note` headers embedded in source files
+have been removed in favour of changelog entries.
 Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md`
 and
@@ -924,8 +932,10 @@ must be followed. The `AGENTS.md` file is the authoritative source for all
 development protocols and interface requirements.
 >
 > 1. **Summarize every change in `CHANGELOG.md` using the changelog**
-> template.** Legacy `dev_note` headers should be migrated to the changelog
-> when touched.
+> template and list every touched file or subsystem.** Compare
+> `git diff --name-only` against the newest changelog entry before every
+> commit so nothing slips past the `copernican-policy` hook. Legacy
+> `dev_note` headers should be migrated to the changelog when touched.
 > 2. **Comment the code extensively.** Explain the "why" as well as the
 > "what", clarifying both obvious and non-obvious, simple or complex logic or
 > algorithms.

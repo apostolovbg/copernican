@@ -327,8 +327,11 @@ derived from the model's variables or constants.
 ## AI-driven and human development laws and protocols
 To keep the project maintainable all contributors, human or AI, must follow
 these rules:
-1. **Summarize every change in `CHANGELOG.md` using the changelog template.**
-   Legacy `dev_note` headers should be migrated to the changelog when touched.
+1. **Summarize every change in `CHANGELOG.md` using the changelog template**
+   **and list every touched file or subsystem.** Compare
+   `git diff --name-only` against the newest changelog entry before every
+   commit so nothing escapes the `copernican-policy` hook. Legacy `dev_note`
+   headers should be migrated to the changelog when touched.
 2. **Comment the code extensively.** Explain the "why" as well as the "what",
    clarifying both obvious and non-obvious, simple or complex logic or
    algorithms.
