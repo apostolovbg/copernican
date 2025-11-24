@@ -52,6 +52,12 @@ from copernican_lib.plugins import PluginValidationError
 # Verify interpreter version early so users see clear feedback
 MIN_PYTHON = (3, 11)
 
+# Initialise optional heavy imports so cleanup code can reference them safely
+# even when the dependency guard exits early.
+np = None
+plt = None
+mp = None
+
 
 def exit_clean(code: int = 0) -> None:
     """Exit the program after printing a newline."""
