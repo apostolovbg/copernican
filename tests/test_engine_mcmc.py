@@ -1,6 +1,6 @@
 """Integration tests for the ensemble MCMC engine.
 
-**Last Updated:** 2025-11-24
+# Last Updated: 2025-11-24
 """
 
 import contextlib
@@ -21,9 +21,9 @@ from emcee import moves
 
 from copernican_lib import (
     chain_io,
-    engine_interface,
+    engine_plugin_validation,
     model_coder,
-    model_parser,
+    model_spec_validator,
 )
 from copernican_lib import progress as progress_helpers
 from copernican_lib.progress import (
@@ -53,9 +53,11 @@ def _build_model_plugin(yaml_filename: str):
     models_dir = os.path.join(os.path.dirname(__file__), "..", "models")
     yaml_path = os.path.join(models_dir, yaml_filename)
     cache_dir = os.path.join(models_dir, "cache")
-    cache_path = model_parser.parse_model(yaml_path, cache_dir)
+    cache_path = model_spec_validator.validate_and_cache_model(
+        yaml_path, cache_dir
+    )
     func_dict, parsed = model_coder.generate_callables(cache_path)
-    return engine_interface.build_plugin(parsed, func_dict)
+    return engine_plugin_validation.build_plugin(parsed, func_dict)
 
 
 def _build_short_chain_plugin():

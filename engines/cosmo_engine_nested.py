@@ -15,7 +15,7 @@ estimates using a simple log-sum-exp accumulator.  The goal is to provide a
 complementary alternative to the ensemble MCMC engine so operators can compare
 posterior summaries produced by markedly different inference strategies while
 sharing the same likelihood, prior and transform helpers supplied by
-``copernican_lib.engine_interface``.
+``copernican_lib.engine_plugin_validation``.
 
 The implementation intentionally mirrors the result dictionary produced by the
 MCMC backend so downstream tooling—Stage 3 diagnostics, NetCDF exporters and
@@ -35,7 +35,7 @@ from typing import Any, Iterable, Mapping, Sequence
 import numpy as np
 import pandas as pd
 
-from copernican_lib import engine_interface
+from copernican_lib import engine_plugin_validation
 from copernican_lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
 from copernican_lib.progress import BatchProgressBar
 from copernican_lib.statistics import (
@@ -110,7 +110,9 @@ def _build_joint_logposterior(
     sne_data_df: Any,
     bao_data_df: Any | None,
     cmb_data_df: Any | None,
-) -> tuple[engine_interface.PosteriorEvaluator, JointLike, Sequence[str]]:
+) -> tuple[
+    engine_plugin_validation.PosteriorEvaluator, JointLike, Sequence[str]
+]:
     """Return the posterior evaluator and joint likelihood helper."""
 
     sne_like = SNeLike(model_plugin.distance_modulus_model, sne_data_df)
@@ -181,7 +183,7 @@ def _build_joint_logposterior(
     priors = getattr(model_plugin, "PARAMETER_PRIOR_OBJECTS", None)
     if priors is None:
         priors = getattr(model_plugin, "PARAMETER_PRIORS", [])
-    posterior = engine_interface.make_logposterior(loglike, priors)
+    posterior = engine_plugin_validation.make_logposterior(loglike, priors)
     names = list(getattr(model_plugin, "PARAMETER_NAMES", ()))
     return posterior, joint_like, names
 
@@ -230,7 +232,7 @@ def _replacement_sample(
 
 
 def _evaluate_point(
-    posterior: engine_interface.PosteriorEvaluator,
+    posterior: engine_plugin_validation.PosteriorEvaluator,
     joint_like: JointLike,
     params: np.ndarray,
 ) -> _Sample | None:

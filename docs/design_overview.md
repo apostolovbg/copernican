@@ -1,4 +1,4 @@
-**Last Updated:** 2025-11-23
+**Last Updated:** 2025-11-24
 
 This document expands on the high-level summary in the README by tracing how
 the Copernican Suite organises its architecture. The command-line launcher
@@ -76,10 +76,10 @@ Stage 1 focuses on reproducibility and validation:
 * The seed selector honours ``COPERNICAN_SEED`` when set, otherwise offers to
   accept the default value, enter a custom integer or generate a random seed.
   The choice is logged and written to the manifest before any sampling.
-* Model parsing normalises YAML files via :mod:`copernican_lib.model_parser` and
+* Model parsing normalises YAML files via :mod:`copernican_lib.model_spec_validator` and
   compiles the expressions into NumPy-ready callables through
   :mod:`copernican_lib.model_coder`. Engine plugins built with
-  :func:`copernican_lib.engine_interface.build_plugin` collect bounds, priors,
+  :func:`copernican_lib.engine_plugin_validation.build_plugin` collect bounds, priors,
   transforms and optional CMB parameter mappings. Validation errors are
   aggregated and displayed as bullet points before the user is asked whether to
   restart Stage 1 or exit entirely.
@@ -117,7 +117,7 @@ maximum-posterior parameters and logged alongside residual norms so operators
 can monitor fit quality as plots render. CMB spectra pull additional
 plugin-provided constants from `cmb.param_map` when present and stream TT/TE/EE
 residual statistics to the console. Both stages respect dataset independence
-statements stored in :mod:`copernican_lib.data_loaders` so assumptions remain
+statements stored in :mod:`copernican_lib.dataset_registry` so assumptions remain
 explicit in manifests and plots.
 
 ### Stage 5 visualisation
@@ -143,7 +143,7 @@ manuscripts can reference them consistently.
 
 ## Dataset integrity and parsers
 
-Dataset loaders live in :mod:`copernican_lib.data_loaders` and expose decorators
+Dataset loaders live in :mod:`copernican_lib.dataset_registry` and expose decorators
 that register parser functions for each `dataset_id`. SHA256 digests for every
 non-parser file in a dataset directory are computed and stored on the returned
 DataFrame `.attrs` mapping. Parsers only load when their hashes match the
@@ -155,7 +155,7 @@ assumed uncorrelated.
 
 ## Plugin interface and posterior construction
 
-Plugins produced by :func:`copernican_lib.engine_interface.build_plugin` expose
+Plugins produced by :func:`copernican_lib.engine_plugin_validation.build_plugin` expose
 dataset compatibility flags (`valid_for_distance_metrics`, `valid_for_bao`,
 `valid_for_cmb`) and optional `cmb.param_map` entries for engines that compute
 spectra. The interface includes required attributes and functions listed in

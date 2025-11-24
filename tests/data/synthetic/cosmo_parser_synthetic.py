@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-23
+# Last Updated: 2025-11-24
 """Deterministic parsers for the synthetic integration datasets."""
 
 import os
@@ -6,7 +6,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from copernican_lib.data_loaders import (
+from copernican_lib.dataset_registry import (
     register_bao_parser,
     register_cmb_parser,
     register_sne_parser,

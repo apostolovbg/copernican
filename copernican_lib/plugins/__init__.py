@@ -1,18 +1,21 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# Last Updated: 2025-11-24
+# See LICENSE.md in the repository root for details.
+
 """Runtime plugin assembly utilities for engine integrations.
 
-**Last Updated:** 2025-11-09
-
-The legacy :mod:`copernican_lib.engine_interface` module combined plugin
-construction, validation, CAMB parameter synthesis and posterior helpers in a
-single 500+ line file. That structure complicated multiprocessing support and
-made it difficult to reason about picklability when new features were added.
-The refreshed layout promotes plugin assembly into a dedicated package so the
-API surface is explicit, picklable and thoroughly documented. Engines now
-operate on the :class:`EnginePlugin` dataclass, which stores metadata, dataset
-compatibility toggles and distance functions in a predictable, serialisable
-form. Optional helpers such as ``compute_cmb_spectrum`` are captured in an
-``extras`` mapping so future extensions remain backwards compatible without
-silently mutating ``__dict__`` structures.
+The legacy :mod:`copernican_lib.engine_plugin_validation` module combined
+plugin construction, validation, CAMB parameter synthesis and posterior
+helpers in a single 500+ line file. That structure complicated
+multiprocessing support and made it difficult to reason about picklability
+when new features were added. The refreshed layout promotes plugin assembly
+into a dedicated package so the API surface is explicit, picklable and
+thoroughly documented. Engines now operate on the :class:`EnginePlugin`
+dataclass, which stores metadata, dataset compatibility toggles and distance
+functions in a predictable, serialisable form. Optional helpers such as
+``compute_cmb_spectrum`` are captured in an ``extras`` mapping so future
+extensions remain backwards compatible without silently mutating
+``__dict__`` structures.
 
 The module exposes three primary entry points:
 

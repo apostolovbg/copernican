@@ -1,19 +1,18 @@
 # Copyright (c) 2025 Copernican Suite developers.
-# Last Updated: 2025-11-01
+# Last Updated: 2025-11-24
 # See LICENSE.md in the repository root for details.
 
-# copernican_suite/data_loaders.py
-"""Dataset discovery and loading helpers.
+"""Dataset registry and loader helpers.
 
-The suite treats observational data as pluggable components.  Parsers live
+The suite treats observational data as pluggable components. Parsers live
 alongside their raw tables under ``data/<type>/<source>/`` and register
-themselves through decorators provided here.  At runtime
+themselves through decorators provided here. At runtime
 ``copernican.py`` imports these modules to populate interactive menus and
 returns uniformly formatted :class:`pandas.DataFrame` objects with metadata
-stored on ``.attrs``.  This refactor centralises dataset selection for the SNe,
+stored on ``.attrs``. This refactor centralises dataset selection for the SNe,
 BAO and CMB loaders so every observable category now attaches a uniform set of
 attributes including reproducibility hashes, dataset versions and explicit
-statistical independence statements.  The additional metadata is consumed by
+statistical independence statements. The additional metadata is consumed by
 the run manifest builder and keeps the suite honest about likelihood
 assumptions.
 """
@@ -168,22 +167,22 @@ def register_gw_parser(name=None, description="", data_dir=None):
 TRUSTED_PARSER_HASHES = {
     # ``relative_path`` -> ``sha256``
     "sne/pantheon/cosmo_parser_pantheon.py": (
-        "a15cfd8cec9104e62aebeb03fc72b148d8da76b33e90ede4537eddbe3310d0a6"
+        "0bea7c904884b28fc5f30f38dd350116bddf5f7c8096dd136da8127056a84652"
     ),
     "sne/jla2014/cosmo_parser_jla2014.py": (
-        "27b553519fa4545153c675f82141be2e2ed35a69b91ce5d72b0add794fb25339"
+        "cbe321b5024f3560ef60b6461119803ac0649e315a3558dff8bea1d727dce31c"
     ),
     "bao/bossdr12/cosmo_parser_bossdr12.py": (
-        "4de5b07156d65e4e075810745c6b61cf8b7f10f0e4c575be9d6d16ebbfcf37b8"
+        "4f4344bd1bd94ae91797fb50159194ecc2210a2c2d5fc28cdec869e3fcff8965"
     ),
     "bao/compound/cosmo_parser_compound.py": (
-        "ea796baec6156828d41f70a663947a6b9f02540048afaa651985c3937e814696"
+        "7c6462871d202905fe2772637da6ef79dde9aa3be64bab8fcd2930f039dc4b8a"
     ),
     "cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py": (
-        "3017407d77779873a0eb145d9f8f420c0ea83da33431fab70ecfd8b5ee6a23de"
+        "330c0c88b70900c1feea0e278579a1100b2a243896bcd80908d361a8a91c41d7"
     ),
     "gw/placeholder/cosmo_parser_gw_placeholder.py": (
-        "84895d496d9b39e8bb206103d0d92449ff333080e2fc833d694a66ee2858c21b"
+        "5c8a8b50d0aa23f3cf234259af5da2ce65955941276be0bee8caa46d2e065726"
     ),
 }
 

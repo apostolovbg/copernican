@@ -27,7 +27,7 @@ with mock.patch("sys.version_info", (3, 12, 0)):
         {"VIRTUAL_ENV": str(Path(__file__).resolve().parents[1] / ".venv")},
     ):
         copernican = importlib.import_module("copernican")
-import copernican_lib.data_loaders
+import copernican_lib.dataset_registry
 
 
 class SplashScreenTestCase(unittest.TestCase):
@@ -76,7 +76,9 @@ class MenuRunTestsTestCase(unittest.TestCase):
 class SelectSourceDisplayTestCase(unittest.TestCase):
     """Ensure selection prompts show names and return identifiers."""
 
-    @mock.patch("copernican_lib.data_loaders.console.ask", return_value="1")
+    @mock.patch(
+        "copernican_lib.dataset_registry.console.ask", return_value="1"
+    )
     def test_select_source_shows_name(self, _ask_mock):
         registry = {
             "dummy_id": {
@@ -88,10 +90,10 @@ class SelectSourceDisplayTestCase(unittest.TestCase):
         }
         captured = []
         with mock.patch(
-            "copernican_lib.data_loaders.console.write",
+            "copernican_lib.dataset_registry.console.write",
             lambda msg: captured.append(msg),
         ):
-            result = copernican_lib.data_loaders._select_source(
+            result = copernican_lib.dataset_registry._select_source(
                 registry, "SNe"
             )
         self.assertEqual(result, "dummy_id")

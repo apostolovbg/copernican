@@ -1,4 +1,4 @@
-**Version:** 7.7.15
+**Version:** 8.0.0
 **Last Updated:** 2025-11-24
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -434,7 +434,7 @@ copernican_lib/          - Helper modules
   console_output.py - Console output helpers
   plotter.py        - Plotting functions
   csv_writer.py     - CSV output helpers
-  data_loaders.py   - Data loading utilities
+  dataset_registry.py   - Dataset registry and loading helpers
   utils.py          - Common helpers
   optim_utils.py    - Shared optimisation wrappers used by engines
   likelihoods/      - Dataset-specific log-likelihood helpers
@@ -447,11 +447,11 @@ modified when necessary.
 
 ## Engine and Plugin Architecture
 The program compiles model equations into Python functions at runtime. When a
-`cosmo_model_*.yml` file is selected, `copernican_lib/model_parser.py`
+`cosmo_model_*.yml` file is selected, `copernican_lib/model_spec_validator.py`
 validates the
 content and `copernican_lib/model_coder.py` converts the symbolic expressions
 into
-NumPy-ready callables. `copernican_lib/engine_interface.build_plugin` attaches
+NumPy-ready callables. `copernican_lib/engine_plugin_validation.build_plugin` attaches
 these
 functions to a lightweight plugin object that exposes a stable API. Every
 engine
@@ -465,7 +465,7 @@ Generic chi-squared wrappers live in `copernican_lib/statistics.py` and now
 delegate to the dataset-specific helpers inside `copernican_lib/likelihoods`
 while remaining re-exported by each engine module. This keeps
 `model_coder.py` focused on translating models. Engines assemble posteriors via
-`engine_interface.make_logposterior`, which applies declared priors, honours
+`engine_plugin_validation.make_logposterior`, which applies declared priors, honours
 parameter bounds and injects Jacobian corrections whenever models expose
 sampling transforms. The helper wraps the joint likelihood in a picklable
 adapter, updates generated distance functions to avoid closure pickling
@@ -496,7 +496,7 @@ archive](https://data.sdss.org/sas/dr12/boss/) does not provide a
   are
   discovered automatically when their source folders are imported.
 - Model plugins must be validated once using
-  `engine_interface.validate_plugin` before passing them to engine
+  `engine_plugin_validation.validate_plugin` before passing them to engine
   routines or chi-squared helpers.
 - After each run you may choose to evaluate another model or exit. Cache files
   are cleaned automatically.
@@ -518,7 +518,7 @@ figures while still presenting the citation and sample-processing summary.
 
 Metadata values are read from ``metadata_*.yml`` files stored next to each
 dataset. These files include a ``license`` field pointing to usage terms.
-``copernican_lib/data_loaders.py`` attaches this metadata to the DataFrame
+``copernican_lib/dataset_registry.py`` attaches this metadata to the DataFrame
 returned by each parser so both plot footers and CSV headers reflect the
 official dataset description and citation. Individual parsers never access
 metadata files directly.
@@ -764,14 +764,14 @@ chi-squared. The CMB plotter draws separate TT, TE and EE panels with
 residuals, uses a logarithmic scale for temperature and $E$-mode spectra and
 shows cosmic-variance and observational uncertainty bands. Titles now use
 minimal padding so each label fits neatly between CMB subplots.
-`model_parser.py` accepts unknown keys and simply copies them to the sanitized
+`model_spec_validator.py` accepts unknown keys and simply copies them to the sanitized
 cache. This allows the domain-specific YAML language to evolve while remaining
 compatible with older models.
-`model_parser.py` validates this structure and `model_coder.py` translates the
+`model_spec_validator.py` validates this structure and `model_coder.py` translates the
 LaTeX expressions into NumPy-ready callables. When `Hz_expression` is present
 it is
 compiled into `get_Hz_per_Mpc` and related distance functions used by
-`engine_interface.py`. If an `rs_expression` or the parameters `Omega_b`,
+`engine_plugin_validation.py`. If an `rs_expression` or the parameters `Omega_b`,
 `Omega_gamma` and either `z_rec` or `z_recomb` are provided, a callable
 `get_sound_horizon_rs_Mpc` is also generated.
 
@@ -864,7 +864,7 @@ New models are described entirely by YAML. Copy an existing file from
 and consult `cosmo_model_template.yml` for the full schema. Additional engines
 may
 be placed under `engines/` and must follow the interface in
-`copernican_lib/engine_interface.py`.
+`copernican_lib/engine_plugin_validation.py`.
 
 **Note:** The current plotting style and algorithms are considered stable. Do
 not modify them unless explicitly instructed.

@@ -1,18 +1,18 @@
-# Last Updated: 2025-11-01
+# Last Updated: 2025-11-24
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-"""Tests for ``copernican_lib.engine_interface`` helpers."""
+"""Tests for ``copernican_lib.engine_plugin_validation`` helpers."""
 
 import math
 import pickle
 import unittest
 from types import SimpleNamespace
 
-from copernican_lib import engine_interface
+from copernican_lib import engine_plugin_validation
 from copernican_lib.plugins import PluginValidationError
 
-MAKE_POSTERIOR = engine_interface.make_logposterior
+MAKE_POSTERIOR = engine_plugin_validation.make_logposterior
 
 
 def _dummy_func(*_args, **_kwargs):
@@ -50,20 +50,20 @@ class EngineInterfaceTestCase(unittest.TestCase):
                 }
             },
         }
-        req = engine_interface.REQUIRED_FUNCTIONS
+        req = engine_plugin_validation.REQUIRED_FUNCTIONS
         funcs = {name: _dummy_func for name in req}
-        self.plugin = engine_interface.build_plugin(self.model_data, funcs)
+        self.plugin = engine_plugin_validation.build_plugin(self.model_data, funcs)
 
     def test_plugin_validation(self):
         """Plugin built from minimal data should validate."""
-        self.assertTrue(engine_interface.validate_plugin(self.plugin))
+        self.assertTrue(engine_plugin_validation.validate_plugin(self.plugin))
 
     def test_missing_attribute_fails_validation(self):
         """A plugin lacking required attributes is rejected."""
         bad = SimpleNamespace()
         with self.assertLogs(level="ERROR") as cm:
             with self.assertRaises(PluginValidationError):
-                engine_interface.validate_plugin(bad)
+                engine_plugin_validation.validate_plugin(bad)
         self.assertIn("Plugin validation issue", "".join(cm.output))
 
     def test_get_camb_params_expression(self):
@@ -100,10 +100,10 @@ class EngineInterfaceTestCase(unittest.TestCase):
         bad_model = dict(self.model_data)
         bad_model["cmb"] = {"param_map": {"H0": "H_0", "bad_key": 1}}
         funcs = {
-            name: _dummy_func for name in engine_interface.REQUIRED_FUNCTIONS
+            name: _dummy_func for name in engine_plugin_validation.REQUIRED_FUNCTIONS
         }
         with self.assertRaises(ValueError):
-            engine_interface.build_plugin(bad_model, funcs)
+            engine_plugin_validation.build_plugin(bad_model, funcs)
 
     def test_cmb_param_map_rejects_conflicting_neutrino_specs(self):
         """Sum and individual neutrino masses cannot be combined."""
@@ -119,10 +119,10 @@ class EngineInterfaceTestCase(unittest.TestCase):
             }
         }
         funcs = {
-            name: _dummy_func for name in engine_interface.REQUIRED_FUNCTIONS
+            name: _dummy_func for name in engine_plugin_validation.REQUIRED_FUNCTIONS
         }
         with self.assertRaises(ValueError):
-            engine_interface.build_plugin(clash, funcs)
+            engine_plugin_validation.build_plugin(clash, funcs)
 
     def test_equation_sanitization(self):
         """Equations are sanitized into Matplotlib-friendly form."""
@@ -142,7 +142,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             {"type": "uniform", "lower": 0.0, "upper": 1.0},
             {"type": "gaussian", "mean": 0.0, "sigma": 0.5},
         ]
-        posterior = engine_interface.make_logposterior(like, priors)
+        posterior = engine_plugin_validation.make_logposterior(like, priors)
 
         rejected = posterior((-0.1, 0.0))
         self.assertTrue(math.isinf(rejected) and rejected < 0)
@@ -168,7 +168,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
             {"type": "uniform"},
             {"type": "uniform", "lower": 0.5, "upper": 2.0},
         ]
-        posterior = engine_interface.make_logposterior(like, priors)
+        posterior = engine_plugin_validation.make_logposterior(like, priors)
 
         # Raw value of 0.0 transforms to 1.0 and remains inside bounds.
         val = posterior((0.0, 0.0))

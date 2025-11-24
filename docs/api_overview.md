@@ -7,11 +7,11 @@ Most functionality lives in the ``copernican_lib`` package which can be
 imported directly without using the command-line interface.  The core
 modules are:
 
-- `model_parser.parse_model(path, cache_dir)` – validate and clean a
+- `model_spec_validator.validate_and_cache_model(path, cache_dir)` – validate and clean a
   `cosmo_model_*.yml` file.
 - `model_coder.generate_callables(clean_path)` – compile sanitized model YAML
   into Python callables.
-- `engine_interface.build_plugin(parsed_data, funcs)` – construct an
+- `engine_plugin_validation.build_plugin(parsed_data, funcs)` – construct an
   :class:`copernican_lib.plugins.EnginePlugin` instance with dataset toggles,
   priors, bounds and distance functions ready for engine consumption.
 - `copernican_lib.plugins` – home of the picklable plugin dataclass and
@@ -61,7 +61,7 @@ modules are:
   CI runners that lack CAMB can opt into ``COPERNICAN_FAKE_CMB=1`` so the CMB
   helpers return deterministic synthetic spectra instead of performing heavy
   physics evaluations, leaving production calculations untouched.
-  - `data_loaders.load_sne_data(dataset_id)`,
+  - `dataset_registry.load_sne_data(dataset_id)`,
     `load_bao_data(dataset_id)`,
     `load_cmb_data(dataset_id)` – load datasets by their identifiers. The
     interactive prompt lists the human readable `dataset_name` and description,
@@ -135,7 +135,7 @@ modules are:
     structure produced by the MCMC engine while adding nested-specific
     diagnostics so downstream tooling remains backend agnostic.
 
-Plugins are validated through ``engine_interface.validate_plugin``—a thin
+Plugins are validated through ``engine_plugin_validation.validate_plugin``—a thin
 wrapper around :func:`copernican_lib.plugins.validate_plugin`—before use.
 Chi-squared helpers assume this step has already succeeded, so validation
 should occur once before any iterative evaluation begins. Engines expect the
@@ -148,7 +148,7 @@ picklable for multiprocessing workloads.
 
 All data parsers return a ``pandas.DataFrame`` with common columns and
 metadata so that engines remain agnostic to the origin of the data.
-`copernican_lib/data_loaders.py` reads ``metadata_*.yml`` files located next
+`copernican_lib/dataset_registry.py` reads ``metadata_*.yml`` files located next
 to
 the dataset tables and attaches the fields via the ``DataFrame.attrs``
 dictionary after the parser returns. For supernovae datasets the table
@@ -169,16 +169,16 @@ session looks like this:
 
 ```python
 from copernican_lib import (
-    model_parser, model_coder, engine_interface, data_loaders
+    model_spec_validator, model_coder, engine_plugin_validation, dataset_registry
 )
 import engines.cosmo_engine_mcmc as engine
 
-cache = model_parser.parse_model(
+cache = model_spec_validator.validate_and_cache_model(
     'models/cosmo_model_lcdm.yml', 'models/cache'
 )
 funcs, parsed = model_coder.generate_callables(cache)
-plugin = engine_interface.build_plugin(parsed, funcs)
-sne = data_loaders.load_sne_data('jla_2014')
+plugin = engine_plugin_validation.build_plugin(parsed, funcs)
+sne = dataset_registry.load_sne_data('jla_2014')
 result = engine.fit_cosmology_parameters(sne, plugin, burn_in_steps=20)
 ```
 

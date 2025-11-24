@@ -1,11 +1,13 @@
+# Copyright (c) 2025 Copernican Suite developers.
+# Last Updated: 2025-11-24
+# See LICENSE.md in the repository root for details.
+
 """Shared statistical helpers for cosmological engines.
 
-**Last Updated:** 2025-10-30
-
 This module now delegates dataset-specific likelihood calculations to
-:mod:`copernican_lib.likelihoods`.  The thin wrappers exposed here preserve the
+:mod:`copernican_lib.likelihoods`. The thin wrappers exposed here preserve the
 public API while the new package stores the covariance-aware implementations
-used by all engines.  CAMB spectrum helpers remain available for backward
+used by all engines. CAMB spectrum helpers remain available for backward
 compatibility.
 """
 
@@ -16,7 +18,7 @@ from typing import Mapping, Sequence
 
 import numpy as np
 
-from copernican_lib import engine_interface
+from copernican_lib import engine_plugin_validation
 from copernican_lib.likelihoods import (
     BAOLike,
     CMBLike,
@@ -107,7 +109,7 @@ def calculate_bao_observables(
     """Return BAO predictions and optional smooth curves for plotting."""
 
     logger = logging.getLogger()
-    engine_interface.validate_plugin(model_plugin)
+    engine_plugin_validation.validate_plugin(model_plugin)
     model_name = model_plugin.MODEL_NAME
 
     bao_pred_df = bao_data_df.copy()
