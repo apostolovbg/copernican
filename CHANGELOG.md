@@ -21,6 +21,18 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 9.0.0
+- 2025-11-24: Renamed the parser dictionaries to explicit
+              ``*_PARSER_REGISTRY`` identifiers, introduced the shared
+              ``PARSER_REGISTRIES`` index, retitled the observational
+              independence annotations as
+              ``OBSERVATION_INDEPENDENCE_NOTES`` and replaced the parser
+              discovery and menu helpers with clearer
+              ``discover_trusted_parsers`` and
+              ``prompt_dataset_selection`` entry points. Updated
+              documentation, tests and release metadata to reflect the
+              clarified naming (OpenAI ChatGPT)
+
 ## Version 8.0.0
 - 2025-11-24: Replaced legacy naming across the engine plugin, dataset and
               model specification layers by renaming the modules to

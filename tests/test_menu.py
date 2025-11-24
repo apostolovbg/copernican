@@ -79,7 +79,7 @@ class SelectSourceDisplayTestCase(unittest.TestCase):
     @mock.patch(
         "copernican_lib.dataset_registry.console.ask", return_value="1"
     )
-    def test_select_source_shows_name(self, _ask_mock):
+    def test_prompt_dataset_selection_shows_name(self, _ask_mock):
         registry = {
             "dummy_id": {
                 "dataset_name": "Dummy Dataset",
@@ -93,7 +93,7 @@ class SelectSourceDisplayTestCase(unittest.TestCase):
             "copernican_lib.dataset_registry.console.write",
             lambda msg: captured.append(msg),
         ):
-            result = copernican_lib.dataset_registry._select_source(
+            result = copernican_lib.dataset_registry.prompt_dataset_selection(
                 registry, "SNe"
             )
         self.assertEqual(result, "dummy_id")
