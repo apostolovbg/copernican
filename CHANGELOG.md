@@ -21,6 +21,11 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.1.3
+- 2025-11-24: Guarded the shutdown routine against missing Matplotlib handles
+              when dependency checks abort early, refreshed launcher metadata
+              to 10.1.3 and updated tests to match (OpenAI ChatGPT)
+
 ## Version 10.1.2
 - 2025-11-24: Removed in-program dependency installation, updated CLI
               dependency checks, launcher scripts, documentation and tests to

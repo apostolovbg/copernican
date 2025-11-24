@@ -53,6 +53,15 @@ from copernican_lib.plugins import PluginValidationError
 MIN_PYTHON = (3, 11)
 
 
+# Optional third-party modules are initialised to ``None`` so the shutdown
+# sequence can safely reference them even when dependency validation aborts
+# before imports occur.
+np = None
+plt = None
+mp = None
+log_mod = None
+
+
 def exit_clean(code: int = 0) -> None:
     """Exit the program after printing a newline."""
     console.write("")
