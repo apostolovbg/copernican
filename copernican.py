@@ -13,13 +13,15 @@ Last Updated: 2025-11-24
 This script ties together model selection, dataset loading and result
 generation while delegating dependency checks and menu rendering to
 ``copernican_lib.cli`` helpers. Runtime behaviour is configured through
-environment variables set by the cross-platform ``start`` launchers, so
-no raw command line flags are exposed to end users. The module retains
-the optional test runner entrypoint so a fresh checkout can execute with
-minimal setup before heavier imports occur.
+environment variables set by the cross-platform ``start`` launchers, while
+the ``--cli`` and ``--gui`` flags provide a thin shim for callers that want
+to bypass the interactive menus and request GUI-safe orchestration services.
+The module retains the optional test runner entrypoint so a fresh checkout
+can execute with minimal setup before heavier imports occur.
 """
 
 
+import argparse
 import copy
 import datetime
 import faulthandler
@@ -40,6 +42,7 @@ from typing import Any, Iterable, Mapping
 from copernican_lib.cli import dependencies as cli_dependencies
 from copernican_lib.cli import menus as cli_menus
 from copernican_lib import console_output as console
+from copernican_lib import orchestration
 from copernican_lib import run_manifest
 from copernican_lib import result_writer
 from copernican_lib.diagnostics import (
@@ -121,6 +124,7 @@ def _copernican_version() -> str:
 
 COPERNICAN_VERSION = _copernican_version()
 CURRENT_LOG_FILE = None
+_legacy_stage_menu_override = False
 
 
 def select_seed() -> int:
@@ -175,6 +179,74 @@ for _name in ("SIGILL", "SIGSEGV", "SIGFPE"):
     _sig = getattr(signal, _name, None)
     if _sig is not None:
         signal.signal(_sig, _handle_fatal_signal)
+
+
+def legacy_stage_menu_enabled() -> bool:
+    """Return ``True`` when the staged menu is explicitly requested."""
+
+    return _legacy_stage_menu_override or (
+        os.environ.get("COPERNICAN_ENABLE_STAGED_MENU") == "1"
+    )
+
+
+def _parse_launch_args(argv: Iterable[str] | None = None) -> tuple[
+    orchestration.LaunchMode, bool
+]:
+    """Return the requested launch mode and legacy menu flag."""
+
+    parser = argparse.ArgumentParser(add_help=False)
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--cli",
+        action="store_true",
+        help="Force the classic CLI launcher even when GUI tooling calls us.",
+    )
+    group.add_argument(
+        "--gui",
+        action="store_true",
+        help="Expose orchestration services without starting the CLI menus.",
+    )
+    parser.add_argument(
+        "--enable-legacy-stage-menu",
+        action="store_true",
+        help=(
+            "Re-enable the retired staged menu for CI-only coverage runs. "
+            "Production launches stay forward-only."
+        ),
+    )
+    argv_list = list(argv) if argv is not None else None
+    parsed, _ = parser.parse_known_args(argv_list)
+    legacy_menu = parsed.enable_legacy_stage_menu or (
+        os.environ.get("COPERNICAN_ENABLE_STAGED_MENU") == "1"
+    )
+    mode = (
+        orchestration.LaunchMode.GUI
+        if parsed.gui
+        else orchestration.LaunchMode.CLI
+    )
+    return mode, legacy_menu
+
+
+def launch_gui() -> None:
+    """Describe GUI-safe services without invoking the interactive CLI."""
+
+    service_map = orchestration.describe_orchestration_services()
+    console.write("GUI mode requested. Shared services available:")
+    for descriptor in (
+        service_map.config_validation,
+        service_map.manifest_generation,
+        service_map.run_control,
+    ):
+        entrypoints = ", ".join(descriptor.entrypoints)
+        console.write(
+            f"- {descriptor.name}: {descriptor.module} ({entrypoints})"
+        )
+        console.write(f"  {descriptor.rationale}")
+    console.write(
+        "Use copernican_lib.orchestration.RunController implementations to "
+        "request runs, pause or resume sampling and stream status updates "
+        "from the existing orchestration pipeline."
+    )
 
 
 def _delete_log_file(path: str) -> None:
@@ -994,6 +1066,16 @@ def main_workflow():
         program_log_file,
         LOGS_DIR,
     )
+    if legacy_stage_menu_enabled():
+        program_logger.info(
+            "Legacy staged menu flag detected; forward-only guard lifted for "
+            "tests."
+        )
+    else:
+        program_logger.info(
+            "Forward-only posture active; staged menus stay disabled unless "
+            "explicitly requested by CI flags."
+        )
 
     cli_menus.show_splash_screen(COPERNICAN_VERSION)
 
@@ -1964,6 +2046,11 @@ if __name__ == "__main__":
         # 'force=True' above normally prevents this, but wrap in try/except
         # for absolute safety.
         pass
+    launch_mode, legacy_menu = _parse_launch_args(sys.argv[1:])
+    _legacy_stage_menu_override = legacy_menu
+    if launch_mode is orchestration.LaunchMode.GUI:
+        launch_gui()
+        sys.exit(0)
     try:
         main_workflow()
     except Exception:

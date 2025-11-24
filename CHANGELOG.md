@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.2.0
+- 2025-11-24: Added GUI-safe orchestration service descriptors, a CLI/GUI
+              launcher shim with forward-only defaults, documented the staged
+              menu test hook, refreshed docs/tests and bumped release metadata
+              to 10.2.0 (OpenAI ChatGPT)
+
 ## Version 10.1.3
 - 2025-11-24: Skipped relative imports in the dependency scanner to prevent
               false missing-package alerts, guarded matplotlib cleanup against

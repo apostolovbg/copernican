@@ -1,4 +1,4 @@
-**Version:** 10.1.3
+**Version:** 10.2.0
 **Last Updated:** 2025-11-24
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -23,7 +23,9 @@ The suite is organised around a handful of focused components:
   during model parsing or engine import so operators can restart Stage 1 with
   clear context instead of re-reading logs. The same console helpers power
   both engines so nested sampling and ensemble MCMC display consistent labels,
-  spinners and walker-level updates.
+  spinners and walker-level updates. The new `--gui` flag exposes the
+  orchestration service map without entering the CLI, while `--cli` enforces
+  the interactive path even when GUI wrappers are probing the launcher.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
   keep every engine and plugin consistent. Progress rendering, notifier
@@ -97,6 +99,7 @@ and citation information appears in [CITATION.cff](CITATION.cff).
 18. [Packaging Guide](docs/packaging.md)
 19. [Documentation Policy](docs/documentation_policy.md)
 20. [Run Manifest](docs/run_manifest.md)
+21. [Orchestration Services](docs/orchestration_services.md)
 
 ---
 
@@ -806,6 +809,12 @@ The suite is presently developed in a forward-only mode: legacy prompts, staged
 menus and backward-compatibility shims are intentionally absent while the
 interactive shell evolves toward the forthcoming GUI. Contributors should avoid
 reintroducing fallbacks unless a future roadmap explicitly calls for them.
+GUI launchers should import `copernican_lib.orchestration` to discover the
+configuration validators, manifest builder and run-controller interfaces that
+mirror the CLI without pulling in menu code. Keep the staged menu disabled by
+default; only set `COPERNICAN_ENABLE_STAGED_MENU=1` or pass
+`--enable-legacy-stage-menu` during CI experiments that must exercise the old
+flow.
 Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md`
 and
