@@ -1,19 +1,23 @@
 # Run Manifest
-**Last Updated:** 2025-11-07
+**Last Updated:** 2025-11-25
 
 The suite writes a YAML manifest for every evaluation under the run's output
-folder.  The file is named `run_manifest_<timestamp>.yml` and records:
+folder. The file is named `run_manifest_<timestamp>.yml` and records:
 
-- Copernican Suite version under `copernican.version`
-- Selected model and engine names with their versions
-- Parameter priors and the random seed
+- Copernican Suite version under `copernican.version`.
+- Selected model and engine names with their versions plus a `selection` block
+  so GUI import/export can re-seed new runs without retyping choices.
+- Parameter priors and the random seed captured at start confirmation.
 - Dataset identifiers, names and release versions with SHA256 hashes of input
-  files
+  files.
 - Independence statements confirming that SNe, BAO and CMB likelihoods were
-  treated as statistically separate when building the joint posterior
-- The Git commit hash and whether the tree was dirty
-- Per-engine extras such as MCMC burn-in length, production steps and
-  acceptance fractions when the SNe sampler is used
+  treated as statistically separate when building the joint posterior.
+- The Git commit hash and whether the tree was dirty.
+- Lifecycle and retention metadata under ``status`` indicating whether outputs
+  were prepared, paused, cancelled, aborted or completed and whether artefacts
+  were kept, deleted or archived after a stop decision.
+- The Run Builder snapshot under ``configuration`` plus the operator notes
+  captured during the start confirmation stored in ``confirmation``.
 
 Saving this manifest alongside plots and tables allows others to reproduce a
 run exactly.  To rerun an analysis:
@@ -28,15 +32,25 @@ prompts for a seed early in the run.  Users may accept the default ``0``,
 enter a manual value or generate a random seed.  The chosen value is saved
 in the manifest and main log so runs can be reproduced exactly.
 
+The GUI mirrors the CLI behaviour by generating the manifest at the "Start
+Run" confirmation stage rather than during draft editing. Pending manifests
+mark ``status.state`` as ``pending`` and set ``status.outputs`` to
+``unprepared`` so operators can review the configuration before directories or
+logs exist. Starting the run flips the status to ``running`` and the
+``selection`` and ``configuration`` blocks capture the chosen models, engine
+and dataset identifiers for reuse. Hard stops or cancellations update
+``status.state`` to ``aborted`` or ``cancelled`` and embed a retention decision
+such as ``archived`` or ``deleted`` for downstream provenance checks.
+
 The Stage 2 sampler now constructs its NumPy random number generator from the
 shared :func:`copernican_lib.utils.get_random_seed` value.  That helper is
 populated via :func:`copernican_lib.utils.set_random_seed`, which the CLI calls
 after reading ``COPERNICAN_SEED`` or the interactive prompt.  When no explicit
 seed is supplied the suite falls back to the deterministic default ``0`` so the
-manifest's ``copernican.random_seed`` field always reflects the exact value fed
-into the engine.  Replaying a manifest therefore yields byte-for-byte identical
-chains, log-probabilities and summary statistics as long as the same commit and
-dataset hashes are used.
+manifest's ``seed`` field always reflects the exact value fed into the engine.
+Replaying a manifest therefore yields byte-for-byte identical chains,
+log-probabilities and summary statistics as long as the same commit and dataset
+hashes are used.
 
 The manifest is intentionally human readable so it can be archived in lab
 notebooks or cited in publications. Recording the suite version makes it clear

@@ -1,6 +1,6 @@
 """Run manifest generator for the Copernican Suite.
 
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-11-25
 
 The manifest records critical information required to reproduce a run. It
 captures the Copernican Suite version, model and engine details, parameter
@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, Iterable, Optional
 
 import yaml
 
@@ -113,6 +113,10 @@ def build_manifest(
     models: Iterable[tuple[object, str]],
     engine_module: object,
     datasets: Iterable[Dict[str, Any]],
+    *,
+    state: str = "pending",
+    output_policy: str = "unprepared",
+    configuration: Optional[dict[str, Any]] = None,
 ) -> dict:
     """Collect manifest information for the current run.
 
@@ -130,6 +134,17 @@ def build_manifest(
         ``id``, ``name``, ``version``, ``path``, ``hashes`` and
         ``independence``.  The manifest builder ignores missing keys so
         callers may provide partial information when necessary.
+    state:
+        Lifecycle status recorded at the time the manifest is built.  The
+        default ``"pending"`` mirrors the GUI's start confirmation stage.
+    output_policy:
+        Textual description of whether output directories and logs have been
+        created.  ``"unprepared"`` signals that confirmation is still
+        required.
+    configuration:
+        Optional configuration snapshot that captures the human-facing
+        selections that drove the manifest.  When omitted the snapshot is
+        derived from the collected model and dataset metadata.
     """
 
     manifest = {
@@ -142,6 +157,8 @@ def build_manifest(
         "seed": utils.get_random_seed(),
         "datasets": {},
         "git": _git_info(),
+        "status": {"state": state, "outputs": output_policy},
+        "selection": {"models": [], "engine": {}, "datasets": []},
     }
 
     for plugin, version in models:
@@ -153,14 +170,14 @@ def build_manifest(
             )
             if prior
         }
-        manifest["models"].append(
-            {
-                "name": getattr(plugin, "MODEL_NAME", "unknown"),
-                "version": version,
-                "filename": getattr(plugin, "MODEL_FILENAME", ""),
-                "priors": priors,
-            }
-        )
+        model_entry = {
+            "name": getattr(plugin, "MODEL_NAME", "unknown"),
+            "version": version,
+            "filename": getattr(plugin, "MODEL_FILENAME", ""),
+            "priors": priors,
+        }
+        manifest["models"].append(model_entry)
+        manifest["selection"]["models"].append(model_entry["name"])
 
     for dataset in datasets:
         dataset_id = dataset.get("id")
@@ -176,6 +193,19 @@ def build_manifest(
             "hashes": dataset.get("hashes", {}),
             "independence": independence,
             "condition_number": dataset.get("condition_number"),
+        }
+        manifest["selection"]["datasets"].append(dataset_id)
+
+    manifest["selection"]["engine"] = manifest["engine"].copy()
+
+    if configuration:
+        manifest["configuration"] = configuration
+    else:
+        manifest["configuration"] = {
+            "notes": "Derived from GUI selections; update when importing.",
+            "engine": manifest["selection"]["engine"],
+            "models": manifest["selection"]["models"],
+            "datasets": manifest["selection"]["datasets"],
         }
 
     camb_details = _camb_info(models)
@@ -200,4 +230,42 @@ def save_manifest(manifest: dict, output_dir: str) -> str:
     return path
 
 
-__all__ = ["build_manifest", "save_manifest"]
+def load_manifest(path: str) -> dict:
+    """Load a manifest from disk for reuse in a new run."""
+
+    with open(path, "r", encoding="utf-8") as fh:
+        return yaml.safe_load(fh)
+
+
+def annotate_outcome(
+    manifest: dict,
+    *,
+    state: str,
+    outputs: Optional[str] = None,
+    reason: str = "",
+) -> dict:
+    """Return ``manifest`` with an updated status block.
+
+    The helper avoids in-place mutation surprises during GUI flows and ensures
+    every saved manifest records whether a run completed, was cancelled or was
+    aborted via a hard stop.  ``outputs`` captures the user's retention choice
+    (for example ``"kept"``, ``"deleted"`` or ``"archived"``) so post-run
+    housekeeping decisions remain visible in downstream analyses.
+    """
+
+    updated = dict(manifest)
+    status = dict(updated.get("status", {}))
+    status["state"] = state
+    if outputs is not None:
+        status["outputs"] = outputs
+    status["reason"] = reason
+    updated["status"] = status
+    return updated
+
+
+__all__ = [
+    "build_manifest",
+    "save_manifest",
+    "load_manifest",
+    "annotate_outcome",
+]
