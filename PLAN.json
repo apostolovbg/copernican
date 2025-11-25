@@ -195,4 +195,11 @@
             "start.command",
             "start.bat",
             "copernican_lib/config_schemas/**/*.yml",
-            "models/**/*.y***
+            "models/**/*.y**"
+          ]
+        }
+      }
+    }
+  }
+}
+
