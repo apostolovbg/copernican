@@ -35,24 +35,26 @@ class PolicyEngine:
     def check(
         self, scope: str = "repo", mode: str = "full"
     ) -> Dict[str, List]:
-        """Run policy checks and return violations and metrics.
-
-        TODO: Execute each registered rule once implementations are available.
-        """
+        """Run policy checks and return violations and metrics."""
 
         context = self._build_context(scope=scope, mode=mode)
-        _ = context  # Placate linters until rules are wired in.
-        return {"violations": [], "metrics": []}
+        violations: List = []
+        metrics: List[Metric] = []
+        for rule in self.rules:
+            violations.extend(rule.check(context))
+        return {"violations": violations, "metrics": metrics}
 
-    def fix(self, scope: str = "repo", mode: str = "full") -> Dict[str, List]:
-        """Run auto-fixable rules and return resulting results.
-
-        TODO: capture and report autofix outcomes once rules implement them.
-        """
+    def fix(
+        self, scope: str = "repo", mode: str = "full", safe_only: bool = False
+    ) -> Dict[str, List]:
+        """Run auto-fixable rules and return resulting results."""
 
         context = self._build_context(scope=scope, mode=mode)
-        _ = context
-        return {"violations": [], "metrics": []}
+        violations: List = []
+        metrics: List[Metric] = []
+        for rule in self.rules:
+            violations.extend(rule.fix(context, safe_only=safe_only))
+        return {"violations": violations, "metrics": metrics}
 
     def metrics(self, scope: str = "repo", mode: str = "full") -> List[Metric]:
         """Collect drift metrics without running enforcement rules."""

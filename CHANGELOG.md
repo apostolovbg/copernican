@@ -22,6 +22,14 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.7.0
+- 2025-11-25: Implemented DriftGuard metadata rules with auto-fixes for Last
+              Updated headers, version and citation validation, changelog
+              enforcement and new surface coverage, added regression tests and
+              bumped release metadata to 10.7.1 (CHANGELOG.md, README.md,
+              CITATION.cff, AGENTS.md, docs/documentation_policy.md,
+              driftguard.yml, driftguard/core.py, driftguard/rules/__init__.py,
+              driftguard/rules/metadata.py, copernican_lib/VERSION,
+              tests/test_driftguard_rules_metadata.py)
 - 2025-11-25: Materialised the DriftGuard policy from PLAN.json into
               driftguard.yml with rulesets, surfaces and drift thresholds,
               added validated spec dataclasses and spec-driven glob helpers,

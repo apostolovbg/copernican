@@ -36,3 +36,7 @@ DriftGuard now anchors these expectations in `driftguard.yml`. The doc
 surfaces defined there mirror the Last Updated and date checks enforced by the
 metadata rules so documentation drift is visible to contributors before code
 reaches review.
+The metadata surface now also validates citation YAML structure, synchronises
+release versions across `README.md`, `CITATION.cff` and
+`copernican_lib/VERSION`, and insists on changelog coverage whenever other
+files change.
