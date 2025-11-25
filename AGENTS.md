@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-24
+**Last Updated:** 2025-11-25
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -37,7 +37,10 @@ roadmap later requests them explicitly. GUI launchers should use the
 `copernican_lib/orchestration` service map rather than duplicating CLI helpers;
 the `copernican.py --gui` shim lists the available modules. Keep the staged
 menu disabled by default and only re-enable it for CI coverage with
-`COPERNICAN_ENABLE_STAGED_MENU=1` or `--enable-legacy-stage-menu`.
+`COPERNICAN_ENABLE_STAGED_MENU=1` or `--enable-legacy-stage-menu`. The new
+Tkinter scaffold under `copernican_lib/gui/` preserves the navigation rail,
+Run Builder and monitor shells even when the renderer falls back to headless
+mode for automated environments.
 Each run directory also includes a `run_manifest_*.yml` file listing the
 selected models, engine, dataset hashes and Git state to aid
 reproducibility. The data loaders compute and log SHA256 digests for all
