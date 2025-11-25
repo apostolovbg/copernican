@@ -11,6 +11,10 @@ renderers invoked by the launcher. Keeping those prompts in a dedicated
 package trims the startup import surface so users reach the Stage 1 seed dialog
 faster while retaining the existing logging, validation and manifest pipelines
 described throughout this document.
+The `driftguard/` package now hosts policy enforcement scaffolding alongside a
+CLI entry point. It remains independent from the scientific stack so it can be
+split into its own project later while still reading `driftguard.yml` at the
+repository root.
 
 ## Architectural map
 

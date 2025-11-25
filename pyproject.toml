@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-05
+# Last Updated: 2025-11-25
 [build-system]
 requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]"]
 build-backend = "setuptools.build_meta"
@@ -45,6 +45,7 @@ dev = [
 
 [project.scripts]
 copernican = "copernican:main_workflow"
+driftguard = "driftguard.cli:main"
 
 [tool.setuptools]
 py-modules = ["copernican"]
@@ -62,6 +63,8 @@ include = [
     "copernican_lib.*",
     "engines",
     "engines.*",
+    "driftguard",
+    "driftguard.*",
     "models",
     "models.*",
 ]

@@ -1,4 +1,4 @@
-**Version:** 10.5.0
+**Version:** 10.6.0
 **Last Updated:** 2025-11-25
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -48,6 +48,10 @@ The suite is organised around a handful of focused components:
 * `data/` curates vetted observations with companion parsers and metadata. The
   loaders verify file digests, register provenance and attach citations to the
   manifests and plot footers created for every run.
+* `driftguard/` introduces the policy engine scaffolding that will replace the
+  legacy repository hooks. The initial shell exposes a Python API and
+  `driftguard` CLI with `check`, `fix` and `metrics` commands so rules can be
+  layered in without disrupting the surrounding toolkit.
 * `copernican_lib/gui/` provides a Tkinter-based scaffold with a navigation
   rail, accessible keyboard shortcuts and a Run Builder flow that mirrors the
   CLI stages. The layout keeps a Home dashboard for recent runs, a Run Monitor
