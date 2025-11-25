@@ -72,7 +72,14 @@ def main(argv: Optional[list[str]] = None) -> int:
         _ = result
     else:
         metrics = engine.metrics(scope=args.scope, mode=args.mode)
-        _ = metrics
+        for metric in metrics:
+            threshold = (
+                f" (threshold {metric.threshold})"
+                if metric.threshold is not None
+                else ""
+            )
+            path = f" [{metric.path}]" if metric.path is not None else ""
+            print(f"{metric.name}: {metric.value}{threshold}{path}")
 
     # TODO: compute exit codes once rules emit hard violations.
     return 0
