@@ -69,6 +69,12 @@ class Rule:
         _ = safe_only
         return []
 
+    def metrics(self, context: RuleContext) -> List[Metric]:
+        """Collect drift metrics emitted by the rule, if any."""
+
+        _ = context
+        return []
+
 
 def get_all_rules(spec: DriftGuardSpec) -> List[Rule]:
     """Instantiate all rules referenced in ``spec``.
@@ -86,6 +92,7 @@ def get_all_rules(spec: DriftGuardSpec) -> List[Rule]:
         NoFutureDatesRule,
         VersionSyncRule,
     )
+    from driftguard.rules.drift import DocAgeRule, TestCouplingRule, TodoCountRule
     from driftguard.rules.python_lib import (
         BugfixHasTestRule,
         NewModulesNeedTestsRule,
@@ -101,11 +108,15 @@ def get_all_rules(spec: DriftGuardSpec) -> List[Rule]:
         NoPrintInLibRule.name: NoPrintInLibRule(),
         NewModulesNeedTestsRule.name: NewModulesNeedTestsRule(),
         BugfixHasTestRule.name: BugfixHasTestRule(),
+        TodoCountRule.name: TodoCountRule(),
+        TestCouplingRule.name: TestCouplingRule(),
+        DocAgeRule.name: DocAgeRule(),
     }
 
     requested: List[str] = []
     for surface in spec.surfaces.values():
         requested.extend(surface.rules)
+    requested.extend(spec.drift.metrics.keys())
 
     unique_rules: List[Rule] = []
     for name in sorted(set(requested)):

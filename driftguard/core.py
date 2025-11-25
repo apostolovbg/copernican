@@ -42,6 +42,7 @@ class PolicyEngine:
         metrics: List[Metric] = []
         for rule in self.rules:
             violations.extend(rule.check(context))
+            metrics.extend(rule.metrics(context))
         return {"violations": violations, "metrics": metrics}
 
     def fix(
@@ -54,11 +55,14 @@ class PolicyEngine:
         metrics: List[Metric] = []
         for rule in self.rules:
             violations.extend(rule.fix(context, safe_only=safe_only))
+            metrics.extend(rule.metrics(context))
         return {"violations": violations, "metrics": metrics}
 
     def metrics(self, scope: str = "repo", mode: str = "full") -> List[Metric]:
         """Collect drift metrics without running enforcement rules."""
 
         context = self._build_context(scope=scope, mode=mode)
-        _ = context
-        return []
+        metrics: List[Metric] = []
+        for rule in self.rules:
+            metrics.extend(rule.metrics(context))
+        return metrics
