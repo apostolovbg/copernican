@@ -56,13 +56,15 @@ described throughout this document.
 * `docs/` stores focused guidance on data formats, manifest contents,
   packaging, LaTeX conventions and the scripting API. README sections link into
   these files rather than repeating their full contents.
-* The GUI scaffold mirrors the CLI flow. The Run Builder produces a manifest
-  snapshot at the "Start Run" confirmation stage, defers output directory and
-  log creation until the operator explicitly starts sampling and keeps the Run
-  Monitor updated with engine, model and dataset hash summaries. Pause,
-  cancellation and hard-stop controls mark the manifest as paused, cancelled or
-  aborted and capture whether outputs were kept, deleted or archived for audit
-  trails.
+* The GUI scaffold mirrors the CLI flow. Diagnostics logging begins when the
+  GUI loads, capturing environment checks and exposing severity filters plus
+  downloads from Settings → Diagnostics. The Run Builder produces a manifest
+  snapshot at the "Start Run" confirmation stage, starts the run log with that
+  manifest context before outputs exist and streams the lines into the Run
+  Monitor with severity filters, copy/export actions and alert anchors that can
+  jump directly to the relevant log snippet. Pause, cancellation and hard-stop
+  controls mark the manifest as paused, cancelled or aborted and capture
+  whether outputs were kept, deleted or archived for audit trails.
 
 ## Stage-by-stage flow
 

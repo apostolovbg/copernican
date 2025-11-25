@@ -21,6 +21,19 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.5.0
+- 2025-11-25: Started GUI diagnostics logging at launch with severity filters
+              and downloads, gated run-log creation on manifest confirmation
+              with streaming to the Run Monitor, added toast and inline alert
+              anchors with jump tooling, preserved structured logging for
+              CLI/CI consumers, refreshed docs and bumped release metadata to
+              10.5.0 (CHANGELOG.md, README.md, CITATION.cff,
+              copernican_lib/VERSION, copernican_lib/logger.py,
+              copernican_lib/gui/app.py, tests/test_gui_app.py,
+              docs/design_overview.md)
+- 2025-11-25: Normalised GUI logging test metadata and headers
+              (tests/test_gui_app.py) (OpenAI ChatGPT)
+
 ## Version 10.4.0
 - 2025-11-25: Added start confirmation and manifest export/import to the GUI,
               surfaced dataset hashes and engine/model metadata in the Run

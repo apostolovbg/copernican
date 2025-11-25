@@ -3,6 +3,7 @@
 
 import os
 import tempfile
+from pathlib import Path
 
 from copernican_lib import run_manifest
 from copernican_lib.gui import CopernicanGUI, RunStatus
@@ -66,3 +67,39 @@ def test_manifest_import_export_round_trip() -> None:
         imported = gui.import_manifest(path)
         assert imported["selection"]["engine"]["name"]
         assert gui.selected_models
+
+
+def test_application_diagnostics_logging(tmp_path: Path) -> None:
+    gui = CopernicanGUI(render=False)
+    assert gui.application_log_path
+    assert os.path.exists(gui.application_log_path)
+    gui.create_toast("App diagnostics ready", severity="INFO", context="app")
+    gui.set_diagnostics_filter("ERROR")
+    gui.create_toast("App failure", severity="ERROR", context="app")
+    filtered = gui.get_application_log_entries()
+    assert filtered
+    assert any(entry.severity == "ERROR" for entry in filtered)
+    export_path = gui.export_application_logs(tmp_path)
+    assert os.path.exists(export_path)
+
+
+def test_run_log_confirmation_and_anchor_jump(tmp_path: Path) -> None:
+    gui = CopernicanGUI(render=False)
+    assert gui.run_log_path is None
+    gui.draft.model = "ModelB"
+    gui.draft.data = "Dataset"
+    gui.draft.engine = "engine"
+    gui.confirm_start_run()
+    assert gui.run_log_path is not None
+    assert os.path.exists(gui.run_log_path)
+    entries = gui.get_run_log_entries()
+    assert entries
+    assert entries[0].anchor.startswith("run-")
+    gui.start_run()
+    gui.update_progress(100)
+    exported = gui.export_run_logs(tmp_path)
+    assert os.path.exists(exported)
+    if gui.alerts:
+        anchor = gui.alerts[-1].anchor
+        snippet = gui.jump_to_log_anchor(anchor)
+        assert snippet is not None

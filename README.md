@@ -1,4 +1,4 @@
-**Version:** 10.4.0
+**Version:** 10.5.0
 **Last Updated:** 2025-11-25
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -54,8 +54,9 @@ The suite is organised around a handful of focused components:
   with live progress strips and a Summary view that surfaces output links and
   manifest reuse buttons after completion. Start confirmations now generate a
   manifest snapshot before any directories exist, surface dataset hashes and
-  engine/model selections in the monitor, and expose pause, cancel and hard-stop
-  controls that record whether outputs should be kept, deleted or archived.
+  engine/model selections in the monitor, and expose pause, cancel and
+  hard-stop controls that record whether outputs should be kept, deleted or
+  archived.
 
 All supported datasets share a uniform pipeline: parsers normalise the inputs,
 the joint likelihood composes SNe Ia, BAO and CMB components, and the engine
@@ -822,7 +823,12 @@ configuration validators, manifest builder and run-controller interfaces that
 mirror the CLI without pulling in menu code. Keep the staged menu disabled by
 default; only set `COPERNICAN_ENABLE_STAGED_MENU=1` or pass
 `--enable-legacy-stage-menu` during CI experiments that must exercise the old
-flow.
+flow. GUI sessions now start an application log as soon as the shell loads,
+recording environment checks and exposing severity filters plus download
+actions under Settings → Diagnostics. Run logs remain dormant until the user
+confirms the manifest; once active they stream into the Run Monitor with
+severity filters, copy/export controls and toast or inline alerts anchored to
+each log line.
 Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md`
 and
