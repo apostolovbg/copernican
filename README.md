@@ -1,4 +1,4 @@
-**Version:** 10.5.0
+**Version:** 10.6.0
 **Last Updated:** 2025-11-25
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -828,7 +828,11 @@ recording environment checks and exposing severity filters plus download
 actions under Settings → Diagnostics. Run logs remain dormant until the user
 confirms the manifest; once active they stream into the Run Monitor with
 severity filters, copy/export controls and toast or inline alerts anchored to
-each log line.
+each log line. Dataset, model and engine panels now list compatibility badges,
+SHA256 digests, citations and licenses, with quick actions to open containing
+folders, view metadata files or revalidate trusted parsers. Manifest files can
+be duplicated into the Run Builder via "Duplicate & Edit" so existing
+selections seed new experiments without re-entering compatibility choices.
 Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md`
 and

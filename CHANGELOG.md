@@ -21,6 +21,14 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.6.0
+- 2025-11-25: Added GUI catalogue views for datasets, models and engines with
+              SHA256 digests, parser revalidation hooks, manifest duplication
+              into Run Builder and refreshed release metadata to 10.6.0
+              (CHANGELOG.md, README.md, CITATION.cff, copernican_lib/VERSION,
+              copernican_lib/gui/app.py, tests/test_gui_app.py,
+              docs/design_overview.md)
+
 ## Version 10.5.0
 - 2025-11-25: Started GUI diagnostics logging at launch with severity filters
               and downloads, gated run-log creation on manifest confirmation
