@@ -1,0 +1,198 @@
+{
+  "name": "Copernican Suite \u2013 DriftGuard Integration and Policy v2",
+  "version": 1,
+  "goals": [
+    "Introduce DriftGuard as an internal, modular policy engine in the Copernican Suite repository.",
+    "Migrate existing ad-hoc metadata/policy scripts to DriftGuard rules.",
+    "Clean up and stabilise the repository policy (Last Updated, version sync, changelog discipline, etc.).",
+    "Reduce CI/pre-commit failures due to policy oversights by providing a single dev-suite entrypoint.",
+    "Prepare DriftGuard to be spun off into a standalone project with a stable API and spec."
+  ],
+  "lint_tools_to_keep": [
+    {
+      "id": "black",
+      "repo": "https://github.com/psf/black",
+      "purpose": "Code formatter. Enforces consistent Python formatting with line length 79."
+    },
+    {
+      "id": "isort",
+      "repo": "https://github.com/pycqa/isort",
+      "purpose": "Import sorter. Keeps imports ordered and grouped consistently (Black profile, line length 79)."
+    },
+    {
+      "id": "ruff",
+      "repo": "https://github.com/astral-sh/ruff-pre-commit",
+      "purpose": "Fast Python linter and simple static analysis. Replaces most uses of flake8/pyflakes/pycodestyle while also auto-fixing some issues."
+    },
+    {
+      "id": "flake8",
+      "repo": "https://github.com/pycqa/flake8",
+      "purpose": "Additional linter. Currently kept to catch any checks not yet covered/configured in Ruff. Can be reconsidered later once Ruff fully subsumes it."
+    },
+    {
+      "id": "end-of-file-fixer",
+      "repo": "https://github.com/pre-commit/pre-commit-hooks",
+      "purpose": "Ensures text files end with a single newline. Helps avoid noisy diffs across platforms."
+    },
+    {
+      "id": "trailing-whitespace",
+      "repo": "https://github.com/pre-commit/pre-commit-hooks",
+      "purpose": "Removes trailing whitespace from lines. Keeps diffs clean."
+    }
+  ],
+  "driftguard_module": {
+    "description": "Internal implementation of DriftGuard as a Python package living inside the Copernican repo, but written to be spin-off ready.",
+    "package_root": "driftguard/",
+    "design_constraints": [
+      "Code under driftguard/ must not import copernican_lib, engines or any Copernican-specific modules.",
+      "DriftGuard must operate only on the filesystem (paths, globs) and the project policy spec (driftguard.yml).",
+      "The public API (Python and CLI) should be small and stable so it can later become a standalone package with minimal changes."
+    ],
+    "structure": {
+      "directories_and_files": [
+        {
+          "path": "driftguard/__init__.py",
+          "purpose": "Expose a simple helper like load_engine(repo_root=None) that loads the policy spec and returns a PolicyEngine instance."
+        },
+        {
+          "path": "driftguard/spec.py",
+          "purpose": "Define data classes for the DriftGuardSpec (surfaces, rulesets, metrics) and a load_spec() function that reads driftguard.yml."
+        },
+        {
+          "path": "driftguard/core.py",
+          "purpose": "Define the PolicyEngine class with check() and fix() methods. Orchestrates rule execution and aggregates violations and metrics."
+        },
+        {
+          "path": "driftguard/rules/__init__.py",
+          "purpose": "Expose get_all_rules(spec) and the Rule, RuleContext, Violation, Metric base types."
+        },
+        {
+          "path": "driftguard/rules/metadata.py",
+          "purpose": "Implement metadata-related rules: LastUpdatedDocsRule, VersionSyncRule, NoFutureDatesRule, CitationYamlRule, ChangelogRule."
+        },
+        {
+          "path": "driftguard/rules/python_lib.py",
+          "purpose": "Implement Python library rules: NoPrintInLibRule, NewModulesNeedTestsRule, optional BugfixHasTestRule (soft warning)."
+        },
+        {
+          "path": "driftguard/rules/drift.py",
+          "purpose": "Implement drift metrics: TodoCountRule, TestCouplingRule, DocAgeRule. These provide Metric values but usually no hard violations."
+        },
+        {
+          "path": "driftguard/utils.py",
+          "purpose": "Utility helpers shared across rules: reading files, resolving globs from the spec, querying git status for new/changed files, date helpers."
+        },
+        {
+          "path": "driftguard/cli.py",
+          "purpose": "CLI entrypoint implementing commands: `driftguard check`, `driftguard fix`, `driftguard metrics`. Uses the same PolicyEngine APIs."
+        }
+      ],
+      "python_api": {
+        "load_engine": {
+          "signature": "load_engine(repo_root: pathlib.Path | None = None) -> PolicyEngine",
+          "behavior": "Resolve the repo root, load driftguard.yml via load_spec(), construct and return a PolicyEngine."
+        },
+        "PolicyEngine": {
+          "methods": [
+            {
+              "name": "check",
+              "signature": "check(scope: str = 'repo', mode: str = 'fast') -> (list[Violation], list[Metric])",
+              "description": "Run all configured rules on the given scope (staged files or full repo) and mode (fast/full). Returns violations plus drift metrics."
+            },
+            {
+              "name": "fix",
+              "signature": "fix(scope: str = 'staged', safe_only: bool = True) -> list[str]",
+              "description": "Apply safe auto-fixes (e.g. Last Updated header insert/update, simple synonyms). Returns textual messages describing applied fixes."
+            }
+          ]
+        }
+      },
+      "cli_api": {
+        "entry_point": "driftguard = driftguard.cli:main",
+        "commands": [
+          {
+            "name": "check",
+            "args": [
+              "--scope=repo|staged",
+              "--mode=fast|full"
+            ],
+            "behavior": "Run PolicyEngine.check() and print violations. Exit non-zero if any hard violations are present; soft warnings do not fail the process."
+          },
+          {
+            "name": "fix",
+            "args": [
+              "--scope=repo|staged",
+              "--safe-only"
+            ],
+            "behavior": "Run PolicyEngine.fix() and print messages. Should not introduce unsafe changes; typically used on staged files before commit."
+          },
+          {
+            "name": "metrics",
+            "args": [
+              "--format=text|json"
+            ],
+            "behavior": "Run PolicyEngine.check() in full mode and print drift metrics only, in human-readable or JSON form. Never fails the process."
+          }
+        ]
+      }
+    },
+    "tests": [
+      {
+        "path": "tests/test_driftguard_core.py",
+        "purpose": "Unit tests for PolicyEngine: combining rules, aggregation of violations/metrics, handling of scope/mode, basic error handling."
+      },
+      {
+        "path": "tests/test_driftguard_rules_metadata.py",
+        "purpose": "Tests for LastUpdatedDocsRule, VersionSyncRule, NoFutureDatesRule, CitationYamlRule, ChangelogRule."
+      },
+      {
+        "path": "tests/test_driftguard_rules_python_lib.py",
+        "purpose": "Tests for NoPrintInLibRule, NewModulesNeedTestsRule and any other Python-library-specific rules."
+      },
+      {
+        "path": "tests/test_driftguard_rules_drift.py",
+        "purpose": "Tests for drift metric rules: TODO counting, test-coupling ratio estimation, document age calculations."
+      },
+      {
+        "path": "tests/test_driftguard_policy_sync.py",
+        "purpose": "Meta-test: if driftguard.yml is modified in a commit, ensure at least one driftguard/*.py and one tests/test_driftguard_*.py file are also modified. This keeps the spec, implementation and tests in sync."
+      }
+    ]
+  },
+  "driftguard_yaml_spec": {
+    "description": "Initial DriftGuard policy specification for the Copernican Suite. This will live as YAML at the repository root (driftguard.yml). The JSON structure here is a direct representation of the intended YAML.",
+    "spec_object": {
+      "version": 1,
+      "project": "Copernican Suite",
+      "rulesets": {
+        "core-metadata": "hard",
+        "python-quality": "hard",
+        "docs-drift": "warn",
+        "bugfix-coverage": "warn"
+      },
+      "surfaces": {
+        "docs": {
+          "include": [
+            "README.md",
+            "AGENTS.md",
+            "CONTRIBUTING.md",
+            "CHANGELOG.md",
+            "docs/**/*.md",
+            "CITATION.cff",
+            "LICENSE.md",
+            "THIRD_PARTY_LICENSES.md"
+          ],
+          "exclude": [],
+          "rules": [
+            "last-updated-header",
+            "no-future-dates"
+          ]
+        },
+        "interfaces": {
+          "include": [
+            "copernican.py",
+            "start.sh",
+            "start.command",
+            "start.bat",
+            "copernican_lib/config_schemas/**/*.yml",
+            "models/**/*.y***
