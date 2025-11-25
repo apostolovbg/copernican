@@ -1,0 +1,12 @@
+# Last Updated: 2025-11-25
+version: 1
+project: "Copernican Suite"
+rulesets:
+  core-metadata: hard
+  python-quality: hard
+  docs-drift: warn
+surfaces:
+  repo:
+    include:
+      - "**/*"
+    exclude: []
