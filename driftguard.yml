@@ -41,7 +41,20 @@ surfaces:
     rules:
       - last-updated-header
       - no-future-dates
+  metadata:
+    description: >-
+      Release metadata files that must remain synchronised across the suite.
+    include:
+      - README.md
+      - CITATION.cff
+      - copernican_lib/VERSION
+      - pyproject.toml
+    exclude: []
+    rules:
       - version-sync
+      - citation-yaml
+      - no-future-dates
+      - changelog-entry
   python-lib:
     description: >-
       Core Python library code that should avoid prints and pair new modules

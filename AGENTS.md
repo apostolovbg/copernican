@@ -20,7 +20,11 @@ DriftGuard scaffolding now lives under `driftguard/` with a standalone CLI
 and Python API. Keep the package free of Copernican-specific imports so it
 remains ready for an eventual split; the policy spec now lives in the
 materialised `driftguard.yml` at the repository root, mirroring the
-surfaces, rulesets and thresholds described in `PLAN.json`.
+surfaces, rulesets and thresholds described in `PLAN.json`. Phase 3 brings
+active metadata enforcement: the metadata surface covers `README.md`,
+`CITATION.cff`, `copernican_lib/VERSION` and `pyproject.toml`, aligning Last
+Updated headers, preventing future-dated entries, validating citation YAML
+and insisting on changelog updates alongside other edits.
 The suite evaluates cosmological models against SNe Ia, BAO and CMB data.
 Support for additional observations such as gravitational-wave standard sirens
 is being prepared alongside ongoing placeholder management. Users interact with
