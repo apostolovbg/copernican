@@ -21,7 +21,6 @@ from driftguard.rules import (
 )
 from driftguard.spec import DriftGuardSpec
 
-
 ALLOWED_SCOPES = ("repo", "staged")
 ALLOWED_MODES = ("fast", "full")
 

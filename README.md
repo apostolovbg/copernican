@@ -1,4 +1,4 @@
-**Version:** 10.6.0
+**Version:** 10.6.1
 **Last Updated:** 2025-11-25
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -60,7 +60,10 @@ The suite is organised around a handful of focused components:
 * `driftguard/` contains the new policy engine designed to keep repository
   metadata disciplined. The Python API exposes ``load_engine`` while the
   command ``driftguard`` offers ``check``, ``fix`` and ``metrics`` subcommands
-  for enforcing the policy specification defined in ``driftguard.yml``.
+  for enforcing the policy specification defined in ``driftguard.yml``. The
+  spec loader now ships dataclasses for rules, rulesets and surfaces and
+  validates that declared scopes and modes align with the corresponding rule
+  implementations before execution begins.
 
 All supported datasets share a uniform pipeline: parsers normalise the inputs,
 the joint likelihood composes SNe Ia, BAO and CMB components, and the engine

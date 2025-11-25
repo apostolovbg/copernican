@@ -9,7 +9,7 @@ import pytest
 
 from driftguard.core import PolicyEngine
 from driftguard.rules import Metric, Rule, RuleContext, Violation
-from driftguard.spec import DriftGuardSpec, RuleSurface
+from driftguard.spec import DriftGuardSpec, RuleSetSpec, RuleSurface
 
 
 class DummyRule(Rule):
@@ -46,7 +46,8 @@ def sample_spec() -> DriftGuardSpec:
     return DriftGuardSpec(
         version=1,
         project="Test",
-        rulesets={"core": "hard"},
+        rulesets={"core": RuleSetSpec(name="core", severity="hard")},
+        rules={},
         surfaces={"repo": surface},
     )
 

@@ -36,6 +36,5 @@ def load_engine(repo_root: Optional[Path | str] = None) -> PolicyEngine:
     """
 
     resolved_root = resolve_repo_root(repo_root)
-    spec_path = resolved_root / "driftguard.yml"
-    spec: DriftGuardSpec = load_spec(spec_path)
+    spec: DriftGuardSpec = load_spec(resolved_root)
     return PolicyEngine(spec=spec, repo_root=resolved_root)

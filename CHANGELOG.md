@@ -21,6 +21,15 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.6.1
+- 2025-11-25: Added structured spec dataclasses, repository-root spec loading,
+              spec-driven rule instantiation with scope/mode validation and
+              accompanying tests; refreshed documentation and bumped metadata
+              to 10.6.1 (driftguard/spec.py, driftguard/rules/__init__.py,
+              driftguard/__init__.py, tests/test_driftguard_core.py,
+              tests/test_driftguard_spec.py, README.md, CITATION.cff,
+              copernican_lib/VERSION)
+
 ## Version 10.6.0
 - 2025-11-25: Added DriftGuard policy scaffolding, CLI entry point and core
               orchestration helpers for spec-driven checks and fixes; updated
