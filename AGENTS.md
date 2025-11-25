@@ -33,7 +33,11 @@ necessary.
 During the current refactor the suite is forward-only: legacy staged menus and
 backward-compatibility shims are intentionally absent to keep the interactive
 shell lean while the GUI evolves. Avoid reintroducing fallbacks unless the
-roadmap later requests them explicitly.
+roadmap later requests them explicitly. GUI launchers should use the
+`copernican_lib/orchestration` service map rather than duplicating CLI helpers;
+the `copernican.py --gui` shim lists the available modules. Keep the staged
+menu disabled by default and only re-enable it for CI coverage with
+`COPERNICAN_ENABLE_STAGED_MENU=1` or `--enable-legacy-stage-menu`.
 Each run directory also includes a `run_manifest_*.yml` file listing the
 selected models, engine, dataset hashes and Git state to aid
 reproducibility. The data loaders compute and log SHA256 digests for all
