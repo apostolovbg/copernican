@@ -195,11 +195,435 @@
             "start.command",
             "start.bat",
             "copernican_lib/config_schemas/**/*.yml",
-            "models/**/*.y**"
+            "models/**/*.yml"
+          ],
+          "exclude": [],
+          "rules": [
+            "last-updated-header",
+            "no-future-dates",
+            "version-sync"
           ]
+        },
+        "python-lib": {
+          "include": [
+            "copernican_lib/**/*.py",
+            "engines/**/*.py"
+          ],
+          "exclude": [
+            "tests/**/*.py",
+            "tools/**/*.py",
+            "driftguard/**/*.py"
+          ],
+          "rules": [
+            "no-print",
+            "new-modules-need-tests"
+          ]
+        },
+        "python-tests": {
+          "include": [
+            "tests/**/*.py"
+          ],
+          "exclude": [],
+          "rules": []
+        },
+        "tools": {
+          "include": [
+            "tools/**/*.py"
+          ],
+          "exclude": [],
+          "rules": []
         }
+      },
+      "drift": {
+        "metrics": [
+          {
+            "name": "todo-count",
+            "max_warning": 50,
+            "description": "Total count of TODO/FIXME/XXX markers found in core library and engine code."
+          },
+          {
+            "name": "test-coupling-ratio",
+            "min_warning": 0.8,
+            "description": "Approximate fraction of core modules that appear to have corresponding tests. Below this threshold emits a warning."
+          },
+          {
+            "name": "doc-age-days",
+            "max_warning": 365,
+            "description": "Maximum age in days of key docs (README, AGENTS, CONTRIBUTING, docs/*). If any exceeds this, emit a drift warning."
+          }
+        ]
       }
+    },
+    "implementation_notes": [
+      "DriftGuard should treat the spec as the single source of truth for which rules apply to which file patterns.",
+      "Rules are referenced by name (e.g. 'last-updated-header') and mapped to concrete Rule implementations in driftguard/rules/*.py.",
+      "The allow-list style approach (surfaces with include/exclude) avoids accidental overreach like enforcing Last Updated on code modules.",
+      "Surfaces can be extended in future without changing DriftGuard core; only the YAML and possibly new rules need to change."
+    ]
+  },
+  "repository_policy_summary": {
+    "description": "Summary of the agreed repository policy for the Copernican Suite, encoded both as structured data and as a markdown section to be added to README.md and AGENTS.md.",
+    "sections": {
+      "source_of_truth": {
+        "canonical_spec": "driftguard.yml at the repository root is the single source of truth for policy configuration.",
+        "driftguard_role": "DriftGuard reads the spec, applies rules to surfaces, computes violations and drift metrics, and exposes both a CLI and a Python API.",
+        "human_summary": "README.md and AGENTS.md each contain a 'Development Laws (DriftGuard Policy)' section that summarises the policy and points back at driftguard.yml."
+      },
+      "docs_and_metadata": {
+        "last_updated_policy": {
+          "keep_headers_for": [
+            "README.md",
+            "AGENTS.md",
+            "CONTRIBUTING.md",
+            "CHANGELOG.md",
+            "docs/**/*.md",
+            "CITATION.cff",
+            "LICENSE.md",
+            "THIRD_PARTY_LICENSES.md",
+            "copernican.py",
+            "start.sh",
+            "start.command",
+            "start.bat",
+            "copernican_lib/config_schemas/**/*.yml",
+            "models/**/*.yml"
+          ],
+          "remove_headers_from": "All other files: library code, tests, tools, workflows, lockfiles, etc.",
+          "no_future_dates": "Last Updated dates must never be in the future; DriftGuard enforces this where headers are required."
+        },
+        "version_sync": {
+          "fields_to_sync": [
+            "copernican_lib/VERSION",
+            "README.md (where version is mentioned)",
+            "CITATION.cff",
+            "pyproject.toml / packaging metadata"
+          ],
+          "enforcement": "DriftGuard replaces tools/check_meta.py and tools/precommit_custom_checks.py for version consistency checks."
+        },
+        "changelog": {
+          "requirement": "Any non-trivial change in behaviour, interface, or policy must have a corresponding entry in the latest section of CHANGELOG.md.",
+          "enforcement": "DriftGuard's ChangelogRule checks for code/doc changes without a matching changelog update and flags them."
+        },
+        "conflict_markers": {
+          "policy": "Old git conflict marker rules are removed from policy. Merge conflicts are handled at the Git level, not by DriftGuard."
+        }
+      },
+      "code_and_tests": {
+        "new_modules_need_tests": "Any new Python module under copernican_lib/ or engines/ must be accompanied by new or updated tests under tests/. DriftGuard treats violations as hard errors.",
+        "no_print_in_lib": "Library and engine code must not use bare print(); use copernican_lib.console_output or the logger abstraction instead. Tests and tools may still use print().",
+        "bugfix_practice": "Bugfixes listed in the changelog should have corresponding tests that would fail without the fix; DriftGuard may emit warnings when bugfix entries lack test changes."
+      },
+      "tooling_and_workflows": {
+        "format_and_lint": [
+          "Black for formatting.",
+          "isort for import ordering.",
+          "Ruff for linting and simple static analysis.",
+          "Flake8 for additional linting coverage while transitioning fully to Ruff.",
+          "pre-commit-hooks: end-of-file-fixer and trailing-whitespace for hygiene."
+        ],
+        "driftguard_role": "DriftGuard complements these tools by enforcing repository-specific policy (metadata, tests, versioning, drift metrics).",
+        "dev_suite": "tools/dev_suite.py will provide a one-command local check: format, lint, DriftGuard fix+check, then run tests. This should be run before committing."
+      },
+      "ci_and_drift": {
+        "ci_checks": "CI must run driftguard check --scope=repo --mode=full. Hard violations fail the build; drift metrics are logged but only cause failures if thresholds are explicitly configured to do so.",
+        "metrics": [
+          "todo-count: number of TODO/FIXME/XXX markers in core code.",
+          "test-coupling-ratio: fraction of core modules that appear to have matching tests.",
+          "doc-age-days: maximum age of key docs since their Last Updated date."
+        ],
+        "positive_drift_goal": "Over time, the policy should encourage adding tests, keeping docs fresh, reducing TODO debt, and tightening the rules where it makes sense."
+      }
+    },
+    "development_laws_markdown_block": "## Development Laws (DriftGuard Policy)\n\nThis repository uses **DriftGuard** as a live policy layer for human+AI development.\n\n- The **canonical machine-readable policy** is defined in `driftguard.yml`.  \n  This file describes:\n  - which files belong to which surfaces (docs, interfaces, library code, etc.),\n  - which rules apply to each surface,\n  - which drift metrics are tracked, and with what thresholds.\n\n- This section is a human-readable summary. In case of mismatch, `driftguard.yml` is the source of truth.\n\n### Docs and metadata\n\n- Only the following files must carry a `Last Updated:` header:\n  - `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `CHANGELOG.md`\n  - all `docs/**/*.md`\n  - `CITATION.cff`, `LICENSE.md`, `THIRD_PARTY_LICENSES.md`\n  - `copernican.py`\n  - `start.sh`, `start.command`, `start.bat`\n  - `copernican_lib/config_schemas/**/*.yml`\n  - `models/**/*.yml`\n- All other files (library code, tests, tools, workflows, lockfiles, etc.) must **not** have a `Last Updated` header.\n- `Last Updated` dates must never be in the future. DriftGuard enforces this for the files that require headers.\n- A single semantic version `X.Y.Z` must be consistent across:\n  - `copernican_lib/VERSION`\n  - `README.md` (where it appears)\n  - `CITATION.cff`\n  - packaging metadata.\n- Any non-trivial change in behaviour, interface, or policy must add an entry to the latest section of `CHANGELOG.md`.\n- Conflict-marker rules are not enforced by policy; Git/merge tools handle them.\n\n### Code and tests\n\n- New Python modules under `copernican_lib/` and `engines/` must be accompanied by new or updated tests under `tests/`.  \n  DriftGuard treats “new module with no test changes” as a hard violation.\n- Library and engine code (`copernican_lib/**/*.py`, `engines/**/*.py`) must not use bare `print()`.  \n  Use the logging / console abstraction instead.\n- Tests and tooling scripts may use `print()` where appropriate.\n- Bugfixes:\n  - Any bugfix noted in `CHANGELOG.md` should be backed by a test that would fail without the fix.\n  - DriftGuard currently treats “bugfix with no test change” as a warning, not a hard error.\n\n### Tools and workflows\n\n- The codebase is formatted and linted with:\n  - **Black** (formatting),\n  - **isort** (import ordering),\n  - **Ruff** (linting and simple quality checks),\n  - **Flake8** (additional linting),\n  - **pre-commit-hooks** (`end-of-file-fixer`, `trailing-whitespace`) for basic hygiene.\n- **DriftGuard** does not replace these tools; it complements them by enforcing project-specific policy and drift limits.\n- A local dev script (e.g. `python tools/dev_suite.py`) should be run before committing. It:\n  - runs formatting and linting,\n  - runs DriftGuard in fast mode on staged files (and may apply safe autofixes),\n  - runs a relevant subset of tests.\n\n### CI and drift\n\n- CI runs `driftguard check` in full mode on the whole repository:\n  - Hard violations (broken policy) fail the build.\n  - Drift metrics (e.g. TODO count, test–module coupling, document age) are computed and logged.\n- Drift metrics have thresholds configured in `driftguard.yml`. Crossing a threshold emits a warning and may eventually be promoted to a hard error.\n- The goal is **positive drift**:\n  - adding tests when new modules appear,\n  - keeping documentation and metadata fresh,\n  - gradually reducing TODO/FIXME debt,\n  - tightening policy over time rather than loosening it.\n"
+  },
+  "file_operations": {
+    "create": [
+      {
+        "path": "driftguard/__init__.py",
+        "description": "New package root for DriftGuard. Expose load_engine() and version metadata if needed."
+      },
+      {
+        "path": "driftguard/spec.py",
+        "description": "Implements DriftGuardSpec data structures and load_spec() that reads driftguard.yml."
+      },
+      {
+        "path": "driftguard/core.py",
+        "description": "Implements PolicyEngine with check() and fix() methods, orchestrating all rules."
+      },
+      {
+        "path": "driftguard/rules/__init__.py",
+        "description": "Defines base classes for Rule, RuleContext, Violation, Metric and a get_all_rules() factory."
+      },
+      {
+        "path": "driftguard/rules/metadata.py",
+        "description": "Metadata and documentation rules: LastUpdatedDocsRule, VersionSyncRule, NoFutureDatesRule, CitationYamlRule, ChangelogRule."
+      },
+      {
+        "path": "driftguard/rules/python_lib.py",
+        "description": "Python-library rules: NoPrintInLibRule, NewModulesNeedTestsRule, BugfixHasTestRule (warning-only to start)."
+      },
+      {
+        "path": "driftguard/rules/drift.py",
+        "description": "Drift metric rules: TODO counting, test-coupling ratio estimation, doc-age in days."
+      },
+      {
+        "path": "driftguard/utils.py",
+        "description": "Helper functions used by rules and PolicyEngine (file loading, globbing, git inspection, date helpers)."
+      },
+      {
+        "path": "driftguard/cli.py",
+        "description": "CLI for DriftGuard with commands: check, fix, metrics."
+      },
+      {
+        "path": "driftguard.yml",
+        "description": "Project-local DriftGuard policy spec, matching the structure in plan.driftguard_yaml_spec.spec_object."
+      },
+      {
+        "path": "tools/dev_suite.py",
+        "description": "Convenience script that runs formatting, linting, DriftGuard fix+check, and tests in a single command."
+      },
+      {
+        "path": "tests/test_driftguard_core.py",
+        "description": "Unit tests for PolicyEngine and core orchestration."
+      },
+      {
+        "path": "tests/test_driftguard_rules_metadata.py",
+        "description": "Unit tests for metadata-related rules."
+      },
+      {
+        "path": "tests/test_driftguard_rules_python_lib.py",
+        "description": "Unit tests for Python-library rules."
+      },
+      {
+        "path": "tests/test_driftguard_rules_drift.py",
+        "description": "Unit tests for drift metric rules."
+      },
+      {
+        "path": "tests/test_driftguard_policy_sync.py",
+        "description": "Meta-test ensuring that edits to driftguard.yml are accompanied by edits to driftguard/*.py and tests/test_driftguard_*.py."
+      }
+    ],
+    "modify": [
+      {
+        "path": ".pre-commit-config.yaml",
+        "description": "Replace the local 'copernican-policy' hook (tools/precommit_custom_checks.py) with a DriftGuard hook that runs `driftguard check --scope=staged --mode=fast`. Optionally add a manual `driftguard fix` hook. Also remove the Last Updated header from this file as it is not a policy surface."
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "description": "Ensure CI runs `driftguard check --scope=repo --mode=full` and optionally `driftguard metrics --format=json`. Keep pytest tests and build steps as-is."
+      },
+      {
+        "path": ".github/workflows/lint.yml",
+        "description": "No major logic change; it will still run pre-commit on all files, which now includes DriftGuard. Remove or update any mention of legacy policy scripts if present."
+      },
+      {
+        "path": ".github/workflows/tests.yml",
+        "description": "Delete this workflow entirely (see file_operations.delete). CI already runs tests; the dedicated tests.yml is redundant."
+      },
+      {
+        "path": "README.md",
+        "description": "Add or replace the 'Development Laws' section with the new 'Development Laws (DriftGuard Policy)' markdown block provided in plan.repository_policy_summary.development_laws_markdown_block. Ensure this section clearly points to driftguard.yml as canonical. Keep Last Updated header, since README is a doc surface."
+      },
+      {
+        "path": "AGENTS.md",
+        "description": "Add the same 'Development Laws (DriftGuard Policy)' section as in README.md. It should contain identical content so humans and AIs read the same laws. Keep Last Updated header (AGENTS.md is a doc surface)."
+      },
+      {
+        "path": "CONTRIBUTING.md",
+        "description": "Update any existing policy text to reference DriftGuard and driftguard.yml instead of legacy scripts. Optionally link to the Development Laws section in README/AGENTS. Keep Last Updated header."
+      },
+      {
+        "path": "CITATION.cff",
+        "description": "Fix the YAML structure and author metadata as previously agreed (Apostol Apostolov & Black Epsilon Ltd., Bulgaria). Ensure Last Updated and date-released fields are correct and not in the future."
+      },
+      {
+        "path": "tools/update_lock.py",
+        "description": "Keep this script as-is or adjust only if necessary to cooperate with DriftGuard (e.g. no longer responsible for Last Updated changes; DriftGuard covers metadata policy). Ensure tests/test_update_lock.py still pass."
+      },
+      {
+        "path": "tests/test_precommit_custom_checks.py",
+        "description": "Either delete or rewrite this test to validate DriftGuard behaviour instead of tools/precommit_custom_checks.py. The end state should have no test importing tools/precommit_custom_checks.py."
+      },
+      {
+        "path": "tests/test_check_meta.py",
+        "description": "Either delete or rewrite this test to validate DriftGuard's metadata rules (LastUpdatedDocsRule, VersionSyncRule, NoFutureDatesRule) instead of tools/check_meta.py."
+      },
+      {
+        "path": "copernican_lib/**/*.py (and other non-surface files)",
+        "description": "Remove any existing Last Updated headers from Python modules, tests, tools and CI configs that are not in the allow-listed surfaces. This may be done by DriftGuard autofix, or with a one-time clean-up pass."
+      }
+    ],
+    "delete": [
+      {
+        "path": "tools/precommit_custom_checks.py",
+        "description": "Legacy ad-hoc pre-commit policy script, superseded by DriftGuard. Remove after its logic is migrated into DriftGuard rules."
+      },
+      {
+        "path": "tools/check_meta.py",
+        "description": "Legacy metadata checker script, superseded by DriftGuard metadata rules. Remove after tests are migrated to the new rules."
+      },
+      {
+        "path": ".github/workflows/tests.yml",
+        "description": "Legacy tests-only workflow. CI already runs tests in ci.yml, so this workflow is redundant and can be removed."
+      }
+    ]
+  },
+  "phases": [
+    {
+      "name": "Phase 0 \u2013 Preparation and alignment",
+      "steps": [
+        "Ensure the current Copernican Suite repository is clean (no uncommitted changes).",
+        "Open and review .pre-commit-config.yaml, tools/precommit_custom_checks.py, tools/check_meta.py, tests/test_precommit_custom_checks.py and tests/test_check_meta.py to understand existing policy logic.",
+        "Review README.md, AGENTS.md, CONTRIBUTING.md, CHANGELOG.md, CITATION.cff and docs/ to see where current development laws and metadata expectations are documented.",
+        "Decide on the final path and name for the DriftGuard policy spec file (driftguard.yml at repository root)."
+      ]
+    },
+    {
+      "name": "Phase 1 \u2013 Introduce DriftGuard skeleton",
+      "steps": [
+        "Create the driftguard/ package directory with __init__.py, spec.py, core.py, rules/__init__.py, rules/metadata.py, rules/python_lib.py, rules/drift.py and utils.py as empty or minimally stubbed modules.",
+        "In driftguard/spec.py, define data classes for DriftGuardSpec, SurfaceConfig, DriftMetricConfig and a load_spec() function that reads driftguard.yml (temporary placeholder content at first).",
+        "In driftguard/core.py, define the PolicyEngine class with stubbed check() and fix() methods returning empty violations/metrics.",
+        "In driftguard/rules/__init__.py, define the Rule, RuleContext, Violation and Metric base types and a get_all_rules(spec) function that initially returns an empty list.",
+        "Add driftguard/cli.py with a basic main() that parses 'check', 'fix' and 'metrics' commands but only prints placeholder messages for now.",
+        "Wire up the console script entry point in pyproject.toml (or equivalent): `driftguard = driftguard.cli:main`.",
+        "Add initial tests (tests/test_driftguard_core.py) that at least import PolicyEngine and verify that check() and fix() run without crashing with an empty spec."
+      ]
+    },
+    {
+      "name": "Phase 2 \u2013 Create driftguard.yml and port policy surfaces",
+      "steps": [
+        "Create driftguard.yml at the repository root, following the structure in plan.driftguard_yaml_spec.spec_object.",
+        "Implement load_spec() in driftguard/spec.py to parse this YAML into DriftGuardSpec objects (handle errors clearly; fail fast with a useful message if the spec is invalid).",
+        "Extend driftguard/rules/__init__.py.get_all_rules(spec) to instantiate rule objects for each rule name referenced in the spec (e.g. 'last-updated-header', 'version-sync', 'no-print').",
+        "Implement RuleContext so that rules can discover which files belong to which surfaces based on the include/exclude globs defined in the spec.",
+        "Add or update tests (test_driftguard_core.py) to validate that surfaces are resolved correctly from driftguard.yml and that get_all_rules() returns the expected rule instances."
+      ]
+    },
+    {
+      "name": "Phase 3 \u2013 Implement metadata rules (Last Updated, version sync, changelog, citation)",
+      "steps": [
+        "In driftguard/rules/metadata.py, implement LastUpdatedDocsRule:",
+        "  - Identify files on the 'docs' and 'interfaces' surfaces that require a Last Updated header.",
+        "  - Check that required files have a header in one of the accepted forms.",
+        "  - Verify that Last Updated dates are not in the future.",
+        "  - Do not require Last Updated to match today's date; only require that it exists where needed and is not futuristic.",
+        "  - Implement fix() to insert or update headers for missing/invalid cases, but only for files in the required surfaces.",
+        "Implement VersionSyncRule:",
+        "  - Read the canonical version (e.g. from copernican_lib/VERSION).",
+        "  - Verify that README.md, CITATION.cff and packaging metadata mention the same version.",
+        "  - Report violations when inconsistencies are found.",
+        "Implement NoFutureDatesRule (if not already part of LastUpdatedDocsRule):",
+        "  - Scan required surfaces for date patterns that are later than today.",
+        "  - Report violations but do not auto-fix.",
+        "Implement CitationYamlRule:",
+        "  - Parse CITATION.cff as YAML; confirm it is structurally valid and contains the required fields (cff-version, title, version, date-released, authors, preferred-citation).",
+        "  - Optionally verify that version and date-released match the main version and Last Updated for CITATION.cff.",
+        "Implement ChangelogRule:",
+        "  - Use git status or direct diffing to detect when non-trivial files have changed (code or docs).",
+        "  - Check that the latest section of CHANGELOG.md has been modified in the same commit (or run) when such changes exist.",
+        "  - Report violations if code/docs changed but no changelog entry was added.",
+        "Port logic from tools/check_meta.py and tools/precommit_custom_checks.py into these DriftGuard rules instead of re-implementing it from scratch.",
+        "Update tests/test_check_meta.py to call DriftGuard's metadata rules (or create new tests/test_driftguard_rules_metadata.py and retire test_check_meta.py).",
+        "Update or replace tests/test_precommit_custom_checks.py with tests that validate DriftGuard metadata rule behaviour instead of the legacy precommit_custom_checks module."
+      ]
+    },
+    {
+      "name": "Phase 4 \u2013 Implement Python library rules (no-print, new-modules-need-tests, bugfix coverage)",
+      "steps": [
+        "In driftguard/rules/python_lib.py, implement NoPrintInLibRule:",
+        "  - Apply to the 'python-lib' surface (copernican_lib/**/*.py, engines/**/*.py, excluding tests/tools/driftguard).",
+        "  - Flag any occurrence of 'print(' that is not in tests/tools.",
+        "  - Do not attempt auto-fixes; just report violations.",
+        "Implement NewModulesNeedTestsRule:",
+        "  - Use git status or diff to detect newly added Python modules under the 'python-lib' surface.",
+        "  - Verify that at least one file under tests/ changed in the same commit/run.",
+        "  - Treat missing test updates for new modules as hard violations.",
+        "Implement BugfixHasTestRule as a warning rule:",
+        "  - Parse the latest section of CHANGELOG.md.",
+        "  - Detect entries that are clearly bugfix-related (e.g. contain 'Bugfix' or similar tags).",
+        "  - Check whether files mentioned in those entries have corresponding test changes in tests/.",
+        "  - Emit warnings if bugfix entries lack matching test updates.",
+        "Add tests in tests/test_driftguard_rules_python_lib.py to ensure these rules correctly detect and report conditions on synthetic file trees."
+      ]
+    },
+    {
+      "name": "Phase 5 \u2013 Implement drift metrics (TODOs, test coupling, doc age)",
+      "steps": [
+        "In driftguard/rules/drift.py, implement TodoCountRule:",
+        "  - Count occurrences of TODO/FIXME/XXX markers in core library and engine code.",
+        "  - Return a Metric with name 'todo-count' and the computed value.",
+        "Implement TestCouplingRule:",
+        "  - For each Python module in copernican_lib/ and engines/, try to infer a corresponding test file (e.g. tests/test_<module>.py or similar naming heuristics).",
+        "  - Estimate the fraction of modules that appear to be covered by tests.",
+        "  - Return a Metric 'test-coupling-ratio' with that value.",
+        "Implement DocAgeRule:",
+        "  - For key docs (README.md, AGENTS.md, CONTRIBUTING.md, docs/**/*.md), read their Last Updated header and compute age in days relative to today.",
+        "  - Return a Metric 'doc-age-days' equal to the maximum age observed.",
+        "Ensure that these rules normally do not create hard violations; they primarily produce metrics, with thresholds encoded in driftguard.yml.",
+        "Add tests in tests/test_driftguard_rules_drift.py that operate on synthetic directories to validate metric calculations and threshold behaviour."
+      ]
+    },
+    {
+      "name": "Phase 6 \u2013 Wire DriftGuard into pre-commit, CI and dev suite",
+      "steps": [
+        "Modify .pre-commit-config.yaml to remove the 'copernican-policy' hook that calls tools/precommit_custom_checks.py.",
+        "Add a new local hook that calls `driftguard check --scope=staged --mode=fast` with language: system and pass_filenames: false.",
+        "Optionally add a manual pre-commit hook `driftguard-fix` that can be run explicitly to apply safe auto-fixes on staged files.",
+        "Modify .github/workflows/ci.yml to run `driftguard check --scope=repo --mode=full` after dependencies are installed and before or after tests.",
+        "Add a CI step that runs `driftguard metrics --format=json > driftguard_metrics.json` and uploads this file as an artifact if desired.",
+        "Leave lint.yml mostly unchanged, since it already runs pre-commit against all files; as soon as DriftGuard is in pre-commit, it will be exercised there.",
+        "Remove .github/workflows/tests.yml; CI already runs tests inside ci.yml, and the extra workflow is redundant.",
+        "Create tools/dev_suite.py that orchestrates Black, isort, Ruff, DriftGuard fix+check, and pytest, so that developers and Codex can run a single command before committing."
+      ]
+    },
+    {
+      "name": "Phase 7 \u2013 Policy clean-up: Last Updated headers and legacy scripts",
+      "steps": [
+        "Use DriftGuard (or a one-off script) to remove Last Updated headers from all files that are not in the allow-listed surfaces (code modules, tests, tools, workflows, lockfiles, etc.).",
+        "Confirm that Last Updated headers remain only in README.md, AGENTS.md, CONTRIBUTING.md, CHANGELOG.md, docs/**/*.md, CITATION.cff, LICENSE.md, THIRD_PARTY_LICENSES.md, copernican.py, start.* scripts, config schema YAMLs and model YAMLs.",
+        "Verify that CITATION.cff has the corrected structure and author metadata (Apostol Apostolov & Black Epsilon Ltd., Bulgaria) and that DriftGuard's CitationYamlRule passes.",
+        "Once DriftGuard metadata rules fully cover the old checks, delete tools/precommit_custom_checks.py and tools/check_meta.py from the repository.",
+        "Retire or repurpose tests/test_precommit_custom_checks.py and tests/test_check_meta.py so that no tests import these legacy modules anymore, and all relevant behaviour is tested via DriftGuard-specific tests instead."
+      ]
+    },
+    {
+      "name": "Phase 8 \u2013 README/AGENTS/CONTRIBUTING alignment",
+      "steps": [
+        "Insert the 'Development Laws (DriftGuard Policy)' markdown block (plan.repository_policy_summary.development_laws_markdown_block) into README.md at the appropriate section.",
+        "Insert the same block into AGENTS.md, ensuring the content is identical so both humans and AI agents read the same laws.",
+        "Update CONTRIBUTING.md to reference DriftGuard and driftguard.yml as the canonical policy instead of legacy scripts. Link to the Development Laws section in README/AGENTS for human-readable guidance.",
+        "Run DriftGuard check in full mode to ensure Last Updated headers, version sync and changelog requirements are all satisfied after these edits."
+      ]
+    },
+    {
+      "name": "Phase 9 \u2013 Validation, tuning and spin-off readiness",
+      "steps": [
+        "Run the full test suite (pytest) and ensure all tests, including the new DriftGuard tests, pass.",
+        "Run driftguard check --scope=repo --mode=full locally and confirm zero hard violations and reasonable drift metrics.",
+        "Adjust driftguard.yml thresholds (todo-count, test-coupling-ratio, doc-age-days) if initial values are too strict or too lax, aiming for useful warnings without constant noise.",
+        "Document (in README/AGENTS/CONTRIBUTING) how future changes to policy should be made: edit driftguard.yml, update DriftGuard rules/tests and reflect changes in the human-readable Development Laws section.",
+        "Confirm that DriftGuard is fully self-contained under driftguard/ and that nothing in that package imports Copernican-specific modules.",
+        "At this point DriftGuard is ready to be split into a standalone repository: copy driftguard/ into a new project, add its own pyproject.toml and tests, and make Copernican depend on it via a normal dependency instead of the in-tree package."
+      ]
     }
+  ],
+  "notes_for_ai": {
+    "general": [
+      "Always treat driftguard.yml as the canonical policy spec. When in doubt, refer to it rather than hard-coding assumptions.",
+      "When editing multiple files that relate to policy, try to update driftguard.yml first, then adjust DriftGuard rules and tests to match.",
+      "Use the existing code style in copernican_lib and tests as a reference for DriftGuard's coding style (type hints, docstrings, imports)."
+    ],
+    "implementation_order_hint": [
+      "Follow the phases in plan.phases in order. Phases 1\u20133 are the minimum to get DriftGuard running with metadata rules; later phases refine behaviour and drift metrics.",
+      "Implement DriftGuard skeleton and spec loading before wiring it into pre-commit and CI. Avoid breaking existing workflows until the new system is in place.",
+      "Port logic from tools/precommit_custom_checks.py and tools/check_meta.py into DriftGuard rules incrementally, running tests frequently to avoid regressions.",
+      "Only delete the legacy scripts once all their responsibilities are clearly covered by DriftGuard rules and tests.",
+      "After DriftGuard is in place, prioritise getting tools/dev_suite.py working. This script is the key to reducing CI failures for both you and Codex."
+    ],
+    "token_budget": [
+      "When working with Codex on implementing this plan, you do not need to paste the entire PLAN.json each time.",
+      "Instead, reference specific sections (phases, file_operations, driftguard_module) and work on a small, defined subset of steps per session.",
+      "Keep prompts focused on one phase or a few closely related steps to minimise token usage and reduce context noise."
+    ]
   }
 }
-
