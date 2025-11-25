@@ -346,7 +346,9 @@ these rules:
    **and list every touched file or subsystem.** Compare
    `git diff --name-only` against the newest changelog entry before every
    commit so nothing escapes the `copernican-policy` hook. Legacy `dev_note`
-   headers should be migrated to the changelog when touched.
+   headers should be migrated to the changelog when touched. **Explicitly
+   enumerate every changed file in each entry**—the lint hook fails whenever
+   any touched path is missing from the changelog summary.
 2. **Comment the code extensively.** Explain the "why" as well as the "what",
    clarifying both obvious and non-obvious, simple or complex logic or
    algorithms.

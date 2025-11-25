@@ -141,7 +141,9 @@ class CopernicanGUI:
         self.nav_items = [
             NavigationItem("home", "Home", "Ctrl+1", CopernicanGUI.show_home),
             NavigationItem(
-                "run_builder", "Run Builder", "Ctrl+2",
+                "run_builder",
+                "Run Builder",
+                "Ctrl+2",
                 CopernicanGUI.show_run_builder,
             ),
             NavigationItem(
@@ -420,9 +422,9 @@ class CopernicanGUI:
             ttk.Label(frame, text="Outputs", takefocus=True).pack(anchor="w")
             for link in self.summary.output_links:
                 ttk.Label(frame, text=link, takefocus=True).pack(anchor="w")
-            ttk.Label(
-                frame, text="Manifest actions", takefocus=True
-            ).pack(anchor="w", pady=(12, 0))
+            ttk.Label(frame, text="Manifest actions", takefocus=True).pack(
+                anchor="w", pady=(12, 0)
+            )
             for action in self.summary.manifest_actions:
                 ttk.Button(
                     frame, text=action, command=self._noop, takefocus=True

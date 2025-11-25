@@ -1,4 +1,4 @@
-**Version:** 10.3.0
+**Version:** 10.3.1
 **Last Updated:** 2025-11-25
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -967,6 +967,8 @@ development protocols and interface requirements.
 > `git diff --name-only` against the newest changelog entry before every
 > commit so nothing slips past the `copernican-policy` hook. Legacy
 > `dev_note` headers should be migrated to the changelog when touched.
+> **Explicitly enumerate every changed file in each entry** so the lint hook
+> cannot fail because a path was omitted.
 > 2. **Comment the code extensively.** Explain the "why" as well as the
 > "what", clarifying both obvious and non-obvious, simple or complex logic or
 > algorithms.
