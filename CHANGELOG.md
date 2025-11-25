@@ -21,6 +21,19 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.6.0
+- 2025-11-25: Added DriftGuard scaffolding with spec loader, policy engine,
+              rule placeholders, CLI parser and initial smoke tests, wired the
+              console entry point, refreshed documentation and bumped release
+              metadata to 10.6.0 (CHANGELOG.md, README.md, CITATION.cff,
+              copernican_lib/VERSION, pyproject.toml,
+              driftguard/__init__.py, driftguard/spec.py,
+              driftguard/core.py, driftguard/rules/__init__.py,
+              driftguard/rules/metadata.py, driftguard/rules/python_lib.py,
+              driftguard/rules/drift.py, driftguard/utils.py,
+              driftguard/cli.py, tests/test_driftguard_core.py,
+              tests/test_driftguard_cli.py)
+
 ## Version 10.5.0
 - 2025-11-25: Started GUI diagnostics logging at launch with severity filters
               and downloads, gated run-log creation on manifest confirmation

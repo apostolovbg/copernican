@@ -16,6 +16,10 @@ modular while the launcher loads only the lightest prerequisites at
 startup. The dependency scanner now skips relative imports inside bundled
 packages so Copernican's own likelihood helpers never trigger false missing
 module reports.
+DriftGuard scaffolding now lives under `driftguard/` with a standalone CLI
+and Python API. Keep the package free of Copernican-specific imports so it
+remains ready for an eventual split; the policy spec will be loaded from
+`driftguard.yml` at the repository root.
 The suite evaluates cosmological models against SNe Ia, BAO and CMB data.
 Support for additional observations such as gravitational-wave standard sirens
 is being prepared alongside ongoing placeholder management. Users interact with
@@ -98,21 +102,21 @@ feature mismatches and suggests reinstalling with suitable wheels.
 
 The default engine is `engines/cosmo_engine_mcmc.py`. Model plugins are now
 constructed via `copernican_lib.plugins.build_engine_plugin` which produces a
-picklable dataclass describing bounds, priors, transforms and dataset
-compatibility. Posterior evaluation is handled by
-`copernican_lib.posterior.make_logposterior`, ensuring every engine shares the
-same prior, transform and bounds logic while remaining multiprocessing safe.
-The BAO χ² helper accepts pre-extracted arrays so callers can convert data
-frames once outside optimisation loops. Joint likelihoods use
-`copernican_lib.likelihoods.JointLike` so Stage 2 evaluates SNe, BAO and CMB data
-simultaneously, recording per-dataset χ² values in the sampler output. When both
-models reference the same YAML file the Stage 2 workflow compares
-`MODEL_FILENAME` values and reuses the initial posterior so BAO and CMB overlays
-align exactly during ΛCDM self-consistency checks. The engine emits step-by-step
-progress messages for both burn-in and production phases, displays percentage
-indicators and continues to return ``-np.inf`` whenever a proposal falls outside
-declared parameter bounds or yields a non-finite chi-squared so the sampler
-rejects invalid walkers deterministically.
+ picklable dataclass describing bounds, priors, transforms and dataset
+ compatibility. Posterior evaluation is handled by
+ `copernican_lib.posterior.make_logposterior`, ensuring every engine shares
+ the same prior, transform and bounds logic while remaining multiprocessing
+ safe. The BAO χ² helper accepts pre-extracted arrays so callers can convert
+ data frames once outside optimisation loops. Joint likelihoods use
+ `copernican_lib.likelihoods.JointLike` so Stage 2 evaluates SNe, BAO and CMB
+ data simultaneously, recording per-dataset χ² values in the sampler output.
+ When both models reference the same YAML file the Stage 2 workflow compares
+ `MODEL_FILENAME` values and reuses the initial posterior so BAO and CMB
+ overlays align exactly during ΛCDM self-consistency checks. The engine emits
+ step-by-step progress messages for both burn-in and production phases,
+ displays percentage indicators and continues to return ``-np.inf`` whenever a
+ proposal falls outside declared parameter bounds or yields a non-finite
+ chi-squared so the sampler rejects invalid walkers deterministically.
 
 Version 7.6.3 removes the retired runtime estimator entirely. Stage 2 now
 streams per-walker updates into the fifty-character progress bars so operators
@@ -124,14 +128,14 @@ same YAML file the helper
 reuses the ΛCDM measurement directly instead of executing the alternative
 branch a second time.
 
-Version 7.6.11 raised that standard further by routing Stage 2 progress through
-`tqdm`, Version 7.6.12 locked the smooth animation in place by disabling the
-library's adaptive throttling and mirroring the Unicode glyphs inside the live
-display, Version 7.6.13 added a dedicated walker-progress meter plus an animated
-spinner, and Version 7.6.14 retires `tqdm` entirely in favour of a native
-carriage-return renderer so macOS, Linux and Windows terminals repaint every
-walker update on a single console line while the logged Unicode glyphs remain
-identical to the interactive output.
+Version 7.6.11 raised that standard further by routing Stage 2 progress
+through `tqdm`. Version 7.6.12 locked the smooth animation in place by
+disabling the library's adaptive throttling and mirroring the Unicode glyphs
+inside the live display. Version 7.6.13 added a dedicated walker-progress
+meter plus an animated spinner, and Version 7.6.14 retires `tqdm` entirely in
+favour of a native carriage-return renderer so macOS, Linux and Windows
+terminals repaint every walker update on a single console line while the logged
+Unicode glyphs remain identical to the interactive output.
 
 Version 7.1.1 standardises every runtime timestamp on Coordinated
 Universal Time (UTC) so log files, manifests and output directories
@@ -171,10 +175,11 @@ engines/          - Computational backends (SciPy CPU by default)
 data/             - Observation files under ``data/<type>/<source>/``. Each
                     dataset directory includes a `metadata_*.yml` file with
                     `dataset_name`, `description`, `citation`, `license`, the
-                    full `author` list and BibTeX keys such as `title`,
-                    `volume`, `journal` and `DOI`. Metadata is loaded
-                    exclusively by
-                    `copernican_lib/dataset_registry.py` after each parser runs.
+                      full `author` list and BibTeX keys such as `title`,
+                      `volume`, `journal` and `DOI`. Metadata is loaded
+                      exclusively by
+                      `copernican_lib/dataset_registry.py` after each parser
+                      runs.
   cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance
 output/           - Per-run folders with plots, tables and NetCDF chains
 AGENTS.md         - Development specification and contributor rules
@@ -202,11 +207,10 @@ re-validating to prevent occasional plugin failures under multiprocessing.
 
 All engines should remain purely computational. Shared utilities such as
 evaluation counters now live in ``copernican_lib/optim_utils.py`` and are
-imported
-by the engines instead of being reimplemented inside each backend.
+imported by the engines instead of being reimplemented inside each backend.
 
-The ``_eval_safe`` helper in ``engine_plugin_validation`` caps recursion depth and
-AST node count when parsing expressions for ``get_camb_params`` to block
+The ``_eval_safe`` helper in ``engine_plugin_validation`` caps recursion depth
+and AST node count when parsing expressions for ``get_camb_params`` to block
 runaway evaluation on malicious or overly complex inputs.
 
 ## 3. Dependency Installation
@@ -268,13 +272,14 @@ raw Python code is not permitted.
 The schema requires `model_name`, `version`, `parameters`, `equations`,
 `abstract` and `description`.
 Optional fields such as `unit` and `latex_name` provide additional context.
-`copernican_lib/model_spec_validator.py` validates the YAML and writes a sanitized
-copy to `models/cache/`. `copernican_lib/model_coder.py` transforms the
-equations into NumPy callables. These callables are validated by
+  `copernican_lib/model_spec_validator.py` validates the YAML and writes a
+  sanitized copy to `models/cache/`.
+  `copernican_lib/model_coder.py` transforms the equations into NumPy
+ callables. These callables are validated by
 `copernican_lib/engine_plugin_validation.py` before being passed to the chosen
 engine.
-`model_spec_validator.py` ignores unrecognized keys and copies them to the cache, so
-new metadata can be added without breaking older YAML files.
+ `model_spec_validator.py` ignores unrecognized keys and copies them to the
+ cache, so new metadata can be added without breaking older YAML files.
 
 Treat the `description` block as the journal article for the theory. Write at
 least ten pages of Markdown and LaTeX covering assumptions, derivations,
@@ -315,15 +320,15 @@ equations:
 Initial guesses are computed automatically as the midpoint of each
 parameter's bounds.
 
-`model_spec_validator.py` and `model_coder.py` handle validation and code generation
-automatically; no manual Python implementation is required.
-The parser keeps unknown keys intact, ensuring the DSL stays backward
-compatible as new fields are introduced.
+ `model_spec_validator.py` and `model_coder.py` handle validation and code
+ generation automatically; no manual Python implementation is required.
+ The parser keeps unknown keys intact, ensuring the DSL stays backward
+ compatible as new fields are introduced.
 
-Models that advertise BAO support must now declare an explicit
-``rs_expression``. The former numerical fallback has been removed because it
-double-counted photon densities whenever the model's ``H(z)`` already included
-radiation terms. Tests must cover every new integral to confirm the provided
+ Models that advertise BAO support must now declare an explicit
+ ``rs_expression``. The former numerical fallback has been removed because it
+ double-counted photon densities whenever the model's ``H(z)`` already
+ included radiation terms. Tests must cover every new integral to confirm the
 sound horizon matches the declared background dynamics.
 
 ### 4.2 Dataset compatibility flags
