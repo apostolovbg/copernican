@@ -1,4 +1,4 @@
-**Version:** 10.3.1
+**Version:** 10.4.0
 **Last Updated:** 2025-11-25
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -52,7 +52,10 @@ The suite is organised around a handful of focused components:
   rail, accessible keyboard shortcuts and a Run Builder flow that mirrors the
   CLI stages. The layout keeps a Home dashboard for recent runs, a Run Monitor
   with live progress strips and a Summary view that surfaces output links and
-  manifest reuse buttons after completion.
+  manifest reuse buttons after completion. Start confirmations now generate a
+  manifest snapshot before any directories exist, surface dataset hashes and
+  engine/model selections in the monitor, and expose pause, cancel and hard-stop
+  controls that record whether outputs should be kept, deleted or archived.
 
 All supported datasets share a uniform pipeline: parsers normalise the inputs,
 the joint likelihood composes SNe Ia, BAO and CMB components, and the engine

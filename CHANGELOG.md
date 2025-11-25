@@ -21,6 +21,17 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.4.0
+- 2025-11-25: Added start confirmation and manifest export/import to the GUI,
+              surfaced dataset hashes and engine/model metadata in the Run
+              Monitor, implemented pause, cancel and hard-stop retention
+              markers, refreshed manifest status helpers and bumped release
+              metadata to 10.4.0 (CHANGELOG.md, README.md, CITATION.cff,
+              copernican_lib/VERSION, copernican_lib/gui/app.py,
+              copernican_lib/run_manifest.py, tests/test_gui_app.py,
+              tests/test_run_manifest.py, tests/cli/test_menus_cli.py,
+              docs/run_manifest.md, docs/design_overview.md) (OpenAI ChatGPT)
+
 ## Version 10.3.1
 - 2025-11-25: Documented the mandatory changelog file-listing rule in
               `AGENTS.md` and `README.md`, captured Black's GUI formatting,

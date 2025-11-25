@@ -1,4 +1,4 @@
-**Last Updated:** 2025-11-24
+**Last Updated:** 2025-11-25
 
 This document expands on the high-level summary in the README by tracing how
 the Copernican Suite organises its architecture. The command-line launcher
@@ -56,6 +56,13 @@ described throughout this document.
 * `docs/` stores focused guidance on data formats, manifest contents,
   packaging, LaTeX conventions and the scripting API. README sections link into
   these files rather than repeating their full contents.
+* The GUI scaffold mirrors the CLI flow. The Run Builder produces a manifest
+  snapshot at the "Start Run" confirmation stage, defers output directory and
+  log creation until the operator explicitly starts sampling and keeps the Run
+  Monitor updated with engine, model and dataset hash summaries. Pause,
+  cancellation and hard-stop controls mark the manifest as paused, cancelled or
+  aborted and capture whether outputs were kept, deleted or archived for audit
+  trails.
 
 ## Stage-by-stage flow
 

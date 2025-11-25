@@ -22,7 +22,7 @@ class SplashScreenTestCase(unittest.TestCase):
             mock.patch("copernican_lib.cli.menus.console.write", _record),
             mock.patch("copernican_lib.cli.menus.time.sleep") as sleep_mock,
         ):
-            menus.show_splash_screen("10.3.1")
+            menus.show_splash_screen("10.4.0")
 
         self.assertTrue(
             any("C O P E R N I C A N" in line for line in captured),
