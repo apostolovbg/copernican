@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-25
 """Policy engine orchestrating rule evaluation and drift metric collection."""
 
 from __future__ import annotations
@@ -43,9 +44,7 @@ class PolicyEngine:
         _ = context  # Placate linters until rules are wired in.
         return {"violations": [], "metrics": []}
 
-    def fix(
-        self, scope: str = "repo", mode: str = "full"
-    ) -> Dict[str, List]:
+    def fix(self, scope: str = "repo", mode: str = "full") -> Dict[str, List]:
         """Run auto-fixable rules and return resulting results.
 
         TODO: capture and report autofix outcomes once rules implement them.

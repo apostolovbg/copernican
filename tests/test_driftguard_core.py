@@ -1,10 +1,11 @@
+# Last Updated: 2025-11-25
 """Smoke tests for the DriftGuard engine scaffolding."""
 
 from pathlib import Path
 
 from driftguard import load_engine
 from driftguard.core import PolicyEngine
-from driftguard.spec import DriftGuardSpec
+from driftguard.spec import DriftConfig, DriftGuardSpec
 
 
 def test_load_engine_returns_policy_engine(
@@ -12,7 +13,13 @@ def test_load_engine_returns_policy_engine(
 ) -> None:
     """Ensure ``load_engine`` wires the spec into a ``PolicyEngine``."""
 
-    stub_spec = DriftGuardSpec()
+    stub_spec = DriftGuardSpec(
+        version=1,
+        project="Tests",
+        rulesets={},
+        surfaces={},
+        drift=DriftConfig(),
+    )
     monkeypatch.setattr(
         "driftguard.load_spec", lambda repo_root=None: stub_spec
     )

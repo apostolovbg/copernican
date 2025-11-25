@@ -21,6 +21,18 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.7.0
+- 2025-11-25: Materialised the DriftGuard policy from PLAN.json into
+              driftguard.yml with rulesets, surfaces and drift thresholds,
+              added validated spec dataclasses and spec-driven glob helpers,
+              expanded documentation on the new spec anchor and bumped
+              release metadata to 10.7.0 (CHANGELOG.md, README.md, AGENTS.md,
+              PLAN.json, CITATION.cff, copernican_lib/VERSION,
+              docs/documentation_policy.md, driftguard.yml,
+              driftguard/spec.py, driftguard/utils.py, driftguard/core.py,
+              driftguard/rules/metadata.py, tests/test_driftguard_core.py,
+              tests/test_driftguard_spec.py)
+
 ## Version 10.6.0
 - 2025-11-25: Added DriftGuard scaffolding with spec loader, policy engine,
               rule placeholders, CLI parser and initial smoke tests, wired the
