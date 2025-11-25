@@ -1,4 +1,4 @@
-**Version:** 10.5.0
+**Version:** 10.6.0
 **Last Updated:** 2025-11-25
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -57,6 +57,10 @@ The suite is organised around a handful of focused components:
   engine/model selections in the monitor, and expose pause, cancel and
   hard-stop controls that record whether outputs should be kept, deleted or
   archived.
+* `driftguard/` contains the new policy engine designed to keep repository
+  metadata disciplined. The Python API exposes ``load_engine`` while the
+  command ``driftguard`` offers ``check``, ``fix`` and ``metrics`` subcommands
+  for enforcing the policy specification defined in ``driftguard.yml``.
 
 All supported datasets share a uniform pipeline: parsers normalise the inputs,
 the joint likelihood composes SNe Ia, BAO and CMB components, and the engine
