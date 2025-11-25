@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-24
+# Last Updated: 2025-11-25
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -8,7 +8,7 @@
 # fmt: off
 """Copernican Suite - Main Orchestrator.
 
-Last Updated: 2025-11-24
+Last Updated: 2025-11-25
 
 This script ties together model selection, dataset loading and result
 generation while delegating dependency checks and menu rendering to
@@ -45,6 +45,7 @@ from copernican_lib import console_output as console
 from copernican_lib import orchestration
 from copernican_lib import run_manifest
 from copernican_lib import result_writer
+from copernican_lib.gui import CopernicanGUI
 from copernican_lib.diagnostics import (
     bao_residual_diagnostics,
     cmb_residual_diagnostics,
@@ -228,7 +229,15 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> tuple[
 
 
 def launch_gui() -> None:
-    """Describe GUI-safe services without invoking the interactive CLI."""
+    """Start the GUI scaffold and log the shared orchestration services.
+
+    Legacy behaviour printed the orchestration descriptor list so GUI wrappers
+    could discover the available entry points without triggering the CLI.  The
+    Tkinter scaffold keeps that behaviour while providing a navigation rail,
+    Run Builder and monitoring shells.  When Tk is unavailable the scaffold
+    continues in headless mode so CI can validate navigation logic without a
+    display server.
+    """
 
     service_map = orchestration.describe_orchestration_services()
     console.write("GUI mode requested. Shared services available:")
@@ -247,6 +256,9 @@ def launch_gui() -> None:
         "request runs, pause or resume sampling and stream status updates "
         "from the existing orchestration pipeline."
     )
+    gui = CopernicanGUI(render=True)
+    gui.show_home()
+    gui.run()
 
 
 def _delete_log_file(path: str) -> None:

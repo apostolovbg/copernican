@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-24
+# Last Updated: 2025-11-25
 """Tests for CLI menu helpers."""
 
 import os
@@ -22,7 +22,7 @@ class SplashScreenTestCase(unittest.TestCase):
             mock.patch("copernican_lib.cli.menus.console.write", _record),
             mock.patch("copernican_lib.cli.menus.time.sleep") as sleep_mock,
         ):
-            menus.show_splash_screen("10.2.0")
+            menus.show_splash_screen("10.3.1")
 
         self.assertTrue(
             any("C O P E R N I C A N" in line for line in captured),

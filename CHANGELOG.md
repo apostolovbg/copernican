@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-24
+**Last Updated:** 2025-11-25
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,20 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 10.3.1
+- 2025-11-25: Documented the mandatory changelog file-listing rule in
+              `AGENTS.md` and `README.md`, captured Black's GUI formatting,
+              bumped release metadata to 10.3.1 and recorded the touched
+              paths (CHANGELOG.md, AGENTS.md, README.md, CITATION.cff,
+              copernican_lib/VERSION, copernican_lib/gui/app.py)
+              (OpenAI ChatGPT)
+
+## Version 10.3.0
+- 2025-11-25: Added a Tkinter GUI scaffold with navigation rail, Run Builder,
+              Run Monitor dashboard and summary view, enabled headless
+              fallbacks for CI, refreshed docs/tests and bumped release
+              metadata to 10.3.0 (OpenAI ChatGPT)
 
 ## Version 10.2.0
 - 2025-11-24: Added GUI-safe orchestration service descriptors, a CLI/GUI
