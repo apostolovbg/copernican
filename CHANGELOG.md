@@ -21,6 +21,15 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.7.2
+- 2025-11-25: Added python-lib DriftGuard rules for print detection, new module
+              test enforcement and bugfix test reminders, expanded policy
+              coverage to include the bugfix rule, refreshed regression tests
+              and bumped release metadata to 10.7.2 (CHANGELOG.md, README.md,
+              CITATION.cff, copernican_lib/VERSION, driftguard.yml,
+              driftguard/rules/python_lib.py,
+              tests/test_driftguard_rules_python_lib.py)
+
 ## Version 10.7.0
 - 2025-11-25: Implemented DriftGuard metadata rules with auto-fixes for Last
               Updated headers, version and citation validation, changelog
