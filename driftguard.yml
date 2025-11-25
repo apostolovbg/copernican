@@ -69,6 +69,7 @@ surfaces:
     rules:
       - no-print
       - new-modules-need-tests
+      - bugfix-has-test
   python-tests:
     description: >-
       Test suite surface kept for future rules; currently inherits no
