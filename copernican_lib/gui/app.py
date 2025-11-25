@@ -12,7 +12,9 @@ extra frameworks.
 
 from __future__ import annotations
 
+import logging
 import os
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from types import SimpleNamespace
@@ -25,7 +27,7 @@ except Exception:  # pragma: no cover - executed only when Tk is missing
     tk = None
     ttk = None
 
-from copernican_lib import console_output, run_manifest, utils
+from copernican_lib import console_output, logger, run_manifest, utils
 
 
 class RunStatus(Enum):
@@ -71,6 +73,63 @@ class RunSummary:
     manifest_metadata: list[str] = field(default_factory=list)
 
 
+@dataclass
+class LogEntry:
+    """Structure log lines for filtering and UI navigation."""
+
+    timestamp: str
+    severity: str
+    message: str
+    anchor: str
+    formatted: str
+
+
+@dataclass
+class UIMessage:
+    """Track toast or inline alerts with log anchors."""
+
+    message: str
+    anchor: str
+    severity: str
+    context: str
+
+
+class _MemoryLogHandler(logging.Handler):
+    """Capture structured log lines for on-screen diagnostics."""
+
+    def __init__(self, *, prefix: str) -> None:
+        super().__init__(level=logging.INFO)
+        self.prefix = prefix
+        self.entries: list[LogEntry] = []
+        formatter = logging.Formatter(
+            "%(asctime)s - %(levelname)s - %(message)s"
+        )
+        formatter.converter = time.gmtime
+        self.setFormatter(formatter)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        """Store the formatted log entry with a stable anchor."""
+
+        anchor = f"{self.prefix}-{len(self.entries) + 1}"
+        formatted = self.format(record)
+        timestamp = self.formatter.formatTime(record, self.formatter.datefmt)
+        entry = LogEntry(
+            timestamp=timestamp,
+            severity=record.levelname,
+            message=record.getMessage(),
+            anchor=anchor,
+            formatted=formatted,
+        )
+        self.entries.append(entry)
+
+    def last_anchor(self) -> Optional[str]:
+        """Return the most recent anchor if one exists."""
+
+        if not self.entries:
+            return None
+        return self.entries[-1].anchor
+
+
 class CopernicanGUI:
     """Build and manage the GUI layout with optional rendering.
 
@@ -89,6 +148,13 @@ class CopernicanGUI:
         "Plan",
         "Confirm",
     ]
+    severity_order: dict[str, int] = {
+        "DEBUG": 0,
+        "INFO": 1,
+        "WARNING": 2,
+        "ERROR": 3,
+        "CRITICAL": 4,
+    }
 
     def __init__(self, render: bool = True) -> None:
         self.render = render and tk is not None
@@ -114,8 +180,257 @@ class CopernicanGUI:
         self.pending_manifest: Optional[dict] = None
         self.output_directory_prepared = False
         self.output_retention_decision: str | None = None
+        self.application_log_path = ""
+        self.application_log_handler: _MemoryLogHandler | None = None
+        self.run_log_path: str | None = None
+        self.run_log_handler: _MemoryLogHandler | None = None
+        self.run_logger: logging.Logger | None = None
+        self.diagnostics_filter_level = "INFO"
+        self.monitor_filter_level = "INFO"
+        self.diagnostics_clipboard = ""
+        self.run_clipboard = ""
+        self.alerts: list[UIMessage] = []
+        self.inline_messages: list[UIMessage] = []
+        self.last_log_jump: str | None = None
+        self._bootstrap_logging()
         self._build_navigation()
         self._initialise_rendering()
+
+    def _bootstrap_logging(self) -> None:
+        """Start the diagnostics log and capture environment details."""
+
+        base_dir = os.getcwd()
+        self.application_log_path = logger.setup_program_logging(
+            log_dir="logs",
+            base_dir=base_dir,
+        )
+        program_logger = logger.get_program_logger()
+        self.application_log_handler = _MemoryLogHandler(prefix="app")
+        self._attach_handler(program_logger, self.application_log_handler)
+        logger.log_environment_info(target_logger=program_logger)
+        self._log_program_event(
+            "GUI launch completed; diagnostics stream active",
+            logging.INFO,
+        )
+
+    def _attach_handler(
+        self, logger_obj: logging.Logger, handler: _MemoryLogHandler
+    ) -> None:
+        """Attach a single in-memory handler per logger prefix."""
+
+        for existing in list(logger_obj.handlers):
+            if (
+                isinstance(existing, _MemoryLogHandler)
+                and getattr(existing, "prefix", None) == handler.prefix
+            ):
+                logger_obj.removeHandler(existing)
+        logger_obj.addHandler(handler)
+
+    def _filter_entries_by_severity(
+        self, entries: list[LogEntry], threshold: str
+    ) -> list[LogEntry]:
+        """Return log entries at or above the chosen severity level."""
+
+        target = self.severity_order.get(threshold, 0)
+        return [
+            entry
+            for entry in entries
+            if self.severity_order.get(entry.severity, 0) >= target
+        ]
+
+    def _log_program_event(self, message: str, level: int) -> Optional[str]:
+        """Record an application-level message and return its anchor."""
+
+        program_logger = logger.get_program_logger()
+        handler = self.application_log_handler
+        program_logger.log(level, message)
+        if handler is None:
+            return None
+        return handler.last_anchor()
+
+    def _level_from_name(self, severity: str) -> int:
+        """Convert a string severity into a logging level."""
+
+        name = severity.upper()
+        return getattr(logging, name, logging.INFO)
+
+    def _dispatch_and_anchor(
+        self,
+        logger_obj: logging.Logger,
+        handler: _MemoryLogHandler | None,
+        message: str,
+        level: int,
+    ) -> Optional[str]:
+        """Log to ``logger_obj`` and return the handler's anchor."""
+
+        logger_obj.log(level, message)
+        if handler is None:
+            return None
+        return handler.last_anchor()
+
+    def _start_run_logging(self, manifest: dict) -> None:
+        """Initialise run-level logging after confirmation."""
+
+        os.makedirs("logs/runs", exist_ok=True)
+        log_tag = f"copernican-run_{utils.get_timestamp()}.txt"
+        self.run_log_path = os.path.join("logs", "runs", log_tag)
+        self.run_logger = logging.getLogger("copernican.gui.run")
+        self.run_logger.setLevel(logging.INFO)
+        self.run_logger.propagate = False
+        for handler in list(self.run_logger.handlers):
+            self.run_logger.removeHandler(handler)
+        file_handler = logging.FileHandler(self.run_log_path)
+        formatter = logging.Formatter(
+            "%(asctime)s - %(levelname)s - %(message)s"
+        )
+        formatter.converter = time.gmtime
+        file_handler.setFormatter(formatter)
+        self.run_logger.addHandler(file_handler)
+        self.run_log_handler = _MemoryLogHandler(prefix="run")
+        self.run_log_handler.setFormatter(formatter)
+        self._attach_handler(self.run_logger, self.run_log_handler)
+        selection = manifest.get("selection", {})
+        models = ", ".join(selection.get("models", [])) or "unspecified"
+        engine_meta = selection.get("engine", {})
+        engine_name = engine_meta.get("name", "engine")
+        engine_ver = engine_meta.get("version", "unspecified")
+        datasets = selection.get("datasets", [])
+        dataset_label = ", ".join(datasets) or "none"
+        confirmation = manifest.get("confirmation", {})
+        seed_value = confirmation.get("seed", "unset")
+        plan_desc = confirmation.get("plan", "unspecified")
+        self._log_run_event(
+            (
+                "Run confirmed with manifest: models=%s; engine=%s v%s; "
+                "datasets=%s; seed=%s; plan=%s"
+            )
+            % (
+                models,
+                engine_name,
+                engine_ver,
+                dataset_label,
+                seed_value,
+                plan_desc,
+            ),
+            logging.INFO,
+        )
+
+    def _log_run_event(
+        self, message: str, level: int = logging.INFO
+    ) -> Optional[str]:
+        """Record a run-level event and return the anchor."""
+
+        if self.run_logger is None:
+            return self._log_program_event(message, level)
+        return self._dispatch_and_anchor(
+            self.run_logger, self.run_log_handler, message, level
+        )
+
+    def get_application_log_entries(self) -> list[LogEntry]:
+        """Return filtered application log entries."""
+
+        if self.application_log_handler is None:
+            return []
+        return self._filter_entries_by_severity(
+            self.application_log_handler.entries,
+            self.diagnostics_filter_level,
+        )
+
+    def get_run_log_entries(self) -> list[LogEntry]:
+        """Return filtered run log entries."""
+
+        if self.run_log_handler is None:
+            return []
+        return self._filter_entries_by_severity(
+            self.run_log_handler.entries, self.monitor_filter_level
+        )
+
+    def set_diagnostics_filter(self, severity: str) -> None:
+        """Update the severity filter applied in Diagnostics."""
+
+        self.diagnostics_filter_level = severity.upper()
+
+    def set_monitor_filter(self, severity: str) -> None:
+        """Update the Run Monitor severity filter."""
+
+        self.monitor_filter_level = severity.upper()
+
+    def copy_application_logs(self) -> str:
+        """Copy filtered diagnostics logs into a clipboard buffer."""
+
+        entries = self.get_application_log_entries()
+        self.diagnostics_clipboard = "\n".join(
+            entry.formatted for entry in entries
+        )
+        return self.diagnostics_clipboard
+
+    def copy_run_logs(self) -> str:
+        """Copy filtered run logs into a clipboard buffer."""
+
+        entries = self.get_run_log_entries()
+        self.run_clipboard = "\n".join(entry.formatted for entry in entries)
+        return self.run_clipboard
+
+    def export_application_logs(self, output_dir: str) -> str:
+        """Write filtered diagnostics logs to the requested directory."""
+
+        os.makedirs(output_dir, exist_ok=True)
+        export_path = os.path.join(output_dir, "diagnostics_log.txt")
+        with open(export_path, "w", encoding="utf-8") as handle:
+            handle.write(self.copy_application_logs())
+        return export_path
+
+    def export_run_logs(self, output_dir: str) -> str:
+        """Write filtered run logs to the requested directory."""
+
+        os.makedirs(output_dir, exist_ok=True)
+        export_path = os.path.join(output_dir, "run_log.txt")
+        with open(export_path, "w", encoding="utf-8") as handle:
+            handle.write(self.copy_run_logs())
+        return export_path
+
+    def create_toast(
+        self,
+        message: str,
+        *,
+        severity: str = "ERROR",
+        context: str = "run",
+        anchor: str | None = None,
+    ) -> UIMessage:
+        """Register an alert and link it to a log anchor."""
+
+        resolved_anchor = anchor
+        if resolved_anchor is None:
+            logger_obj = self.run_logger or logger.get_program_logger()
+            handler = (
+                self.run_log_handler
+                if self.run_logger
+                else self.application_log_handler
+            )
+            resolved_anchor = self._dispatch_and_anchor(
+                logger_obj, handler, message, self._level_from_name(severity)
+            )
+        toast = UIMessage(
+            message=message,
+            anchor=resolved_anchor or "",
+            severity=severity.upper(),
+            context=context,
+        )
+        self.alerts.append(toast)
+        self.inline_messages.append(toast)
+        return toast
+
+    def jump_to_log_anchor(self, anchor: str) -> Optional[str]:
+        """Return the log line for the provided anchor."""
+
+        for handler in (self.run_log_handler, self.application_log_handler):
+            if handler is None:
+                continue
+            for entry in handler.entries:
+                if entry.anchor == anchor:
+                    self.last_log_jump = anchor
+                    return entry.formatted
+        return None
 
     def _initialise_rendering(self) -> None:
         """Create the Tk root window and layout when rendering is enabled."""
@@ -373,11 +688,59 @@ class CopernicanGUI:
                 frame,
                 text=(
                     "Adjust notification and logging preferences before "
-                    "launching runs."
+                    "launching runs. Diagnostics stream from GUI launch "
+                    "throughout the session so early environment checks "
+                    "remain available."
                 ),
                 wraplength=720,
                 takefocus=True,
-            ).pack(anchor="w", pady=(4, 0))
+            ).pack(anchor="w", pady=(4, 8))
+            diag_frame = ttk.LabelFrame(frame, text="Diagnostics")
+            diag_frame.pack(fill="x", pady=(4, 4))
+            ttk.Label(
+                diag_frame,
+                text=(
+                    f"App log path: {self.application_log_path} "
+                    f"(filter {self.diagnostics_filter_level}+)"
+                ),
+                wraplength=720,
+                takefocus=True,
+            ).pack(anchor="w")
+            filter_frame = ttk.Frame(diag_frame)
+            filter_frame.pack(anchor="w", pady=(4, 4))
+            ttk.Button(
+                filter_frame,
+                text="Show all",
+                command=lambda: self.set_diagnostics_filter("INFO"),
+                takefocus=True,
+            ).pack(side="left", padx=2)
+            ttk.Button(
+                filter_frame,
+                text="Errors only",
+                command=lambda: self.set_diagnostics_filter("ERROR"),
+                takefocus=True,
+            ).pack(side="left", padx=2)
+            for entry in self.get_application_log_entries()[-5:]:
+                ttk.Label(
+                    diag_frame,
+                    text=f"[{entry.anchor}] {entry.formatted}",
+                    wraplength=720,
+                    takefocus=True,
+                ).pack(anchor="w")
+            actions = ttk.Frame(diag_frame)
+            actions.pack(anchor="w", pady=(6, 0))
+            ttk.Button(
+                actions,
+                text="Copy filtered log",
+                command=self.copy_application_logs,
+                takefocus=True,
+            ).pack(side="left", padx=2)
+            ttk.Button(
+                actions,
+                text="Download diagnostics",
+                command=lambda: self.export_application_logs("logs/exports"),
+                takefocus=True,
+            ).pack(side="left", padx=2)
 
         self._swap_content(builder)
 
@@ -424,6 +787,79 @@ class CopernicanGUI:
                 ttk.Label(meta_frame, text=line, takefocus=True).pack(
                     anchor="w"
                 )
+            log_frame = ttk.LabelFrame(frame, text="Run logs")
+            log_frame.pack(fill="x", pady=(8, 4))
+            ttk.Label(
+                log_frame,
+                text=f"Filter: {self.monitor_filter_level}+",
+                takefocus=True,
+            ).pack(anchor="w")
+            log_filters = ttk.Frame(log_frame)
+            log_filters.pack(anchor="w", pady=(2, 4))
+            ttk.Button(
+                log_filters,
+                text="Info",
+                command=lambda: self.set_monitor_filter("INFO"),
+                takefocus=True,
+            ).pack(side="left", padx=2)
+            ttk.Button(
+                log_filters,
+                text="Warnings",
+                command=lambda: self.set_monitor_filter("WARNING"),
+                takefocus=True,
+            ).pack(side="left", padx=2)
+            ttk.Button(
+                log_filters,
+                text="Errors",
+                command=lambda: self.set_monitor_filter("ERROR"),
+                takefocus=True,
+            ).pack(side="left", padx=2)
+            for entry in self.get_run_log_entries()[-5:]:
+                ttk.Label(
+                    log_frame,
+                    text=f"[{entry.anchor}] {entry.formatted}",
+                    wraplength=720,
+                    takefocus=True,
+                ).pack(anchor="w")
+            log_actions = ttk.Frame(log_frame)
+            log_actions.pack(anchor="w", pady=(4, 0))
+            ttk.Button(
+                log_actions,
+                text="Copy filtered log",
+                command=self.copy_run_logs,
+                takefocus=True,
+            ).pack(side="left", padx=2)
+            ttk.Button(
+                log_actions,
+                text="Export run log",
+                command=lambda: self.export_run_logs("logs/exports"),
+                takefocus=True,
+            ).pack(side="left", padx=2)
+            alerts = ttk.LabelFrame(frame, text="Active alerts")
+            alerts.pack(fill="x", pady=(4, 8))
+            for alert in self.alerts[-5:]:
+                alert_row = ttk.Frame(alerts)
+                alert_row.pack(anchor="w", fill="x", pady=(2, 0))
+                ttk.Label(
+                    alert_row,
+                    text=(
+                        f"{alert.severity}: {alert.message} "
+                        f"(anchor {alert.anchor})"
+                    ),
+                    wraplength=720,
+                    takefocus=True,
+                ).pack(side="left", padx=2)
+                jump_target = alert.anchor
+
+                def _jump(anchor: str = jump_target) -> None:
+                    self.jump_to_log_anchor(anchor)
+
+                ttk.Button(
+                    alert_row,
+                    text="Jump to log",
+                    command=_jump,
+                    takefocus=True,
+                ).pack(side="left", padx=2)
             controls = ttk.Frame(frame)
             controls.pack(anchor="w")
             ttk.Button(
@@ -523,6 +959,7 @@ class CopernicanGUI:
                 reason="Start confirmed",
             )
             self.summary.manifest_metadata = self._summarise_manifest()
+        self._log_run_event("Run execution started; outputs prepared")
         self.status = RunStatus.RUNNING
         self.progress = 0
         self.show_run_monitor()
@@ -531,6 +968,9 @@ class CopernicanGUI:
         """Update the monitor progress meter."""
 
         self.progress = max(0, min(100, value))
+        self._log_run_event(
+            f"Run progress updated to {self.progress}%", logging.INFO
+        )
         if self.progress >= 100:
             self.status = RunStatus.IDLE
             self.summary.output_links = ["/output/latest/chains.nc"]
@@ -546,6 +986,16 @@ class CopernicanGUI:
                     reason="Sampling finished",
                 )
                 self.summary.manifest_metadata = self._summarise_manifest()
+            completion_anchor = self._log_run_event(
+                "Run completed; artefacts ready for review", logging.INFO
+            )
+            if completion_anchor:
+                self.create_toast(
+                    "Run completed successfully.",
+                    severity="INFO",
+                    context="run",
+                    anchor=completion_anchor,
+                )
             self.show_summary()
 
     def cancel_run(self, disposition: str | None = None) -> None:
@@ -562,6 +1012,7 @@ class CopernicanGUI:
                 reason="User requested cancellation",
             )
             self.summary.manifest_metadata = self._summarise_manifest()
+        self._log_run_event("Run cancelled at user request", logging.WARNING)
 
     def pause_run(self) -> None:
         """Pause the run while keeping the monitor visible."""
@@ -575,6 +1026,7 @@ class CopernicanGUI:
                 reason="Pause requested",
             )
             self.summary.manifest_metadata = self._summarise_manifest()
+        self._log_run_event("Run paused by user", logging.WARNING)
 
     def stop_run(self, disposition: str | None = None) -> None:
         """Stop the run while keeping the monitor visible."""
@@ -590,6 +1042,17 @@ class CopernicanGUI:
                 reason="Hard stop triggered",
             )
             self.summary.manifest_metadata = self._summarise_manifest()
+        anchor = self._log_run_event(
+            "Run hard stop requested; monitoring halted",
+            logging.ERROR,
+        )
+        if anchor:
+            self.create_toast(
+                "Run aborted. Review diagnostics for details.",
+                severity="ERROR",
+                context="monitor",
+                anchor=anchor,
+            )
 
     def _noop(self) -> None:
         """Placeholder callback for summary actions."""
@@ -602,6 +1065,8 @@ class CopernicanGUI:
         self.status = RunStatus.CONFIGURING
         self.pending_manifest = self._generate_manifest_snapshot()
         self.summary.manifest_metadata = self._summarise_manifest()
+        if self.pending_manifest is not None:
+            self._start_run_logging(self.pending_manifest)
         self.show_run_monitor()
 
     def import_manifest(self, path: str) -> dict:
