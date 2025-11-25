@@ -85,6 +85,11 @@ def get_all_rules(spec: DriftGuardSpec) -> List[Rule]:
     to extend as new rules arrive.
     """
 
+    from driftguard.rules.drift import (
+        DocAgeRule,
+        TestCouplingRule,
+        TodoCountRule,
+    )
     from driftguard.rules.metadata import (  # Import locally to avoid cycles.
         ChangelogRule,
         CitationYamlRule,
@@ -92,7 +97,6 @@ def get_all_rules(spec: DriftGuardSpec) -> List[Rule]:
         NoFutureDatesRule,
         VersionSyncRule,
     )
-    from driftguard.rules.drift import DocAgeRule, TestCouplingRule, TodoCountRule
     from driftguard.rules.python_lib import (
         BugfixHasTestRule,
         NewModulesNeedTestsRule,

@@ -1,4 +1,5 @@
 # Copyright (c) 2025 Copernican Suite developers.
+# Last Updated: 2025-11-25
 # See LICENSE.md in the repository root for details.
 
 """Version helpers for the Copernican Suite.
@@ -62,9 +63,11 @@ def _read_version_file() -> Optional[str]:
             continue
         except Exception:
             continue
-        value = data.strip()
-        if value:
-            return value
+        lines = [line.strip() for line in data.splitlines() if line.strip()]
+        for line in lines:
+            if line.startswith("#"):
+                continue
+            return line
     return None
 
 

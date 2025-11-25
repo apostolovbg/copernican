@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-25
 # CI pipeline covering multiplatform and Python 3.11
 name: CI
 
@@ -53,6 +54,39 @@ jobs:
           python -m pip install -e .
           python -m pip install build
 
+      - name: Run DriftGuard policy check
+        # Enforce repository policy across the full tree so CI mirrors the
+        # required staged fast checks with a comprehensive repository scan.
+        run: >
+          python -m driftguard.cli check --scope=repo --mode=full
+          --repo-root .
+
+      - name: Collect DriftGuard metrics
+        # Preserve drift metrics so reviewers can correlate CI results with
+        # repository health trends across runs.
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          from driftguard import load_engine
+
+          repo_root = Path(".")
+          engine = load_engine(repo_root)
+          metrics = [
+              {
+                  "name": metric.name,
+                  "value": metric.value,
+                  "path": str(metric.path) if metric.path else None,
+                  "threshold": metric.threshold,
+              }
+              for metric in engine.metrics(scope="repo", mode="full")
+          ]
+          output = Path("driftguard-metrics.json")
+          output.write_text(json.dumps(metrics, indent=2))
+          print(f"Wrote {output}")
+          PY
+
       - name: Run unit tests
         # Execute the full pytest suite quietly to surface regressions while
         # keeping the log output concise.
@@ -69,5 +103,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: copernican-${{ matrix.os }}-py${{ matrix.python-version }}
-          path: dist
+          path: |
+            dist
+            driftguard-metrics.json
           if-no-files-found: error

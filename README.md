@@ -1,4 +1,4 @@
-**Version:** 10.7.2
+**Version:** 10.7.3
 **Last Updated:** 2025-11-25
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -855,22 +855,24 @@ pip install -e .
 ```
 
 Install and run the pre-commit hooks to apply Black, Isort, Ruff, Flake8 and
-the Copernican policy checks:
+the staged DriftGuard policy checks:
 
 ```bash
 pre-commit install
 pre-commit run --all-files
 ```
 
-The local `copernican-policy` hook verifies that no file declares a future
-"Last Updated" date, enforces version synchronisation between `README.md`,
-`CITATION.cff` and `copernican_lib/VERSION`, and forbids direct `print()`
-calls inside `copernican_lib/` modules outside the console helpers. The
-custom check now also confirms that each tracked file records a "Last
-Updated" marker within its first three lines and that the marker contains
-only a calendar date (no time component). The standard whitespace fixers,
-Ruff auto-fixes and formatting hooks run before the custom policy check to
-keep style adjustments automated.
+The DriftGuard hooks replace the former `copernican-policy` check by running
+fast staged evaluations for metadata drift, print bans and missing tests. Use
+`pre-commit run driftguard-fix --all-files` to apply the fast autofixes when
+the manual stage is more convenient.
+
+Run the unified developer suite when you want a single command that mirrors
+the CI ordering for formatting, DriftGuard enforcement and tests:
+
+```bash
+python tools/dev_suite.py
+```
 
 ### Metadata self-check utility
 
@@ -897,9 +899,10 @@ scripts so missing wheels trigger a failure with guidance to rebuild the
 managed environment.
 
 Pull requests trigger the ``Lint`` workflow, which executes `pre-commit run
---all-files`, and the ``Tests`` workflow, which runs the unit suite across
-Windows, macOS and Debian-based Linux. Each job executes inside a cached
-virtual environment for reproducibility and speed.
+--all-files`, and the multiplatform ``CI`` workflow, which runs the full test
+matrix, executes the repository-wide DriftGuard check and publishes the
+`driftguard-metrics.json` artifact alongside the build outputs. Each job
+executes inside a cached virtual environment for reproducibility and speed.
 The local policy hook fails early when modified files lack fresh "Last
 Updated" headers, miss changelog entries, drift out of sync with
 `copernican_lib/VERSION` or introduce new modules without companion tests.

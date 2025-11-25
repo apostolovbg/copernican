@@ -13,7 +13,9 @@ from driftguard.spec import MetricThreshold
 from driftguard.utils import resolve_surface_globs
 
 
-def _metric_threshold(context: RuleContext, name: str) -> MetricThreshold | None:
+def _metric_threshold(
+    context: RuleContext, name: str
+) -> MetricThreshold | None:
     """Return the configured threshold for a drift metric if present."""
 
     return context.spec.drift.metrics.get(name)
@@ -87,7 +89,7 @@ class TestCouplingRule(Rule):
             stem = test_path.stem
             keys.add(stem)
             if stem.startswith("test_"):
-                keys.add(stem[len("test_") :])
+                keys.add(stem.removeprefix("test_"))
         return keys
 
     def _coupling_ratio(self, context: RuleContext) -> float:
@@ -183,4 +185,6 @@ class DocAgeRule(Rule):
         threshold = _metric_threshold(context, self.name)
         warning = threshold.max_warning if threshold else None
         age, path = self._oldest_doc_age(context)
-        return [Metric(name=self.name, value=age, path=path, threshold=warning)]
+        return [
+            Metric(name=self.name, value=age, path=path, threshold=warning)
+        ]

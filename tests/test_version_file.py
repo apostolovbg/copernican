@@ -1,3 +1,5 @@
+# Last Updated: 2025-11-25
+
 import os
 from pathlib import Path
 from unittest import TestCase, mock
@@ -10,7 +12,12 @@ class VersionFileTests(TestCase):
 
     def test_get_version_prefers_version_file_before_scm(self) -> None:
         version_path = Path(version_module.__file__).with_name("VERSION")
-        expected = version_path.read_text(encoding="utf-8").strip()
+        lines = [
+            line.strip()
+            for line in version_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        expected = next(line for line in lines if not line.startswith("#"))
         self.assertTrue(expected)
         original_env = os.environ.pop("COPERNICAN_VERSION", None)
         try:

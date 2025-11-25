@@ -7,6 +7,7 @@ import datetime
 import subprocess
 from pathlib import Path
 
+from driftguard.rules import RuleContext
 from driftguard.rules.metadata import (
     ChangelogRule,
     CitationYamlRule,
@@ -14,7 +15,6 @@ from driftguard.rules.metadata import (
     NoFutureDatesRule,
     VersionSyncRule,
 )
-from driftguard.rules import RuleContext
 from driftguard.spec import DriftConfig, DriftGuardSpec, SurfaceSpec
 
 
@@ -148,7 +148,7 @@ def test_no_future_dates_flags_future_metadata(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (tmp_path / "CITATION.cff").write_text(
-        f"# Last Updated: {future_date}\nversion: \"1.0.0\"\n",
+        f'# Last Updated: {future_date}\nversion: "1.0.0"\n',
         encoding="utf-8",
     )
     (tmp_path / "copernican_lib").mkdir()
