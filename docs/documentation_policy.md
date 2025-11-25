@@ -1,5 +1,5 @@
 # Documentation Policy
-**Last Updated:** 2025-11-08
+**Last Updated:** 2025-11-25
 **Version:** 1.0
 
 The Copernican Suite treats documentation as a first-class component of the
@@ -31,3 +31,8 @@ more than fix typos.
 
 Adhering to this policy keeps the suite's knowledge base accurate and protects
 our intellectual property by clearly documenting provenance and intent.
+
+DriftGuard now anchors these expectations in `driftguard.yml`. The doc
+surfaces defined there mirror the Last Updated and date checks enforced by the
+metadata rules so documentation drift is visible to contributors before code
+reaches review.

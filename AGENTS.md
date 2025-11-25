@@ -18,8 +18,9 @@ packages so Copernican's own likelihood helpers never trigger false missing
 module reports.
 DriftGuard scaffolding now lives under `driftguard/` with a standalone CLI
 and Python API. Keep the package free of Copernican-specific imports so it
-remains ready for an eventual split; the policy spec will be loaded from
-`driftguard.yml` at the repository root.
+remains ready for an eventual split; the policy spec now lives in the
+materialised `driftguard.yml` at the repository root, mirroring the
+surfaces, rulesets and thresholds described in `PLAN.json`.
 The suite evaluates cosmological models against SNe Ia, BAO and CMB data.
 Support for additional observations such as gravitational-wave standard sirens
 is being prepared alongside ongoing placeholder management. Users interact with

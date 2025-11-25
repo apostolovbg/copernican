@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-25
 """Metadata-related DriftGuard rules.
 
 The rule bodies remain TODO placeholders until the policy spec is finalised.
