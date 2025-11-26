@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.7.6
+- 2025-11-26: Allowed DriftGuard to parse ``--repo-root`` after sub-commands,
+              aligned metadata check docs with the CI invocation, and bumped
+              release metadata to 10.7.6 (driftguard/cli.py,
+              tests/test_driftguard_cli.py, README.md, docs/dataset_metadata.md,
+              CITATION.cff, copernican_lib/VERSION).
+
 ## Version 10.7.5
 - 2025-11-26: Ensured DriftGuard pre-commit hooks provision PyYAML so the
               staged policy check imports reliably, documented the hook

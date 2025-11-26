@@ -1,4 +1,4 @@
-**Version:** 10.7.5
+**Version:** 10.7.6
 **Last Updated:** 2025-11-26
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -879,10 +879,11 @@ python tools/dev_suite.py
 ### Metadata self-check utility
 
 Run the DriftGuard metadata sweep whenever release notes, documentation
-timestamps or version fields change:
+timestamps or version fields change. The repo-root flag can follow the
+sub-command to mirror the CI invocation:
 
 ```bash
-python -m driftguard.cli check --scope=repo --mode=full
+python -m driftguard.cli check --scope=repo --mode=full --repo-root .
 ```
 
 DriftGuard validates Last Updated headers only on the documented allowlist
