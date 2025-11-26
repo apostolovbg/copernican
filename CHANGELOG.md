@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-27
+**Last Updated:** 2025-11-26
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -22,6 +22,12 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.7.9
+- 2025-11-26: Added a hard pre-commit requirement to run pytest, unittest and
+              DriftGuard, reinstated legacy policy laws inside DRIFTGUARD and
+              `driftguard/repo_policy.yml`, and updated contributor guides to
+              mirror the enforcement chain (AGENTS.md, README.md,
+              CONTRIBUTING.md, DRIFTGUARD.md, driftguard/repo_policy.yml,
+              CHANGELOG.md).
 - 2025-11-27: Elevated DriftGuard to the sole development authority across
               README, AGENTS, and CONTRIBUTING, enforced CI ordering with named
               `Unit tests` and `Pytest` steps followed by DriftGuard, updated

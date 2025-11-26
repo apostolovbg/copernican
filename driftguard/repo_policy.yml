@@ -28,6 +28,10 @@ surfaces:
     rules:
       - last-updated-header
       - no-future-dates
+      - documentation-refresh-required
+      - timestamp-validation
+      - changelog-diff-coverage
+      - human-edit-preservation
   interfaces:
     description: >-
       User-facing entrypoints and configuration files that must remain aligned
@@ -43,6 +47,10 @@ surfaces:
     rules:
       - last-updated-header
       - no-future-dates
+      - timestamp-validation
+      - start-launcher-parity
+      - security-compliance
+      - managed-venv-only
   metadata:
     description: >-
       Release metadata files that must remain synchronised across the suite.
@@ -57,6 +65,10 @@ surfaces:
       - citation-yaml
       - no-future-dates
       - changelog-entry
+      - changelog-diff-coverage
+      - semver-bump-required
+      - timestamp-validation
+      - human-edit-preservation
   python-lib:
     description: >-
       Core Python library code that should avoid prints and pair new modules
@@ -72,6 +84,15 @@ surfaces:
       - no-print
       - new-modules-need-tests
       - bugfix-has-test
+      - comments-explain-why
+      - docstrings-explain-why
+      - naming-clear-and-concise
+      - line-length-79
+      - raw-string-escaping
+      - tests-for-changes
+      - documentation-refresh-required
+      - timestamp-validation
+      - human-edit-preservation
   python-tests:
     description: >-
       Test suite surface kept for future rules; currently inherits no
@@ -100,6 +121,10 @@ surfaces:
     exclude: []
     rules:
       - full-test-suite-in-ci
+      - driftguard-precommit-required
+      - dependency-license-audit
+      - dependency-refresh
+      - managed-venv-only
 drift:
   metrics:
     - name: todo-count
