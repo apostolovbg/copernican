@@ -65,6 +65,11 @@ described throughout this document.
   jump directly to the relevant log snippet. Pause, cancellation and hard-stop
   controls mark the manifest as paused, cancelled or aborted and capture
   whether outputs were kept, deleted or archived for audit trails.
+* Dataset, model and engine panes expose compatibility badges, parser digests,
+  citations and licenses alongside actions that open the containing folders,
+  view metadata files or revalidate trusted parser hashes. Manifest files can
+  be pulled back into the Run Builder through "Duplicate & Edit" so the GUI
+  pre-fills model, dataset and engine selections for iterative experiments.
 
 ## Stage-by-stage flow
 

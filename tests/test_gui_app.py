@@ -9,6 +9,37 @@ from copernican_lib import run_manifest
 from copernican_lib.gui import CopernicanGUI, RunStatus
 
 
+def test_catalogue_metadata_and_filters() -> None:
+    gui = CopernicanGUI(render=False)
+    gui.refresh_inventory()
+    assert gui.catalogue_index
+    planck = gui.catalogue_index.get("planck_2018_lite")
+    assert planck is not None
+    assert planck["parser_trusted"]
+    assert planck["metadata_digest"]
+    filtered = gui.filter_catalogue(["cmb"])
+    assert any(entry["id"] == "planck_2018_lite" for entry in filtered)
+    contents = gui.view_metadata_file("planck_2018_lite")
+    assert "dataset_name" in contents
+    record = gui.revalidate_dataset("planck_2018_lite")
+    assert record["hashes"]
+
+
+def test_model_and_engine_metadata_actions() -> None:
+    gui = CopernicanGUI(render=False)
+    gui.refresh_inventory()
+    assert gui.model_index
+    model_entry = next(iter(gui.model_index.values()))
+    assert model_entry["hash"]
+    model_text = gui.view_metadata_file(model_entry["id"])
+    assert model_text
+    engine_entry = next(iter(gui.engine_index.values()))
+    engine_text = gui.view_metadata_file(engine_entry["id"])
+    assert engine_entry["hash"]
+    assert engine_text
+    assert gui.open_folder(Path(model_entry["path"]).parent.as_posix())
+
+
 def test_builder_navigation_and_draft() -> None:
     gui = CopernicanGUI(render=False)
     assert gui.current_step_index == 0
@@ -67,6 +98,23 @@ def test_manifest_import_export_round_trip() -> None:
         imported = gui.import_manifest(path)
         assert imported["selection"]["engine"]["name"]
         assert gui.selected_models
+
+
+def test_duplicate_manifest_prefills_builder(tmp_path: Path) -> None:
+    gui = CopernicanGUI(render=False)
+    gui.selected_models = ["LambdaCDM"]
+    gui.selected_engine = "cosmo_engine_mcmc"
+    gui.draft.seed = "5"
+    gui.register_dataset(
+        dataset_id="planck_2018_lite",
+        path="",
+        name="Planck 2018 Lite",
+    )
+    manifest = gui._generate_manifest_snapshot()
+    path = run_manifest.save_manifest(manifest, tmp_path)
+    gui.duplicate_manifest_for_editing(path)
+    assert "planck_2018_lite" in gui.draft.data
+    assert gui.draft.plan.startswith("Duplicate & Edit")
 
 
 def test_application_diagnostics_logging(tmp_path: Path) -> None:

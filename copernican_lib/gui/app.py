@@ -12,11 +12,13 @@ extra frameworks.
 
 from __future__ import annotations
 
+import importlib
 import logging
 import os
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Callable, Dict, Optional
 
@@ -27,7 +29,15 @@ except Exception:  # pragma: no cover - executed only when Tk is missing
     tk = None
     ttk = None
 
-from copernican_lib import console_output, logger, run_manifest, utils
+import yaml
+
+from copernican_lib import (
+    console_output,
+    dataset_registry,
+    logger,
+    run_manifest,
+    utils,
+)
 
 
 class RunStatus(Enum):
@@ -178,6 +188,12 @@ class CopernicanGUI:
         self.selected_engine: str = ""
         self.selected_datasets: list[dict[str, str]] = []
         self.pending_manifest: Optional[dict] = None
+        self.catalogue_index: dict[str, dict] = {}
+        self.model_index: dict[str, dict] = {}
+        self.engine_index: dict[str, dict] = {}
+        self.metadata_cache: dict[str, str] = {}
+        self.validation_notes: list[str] = []
+        self.last_filter_types: list[str] = []
         self.output_directory_prepared = False
         self.output_retention_decision: str | None = None
         self.application_log_path = ""
@@ -195,6 +211,7 @@ class CopernicanGUI:
         self._bootstrap_logging()
         self._build_navigation()
         self._initialise_rendering()
+        self.refresh_inventory()
 
     def _bootstrap_logging(self) -> None:
         """Start the diagnostics log and capture environment details."""
@@ -460,6 +477,322 @@ class CopernicanGUI:
             console_output.write(str(exc), error=True)
             self.render = False
 
+    def _data_root(self) -> str:
+        """Return the absolute data directory used for catalogue scans.
+
+        Centralising the discovery root keeps the GUI aligned with
+        :func:`dataset_registry.discover_trusted_parsers`, preventing the
+        headless controller from drifting away from the registry's own safety
+        checks when the repository layout changes.
+        """
+
+        return str(Path(__file__).resolve().parents[2] / "data")
+
+    def _models_root(self) -> str:
+        """Return the absolute path to the packaged model definitions."""
+
+        return str(Path(__file__).resolve().parents[2] / "models")
+
+    def _engines_root(self) -> str:
+        """Return the absolute path to the available engine modules."""
+
+        return str(Path(__file__).resolve().parents[2] / "engines")
+
+    def _metadata_path_for_dir(self, data_dir: str) -> str | None:
+        """Return the first metadata YAML file beneath ``data_dir``.
+
+        This mirrors :func:`utils.load_metadata_from_dir` but also returns the
+        filename so compatibility badges and digest displays can cite the
+        provenance of the metadata used during parser registration.
+        """
+
+        for pattern in ("metadata*.yml", "metadata*.yaml"):
+            matches = sorted(Path(data_dir).glob(pattern))
+            if matches:
+                return str(matches[0])
+        return None
+
+    def _parser_path_for_dir(self, data_dir: str) -> str | None:
+        """Return the registered parser path beneath ``data_dir`` if found."""
+
+        candidates = sorted(Path(data_dir).glob("cosmo_parser_*.py"))
+        if not candidates:
+            return None
+        return str(candidates[0])
+
+    def _collect_dataset_hashes(self, data_dir: str) -> dict[str, str]:
+        """Compute SHA256 digests for non-parser files under ``data_dir``.
+
+        The manifest builder expects per-file hashes so duplicated runs can
+        prove they consumed identical inputs.  The GUI mirrors
+        :func:`dataset_registry._attach_file_hashes` here so the catalogue view
+        can surface the same digests without forcing a full data load.
+        """
+
+        hashes: dict[str, str] = {}
+        for root, _, files in os.walk(data_dir):
+            for fname in sorted(files):
+                if fname.endswith(".py"):
+                    continue
+                path = os.path.join(root, fname)
+                rel = os.path.relpath(path, data_dir)
+                hashes[rel] = utils.compute_sha256(path)
+        return hashes
+
+    def _compatibility_badges(self, dataset_key: str, meta: dict) -> list[str]:
+        """Return badges describing dataset compatibility and claims.
+
+        Badges mirror the dataset type and flag whether independence notes or
+        citations were provided so the UI can nudge users toward well-formed
+        metadata.  The list remains intentionally short to keep the Tk labels
+        legible.
+        """
+
+        badges = [dataset_key.upper()]
+        if meta.get("citation"):
+            badges.append("CITED")
+        if meta.get("license"):
+            badges.append("LICENSED")
+        if dataset_key in ("bao", "cmb") and meta.get("version"):
+            badges.append(str(meta.get("version")))
+        return badges
+
+    def _discover_dataset_catalogue(self) -> dict[str, dict]:
+        """Return dataset metadata indexed by dataset identifier.
+
+        Discovery defers to :func:`dataset_registry.discover_trusted_parsers`
+        so the GUI honours the same hash validation rules as the CLI.  The
+        resulting catalogue surfaces parser digests, metadata digests and
+        compatibility badges for the detail panes.
+        """
+
+        dataset_registry.discover_trusted_parsers(self._data_root())
+        catalogue: dict[str, dict] = {}
+        registries = dataset_registry.get_parser_registries()
+        for dtype, registry in registries.items():
+            for dataset_id, entry in registry.items():
+                data_dir = entry.get("data_dir")
+                if not data_dir:
+                    continue
+                meta = utils.load_metadata_from_dir(data_dir) or {}
+                metadata_path = self._metadata_path_for_dir(data_dir)
+                parser_path = self._parser_path_for_dir(data_dir)
+                parser_digest = (
+                    utils.compute_sha256(parser_path) if parser_path else ""
+                )
+                rel_parser = (
+                    os.path.relpath(parser_path, self._data_root())
+                    if parser_path
+                    else None
+                )
+                if rel_parser is not None:
+                    rel_parser = rel_parser.replace("\\", "/")
+                expected_digest = (
+                    dataset_registry.TRUSTED_PARSER_DIGESTS.get(rel_parser)
+                    if rel_parser
+                    else None
+                )
+                parser_trusted = bool(
+                    expected_digest and parser_digest == expected_digest
+                )
+                if not parser_trusted:
+                    note = (
+                        f"Parser {rel_parser} failed trust validation; "
+                        "skipping until hashes match"
+                    )
+                    self.validation_notes.append(note)
+                independence_notes = (
+                    dataset_registry.OBSERVATION_INDEPENDENCE_NOTES.get(
+                        dtype, []
+                    )
+                )
+                record = {
+                    "id": dataset_id,
+                    "type": dtype,
+                    "name": meta.get("dataset_name", dataset_id),
+                    "path": data_dir,
+                    "citation": meta.get("citation", ""),
+                    "license": meta.get("license", ""),
+                    "version": meta.get("version", "unknown"),
+                    "metadata_path": metadata_path,
+                    "metadata_digest": (
+                        utils.compute_sha256(metadata_path)
+                        if metadata_path
+                        else ""
+                    ),
+                    "parser_path": parser_path,
+                    "parser_digest": parser_digest,
+                    "expected_digest": expected_digest,
+                    "parser_trusted": parser_trusted,
+                    "hashes": self._collect_dataset_hashes(data_dir),
+                    "badges": self._compatibility_badges(dtype, meta),
+                    "independence": independence_notes,
+                }
+                catalogue[dataset_id] = record
+        return catalogue
+
+    def _read_model_file(self, path: Path) -> dict:
+        """Return parsed YAML for ``path`` while handling empty files."""
+
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                return yaml.safe_load(handle) or {}
+        except yaml.YAMLError:
+            logger.get_program_logger().warning(
+                "Model metadata in %s is malformed; continuing with blanks",
+                path,
+            )
+            return {}
+
+    def _discover_model_library(self) -> dict[str, dict]:
+        """Return model metadata keyed by filename stem."""
+
+        models: dict[str, dict] = {}
+        for path in sorted(Path(self._models_root()).glob("*.yml")):
+            if path.name.startswith("__"):
+                continue
+            meta = self._read_model_file(path)
+            compatibility = {
+                "sne": True,
+                "bao": meta.get("valid_for_bao", True),
+                "cmb": meta.get("valid_for_cmb", True),
+            }
+            badges = [
+                name.upper() for name, valid in compatibility.items() if valid
+            ]
+            models[path.stem] = {
+                "id": meta.get("model_name", path.stem),
+                "filename": path.name,
+                "path": str(path),
+                "citation": meta.get("citation", ""),
+                "license": meta.get(
+                    "license",
+                    "Copernican Suite default license; add model notes",
+                ),
+                "version": meta.get("version", "unknown"),
+                "badges": badges,
+                "hash": utils.compute_sha256(str(path)),
+            }
+        return models
+
+    def _discover_engine_library(self) -> dict[str, dict]:
+        """Return engine metadata keyed by module stem."""
+
+        engines: dict[str, dict] = {}
+        for path in sorted(Path(self._engines_root()).glob("*.py")):
+            if path.name.startswith("__"):
+                continue
+            module_name = f"engines.{path.stem}"
+            try:
+                module = importlib.import_module(module_name)
+                label = getattr(module, "ENGINE_LABEL", path.stem)
+                version = getattr(module, "ENGINE_VERSION", "unknown")
+            except Exception:
+                module = None
+                label = path.stem
+                version = "unavailable"
+                logger.get_program_logger().warning(
+                    "Engine metadata import failed for %s; using fallbacks",
+                    module_name,
+                )
+            engines[module_name] = {
+                "id": module_name,
+                "filename": path.name,
+                "path": str(path),
+                "stem": path.stem,
+                "citation": getattr(module, "__doc__", ""),
+                "license": "Copernican Suite default license; verify engines",
+                "version": version,
+                "label": label,
+                "badges": ["SNE", "BAO", "CMB"],
+                "hash": utils.compute_sha256(str(path)),
+            }
+        return engines
+
+    def refresh_inventory(self) -> None:
+        """Refresh catalogue, model and engine metadata for list views.
+
+        The method runs at startup and when panels request a revalidation.  It
+        guarantees that GUI detail panes reflect the parser registration rules
+        enforced by :mod:`dataset_registry` and that Run Builder defaults pull
+        from the newest manifests and compatibility declarations.
+        """
+
+        self.validation_notes = []
+        self.catalogue_index = self._discover_dataset_catalogue()
+        self.model_index = self._discover_model_library()
+        self.engine_index = self._discover_engine_library()
+
+    def filter_catalogue(self, types: list[str] | None = None) -> list[dict]:
+        """Return datasets matching ``types`` while recording the filter."""
+
+        if types is None:
+            types = []
+        resolved = [t.lower() for t in types if t]
+        self.last_filter_types = resolved
+        if not resolved:
+            return list(self.catalogue_index.values())
+        return [
+            entry
+            for entry in self.catalogue_index.values()
+            if entry.get("type", "").lower() in resolved
+        ]
+
+    def open_folder(self, path: str) -> str:
+        """Return ``path`` after confirming it exists for quick actions."""
+
+        if not os.path.isdir(path):
+            raise FileNotFoundError(path)
+        return path
+
+    def view_metadata_file(self, asset_id: str) -> str:
+        """Return cached metadata content for the requested asset."""
+
+        entry = self.catalogue_index.get(asset_id)
+        if entry and entry.get("metadata_path"):
+            cache_key = entry["metadata_path"]
+        elif asset_id in self.model_index:
+            cache_key = self.model_index[asset_id]["path"]
+        else:
+            cache_key = ""
+            for record in self.model_index.values():
+                if record.get("id") == asset_id:
+                    cache_key = record.get("path", "")
+                    break
+        if not cache_key:
+            if asset_id in self.engine_index:
+                cache_key = self.engine_index[asset_id]["path"]
+            else:
+                for record in self.engine_index.values():
+                    if record.get("id") == asset_id:
+                        cache_key = record.get("path", "")
+                        break
+        if not cache_key:
+            raise KeyError(asset_id)
+        if cache_key in self.metadata_cache:
+            return self.metadata_cache[cache_key]
+        with open(cache_key, "r", encoding="utf-8") as handle:
+            contents = handle.read()
+        self.metadata_cache[cache_key] = contents
+        return contents
+
+    def revalidate_dataset(self, dataset_id: str) -> dict[str, str]:
+        """Re-run parser trust checks and return the refreshed record."""
+
+        self.refresh_inventory()
+        if dataset_id not in self.catalogue_index:
+            raise KeyError(dataset_id)
+        record = self.catalogue_index[dataset_id]
+        if record.get("expected_digest") and record.get("parser_digest"):
+            if record["expected_digest"] != record["parser_digest"]:
+                note = (
+                    f"Digest mismatch for {dataset_id}: expected "
+                    f"{record['expected_digest']} but observed "
+                    f"{record['parser_digest']}"
+                )
+                self.validation_notes.append(note)
+        return record
+
     def _build_navigation(self) -> None:
         """Populate the navigation rail definitions and shortcuts."""
 
@@ -630,7 +963,9 @@ class CopernicanGUI:
         self._swap_content(builder)
 
     def show_data_overview(self) -> None:
-        """Display placeholder data catalogue information."""
+        """Display dataset catalogue with metadata, hashes and filters."""
+
+        self.refresh_inventory()
 
         def builder(frame: tk.Frame) -> None:
             ttk.Label(frame, text="Data catalogue", takefocus=True).pack(
@@ -639,43 +974,215 @@ class CopernicanGUI:
             ttk.Label(
                 frame,
                 text=(
-                    "Datasets remain selectable from the Run Builder; this "
-                    "panel summarises installed catalogues."
+                    "Datasets remain selectable from the Run Builder while "
+                    "this catalogue surfaces parser digests, citations and "
+                    "licensing to prove registration rules are honoured."
                 ),
                 wraplength=720,
                 takefocus=True,
-            ).pack(anchor="w", pady=(4, 0))
+            ).pack(anchor="w", pady=(4, 8))
+            filters = ttk.Frame(frame)
+            filters.pack(anchor="w", pady=(0, 8))
+            ttk.Label(filters, text="Filters:", takefocus=True).pack(
+                side="left", padx=(0, 4)
+            )
+            ttk.Button(
+                filters,
+                text="All",
+                command=lambda: (
+                    self.filter_catalogue([]),
+                    self.show_data_overview(),
+                ),
+                takefocus=True,
+            ).pack(side="left", padx=2)
+            for key in ("sne", "bao", "cmb"):
+                ttk.Button(
+                    filters,
+                    text=key.upper(),
+                    command=lambda k=key: (
+                        self.filter_catalogue([k]),
+                        self.show_data_overview(),
+                    ),
+                    takefocus=True,
+                ).pack(side="left", padx=2)
+            active = self.filter_catalogue(self.last_filter_types or [])
+            ttk.Label(
+                frame,
+                text=(
+                    f"Showing {len(active)} dataset(s); trust alerts: "
+                    f"{len(self.validation_notes)}"
+                ),
+                takefocus=True,
+            ).pack(anchor="w", pady=(0, 6))
+            for dataset in active:
+                title = (
+                    f"{dataset['name']} ({dataset['id']}) "
+                    f"[{', '.join(dataset['badges'])}]"
+                )
+                ttk.Label(frame, text=title, takefocus=True).pack(anchor="w")
+                ttk.Label(
+                    frame,
+                    text=(
+                        f"Citation: {dataset.get('citation', 'missing')}\n"
+                        f"License: {dataset.get('license', 'unspecified')}\n"
+                        f"Parser SHA256: {dataset.get('parser_digest', 'n/a')}"
+                    ),
+                    wraplength=720,
+                    justify="left",
+                    takefocus=True,
+                ).pack(anchor="w", pady=(0, 4))
+                digest_line = (
+                    f"Metadata SHA256: {dataset.get('metadata_digest', '')}"
+                )
+                ttk.Label(frame, text=digest_line, takefocus=True).pack(
+                    anchor="w"
+                )
+                ttk.Label(
+                    frame,
+                    text="Compatibility badges: "
+                    + ", ".join(dataset.get("badges", [])),
+                    takefocus=True,
+                ).pack(anchor="w")
+                ttk.Label(
+                    frame,
+                    text="Independence notes: "
+                    + "; ".join(dataset.get("independence", [])),
+                    wraplength=720,
+                    takefocus=True,
+                ).pack(anchor="w", pady=(0, 4))
+                actions = ttk.Frame(frame)
+                actions.pack(anchor="w", pady=(0, 12))
+                ttk.Button(
+                    actions,
+                    text="Open folder",
+                    command=lambda p=dataset["path"]: self.open_folder(p),
+                    takefocus=True,
+                ).pack(side="left", padx=2)
+                ttk.Button(
+                    actions,
+                    text="View metadata",
+                    command=lambda d=dataset["id"]: self.view_metadata_file(d),
+                    takefocus=True,
+                ).pack(side="left", padx=2)
+                ttk.Button(
+                    actions,
+                    text="Revalidate parser",
+                    command=lambda d=dataset["id"]: self.revalidate_dataset(d),
+                    takefocus=True,
+                ).pack(side="left", padx=2)
 
         self._swap_content(builder)
 
     def show_models(self) -> None:
-        """Display model listing placeholder content."""
+        """Display installed model definitions and digests."""
+
+        self.refresh_inventory()
 
         def builder(frame: tk.Frame) -> None:
             ttk.Label(frame, text="Models", takefocus=True).pack(anchor="w")
             ttk.Label(
                 frame,
-                text="Model metadata will appear here for quick inspection.",
+                text=(
+                    "Model YAML files drive compatibility badges and priors. "
+                    "This view lists their hashes so Run Builder choices can "
+                    "be audited alongside dataset digests."
+                ),
                 wraplength=720,
                 takefocus=True,
-            ).pack(anchor="w", pady=(4, 0))
+            ).pack(anchor="w", pady=(4, 8))
+            ttk.Label(
+                frame,
+                text=f"Discovered {len(self.model_index)} model(s)",
+                takefocus=True,
+            ).pack(anchor="w", pady=(0, 6))
+            for model in self.model_index.values():
+                heading = (
+                    f"{model['id']} ({model['filename']}) "
+                    f"v{model.get('version', 'unknown')}"
+                )
+                ttk.Label(frame, text=heading, takefocus=True).pack(anchor="w")
+                ttk.Label(
+                    frame,
+                    text=(
+                        f"Badges: {', '.join(model.get('badges', []))}\n"
+                        f"SHA256: {model.get('hash', '')}\n"
+                        f"License: {model.get('license', 'unspecified')}"
+                    ),
+                    wraplength=720,
+                    takefocus=True,
+                    justify="left",
+                ).pack(anchor="w")
+                actions = ttk.Frame(frame)
+                actions.pack(anchor="w", pady=(0, 12))
+                ttk.Button(
+                    actions,
+                    text="Open model folder",
+                    command=lambda p=model["path"]: self.open_folder(
+                        os.path.dirname(p)
+                    ),
+                    takefocus=True,
+                ).pack(side="left", padx=2)
+                ttk.Button(
+                    actions,
+                    text="View YAML",
+                    command=lambda m=model["id"]: self.view_metadata_file(m),
+                    takefocus=True,
+                ).pack(side="left", padx=2)
 
         self._swap_content(builder)
 
     def show_engines(self) -> None:
-        """Display engine overview panel."""
+        """Display engine overview panel with digests and health checks."""
+
+        self.refresh_inventory()
 
         def builder(frame: tk.Frame) -> None:
             ttk.Label(frame, text="Engines", takefocus=True).pack(anchor="w")
             ttk.Label(
                 frame,
                 text=(
-                    "Engine compatibility and resource hints will be shown "
-                    "here."
+                    "Engines expose dataset compatibility and sampler labels. "
+                    "Hashes appear here so health checks can confirm which "
+                    "module executed a run."
                 ),
                 wraplength=720,
                 takefocus=True,
-            ).pack(anchor="w", pady=(4, 0))
+            ).pack(anchor="w", pady=(4, 8))
+            ttk.Label(
+                frame,
+                text=f"Discovered {len(self.engine_index)} engine(s)",
+                takefocus=True,
+            ).pack(anchor="w", pady=(0, 6))
+            for engine in self.engine_index.values():
+                heading = f"{engine['label']} ({engine['filename']})"
+                ttk.Label(frame, text=heading, takefocus=True).pack(anchor="w")
+                ttk.Label(
+                    frame,
+                    text=(
+                        f"Badges: {', '.join(engine.get('badges', []))}\n"
+                        f"Version: {engine.get('version', 'unknown')}\n"
+                        f"SHA256: {engine.get('hash', '')}"
+                    ),
+                    wraplength=720,
+                    takefocus=True,
+                    justify="left",
+                ).pack(anchor="w")
+                actions = ttk.Frame(frame)
+                actions.pack(anchor="w", pady=(0, 12))
+                ttk.Button(
+                    actions,
+                    text="Open engine folder",
+                    command=lambda p=engine["path"]: self.open_folder(
+                        os.path.dirname(p)
+                    ),
+                    takefocus=True,
+                ).pack(side="left", padx=2)
+                ttk.Button(
+                    actions,
+                    text="View module",
+                    command=lambda e=engine["id"]: self.view_metadata_file(e),
+                    takefocus=True,
+                ).pack(side="left", padx=2)
 
         self._swap_content(builder)
 
@@ -1085,14 +1592,52 @@ class CopernicanGUI:
         datasets = configuration.get("datasets", [])
         if isinstance(datasets, str):
             datasets = [datasets]
-        self.selected_datasets = [
-            {"id": dataset_id, "path": "", "name": dataset_id}
-            for dataset_id in datasets
-        ]
+        self.selected_datasets = []
+        for dataset_id in datasets:
+            entry = self.catalogue_index.get(dataset_id)
+            if entry:
+                self.selected_datasets.append(
+                    {
+                        "id": dataset_id,
+                        "path": entry.get("path", ""),
+                        "name": entry.get("name", dataset_id),
+                        "version": entry.get("version", "unknown"),
+                        "hashes": entry.get("hashes", {}),
+                        "independence": entry.get("independence", []),
+                    }
+                )
+            else:
+                self.selected_datasets.append(
+                    {"id": dataset_id, "path": "", "name": dataset_id}
+                )
         seed = manifest.get("seed")
         if seed is not None:
             self.draft.seed = str(seed)
+        if models:
+            self.draft.model = ", ".join(models)
+        if datasets:
+            self.draft.data = ", ".join(datasets)
+        if self.selected_engine:
+            self.draft.engine = self.selected_engine
+        confirmation = manifest.get("confirmation", {})
+        self.draft.plan = confirmation.get("plan", "Duplicate manifest")
         self.show_run_builder()
+        return manifest
+
+    def duplicate_manifest_for_editing(self, path: str) -> dict:
+        """Load a manifest and mark Run Builder fields for edits."""
+
+        manifest = self.import_manifest(path)
+        confirmation = manifest.get("confirmation", {})
+        if confirmation.get("notes"):
+            self.draft.notes = confirmation["notes"]
+        if confirmation.get("plan"):
+            self.draft.plan = f"Duplicate & Edit: {confirmation['plan']}"
+        else:
+            self.draft.plan = "Duplicate & Edit"
+        self.summary.manifest_actions.append(
+            f"Duplicated manifest from {path} for editing"
+        )
         return manifest
 
     def export_manifest(self, output_dir: str) -> str:
@@ -1111,10 +1656,20 @@ class CopernicanGUI:
         """Record dataset metadata and compute its hashes for the manifest."""
 
         hashes: dict[str, str] = {}
+        entry = self.catalogue_index.get(dataset_id)
+        if entry:
+            hashes.update(entry.get("hashes", {}))
         if os.path.exists(path) and os.path.isfile(path):
             hashes[os.path.basename(path)] = utils.compute_sha256(path)
         self.selected_datasets.append(
-            {"id": dataset_id, "path": path, "name": name, "hashes": hashes}
+            {
+                "id": dataset_id,
+                "path": path,
+                "name": name,
+                "hashes": hashes,
+                "version": entry.get("version", "unknown") if entry else "",
+                "independence": entry.get("independence", []) if entry else [],
+            }
         )
 
     def _generate_manifest_snapshot(self) -> dict:
@@ -1138,7 +1693,8 @@ class CopernicanGUI:
             )
             for model in models
         ]
-        datasets = self.selected_datasets or [
+        datasets: list[dict[str, object]] = []
+        source_datasets = self.selected_datasets or [
             {
                 "id": self.draft.data or "dataset",
                 "name": self.draft.data or "dataset",
@@ -1148,6 +1704,20 @@ class CopernicanGUI:
                 "independence": "GUI configured selection",
             }
         ]
+        for dataset in source_datasets:
+            independence = dataset.get("independence", [])
+            if isinstance(independence, str):
+                independence = [independence]
+            datasets.append(
+                {
+                    "id": dataset.get("id", "dataset"),
+                    "name": dataset.get("name", "dataset"),
+                    "version": dataset.get("version", "unversioned"),
+                    "path": dataset.get("path", ""),
+                    "hashes": dataset.get("hashes", {}),
+                    "independence": independence,
+                }
+            )
         configuration = {
             "models": models,
             "engine": {"name": engine_name, "version": "gui"},
