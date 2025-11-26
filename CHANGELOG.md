@@ -22,6 +22,9 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.7.10
+- 2025-11-26: Clarified the cosmo_engine_mcmc module docstring rationale to
+              satisfy DriftGuard documentation requirements
+              (engines/cosmo_engine_mcmc.py).
 - 2025-11-26: Documented the required staged DriftGuard check alongside pytest
               and unittest commands before commits (README.md,
               CONTRIBUTING.md).

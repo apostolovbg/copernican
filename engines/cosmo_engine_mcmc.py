@@ -5,15 +5,22 @@
 
 **Last Updated:** 2025-11-24
 
+This module packages the default Copernican sampler so ensemble draws, logging
+and reproducibility helpers remain together instead of scattering across
+backends.  Keeping the canonical engine in one place means new engines can
+mirror its orchestration contracts without reimplementing diagnostics or seed
+handling while the suite still benefits from the reliable behaviour of
+``emcee``.
+
 The combined optimiser has been retired entirely, leaving this sampler as the
 sole runtime engine.  It continues to focus on Supernova Ia posteriors while
 delegating shared χ² helpers to :mod:`copernican_lib.statistics` so the module
 acts as the canonical engine façade.  Future backends can slot in beside it
-without changing the orchestration code.  Verbose progress logging tracks
-both burn-in and production phases with percentage updates so long chains
-always report their status.  Version 6.2.0 routes all likelihood evaluations
-through the :class:`copernican_lib.likelihoods.JointLike` aggregator and the
-new :func:`copernican_lib.engine_plugin_validation.make_logposterior` helper so
+without changing the orchestration code.  Verbose progress logging tracks both
+burn-in and production phases with percentage updates so long chains always
+report their status.  Version 6.2.0 routes all likelihood evaluations through
+the :class:`copernican_lib.likelihoods.JointLike` aggregator and the new
+:func:`copernican_lib.engine_plugin_validation.make_logposterior` helper so
 posterior calculations automatically honour per-parameter priors, declared
 bounds and optional reparameterisation transforms while exposing diagnostic
 metadata alongside sampled chains.
@@ -25,10 +32,6 @@ complete, and clears each console line when a batch finishes so transcripts
 never retain stale progress bars. The bar no longer mirrors its state to the
 log file, leaving the console display as the single source of progress updates
 while the logger concentrates on statistical summaries.
-
-The module remains the default engine because ``emcee`` balances
-implementation simplicity with reliable ensemble sampling and provides the
-diagnostics Copernican users expect when exploring new cosmological priors.
 
 Version 7.2.10 extends the reproducibility contract by constructing every
 NumPy :class:`~numpy.random.Generator` from the shared
