@@ -26,6 +26,10 @@ suffixes. Follow this template:
               bumped release metadata to 10.7.9 so version markers stay in
               sync (driftguard/logging_utils.py, README.md, CITATION.cff,
               copernican_lib/VERSION, CHANGELOG.md).
+- 2025-11-26: Replaced legacy development laws with the DriftGuard policy
+              block, refreshed contributor guidance to point to
+              `driftguard.yml` and the dev suite, and aligned doc metadata
+              (README.md, AGENTS.md, CONTRIBUTING.md).
 
 ## Version 10.7.8
 - 2025-11-26: Used bash for the Windows metrics step and enabled verbose
