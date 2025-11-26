@@ -5,10 +5,9 @@
 
 This module stores posterior samples produced by engines such as the
 ``cosmo_engine_mcmc`` backend.  Chains are saved in the NetCDF format using
-ArviZ so that users can analyse results with a broad ecosystem of Bayesian
-tools.  The helper aims to keep file handling consistent across engines and to
-centralise metadata attachment so future formats can be supported from one
-location.
+ArviZ so users can analyse results with a broad ecosystem of Bayesian tools.
+The helper keeps file handling consistent across engines so provenance
+metadata lives in one place, making later format migrations less risky.
 """
 
 from __future__ import annotations
@@ -67,6 +66,8 @@ def save_posterior(
         Additional attributes stored under ``InferenceData.attrs``.  These
         typically include the dataset identifier and model name so that
         provenance is fully captured inside the file.
+    This helper keeps NetCDF output and metadata consistent across engines so
+    provenance stays intact even when different backends generate chains.
     """
 
     logger = get_logger()
