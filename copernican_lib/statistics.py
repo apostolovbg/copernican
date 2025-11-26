@@ -45,7 +45,12 @@ def chi_squared_sne(
     mu_model_func,
     sne_data_df,
 ) -> float:
-    """Return the χ² value for Supernovae Ia data."""
+    """Return the χ² value for Supernovae Ia data.
+
+    Wrapping the dataset likelihood here keeps engines focused on orchestration
+    while this module guards against non-finite log-likelihoods that would
+    otherwise propagate into optimization routines.
+    """
 
     like = SNeLike(mu_model_func, sne_data_df)
     loglike = like.loglike(cosmo_params)
@@ -66,7 +71,12 @@ def chi_squared_bao(
     *,
     covariance_matrix_inv=None,
 ) -> float:
-    """Return the χ² value for BAO observations."""
+    """Return the χ² value for BAO observations.
+
+    The helper keeps the BAO likelihood handling centralized so engines do not
+    duplicate covariance setup and so invalid log-likelihoods default to
+    ``inf`` rather than derailing parameter scans.
+    """
 
     like = BAOLike(
         z=z,
@@ -90,7 +100,12 @@ def chi_squared_cmb(
     plugin,
     extra_params: Mapping[str, float] | None = None,
 ) -> float:
-    """Return the χ² value for CMB spectra."""
+    """Return the χ² value for CMB spectra.
+
+    Centralizing the wrapper ensures CMB plugins share consistent error
+    handling and that failed likelihood evaluations return ``inf`` so
+    samplers can safely skip problematic steps.
+    """
 
     like = CMBLike(cmb_data_df, plugin, extra_params=extra_params or {})
     loglike = like.loglike(cosmo_params)
@@ -107,7 +122,12 @@ def calculate_bao_observables(
     *,
     z_smooth: np.ndarray | None = None,
 ):
-    """Return BAO predictions and optional smooth curves for plotting."""
+    """Return BAO predictions and optional smooth curves for plotting.
+
+    Engines call this helper so all BAO outputs share identical diagnostics,
+    and because centralizing the calculations ensures models missing required
+    hooks are rejected with clear logging instead of silent mispredictions.
+    """
 
     logger = logging.getLogger()
     engine_plugin_validation.validate_plugin(model_plugin)

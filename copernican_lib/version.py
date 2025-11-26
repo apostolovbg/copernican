@@ -45,7 +45,8 @@ def _read_version_file() -> Optional[str]:
     The helper searches both the installed package resources and the source
     checkout, trimming whitespace from the stored value.  Any failure to
     locate or parse the file silently falls back to the next lookup stage so
-    runtime version retrieval never raises unexpectedly.
+    runtime version retrieval never raises unexpectedly because version checks
+    should not block scientific runs.
     """
 
     candidates = []
@@ -84,7 +85,8 @@ def get_version() -> str:
     the lookup falls back to :mod:`importlib.metadata` and then to
     :func:`setuptools_scm.get_version`. A final placeholder of
     ``"0+unknown"`` keeps logs and manifests readable even when everything
-    else fails, because support requests often rely on the recorded version.
+    else fails, because support requests often rely on the recorded version
+    even when installations are partially broken.
     """
 
     env_version = os.environ.get("COPERNICAN_VERSION")

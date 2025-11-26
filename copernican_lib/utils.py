@@ -50,6 +50,9 @@ def get_timestamp(now: datetime | None = None) -> str:
         Explicit timestamp to convert.  When omitted the current UTC time is
         sampled.  Naive datetime objects are assumed to already represent UTC
         and will be tagged accordingly.
+
+    Centralising the timestamp format keeps filenames and manifests stable
+    across platforms because every caller receives the same UTC convention.
     """
 
     moment = now or get_utc_now()
@@ -112,6 +115,10 @@ def generate_filename(
     timestamp : str, optional
         Timestamp string applied to the filename. When ``None`` the
         current timestamp is generated.
+
+    Using a single builder avoids drift between engines and parsers and keeps
+    filenames safe for portability because each segment is sanitized in one
+    place.
     """
     sanitized_type = file_type.replace("_", "-").lower()
     sanitized_model = model_name.replace("_", "-").replace(".", "")
