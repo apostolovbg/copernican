@@ -22,6 +22,9 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.7.10
+- 2025-11-26: Documented the required staged DriftGuard check alongside pytest
+              and unittest commands before commits (README.md,
+              CONTRIBUTING.md).
 - 2025-11-26: Required fixing failures from pytest, unittest and full
               DriftGuard runs before commits, updated policy surfaces and
               enforcement rules/tests to check for the remediation language

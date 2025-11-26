@@ -36,6 +36,14 @@ Quick checklist:
 5. Use the managed launchers (`start.sh`, `start.command`, `start.bat`) to work
    inside the project virtual environment.
 
+Before committing, run the required local checks in order:
+
+```bash
+python -m pytest -q
+python -m unittest discover -v
+driftguard check --scope=staged --mode=full
+```
+
 Pull requests that do not meet these requirements may be rejected.
 Contributions must comply with the Copernican Suite License, which forbids
 redistributing the suite in full and prohibits patent claims.
