@@ -1,9 +1,9 @@
 """Metadata-related DriftGuard rules.
 
-The rules mirror Copernican's existing metadata policy while using
-``driftguard.yml`` to determine which files to inspect. They deliberately
-favour clarity over brevity so contributors can trace every decision back to
-the published policy text.
+The rules mirror Copernican's existing metadata policy while using the policy
+YAML to determine which files to inspect. They deliberately favour clarity over
+brevity so contributors can trace every decision back to the published policy
+text.
 """
 
 from __future__ import annotations

@@ -51,10 +51,10 @@ The suite is organised around a handful of focused components:
 * `driftguard/` introduces the policy engine scaffolding that will replace the
   legacy repository hooks. The initial shell exposes a Python API and
   `driftguard` CLI with `check`, `fix` and `metrics` commands so rules can be
-  layered in without disrupting the surrounding toolkit. The policy is now
-  declared in `driftguard.yml`, which captures rule surfaces, enforcement
-  levels and drift thresholds derived from the plan to keep checks
-  reproducible.
+  layered in without disrupting the surrounding toolkit. The policy now lives
+  in `driftguard/repo_policy.yml` with a human summary in `DRIFTGUARD.md`,
+  capturing rule surfaces, enforcement levels and drift thresholds derived
+  from the plan to keep checks reproducible.
 * `copernican_lib/gui/` provides a Tkinter-based scaffold with a navigation
   rail, accessible keyboard shortcuts and a Run Builder flow that mirrors the
   CLI stages. The layout keeps a Home dashboard for recent runs, a Run Monitor
@@ -987,88 +987,10 @@ See `CHANGELOG.md` for complete version history.
 
 ## Development Laws (DriftGuard Policy)
 
-This repository uses **DriftGuard** as a live policy layer for human+AI
-development.
-
-- The **canonical machine-readable policy** is defined in `driftguard.yml`.  
-This file describes:
-  - which files belong to which surfaces (docs, interfaces, library code, etc.),
-  - which rules apply to each surface,
-  - which drift metrics are tracked, and with what thresholds.
-
-- This section is a human-readable summary. In case of mismatch,
-  `driftguard.yml` is the source of truth.
-
-### Docs and metadata
-
-- Only the following files must carry a `Last Updated:` header:
-  - `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `CHANGELOG.md`
-  - all `docs/**/*.md`
-  - `CITATION.cff`, `LICENSE.md`, `THIRD_PARTY_LICENSES.md`
-  - `copernican.py`
-  - `start.sh`, `start.command`, `start.bat`
-  - `copernican_lib/config_schemas/**/*.yml`
-  - `models/**/*.yml`
-- All other files (library code, tests, tools, workflows, lockfiles, etc.)
-  must **not** have a `Last Updated` header.
-- `Last Updated` dates must never be in the future. DriftGuard enforces this
-  for the files that require headers.
-- A single semantic version `X.Y.Z` must be consistent across:
-  - `copernican_lib/VERSION`
-  - `README.md` (where it appears)
-  - `CITATION.cff`
-  - packaging metadata.
-- Any non-trivial change in behaviour, interface, or policy must add an entry
-  to the latest section of `CHANGELOG.md`.
-- Conflict-marker rules are not enforced by policy; Git/merge tools handle
-  them.
-
-### Code and tests
-
-- New Python modules under `copernican_lib/` and `engines/` must be accompanied
-  by new or updated tests under `tests/`.  
-  DriftGuard treats “new module with no test changes” as a hard violation.
-- Library and engine code (`copernican_lib/**/*.py`, `engines/**/*.py`) must
-  not use bare `print()`.  
-  Use the logging / console abstraction instead.
-- Tests and tooling scripts may use `print()` where appropriate.
-- Bugfixes:
-  - Any bugfix noted in `CHANGELOG.md` should be backed by a test that would
-    fail without the fix.
-  - DriftGuard currently treats “bugfix with no test change” as a warning, not
-    a hard error.
-
-### Tools and workflows
-
-- The codebase is formatted and linted with:
-  - **Black** (formatting),
-  - **isort** (import ordering),
-  - **Ruff** (linting and simple quality checks),
-  - **Flake8** (additional linting),
-  - **pre-commit-hooks** (`end-of-file-fixer`, `trailing-whitespace`) for basic
-    hygiene.
-- **DriftGuard** does not replace these tools; it complements them by enforcing
-  project-specific policy and drift limits.
-- A local dev script (e.g. `python tools/dev_suite.py`) should be run before
-  committing. It:
-  - runs formatting and linting,
-  - runs DriftGuard in fast mode on staged files (and may apply safe
-    autofixes),
-  - runs a relevant subset of tests.
-
-### CI and drift
-
-- CI runs `driftguard check` in full mode on the whole repository:
-  - Hard violations (broken policy) fail the build.
-  - Drift metrics (e.g. TODO count, test–module coupling, document age) are
-    computed and logged.
-- Drift metrics have thresholds configured in `driftguard.yml`. Crossing a
-  threshold emits a warning and may eventually be promoted to a hard error.
-- The goal is **positive drift**:
-  - adding tests when new modules appear,
-  - keeping documentation and metadata fresh,
-  - gradually reducing TODO/FIXME debt,
-  - tightening policy over time rather than loosening it.
+The human-readable policy summary now lives in [DRIFTGUARD.md](DRIFTGUARD.md).
+Follow the authority chain DRIFTGUARD.md → `driftguard/repo_policy.yml` → the
+DriftGuard implementation under `driftguard/`. This replaces the legacy inline
+guidance that was embedded here and in `AGENTS.md`.
 
 ## License
 The Copernican Suite is distributed under the terms of the [Copernican Suite
