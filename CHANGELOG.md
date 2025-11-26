@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-27
+**Last Updated:** 2025-11-26
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -51,6 +51,11 @@ suffixes. Follow this template:
               tests (driftguard/rules/workflows.py, driftguard/repo_policy.yml,
               tests/test_driftguard_rules_workflows.py, DRIFTGUARD.md,
               README.md, CONTRIBUTING.md).
+- 2025-11-26: Hardened formatter enforcement to scan full policy surfaces even
+              when Git is clean, preventing committed Black drift, and updated
+              policy docs and guidance accordingly (driftguard/rules/workflows.py,
+              tests/test_driftguard_rules_workflows.py, DRIFTGUARD.md,
+              driftguard/repo_policy.yml, README.md, CONTRIBUTING.md).
 - 2025-11-26: Reformatted DriftGuard logging utilities to satisfy Black and
               bumped release metadata to 10.7.9 so version markers stay in
               sync (driftguard/logging_utils.py, README.md, CITATION.cff,

@@ -18,7 +18,7 @@ def _spec() -> DriftGuardSpec:
         surfaces={
             "driftguard": SurfaceSpec(
                 name="driftguard",
-                include=["driftguard/**/*.py"],
+                include=["**/*.py"],
                 exclude=[],
                 rules=[FormatterCleanRule.name],
             )
@@ -59,3 +59,23 @@ def test_formatter_clean_rule_accepts_formatted_code(tmp_path: Path) -> None:
     violations = rule.check(_context(repo_root))
 
     assert violations == []
+
+
+def test_formatter_clean_rule_checks_clean_repo_state(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    subprocess.run(["git", "init"], cwd=repo_root, check=True, capture_output=True)
+    source = repo_root / "example.py"
+    source.write_text("def f():\n return{'a':1}\n", encoding="utf-8")
+    subprocess.run(["git", "add", "example.py"], cwd=repo_root, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "add unformatted"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    )
+
+    rule = FormatterCleanRule()
+    violations = rule.check(_context(repo_root))
+
+    assert violations
+    assert "Black" in violations[0].message

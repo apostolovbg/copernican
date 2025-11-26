@@ -114,7 +114,9 @@ surfaces:
   driftguard:
     description: >-
       DriftGuard enforcement code that must stay formatter-clean to avoid
-      pre-commit rewrites breaking CI runs.
+      pre-commit rewrites breaking CI runs. The formatter-clean rule scans the
+      full tracked surface even when Git reports a clean working tree so
+      committed drift cannot slip past.
     include:
       - driftguard/**/*.py
     exclude: []

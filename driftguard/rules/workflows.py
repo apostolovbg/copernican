@@ -5,11 +5,12 @@ from __future__ import annotations
 import re
 import subprocess
 from pathlib import Path
-from typing import List
+from typing import List, Set
 
 import yaml
 
 from driftguard.rules import Rule, RuleContext, Violation
+from driftguard.utils import resolve_surface_globs
 
 
 class FullTestSuiteInCIRule(Rule):
@@ -360,7 +361,25 @@ class FormatterCleanRule(Rule):
 
     _BLACK_CMD = ["black", "--check", "--diff"]
 
-    def _collect_changed_python(self, repo_root: Path) -> List[Path]:
+    def _surfaces(self, spec) -> Set[str]:
+        return {
+            name
+            for name, surface in spec.surfaces.items()
+            if self.name in surface.rules
+        }
+
+    def _surface_files(self, context: RuleContext) -> List[Path]:
+        repo_root = context.repo_root
+        targets: Set[Path] = set()
+        for surface_name in self._surfaces(context.spec):
+            for path in resolve_surface_globs(context.spec, repo_root, surface_name):
+                if path.is_file() and path.suffix == ".py":
+                    targets.add(path)
+        return sorted(targets)
+
+    def _collect_changed_python(
+        self, repo_root: Path, allowed: Set[Path]
+    ) -> List[Path]:
         try:
             status = subprocess.run(
                 ["git", "status", "--porcelain", "--untracked-files=all"],
@@ -383,7 +402,7 @@ class FormatterCleanRule(Rule):
             if len(parts) != 2:
                 continue
             path = repo_root / parts[1]
-            if path.suffix == ".py":
+            if path.suffix == ".py" and (not allowed or path in allowed):
                 changed.append(path)
 
         return changed
@@ -404,12 +423,18 @@ class FormatterCleanRule(Rule):
 
     def check(self, context: RuleContext) -> List[Violation]:
         repo_root = context.repo_root
-        changed = self._collect_changed_python(repo_root)
+        surface_files = self._surface_files(context)
 
-        if not changed:
+        if context.scope == "staged":
+            allowed = set(surface_files)
+            targets = self._collect_changed_python(repo_root, allowed)
+        else:
+            targets = surface_files
+
+        if not targets:
             return []
 
-        if self._run_black_check(repo_root, changed):
+        if self._run_black_check(repo_root, targets):
             return []
 
         return [
@@ -419,6 +444,6 @@ class FormatterCleanRule(Rule):
                     "Run Black before committing: DriftGuard detected Python "
                     "files that would be reformatted."
                 ),
-                path=changed[0],
+                path=targets[0],
             )
         ]
