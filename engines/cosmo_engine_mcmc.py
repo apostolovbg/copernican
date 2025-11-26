@@ -26,6 +26,10 @@ never retain stale progress bars. The bar no longer mirrors its state to the
 log file, leaving the console display as the single source of progress updates
 while the logger concentrates on statistical summaries.
 
+The module remains the default engine because ``emcee`` balances
+implementation simplicity with reliable ensemble sampling and provides the
+diagnostics Copernican users expect when exploring new cosmological priors.
+
 Version 7.2.10 extends the reproducibility contract by constructing every
 NumPy :class:`~numpy.random.Generator` from the shared
 :func:`copernican_lib.utils.get_random_seed` value.  The helper captures the

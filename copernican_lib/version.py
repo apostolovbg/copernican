@@ -17,7 +17,8 @@ been created. If the file is missing the function queries
 :mod:`importlib.metadata` for the installed package version and, when that
 fails, asks :func:`setuptools_scm.get_version` for a Git-derived identifier.
 The redundant fallbacks exist because end users lean on version strings for
-reproducibility and support even in partially installed environments.
+reproducibility and support even in partially installed environments, so we
+prefer to return a best-effort value rather than raising.
 """
 
 import os
