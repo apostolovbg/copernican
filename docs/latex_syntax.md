@@ -1,5 +1,5 @@
+**Last Updated:** 2025-11-26
 # LaTeX Syntax Guide
-**Last Updated:** 2025-11-24
 
 This document describes the supported LaTeX-like syntax for cosmological model
 YAML files. Expressions are parsed by `latex_utils.py` and converted to NumPy-

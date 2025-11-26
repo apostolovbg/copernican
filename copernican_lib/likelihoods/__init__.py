@@ -1,6 +1,5 @@
 """Likelihood components for Copernican Suite datasets.
 
-**Last Updated:** 2025-11-01
 
 The modules in this package expose small, stateful helpers that evaluate
 log-likelihoods for individual observational datasets.  Each helper implements

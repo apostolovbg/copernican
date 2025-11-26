@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-24
 """Lightweight ΛCDM regression test for both sampling engines.
 
 The runner loads a trimmed Pantheon+SH0ES 2022 supernova slice and the full

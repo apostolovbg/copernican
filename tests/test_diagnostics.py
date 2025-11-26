@@ -1,6 +1,5 @@
 """Regression tests for logging diagnostics helpers.
 
-**Last Updated:** 2025-10-31
 """
 
 import unittest

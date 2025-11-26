@@ -1,5 +1,4 @@
 # Copyright (c) 2025 Copernican Suite developers.
-# Last Updated: 2025-11-24
 # See LICENSE.md in the repository root for details.
 
 """Translate sanitized model YAML into executable NumPy-aware callables.

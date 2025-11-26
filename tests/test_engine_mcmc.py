@@ -1,6 +1,5 @@
 """Integration tests for the ensemble MCMC engine.
 
-# Last Updated: 2025-11-24
 """
 
 import contextlib
