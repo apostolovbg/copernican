@@ -21,6 +21,22 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.7.3
+- 2025-11-25: Added a unified developer suite runner, replaced the legacy
+              pre-commit policy hook with staged DriftGuard fix and check
+              commands, expanded CI with a repository-scope DriftGuard run
+              and metrics artifact, removed the redundant tests workflow and
+              bumped release metadata to 10.7.3 (CHANGELOG.md, README.md,
+              CITATION.cff, copernican_lib/VERSION, copernican_lib/version.py,
+              .pre-commit-config.yaml, .github/workflows/ci.yml,
+              .github/workflows/tests.yml, tools/check_meta.py,
+              tools/dev_suite.py, driftguard/rules/__init__.py,
+              driftguard/rules/drift.py,
+              tests/test_driftguard_rules_metadata.py,
+              tests/test_driftguard_rules_python_lib.py,
+              tests/test_packaging_configuration.py,
+              tests/test_version_file.py)
+
 ## Version 10.7.2
 - 2025-11-25: Added python-lib DriftGuard rules for print detection, new module
               test enforcement and bugfix test reminders, expanded policy

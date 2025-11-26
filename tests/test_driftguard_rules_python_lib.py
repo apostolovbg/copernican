@@ -1,3 +1,6 @@
+# Last Updated: 2025-11-25
+"""Regression coverage for Python library DriftGuard rules."""
+
 import subprocess
 from pathlib import Path
 
@@ -170,7 +173,6 @@ def test_bugfix_entry_without_tests_emits_warning(tmp_path: Path) -> None:
     assert violations[0].path == changelog
 
 
-
 def test_bugfix_entry_with_tests_is_satisfied(tmp_path: Path) -> None:
     """Updating tests should satisfy bugfix expectations."""
 
@@ -182,9 +184,7 @@ def test_bugfix_entry_with_tests_is_satisfied(tmp_path: Path) -> None:
     tests_path.mkdir()
     module = lib_path / "core.py"
     test_file = tests_path / "test_core.py"
-    changelog.write_text(
-        "# Changelog\n\n## Version 0.1.0\n- seed entry\n"
-    )
+    changelog.write_text("# Changelog\n\n## Version 0.1.0\n- seed entry\n")
     module.write_text("value = 1\n", encoding="utf-8")
     test_file.write_text(
         "def test_seed():\n    assert True\n", encoding="utf-8"

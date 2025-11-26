@@ -1,4 +1,4 @@
-# Last Updated: 2025-10-30
+# Last Updated: 2025-11-25
 repos:
   - repo: https://github.com/psf/black
     rev: 24.4.2
@@ -39,10 +39,15 @@ repos:
           - pip<24.3
         files: ^requirements\.in$
         pass_filenames: false
-      - id: copernican-policy
-        name: enforce Copernican repository policies
-        entry: python tools/precommit_custom_checks.py
-        language: python
-        types: [text]
-        pass_filenames: true
-        always_run: true
+      - id: driftguard-check
+        name: DriftGuard staged policy check (fast)
+        entry: python -m driftguard.cli check --scope=staged --mode=fast
+        language: system
+        pass_filenames: false
+        stages: [commit]
+      - id: driftguard-fix
+        name: DriftGuard staged policy fix (fast, manual)
+        entry: python -m driftguard.cli fix --scope=staged --mode=fast
+        language: system
+        pass_filenames: false
+        stages: [manual]

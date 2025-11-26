@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-25
 """Verify packaging metadata guards against flat-layout auto discovery.
 
 The regression guards the macOS launcher, which still bootstraps with
@@ -26,6 +27,8 @@ def test_pyproject_limits_package_discovery() -> None:
         "copernican_lib.*",
         "engines",
         "engines.*",
+        "driftguard",
+        "driftguard.*",
         "models",
         "models.*",
     )

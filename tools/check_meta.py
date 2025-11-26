@@ -1,12 +1,12 @@
-# Last Updated: 2025-11-01
+# Last Updated: 2025-11-25
 
 """Utility helpers for validating documentation metadata.
 
 The Copernican Suite keeps the canonical release number in
 ``copernican_lib/VERSION`` and mirrors the value across the README and the
-``CITATION.cff`` file.  Documentation pages also carry a ``Last Updated``
-timestamp that must never extend into the future.  This module offers a
-small collection of helpers so the test-suite can guard those expectations
+``CITATION.cff`` file. Documentation pages also carry a ``Last Updated``
+timestamp that must never extend into the future. This module offers a
+small collection of helpers so the test suite can guard those expectations
 and warn contributors when the tracked metadata drifts out of sync.
 """
 
@@ -41,9 +41,23 @@ def _repo_root(base_path: Path | None = None) -> Path:
 
 
 def _version_file(path: Path) -> str:
-    """Load the tracked project version string."""
+    """Load the tracked project version string.
 
-    return path.read_text(encoding="utf-8").strip()
+    The function ignores comment and metadata lines so callers can embed a
+    ``Last Updated`` marker alongside the semantic version without breaking
+    consumers that expect a bare version string.
+    """
+
+    lines = [
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    for line in lines:
+        if line.startswith("#"):
+            continue
+        return line
+    return ""
 
 
 def _posix_relative(path: Path, *, root: Path) -> str:
