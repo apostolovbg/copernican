@@ -39,6 +39,12 @@ suffixes. Follow this template:
               tests/test_driftguard_rules_python_lib.py,
               tests/test_driftguard_cli.py, CHANGELOG.md, CITATION.cff,
               copernican_lib/VERSION).
+- 2025-11-26: Added rationale-focused module and member docstrings across the
+              likelihood package to clarify engine-facing APIs and loading
+              semantics (copernican_lib/likelihoods/__init__.py,
+              copernican_lib/likelihoods/_protocol.py,
+              copernican_lib/likelihoods/joint.py,
+              copernican_lib/likelihoods/sne.py).
 
 ## Version 10.7.9
 - 2025-11-26: Added a hard pre-commit requirement to run pytest, unittest and
