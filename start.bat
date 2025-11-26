@@ -1,6 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-11-24
+@REM Last Updated: 2025-11-26
 @echo off
 set "PKG_NOTICE=Package managers may request your password. The Copernican"
 set "PKG_NOTICE=%PKG_NOTICE% Suite never reads or stores it."
