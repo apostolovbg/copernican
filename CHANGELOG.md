@@ -64,7 +64,7 @@ suffixes. Follow this template:
               mirror the enforcement chain (AGENTS.md, README.md,
               CONTRIBUTING.md, DRIFTGUARD.md, driftguard/repo_policy.yml,
               CHANGELOG.md).
-- 2025-11-27: Elevated DriftGuard to the sole development authority across
+- 2025-11-26: Elevated DriftGuard to the sole development authority across
               README, AGENTS, and CONTRIBUTING, enforced CI ordering with named
               `Unit tests` and `Pytest` steps followed by DriftGuard, updated
               policy enforcement and tests for the every-task dual-suite
@@ -72,7 +72,7 @@ suffixes. Follow this template:
               (.github/workflows/ci.yml, DRIFTGUARD.md, driftguard/repo_policy.yml,
               driftguard/rules/workflows.py, tests/test_driftguard_rules_workflows.py,
               README.md, AGENTS.md, CONTRIBUTING.md).
-- 2025-11-27: Synced DriftGuard enforcement with repo_policy by adding rule
+- 2025-11-26: Synced DriftGuard enforcement with repo_policy by adding rule
               coverage for changelog-to-diff mapping, start script parity,
               semver bumps, managed-venv enforcement, and expanded python-lib
               rationale checks; updated contributor docs to fix DriftGuard
@@ -81,7 +81,7 @@ suffixes. Follow this template:
               driftguard/rules/workflows.py, driftguard/rules/__init__.py,
               tests/test_driftguard_rules_metadata.py, AGENTS.md, README.md,
               CONTRIBUTING.md).
-- 2025-11-27: Added the formatter-clean DriftGuard rule to fail when Black
+- 2025-11-26: Added the formatter-clean DriftGuard rule to fail when Black
               would reformat staged Python files, updated policy docs to flag
               the requirement, and covered the behaviour with workflow rule
               tests (driftguard/rules/workflows.py, driftguard/repo_policy.yml,

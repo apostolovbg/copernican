@@ -1,9 +1,8 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
-# Rationale: General statistical helpers are parked here because engines and
-# likelihood modules both reuse these wrappers when delegating to dataset-specific
-# implementations.
+# Rationale: General statistical helpers live here so engines and likelihood
+# modules share the wrappers they delegate to dataset-specific implementations.
 """Shared statistical helpers for cosmological engines.
 
 This module now delegates dataset-specific likelihood calculations to
