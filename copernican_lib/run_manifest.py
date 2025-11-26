@@ -1,13 +1,12 @@
 # Rationale: Manifest generation is kept here because reproducing runs depends
 # on a single, authoritative record of hashes, parameters and Git metadata.
-"""Run manifest generator for the Copernican Suite.
+"""Generate and persist run manifests for the Copernican Suite.
 
-
-The manifest records critical information required to reproduce a run. It
-captures the Copernican Suite version, model and engine details, parameter
-priors, dataset hashes provided by the data loaders and the Git state.  Each
-run directory stores the resulting YAML file so that analyses can be traced
-back unambiguously.
+Run metadata lives here so every invocation records the same ingredients
+that make a run reproducible: suite version, selected models and engines,
+parameter priors, dataset hashes and Git state. Centralising this logic keeps
+other modules lean and avoids drift between GUI and CLI entry points because
+they all rely on the same manifest builder.
 """
 
 from __future__ import annotations
@@ -44,9 +43,10 @@ def _copernican_version() -> str:
 def _git_info() -> dict:
     """Return the current commit hash and dirty state.
 
-    The function falls back to ``"unknown"`` if Git is unavailable.  A
-    ``dirty`` flag indicates whether uncommitted changes were present
-    during execution.
+    The manifest needs this snapshot so users can reconstruct the code
+    version that produced a run. When Git is unavailable the helper falls
+    back to ``"unknown"`` because the manifest still needs a deterministic
+    placeholder for reproducibility audits.
     """
 
     try:
@@ -73,7 +73,13 @@ def _git_info() -> dict:
 
 
 def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
-    """Return CAMB metadata for models that supply a CMB mapping."""
+    """Return CAMB metadata for models that supply a CMB mapping.
+
+    CAMB settings belong in the manifest so future investigators know which
+    parameter mappings were active. The helper is optional because minimal
+    environments may not bundle CAMB but the manifest should still load in
+    those scenarios.
+    """
 
     camb_models: list[object] = []
     for plugin, _ in models:
@@ -232,7 +238,12 @@ def save_manifest(manifest: dict, output_dir: str) -> str:
 
 
 def load_manifest(path: str) -> dict:
-    """Load a manifest from disk for reuse in a new run."""
+    """Load a manifest from disk for reuse in a new run.
+
+    Reloading manifests lets users clone past configurations without
+    re-entering selections, which reduces mistakes and keeps reruns faithful
+    to the recorded provenance.
+    """
 
     with open(path, "r", encoding="utf-8") as fh:
         return yaml.safe_load(fh)
