@@ -11,11 +11,11 @@ authors:
     affiliation: "Black Epsilon Ltd., Bulgaria"
   - name: "Black Epsilon Ltd."
 
-  preferred-citation:
-    type: software
-    title: "Copernican Suite"
-    version: "10.7.10"
-    date-released: "2025-11-26"
+preferred-citation:
+  type: software
+  title: "Copernican Suite"
+  version: "10.7.10"
+  date-released: "2025-11-26"
   authors:
     - family-names: "Apostolov"
       given-names: "Apostol"
