@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-24
 """Deterministic parsers for the synthetic integration datasets."""
 
 import os

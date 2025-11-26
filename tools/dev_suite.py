@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-25
 """Unified developer automation suite for Copernican.
 
 The script mirrors CI expectations by chaining the formatting, linting,

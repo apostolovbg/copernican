@@ -1,6 +1,5 @@
 r"""Cosmic Microwave Background likelihood helper.
 
-**Last Updated:** 2025-11-20
 
 Provides cache-aware CAMB interfaces shared by the CMB likelihood and the BAO
 background evaluator.  Earlier revisions duplicated CAMB configuration across

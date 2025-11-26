@@ -1,5 +1,4 @@
 # Copyright (c) 2025 Copernican Suite developers.
-# Last Updated: 2025-10-31
 # See LICENSE.md in the repository root for details.
 
 """Regression tests for :mod:`copernican_lib.plugins` pickling helpers."""

@@ -1,5 +1,4 @@
 # Baseline likelihoods release
-**Last Updated:** 2025-07-06
 
 This file contains 10 likelihood files that forms the baseline Planck likelihood data release. One is used for the low-&#8467; TT (`commander`), three provide the low-&#8467; polarization part (`simall`) to account for either the EE contribution (baseline) the BB one or both the EE and BB one (options). On the high-&#8467; side, two files are provided for the baseline TT and TTTEEE `plik` likelihood, and two others for the foreground and nuisance marginalized `plik_lite`. Finally, the lensing likelihood is provided in two versions, one model dependent, and the other marginalized over the CMB reconstructed in the `plik_lite` likelihood.
 

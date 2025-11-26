@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-26
 """Command-line entry point for DriftGuard."""
 
 from __future__ import annotations
@@ -11,7 +12,13 @@ from driftguard import load_engine
 
 
 def _add_common_flags(parser: argparse.ArgumentParser) -> None:
-    """Attach shared CLI flags to a subparser."""
+    """Attach shared CLI flags to a subparser.
+
+    The repo-root flag lives here so callers can specify it either before or
+    after the sub-command name without tripping argparse's unrecognised
+    argument handling. Keeping the option alongside the scope and mode flags
+    ensures every entry point accepts the same placement.
+    """
 
     parser.add_argument(
         "--scope",
@@ -23,18 +30,18 @@ def _add_common_flags(parser: argparse.ArgumentParser) -> None:
         default="full",
         help="Evaluation mode hint (full or fast).",
     )
-
-
-def build_parser() -> argparse.ArgumentParser:
-    """Construct the DriftGuard argument parser."""
-
-    parser = argparse.ArgumentParser(prog="driftguard")
     parser.add_argument(
         "--repo-root",
         type=Path,
         default=None,
         help="Path to the repository root. Defaults to the current directory.",
     )
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Construct the DriftGuard argument parser."""
+
+    parser = argparse.ArgumentParser(prog="driftguard")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 

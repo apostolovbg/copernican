@@ -1,6 +1,5 @@
 """Unit tests for CAMB-backed CMB helpers.
 
-# Last Updated: 2025-11-24
 """
 
 from __future__ import annotations
