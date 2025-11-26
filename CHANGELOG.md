@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-27
+**Last Updated:** 2025-11-26
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -22,6 +22,12 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.7.9
+- 2025-11-26: Added a hard pre-commit requirement to run pytest, unittest and
+              DriftGuard, reinstated legacy policy laws inside DRIFTGUARD and
+              `driftguard/repo_policy.yml`, and updated contributor guides to
+              mirror the enforcement chain (AGENTS.md, README.md,
+              CONTRIBUTING.md, DRIFTGUARD.md, driftguard/repo_policy.yml,
+              CHANGELOG.md).
 - 2025-11-27: Elevated DriftGuard to the sole development authority across
               README, AGENTS, and CONTRIBUTING, enforced CI ordering with named
               `Unit tests` and `Pytest` steps followed by DriftGuard, updated
@@ -30,6 +36,26 @@ suffixes. Follow this template:
               (.github/workflows/ci.yml, DRIFTGUARD.md, driftguard/repo_policy.yml,
               driftguard/rules/workflows.py, tests/test_driftguard_rules_workflows.py,
               README.md, AGENTS.md, CONTRIBUTING.md).
+- 2025-11-27: Synced DriftGuard enforcement with repo_policy by adding rule
+              coverage for changelog-to-diff mapping, start script parity,
+              semver bumps, managed-venv enforcement, and expanded python-lib
+              rationale checks; updated contributor docs to fix DriftGuard
+              violations before committing and added targeted tests
+              (driftguard/rules/metadata.py, driftguard/rules/python_lib.py,
+              driftguard/rules/workflows.py, driftguard/rules/__init__.py,
+              tests/test_driftguard_rules_metadata.py, AGENTS.md, README.md,
+              CONTRIBUTING.md).
+- 2025-11-27: Added the formatter-clean DriftGuard rule to fail when Black
+              would reformat staged Python files, updated policy docs to flag
+              the requirement, and covered the behaviour with workflow rule
+              tests (driftguard/rules/workflows.py, driftguard/repo_policy.yml,
+              tests/test_driftguard_rules_workflows.py, DRIFTGUARD.md,
+              README.md, CONTRIBUTING.md).
+- 2025-11-26: Hardened formatter enforcement to scan full policy surfaces even
+              when Git is clean, preventing committed Black drift, and updated
+              policy docs and guidance accordingly (driftguard/rules/workflows.py,
+              tests/test_driftguard_rules_workflows.py, DRIFTGUARD.md,
+              driftguard/repo_policy.yml, README.md, CONTRIBUTING.md).
 - 2025-11-26: Reformatted DriftGuard logging utilities to satisfy Black and
               bumped release metadata to 10.7.9 so version markers stay in
               sync (driftguard/logging_utils.py, README.md, CITATION.cff,

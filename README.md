@@ -1,10 +1,16 @@
 **Version:** 10.7.9
-**Last Updated:** 2025-11-27
+**Last Updated:** 2025-11-26
 
 **DriftGuard is the supreme development authority.** All contributors must obey
 the rules codified in `driftguard/repo_policy.yml` and summarised in
 [DRIFTGUARD.md](DRIFTGUARD.md). Failure to follow DriftGuard guidance will
-compromise the Copernican Suite and will lead to rejected commits.
+compromise the Copernican Suite and will lead to rejected commits. **Before
+committing, run `python -m pytest -q`, `python -m unittest discover -v`, and
+`driftguard check --scope=staged --mode=fast` on staged changes; committing
+without a fresh DriftGuard pass is forbidden.** Resolve violations (using
+`driftguard fix` when safe) before you commit. Keep Python files Black-clean;
+DriftGuard scans tracked policy surfaces even when Git is clean and fails if
+Black would reformat any Python source so CI stays stable.
 
 ![Copernican Suite banner](docs/banner_github.png)
 

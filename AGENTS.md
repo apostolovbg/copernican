@@ -5,7 +5,12 @@
 AI—must follow the rules codified in `driftguard/repo_policy.yml` and mirrored
 in [DRIFTGUARD.md](DRIFTGUARD.md). Failure to follow DriftGuard guidance will
 compromise the Copernican Suite and will lead to rejected commits. README and
-CONTRIBUTING defer to DriftGuard for all development laws.
+CONTRIBUTING defer to DriftGuard for all development laws. **Run DriftGuard in
+fast mode on staged changes (after `python -m pytest -q` and
+`python -m unittest discover -v`) before every commit; commits without a fresh
+DriftGuard pass are prohibited.** If DriftGuard surfaces violations, fix them
+before committing. See `driftguard/AGENTS.md` for the syncing contract between
+policy text, `repo_policy.yml`, and the enforcement code.
 
 Development notes were previously kept at the top of this file. That history
 now

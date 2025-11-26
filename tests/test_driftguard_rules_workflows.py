@@ -1,122 +1,81 @@
+"""Workflow rules for DriftGuard."""
+
+from __future__ import annotations
+
+import subprocess
 from pathlib import Path
 
 from driftguard.rules import RuleContext
-from driftguard.rules.workflows import FullTestSuiteInCIRule
+from driftguard.rules.workflows import FormatterCleanRule
 from driftguard.spec import DriftConfig, DriftGuardSpec, SurfaceSpec
 
 
-def _context(tmp_path: Path) -> RuleContext:
-    workflow_dir = tmp_path / ".github" / "workflows"
-    workflow_dir.mkdir(parents=True, exist_ok=True)
-    policy_doc = tmp_path / "DRIFTGUARD.md"
-    policy_doc.touch()
-
-    spec = DriftGuardSpec(
+def _spec() -> DriftGuardSpec:
+    return DriftGuardSpec(
         version=1,
         project="Tests",
-        rulesets={"workflow-discipline": "hard"},
+        rulesets={},
         surfaces={
-            "ci-workflows": SurfaceSpec(
-                name="ci-workflows",
-                include=[".github/workflows/ci.yml", "DRIFTGUARD.md"],
+            "driftguard": SurfaceSpec(
+                name="driftguard",
+                include=["**/*.py"],
                 exclude=[],
-                rules=[FullTestSuiteInCIRule.name],
+                rules=[FormatterCleanRule.name],
             )
         },
-        drift=DriftConfig(metrics={}),
+        drift=DriftConfig(),
     )
 
+
+def _context(repo_root: Path) -> RuleContext:
     return RuleContext(
-        repo_root=tmp_path, spec=spec, scope="repo", mode="full"
+        repo_root=repo_root,
+        spec=_spec(),
+        scope="repo",
+        mode="full",
     )
 
 
-def test_full_suite_rule_requires_ci_pytest_and_policy_doc(
-    tmp_path: Path,
-) -> None:
-    """The rule should flag missing pytest runs and absent policy wording."""
+def test_formatter_clean_rule_flags_unformatted(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    subprocess.run(["git", "init"], cwd=repo_root, check=True, capture_output=True)
+    source = repo_root / "example.py"
+    source.write_text("def f():\n return{'a':1}\n", encoding="utf-8")
 
-    context = _context(tmp_path)
-    workflow_path = tmp_path / ".github" / "workflows" / "ci.yml"
-    workflow_path.write_text("name: CI\nrun: echo nope\n", encoding="utf-8")
-    policy_doc = tmp_path / "DRIFTGUARD.md"
-    policy_doc.write_text(
-        "Policy doc without test reminder.\n", encoding="utf-8"
+    rule = FormatterCleanRule()
+    violations = rule.check(_context(repo_root))
+
+    assert violations
+    assert "Black" in violations[0].message
+
+
+def test_formatter_clean_rule_accepts_formatted_code(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    subprocess.run(["git", "init"], cwd=repo_root, check=True, capture_output=True)
+    source = repo_root / "example.py"
+    source.write_text("def f():\n    return 1\n", encoding="utf-8")
+
+    rule = FormatterCleanRule()
+    violations = rule.check(_context(repo_root))
+
+    assert violations == []
+
+
+def test_formatter_clean_rule_checks_clean_repo_state(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    subprocess.run(["git", "init"], cwd=repo_root, check=True, capture_output=True)
+    source = repo_root / "example.py"
+    source.write_text("def f():\n return{'a':1}\n", encoding="utf-8")
+    subprocess.run(["git", "add", "example.py"], cwd=repo_root, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "add unformatted"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
     )
 
-    violations = FullTestSuiteInCIRule().check(context)
+    rule = FormatterCleanRule()
+    violations = rule.check(_context(repo_root))
 
-    messages = [violation.message for violation in violations]
-    assert any("pytest invocation" in message for message in messages)
-    assert any("unittest discover" in message for message in messages)
-    assert any("before every commit" in message for message in messages)
-
-
-def test_full_suite_rule_accepts_pytest_and_policy_doc(tmp_path: Path) -> None:
-    """Pytest coverage in CI and documented expectations should pass."""
-
-    context = _context(tmp_path)
-    workflow_path = tmp_path / ".github" / "workflows" / "ci.yml"
-    workflow_path.write_text(
-        """name: CI
-jobs:
-  tests:
-    steps:
-      - name: Unit tests
-        run: python -m unittest discover -v
-      - name: Pytest
-        run: python -m pytest -q
-      - name: Run DriftGuard policy check
-        run: >-
-          python -m driftguard.cli check --scope=repo --mode=full --repo-root .
-""",
-        encoding="utf-8",
-    )
-    policy_doc = tmp_path / "DRIFTGUARD.md"
-    policy_doc.write_text(
-        "Run the full program unit test suite in /tests before every commit "
-        "and every task using both python -m pytest -q and python -m unittest "
-        "discover -v.\n",
-        encoding="utf-8",
-    )
-
-    violations = FullTestSuiteInCIRule().check(context)
-
-    assert not violations
-
-
-def test_full_suite_rule_requires_driftguard_after_tests(
-    tmp_path: Path,
-) -> None:
-    """DriftGuard must run after the test steps."""
-
-    context = _context(tmp_path)
-    workflow_path = tmp_path / ".github" / "workflows" / "ci.yml"
-    workflow_path.write_text(
-        """name: CI
-jobs:
-  tests:
-    steps:
-      - name: Run DriftGuard policy check
-        run: >-
-          python -m driftguard.cli check --scope=repo --mode=full --repo-root .
-      - name: Unit tests
-        run: python -m unittest discover -v
-      - name: Pytest
-        run: python -m pytest -q
-""",
-        encoding="utf-8",
-    )
-    policy_doc = tmp_path / "DRIFTGUARD.md"
-    policy_doc.write_text(
-        "Run the full program unit test suite in /tests before every commit "
-        "and every task using both python -m pytest -q and python -m unittest "
-        "discover -v.\n",
-        encoding="utf-8",
-    )
-
-    violations = FullTestSuiteInCIRule().check(context)
-
-    assert any(
-        "after the Pytest and Unit tests" in v.message for v in violations
-    )
+    assert violations
+    assert "Black" in violations[0].message

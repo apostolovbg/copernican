@@ -1,5 +1,5 @@
 # DriftGuard Development Notes
-**Last Updated:** 2025-11-26
+**Last Updated:** 2025-11-27
 
 - Keep `DRIFTGUARD.md` and `driftguard/repo_policy.yml` in sync. Any change to
   either must be mirrored in the other file and reflected in the DriftGuard
