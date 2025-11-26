@@ -1,10 +1,12 @@
-"""Shared likelihood protocol definitions.
-
+"""Shared protocol definitions for likelihood helpers.
 
 The :mod:`copernican_lib.likelihoods` package exposes multiple dataset
 likelihood helpers that all share a common interface.  To avoid circular
 imports each helper depends on the protocol and state container defined here
-instead of importing them via :mod:`copernican_lib.likelihoods.__init__`.
+instead of importing them via :mod:`copernican_lib.likelihoods.__init__`.  The
+module lives on its own so lightweight protocol types remain importable even
+when optional scientific dependencies such as CAMB are absent, keeping CLI
+tools responsive during early startup and in constrained test environments.
 """
 
 from __future__ import annotations

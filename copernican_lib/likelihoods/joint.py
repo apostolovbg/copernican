@@ -1,10 +1,12 @@
-"""Joint likelihood helper combining individual dataset components.
-
+"""Combine individual likelihood helpers into a single evaluator.
 
 Aggregates SNe, BAO and CMB likelihoods (or any other helper implementing
 :class:`~copernican_lib.likelihoods.LikelihoodProtocol`).  Configuration flags
 control which sub-likelihoods contribute to the total so runtime options can
-skip unavailable datasets without mutating the engine logic.
+skip unavailable datasets without mutating the engine logic.  Keeping the
+aggregation logic here lets engines focus on sampler wiring while ensuring the
+diagnostics from each component remain visible in the combined :pyattr:`state`
+mapping for reproducibility checks.
 """
 
 from __future__ import annotations
