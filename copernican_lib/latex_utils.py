@@ -52,7 +52,7 @@ def latex_to_sympy(expr: str) -> str:
         expr = expr.split("=", 1)[1]
 
     for pat in _MACROS_REMOVE:
-        pattern = pat if "\\s" in pat else re.escape(pat)
+        pattern = pat if r"\s" in pat else re.escape(pat)
         expr = re.sub(pattern, "", expr)
     # ``\\rm`` occasionally survives the initial cleanup when loaded from YAML.
     # Remove it explicitly so parameters like ``\Omega_{\rm eff}`` parse
@@ -64,12 +64,16 @@ def latex_to_sympy(expr: str) -> str:
         expr = re.sub(re.escape(pat), repl, expr)
 
     while "\\frac" in expr:
-        expr = re.sub(r"\\frac\{([^{}]+)\}\{([^{}]+)\}", r"(\1)/(\2)", expr)
+        expr = re.sub(
+            r"\\frac\{([^{}]+)\}\{([^{}]+)\}",
+            r"(\1)/(\2)",
+            expr,
+        )
 
     expr = re.sub(r"_{([^{}]+)}", r"_\1", expr)
     expr = re.sub(r"\^\{([^{}]+)\}", r"**(\1)", expr)
     expr = re.sub(r"\^([\w\.]+)", r"**\1", expr)
-    expr = expr.replace("\\", "")
+    expr = expr.replace(r"\\", "")
     expr = expr.replace("{", "(").replace("}", ")")
     expr = expr.replace("[", "(").replace("]", ")")
     expr = re.sub(r"\s{2,}", " ", expr)
@@ -82,7 +86,7 @@ def wrap_math(text: str) -> str:
         return ""
     cleaned = re.sub(r"^\$+|\$+$", "", str(text).strip())
     for pat in _MACROS_REMOVE:
-        pattern = pat if "\\s" in pat else re.escape(pat)
+        pattern = pat if r"\s" in pat else re.escape(pat)
         cleaned = re.sub(pattern, "", cleaned)
     cleaned = re.sub(r"\\!", "", cleaned)
     cleaned = re.sub(r"\\,", "", cleaned)

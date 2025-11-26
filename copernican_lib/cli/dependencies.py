@@ -285,7 +285,8 @@ def check_dependencies() -> None:
         )
         sys.exit(1)
 
-    console.write("✅ System Dependency Check Passed. Continuing...\n")
+    console.write("✅ System Dependency Check Passed. Continuing...")
+    console.write("")
 
 
 def load_third_party_modules():

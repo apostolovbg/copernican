@@ -491,11 +491,11 @@ def compose_footer(base_line: str, data_attrs: dict) -> list[tuple[str, bool]]:
     # Escape characters that could break TeX-style formatting used for
     # bold text while preserving spaces in the displayed name.
     safe_name = (
-        dataset_name.replace("\\", "\\\\")
-        .replace("{", "\\{")
-        .replace("}", "\\}")
-        .replace("_", "\\_")
-        .replace(" ", "\\ ")  # Preserve spaces for MathText rendering
+        dataset_name.replace("\\", r"\\")
+        .replace("{", r"\{")
+        .replace("}", r"\}")
+        .replace("_", r"\_")
+        .replace(" ", r"\ ")  # Preserve spaces for MathText rendering
     )
     description = data_attrs.get("description", "")
     notes = data_attrs.get("notes", "")
@@ -747,7 +747,7 @@ def format_model_summary_text(
             chi2_tot = kwargs.get("chi2_total", np.nan)
             lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))
 
-    return "\n".join(lines)
+    return os.linesep.join(lines)
 
 
 def plot_hubble_diagram(

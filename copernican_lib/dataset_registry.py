@@ -28,6 +28,10 @@ import numpy as np
 from . import console_output as console
 from .utils import check_dataset_id, compute_sha256, load_metadata_from_dir
 
+WINDOWS_LINE_ENDING = bytes((13, 10))
+UNIX_LINE_ENDING = bytes((10,))
+BACKSLASH = chr(92)
+
 # Each parser is registered via a decorator so that ``copernican.py`` can list
 # available data sources dynamically. The loaders below simply call the
 # registered functions after prompting the user.
@@ -218,7 +222,7 @@ TRUSTED_PARSER_DIGESTS = {
 def _file_sha256(path: str) -> str:
     r"""Return the SHA256 digest for ``path`` with newline normalisation.
 
-    Git may convert ``\n`` to ``\r\n`` on Windows checkouts.  Normalising
+    Git may convert ``\n`` to ``\r\n`` on Windows checkouts. Normalising
     line endings ensures the same hash across operating systems so trusted
     parser verification behaves consistently on all platforms.
     """
@@ -226,7 +230,9 @@ def _file_sha256(path: str) -> str:
     hasher = hashlib.sha256()
     with open(path, "rb") as fh:
         for chunk in iter(lambda: fh.read(65536), b""):
-            hasher.update(chunk.replace(b"\r\n", b"\n"))
+            hasher.update(
+                chunk.replace(WINDOWS_LINE_ENDING, UNIX_LINE_ENDING)
+            )
     return hasher.hexdigest()
 
 
@@ -296,7 +302,7 @@ def discover_trusted_parsers(base_dir: str | None = None):
                         continue
                     rel_path = os.path.relpath(file_path, base_dir)
                     # Normalise path separators for cross-platform hash lookup.
-                    rel_path = rel_path.replace("\\", "/")
+                    rel_path = rel_path.replace(BACKSLASH, "/")
                     expected_hash = TRUSTED_PARSER_DIGESTS.get(rel_path)
                     if expected_hash is None:
                         logging.getLogger().warning(

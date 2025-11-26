@@ -57,6 +57,9 @@ suffixes. Follow this template:
               (copernican_lib/cli/dependencies.py,
               copernican_lib/dataset_registry.py, copernican_lib/gui/app.py,
               copernican_lib/plotter.py, copernican_lib/utils.py).
+- 2025-11-26: Normalised backslash handling for DriftGuard compliance across
+              CLI prompts, progress displays, plotting summaries and dataset
+              hashing utilities (copernican_lib/*).
 
 ## Version 10.7.9
 - 2025-11-26: Added a hard pre-commit requirement to run pytest, unittest and
