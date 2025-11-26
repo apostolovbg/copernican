@@ -1,5 +1,11 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-26
+**Last Updated:** 2025-11-27
+
+**DriftGuard is the supreme development authority.** All contributors—human or
+AI—must follow the rules codified in `driftguard/repo_policy.yml` and mirrored
+in [DRIFTGUARD.md](DRIFTGUARD.md). Failure to follow DriftGuard guidance will
+compromise the Copernican Suite and will lead to rejected commits. README and
+CONTRIBUTING defer to DriftGuard for all development laws.
 
 Development notes were previously kept at the top of this file. That history
 now

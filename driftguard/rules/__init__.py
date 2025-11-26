@@ -101,6 +101,7 @@ def get_all_rules(spec: DriftGuardSpec) -> List[Rule]:
         NewModulesNeedTestsRule,
         NoPrintInLibRule,
     )
+    from driftguard.rules.workflows import FullTestSuiteInCIRule
 
     registry: Dict[str, Rule] = {
         LastUpdatedDocsRule.name: LastUpdatedDocsRule(),
@@ -114,6 +115,7 @@ def get_all_rules(spec: DriftGuardSpec) -> List[Rule]:
         TodoCountRule.name: TodoCountRule(),
         TestCouplingRule.name: TestCouplingRule(),
         DocAgeRule.name: DocAgeRule(),
+        FullTestSuiteInCIRule.name: FullTestSuiteInCIRule(),
     }
 
     requested: List[str] = []
