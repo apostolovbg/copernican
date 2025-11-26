@@ -4,11 +4,11 @@
 """Utilities for writing MCMC chains to NetCDF files.
 
 This module stores posterior samples produced by engines such as the
-``cosmo_engine_mcmc`` backend. Chains are saved in the NetCDF format using
-ArviZ so users can analyse results with a broad ecosystem of Bayesian tools.
-Keeping the persistence logic in one place means every engine writes metadata
-the same way, reducing the risk of subtle incompatibilities when formats or
-tooling change.
+``cosmo_engine_mcmc`` backend. Chains are saved in NetCDF using ArviZ so
+users can analyse results with a broad ecosystem of Bayesian tools. The
+helpers live here because centralising persistence keeps metadata format
+changes consistent across engines and avoids regressions when file
+conventions evolve.
 """
 
 from __future__ import annotations
@@ -69,7 +69,8 @@ def save_posterior(
         provenance is fully captured inside the file.
 
     The helper centralises NetCDF writing so every backend records provenance
-    the same way, making downstream analysis predictable across engines.
+    the same way, making downstream analysis predictable across engines and
+    because callers should not duplicate slightly different NetCDF layouts.
     """
 
     logger = get_logger()
