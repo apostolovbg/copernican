@@ -50,8 +50,8 @@ def chi_squared_sne(
     """Return the χ² value for Supernovae Ia data.
 
     Wrapping the dataset likelihood here keeps engines focused on orchestration
-    while this module guards against non-finite log-likelihoods that would
-    otherwise propagate into optimization routines.
+    while this module guards against non-finite log-likelihoods because those
+    failures would otherwise propagate into optimization routines.
     """
 
     like = SNeLike(mu_model_func, sne_data_df)
@@ -76,8 +76,8 @@ def chi_squared_bao(
     """Return the χ² value for BAO observations.
 
     The helper keeps the BAO likelihood handling centralized so engines do not
-    duplicate covariance setup and so invalid log-likelihoods default to
-    ``inf`` rather than derailing parameter scans.
+    duplicate covariance setup and because invalid log-likelihoods should
+    default to ``inf`` rather than derailing parameter scans.
     """
 
     like = BAOLike(
@@ -105,7 +105,7 @@ def chi_squared_cmb(
     """Return the χ² value for CMB spectra.
 
     Centralizing the wrapper ensures CMB plugins share consistent error
-    handling and that failed likelihood evaluations return ``inf`` so
+    handling and because failed likelihood evaluations should return ``inf`` so
     samplers can safely skip problematic steps.
     """
 
