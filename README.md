@@ -1,4 +1,4 @@
-**Version:** 10.7.4
+**Version:** 10.7.5
 **Last Updated:** 2025-11-26
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -865,7 +865,9 @@ pre-commit run --all-files
 The DriftGuard hooks replace the former `copernican-policy` check by running
 fast staged evaluations for metadata drift, print bans and missing tests. Use
 `pre-commit run driftguard-fix --all-files` to apply the fast autofixes when
-the manual stage is more convenient.
+the manual stage is more convenient. The hook environment now installs
+`PyYAML` automatically so DriftGuard's policy loader always imports cleanly
+without extra setup on fresh machines.
 
 Run the unified developer suite when you want a single command that mirrors
 the CI ordering for formatting, DriftGuard enforcement and tests:

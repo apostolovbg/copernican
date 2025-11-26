@@ -21,6 +21,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.7.5
+- 2025-11-26: Ensured DriftGuard pre-commit hooks provision PyYAML so the
+              staged policy check imports reliably, documented the hook
+              environment change, and bumped release metadata to 10.7.5
+              (.pre-commit-config.yaml, README.md, CITATION.cff,
+              copernican_lib/VERSION).
+
 ## Version 10.7.4
 - 2025-11-26: Added PyYAML to the compiled dependency lockfile so DriftGuard
               installs correctly in CI, reformatted policy tooling and version
