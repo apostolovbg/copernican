@@ -56,7 +56,9 @@ def _changed_files() -> set[Path]:
         stderr=subprocess.PIPE,
         text=True,
     )
-    return {Path(line.strip()) for line in diff.stdout.splitlines() if line.strip()}
+    return {
+        Path(line.strip()) for line in diff.stdout.splitlines() if line.strip()
+    }
 
 
 def _matches_any(path: Path, patterns: Iterable[str]) -> bool:
@@ -68,22 +70,23 @@ def test_policy_files_require_repo_policy_and_enforcement_updates() -> None:
 
     changed = _changed_files()
     if not changed:
-        pytest.skip("No prior commit to diff against; skipping policy sync check.")
+        pytest.skip(
+            "No prior commit to diff against; skipping policy sync check."
+        )
 
     if not (POLICY_FILES & changed):
         return
 
     missing_policy = POLICY_FILES - changed
     assert not missing_policy, (
-        "Changes to DRIFTGUARD.md or driftguard/repo_policy.yml must update both "
-        "files."
+        "Changes to DRIFTGUARD.md or driftguard/repo_policy.yml must update "
+        "both files."
     )
 
     companion_updates = [
-        path
-        for path in changed
-        if _matches_any(path, COMPANION_PATTERNS)
+        path for path in changed if _matches_any(path, COMPANION_PATTERNS)
     ]
     assert companion_updates, (
-        "DriftGuard policy changes must be paired with enforcement code or tests."
+        "DriftGuard policy changes must be paired with enforcement "
+        "code or tests."
     )

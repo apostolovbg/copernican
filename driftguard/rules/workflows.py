@@ -40,7 +40,9 @@ class FullTestSuiteInCIRule(Rule):
 
         jobs = parsed.get("jobs", {}) if isinstance(parsed, dict) else {}
         tests_job = jobs.get("tests", {}) if isinstance(jobs, dict) else {}
-        steps = tests_job.get("steps", []) if isinstance(tests_job, dict) else []
+        steps = (
+            tests_job.get("steps", []) if isinstance(tests_job, dict) else []
+        )
 
         return steps if isinstance(steps, list) else []
 
@@ -56,7 +58,9 @@ class FullTestSuiteInCIRule(Rule):
             ):
                 return True
         normalized = workflow_text.lower()
-        return any(re.search(pattern, normalized) for pattern in self._PYTEST_PATTERNS)
+        return any(
+            re.search(pattern, normalized) for pattern in self._PYTEST_PATTERNS
+        )
 
     def _workflow_includes_unittest(self, workflow_text: str) -> bool:
         steps = self._load_steps(workflow_text)
@@ -71,10 +75,13 @@ class FullTestSuiteInCIRule(Rule):
                 return True
         normalized = workflow_text.lower()
         return any(
-            re.search(pattern, normalized) for pattern in self._UNITTEST_PATTERNS
+            re.search(pattern, normalized)
+            for pattern in self._UNITTEST_PATTERNS
         )
 
-    def _workflow_orders_driftguard_after_tests(self, workflow_text: str) -> bool:
+    def _workflow_orders_driftguard_after_tests(
+        self, workflow_text: str
+    ) -> bool:
         steps = self._load_steps(workflow_text)
         pytest_index = None
         unittest_index = None
@@ -86,20 +93,36 @@ class FullTestSuiteInCIRule(Rule):
             run = str(step.get("run", "")).lower()
             name = str(step.get("name", "")).strip().lower()
 
-            if pytest_index is None and name == "pytest" and any(
-                re.search(pattern, run) for pattern in self._PYTEST_PATTERNS
+            if (
+                pytest_index is None
+                and name == "pytest"
+                and any(
+                    re.search(pattern, run)
+                    for pattern in self._PYTEST_PATTERNS
+                )
             ):
                 pytest_index = index
 
-            if unittest_index is None and name == "unit tests" and any(
-                re.search(pattern, run) for pattern in self._UNITTEST_PATTERNS
+            if (
+                unittest_index is None
+                and name == "unit tests"
+                and any(
+                    re.search(pattern, run)
+                    for pattern in self._UNITTEST_PATTERNS
+                )
             ):
                 unittest_index = index
 
-            if driftguard_index is None and re.search(self._DRIFTGUARD_PATTERN, run):
-                driftguard_index = index
+        if driftguard_index is None and re.search(
+            self._DRIFTGUARD_PATTERN, run
+        ):
+            driftguard_index = index
 
-        if driftguard_index is None or pytest_index is None or unittest_index is None:
+        if (
+            driftguard_index is None
+            or pytest_index is None
+            or unittest_index is None
+        ):
             return False
 
         return driftguard_index > max(pytest_index, unittest_index)
@@ -130,31 +153,33 @@ class FullTestSuiteInCIRule(Rule):
                 Violation(
                     rule_name=self.name,
                     message=(
-                        "CI workflow .github/workflows/ci.yml is missing; CI must "
-                        "run the full program unit test suite."
+                        "CI workflow .github/workflows/ci.yml is missing; "
+                        "CI must run the full program unit test suite."
                     ),
                     path=workflow_path,
                 )
             )
         elif not self._workflow_includes_pytest(workflow_text):
             violations.append(
-                    Violation(
-                        rule_name=self.name,
-                        message=(
-                            "CI must exercise the full program unit test suite under /tests; "
-                            "add a documented python -m pytest invocation named Pytest to "
-                            ".github/workflows/ci.yml."
-                        ),
-                        path=workflow_path,
-                    )
+                Violation(
+                    rule_name=self.name,
+                    message=(
+                        "CI must exercise the full program unit "
+                        "test suite under /tests; add a documented "
+                        "python -m pytest invocation named Pytest "
+                        "to .github/workflows/ci.yml."
+                    ),
+                    path=workflow_path,
+                )
             )
         elif not self._workflow_includes_unittest(workflow_text):
             violations.append(
                 Violation(
                     rule_name=self.name,
                     message=(
-                        "CI must also run python -m unittest discover -v, with the step "
-                        "named Unit tests, to cover the full program unit test suite."
+                        "CI must also run python -m unittest discover -v, "
+                        "with the step named Unit tests, to cover the full "
+                        "program unit test suite."
                     ),
                     path=workflow_path,
                 )
@@ -164,8 +189,9 @@ class FullTestSuiteInCIRule(Rule):
                 Violation(
                     rule_name=self.name,
                     message=(
-                        "DriftGuard must execute after the Pytest and Unit tests steps in "
-                        "CI so policy checks run on the tested codebase."
+                        "DriftGuard must execute after the Pytest and "
+                        "Unit tests steps in CI so policy checks run "
+                        "on the tested codebase."
                     ),
                     path=workflow_path,
                 )
@@ -173,23 +199,24 @@ class FullTestSuiteInCIRule(Rule):
 
         if not policy_text:
             violations.append(
-                    Violation(
-                        rule_name=self.name,
-                        message=(
-                            "DRIFTGUARD.md must document running the full program unit "
-                            "test suite in /tests before each commit."
-                        ),
-                        path=policy_path,
-                    )
+                Violation(
+                    rule_name=self.name,
+                    message=(
+                        "DRIFTGUARD.md must document running the full program "
+                        "unit test suite in /tests before each commit."
+                    ),
+                    path=policy_path,
                 )
+            )
         elif not self._policy_mentions_full_suite(policy_text):
             violations.append(
                 Violation(
                     rule_name=self.name,
                     message=(
-                        "Document that contributors should run the full program "
-                        "unit test suite in /tests before every commit using both the "
-                        "pytest and unittest discover commands."
+                        "Document that contributors should run the full "
+                        "program unit test suite in /tests before every "
+                        "commit using both the pytest and unittest discover "
+                        "commands."
                     ),
                     path=policy_path,
                 )
@@ -197,5 +224,6 @@ class FullTestSuiteInCIRule(Rule):
 
         return violations
 
-    def metrics(self, context: RuleContext) -> List:  # pragma: no cover - no metrics
+    # pragma: no cover - no metrics
+    def metrics(self, context: RuleContext) -> List:
         return []
