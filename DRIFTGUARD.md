@@ -73,8 +73,9 @@ two immediately and accompanied by tests.
     autofixes) before you run the full policy suite,
   - runs a relevant subset of tests.
 - Before any commit, run `python -m pytest -q`, `python -m unittest discover -v`
-  and `driftguard check --scope=staged --mode=full` on staged changes. Commits
-  without a fresh full DriftGuard pass are prohibited.
+  and `driftguard check --scope=staged --mode=full` on staged changes. Fix any
+  failures from those commands before committing; commits without a fresh full
+  DriftGuard pass are prohibited.
 - Keep Python sources **Black-clean before committing**. DriftGuard runs the
   `formatter-clean` rule across the full policy surfaces—even when Git shows a
   clean working tree—and fails if Black would reformat tracked or staged

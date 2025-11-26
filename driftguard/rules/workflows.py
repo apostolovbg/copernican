@@ -269,6 +269,66 @@ class DriftGuardPrecommitRequiredRule(Rule):
         return violations
 
 
+class TestsAndDriftGuardFailuresRemediatedRule(Rule):
+    """Require documentation to mandate fixing policy and test failures."""
+
+    name = "tests-and-driftguard-failures-remediated"
+    _POLICY_DOCS = (Path("DRIFTGUARD.md"), Path("driftguard/repo_policy.yml"))
+
+    def _mentions_remediation(self, text: str) -> bool:
+        normalized = text.lower()
+        return (
+            "python -m pytest -q" in normalized
+            and "python -m unittest discover -v" in normalized
+            and "driftguard check --scope=staged --mode=full" in normalized
+            and ("failure" in normalized or "violation" in normalized)
+            and ("fix" in normalized or "remediat" in normalized)
+            and (
+                "before any commit" in normalized
+                or "before every commit" in normalized
+                or "before each commit" in normalized
+                or "before committing" in normalized
+            )
+        )
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        violations: List[Violation] = []
+        for relative_path in self._POLICY_DOCS:
+            doc_path = context.repo_root / relative_path
+            try:
+                text = doc_path.read_text(encoding="utf-8")
+            except FileNotFoundError:
+                violations.append(
+                    Violation(
+                        rule_name=self.name,
+                        message=(
+                            f"{relative_path.as_posix()} must state that test and "
+                            "DriftGuard failures are fixed before committing."
+                        ),
+                        path=doc_path,
+                    )
+                )
+                continue
+
+            if self._mentions_remediation(text):
+                continue
+
+            violations.append(
+                Violation(
+                    rule_name=self.name,
+                    message=(
+                        "Document that failures from python -m pytest -q, "
+                        "python -m unittest discover -v, and driftguard check "
+                        "--scope=staged --mode=full must be remediated before "
+                        "committing."
+                    ),
+                    path=doc_path,
+                )
+            )
+
+        return violations
+
+
 class DependencyLicenseAuditRule(Rule):
     """Require license updates when dependencies change."""
 

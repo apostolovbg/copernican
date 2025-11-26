@@ -132,14 +132,17 @@ surfaces:
       unit test suite under /tests via both the documented `python -m pytest -q`
       command and the `python -m unittest discover -v` invocation, document the
       expectation that developers run both suites for every task before
-      committing, and sequence DriftGuard after the tests.
+      committing, require developers to fix any failures uncovered by the tests
+      or DriftGuard before committing, and sequence DriftGuard after the tests.
     include:
       - .github/workflows/ci.yml
       - DRIFTGUARD.md
+      - driftguard/repo_policy.yml
     exclude: []
     rules:
       - full-test-suite-in-ci
       - driftguard-precommit-required
+      - tests-and-driftguard-failures-remediated
       - dependency-license-audit
       - dependency-refresh
       - managed-venv-only
