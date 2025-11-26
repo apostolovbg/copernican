@@ -107,8 +107,7 @@ and citation information appears in [CITATION.cff](CITATION.cff).
 14. [Developer Guide](#developer-guide)
     - [Workflow Overview](#workflow-overview)
     - [Development History & Roadmap](#development-history--roadmap)
-    - [AI-driven and human development laws and
-      protocols](#ai-driven-and-human-development-laws-and-protocols)
+    - [Development Laws (DriftGuard Policy)](#development-laws-driftguard-policy)
 15. [License](#license)
 16. [Versioning Policy](#versioning-policy)
 17. [API Overview](docs/api_overview.md)
@@ -986,99 +985,90 @@ not modify them unless explicitly instructed.
 
 See `CHANGELOG.md` for complete version history.
 
-### AI-driven and human development laws and protocols
+## Development Laws (DriftGuard Policy)
 
-> **To any AI or human developer, including my future self, that modifies this
-codebase:**
->
-> This project is developed through a combination of human direction and AI
-implementation. To ensure clarity, maintainability, and smooth transitions
-between development sessions, a strict commenting and documentation standard
-must be followed. The `AGENTS.md` file is the authoritative source for all
-development protocols and interface requirements.
->
-> 1. **Summarize every change in `CHANGELOG.md` using the changelog**
-> template and list every touched file or subsystem.** Compare
-> `git diff --name-only` against the newest changelog entry before every
-> commit so nothing slips past the `copernican-policy` hook. Legacy
-> `dev_note` headers should be migrated to the changelog when touched.
-> **Explicitly enumerate every changed file in each entry** so the lint hook
-> cannot fail because a path was omitted.
-> 2. **Comment the code extensively.** Explain the "why" as well as the
-> "what", clarifying both obvious and non-obvious, simple or complex logic or
-> algorithms.
-> 3. **Keep comments synchronized with the actual code.** Whenever behaviour
-> changes, update all nearby comments immediately so future contributors can
-> rely on them.
-> 4. **Update documentation**, including this `AGENTS.md`, `README.md` and the
-> `docs/` directory, whenever behaviour or structure changes. Each task must
-> expand the documentation's scope and size, refresh version strings and
-> ensure every file carries a `Last Updated` field. Update that field on
-> every edit and add one when missing.
-> 5. **Keep these laws synchronized across `README.md` and `AGENTS.md`.**
-> Amendments to any rule require an explicit human request.
-> 6. **Bump the project version according to Semantic Versioning whenever**
-> changes introduce new features, fixes or breaking changes.
-> 7. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in**
-> any file.
-> 8. **Re-read the "AI-driven and human development laws and protocols"
-> section in `README.md` at the start of every development session.**
-> 9. **Document every module, function and class with clear "what" and "why"
-> explanations.** Comments and docstrings should describe not only the
-> behaviour but also the rationale behind it.
-> 10. **Use concise, descriptive function and identifier names that
-accurately** convey their purpose without unnecessary length.
-> 11. **Use raw strings or escape backslashes explicitly to avoid invalid**
-> escape sequence warnings in docstrings or string literals.
-> 12. **Run `pre-commit` on all modified files before committing to enforce**
-> Black, Isort, Ruff and Flake8 checks.
-> 13. **Do not redistribute the Copernican Suite in full or assert patent**
-> claims; the license forbids these actions.
-> 14. **Keep individual lines under 79 characters to maintain readability.**
-> 15. **Treat documentation refresh as integral to every task.** No change is
-> complete until all relevant texts reflect the update and version numbers
-> remain in sync.
-> 16. **Commit changes only after all tests pass on every supported platform.**
-> 17. **Treat `start.command`, `start.bat` and `start.sh` equally.** When one
-> launcher is fixed, examine the others for the same issue and update them as
-> needed. Consider how code changes impact these launchers and modify them when
-> required.
-> 18. **Follow current compliance and security requirements for all work.** The
-> suite processes user-provided files, so every change must meet the latest
-> security guidelines and account for their effect on the `start.*` scripts.
-> 19. **Add tests alongside new functionality or behaviour changes.** Each
-> feature or fix must include unit tests demonstrating the intended
-> behaviour.
-> 20. **Audit licenses for new dependencies.** Ensure added packages are
-> license-compatible and update `THIRD_PARTY_LICENSES.md` and the
-> `licenses/` directory accordingly.
-> 21. **Run the suite exclusively through the managed virtual environment.**
-> Always launch via `start.sh`, `start.command` or `start.bat` so the
-> repository's `.venv` is created or updated automatically; other Python
-> environments must be ignored.
-> 22. **Refresh dependencies whenever packages are added or changed.**
->    Run `python -m piptools compile requirements.in --allow-unsafe
->    --output-file requirements.lock` (or simply `make lock`), commit the
->    updated `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`.
-> 23. **Validate every timestamp before recording it.** Confirm the real
->     current date (for example with the `date` command) before updating any
->     `Last Updated` field or logging changes, and cross-check changelog
->     entries so their dates never jump backward or forward relative to prior
->     records. Do not introduce historical gaps, future-dated entries or other
->     chronological inconsistencies.
-> 24. **Preserve human-authored edits across the project.** Respect the
->     structure, wording and intent of human-made changes—including timestamps
->     and metadata—and only revise them when a human explicitly requests an
->     update or when correcting objective errors they identify.
->
-> Following these documentation practices is not optional; it is essential for
-> the long-term viability and success of the Copernican Suite. Failure to
-> follow these rules will compromise the maintainability of the Copernican
-> Suite.
+This repository uses **DriftGuard** as a live policy layer for human+AI
+development.
 
-See [docs/api_overview.md](docs/api_overview.md) for the scripting API.
-All contributors must re-read this section at the beginning of every
-development session. The AGENTS.md file now instructs this explicitly.
+- The **canonical machine-readable policy** is defined in `driftguard.yml`.  
+This file describes:
+  - which files belong to which surfaces (docs, interfaces, library code, etc.),
+  - which rules apply to each surface,
+  - which drift metrics are tracked, and with what thresholds.
+
+- This section is a human-readable summary. In case of mismatch,
+  `driftguard.yml` is the source of truth.
+
+### Docs and metadata
+
+- Only the following files must carry a `Last Updated:` header:
+  - `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `CHANGELOG.md`
+  - all `docs/**/*.md`
+  - `CITATION.cff`, `LICENSE.md`, `THIRD_PARTY_LICENSES.md`
+  - `copernican.py`
+  - `start.sh`, `start.command`, `start.bat`
+  - `copernican_lib/config_schemas/**/*.yml`
+  - `models/**/*.yml`
+- All other files (library code, tests, tools, workflows, lockfiles, etc.)
+  must **not** have a `Last Updated` header.
+- `Last Updated` dates must never be in the future. DriftGuard enforces this
+  for the files that require headers.
+- A single semantic version `X.Y.Z` must be consistent across:
+  - `copernican_lib/VERSION`
+  - `README.md` (where it appears)
+  - `CITATION.cff`
+  - packaging metadata.
+- Any non-trivial change in behaviour, interface, or policy must add an entry
+  to the latest section of `CHANGELOG.md`.
+- Conflict-marker rules are not enforced by policy; Git/merge tools handle
+  them.
+
+### Code and tests
+
+- New Python modules under `copernican_lib/` and `engines/` must be accompanied
+  by new or updated tests under `tests/`.  
+  DriftGuard treats “new module with no test changes” as a hard violation.
+- Library and engine code (`copernican_lib/**/*.py`, `engines/**/*.py`) must
+  not use bare `print()`.  
+  Use the logging / console abstraction instead.
+- Tests and tooling scripts may use `print()` where appropriate.
+- Bugfixes:
+  - Any bugfix noted in `CHANGELOG.md` should be backed by a test that would
+    fail without the fix.
+  - DriftGuard currently treats “bugfix with no test change” as a warning, not
+    a hard error.
+
+### Tools and workflows
+
+- The codebase is formatted and linted with:
+  - **Black** (formatting),
+  - **isort** (import ordering),
+  - **Ruff** (linting and simple quality checks),
+  - **Flake8** (additional linting),
+  - **pre-commit-hooks** (`end-of-file-fixer`, `trailing-whitespace`) for basic
+    hygiene.
+- **DriftGuard** does not replace these tools; it complements them by enforcing
+  project-specific policy and drift limits.
+- A local dev script (e.g. `python tools/dev_suite.py`) should be run before
+  committing. It:
+  - runs formatting and linting,
+  - runs DriftGuard in fast mode on staged files (and may apply safe
+    autofixes),
+  - runs a relevant subset of tests.
+
+### CI and drift
+
+- CI runs `driftguard check` in full mode on the whole repository:
+  - Hard violations (broken policy) fail the build.
+  - Drift metrics (e.g. TODO count, test–module coupling, document age) are
+    computed and logged.
+- Drift metrics have thresholds configured in `driftguard.yml`. Crossing a
+  threshold emits a warning and may eventually be promoted to a hard error.
+- The goal is **positive drift**:
+  - adding tests when new modules appear,
+  - keeping documentation and metadata fresh,
+  - gradually reducing TODO/FIXME debt,
+  - tightening policy over time rather than loosening it.
 
 ## License
 The Copernican Suite is distributed under the terms of the [Copernican Suite
