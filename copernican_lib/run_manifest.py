@@ -1,6 +1,7 @@
 # Rationale: Manifest generation is kept here because reproducing runs depends
 # on a single, authoritative record of hashes, parameters and Git metadata.
-"""Generate and persist run manifests for the Copernican Suite.
+"""Generate and persist run manifests for the Copernican Suite so every run
+records the same reproducibility metadata.
 
 Run metadata lives here so every invocation records the same ingredients
 that make a run reproducible: suite version, selected models and engines,
