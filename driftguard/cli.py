@@ -85,12 +85,38 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
         result = engine.check(scope=args.scope, mode=args.mode)
         logger.debug("Check result: %s", result)
+        if result["violations"]:
+            for violation in result["violations"]:
+                suffix = (
+                    f" ({violation.path.relative_to(engine.repo_root)})"
+                    if violation.path is not None
+                    else ""
+                )
+                logger.error(
+                    "Violation [%s]: %s%s",
+                    violation.rule_name,
+                    violation.message,
+                    suffix,
+                )
+            logger.error(
+                "DriftGuard detected %d violation(s); address all hard and "
+                "soft findings immediately.",
+                len(result["violations"]),
+            )
+            return 1
+        return 0
     elif args.command == "fix":
         logger.info(
             "Executing DriftGuard fix scope=%s mode=%s", args.scope, args.mode
         )
         result = engine.fix(scope=args.scope, mode=args.mode)
         logger.debug("Fix result: %s", result)
+        if result["violations"]:
+            logger.error(
+                "Remaining violations after fix: %d", len(result["violations"])
+            )
+            return 1
+        return 0
     else:
         logger.info(
             "Executing DriftGuard metrics scope=%s mode=%s",

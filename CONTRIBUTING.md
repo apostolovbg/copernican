@@ -6,12 +6,12 @@ the rules codified in `driftguard/repo_policy.yml` and summarised in
 [DRIFTGUARD.md](DRIFTGUARD.md). Failure to follow DriftGuard guidance will
 compromise the Copernican Suite and will lead to rejected commits. **Before any
 commit, run `python -m pytest -q`, `python -m unittest discover -v`, and
-`driftguard check --scope=staged --mode=fast` on staged changes; committing
-without a fresh DriftGuard pass is forbidden.** Resolve any reported issues
-before committing and prefer `driftguard fix` when the automated fix is safe.
-Keep Python sources Black-clean; DriftGuard checks tracked policy surfaces even
-when Git is clean and fails if Black would reformat any Python file to avoid CI
-churn.
+`driftguard check --scope=staged --mode=full` on staged changes every session;
+committing without a fresh full DriftGuard pass is forbidden.** Resolve any
+reported issues before committing and prefer `driftguard fix` when the
+automated fix is safe. Keep Python sources Black-clean; DriftGuard checks
+tracked policy surfaces even when Git is clean and fails if Black would
+reformat any Python file to avoid CI churn.
 
 Thank you for considering a contribution. DriftGuard defines the canonical
 policy for this repository: follow the chain `DRIFTGUARD.md` (human summary) →

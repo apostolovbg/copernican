@@ -1,17 +1,20 @@
 # Development Laws (DriftGuard Policy)
+**Last Updated:** 2025-11-26
 
 This repository uses **DriftGuard** as a live policy layer for human+AI
-development.
+development. `DRIFTGUARD.md` is the human source of truth and must remain in
+lockstep with `driftguard/repo_policy.yml` and the enforcement code under
+`driftguard/`. Any policy change in one location must be mirrored in the other
+two immediately and accompanied by tests.
 
 - The **canonical machine-readable policy** is defined in
   `driftguard/repo_policy.yml`. This file describes:
   - which files belong to which surfaces (docs, interfaces, library code, etc.),
   - which rules apply to each surface,
   - which drift metrics are tracked, and with what thresholds.
-- This document is a human-readable summary. In case of mismatch,
-  `driftguard/repo_policy.yml`—as enforced by the DriftGuard code under
-  `driftguard/`—is the source of truth. This page replaces the legacy embedded
-  sections in `README.md` and `AGENTS.md`.
+- This document is a human-readable summary that must remain synchronised with
+  `driftguard/repo_policy.yml` and the enforcement code under `driftguard/`.
+  Any drift among these surfaces is a policy violation.
 
 ### Docs and metadata
 
@@ -66,12 +69,12 @@ development.
 - A local dev script (e.g. `python tools/dev_suite.py`) should be run before
   committing. It:
   - runs formatting and linting,
-  - runs DriftGuard in fast mode on staged files (and may apply safe
-    autofixes),
+  - runs a quick DriftGuard sanity check on staged files (and may apply safe
+    autofixes) before you run the full policy suite,
   - runs a relevant subset of tests.
 - Before any commit, run `python -m pytest -q`, `python -m unittest discover -v`
-  and `driftguard check --scope=staged --mode=fast` on staged changes. Commits
-  without a fresh DriftGuard pass are prohibited.
+  and `driftguard check --scope=staged --mode=full` on staged changes. Commits
+  without a fresh full DriftGuard pass are prohibited.
 - Keep Python sources **Black-clean before committing**. DriftGuard runs the
   `formatter-clean` rule across the full policy surfaces—even when Git shows a
   clean working tree—and fails if Black would reformat tracked or staged
@@ -84,20 +87,25 @@ development.
 
 ### Operational discipline and returning laws
 
+- Always run `python -m pytest -q`, `python -m unittest discover -v`, and the
+  **full** `driftguard check --scope=staged --mode=full` before every commit in
+  every session. Treat hard and soft violations as urgent blockers.
 - `CHANGELOG.md` entries must follow the template and list every touched file
-  or subsystem. Compare `git diff --name-only HEAD` to the newest changelog
-  entry before committing so no change ships without coverage.
+  or subsystem. Compare `git diff --name-only` against the newest changelog
+  entry before committing so nothing slips past the DriftGuard hook.
 - Comment code extensively and keep comments aligned with behaviour. Capture
-  both the “what” and the “why” for simple and complex logic alike, and update
-  comments whenever behaviour changes.
+  both the “what” and the “why” for simple and complex logic alike. Update
+  nearby comments immediately whenever behaviour changes so code and comments
+  stay synchronised.
+- Document every module, function and class with clear “what” and “why”
+  explanations. Use concise, descriptive identifiers, prefer raw strings or
+  explicit escapes to avoid invalid sequences, and keep lines under
+  79 characters.
 - Update documentation—including AGENTS, README and `docs/`—whenever behaviour
   or structure changes. Treat documentation refresh as integral to every task
   and keep `Last Updated` headers chronological.
 - Bump project version per SemVer (`MAJOR.MINOR.PATCH`) whenever features,
   fixes or breaking changes land; keep version markers in sync.
-- Document every module, function and class with clear “what” and “why”
-  explanations. Use concise, descriptive identifiers, prefer raw strings or
-  explicit escapes, and keep lines under 79 characters.
 - Commit only after all tests and DriftGuard pass on every supported platform;
   add tests alongside new functionality or behavioural changes and refresh
   dependencies when packages change.
@@ -106,7 +114,8 @@ development.
   and security requirements and how changes affect the start scripts. Always
   run through the managed virtual environment seeded by these launchers.
 - Audit licenses for new dependencies and update `THIRD_PARTY_LICENSES.md` and
-  `licenses/` when packages change.
+  `licenses/` when packages change. Refresh dependency locks whenever manifests
+  move.
 - Validate every timestamp before recording it. Confirm the real current date
   and keep changelog chronology consistent without gaps or future-dated
   entries.

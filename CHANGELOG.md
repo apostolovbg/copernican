@@ -21,6 +21,19 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.7.10
+- 2025-11-26: Enforced full DriftGuard self-checks with exit codes, tightened
+              policy/doc/code synchronisation, added comment-sync enforcement,
+              and refreshed contributor guidance plus version metadata
+              (driftguard/cli.py, driftguard/rules/metadata.py,
+              driftguard/rules/python_lib.py, driftguard/rules/workflows.py,
+              driftguard/repo_policy.yml, DRIFTGUARD.md, AGENTS.md,
+              driftguard/AGENTS.md, README.md, CONTRIBUTING.md,
+              tests/test_driftguard_rules_metadata.py,
+              tests/test_driftguard_rules_python_lib.py,
+              tests/test_driftguard_cli.py, CHANGELOG.md, CITATION.cff,
+              copernican_lib/VERSION).
+
 ## Version 10.7.9
 - 2025-11-26: Added a hard pre-commit requirement to run pytest, unittest and
               DriftGuard, reinstated legacy policy laws inside DRIFTGUARD and

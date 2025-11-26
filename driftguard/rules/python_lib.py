@@ -86,6 +86,30 @@ def _changed_python_lib_paths(context: RuleContext) -> List[Path]:
     return changed if changed else surface_paths
 
 
+def _diff_added_lines(repo_root: Path, path: Path) -> List[str]:
+    """Return added lines from the Git diff for ``path`` without context."""
+
+    try:
+        diff = subprocess.run(
+            ["git", "diff", "-U0", "--", path.as_posix()],
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        return []
+    if diff.returncode != 0:
+        return []
+
+    additions: List[str] = []
+    for line in diff.stdout.splitlines():
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        additions.append(line[1:])
+    return additions
+
+
 def _changed_tests(status_entries: Iterable[Tuple[str, Path]]) -> List[Path]:
     """Return changed or added test files from Git status output."""
 
@@ -302,6 +326,50 @@ class CommentsExplainWhyRule(Rule):
                         path=path,
                     )
                 )
+        return violations
+
+
+class CommentSyncRule(Rule):
+    """Ensure code edits are paired with refreshed comments or docstrings."""
+
+    name = "comment-sync-with-code"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        repo_root = context.repo_root
+        targets = _changed_python_lib_paths(context)
+        violations: List[Violation] = []
+
+        for path in targets:
+            added_lines = _diff_added_lines(repo_root, path)
+            if not added_lines:
+                continue
+
+            code_added = any(
+                line.strip()
+                and not line.strip().startswith("#")
+                and "\"\"\"" not in line
+                and "'''" not in line
+                for line in added_lines
+            )
+            comment_added = any(
+                line.strip().startswith("#")
+                or "\"\"\"" in line
+                or "'''" in line
+                for line in added_lines
+            )
+
+            if code_added and not comment_added:
+                violations.append(
+                    Violation(
+                        rule_name=self.name,
+                        message=(
+                            "Update surrounding comments or docstrings when "
+                            "changing python-lib behaviour."
+                        ),
+                        path=path,
+                    )
+                )
+
         return violations
 
 

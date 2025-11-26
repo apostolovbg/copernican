@@ -216,42 +216,57 @@ class DriftGuardPrecommitRequiredRule(Rule):
     """Ensure policy docs tell contributors to run DriftGuard pre-commit."""
 
     name = "driftguard-precommit-required"
-    _POLICY_DOC = Path("DRIFTGUARD.md")
+    _POLICY_DOCS = (
+        Path("DRIFTGUARD.md"),
+        Path("README.md"),
+        Path("CONTRIBUTING.md"),
+        Path("AGENTS.md"),
+    )
+
+    def _mentions_full_run(self, text: str) -> bool:
+        normalized = text.lower()
+        commit_phrase = (
+            "before every commit" in normalized
+            or "before each commit" in normalized
+        )
+        return "driftguard" in normalized and "full" in normalized and commit_phrase
 
     def check(self, context: RuleContext) -> List[Violation]:
-        policy_path = context.repo_root / self._POLICY_DOC
-        try:
-            policy_text = policy_path.read_text(encoding="utf-8").lower()
-        except FileNotFoundError:
-            return [
+        violations: List[Violation] = []
+        for relative_path in self._POLICY_DOCS:
+            doc_path = context.repo_root / relative_path
+            try:
+                text = doc_path.read_text(encoding="utf-8")
+            except FileNotFoundError:
+                violations.append(
+                    Violation(
+                        rule_name=self.name,
+                        message=(
+                            f"{relative_path.as_posix()} must document "
+                            "running the full DriftGuard check before each "
+                            "commit."
+                        ),
+                        path=doc_path,
+                    )
+                )
+                continue
+
+            if self._mentions_full_run(text):
+                continue
+
+            violations.append(
                 Violation(
                     rule_name=self.name,
                     message=(
-                        "DRIFTGUARD.md is required to document DriftGuard " "usage."
+                        f"Document the full DriftGuard run before commits in "
+                        f"{relative_path.as_posix()} alongside the test "
+                        "commands."
                     ),
-                    path=policy_path,
+                    path=doc_path,
                 )
-            ]
-
-        phrases = (
-            "run driftguard",
-            "before every commit",
-            "after pytest",
-            "after python -m unittest discover -v",
-        )
-        if all(phrase in policy_text for phrase in phrases):
-            return []
-
-        return [
-            Violation(
-                rule_name=self.name,
-                message=(
-                    "DRIFTGUARD.md must instruct contributors to run pytest, "
-                    "unittest discover, and DriftGuard before committing."
-                ),
-                path=policy_path,
             )
-        ]
+
+        return violations
 
 
 class DependencyLicenseAuditRule(Rule):
