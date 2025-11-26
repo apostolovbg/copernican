@@ -75,7 +75,7 @@ def check_dataset_id(dataset_id: str) -> str:
     cannot corrupt directory structures.
     """
 
-    forbidden = set(r' \\/:*?"<>|')
+    forbidden = set(r" \/:*?\"<>|")
     return "".join(ch for ch in dataset_id if ch not in forbidden)
 
 
