@@ -1040,8 +1040,8 @@ def generate_callables(cache_path):
                     error_handler.report_error(msg)
                     raise ValueError(msg)
                 console.write(
-                    "\u26A0\uFE0F  Model does not supply r_s; BAO metrics "
-                    "are disabled."
+                    "⚠️  Model does not supply r_s; BAO metrics are "
+                    "disabled."
                 )
                 model_data["valid_for_bao"] = False
         except Exception as e:
@@ -1050,9 +1050,9 @@ def generate_callables(cache_path):
             raise ValueError(msg) from e
     else:
         console.write(
-            "\u26A0\uFE0F  Model does not define H(z). Distance-based "
-            "observables such as BAO, comoving distances, and luminosity "
-            "distances will be unavailable."
+            "⚠️  Model does not define H(z). Distance-based observables "
+            "such as BAO, comoving distances, and luminosity distances "
+            "will be unavailable."
         )
         model_data["valid_for_distance_metrics"] = False
         model_data["valid_for_bao"] = False

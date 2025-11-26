@@ -358,7 +358,7 @@ class CopernicanGUI:
         """Copy filtered diagnostics logs into a clipboard buffer."""
 
         entries = self.get_application_log_entries()
-        self.diagnostics_clipboard = "\n".join(
+        self.diagnostics_clipboard = os.linesep.join(
             entry.formatted for entry in entries
         )
         return self.diagnostics_clipboard
@@ -367,7 +367,9 @@ class CopernicanGUI:
         """Copy filtered run logs into a clipboard buffer."""
 
         entries = self.get_run_log_entries()
-        self.run_clipboard = "\n".join(entry.formatted for entry in entries)
+        self.run_clipboard = os.linesep.join(
+            entry.formatted for entry in entries
+        )
         return self.run_clipboard
 
     def export_application_logs(self, output_dir: str) -> str:

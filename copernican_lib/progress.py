@@ -31,6 +31,8 @@ from emcee.state import State
 
 from copernican_lib import console_output as console
 
+CARRIAGE_RETURN = chr(13)
+
 __all__ = [
     "BatchProgressBar",
     "StepProgressEmitter",
@@ -179,7 +181,7 @@ class BatchProgressBar:
             f"{bar} {percent:>3d}% {spinner} ("
             f"{postfix}; {walker_fragment})"
         )
-        line = f"\r{display_line}"
+        line = f"{CARRIAGE_RETURN}{display_line}"
         return line, percent, display_line
 
     def _render_raw(self, rendered_text: str) -> None:
@@ -192,7 +194,7 @@ class BatchProgressBar:
         # newlines. The old implementation relied on ``end="\r"`` which worked
         # interactively but left blank spacer rows in logs that captured the
         # trailing carriage return as a standalone line feed.
-        console.write(f"\r{rendered_text}", end="")
+        console.write(f"{CARRIAGE_RETURN}{rendered_text}", end="")
         self._last_rendered = rendered_text
 
     def _emit_display_line(self, display_line: str) -> None:

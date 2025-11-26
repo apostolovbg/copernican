@@ -26,6 +26,8 @@ from scipy.optimize import minimize
 
 from . import console_output as console
 
+CARRIAGE_RETURN = chr(13)
+
 
 def minimize_with_progress(
     func: Callable[[Iterable, Any], float],
@@ -129,7 +131,7 @@ def minimize_with_progress(
             console.write(
                 f"  {label} Evals: {eval_count['count']:<5} | Best Chi2: "
                 f"{best_val[0]:.4f} | Speed: {rate:<15}",
-                end="\r",
+                end=CARRIAGE_RETURN,
                 error=False,
             )
             last_update = now
@@ -154,7 +156,7 @@ def minimize_with_progress(
         )
     finally:
         # Clear the progress line so subsequent prints start on a clean line
-        console.write(" " * 80, end="\r", error=False)
+        console.write(" " * 80, end=CARRIAGE_RETURN, error=False)
         logger.info(
             "%s optimization finished. Total evals: %s.",
             label,

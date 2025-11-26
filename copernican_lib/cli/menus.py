@@ -16,21 +16,19 @@ def show_splash_screen(version: str) -> None:
 
     banner = [
         "=" * 70,
-        "\n",
+        "",
         "C O P E R N I C A N   S U I T E".center(70),
-        "\n",
+        "",
         "=" * 70,
-        "\n",
-        ("A tool for rapid development, prototyping and testing of\n").center(
-            70
-        ),
+        "",
+        "A tool for rapid development, prototyping and testing of".center(70),
         (
-            "alternative cosmological frameworks against observational data\n"
+            "alternative cosmological frameworks against observational data"
         ).center(70),
         "-" * 70,
         f"build {version}".center(70),
         "=" * 70,
-        "\n",
+        "",
     ]
     for line in banner:
         console.write(line)
@@ -131,7 +129,7 @@ def normalise_failure_reasons(details: Iterable[str] | str) -> list[str]:
 
     if isinstance(details, str):
         text = details.split(":", 1)[-1] if ":" in details else details
-        raw_parts = text.replace(";", "\n").splitlines()
+    raw_parts = text.replace(";", os.linesep).splitlines()
     else:
         raw_parts = []
         for item in details:
