@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-26
+**Last Updated:** 2025-11-27
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -36,6 +36,15 @@ suffixes. Follow this template:
               (.github/workflows/ci.yml, DRIFTGUARD.md, driftguard/repo_policy.yml,
               driftguard/rules/workflows.py, tests/test_driftguard_rules_workflows.py,
               README.md, AGENTS.md, CONTRIBUTING.md).
+- 2025-11-27: Synced DriftGuard enforcement with repo_policy by adding rule
+              coverage for changelog-to-diff mapping, start script parity,
+              semver bumps, managed-venv enforcement, and expanded python-lib
+              rationale checks; updated contributor docs to fix DriftGuard
+              violations before committing and added targeted tests
+              (driftguard/rules/metadata.py, driftguard/rules/python_lib.py,
+              driftguard/rules/workflows.py, driftguard/rules/__init__.py,
+              tests/test_driftguard_rules_metadata.py, AGENTS.md, README.md,
+              CONTRIBUTING.md).
 - 2025-11-26: Reformatted DriftGuard logging utilities to satisfy Black and
               bumped release metadata to 10.7.9 so version markers stay in
               sync (driftguard/logging_utils.py, README.md, CITATION.cff,

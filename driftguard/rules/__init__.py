@@ -90,32 +90,68 @@ def get_all_rules(spec: DriftGuardSpec) -> List[Rule]:
         TodoCountRule,
     )
     from driftguard.rules.metadata import (  # Import locally to avoid cycles.
+        ChangelogDiffCoverageRule,
         ChangelogRule,
         CitationYamlRule,
+        DocumentationRefreshRule,
+        HumanEditPreservationRule,
         LastUpdatedDocsRule,
+        ManagedVenvOnlyRule,
         NoFutureDatesRule,
+        SecurityComplianceRule,
+        SemverBumpRequiredRule,
+        StartLauncherParityRule,
+        TimestampValidationRule,
         VersionSyncRule,
     )
     from driftguard.rules.python_lib import (
         BugfixHasTestRule,
+        CommentsExplainWhyRule,
+        DocstringsExplainWhyRule,
+        LineLengthRule,
+        NamingClearAndConciseRule,
         NewModulesNeedTestsRule,
         NoPrintInLibRule,
+        RawStringEscapingRule,
+        TestsForChangesRule,
     )
-    from driftguard.rules.workflows import FullTestSuiteInCIRule
+    from driftguard.rules.workflows import (
+        DependencyLicenseAuditRule,
+        DependencyRefreshRule,
+        DriftGuardPrecommitRequiredRule,
+        FullTestSuiteInCIRule,
+    )
 
     registry: Dict[str, Rule] = {
         LastUpdatedDocsRule.name: LastUpdatedDocsRule(),
+        TimestampValidationRule.name: TimestampValidationRule(),
+        HumanEditPreservationRule.name: HumanEditPreservationRule(),
+        DocumentationRefreshRule.name: DocumentationRefreshRule(),
+        ChangelogDiffCoverageRule.name: ChangelogDiffCoverageRule(),
         VersionSyncRule.name: VersionSyncRule(),
+        SemverBumpRequiredRule.name: SemverBumpRequiredRule(),
         NoFutureDatesRule.name: NoFutureDatesRule(),
         CitationYamlRule.name: CitationYamlRule(),
         ChangelogRule.name: ChangelogRule(),
+        StartLauncherParityRule.name: StartLauncherParityRule(),
+        ManagedVenvOnlyRule.name: ManagedVenvOnlyRule(),
+        SecurityComplianceRule.name: SecurityComplianceRule(),
         NoPrintInLibRule.name: NoPrintInLibRule(),
+        CommentsExplainWhyRule.name: CommentsExplainWhyRule(),
+        DocstringsExplainWhyRule.name: DocstringsExplainWhyRule(),
+        NamingClearAndConciseRule.name: NamingClearAndConciseRule(),
+        LineLengthRule.name: LineLengthRule(),
+        RawStringEscapingRule.name: RawStringEscapingRule(),
         NewModulesNeedTestsRule.name: NewModulesNeedTestsRule(),
         BugfixHasTestRule.name: BugfixHasTestRule(),
+        TestsForChangesRule.name: TestsForChangesRule(),
         TodoCountRule.name: TodoCountRule(),
         TestCouplingRule.name: TestCouplingRule(),
         DocAgeRule.name: DocAgeRule(),
         FullTestSuiteInCIRule.name: FullTestSuiteInCIRule(),
+        DriftGuardPrecommitRequiredRule.name: DriftGuardPrecommitRequiredRule(),
+        DependencyLicenseAuditRule.name: DependencyLicenseAuditRule(),
+        DependencyRefreshRule.name: DependencyRefreshRule(),
     }
 
     requested: List[str] = []

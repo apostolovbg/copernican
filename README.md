@@ -1,5 +1,5 @@
 **Version:** 10.7.9
-**Last Updated:** 2025-11-26
+**Last Updated:** 2025-11-27
 
 **DriftGuard is the supreme development authority.** All contributors must obey
 the rules codified in `driftguard/repo_policy.yml` and summarised in
@@ -7,7 +7,8 @@ the rules codified in `driftguard/repo_policy.yml` and summarised in
 compromise the Copernican Suite and will lead to rejected commits. **Before
 committing, run `python -m pytest -q`, `python -m unittest discover -v`, and
 `driftguard check --scope=staged --mode=fast` on staged changes; committing
-without a fresh DriftGuard pass is forbidden.**
+without a fresh DriftGuard pass is forbidden.** Resolve violations (using
+`driftguard fix` when safe) before you commit.
 
 ![Copernican Suite banner](docs/banner_github.png)
 

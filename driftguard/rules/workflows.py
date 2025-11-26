@@ -227,3 +227,144 @@ class FullTestSuiteInCIRule(Rule):
     # pragma: no cover - no metrics
     def metrics(self, context: RuleContext) -> List:
         return []
+
+
+class DriftGuardPrecommitRequiredRule(Rule):
+    """Ensure policy docs tell contributors to run DriftGuard pre-commit."""
+
+    name = "driftguard-precommit-required"
+    _POLICY_DOC = Path("DRIFTGUARD.md")
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        policy_path = context.repo_root / self._POLICY_DOC
+        try:
+            policy_text = policy_path.read_text(encoding="utf-8").lower()
+        except FileNotFoundError:
+            return [
+                Violation(
+                    rule_name=self.name,
+                    message="DRIFTGUARD.md is required to document DriftGuard usage.",
+                    path=policy_path,
+                )
+            ]
+
+        phrases = (
+            "run driftguard",
+            "before every commit",
+            "after pytest",
+            "after python -m unittest discover -v",
+        )
+        if all(phrase in policy_text for phrase in phrases):
+            return []
+
+        return [
+            Violation(
+                rule_name=self.name,
+                message=(
+                    "DRIFTGUARD.md must instruct contributors to run pytest, "
+                    "unittest discover, and DriftGuard before committing."
+                ),
+                path=policy_path,
+            )
+        ]
+
+
+class DependencyLicenseAuditRule(Rule):
+    """Require license updates when dependencies change."""
+
+    name = "dependency-license-audit"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        repo_root = context.repo_root
+        try:
+            status = subprocess.run(
+                ["git", "status", "--porcelain", "--untracked-files=all"],
+                cwd=repo_root,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except FileNotFoundError:
+            return []
+        if status.returncode != 0:
+            return []
+
+        changed: List[Path] = []
+        for line in status.stdout.splitlines():
+            if not line.strip():
+                continue
+            parts = line.strip().split(maxsplit=1)
+            if len(parts) != 2:
+                continue
+            changed.append(repo_root / parts[1])
+
+        dependency_files = {
+            repo_root / "requirements.in",
+            repo_root / "pyproject.toml",
+            repo_root / "requirements.lock",
+        }
+        if not dependency_files & {path.resolve() for path in changed}:
+            return []
+
+        licenses = repo_root / "THIRD_PARTY_LICENSES.md"
+        if licenses.resolve() in {path.resolve() for path in changed}:
+            return []
+
+        return [
+            Violation(
+                rule_name=self.name,
+                message=(
+                    "Update THIRD_PARTY_LICENSES.md and licenses/ when "
+                    "dependencies change."
+                ),
+                path=licenses if licenses.exists() else repo_root,
+            )
+        ]
+
+
+class DependencyRefreshRule(Rule):
+    """Require lockfile refresh when dependency manifests change."""
+
+    name = "dependency-refresh"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        repo_root = context.repo_root
+        try:
+            status = subprocess.run(
+                ["git", "status", "--porcelain", "--untracked-files=all"],
+                cwd=repo_root,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except FileNotFoundError:
+            return []
+        if status.returncode != 0:
+            return []
+
+        changed: List[Path] = []
+        for line in status.stdout.splitlines():
+            if not line.strip():
+                continue
+            parts = line.strip().split(maxsplit=1)
+            if len(parts) != 2:
+                continue
+            changed.append(repo_root / parts[1])
+
+        manifests_changed = any(
+            path.name in {"requirements.in", "pyproject.toml"}
+            for path in changed
+        )
+        lock_changed = any(path.name == "requirements.lock" for path in changed)
+        if manifests_changed and not lock_changed:
+            return [
+                Violation(
+                    rule_name=self.name,
+                    message=(
+                        "Regenerate requirements.lock when dependency "
+                        "manifests change."
+                    ),
+                    path=repo_root / "requirements.lock",
+                )
+            ]
+        return []

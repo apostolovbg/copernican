@@ -12,7 +12,7 @@ import datetime
 import re
 import subprocess
 from pathlib import Path
-from typing import Iterable, List, Sequence
+from typing import Iterable, List, Sequence, Tuple
 
 import yaml
 from yaml import YAMLError
@@ -54,6 +54,61 @@ def _iter_surface_paths(
             resolve_surface_globs(context.spec, context.repo_root, surface)
         )
     return paths
+
+
+def _git_status(repo_root: Path) -> List[Tuple[str, Path]]:
+    """Return parsed git status entries for the working tree."""
+
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=all"],
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        return []
+    if result.returncode != 0:
+        return []
+
+    entries: List[Tuple[str, Path]] = []
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        parts = line.strip().split(maxsplit=1)
+        if len(parts) != 2:
+            continue
+        status, path_text = parts
+        entries.append((status, repo_root / path_text))
+    return entries
+
+
+def _git_diff_names(repo_root: Path) -> List[Path]:
+    """Return file paths mentioned in staged or working tree diffs."""
+
+    names: List[Path] = []
+    diff_commands = (
+        ["git", "diff", "--name-only"],
+        ["git", "diff", "--name-only", "--cached"],
+    )
+    for args in diff_commands:
+        try:
+            diff = subprocess.run(
+                args,
+                cwd=repo_root,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except FileNotFoundError:
+            continue
+        if diff.returncode != 0:
+            continue
+        for line in diff.stdout.splitlines():
+            if line.strip():
+                names.append((repo_root / line.strip()).resolve())
+    return list(dict.fromkeys(names))
 
 
 def _header_in_first_three(
@@ -468,3 +523,379 @@ class ChangelogRule(Rule):
                 )
             ]
         return []
+
+
+class ChangelogDiffCoverageRule(Rule):
+    """Require the latest changelog entry to mention touched files."""
+
+    name = "changelog-diff-coverage"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        repo_root = context.repo_root
+        changelog = repo_root / "CHANGELOG.md"
+        if not changelog.exists():
+            return []
+
+        changed = [
+            path
+            for path in _git_diff_names(repo_root)
+            if path.is_file()
+            and path.resolve() != changelog.resolve()
+            and repo_root in path.parents
+        ]
+        if not changed:
+            return []
+
+        newest_entry: list[str] = []
+        lines = changelog.read_text(encoding="utf-8").splitlines()
+        in_latest = False
+        for line in lines:
+            if line.startswith("## Version"):
+                if in_latest:
+                    break
+                in_latest = True
+                continue
+            if in_latest:
+                newest_entry.append(line)
+
+        newest_text = "\n".join(newest_entry).lower()
+        missing: List[str] = []
+        for path in changed:
+            relative = path.relative_to(repo_root).as_posix()
+            parts = relative.split("/")
+            identifiers = {relative.lower(), parts[0].lower()}
+            identifiers.add(Path(relative).name.lower())
+            if not any(identifier in newest_text for identifier in identifiers):
+                missing.append(relative)
+
+        if not missing:
+            return []
+
+        return [
+            Violation(
+                rule_name=self.name,
+                message=(
+                    "Latest CHANGELOG.md entry must list touched files or "
+                    "subsystems: " + ", ".join(sorted(missing))
+                ),
+                path=changelog,
+            )
+        ]
+
+
+class DocumentationRefreshRule(Rule):
+    """Ensure documentation updates accompany behavioural changes."""
+
+    name = "documentation-refresh-required"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        repo_root = context.repo_root
+        status_entries = _git_status(repo_root)
+        if not status_entries:
+            return []
+
+        doc_surfaces = _iter_surface_paths(context, ("docs",))
+        doc_paths = {path.resolve() for path in doc_surfaces}
+
+        changed_docs = [
+            path
+            for _, path in status_entries
+            if path.resolve() in doc_paths and not path.name.startswith(".")
+        ]
+        if changed_docs:
+            return []
+
+        changed_non_docs = [
+            path
+            for _, path in status_entries
+            if path.resolve() not in doc_paths
+            and path.suffix
+            and not path.name.startswith(".")
+            and (repo_root / "CHANGELOG.md").resolve() != path.resolve()
+        ]
+        if not changed_non_docs:
+            return []
+
+        display = ", ".join(
+            sorted(
+                path.relative_to(repo_root).as_posix() for path in changed_non_docs
+            )
+        )
+        return [
+            Violation(
+                rule_name=self.name,
+                message=(
+                    "Documentation must be refreshed alongside code changes: "
+                    f"{display}"
+                ),
+                path=changed_non_docs[0],
+            )
+        ]
+
+
+class TimestampValidationRule(Rule):
+    """Prevent chronological drift across tracked timestamps."""
+
+    name = "timestamp-validation"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        repo_root = context.repo_root
+        violations: List[Violation] = []
+
+        changelog = repo_root / "CHANGELOG.md"
+        if changelog.exists():
+            dates: List[datetime.date] = []
+            for line in _read_text(changelog).splitlines():
+                match = re.match(r"^-\s*(\d{4}-\d{2}-\d{2})", line.strip())
+                if match:
+                    dates.append(datetime.date.fromisoformat(match.group(1)))
+            if dates:
+                newest = dates[0]
+                for index, value in enumerate(dates[1:], start=1):
+                    if value > dates[index - 1]:
+                        violations.append(
+                            Violation(
+                                rule_name=self.name,
+                                message=(
+                                    "CHANGELOG.md dates must remain in "
+                                    "reverse chronological order."
+                                ),
+                                path=changelog,
+                            )
+                        )
+                        break
+                today = _utc_today()
+                if newest > today:
+                    violations.append(
+                        Violation(
+                            rule_name=self.name,
+                            message=(
+                                "CHANGELOG.md must not contain future-dated "
+                                "entries."
+                            ),
+                            path=changelog,
+                        )
+                    )
+
+        tracked = _iter_surface_paths(context, ("docs", "interfaces"))
+        for path in tracked:
+            header_index, header_date = _header_in_first_three(_read_text(path))
+            if header_index is None or header_date is None:
+                continue
+            try:
+                previous = subprocess.run(
+                    ["git", "show", f"HEAD:{path.as_posix()}"],
+                    cwd=repo_root,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except (FileNotFoundError, subprocess.CalledProcessError):
+                continue
+            prior_header = _header_in_first_three(previous.stdout)[1]
+            if prior_header and header_date < prior_header:
+                violations.append(
+                    Violation(
+                        rule_name=self.name,
+                        message=(
+                            "Last Updated must not move backward; preserve "
+                            "human chronology."
+                        ),
+                        path=path,
+                    )
+                )
+        return violations
+
+
+class HumanEditPreservationRule(Rule):
+    """Confirm metadata retains or advances human-authored timestamps."""
+
+    name = "human-edit-preservation"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        violations: List[Violation] = []
+        for path in _iter_surface_paths(context, ("docs", "metadata", "interfaces")):
+            header_index, header_date = _header_in_first_three(_read_text(path))
+            if header_index is None or header_date is None:
+                continue
+            try:
+                previous = subprocess.run(
+                    ["git", "show", f"HEAD:{path.as_posix()}"],
+                    cwd=context.repo_root,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except (FileNotFoundError, subprocess.CalledProcessError):
+                continue
+            prior_header = _header_in_first_three(previous.stdout)[1]
+            if prior_header and header_date < prior_header:
+                violations.append(
+                    Violation(
+                        rule_name=self.name,
+                        message=(
+                            "Human-authored Last Updated stamps must not be "
+                            "reversed or overwritten with older dates."
+                        ),
+                        path=path,
+                    )
+                )
+        return violations
+
+
+class SemverBumpRequiredRule(Rule):
+    """Require semantic version bumps when core code changes."""
+
+    name = "semver-bump-required"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        repo_root = context.repo_root
+        status_entries = _git_status(repo_root)
+        if not status_entries:
+            return []
+
+        version_file = repo_root / "copernican_lib" / "VERSION"
+        version_changed = any(
+            path.resolve() == version_file.resolve() for _, path in status_entries
+        )
+
+        surfaces = ["python-lib", "interfaces"]
+        relevant_paths: List[Path] = []
+        for surface in surfaces:
+            if surface not in context.spec.surfaces:
+                continue
+            relevant_paths.extend(
+                resolve_surface_globs(context.spec, repo_root, surface)
+            )
+        flat_relevant = {path.resolve() for path in relevant_paths}
+
+        code_changes = [
+            path
+            for _, path in status_entries
+            if path.resolve() in flat_relevant and not path.name.startswith(".")
+        ]
+        if code_changes and not version_changed:
+            display = ", ".join(
+                sorted(
+                    path.relative_to(repo_root).as_posix() for path in code_changes
+                )
+            )
+            return [
+                Violation(
+                    rule_name=self.name,
+                    message=(
+                        "Bump copernican_lib/VERSION per SemVer when code "
+                        f"changes occur: {display}"
+                    ),
+                    path=version_file,
+                )
+            ]
+        return []
+
+
+class StartLauncherParityRule(Rule):
+    """Ensure start scripts are updated together."""
+
+    name = "start-launcher-parity"
+    _STARTERS = (
+        Path("start.sh"),
+        Path("start.bat"),
+        Path("start.command"),
+    )
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        status_entries = _git_status(context.repo_root)
+        if not status_entries:
+            return []
+
+        starter_names = {starter.name for starter in self._STARTERS}
+        changed = {
+            path.resolve()
+            for _, path in status_entries
+            if path.name in starter_names
+        }
+        if not changed:
+            return []
+
+        expected = {
+            (context.repo_root / starter).resolve()
+            for starter in self._STARTERS
+        }
+        if changed == expected:
+            return []
+
+        missing = expected - changed
+        return [
+            Violation(
+                rule_name=self.name,
+                message=(
+                    "When one start script changes, review and touch the others: "
+                    + ", ".join(
+                        sorted(
+                            path.relative_to(context.repo_root).as_posix()
+                            for path in missing
+                        )
+                    )
+                ),
+                path=next(iter(changed)),
+            )
+        ]
+
+
+class ManagedVenvOnlyRule(Rule):
+    """Confirm launchers enforce the managed virtual environment."""
+
+    name = "managed-venv-only"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        violations: List[Violation] = []
+        starters = (
+            context.repo_root / name
+            for name in ("start.sh", "start.bat", "start.command")
+        )
+        for starter in starters:
+            if not starter.exists():
+                continue
+            text = starter.read_text(encoding="utf-8").lower()
+            if ".venv" not in text:
+                violations.append(
+                    Violation(
+                        rule_name=self.name,
+                        message=(
+                            "Managed virtual environment must be enforced in "
+                            f"{starter.name}."
+                        ),
+                        path=starter,
+                    )
+                )
+        return violations
+
+
+class SecurityComplianceRule(Rule):
+    """Check launchers keep pinned dependency installation flows."""
+
+    name = "security-compliance"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        violations: List[Violation] = []
+        keywords = ("requirements.lock", "pip install --no-deps")
+        starters = (
+            context.repo_root / name
+            for name in ("start.sh", "start.bat", "start.command")
+        )
+        for starter in starters:
+            if not starter.exists():
+                continue
+            text = starter.read_text(encoding="utf-8").lower()
+            if not all(keyword in text for keyword in keywords):
+                violations.append(
+                    Violation(
+                        rule_name=self.name,
+                        message=(
+                            f"{starter.name} must install from requirements.lock "
+                            "and use --no-deps for project installs."
+                        ),
+                        path=starter,
+                    )
+                )
+        return violations

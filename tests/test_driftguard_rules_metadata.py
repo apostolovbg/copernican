@@ -8,10 +8,13 @@ from pathlib import Path
 
 from driftguard.rules import RuleContext
 from driftguard.rules.metadata import (
+    ChangelogDiffCoverageRule,
     ChangelogRule,
     CitationYamlRule,
     LastUpdatedDocsRule,
     NoFutureDatesRule,
+    SemverBumpRequiredRule,
+    StartLauncherParityRule,
     VersionSyncRule,
 )
 from driftguard.spec import DriftConfig, DriftGuardSpec, SurfaceSpec
@@ -34,6 +37,12 @@ def _spec_with_surfaces() -> DriftGuardSpec:
                 include=["start.sh"],
                 exclude=[],
                 rules=["last-updated-header"],
+            ),
+            "python-lib": SurfaceSpec(
+                name="python-lib",
+                include=["copernican_lib/**/*.py"],
+                exclude=[],
+                rules=[],
             ),
             "metadata": SurfaceSpec(
                 name="metadata",
@@ -277,3 +286,107 @@ def test_changelog_rule_requires_updates(tmp_path: Path) -> None:
     )
 
     assert rule.check(context) == []
+
+def test_changelog_diff_coverage_flags_missing_files(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    changelog = repo_root / "CHANGELOG.md"
+    changelog.write_text(
+        "\n".join(
+            [
+                "# Changelog",
+                "**Last Updated:** 2025-11-27",
+                "",
+                "## Version 1.0.0",
+                "- 2025-11-27: Initial entry without file references.",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    target = repo_root / "copernican_lib" / "example.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("print('hi')\n", encoding="utf-8")
+
+    subprocess.run(["git", "init"], cwd=repo_root, check=True)
+    subprocess.run(["git", "config", "user.email", "ci@example.com"], cwd=repo_root, check=True)
+    subprocess.run(["git", "config", "user.name", "CI"], cwd=repo_root, check=True)
+    subprocess.run(["git", "add", "CHANGELOG.md", "copernican_lib/example.py"], cwd=repo_root, check=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo_root, check=True)
+
+    target.write_text("print('bye')\n", encoding="utf-8")
+
+    rule = ChangelogDiffCoverageRule()
+    context = _context(repo_root)
+    violations = rule.check(context)
+
+    assert violations
+    assert violations[0].path == changelog
+
+
+def test_start_scripts_require_parity(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    for name in ("start.sh", "start.bat", "start.command"):
+        (repo_root / name).write_text(
+            "# Last Updated: 2025-11-26\n", encoding="utf-8"
+        )
+    subprocess.run(["git", "init"], cwd=repo_root, check=True)
+    subprocess.run(["git", "config", "user.email", "ci@example.com"], cwd=repo_root, check=True)
+    subprocess.run(["git", "config", "user.name", "CI"], cwd=repo_root, check=True)
+    subprocess.run(
+        ["git", "add", "start.sh", "start.bat", "start.command"],
+        cwd=repo_root,
+        check=True,
+    )
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo_root, check=True)
+
+    start_sh = repo_root / "start.sh"
+    start_sh.write_text("# Last Updated: 2025-11-27\n", encoding="utf-8")
+
+    rule = StartLauncherParityRule()
+    context = _context(repo_root)
+    violations = rule.check(context)
+
+    assert violations
+
+
+def test_semver_bump_required_for_code_changes(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    version_file = repo_root / "copernican_lib" / "VERSION"
+    version_file.parent.mkdir(parents=True, exist_ok=True)
+    version_file.write_text("1.0.0\n", encoding="utf-8")
+    readme = repo_root / "README.md"
+    readme.write_text(
+        "**Version:** 1.0.0\n**Last Updated:** 2025-11-27\n",
+        encoding="utf-8",
+    )
+    changelog = repo_root / "CHANGELOG.md"
+    changelog.write_text(
+        "# Changelog\n## Version 1.0.0\n- 2025-11-27: Init\n",
+        encoding="utf-8",
+    )
+    module = repo_root / "copernican_lib" / "module.py"
+    module.write_text("print('change')\n", encoding="utf-8")
+
+    subprocess.run(["git", "init"], cwd=repo_root, check=True)
+    subprocess.run(["git", "config", "user.email", "ci@example.com"], cwd=repo_root, check=True)
+    subprocess.run(["git", "config", "user.name", "CI"], cwd=repo_root, check=True)
+    subprocess.run(
+        [
+            "git",
+            "add",
+            "README.md",
+            "CHANGELOG.md",
+            "copernican_lib/VERSION",
+            "copernican_lib/module.py",
+        ],
+        cwd=repo_root,
+        check=True,
+    )
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo_root, check=True)
+
+    module.write_text("print('modified')\n", encoding="utf-8")
+
+    rule = SemverBumpRequiredRule()
+    context = _context(repo_root)
+    violations = rule.check(context)
+
+    assert violations

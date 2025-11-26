@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import re
 import subprocess
+import tokenize
 from pathlib import Path
 from typing import Iterable, List, Sequence, Tuple
 
@@ -62,6 +63,27 @@ def _python_lib_paths(context: RuleContext) -> List[Path]:
     if "python-lib" not in context.spec.surfaces:
         return []
     return resolve_surface_globs(context.spec, context.repo_root, "python-lib")
+
+
+def _changed_python_lib_paths(context: RuleContext) -> List[Path]:
+    """Return python-lib files that are currently changed or added."""
+
+    surface_paths = _python_lib_paths(context)
+    if not surface_paths:
+        return []
+    surface_set = {path.resolve() for path in surface_paths}
+    status_entries = _git_status(context.repo_root)
+    if not status_entries:
+        return surface_paths
+
+    changed: List[Path] = []
+    for status, path in status_entries:
+        if path.resolve() not in surface_set:
+            continue
+        if status.startswith("D"):
+            continue
+        changed.append(path)
+    return changed if changed else surface_paths
 
 
 def _changed_tests(status_entries: Iterable[Tuple[str, Path]]) -> List[Path]:
@@ -246,5 +268,236 @@ class BugfixHasTestRule(Rule):
                     f" Changed modules: {changed_display}"
                 ),
                 path=changelog,
+            )
+        ]
+
+
+class CommentsExplainWhyRule(Rule):
+    """Demand explanatory comments in python-lib changes."""
+
+    name = "comments-explain-why"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        targets = _changed_python_lib_paths(context)
+        violations: List[Violation] = []
+        for path in targets:
+            try:
+                lines = path.read_text(encoding="utf-8").splitlines()
+            except (UnicodeDecodeError, FileNotFoundError):
+                continue
+            has_comment = any(line.strip().startswith("#") for line in lines)
+            has_why = any(
+                line.strip().startswith("#")
+                and ("why" in line.lower() or "because" in line.lower())
+                for line in lines
+            )
+            if not has_comment or not has_why:
+                violations.append(
+                    Violation(
+                        rule_name=self.name,
+                        message=(
+                            "Python modules must include explanatory comments "
+                            "covering the rationale (why/because)."
+                        ),
+                        path=path,
+                    )
+                )
+        return violations
+
+
+class DocstringsExplainWhyRule(Rule):
+    """Require module, class and function docstrings with rationale."""
+
+    name = "docstrings-explain-why"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        targets = _changed_python_lib_paths(context)
+        violations: List[Violation] = []
+        for path in targets:
+            try:
+                source = path.read_text(encoding="utf-8")
+                tree = ast.parse(source)
+            except (UnicodeDecodeError, FileNotFoundError, SyntaxError):
+                continue
+
+            module_doc = ast.get_docstring(tree)
+            if not module_doc or (
+                "why" not in module_doc.lower()
+                and "because" not in module_doc.lower()
+            ):
+                violations.append(
+                    Violation(
+                        rule_name=self.name,
+                        message=(
+                            "Module docstring must describe what and why."
+                        ),
+                        path=path,
+                    )
+                )
+
+            for node in ast.walk(tree):
+                if isinstance(
+                    node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+                ):
+                    doc = ast.get_docstring(node)
+                    if not doc or (
+                        "why" not in doc.lower() and "because" not in doc.lower()
+                    ):
+                        violations.append(
+                            Violation(
+                                rule_name=self.name,
+                                message=(
+                                    "Functions and classes need docstrings "
+                                    "explaining intent (why/because)."
+                                ),
+                                path=path,
+                            )
+                        )
+                        break
+        return violations
+
+
+class NamingClearAndConciseRule(Rule):
+    """Discourage ambiguous single-letter identifiers for public APIs."""
+
+    name = "naming-clear-and-concise"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        targets = _changed_python_lib_paths(context)
+        violations: List[Violation] = []
+        for path in targets:
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (UnicodeDecodeError, FileNotFoundError, SyntaxError):
+                continue
+            for node in ast.walk(tree):
+                if isinstance(
+                    node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+                ):
+                    name = node.name
+                    if len(name) < 3 and not name.startswith("__"):
+                        violations.append(
+                            Violation(
+                                rule_name=self.name,
+                                message=(
+                                    f"Identifier {name!r} should be more "
+                                    "descriptive than a single letter."
+                                ),
+                                path=path,
+                            )
+                        )
+                        break
+        return violations
+
+
+class LineLengthRule(Rule):
+    """Keep Python source lines within 79 characters."""
+
+    name = "line-length-79"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        violations: List[Violation] = []
+        for path in _changed_python_lib_paths(context):
+            try:
+                lines = path.read_text(encoding="utf-8").splitlines()
+            except (UnicodeDecodeError, FileNotFoundError):
+                continue
+            for number, line in enumerate(lines, start=1):
+                if len(line) > 79:
+                    violations.append(
+                        Violation(
+                            rule_name=self.name,
+                            message=(
+                                f"Line {number} exceeds 79 characters; "
+                                "condense or wrap."
+                            ),
+                            path=path,
+                        )
+                    )
+                    break
+        return violations
+
+
+class RawStringEscapingRule(Rule):
+    """Encourage raw strings when backslashes appear in literals."""
+
+    name = "raw-string-escaping"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        violations: List[Violation] = []
+        for path in _changed_python_lib_paths(context):
+            try:
+                source = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, FileNotFoundError):
+                continue
+            try:
+                tokens = tokenize.generate_tokens(
+                    iter(source.splitlines(True)).__next__
+                )
+            except tokenize.TokenError:
+                continue
+
+            for token in tokens:
+                if token.type != tokenize.STRING:
+                    continue
+                text = token.string
+                quote_index = None
+                for probe in ("'''", '"""', "'", '"'):
+                    idx = text.find(probe)
+                    if idx != -1:
+                        quote_index = idx
+                        break
+                if quote_index is None:
+                    continue
+                prefix = text[:quote_index].lower()
+                has_raw_prefix = "r" in prefix
+                if "\\" in text and not has_raw_prefix:
+                    violations.append(
+                        Violation(
+                            rule_name=self.name,
+                            message=(
+                                "Use raw strings or explicit escaping for "
+                                "backslashes in string literals."
+                            ),
+                            path=path,
+                        )
+                    )
+                    break
+        return violations
+
+
+class TestsForChangesRule(Rule):
+    """Require tests alongside python-lib modifications."""
+
+    name = "tests-for-changes"
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        status_entries = _git_status(context.repo_root)
+        if not status_entries:
+            return []
+
+        surface_paths = _python_lib_paths(context)
+        surface_set = {path.resolve() for path in surface_paths}
+        lib_changes = [
+            path for _, path in status_entries if path.resolve() in surface_set
+        ]
+        if not lib_changes:
+            return []
+
+        tests_changed = _changed_tests(status_entries)
+        if tests_changed:
+            return []
+
+        display = ", ".join(
+            sorted(path.relative_to(context.repo_root).as_posix() for path in lib_changes)
+        )
+        return [
+            Violation(
+                rule_name=self.name,
+                message=(
+                    "Update or add tests when modifying python-lib code: "
+                    f"{display}"
+                ),
+                path=lib_changes[0],
             )
         ]
