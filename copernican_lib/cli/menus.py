@@ -34,6 +34,8 @@ def show_splash_screen(version: str) -> None:
     ]
     for line in banner:
         console.write(line)
+    # Pause briefly so the banner is readable before the menu clears the
+    # scrollback with prompts and progress updates.
     time.sleep(1)
     console.write("")
 

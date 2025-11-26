@@ -158,7 +158,9 @@ class _GeneratedCallable:
                 # ``quad`` is mapped to the resilient helper so that
                 # generated callables automatically inherit the retry
                 # logic that guards against SciPy ``IntegrationWarning``
-                # emissions.
+                # emissions. We keep the globals explicit because exec-based
+                # functions bypass SymPy's usual module cache and need a
+                # deterministic environment to remain picklable.
                 "quad": robust_quad,
                 "__builtins__": {},
                 "__name__": __name__,

@@ -20,7 +20,8 @@ from .logger import get_logger
 from .utils import ensure_dir_exists, generate_filename, get_timestamp
 
 # Resolve the Matplotlib backend during import so later calls do not trigger
-# the auto-backend sentinel while tests monitor ``switch_backend``.
+# the auto-backend sentinel while tests monitor ``switch_backend`` because the
+# sentinel mutates global state and would pollute deterministic test output.
 _ = plt.get_backend()
 
 # ``MAX_CORNER_SAMPLES`` bounds the number of posterior draws processed by the
