@@ -1,18 +1,19 @@
 # DriftGuard policy spec derived from PLAN.json driftguard_yaml_spec.
-# Comments map historical AGENTS rules to the new rule surfaces for clarity.
+# DriftGuard is the authoritative source for development laws; repository docs
+# point back here for enforceable guidance.
 version: 1
 project: Copernican Suite
 rulesets:
-  core-metadata: hard # Mirrors AGENTS rules on metadata and date hygiene.
-  docs-drift: warn # Tracks doc freshness per AGENTS guidance on currency.
-  python-quality: hard # Replaces AGENTS safeguards on print usage and tests.
-  bugfix-coverage: warn # Soft reminder aligned with AGENTS testing emphasis.
-  workflow-discipline: hard # Ensures CI and local workflows exercise the full suite.
+  core-metadata: hard # Enforce metadata and date hygiene.
+  docs-drift: warn # Track documentation freshness to prevent staleness.
+  python-quality: hard # Protect Python code quality and test coverage.
+  bugfix-coverage: warn # Encourage pairing fixes with regression tests.
+  workflow-discipline: hard # Ensure workflows run the full suite and policy checks.
 surfaces:
   docs:
     description: >-
       Documentation and license files that require Last Updated headers and
-      strict date validation.
+      strict date validation while pointing contributors back to DriftGuard.
     include:
       - README.md
       - AGENTS.md
@@ -59,7 +60,7 @@ surfaces:
   python-lib:
     description: >-
       Core Python library code that should avoid prints and pair new modules
-      with tests, matching prior AGENTS quality guards.
+      with tests.
     include:
       - copernican_lib/**/*.py
       - engines/**/*.py
@@ -81,8 +82,7 @@ surfaces:
     rules: []
   tools:
     description: >-
-      Helper scripts reserved for bespoke tooling rules; tracked here to keep
-      parity with legacy AGENTS coverage.
+      Helper scripts reserved for bespoke tooling rules.
     include:
       - tools/**/*.py
     exclude: []
@@ -91,8 +91,9 @@ surfaces:
     description: >-
       Continuous integration workflows that must exercise the full program
       unit test suite under /tests via both the documented `python -m pytest -q`
-      command and the `python -m unittest discover -v` invocation, and document
-      the expectation that developers do the same before committing.
+      command and the `python -m unittest discover -v` invocation, document the
+      expectation that developers run both suites for every task before
+      committing, and sequence DriftGuard after the tests.
     include:
       - .github/workflows/ci.yml
       - DRIFTGUARD.md

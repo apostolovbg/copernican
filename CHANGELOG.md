@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-26
+**Last Updated:** 2025-11-27
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -22,6 +22,14 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.7.9
+- 2025-11-27: Elevated DriftGuard to the sole development authority across
+              README, AGENTS, and CONTRIBUTING, enforced CI ordering with named
+              `Unit tests` and `Pytest` steps followed by DriftGuard, updated
+              policy enforcement and tests for the every-task dual-suite
+              requirement, and refreshed DRIFTGUARD/CI metadata
+              (.github/workflows/ci.yml, DRIFTGUARD.md, driftguard/repo_policy.yml,
+              driftguard/rules/workflows.py, tests/test_driftguard_rules_workflows.py,
+              README.md, AGENTS.md, CONTRIBUTING.md).
 - 2025-11-26: Reformatted DriftGuard logging utilities to satisfy Black and
               bumped release metadata to 10.7.9 so version markers stay in
               sync (driftguard/logging_utils.py, README.md, CITATION.cff,
