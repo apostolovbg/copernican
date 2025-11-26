@@ -81,6 +81,8 @@ def save_posterior(
 
     metadata = metadata or {}
 
+    # Prefer ArviZ when available because its schema is stable across engines
+    # and downstream consumers already understand its metadata layout.
     if az is not None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)

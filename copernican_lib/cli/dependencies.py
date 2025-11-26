@@ -125,6 +125,8 @@ def _load_cached_dependencies(
         return None
     if cached.get("search_dirs") != search_dirs:
         return None
+    # Abort on snapshot drift because any file touched since the last run could
+    # hide a new import that the managed environment must install.
     if cached.get("snapshot") != snapshot:
         return None
     cached_packages = cached.get("packages", [])

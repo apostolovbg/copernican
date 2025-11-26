@@ -176,6 +176,8 @@ def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
     ensure_dir_exists(log_dir)
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
+    # Reset handlers because earlier import-time configuration from plugins
+    # can redirect output away from the dedicated run log otherwise.
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
 

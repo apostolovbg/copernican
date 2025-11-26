@@ -334,6 +334,8 @@ def fit_cosmology_parameters(
         len(live_points) < max(1, n_live_points)
         and attempts < _MAX_INITIAL_ATTEMPTS
     ):
+        # Allow generous retries because likelihood transforms can reject
+        # many proposals before a stable cloud of live points forms.
         attempts += 1
         candidate = _initial_live_point(rng, lower, upper, initial)
         evaluated = _evaluate_point(posterior, joint_like, candidate)

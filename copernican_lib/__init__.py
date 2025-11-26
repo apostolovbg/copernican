@@ -11,3 +11,5 @@ individual engines remain lightweight.
 
 # Nothing else is defined here. Importing this package simply exposes the
 # submodules like ``logger`` and ``plotter`` used throughout the code.
+# The flat surface keeps imports cheap because callers avoid pulling heavy
+# dependencies until they intentionally reach into a specific helper.
