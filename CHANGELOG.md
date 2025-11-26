@@ -48,6 +48,10 @@ suffixes. Follow this template:
               copernican_lib/likelihoods/_protocol.py,
               copernican_lib/likelihoods/joint.py,
               copernican_lib/likelihoods/sne.py).
+- 2025-11-26: Added Last Updated metadata to the run configuration schema,
+              cosmological model YAMLs, and the Windows start script for
+              improved drift tracking (copernican_lib/config_schemas/run_config.yml,
+              models/cosmo_model_*.yml, start.bat).
 
 ## Version 10.7.9
 - 2025-11-26: Added a hard pre-commit requirement to run pytest, unittest and
