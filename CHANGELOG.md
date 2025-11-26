@@ -52,6 +52,9 @@ suffixes. Follow this template:
               cosmological model YAMLs, and the Windows start script for
               improved drift tracking (copernican_lib/config_schemas/run_config.yml,
               models/cosmo_model_*.yml, start.bat).
+- 2025-11-26: Normalised backslash handling for DriftGuard compliance across
+              CLI prompts, progress displays, plotting summaries and dataset
+              hashing utilities (copernican_lib/*).
 
 ## Version 10.7.9
 - 2025-11-26: Added a hard pre-commit requirement to run pytest, unittest and

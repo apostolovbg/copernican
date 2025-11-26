@@ -82,9 +82,9 @@ def _patch_builtins(base_dir: str) -> None:
         orig_print(*args, **kwargs)
         if kwargs.get("file", sys.stdout) is sys.stdout:
             sep = kwargs.get("sep", " ")
-            end = kwargs.get("end", "\n")
+            end = kwargs.get("end", os.linesep)
             message = sep.join(str(a) for a in args)
-            if end != "\n":
+            if end != os.linesep:
                 message += end
             logger.info(
                 _shorten(message),

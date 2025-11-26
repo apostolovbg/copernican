@@ -13,10 +13,16 @@ logging-aware hooks defined in :mod:`copernican_lib.logger`.
 """
 
 import logging
+import os
 import sys
 
 
-def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
+def write(
+    msg: str = "",
+    *,
+    end: str = os.linesep,
+    error: bool = False,
+) -> None:
     """Display ``msg`` on the console and mirror it to the log file.
 
     Routing all prints through this function ensures the patched
@@ -43,7 +49,7 @@ def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
     """
     stream = sys.stderr if error else sys.stdout
     text = f"{msg}{end}"
-    log_text = msg if end == "\n" else text
+    log_text = msg if end == os.linesep else text
     try:
         stream.write(text)
     except UnicodeEncodeError:
