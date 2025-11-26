@@ -1,6 +1,8 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
+# Rationale: Progress rendering is centralised because engines share the same
+# spinner and log formatting rather than reimplementing console updates.
 """Console progress helpers shared across Copernican engines.
 
 **Last Updated:** 2025-11-22

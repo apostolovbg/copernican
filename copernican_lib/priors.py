@@ -1,3 +1,5 @@
+# Rationale: Priors are defined centrally because engines must share the same
+# transformations and validation to keep Jacobian corrections consistent.
 """Parameter prior definitions and helper utilities.
 
 

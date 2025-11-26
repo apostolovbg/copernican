@@ -1,3 +1,6 @@
+# Rationale: BAO calculations sit in their own helper because the CAMB-backed
+# workflow needs to stay in sync with CMB settings without leaking heavy
+# dependencies into unrelated imports.
 """Baryon Acoustic Oscillation likelihood helper.
 
 

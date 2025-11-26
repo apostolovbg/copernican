@@ -2,6 +2,9 @@
 # See LICENSE.md in the repository root for details.
 
 # optim_utils.py
+# Rationale: Optimization helpers live together because engines reuse the same
+# progress and failure handling patterns without re-implementing safeguards in
+# every sampler.
 """Optimization utilities for the Copernican Suite.
 
 This module centralizes common wrappers used during numerical

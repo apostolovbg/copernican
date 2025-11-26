@@ -1,3 +1,6 @@
+# Rationale: Service orchestration lives here because both the CLI and GUI need
+# one authoritative map of run-control hooks to avoid duplicating lifecycle
+# logic.
 """Orchestration map and GUI-safe service interfaces.
 
 The Copernican Suite now exposes a concise set of orchestration services that

@@ -1,6 +1,8 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
+# Rationale: Error routing is centralised because parsers and engines need a
+# lightweight path to surface issues without reconfiguring the shared logger.
 """Logging and warning helpers for Copernican components.
 
 Parsers use :func:`report_error` to emit messages without depending on the

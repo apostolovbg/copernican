@@ -2,6 +2,9 @@
 # See LICENSE.md in the repository root for details.
 
 # utils.py
+# Rationale: Miscellaneous helpers are centralised because repeated patterns
+# like filename generation and timestamp formatting should stay consistent
+# across parsers and engines.
 """Common utility functions for the Copernican Suite.
 
 This module centralises a handful of small helpers used across the project

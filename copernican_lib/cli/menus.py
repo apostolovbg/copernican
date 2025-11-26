@@ -1,5 +1,8 @@
 """User-facing CLI menus for the Copernican Suite."""
 
+# Rationale: These menus live in a dedicated module because isolating prompts
+# keeps the CLI responsive while heavier analytics modules stay lazily loaded.
+
 from __future__ import annotations
 
 import os

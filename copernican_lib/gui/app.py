@@ -1,3 +1,6 @@
+# Rationale: The GUI scaffold lives in Tkinter because the standard library
+# approach keeps installation friction low while still allowing headless CI
+# coverage through the same code paths.
 """Tkinter-based GUI scaffold with headless fallbacks.
 
 The GUI keeps a persistent navigation rail and modular content panes so the

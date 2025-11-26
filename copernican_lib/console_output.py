@@ -1,6 +1,9 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
+# Rationale: Console I/O is centralised here because routing all writes through
+# one place keeps logging hooks consistent and avoids bypassing stderr/stdout
+# wrappers elsewhere in the suite.
 """Console I/O helpers shared across the Copernican Suite.
 
 All user facing text is funneled through this module so that console
