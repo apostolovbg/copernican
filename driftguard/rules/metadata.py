@@ -565,7 +565,9 @@ class ChangelogDiffCoverageRule(Rule):
             parts = relative.split("/")
             identifiers = {relative.lower(), parts[0].lower()}
             identifiers.add(Path(relative).name.lower())
-            if not any(identifier in newest_text for identifier in identifiers):
+            if not any(
+                identifier in newest_text for identifier in identifiers
+            ):
                 missing.append(relative)
 
         if not missing:
@@ -618,7 +620,8 @@ class DocumentationRefreshRule(Rule):
 
         display = ", ".join(
             sorted(
-                path.relative_to(repo_root).as_posix() for path in changed_non_docs
+                path.relative_to(repo_root).as_posix()
+                for path in changed_non_docs
             )
         )
         return [
@@ -679,7 +682,9 @@ class TimestampValidationRule(Rule):
 
         tracked = _iter_surface_paths(context, ("docs", "interfaces"))
         for path in tracked:
-            header_index, header_date = _header_in_first_three(_read_text(path))
+            header_index, header_date = _header_in_first_three(
+                _read_text(path)
+            )
             if header_index is None or header_date is None:
                 continue
             try:
@@ -714,8 +719,12 @@ class HumanEditPreservationRule(Rule):
 
     def check(self, context: RuleContext) -> List[Violation]:
         violations: List[Violation] = []
-        for path in _iter_surface_paths(context, ("docs", "metadata", "interfaces")):
-            header_index, header_date = _header_in_first_three(_read_text(path))
+        for path in _iter_surface_paths(
+            context, ("docs", "metadata", "interfaces")
+        ):
+            header_index, header_date = _header_in_first_three(
+                _read_text(path)
+            )
             if header_index is None or header_date is None:
                 continue
             try:
@@ -756,7 +765,8 @@ class SemverBumpRequiredRule(Rule):
 
         version_file = repo_root / "copernican_lib" / "VERSION"
         version_changed = any(
-            path.resolve() == version_file.resolve() for _, path in status_entries
+            path.resolve() == version_file.resolve()
+            for _, path in status_entries
         )
 
         surfaces = ["python-lib", "interfaces"]
@@ -772,12 +782,16 @@ class SemverBumpRequiredRule(Rule):
         code_changes = [
             path
             for _, path in status_entries
-            if path.resolve() in flat_relevant and not path.name.startswith(".")
+            if (
+                path.resolve() in flat_relevant
+                and not path.name.startswith(".")
+            )
         ]
         if code_changes and not version_changed:
             display = ", ".join(
                 sorted(
-                    path.relative_to(repo_root).as_posix() for path in code_changes
+                    path.relative_to(repo_root).as_posix()
+                    for path in code_changes
                 )
             )
             return [
@@ -829,7 +843,10 @@ class StartLauncherParityRule(Rule):
             Violation(
                 rule_name=self.name,
                 message=(
-                    "When one start script changes, review and touch the others: "
+                    (
+                        "When one start script changes, review and touch the "
+                        "others: "
+                    )
                     + ", ".join(
                         sorted(
                             path.relative_to(context.repo_root).as_posix()
@@ -892,8 +909,11 @@ class SecurityComplianceRule(Rule):
                     Violation(
                         rule_name=self.name,
                         message=(
-                            f"{starter.name} must install from requirements.lock "
-                            "and use --no-deps for project installs."
+                            (
+                                f"{starter.name} must install from "
+                                "requirements.lock and use --no-deps for "
+                                "project installs."
+                            )
                         ),
                         path=starter,
                     )

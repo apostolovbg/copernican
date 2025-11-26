@@ -149,7 +149,9 @@ def get_all_rules(spec: DriftGuardSpec) -> List[Rule]:
         TestCouplingRule.name: TestCouplingRule(),
         DocAgeRule.name: DocAgeRule(),
         FullTestSuiteInCIRule.name: FullTestSuiteInCIRule(),
-        DriftGuardPrecommitRequiredRule.name: DriftGuardPrecommitRequiredRule(),
+        DriftGuardPrecommitRequiredRule.name: (
+            DriftGuardPrecommitRequiredRule()
+        ),
         DependencyLicenseAuditRule.name: DependencyLicenseAuditRule(),
         DependencyRefreshRule.name: DependencyRefreshRule(),
     }

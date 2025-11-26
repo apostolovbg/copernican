@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 from typing import List
 
@@ -243,7 +244,10 @@ class DriftGuardPrecommitRequiredRule(Rule):
             return [
                 Violation(
                     rule_name=self.name,
-                    message="DRIFTGUARD.md is required to document DriftGuard usage.",
+                    message=(
+                        "DRIFTGUARD.md is required to document DriftGuard "
+                        "usage."
+                    ),
                     path=policy_path,
                 )
             ]
@@ -355,7 +359,9 @@ class DependencyRefreshRule(Rule):
             path.name in {"requirements.in", "pyproject.toml"}
             for path in changed
         )
-        lock_changed = any(path.name == "requirements.lock" for path in changed)
+        lock_changed = any(
+            path.name == "requirements.lock" for path in changed
+        )
         if manifests_changed and not lock_changed:
             return [
                 Violation(
