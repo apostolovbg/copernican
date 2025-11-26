@@ -4,11 +4,10 @@
 """Core helper modules for the Copernican Suite.
 
 This package bundles general-purpose utilities used across the
-`copernican` command-line tool and the computational engines.  Modules
-here implement data loading, plotting and other shared logic so that
-individual engines remain lightweight.  Centralising these helpers keeps
-interfaces aligned and reduces the risk of engines duplicating subtly
-different behaviours.
+`copernican` command-line tool and the computational engines. The
+modules live together so shared logic stays consistent and so engines
+remain lightweight. Centralising helpers also keeps interfaces aligned
+and reduces the chance that engines quietly drift apart in behaviour.
 """
 
 # Nothing else is defined here. Importing this package simply exposes the

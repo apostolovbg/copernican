@@ -7,12 +7,13 @@
 """Console I/O helpers shared across the Copernican Suite.
 
 All user facing text is funneled through this module so that console
-messages and prompts are handled in one place.  The logger patches
+messages and prompts are handled in one place. The logger patches
 ``print`` and ``input`` to capture output verbatim; these helpers provide
 the indirection necessary to keep that behaviour consistent everywhere.
-Keeping the wrapper centralised also ensures the project never writes
-directly to ``stdout`` or ``stderr`` without passing through the
-logging-aware hooks defined in :mod:`copernican_lib.logger`.
+Centralising the wrappers also ensures the project never writes directly
+to ``stdout`` or ``stderr`` without passing through the logging-aware
+hooks defined in :mod:`copernican_lib.logger`, which keeps audit trails
+complete.
 """
 
 import logging
@@ -65,7 +66,8 @@ def ask(prompt: str = "") -> str:
     """Prompt the user and return their input while logging the exchange.
 
     The patched :func:`builtins.input` records both the prompt and the
-    response to the active log file.  Wrapping the call here clarifies the
-    intent and avoids scattering raw ``input`` calls across the codebase.
+    response to the active log file. Wrapping the call here clarifies the
+    intent, keeps prompts consistent across platforms and prevents callers
+    from bypassing logging when requesting input.
     """
     return input(prompt)
