@@ -1,5 +1,10 @@
 **Version:** 10.7.9
-**Last Updated:** 2025-11-26
+**Last Updated:** 2025-11-27
+
+**DriftGuard is the supreme development authority.** All contributors must obey
+the rules codified in `driftguard/repo_policy.yml` and summarised in
+[DRIFTGUARD.md](DRIFTGUARD.md). Failure to follow DriftGuard guidance will
+compromise the Copernican Suite and will lead to rejected commits.
 
 ![Copernican Suite banner](docs/banner_github.png)
 
