@@ -6,7 +6,8 @@ The package exports available inference engines through a stable surface so
 callers can request backends without hard-coding module paths.  Keeping the
 registry minimal avoids importing heavy numerical dependencies until an engine
 is explicitly selected, which keeps startup quick for CLI users exploring
-their options.
+their options because heavyweight imports delay menu rendering and frustrate
+interactive workflows.
 """
 
 # The suite now ships exclusively with the MCMC backend.  Engines remain

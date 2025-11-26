@@ -14,7 +14,8 @@ been removed.  Functions here emphasise safe filename construction and
 lightweight metadata parsing so that higher level modules can focus on
 science logic rather than housekeeping.  Runtime timestamps are emitted in
 Coordinated Universal Time (UTC) so logs, manifests and filenames remain
-stable regardless of the host machine's locale.
+stable regardless of the host machine's locale because deterministic file
+names simplify test fixtures and downstream archival.
 """
 # These helpers are intentionally tiny but keep repetitive tasks such as
 # timestamp generation and directory creation in one place.
@@ -30,7 +31,12 @@ import yaml
 
 
 def get_utc_now() -> datetime:
-    """Return the current UTC time with timezone information."""
+    """Return the current UTC time with timezone information.
+
+    The helper centralises timestamp creation so the suite always uses UTC
+    rather than local wall time, because consistent offsets keep filenames
+    and manifests stable across machines and CI workers.
+    """
 
     return datetime.now(timezone.utc)
 
@@ -120,7 +126,12 @@ def generate_filename(
 
 
 def ensure_dir_exists(directory):
-    """Creates the specified directory if it does not already exist."""
+    """Creates the specified directory if it does not already exist.
+
+    The helper keeps callers idempotent because repeatedly initialising run
+    directories should never fail when multiple stages share the same target
+    path.
+    """
     os.makedirs(directory, exist_ok=True)
 
 
@@ -189,6 +200,11 @@ def set_random_seed(seed: int = 0) -> None:
 
 
 def get_random_seed() -> int:
-    """Return the seed most recently passed to :func:`set_random_seed`."""
+    """Return the seed most recently passed to :func:`set_random_seed`.
+
+    A dedicated accessor avoids threading the seed through multiple call
+    stacks because engines and progress reporters frequently need it after the
+    initial CLI prompt has been handled.
+    """
 
     return CURRENT_SEED
