@@ -52,6 +52,11 @@ suffixes. Follow this template:
               cosmological model YAMLs, and the Windows start script for
               improved drift tracking (copernican_lib/config_schemas/run_config.yml,
               models/cosmo_model_*.yml, start.bat).
+- 2025-11-26: Normalised backslash literals using raw strings in dependency,
+              dataset, plotting, GUI log, and utility helpers
+              (copernican_lib/cli/dependencies.py,
+              copernican_lib/dataset_registry.py, copernican_lib/gui/app.py,
+              copernican_lib/plotter.py, copernican_lib/utils.py).
 
 ## Version 10.7.9
 - 2025-11-26: Added a hard pre-commit requirement to run pytest, unittest and

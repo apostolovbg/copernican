@@ -678,14 +678,14 @@ def format_model_summary_text(
         formatted = f"{numeric:.2f}"
         return rf"  {label_tex} = {formatted}{suffix}"
 
-    lines.append("$\\mathbf{Mathematical\\ Form:}$")
+    lines.append(r"$\mathbf{Mathematical\ Form:}$")
     for eq_line in getattr(model_plugin, "MODEL_EQUATIONS_LATEX_SN", []):
         lines.append(f"  {_wrap_math(eq_line)}")
     if dataset_type == "bao":
         for eq_line in getattr(model_plugin, "MODEL_EQUATIONS_LATEX_BAO", []):
             lines.append(f"  {_wrap_math(eq_line)}")
 
-    lines.append("$\\mathbf{Cosmological\\ Parameters:}$")
+    lines.append(r"$\mathbf{Cosmological\ Parameters:}$")
     param_names = getattr(model_plugin, "PARAMETER_NAMES", [])
     param_latex_names = getattr(
         model_plugin,
@@ -710,7 +710,7 @@ def format_model_summary_text(
         lines.append("  (Fit failed or parameters unavailable)")
 
     if dataset_type == "sne" and fit_results.get("fitted_nuisance_params"):
-        lines.append("$\\mathbf{SNe\\ Nuisance\\ Parameters:}$")
+        lines.append(r"$\mathbf{SNe\ Nuisance\ Parameters:}$")
         for name, val in fit_results["fitted_nuisance_params"].items():
             name_latex = {
                 "M_B": r"M_B",
@@ -720,7 +720,7 @@ def format_model_summary_text(
             lines.append(rf"  {_wrap_math(name_latex)} = ${val:.4g}$")
 
     if dataset_type == "sne":
-        lines.append("$\\mathbf{SNe\\ Fit\\ Statistics:}$")
+        lines.append(r"$\mathbf{SNe\ Fit\ Statistics:}$")
         chi2_min = fit_results.get("chi2_min", np.nan)
         chi2_sne = fit_results.get("chi2_sne", chi2_min)
         lines.append(_format_numeric_line(r"$\chi^2_{SNe}$", chi2_sne))
@@ -728,7 +728,7 @@ def format_model_summary_text(
             chi2_tot = fit_results.get("chi2_total", np.nan)
             lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))
     elif dataset_type == "bao":
-        lines.append("$\\mathbf{BAO\\ Fit\\ Results:}$")
+        lines.append(r"$\mathbf{BAO\ Fit\ Results:}$")
         lines.append(
             _format_numeric_line(
                 r"$r_s$", kwargs.get("rs_Mpc", np.nan), unit="Mpc"
@@ -740,7 +740,7 @@ def format_model_summary_text(
             chi2_tot = kwargs.get("chi2_total", np.nan)
             lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))
     elif dataset_type == "cmb":
-        lines.append("$\\mathbf{CMB\\ Fit\\ Statistics:}$")
+        lines.append(r"$\mathbf{CMB\ Fit\ Statistics:}$")
         chi2_cmb = kwargs.get("chi2_cmb", np.nan)
         lines.append(_format_numeric_line(r"$\chi^2_{CMB}$", chi2_cmb))
         if "chi2_total" in kwargs:

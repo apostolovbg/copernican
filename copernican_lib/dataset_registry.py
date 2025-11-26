@@ -216,7 +216,7 @@ TRUSTED_PARSER_DIGESTS = {
 
 
 def _file_sha256(path: str) -> str:
-    """Return the SHA256 digest for ``path`` with newline normalisation.
+    r"""Return the SHA256 digest for ``path`` with newline normalisation.
 
     Git may convert ``\n`` to ``\r\n`` on Windows checkouts.  Normalising
     line endings ensures the same hash across operating systems so trusted
