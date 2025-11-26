@@ -3,7 +3,8 @@
 
 # Rationale: Result serialisation is handled here because downstream tools need
 # consistent JSON/YAML outputs without importing the rest of the suite.
-"""Utilities for saving parameter fit summaries.
+"""Utilities for saving parameter fit summaries so downstream tools ingest
+consistent outputs without bespoke parsers.
 
 The Copernican Suite evaluates cosmological models and often produces
 parameter estimates alongside their uncertainties.  This module serialises

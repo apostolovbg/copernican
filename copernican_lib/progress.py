@@ -3,7 +3,8 @@
 
 # Rationale: Progress rendering is centralised because engines share the same
 # spinner and log formatting rather than reimplementing console updates.
-"""Console progress helpers shared across Copernican engines.
+"""Console progress helpers shared across Copernican engines so renders stay
+aligned across run modes.
 
 **Last Updated:** 2025-11-22
 
@@ -101,7 +102,9 @@ class BatchProgressBar:
         self._lock = threading.RLock()
 
     def _build_bar(self, fraction: float, width: int) -> str:
-        """Return a Unicode bar ``width`` cells wide for ``fraction``."""
+        """Return a Unicode bar ``width`` cells wide for ``fraction`` so the
+        Stage 2 renderer keeps consistent geometry with historical logs.
+        """
 
         fraction = min(max(fraction, 0.0), 1.0)
         exact_units = min(max(fraction * width, 0.0), float(width))
@@ -127,7 +130,9 @@ class BatchProgressBar:
         return f"{'█' * full_units}{partial}{'-' * max(remaining_cells, 0)}"
 
     def _next_spinner(self) -> str:
-        """Advance and return the animated spinner glyph."""
+        """Advance and return the animated spinner glyph so repaint loops stay
+        lively even when progress stalls between updates.
+        """
 
         if not self._SPINNER_FRAMES:
             return ""
@@ -144,7 +149,9 @@ class BatchProgressBar:
         total: int,
         batch_size: int,
     ) -> tuple[str, int, str]:
-        """Return the console line, percentage and display text."""
+        """Return the console line, percentage and display text so callers can
+        decide whether to repaint without duplicating formatting rules.
+        """
 
         walker_total = max(total, 1)
         walker_processed = min(max(processed, 0), walker_total)
@@ -185,7 +192,9 @@ class BatchProgressBar:
         return line, percent, display_line
 
     def _render_raw(self, rendered_text: str) -> None:
-        """Write ``rendered_text`` to the console using a carriage return."""
+        """Write ``rendered_text`` to the console using a carriage return so
+        the renderer can manage its own line erasure semantics.
+        """
 
         if not self._display:
             return
@@ -198,7 +207,9 @@ class BatchProgressBar:
         self._last_rendered = rendered_text
 
     def _emit_display_line(self, display_line: str) -> None:
-        """Render text while padding trailing remnants."""
+        """Render text while padding trailing remnants so shorter updates do
+        not leave orphaned characters on the terminal.
+        """
 
         if not self._display:
             return
@@ -212,7 +223,9 @@ class BatchProgressBar:
         self._render_raw(padded)
 
     def _clear_line(self) -> None:
-        """Erase the previously rendered progress line from the console."""
+        """Erase the previously rendered progress line from the console so new
+        output never overlaps stale state.
+        """
 
         if not self._display:
             return
@@ -223,7 +236,9 @@ class BatchProgressBar:
         self._last_rendered = ""
 
     def start_batch(self, batch_start: int, batch_end: int) -> None:
-        """Announce a new batch spanning ``batch_start`` to ``batch_end``."""
+        """Announce a new batch spanning ``batch_start`` to ``batch_end`` so
+        the console shows context before per-step updates arrive.
+        """
 
         with self._lock:
             if not self._display or batch_end < batch_start:
@@ -262,7 +277,9 @@ class BatchProgressBar:
     def start_step(
         self, step_index: int, walker_total: int | None = None
     ) -> str | None:
-        """Register the walker total for ``step_index`` and render progress."""
+        """Register the walker total for ``step_index`` and render progress so
+        downstream updates can reuse cached totals from the sampler.
+        """
 
         with self._lock:
             if not self._active:
@@ -287,7 +304,9 @@ class BatchProgressBar:
         step_progress: float | None = None,
         force: bool = False,
     ) -> str | None:
-        """Return the rendered progress line for the active batch."""
+        """Return the rendered progress line for the active batch so callers
+        can throttle repaint frequency and reuse the string in logs.
+        """
 
         with self._lock:
             if not self._active:
@@ -335,7 +354,9 @@ class BatchProgressBar:
             return line
 
     def finish_batch(self) -> None:
-        """Close the current batch, inserting required spacing."""
+        """Close the current batch, inserting required spacing so later log
+        messages do not collide with the retired progress bar.
+        """
 
         with self._lock:
             if not self._active:
@@ -362,7 +383,9 @@ class BatchProgressBar:
 
     @contextlib.contextmanager
     def suspend_display(self) -> Iterator[None]:
-        """Temporarily hide the active line while other output prints."""
+        """Temporarily hide the active line while other output prints so shared
+        consoles remain readable during status interjections.
+        """
 
         rendered_line = ""
         active = False
@@ -380,19 +403,24 @@ class BatchProgressBar:
 
     @property
     def batch_index(self) -> int:
-        """Return the index of the current batch for diagnostics."""
+        """Return the index of the current batch for diagnostics so callers can
+        reference progress history in logs or exceptions.
+        """
 
         return self._batch_index
 
     @property
     def uses_live_display(self) -> bool:
-        """Return ``True`` when the bar repaints the console directly."""
+        """Return ``True`` when the bar repaints the console directly so
+        callers know whether to emit fallback log entries."""
 
         return self._display
 
 
 class StepProgressEmitter:
-    """Bridge sampler move callbacks to batch progress updates."""
+    """Bridge sampler move callbacks to batch progress updates so engines can
+    reuse the same console renderer without bespoke glue code.
+    """
 
     _IDLE_REPAINT_INTERVAL = 0.1
 
@@ -418,7 +446,9 @@ class StepProgressEmitter:
         self._last_total = 1
 
     def start(self, step_index: int, walker_total: int) -> None:
-        """Prepare to track ``step_index`` with ``walker_total`` updates."""
+        """Prepare to track ``step_index`` with ``walker_total`` updates so the
+        emitter can initialise repaint cadence from the sampler context.
+        """
 
         self._active_step = int(step_index)
         self._walker_total = max(int(walker_total), 1)
@@ -428,7 +458,9 @@ class StepProgressEmitter:
         self._last_repaint = self._timer()
 
     def clear(self) -> None:
-        """Disable updates until the next step begins."""
+        """Disable updates until the next step begins so callers can reset the
+        bridge when sampling pauses or ends.
+        """
 
         self._active_step = None
         self._walker_total = 1
@@ -437,7 +469,9 @@ class StepProgressEmitter:
         self._last_total = 1
 
     def __call__(self, processed: int, total: int) -> None:
-        """Forward partial progress updates to the active batch."""
+        """Forward partial progress updates to the active batch so progress
+        bars mirror sampler callbacks without exposing sampler internals.
+        """
 
         if self._active_step is None:
             return
@@ -453,7 +487,9 @@ class StepProgressEmitter:
             self._last_repaint = self._timer()
 
     def tick(self) -> None:
-        """Rotate the spinner when idle so live displays keep animating."""
+        """Rotate the spinner when idle so live displays keep animating and
+        operators can see the sampler is still responsive.
+        """
 
         if self._active_step is None:
             return
@@ -476,13 +512,17 @@ class StepProgressEmitter:
 
     @property
     def idle_interval(self) -> float:
-        """Return the maximum delay between spinner refresh attempts."""
+        """Return the maximum delay between spinner refresh attempts so callers
+        can synchronise external timers with the emitter cadence.
+        """
 
         return self._idle_interval
 
 
 class _ReportingStretchMove(moves.StretchMove):
-    """Stretch move variant that emits per-walker progress notifications."""
+    """Stretch move variant that emits per-walker progress notifications so
+    sampler callbacks can animate progress bars without altering ``emcee``.
+    """
 
     def __init__(
         self,
@@ -500,7 +540,9 @@ class _ReportingStretchMove(moves.StretchMove):
         *,
         progress_notifier: Callable[[int, int], None] | None = None,
     ) -> "_ReportingStretchMove":
-        """Clone ``move`` while attaching ``progress_notifier``."""
+        """Clone ``move`` while attaching ``progress_notifier`` so callers can
+        retrofit reporting into engines that already configured moves.
+        """
 
         new_move = cls(
             getattr(move, "a", 2.0),
@@ -514,11 +556,17 @@ class _ReportingStretchMove(moves.StretchMove):
     def set_progress_notifier(
         self, notifier: Callable[[int, int], None] | None
     ) -> None:
-        """Update the callable receiving per-walker updates."""
+        """Update the callable receiving per-walker updates so live displays
+        can be enabled or disabled without rebuilding the sampler.
+        """
 
         self._progress_notifier = notifier
 
     def _notify(self, processed: int, total: int) -> None:
+        """Forward per-walker totals to the notifier so UI layers can track
+        acceptance work without mutating ``emcee``'s internal hooks.
+        """
+
         if self._progress_notifier is None:
             return
         try:
@@ -527,7 +575,9 @@ class _ReportingStretchMove(moves.StretchMove):
             pass
 
     def propose(self, model, state):  # type: ignore[override]
-        """Generate proposals while reporting per-walker progress."""
+        """Generate proposals while reporting per-walker progress so callers
+        can keep spinner feedback aligned with individual walker decisions.
+        """
 
         nwalkers, ndim = state.coords.shape
         if nwalkers < 2 * ndim and not self.live_dangerously:
@@ -573,7 +623,9 @@ def configure_sampler_progress_reporting(
     sampler: Any,
     notifier: Callable[[int, int], None] | None,
 ) -> None:
-    """Ensure sampler moves forward updates to ``notifier`` when available."""
+    """Ensure sampler moves forward updates to ``notifier`` when available so
+    engines can emit live progress without rewriting existing move lists.
+    """
 
     moves_attr = getattr(sampler, "_moves", [])
     if not moves_attr:
