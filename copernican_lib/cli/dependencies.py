@@ -4,7 +4,8 @@ These routines isolate dependency discovery, caching and optional test
 execution so ``copernican.py`` can defer heavy imports until the runtime
 configuration is known. Consolidating the logic here keeps the launcher thin
 and ensures the same caching rules apply across interactive and automated
-invocations.
+invocations. Capturing these steps in one place also reduces regressions when
+the managed start scripts evolve because the CLI follows the same rules.
 """
 
 from __future__ import annotations
@@ -29,14 +30,22 @@ DEPENDENCY_CACHE_SCHEMA = 1
 
 @dataclass
 class RuntimeOptions:
-    """Runtime configuration derived from environment variables."""
+    """Runtime configuration derived from environment variables.
+
+    Centralising this metadata avoids scattering environment lookups and keeps
+    related defaults aligned across the CLI helpers.
+    """
 
     run_tests: bool = False
     strict_warnings: bool = False
 
 
 def get_runtime_options() -> RuntimeOptions:
-    """Return options from ``COPERNICAN_*`` environment variables."""
+    """Return options from ``COPERNICAN_*`` environment variables.
+
+    This wrapper keeps environment parsing consistent so future options need
+    only be added in one location.
+    """
 
     return RuntimeOptions(
         run_tests=os.environ.get("COPERNICAN_RUN_TESTS") == "1",
@@ -45,7 +54,11 @@ def get_runtime_options() -> RuntimeOptions:
 
 
 def run_startup_tests() -> bool:
-    """Execute the project's unit tests via ``python -m unittest discover``."""
+    """Execute the project's unit tests via ``python -m unittest discover``.
+
+    Running these tests early provides a lightweight confidence check before
+    the CLI proceeds to expensive data preparation steps.
+    """
 
     try:
         result = subprocess.run(
@@ -59,7 +72,11 @@ def run_startup_tests() -> bool:
 
 
 def _resolve_dependency_cache_paths() -> tuple[Path, Path]:
-    """Return the cache directory and file for dependency scans."""
+    """Return the cache directory and file for dependency scans.
+
+    Keeping this calculation in one helper ensures overrides stay in sync
+    wherever the cache is read or written.
+    """
 
     override = os.environ.get(DEPENDENCY_CACHE_ENV_VAR)
     if override:
@@ -73,7 +90,11 @@ def _resolve_dependency_cache_paths() -> tuple[Path, Path]:
 def _scan_python_sources(
     search_dirs: list[str], ignore_dirs: set[str]
 ) -> tuple[list[Path], dict[str, dict[str, int]]]:
-    """Return Python source paths and a metadata snapshot for caching."""
+    """Return Python source paths and a metadata snapshot for caching.
+
+    The snapshot provides a cheap drift detector so dependency lists can be
+    reused when files are untouched.
+    """
 
     python_files: list[Path] = []
     snapshot: dict[str, dict[str, int]] = {}
@@ -109,7 +130,10 @@ def _scan_python_sources(
 def _load_cached_dependencies(
     snapshot: dict[str, dict[str, int]], search_dirs: list[str]
 ) -> set[str] | None:
-    """Return cached dependency names when the snapshot is unchanged."""
+    """Return cached dependency names when the snapshot is unchanged.
+
+    Avoiding unnecessary rescans keeps startup latency low on repeated runs.
+    """
 
     _, cache_file = _resolve_dependency_cache_paths()
     if not cache_file.is_file():
@@ -140,7 +164,11 @@ def _store_dependency_cache(
     search_dirs: list[str],
     pkg_names: Iterable[str],
 ) -> None:
-    """Persist the dependency cache snapshot for subsequent runs."""
+    """Persist the dependency cache snapshot for subsequent runs.
+
+    Writing a normalised record allows later runs to detect drift quickly and
+    reuse the previous dependency list.
+    """
 
     cache_dir, cache_file = _resolve_dependency_cache_paths()
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -168,6 +196,10 @@ def _gather_required_packages(
         Optional set of directories to scan. When omitted the helper walks the
         installed Copernican library and bundled ``engines`` tree.
     """
+
+    # Reasoning: deriving dependencies programmatically ensures custom
+    # engines and datasets pulled into the tree are reflected in the managed
+    # environment without maintaining a hand-written list.
 
     if search_dirs is None:
         search_dirs = [
@@ -248,6 +280,10 @@ def check_dependencies() -> None:
     Operators encountering missing wheels must re-run the appropriate
     ``start.*`` helper to rebuild the environment rather than invoking ``pip``
     from inside the program.
+
+    Performing the verification inside the CLI catches misconfigured
+    environments early and mirrors the expectations baked into the launch
+    scripts.
     """
 
     console.write("--- Running System Dependency Check ---")
@@ -289,7 +325,11 @@ def check_dependencies() -> None:
 
 
 def load_third_party_modules():
-    """Import heavy optional dependencies lazily for CLI use."""
+    """Import heavy optional dependencies lazily for CLI use.
+
+    Delaying these imports keeps the interactive launcher responsive until the
+    operator opts into actions that genuinely need the heavy libraries.
+    """
 
     import multiprocessing as mp
 

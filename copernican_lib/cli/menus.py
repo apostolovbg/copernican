@@ -1,4 +1,8 @@
-"""User-facing CLI menus for the Copernican Suite."""
+"""User-facing CLI menus for the Copernican Suite.
+
+Menus live here so prompts remain lightweight and isolated from heavy
+numerical imports, keeping the interactive experience responsive.
+"""
 
 # Rationale: These menus live in a dedicated module because isolating prompts
 # keeps the CLI responsive while heavier analytics modules stay lazily loaded.
@@ -15,7 +19,11 @@ from copernican_lib import utils
 
 
 def show_splash_screen(version: str) -> None:
-    """Display the startup banner once at launch."""
+    """Display the startup banner once at launch.
+
+    The pause gives operators time to read the build information before the
+    menu clears the console with subsequent prompts.
+    """
 
     banner = [
         "=" * 70,
@@ -44,7 +52,11 @@ def show_splash_screen(version: str) -> None:
 
 
 def select_seed() -> int:
-    """Prompt the operator to choose a reproducible random seed."""
+    """Prompt the operator to choose a reproducible random seed.
+
+    Collecting the seed up front ensures every random generator uses the same
+    value so runs can be recreated later.
+    """
 
     console.write("")
     console.write("Random Seed Selection")
@@ -105,7 +117,11 @@ def select_seed() -> int:
 
 
 def select_from_list(options, prompt):
-    """Display ``options`` and return the item chosen by the user."""
+    """Display ``options`` and return the item chosen by the user.
+
+    Presenting a numbered list avoids mistyped free-form inputs and keeps the
+    workflow accessible for non-technical users.
+    """
 
     if not options:
         return None
@@ -130,7 +146,11 @@ def select_from_list(options, prompt):
 
 
 def normalise_failure_reasons(details: Iterable[str] | str) -> list[str]:
-    """Return a list of human-readable reasons extracted from ``details``."""
+    """Return a list of human-readable reasons extracted from ``details``.
+
+    Cleaning messages into a consistent list keeps Stage 1 retry prompts easy
+    to read and log.
+    """
 
     if isinstance(details, str):
         text = details.split(":", 1)[-1] if ":" in details else details
@@ -149,7 +169,11 @@ def normalise_failure_reasons(details: Iterable[str] | str) -> list[str]:
 
 
 def prompt_stage1_retry(reasons: Iterable[str]) -> bool:
-    """Return ``True`` to restart Stage 1, ``False`` to exit the workflow."""
+    """Return ``True`` to restart Stage 1, ``False`` to exit the workflow.
+
+    Offering a structured choice prevents the CLI from looping endlessly when
+    configuration fails and gives operators a clear exit path.
+    """
 
     console.write("")
     console.write("Stage 1 cannot continue because:")
