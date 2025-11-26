@@ -52,6 +52,10 @@ suffixes. Follow this template:
               cosmological model YAMLs, and the Windows start script for
               improved drift tracking (copernican_lib/config_schemas/run_config.yml,
               models/cosmo_model_*.yml, start.bat).
+- 2025-11-26: Expanded docstrings for likelihood protocols, GUI scaffolding,
+              and the engine registry to emphasise why the surfaces stay
+              lightweight (copernican_lib/likelihoods/_protocol.py,
+              copernican_lib/gui/__init__.py, engines/__init__.py).
 
 ## Version 10.7.9
 - 2025-11-26: Added a hard pre-commit requirement to run pytest, unittest and
