@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-25
 """Policy engine orchestrating rule evaluation and drift metric collection."""
 
 from __future__ import annotations

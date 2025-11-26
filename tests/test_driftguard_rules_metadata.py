@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-25
 """Metadata rule coverage for DriftGuard."""
 
 from __future__ import annotations
@@ -89,6 +88,32 @@ def test_last_updated_rule_adds_missing_headers(tmp_path: Path) -> None:
     assert script_lines[1].startswith("# Last Updated:")
 
 
+def test_last_updated_rule_rejects_late_header(tmp_path: Path) -> None:
+    """Headers buried beyond the third line should raise violations."""
+
+    readme = tmp_path / "README.md"
+    readme.write_text(
+        "\n".join(
+            [
+                "# Overview",
+                "",
+                "Body line one.",
+                "**Last Updated:** 2025-01-01",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    rule = LastUpdatedDocsRule()
+    context = _context(tmp_path)
+
+    violations = rule.check(context)
+
+    assert violations
+    assert "first three lines" in violations[0].message
+
+
 def test_version_sync_and_citation_rules_detect_mismatches(
     tmp_path: Path,
 ) -> None:
@@ -135,6 +160,48 @@ def test_version_sync_and_citation_rules_detect_mismatches(
         violation.rule_name == citation_rule.name
         for violation in citation_violations
     )
+
+
+def test_citation_rule_requires_authors_and_release_alignment(
+    tmp_path: Path,
+) -> None:
+    """Citation metadata should supply authors and match its header date."""
+
+    (tmp_path / "copernican_lib").mkdir()
+    (tmp_path / "copernican_lib" / "VERSION").write_text("1.0.0\n")
+    (tmp_path / "README.md").write_text(
+        "**Version:** 1.0.0\n**Last Updated:** 2025-11-25\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "CITATION.cff").write_text(
+        "\n".join(
+            [
+                "# Last Updated: 2025-11-26",
+                "cff-version: 1.2.0",
+                'title: "Test"',
+                'version: "1.0.0"',
+                'date-released: "2025-11-25"',
+                "authors: []",
+                "preferred-citation:",
+                "  type: software",
+                '  title: "Test"',
+                '  version: "1.0.0"',
+                '  date-released: "2025-11-25"',
+                "  authors:",
+                "    - name: Example",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    context = _context(tmp_path)
+    rule = CitationYamlRule()
+
+    violations = rule.check(context)
+
+    assert len(violations) >= 2
+    assert any("author" in v.message.lower() for v in violations)
+    assert any("date-released" in v.message for v in violations)
 
 
 def test_no_future_dates_flags_future_metadata(tmp_path: Path) -> None:

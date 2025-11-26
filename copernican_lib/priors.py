@@ -1,6 +1,5 @@
 """Parameter prior definitions and helper utilities.
 
-**Last Updated:** 2025-10-31
 
 This module centralises the construction of parameter priors so every
 engine evaluates them consistently.  Historically the project stored raw

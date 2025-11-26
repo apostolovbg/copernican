@@ -1,5 +1,5 @@
+**Last Updated:** 2025-11-26
 # Data Directory Overview
-**Last Updated:** 2025-11-24
 
 This document explains the layout of the `data/` directory and the role of the
 parser scripts stored with each dataset.

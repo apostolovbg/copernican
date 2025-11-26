@@ -1,6 +1,5 @@
 """Unit tests for likelihood helper classes.
 
-# Last Updated: 2025-11-24
 """
 
 from __future__ import annotations

@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-05
 """Generate a deterministic ``requirements.lock`` file for the suite.
 
 This helper wraps :mod:`piptools` so the ``make lock`` target can decide
@@ -11,6 +10,7 @@ branches.  We now compare the body of the freshly compiled lockfile to
 any existing copy and only advance the header timestamp when the
 underlying requirements differ.
 """
+
 from __future__ import annotations
 
 import argparse

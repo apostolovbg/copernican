@@ -1,6 +1,6 @@
+**Last Updated:** 2025-11-26
 # Copernican Suite API Overview
 
-**Last Updated:** 2025-11-24
 
 The suite exposes a lightweight API intended for advanced scripting.
 Most functionality lives in the ``copernican_lib`` package which can be

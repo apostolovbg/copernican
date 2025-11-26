@@ -1,5 +1,5 @@
+**Last Updated:** 2025-11-26
 # Documentation Policy
-**Last Updated:** 2025-11-25
 **Version:** 1.0
 
 The Copernican Suite treats documentation as a first-class component of the

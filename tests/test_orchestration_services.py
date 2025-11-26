@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-24
 """Tests for the GUI-safe orchestration service descriptors."""
 
 import unittest

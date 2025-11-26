@@ -1,6 +1,5 @@
 """Supernova Ia likelihood helper.
 
-**Last Updated:** 2025-10-31
 
 Wraps the covariance-aware χ² evaluation previously implemented in
 ``copernican_lib.statistics`` so engines can reuse it without duplicating
