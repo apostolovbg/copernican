@@ -1,4 +1,5 @@
-# Last Updated: 2025-11-25
+# Last Updated: 2025-11-26
+
 repos:
   - repo: https://github.com/psf/black
     rev: 24.4.2
@@ -42,12 +43,14 @@ repos:
       - id: driftguard-check
         name: DriftGuard staged policy check (fast)
         entry: python -m driftguard.cli check --scope=staged --mode=fast
-        language: system
+        language: python
+        additional_dependencies: ["PyYAML==6.0.1"]
         pass_filenames: false
         stages: [commit]
       - id: driftguard-fix
         name: DriftGuard staged policy fix (fast, manual)
         entry: python -m driftguard.cli fix --scope=staged --mode=fast
-        language: system
+        language: python
+        additional_dependencies: ["PyYAML==6.0.1"]
         pass_filenames: false
         stages: [manual]

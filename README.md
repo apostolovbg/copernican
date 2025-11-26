@@ -1,5 +1,5 @@
-**Version:** 10.7.3
-**Last Updated:** 2025-11-25
+**Version:** 10.7.9
+**Last Updated:** 2025-11-26
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -865,7 +865,9 @@ pre-commit run --all-files
 The DriftGuard hooks replace the former `copernican-policy` check by running
 fast staged evaluations for metadata drift, print bans and missing tests. Use
 `pre-commit run driftguard-fix --all-files` to apply the fast autofixes when
-the manual stage is more convenient.
+the manual stage is more convenient. The hook environment now installs
+`PyYAML` automatically so DriftGuard's policy loader always imports cleanly
+without extra setup on fresh machines.
 
 Run the unified developer suite when you want a single command that mirrors
 the CI ordering for formatting, DriftGuard enforcement and tests:
@@ -876,11 +878,25 @@ python tools/dev_suite.py
 
 ### Metadata self-check utility
 
-Run the metadata validator with ``python -m tools.check_meta`` whenever the
-release notes, README header or documentation timestamps change. The helper
-normalises "today" to Coordinated Universal Time so both the command-line
-tool and the accompanying regression tests agree on the current date when
-detecting future-dated markers or drifted version fields.
+Run the DriftGuard metadata sweep whenever release notes, documentation
+timestamps or version fields change. The repo-root flag can follow the
+sub-command to mirror the CI invocation:
+
+```bash
+python -m driftguard.cli check --scope=repo --mode=full --repo-root .
+```
+
+DriftGuard validates Last Updated headers only on the documented allowlist
+(README/AGENTS/CONTRIBUTING, CHANGELOG, docs, CITATION.cff, LICENSE,
+THIRD_PARTY_LICENSES, copernican.py, start.* scripts, config schemas and
+model YAMLs) while also enforcing version synchronisation and citation
+structure. The UTC-normalised clock keeps future-date checks consistent in
+both local runs and regression tests.
+
+The DriftGuard CLI and helpers now configure a verbose logger by default so CI
+runs capture repository paths, selected policies and per-rule progress. Set
+``DRIFTGUARD_LOGLEVEL`` to a standard Python logging level name (for example
+``INFO``) to tune the output volume on local runs.
 
 The local `make-lock` hook now bootstraps a dedicated Python environment and
 installs `pip-tools==7.4.1` before executing `make lock`. This keeps

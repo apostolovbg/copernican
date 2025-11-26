@@ -1,5 +1,4 @@
 # Copyright (c) 2025 Copernican Suite developers.
-# Last Updated: 2025-11-02
 # See LICENSE.md in the repository root for details.
 
 """Security tests for ``model_coder`` expression handling."""

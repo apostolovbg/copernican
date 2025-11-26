@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-05
 """Regression tests for ``tools.update_lock``."""
 
 from __future__ import annotations

@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-25
+**Last Updated:** 2025-11-26
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -21,7 +21,62 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.7.9
+- 2025-11-26: Reformatted DriftGuard logging utilities to satisfy Black and
+              bumped release metadata to 10.7.9 so version markers stay in
+              sync (driftguard/logging_utils.py, README.md, CITATION.cff,
+              copernican_lib/VERSION, CHANGELOG.md).
+
+## Version 10.7.8
+- 2025-11-26: Used bash for the Windows metrics step and enabled verbose
+              DriftGuard logging with shared helpers plus coverage for the new
+              log paths (.github/workflows/ci.yml,
+              driftguard/logging_utils.py, driftguard/__init__.py,
+              driftguard/core.py, driftguard/spec.py, driftguard/utils.py,
+              driftguard/cli.py, tests/test_driftguard_logging.py, README.md,
+              CITATION.cff, copernican_lib/VERSION).
+
+## Version 10.7.7
+- 2025-11-26: Restored dataset parser discovery by refreshing trusted hashes
+              and added a fallback to the tracked driftguard.yml so CLI wiring
+              tests pass without temporary specs (copernican_lib/dataset_registry.py,
+              driftguard/spec.py, README.md, CITATION.cff, copernican_lib/VERSION).
+
+## Version 10.7.6
+- 2025-11-26: Allowed DriftGuard to parse ``--repo-root`` after sub-commands,
+              aligned metadata check docs with the CI invocation, and bumped
+              release metadata to 10.7.6 (driftguard/cli.py,
+              tests/test_driftguard_cli.py, README.md, docs/dataset_metadata.md,
+              CITATION.cff, copernican_lib/VERSION).
+
+## Version 10.7.5
+- 2025-11-26: Ensured DriftGuard pre-commit hooks provision PyYAML so the
+              staged policy check imports reliably, documented the hook
+              environment change, and bumped release metadata to 10.7.5
+              (.pre-commit-config.yaml, README.md, CITATION.cff,
+              copernican_lib/VERSION).
+
+## Version 10.7.4
+- 2025-11-26: Added PyYAML to the compiled dependency lockfile so DriftGuard
+              installs correctly in CI, reformatted policy tooling and version
+              tests to satisfy Black, and bumped the recorded release metadata
+              to 10.7.4 (CHANGELOG.md, README.md, CITATION.cff,
+              copernican_lib/VERSION, requirements.lock, tools/update_lock.py,
+              driftguard/rules/python_lib.py, tests/test_version_file.py).
+
 ## Version 10.7.3
+- 2025-11-26: Restricted Last Updated headers to the documented allowlist,
+              updated DriftGuard surfaces for root docs, refreshed metadata
+              guidance to point at DriftGuard checks, validated the corrected
+              CITATION.cff structure and retired legacy policy tooling and
+              tests in favour of DriftGuard coverage (CHANGELOG.md, README.md,
+              CITATION.cff, driftguard.yml, docs/*.md, .pre-commit-config.yaml,
+              .gitattributes, .gitignore, .github/workflows/ci.yml,
+              .github/workflows/lint.yml, Makefile, PLAN.json,
+              copernican_lib/*, engines/*, data/*, models/*.yml,
+              requirements.in, requirements.lock, tests/*, tools/dev_suite.py,
+              tools/update_lock.py, tools/check_meta.py,
+              tools/precommit_custom_checks.py).
 - 2025-11-25: Added a unified developer suite runner, replaced the legacy
               pre-commit policy hook with staged DriftGuard fix and check
               commands, expanded CI with a repository-scope DriftGuard run

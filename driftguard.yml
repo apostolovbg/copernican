@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-25
 # DriftGuard policy spec derived from PLAN.json driftguard_yaml_spec.
 # Comments map historical AGENTS rules to the new rule surfaces for clarity.
 version: 1
@@ -18,6 +17,7 @@ surfaces:
       - AGENTS.md
       - CONTRIBUTING.md
       - CHANGELOG.md
+      - docs/*.md
       - docs/**/*.md
       - CITATION.cff
       - LICENSE.md

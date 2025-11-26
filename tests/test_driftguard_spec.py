@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-25
 """Validation tests for the DriftGuard specification loader and helpers."""
 
 from pathlib import Path

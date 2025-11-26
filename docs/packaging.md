@@ -1,4 +1,4 @@
-**Last Updated:** 2025-11-06
+**Last Updated:** 2025-11-26
 # Packaging Guide
 This document explains how to prepare the suite for development or packaging.
 

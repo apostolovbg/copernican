@@ -1,6 +1,5 @@
 """Tests for the parameter summary writer.
 
-# Last Updated: 2025-11-24
 """
 
 import json

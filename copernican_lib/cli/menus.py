@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-24
 """User-facing CLI menus for the Copernican Suite."""
 
 from __future__ import annotations

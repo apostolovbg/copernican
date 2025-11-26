@@ -1,7 +1,5 @@
 """Python library rules enforced by DriftGuard."""
 
-# Last Updated: 2025-11-25
-
 from __future__ import annotations
 
 import ast
