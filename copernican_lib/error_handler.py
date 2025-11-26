@@ -6,10 +6,11 @@
 """Logging and warning helpers for Copernican components.
 
 Parsers use :func:`report_error` to emit messages without depending on the
-global logging configuration.  The new :func:`configure_warnings` routine
-forwards all :mod:`warnings` to the central logger and optionally upgrades
-them to errors for deterministic CI runs.  Centralising this behaviour keeps
-log handling consistent across the project.
+global logging configuration. The :func:`configure_warnings` routine forwards
+all :mod:`warnings` to the central logger and optionally upgrades them to
+errors for deterministic CI runs. Keeping error routing centralised avoids
+each parser inventing its own logging policy and guarantees that user-visible
+issues are captured in the shared log file.
 """
 
 from __future__ import annotations
@@ -20,7 +21,13 @@ from typing import Type
 
 
 def report_error(message: str) -> None:
-    """Log ``message`` to the shared application logger."""
+    """Log ``message`` to the shared application logger.
+
+    The indirection keeps parsers decoupled from logging setup so they cannot
+    accidentally bypass the configured handlers. Using a single entry point
+    also ensures error messages end up in the same log file as the main
+    application output, simplifying support requests.
+    """
     # Parsers call this helper instead of accessing the root logger directly so
     # that logging configuration stays centralised. Any error messages end up
     # in the same log file as the main application output.

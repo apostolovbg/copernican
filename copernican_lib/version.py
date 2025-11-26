@@ -2,21 +2,22 @@
 # See LICENSE.md in the repository root for details.
 
 # Rationale: Version retrieval is centralised here because every surface must
-# read a single authoritative value to keep manifests, logs and footers aligned.
+# read a single authoritative value to keep manifests, logs and footers
+# aligned.
 """Version helpers for the Copernican Suite.
 
 This module centralises retrieval of the project's version string so that
-all components report a consistent value.  The lookup order honours the
+all components report a consistent value. The lookup order honours the
 ``COPERNICAN_VERSION`` environment variable first so build pipelines can
-inject prerelease identifiers.  When the variable is unset the helper reads
+inject prerelease identifiers. When the variable is unset the helper reads
 the ``copernican_lib/VERSION`` file that ships with the source and wheel
-distributions.  Falling back to a tracked file keeps the runtime version in
-sync with the value advertised in ``README.md`` even when a Git tag for the
-next release has not yet been created.  If the file is missing the function
-queries :mod:`importlib.metadata` for the installed package version and, when
-that fails, asks :func:`setuptools_scm.get_version` for a Git-derived
-identifier.  A final fallback of ``"0+unknown"`` ensures logging and plot
-footers still display a version-like string in degenerate environments.
+distributions. Falling back to a tracked file keeps the runtime version in
+sync with ``README.md`` even when a Git tag for the next release has not yet
+been created. If the file is missing the function queries
+:mod:`importlib.metadata` for the installed package version and, when that
+fails, asks :func:`setuptools_scm.get_version` for a Git-derived identifier.
+The redundant fallbacks exist because end users lean on version strings for
+reproducibility and support even in partially installed environments.
 """
 
 import os
@@ -75,13 +76,14 @@ def _read_version_file() -> Optional[str]:
 def get_version() -> str:
     """Return the Copernican Suite version string.
 
-    The function first honours the ``COPERNICAN_VERSION`` environment
-    variable so CI or development builds can supply custom prerelease
-    identifiers. If the variable is unset the helper attempts to read the
-    tracked ``copernican_lib/VERSION`` file. When the package metadata is
-    unavailable the lookup falls back to :mod:`importlib.metadata` and then to
-    :func:`setuptools_scm.get_version`. If every stage fails, the placeholder
-    ``"0+unknown"`` is returned.
+    The function honours the ``COPERNICAN_VERSION`` environment variable so
+    CI or development builds can supply custom prerelease identifiers. If
+    the variable is unset the helper attempts to read the tracked
+    ``copernican_lib/VERSION`` file. When package metadata is unavailable
+    the lookup falls back to :mod:`importlib.metadata` and then to
+    :func:`setuptools_scm.get_version`. A final placeholder of
+    ``"0+unknown"`` keeps logs and manifests readable even when everything
+    else fails, because support requests often rely on the recorded version.
     """
 
     env_version = os.environ.get("COPERNICAN_VERSION")
