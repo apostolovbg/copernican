@@ -40,5 +40,5 @@ def test_load_spec_logs_fallback(tmp_path, caplog):
     load_spec(repo_root=tmp_path)
 
     messages = [record.message for record in caplog.records]
-    assert any("driftguard.yml missing" in msg for msg in messages)
+    assert any("repo_policy.yml missing" in msg for msg in messages)
     assert any("Parsed DriftGuard spec version" in msg for msg in messages)

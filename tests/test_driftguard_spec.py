@@ -15,6 +15,12 @@ from driftguard.spec import (
 from driftguard.utils import resolve_surface_globs
 
 
+def _policy_path(root: Path) -> Path:
+    policy_dir = root / "driftguard"
+    policy_dir.mkdir(parents=True, exist_ok=True)
+    return policy_dir / "repo_policy.yml"
+
+
 def test_load_spec_parses_full_schema(tmp_path: Path) -> None:
     """The loader should preserve every section of the spec file."""
 
@@ -49,7 +55,7 @@ drift:
     - name: test-coupling-ratio
       min_warning: 0.8
 """
-    spec_path = tmp_path / "driftguard.yml"
+    spec_path = _policy_path(tmp_path)
     spec_path.write_text(spec_text)
 
     spec = load_spec(tmp_path)
@@ -71,7 +77,7 @@ drift:
 def test_load_spec_rejects_unknown_keys(tmp_path: Path) -> None:
     """Unknown keys should raise explicit validation errors."""
 
-    spec_path = tmp_path / "driftguard.yml"
+    spec_path = _policy_path(tmp_path)
     spec_path.write_text(
         """
 # Last Updated: 2025-11-25
@@ -92,7 +98,7 @@ extra: true
 def test_missing_surface_fields_raise(tmp_path: Path) -> None:
     """Surfaces missing required sections should fail early."""
 
-    spec_path = tmp_path / "driftguard.yml"
+    spec_path = _policy_path(tmp_path)
     spec_path.write_text(
         """
 # Last Updated: 2025-11-25

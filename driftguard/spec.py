@@ -1,8 +1,9 @@
 # Last Updated: 2025-11-26
 """DriftGuard policy specification data structures and loader.
 
-The loader validates ``driftguard.yml`` early so the engine can surface clear
-errors instead of failing mid-run with confusing missing-field exceptions.
+The loader validates the tracked ``driftguard/repo_policy.yml`` early so the
+engine can surface clear errors instead of failing mid-run with confusing
+missing-field exceptions.
 """
 
 from __future__ import annotations
@@ -40,6 +41,9 @@ class SurfaceSpec:
     description: Optional[str] = None
 
 
+POLICY_RELATIVE_PATH = Path("driftguard") / "repo_policy.yml"
+
+
 logger = get_logger()
 
 
@@ -62,7 +66,7 @@ class DriftConfig:
 
 @dataclass
 class DriftGuardSpec:
-    """Aggregate policy configuration loaded from ``driftguard.yml``."""
+    """Aggregate policy configuration loaded from the policy YAML."""
 
     version: int
     project: str
@@ -222,27 +226,27 @@ def _load_yaml(spec_path: Path) -> Dict[str, Any]:
         raise SpecValidationError(
             f"The spec at {spec_path} is empty; populate it using PLAN.json."
         )
-    return _expect_mapping(raw, "root of driftguard.yml")
+    return _expect_mapping(raw, "root of DriftGuard policy YAML")
 
 
 def load_spec(repo_root: Optional[Path | str] = None) -> DriftGuardSpec:
-    """Load ``driftguard.yml`` and parse the policy spec.
+    """Load the policy spec from ``driftguard/repo_policy.yml``.
 
     When a caller passes ``repo_root`` that lacks a spec file—as in tests that
     exercise CLI argument parsing—we fall back to the repository's tracked
     policy. This keeps CLI wiring tests hermetic while ensuring production
-    runs still rely on explicit ``driftguard.yml`` content at ``repo_root``.
+    runs still rely on explicit policy content at ``repo_root``.
     """
 
     root_path = Path(repo_root) if repo_root is not None else Path.cwd()
     logger.info("Resolving DriftGuard spec for repo root %s", root_path)
-    spec_path = root_path / "driftguard.yml"
+    spec_path = root_path / POLICY_RELATIVE_PATH
     if not spec_path.exists():
-        fallback_root = Path(__file__).resolve().parent.parent
-        fallback_path = fallback_root / "driftguard.yml"
+        fallback_root = Path(__file__).resolve().parent
+        fallback_path = fallback_root / "repo_policy.yml"
         logger.warning(
-            "driftguard.yml missing at %s; "
-            "falling back to tracked policy %s",
+            "%s missing at %s; falling back to tracked policy %s",
+            POLICY_RELATIVE_PATH,
             spec_path,
             fallback_path,
         )
@@ -254,7 +258,7 @@ def load_spec(repo_root: Optional[Path | str] = None) -> DriftGuardSpec:
         raw_spec,
         required=["version", "project", "rulesets", "surfaces", "drift"],
         optional=[],
-        context="root of driftguard.yml",
+        context="root of DriftGuard policy YAML",
     )
     parsed_spec = DriftGuardSpec(
         version=int(raw_spec.get("version")),
