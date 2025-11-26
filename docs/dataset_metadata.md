@@ -10,7 +10,7 @@ after updating any of these metadata files or their documentation headers.
 DriftGuard measures "today" in Coordinated Universal Time so both the
 command-line report and the regression tests catch future timestamps
 consistently across time zones while honouring the Last Updated allowlist
-defined in ``driftguard.yml``. The repo-root flag now sits with the scope and
+defined in ``driftguard/repo_policy.yml``. The repo-root flag now sits with the scope and
 mode switches so the argument order mirrors the CI command regardless of where
 ``--repo-root`` appears in the invocation.
 

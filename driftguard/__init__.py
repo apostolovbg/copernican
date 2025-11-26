@@ -20,7 +20,8 @@ logger = get_logger()
 
 
 def load_engine(repo_root: Optional[Path | str] = None) -> PolicyEngine:
-    """Create a :class:`PolicyEngine` configured from ``driftguard.yml``.
+    """Create a :class:`PolicyEngine` configured from
+    ``driftguard/repo_policy.yml``.
 
     The helper keeps orchestration intentionally thin so the engine is easy to
     reuse outside this repository. It defers all parsing and rule selection

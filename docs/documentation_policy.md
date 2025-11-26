@@ -32,8 +32,8 @@ more than fix typos.
 Adhering to this policy keeps the suite's knowledge base accurate and protects
 our intellectual property by clearly documenting provenance and intent.
 
-DriftGuard now anchors these expectations in `driftguard.yml`. The doc
-surfaces defined there mirror the Last Updated and date checks enforced by the
+DriftGuard now anchors these expectations in `driftguard/repo_policy.yml`. The
+doc surfaces defined there mirror the Last Updated and date checks enforced by the
 metadata rules so documentation drift is visible to contributors before code
 reaches review.
 The metadata surface now also validates citation YAML structure, synchronises

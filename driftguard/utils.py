@@ -36,7 +36,7 @@ def resolve_surface_globs(
 ) -> List[Path]:
     """Resolve a surface's include and exclude globs to concrete paths.
 
-    Resolving through the spec keeps rule logic aligned with ``driftguard.yml``
+    Resolving through the spec keeps rule logic aligned with the policy YAML
     rather than ad-hoc path lists. Excludes are applied after all includes so
     the spec can intentionally shadow broader includes with narrower ignore
     patterns.

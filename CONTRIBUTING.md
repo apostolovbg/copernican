@@ -2,10 +2,11 @@
 **Last Updated:** 2025-11-26
 
 Thank you for considering a contribution. DriftGuard defines the canonical
-policy for this repository: `driftguard.yml` is authoritative, and the shared
-"Development Laws (DriftGuard Policy)" section in `README.md` and `AGENTS.md`
-summarises the human-readable rules. Review those sources before opening a
-pull request.
+policy for this repository: follow the chain `DRIFTGUARD.md` (human summary) →
+`driftguard/repo_policy.yml` (machine-readable spec) → the DriftGuard code
+under `driftguard/`. This replaces the legacy guidance that was embedded in
+`README.md` and `AGENTS.md`. Review those sources before opening a pull
+request.
 
 Quick checklist:
 
