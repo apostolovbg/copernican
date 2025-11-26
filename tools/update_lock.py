@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-05
 """Generate a deterministic ``requirements.lock`` file for the suite.
 
 This helper wraps :mod:`piptools` so the ``make lock`` target can decide

@@ -1,6 +1,5 @@
 """Logging-oriented diagnostics helpers.
 
-**Last Updated:** 2025-10-31
 
 The utilities below translate raw numerical arrays into short, stable log
 messages so long-running analyses can surface meaningful progress without

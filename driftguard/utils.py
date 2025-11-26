@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-25
 """Utility helpers shared by DriftGuard rules.
 
 Functions remain intentionally small until rule implementations land. The

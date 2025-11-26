@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-24
 """Integration test covering synthetic SNe, BAO and CMB stages."""
 
 from __future__ import annotations

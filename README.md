@@ -1,5 +1,5 @@
 **Version:** 10.7.3
-**Last Updated:** 2025-11-25
+**Last Updated:** 2025-11-26
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -876,11 +876,19 @@ python tools/dev_suite.py
 
 ### Metadata self-check utility
 
-Run the metadata validator with ``python -m tools.check_meta`` whenever the
-release notes, README header or documentation timestamps change. The helper
-normalises "today" to Coordinated Universal Time so both the command-line
-tool and the accompanying regression tests agree on the current date when
-detecting future-dated markers or drifted version fields.
+Run the DriftGuard metadata sweep whenever release notes, documentation
+timestamps or version fields change:
+
+```bash
+python -m driftguard.cli check --scope=repo --mode=full
+```
+
+DriftGuard validates Last Updated headers only on the documented allowlist
+(README/AGENTS/CONTRIBUTING, CHANGELOG, docs, CITATION.cff, LICENSE,
+THIRD_PARTY_LICENSES, copernican.py, start.* scripts, config schemas and
+model YAMLs) while also enforcing version synchronisation and citation
+structure. The UTC-normalised clock keeps future-date checks consistent in
+both local runs and regression tests.
 
 The local `make-lock` hook now bootstraps a dedicated Python environment and
 installs `pip-tools==7.4.1` before executing `make lock`. This keeps

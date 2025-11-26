@@ -1,6 +1,5 @@
 """Tests for UTC-normalised timestamp helpers.
 
-**Last Updated:** 2025-11-01
 """
 
 from __future__ import annotations

@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-25
 """DriftGuard policy specification data structures and loader.
 
 The loader validates ``driftguard.yml`` early so the engine can surface clear

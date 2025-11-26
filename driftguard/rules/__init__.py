@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-25
 """Rule and metric scaffolding for DriftGuard.
 
 Concrete rule implementations live in sibling modules. This file hosts shared

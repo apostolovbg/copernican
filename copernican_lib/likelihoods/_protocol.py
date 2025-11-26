@@ -1,6 +1,5 @@
 """Shared likelihood protocol definitions.
 
-**Last Updated:** 2025-02-14
 
 The :mod:`copernican_lib.likelihoods` package exposes multiple dataset
 likelihood helpers that all share a common interface.  To avoid circular

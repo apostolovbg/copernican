@@ -1,6 +1,5 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-24
 
 """Nested sampling cosmology engine.
 

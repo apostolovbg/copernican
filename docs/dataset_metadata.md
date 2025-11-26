@@ -1,14 +1,15 @@
+**Last Updated:** 2025-11-26
 # Dataset Metadata Fields
-**Last Updated:** 2025-11-02
 
 Each dataset folder contains a `metadata_*.yml` file that describes the
 source. All fields are optional except for `dataset_name`, `dataset_id`,
 `description` and `license`.
 
-Run ``python -m tools.check_meta`` after updating any of these metadata files
-or their documentation headers. The helper measures "today" in Coordinated
-Universal Time so both the command-line report and the regression tests catch
-future timestamps consistently across time zones.
+Run ``python -m driftguard.cli check --scope=repo --mode=full`` after updating
+any of these metadata files or their documentation headers. DriftGuard measures
+"today" in Coordinated Universal Time so both the command-line report and the
+regression tests catch future timestamps consistently across time zones while
+honouring the Last Updated allowlist defined in ``driftguard.yml``.
 
 Example skeleton:
 

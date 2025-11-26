@@ -1,6 +1,5 @@
 """Baryon Acoustic Oscillation likelihood helper.
 
-**Last Updated:** 2025-11-02
 
 Computes BAO observables using CAMB background distances aligned with the CMB
 likelihood configuration.  Previous revisions mixed direct model integrals with
