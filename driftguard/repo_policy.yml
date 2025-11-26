@@ -7,6 +7,7 @@ rulesets:
   docs-drift: warn # Tracks doc freshness per AGENTS guidance on currency.
   python-quality: hard # Replaces AGENTS safeguards on print usage and tests.
   bugfix-coverage: warn # Soft reminder aligned with AGENTS testing emphasis.
+  workflow-discipline: hard # Ensures CI and local workflows exercise the full suite.
 surfaces:
   docs:
     description: >-
@@ -86,6 +87,18 @@ surfaces:
       - tools/**/*.py
     exclude: []
     rules: []
+  ci-workflows:
+    description: >-
+      Continuous integration workflows that must exercise the full program
+      unit test suite under /tests via both the documented `python -m pytest -q`
+      command and the `python -m unittest discover -v` invocation, and document
+      the expectation that developers do the same before committing.
+    include:
+      - .github/workflows/ci.yml
+      - DRIFTGUARD.md
+    exclude: []
+    rules:
+      - full-test-suite-in-ci
 drift:
   metrics:
     - name: todo-count

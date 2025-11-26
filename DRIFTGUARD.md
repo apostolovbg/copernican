@@ -69,6 +69,10 @@ development.
   - runs DriftGuard in fast mode on staged files (and may apply safe
     autofixes),
   - runs a relevant subset of tests.
+- Run the **full program unit test suite in `/tests` before every commit** using
+  both `python -m pytest -q` and `python -m unittest discover -v`. The CI
+  pipeline also runs both commands to keep commits aligned with the policy and
+  provide an audit trail for test coverage.
 
 ### CI and drift
 

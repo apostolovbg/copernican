@@ -11,7 +11,9 @@ on:
 jobs:
   tests:
     # Execute the same validation flow on each supported OS for parity with
-    # downstream user environments.
+    # downstream user environments. DriftGuard runs here (not in lint) so the
+    # policy engine evaluates the repository in the same matrix that executes
+    # the full test suite.
     name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -88,9 +90,13 @@ jobs:
           print(f"Wrote {output}")
           PY
 
-      - name: Run unit tests
+      - name: Run full program unit tests (unittest)
+        # Execute the full program unit test suite via unittest discovery.
+        run: python -m unittest discover -v
+
+      - name: Run full program unit test suite
         # Execute the full pytest suite quietly to surface regressions while
-        # keeping the log output concise.
+        # keeping the log output concise and meeting the pre-commit policy.
         run: python -m pytest -q
 
       - name: Build distribution artifacts

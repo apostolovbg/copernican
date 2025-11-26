@@ -30,6 +30,23 @@ suffixes. Follow this template:
               block, refreshed contributor guidance to point to
               `driftguard.yml` and the dev suite, and aligned doc metadata
               (README.md, AGENTS.md, CONTRIBUTING.md).
+- 2025-11-26: Added workflow enforcement for full-suite test runs, codified the
+              pre-commit full-test requirement in DriftGuard policy, and
+              ensured policy edits touch enforcement and tests
+              (DRIFTGUARD.md, driftguard/repo_policy.yml,
+              driftguard/rules/workflows.py, tests/test_driftguard_policy_sync.py,
+              tests/test_driftguard_rules_workflows.py,
+              driftguard/AGENTS.md, .github/workflows/ci.yml).
+- 2025-11-26: Clarified that the full /tests suite must run via `python -m pytest`
+              before every commit and enforced the wording within DriftGuard's
+              CI workflow rule (DRIFTGUARD.md, driftguard/repo_policy.yml,
+              driftguard/rules/workflows.py, tests/test_driftguard_rules_workflows.py).
+- 2025-11-26: Reaffirmed that the full program unit test suite runs via
+              `python -m unittest discover -v` alongside the pytest command in
+              policy, CI and DriftGuard enforcement with updated regression
+              coverage (DRIFTGUARD.md, driftguard/repo_policy.yml,
+              driftguard/rules/workflows.py, .github/workflows/ci.yml,
+              tests/test_driftguard_rules_workflows.py).
 
 ## Version 10.7.8
 - 2025-11-26: Used bash for the Windows metrics step and enabled verbose
