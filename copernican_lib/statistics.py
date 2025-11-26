@@ -6,9 +6,11 @@
 """Shared statistical helpers for cosmological engines.
 
 This module now delegates dataset-specific likelihood calculations to
-:mod:`copernican_lib.likelihoods`. The thin wrappers exposed here preserve the
-public API while the new package stores the covariance-aware implementations
-used by all engines. CAMB spectrum helpers remain available for backward
+:mod:`copernican_lib.likelihoods`. Keeping the wrappers here preserves the
+long-lived public API while letting the specialised likelihood package evolve
+internally. Centralising the glue code also ensures engines share identical
+error handling and covariance conventions because each path flows through the
+same helpers. CAMB spectrum helpers remain available for backward
 compatibility.
 """
 
