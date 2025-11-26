@@ -636,6 +636,64 @@ class DocumentationRefreshRule(Rule):
         ]
 
 
+class PolicySyncRule(Rule):
+    """Keep DriftGuard policy text, YAML and enforcement in lockstep."""
+
+    name = "driftguard-policy-sync"
+    _DOC = Path("DRIFTGUARD.md")
+    _POLICY = Path("driftguard/repo_policy.yml")
+    _CODE_ROOT = Path("driftguard")
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        status_entries = _git_status(context.repo_root)
+        if not status_entries:
+            return []
+
+        repo_root = context.repo_root
+        changed = {path.resolve() for _, path in status_entries}
+        doc_path = (repo_root / self._DOC).resolve()
+        policy_path = (repo_root / self._POLICY).resolve()
+        code_root = (repo_root / self._CODE_ROOT).resolve()
+
+        doc_changed = doc_path in changed
+        policy_changed = policy_path in changed
+        enforcement_changed = any(
+            path.suffix == ".py" and code_root in path.parents
+            for path in changed
+        )
+
+        if not (doc_changed or policy_changed or enforcement_changed):
+            return []
+
+        missing: list[str] = []
+        if not doc_changed:
+            missing.append(self._DOC.as_posix())
+        if not policy_changed:
+            missing.append(self._POLICY.as_posix())
+        if not enforcement_changed:
+            missing.append("driftguard/**/*.py")
+
+        if not missing:
+            return []
+
+        focus_path = doc_path if doc_changed else policy_path
+        if not (doc_changed or policy_changed):
+            focus_path = repo_root / self._CODE_ROOT
+
+        message = (
+            "DriftGuard policy updates must move together: also update "
+            + ", ".join(sorted(missing))
+        )
+
+        return [
+            Violation(
+                rule_name=self.name,
+                message=message,
+                path=focus_path,
+            )
+        ]
+
+
 class TimestampValidationRule(Rule):
     """Prevent chronological drift across tracked timestamps."""
 
@@ -644,6 +702,7 @@ class TimestampValidationRule(Rule):
     def check(self, context: RuleContext) -> List[Violation]:
         repo_root = context.repo_root
         violations: List[Violation] = []
+        today = _utc_today()
 
         changelog = repo_root / "CHANGELOG.md"
         if changelog.exists():
@@ -667,7 +726,6 @@ class TimestampValidationRule(Rule):
                             )
                         )
                         break
-                today = _utc_today()
                 if newest > today:
                     violations.append(
                         Violation(
@@ -699,6 +757,8 @@ class TimestampValidationRule(Rule):
                 continue
             prior_header = _header_in_first_three(previous.stdout)[1]
             if prior_header and header_date < prior_header:
+                if prior_header > today and header_date <= today:
+                    continue
                 violations.append(
                     Violation(
                         rule_name=self.name,

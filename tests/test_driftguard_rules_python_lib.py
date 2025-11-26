@@ -6,6 +6,7 @@ from pathlib import Path
 from driftguard.rules import RuleContext
 from driftguard.rules.python_lib import (
     BugfixHasTestRule,
+    CommentSyncRule,
     NewModulesNeedTestsRule,
     NoPrintInLibRule,
 )
@@ -33,6 +34,7 @@ def _spec() -> DriftGuardSpec:
                     "no-print",
                     "new-modules-need-tests",
                     "bugfix-has-test",
+                    "comment-sync-with-code",
                 ],
             ),
             "python-tests": SurfaceSpec(
@@ -223,6 +225,55 @@ def test_bugfix_entry_with_tests_is_satisfied(tmp_path: Path) -> None:
     )
 
     rule = BugfixHasTestRule()
+    context = _context(tmp_path)
+
+    assert rule.check(context) == []
+
+
+def test_comment_sync_requires_comment_updates(tmp_path: Path) -> None:
+    """Code edits should pair with comment updates on python-lib files."""
+
+    _init_git_repo(tmp_path)
+    lib_path = tmp_path / "copernican_lib"
+    lib_path.mkdir()
+    module = lib_path / "feature.py"
+    module.write_text("value = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", module.as_posix()], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-m", "seed"], cwd=tmp_path, check=True)
+
+    module.write_text("value = 2\n", encoding="utf-8")
+
+    rule = CommentSyncRule()
+    context = _context(tmp_path)
+
+    violations = rule.check(context)
+
+    assert violations
+    assert violations[0].path == module
+
+
+def test_comment_sync_allows_comment_changes(tmp_path: Path) -> None:
+    """Adding a rationale comment alongside code updates should pass."""
+
+    _init_git_repo(tmp_path)
+    lib_path = tmp_path / "copernican_lib"
+    lib_path.mkdir()
+    module = lib_path / "feature.py"
+    module.write_text("value = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", module.as_posix()], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-m", "seed"], cwd=tmp_path, check=True)
+
+    module.write_text(
+        "\n".join(
+            [
+                "value = 2",
+                "# Updated to align with new input validation: explain why",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    rule = CommentSyncRule()
     context = _context(tmp_path)
 
     assert rule.check(context) == []

@@ -17,6 +17,7 @@ surfaces:
     include:
       - README.md
       - AGENTS.md
+      - DRIFTGUARD.md
       - CONTRIBUTING.md
       - CHANGELOG.md
       - docs/*.md
@@ -31,6 +32,7 @@ surfaces:
       - documentation-refresh-required
       - timestamp-validation
       - changelog-diff-coverage
+      - driftguard-policy-sync
       - human-edit-preservation
   interfaces:
     description: >-
@@ -84,6 +86,7 @@ surfaces:
       - no-print
       - new-modules-need-tests
       - bugfix-has-test
+      - comment-sync-with-code
       - formatter-clean
       - comments-explain-why
       - docstrings-explain-why
@@ -103,6 +106,7 @@ surfaces:
     exclude: []
     rules:
       - formatter-clean
+      - driftguard-policy-sync
   tools:
     description: >-
       Helper scripts reserved for bespoke tooling rules.

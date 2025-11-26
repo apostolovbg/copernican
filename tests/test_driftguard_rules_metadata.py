@@ -13,6 +13,7 @@ from driftguard.rules.metadata import (
     CitationYamlRule,
     LastUpdatedDocsRule,
     NoFutureDatesRule,
+    PolicySyncRule,
     SemverBumpRequiredRule,
     StartLauncherParityRule,
     VersionSyncRule,
@@ -28,7 +29,7 @@ def _spec_with_surfaces() -> DriftGuardSpec:
         surfaces={
             "docs": SurfaceSpec(
                 name="docs",
-                include=["README.md"],
+                include=["README.md", "DRIFTGUARD.md"],
                 exclude=[],
                 rules=["last-updated-header"],
             ),
@@ -70,6 +71,18 @@ def _context(repo_root: Path) -> RuleContext:
         spec=_spec_with_surfaces(),
         scope="repo",
         mode="full",
+    )
+
+
+def _init_git_repo(repo_root: Path) -> None:
+    subprocess.run(["git", "init"], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "ci@example.com"],
+        cwd=repo_root,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "CI"], cwd=repo_root, check=True
     )
 
 
@@ -120,7 +133,59 @@ def test_last_updated_rule_rejects_late_header(tmp_path: Path) -> None:
     violations = rule.check(context)
 
     assert violations
-    assert "first three lines" in violations[0].message
+
+
+def test_policy_sync_requires_joint_updates(tmp_path: Path) -> None:
+    """Policy documents must change alongside the YAML and enforcement."""
+
+    _init_git_repo(tmp_path)
+    (tmp_path / "driftguard").mkdir()
+    policy_doc = tmp_path / "DRIFTGUARD.md"
+    policy_yaml = tmp_path / "driftguard" / "repo_policy.yml"
+    enforcement = tmp_path / "driftguard" / "core.py"
+
+    policy_doc.write_text("Seed policy\n", encoding="utf-8")
+    policy_yaml.write_text("version: 1\n", encoding="utf-8")
+    enforcement.write_text("print('seed')\n", encoding="utf-8")
+
+    subprocess.run(["git", "add", "DRIFTGUARD.md", "driftguard"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-m", "seed"], cwd=tmp_path, check=True, capture_output=True)
+
+    policy_doc.write_text("Seed policy\nUpdated guidance\n", encoding="utf-8")
+
+    rule = PolicySyncRule()
+    context = _context(tmp_path)
+
+    violations = rule.check(context)
+
+    assert violations
+    assert "repo_policy.yml" in violations[0].message
+
+
+def test_policy_sync_passes_when_all_surfaces_change(tmp_path: Path) -> None:
+    """Aligned changes to doc, YAML and enforcement should pass."""
+
+    _init_git_repo(tmp_path)
+    (tmp_path / "driftguard").mkdir()
+    policy_doc = tmp_path / "DRIFTGUARD.md"
+    policy_yaml = tmp_path / "driftguard" / "repo_policy.yml"
+    enforcement = tmp_path / "driftguard" / "core.py"
+
+    policy_doc.write_text("Seed policy\n", encoding="utf-8")
+    policy_yaml.write_text("version: 1\n", encoding="utf-8")
+    enforcement.write_text("print('seed')\n", encoding="utf-8")
+
+    subprocess.run(["git", "add", "DRIFTGUARD.md", "driftguard"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-m", "seed"], cwd=tmp_path, check=True, capture_output=True)
+
+    policy_doc.write_text("Seed policy\nUpdated guidance\n", encoding="utf-8")
+    policy_yaml.write_text("version: 2\n", encoding="utf-8")
+    enforcement.write_text("print('seed')\n# updated enforcement\n", encoding="utf-8")
+
+    rule = PolicySyncRule()
+    context = _context(tmp_path)
+
+    assert rule.check(context) == []
 
 
 def test_version_sync_and_citation_rules_detect_mismatches(
