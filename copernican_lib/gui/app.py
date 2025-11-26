@@ -100,6 +100,8 @@ class _MemoryLogHandler(logging.Handler):
     """Capture structured log lines for on-screen diagnostics."""
 
     def __init__(self, *, prefix: str) -> None:
+        """Initialise with a prefix so anchors stay deterministic."""
+
         super().__init__(level=logging.INFO)
         self.prefix = prefix
         self.entries: list[LogEntry] = []
@@ -159,6 +161,8 @@ class CopernicanGUI:
     }
 
     def __init__(self, render: bool = True) -> None:
+        """Prepare GUI state so tests can exercise navigation without Tk."""
+
         self.render = render and tk is not None
         self.root: Optional[tk.Tk] = None
         self.frames: Dict[str, tk.Frame] = {}
@@ -541,6 +545,8 @@ class CopernicanGUI:
             ]
 
         def builder(frame: tk.Frame) -> None:
+            """Render placeholder widgets so navigation stays predictable."""
+
             header = ttk.Label(
                 frame, text="Project Home", font=("Helvetica", 16)
             )
@@ -574,6 +580,8 @@ class CopernicanGUI:
         """Render the Run Builder wizard with jump controls."""
 
         def builder(frame: tk.Frame) -> None:
+            """Lay out the builder controls so keyboard jumps can be tested."""
+
             header = ttk.Label(
                 frame, text="Run Builder", font=("Helvetica", 16)
             )
@@ -637,6 +645,8 @@ class CopernicanGUI:
         """Display placeholder data catalogue information."""
 
         def builder(frame: tk.Frame) -> None:
+            """Provide a skeletal data view so navigation stays stable."""
+
             ttk.Label(frame, text="Data catalogue", takefocus=True).pack(
                 anchor="w"
             )
@@ -656,6 +666,8 @@ class CopernicanGUI:
         """Display model listing placeholder content."""
 
         def builder(frame: tk.Frame) -> None:
+            """Expose a simple model list placeholder for accessibility."""
+
             ttk.Label(frame, text="Models", takefocus=True).pack(anchor="w")
             ttk.Label(
                 frame,
@@ -670,6 +682,8 @@ class CopernicanGUI:
         """Display engine overview panel."""
 
         def builder(frame: tk.Frame) -> None:
+            """Show engine placeholders so the navigation rail stays filled."""
+
             ttk.Label(frame, text="Engines", takefocus=True).pack(anchor="w")
             ttk.Label(
                 frame,
@@ -687,6 +701,8 @@ class CopernicanGUI:
         """Display settings placeholder panel."""
 
         def builder(frame: tk.Frame) -> None:
+            """Render diagnostics controls because log export needs hooks."""
+
             ttk.Label(frame, text="Settings", takefocus=True).pack(anchor="w")
             ttk.Label(
                 frame,
@@ -752,6 +768,8 @@ class CopernicanGUI:
         """Display contextual help panel."""
 
         def builder(frame: tk.Frame) -> None:
+            """List help affordances so keyboard navigation stays clear."""
+
             ttk.Label(frame, text="Help", takefocus=True).pack(anchor="w")
             ttk.Label(
                 frame,
@@ -769,6 +787,8 @@ class CopernicanGUI:
         """Display live run status controls."""
 
         def builder(frame: tk.Frame) -> None:
+            """Expose diagnostic streams because GUI mode surfaces logs."""
+
             header = ttk.Label(
                 frame, text="Run Monitor", font=("Helvetica", 16)
             )
@@ -856,6 +876,8 @@ class CopernicanGUI:
                 jump_target = alert.anchor
 
                 def _jump(anchor: str = jump_target) -> None:
+                    """Jump to log entries so alerts stay traceable."""
+
                     self.jump_to_log_anchor(anchor)
 
                 ttk.Button(
@@ -891,6 +913,8 @@ class CopernicanGUI:
         """Display the completion summary with manifest reuse actions."""
 
         def builder(frame: tk.Frame) -> None:
+            """Summarise outputs so saved manifests remain discoverable."""
+
             header = ttk.Label(
                 frame, text="Run Summary", font=("Helvetica", 16)
             )

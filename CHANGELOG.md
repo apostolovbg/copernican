@@ -22,6 +22,12 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.7.10
+- 2025-11-26: Wrapped rationale docstrings to the 79-character limit and
+              clarified intent for chain persistence, GUI placeholders,
+              plugin metadata, priors, quadrature helpers, and run control
+              streaming (copernican_lib/chain_io.py, copernican_lib/gui/app.py,
+              copernican_lib/plugins/__init__.py, copernican_lib/priors.py,
+              copernican_lib/model_coder.py, copernican_lib/orchestration.py).
 - 2025-11-26: Documented the required staged DriftGuard check alongside pytest
               and unittest commands before commits (README.md,
               CONTRIBUTING.md).

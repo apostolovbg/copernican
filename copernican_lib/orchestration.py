@@ -110,10 +110,14 @@ class InProcessRunController:
     log_hook: Callable[[str], Iterable[str]] | None = None
 
     def request_run(self, request: RunRequest) -> RunHandle:
+        """Invoke the configured executor so GUI and CLI share scheduling."""
+
         token = self.run_executor(request)
         return RunHandle(token=token, mode=request.mode)
 
     def cancel(self, handle: RunHandle) -> None:
+        """Bridge GUI cancellation into the shared engine runner."""
+
         if self.cancel_hook is None:
             raise RuntimeError(
                 "Cancel hook is not configured for this runner."
@@ -121,11 +125,15 @@ class InProcessRunController:
         self.cancel_hook(handle.token)
 
     def pause(self, handle: RunHandle) -> None:
+        """Pause the active run because some engines expose checkpoints."""
+
         if self.pause_hook is None:
             raise RuntimeError("Pause hook is not configured for this runner.")
         self.pause_hook(handle.token)
 
     def resume(self, handle: RunHandle) -> None:
+        """Resume a paused run so orchestrators stay agnostic to engines."""
+
         if self.resume_hook is None:
             raise RuntimeError(
                 "Resume hook is not configured for this runner."
@@ -133,11 +141,15 @@ class InProcessRunController:
         self.resume_hook(handle.token)
 
     def stream_status(self, handle: RunHandle) -> Iterable[RunStatus]:
+        """Yield status updates when available; otherwise return empty."""
+
         if self.status_hook is None:
             return ()
         return self.status_hook(handle.token)
 
     def stream_logs(self, handle: RunHandle) -> Iterable[str]:
+        """Proxy log streaming so UI clients consume the same generator."""
+
         if self.log_hook is None:
             return ()
         return self.log_hook(handle.token)

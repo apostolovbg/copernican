@@ -75,6 +75,8 @@ class BatchProgressBar:
         display: bool = True,
         subunit_labels: tuple[str, str] | None = ("walker", "walkers"),
     ) -> None:
+        """Track a batch because engines share one progress bar per stage."""
+
         self._stage_label = stage_label
         self._total_steps = max(int(total_steps), 0)
         self._display = bool(display and self._total_steps > 0)
@@ -408,6 +410,8 @@ class StepProgressEmitter:
     )
 
     def __init__(self, progress_bar: BatchProgressBar) -> None:
+        """Bridge per-step callbacks into the shared batch progress bar."""
+
         self._progress_bar = progress_bar
         self._active_step: int | None = None
         self._walker_total = 1
@@ -490,6 +494,8 @@ class _ReportingStretchMove(moves.StretchMove):
         progress_notifier: Callable[[int, int], None] | None = None,
         **kwargs: Any,
     ) -> None:
+        """Attach a notifier so ensemble moves can emit walker progress."""
+
         super().__init__(*args, **kwargs)
         self._progress_notifier = progress_notifier
 
@@ -519,6 +525,8 @@ class _ReportingStretchMove(moves.StretchMove):
         self._progress_notifier = notifier
 
     def _notify(self, processed: int, total: int) -> None:
+        """Forward accepted/attempted counts while ignoring notifier errors."""
+
         if self._progress_notifier is None:
             return
         try:

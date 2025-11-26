@@ -125,6 +125,8 @@ class _ActiveLogProbability:
         template_params: np.ndarray,
         active_indices: np.ndarray,
     ) -> None:
+        """Cache posterior context so worker pools can rebuild full vectors."""
+
         # ``posterior`` already encapsulates priors and likelihood terms via
         # ``_build_joint_logposterior``.  We retain it verbatim and only manage
         # the vector assembly around it.
@@ -179,6 +181,8 @@ class _JointLogLikelihood:
             Iterable[Callable[[float], tuple[float, float]]] | None
         ),
     ) -> None:
+        """Store likelihood context so pickled workers keep constraints."""
+
         self._joint_like = joint_like
         self.parameter_bounds = list(parameter_bounds or [])
         if parameter_transforms is not None:
@@ -209,6 +213,8 @@ class _SamplingProgressReporter:
         progress_granularity: int = 20,
         max_params_to_show: int | None = None,
     ) -> None:
+        """Prepare per-stage reporting buffers so logs stay lightweight."""
+
         self._param_names = list(param_names)
         self._template = np.asarray(template_params, dtype=float)
         self._active_indices = np.asarray(active_indices, dtype=int)

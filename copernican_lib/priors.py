@@ -56,6 +56,8 @@ class LogUniformTransform:
     """Picklable helper implementing the log-uniform Jacobian term."""
 
     def __call__(self, value: float) -> tuple[float, float]:
+        """Return the value and Jacobian because log priors rescale density."""
+
         value = float(value)
         if value <= 0.0:
             raise ValueError(
@@ -117,6 +119,8 @@ class UniformPrior(BasePrior):
     _log_width: float = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
+        """Validate bounds so uniform priors cannot hide inverted intervals."""
+
         if not math.isfinite(self.lower) or not math.isfinite(self.upper):
             raise PriorError("Uniform priors require finite lower and upper")
         if self.upper <= self.lower:
@@ -124,11 +128,15 @@ class UniformPrior(BasePrior):
         self._log_width = -math.log(self.upper - self.lower)
 
     def log_density(self, value: float) -> float:
+        """Return a constant log-density or ``-inf`` outside the support."""
+
         if value < self.lower or value > self.upper:
             return float("-inf")
         return self._log_width
 
     def to_mapping(self) -> dict[str, float | str]:
+        """Serialise the prior so manifests record its exact bounds."""
+
         return {
             "type": "uniform",
             "lower": self.lower,
@@ -145,15 +153,21 @@ class NormalPrior(BasePrior):
     _norm: float = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
+        """Precompute the normalisation to avoid recomputing per evaluation."""
+
         if not math.isfinite(self.sigma) or self.sigma <= 0.0:
             raise PriorError("Gaussian prior requires finite sigma > 0")
         self._norm = -math.log(self.sigma * math.sqrt(2.0 * math.pi))
 
     def log_density(self, value: float) -> float:
+        """Return log p(value) for the Gaussian prior."""
+
         delta = (value - self.mean) / self.sigma
         return self._norm - 0.5 * delta * delta
 
     def to_mapping(self) -> dict[str, float | str]:
+        """Record the mean and sigma so cached YAML mirrors runtime use."""
+
         return {
             "type": "gaussian",
             "mean": self.mean,
@@ -176,6 +190,8 @@ class LogUniformPrior(BasePrior):
     _log_interval: float = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
+        """Validate positive bounds because the log transform needs them."""
+
         if self.lower <= 0 or self.upper <= 0:
             raise PriorError("Log-uniform priors require positive bounds")
         if self.upper <= self.lower:
@@ -186,6 +202,8 @@ class LogUniformPrior(BasePrior):
         self._log_interval = -math.log(log_interval)
 
     def log_density(self, value: float) -> float:
+        """Return the log-density while honouring the ``1/x`` behaviour."""
+
         if value <= 0:
             return float("-inf")
         if value < self.lower or value > self.upper:
@@ -193,6 +211,8 @@ class LogUniformPrior(BasePrior):
         return self._log_interval - math.log(value)
 
     def to_mapping(self) -> dict[str, float | str]:
+        """Serialise bounds and transform so Jacobians remain documented."""
+
         return {
             "type": "loguniform",
             "lower": self.lower,
@@ -201,6 +221,8 @@ class LogUniformPrior(BasePrior):
         }
 
     def create_transform(self) -> TransformCallable:
+        """Expose log-uniform transform so posterior maths stay explicit."""
+
         return LogUniformTransform()
 
 
@@ -221,10 +243,14 @@ class FixedPrior(BasePrior):
     _rel_tol: float = field(default=1e-12, init=False, repr=False)
 
     def __post_init__(self) -> None:
+        """Ensure the fixed value is finite so errors surface early."""
+
         if not math.isfinite(self.value):
             raise PriorError("Fixed priors require a finite value")
 
     def log_density(self, value: float) -> float:
+        """Return zero at the fixed point and ``-inf`` elsewhere."""
+
         if math.isclose(
             value, self.value, rel_tol=self._rel_tol, abs_tol=self._abs_tol
         ):
@@ -232,6 +258,8 @@ class FixedPrior(BasePrior):
         return float("-inf")
 
     def to_mapping(self) -> dict[str, float | str]:
+        """Serialise the deterministic value for manifests and caching."""
+
         return {"type": "fixed", "value": self.value}
 
 

@@ -35,6 +35,8 @@ class PosteriorEvaluator:
     logger: logging.Logger
 
     def __call__(self, params: Sequence[float]) -> float:
+        """Evaluate the posterior while guarding against invalid proposals."""
+
         try:
             raw_values = tuple(float(val) for val in params)
         except (TypeError, ValueError):

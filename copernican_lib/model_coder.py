@@ -66,6 +66,8 @@ class RobustQuadFailure(RuntimeError):
     """
 
     def __init__(self, *, lower, upper, attempts, last_result):
+        """Capture failure context so callers can log remediation steps."""
+
         message = (
             "robust_quad exhausted retries between "
             f"{lower} and {upper} after {attempts} attempts"
@@ -93,6 +95,8 @@ class _GeneratedCallable:
     def __init__(
         self, *, expr_repr, arg_names, has_integral, name_hint, sym_expr=None
     ):
+        """Store serialisable expression data so workers can rebuild them."""
+
         self._state = {
             "expr_repr": expr_repr,
             "arg_names": tuple(arg_names),
@@ -216,12 +220,16 @@ class _ComovingDistance:
     __slots__ = ("_hz_fn",)
 
     def __init__(self, hz_fn):
+        """Store the H(z) callable because distance integration needs it."""
+
         self._hz_fn = hz_fn
 
     def __call__(self, z_val, *params):
         """Integrate ``c/H(z)`` using either ``quad`` or a trapezoid grid."""
 
         def integrand(zp):
+            """Return the integrand since ``quad`` callbacks need callables."""
+
             return 299792.458 / self._hz_fn(zp, *params)
 
         if np.isscalar(z_val):
@@ -255,9 +263,13 @@ class _LuminosityDistance:
     __slots__ = ("_dm",)
 
     def __init__(self, dm_fn):
+        """Record the comoving distance helper for reuse across models."""
+
         self._dm = dm_fn
 
     def __call__(self, zv, *params):
+        """Scale comoving distance to luminosity distance for BAO/SNe plots."""
+
         return (1.0 + zv) * self._dm(zv, *params)
 
 
@@ -267,9 +279,13 @@ class _AngularDiameterDistance:
     __slots__ = ("_dm",)
 
     def __init__(self, dm_fn):
+        """Retain comoving distance because angular diameter depends on it."""
+
         self._dm = dm_fn
 
     def __call__(self, zv, *params):
+        """Convert comoving distance into angular diameter distance."""
+
         return self._dm(zv, *params) / (1.0 + zv)
 
 
@@ -279,10 +295,14 @@ class _VolumeAveragedDistance:
     __slots__ = ("_dm", "_hz_fn")
 
     def __init__(self, dm_fn, hz_fn):
+        """Keep both distance and expansion rate helpers for BAO ratios."""
+
         self._dm = dm_fn
         self._hz_fn = hz_fn
 
     def __call__(self, z_val, *params):
+        """Compute ``D_V`` so BAO ratios remain reproducible across engines."""
+
         dm_val = self._dm(z_val, *params)
         hz_val = self._hz_fn(z_val, *params)
         term = dm_val**2 * 299792.458 * z_val / hz_val
@@ -320,6 +340,8 @@ class _SoundHorizonFromExpression:
     __slots__ = ("_fn",)
 
     def __init__(self, fn):
+        """Capture the symbolic integrand so retries stay serialisable."""
+
         self._fn = fn
 
     def __call__(self, *params):
@@ -345,9 +367,13 @@ class _DistanceModulusFromLuminosity:
     __slots__ = ("_luminosity_fn",)
 
     def __init__(self, luminosity_fn):
+        """Cache the luminosity distance helper because reuse is frequent."""
+
         self._luminosity_fn = luminosity_fn
 
     def __call__(self, zv, *params):
+        """Return distance modulus values derived from luminosity distance."""
+
         dl = self._luminosity_fn(zv, *params)
         with np.errstate(divide="ignore", invalid="ignore"):
             mu = 5.0 * np.log10(dl) + 25.0
@@ -585,6 +611,8 @@ def _robust_quad_core(
     """Core retry and segmentation loop for :func:`robust_quad`."""
 
     def _call_quad(lower, upper, limit_value, dynamic_points):
+        """Invoke SciPy quad with dynamic points to keep retries consistent."""
+
         quad_kwargs = dict(base_kwargs)
         if dynamic_points:
             quad_kwargs["points"] = tuple(dynamic_points)
@@ -790,6 +818,8 @@ def _integrate_infinite_segment(
         mapped_points = _map_points_for_negative_infinity(points, finite_upper)
 
         def transformed(t, *fn_args):
+            """Map ``(-inf, upper]`` to ``[0, 1]`` so quad handles bounds."""
+
             t_safe = float(t)
             if t_safe <= 0.0:
                 t_safe = float(np.nextafter(0.0, 1.0))
@@ -815,6 +845,8 @@ def _integrate_infinite_segment(
         mapped_points = _map_points_for_positive_infinity(points, finite_lower)
 
         def transformed(t, *fn_args):
+            """Map ``[lower, inf)`` to ``[0, 1]`` to stabilise integration."""
+
             t_safe = float(t)
             if t_safe <= 0.0:
                 t_safe = float(np.nextafter(0.0, 1.0))
