@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-25
 """Verify packaging metadata guards against flat-layout auto discovery.
 
 The regression guards the macOS launcher, which still bootstraps with

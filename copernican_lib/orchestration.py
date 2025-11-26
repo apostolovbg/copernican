@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-24
 """Orchestration map and GUI-safe service interfaces.
 
 The Copernican Suite now exposes a concise set of orchestration services that

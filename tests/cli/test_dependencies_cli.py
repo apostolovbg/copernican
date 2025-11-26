@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-24
 """Tests for CLI dependency handling helpers."""
 
 import os

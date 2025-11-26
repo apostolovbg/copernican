@@ -1,5 +1,5 @@
+**Last Updated:** 2025-11-26
 # BAO Compound Dataset Format
-**Last Updated:** 2025-10-30
 
 This document describes the YAML format used for the **compound** BAO dataset
 shipped with the Copernican Suite. The folder lives under `data/bao/compound/`

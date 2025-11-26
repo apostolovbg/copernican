@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-23
 """Build a deterministic engine plugin for the synthetic datasets."""
 
 from __future__ import annotations

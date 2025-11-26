@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-24
 """Tests for the program diagnostics logging helpers."""
 
 from pathlib import Path

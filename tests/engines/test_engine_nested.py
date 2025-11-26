@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-24
 """Integration tests for the nested sampling engine."""
 
 import os

@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-24
 """Startup dependency helpers for the Copernican Suite CLI.
 
 These routines isolate dependency discovery, caching and optional test

@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-25
 """Metadata-related DriftGuard rules.
 
 The rules mirror Copernican's existing metadata policy while using

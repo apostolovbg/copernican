@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-25
 """Regression coverage for Python library DriftGuard rules."""
 
 import subprocess

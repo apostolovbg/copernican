@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-25
 """Smoke tests for the DriftGuard engine scaffolding."""
 
 from pathlib import Path

@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-25
 """Unit tests for DriftGuard drift metric rules."""
 
 from __future__ import annotations
