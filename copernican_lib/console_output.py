@@ -12,6 +12,7 @@ directly to ``stdout`` or ``stderr`` without passing through the
 logging-aware hooks defined in :mod:`copernican_lib.logger`.
 """
 
+import logging
 import sys
 
 
@@ -41,11 +42,20 @@ def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
     :class:`UnicodeEncodeError`.
     """
     stream = sys.stderr if error else sys.stdout
+    text = f"{msg}{end}"
+    log_text = msg if end == "\n" else text
     try:
-        print(msg, end=end, file=stream, flush=True)
+        stream.write(text)
     except UnicodeEncodeError:
         fallback = msg.encode("ascii", errors="replace").decode("ascii")
-        print(fallback, end=end, file=stream, flush=True)
+        stream.write(f"{fallback}{end}")
+    stream.flush()
+    logger = logging.getLogger()
+    logger.log(
+        logging.ERROR if error else logging.INFO,
+        log_text,
+        extra={"console_capture": True},
+    )
 
 
 def ask(prompt: str = "") -> str:
