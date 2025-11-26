@@ -119,6 +119,7 @@ def get_all_rules(spec: DriftGuardSpec) -> List[Rule]:
         DependencyLicenseAuditRule,
         DependencyRefreshRule,
         DriftGuardPrecommitRequiredRule,
+        FormatterCleanRule,
         FullTestSuiteInCIRule,
     )
 
@@ -154,6 +155,7 @@ def get_all_rules(spec: DriftGuardSpec) -> List[Rule]:
         ),
         DependencyLicenseAuditRule.name: DependencyLicenseAuditRule(),
         DependencyRefreshRule.name: DependencyRefreshRule(),
+        FormatterCleanRule.name: FormatterCleanRule(),
     }
 
     requested: List[str] = []

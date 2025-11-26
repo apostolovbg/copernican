@@ -72,6 +72,9 @@ development.
 - Before any commit, run `python -m pytest -q`, `python -m unittest discover -v`
   and `driftguard check --scope=staged --mode=fast` on staged changes. Commits
   without a fresh DriftGuard pass are prohibited.
+- Keep Python sources **Black-clean before committing**. If Black would
+  reformat staged or untracked Python files, DriftGuard fails the
+  `formatter-clean` rule to prevent CI from rewriting files mid-run.
 - Run the **full program unit test suite in `/tests` before every commit and
   every task** using both `python -m pytest -q` and
   `python -m unittest discover -v`. The CI pipeline runs both commands under

@@ -45,6 +45,12 @@ suffixes. Follow this template:
               driftguard/rules/workflows.py, driftguard/rules/__init__.py,
               tests/test_driftguard_rules_metadata.py, AGENTS.md, README.md,
               CONTRIBUTING.md).
+- 2025-11-27: Added the formatter-clean DriftGuard rule to fail when Black
+              would reformat staged Python files, updated policy docs to flag
+              the requirement, and covered the behaviour with workflow rule
+              tests (driftguard/rules/workflows.py, driftguard/repo_policy.yml,
+              tests/test_driftguard_rules_workflows.py, DRIFTGUARD.md,
+              README.md, CONTRIBUTING.md).
 - 2025-11-26: Reformatted DriftGuard logging utilities to satisfy Black and
               bumped release metadata to 10.7.9 so version markers stay in
               sync (driftguard/logging_utils.py, README.md, CITATION.cff,

@@ -8,7 +8,9 @@ compromise the Copernican Suite and will lead to rejected commits. **Before
 committing, run `python -m pytest -q`, `python -m unittest discover -v`, and
 `driftguard check --scope=staged --mode=fast` on staged changes; committing
 without a fresh DriftGuard pass is forbidden.** Resolve violations (using
-`driftguard fix` when safe) before you commit.
+`driftguard fix` when safe) before you commit. Keep Python files Black-clean;
+if Black would reformat staged or untracked Python sources, fix formatting
+before committing so DriftGuard and CI stay stable.
 
 ![Copernican Suite banner](docs/banner_github.png)
 

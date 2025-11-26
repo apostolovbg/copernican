@@ -41,9 +41,7 @@ class FullTestSuiteInCIRule(Rule):
 
         jobs = parsed.get("jobs", {}) if isinstance(parsed, dict) else {}
         tests_job = jobs.get("tests", {}) if isinstance(jobs, dict) else {}
-        steps = (
-            tests_job.get("steps", []) if isinstance(tests_job, dict) else []
-        )
+        steps = tests_job.get("steps", []) if isinstance(tests_job, dict) else []
 
         return steps if isinstance(steps, list) else []
 
@@ -59,9 +57,7 @@ class FullTestSuiteInCIRule(Rule):
             ):
                 return True
         normalized = workflow_text.lower()
-        return any(
-            re.search(pattern, normalized) for pattern in self._PYTEST_PATTERNS
-        )
+        return any(re.search(pattern, normalized) for pattern in self._PYTEST_PATTERNS)
 
     def _workflow_includes_unittest(self, workflow_text: str) -> bool:
         steps = self._load_steps(workflow_text)
@@ -76,13 +72,10 @@ class FullTestSuiteInCIRule(Rule):
                 return True
         normalized = workflow_text.lower()
         return any(
-            re.search(pattern, normalized)
-            for pattern in self._UNITTEST_PATTERNS
+            re.search(pattern, normalized) for pattern in self._UNITTEST_PATTERNS
         )
 
-    def _workflow_orders_driftguard_after_tests(
-        self, workflow_text: str
-    ) -> bool:
+    def _workflow_orders_driftguard_after_tests(self, workflow_text: str) -> bool:
         steps = self._load_steps(workflow_text)
         pytest_index = None
         unittest_index = None
@@ -97,33 +90,21 @@ class FullTestSuiteInCIRule(Rule):
             if (
                 pytest_index is None
                 and name == "pytest"
-                and any(
-                    re.search(pattern, run)
-                    for pattern in self._PYTEST_PATTERNS
-                )
+                and any(re.search(pattern, run) for pattern in self._PYTEST_PATTERNS)
             ):
                 pytest_index = index
 
             if (
                 unittest_index is None
                 and name == "unit tests"
-                and any(
-                    re.search(pattern, run)
-                    for pattern in self._UNITTEST_PATTERNS
-                )
+                and any(re.search(pattern, run) for pattern in self._UNITTEST_PATTERNS)
             ):
                 unittest_index = index
 
-        if driftguard_index is None and re.search(
-            self._DRIFTGUARD_PATTERN, run
-        ):
+        if driftguard_index is None and re.search(self._DRIFTGUARD_PATTERN, run):
             driftguard_index = index
 
-        if (
-            driftguard_index is None
-            or pytest_index is None
-            or unittest_index is None
-        ):
+        if driftguard_index is None or pytest_index is None or unittest_index is None:
             return False
 
         return driftguard_index > max(pytest_index, unittest_index)
@@ -245,8 +226,7 @@ class DriftGuardPrecommitRequiredRule(Rule):
                 Violation(
                     rule_name=self.name,
                     message=(
-                        "DRIFTGUARD.md is required to document DriftGuard "
-                        "usage."
+                        "DRIFTGUARD.md is required to document DriftGuard " "usage."
                     ),
                     path=policy_path,
                 )
@@ -356,12 +336,9 @@ class DependencyRefreshRule(Rule):
             changed.append(repo_root / parts[1])
 
         manifests_changed = any(
-            path.name in {"requirements.in", "pyproject.toml"}
-            for path in changed
+            path.name in {"requirements.in", "pyproject.toml"} for path in changed
         )
-        lock_changed = any(
-            path.name == "requirements.lock" for path in changed
-        )
+        lock_changed = any(path.name == "requirements.lock" for path in changed)
         if manifests_changed and not lock_changed:
             return [
                 Violation(
@@ -374,3 +351,74 @@ class DependencyRefreshRule(Rule):
                 )
             ]
         return []
+
+
+class FormatterCleanRule(Rule):
+    """Require Python sources to be Black-clean before committing."""
+
+    name = "formatter-clean"
+
+    _BLACK_CMD = ["black", "--check", "--diff"]
+
+    def _collect_changed_python(self, repo_root: Path) -> List[Path]:
+        try:
+            status = subprocess.run(
+                ["git", "status", "--porcelain", "--untracked-files=all"],
+                cwd=repo_root,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except FileNotFoundError:
+            return []
+
+        if status.returncode != 0:
+            return []
+
+        changed: List[Path] = []
+        for line in status.stdout.splitlines():
+            if not line.strip():
+                continue
+            parts = line.strip().split(maxsplit=1)
+            if len(parts) != 2:
+                continue
+            path = repo_root / parts[1]
+            if path.suffix == ".py":
+                changed.append(path)
+
+        return changed
+
+    def _run_black_check(self, repo_root: Path, files: List[Path]) -> bool:
+        try:
+            result = subprocess.run(
+                self._BLACK_CMD + [str(path) for path in files],
+                cwd=repo_root,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except FileNotFoundError:
+            return False
+
+        return result.returncode == 0
+
+    def check(self, context: RuleContext) -> List[Violation]:
+        repo_root = context.repo_root
+        changed = self._collect_changed_python(repo_root)
+
+        if not changed:
+            return []
+
+        if self._run_black_check(repo_root, changed):
+            return []
+
+        return [
+            Violation(
+                rule_name=self.name,
+                message=(
+                    "Run Black before committing: DriftGuard detected Python "
+                    "files that would be reformatted."
+                ),
+                path=changed[0],
+            )
+        ]

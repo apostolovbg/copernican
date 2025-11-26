@@ -84,6 +84,7 @@ surfaces:
       - no-print
       - new-modules-need-tests
       - bugfix-has-test
+      - formatter-clean
       - comments-explain-why
       - docstrings-explain-why
       - naming-clear-and-concise
@@ -100,14 +101,25 @@ surfaces:
     include:
       - tests/**/*.py
     exclude: []
-    rules: []
+    rules:
+      - formatter-clean
   tools:
     description: >-
       Helper scripts reserved for bespoke tooling rules.
     include:
       - tools/**/*.py
     exclude: []
-    rules: []
+    rules:
+      - formatter-clean
+  driftguard:
+    description: >-
+      DriftGuard enforcement code that must stay formatter-clean to avoid
+      pre-commit rewrites breaking CI runs.
+    include:
+      - driftguard/**/*.py
+    exclude: []
+    rules:
+      - formatter-clean
   ci-workflows:
     description: >-
       Continuous integration workflows that must exercise the full program
