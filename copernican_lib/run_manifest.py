@@ -127,6 +127,10 @@ def build_manifest(
 ) -> dict:
     """Collect manifest information for the current run.
 
+    The manifest builder lives in one place so CLI and GUI entry points record
+    identical provenance because mismatched schemas make reruns and audits
+    brittle.
+
     Parameters
     ----------
     models:

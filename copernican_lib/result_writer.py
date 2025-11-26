@@ -38,8 +38,8 @@ def _to_serialisable(obj: Any) -> Any:
     """Return ``obj`` converted to JSON/YAML friendly types.
 
     NumPy arrays are cast to nested lists while scalars become plain ``float``
-    objects.  This keeps the writer lightweight and avoids introducing a
-    heavier dependency such as ``pandas`` for simple transformations.
+    objects because the writer should remain lightweight rather than pulling
+    in heavier dependencies such as ``pandas`` for simple transformations.
     """
 
     if isinstance(obj, np.ndarray):
@@ -56,6 +56,10 @@ def save_summary(
     timestamp: str | None = None,
 ) -> tuple[Path, Path]:
     """Write parameter summaries for one or more models.
+
+    Centralising summary writing avoids divergent output formats between
+    engines and keeps the serialisation logic close to the timestamp helper
+    because callers frequently need both pieces when producing run artifacts.
 
     Parameters
     ----------
