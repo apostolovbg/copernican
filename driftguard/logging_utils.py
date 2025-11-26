@@ -46,11 +46,8 @@ def ensure_logger(level: Optional[int] = None) -> logging.Logger:
     if not logger.handlers:
         handler = logging.StreamHandler(sys.stdout)
         handler.setLevel(resolved_level)
-        formatter = logging.Formatter(
-            "DriftGuard [%(levelname)s] %(message)s"
-        )
+        formatter = logging.Formatter("DriftGuard [%(levelname)s] %(message)s")
         handler.setFormatter(formatter)
         logger.addHandler(handler)
     logger.setLevel(resolved_level)
     return logger
-

@@ -1,4 +1,4 @@
-**Version:** 10.7.8
+**Version:** 10.7.9
 **Last Updated:** 2025-11-26
 
 ![Copernican Suite banner](docs/banner_github.png)

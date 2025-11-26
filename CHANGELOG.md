@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.7.9
+- 2025-11-26: Reformatted DriftGuard logging utilities to satisfy Black and
+              bumped release metadata to 10.7.9 so version markers stay in
+              sync (driftguard/logging_utils.py, README.md, CITATION.cff,
+              copernican_lib/VERSION, CHANGELOG.md).
+
 ## Version 10.7.8
 - 2025-11-26: Used bash for the Windows metrics step and enabled verbose
               DriftGuard logging with shared helpers plus coverage for the new
