@@ -123,6 +123,7 @@ def get_all_rules(spec: DriftGuardSpec) -> List[Rule]:
         DriftGuardPrecommitRequiredRule,
         FormatterCleanRule,
         FullTestSuiteInCIRule,
+        TestsAndDriftGuardFailuresRemediatedRule,
     )
 
     registry: Dict[str, Rule] = {
@@ -156,6 +157,9 @@ def get_all_rules(spec: DriftGuardSpec) -> List[Rule]:
         FullTestSuiteInCIRule.name: FullTestSuiteInCIRule(),
         DriftGuardPrecommitRequiredRule.name: (
             DriftGuardPrecommitRequiredRule()
+        ),
+        TestsAndDriftGuardFailuresRemediatedRule.name: (
+            TestsAndDriftGuardFailuresRemediatedRule()
         ),
         DependencyLicenseAuditRule.name: DependencyLicenseAuditRule(),
         DependencyRefreshRule.name: DependencyRefreshRule(),

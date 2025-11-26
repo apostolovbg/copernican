@@ -22,6 +22,12 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.7.10
+- 2025-11-26: Required fixing failures from pytest, unittest and full
+              DriftGuard runs before commits, updated policy surfaces and
+              enforcement rules/tests to check for the remediation language
+              (DRIFTGUARD.md, driftguard/repo_policy.yml,
+              driftguard/rules/workflows.py, driftguard/rules/__init__.py,
+              tests/test_driftguard_rules_workflows.py).
 - 2025-11-26: Enforced full DriftGuard self-checks with exit codes, tightened
               policy/doc/code synchronisation, added comment-sync enforcement,
               and refreshed contributor guidance plus version metadata
