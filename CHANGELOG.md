@@ -21,6 +21,14 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.7.4
+- 2025-11-26: Added PyYAML to the compiled dependency lockfile so DriftGuard
+              installs correctly in CI, reformatted policy tooling and version
+              tests to satisfy Black, and bumped the recorded release metadata
+              to 10.7.4 (CHANGELOG.md, README.md, CITATION.cff,
+              copernican_lib/VERSION, requirements.lock, tools/update_lock.py,
+              driftguard/rules/python_lib.py, tests/test_version_file.py).
+
 ## Version 10.7.3
 - 2025-11-26: Restricted Last Updated headers to the documented allowlist,
               updated DriftGuard surfaces for root docs, refreshed metadata

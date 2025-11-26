@@ -1,6 +1,5 @@
 """Python library rules enforced by DriftGuard."""
 
-
 from __future__ import annotations
 
 import ast

@@ -10,6 +10,7 @@ branches.  We now compare the body of the freshly compiled lockfile to
 any existing copy and only advance the header timestamp when the
 underlying requirements differ.
 """
+
 from __future__ import annotations
 
 import argparse
