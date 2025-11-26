@@ -1,3 +1,6 @@
+# Rationale: CMB handling is isolated here because the shared CAMB plumbing
+# must stay consistent across BAO and CMB likelihoods while remaining optional
+# during CLI startup.
 r"""Cosmic Microwave Background likelihood helper.
 
 

@@ -1,3 +1,5 @@
+# Rationale: The supernova likelihood lives here because engines need a tidy
+# wrapper around the χ² utilities without reimplementing validation logic.
 """Supernova Ia likelihood evaluator.
 
 Wraps the covariance-aware χ² evaluation previously implemented in

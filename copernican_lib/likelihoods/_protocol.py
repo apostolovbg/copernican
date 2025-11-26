@@ -1,3 +1,6 @@
+# Rationale: Protocols live in this lightweight module because keeping the
+# interface importable without heavy dependencies prevents circular imports and
+# keeps early CLI actions fast.
 """Shared protocol definitions for likelihood helpers.
 
 The :mod:`copernican_lib.likelihoods` package exposes multiple dataset

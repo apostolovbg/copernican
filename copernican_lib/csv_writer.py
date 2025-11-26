@@ -2,6 +2,9 @@
 # See LICENSE.md in the repository root for details.
 
 # Copernican Suite CSV Writer
+# Rationale: We keep CSV export helpers in one module because consistent
+# filenames and column ordering make it easier to compare runs across
+# datasets and avoid fragmented implementations.
 """CSV writing utilities for the Copernican Suite.
 
 These helpers convert fitting results into comma-separated value files so

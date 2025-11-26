@@ -1,6 +1,9 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
+# Rationale: Posterior evaluation utilities are isolated because engines need a
+# picklable implementation to run under multiprocessing without reworking
+# sampler code.
 """Posterior assembly utilities shared across engine implementations.
 
 The posterior helper formerly lived in

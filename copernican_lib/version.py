@@ -1,6 +1,8 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
+# Rationale: Version retrieval is centralised here because every surface must
+# read a single authoritative value to keep manifests, logs and footers aligned.
 """Version helpers for the Copernican Suite.
 
 This module centralises retrieval of the project's version string so that

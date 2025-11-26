@@ -1,3 +1,5 @@
+# Rationale: Manifest generation is kept here because reproducing runs depends
+# on a single, authoritative record of hashes, parameters and Git metadata.
 """Run manifest generator for the Copernican Suite.
 
 

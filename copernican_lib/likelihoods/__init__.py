@@ -1,3 +1,6 @@
+# Rationale: Dataset likelihoods share a package because engines need a uniform
+# interface to compose them without repeating validation rules or import
+# juggling.
 """Likelihood components for Copernican Suite datasets.
 
 The modules in this package expose small, stateful helpers that evaluate

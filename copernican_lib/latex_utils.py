@@ -1,6 +1,9 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
+# Rationale: LaTeX helpers sit together because both the GUI and CLI reuse the
+# same sanitisation rules when rendering equations, avoiding drift between
+# surfaces.
 """Central LaTeX translation utilities for the Copernican Suite."""
 
 from __future__ import annotations

@@ -1,6 +1,9 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
+# Rationale: Plugin validation lives here because the engine bridge needs a
+# single enforcement point to keep YAML-derived models and CAMB parameter maps
+# aligned before heavy computations start.
 """Validation and bridge helpers for engine plugins.
 
 The interface now validates CAMB parameter mappings declared in YAML models so

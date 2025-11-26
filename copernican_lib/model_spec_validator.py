@@ -1,6 +1,9 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
+# Rationale: Model specifications are validated here because keeping schema
+# checks and cache writes together avoids engines loading malformed equations
+# during distributed runs.
 """Validate and sanitise Copernican Suite YAML model specifications.
 
 This module performs schema validation, normalises LaTeX-heavy fields and

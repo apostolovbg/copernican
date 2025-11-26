@@ -1,6 +1,8 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
+# Rationale: Result serialisation is handled here because downstream tools need
+# consistent JSON/YAML outputs without importing the rest of the suite.
 """Utilities for saving parameter fit summaries.
 
 The Copernican Suite evaluates cosmological models and often produces

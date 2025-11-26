@@ -1,3 +1,6 @@
+# Rationale: Joint likelihood composition sits in one helper because the
+# engines only need to orchestrate samplers while this module guarantees each
+# dataset contribution stays configurable and auditable.
 """Combine individual likelihood helpers into a single evaluator.
 
 Aggregates SNe, BAO and CMB likelihoods (or any other helper implementing

@@ -1,3 +1,6 @@
+# Rationale: These diagnostics helpers live separately because logging-friendly
+# summaries let callers report sampler health without coupling to any specific
+# logging implementation.
 """Logging-oriented diagnostics helpers.
 
 

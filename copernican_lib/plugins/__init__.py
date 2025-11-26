@@ -1,6 +1,9 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
+# Rationale: Plugin assembly helpers are grouped here because engines rely on a
+# picklable, well-documented factory to keep multiprocessing safe and
+# consistent.
 """Runtime plugin assembly utilities for engine integrations.
 
 The legacy :mod:`copernican_lib.engine_plugin_validation` module combined

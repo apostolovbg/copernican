@@ -2,6 +2,9 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
+# Rationale: Dataset registration sits in one module because centralising the
+# decorators prevents duplicated menu wiring and keeps metadata policy (hashes,
+# provenance, independence flags) consistent across every dataset.
 """Dataset registry and loader helpers.
 
 The suite treats observational data as pluggable components. Parsers live
