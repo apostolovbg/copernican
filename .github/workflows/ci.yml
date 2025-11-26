@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-26
 # CI pipeline covering multiplatform and Python 3.11
 name: CI
 
@@ -63,6 +64,7 @@ jobs:
       - name: Collect DriftGuard metrics
         # Preserve drift metrics so reviewers can correlate CI results with
         # repository health trends across runs.
+        shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path

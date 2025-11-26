@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-26
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -189,23 +190,27 @@ def register_gw_parser(name=None, description="", data_dir=None):
 
 TRUSTED_PARSER_DIGESTS = {
     # ``relative_path`` -> ``sha256``
+    #
+    # Hashes are recalculated whenever headers or parsing helpers change so the
+    # discovery step continues to trust the shipped parsers. Normalising line
+    # endings before hashing keeps the values stable across platforms.
     "sne/pantheon/cosmo_parser_pantheon.py": (
-        "0bea7c904884b28fc5f30f38dd350116bddf5f7c8096dd136da8127056a84652"
+        "a2abf7b2bc92f6ef60b81b6a3f91f440fff9661905d92468c52153db20983a99"
     ),
     "sne/jla2014/cosmo_parser_jla2014.py": (
-        "cbe321b5024f3560ef60b6461119803ac0649e315a3558dff8bea1d727dce31c"
+        "3fb85d6ce4b8de95f6d66851fa8114146feb6d5319d13f395f76a0a0c94f6a99"
     ),
     "bao/bossdr12/cosmo_parser_bossdr12.py": (
-        "4f4344bd1bd94ae91797fb50159194ecc2210a2c2d5fc28cdec869e3fcff8965"
+        "56dc89bee0c7ccc164f46f6c03b268398b554d2e32af852bbc81da3179de707e"
     ),
     "bao/compound/cosmo_parser_compound.py": (
-        "7c6462871d202905fe2772637da6ef79dde9aa3be64bab8fcd2930f039dc4b8a"
+        "d125f0fc6e9ce1d8c6f27466660a4a3d00386e01132274a8c880c4cf1cf975a5"
     ),
     "cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py": (
-        "330c0c88b70900c1feea0e278579a1100b2a243896bcd80908d361a8a91c41d7"
+        "7c5d70d7b63b921bfffe4d910b334a490b81155d93c9a60de481278f3605352d"
     ),
     "gw/placeholder/cosmo_parser_gw_placeholder.py": (
-        "5c8a8b50d0aa23f3cf234259af5da2ce65955941276be0bee8caa46d2e065726"
+        "0af702546dcc5fac872fa7b68892176ec2400789b18f22e1dce0759093c3ef08"
     ),
 }
 

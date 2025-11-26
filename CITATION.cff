@@ -2,8 +2,8 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "Copernican Suite"
-version: "10.7.5"
-date-released: "2025-11-25"
+version: "10.7.8"
+date-released: "2025-11-26"
 
 authors:
   - family-names: "Apostolov"
@@ -11,11 +11,11 @@ authors:
     affiliation: "Black Epsilon Ltd., Bulgaria"
   - name: "Black Epsilon Ltd."
 
-preferred-citation:
-  type: software
-  title: "Copernican Suite"
-  version: "10.7.5"
-  date-released: "2025-11-25"
+  preferred-citation:
+    type: software
+    title: "Copernican Suite"
+    version: "10.7.8"
+    date-released: "2025-11-26"
   authors:
     - family-names: "Apostolov"
       given-names: "Apostol"

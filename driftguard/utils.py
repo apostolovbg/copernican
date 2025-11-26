@@ -1,3 +1,4 @@
+# Last Updated: 2025-11-26
 """Utility helpers shared by DriftGuard rules.
 
 Functions remain intentionally small until rule implementations land. The
@@ -10,7 +11,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterable, List, Set
 
+from driftguard.logging_utils import get_logger
 from driftguard.spec import DriftGuardSpec
+
+logger = get_logger()
 
 
 def iter_globs(root: Path, patterns: Iterable[str]) -> List[Path]:
@@ -23,6 +27,7 @@ def iter_globs(root: Path, patterns: Iterable[str]) -> List[Path]:
             if candidate not in seen:
                 results.append(candidate)
                 seen.add(candidate)
+        logger.debug("Resolved pattern %s under %s", pattern, root)
     return results
 
 
@@ -44,6 +49,14 @@ def resolve_surface_globs(
     excluded: Set[Path] = set()
     for pattern in surface.exclude:
         excluded.update(repo_root.glob(pattern))
+        logger.debug("Excluding pattern %s under %s", pattern, repo_root)
     resolved = [path for path in includes if path not in excluded]
     resolved.sort()
+    logger.info(
+        "Surface %s resolved to %d paths (includes %d, excludes %d)",
+        surface_name,
+        len(resolved),
+        len(includes),
+        len(excluded),
+    )
     return resolved

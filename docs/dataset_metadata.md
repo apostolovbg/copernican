@@ -5,11 +5,14 @@ Each dataset folder contains a `metadata_*.yml` file that describes the
 source. All fields are optional except for `dataset_name`, `dataset_id`,
 `description` and `license`.
 
-Run ``python -m driftguard.cli check --scope=repo --mode=full`` after updating
-any of these metadata files or their documentation headers. DriftGuard measures
-"today" in Coordinated Universal Time so both the command-line report and the
-regression tests catch future timestamps consistently across time zones while
-honouring the Last Updated allowlist defined in ``driftguard.yml``.
+Run ``python -m driftguard.cli check --scope=repo --mode=full --repo-root .``
+after updating any of these metadata files or their documentation headers.
+DriftGuard measures "today" in Coordinated Universal Time so both the
+command-line report and the regression tests catch future timestamps
+consistently across time zones while honouring the Last Updated allowlist
+defined in ``driftguard.yml``. The repo-root flag now sits with the scope and
+mode switches so the argument order mirrors the CI command regardless of where
+``--repo-root`` appears in the invocation.
 
 Example skeleton:
 

@@ -1,4 +1,4 @@
-**Version:** 10.7.5
+**Version:** 10.7.8
 **Last Updated:** 2025-11-26
 
 ![Copernican Suite banner](docs/banner_github.png)
@@ -879,10 +879,11 @@ python tools/dev_suite.py
 ### Metadata self-check utility
 
 Run the DriftGuard metadata sweep whenever release notes, documentation
-timestamps or version fields change:
+timestamps or version fields change. The repo-root flag can follow the
+sub-command to mirror the CI invocation:
 
 ```bash
-python -m driftguard.cli check --scope=repo --mode=full
+python -m driftguard.cli check --scope=repo --mode=full --repo-root .
 ```
 
 DriftGuard validates Last Updated headers only on the documented allowlist
@@ -891,6 +892,11 @@ THIRD_PARTY_LICENSES, copernican.py, start.* scripts, config schemas and
 model YAMLs) while also enforcing version synchronisation and citation
 structure. The UTC-normalised clock keeps future-date checks consistent in
 both local runs and regression tests.
+
+The DriftGuard CLI and helpers now configure a verbose logger by default so CI
+runs capture repository paths, selected policies and per-rule progress. Set
+``DRIFTGUARD_LOGLEVEL`` to a standard Python logging level name (for example
+``INFO``) to tune the output volume on local runs.
 
 The local `make-lock` hook now bootstraps a dedicated Python environment and
 installs `pip-tools==7.4.1` before executing `make lock`. This keeps
