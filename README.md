@@ -889,6 +889,15 @@ the CI ordering for formatting, DriftGuard enforcement and tests:
 python tools/dev_suite.py
 ```
 
+Before committing, run the required local checks to mirror the mandatory test
+ordering and staged policy enforcement:
+
+```bash
+python -m pytest -q
+python -m unittest discover -v
+driftguard check --scope=staged --mode=full
+```
+
 ### Metadata self-check utility
 
 Run the DriftGuard metadata sweep whenever release notes, documentation
