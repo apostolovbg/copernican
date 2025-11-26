@@ -170,7 +170,12 @@ class _ActiveLogProbability:
 
 
 class _JointLogLikelihood:
-    """Picklable adapter that proxies :class:`JointLike.loglike`."""
+    """Picklable adapter that proxies :class:`JointLike.loglike`.
+
+    ``emcee`` may evaluate the likelihood inside worker processes, so the
+    adapter keeps the joint-like state in a picklable wrapper instead of a
+    closure that would fail under the ``spawn`` context.
+    """
 
     __slots__ = (
         "_joint_like",
@@ -192,7 +197,12 @@ class _JointLogLikelihood:
             self.parameter_transforms = list(parameter_transforms)
 
     def __call__(self, params: Sequence[float]) -> float:
-        """Return the combined log-likelihood for ``params``."""
+        """Return the combined log-likelihood for ``params``.
+
+        The wrapper enforces a plain ``float`` return value so callers see the
+        same type regardless of whether the underlying helper yields a NumPy
+        scalar or Python number.
+        """
 
         return float(self._joint_like.loglike(params))
 
@@ -925,7 +935,12 @@ def fit_cosmology_parameters(
                 ess_tail_dataset = az.ess(inference_data, method="tail")
 
             def _dataset_to_dict(dataset: Any) -> dict[str, float]:
-                """Return scalar diagnostics keyed by parameter name."""
+                """Return scalar diagnostics keyed by parameter name.
+
+                ArviZ returns labelled xarray datasets; converting them to
+                dictionaries keeps downstream logging agnostic to the optional
+                dependency while preserving the per-parameter mapping.
+                """
 
                 series = dataset["parameters"].to_series()
                 return {

@@ -11,16 +11,21 @@ robustness and reproducibility rather than asymptotic optimality: it draws
 initial live points uniformly from declared parameter bounds, replaces the
 lowest-likelihood point with constrained proposals and accumulates evidence
 estimates using a simple log-sum-exp accumulator.  The goal is to provide a
-complementary alternative to the ensemble MCMC engine so operators can compare
-posterior summaries produced by markedly different inference strategies while
-sharing the same likelihood, prior and transform helpers supplied by
-``copernican_lib.engine_plugin_validation``.
+complementary alternative to the ensemble MCMC engine so operators can
+compare posterior summaries produced by markedly different inference
+strategies while sharing the same likelihood, prior and transform helpers
+supplied by ``copernican_lib.engine_plugin_validation``.  The module stays
+intentionally minimal so it can act as a didactic reference implementation
+when users want to understand or reimplement the Stage 2 interface outside
+Copernican.
 
 The implementation intentionally mirrors the result dictionary produced by the
 MCMC backend so downstream tooling—Stage 3 diagnostics, NetCDF exporters and
 summary writers—continue to operate without special cases.  Nested-sampling
 specific diagnostics such as the estimated log-evidence and information gain
-are stored under the ``diagnostics`` key alongside familiar statistics.
+are stored under the ``diagnostics`` key alongside familiar statistics
+because callers expect to compare engines without reconciling divergent
+output shapes.
 """
 
 from __future__ import annotations
@@ -62,7 +67,12 @@ _MIN_WEIGHT_FLOOR = 1e-12
 
 @dataclass(slots=True)
 class _Sample:
-    """Container storing a single nested-sampling state."""
+    """Container storing a single nested-sampling state.
+
+    Live points carry posterior values, likelihood components and ancillary
+    metadata so the sampler can replace the weakest point without recomputing
+    state from scratch.
+    """
 
     params: np.ndarray
     log_posterior: float
@@ -72,7 +82,12 @@ class _Sample:
 
 
 class _JointLogLikelihood:
-    """Picklable adapter exposing bounds and transforms for the joint like."""
+    """Picklable adapter exposing bounds and transforms for the joint like.
+
+    Nested sampling may evaluate the likelihood in subprocesses, so this
+    wrapper preserves the state in a picklable form instead of a closure that
+    would fail under the ``spawn`` context.
+    """
 
     __slots__ = ("_joint_like", "parameter_bounds", "parameter_transforms")
 
@@ -88,13 +103,21 @@ class _JointLogLikelihood:
             self.parameter_transforms = list(parameter_transforms)
 
     def __call__(self, params: Sequence[float]) -> float:
-        """Return the combined log-likelihood for ``params``."""
+        """Return the combined log-likelihood for ``params``.
+
+        Returning a plain ``float`` avoids NumPy scalar surprises and keeps the
+        engine consistent whether or not ``JointLike`` uses array operations.
+        """
 
         return float(self._joint_like.loglike(params))
 
 
 def _logsumexp_pair(a: float, b: float) -> float:
-    """Return ``log(exp(a) + exp(b))`` with numerical stability."""
+    """Return ``log(exp(a) + exp(b))`` with numerical stability.
+
+    The helper prevents overflow when partial log-evidence terms differ wildly
+    in scale, which happens frequently during the earliest nested iterations.
+    """
 
     if not math.isfinite(a):
         return b
@@ -112,7 +135,12 @@ def _build_joint_logposterior(
 ) -> tuple[
     engine_plugin_validation.PosteriorEvaluator, JointLike, Sequence[str]
 ]:
-    """Return the posterior evaluator and joint likelihood helper."""
+    """Return the posterior evaluator and joint likelihood helper.
+
+    Constructing the aggregator once ensures every draw uses the same bound,
+    transform and prior configuration rather than rebuilding those pieces for
+    each likelihood evaluation.
+    """
 
     sne_like = SNeLike(model_plugin.distance_modulus_model, sne_data_df)
 
@@ -193,7 +221,12 @@ def _initial_live_point(
     upper: np.ndarray,
     centre: np.ndarray,
 ) -> np.ndarray:
-    """Return a candidate sampled uniformly within finite bounds."""
+    """Return a candidate sampled uniformly within finite bounds.
+
+    Infinite bounds fall back to Gaussian jitters around the initial centre so
+    the sampler can still generate plausible draws without waiting on
+    rejections.
+    """
 
     sample = np.empty_like(lower, dtype=float)
     for idx, (lo, hi) in enumerate(zip(lower, upper, strict=False)):
@@ -217,7 +250,12 @@ def _replacement_sample(
     upper: np.ndarray,
     enlargement: float,
 ) -> np.ndarray:
-    """Return a proposal drawn around the existing live point cloud."""
+    """Return a proposal drawn around the existing live point cloud.
+
+    Proposals mirror the live-point scatter so replacements stay near regions
+    already supported by the likelihood instead of wandering toward unlikely
+    corners of parameter space.
+    """
 
     stacked = np.array([entry.params for entry in live_points], dtype=float)
     centre = stacked[rng.integers(len(stacked))]
@@ -235,7 +273,11 @@ def _evaluate_point(
     joint_like: JointLike,
     params: np.ndarray,
 ) -> _Sample | None:
-    """Return a populated :class:`_Sample` when ``params`` are valid."""
+    """Return a populated :class:`_Sample` when ``params`` are valid.
+
+    The guard avoids polluting the live set with non-finite states so evidence
+    accumulation remains stable and monotonic.
+    """
 
     log_post = float(posterior(params))
     if not math.isfinite(log_post):
@@ -258,7 +300,11 @@ def _prepare_bounds(
     bounds: Iterable[tuple[float | None, float | None]] | None,
     initial: Sequence[float] | None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return lower and upper bounds along with an initial centre."""
+    """Return lower and upper bounds along with an initial centre.
+
+    Defaulting to unbounded intervals keeps the sampler usable when model
+    plugins omit constraints while still rejecting inverted bounds early.
+    """
 
     bounds = list(bounds or [])
     if not bounds:
@@ -283,7 +329,11 @@ def _prepare_bounds(
 
 
 def _weights_from_logs(log_weights: np.ndarray) -> np.ndarray:
-    """Return normalised weights derived from ``log_weights``."""
+    """Return normalised weights derived from ``log_weights``.
+
+    The stable normalisation guards against underflow so evidence summaries and
+    posterior statistics remain well-defined even for long chains.
+    """
 
     max_logw = np.max(log_weights)
     shifted = np.exp(log_weights - max_logw)
