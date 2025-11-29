@@ -22,18 +22,20 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.7.1
+- 2025-11-29: Renamed policy scripts and tests to use underscores for
+              Python import compatibility
+              (devcovenant/policy_scripts/*.py renamed from hyphens to
+              underscores, devcovenant/tests/test_policies/*.py renamed,
+              devcovenant/engine.py, devcovenant/registry.py,
+              devcovenant/registry.json).
 - 2025-11-29: Fixed all E501 line length violations across devcovenant
               and updated policy registry hashes
               (devcovenant/engine.py, devcovenant/parser.py,
               devcovenant/registry.py,
               devcovenant/fixers/last_updated_placement.py,
-              devcovenant/policy_scripts/changelog-coverage.py,
-              devcovenant/policy_scripts/devcov-self-enforcement.py,
-              devcovenant/policy_scripts/last-updated-placement.py,
-              devcovenant/policy_scripts/line-length-limit.py,
-              devcovenant/policy_scripts/no-git-conflict-markers.py,
+              devcovenant/policy_scripts/*.py,
               devcovenant/tests/test_engine.py,
-              devcovenant/tests/test_policies/test_changelog-coverage.py,
+              devcovenant/tests/test_policies/*.py,
               devcovenant/registry.json, copernican.py).
 
 ## Version 10.7.1 (previous)

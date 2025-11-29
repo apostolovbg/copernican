@@ -250,8 +250,10 @@ class DevCovenantEngine:
         Returns:
             PolicyCheck instance or None if not found
         """
+        # Convert hyphens to underscores for Python module names
+        script_name = policy_id.replace("-", "_")
         script_path = (
-            self.devcovenant_dir / "policy_scripts" / f"{policy_id}.py"
+            self.devcovenant_dir / "policy_scripts" / f"{script_name}.py"
         )
 
         if not script_path.exists():

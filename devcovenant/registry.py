@@ -111,11 +111,13 @@ class PolicyRegistry:
                 continue
 
             # Determine script path
+            # Convert hyphens to underscores for Python module names
+            script_name = policy.policy_id.replace("-", "_")
             script_path = (
                 self.repo_root
                 / "devcovenant"
                 / "policy_scripts"
-                / f"{policy.policy_id}.py"
+                / f"{script_name}.py"
             )
 
             # Check if script exists
