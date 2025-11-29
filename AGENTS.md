@@ -346,6 +346,217 @@ Models that can compute a CMB power spectrum should also define a
 object describing how standard CAMB parameters such as `H0` and `ombh2` are
 derived from the model's variables or constants.
 
+## Development Policies (DevCovenant)
+
+The Copernican Suite uses **DevCovenant**, a self-enforcing policy system that
+maintains consistency between human-readable policies in this file and
+automated Python checks. When you modify a policy in this section, set its
+`updated: true` flag. The AI will automatically detect the change and update
+the corresponding policy script in `devcovenant/policy_scripts/`.
+
+### How DevCovenant Works
+
+1. **Policies are defined here** in plain English with machine-readable metadata
+2. **Python scripts check compliance** automatically during development
+3. **Hash verification ensures sync** between policy text and implementation
+4. **AI maintains the scripts** when policies are updated
+5. **Pre-commit hooks enforce** policies before code is committed
+
+### When to Run DevCovenant (AI Agents)
+
+**CRITICAL**: AI agents must run DevCovenant at specific checkpoints:
+
+#### 1. **At the START of Every Work Session** (REQUIRED)
+
+**Before beginning any work on the repository**, run:
+
+```bash
+python devcovenant_check.py check --mode=startup
+```
+
+This ensures:
+- All policies are synchronized with their implementation scripts
+- Any updated policies trigger immediate script updates
+- The AI is aware of all current policies before proceeding
+
+**What happens:**
+- DevCovenant parses all policy definitions from this file
+- Checks for hash mismatches (policy text updated but script hasn't been)
+- Reports sync issues with clear, actionable instructions
+- **AI MUST update any out-of-sync scripts BEFORE proceeding with user's request**
+
+**Example workflow:**
+```bash
+# 1. AI starts work session
+$ git status
+$ cat AGENTS.md  # Read policies (standard practice)
+$ python devcovenant_check.py check --mode=startup
+
+# 2. If sync issues detected:
+🔄 POLICY SYNC REQUIRED
+
+Policy 'changelog-coverage' has been updated.
+The policy script is out of sync and must be updated FIRST.
+
+[Policy text and instructions shown]
+
+# 3. AI updates the script
+$ vi devcovenant/policy_scripts/changelog-coverage.py
+$ vi devcovenant/tests/test_policies/test_changelog-coverage.py
+$ pytest devcovenant/tests/test_policies/test_changelog-coverage.py -v
+
+# 4. Re-run to verify and update hash
+$ python devcovenant_check.py check --mode=startup
+
+# 5. Now proceed with user's request
+✅ All policies are in sync!
+```
+
+#### 2. **Before Committing Code** (AUTOMATIC)
+
+DevCovenant runs automatically via pre-commit hook. AI can also run manually:
+
+```bash
+python devcovenant_check.py check --mode=pre-commit
+```
+
+This checks only changed files for faster performance.
+
+#### 3. **At the END of a Work Session** (RECOMMENDED)
+
+**Before finishing work**, run a full check:
+
+```bash
+python devcovenant_check.py check --mode=lint
+```
+
+This performs comprehensive validation of all files to ensure nothing was missed.
+
+#### 4. **When Updating a Policy** (REQUIRED)
+
+After editing a policy in this file:
+
+1. Set `updated: true` in the policy metadata
+2. Run `python devcovenant_check.py check --mode=startup`
+3. Follow instructions to update the corresponding script
+4. Update tests
+5. Run tests: `pytest devcovenant/tests/test_policies/test_<policy_id>.py -v`
+6. Re-run DevCovenant (hash updates automatically, `updated` flag clears)
+
+**Important Notes:**
+- DevCovenant violations **MUST** be fixed before commit
+- Policy sync issues have **HIGHEST PRIORITY** - fix before user's request
+- Never skip DevCovenant checks to "save time"
+- Read all violation messages carefully - they guide you to the fix
+- Use `--fix` flag to auto-fix when available: `python devcovenant_check.py check --fix`
+
+### Policy Format
+
+Each policy has a `policy-def` block with these flags:
+
+- **id**: Unique identifier (lowercase-with-hyphens)
+- **status**: `new`, `active`, `updated`, `deprecated`, or `deleted`
+- **severity**: `critical` (blocks always), `error` (blocks at error threshold),
+  `warning` (blocks at warning threshold), or `info` (informational only)
+- **auto_fix**: `true` if automatic fixing is available, `false` otherwise
+- **updated**: `true` when policy text changes (triggers AI script update)
+- **applies_to**: File patterns (optional, e.g., `*.py`, `devcovenant/**/*`)
+- **hash**: Automatically maintained hash of policy + script
+
+### Development Policies
+
+## Policy: Changelog Coverage
+
+```policy-def
+id: changelog-coverage
+status: active
+severity: error
+auto_fix: false
+updated: false
+applies_to: *
+```
+
+All changed files must be documented in CHANGELOG.md. Compare `git diff
+--name-only` against the newest changelog entry before every commit. Legacy
+`dev_note` headers should be migrated to the changelog when touched.
+**Explicitly enumerate every changed file in each entry**—the lint hook fails
+whenever any touched path is missing from the changelog summary.
+
+---
+
+## Policy: No Git Conflict Markers
+
+```policy-def
+id: no-git-conflict-markers
+status: active
+severity: critical
+auto_fix: false
+updated: false
+applies_to: *
+```
+
+Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any
+file. All merge conflicts must be resolved before committing.
+
+---
+
+## Policy: Line Length Limit
+
+```policy-def
+id: line-length-limit
+status: active
+severity: warning
+auto_fix: false
+updated: false
+applies_to: *.py
+```
+
+Keep individual lines under 79 characters to maintain readability. This
+applies to all Python source files.
+
+---
+
+## Policy: Last Updated Marker Placement
+
+```policy-def
+id: last-updated-placement
+status: active
+severity: warning
+auto_fix: true
+updated: false
+applies_to: *
+```
+
+Refresh documentation and `Last Updated` markers only on allowlisted
+surfaces. Keep `Last Updated` headers on: Markdown files, YAML files,
+`CITATION.cff`, `copernican.py` and the three `start.*` launchers. Remove
+these markers from other formats—including `.py` and `.json` sources—and
+avoid adding them outside the allowlist. When editing an allowlisted file,
+update its `Last Updated` marker within the first three lines using an
+ISO-8601 date without a time component.
+
+---
+
+## Policy: DevCovenant Self-Enforcement
+
+```policy-def
+id: devcov-self-enforcement
+status: active
+severity: error
+auto_fix: false
+updated: false
+applies_to: devcovenant/**/*
+```
+
+DevCovenant enforces its own policies on itself. All policy scripts must:
+- Have corresponding tests in `devcovenant/tests/test_policies/`
+- Achieve at least 80% code coverage
+- Follow the PolicyCheck base class interface
+- Include comprehensive docstrings
+- Pass all tests before being registered
+
+---
+
 ## AI-driven and human development laws and protocols
 To keep the project maintainable all contributors, human or AI, must follow
 these rules:
