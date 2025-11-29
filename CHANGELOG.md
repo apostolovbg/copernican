@@ -22,6 +22,21 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.7.1
+- 2025-11-29: Fixed all E501 line length violations across devcovenant
+              and updated policy registry hashes
+              (devcovenant/engine.py, devcovenant/parser.py,
+              devcovenant/registry.py,
+              devcovenant/fixers/last_updated_placement.py,
+              devcovenant/policy_scripts/changelog-coverage.py,
+              devcovenant/policy_scripts/devcov-self-enforcement.py,
+              devcovenant/policy_scripts/last-updated-placement.py,
+              devcovenant/policy_scripts/line-length-limit.py,
+              devcovenant/policy_scripts/no-git-conflict-markers.py,
+              devcovenant/tests/test_engine.py,
+              devcovenant/tests/test_policies/test_changelog-coverage.py,
+              devcovenant/registry.json, copernican.py).
+
+## Version 10.7.1 (previous)
 - 2025-11-29: Fixed linting and formatting issues in DevCovenant: added
               noqa comments for intentional import order, fixed line length
               violations, added Last Updated marker to README

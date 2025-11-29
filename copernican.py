@@ -586,8 +586,12 @@ def _prompt_nested_configuration(
         except (TypeError, ValueError):
             return fallback
 
-    lcdm_active = _count_active_parameters(lcdm_plugin, engine_module=engine_module)
-    alt_active = _count_active_parameters(alt_model_plugin, engine_module=engine_module)
+    lcdm_active = _count_active_parameters(
+        lcdm_plugin, engine_module=engine_module
+    )
+    alt_active = _count_active_parameters(
+        alt_model_plugin, engine_module=engine_module
+    )
     max_active = max(lcdm_active, alt_active)
     min_live = max(20, 4 * max_active)
 
@@ -608,7 +612,9 @@ def _prompt_nested_configuration(
     def _collect_custom_plan() -> dict[str, int | float] | str | None:
         while True:
             console.write("")
-            console.write("Live points control the resolution of nested contours.")
+            console.write(
+                "Live points control the resolution of nested contours."
+            )
             console.write(f"  Minimum required: {min_live}")
             console.write(f"  Recommended default: {recommended_live}")
             entry = console.ask(
@@ -689,10 +695,12 @@ def _prompt_nested_configuration(
 
             console.write("")
             console.write(
-                "Enlargement fraction widens proposal clouds around live points."
+                "Enlargement fraction widens proposal clouds around "
+                "live points."
             )
             console.write(
-                "  Values near 1.0 follow the tightest ellipsoid, larger values"
+                "  Values near 1.0 follow the tightest ellipsoid, "
+                "larger values"
             )
             console.write("  trade efficiency for robustness.")
             entry = console.ask(
