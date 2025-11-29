@@ -22,6 +22,17 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.7.1
+- 2025-11-29: Fixed DevCovenant policy violations: updated no-git-conflict-markers
+              policy to skip test files, renamed test file to match naming convention,
+              created missing test files for all policy scripts, updated policy hashes
+              (devcovenant/policy_scripts/no-git-conflict-markers.py,
+              devcovenant/registry.json,
+              devcovenant/tests/test_policies/test_no-git-conflict-markers.py,
+              devcovenant/tests/test_policies/test_changelog-coverage.py,
+              devcovenant/tests/test_policies/test_line-length-limit.py,
+              devcovenant/tests/test_policies/test_last-updated-placement.py,
+              devcovenant/tests/test_policies/test_devcov-self-enforcement.py,
+              CHANGELOG.md).
 - 2025-11-29: Shifted `Last Updated` enforcement to an allowlisted surface,
               elevated the Versioning Policy to a binding law, marked `/data`
               as read-only, bumped suite metadata to 10.7.1 and aligned

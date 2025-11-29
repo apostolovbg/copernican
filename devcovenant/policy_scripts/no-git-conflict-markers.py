@@ -50,6 +50,10 @@ class NoGitConflictMarkersCheck(PolicyCheck):
             if "devcovenant/registry.json" in str(file_path):
                 continue
 
+            # Skip test files that test for conflict markers
+            if "devcovenant/tests/test_policies/test_no" in str(file_path):
+                continue
+
             try:
                 with open(file_path, "r", encoding="utf-8") as f:
                     lines = f.readlines()
