@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-25
+# Last Updated: 2025-11-29
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -8,7 +8,7 @@
 # fmt: off
 """Copernican Suite - Main Orchestrator.
 
-Last Updated: 2025-11-25
+Last Updated: 2025-11-29
 
 This script ties together model selection, dataset loading and result
 generation while delegating dependency checks and menu rendering to
@@ -20,6 +20,8 @@ The module retains the optional test runner entrypoint so a fresh checkout
 can execute with minimal setup before heavier imports occur.
 """
 
+
+from __future__ import annotations
 
 import argparse
 import copy
@@ -36,6 +38,7 @@ import signal
 import subprocess
 import sys
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -126,6 +129,18 @@ def _copernican_version() -> str:
 COPERNICAN_VERSION = _copernican_version()
 CURRENT_LOG_FILE = None
 _legacy_stage_menu_override = False
+_launch_args: LaunchRequest | None = None
+
+
+@dataclass
+class LaunchRequest:
+    """Parsed launcher arguments shared across CLI and GUI flows."""
+
+    mode: orchestration.LaunchMode
+    legacy_stage_menu: bool
+    detach_gui: bool
+    manifest_path: Path | None
+    output_dir: Path | None
 
 
 def select_seed() -> int:
@@ -190,22 +205,45 @@ def legacy_stage_menu_enabled() -> bool:
     )
 
 
-def _parse_launch_args(argv: Iterable[str] | None = None) -> tuple[
-    orchestration.LaunchMode, bool
-]:
-    """Return the requested launch mode and legacy menu flag."""
+def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
+    """Return launch settings covering GUI, CLI and manifest routing."""
 
     parser = argparse.ArgumentParser(add_help=False)
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--cli",
         action="store_true",
-        help="Force the classic CLI launcher even when GUI tooling calls us.",
+        help=(
+            "Force the classic CLI launcher even when GUI tooling calls us "
+            "so CI stays headless."
+        ),
     )
     group.add_argument(
         "--gui",
         action="store_true",
         help="Expose orchestration services without starting the CLI menus.",
+    )
+    group.add_argument(
+        "--no-gui",
+        action="store_true",
+        help=(
+            "Skip GUI bootstrap even if wrappers request it. This keeps "
+            "headless runs deterministic."
+        ),
+    )
+    parser.add_argument(
+        "--manifest",
+        help=(
+            "Save the generated manifest to this path instead of the default "
+            "timestamped location under the run directory."
+        ),
+    )
+    parser.add_argument(
+        "--output-dir",
+        help=(
+            "Store run outputs beneath this directory instead of the "
+            "repository's output folder."
+        ),
     )
     parser.add_argument(
         "--enable-legacy-stage-menu",
@@ -220,12 +258,110 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> tuple[
     legacy_menu = parsed.enable_legacy_stage_menu or (
         os.environ.get("COPERNICAN_ENABLE_STAGED_MENU") == "1"
     )
+    detach_gui = os.environ.get("COPERNICAN_DETACH_GUI", "1") != "0"
+    manifest_path = (
+        Path(parsed.manifest).expanduser().resolve()
+        if parsed.manifest
+        else None
+    )
+    output_dir = (
+        Path(parsed.output_dir).expanduser().resolve()
+        if parsed.output_dir
+        else None
+    )
     mode = (
         orchestration.LaunchMode.GUI
         if parsed.gui
         else orchestration.LaunchMode.CLI
     )
-    return mode, legacy_menu
+    if parsed.no_gui or parsed.cli:
+        mode = orchestration.LaunchMode.CLI
+    return LaunchRequest(
+        mode=mode,
+        legacy_stage_menu=legacy_menu,
+        detach_gui=detach_gui,
+        manifest_path=manifest_path,
+        output_dir=output_dir,
+    )
+
+
+def _gui_executable_candidates() -> list[Path]:
+    """Return possible Python executables suitable for GUI launchers.
+
+    GUI shells should prefer ``pythonw`` on platforms that supply it so the
+    calling terminal can close without warning about a lingering console.  The
+    managed virtual environment ships a ``pythonw`` binary on Windows, so the
+    launcher checks for the variant before falling back to the active
+    interpreter.
+    """
+
+    exe_path = Path(sys.executable).resolve()
+    candidates = [exe_path]
+    for suffix in ("pythonw.exe", "pythonw"):
+        alt = exe_path.with_name(suffix)
+        if alt.exists():
+            candidates.insert(0, alt)
+    return candidates
+
+
+def _launch_detached_process(
+    command: list[str], env: Mapping[str, str]
+) -> None:
+    """Launch ``command`` in the background without tying up the console."""
+
+    devnull = subprocess.DEVNULL
+    kwargs: dict[str, Any] = {
+        "stdin": devnull,
+        "stdout": devnull,
+        "stderr": devnull,
+        "env": env,
+        "cwd": Path(__file__).resolve().parent,
+    }
+    if os.name == "nt":
+        creation_flags = 0
+        creation_flags |= getattr(
+            subprocess, "CREATE_NEW_PROCESS_GROUP", 0
+        )
+        creation_flags |= getattr(subprocess, "DETACHED_PROCESS", 0)
+        kwargs["creationflags"] = creation_flags
+    else:
+        kwargs["start_new_session"] = True
+    subprocess.Popen(command, **kwargs)
+
+
+def _spawn_detached_gui(argv: list[str], launch: LaunchRequest) -> bool:
+    """Attempt to hand GUI launch to a detached interpreter.
+
+    Returning ``True`` signals that the GUI is already running in a new
+    process, allowing the bootstrapper to exit so terminals close cleanly on
+    macOS, Windows and Linux alike.
+    """
+
+    if not launch.detach_gui:
+        return False
+
+    env = os.environ.copy()
+    env["COPERNICAN_DETACH_GUI"] = "0"
+    command_tail = list(argv)
+    failures: list[str] = []
+    for candidate in _gui_executable_candidates():
+        cmd = [str(candidate), str(Path(__file__).resolve()), *command_tail]
+        try:
+            _launch_detached_process(cmd, env)
+            console.write(
+                "Handed GUI startup to a detached Copernican process; "
+                "closing the launcher terminal."
+            )
+            return True
+        except Exception as exc:  # pragma: no cover - defensive guard
+            failures.append(f"{candidate}: {exc}")
+    if failures:
+        console.write(
+            "Falling back to inline GUI startup because detaching failed: "
+            + "; ".join(failures),
+            error=True,
+        )
+    return False
 
 
 def launch_gui() -> None:
@@ -1063,7 +1199,12 @@ def main_workflow():
     except NameError:
         SCRIPT_DIR = os.getcwd()
 
-    OUTPUT_BASE_DIR = os.path.join(SCRIPT_DIR, "output")
+    output_root = (
+        _launch_args.output_dir
+        if _launch_args and _launch_args.output_dir is not None
+        else Path(SCRIPT_DIR) / "output"
+    )
+    OUTPUT_BASE_DIR = str(Path(output_root))
     os.makedirs(OUTPUT_BASE_DIR, exist_ok=True)
     LOGS_DIR = os.path.join(SCRIPT_DIR, "logs")
 
@@ -1077,6 +1218,9 @@ def main_workflow():
         "Diagnostics logging active at %s; outputs live under %s",
         program_log_file,
         LOGS_DIR,
+    )
+    program_logger.info(
+        "CLI output base directory initialised at %s", OUTPUT_BASE_DIR
     )
     if legacy_stage_menu_enabled():
         program_logger.info(
@@ -1398,7 +1542,19 @@ def main_workflow():
             engine_module=cosmo_engine_selected,
             datasets=dataset_info,
         )
-        run_manifest.save_manifest(manifest, OUTPUT_DIR)
+        manifest_override = (
+            str(_launch_args.manifest_path)
+            if _launch_args and _launch_args.manifest_path is not None
+            else None
+        )
+        manifest_path = run_manifest.save_manifest(
+            manifest,
+            OUTPUT_DIR,
+            target_path=manifest_override,
+        )
+        program_logger.info(
+            "Run manifest saved to %s", manifest_path
+        )
 
         lcdm_name = getattr(lcdm, "MODEL_NAME", "ΛCDM")
         alt_name = getattr(alt_model_plugin, "MODEL_NAME", "Alternative")
@@ -2058,9 +2214,12 @@ if __name__ == "__main__":
         # 'force=True' above normally prevents this, but wrap in try/except
         # for absolute safety.
         pass
-    launch_mode, legacy_menu = _parse_launch_args(sys.argv[1:])
-    _legacy_stage_menu_override = legacy_menu
-    if launch_mode is orchestration.LaunchMode.GUI:
+    launch_request = _parse_launch_args(sys.argv[1:])
+    _launch_args = launch_request
+    _legacy_stage_menu_override = launch_request.legacy_stage_menu
+    if launch_request.mode is orchestration.LaunchMode.GUI:
+        if _spawn_detached_gui(sys.argv[1:], launch_request):
+            sys.exit(0)
         launch_gui()
         sys.exit(0)
     try:

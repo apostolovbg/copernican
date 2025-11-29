@@ -1,8 +1,12 @@
 # Run Manifest
-**Last Updated:** 2025-11-25
+**Last Updated:** 2025-11-29
 
 The suite writes a YAML manifest for every evaluation under the run's output
 folder. The file is named `run_manifest_<timestamp>.yml` and records:
+
+Headless runs can pin the manifest location with the `--manifest` flag to
+`copernican.py` so CI pipelines always collect the same path even when output
+directories change.
 
 - Copernican Suite version under `copernican.version`.
 - Selected model and engine names with their versions plus a `selection` block

@@ -1,8 +1,9 @@
-# Last Updated: 2025-11-24
+# Last Updated: 2025-11-29
 """Tests for the launcher shim and GUI/CLI mode selection."""
 
 import importlib
 import os
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -29,13 +30,17 @@ class LaunchArgParsingTestCase(unittest.TestCase):
             self.copernican._legacy_stage_menu_override = False
 
     def test_default_mode_prefers_cli(self) -> None:
-        mode, legacy = self.copernican._parse_launch_args([])
-        self.assertEqual(mode, self.copernican.orchestration.LaunchMode.CLI)
-        self.assertFalse(legacy)
+        args = self.copernican._parse_launch_args([])
+        self.assertEqual(
+            args.mode, self.copernican.orchestration.LaunchMode.CLI
+        )
+        self.assertFalse(args.legacy_stage_menu)
 
     def test_gui_flag_switches_mode(self) -> None:
-        mode, _ = self.copernican._parse_launch_args(["--gui"])
-        self.assertEqual(mode, self.copernican.orchestration.LaunchMode.GUI)
+        args = self.copernican._parse_launch_args(["--gui"])
+        self.assertEqual(
+            args.mode, self.copernican.orchestration.LaunchMode.GUI
+        )
 
     def test_env_flag_enables_legacy_menu(self) -> None:
         with mock.patch.dict(
@@ -46,16 +51,14 @@ class LaunchArgParsingTestCase(unittest.TestCase):
             },
             clear=True,
         ):
-            _, legacy = self.copernican._parse_launch_args([])
-        self.assertTrue(legacy)
+            args = self.copernican._parse_launch_args([])
+        self.assertTrue(args.legacy_stage_menu)
 
     def test_override_flag_enables_legacy_menu(self) -> None:
-        _, legacy = self.copernican._parse_launch_args(
-            [
-                "--enable-legacy-stage-menu",
-            ]
+        args = self.copernican._parse_launch_args(
+            ["--enable-legacy-stage-menu"]
         )
-        self.assertTrue(legacy)
+        self.assertTrue(args.legacy_stage_menu)
 
     def test_legacy_stage_menu_enabled_respects_override(self) -> None:
         self.copernican._legacy_stage_menu_override = False
@@ -67,3 +70,33 @@ class LaunchArgParsingTestCase(unittest.TestCase):
             self.assertFalse(self.copernican.legacy_stage_menu_enabled())
         self.copernican._legacy_stage_menu_override = True
         self.assertTrue(self.copernican.legacy_stage_menu_enabled())
+
+    def test_no_gui_flag_forces_cli(self) -> None:
+        args = self.copernican._parse_launch_args(["--no-gui"])
+        self.assertEqual(
+            args.mode, self.copernican.orchestration.LaunchMode.CLI
+        )
+
+    def test_manifest_and_output_dir_paths_resolve(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = Path(tmpdir) / "run" / "manifest.yml"
+            output_dir = Path(tmpdir) / "output"
+            args = self.copernican._parse_launch_args(
+                [
+                    "--manifest",
+                    str(manifest_path),
+                    "--output-dir",
+                    str(output_dir),
+                ]
+            )
+        self.assertEqual(args.manifest_path, manifest_path.resolve())
+        self.assertEqual(args.output_dir, output_dir.resolve())
+
+    def test_detach_flag_respects_environment_override(self) -> None:
+        with mock.patch.dict(
+            os.environ,
+            {"VIRTUAL_ENV": self.venv_path, "COPERNICAN_DETACH_GUI": "0"},
+            clear=True,
+        ):
+            args = self.copernican._parse_launch_args(["--gui"])
+        self.assertFalse(args.detach_gui)

@@ -1,5 +1,7 @@
 """Tests for launcher scripts.
 
+**Last Updated:** 2025-11-29
+
 These checks guard against regressions in the Windows bootstrapper
 where the download URL previously collapsed to an empty string on
 PowerShell. Ensuring the script defines the URL segments explicitly
@@ -68,23 +70,24 @@ class StartScriptTestCase(unittest.TestCase):
         """Confirm the launcher purges interpreters outside Python 3.11."""
 
         self.assertIn(
-            "(3, 11) <= sys.version_info < (3, 12)",
+            "PY_VERSION_CHECK=import sys;print(1 if (3,11)<=sys.version_info<",
             self.start_bat,
         )
+        self.assertIn("%PY_VERSION_CHECK%", self.start_bat)
 
     def test_launchers_expose_environment_menu(self) -> None:
         """Ensure every launcher prints the refreshed menu copy."""
 
         self.assertIn(
-            "echo 4^) Environment and dependency management",
+            "echo 5^) Environment and dependency management",
             self.start_bat,
         )
         self.assertIn(
-            'echo "4) Environment and dependency management"',
+            'echo "5) Environment and dependency management"',
             self.start_sh,
         )
         self.assertIn(
-            'echo "4) Environment and dependency management"',
+            'echo "5) Environment and dependency management"',
             self.start_command,
         )
 
@@ -101,6 +104,34 @@ class StartScriptTestCase(unittest.TestCase):
         )
         self.assertIn(
             'read -r -p "Write the number of choice: " choice',
+            self.start_command,
+        )
+
+    def test_launchers_surface_gui_and_cli_options(self) -> None:
+        """Ensure launchers expose dedicated GUI and CLI entries."""
+
+        self.assertIn(
+            "echo 1^) Start Copernican Suite (GUI)",
+            self.start_bat,
+        )
+        self.assertIn(
+            'echo "1) Start Copernican Suite (GUI)"',
+            self.start_sh,
+        )
+        self.assertIn(
+            'echo "1) Start Copernican Suite (GUI)"',
+            self.start_command,
+        )
+        self.assertIn(
+            "echo 2^) Start Copernican Suite (CLI)",
+            self.start_bat,
+        )
+        self.assertIn(
+            'echo "2) Start Copernican Suite (CLI)"',
+            self.start_sh,
+        )
+        self.assertIn(
+            'echo "2) Start Copernican Suite (CLI)"',
             self.start_command,
         )
 

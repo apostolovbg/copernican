@@ -1,5 +1,5 @@
-**Version:** 10.6.0
-**Last Updated:** 2025-11-25
+**Version:** 10.7.0
+**Last Updated:** 2025-11-29
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -23,9 +23,11 @@ The suite is organised around a handful of focused components:
   during model parsing or engine import so operators can restart Stage 1 with
   clear context instead of re-reading logs. The same console helpers power
   both engines so nested sampling and ensemble MCMC display consistent labels,
-  spinners and walker-level updates. The new `--gui` flag exposes the
-  orchestration service map without entering the CLI, while `--cli` enforces
-  the interactive path even when GUI wrappers are probing the launcher.
+  spinners and walker-level updates. The launcher accepts `--gui`, `--cli` and
+  `--no-gui` switches so wrappers can request GUI bootstrap or force headless
+  mode deterministically. `--manifest` and `--output-dir` allow CI to place
+  manifests and run outputs in predictable locations while still routing all
+  logic through the shared orchestration services.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
   keep every engine and plugin consistent. Progress rendering, notifier
@@ -298,11 +300,14 @@ cite them without recomputation.
    outside the bootstrap condition, preventing `cmd.exe` from mis-parsing
    closing parentheses and restoring the interactive menu.
 2. When the launcher prints "Copernican Suite <version> Launcher" press Enter
-   to start the suite immediately or enter one of the numbered options. Option
-   3 toggles strict-warning enforcement for the upcoming session. Option 4
-   opens the *Environment and dependency management* submenu where you can
-   update pinned dependencies, rebuild or remove the managed virtual
-   environment, and toggle automatic dependency installation for future runs.
+   to start the CLI immediately or enter one of the numbered options. Option 1
+   launches the GUI in a detached `pythonw`/`nohup` process so the terminal can
+   close after the handoff. Option 2 starts the CLI directly. Option 3 runs the
+   unit tests. Option 4 toggles strict-warning enforcement for the upcoming
+   session. Option 5 opens the *Environment and dependency management* submenu
+   where you can update pinned dependencies, rebuild or remove the managed
+   virtual environment, and toggle automatic dependency installation for
+   future runs. Option 6 exits.
 3. Choose "Run the unit test suite" from the launcher's menu or execute
    `python -m unittest discover -v` directly. The test runner reports
    informational messages, warnings and errors while verifying the
@@ -319,7 +324,9 @@ cite them without recomputation.
    environment to skip the prompt. The seed defaults to `0` and is applied to
    NumPy, Python's ``random`` module and supported engines.
 5. Results, including posterior chains, will appear inside a timestamped
-   folder under `output/` when the run completes.
+   folder under `output/` when the run completes. Pass `--output-dir` to
+   `copernican.py` to redirect runs to a specific base directory when building
+   headless automation.
 
 ## Dependencies
 The launchers automatically bootstrap a dedicated Python 3.11 interpreter into

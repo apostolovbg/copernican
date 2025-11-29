@@ -1,6 +1,8 @@
 """Run manifest generator for the Copernican Suite.
 
-**Last Updated:** 2025-11-25
+# Last Updated: 2025-11-29
+
+**Last Updated:** 2025-11-29
 
 The manifest records critical information required to reproduce a run. It
 captures the Copernican Suite version, model and engine details, parameter
@@ -13,6 +15,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
 import yaml
@@ -215,19 +218,30 @@ def build_manifest(
     return manifest
 
 
-def save_manifest(manifest: dict, output_dir: str) -> str:
-    """Persist ``manifest`` as ``run_manifest_<timestamp>.yml``.
+def save_manifest(
+    manifest: dict,
+    output_dir: str,
+    *,
+    target_path: str | os.PathLike | None = None,
+) -> str:
+    """Persist ``manifest`` to a deterministic path.
 
-    The filename includes a timestamp so repeated runs do not clobber
-    earlier manifests.  The full path to the saved file is returned.
+    When ``target_path`` is provided the manifest is written to that exact
+    location; otherwise it is saved as ``run_manifest_<timestamp>.yml`` under
+    ``output_dir``.  The full path to the saved file is returned so callers can
+    log reproducible locations for CI archives.
     """
 
     utils.ensure_dir_exists(output_dir)
-    ts = utils.get_timestamp()
-    path = os.path.join(output_dir, f"run_manifest_{ts}.yml")
-    with open(path, "w", encoding="utf-8") as fh:
+    if target_path is not None:
+        target = Path(target_path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        ts = utils.get_timestamp()
+        target = Path(output_dir) / f"run_manifest_{ts}.yml"
+    with open(target, "w", encoding="utf-8") as fh:
         yaml.safe_dump(manifest, fh, sort_keys=False)
-    return path
+    return str(target)
 
 
 def load_manifest(path: str) -> dict:

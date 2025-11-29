@@ -1,5 +1,5 @@
 #!/bin/bash
-# Last Updated: 2025-11-24
+# Last Updated: 2025-11-29
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -107,7 +107,7 @@ environment_menu() {
                     ;;
             esac
         else
-            echo "1) Create the managed virtual environment and install dependencies"
+            echo "1) Create managed virtual environment and install deps"
             echo "2) Back"
             echo
             read -r -p "Write the number of choice: " env_choice
@@ -168,7 +168,10 @@ ensure_pip() {
 # series. Purging anything outside this window blocks Python 3.12 from entering
 # the managed environment while allowing future 3.11 maintenance releases.
 python_in_311_series() {
-    "$1" -c 'import sys; exit(0 if (3, 11) <= sys.version_info < (3, 12) else 1)'
+    "$1" - <<'PYCHECK'
+import sys
+sys.exit(0 if (3, 11) <= sys.version_info < (3, 12) else 1)
+PYCHECK
 }
 
 # If we are already inside the virtual environment simply launch the suite.
@@ -185,34 +188,45 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
         echo
         echo "Copernican Suite ${SUITE_VERSION} Launcher:"
         echo
-        echo "Choose an option or press Enter to launch the Suite"
-        echo "1) Launch Copernican Suite"
-        echo "2) Run the unit test suite"
+        echo "Choose an option or press Enter to launch the CLI"
+        echo "1) Start Copernican Suite (GUI)"
+        echo "2) Start Copernican Suite (CLI)"
+        echo "3) Run the unit test suite"
         if [ "$STRICT" -eq 1 ]; then
-            echo "3) Disable strict warning mode"
+            echo "4) Disable strict warning mode"
         else
-            echo "3) Enable strict warning mode"
+            echo "4) Enable strict warning mode"
         fi
-        echo "4) Environment and dependency management"
-        echo "5) Exit"
+        echo "5) Environment and dependency management"
+        echo "6) Exit"
         echo
         read -r -p "Write the number of choice: " choice
-        choice=${choice:-1}
+        choice=${choice:-2}
         case "$choice" in
             1)
-                COPERNICAN_STRICT_WARNINGS=$STRICT \
-                exec python copernican.py ;;
+                export COPERNICAN_DETACH_GUI=1
+                if command -v nohup >/dev/null 2>&1; then
+                    COPERNICAN_STRICT_WARNINGS=$STRICT \
+                        nohup python copernican.py --gui >/dev/null 2>&1 &
+                else
+                    COPERNICAN_STRICT_WARNINGS=$STRICT \
+                        python copernican.py --gui >/dev/null 2>&1 &
+                fi
+                exit 0 ;;
             2)
                 COPERNICAN_STRICT_WARNINGS=$STRICT \
-                exec python -m unittest discover -v ;;
+                exec python copernican.py --cli ;;
             3)
-                if [ "$STRICT" -eq 1 ]; then STRICT=0; else STRICT=1; fi ;;
+                COPERNICAN_STRICT_WARNINGS=$STRICT \
+                exec python -m unittest discover -v ;;
             4)
-                environment_menu ;;
+                if [ "$STRICT" -eq 1 ]; then STRICT=0; else STRICT=1; fi ;;
             5)
+                environment_menu ;;
+            6)
                 exit 0 ;;
             *)
-                echo "Please enter a number between 1 and 5."
+                echo "Please enter a number between 1 and 6."
                 ;;
         esac
     done

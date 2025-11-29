@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-25
+**Last Updated:** 2025-11-29
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -41,6 +41,12 @@ menu disabled by default and only re-enable it for CI coverage with
 Tkinter scaffold under `copernican_lib/gui/` preserves the navigation rail,
 Run Builder and monitor shells even when the renderer falls back to headless
 mode for automated environments.
+`copernican.py` now accepts `--gui`, `--cli` and `--no-gui` flags plus
+`--manifest` and `--output-dir` overrides so CI can direct manifests to
+deterministic paths. GUI invocations detach automatically (``pythonw`` on
+Windows, `nohup` on Unix) so terminals close once the handoff completes; the
+start launchers must preserve that behaviour and defer to the shared launcher
+instead of reviving legacy menu stacks.
 Each run directory also includes a `run_manifest_*.yml` file listing the
 selected models, engine, dataset hashes and Git state to aid
 reproducibility. The data loaders compute and log SHA256 digests for all

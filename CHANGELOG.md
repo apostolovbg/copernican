@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-25
+**Last Updated:** 2025-11-29
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,16 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 10.7.0
+- 2025-11-29: Added CLI flags for GUI, CLI and headless runs with manifest and
+              output directory overrides, detached GUI launchers across start
+              scripts, deterministic manifest saving and refreshed docs for
+              the 10.7.0 release (CHANGELOG.md, README.md, AGENTS.md,
+              CITATION.cff, copernican.py, copernican_lib/run_manifest.py,
+              copernican_lib/VERSION, docs/run_manifest.md, start.sh,
+              start.command, start.bat, tests/cli/test_launcher_modes.py,
+              tests/test_run_manifest.py)
 
 ## Version 10.6.0
 - 2025-11-25: Added GUI catalogue views for datasets, models and engines with
