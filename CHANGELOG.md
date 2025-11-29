@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-25
+**Last Updated:** 2025-11-29
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -22,6 +22,15 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.6.0
+- 2025-11-29: Consolidated all development laws into AGENTS.md with 34 Laws
+              covering documentation, code review, testing, architecture,
+              launcher compatibility, dependency management, timestamps,
+              plotting, multiprocessing, YAML validation, model development,
+              backward compatibility, dependency caching and model
+              configuration. Removed Laws blockquote from README.md and
+              replaced it with a hard reference to AGENTS.md and warning
+              message about the importance of following the laws
+              (AGENTS.md, README.md, CHANGELOG.md)
 - 2025-11-25: Added GUI catalogue views for datasets, models and engines with
               SHA256 digests, parser revalidation hooks, manifest duplication
               into Run Builder and refreshed release metadata to 10.6.0
