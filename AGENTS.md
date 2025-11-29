@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-29
+**Last Updated:** 2025-11-24
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -329,62 +329,40 @@ object describing how standard CAMB parameters such as `H0` and `ombh2` are
 derived from the model's variables or constants.
 
 ## AI-driven and human development laws and protocols
-
-To keep the project maintainable, all contributors, human or AI, must follow
-these laws. The `AGENTS.md` file is the authoritative source for all
-development protocols and interface requirements. Amendments to any law require
-an explicit human request. Failure to follow these laws will compromise the
-Copernican Suite.
-
-### Development and Documentation Laws
-
+To keep the project maintainable all contributors, human or AI, must follow
+these rules:
 1. **Summarize every change in `CHANGELOG.md` using the changelog template**
    **and list every touched file or subsystem.** Compare
    `git diff --name-only` against the newest changelog entry before every
-   commit so nothing escapes the `copernican-policy` hook. **Explicitly
-   enumerate every changed file in each entry**—the lint hook fails whenever
-   any touched path is missing from the changelog summary.
-
+   commit so nothing escapes the `copernican-policy` hook. Legacy `dev_note`
+   headers should be migrated to the changelog when touched.
 2. **Comment the code extensively.** Explain the "why" as well as the "what",
    clarifying both obvious and non-obvious, simple or complex logic or
    algorithms.
-
 3. **Keep comments synchronized with the actual code.** Whenever behaviour
    changes, update all nearby comments immediately so future contributors can
    rely on them.
-
 4. **Update documentation**, including this `AGENTS.md`, `README.md` and the
    `docs/` directory, whenever behaviour or structure changes. Each task must
    expand the documentation's scope and size, refresh version strings and
    ensure every file carries a `Last Updated` field within its first three
    lines. The marker must record only the ISO-8601 calendar date—never a time
    of day. Update that field on every edit and add one when missing.
-
-5. **Treat documentation refresh as integral to every task.** No change is
-   complete until all relevant texts reflect the update and version numbers
-   remain in sync.
-
+5. **Keep these laws synchronized across `README.md` and `AGENTS.md`.**
+   Amendments to any rule require an explicit human request.
 6. **Bump the project version according to Semantic Versioning whenever
    changes introduce new features, fixes or breaking changes.**
-
 7. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in
    any file.**
-
 8. **Re-read the "AI-driven and human development laws and protocols" section
-   in `AGENTS.md` at the start of every development session.**
-
+   in `README.md` at the start of every development session.**
 9. **Document every module, function and class with clear "what" and "why"
    explanations.** Comments and docstrings should describe not only the
    behaviour but also the rationale behind it.
-
 10. **Use concise, descriptive function and identifier names that accurately
     convey their purpose without unnecessary length.**
-
 11. **Use raw strings or escape backslashes explicitly to avoid invalid escape
     sequence warnings in docstrings or string literals.**
-
-### Code Review and Testing Laws
-
 12. **Run `pre-commit run --all-files` before committing so Black, Isort, Ruff,
     Flake8 and the Copernican policy hook enforce formatting, whitespace,
     metadata and print-free library rules.** The policy hook now requires fresh
@@ -392,27 +370,14 @@ Copernican Suite.
     accompanying changelog entries, keeps `README.md` synchronised with
     `copernican_lib/VERSION` and blocks new modules that do not ship with
     associated tests.
-
-13. **Commit changes only after all tests pass on every supported platform.**
-
-14. **Add tests alongside new functionality or behaviour changes.** Each
-    feature or fix must include unit tests demonstrating the intended
-    behaviour.
-
-### Code Style and Architecture Laws
-
-15. **Keep individual lines under 79 characters to maintain readability.**
-
-16. **Do not redistribute the Copernican Suite in full or assert patent
+13. **Do not redistribute the Copernican Suite in full or assert patent
     claims; the license forbids these actions.**
-
-17. **Follow current compliance and security requirements for all work.** The
-    suite processes user-provided files, so every change must meet the latest
-    security guidelines and consider their impact on the `start.*` scripts.
-
-### Launcher and Platform Compatibility Laws
-
-18. **Treat `start.command`, `start.bat` and `start.sh` equally.** When one
+14. **Keep individual lines under 79 characters to maintain readability.**
+15. **Treat documentation refresh as integral to every task.** No change is
+    complete until all relevant texts reflect the update and version numbers
+    remain in sync.
+16. **Commit changes only after all tests pass on every supported platform.**
+17. **Treat `start.command`, `start.bat` and `start.sh` equally.** When one
     launcher is fixed, assess the other two for the same issue and update
     them as needed. Investigate how code changes affect the start scripts and
     adjust them accordingly. Keep multi-line PowerShell calls inside helper
@@ -420,118 +385,43 @@ Copernican Suite.
     closing parentheses inside conditional blocks. Prefer computing release
     metadata outside conditional parentheses or enable delayed expansion so
     `%DOWNLOAD_URL%` resolves consistently on Windows builds.
-
-19. **Run the suite exclusively through the managed virtual environment.**
-    Always launch via `start.sh`, `start.command` or `start.bat` so the
-    repository's `.venv` is created or updated automatically; other Python
-    environments must be ignored.
-
-### Dependency Management Laws
-
+18. **Follow current compliance and security requirements for all work.** The
+    suite processes user-provided files, so every change must meet the latest
+    security guidelines and consider their impact on the `start.*` scripts.
+19. **Add tests alongside new functionality or behaviour changes.** Each
+    feature or fix must include unit tests demonstrating the intended
+    behaviour.
 20. **Audit licenses for new dependencies.** Ensure added packages are
     license-compatible and update `THIRD_PARTY_LICENSES.md` and the
     `licenses/` directory accordingly.
+21. **Run the suite exclusively through the managed virtual environment.**
+    Always launch via `start.sh`, `start.command` or `start.bat` so the
+    repository's `.venv` is created or updated automatically; other Python
+    environments must be ignored.
+22. **Refresh dependencies whenever packages are added or changed.**
+   Run `python -m piptools compile requirements.in --allow-unsafe
+   --output-file requirements.lock` (or simply `make lock`), commit the
+   updated `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`.
+   The local pre-commit hook provisions `pip-tools==7.4.1` automatically
 
-21. **Refresh dependencies whenever packages are added or changed.**
-    Run `python -m piptools compile requirements.in --allow-unsafe
-    --output-file requirements.lock` (or simply `make lock`), commit the
-    updated `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`.
-    The local pre-commit hook provisions `pip-tools==7.4.1` automatically
-    before invoking `make lock` so the workflow succeeds even in clean CI
-    environments. The lockfile header strips Python version banners during
-    the `make lock` workflow so CI runs on Python 3.11 yield identical
-    results.
+   The lockfile header now strips Python version banners during the
+   `make lock` workflow so CI runs on Python 3.11 yield
+   identical results.
 
-### Timestamp and Metadata Laws
-
-22. **Validate every timestamp before recording it.** Confirm the real
+   before invoking `make lock` so the workflow succeeds even in clean CI
+   environments.
+23. **Validate every timestamp before recording it.** Confirm the real
     current date (for example with the `date` command) before updating any
     `Last Updated` field or logging changes, and cross-check changelog entries
     so their dates never jump backward or forward relative to prior records.
     Do not introduce historical gaps, future-dated entries or other
     chronological inconsistencies.
-
-23. **Preserve human-authored edits across the project.** Respect the
+24. **Preserve human-authored edits across the project.** Respect the
     structure, wording and intent of human-made changes—including timestamps
     and metadata—and only revise them when a human explicitly requests an
     update or when correcting objective errors they identify.
 
-### Plotting and Visualization Laws
-
-24. **Do not alter the current plotting style and algorithms without explicit
-    instruction.** The plotting style and rendering algorithms are considered
-    stable and modifications can break reproducibility and visual consistency
-    across the suite.
-
-### Multiprocessing and YAML Laws
-
-25. **Enforce the `spawn` multiprocessing start method and validate YAML only
-    in the main process.** To guarantee a clean environment for each worker,
-    the program sets Python's multiprocessing start method to `spawn` at entry.
-    Model YAML files are validated via `jsonschema` **only** in the main
-    process; child processes read the sanitized cache without re-validating
-    to prevent occasional plugin failures under multiprocessing.
-
-26. **Ensure all engines remain purely computational.** Shared utilities such
-    as evaluation counters must live in `copernican_lib/optim_utils.py` and
-    be imported by engines instead of being reimplemented inside each backend.
-
-27. **Do not permit raw Python code in YAML model files.** All expressions
-    inside YAML model files must be written in LaTeX math form; raw Python
-    code is not permitted.
-
-28. **Cap recursion depth and AST node count in expression parsing.** The
-    `_eval_safe` helper in `engine_plugin_validation` caps recursion depth and
-    AST node count when parsing expressions for `get_camb_params` to block
-    runaway evaluation on malicious or overly complex inputs.
-
-### Model Development Laws
-
-29. **Treat model descriptions as journal articles with at least ten pages of
-    detail.** The `description` block must cover assumptions, derivations,
-    observational comparisons, parameter motivation and reproducibility
-    guidance so reviewers can reproduce the science without leaving the YAML
-    file.
-
-30. **Increment internal model version whenever revising a YAML model.** When
-    a human or AI contributor revises a YAML model, increment the internal
-    `version` field even if Copernican's overall release version does not
-    change.
-
-31. **Maintain read-only data tables with modifiable parser files and
-    metadata.** Tables under `data/` remain read-only, but parser `.py` files
-    and `metadata_*.yml` files within that tree may be updated when necessary.
-
-### Backward Compatibility and Legacy Code Laws
-
-32. **Do not reintroduce backward-compatibility fallbacks or staged menus.**
-    The suite is presently developed in a forward-only mode: legacy prompts,
-    staged menus and backward-compatibility shims are intentionally absent
-    while the interactive shell evolves toward the forthcoming GUI. Do not
-    reintroduce fallbacks unless a future roadmap explicitly calls for them.
-    Keep the staged menu disabled by default; only set
-    `COPERNICAN_ENABLE_STAGED_MENU=1` or pass `--enable-legacy-stage-menu`
-    during CI experiments that must exercise the old flow.
-
-### Dependency Caching Laws
-
-33. **Keep `.cache/` directory untracked and use dependency scanning caching.**
-    The `.cache/` directory is created on demand and must remain untracked so
-    contributors keep private dependency metadata. Set `COPERNICAN_DEP_CACHE_DIR`
-    to direct the cache to a custom location when the default path is
-    read-only. Dependency checks reuse a cached import list stored in
-    `.cache/dependency_scan.json` with absolute path, size and modification
-    time of every parsed module so unchanged worktrees skip the AST walk
-    entirely.
-
-### Model Configuration Laws
-
-34. **Maintain only `copernican_lib/VERSION` as the sole source of truth for
-    the semantic version.** Only `models/cosmo_model_lcdm.yml` is required for
-    the suite to run; all other models ship as exemplars and may evolve or be
-    replaced as their manuscripts improve. Generated model plugins are
-    transformations of YAML definitions, not permanent Python plugins, so the
-    repository maintains only YAML exemplars that demonstrate design patterns.
+Failure to follow these guidelines will compromise the Copernican Suite.
 
 ## 7. Versioning Policy
 The project follows Semantic Versioning (`MAJOR.MINOR.PATCH`). Increment the
