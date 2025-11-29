@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-25
+**Last Updated:** 2025-11-24
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -10,12 +10,7 @@ legacy
 
 ## 1. Program Overview
 The helper modules previously stored under `scripts/` now live in the
-`copernican_lib/` package. CLI-specific helpers sit under
-`copernican_lib/cli/` so dependency validation and menu rendering stay
-modular while the launcher loads only the lightest prerequisites at
-startup. The dependency scanner now skips relative imports inside bundled
-packages so Copernican's own likelihood helpers never trigger false missing
-module reports.
+`copernican_lib/` package.
 The suite evaluates cosmological models against SNe Ia, BAO and CMB data.
 Support for additional observations such as gravitational-wave standard sirens
 is being prepared alongside ongoing placeholder management. Users interact with
@@ -33,14 +28,7 @@ necessary.
 During the current refactor the suite is forward-only: legacy staged menus and
 backward-compatibility shims are intentionally absent to keep the interactive
 shell lean while the GUI evolves. Avoid reintroducing fallbacks unless the
-roadmap later requests them explicitly. GUI launchers should use the
-`copernican_lib/orchestration` service map rather than duplicating CLI helpers;
-the `copernican.py --gui` shim lists the available modules. Keep the staged
-menu disabled by default and only re-enable it for CI coverage with
-`COPERNICAN_ENABLE_STAGED_MENU=1` or `--enable-legacy-stage-menu`. The new
-Tkinter scaffold under `copernican_lib/gui/` preserves the navigation rail,
-Run Builder and monitor shells even when the renderer falls back to headless
-mode for automated environments.
+roadmap later requests them explicitly.
 Each run directory also includes a `run_manifest_*.yml` file listing the
 selected models, engine, dataset hashes and Git state to aid
 reproducibility. The data loaders compute and log SHA256 digests for all
@@ -223,13 +211,14 @@ the default path is read-only. The
 always download a private Python 3.11 interpreter into ``.python`` and build
 ``.venv`` from that interpreter, ignoring any system-wide Python. If the
 download fails
-they exit with guidance. When packages are missing the program now fails fast
-and instructs the operator to rerun the launcher to rebuild the managed
-environment instead of invoking `pip` from inside ``copernican.py``. Running
-outside ``.venv`` prompts the user to restart via the appropriate launcher.
-This lightweight approach works across Windows, macOS and Linux while
-allowing new engines to introduce additional dependencies without manual
-updates to the documentation.
+they exit with guidance. When packages are missing the program asks before
+installing them with `pip install -r requirements.lock` and
+verifies the import before continuing. Set ``COPERNICAN_AUTO_INSTALL=1`` to
+bypass the prompt in non-interactive environments. Running outside ``.venv``
+prompts the user to
+restart via the appropriate launcher. This lightweight approach works across
+Windows, macOS and Linux while allowing new engines to introduce additional
+dependencies without manual updates to the documentation.
 The launchers delete bundled interpreters that fall outside the Python 3.11
 series, recreate `.venv` when its Python drifts beyond that window and print a
 notice before
@@ -346,9 +335,7 @@ these rules:
    **and list every touched file or subsystem.** Compare
    `git diff --name-only` against the newest changelog entry before every
    commit so nothing escapes the `copernican-policy` hook. Legacy `dev_note`
-   headers should be migrated to the changelog when touched. **Explicitly
-   enumerate every changed file in each entry**—the lint hook fails whenever
-   any touched path is missing from the changelog summary.
+   headers should be migrated to the changelog when touched.
 2. **Comment the code extensively.** Explain the "why" as well as the "what",
    clarifying both obvious and non-obvious, simple or complex logic or
    algorithms.

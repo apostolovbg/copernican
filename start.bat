@@ -1,6 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-11-24
+@REM Last Updated: 2025-11-01
 @echo off
 set "PKG_NOTICE=Package managers may request your password. The Copernican"
 set "PKG_NOTICE=%PKG_NOTICE% Suite never reads or stores it."
@@ -213,7 +213,9 @@ exit /b 0
 
 :menu
 set STRICT=0
+set AUTO=0
 if /I "%COPERNICAN_STRICT_WARNINGS%"=="1" set STRICT=1
+if /I "%COPERNICAN_AUTO_INSTALL%"=="1" set AUTO=1
 :loop
 echo.
 echo Copernican Suite %SUITE_VERSION% Launcher:
@@ -234,11 +236,13 @@ set /p CHOICE=Write the number of choice:
 if not defined CHOICE set "CHOICE=1"
 if "%CHOICE%"=="1" (
     set COPERNICAN_STRICT_WARNINGS=%STRICT%
+    set COPERNICAN_AUTO_INSTALL=%AUTO%
     python copernican.py
     goto :eof
 )
 if "%CHOICE%"=="2" (
     set COPERNICAN_STRICT_WARNINGS=%STRICT%
+    set COPERNICAN_AUTO_INSTALL=%AUTO%
     python -m unittest discover -v
     goto :eof
 )
@@ -264,11 +268,16 @@ if "%ENV_PRESENT%"=="1" (
     echo 1^) Update dependencies in the managed virtual environment
     echo 2^) Remove the managed virtual environment
     echo 3^) Rebuild the managed virtual environment
-    echo 4^) Back
+    if "%AUTO%"=="1" (
+        echo 4^) Disable automatic dependency installation
+    ) else (
+        echo 4^) Enable automatic dependency installation
+    )
+    echo 5^) Back
     echo.
     set "ENV_CHOICE="
     set /p ENV_CHOICE=Write the number of choice:
-    if not defined ENV_CHOICE set "ENV_CHOICE=4"
+    if not defined ENV_CHOICE set "ENV_CHOICE=5"
     if "%ENV_CHOICE%"=="1" (
         call :update_dependencies
         goto env_menu
@@ -281,22 +290,51 @@ if "%ENV_PRESENT%"=="1" (
         call :rebuild_environment
         goto :eof
     )
-    if "%ENV_CHOICE%"=="4" goto loop
-    echo Please enter a number between 1 and 4.
+    if "%ENV_CHOICE%"=="4" (
+        if "%AUTO%"=="1" (
+            set AUTO=0
+            echo.
+            echo Automatic dependency installation disabled.
+        ) else (
+            set AUTO=1
+            echo.
+            echo Automatic dependency installation enabled.
+        )
+        goto env_menu
+    )
+    if "%ENV_CHOICE%"=="5" goto loop
+    echo Please enter a number between 1 and 5.
     goto env_menu
 ) else (
     echo 1^) Create the managed virtual environment and install dependencies
-    echo 2^) Back
+    if "%AUTO%"=="1" (
+        echo 2^) Disable automatic dependency installation
+    ) else (
+        echo 2^) Enable automatic dependency installation
+    )
+    echo 3^) Back
     echo.
     set "ENV_CHOICE="
     set /p ENV_CHOICE=Write the number of choice:
-    if not defined ENV_CHOICE set "ENV_CHOICE=2"
+    if not defined ENV_CHOICE set "ENV_CHOICE=3"
     if "%ENV_CHOICE%"=="1" (
         call :rebuild_environment
         goto :eof
     )
-    if "%ENV_CHOICE%"=="2" goto loop
-    echo Please enter 1 or 2.
+    if "%ENV_CHOICE%"=="2" (
+        if "%AUTO%"=="1" (
+            set AUTO=0
+            echo.
+            echo Automatic dependency installation disabled.
+        ) else (
+            set AUTO=1
+            echo.
+            echo Automatic dependency installation enabled.
+        )
+        goto env_menu
+    )
+    if "%ENV_CHOICE%"=="3" goto loop
+    echo Please enter 1, 2 or 3.
     goto env_menu
 )
 
