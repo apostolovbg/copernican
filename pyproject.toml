@@ -81,3 +81,12 @@ exclude = [
 [tool.setuptools_scm]
 version_scheme = "no-guess-dev"
 fallback_version = "0+unknown"
+
+[tool.black]
+line-length = 79
+extend-exclude = '''
+/(
+  | devcovenant/policy_scripts/changelog_coverage\.py
+  | devcovenant/policy_scripts/last_updated_placement\.py
+)/
+'''
