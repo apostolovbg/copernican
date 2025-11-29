@@ -4,7 +4,6 @@ Policy: DevCovenant Self-Enforcement
 Ensures devcovenant follows its own policies.
 """
 
-from pathlib import Path
 from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation

@@ -5,7 +5,6 @@ Ensures Last Updated markers are only in allowlisted files.
 """
 
 import re
-from pathlib import Path
 from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation

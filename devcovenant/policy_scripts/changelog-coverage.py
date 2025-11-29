@@ -5,7 +5,6 @@ Ensures all changed files are documented in CHANGELOG.md.
 """
 
 import subprocess
-from pathlib import Path
 from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation

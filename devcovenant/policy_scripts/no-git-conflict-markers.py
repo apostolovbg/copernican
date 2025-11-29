@@ -5,7 +5,6 @@ Ensures no Git conflict markers exist in any file.
 """
 
 import re
-from pathlib import Path
 from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation

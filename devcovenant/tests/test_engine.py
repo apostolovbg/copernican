@@ -6,7 +6,6 @@ import tempfile
 from pathlib import Path
 
 from devcovenant.engine import DevCovenantEngine
-from devcovenant.parser import PolicyParser
 
 
 def test_engine_initialization():

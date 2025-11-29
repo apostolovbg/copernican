@@ -5,7 +5,6 @@ Automatically removes Last Updated markers from non-allowlisted files.
 """
 
 import re
-from pathlib import Path
 
 from devcovenant.base import FixResult, PolicyFixer, Violation
 

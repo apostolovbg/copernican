@@ -4,7 +4,6 @@ Policy: Line Length Limit
 Ensures lines are under 79 characters for readability.
 """
 
-from pathlib import Path
 from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
