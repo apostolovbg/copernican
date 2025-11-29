@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-24
 """Integration test covering synthetic SNe, BAO and CMB stages."""
 
 from __future__ import annotations
@@ -43,10 +42,10 @@ _EXPECTED_HASHES = {
         "75eeaa66c50c836a6aa5b86294b6fee2bd5122efd7e019902b78d1ef1bfb6083"
     ),
     "model.yml": (
-        "fb564437121906b249bf38c137209e672ee2e1f2d08de0baa7f1a6f3db448081"
+        "858935dc9006e96b7395c25266a82acf51d701fe65840db926c5b9292e50663d"
     ),
     "metadata_synthetic.yml": (
-        "61a268cc1df54bc1f901c13d4dc083d8c862977c2cd2fc199403a6d27daa2c47"
+        "8f5b1436344247727ff0b1a40d3cb7624d5e7a777f50ee4f9f6e0fa0c67a7f54"
     ),
     "sne.csv": (
         "43be03513255fe62c358b19671c27918fb40fbb4bca89f39f8db914b3765831b"

@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-05
 """Regression tests for ``tools.update_lock``."""
 
 from __future__ import annotations
@@ -6,7 +5,6 @@ from __future__ import annotations
 import importlib.util
 import sys
 import types
-from datetime import date
 from pathlib import Path
 
 SPEC = importlib.util.spec_from_file_location(
@@ -29,10 +27,10 @@ def _force_missing_piptools(monkeypatch) -> None:
     monkeypatch.setattr(MODULE.importlib.util, "find_spec", _missing_find_spec)
 
 
-def _write_lock(path: Path, header: str, body: list[str]) -> None:
-    """Helper that materialises a lockfile with ``header`` and ``body``."""
+def _write_lock(path: Path, body: list[str]) -> None:
+    """Helper that materialises a lockfile body without metadata."""
 
-    path.write_text("\n".join([header, *body]) + "\n", encoding="utf-8")
+    path.write_text("\n".join(body) + "\n", encoding="utf-8")
 
 
 def _monkeypatch_compile(monkeypatch, body: list[str]) -> None:
@@ -46,10 +44,10 @@ def _monkeypatch_compile(monkeypatch, body: list[str]) -> None:
     monkeypatch.setattr(MODULE, "run_pip_compile", _fake_compile)
 
 
-def test_update_lockfile_preserves_header_when_body_is_unchanged(
+def test_update_lockfile_skips_rewrite_when_body_is_unchanged(
     tmp_path, monkeypatch
 ) -> None:
-    """When the dependency body matches we keep the previous timestamp."""
+    """When the dependency body matches the lockfile should remain intact."""
 
     body = [
         "#",
@@ -58,20 +56,20 @@ def test_update_lockfile_preserves_header_when_body_is_unchanged(
     ]
     (tmp_path / "requirements.in").write_text("package\n", encoding="utf-8")
     lock = tmp_path / "requirements.lock"
-    _write_lock(lock, "# Last Updated: 2025-11-04", body)
+    _write_lock(lock, body)
     _monkeypatch_compile(monkeypatch, body)
 
-    changed = MODULE.update_lockfile(tmp_path, today=date(2025, 11, 5))
+    changed = MODULE.update_lockfile(tmp_path)
 
     assert not changed
     contents = lock.read_text(encoding="utf-8").splitlines()
-    assert contents[0] == "# Last Updated: 2025-11-04"
+    assert contents == body
 
 
-def test_update_lockfile_advances_header_when_body_changes(
+def test_update_lockfile_rewrites_when_body_changes(
     tmp_path, monkeypatch
 ) -> None:
-    """A new dependency body should advance the ``Last Updated`` banner."""
+    """A new dependency body should replace the lockfile contents."""
 
     original_body = [
         "#",
@@ -81,15 +79,14 @@ def test_update_lockfile_advances_header_when_body_changes(
     new_body = original_body + ["second==2.0.0"]
     (tmp_path / "requirements.in").write_text("package\n", encoding="utf-8")
     lock = tmp_path / "requirements.lock"
-    _write_lock(lock, "# Last Updated: 2025-11-04", original_body)
+    _write_lock(lock, original_body)
     _monkeypatch_compile(monkeypatch, new_body)
 
-    changed = MODULE.update_lockfile(tmp_path, today=date(2025, 11, 5))
+    changed = MODULE.update_lockfile(tmp_path)
 
     assert changed
     contents = lock.read_text(encoding="utf-8").splitlines()
-    assert contents[0] == "# Last Updated: 2025-11-05"
-    assert contents[1:] == new_body
+    assert contents == new_body
 
 
 def test_update_lockfile_requires_requirements_in(tmp_path) -> None:
@@ -98,7 +95,7 @@ def test_update_lockfile_requires_requirements_in(tmp_path) -> None:
     (tmp_path / "requirements.lock").write_text("", encoding="utf-8")
 
     try:
-        MODULE.update_lockfile(tmp_path, today=date(2025, 11, 5))
+        MODULE.update_lockfile(tmp_path)
     except SystemExit as exc:
         assert "requirements.in is missing" in str(exc)
     else:  # pragma: no cover - defensive assertion

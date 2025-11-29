@@ -1,11 +1,11 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-24
 
 """Basic functional tests for the Copernican Suite."""
 
 import importlib.util
 import os
+import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -29,6 +29,7 @@ SPEC = importlib.util.spec_from_file_location("copernican", COPERNICAN_PATH)
 if SPEC is None or SPEC.loader is None:
     raise ImportError("Unable to resolve copernican module for testing")
 COPERNICAN_MODULE = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = COPERNICAN_MODULE
 SPEC.loader.exec_module(COPERNICAN_MODULE)
 extract_cosmological_param_vector = (
     COPERNICAN_MODULE.extract_cosmological_param_vector

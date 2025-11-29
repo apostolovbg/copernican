@@ -1,5 +1,5 @@
-**Version:** 10.6.0
-**Last Updated:** 2025-11-25
+**Version:** 10.7.1
+**Last Updated:** 2025-11-29
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -9,6 +9,10 @@ workflow from data ingestion through posterior exploration so teams can
 compare theoretical predictions with Supernovae Type Ia (SNe Ia), Baryon
 Acoustic Oscillation (BAO) and Cosmic Microwave Background (CMB) datasets
 using a single reproducible interface.
+
+> **Development laws:** The authoritative contributor rules live in
+> [AGENTS.md](AGENTS.md). Always consult that file before modifying the
+> repository.
 
 The suite is organised around a handful of focused components:
 
@@ -23,9 +27,11 @@ The suite is organised around a handful of focused components:
   during model parsing or engine import so operators can restart Stage 1 with
   clear context instead of re-reading logs. The same console helpers power
   both engines so nested sampling and ensemble MCMC display consistent labels,
-  spinners and walker-level updates. The new `--gui` flag exposes the
-  orchestration service map without entering the CLI, while `--cli` enforces
-  the interactive path even when GUI wrappers are probing the launcher.
+  spinners and walker-level updates. The launcher accepts `--gui`, `--cli` and
+  `--no-gui` switches so wrappers can request GUI bootstrap or force headless
+  mode deterministically. `--manifest` and `--output-dir` allow CI to place
+  manifests and run outputs in predictable locations while still routing all
+  logic through the shared orchestration services.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
   keep every engine and plugin consistent. Progress rendering, notifier
@@ -298,11 +304,14 @@ cite them without recomputation.
    outside the bootstrap condition, preventing `cmd.exe` from mis-parsing
    closing parentheses and restoring the interactive menu.
 2. When the launcher prints "Copernican Suite <version> Launcher" press Enter
-   to start the suite immediately or enter one of the numbered options. Option
-   3 toggles strict-warning enforcement for the upcoming session. Option 4
-   opens the *Environment and dependency management* submenu where you can
-   update pinned dependencies, rebuild or remove the managed virtual
-   environment, and toggle automatic dependency installation for future runs.
+   to start the CLI immediately or enter one of the numbered options. Option 1
+   launches the GUI in a detached `pythonw`/`nohup` process so the terminal can
+   close after the handoff. Option 2 starts the CLI directly. Option 3 runs the
+   unit tests. Option 4 toggles strict-warning enforcement for the upcoming
+   session. Option 5 opens the *Environment and dependency management* submenu
+   where you can update pinned dependencies, rebuild or remove the managed
+   virtual environment, and toggle automatic dependency installation for
+   future runs. Option 6 exits.
 3. Choose "Run the unit test suite" from the launcher's menu or execute
    `python -m unittest discover -v` directly. The test runner reports
    informational messages, warnings and errors while verifying the
@@ -319,7 +328,9 @@ cite them without recomputation.
    environment to skip the prompt. The seed defaults to `0` and is applied to
    NumPy, Python's ``random`` module and supported engines.
 5. Results, including posterior chains, will appear inside a timestamped
-   folder under `output/` when the run completes.
+   folder under `output/` when the run completes. Pass `--output-dir` to
+   `copernican.py` to redirect runs to a specific base directory when building
+   headless automation.
 
 ## Dependencies
 The launchers automatically bootstrap a dedicated Python 3.11 interpreter into
@@ -964,100 +975,8 @@ not modify them unless explicitly instructed.
 
 See `CHANGELOG.md` for complete version history.
 
-### AI-driven and human development laws and protocols
-
-> **To any AI or human developer, including my future self, that modifies this
-codebase:**
->
-> This project is developed through a combination of human direction and AI
-implementation. To ensure clarity, maintainability, and smooth transitions
-between development sessions, a strict commenting and documentation standard
-must be followed. The `AGENTS.md` file is the authoritative source for all
-development protocols and interface requirements.
->
-> 1. **Summarize every change in `CHANGELOG.md` using the changelog**
-> template and list every touched file or subsystem.** Compare
-> `git diff --name-only` against the newest changelog entry before every
-> commit so nothing slips past the `copernican-policy` hook. Legacy
-> `dev_note` headers should be migrated to the changelog when touched.
-> **Explicitly enumerate every changed file in each entry** so the lint hook
-> cannot fail because a path was omitted.
-> 2. **Comment the code extensively.** Explain the "why" as well as the
-> "what", clarifying both obvious and non-obvious, simple or complex logic or
-> algorithms.
-> 3. **Keep comments synchronized with the actual code.** Whenever behaviour
-> changes, update all nearby comments immediately so future contributors can
-> rely on them.
-> 4. **Update documentation**, including this `AGENTS.md`, `README.md` and the
-> `docs/` directory, whenever behaviour or structure changes. Each task must
-> expand the documentation's scope and size, refresh version strings and
-> ensure every file carries a `Last Updated` field. Update that field on
-> every edit and add one when missing.
-> 5. **Keep these laws synchronized across `README.md` and `AGENTS.md`.**
-> Amendments to any rule require an explicit human request.
-> 6. **Bump the project version according to Semantic Versioning whenever**
-> changes introduce new features, fixes or breaking changes.
-> 7. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in**
-> any file.
-> 8. **Re-read the "AI-driven and human development laws and protocols"
-> section in `README.md` at the start of every development session.**
-> 9. **Document every module, function and class with clear "what" and "why"
-> explanations.** Comments and docstrings should describe not only the
-> behaviour but also the rationale behind it.
-> 10. **Use concise, descriptive function and identifier names that
-accurately** convey their purpose without unnecessary length.
-> 11. **Use raw strings or escape backslashes explicitly to avoid invalid**
-> escape sequence warnings in docstrings or string literals.
-> 12. **Run `pre-commit` on all modified files before committing to enforce**
-> Black, Isort, Ruff and Flake8 checks.
-> 13. **Do not redistribute the Copernican Suite in full or assert patent**
-> claims; the license forbids these actions.
-> 14. **Keep individual lines under 79 characters to maintain readability.**
-> 15. **Treat documentation refresh as integral to every task.** No change is
-> complete until all relevant texts reflect the update and version numbers
-> remain in sync.
-> 16. **Commit changes only after all tests pass on every supported platform.**
-> 17. **Treat `start.command`, `start.bat` and `start.sh` equally.** When one
-> launcher is fixed, examine the others for the same issue and update them as
-> needed. Consider how code changes impact these launchers and modify them when
-> required.
-> 18. **Follow current compliance and security requirements for all work.** The
-> suite processes user-provided files, so every change must meet the latest
-> security guidelines and account for their effect on the `start.*` scripts.
-> 19. **Add tests alongside new functionality or behaviour changes.** Each
-> feature or fix must include unit tests demonstrating the intended
-> behaviour.
-> 20. **Audit licenses for new dependencies.** Ensure added packages are
-> license-compatible and update `THIRD_PARTY_LICENSES.md` and the
-> `licenses/` directory accordingly.
-> 21. **Run the suite exclusively through the managed virtual environment.**
-> Always launch via `start.sh`, `start.command` or `start.bat` so the
-> repository's `.venv` is created or updated automatically; other Python
-> environments must be ignored.
-> 22. **Refresh dependencies whenever packages are added or changed.**
->    Run `python -m piptools compile requirements.in --allow-unsafe
 >    --output-file requirements.lock` (or simply `make lock`), commit the
 >    updated `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`.
-> 23. **Validate every timestamp before recording it.** Confirm the real
->     current date (for example with the `date` command) before updating any
->     `Last Updated` field or logging changes, and cross-check changelog
->     entries so their dates never jump backward or forward relative to prior
->     records. Do not introduce historical gaps, future-dated entries or other
->     chronological inconsistencies.
-> 24. **Preserve human-authored edits across the project.** Respect the
->     structure, wording and intent of human-made changes—including timestamps
->     and metadata—and only revise them when a human explicitly requests an
->     update or when correcting objective errors they identify.
->
-> Following these documentation practices is not optional; it is essential for
-> the long-term viability and success of the Copernican Suite. Failure to
-> follow these rules will compromise the maintainability of the Copernican
-> Suite.
-
-See [docs/api_overview.md](docs/api_overview.md) for the scripting API.
-All contributors must re-read this section at the beginning of every
-development session. The AGENTS.md file now instructs this explicitly.
-
 ## License
 The Copernican Suite is distributed under the terms of the [Copernican Suite
 License (CSL)](LICENSE.md). The license forbids redistributing the software in

@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-25
 """Tkinter-based GUI scaffold with headless fallbacks.
 
 The GUI keeps a persistent navigation rail and modular content panes so the

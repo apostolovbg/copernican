@@ -1,10 +1,10 @@
 """Tests for the run manifest helper.
 
-**Last Updated:** 2025-11-25
 """
 
 import os
 import tempfile
+from pathlib import Path
 from types import SimpleNamespace
 
 import yaml
@@ -112,3 +112,21 @@ def test_manifest_import_export_cycle() -> None:
         assert aborted["status"]["state"] == "aborted"
         assert aborted["status"]["outputs"] == "archived"
         assert aborted["status"]["reason"] == "Test abort"
+
+
+def test_manifest_custom_target_path() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        target = Path(tmpdir) / "custom" / "manifest.yml"
+        manifest = {
+            "copernican": {"version": get_version()},
+            "status": {"state": "pending"},
+        }
+        path = run_manifest.save_manifest(
+            manifest,
+            tmpdir,
+            target_path=target,
+        )
+        assert Path(path) == target
+        assert target.is_file()
+        loaded = run_manifest.load_manifest(path)
+        assert loaded["copernican"]["version"] == get_version()

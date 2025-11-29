@@ -1,6 +1,6 @@
 @REM Copyright (c) 2025 Copernican Suite developers.
 @REM See LICENSE.md in the repository root for details.
-@REM Last Updated: 2025-11-24
+@REM Last Updated: 2025-11-29
 @echo off
 set "PKG_NOTICE=Package managers may request your password. The Copernican"
 set "PKG_NOTICE=%PKG_NOTICE% Suite never reads or stores it."
@@ -15,11 +15,15 @@ setlocal
 cd %~dp0
 set "SUITE_VERSION=unknown"
 if exist "copernican_lib\VERSION" (
-    for /f "usebackq delims=" %%I in ("copernican_lib\VERSION") do set "SUITE_VERSION=%%I"
+    for /f "usebackq delims=" %%I in (
+        "copernican_lib\VERSION"
+    ) do set "SUITE_VERSION=%%I"
 )
 set "EXPECTED_VENV=%CD%\.venv"
 set "PYDIR=%CD%\.python"
 set "PYBIN=%PYDIR%\python.exe"
+set "PY_VERSION_CHECK=import sys;print(1 if (3,11)<=sys.version_info<" ^
+"(3,12) else 0)"
 REM Precompute release metadata outside conditionals so cmd.exe expands
 REM each token correctly even without delayed expansion.
 set "BASE=https://github.com/astral-sh/python-build-standalone/releases"
@@ -52,7 +56,9 @@ REM satisfies the runtime requirement.
 set "COPERNICAN_BOOTSTRAP=0"
 set "COPERNICAN_PYOK=0"
 if exist "%PYBIN%" (
-    for /f "delims=" %%I in ('"%PYBIN%" -c "import sys; print(1 if (3, 11) <= sys.version_info < (3, 12) else 0)"') do set "COPERNICAN_PYOK=%%I"
+    for /f "delims=" %%I in ( ^
+        '"%PYBIN%" -c "%PY_VERSION_CHECK%"' ^
+    ) do set "COPERNICAN_PYOK=%%I"
     if not defined COPERNICAN_PYOK set "COPERNICAN_PYOK=0"
     if not "%COPERNICAN_PYOK%"=="1" if exist "%PYDIR%" rmdir /s /q "%PYDIR%"
 )
@@ -68,9 +74,11 @@ if "%COPERNICAN_BOOTSTRAP%"=="1" (
         exit /b 1
     )
 )
-if "%COPERNICAN_BOOTSTRAP%"=="1" call :download_python "%DOWNLOAD_URL%" "%DOWNLOAD_TAR%"
+if "%COPERNICAN_BOOTSTRAP%"=="1" call :download_python ^
+ "%DOWNLOAD_URL%" "%DOWNLOAD_TAR%"
 if errorlevel 1 exit /b 1
-if "%COPERNICAN_BOOTSTRAP%"=="1" call :extract_python "%DOWNLOAD_TAR%" "%PYDIR%"
+if "%COPERNICAN_BOOTSTRAP%"=="1" call :extract_python ^
+ "%DOWNLOAD_TAR%" "%PYDIR%"
 if errorlevel 1 exit /b 1
 if "%COPERNICAN_BOOTSTRAP%"=="1" del python.tar.gz
 set "PYTHON=%PYBIN%"
@@ -78,7 +86,9 @@ set "PYTHON=%PYBIN%"
 REM Create the virtual environment when missing.
 set "COPERNICAN_VENV_OK=0"
 if exist .venv\Scripts\python.exe (
-    for /f "delims=" %%I in ('".venv\Scripts\python.exe" -c "import sys; print(1 if (3, 11) <= sys.version_info < (3, 12) else 0)"') do set "COPERNICAN_VENV_OK=%%I"
+    for /f "delims=" %%I in ( ^
+        '".venv\Scripts\python.exe" -c "%PY_VERSION_CHECK%"' ^
+    ) do set "COPERNICAN_VENV_OK=%%I"
     if not defined COPERNICAN_VENV_OK set "COPERNICAN_VENV_OK=0"
     if not "%COPERNICAN_VENV_OK%"=="1" rmdir /s /q .venv
 )
@@ -218,37 +228,48 @@ if /I "%COPERNICAN_STRICT_WARNINGS%"=="1" set STRICT=1
 echo.
 echo Copernican Suite %SUITE_VERSION% Launcher:
 echo.
-echo Choose an option or press Enter to launch the Suite
-echo 1^) Launch Copernican Suite
-echo 2^) Run the unit test suite
+echo Choose an option or press Enter to launch the CLI
+echo 1^) Start Copernican Suite (GUI)
+echo 2^) Start Copernican Suite (CLI)
+echo 3^) Run the unit test suite
 if "%STRICT%"=="1" (
-    echo 3^) Disable strict warning mode
+    echo 4^) Disable strict warning mode
 ) else (
-    echo 3^) Enable strict warning mode
+    echo 4^) Enable strict warning mode
 )
-echo 4^) Environment and dependency management
-echo 5^) Exit
+echo 5^) Environment and dependency management
+echo 6^) Exit
 echo.
 set "CHOICE="
 set /p CHOICE=Write the number of choice:
-if not defined CHOICE set "CHOICE=1"
+if not defined CHOICE set "CHOICE=2"
 if "%CHOICE%"=="1" (
     set COPERNICAN_STRICT_WARNINGS=%STRICT%
-    python copernican.py
+    set COPERNICAN_DETACH_GUI=1
+    if exist "%EXPECTED_VENV%\Scripts\pythonw.exe" (
+        start "" /b "%EXPECTED_VENV%\Scripts\pythonw.exe" copernican.py --gui
+    ) else (
+        start "" /b python copernican.py --gui
+    )
     goto :eof
 )
 if "%CHOICE%"=="2" (
     set COPERNICAN_STRICT_WARNINGS=%STRICT%
-    python -m unittest discover -v
+    python copernican.py --cli
     goto :eof
 )
 if "%CHOICE%"=="3" (
+    set COPERNICAN_STRICT_WARNINGS=%STRICT%
+    python -m unittest discover -v
+    goto :eof
+)
+if "%CHOICE%"=="4" (
     if "%STRICT%"=="1" (set STRICT=0) else (set STRICT=1)
     goto loop
 )
-if "%CHOICE%"=="4" goto env_menu
-if "%CHOICE%"=="5" goto :eof
-echo Please enter a number between 1 and 5.
+if "%CHOICE%"=="5" goto env_menu
+if "%CHOICE%"=="6" goto :eof
+echo Please enter a number between 1 and 6.
 goto loop
 
 :env_menu

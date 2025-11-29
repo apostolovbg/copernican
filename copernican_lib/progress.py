@@ -1,10 +1,8 @@
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
-# Last Updated: 2025-11-22
 
 """Console progress helpers shared across Copernican engines.
 
-**Last Updated:** 2025-11-22
 
 The previous implementations lived directly inside
 ``engines.cosmo_engine_mcmc`` which made the sampler difficult to reuse.

@@ -1,5 +1,3 @@
-# Last Updated: 2025-11-23
-
 """Custom pre-commit validations specific to the Copernican Suite.
 
 The checks provided here extend the standard tooling enforced by the
@@ -27,21 +25,13 @@ LAST_UPDATED_HEADER_PATTERNS = (
     re.compile(r"^\s*# Last Updated:\s*(19|20)\d{2}-\d{2}-\d{2}\s*$"),
     re.compile(r"^\s*@REM Last Updated:\s*(19|20)\d{2}-\d{2}-\d{2}\s*$"),
 )
-HEADER_EXTENSIONS = {
-    ".py",
-    ".md",
-    ".rst",
-    ".yml",
-    ".yaml",
-    ".toml",
-    ".cfg",
-    ".ini",
-    ".txt",
-    ".command",
-    ".bat",
-    ".sh",
+LAST_UPDATED_REQUIRED_SUFFIXES = {".md", ".yml", ".yaml", ".cff"}
+LAST_UPDATED_REQUIRED_PATHS = {
+    Path("copernican.py"),
+    Path("start.sh"),
+    Path("start.command"),
+    Path("start.bat"),
 }
-HEADER_FILENAMES = {"Makefile"}
 
 
 def _utc_today() -> _dt.date:
@@ -109,10 +99,16 @@ def _collect_repo_changes(
     return added, modified, []
 
 
-def _requires_last_updated(path: Path) -> bool:
+def _requires_last_updated(path: Path, root: Path) -> bool:
     """Return ``True`` when ``path`` must carry a Last Updated header."""
 
-    return path.name in HEADER_FILENAMES or path.suffix in HEADER_EXTENSIONS
+    try:
+        rel = path.relative_to(root)
+    except ValueError:
+        rel = path
+    return rel in LAST_UPDATED_REQUIRED_PATHS or (
+        path.suffix in LAST_UPDATED_REQUIRED_SUFFIXES
+    )
 
 
 def _detect_future_dates(
@@ -173,7 +169,36 @@ def _check_last_updated_headers(
         if not path.is_file():
             continue
         text = _read_text(path)
-        if "Last Updated" not in text:
+        header_lines = text.splitlines()
+        has_header = any(
+            pattern.match(line)
+            for pattern in LAST_UPDATED_HEADER_PATTERNS
+            for line in header_lines
+        )
+        try:
+            rel_path = path.relative_to(root)
+        except ValueError:
+            rel_path = path
+        display_path = _as_posix(rel_path)
+        requires_marker = _requires_last_updated(path, root)
+        if not requires_marker and has_header:
+            errors.append(
+                (
+                    f"{display_path}: remove Last Updated markers from files "
+                    "outside the policy allowlist (*.md, *.yml, *.yaml, "
+                    "*.cff, copernican.py, start scripts)."
+                )
+            )
+            continue
+        if not requires_marker:
+            continue
+        if not has_header:
+            errors.append(
+                (
+                    f"{display_path}: add a Last Updated marker within the "
+                    "first three lines using YYYY-MM-DD."
+                )
+            )
             continue
         header = text.splitlines()[:3]
         if any(
@@ -182,11 +207,6 @@ def _check_last_updated_headers(
             for line in header
         ):
             continue
-        try:
-            rel_path = path.relative_to(root)
-        except ValueError:
-            rel_path = path
-        display_path = _as_posix(rel_path)
         errors.append(
             (
                 f"{display_path}: Last Updated marker must appear "
@@ -205,7 +225,7 @@ def _enforce_last_updated_freshness(
     for path in changed:
         if not path.is_file():
             continue
-        if not _requires_last_updated(path):
+        if not _requires_last_updated(path, root):
             continue
         try:
             rel_path = path.relative_to(root)
