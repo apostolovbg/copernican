@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-24
+**Last Updated:** 2025-11-25
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +20,88 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 10.6.0
+- 2025-11-25: Added GUI catalogue views for datasets, models and engines with
+              SHA256 digests, parser revalidation hooks, manifest duplication
+              into Run Builder and refreshed release metadata to 10.6.0
+              (CHANGELOG.md, README.md, CITATION.cff, copernican_lib/VERSION,
+              copernican_lib/gui/app.py, tests/test_gui_app.py,
+              docs/design_overview.md)
+
+## Version 10.5.0
+- 2025-11-25: Started GUI diagnostics logging at launch with severity filters
+              and downloads, gated run-log creation on manifest confirmation
+              with streaming to the Run Monitor, added toast and inline alert
+              anchors with jump tooling, preserved structured logging for
+              CLI/CI consumers, refreshed docs and bumped release metadata to
+              10.5.0 (CHANGELOG.md, README.md, CITATION.cff,
+              copernican_lib/VERSION, copernican_lib/logger.py,
+              copernican_lib/gui/app.py, tests/test_gui_app.py,
+              docs/design_overview.md)
+- 2025-11-25: Normalised GUI logging test metadata and headers
+              (tests/test_gui_app.py) (OpenAI ChatGPT)
+
+## Version 10.4.0
+- 2025-11-25: Added start confirmation and manifest export/import to the GUI,
+              surfaced dataset hashes and engine/model metadata in the Run
+              Monitor, implemented pause, cancel and hard-stop retention
+              markers, refreshed manifest status helpers and bumped release
+              metadata to 10.4.0 (CHANGELOG.md, README.md, CITATION.cff,
+              copernican_lib/VERSION, copernican_lib/gui/app.py,
+              copernican_lib/run_manifest.py, tests/test_gui_app.py,
+              tests/test_run_manifest.py, tests/cli/test_menus_cli.py,
+              docs/run_manifest.md, docs/design_overview.md) (OpenAI ChatGPT)
+
+## Version 10.3.1
+- 2025-11-25: Documented the mandatory changelog file-listing rule in
+              `AGENTS.md` and `README.md`, captured Black's GUI formatting,
+              bumped release metadata to 10.3.1 and recorded the touched
+              paths (CHANGELOG.md, AGENTS.md, README.md, CITATION.cff,
+              copernican_lib/VERSION, copernican_lib/gui/app.py)
+              (OpenAI ChatGPT)
+
+## Version 10.3.0
+- 2025-11-25: Added a Tkinter GUI scaffold with navigation rail, Run Builder,
+              Run Monitor dashboard and summary view, enabled headless
+              fallbacks for CI, refreshed docs/tests and bumped release
+              metadata to 10.3.0 (OpenAI ChatGPT)
+
+## Version 10.2.0
+- 2025-11-24: Added GUI-safe orchestration service descriptors, a CLI/GUI
+              launcher shim with forward-only defaults, documented the staged
+              menu test hook, refreshed docs/tests and bumped release metadata
+              to 10.2.0 (OpenAI ChatGPT)
+- 2025-11-24: Reformatted `copernican_lib/orchestration.py` along with the
+              launcher and orchestration service tests to satisfy Black/Isort
+              and keep the policy hook aligned with the recorded changes
+              (OpenAI ChatGPT)
+
+## Version 10.1.3
+- 2025-11-24: Skipped relative imports in the dependency scanner to prevent
+              false missing-package alerts, guarded matplotlib cleanup against
+              early exits, refreshed documentation and tests (including
+              `tests/cli/test_dependencies_cli.py`), and bumped release
+              metadata to 10.1.3 (OpenAI ChatGPT)
+
+## Version 10.1.2
+- 2025-11-24: Removed in-program dependency installation, updated CLI
+              dependency checks, launcher scripts, documentation and tests to
+              direct missing packages back to the start helpers, and bumped
+              release metadata to 10.1.2 (OpenAI ChatGPT)
+
+## Version 10.1.1
+- 2025-11-24: Restored the legacy ``copernican.select_seed`` entry point as a
+              shim over ``copernican_lib.cli.menus.select_seed`` so seed
+              prompts remain importable, refreshed the splash-banner test
+              version string, and synced README/CITATION/version metadata to
+              10.1.1 (OpenAI ChatGPT)
+
+## Version 10.1.0
+- 2025-11-24: Moved CLI dependency checks and menu rendering into
+              ``copernican_lib/cli`` helpers, slimmed ``copernican.py`` imports,
+              added focused CLI tests and bumped release metadata to 10.1.0
+              (OpenAI ChatGPT)
 
 ## Version 10.0.0
 - 2025-11-24: Added a rotating diagnostics log under `./logs/` that keeps

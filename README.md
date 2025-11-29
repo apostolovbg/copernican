@@ -1,5 +1,5 @@
-**Version:** 10.0.0
-**Last Updated:** 2025-11-24
+**Version:** 10.6.0
+**Last Updated:** 2025-11-25
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -13,14 +13,19 @@ using a single reproducible interface.
 The suite is organised around a handful of focused components:
 
 * `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. The launcher
+  dataset selection, model pairing and engine configuration. The launcher now
+  delegates dependency verification and menu rendering to
+  `copernican_lib/cli/dependencies.py` and `copernican_lib/cli/menus.py` so the
+  entrypoint imports only lightweight helpers before Stage 1 begins. It
   renders progress with carriage-return repainting, honours seeded and
   interactive workflows alike and keeps Stage 1 focused on reproducibility by
   leading with the seed dialog. It surfaces every validation reason collected
   during model parsing or engine import so operators can restart Stage 1 with
   clear context instead of re-reading logs. The same console helpers power
   both engines so nested sampling and ensemble MCMC display consistent labels,
-  spinners and walker-level updates.
+  spinners and walker-level updates. The new `--gui` flag exposes the
+  orchestration service map without entering the CLI, while `--cli` enforces
+  the interactive path even when GUI wrappers are probing the launcher.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
   keep every engine and plugin consistent. Progress rendering, notifier
@@ -43,6 +48,15 @@ The suite is organised around a handful of focused components:
 * `data/` curates vetted observations with companion parsers and metadata. The
   loaders verify file digests, register provenance and attach citations to the
   manifests and plot footers created for every run.
+* `copernican_lib/gui/` provides a Tkinter-based scaffold with a navigation
+  rail, accessible keyboard shortcuts and a Run Builder flow that mirrors the
+  CLI stages. The layout keeps a Home dashboard for recent runs, a Run Monitor
+  with live progress strips and a Summary view that surfaces output links and
+  manifest reuse buttons after completion. Start confirmations now generate a
+  manifest snapshot before any directories exist, surface dataset hashes and
+  engine/model selections in the monitor, and expose pause, cancel and
+  hard-stop controls that record whether outputs should be kept, deleted or
+  archived.
 
 All supported datasets share a uniform pipeline: parsers normalise the inputs,
 the joint likelihood composes SNe Ia, BAO and CMB components, and the engine
@@ -94,6 +108,7 @@ and citation information appears in [CITATION.cff](CITATION.cff).
 18. [Packaging Guide](docs/packaging.md)
 19. [Documentation Policy](docs/documentation_policy.md)
 20. [Run Manifest](docs/run_manifest.md)
+21. [Orchestration Services](docs/orchestration_services.md)
 
 ---
 
@@ -338,10 +353,9 @@ tooling (`python-dateutil==2.9.0.post0`, `six==1.16.0`, `pytz==2024.1`,
 `packaging==24.2`, `attrs==23.2.0`, `jsonschema-specifications==2023.12.1`,
 `referencing==0.34.0`, `rpds-py==0.18.0`, `pyerfa==2.0.1.1` and
 `astropy-iers-data==0.2024.10.28.0.34.7` remain pinned to the published
-wheels. When a package is missing the program asks before running
-`pip install -r requirements.lock` and verifies each import. Set
-`COPERNICAN_AUTO_INSTALL=1`—or enable the launcher toggle inside the
-Environment submenu—to skip the prompt in automated environments.
+wheels. When a package is missing the program now exits with guidance to rerun
+the launcher so the managed environment can be rebuilt from
+`requirements.lock` instead of invoking `pip` from inside the suite.
 Regenerate both files together whenever dependencies change so the suite and
 published wheels remain in sync. The pre-commit hook provisions
 `pip-tools==7.4.1` on demand before it runs `make lock`, so the runtime
@@ -578,12 +592,14 @@ modification time of every parsed module so unchanged worktrees skip the AST
 walk entirely. The `.cache/` directory is created on demand and is now ignored
 by Git so each contributor keeps a private cache that never pollutes commits.
 Set `COPERNICAN_DEP_CACHE_DIR` to point the cache at a custom location when
-running the suite from read-only media or temporary clones.
-Model YAML files are
-sanitised and cached under `models/cache/` for the duration of the session,
-avoiding repeated schema validation. For CMB analyses unlensed CAMB spectra
-are cached by rounded parameter tuples which keeps successive evaluations
-fast during optimisation loops.
+running the suite from read-only media or temporary clones. The scanner skips
+relative imports inside the Copernican packages so bundled likelihood helpers
+and plugins never trigger false missing-package warnings; unexpected missing
+dependency messages usually mean the managed virtual environment was bypassed.
+Model YAML files are sanitised and cached under `models/cache/` for the
+duration of the session, avoiding repeated schema validation. For CMB analyses
+unlensed CAMB spectra are cached by rounded parameter tuples which keeps
+successive evaluations fast during optimisation loops.
 
 Each run directory also contains a YAML manifest named
 `run_manifest_<timestamp>.yml` capturing the suite version, chosen models,
@@ -802,6 +818,21 @@ The suite is presently developed in a forward-only mode: legacy prompts, staged
 menus and backward-compatibility shims are intentionally absent while the
 interactive shell evolves toward the forthcoming GUI. Contributors should avoid
 reintroducing fallbacks unless a future roadmap explicitly calls for them.
+GUI launchers should import `copernican_lib.orchestration` to discover the
+configuration validators, manifest builder and run-controller interfaces that
+mirror the CLI without pulling in menu code. Keep the staged menu disabled by
+default; only set `COPERNICAN_ENABLE_STAGED_MENU=1` or pass
+`--enable-legacy-stage-menu` during CI experiments that must exercise the old
+flow. GUI sessions now start an application log as soon as the shell loads,
+recording environment checks and exposing severity filters plus download
+actions under Settings → Diagnostics. Run logs remain dormant until the user
+confirms the manifest; once active they stream into the Run Monitor with
+severity filters, copy/export controls and toast or inline alerts anchored to
+each log line. Dataset, model and engine panels now list compatibility badges,
+SHA256 digests, citations and licenses, with quick actions to open containing
+folders, view metadata files or revalidate trusted parsers. Manifest files can
+be duplicated into the Run Builder via "Duplicate & Edit" so existing
+selections seed new experiments without re-entering compatibility choices.
 Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md`
 and
@@ -858,9 +889,9 @@ python -m unittest discover -v
 ```
 
 Set `COPERNICAN_STRICT_WARNINGS=1` to treat all warnings as errors during
-any run. Set `COPERNICAN_AUTO_INSTALL=1`—or enable the toggle inside the
-Environment and dependency management submenu—to install missing
-dependencies without prompting.
+any run. Dependency installation now occurs exclusively through the start
+scripts so missing wheels trigger a failure with guidance to rebuild the
+managed environment.
 
 Pull requests trigger the ``Lint`` workflow, which executes `pre-commit run
 --all-files`, and the ``Tests`` workflow, which runs the unit suite across
@@ -893,10 +924,9 @@ not modify them unless explicitly instructed.
 
 ### Workflow Overview
 
-1.  **Dependency Check**: `copernican.py` scans for missing packages,
-    prompts before installing them with `pip` and verifies the environment.
-    Set `COPERNICAN_AUTO_INSTALL=1`—or enable the launcher toggle inside the
-    Environment submenu—to skip the prompt in automated runs.
+1.  **Dependency Check**: `copernican.py` scans for missing packages and
+    exits with guidance to rerun the appropriate launcher when any are
+    absent, keeping installation duties inside the start scripts.
 2.  **Optional Tests**: Choose "Run the unit test suite" from the launcher
     or run `python -m unittest discover -v` to verify that the LCDM model
     and data parsers work as expected. This command performs unittest
@@ -950,6 +980,8 @@ development protocols and interface requirements.
 > `git diff --name-only` against the newest changelog entry before every
 > commit so nothing slips past the `copernican-policy` hook. Legacy
 > `dev_note` headers should be migrated to the changelog when touched.
+> **Explicitly enumerate every changed file in each entry** so the lint hook
+> cannot fail because a path was omitted.
 > 2. **Comment the code extensively.** Explain the "why" as well as the
 > "what", clarifying both obvious and non-obvious, simple or complex logic or
 > algorithms.

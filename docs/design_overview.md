@@ -1,10 +1,16 @@
-**Last Updated:** 2025-11-24
+**Last Updated:** 2025-11-25
 
 This document expands on the high-level summary in the README by tracing how
 the Copernican Suite organises its architecture. The command-line launcher
 (`copernican.py`) steers each run, the `copernican_lib/` package gathers shared
 infrastructure, and the `engines/`, `models/` and `data/` directories plug into
 that foundation to deliver repeatable analyses.
+
+The `copernican_lib/cli/` namespace now houses the dependency scanner and menu
+renderers invoked by the launcher. Keeping those prompts in a dedicated
+package trims the startup import surface so users reach the Stage 1 seed dialog
+faster while retaining the existing logging, validation and manifest pipelines
+described throughout this document.
 
 ## Architectural map
 
@@ -50,6 +56,20 @@ that foundation to deliver repeatable analyses.
 * `docs/` stores focused guidance on data formats, manifest contents,
   packaging, LaTeX conventions and the scripting API. README sections link into
   these files rather than repeating their full contents.
+* The GUI scaffold mirrors the CLI flow. Diagnostics logging begins when the
+  GUI loads, capturing environment checks and exposing severity filters plus
+  downloads from Settings → Diagnostics. The Run Builder produces a manifest
+  snapshot at the "Start Run" confirmation stage, starts the run log with that
+  manifest context before outputs exist and streams the lines into the Run
+  Monitor with severity filters, copy/export actions and alert anchors that can
+  jump directly to the relevant log snippet. Pause, cancellation and hard-stop
+  controls mark the manifest as paused, cancelled or aborted and capture
+  whether outputs were kept, deleted or archived for audit trails.
+* Dataset, model and engine panes expose compatibility badges, parser digests,
+  citations and licenses alongside actions that open the containing folders,
+  view metadata files or revalidate trusted parser hashes. Manifest files can
+  be pulled back into the Run Builder through "Duplicate & Edit" so the GUI
+  pre-fills model, dataset and engine selections for iterative experiments.
 
 ## Stage-by-stage flow
 
@@ -57,9 +77,12 @@ that foundation to deliver repeatable analyses.
 
 The launcher opens by checking Python dependencies and offering to install any
 missing ones. It caches the AST scan so repeat invocations can skip re-sourcing
-modules whose paths and modification times have not changed. A short
-NumPy/SciPy calculation verifies that compiled binaries match the available CPU
-features before heavy work begins.
+modules whose paths and modification times have not changed. Relative imports
+inside the bundled likelihood package are ignored during the scan so the
+console never reports those internal modules as missing; unexpected warnings
+usually mean the managed `.venv` was skipped. A short NumPy/SciPy calculation
+verifies that compiled binaries match the available CPU features before heavy
+work begins.
 
 Logging is initialised immediately after the cache check. Console messages and
 prompts flow through :mod:`copernican_lib.console_output` so patched `print`
