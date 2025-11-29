@@ -1,4 +1,4 @@
-# Last Updated: 2025-11-25
+# Last Updated: 2025-11-24
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
 
@@ -8,44 +8,42 @@
 # fmt: off
 """Copernican Suite - Main Orchestrator.
 
-Last Updated: 2025-11-25
+Last Updated: 2025-11-24
 
-This script ties together model selection, dataset loading and result
-generation while delegating dependency checks and menu rendering to
-``copernican_lib.cli`` helpers. Runtime behaviour is configured through
-environment variables set by the cross-platform ``start`` launchers, while
-the ``--cli`` and ``--gui`` flags provide a thin shim for callers that want
-to bypass the interactive menus and request GUI-safe orchestration services.
-The module retains the optional test runner entrypoint so a fresh checkout
-can execute with minimal setup before heavier imports occur.
+This script ties together model selection, dataset loading, dependency
+checks and result generation.  Runtime behaviour is configured through
+environment variables set by the cross-platform ``start`` launchers, so
+no raw command line flags are exposed to end users.  The module also
+houses the optional test runner and automated package installer so that
+a fresh checkout can execute with minimal setup.
 """
 
 
-import argparse
+import ast
 import copy
 import datetime
 import faulthandler
 import importlib
 import importlib.util
 import inspect
+import json
 import math
 import os
 import platform
+import random
 import shutil
 import signal
 import subprocess
 import sys
+import time
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from copernican_lib.cli import dependencies as cli_dependencies
-from copernican_lib.cli import menus as cli_menus
 from copernican_lib import console_output as console
-from copernican_lib import orchestration
 from copernican_lib import run_manifest
 from copernican_lib import result_writer
-from copernican_lib.gui import CopernicanGUI
 from copernican_lib.diagnostics import (
     bao_residual_diagnostics,
     cmb_residual_diagnostics,
@@ -55,12 +53,6 @@ from copernican_lib.plugins import PluginValidationError
 
 # Verify interpreter version early so users see clear feedback
 MIN_PYTHON = (3, 11)
-
-# Initialise optional heavy imports so cleanup code can reference them safely
-# even when the dependency guard exits early.
-np = None
-plt = None
-mp = None
 
 
 def exit_clean(code: int = 0) -> None:
@@ -96,8 +88,22 @@ if current_venv is None or Path(current_venv).resolve() != EXPECTED_VENV:
 # Enable low-level stack tracing so crashes reveal their origin.
 faulthandler.enable()
 
-# Heavy imports are deferred to ``copernican_lib.cli.dependencies`` so startup
-# stays quick and dependency checks run before NumPy or Matplotlib load.
+# Delay heavy third-party imports until after the dependency check.
+# Doing so keeps startup quick and lets ``check_dependencies`` provide a
+# clean error message before the interpreter tries to import missing
+# modules.
+np = None
+plt = None
+mp = None
+
+model_spec_validator = None
+model_coder = None
+engine_plugin_validation = None
+plotter = None
+csv_writer = None
+log_mod = None
+logger = None
+dataset_registry = None
 
 # Retrieve the runtime version from installed package metadata. When the
 # distribution is not installed, the helper below returns ``"0+unknown"`` so
@@ -125,20 +131,10 @@ def _copernican_version() -> str:
 
 COPERNICAN_VERSION = _copernican_version()
 CURRENT_LOG_FILE = None
-_legacy_stage_menu_override = False
 
-
-def select_seed() -> int:
-    """Compatibility wrapper around the CLI seed selection prompt.
-
-    Earlier releases exposed :func:`select_seed` directly from this module
-    and several integration tests still import it from ``copernican``.  The
-    interactive logic now resides in :mod:`copernican_lib.cli.menus`, so this
-    thin shim delegates to the new implementation while keeping the legacy
-    entry point stable.
-    """
-
-    return cli_menus.select_seed()
+DEPENDENCY_CACHE_ENV_VAR = "COPERNICAN_DEP_CACHE_DIR"
+DEPENDENCY_CACHE_FILENAME = "dependency_scan.json"
+DEPENDENCY_CACHE_SCHEMA = 1
 
 
 def _handle_fatal_signal(signum: int, _frame: object) -> None:
@@ -180,85 +176,6 @@ for _name in ("SIGILL", "SIGSEGV", "SIGFPE"):
     _sig = getattr(signal, _name, None)
     if _sig is not None:
         signal.signal(_sig, _handle_fatal_signal)
-
-
-def legacy_stage_menu_enabled() -> bool:
-    """Return ``True`` when the staged menu is explicitly requested."""
-
-    return _legacy_stage_menu_override or (
-        os.environ.get("COPERNICAN_ENABLE_STAGED_MENU") == "1"
-    )
-
-
-def _parse_launch_args(argv: Iterable[str] | None = None) -> tuple[
-    orchestration.LaunchMode, bool
-]:
-    """Return the requested launch mode and legacy menu flag."""
-
-    parser = argparse.ArgumentParser(add_help=False)
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "--cli",
-        action="store_true",
-        help="Force the classic CLI launcher even when GUI tooling calls us.",
-    )
-    group.add_argument(
-        "--gui",
-        action="store_true",
-        help="Expose orchestration services without starting the CLI menus.",
-    )
-    parser.add_argument(
-        "--enable-legacy-stage-menu",
-        action="store_true",
-        help=(
-            "Re-enable the retired staged menu for CI-only coverage runs. "
-            "Production launches stay forward-only."
-        ),
-    )
-    argv_list = list(argv) if argv is not None else None
-    parsed, _ = parser.parse_known_args(argv_list)
-    legacy_menu = parsed.enable_legacy_stage_menu or (
-        os.environ.get("COPERNICAN_ENABLE_STAGED_MENU") == "1"
-    )
-    mode = (
-        orchestration.LaunchMode.GUI
-        if parsed.gui
-        else orchestration.LaunchMode.CLI
-    )
-    return mode, legacy_menu
-
-
-def launch_gui() -> None:
-    """Start the GUI scaffold and log the shared orchestration services.
-
-    Legacy behaviour printed the orchestration descriptor list so GUI wrappers
-    could discover the available entry points without triggering the CLI.  The
-    Tkinter scaffold keeps that behaviour while providing a navigation rail,
-    Run Builder and monitoring shells.  When Tk is unavailable the scaffold
-    continues in headless mode so CI can validate navigation logic without a
-    display server.
-    """
-
-    service_map = orchestration.describe_orchestration_services()
-    console.write("GUI mode requested. Shared services available:")
-    for descriptor in (
-        service_map.config_validation,
-        service_map.manifest_generation,
-        service_map.run_control,
-    ):
-        entrypoints = ", ".join(descriptor.entrypoints)
-        console.write(
-            f"- {descriptor.name}: {descriptor.module} ({entrypoints})"
-        )
-        console.write(f"  {descriptor.rationale}")
-    console.write(
-        "Use copernican_lib.orchestration.RunController implementations to "
-        "request runs, pause or resume sampling and stream status updates "
-        "from the existing orchestration pipeline."
-    )
-    gui = CopernicanGUI(render=True)
-    gui.show_home()
-    gui.run()
 
 
 def _delete_log_file(path: str) -> None:
@@ -357,6 +274,546 @@ def _get_cpu_info() -> tuple[str, str]:
 # helper is documented in plain language so non-programmers can follow the
 # logic of the program.
 
+
+def run_startup_tests():
+    """Execute the project's unit tests via ``python -m unittest discover``.
+
+    The helper delegates to Python's standard discovery mechanism so the
+    start script's *Run tests* option behaves identically to invoking
+    ``python -m unittest discover`` from the command line. A ``True`` return
+    value indicates that all tests passed.
+    """
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "unittest", "discover", "-v"],
+            check=False,
+        )
+    except Exception as exc:
+        console.write(f"Error running startup tests: {exc}")
+        return False
+    return result.returncode == 0
+
+
+@dataclass
+class RuntimeOptions:
+    """Runtime configuration derived from environment variables."""
+
+    run_tests: bool = False
+    strict_warnings: bool = False
+    auto_confirm: bool = False
+
+
+def get_runtime_options() -> RuntimeOptions:
+    """Return options from ``COPERNICAN_*`` environment variables."""
+
+    return RuntimeOptions(
+        run_tests=os.environ.get("COPERNICAN_RUN_TESTS") == "1",
+        strict_warnings=os.environ.get("COPERNICAN_STRICT_WARNINGS") == "1",
+        auto_confirm=os.environ.get("COPERNICAN_AUTO_INSTALL") == "1",
+    )
+
+
+def select_seed() -> int:
+    """Prompt the operator to choose a reproducible random seed.
+
+    The dialog mirrors other Copernican menus with structured spacing so the
+    seed selection feels like a deliberate Stage 1 action. When
+    ``COPERNICAN_SEED`` is provided the helper honours it immediately while
+    documenting the choice for interactive users.
+    """
+
+    from copernican_lib import utils as _utils
+
+    console.write("")
+    console.write("Random Seed Selection")
+    console.write("---------------------")
+    console.write(
+        "This seed initialises every random number generator used by "
+        "Copernican so runs can be repeated exactly."
+    )
+    console.write("")
+
+    env_seed = os.environ.get("COPERNICAN_SEED")
+    if env_seed is not None:
+        try:
+            seed = int(env_seed)
+        except ValueError:
+            console.write(
+                "COPERNICAN_SEED is not an integer; falling back to the menu.",
+                error=True,
+            )
+        else:
+            console.write(
+                "Using environment-provided seed: "
+                f"{seed}"
+            )
+            _utils.set_random_seed(seed)
+            return seed
+
+    console.write("Please choose how to seed the sampler:")
+    console.write("  1) Accept the default seed (0)")
+    console.write("  2) Enter a custom integer seed")
+    console.write(
+        "  3) Generate a random seed (uniform in [0, 2^32 - 1])"
+    )
+    console.write("")
+
+    seed = 0
+    while True:
+        choice = console.ask("Select an option: ").strip().lower()
+        if choice in {"1", "", "default"}:
+            seed = 0
+            console.write("Default seed 0 selected.")
+            break
+        if choice in {"2", "custom"}:
+            while True:
+                entry = console.ask("Enter integer seed: ").strip()
+                try:
+                    seed = int(entry)
+                    console.write(f"Custom seed {seed} selected.")
+                    break
+                except ValueError:
+                    console.write(
+                        "Seeds must be whole numbers. Please try again.",
+                        error=True,
+                    )
+            break
+        if choice in {"3", "random"}:
+            seed = random.randint(0, 2**32 - 1)
+            console.write(f"Generated random seed {seed}.")
+            break
+        console.write("Please choose 1, 2 or 3.", error=True)
+
+    _utils.set_random_seed(seed)
+    return seed
+
+
+def show_splash_screen():
+    """Displays the startup banner once at launch."""
+    banner = [
+        "=" * 70,
+        "\n",
+        "C O P E R N I C A N   S U I T E".center(70),
+        "\n",
+        "=" * 70,
+        "\n",
+        (
+            "A tool for rapid development, prototyping and testing of\n"
+        ).center(70),
+        (
+            "alternative cosmological frameworks against observational data\n"
+        ).center(70),
+        "-" * 70,
+        f"build {COPERNICAN_VERSION}".center(70),
+        "=" * 70,
+        "\n",
+    ]
+    for line in banner:
+        console.write(line)
+    # ``time.sleep`` pauses briefly so operators can read the banner.
+    # Importing ``time`` at module scope keeps the helper available even when
+    # tests stub timing utilities.
+    time.sleep(1)
+    # The runtime banner now concludes with a single spacer so subsequent
+    # prompts sit on a clean line without repeating explanatory text that the
+    # documentation already covers.
+    console.write("")
+
+
+# --- System Dependency and Sanity Checker ---
+
+
+def _resolve_dependency_cache_paths() -> tuple[Path, Path]:
+    """Return the cache directory and file for dependency scans."""
+
+    override = os.environ.get(DEPENDENCY_CACHE_ENV_VAR)
+    if override:
+        cache_dir = Path(override).expanduser()
+    else:
+        cache_dir = Path(__file__).resolve().parent / ".cache"
+    cache_file = cache_dir / DEPENDENCY_CACHE_FILENAME
+    return cache_dir, cache_file
+
+
+def _scan_python_sources(
+    search_dirs: list[str], ignore_dirs: set[str]
+) -> tuple[list[Path], dict[str, dict[str, int]]]:
+    """Return Python source paths and a metadata snapshot for caching."""
+
+    python_files: list[Path] = []
+    snapshot: dict[str, dict[str, int]] = {}
+    for base in search_dirs:
+        base_path = Path(base).resolve()
+        if not base_path.is_dir():
+            continue
+        for root, dirs, files in os.walk(base_path):
+            dirs[:] = [
+                d
+                for d in dirs
+                if d not in ignore_dirs
+                and not d.startswith(".")
+                and "site-packages" not in d
+            ]
+            for fname in files:
+                if not fname.endswith(".py"):
+                    continue
+                path = Path(root, fname).resolve()
+                python_files.append(path)
+                stat_info = path.stat()
+                mtime_ns = getattr(stat_info, "st_mtime_ns", None)
+                if mtime_ns is None:
+                    mtime_ns = int(stat_info.st_mtime * 1_000_000_000)
+                snapshot[str(path)] = {
+                    "mtime_ns": int(mtime_ns),
+                    "size": int(stat_info.st_size),
+                }
+    python_files.sort()
+    return python_files, snapshot
+
+
+def _load_cached_dependencies(
+    snapshot: dict[str, dict[str, int]], search_dirs: list[str]
+) -> set[str] | None:
+    """Return cached dependency names when the snapshot is unchanged."""
+
+    _, cache_file = _resolve_dependency_cache_paths()
+    if not cache_file.is_file():
+        return None
+    try:
+        with cache_file.open("r", encoding="utf-8") as handle:
+            cached = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return None
+    if cached.get("schema") != DEPENDENCY_CACHE_SCHEMA:
+        return None
+    canonical_dirs = sorted(str(Path(d).resolve()) for d in search_dirs)
+    if cached.get("search_dirs") != canonical_dirs:
+        return None
+    if cached.get("files") != snapshot:
+        return None
+    deps = cached.get("dependencies")
+    if not isinstance(deps, list):
+        return None
+    return set(deps)
+
+
+def _store_dependency_cache(
+    snapshot: dict[str, dict[str, int]],
+    search_dirs: list[str],
+    dependencies: set[str],
+) -> None:
+    """Persist the dependency cache snapshot for subsequent runs."""
+
+    cache_dir, cache_file = _resolve_dependency_cache_paths()
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        tmp_file = cache_file.with_suffix(".tmp")
+        payload = {
+            "schema": DEPENDENCY_CACHE_SCHEMA,
+            "search_dirs": sorted(str(Path(d).resolve()) for d in search_dirs),
+            "files": snapshot,
+            "dependencies": sorted(dependencies),
+        }
+        with tmp_file.open("w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2, sort_keys=True)
+        tmp_file.replace(cache_file)
+    except OSError as exc:
+        console.write(
+            "Warning: Unable to update dependency cache."
+            f" {exc}",
+            error=True,
+        )
+
+
+def _gather_required_packages(
+    search_dirs: list[str] | None = None,
+) -> set[str]:
+    """Return external packages imported across project modules."""
+    # Rather than rely on ``pip freeze`` or manual lists this function
+    # walks through the source tree and parses each ``import`` statement
+    # with :mod:`ast`.  This keeps the dependency check accurate even
+    # when new optional modules are added.
+    pkg_names = set()
+    if search_dirs is None:
+        search_dirs = ["copernican_lib", "engines", "tests", "."]
+    ignore_dirs = {
+        "venv",
+        ".venv",
+        "env",
+        "build",
+        "dist",
+        "__pycache__",
+        "copernican_suite.egg-info",
+    }
+    py_files, snapshot = _scan_python_sources(search_dirs, ignore_dirs)
+    cached = _load_cached_dependencies(snapshot, search_dirs)
+    if cached is not None:
+        console.write(
+            "Dependency scan cache is current; skipping source parsing."
+        )
+        return cached
+    for path in py_files:
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                tree = ast.parse(handle.read(), filename=str(path))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    pkg_names.add(alias.name.split(".")[0])
+            elif isinstance(node, ast.ImportFrom):
+                if node.level == 0 and node.module:
+                    pkg_names.add(node.module.split(".")[0])
+    ignore = {
+        # Standard library modules or local packages that should not trigger
+        # the dependency installer
+        "os",
+        "sys",
+        "time",
+        "logging",
+        "subprocess",
+        "importlib",
+        "multiprocessing",
+        "glob",
+        "shutil",
+        "platform",
+        "inspect",
+        "types",
+        "pathlib",
+        "builtins",
+        "traceback",
+        "typing",
+        # Local modules within this repository (under ``copernican_lib``)
+        "dataset_registry",
+        "engine_plugin_validation",
+        "model_spec_validator",
+        "csv_writer",
+        "plotter",
+        "logger",
+        "utils",
+    }
+    filtered = {
+        pkg
+        for pkg in pkg_names
+        if pkg not in ignore
+        and not pkg.startswith(("copernican_lib", "engines"))
+    }
+    _store_dependency_cache(snapshot, search_dirs, filtered)
+    return filtered
+
+
+def check_dependencies(auto_confirm: bool = False) -> None:
+    """Ensure required packages exist inside the local ``.venv``.
+
+    Parameters
+    ----------
+    auto_confirm : bool, optional
+        When ``True`` any missing packages are installed without prompting
+        the user.  This is intended for non-interactive environments such as
+        continuous integration systems.  When ``False`` the user is asked to
+        confirm installation before ``pip`` is invoked.
+
+    The suite bundles a virtual environment under ``.venv`` that is activated
+    by the ``start.*`` launchers.  This check confirms the interpreter is
+    running from that environment before installing any missing packages.
+    Required packages are installed automatically from ``requirements.lock``
+    and re-imported to verify success so the workflow
+    can proceed without manual steps.
+    """
+    console.write("--- Running System Dependency Check ---")
+
+    if Path(sys.prefix).resolve().name != ".venv":
+        console.write(
+            (
+                "ERROR: The Copernican Suite must run inside the local "
+                "'.venv'. Launch the appropriate start script for your OS."
+            ),
+            error=True,
+        )
+        exit_clean(1)
+
+    required = sorted(_gather_required_packages())
+    missing: list[str] = []
+    for pkg in required:
+        try:
+            if importlib.util.find_spec(pkg) is None:
+                missing.append(pkg)
+        except ValueError:
+            # Python 3.13 may raise ValueError when __main__.__spec__ is None.
+            # Fallback to a simple import attempt in that case.
+            try:
+                importlib.import_module(pkg)
+            except Exception:
+                missing.append(pkg)
+
+    if missing:
+        console.write(
+            f"Missing packages detected: {', '.join(missing)}"
+        )
+        if not auto_confirm:
+            reply = console.ask("Install missing packages? [y/N] ")
+            if reply.lower() not in {"y", "yes"}:
+                console.write(
+                    "Dependency installation aborted by user.",
+                    error=True,
+                )
+                exit_clean(1)
+        try:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "-r",
+                    "requirements.lock",
+                ],
+                check=True,
+            )
+        except subprocess.CalledProcessError:
+            console.write(
+                (
+                    "Automatic installation failed. Please check the log and "
+                    "install the required packages manually."
+                ),
+                error=True,
+            )
+            exit_clean(1)
+
+        failed = []
+        for pkg in missing:
+            try:
+                importlib.import_module(pkg)
+            except Exception:
+                failed.append(pkg)
+        if failed:
+            console.write(
+                (
+                    "Still missing packages after installation: "
+                    f"{', '.join(failed)}"
+                ),
+                error=True,
+            )
+            exit_clean(1)
+        console.write("✅ Packages installed successfully. Continuing...\n")
+    else:
+        console.write("✅ System Dependency Check Passed. Continuing...\n")
+
+
+# Modules that rely on optional packages will be imported in ``main_workflow``
+
+lcdm = None
+
+
+def load_alternative_model_plugin(model_filepath):
+    """Dynamically loads an alternative cosmological model plugin."""
+    logger = log_mod.get_logger()
+    if not model_filepath.endswith(".py"):
+        model_filepath += ".py"
+    if not os.path.isfile(model_filepath):
+        logger.error(
+            f"Alternative model plugin file '{model_filepath}' not found."
+        )
+        return None
+    try:
+        module_name = os.path.splitext(os.path.basename(model_filepath))[0]
+        spec = importlib.util.spec_from_file_location(
+            module_name, model_filepath
+        )
+        alt_model_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(alt_model_module)
+        try:
+            engine_plugin_validation.validate_plugin(alt_model_module)
+        except PluginValidationError as exc:
+            logger.error(
+                (
+                    f"Model plugin '{os.path.basename(model_filepath)}' "
+                    f"failed validation: {exc}"
+                )
+            )
+            return None
+        logger.info(
+            f"Successfully loaded alternative model: "
+            f"{alt_model_module.MODEL_NAME}"
+        )
+        return alt_model_module
+    except Exception as e:
+        logger.error(
+            f"Error loading model plugin "
+            f"'{os.path.basename(model_filepath)}': {e}",
+            exc_info=True,
+        )
+        return None
+
+
+def select_from_list(options, prompt):
+    """Display ``options`` and return the item chosen by the user."""
+
+    # The caller supplies a short prompt ("Select model").  This helper prints
+    # each option with a number so the user can respond with just an integer.
+    # Returning ``None`` signals that the user cancelled the operation.
+    if not options:
+        return None
+    header = prompt.replace("Select ", "").strip()
+    if not header.endswith("s"):
+        header += "s"
+    console.write(f"\nAvailable {header}:")
+    for i, opt in enumerate(options, 1):
+        console.write(f"  {i}. {opt}")
+    console.write(
+        "Write the number of your preferred choice or 'c' to cancel:"
+    )
+    while True:
+        choice = console.ask("> ").strip()
+        if choice.lower() == "c":
+            return None
+        if choice.isdigit() and 1 <= int(choice) <= len(options):
+            return options[int(choice) - 1]
+        console.write("Invalid selection. Try again.")
+
+
+def _normalise_failure_reasons(details: Iterable[str] | str) -> list[str]:
+    """Return a list of human-readable reasons extracted from ``details``."""
+
+    if isinstance(details, str):
+        text = details.split(":", 1)[-1] if ":" in details else details
+        raw_parts = text.replace(";", "\n").splitlines()
+    else:
+        raw_parts = []
+        for item in details:
+            raw_parts.extend(str(item).splitlines())
+
+    reasons: list[str] = []
+    for part in raw_parts:
+        cleaned = part.strip()
+        if cleaned:
+            reasons.append(cleaned)
+    return reasons or ["An unspecified error occurred during model setup."]
+
+
+def _prompt_stage1_retry(reasons: Iterable[str]) -> bool:
+    """Return ``True`` to restart Stage 1, ``False`` to exit the workflow."""
+
+    console.write("")
+    console.write("Stage 1 cannot continue because:")
+    for entry in reasons:
+        console.write(f"  - {entry}")
+    console.write("")
+    console.write("How would you like to proceed?")
+    console.write("  1) Restart Stage 1 configuration from the beginning")
+    console.write("  C) Exit the Copernican Suite")
+    console.write("")
+
+    while True:
+        decision = console.ask("Select an option: ").strip().lower()
+        if decision in {"", "1", "restart"}:
+            console.write("")
+            console.write("Restarting Stage 1 configuration.")
+            return True
+        if decision in {"c", "cancel", "exit"}:
+            return False
+        console.write("Please choose 1 to restart or C to exit.", error=True)
 
 
 def _count_active_parameters(plugin, *, engine_module) -> int:
@@ -1037,16 +1494,18 @@ def main_workflow():
     #  * load the reference ΛCDM model
     #  * repeatedly ask the user for models, data sources and engines
     #  * produce plots and CSV files with the results
-    opts = cli_dependencies.get_runtime_options()
-    cli_dependencies.check_dependencies()
+    opts = get_runtime_options()
+    check_dependencies(auto_confirm=opts.auto_confirm)
     if opts.run_tests:
-        success = cli_dependencies.run_startup_tests()
+        success = run_startup_tests()
         exit_clean(0 if success else 1)
 
     # Import optional third-party packages after confirming they are installed
     global np, plt, mp, model_spec_validator, model_coder, engine_plugin_validation, \
         dataset_registry, plotter, csv_writer, log_mod, logger, error_handler
-    np, plt, mp = cli_dependencies.load_third_party_modules()
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import multiprocessing as mp
     from copernican_lib import model_spec_validator, model_coder, engine_plugin_validation
     from copernican_lib import (
         dataset_registry,
@@ -1078,18 +1537,8 @@ def main_workflow():
         program_log_file,
         LOGS_DIR,
     )
-    if legacy_stage_menu_enabled():
-        program_logger.info(
-            "Legacy staged menu flag detected; forward-only guard lifted for "
-            "tests."
-        )
-    else:
-        program_logger.info(
-            "Forward-only posture active; staged menus stay disabled unless "
-            "explicitly requested by CI flags."
-        )
 
-    cli_menus.show_splash_screen(COPERNICAN_VERSION)
+    show_splash_screen()
 
     # Load the baseline LCDM model from YAML and validate it
     def _load_lcdm_model():
@@ -1171,7 +1620,7 @@ def main_workflow():
             # Seed selection appears directly after the banner so the
             # reproducibility contract is front and centre before model or
             # engine choices begin.
-            cli_menus.select_seed()
+            select_seed()
             logger.info("Using RNG seed %s", utils.get_random_seed())
 
             models_dir = os.path.join(SCRIPT_DIR, "models")
@@ -1182,7 +1631,7 @@ def main_workflow():
                     if f.startswith("cosmo_model_") and f.endswith(".yml")
                 ]
             )
-            selected_model = cli_menus.select_from_list(
+            selected_model = select_from_list(
                 model_files, "Select cosmological model"
             )
             if not selected_model:
@@ -1208,8 +1657,8 @@ def main_workflow():
                 logger.info(f"Loaded YAML model: {parsed.get('model_name')}")
             except PluginValidationError as exc:
                 logger.error("Model validation failed: %s", exc)
-                reasons = cli_menus.normalise_failure_reasons(str(exc))
-                if cli_menus.prompt_stage1_retry(reasons):
+                reasons = _normalise_failure_reasons(str(exc))
+                if _prompt_stage1_retry(reasons):
                     logger.info(
                         "Restarting Stage 1 after alternative model validation failure."
                     )
@@ -1225,8 +1674,8 @@ def main_workflow():
                     exc,
                     exc_info=True,
                 )
-                reasons = cli_menus.normalise_failure_reasons(str(exc))
-                if cli_menus.prompt_stage1_retry(reasons):
+                reasons = _normalise_failure_reasons(str(exc))
+                if _prompt_stage1_retry(reasons):
                     logger.info(
                         "Restarting Stage 1 after model parsing error."
                     )
@@ -1245,7 +1694,7 @@ def main_workflow():
                     if f.startswith("cosmo_engine_") and f.endswith(".py")
                 ]
             )
-            engine_choice = cli_menus.select_from_list(
+            engine_choice = select_from_list(
                 engine_files, "Select computation engine"
             )
             if not engine_choice:
@@ -1264,8 +1713,8 @@ def main_workflow():
                     exc,
                     exc_info=True,
                 )
-                reasons = cli_menus.normalise_failure_reasons(str(exc))
-                if cli_menus.prompt_stage1_retry(reasons):
+                reasons = _normalise_failure_reasons(str(exc))
+                if _prompt_stage1_retry(reasons):
                     logger.info(
                         "Restarting Stage 1 after engine import failure."
                     )
@@ -2058,11 +2507,6 @@ if __name__ == "__main__":
         # 'force=True' above normally prevents this, but wrap in try/except
         # for absolute safety.
         pass
-    launch_mode, legacy_menu = _parse_launch_args(sys.argv[1:])
-    _legacy_stage_menu_override = legacy_menu
-    if launch_mode is orchestration.LaunchMode.GUI:
-        launch_gui()
-        sys.exit(0)
     try:
         main_workflow()
     except Exception:
