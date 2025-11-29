@@ -39,7 +39,7 @@ def main():
         "--repo",
         type=Path,
         default=Path.cwd(),
-        help="Repository root directory (default: current directory)",
+        help="Repository root (default: current directory)",
     )
 
     args = parser.parse_args()
@@ -61,7 +61,10 @@ def main():
         # Force a sync check
         result = engine.check(mode="startup")
         if result.has_sync_issues():
-            print("\n⚠️  Policy sync issues detected. Please update policy scripts.")
+            print(
+                "\n⚠️  Policy sync issues detected. "
+                "Please update policy scripts."
+            )
             sys.exit(1)
         else:
             print("\n✅ All policies are in sync!")

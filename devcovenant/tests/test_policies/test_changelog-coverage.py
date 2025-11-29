@@ -6,7 +6,9 @@ import tempfile
 from pathlib import Path
 
 from devcovenant.base import CheckContext
-from devcovenant.policy_scripts.changelog_coverage import ChangelogCoverageCheck
+from devcovenant.policy_scripts.changelog_coverage import (
+    ChangelogCoverageCheck,
+)
 
 
 def test_no_changes_passes():

@@ -33,10 +33,12 @@ def test_engine_check_no_violations():
         devcov_dir = repo_root / "devcovenant"
         devcov_dir.mkdir()
         (devcov_dir / "policy_scripts").mkdir()
-        (devcov_dir / "config.yaml").write_text("engine:\n  fail_threshold: error")
+        config_text = "engine:\n  fail_threshold: error"
+        (devcov_dir / "config.yaml").write_text(config_text)
 
         # Create AGENTS.md with no policies
-        (repo_root / "AGENTS.md").write_text("# Development Guide\n\nNo policies yet.")
+        agents_text = "# Development Guide\n\nNo policies yet."
+        (repo_root / "AGENTS.md").write_text(agents_text)
 
         engine = DevCovenantEngine(repo_root=repo_root)
         result = engine.check(mode="normal")

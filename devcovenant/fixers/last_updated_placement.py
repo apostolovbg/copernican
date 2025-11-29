@@ -32,7 +32,10 @@ class LastUpdatedPlacementFixer(PolicyFixer):
         Returns:
             True if this is a last-updated-placement violation
         """
-        return violation.policy_id == self.policy_id and violation.file_path is not None
+        return (
+            violation.policy_id == self.policy_id
+            and violation.file_path is not None
+        )
 
     def fix(self, violation: Violation) -> FixResult:
         """
@@ -68,7 +71,10 @@ class LastUpdatedPlacementFixer(PolicyFixer):
 
                 return FixResult(
                     success=True,
-                    message=f"Removed Last Updated marker from {violation.file_path}",
+                    message=(
+                        f"Removed Last Updated marker from "
+                        f"{violation.file_path}"
+                    ),
                     files_modified=[violation.file_path],
                 )
             else:

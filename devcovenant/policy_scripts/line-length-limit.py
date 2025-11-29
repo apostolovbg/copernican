@@ -39,7 +39,9 @@ class LineLengthLimitCheck(PolicyCheck):
                 f for f in context.changed_files if f.suffix == ".py"
             ]
         else:
-            files_to_check = [f for f in context.all_files if f.suffix == ".py"]
+            files_to_check = [
+                f for f in context.all_files if f.suffix == ".py"
+            ]
 
         for file_path in files_to_check:
             try:
@@ -56,7 +58,10 @@ class LineLengthLimitCheck(PolicyCheck):
                 if len(line_content) > self.MAX_LINE_LENGTH:
                     # Count how many lines are too long to avoid spam
                     # Only report first 5 per file
-                    if len([v for v in violations if v.file_path == file_path]) >= 5:
+                    file_violations = [
+                        v for v in violations if v.file_path == file_path
+                    ]
+                    if len(file_violations) >= 5:
                         continue
 
                     violations.append(
@@ -65,8 +70,14 @@ class LineLengthLimitCheck(PolicyCheck):
                             severity="warning",
                             file_path=file_path,
                             line_number=line_num,
-                            message=f"Line exceeds {self.MAX_LINE_LENGTH} characters (current: {len(line_content)})",
-                            suggestion="Break long lines into multiple lines or refactor for clarity",
+                            message=(
+                                f"Line exceeds {self.MAX_LINE_LENGTH} "
+                                f"characters (current: {len(line_content)})"
+                            ),
+                            suggestion=(
+                                "Break long lines into multiple lines or "
+                                "refactor for clarity"
+                            ),
                             can_auto_fix=False,
                         )
                     )
