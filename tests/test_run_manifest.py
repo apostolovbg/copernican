@@ -1,6 +1,5 @@
 """Tests for the run manifest helper.
 
-**Last Updated:** 2025-11-29
 """
 
 import os

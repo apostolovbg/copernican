@@ -1,6 +1,5 @@
 """Tests for launcher scripts.
 
-**Last Updated:** 2025-11-29
 
 These checks guard against regressions in the Windows bootstrapper
 where the download URL previously collapsed to an empty string on

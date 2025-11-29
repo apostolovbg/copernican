@@ -1,13 +1,12 @@
-# Last Updated: 2025-11-01
-
 """Utility helpers for validating documentation metadata.
 
 The Copernican Suite keeps the canonical release number in
 ``copernican_lib/VERSION`` and mirrors the value across the README and the
-``CITATION.cff`` file.  Documentation pages also carry a ``Last Updated``
-timestamp that must never extend into the future.  This module offers a
-small collection of helpers so the test-suite can guard those expectations
-and warn contributors when the tracked metadata drifts out of sync.
+``CITATION.cff`` file. Documentation pages carry ``Last Updated`` timestamps on
+the allowlisted surfaces (Markdown, YAML, `CITATION.cff`, the start scripts and
+`copernican.py`) that must never extend into the future. This module offers a
+small collection of helpers so the test-suite can guard those expectations and
+warn contributors when the tracked metadata drifts out of sync.
 """
 
 from __future__ import annotations
@@ -18,11 +17,20 @@ import sys
 from pathlib import Path
 from typing import Iterable, List, Sequence
 
+REQUIRED_LAST_UPDATED_SUFFIXES = {".md", ".yml", ".yaml", ".cff"}
+REQUIRED_LAST_UPDATED_PATHS = {
+    Path("copernican.py"),
+    Path("start.sh"),
+    Path("start.command"),
+    Path("start.bat"),
+}
+
 _LAST_UPDATED_PATTERNS: Sequence[re.Pattern[str]] = (
     re.compile(
         r"^\*\*Last Updated:\*\*\s*(\d{4}-\d{2}-\d{2})\s*$", re.MULTILINE
     ),
     re.compile(r"^# Last Updated:\s*(\d{4}-\d{2}-\d{2})\s*$", re.MULTILINE),
+    re.compile(r"^@REM Last Updated:\s*(\d{4}-\d{2}-\d{2})\s*$", re.MULTILINE),
 )
 
 
@@ -103,20 +111,39 @@ def _extract_citation_versions(text: str) -> List[str]:
     return [match.group("version") for match in pattern.finditer(text)]
 
 
+def requires_last_updated(path: Path, root: Path) -> bool:
+    """Return ``True`` when *path* must expose a ``Last Updated`` header."""
+
+    try:
+        rel = path.relative_to(root)
+    except ValueError:
+        rel = path
+    return rel in REQUIRED_LAST_UPDATED_PATHS or path.suffix in (
+        REQUIRED_LAST_UPDATED_SUFFIXES
+    )
+
+
 def _last_updated_targets(base_path: Path) -> Iterable[Path]:
     """Yield files that must expose ``Last Updated`` markers."""
 
-    yield base_path / "README.md"
-    yield base_path / "CHANGELOG.md"
+    seen: set[Path] = set()
+    for rel in REQUIRED_LAST_UPDATED_PATHS:
+        target = base_path / rel
+        if target.exists():
+            seen.add(target)
 
-    docs_dir = base_path / "docs"
-    if docs_dir.is_dir():
-        for path in sorted(docs_dir.rglob("*.md")):
-            yield path
+    for suffix in sorted(REQUIRED_LAST_UPDATED_SUFFIXES):
+        for path in base_path.rglob(f"*{suffix}"):
+            if any(
+                part.startswith(".git")
+                or part == "__pycache__"
+                or part.startswith(".pytest_cache")
+                for part in path.parts
+            ):
+                continue
+            seen.add(path)
 
-    citation = base_path / "CITATION.cff"
-    if citation.exists():
-        yield citation
+    yield from sorted(seen)
 
 
 def validate_metadata(

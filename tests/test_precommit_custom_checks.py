@@ -1,5 +1,3 @@
-# Last Updated: 2025-11-23
-
 """Unit tests for the custom pre-commit policy checks."""
 
 from __future__ import annotations

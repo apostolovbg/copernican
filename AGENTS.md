@@ -194,8 +194,9 @@ Installing the suite with `pip` produces a `copernican_suite.egg-info`
 directory
 containing build metadata. This folder can be safely removed and should not be
 edited manually.
-Tables under `data/` remain read-only, but parser `.py` files and
-`metadata_*.yml` files within that tree may be updated when necessary.
+The `/data` directory is read-only. Preserve bundled datasets, parsers and
+metadata files exactly as released unless a human request explicitly calls for
+an update.
 
 The current plotting style and algorithms are considered stable. Do not alter
 them without explicit instruction.
@@ -361,42 +362,45 @@ these rules:
 3. **Keep comments synchronized with the actual code.** Whenever behaviour
    changes, update all nearby comments immediately so future contributors can
    rely on them.
-4. **Update documentation**, including this `AGENTS.md`, `README.md` and the
-   `docs/` directory, whenever behaviour or structure changes. Each task must
-   expand the documentation's scope and size, refresh version strings and
-   ensure every file carries a `Last Updated` field within its first three
-   lines. The marker must record only the ISO-8601 calendar date—never a time
-   of day. Update that field on every edit and add one when missing.
-5. **Keep these laws synchronized across `README.md` and `AGENTS.md`.**
-   Amendments to any rule require an explicit human request.
-6. **Bump the project version according to Semantic Versioning whenever
-   changes introduce new features, fixes or breaking changes.**
-7. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in
+4. **Refresh documentation and `Last Updated` markers only on the allowlisted
+   surfaces.** Keep `Last Updated` headers on Markdown files, YAML files,
+   `CITATION.cff`, `copernican.py` and the three `start.*` launchers. Remove
+   these markers from other formats—including `.py` and `.json` sources—and
+   avoid adding them outside the allowlist. When editing an allowlisted file,
+   update its `Last Updated` marker within the first three lines using an
+   ISO-8601 date without a time component.
+5. **Keep this file as the canonical law source.** `README.md` must point back
+   to `AGENTS.md` instead of duplicating the rules. Amendments to any law
+   require an explicit human request.
+6. **Treat `/data` as read-only.** Do not modify datasets or parsers in-place;
+   add new data only through reviewed contributions and keep parser metadata
+   stable unless a specific change is requested.
+7. **Follow the Versioning Policy as a binding law.** Bump the project version
+   according to Semantic Versioning when releasing fixes or features, keep
+   `copernican_lib/VERSION`, `README.md` and `CITATION.cff` in sync and prefer
+   runtime lookups via `copernican_lib.version.get_version` over hard-coded
+   strings.
+8. **Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in
    any file.**
-8. **Re-read the "AI-driven and human development laws and protocols" section
-   in `README.md` at the start of every development session.**
-9. **Document every module, function and class with clear "what" and "why"
-   explanations.** Comments and docstrings should describe not only the
-   behaviour but also the rationale behind it.
-10. **Use concise, descriptive function and identifier names that accurately
+9. **Re-read these laws at the start of every development session.**
+10. **Document every module, function and class with clear "what" and "why"
+    explanations.** Comments and docstrings should describe both behaviour and
+    rationale.
+11. **Use concise, descriptive function and identifier names that accurately
     convey their purpose without unnecessary length.**
-11. **Use raw strings or escape backslashes explicitly to avoid invalid escape
+12. **Use raw strings or escape backslashes explicitly to avoid invalid escape
     sequence warnings in docstrings or string literals.**
-12. **Run `pre-commit run --all-files` before committing so Black, Isort, Ruff,
-    Flake8 and the Copernican policy hook enforce formatting, whitespace,
-    metadata and print-free library rules.** The policy hook now requires fresh
-    "Last Updated" headers on modified files, refuses changes without
-    accompanying changelog entries, keeps `README.md` synchronised with
-    `copernican_lib/VERSION` and blocks new modules that do not ship with
-    associated tests.
-13. **Do not redistribute the Copernican Suite in full or assert patent
+13. **Run `pre-commit run --all-files` before committing** so formatting,
+    linting, metadata and policy hooks (including changelog coverage, allowed
+    `Last Updated` placement and version sync) all execute once per change.
+14. **Do not redistribute the Copernican Suite in full or assert patent
     claims; the license forbids these actions.**
-14. **Keep individual lines under 79 characters to maintain readability.**
-15. **Treat documentation refresh as integral to every task.** No change is
+15. **Keep individual lines under 79 characters to maintain readability.**
+16. **Treat documentation refresh as integral to every task.** No change is
     complete until all relevant texts reflect the update and version numbers
     remain in sync.
-16. **Commit changes only after all tests pass on every supported platform.**
-17. **Treat `start.command`, `start.bat` and `start.sh` equally.** When one
+17. **Commit changes only after all tests pass on every supported platform.**
+18. **Treat `start.command`, `start.bat` and `start.sh` equally.** When one
     launcher is fixed, assess the other two for the same issue and update
     them as needed. Investigate how code changes affect the start scripts and
     adjust them accordingly. Keep multi-line PowerShell calls inside helper
@@ -404,43 +408,39 @@ these rules:
     closing parentheses inside conditional blocks. Prefer computing release
     metadata outside conditional parentheses or enable delayed expansion so
     `%DOWNLOAD_URL%` resolves consistently on Windows builds.
-18. **Follow current compliance and security requirements for all work.** The
+19. **Follow current compliance and security requirements for all work.** The
     suite processes user-provided files, so every change must meet the latest
     security guidelines and consider their impact on the `start.*` scripts.
-19. **Add tests alongside new functionality or behaviour changes.** Each
+20. **Add tests alongside new functionality or behaviour changes.** Each
     feature or fix must include unit tests demonstrating the intended
     behaviour.
-20. **Audit licenses for new dependencies.** Ensure added packages are
+21. **Audit licenses for new dependencies.** Ensure added packages are
     license-compatible and update `THIRD_PARTY_LICENSES.md` and the
     `licenses/` directory accordingly.
-21. **Run the suite exclusively through the managed virtual environment.**
+22. **Run the suite exclusively through the managed virtual environment.**
     Always launch via `start.sh`, `start.command` or `start.bat` so the
     repository's `.venv` is created or updated automatically; other Python
     environments must be ignored.
-22. **Refresh dependencies whenever packages are added or changed.**
+23. **Refresh dependencies whenever packages are added or changed.**
    Run `python -m piptools compile requirements.in --allow-unsafe
    --output-file requirements.lock` (or simply `make lock`), commit the
-   updated `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`.
-   The local pre-commit hook provisions `pip-tools==7.4.1` automatically
-
-   The lockfile header now strips Python version banners during the
-   `make lock` workflow so CI runs on Python 3.11 yield
-   identical results.
-
-   before invoking `make lock` so the workflow succeeds even in clean CI
-   environments.
-23. **Validate every timestamp before recording it.** Confirm the real
+   updated `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`. The local
+   pre-commit hook provisions `pip-tools==7.4.1` automatically before invoking
+   `make lock` so the workflow succeeds even in clean CI environments.
+24. **Validate every timestamp before recording it.** Confirm the real
     current date (for example with the `date` command) before updating any
     `Last Updated` field or logging changes, and cross-check changelog entries
     so their dates never jump backward or forward relative to prior records.
     Do not introduce historical gaps, future-dated entries or other
     chronological inconsistencies.
-24. **Preserve human-authored edits across the project.** Respect the
+25. **Preserve human-authored edits across the project.** Respect the
     structure, wording and intent of human-made changes—including timestamps
     and metadata—and only revise them when a human explicitly requests an
     update or when correcting objective errors they identify.
 
-Failure to follow these guidelines will compromise the Copernican Suite.
+Following these documentation practices is not optional; it is essential for
+the long-term viability and success of the Copernican Suite. Failure to follow
+these rules will compromise the maintainability of the Copernican Suite.
 
 ## 7. Versioning Policy
 The project follows Semantic Versioning (`MAJOR.MINOR.PATCH`). Increment the

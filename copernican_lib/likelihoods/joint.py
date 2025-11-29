@@ -1,6 +1,5 @@
 """Joint likelihood helper combining individual dataset components.
 
-**Last Updated:** 2025-02-14
 
 Aggregates SNe, BAO and CMB likelihoods (or any other helper implementing
 :class:`~copernican_lib.likelihoods.LikelihoodProtocol`).  Configuration flags

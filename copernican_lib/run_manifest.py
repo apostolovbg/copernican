@@ -1,8 +1,6 @@
 """Run manifest generator for the Copernican Suite.
 
-# Last Updated: 2025-11-29
 
-**Last Updated:** 2025-11-29
 
 The manifest records critical information required to reproduce a run. It
 captures the Copernican Suite version, model and engine details, parameter

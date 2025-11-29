@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-25
 """Tests for CLI menu helpers."""
 
 import os

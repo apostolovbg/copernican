@@ -1,5 +1,4 @@
 # Copyright (c) 2025 Copernican Suite developers.
-# Last Updated: 2025-11-24
 # See LICENSE.md in the repository root for details.
 
 """Translate sanitized model YAML into executable NumPy-aware callables.
@@ -13,6 +12,7 @@ whenever they are unpickled.
 """
 
 import ast
+import datetime as _dt
 import itertools
 import logging
 import math
@@ -51,6 +51,9 @@ _LOGISTIC_SUPPORT_POINTS = (
 )
 
 _GENERATED_NAME_COUNTER = itertools.count(1)
+_LAST_UPDATED_PATTERN = re.compile(
+    r"^#\s*Last Updated:\s*(\d{4}-\d{2}-\d{2})\s*$"
+)
 
 
 class RobustQuadFailure(RuntimeError):
@@ -899,6 +902,16 @@ def _compile_sympy_expr(sym_expr, args, name_hint: str | None = None):
     )
 
 
+def _extract_last_updated_header(text: str) -> str:
+    """Return the ``Last Updated`` header for *text* or stamp a fresh one."""
+
+    for line in text.splitlines()[:3]:
+        if _LAST_UPDATED_PATTERN.match(line):
+            return line.strip()
+    today = _dt.datetime.now(_dt.timezone.utc).date().isoformat()
+    return f"# Last Updated: {today}"
+
+
 def generate_callables(cache_path):
     """Create callables from the cached model and update the cache file.
 
@@ -914,8 +927,9 @@ def generate_callables(cache_path):
         Dictionary of callables and the loaded YAML data.
     """
     cache_path = Path(cache_path)
-    with cache_path.open("r") as f:
-        model_data = yaml.safe_load(f)
+    raw_text = cache_path.read_text(encoding="utf-8")
+    header_line = _extract_last_updated_header(raw_text)
+    model_data = yaml.safe_load(raw_text)
 
     logger = logging.getLogger()
 
@@ -1101,7 +1115,8 @@ def generate_callables(cache_path):
         logger.info("Derived distance_modulus_model from luminosity distance.")
 
     model_data["generated_code"] = code_dict
-    with cache_path.open("w") as f:
+    with cache_path.open("w", encoding="utf-8") as f:
+        f.write(f"{header_line}\n")
         yaml.safe_dump(model_data, f, sort_keys=False, allow_unicode=True)
 
     return funcs, model_data

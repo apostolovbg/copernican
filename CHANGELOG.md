@@ -21,6 +21,84 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.7.1
+- 2025-11-29: Shifted `Last Updated` enforcement to an allowlisted surface,
+              elevated the Versioning Policy to a binding law, marked `/data`
+              as read-only, bumped suite metadata to 10.7.1 and aligned
+              governance tooling and tests with the new rules (AGENTS.md,
+              README.md, CHANGELOG.md, CITATION.cff, PLAN.json,
+              copernican_lib/VERSION, tools/check_meta.py,
+              tools/precommit_custom_checks.py, tools/update_lock.py,
+              tests/test_check_meta.py, tests/test_precommit_custom_checks.py,
+              tests/test_core.py).
+- 2025-11-29: Removed `Last Updated` banners from code, parser and engine
+              modules while keeping documentation surfaces intact
+              (copernican_lib/chain_io.py, copernican_lib/cli/__init__.py,
+              copernican_lib/cli/dependencies.py, copernican_lib/cli/menus.py,
+              copernican_lib/console_output.py, copernican_lib/dataset_registry.py,
+              copernican_lib/diagnostics.py,
+              copernican_lib/engine_plugin_validation.py,
+              copernican_lib/gui/__init__.py, copernican_lib/gui/app.py,
+              copernican_lib/likelihoods/__init__.py,
+              copernican_lib/likelihoods/_protocol.py,
+              copernican_lib/likelihoods/bao.py,
+              copernican_lib/likelihoods/cmb.py,
+              copernican_lib/likelihoods/joint.py,
+              copernican_lib/likelihoods/sne.py, copernican_lib/logger.py,
+              copernican_lib/model_coder.py,
+              copernican_lib/model_spec_validator.py,
+              copernican_lib/orchestration.py, copernican_lib/plotter.py,
+              copernican_lib/plugins/__init__.py, copernican_lib/posterior.py,
+              copernican_lib/priors.py, copernican_lib/progress.py,
+              copernican_lib/result_writer.py, copernican_lib/run_manifest.py,
+              copernican_lib/statistics.py, copernican_lib/utils.py,
+              docs/validation/lcdm_engine_validation.py,
+              engines/cosmo_engine_mcmc.py, engines/cosmo_engine_nested.py,
+              data/bao/bossdr12/cosmo_parser_bossdr12.py,
+              data/bao/compound/cosmo_parser_compound.py,
+              data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py,
+              data/gw/placeholder/cosmo_parser_gw_placeholder.py,
+              data/sne/jla2014/cosmo_parser_jla2014.py,
+              data/sne/pantheon/cosmo_parser_pantheon.py,
+              cosmo_model_template.yml, copernican_lib/latex_mappings.yml,
+              models/cosmo_model_cpc.yml, models/cosmo_model_usmf4.yml,
+              models/cosmo_model_cfsc.yml, models/cache/cache_cosmo_model_lcdm.yml,
+              models/cache/cache_cosmo_model_cfsc.yml,
+              data/bao/bossdr12/metadata_bossdr12.yml,
+              data/bao/compound/compound.yml,
+              data/bao/compound/metadata_compound.yml,
+              data/cmb/planck2018lite/metadata_planck2018lite.yml,
+              data/sne/pantheon/metadata_pantheon.yml,
+              data/sne/jla2014/metadata_jla2014.yml,
+              data/gw/placeholder/metadata_gw_placeholder.yml,
+              tests/data/synthetic/metadata_synthetic.yml,
+              tests/data/synthetic/model.yml).
+- 2025-11-29: Stripped `Last Updated` headers from test fixtures and refreshed
+              ancillary checks to reflect the new policy
+              (tests/cli/__init__.py, tests/cli/test_dependencies_cli.py,
+              tests/cli/test_launcher_modes.py, tests/cli/test_menus_cli.py,
+              tests/data/synthetic/cosmo_parser_synthetic.py,
+              tests/data/synthetic/model_plugin.py, tests/engines/__init__.py,
+              tests/engines/test_engine_nested.py, tests/test_bao_covariance.py,
+              tests/test_bossdr12_parser.py, tests/test_cmb_like.py,
+              tests/test_data_hashes.py, tests/test_dataset_registry.py,
+              tests/test_diagnostics.py, tests/test_engine_mcmc.py,
+              tests/test_engine_plugin_validation.py, tests/test_gui_app.py,
+              tests/test_likelihoods.py, tests/test_menu.py,
+              tests/test_model_coder.py, tests/test_model_priors.py,
+              tests/test_orchestration_services.py, tests/test_parser_discovery.py,
+              tests/test_plotter.py, tests/test_plugins.py,
+              tests/test_program_logging.py, tests/test_result_writer.py,
+              tests/test_run_manifest.py, tests/test_start_scripts.py,
+              tests/test_synthetic_integration.py, tests/test_update_lock.py,
+              tests/test_utils.py).
+- 2025-11-29: Removed legacy `Last Updated` banners from non-allowlisted
+              configuration and ensured the CI workflow carries the required
+              header while lock regeneration drops metadata entirely
+              (tools/update_lock.py, tests/test_update_lock.py,
+              requirements.lock, requirements.in, pyproject.toml, Makefile,
+              .gitignore, .gitattributes, .github/workflows/ci.yml).
+
 ## Version 10.7.0
 - 2025-11-29: Added CLI flags for GUI, CLI and headless runs with manifest and
               output directory overrides, detached GUI launchers across start

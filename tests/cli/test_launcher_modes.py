@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-29
 """Tests for the launcher shim and GUI/CLI mode selection."""
 
 import importlib

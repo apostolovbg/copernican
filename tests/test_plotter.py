@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-23
 """Unit tests for :mod:`copernican_lib.plotter`.
 
 These tests ensure summary formatting tolerates incomplete optimisation

@@ -1,16 +1,13 @@
-# Last Updated: 2025-11-05
-"""Generate a deterministic ``requirements.lock`` file for the suite.
+"""Generate deterministic lockfiles without churning metadata.
 
-This helper wraps :mod:`piptools` so the ``make lock`` target can decide
-whether the dependency body actually changed before rewriting the
-``Last Updated`` banner.  The previous workflow always replaced the
-header with the current date even when the dependency graph stayed
-identical.  That behaviour forced a useless diff on every lint run and
-broke the expectation that ``make-lock`` is idempotent on clean
-branches.  We now compare the body of the freshly compiled lockfile to
-any existing copy and only advance the header timestamp when the
-underlying requirements differ.
+This helper wraps :mod:`piptools` so the ``make lock`` target only rewrites
+``requirements.lock`` when dependency contents change. The previous
+workflow bumped a ``Last Updated`` banner on every run, forcing noisy diffs
+even when the dependency graph stayed identical. The banner is now removed
+to align with the restricted metadata allowlist while keeping the compiled
+body stable across Python versions.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -19,7 +16,6 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
-from datetime import date
 from pathlib import Path
 from typing import Iterable, List, Sequence
 
@@ -30,7 +26,6 @@ ROOT = Path(__file__).resolve().parents[1]
 class LockFilePieces:
     """Describe the pieces of a ``requirements.lock`` snapshot."""
 
-    last_updated: str | None
     body: List[str]
 
 
@@ -114,8 +109,8 @@ def split_last_updated(lines: Iterable[str]) -> LockFilePieces:
 
     collected = list(lines)
     if collected and collected[0].startswith("# Last Updated: "):
-        return LockFilePieces(collected[0], collected[1:])
-    return LockFilePieces(None, collected)
+        return LockFilePieces(collected[1:])
+    return LockFilePieces(collected)
 
 
 def compile_new_lock(root: Path, requirements_in: Path) -> LockFilePieces:
@@ -132,43 +127,25 @@ def read_existing_lock(lock_path: Path) -> LockFilePieces:
     """Return the current ``requirements.lock`` pieces, if any."""
 
     if not lock_path.exists():
-        return LockFilePieces(None, [])
+        return LockFilePieces([])
     return split_last_updated(lock_path.read_text().splitlines())
 
 
-def choose_header(
-    previous: LockFilePieces,
-    current_body: Sequence[str],
-    today: date,
-) -> str:
-    """Select the header to write for the upcoming lockfile update."""
+def write_lock(lock_path: Path, body: Sequence[str]) -> None:
+    """Persist the reconstructed lockfile without metadata banners."""
 
-    today_banner = f"# Last Updated: {today.isoformat()}"
-    if previous.body == list(current_body) and previous.last_updated:
-        return previous.last_updated
-    return today_banner
+    lock_path.write_text("\n".join(body) + "\n", encoding="utf-8")
 
 
-def write_lock(lock_path: Path, header: str, body: Sequence[str]) -> None:
-    """Persist the reconstructed lockfile with ``header`` prepended."""
-
-    lock_path.write_text("\n".join([header, *body]) + "\n", encoding="utf-8")
-
-
-def update_lockfile(
-    root: Path,
-    *,
-    today: date | None = None,
-) -> bool:
+def update_lockfile(root: Path) -> bool:
     """Refresh ``requirements.lock`` and return ``True`` when it changed."""
 
     requirements_in, lock_path = ensure_inputs(root)
     previous = read_existing_lock(lock_path)
     compiled = compile_new_lock(root, requirements_in)
-    banner = choose_header(previous, compiled.body, today or date.today())
-    if previous.last_updated == banner and previous.body == compiled.body:
+    if previous.body == compiled.body:
         return False
-    write_lock(lock_path, banner, compiled.body)
+    write_lock(lock_path, compiled.body)
     return True
 
 
@@ -177,8 +154,8 @@ def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(
         description=(
-            "Regenerate requirements.lock while keeping the Last Updated "
-            "banner stable when the dependency body is unchanged."
+            "Regenerate requirements.lock without reintroducing metadata "
+            "banners when the dependency body is unchanged."
         )
     )
     parser.add_argument(

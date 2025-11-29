@@ -1,4 +1,3 @@
-# Last Updated: 2025-11-24
 """CLI helpers for the Copernican Suite.
 
 These helpers group interactive and startup routines used by the primary

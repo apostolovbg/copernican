@@ -1,5 +1,3 @@
-# Last Updated: 2025-11-02
-
 """Tests for :mod:`tools.check_meta`."""
 
 from __future__ import annotations
