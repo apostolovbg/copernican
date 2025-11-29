@@ -346,6 +346,129 @@ Models that can compute a CMB power spectrum should also define a
 object describing how standard CAMB parameters such as `H0` and `ombh2` are
 derived from the model's variables or constants.
 
+## Development Policies (DevCovenant)
+
+The Copernican Suite uses **DevCovenant**, a self-enforcing policy system that
+maintains consistency between human-readable policies in this file and
+automated Python checks. When you modify a policy in this section, set its
+`updated: true` flag. The AI will automatically detect the change and update
+the corresponding policy script in `devcovenant/policy_scripts/`.
+
+### How DevCovenant Works
+
+1. **Policies are defined here** in plain English with machine-readable metadata
+2. **Python scripts check compliance** automatically during development
+3. **Hash verification ensures sync** between policy text and implementation
+4. **AI maintains the scripts** when policies are updated
+5. **Pre-commit hooks enforce** policies before code is committed
+
+### Policy Format
+
+Each policy has a `policy-def` block with these flags:
+
+- **id**: Unique identifier (lowercase-with-hyphens)
+- **status**: `new`, `active`, `updated`, `deprecated`, or `deleted`
+- **severity**: `critical` (blocks always), `error` (blocks at error threshold),
+  `warning` (blocks at warning threshold), or `info` (informational only)
+- **auto_fix**: `true` if automatic fixing is available, `false` otherwise
+- **updated**: `true` when policy text changes (triggers AI script update)
+- **applies_to**: File patterns (optional, e.g., `*.py`, `devcovenant/**/*`)
+- **hash**: Automatically maintained hash of policy + script
+
+### Development Policies
+
+## Policy: Changelog Coverage
+
+```policy-def
+id: changelog-coverage
+status: active
+severity: error
+auto_fix: false
+updated: false
+applies_to: *
+```
+
+All changed files must be documented in CHANGELOG.md. Compare `git diff
+--name-only` against the newest changelog entry before every commit. Legacy
+`dev_note` headers should be migrated to the changelog when touched.
+**Explicitly enumerate every changed file in each entry**—the lint hook fails
+whenever any touched path is missing from the changelog summary.
+
+---
+
+## Policy: No Git Conflict Markers
+
+```policy-def
+id: no-git-conflict-markers
+status: active
+severity: critical
+auto_fix: false
+updated: false
+applies_to: *
+```
+
+Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any
+file. All merge conflicts must be resolved before committing.
+
+---
+
+## Policy: Line Length Limit
+
+```policy-def
+id: line-length-limit
+status: active
+severity: warning
+auto_fix: false
+updated: false
+applies_to: *.py
+```
+
+Keep individual lines under 79 characters to maintain readability. This
+applies to all Python source files.
+
+---
+
+## Policy: Last Updated Marker Placement
+
+```policy-def
+id: last-updated-placement
+status: active
+severity: warning
+auto_fix: true
+updated: false
+applies_to: *
+```
+
+Refresh documentation and `Last Updated` markers only on allowlisted
+surfaces. Keep `Last Updated` headers on: Markdown files, YAML files,
+`CITATION.cff`, `copernican.py` and the three `start.*` launchers. Remove
+these markers from other formats—including `.py` and `.json` sources—and
+avoid adding them outside the allowlist. When editing an allowlisted file,
+update its `Last Updated` marker within the first three lines using an
+ISO-8601 date without a time component.
+
+---
+
+## Policy: DevCovenant Self-Enforcement
+
+```policy-def
+id: devcov-self-enforcement
+status: active
+severity: error
+auto_fix: false
+updated: false
+applies_to: devcovenant/**/*
+```
+
+DevCovenant enforces its own policies on itself. All policy scripts must:
+- Have corresponding tests in `devcovenant/tests/test_policies/`
+- Achieve at least 80% code coverage
+- Follow the PolicyCheck base class interface
+- Include comprehensive docstrings
+- Pass all tests before being registered
+
+---
+
 ## AI-driven and human development laws and protocols
 To keep the project maintainable all contributors, human or AI, must follow
 these rules:
