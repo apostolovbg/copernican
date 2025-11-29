@@ -362,6 +362,94 @@ the corresponding policy script in `devcovenant/policy_scripts/`.
 4. **AI maintains the scripts** when policies are updated
 5. **Pre-commit hooks enforce** policies before code is committed
 
+### When to Run DevCovenant (AI Agents)
+
+**CRITICAL**: AI agents must run DevCovenant at specific checkpoints:
+
+#### 1. **At the START of Every Work Session** (REQUIRED)
+
+**Before beginning any work on the repository**, run:
+
+```bash
+python devcovenant_check.py check --mode=startup
+```
+
+This ensures:
+- All policies are synchronized with their implementation scripts
+- Any updated policies trigger immediate script updates
+- The AI is aware of all current policies before proceeding
+
+**What happens:**
+- DevCovenant parses all policy definitions from this file
+- Checks for hash mismatches (policy text updated but script hasn't been)
+- Reports sync issues with clear, actionable instructions
+- **AI MUST update any out-of-sync scripts BEFORE proceeding with user's request**
+
+**Example workflow:**
+```bash
+# 1. AI starts work session
+$ git status
+$ cat AGENTS.md  # Read policies (standard practice)
+$ python devcovenant_check.py check --mode=startup
+
+# 2. If sync issues detected:
+🔄 POLICY SYNC REQUIRED
+
+Policy 'changelog-coverage' has been updated.
+The policy script is out of sync and must be updated FIRST.
+
+[Policy text and instructions shown]
+
+# 3. AI updates the script
+$ vi devcovenant/policy_scripts/changelog-coverage.py
+$ vi devcovenant/tests/test_policies/test_changelog-coverage.py
+$ pytest devcovenant/tests/test_policies/test_changelog-coverage.py -v
+
+# 4. Re-run to verify and update hash
+$ python devcovenant_check.py check --mode=startup
+
+# 5. Now proceed with user's request
+✅ All policies are in sync!
+```
+
+#### 2. **Before Committing Code** (AUTOMATIC)
+
+DevCovenant runs automatically via pre-commit hook. AI can also run manually:
+
+```bash
+python devcovenant_check.py check --mode=pre-commit
+```
+
+This checks only changed files for faster performance.
+
+#### 3. **At the END of a Work Session** (RECOMMENDED)
+
+**Before finishing work**, run a full check:
+
+```bash
+python devcovenant_check.py check --mode=lint
+```
+
+This performs comprehensive validation of all files to ensure nothing was missed.
+
+#### 4. **When Updating a Policy** (REQUIRED)
+
+After editing a policy in this file:
+
+1. Set `updated: true` in the policy metadata
+2. Run `python devcovenant_check.py check --mode=startup`
+3. Follow instructions to update the corresponding script
+4. Update tests
+5. Run tests: `pytest devcovenant/tests/test_policies/test_<policy_id>.py -v`
+6. Re-run DevCovenant (hash updates automatically, `updated` flag clears)
+
+**Important Notes:**
+- DevCovenant violations **MUST** be fixed before commit
+- Policy sync issues have **HIGHEST PRIORITY** - fix before user's request
+- Never skip DevCovenant checks to "save time"
+- Read all violation messages carefully - they guide you to the fix
+- Use `--fix` flag to auto-fix when available: `python devcovenant_check.py check --fix`
+
 ### Policy Format
 
 Each policy has a `policy-def` block with these flags:
