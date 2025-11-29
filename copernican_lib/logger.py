@@ -1,6 +1,7 @@
-# Last Updated: 2025-11-25
+# Last Updated: 2025-11-24
 # Copyright (c) 2025 Copernican Suite developers.
 # See LICENSE.md in the repository root for details.
+
 # Copernican Suite Logger
 """Logging utilities for the Copernican Suite.
 
@@ -211,17 +212,14 @@ def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
     return log_filename
 
 
-def log_environment_info(target_logger: logging.Logger | None = None) -> None:
+def log_environment_info() -> None:
     """Log Python, OS, CPU and key package versions.
 
     Detailed information is written to the log file while a short
     summary prints to the console. This aids in reproducing results
-    across different systems. The caller can override ``target_logger``
-    so GUI diagnostics remain separate from run-level logs while the
-    CLI continues to use the root logger.
+    across different systems.
     """
-
-    logger = target_logger or logging.getLogger()
+    logger = logging.getLogger()
     py_ver = platform.python_version()
     os_info = platform.platform()
     cpu = platform.processor() or "Unknown CPU"
@@ -238,7 +236,7 @@ def log_environment_info(target_logger: logging.Logger | None = None) -> None:
     logger.info(f"  OS: {os_info}", **log_kwargs)
     logger.info(f"  CPU: {cpu}", **log_kwargs)
     for n, v in pkgs.items():
-        logger.info(f"  {n} {v}", **log_kwargs)
+        logger.info(f"  {n}: {v}", **log_kwargs)
     summary = f"Python {py_ver}; {os_info}; CPU {cpu}; " + ", ".join(
         f"{n} {v}" for n, v in pkgs.items()
     )

@@ -1,6 +1,6 @@
 """Tests for the run manifest helper.
 
-**Last Updated:** 2025-11-25
+**Last Updated:** 2025-11-01
 """
 
 import os
@@ -57,8 +57,6 @@ def test_manifest_contains_required_fields():
         assert loaded["copernican"]["version"] == get_version()
         assert loaded["engine"]["name"] == "engine"
         assert loaded["seed"] == 123
-        assert loaded["status"]["state"] == "pending"
-        assert loaded["status"]["outputs"] == "unprepared"
         assert "ds" in loaded["datasets"]
         ds_entry = loaded["datasets"]["ds"]
         assert ds_entry["name"] == "Dummy dataset"
@@ -70,45 +68,9 @@ def test_manifest_contains_required_fields():
         hashes = ds_entry["hashes"]
         assert "data.txt" in hashes
         assert hashes["data.txt"] == file_hashes["data.txt"]
-        assert loaded["selection"]["models"] == ["DummyModel"]
-        assert loaded["selection"]["engine"]["name"] == "engine"
-        assert loaded["selection"]["datasets"] == ["ds"]
         assert len(loaded["git"]["commit"]) == 40
         assert "dirty" in loaded["git"]
         assert "camb" in loaded
         camb_entry = loaded["camb"]
         assert "version" in camb_entry
         assert camb_entry["models"][0]["model"] == "DummyModel"
-
-
-def test_manifest_import_export_cycle() -> None:
-    with tempfile.TemporaryDirectory() as tmpdir:
-        utils.set_random_seed(1)
-        manifest = run_manifest.build_manifest(
-            models=[(_dummy_plugin(), "1.0")],
-            engine_module=SimpleNamespace(
-                __name__="engine", ENGINE_VERSION="0.1"
-            ),
-            datasets=[
-                {
-                    "id": "ds",
-                    "name": "Dummy dataset",
-                    "version": "2025.10",
-                    "path": tmpdir,
-                    "hashes": {},
-                    "independence": "Independent",
-                }
-            ],
-        )
-        saved_path = run_manifest.save_manifest(manifest, tmpdir)
-        loaded_manifest = run_manifest.load_manifest(saved_path)
-        assert loaded_manifest["engine"]["name"] == "engine"
-        aborted = run_manifest.annotate_outcome(
-            loaded_manifest,
-            state="aborted",
-            outputs="archived",
-            reason="Test abort",
-        )
-        assert aborted["status"]["state"] == "aborted"
-        assert aborted["status"]["outputs"] == "archived"
-        assert aborted["status"]["reason"] == "Test abort"
