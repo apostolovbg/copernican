@@ -11,7 +11,7 @@ from devcovenant.engine import DevCovenantEngine
 def test_engine_initialization():
     """Test that the engine initializes correctly."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        repo_root = Path(tmpdir)
+        repo_root = Path(tmpdir).resolve()
 
         # Create minimal structure
         (repo_root / "devcovenant").mkdir()

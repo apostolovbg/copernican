@@ -23,8 +23,10 @@ suffixes. Follow this template:
 
 ## Version 10.7.1
 - 2025-11-29: Renamed policy scripts and tests to use underscores for
-              Python import compatibility
-              (devcovenant/policy_scripts/*.py renamed from hyphens to
+              Python import compatibility; formatters applied formatting
+              (devcovenant/policy_scripts/changelog_coverage.py,
+              devcovenant/policy_scripts/last_updated_placement.py,
+              devcovenant/policy_scripts/*.py renamed from hyphens to
               underscores, devcovenant/tests/test_policies/*.py renamed,
               devcovenant/engine.py, devcovenant/registry.py,
               devcovenant/registry.json).
