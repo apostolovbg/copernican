@@ -31,6 +31,14 @@ walkers, burn-in steps, production steps and multiprocessing pool size before
 confirming a run. These values are stored in the run manifest so downstream
 replays or audits capture every execution parameter.
 
+## Metadata dialogs
+
+Metadata, YAML and module viewers automatically size themselves to the longest
+line, enforce a sensible minimum height and include an **Open file…** button
+that launches the underlying asset in the operating system's default editor.
+The dialogs remain resizable, so scrolling through long YAMLs or dataset notes
+feels the same as opening the files directly.
+
 ## Models
 
 Models now appear in a scrollable panel with badge, license and SHA256 details.

@@ -1,4 +1,4 @@
-**Version:** 10.8.4
+**Version:** 10.8.5
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -59,10 +59,13 @@ The suite is organised around a handful of focused components:
   type-specific data menus, engine choice, plan notes and a run settings panel
   for walkers, burn-in, production and pool-size hints while capturing the
   manifest context. The Data, Models and Engines panes now render scrollable
-  catalogues with working folder, metadata and revalidation buttons, Settings
-  exposes diagnostics filters plus output directory helpers and environment
-  hints, and the Help screen renders the README (banner included) so the
-  documentation is available inside the GUI.
+  catalogues with working folder, metadata and revalidation buttons, metadata
+  viewers resize to fit their longest line and expose an *Open file…* shortcut,
+  Settings exposes diagnostics filters plus output directory helpers and
+  environment hints, and the Help screen renders the README (banner included) so
+  the documentation is available inside the GUI. The Run Monitor mirrors the CLI
+  by streaming phase updates (initialisation, burn-in, production) and reflecting
+  the recommended settings that accompany every manifest snapshot.
 
 All supported datasets share a uniform pipeline: parsers normalise the inputs,
 the joint likelihood composes SNe Ia, BAO and CMB components, and the engine

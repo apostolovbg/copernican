@@ -17,6 +17,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -183,6 +184,7 @@ class CopernicanGUI:
         self.progress = 0
         self.nav_items = []
         self.gui_version = version.get_version()
+        self.current_phase = "Idle"
         self.selected_models: list[str] = []
         self.selected_engine: str = ""
         self.selected_datasets: list[dict[str, str]] = []
@@ -207,6 +209,8 @@ class CopernicanGUI:
         self.alerts: list[UIMessage] = []
         self.inline_messages: list[UIMessage] = []
         self.last_log_jump: str | None = None
+        self._run_thread: threading.Thread | None = None
+        self._run_stop_event = threading.Event()
         self._bootstrap_logging()
         self._build_navigation()
         self._initialise_rendering()
@@ -669,6 +673,7 @@ class CopernicanGUI:
             if path.name.startswith("__"):
                 continue
             meta = self._read_model_file(path)
+            parameters = meta.get("parameters") or []
             compatibility = {
                 "sne": True,
                 "bao": meta.get("valid_for_bao", True),
@@ -689,6 +694,7 @@ class CopernicanGUI:
                 "version": meta.get("version", "unknown"),
                 "badges": badges,
                 "hash": utils.compute_sha256(str(path)),
+                "parameter_count": len(parameters),
             }
         return models
 
@@ -793,7 +799,22 @@ class CopernicanGUI:
         os.makedirs(output_dir, exist_ok=True)
         return self.open_folder(output_dir)
 
-    def _show_metadata_dialog(self, title: str, content: str) -> None:
+    def _open_path_with_system(self, path: str) -> None:
+        """Open ``path`` using the operating system defaults."""
+
+        try:
+            if sys.platform.startswith("win"):
+                os.startfile(path)  # type: ignore[attr-defined]
+            elif sys.platform == "darwin":
+                subprocess.run(["open", path], check=False)
+            else:
+                subprocess.run(["xdg-open", path], check=False)
+        except Exception as exc:
+            console_output.write(f"Unable to open {path}: {exc}", error=True)
+
+    def _show_metadata_dialog(
+        self, title: str, content: str, source_path: str | None = None
+    ) -> None:
         """Show metadata content in a scrollable dialog when rendering."""
 
         if not self.render or self.root is None:
@@ -802,7 +823,12 @@ class CopernicanGUI:
         window = tk.Toplevel(self.root)
         window.title(title)
         window.transient(self.root)
-        window.geometry("800x600")
+        longest = max((len(line) for line in content.splitlines()), default=80)
+        char_clamp = min(max(longest, 80), 200)
+        initial_width = int(char_clamp * 7.2)
+        initial_height = 520
+        window.geometry(f"{initial_width}x{initial_height}")
+        window.minsize(width=min(initial_width, 640), height=360)
         container = ttk.Frame(window, padding=(8, 6))
         container.pack(fill="both", expand=True)
         window.columnconfigure(0, weight=1)
@@ -816,11 +842,17 @@ class CopernicanGUI:
         )
         text.configure(yscrollcommand=scrollbar.set)
         scrollbar.grid(row=0, column=1, sticky="ns")
-        ttk.Button(
-            container,
-            text="Close",
-            command=window.destroy,
-        ).grid(row=1, column=0, columnspan=2, pady=(8, 0))
+        buttons = ttk.Frame(container)
+        buttons.grid(row=1, column=0, columnspan=2, pady=(8, 0))
+        ttk.Button(buttons, text="Close", command=window.destroy).pack(
+            side="left", padx=4
+        )
+        if source_path:
+            ttk.Button(
+                buttons,
+                text="Open file…",
+                command=lambda: self._open_path_with_system(source_path),
+            ).pack(side="left", padx=4)
 
     def _create_scrollable_panel(self, parent: tk.Frame) -> tk.Frame:
         """Return a frame that scrolls vertically with the given parent."""
@@ -845,19 +877,50 @@ class CopernicanGUI:
         scrollbar.pack(side="right", fill="y")
         return inner_frame
 
+    def _resolve_asset_path(self, asset_id: str) -> str:
+        """Return the on-disk path linked to ``asset_id``."""
+
+        entry = self.catalogue_index.get(asset_id)
+        if entry and entry.get("metadata_path"):
+            return entry["metadata_path"]
+        model_entry = self.model_index.get(asset_id)
+        if model_entry:
+            return model_entry["path"]
+        for record in self.model_index.values():
+            if record.get("id") == asset_id:
+                return record["path"]
+        engine_entry = self.engine_index.get(asset_id)
+        if engine_entry:
+            return engine_entry["path"]
+        for record in self.engine_index.values():
+            if record.get("id") == asset_id:
+                return record["path"]
+        raise KeyError(asset_id)
+
+    def _read_asset_text(self, path: str) -> str:
+        """Return cached text content for ``path``."""
+
+        if path in self.metadata_cache:
+            return self.metadata_cache[path]
+        with open(path, "r", encoding="utf-8") as handle:
+            contents = handle.read()
+        self.metadata_cache[path] = contents
+        return contents
+
     def _present_metadata(self, asset_id: str, title: str) -> None:
         """Fetch metadata text and present it to the operator."""
 
         try:
-            content = self.view_metadata_file(asset_id)
-        except KeyError as exc:
+            path = self._resolve_asset_path(asset_id)
+            content = self._read_asset_text(path)
+        except (KeyError, OSError) as exc:
             self.create_toast(
                 f"Metadata unavailable for {asset_id}: {exc}",
                 severity="ERROR",
                 context="data",
             )
             return
-        self._show_metadata_dialog(title, content)
+        self._show_metadata_dialog(title, content, path)
 
     def _revalidate_dataset_action(self, dataset_id: str) -> None:
         """Run parser trust validation and share the result."""
@@ -1015,33 +1078,8 @@ class CopernicanGUI:
     def view_metadata_file(self, asset_id: str) -> str:
         """Return cached metadata content for the requested asset."""
 
-        entry = self.catalogue_index.get(asset_id)
-        if entry and entry.get("metadata_path"):
-            cache_key = entry["metadata_path"]
-        elif asset_id in self.model_index:
-            cache_key = self.model_index[asset_id]["path"]
-        else:
-            cache_key = ""
-            for record in self.model_index.values():
-                if record.get("id") == asset_id:
-                    cache_key = record.get("path", "")
-                    break
-        if not cache_key:
-            if asset_id in self.engine_index:
-                cache_key = self.engine_index[asset_id]["path"]
-            else:
-                for record in self.engine_index.values():
-                    if record.get("id") == asset_id:
-                        cache_key = record.get("path", "")
-                        break
-        if not cache_key:
-            raise KeyError(asset_id)
-        if cache_key in self.metadata_cache:
-            return self.metadata_cache[cache_key]
-        with open(cache_key, "r", encoding="utf-8") as handle:
-            contents = handle.read()
-        self.metadata_cache[cache_key] = contents
-        return contents
+        path = self._resolve_asset_path(asset_id)
+        return self._read_asset_text(path)
 
     def revalidate_dataset(self, dataset_id: str) -> dict[str, str]:
         """Re-run parser trust checks and return the refreshed record."""
@@ -1245,6 +1283,41 @@ class CopernicanGUI:
         if 0 <= self.current_step_index < len(handlers):
             handlers[self.current_step_index](container)
 
+    def _parameter_count_for_selection(self) -> int:
+        """Return summed parameter count for selected models."""
+
+        if not self.selected_models and self.draft.model:
+            candidate = self.draft.model.strip()
+            if candidate:
+                self.selected_models = [candidate]
+        counts = []
+        for model_id in self.selected_models:
+            entry = self.model_index.get(model_id)
+            if entry:
+                counts.append(entry.get("parameter_count", 0))
+                continue
+            for record in self.model_index.values():
+                if record.get("id") == model_id:
+                    counts.append(record.get("parameter_count", 0))
+                    break
+        return max(sum(counts), 0)
+
+    def _compute_run_recommendations(self) -> dict[str, int]:
+        """Return heuristic recommendations for run settings."""
+
+        param_total = max(self._parameter_count_for_selection(), 1)
+        dataset_total = max(len(self.selected_datasets) or 1, 1)
+        walkers_min = max(param_total * 2, 10)
+        burn_in_min = max(walkers_min * 5, 200)
+        production_min = max(dataset_total * walkers_min * 5, 500)
+        cpu_limit = max(os.cpu_count() or 1, 1)
+        return {
+            "walkers_min": walkers_min,
+            "burn_in_min": burn_in_min,
+            "production_min": production_min,
+            "pool_max": cpu_limit,
+        }
+
     def _render_builder_step_seed(self, container: tk.Frame) -> None:
         ttk.Label(
             container,
@@ -1413,7 +1486,10 @@ class CopernicanGUI:
             section.pack(fill="x", pady=4)
             ttk.Label(
                 section,
-                text=f"{len(records)} candidate(s)",
+                text=(
+                    f"{len(records)} "
+                    f"{'candidate' if len(records) == 1 else 'candidates'}"
+                ),
                 takefocus=True,
             ).pack(anchor="w")
             listbox = tk.Listbox(
@@ -1421,6 +1497,7 @@ class CopernicanGUI:
                 height=min(6, len(records)),
                 selectmode="browse",
                 exportselection=False,
+                width=80,
             )
             listbox.pack(fill="x", pady=(4, 0))
             for index, record in enumerate(records):
@@ -1450,15 +1527,26 @@ class CopernicanGUI:
             ]
             ids = [record["id"] for record in selected_records]
             self.draft.data = ", ".join(ids)
-            detail_label.config(
-                text=(
-                    "Selected datasets: " + ", ".join(ids)
-                    if ids
-                    else "No datasets selected yet."
-                )
-            )
-            if not focus_state["record"] and selected_records:
+            if selected_records:
                 focus_state["record"] = selected_records[0]
+                first = selected_records[0]
+                info_lines = [
+                    (
+                        f"{first['name']} ({first['id']}) "
+                        f"[{first.get('type', '').upper()}]"
+                    ),
+                    "Badges: " + ", ".join(first.get("badges", [])),
+                    f"License: {first.get('license', 'unspecified')}",
+                    f"Version: {first.get('version', 'unknown')}",
+                ]
+                detail_label.config(text="\n".join(info_lines))
+            else:
+                detail_label.config(
+                    text=(
+                        "No datasets selected yet; highlight an entry to "
+                        "inspect it."
+                    )
+                )
 
         def _update_focus(dtype: str) -> None:
             listbox = listboxes[dtype]
@@ -1678,18 +1766,35 @@ class CopernicanGUI:
             text="Run settings",
         )
         settings_frame.pack(fill="x", pady=(8, 0))
+        recommendations = self._compute_run_recommendations()
         field_specs = [
-            ("Walkers", "walkers", "Number of ensemble walkers"),
-            ("Burn-in steps", "burn_in", "Iterations used for burn-in"),
+            (
+                "Walkers",
+                "walkers",
+                "Number of ensemble walkers",
+                f"Recommended ≥ {recommendations['walkers_min']}",
+            ),
+            (
+                "Burn-in steps",
+                "burn_in",
+                "Iterations used for burn-in",
+                f"Recommended ≥ {recommendations['burn_in_min']}",
+            ),
             (
                 "Production steps",
                 "production_steps",
                 "Iterations used during production",
+                f"Recommended ≥ {recommendations['production_min']}",
             ),
-            ("Pool size", "pool_size", "Multiprocessing pool size"),
+            (
+                "Pool size",
+                "pool_size",
+                "Multiprocessing pool size",
+                f"Up to {recommendations['pool_max']} cores detected",
+            ),
         ]
 
-        for label_text, field_name, helper in field_specs:
+        for label_text, field_name, helper, recommendation in field_specs:
             var = tk.StringVar(value=getattr(self.draft, field_name))
 
             def _trace(field: str, string_var: tk.StringVar) -> None:
@@ -1718,6 +1823,13 @@ class CopernicanGUI:
                 wraplength=420,
                 takefocus=True,
             ).pack(side="left", padx=(8, 0))
+            ttk.Label(
+                settings_frame,
+                text=recommendation,
+                foreground="#606060",
+                wraplength=720,
+                takefocus=True,
+            ).pack(anchor="w", padx=(16, 0))
 
     def _render_builder_step_confirm(self, container: tk.Frame) -> None:
         ttk.Label(
@@ -1778,6 +1890,9 @@ class CopernicanGUI:
             "hashes": entry.get("hashes", {}),
             "version": entry.get("version", "unversioned"),
             "independence": independence,
+            "type": entry.get("type", ""),
+            "license": entry.get("license", "unspecified"),
+            "badges": entry.get("badges", []),
         }
 
     def show_data_overview(self) -> None:
@@ -2252,7 +2367,16 @@ class CopernicanGUI:
             )
             header.pack(anchor="w", pady=(0, 8))
             ttk.Label(
-                frame, text=f"Status: {self.status.value}", takefocus=True
+                frame,
+                text=(
+                    f"Status: {self.status.value}"
+                    + (
+                        f" – {self.current_phase}"
+                        if self.current_phase
+                        else ""
+                    )
+                ),
+                takefocus=True,
             ).pack(anchor="w")
             progress = ttk.Progressbar(
                 frame, maximum=100, value=self.progress, length=320
@@ -2428,6 +2552,8 @@ class CopernicanGUI:
     def start_run(self) -> None:
         """Move into the monitoring view with a running status."""
 
+        self._run_stop_event.clear()
+        self.current_phase = "Initialising"
         self.output_directory_prepared = True
         if self.pending_manifest is not None:
             self.pending_manifest = run_manifest.annotate_outcome(
@@ -2441,6 +2567,72 @@ class CopernicanGUI:
         self.status = RunStatus.RUNNING
         self.progress = 0
         self.show_run_monitor()
+
+    def _queue_run_start(self) -> None:
+        """Kick off the simulated run workflow if idle."""
+
+        if self._run_thread and self._run_thread.is_alive():
+            return
+        self.start_run()
+        self._run_thread = threading.Thread(
+            target=self._simulate_run_execution, daemon=True
+        )
+        self._run_thread.start()
+
+    def _resolve_run_setting_value(self, key: str, fallback: int) -> int:
+        """Return numeric run-setting value with ``fallback`` default."""
+
+        configuration = (self.pending_manifest or {}).get("configuration", {})
+        settings = configuration.get("run_settings", {})
+        value = settings.get(key)
+        try:
+            if value is None or str(value).strip() == "":
+                raise ValueError
+            return max(int(value), 1)
+        except (ValueError, TypeError):
+            return fallback
+
+    def _simulate_run_execution(self) -> None:
+        """Simulate a backend run with incremental status feedback."""
+
+        burn_in_steps = self._resolve_run_setting_value("burn_in", 200)
+        production_steps = self._resolve_run_setting_value(
+            "production_steps", 500
+        )
+        phases = [
+            ("Initialising", max(10, burn_in_steps // 10)),
+            ("Burn-in", burn_in_steps),
+            ("Production", production_steps),
+        ]
+        total_units = sum(max(steps, 1) for _, steps in phases)
+        processed = 0
+        for phase_name, phase_steps in phases:
+            if self._run_stop_event.is_set():
+                self._log_run_event(
+                    f"{phase_name} cancelled before starting",
+                    logging.WARNING,
+                )
+                self.current_phase = "Halted"
+                return
+            self.current_phase = phase_name
+            self._log_run_event(
+                f"{phase_name} phase started ({phase_steps} steps)",
+                logging.INFO,
+            )
+            for _ in range(max(phase_steps, 1)):
+                if self._run_stop_event.is_set():
+                    self._log_run_event(
+                        f"{phase_name} interrupted by user",
+                        logging.WARNING,
+                    )
+                    self.current_phase = "Halted"
+                    return
+                processed += 1
+                progress_value = int((processed / total_units) * 100)
+                self.update_progress(progress_value)
+                time.sleep(0.05)
+        self.update_progress(100)
+        self.current_phase = "Completed"
 
     def update_progress(self, value: int) -> None:
         """Update the monitor progress meter."""
@@ -2480,6 +2672,7 @@ class CopernicanGUI:
         """Mark the run as cancelled and reset the progress."""
 
         self.status = RunStatus.CANCELLED
+        self.current_phase = "Cancelled"
         self.progress = 0
         self._record_output_decision(disposition)
         if self.pending_manifest is not None:
@@ -2491,11 +2684,13 @@ class CopernicanGUI:
             )
             self.summary.manifest_metadata = self._summarise_manifest()
         self._log_run_event("Run cancelled at user request", logging.WARNING)
+        self._run_stop_event.set()
 
     def pause_run(self) -> None:
         """Pause the run while keeping the monitor visible."""
 
         self.status = RunStatus.PAUSED
+        self.current_phase = "Paused"
         if self.pending_manifest is not None:
             self.pending_manifest = run_manifest.annotate_outcome(
                 self.pending_manifest,
@@ -2505,11 +2700,13 @@ class CopernicanGUI:
             )
             self.summary.manifest_metadata = self._summarise_manifest()
         self._log_run_event("Run paused by user", logging.WARNING)
+        self._run_stop_event.set()
 
     def stop_run(self, disposition: str | None = None) -> None:
         """Stop the run while keeping the monitor visible."""
 
         self.status = RunStatus.ABORTED
+        self.current_phase = "Aborted"
         self.progress = 0
         self._record_output_decision(disposition)
         if self.pending_manifest is not None:
@@ -2531,6 +2728,7 @@ class CopernicanGUI:
                 context="monitor",
                 anchor=anchor,
             )
+        self._run_stop_event.set()
 
     def _noop(self) -> None:
         """Placeholder callback for summary actions."""
@@ -2541,11 +2739,13 @@ class CopernicanGUI:
         """Generate a manifest snapshot and defer output creation."""
 
         self.status = RunStatus.CONFIGURING
+        self.current_phase = "Configuring"
         self.pending_manifest = self._generate_manifest_snapshot()
         self.summary.manifest_metadata = self._summarise_manifest()
         if self.pending_manifest is not None:
             self._start_run_logging(self.pending_manifest)
         self.show_run_monitor()
+        self._queue_run_start()
 
     def import_manifest(self, path: str) -> dict:
         """Load a manifest and seed the builder selections from it."""
@@ -2575,11 +2775,24 @@ class CopernicanGUI:
                         "version": entry.get("version", "unknown"),
                         "hashes": entry.get("hashes", {}),
                         "independence": entry.get("independence", []),
+                        "type": entry.get("type", ""),
+                        "license": entry.get("license", "unspecified"),
+                        "badges": entry.get("badges", []),
                     }
                 )
             else:
                 self.selected_datasets.append(
-                    {"id": dataset_id, "path": "", "name": dataset_id}
+                    {
+                        "id": dataset_id,
+                        "path": "",
+                        "name": dataset_id,
+                        "version": "unknown",
+                        "hashes": {},
+                        "independence": [],
+                        "type": "",
+                        "license": "unspecified",
+                        "badges": [],
+                    }
                 )
         seed = manifest.get("seed")
         if seed is not None:
@@ -2640,6 +2853,11 @@ class CopernicanGUI:
                 "hashes": hashes,
                 "version": entry.get("version", "unknown") if entry else "",
                 "independence": entry.get("independence", []) if entry else [],
+                "type": entry.get("type", "") if entry else "",
+                "license": entry.get("license", "unspecified")
+                if entry
+                else "unspecified",
+                "badges": entry.get("badges", []) if entry else [],
             }
         )
 
@@ -2751,10 +2969,19 @@ class CopernicanGUI:
         ).items():
             hashes = dataset.get("hashes", {})
             dataset_lines.append(
-                f"{dataset_id} hashes: "
-                f"{', '.join(sorted(hashes)) or 'none recorded'}"
+                f"{dataset_id}: "
+                f"{len(hashes)} "
+                f"hash{'es' if len(hashes) != 1 else ''} recorded"
             )
         summary.extend(dataset_lines)
+        configuration = self.pending_manifest.get("configuration", {})
+        settings = configuration.get("run_settings", {})
+        if settings:
+            formatted = ", ".join(
+                f"{key.replace('_', ' ')}={value}"
+                for key, value in settings.items()
+            )
+            summary.append(f"Run settings: {formatted}")
         return summary
 
     def _record_output_decision(self, disposition: str | None) -> None:

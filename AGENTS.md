@@ -53,7 +53,11 @@ working folder, metadata and parser revalidation buttons, Settings exposes
 diagnostics filters, output-directory helpers and environment hints, and Help
 renders `README.md` (banner and all) inside a scrollable text widget so the
 documentation is available without leaving the GUI. Full details live in
-`docs/gui_overview.md`.
+`docs/gui_overview.md`. Metadata/YAML dialogs size themselves to the longest
+line, add an **Open file…** action that launches the source asset in the OS
+default editor, and the Run Monitor now mirrors CLI feedback by streaming
+phase updates (initialisation, burn-in, production) alongside the recorded run
+settings and manifest notes.
 `copernican.py` now accepts `--gui`, `--cli` and `--no-gui` flags plus
 `--manifest` and `--output-dir` overrides so CI can direct manifests to
 deterministic paths. GUI invocations detach automatically (``pythonw`` on

@@ -20,6 +20,18 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.8.5
+- 2025-11-30: Improved the GUI experience by resizing metadata/YAML dialogs to
+             the longest line, adding OS-level *Open file…* actions, widening
+             dataset menus with type-specific lists and singular/plural
+             counters, surfacing heuristic run-setting recommendations,
+             simulating CLI-style run phases with live progress updates and
+             enriching manifest summaries (copernican_lib/gui/app.py,
+             README.md, docs/gui_overview.md, AGENTS.md).
+- 2025-11-30: Bumped the suite version to 10.8.5 so README, VERSION and
+             citations reflect the GUI refinements (copernican_lib/VERSION,
+             README.md, CITATION.cff, CHANGELOG.md).
+
 ## Version 10.8.4
 - 2025-11-30: Solidified the GUI Run Builder so models and datasets are
              single-selection lists, data appears in type-specific menus,
