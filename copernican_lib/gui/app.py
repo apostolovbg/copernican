@@ -63,6 +63,10 @@ class RunDraft:
     plan: str = ""
     notes: str = ""
     completed_step: int = 0
+    walkers: str = ""
+    burn_in: str = ""
+    production_steps: str = ""
+    pool_size: str = ""
 
 @dataclass
 class NavigationItem:
@@ -1294,7 +1298,7 @@ class CopernicanGUI:
         ).pack(anchor="w", pady=(0, 6))
         ttk.Label(
             container,
-            text="Pick one or more YAML-defined models to include in the run.",
+            text="Pick one YAML-defined model to include in the run.",
             wraplength=720,
             takefocus=True,
         ).pack(anchor="w")
@@ -1313,7 +1317,7 @@ class CopernicanGUI:
         listbox = tk.Listbox(
             list_container,
             height=6,
-            selectmode="multiple",
+            selectmode="browse",
             exportselection=False,
         )
         listbox.pack(side="left", fill="both", expand=True)
@@ -1322,36 +1326,28 @@ class CopernicanGUI:
         )
         scrollbar.pack(side="right", fill="y")
         listbox.configure(yscrollcommand=scrollbar.set)
-        for model in available:
-            listbox.insert(
-                "end", f"{model['id']} ({model['filename']})"
-            )
-        initial_ids = {
-            model_id
-            for model_id in self.selected_models
-            if model_id
-        }
-
-        for index, model in enumerate(available):
-            if model["id"] in initial_ids:
-                listbox.select_set(index)
-
+        initial_model = (
+            self.selected_models[0] if self.selected_models else None
+        )
         summary = ttk.Label(container, text="", wraplength=720, takefocus=True)
         summary.pack(anchor="w", pady=(4, 4))
 
+        for index, model in enumerate(available):
+            listbox.insert("end", f"{model['id']} ({model['filename']})")
+            if model["id"] == initial_model:
+                listbox.select_set(index)
+
         def _refresh_model_selection(_: tk.Event | None = None) -> None:
             indices = listbox.curselection()
-            selection = [
-                available[index]["id"] for index in indices
-            ]
-            self.selected_models = selection
-            self.draft.model = ", ".join(selection)
-            summary_text = (
-                f"Selected models: {', '.join(selection)}"
-                if selection
-                else "No models selected yet."
-            )
-            summary.config(text=summary_text)
+            if indices:
+                selected_model = available[indices[0]]["id"]
+                self.selected_models = [selected_model]
+                self.draft.model = selected_model
+                summary.config(text=f"Selected model: {selected_model}")
+            else:
+                self.selected_models = []
+                self.draft.model = ""
+                summary.config(text="No model selected yet.")
 
         listbox.bind("<<ListboxSelect>>", _refresh_model_selection)
         _refresh_model_selection()
@@ -1366,9 +1362,10 @@ class CopernicanGUI:
         ttk.Label(
             container,
             text=(
-                "Pick the datasets to feed into the likelihood. "
-                "You can inspect metadata, open folders or revalidate parsers "
-                "from here."
+                "Pick one dataset per observation type "
+                "(SNe, BAO, CMB, etc.). Each list is "
+                "scoped to its data category so selections "
+                "remain clear and auditable."
             ),
             wraplength=720,
             takefocus=True,
@@ -1383,34 +1380,19 @@ class CopernicanGUI:
                 takefocus=True,
             ).pack(anchor="w", pady=(6, 0))
             return
-        list_container = ttk.Frame(container)
-        list_container.pack(fill="x", pady=(8, 4))
-        datalist = tk.Listbox(
-            list_container,
-            height=6,
-            selectmode="multiple",
-            exportselection=False,
-        )
-        datalist.pack(side="left", fill="both", expand=True)
-        scrollbar = ttk.Scrollbar(
-            list_container, orient="vertical", command=datalist.yview
-        )
-        scrollbar.pack(side="right", fill="y")
-        datalist.configure(yscrollcommand=scrollbar.set)
+        type_groups: dict[str, list[dict]] = {}
         for record in entries:
-            datalist.insert(
-                "end",
-                f"{record['id']} [{record['type'].upper()}] – "
-                f"{record.get('name', record['id'])}",
-            )
-        selected_ids = {
-            record["id"]
-            for record in self.selected_datasets
-            if record.get("id")
-        }
-        for index, record in enumerate(entries):
-            if record["id"] in selected_ids:
-                datalist.select_set(index)
+            dtype = record.get("type", "other").lower()
+            type_groups.setdefault(dtype, []).append(record)
+        ordered_types = [
+            dtype
+            for dtype in ("sne", "bao", "cmb")
+            if dtype in type_groups
+        ] + sorted(
+            dtype
+            for dtype in type_groups
+            if dtype not in ("sne", "bao", "cmb")
+        )
         detail_label = ttk.Label(
             container,
             text="Select datasets to preview details.",
@@ -1418,33 +1400,86 @@ class CopernicanGUI:
             takefocus=True,
         )
         detail_label.pack(anchor="w", pady=(6, 6))
-        focus_state: dict[str, dict] = {"record": None}
+        catalogue_panel = self._create_scrollable_panel(container)
+        listboxes: dict[str, tk.Listbox] = {}
+        id_lookup: dict[str, tuple[str, int]] = {}
+        for dtype in ordered_types:
+            records = type_groups[dtype]
+            section = ttk.LabelFrame(
+                catalogue_panel,
+                text=f"{dtype.upper()} datasets",
+                padding=(6, 4),
+            )
+            section.pack(fill="x", pady=4)
+            ttk.Label(
+                section,
+                text=f"{len(records)} candidate(s)",
+                takefocus=True,
+            ).pack(anchor="w")
+            listbox = tk.Listbox(
+                section,
+                height=min(6, len(records)),
+                selectmode="browse",
+                exportselection=False,
+            )
+            listbox.pack(fill="x", pady=(4, 0))
+            for index, record in enumerate(records):
+                listbox.insert(
+                    "end",
+                    f"{record['id']} – {record.get('name', record['id'])}",
+                )
+                id_lookup[record["id"]] = (dtype, index)
+            listboxes[dtype] = listbox
+        selection_map: dict[str, dict] = {}
+        focus_state: dict[str, dict | None] = {"record": None}
 
-        def _update_data_selection(_: tk.Event | None = None) -> None:
-            indices = list(datalist.curselection())
-            chosen = [entries[index] for index in indices]
+        def _refresh_data_selection() -> None:
+            selection_map.clear()
+            selected_records: list[dict] = []
+            for dtype in ordered_types:
+                listbox = listboxes[dtype]
+                indices = listbox.curselection()
+                if not indices:
+                    continue
+                record = type_groups[dtype][indices[0]]
+                selection_map[dtype] = record
+                selected_records.append(record)
             self.selected_datasets = [
-                self._dataset_manifest_record(entry)
-                for entry in chosen
+                self._dataset_manifest_record(record)
+                for record in selected_records
             ]
-            self.draft.data = ", ".join(entry["id"] for entry in chosen)
-            if chosen:
-                focus_state["record"] = chosen[0]
-                detail_label.config(
-                    text=(
-                        f"{chosen[0]['name']} ({chosen[0]['id']})\n"
-                        f"Badges: {', '.join(chosen[0].get('badges', []))}\n"
-                        f"License: {chosen[0].get('license', 'unspecified')}"
-                    )
+            ids = [record["id"] for record in selected_records]
+            self.draft.data = ", ".join(ids)
+            detail_label.config(
+                text=(
+                    "Selected datasets: " + ", ".join(ids)
+                    if ids
+                    else "No datasets selected yet."
                 )
-            else:
-                focus_state["record"] = None
-                detail_label.config(
-                    text="No dataset highlighted; select one from the list."
-                )
+            )
+            if not focus_state["record"] and selected_records:
+                focus_state["record"] = selected_records[0]
 
-        datalist.bind("<<ListboxSelect>>", _update_data_selection)
-        _update_data_selection()
+        def _update_focus(dtype: str) -> None:
+            listbox = listboxes[dtype]
+            indices = listbox.curselection()
+            if indices:
+                focus_state["record"] = type_groups[dtype][indices[0]]
+
+        for dtype, listbox in listboxes.items():
+            listbox.bind(
+                "<<ListboxSelect>>",
+                lambda _evt, t=dtype: (
+                    _update_focus(t),
+                    _refresh_data_selection(),
+                ),
+            )
+        for dataset in self.selected_datasets:
+            lookup = id_lookup.get(dataset["id"])
+            if lookup:
+                dtype, index = lookup
+                listboxes[dtype].select_set(index)
+        _refresh_data_selection()
         action_row = ttk.Frame(container)
         action_row.pack(anchor="w")
 
@@ -1638,6 +1673,52 @@ class CopernicanGUI:
             width=80,
         ).pack(anchor="w", pady=(6, 0))
 
+        settings_frame = ttk.LabelFrame(
+            container,
+            text="Run settings",
+        )
+        settings_frame.pack(fill="x", pady=(8, 0))
+        field_specs = [
+            ("Walkers", "walkers", "Number of ensemble walkers"),
+            ("Burn-in steps", "burn_in", "Iterations used for burn-in"),
+            (
+                "Production steps",
+                "production_steps",
+                "Iterations used during production",
+            ),
+            ("Pool size", "pool_size", "Multiprocessing pool size"),
+        ]
+
+        for label_text, field_name, helper in field_specs:
+            var = tk.StringVar(value=getattr(self.draft, field_name))
+
+            def _trace(field: str, string_var: tk.StringVar) -> None:
+                string_var.trace_add(
+                    "write",
+                    lambda *_: setattr(self.draft, field, string_var.get()),
+                )
+
+            _trace(field_name, var)
+            field_row = ttk.Frame(settings_frame)
+            field_row.pack(anchor="w", pady=(4, 0))
+            ttk.Label(
+                field_row,
+                text=f"{label_text}:",
+                width=16,
+                takefocus=True,
+            ).pack(side="left")
+            ttk.Entry(
+                field_row,
+                textvariable=var,
+                width=16,
+            ).pack(side="left")
+            ttk.Label(
+                field_row,
+                text=helper,
+                wraplength=420,
+                takefocus=True,
+            ).pack(side="left", padx=(8, 0))
+
     def _render_builder_step_confirm(self, container: tk.Frame) -> None:
         ttk.Label(
             container,
@@ -1663,6 +1744,14 @@ class CopernicanGUI:
             ("Engine", self.selected_engine or "unspecified"),
             ("Plan", self.draft.plan or "no plan provided"),
         ]
+        summary_entries.extend(
+            [
+                ("Walkers", self.draft.walkers or "unset"),
+                ("Burn-in", self.draft.burn_in or "unset"),
+                ("Production", self.draft.production_steps or "unset"),
+                ("Pool size", self.draft.pool_size or "unset"),
+            ]
+        )
         for label, value in summary_entries:
             ttk.Label(
                 summary_frame,
@@ -2606,6 +2695,22 @@ class CopernicanGUI:
             "datasets": [dataset.get("id", "") for dataset in datasets],
             "notes": "Snapshot captured at run start confirmation.",
         }
+        run_settings_fields = {
+            "walkers": self.draft.walkers,
+            "burn_in": self.draft.burn_in,
+            "production_steps": self.draft.production_steps,
+            "pool_size": self.draft.pool_size,
+        }
+        sanitized_settings: dict[str, int | str] = {}
+        for key, value in run_settings_fields.items():
+            trimmed = value.strip()
+            if not trimmed:
+                continue
+            sanitized_settings[key] = (
+                int(trimmed) if trimmed.isdigit() else trimmed
+            )
+        if sanitized_settings:
+            configuration["run_settings"] = sanitized_settings
         manifest = run_manifest.build_manifest(
             models=model_pairs,
             engine_module=engine,

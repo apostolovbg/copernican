@@ -1,4 +1,4 @@
-**Version:** 10.8.3
+**Version:** 10.8.4
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -55,12 +55,14 @@ The suite is organised around a handful of focused components:
   manifests and plot footers created for every run.
 * `copernican_lib/gui/` provides a Tkinter-based scaffold with a navigation
   rail, quick actions for new runs, the run monitor and the output directory,
-  and a Run Builder wizard that steps through seeds, models, data, engines and
-  plan details while capturing the manifest context. The Data, Models and
-  Engines panes now render scrollable catalogues with working folder, metadata
-  and revalidation buttons, Settings exposes diagnostics filters plus output
-  directory helpers and environment hints, and the Help screen renders the
-  README (banner included) so the documentation is available inside the GUI.
+  and a Run Builder wizard that steps through seeds, single-selection models,
+  type-specific data menus, engine choice, plan notes and a run settings panel
+  for walkers, burn-in, production and pool-size hints while capturing the
+  manifest context. The Data, Models and Engines panes now render scrollable
+  catalogues with working folder, metadata and revalidation buttons, Settings
+  exposes diagnostics filters plus output directory helpers and environment
+  hints, and the Help screen renders the README (banner included) so the
+  documentation is available inside the GUI.
 
 All supported datasets share a uniform pipeline: parsers normalise the inputs,
 the joint likelihood composes SNe Ia, BAO and CMB components, and the engine

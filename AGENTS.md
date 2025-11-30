@@ -44,12 +44,16 @@ mode for automated environments.
 The root window now displays the version from `copernican_lib/VERSION`, Home
 quick actions open the output directory, Run Builder and Run Monitor, and the
 builder itself walks through seed, model, data, engine and plan steps with live
-selectors connected to the refreshed catalogues. Data, Models and Engines panes
-render scrollable catalogues with working folder, metadata and parser
-revalidation buttons, Settings exposes diagnostics filters, output-directory
-helpers and environment hints, and Help renders `README.md` (banner and all)
-inside a scrollable text widget so the documentation is available without
-leaving the GUI. Full details live in `docs/gui_overview.md`.
+selectors connected to the refreshed catalogues. Models and datasets limit the
+operator to a single selection per panel, with data wired into separate SNe,
+BAO and CMB menus so each choice stays confined to its type. A new Run Settings
+panel captures walkers, burn-in, production and pool-size hints before a run is
+started. Data, Models and Engines panes render scrollable catalogues with
+working folder, metadata and parser revalidation buttons, Settings exposes
+diagnostics filters, output-directory helpers and environment hints, and Help
+renders `README.md` (banner and all) inside a scrollable text widget so the
+documentation is available without leaving the GUI. Full details live in
+`docs/gui_overview.md`.
 `copernican.py` now accepts `--gui`, `--cli` and `--no-gui` flags plus
 `--manifest` and `--output-dir` overrides so CI can direct manifests to
 deterministic paths. GUI invocations detach automatically (``pythonw`` on

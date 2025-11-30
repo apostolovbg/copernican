@@ -8,21 +8,28 @@ Builder, the Run Monitor, or the output directory.
 
 ## Run Builder
 
-The Run Builder now mirrors the CLI stages with dedicated panels for the
-seed, model selection, dataset selection, engine choice, plan notes and the final
-confirmation. Each stage draws live data from the inventories generated during
-GUI start-up so you can click to open folders, preview metadata or revalidate
-parser trust statements while you configure a new run. The confirm panel lists
-the choices that will go into the manifest before hitting *Start Run* so
-operators never launch without verifying seeds, models or datasets.
+The Run Builder now mirrors the CLI stages with dedicated panels for the seed,
+model selection, dataset selection, engine choice, plan notes and the final
+confirmation. Models and datasets use single-selection lists so you cannot
+select more than one item at each stage, and every panel draws live entries
+from the inventories generated during GUI start-up. Revalidation, metadata
+previewing and folder opening remain available inside the builder, and the
+confirm panel lists the new run settings alongside the usual seeds, models and
+datasets before operators hit *Start Run*.
 
 ## Data
 
-The Data catalogue renders a scrollable list of every registered dataset along
-with its badges, citations, parser METADATA and digest information. Each row
-offers *Open folder*, *View metadata* and *Revalidate parser* buttons that run
-the same helpers as the CLI. Filters for SNe, BAO and CMB remain available so
-you can narrow the view while keeping the trust scores visible.
+The Data catalogue renders separate scrollable lists for each dataset type so
+you choose at most one SNe, BAO or CMB entry per run. Each row shows badges,
+citations, parser metadata and digests while the *Open folder*, *View metadata*
+and *Revalidate parser* buttons call the same helpers the CLI exposes.
+
+## Run Settings
+
+The builder now includes a Run Settings panel where you set the number of
+walkers, burn-in steps, production steps and multiprocessing pool size before
+confirming a run. These values are stored in the run manifest so downstream
+replays or audits capture every execution parameter.
 
 ## Models
 

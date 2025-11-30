@@ -20,6 +20,17 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.8.4
+- 2025-11-30: Solidified the GUI Run Builder so models and datasets are
+             single-selection lists, data appears in type-specific menus,
+             the newly added Run Settings panel captures walkers, burn-in,
+             production and pool hints, and the manifest plus documentation
+             describe the fresh behaviour (copernican_lib/gui/app.py,
+             README.md, docs/gui_overview.md, AGENTS.md, CHANGELOG.md).
+- 2025-11-30: Bumped the suite version to 10.8.4 so runtime metadata stays
+             aligned with the new GUI improvements (copernican_lib/VERSION,
+             CITATION.cff, README.md, CHANGELOG.md).
+
 ## Version 10.8.3
 - 2025-11-30: Upgraded the Tkinter GUI so the title bar shows the version from
              `copernican_lib/VERSION`, the Home quick actions launch the Run
