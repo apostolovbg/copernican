@@ -1,5 +1,19 @@
-"""Custom pre-commit validations specific to the Copernican Suite.
+"""DEPRECATED: Use DevCovenant pre-commit hook instead.
 
+This module is deprecated and will be removed in a future version.
+The checks previously provided here are now handled by DevCovenant policies:
+- Future dates: devcovenant/policy_scripts/no_future_dates.py
+- Last Updated headers: devcovenant/policy_scripts/last_updated_placement.py
+- Version sync: devcovenant/policy_scripts/version_sync.py
+- Changelog coverage: devcovenant/policy_scripts/changelog_coverage.py
+- New modules need tests: devcovenant/policy_scripts/new_modules_need_tests.py
+- No print in library: devcovenant/policy_scripts/no_print_in_library.py
+
+DevCovenant is now integrated into the pre-commit hooks automatically.
+
+---
+
+Legacy documentation:
 The checks provided here extend the standard tooling enforced by the
 repository's pre-commit configuration. They guarantee that documentation
 dates remain sensible and fresh, version metadata stays synchronised across

@@ -1,0 +1,63 @@
+"""Tests for version_sync policy."""
+
+import tempfile
+import unittest
+from pathlib import Path
+
+from devcovenant.policy_scripts.version_sync import VersionSyncPolicy
+
+
+class TestVersionSyncPolicy(unittest.TestCase):
+    """Test suite for VersionSyncPolicy."""
+
+    def test_detects_version_mismatch(self):
+        """Policy should detect version mismatches."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+
+            # Create VERSION file
+            version_dir = repo_root / "copernican_lib"
+            version_dir.mkdir()
+            version_file = version_dir / "VERSION"
+            version_file.write_text("1.0.0\n")
+
+            # Create README with different version
+            readme = repo_root / "README.md"
+            readme.write_text("**Version:** 2.0.0\n")
+
+            # Create CITATION.cff with matching versions
+            citation = repo_root / "CITATION.cff"
+            citation.write_text('version: "1.0.0"\nversion: "1.0.0"\n')
+
+            policy = VersionSyncPolicy(repo_root)
+            violations = policy.check([])
+
+            self.assertGreater(len(violations), 0)
+
+    def test_allows_matching_versions(self):
+        """Policy should pass when versions match."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+
+            # Create VERSION file
+            version_dir = repo_root / "copernican_lib"
+            version_dir.mkdir()
+            version_file = version_dir / "VERSION"
+            version_file.write_text("1.0.0\n")
+
+            # Create README with matching version
+            readme = repo_root / "README.md"
+            readme.write_text("**Version:** 1.0.0\n")
+
+            # Create CITATION.cff with matching versions
+            citation = repo_root / "CITATION.cff"
+            citation.write_text('version: "1.0.0"\nversion: "1.0.0"\n')
+
+            policy = VersionSyncPolicy(repo_root)
+            violations = policy.check([])
+
+            # Should only have violations if CITATION format is wrong
+            version_violations = [
+                v for v in violations if "does not match" in v.message
+            ]
+            self.assertEqual(len(version_violations), 0)

@@ -1,5 +1,16 @@
-"""Utility helpers for validating documentation metadata.
+"""DEPRECATED: Use DevCovenant policies instead.
 
+This module is deprecated and will be removed in a future version.
+The checks previously provided here are now handled by DevCovenant policies:
+- Version sync: devcovenant/policy_scripts/version_sync.py
+- Future dates: devcovenant/policy_scripts/no_future_dates.py
+- Last Updated placement: devcovenant/policy_scripts/last_updated_placement.py
+
+Please run: python devcovenant_check.py
+
+---
+
+Legacy documentation:
 The Copernican Suite keeps the canonical release number in
 ``copernican_lib/VERSION`` and mirrors the value across the README and the
 ``CITATION.cff`` file. Documentation pages carry ``Last Updated`` timestamps on

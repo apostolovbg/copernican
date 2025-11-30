@@ -1,5 +1,5 @@
 # Changelog
-**Last Updated:** 2025-11-29
+**Last Updated:** 2025-11-30
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -22,6 +22,18 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.7.1
+- 2025-11-30: Expanded DevCovenant with four new policies to fully replace
+              legacy check scripts: no_future_dates.py, version_sync.py,
+              new_modules_need_tests.py, no_print_in_library.py
+              (devcovenant/policy_scripts/*.py, devcovenant/registry.json,
+              CHANGELOG.md).
+- 2025-11-30: Deprecated tools/check_meta.py and tools/precommit_custom_checks.py
+              in favor of DevCovenant policies (tools/*.py, CHANGELOG.md).
+- 2025-11-30: Updated pre-commit configuration to use DevCovenant instead of
+              legacy precommit_custom_checks.py (.pre-commit-config.yaml,
+              CHANGELOG.md).
+- 2025-11-30: Removed redundant Tests workflow; unit tests now run exclusively
+              in CI workflow (.github/workflows/tests.yml removed, CHANGELOG.md).
 - 2025-11-30: Fixed GUI parser digest computation to normalize line endings
               for cross-platform hash consistency on Windows
               (copernican_lib/gui/app.py, CHANGELOG.md).
