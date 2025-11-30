@@ -577,7 +577,9 @@ class CopernicanGUI:
                 metadata_path = self._metadata_path_for_dir(data_dir)
                 parser_path = self._parser_path_for_dir(data_dir)
                 parser_digest = (
-                    utils.compute_sha256(parser_path) if parser_path else ""
+                    dataset_registry._file_sha256(parser_path)
+                    if parser_path
+                    else ""
                 )
                 rel_parser = (
                     os.path.relpath(parser_path, self._data_root())

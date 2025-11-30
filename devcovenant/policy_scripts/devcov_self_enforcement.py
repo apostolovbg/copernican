@@ -4,7 +4,6 @@ Policy: DevCovenant Self-Enforcement
 Ensures devcovenant follows its own policies.
 """
 
-from pathlib import Path
 from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
@@ -31,7 +30,9 @@ class DevCovenantSelfEnforcementCheck(PolicyCheck):
         violations = []
 
         # Get all policy scripts
-        policy_scripts_dir = context.repo_root / "devcovenant" / "policy_scripts"
+        policy_scripts_dir = (
+            context.repo_root / "devcovenant" / "policy_scripts"
+        )
         if not policy_scripts_dir.exists():
             return violations
 
@@ -54,7 +55,10 @@ class DevCovenantSelfEnforcementCheck(PolicyCheck):
                         policy_id=self.policy_id,
                         severity="error",
                         file_path=script_path,
-                        message=f"Policy script '{script_path.name}' lacks corresponding test file",
+                        message=(
+                            f"Policy script '{script_path.name}' lacks "
+                            f"corresponding test file"
+                        ),
                         suggestion=f"Create test file at: {test_path}",
                         can_auto_fix=False,
                     )

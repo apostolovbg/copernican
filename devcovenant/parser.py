@@ -66,9 +66,10 @@ class PolicyParser:
         policies = []
 
         # Find all policy blocks
-        # Pattern: ## Policy: Name followed by ```policy-def ... ``` and description
+        # Pattern: ## Policy: Name followed by policy-def and description
         policy_pattern = re.compile(
-            r"##\s+Policy:\s+([^\n]+)\n\n```policy-def\n(.*?)\n```\n\n(.*?)(?=\n---\n|\n##|\Z)",
+            r"##\s+Policy:\s+([^\n]+)\n\n```policy-def\n(.*?)\n```\n\n"
+            r"(.*?)(?=\n---\n|\n##|\Z)",
             re.DOTALL,
         )
 

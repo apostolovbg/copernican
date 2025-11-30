@@ -72,7 +72,9 @@ class DevCovenantEngine:
         if sync_issues:
             self.report_sync_issues(sync_issues)
             if mode == "startup":
-                return CheckResult([], should_block=True, sync_issues=sync_issues)
+                return CheckResult(
+                    [], should_block=True, sync_issues=sync_issues
+                )
 
         # Load and run policy checks
         violations = self.run_policy_checks(policies, mode)
@@ -113,19 +115,37 @@ class DevCovenantEngine:
             print()
 
             print("🎯 Action Required:")
-            if issue.issue_type == "script_missing" or issue.issue_type == "new_policy":
+            is_new = (
+                issue.issue_type == "script_missing"
+                or issue.issue_type == "new_policy"
+            )
+            if is_new:
                 print(f"1. Create: {issue.script_path}")
-                print(f"2. Implement the policy described above")
-                print(f"3. Use the PolicyCheck base class from devcovenant.base")
-                print(f"4. Add tests in devcovenant/tests/test_policies/test_{issue.policy_id}.py")
-                print(f"5. Run tests: pytest devcovenant/tests/test_policies/test_{issue.policy_id}.py -v")
+                print("2. Implement the policy described above")
+                print(
+                    "3. Use the PolicyCheck base class from "
+                    "devcovenant.base"
+                )
+                test_file = (
+                    f"devcovenant/tests/test_policies/"
+                    f"test_{issue.policy_id}.py"
+                )
+                print(f"4. Add tests in {test_file}")
+                print(f"5. Run tests: pytest {test_file} -v")
             else:
                 print(f"1. Update: {issue.script_path}")
-                print(f"2. Modify the script to implement the updated policy")
-                print(f"3. Update tests in devcovenant/tests/test_policies/test_{issue.policy_id}.py")
-                print(f"4. Run tests: pytest devcovenant/tests/test_policies/test_{issue.policy_id}.py -v")
+                print("2. Modify the script to implement the updated policy")
+                test_file = (
+                    f"devcovenant/tests/test_policies/"
+                    f"test_{issue.policy_id}.py"
+                )
+                print(f"3. Update tests in {test_file}")
+                print(f"4. Run tests: pytest {test_file} -v")
 
-            print(f"6. Re-run devcovenant to update hash and clear 'updated' flag")
+            print(
+                "6. Re-run devcovenant to update hash and "
+                "clear 'updated' flag"
+            )
             print()
             print("⚠️  Complete this BEFORE working on user's request.")
             print()
@@ -167,7 +187,10 @@ class DevCovenantEngine:
                         self.failed_count += 1
             except Exception as e:
                 # If script fails, report but don't block
-                print(f"⚠️  Warning: Policy '{policy.policy_id}' check failed: {e}")
+                print(
+                    f"⚠️  Warning: Policy '{policy.policy_id}' "
+                    f"check failed: {e}"
+                )
 
         return violations
 
@@ -227,8 +250,10 @@ class DevCovenantEngine:
         Returns:
             PolicyCheck instance or None if not found
         """
+        # Convert hyphens to underscores for Python module names
+        script_name = policy_id.replace("-", "_")
         script_path = (
-            self.devcovenant_dir / "policy_scripts" / f"{policy_id}.py"
+            self.devcovenant_dir / "policy_scripts" / f"{script_name}.py"
         )
 
         if not script_path.exists():
@@ -337,14 +362,19 @@ class DevCovenantEngine:
         warnings = len(by_severity.get("warning", []))
         info = len(by_severity.get("info", []))
 
-        print(f"Summary: {critical} critical, {errors} errors, {warnings} warnings, {info} info")
+        print(
+            f"Summary: {critical} critical, {errors} errors, "
+            f"{warnings} warnings, {info} info"
+        )
         print()
 
         # Determine status
         if critical > 0:
             print("Status: 🚫 BLOCKED (critical violations must be fixed)")
         elif errors > 0:
-            fail_threshold = self.config.get("engine", {}).get("fail_threshold", "error")
+            fail_threshold = self.config.get("engine", {}).get(
+                "fail_threshold", "error"
+            )
             if fail_threshold in ["error", "warning", "info"]:
                 print("Status: 🚫 BLOCKED (violations >= error threshold)")
         else:
@@ -352,7 +382,10 @@ class DevCovenantEngine:
 
         print()
         if self.config.get("engine", {}).get("auto_fix_enabled", True):
-            print("💡 Quick fix: Run 'devcovenant check --fix' to auto-fix fixable violations")
+            print(
+                "💡 Quick fix: Run 'devcovenant check --fix' to "
+                "auto-fix fixable violations"
+            )
 
         print("=" * 70)
 

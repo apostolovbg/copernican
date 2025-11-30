@@ -23,7 +23,8 @@ class PolicySyncIssue:
         policy_hash: Hash of current policy text
         script_path: Path to the policy script
         script_exists: Whether the script exists
-        issue_type: Type of sync issue (hash_mismatch, script_missing, new_policy)
+        issue_type: Type of sync issue
+            (hash_mismatch, script_missing, new_policy)
         current_hash: Current hash from registry (if any)
     """
 
@@ -110,11 +111,13 @@ class PolicyRegistry:
                 continue
 
             # Determine script path
+            # Convert hyphens to underscores for Python module names
+            script_name = policy.policy_id.replace("-", "_")
             script_path = (
                 self.repo_root
                 / "devcovenant"
                 / "policy_scripts"
-                / f"{policy.policy_id}.py"
+                / f"{script_name}.py"
             )
 
             # Check if script exists
@@ -131,7 +134,10 @@ class PolicyRegistry:
             issue_type = None
 
             if policy.status == "new" or not script_exists:
-                issue_type = "script_missing" if not script_exists else "new_policy"
+                if not script_exists:
+                    issue_type = "script_missing"
+                else:
+                    issue_type = "new_policy"
                 issues.append(
                     PolicySyncIssue(
                         policy_id=policy.policy_id,

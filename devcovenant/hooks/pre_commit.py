@@ -3,7 +3,8 @@
 Pre-commit hook for devcovenant.
 
 This script runs devcovenant checks before allowing a commit.
-Install by adding to .pre-commit-config.yaml or copying to .git/hooks/pre-commit
+Install by adding to .pre-commit-config.yaml or copying to
+.git/hooks/pre-commit
 """
 
 import sys
@@ -13,7 +14,7 @@ from pathlib import Path
 repo_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(repo_root))
 
-from devcovenant.engine import DevCovenantEngine
+from devcovenant.engine import DevCovenantEngine  # noqa: E402
 
 
 def main():

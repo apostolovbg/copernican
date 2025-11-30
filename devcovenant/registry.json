@@ -1,29 +1,29 @@
 {
   "policies": {
     "changelog-coverage": {
-      "hash": "4911003034fde64c0b9f23b245245b818f59d98bf90ebc49bd3dce2af6fdc120",
-      "last_updated": "2025-11-29T22:11:36.043013+00:00",
-      "script_path": "devcovenant/policy_scripts/changelog-coverage.py"
+      "hash": "8ef4b2e819f97fc641701ccb9d10915f069c3fd87d30e64b319f38b354930a51",
+      "last_updated": "2025-11-29T23:06:30.924118+00:00",
+      "script_path": "devcovenant/policy_scripts/changelog_coverage.py"
     },
     "no-git-conflict-markers": {
-      "hash": "ad4dbe066b88c534be576b5d3cb4f325975ef2ba6dbc3a8a44a9db49e632140d",
-      "last_updated": "2025-11-29T22:11:36.044160+00:00",
-      "script_path": "devcovenant/policy_scripts/no-git-conflict-markers.py"
+      "hash": "ba2568b917e4b9f016c84d149c7ba9be8a0cc22379cf48536f8e8a280f1eb480",
+      "last_updated": "2025-11-29T23:06:30.925242+00:00",
+      "script_path": "devcovenant/policy_scripts/no_git_conflict_markers.py"
     },
     "line-length-limit": {
-      "hash": "a159e50fa8afd985ce0c9e6e23fcc6140ee40e528a587e67b74f76753f9f212f",
-      "last_updated": "2025-11-29T22:11:36.045016+00:00",
-      "script_path": "devcovenant/policy_scripts/line-length-limit.py"
+      "hash": "45e3bcae53da57c9facc65256f7469f04820322432cfdbec0e593a3379f1dcdd",
+      "last_updated": "2025-11-29T23:06:30.926217+00:00",
+      "script_path": "devcovenant/policy_scripts/line_length_limit.py"
     },
     "last-updated-placement": {
-      "hash": "6cad881a395b7b2a9779dfe98ef785ccfa35ea7bccc8525f35d9923155620490",
-      "last_updated": "2025-11-29T22:11:36.045890+00:00",
-      "script_path": "devcovenant/policy_scripts/last-updated-placement.py"
+      "hash": "fdc961be4c92dd5fdd7ff7b463702c4eaa1256ee53d1b19436b6c9d4ae4e47e3",
+      "last_updated": "2025-11-29T23:06:30.927159+00:00",
+      "script_path": "devcovenant/policy_scripts/last_updated_placement.py"
     },
     "devcov-self-enforcement": {
-      "hash": "98d86cda48faed22fc18b8a270df2cfa1941dcf6e4a9e52b2b4e85dbae80276b",
-      "last_updated": "2025-11-29T22:11:36.046747+00:00",
-      "script_path": "devcovenant/policy_scripts/devcov-self-enforcement.py"
+      "hash": "d6e3cad49a394187095ad4e4d9b1d47a206e088e0951f954ffdcf6e5fec2e98c",
+      "last_updated": "2025-11-29T23:06:30.928002+00:00",
+      "script_path": "devcovenant/policy_scripts/devcov_self_enforcement.py"
     }
   },
   "metadata": {

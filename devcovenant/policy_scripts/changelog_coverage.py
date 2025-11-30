@@ -5,7 +5,6 @@ Ensures all changed files are documented in CHANGELOG.md.
 """
 
 import subprocess
-from pathlib import Path
 from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
@@ -13,7 +12,8 @@ from devcovenant.base import CheckContext, PolicyCheck, Violation
 
 class ChangelogCoverageCheck(PolicyCheck):
     """
-    Verify that all modified files are mentioned in the latest CHANGELOG.md entry.
+    Verify that all modified files are mentioned in the latest
+    CHANGELOG.md entry.
     """
 
     policy_id = "changelog-coverage"
@@ -84,13 +84,20 @@ class ChangelogCoverageCheck(PolicyCheck):
                 missing_files.append(file_path)
 
         if missing_files:
+            files_str = ', '.join(missing_files)
             violations.append(
                 Violation(
                     policy_id=self.policy_id,
                     severity="error",
                     file_path=changelog_path,
-                    message=f"The following changed files are not documented in CHANGELOG.md: {', '.join(missing_files)}",
-                    suggestion=f"Add entries to CHANGELOG.md documenting changes to: {', '.join(missing_files)}",
+                    message=(
+                        f"The following changed files are not "
+                        f"documented in CHANGELOG.md: {files_str}"
+                    ),
+                    suggestion=(
+                        f"Add entries to CHANGELOG.md documenting "
+                        f"changes to: {files_str}"
+                    ),
                     can_auto_fix=False,
                 )
             )

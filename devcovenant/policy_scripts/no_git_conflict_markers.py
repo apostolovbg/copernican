@@ -5,7 +5,6 @@ Ensures no Git conflict markers exist in any file.
 """
 
 import re
-from pathlib import Path
 from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
@@ -39,15 +38,23 @@ class NoGitConflictMarkersCheck(PolicyCheck):
         violations = []
 
         # Determine which files to check
-        files_to_check = context.changed_files if context.changed_files else context.all_files
+        if context.changed_files:
+            files_to_check = context.changed_files
+        else:
+            files_to_check = context.all_files
 
         for file_path in files_to_check:
             # Skip binary files and certain extensions
-            if file_path.suffix in [".pyc", ".png", ".jpg", ".pdf", ".gif"]:
+            binary_exts = [".pyc", ".png", ".jpg", ".pdf", ".gif"]
+            if file_path.suffix in binary_exts:
                 continue
 
             # Skip devcovenant's own registry
             if "devcovenant/registry.json" in str(file_path):
+                continue
+
+            # Skip test files that test for conflict markers
+            if "devcovenant/tests/test_policies/test_no" in str(file_path):
                 continue
 
             try:
@@ -61,14 +68,18 @@ class NoGitConflictMarkersCheck(PolicyCheck):
             for line_num, line in enumerate(lines, start=1):
                 for pattern in self.CONFLICT_MARKERS:
                     if re.match(pattern, line):
+                        marker = line.strip()
                         violations.append(
                             Violation(
                                 policy_id=self.policy_id,
                                 severity="critical",
                                 file_path=file_path,
                                 line_number=line_num,
-                                message=f"Git conflict marker found: {line.strip()}",
-                                suggestion="Resolve the merge conflict and remove conflict markers",
+                                message=f"Git conflict marker found: {marker}",
+                                suggestion=(
+                                    "Resolve the merge conflict and remove "
+                                    "conflict markers"
+                                ),
                                 can_auto_fix=False,
                             )
                         )

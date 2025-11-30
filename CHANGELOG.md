@@ -22,6 +22,66 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.7.1
+- 2025-11-30: Fixed GUI parser digest computation to normalize line endings
+              for cross-platform hash consistency on Windows
+              (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-11-30: Applied end-of-file-fixer to add final newline
+              (devcovenant/registry.json, CHANGELOG.md).
+- 2025-11-30: Fixed black exclusion regex pattern to properly exclude
+              devcovenant policy scripts from reformatting
+              (pyproject.toml, CHANGELOG.md).
+- 2025-11-29: Excluded devcovenant policy scripts from black reformatting
+              to prevent CI formatter loops (pyproject.toml, CHANGELOG.md).
+- 2025-11-29: Applied code formatters (black, end-of-file-fixer) and
+              fixed test path resolution
+              (devcovenant/policy_scripts/changelog_coverage.py,
+              devcovenant/policy_scripts/last_updated_placement.py,
+              devcovenant/registry.json, devcovenant/tests/test_engine.py,
+              CHANGELOG.md).
+- 2025-11-29: Renamed policy scripts and tests to use underscores for
+              Python import compatibility
+              (devcovenant/policy_scripts/*.py renamed from hyphens to
+              underscores, devcovenant/tests/test_policies/*.py renamed,
+              devcovenant/engine.py, devcovenant/registry.py,
+              devcovenant/registry.json).
+- 2025-11-29: Fixed all E501 line length violations across devcovenant
+              and updated policy registry hashes
+              (devcovenant/engine.py, devcovenant/parser.py,
+              devcovenant/registry.py,
+              devcovenant/fixers/last_updated_placement.py,
+              devcovenant/policy_scripts/*.py,
+              devcovenant/tests/test_engine.py,
+              devcovenant/tests/test_policies/*.py,
+              devcovenant/registry.json, copernican.py).
+
+## Version 10.7.1 (previous)
+- 2025-11-29: Fixed linting and formatting issues in DevCovenant: added
+              noqa comments for intentional import order, fixed line length
+              violations, added Last Updated marker to README
+              (devcovenant/hooks/pre_commit.py, devcovenant_check.py,
+              devcovenant/README.md, devcovenant/cli.py,
+              devcovenant/engine.py, devcovenant/parser.py,
+              devcovenant/registry.py,
+              devcovenant/fixers/last_updated_placement.py,
+              devcovenant/policy_scripts/changelog-coverage.py,
+              devcovenant/policy_scripts/devcov-self-enforcement.py,
+              devcovenant/policy_scripts/last-updated-placement.py,
+              devcovenant/policy_scripts/line-length-limit.py,
+              devcovenant/policy_scripts/no-git-conflict-markers.py,
+              devcovenant/tests/test_engine.py,
+              devcovenant/tests/test_policies/test_changelog-coverage.py,
+              CHANGELOG.md).
+- 2025-11-29: Fixed DevCovenant policy violations: updated
+              no-git-conflict-markers policy to skip test files, renamed
+              test file to match naming convention, created missing test
+              files for all policy scripts, updated policy hashes
+              (devcovenant/policy_scripts/no-git-conflict-markers.py,
+              devcovenant/registry.json,
+              devcovenant/tests/test_policies/test_no-git-conflict-markers.py,
+              devcovenant/tests/test_policies/test_changelog-coverage.py,
+              devcovenant/tests/test_policies/test_line-length-limit.py,
+              devcovenant/tests/test_policies/test_last-updated-placement.py,
+              devcovenant/tests/test_policies/test_devcov-self-enforcement.py).
 - 2025-11-29: Shifted `Last Updated` enforcement to an allowlisted surface,
               elevated the Versioning Policy to a binding law, marked `/data`
               as read-only, bumped suite metadata to 10.7.1 and aligned
