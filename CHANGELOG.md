@@ -28,6 +28,11 @@ suffixes. Follow this template:
               section (copernican.py, copernican_lib/gui/app.py,
               docs/launcher_gui.md, README.md, start.sh, start.command,
               start.bat, CHANGELOG.md).
+- 2025-11-30: Reiterated that every task must re-read the laws and policies,
+             run the mandatory tooling (`pre-commit`, `devcovenant check`,
+             dependency lock rebuilds when necessary) and log law compliance in
+             the changelog entry itself so no law/policy is skipped (README.md,
+             CONTRIBUTING.md, CHANGELOG.md).
 ## Version 10.8.1
 - 2025-11-30: Bumped the suite version to 10.8.1 so the release metadata,
               documentation and citation records reflect the GUI and

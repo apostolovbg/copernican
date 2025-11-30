@@ -19,3 +19,10 @@ the `copernican-policy` hook remains satisfied. The quick checklist is:
 Pull requests that do not meet these requirements may be rejected.
 Contributions must comply with the Copernican Suite License, which forbids
 redistributing the suite in full and prohibits patent claims.
+
+## Compliance as Workflow
+Treat the AGENTS laws and DevCovenant policies as the workflow itself: read them
+before working, obey them while coding, and re-run the mandated commands before
+every commit (`pre-commit run --all-files`, `python3 devcovenant_check.py check
+--mode=startup` and dependency lock updates when requirements change). Log the
+action in `CHANGELOG.md` including the law number/policy ID to prove compliance.

@@ -140,11 +140,18 @@ story.
 
 The launcher now prefers the managed environment's `pythonw` (or `pythonw.exe`)
 binary when starting the GUI so Tkinter pops up in the same process instead of
-re-spawning; `COPERNICAN_DETACH_GUI` is reset to `0` so `copernican.py` runs the
-window inline while the start script simply backgrounds the command with
-`nohup` or `start /b`. This keeps the terminal message visible, prevents
-double-detachment, and keeps the new GUI window on the screen when macOS
-or Linux handles the Tk event loop.
+re-spawning. `COPERNICAN_DETACH_GUI` is reset to `0` and the launcher `exec`s the
+GUI inline instead of backgrounding it. This keeps the terminal message visible,
+eliminates the double-detachment race, and keeps the new Tk window on the screen
+while macOS or Linux handles its event loop.
+
+## Law & Policy Compliance Reminder
+Before beginning work, read every law in `AGENTS.md` and the policies in
+`devcovenant`. Every change must finish only after `pre-commit run --all-files`,
+`python3 devcovenant_check.py check --mode=startup`, `python -m piptools compile`
+whenever dependencies change, an updated `CHANGELOG.md` entry, and a confirmed
+version bump when metadata moves. No policy is optional; obey them all on every
+task and document that compliance in the changelog entry itself.
 
 ## Diagnostics Logging
 Every launch writes detailed diagnostics to `logs/copernican-program_<timestamp>.txt`.

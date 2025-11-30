@@ -253,8 +253,8 @@ if not defined CHOICE set "CHOICE=2"
 if "%CHOICE%"=="1" (
     set COPERNICAN_STRICT_WARNINGS=%STRICT%
     set COPERNICAN_DETACH_GUI=0
-    echo Launching the Copernican GUI; the console will close once the detached window is running.
-    start "" /b "%GUI_BIN%" copernican.py --gui
+    echo Launching the Copernican GUI inline; close the window to return.
+    "%GUI_BIN%" copernican.py --gui
     goto :eof
 )
 if "%CHOICE%"=="2" (

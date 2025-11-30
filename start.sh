@@ -211,10 +211,10 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
         choice=${choice:-2}
         case "$choice" in
             1)
-                echo "Launching the Copernican GUI; the terminal will close once the detached window is running."
+                echo "Launching the Copernican GUI inline; close the window to return."
                 COPERNICAN_STRICT_WARNINGS=$STRICT COPERNICAN_DETACH_GUI=0 \
-                nohup "$GUI_BINARY" copernican.py --gui >/dev/null 2>&1 &
-                exit 0 ;;
+                    exec "$GUI_BINARY" copernican.py --gui
+                ;;
             2)
                 COPERNICAN_STRICT_WARNINGS=$STRICT \
                 exec python copernican.py --cli ;;
