@@ -84,9 +84,6 @@ fallback_version = "0+unknown"
 
 [tool.black]
 line-length = 79
-extend-exclude = '''
-/(
-  | devcovenant/policy_scripts/changelog_coverage\.py
-  | devcovenant/policy_scripts/last_updated_placement\.py
-)/
+force-exclude = '''
+devcovenant/policy_scripts/(changelog_coverage|last_updated_placement)\.py
 '''

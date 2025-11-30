@@ -22,6 +22,9 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.7.1
+- 2025-11-30: Fixed black exclusion regex pattern to properly exclude
+              devcovenant policy scripts from reformatting
+              (pyproject.toml, CHANGELOG.md).
 - 2025-11-29: Excluded devcovenant policy scripts from black reformatting
               to prevent CI formatter loops (pyproject.toml, CHANGELOG.md).
 - 2025-11-29: Applied code formatters (black, end-of-file-fixer) and
