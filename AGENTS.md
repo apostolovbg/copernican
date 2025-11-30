@@ -41,6 +41,15 @@ menu disabled by default and only re-enable it for CI coverage with
 Tkinter scaffold under `copernican_lib/gui/` preserves the navigation rail,
 Run Builder and monitor shells even when the renderer falls back to headless
 mode for automated environments.
+The root window now displays the version from `copernican_lib/VERSION`, Home
+quick actions open the output directory, Run Builder and Run Monitor, and the
+builder itself walks through seed, model, data, engine and plan steps with live
+selectors connected to the refreshed catalogues. Data, Models and Engines panes
+render scrollable catalogues with working folder, metadata and parser
+revalidation buttons, Settings exposes diagnostics filters, output-directory
+helpers and environment hints, and Help renders `README.md` (banner and all)
+inside a scrollable text widget so the documentation is available without
+leaving the GUI. Full details live in `docs/gui_overview.md`.
 `copernican.py` now accepts `--gui`, `--cli` and `--no-gui` flags plus
 `--manifest` and `--output-dir` overrides so CI can direct manifests to
 deterministic paths. GUI invocations detach automatically (``pythonw`` on

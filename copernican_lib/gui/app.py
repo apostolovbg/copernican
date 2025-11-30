@@ -14,6 +14,8 @@ from __future__ import annotations
 import importlib
 import logging
 import os
+import re
+import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
@@ -37,6 +39,7 @@ from copernican_lib import (
     logger,
     run_manifest,
     utils,
+    version,
 )
 
 class RunStatus(Enum):
@@ -67,7 +70,6 @@ class NavigationItem:
 
     name: str
     label: str
-    shortcut: str
     action: Callable[["CopernicanGUI"], None]
 
 @dataclass
@@ -166,16 +168,17 @@ class CopernicanGUI:
         self.status: RunStatus = RunStatus.IDLE
         self.recent_runs: list[str] = []
         self.pinned_configs: list[str] = []
-        self.quick_actions: list[str] = [
-            "New Run",
-            "Open Run Monitor",
-            "Open Output Folder",
+        self.quick_actions: list[tuple[str, Callable[[], None]]] = [
+            ("New Run", self.show_run_builder),
+            ("Open Run Monitor", self.show_run_monitor),
+            ("Open Output Folder", self.open_output_directory),
         ]
         self.current_step_index = 0
         self.draft = RunDraft()
         self.summary = RunSummary()
         self.progress = 0
         self.nav_items = []
+        self.gui_version = version.get_version()
         self.selected_models: list[str] = []
         self.selected_engine: str = ""
         self.selected_datasets: list[dict[str, str]] = []
@@ -204,6 +207,7 @@ class CopernicanGUI:
         self._build_navigation()
         self._initialise_rendering()
         self.refresh_inventory()
+        self.help_banner_image = None
 
     def _bootstrap_logging(self) -> None:
         """Start the diagnostics log and capture environment details."""
@@ -454,7 +458,7 @@ class CopernicanGUI:
             return
         try:
             self.root = tk.Tk()
-            self.root.title("Copernican Suite")
+            self.root.title(f"Copernican Suite {self.gui_version}")
             self.root.geometry("1200x800")
             self.root.configure(padx=12, pady=12)
             self._build_layout()
@@ -752,7 +756,257 @@ class CopernicanGUI:
 
         if not os.path.isdir(path):
             raise FileNotFoundError(path)
+        if self.render:
+            self._launch_folder(path)
         return path
+
+    def _output_root(self) -> str:
+        """Return the canonical output directory for GUI quick actions."""
+
+        return os.path.abspath(os.path.join(os.getcwd(), "output"))
+
+    def _launch_folder(self, path: str) -> None:
+        """Open ``path`` in the native file manager when rendering."""
+
+        if not self.render:
+            return
+        try:
+            if os.name == "nt":
+                os.startfile(path)
+            elif sys.platform == "darwin":
+                subprocess.run(["open", path], check=False)
+            else:
+                subprocess.run(["xdg-open", path], check=False)
+        except Exception as exc:
+            console_output.write(
+                f"Unable to open folder {path}: {exc}", error=True
+            )
+
+    def open_output_directory(self) -> str:
+        """Ensure the output directory exists and open it for the user."""
+
+        output_dir = self._output_root()
+        os.makedirs(output_dir, exist_ok=True)
+        return self.open_folder(output_dir)
+
+    def _show_metadata_dialog(self, title: str, content: str) -> None:
+        """Show metadata content in a scrollable dialog when rendering."""
+
+        if not self.render or self.root is None:
+            console_output.write(f"{title}:\n{content}")
+            return
+        window = tk.Toplevel(self.root)
+        window.title(title)
+        window.transient(self.root)
+        window.geometry("800x600")
+        container = ttk.Frame(window, padding=(8, 6))
+        container.pack(fill="both", expand=True)
+        window.columnconfigure(0, weight=1)
+        window.rowconfigure(0, weight=1)
+        text = tk.Text(container, wrap="word")
+        text.insert("1.0", content)
+        text.configure(state="disabled")
+        text.grid(row=0, column=0, sticky="nsew")
+        scrollbar = ttk.Scrollbar(
+            container, orient="vertical", command=text.yview
+        )
+        text.configure(yscrollcommand=scrollbar.set)
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        ttk.Button(
+            container,
+            text="Close",
+            command=window.destroy,
+        ).grid(row=1, column=0, columnspan=2, pady=(8, 0))
+
+    def _create_scrollable_panel(self, parent: tk.Frame) -> tk.Frame:
+        """Return a frame that scrolls vertically with the given parent."""
+
+        container = ttk.Frame(parent)
+        container.pack(fill="both", expand=True)
+        canvas = tk.Canvas(container, borderwidth=0, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(
+            container, orient="vertical", command=canvas.yview
+        )
+        inner_frame = ttk.Frame(canvas)
+        canvas.create_window((0, 0), window=inner_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        inner_frame.bind(
+            "<Configure>",
+            lambda event: canvas.configure(
+                scrollregion=canvas.bbox("all"),
+                width=event.width,
+            ),
+        )
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        return inner_frame
+
+    def _present_metadata(self, asset_id: str, title: str) -> None:
+        """Fetch metadata text and present it to the operator."""
+
+        try:
+            content = self.view_metadata_file(asset_id)
+        except KeyError as exc:
+            self.create_toast(
+                f"Metadata unavailable for {asset_id}: {exc}",
+                severity="ERROR",
+                context="data",
+            )
+            return
+        self._show_metadata_dialog(title, content)
+
+    def _revalidate_dataset_action(self, dataset_id: str) -> None:
+        """Run parser trust validation and share the result."""
+
+        try:
+            record = self.revalidate_dataset(dataset_id)
+        except KeyError as exc:
+            self.create_toast(
+                f"Revalidation failed for {dataset_id}: {exc}",
+                severity="ERROR",
+                context="data",
+            )
+            return
+        parser_digest = record.get("parser_digest", "n/a")
+        self.create_toast(
+            f"Parser {dataset_id} revalidated with digest {parser_digest}",
+            severity="INFO",
+            context="data",
+        )
+        self.show_data_overview()
+
+    def _load_help_banner(self) -> None:
+        """Load the README banner image for the Help panel."""
+
+        if self.help_banner_image is not None or not self.render or tk is None:
+            return
+        banner_path = (
+            Path(__file__).resolve().parents[2] / "docs" / "banner_github.png"
+        )
+        if not banner_path.exists():
+            return
+        try:
+            self.help_banner_image = tk.PhotoImage(file=str(banner_path))
+        except Exception as exc:
+            logger.get_program_logger().warning(
+                "Failed to load help banner image: %s", exc
+            )
+            self.help_banner_image = None
+
+    def _load_help_markdown(self) -> str:
+        """Return the contents of README.md for the Help panel."""
+
+        readme_path = Path(__file__).resolve().parents[2] / "README.md"
+        try:
+            return readme_path.read_text(encoding="utf-8")
+        except Exception as exc:
+            message = (
+                f"Unable to read README.md for Help panel: {exc}"
+            )
+            logger.get_program_logger().warning(message)
+            return message
+
+    def _render_markdown_in_text_widget(
+        self, widget: tk.Text, markdown: str
+    ) -> None:
+        """Render simplified Markdown into the provided text widget."""
+
+        widget.tag_configure(
+            "heading1", font=("Helvetica", 18, "bold"), spacing1=10
+        )
+        widget.tag_configure(
+            "heading2", font=("Helvetica", 16, "bold"), spacing1=8
+        )
+        widget.tag_configure(
+            "heading3", font=("Helvetica", 14, "bold"), spacing1=6
+        )
+        widget.tag_configure("bold", font=("Helvetica", 11, "bold"))
+        widget.tag_configure("italic", font=("Helvetica", 11, "italic"))
+        widget.tag_configure(
+            "code",
+            font=("TkFixedFont", 10),
+            background="#f3f3f3",
+            spacing1=2,
+            spacing3=2,
+        )
+        widget.tag_configure("normal", font=("Helvetica", 11))
+
+        inline_pattern = re.compile(r"\*\*(.+?)\*\*|\*(.+?)\*")
+        in_code = False
+        for raw_line in markdown.splitlines():
+            line = raw_line.rstrip()
+            if line.startswith("```"):
+                in_code = not in_code
+                continue
+            if in_code:
+                self._insert_inline_text(
+                    widget, line + "\n", ("code",), inline_pattern
+                )
+                continue
+            if line.startswith("!["):
+                continue
+            if not line:
+                widget.insert("end", "\n")
+                continue
+            stripped = re.sub(r"\[(.*?)\]\((.*?)\)", r"\1", line)
+            if stripped.startswith("# "):
+                self._insert_inline_text(
+                    widget,
+                    stripped[2:].strip() + "\n",
+                    ("heading1",),
+                    inline_pattern,
+                )
+                continue
+            if stripped.startswith("## "):
+                self._insert_inline_text(
+                    widget,
+                    stripped[3:].strip() + "\n",
+                    ("heading2",),
+                    inline_pattern,
+                )
+                continue
+            if stripped.startswith("### "):
+                self._insert_inline_text(
+                    widget,
+                    stripped[4:].strip() + "\n",
+                    ("heading3",),
+                    inline_pattern,
+                )
+                continue
+            if stripped.startswith(("- ", "* ")):
+                bullet = "• " + stripped[2:]
+                self._insert_inline_text(
+                    widget, bullet + "\n", ("normal",), inline_pattern
+                )
+                continue
+            widget.insert("end", "")
+            self._insert_inline_text(
+                widget, stripped + "\n", ("normal",), inline_pattern
+            )
+
+    def _insert_inline_text(
+        self,
+        widget: tk.Text,
+        text: str,
+        base_tags: tuple[str, ...],
+        pattern: re.Pattern,
+    ) -> None:
+        """Insert text and honour inline Markdown markers."""
+
+        last = 0
+        for match in pattern.finditer(text):
+            start, end = match.span()
+            widget.insert("end", text[last:start], base_tags)
+            if match.group(1):
+                widget.insert(
+                    "end", match.group(1), base_tags + ("bold",)
+                )
+            else:
+                widget.insert(
+                    "end", match.group(2), base_tags + ("italic",)
+                )
+            last = end
+        widget.insert("end", text[last:], base_tags)
 
     def view_metadata_file(self, asset_id: str) -> str:
         """Return cached metadata content for the requested asset."""
@@ -806,26 +1060,25 @@ class CopernicanGUI:
         """Populate the navigation rail definitions and shortcuts."""
 
         self.nav_items = [
-            NavigationItem("home", "Home", "Ctrl+1", CopernicanGUI.show_home),
+            NavigationItem("home", "Home", CopernicanGUI.show_home),
             NavigationItem(
                 "run_builder",
                 "Run Builder",
-                "Ctrl+2",
                 CopernicanGUI.show_run_builder,
             ),
             NavigationItem(
-                "data", "Data", "Ctrl+3", CopernicanGUI.show_data_overview
+                "data", "Data", CopernicanGUI.show_data_overview
             ),
             NavigationItem(
-                "models", "Models", "Ctrl+4", CopernicanGUI.show_models
+                "models", "Models", CopernicanGUI.show_models
             ),
             NavigationItem(
-                "engines", "Engines", "Ctrl+5", CopernicanGUI.show_engines
+                "engines", "Engines", CopernicanGUI.show_engines
             ),
             NavigationItem(
-                "settings", "Settings", "Ctrl+6", CopernicanGUI.show_settings
+                "settings", "Settings", CopernicanGUI.show_settings
             ),
-            NavigationItem("help", "Help", "Ctrl+7", CopernicanGUI.show_help),
+            NavigationItem("help", "Help", CopernicanGUI.show_help),
         ]
 
     def _build_layout(self) -> None:
@@ -843,13 +1096,11 @@ class CopernicanGUI:
         for item in self.nav_items:
             button = ttk.Button(
                 nav_frame,
-                text=f"{item.label} ({item.shortcut})",
+                text=item.label,
                 command=lambda i=item: i.action(self),
                 takefocus=True,
             )
             button.pack(fill="x", pady=4)
-            shortcut = item.shortcut.replace("Ctrl+", "<Control-") + ">"
-            self.root.bind(shortcut, lambda _e, i=item: i.action(self))
 
         self.show_home()
 
@@ -898,11 +1149,11 @@ class CopernicanGUI:
             ttk.Label(frame, text="Quick actions", takefocus=True).pack(
                 anchor="w", pady=(12, 0)
             )
-            for action in self.quick_actions:
+            for label, callback in self.quick_actions:
                 ttk.Button(
                     frame,
-                    text=action,
-                    command=self.show_run_builder,
+                    text=label,
+                    command=callback,
                     takefocus=True,
                 ).pack(anchor="w", pady=2)
 
@@ -911,6 +1162,7 @@ class CopernicanGUI:
     def show_run_builder(self) -> None:
         """Render the Run Builder wizard with jump controls."""
 
+        self.refresh_inventory()
         def builder(frame: tk.Frame) -> None:
             header = ttk.Label(
                 frame, text="Run Builder", font=("Helvetica", 16)
@@ -929,8 +1181,9 @@ class CopernicanGUI:
             body = ttk.Label(
                 frame,
                 text=(
-                    "Use Next/Previous to move between steps, jump directly "
-                    "with the step buttons, or save a draft for later."
+                    "Work through the stages to assemble a reproducible run "
+                    "manifest. The controls below let you move between steps, "
+                    "save your progress or cancel entirely."
                 ),
                 wraplength=720,
                 takefocus=True,
@@ -968,8 +1221,475 @@ class CopernicanGUI:
                 command=self.confirm_start_run,
                 takefocus=True,
             ).pack(side="left", padx=4)
+            content_panel = ttk.Frame(frame, padding=(0, 8))
+            content_panel.pack(fill="both", expand=True)
+            self._build_run_builder_step(content_panel)
 
         self._swap_content(builder)
+
+    def _build_run_builder_step(self, container: tk.Frame) -> None:
+        """Render the content for the current builder step."""
+
+        handlers = [
+            self._render_builder_step_seed,
+            self._render_builder_step_models,
+            self._render_builder_step_data,
+            self._render_builder_step_engine,
+            self._render_builder_step_plan,
+            self._render_builder_step_confirm,
+        ]
+        if 0 <= self.current_step_index < len(handlers):
+            handlers[self.current_step_index](container)
+
+    def _render_builder_step_seed(self, container: tk.Frame) -> None:
+        ttk.Label(
+            container,
+            text="Seed selection",
+            font=("Helvetica", 14, "bold"),
+            takefocus=True,
+        ).pack(anchor="w", pady=(0, 6))
+        ttk.Label(
+            container,
+            text=(
+                "Choose a deterministic seed or let the system generate one. "
+                "Hints are logged in the run manifest for reproducibility."
+            ),
+            wraplength=720,
+            takefocus=True,
+        ).pack(anchor="w")
+        seed_var = tk.StringVar(value=self.draft.seed)
+
+        def _update_seed(*_args: object) -> None:
+            self.draft.seed = seed_var.get().strip()
+
+        seed_var.trace_add("write", _update_seed)
+        entry = ttk.Entry(container, textvariable=seed_var, width=24)
+        entry.pack(anchor="w", pady=(6, 8))
+        button_row = ttk.Frame(container)
+        button_row.pack(anchor="w")
+        ttk.Button(
+            button_row,
+            text="Default (0)",
+            command=lambda: seed_var.set("0"),
+        ).pack(side="left", padx=2)
+        ttk.Button(
+            button_row,
+            text="Random timestamp",
+            command=lambda: seed_var.set(str(int(time.time()))),
+        ).pack(side="left", padx=2)
+        env_seed = os.environ.get("COPERNICAN_SEED")
+        if env_seed:
+            ttk.Button(
+                button_row,
+                text="Use COPERNICAN_SEED",
+                command=lambda: seed_var.set(env_seed),
+            ).pack(side="left", padx=2)
+
+    def _render_builder_step_models(self, container: tk.Frame) -> None:
+        ttk.Label(
+            container,
+            text="Model selection",
+            font=("Helvetica", 14, "bold"),
+            takefocus=True,
+        ).pack(anchor="w", pady=(0, 6))
+        ttk.Label(
+            container,
+            text="Pick one or more YAML-defined models to include in the run.",
+            wraplength=720,
+            takefocus=True,
+        ).pack(anchor="w")
+        available = sorted(
+            self.model_index.values(), key=lambda entry: entry["id"]
+        )
+        if not available:
+            ttk.Label(
+                container,
+                text="No models available; refresh inventory and try again.",
+                takefocus=True,
+            ).pack(anchor="w", pady=(6, 0))
+            return
+        list_container = ttk.Frame(container)
+        list_container.pack(fill="x", pady=(8, 4))
+        listbox = tk.Listbox(
+            list_container,
+            height=6,
+            selectmode="multiple",
+            exportselection=False,
+        )
+        listbox.pack(side="left", fill="both", expand=True)
+        scrollbar = ttk.Scrollbar(
+            list_container, orient="vertical", command=listbox.yview
+        )
+        scrollbar.pack(side="right", fill="y")
+        listbox.configure(yscrollcommand=scrollbar.set)
+        for model in available:
+            listbox.insert(
+                "end", f"{model['id']} ({model['filename']})"
+            )
+        initial_ids = {
+            model_id
+            for model_id in self.selected_models
+            if model_id
+        }
+
+        for index, model in enumerate(available):
+            if model["id"] in initial_ids:
+                listbox.select_set(index)
+
+        summary = ttk.Label(container, text="", wraplength=720, takefocus=True)
+        summary.pack(anchor="w", pady=(4, 4))
+
+        def _refresh_model_selection(_: tk.Event | None = None) -> None:
+            indices = listbox.curselection()
+            selection = [
+                available[index]["id"] for index in indices
+            ]
+            self.selected_models = selection
+            self.draft.model = ", ".join(selection)
+            summary_text = (
+                f"Selected models: {', '.join(selection)}"
+                if selection
+                else "No models selected yet."
+            )
+            summary.config(text=summary_text)
+
+        listbox.bind("<<ListboxSelect>>", _refresh_model_selection)
+        _refresh_model_selection()
+
+    def _render_builder_step_data(self, container: tk.Frame) -> None:
+        ttk.Label(
+            container,
+            text="Data selection",
+            font=("Helvetica", 14, "bold"),
+            takefocus=True,
+        ).pack(anchor="w", pady=(0, 6))
+        ttk.Label(
+            container,
+            text=(
+                "Pick the datasets to feed into the likelihood. "
+                "You can inspect metadata, open folders or revalidate parsers "
+                "from here."
+            ),
+            wraplength=720,
+            takefocus=True,
+        ).pack(anchor="w")
+        entries = sorted(
+            self.catalogue_index.values(), key=lambda entry: entry["id"]
+        )
+        if not entries:
+            ttk.Label(
+                container,
+                text="No datasets registered; run inventory refresh first.",
+                takefocus=True,
+            ).pack(anchor="w", pady=(6, 0))
+            return
+        list_container = ttk.Frame(container)
+        list_container.pack(fill="x", pady=(8, 4))
+        datalist = tk.Listbox(
+            list_container,
+            height=6,
+            selectmode="multiple",
+            exportselection=False,
+        )
+        datalist.pack(side="left", fill="both", expand=True)
+        scrollbar = ttk.Scrollbar(
+            list_container, orient="vertical", command=datalist.yview
+        )
+        scrollbar.pack(side="right", fill="y")
+        datalist.configure(yscrollcommand=scrollbar.set)
+        for record in entries:
+            datalist.insert(
+                "end",
+                f"{record['id']} [{record['type'].upper()}] – "
+                f"{record.get('name', record['id'])}",
+            )
+        selected_ids = {
+            record["id"]
+            for record in self.selected_datasets
+            if record.get("id")
+        }
+        for index, record in enumerate(entries):
+            if record["id"] in selected_ids:
+                datalist.select_set(index)
+        detail_label = ttk.Label(
+            container,
+            text="Select datasets to preview details.",
+            wraplength=720,
+            takefocus=True,
+        )
+        detail_label.pack(anchor="w", pady=(6, 6))
+        focus_state: dict[str, dict] = {"record": None}
+
+        def _update_data_selection(_: tk.Event | None = None) -> None:
+            indices = list(datalist.curselection())
+            chosen = [entries[index] for index in indices]
+            self.selected_datasets = [
+                self._dataset_manifest_record(entry)
+                for entry in chosen
+            ]
+            self.draft.data = ", ".join(entry["id"] for entry in chosen)
+            if chosen:
+                focus_state["record"] = chosen[0]
+                detail_label.config(
+                    text=(
+                        f"{chosen[0]['name']} ({chosen[0]['id']})\n"
+                        f"Badges: {', '.join(chosen[0].get('badges', []))}\n"
+                        f"License: {chosen[0].get('license', 'unspecified')}"
+                    )
+                )
+            else:
+                focus_state["record"] = None
+                detail_label.config(
+                    text="No dataset highlighted; select one from the list."
+                )
+
+        datalist.bind("<<ListboxSelect>>", _update_data_selection)
+        _update_data_selection()
+        action_row = ttk.Frame(container)
+        action_row.pack(anchor="w")
+
+        def _open_focused_folder() -> None:
+            record = focus_state["record"]
+            if record and record.get("path"):
+                self.open_folder(record["path"])
+            else:
+                self.create_toast(
+                    "No dataset folder available to open.",
+                    severity="WARNING",
+                    context="data",
+                )
+
+        def _view_focused_metadata() -> None:
+            record = focus_state["record"]
+            if record:
+                self._present_metadata(
+                    record["id"], f"Dataset metadata: {record['id']}"
+                )
+            else:
+                self.create_toast(
+                    "Select a dataset before viewing metadata.",
+                    severity="WARNING",
+                    context="data",
+                )
+
+        def _revalidate_focused_parser() -> None:
+            record = focus_state["record"]
+            if record:
+                self._revalidate_dataset_action(record["id"])
+            else:
+                self.create_toast(
+                    "Choose a dataset to revalidate.",
+                    severity="WARNING",
+                    context="data",
+                )
+
+        ttk.Button(
+            action_row,
+            text="Open folder",
+            command=_open_focused_folder,
+        ).pack(side="left", padx=2)
+        ttk.Button(
+            action_row,
+            text="View metadata",
+            command=_view_focused_metadata,
+        ).pack(side="left", padx=2)
+        ttk.Button(
+            action_row,
+            text="Revalidate parser",
+            command=_revalidate_focused_parser,
+        ).pack(side="left", padx=2)
+
+    def _render_builder_step_engine(self, container: tk.Frame) -> None:
+        ttk.Label(
+            container,
+            text="Engine selection",
+            font=("Helvetica", 14, "bold"),
+            takefocus=True,
+        ).pack(anchor="w", pady=(0, 6))
+        ttk.Label(
+            container,
+            text=(
+                "Choose the computational backend to run your models."
+            ),
+            wraplength=720,
+            takefocus=True,
+        ).pack(anchor="w")
+        options = sorted(
+            self.engine_index.values(), key=lambda entry: entry["label"]
+        )
+        if not options:
+            ttk.Label(
+                container,
+                text=(
+                    "No engines discovered; ensure the engines folder is "
+                    "populated."
+                ),
+                takefocus=True,
+            ).pack(anchor="w", pady=(6, 0))
+            return
+        display_map: dict[str, dict] = {}
+        choices: list[str] = []
+        for entry in options:
+            label = entry["label"] or entry["stem"]
+            display = f"{label} (v{entry.get('version', 'unknown')})"
+            display_map[display] = entry
+            choices.append(display)
+        initial_display = next(
+            (
+                key
+                for key, value in display_map.items()
+                if value["id"] == self.selected_engine
+            ),
+            choices[0],
+        )
+        combo_var = tk.StringVar(value=initial_display)
+        combo = ttk.Combobox(
+            container,
+            textvariable=combo_var,
+            values=choices,
+            state="readonly",
+        )
+        combo.pack(anchor="w", pady=(6, 6))
+
+        def _apply_engine_selection(_: tk.Event | None = None) -> None:
+            selection = combo_var.get()
+            record = display_map.get(selection)
+            if record:
+                self.selected_engine = record["id"]
+                self.draft.engine = record["id"]
+                detail_label.config(
+                    text=(
+                        f"{record['label']} uses module {record['id']} "
+                        f"with SHA256 {record.get('hash', '')}."
+                    )
+                )
+
+        combo.bind("<<ComboboxSelected>>", _apply_engine_selection)
+        detail_label = ttk.Label(
+            container,
+            text="Select an engine to see details.",
+            wraplength=720,
+            takefocus=True,
+        )
+        detail_label.pack(anchor="w", pady=(4, 4))
+        button_frame = ttk.Frame(container)
+        button_frame.pack(anchor="w", pady=(4, 0))
+
+        def _open_selected_engine_folder() -> None:
+            selection = combo_var.get()
+            record = display_map.get(selection)
+            if record:
+                self.open_folder(os.path.dirname(record["path"]))
+            else:
+                self.create_toast(
+                    "Choose an engine before opening its folder.",
+                    severity="WARNING",
+                    context="engine",
+                )
+
+        def _view_selected_engine_module() -> None:
+            selection = combo_var.get()
+            record = display_map.get(selection)
+            if record:
+                self._present_metadata(
+                    record["id"], f"Engine module: {record['label']}"
+                )
+            else:
+                self.create_toast(
+                    "Select an engine before viewing its module.",
+                    severity="WARNING",
+                    context="engine",
+                )
+
+        ttk.Button(
+            button_frame,
+            text="Open engine folder",
+            command=_open_selected_engine_folder,
+        ).pack(side="left", padx=2)
+        ttk.Button(
+            button_frame,
+            text="View module",
+            command=_view_selected_engine_module,
+        ).pack(side="left", padx=2)
+        _apply_engine_selection()
+
+    def _render_builder_step_plan(self, container: tk.Frame) -> None:
+        ttk.Label(
+            container,
+            text="Run plan",
+            font=("Helvetica", 14, "bold"),
+            takefocus=True,
+        ).pack(anchor="w", pady=(0, 6))
+        ttk.Label(
+            container,
+            text="Describe the production plan or testing notes for this run.",
+            wraplength=720,
+            takefocus=True,
+        ).pack(anchor="w")
+        plan_var = tk.StringVar(value=self.draft.plan)
+
+        def _update_plan(*_args: object) -> None:
+            self.draft.plan = plan_var.get()
+
+        plan_var.trace_add("write", _update_plan)
+        ttk.Entry(
+            container,
+            textvariable=plan_var,
+            width=80,
+        ).pack(anchor="w", pady=(6, 0))
+
+    def _render_builder_step_confirm(self, container: tk.Frame) -> None:
+        ttk.Label(
+            container,
+            text="Confirm and start",
+            font=("Helvetica", 14, "bold"),
+            takefocus=True,
+        ).pack(anchor="w", pady=(0, 6))
+        summary_frame = ttk.Frame(container)
+        summary_frame.pack(anchor="w")
+        summary_entries = [
+            ("Seed", self.draft.seed or "unset"),
+            (
+                "Models",
+                ", ".join(self.selected_models) or "no models selected"
+            ),
+            (
+                "Datasets",
+                ", ".join(
+                    entry["id"] for entry in self.selected_datasets
+                )
+                or "no datasets selected",
+            ),
+            ("Engine", self.selected_engine or "unspecified"),
+            ("Plan", self.draft.plan or "no plan provided"),
+        ]
+        for label, value in summary_entries:
+            ttk.Label(
+                summary_frame,
+                text=f"{label}: {value}",
+                wraplength=720,
+                takefocus=True,
+            ).pack(anchor="w")
+        ttk.Button(
+            container,
+            text="Start Run from manifest",
+            command=self.confirm_start_run,
+        ).pack(anchor="w", pady=(8, 0))
+
+    def _dataset_manifest_record(self, entry: dict) -> dict[str, object]:
+        """Return the manifest-safe dict for a dataset catalogue entry."""
+
+        independence = entry.get("independence", [])
+        if isinstance(independence, str):
+            independence = [independence]
+        return {
+            "id": entry.get("id", "dataset"),
+            "path": entry.get("path", ""),
+            "name": entry.get("name", entry.get("id", "dataset")),
+            "hashes": entry.get("hashes", {}),
+            "version": entry.get("version", "unversioned"),
+            "independence": independence,
+        }
 
     def show_data_overview(self) -> None:
         """Display dataset catalogue with metadata, hashes and filters."""
@@ -1023,60 +1743,67 @@ class CopernicanGUI:
                 ),
                 takefocus=True,
             ).pack(anchor="w", pady=(0, 6))
+            catalogue_panel = self._create_scrollable_panel(frame)
             for dataset in active:
-                title = (
-                    f"{dataset['name']} ({dataset['id']}) "
-                    f"[{', '.join(dataset['badges'])}]"
+                entry_frame = ttk.LabelFrame(
+                    catalogue_panel,
+                    text=f"{dataset['name']} ({dataset['id']})",
+                    padding=(8, 6),
                 )
-                ttk.Label(frame, text=title, takefocus=True).pack(anchor="w")
+                entry_frame.pack(fill="x", pady=4)
                 ttk.Label(
-                    frame,
+                    entry_frame,
+                    text=" | ".join(dataset.get("badges", [])),
+                    takefocus=True,
+                ).pack(anchor="w")
+                citation_value = dataset.get("citation", "missing")
+                license_value = dataset.get("license", "unspecified")
+                parser_digest = dataset.get("parser_digest", "n/a")
+                metadata_digest = dataset.get("metadata_digest", "")
+                ttk.Label(
+                    entry_frame,
                     text=(
-                        f"Citation: {dataset.get('citation', 'missing')}\n"
-                        f"License: {dataset.get('license', 'unspecified')}\n"
-                        f"Parser SHA256: {dataset.get('parser_digest', 'n/a')}"
+                        f"Citation: {citation_value}\n"
+                        f"License: {license_value}\n"
+                        f"Parser SHA256: {parser_digest}\n"
+                        f"Metadata SHA256: {metadata_digest}"
                     ),
                     wraplength=720,
                     justify="left",
                     takefocus=True,
-                ).pack(anchor="w", pady=(0, 4))
-                digest_line = (
-                    f"Metadata SHA256: {dataset.get('metadata_digest', '')}"
-                )
-                ttk.Label(frame, text=digest_line, takefocus=True).pack(
-                    anchor="w"
-                )
+                ).pack(anchor="w", pady=(4, 4))
                 ttk.Label(
-                    frame,
-                    text="Compatibility badges: "
-                    + ", ".join(dataset.get("badges", [])),
-                    takefocus=True,
-                ).pack(anchor="w")
-                ttk.Label(
-                    frame,
+                    entry_frame,
                     text="Independence notes: "
                     + "; ".join(dataset.get("independence", [])),
                     wraplength=720,
                     takefocus=True,
                 ).pack(anchor="w", pady=(0, 4))
-                actions = ttk.Frame(frame)
-                actions.pack(anchor="w", pady=(0, 12))
+                actions = ttk.Frame(entry_frame)
+                actions.pack(anchor="w")
                 ttk.Button(
                     actions,
                     text="Open folder",
                     command=lambda p=dataset["path"]: self.open_folder(p),
                     takefocus=True,
                 ).pack(side="left", padx=2)
+                dataset_id = dataset["id"]
+                def _view_current_metadata() -> None:
+                    self._present_metadata(
+                        dataset_id, f"Dataset metadata: {dataset_id}"
+                    )
+                def _revalidate_current_parser() -> None:
+                    self._revalidate_dataset_action(dataset_id)
                 ttk.Button(
                     actions,
                     text="View metadata",
-                    command=lambda d=dataset["id"]: self.view_metadata_file(d),
+                    command=_view_current_metadata,
                     takefocus=True,
                 ).pack(side="left", padx=2)
                 ttk.Button(
                     actions,
                     text="Revalidate parser",
-                    command=lambda d=dataset["id"]: self.revalidate_dataset(d),
+                    command=_revalidate_current_parser,
                     takefocus=True,
                 ).pack(side="left", padx=2)
 
@@ -1104,37 +1831,52 @@ class CopernicanGUI:
                 text=f"Discovered {len(self.model_index)} model(s)",
                 takefocus=True,
             ).pack(anchor="w", pady=(0, 6))
-            for model in self.model_index.values():
-                heading = (
-                    f"{model['id']} ({model['filename']}) "
-                    f"v{model.get('version', 'unknown')}"
+            catalogue_panel = self._create_scrollable_panel(frame)
+            for model in sorted(
+                self.model_index.values(), key=lambda entry: entry["id"]
+            ):
+                entry_frame = ttk.LabelFrame(
+                    catalogue_panel,
+                    text=f"{model['id']} ({model['filename']})",
+                    padding=(8, 6),
                 )
-                ttk.Label(frame, text=heading, takefocus=True).pack(anchor="w")
+                entry_frame.pack(fill="x", pady=4)
                 ttk.Label(
-                    frame,
+                    entry_frame,
+                    text="Badges: " + ", ".join(model.get("badges", [])),
+                    takefocus=True,
+                ).pack(anchor="w")
+                ttk.Label(
+                    entry_frame,
                     text=(
-                        f"Badges: {', '.join(model.get('badges', []))}\n"
                         f"SHA256: {model.get('hash', '')}\n"
-                        f"License: {model.get('license', 'unspecified')}"
+                        f"License: {model.get('license', 'unspecified')}\n"
+                        f"Version: {model.get('version', 'unknown')}"
                     ),
                     wraplength=720,
                     takefocus=True,
                     justify="left",
-                ).pack(anchor="w")
-                actions = ttk.Frame(frame)
-                actions.pack(anchor="w", pady=(0, 12))
+                ).pack(anchor="w", pady=(4, 4))
+                actions = ttk.Frame(entry_frame)
+                actions.pack(anchor="w")
+                model_folder = os.path.dirname(model["path"])
+                model_id = model["id"]
+                def _open_model_folder() -> None:
+                    self.open_folder(model_folder)
+                def _view_model_yaml() -> None:
+                    self._present_metadata(
+                        model_id, f"Model definition: {model_id}"
+                    )
                 ttk.Button(
                     actions,
                     text="Open model folder",
-                    command=lambda p=model["path"]: self.open_folder(
-                        os.path.dirname(p)
-                    ),
+                    command=_open_model_folder,
                     takefocus=True,
                 ).pack(side="left", padx=2)
                 ttk.Button(
                     actions,
                     text="View YAML",
-                    command=lambda m=model["id"]: self.view_metadata_file(m),
+                    command=_view_model_yaml,
                     takefocus=True,
                 ).pack(side="left", padx=2)
 
@@ -1162,34 +1904,55 @@ class CopernicanGUI:
                 text=f"Discovered {len(self.engine_index)} engine(s)",
                 takefocus=True,
             ).pack(anchor="w", pady=(0, 6))
-            for engine in self.engine_index.values():
-                heading = f"{engine['label']} ({engine['filename']})"
-                ttk.Label(frame, text=heading, takefocus=True).pack(anchor="w")
+            catalogue_panel = self._create_scrollable_panel(frame)
+            for engine in sorted(
+                self.engine_index.values(), key=lambda entry: entry["label"]
+            ):
+                entry_frame = ttk.LabelFrame(
+                    catalogue_panel,
+                    text=f"{engine['label']} ({engine['filename']})",
+                    padding=(8, 6),
+                )
+                entry_frame.pack(fill="x", pady=4)
                 ttk.Label(
-                    frame,
+                    entry_frame,
+                    text="Badges: " + ", ".join(engine.get("badges", [])),
+                    takefocus=True,
+                ).pack(anchor="w")
+                ttk.Label(
+                    entry_frame,
                     text=(
-                        f"Badges: {', '.join(engine.get('badges', []))}\n"
                         f"Version: {engine.get('version', 'unknown')}\n"
                         f"SHA256: {engine.get('hash', '')}"
                     ),
                     wraplength=720,
                     takefocus=True,
                     justify="left",
-                ).pack(anchor="w")
-                actions = ttk.Frame(frame)
-                actions.pack(anchor="w", pady=(0, 12))
+                ).pack(anchor="w", pady=(4, 4))
+                actions = ttk.Frame(entry_frame)
+                actions.pack(anchor="w")
+                engine_folder = os.path.dirname(engine["path"])
+                engine_id = engine["id"]
+                engine_label = engine["label"] or engine["stem"]
+
+                def _open_engine_folder() -> None:
+                    self.open_folder(engine_folder)
+
+                def _view_engine_module() -> None:
+                    self._present_metadata(
+                        engine_id, f"Engine module: {engine_label}"
+                    )
+
                 ttk.Button(
                     actions,
                     text="Open engine folder",
-                    command=lambda p=engine["path"]: self.open_folder(
-                        os.path.dirname(p)
-                    ),
+                    command=_open_engine_folder,
                     takefocus=True,
                 ).pack(side="left", padx=2)
                 ttk.Button(
                     actions,
                     text="View module",
-                    command=lambda e=engine["id"]: self.view_metadata_file(e),
+                    command=_view_engine_module,
                     takefocus=True,
                 ).pack(side="left", padx=2)
 
@@ -1258,22 +2021,136 @@ class CopernicanGUI:
                 takefocus=True,
             ).pack(side="left", padx=2)
 
+            output_frame = ttk.LabelFrame(frame, text="Output directory")
+            output_frame.pack(fill="x", pady=(6, 4))
+            output_root = self._output_root()
+            output_var = tk.StringVar(value=output_root)
+            ttk.Entry(
+                output_frame,
+                textvariable=output_var,
+                width=64,
+            ).pack(anchor="w", pady=(4, 0))
+
+            def _apply_output_path() -> None:
+                target = output_var.get().strip() or output_root
+                os.makedirs(target, exist_ok=True)
+                self.create_toast(
+                    f"Output directory ready at {target}",
+                    severity="INFO",
+                    context="settings",
+                )
+
+            output_buttons = ttk.Frame(output_frame)
+            output_buttons.pack(anchor="w", pady=(4, 0))
+            def _open_output_directory() -> None:
+                self.open_folder(output_var.get().strip() or output_root)
+            ttk.Button(
+                output_buttons,
+                text="Open directory",
+                command=_open_output_directory,
+                takefocus=True,
+            ).pack(side="left", padx=2)
+            ttk.Button(
+                output_buttons,
+                text="Create/refresh",
+                command=_apply_output_path,
+                takefocus=True,
+            ).pack(side="left", padx=2)
+
+            env_frame = ttk.LabelFrame(frame, text="Environment hints")
+            env_frame.pack(fill="x", pady=(6, 4))
+            env_values = [
+                (
+                    "COPERNICAN_SEED",
+                    os.environ.get("COPERNICAN_SEED", "unset"),
+                ),
+                (
+                    "COPERNICAN_STRICT_WARNINGS",
+                    os.environ.get("COPERNICAN_STRICT_WARNINGS", "0"),
+                ),
+                (
+                    "COPERNICAN_ENABLE_STAGED_MENU",
+                    os.environ.get("COPERNICAN_ENABLE_STAGED_MENU", "0"),
+                ),
+                (
+                    "COPERNICAN_DETACH_GUI",
+                    os.environ.get("COPERNICAN_DETACH_GUI", "0"),
+                ),
+            ]
+            for name, value in env_values:
+                ttk.Label(
+                    env_frame,
+                    text=f"{name}: {value}",
+                    wraplength=720,
+                    takefocus=True,
+                ).pack(anchor="w")
+
         self._swap_content(builder)
 
     def show_help(self) -> None:
         """Display contextual help panel."""
 
         def builder(frame: tk.Frame) -> None:
-            ttk.Label(frame, text="Help", takefocus=True).pack(anchor="w")
+            ttk.Label(
+                frame,
+                text="Copernican Suite Documentation",
+                font=("Helvetica", 16),
+                takefocus=True,
+            ).pack(anchor="w")
             ttk.Label(
                 frame,
                 text=(
-                    "Use the navigation rail or keyboard shortcuts to move "
-                    "between panels."
+                    "The repository README is rendered below so you can read "
+                    "the same guidance that ships with the suite."
                 ),
                 wraplength=720,
                 takefocus=True,
-            ).pack(anchor="w", pady=(4, 0))
+            ).pack(anchor="w", pady=(4, 8))
+            content_frame = ttk.Frame(frame)
+            content_frame.pack(fill="both", expand=True)
+            if self.render and tk is not None:
+                self._load_help_banner()
+                if self.help_banner_image:
+                    banner_label = ttk.Label(
+                        content_frame, image=self.help_banner_image
+                    )
+                    banner_label.image = self.help_banner_image
+                    banner_label.pack(pady=(0, 8))
+                text_frame = ttk.Frame(content_frame)
+                text_frame.pack(fill="both", expand=True)
+                text_frame.columnconfigure(0, weight=1)
+                text_frame.rowconfigure(0, weight=1)
+                text_widget = tk.Text(
+                    text_frame,
+                    wrap="word",
+                    padx=8,
+                    pady=6,
+                    borderwidth=0,
+                    highlightthickness=0,
+                )
+                text_widget.grid(
+                    row=0, column=0, sticky="nsew", padx=(0, 0), pady=(0, 0)
+                )
+                scrollbar = ttk.Scrollbar(
+                    text_frame,
+                    orient="vertical",
+                    command=text_widget.yview,
+                )
+                scrollbar.grid(row=0, column=1, sticky="ns")
+                text_widget.configure(yscrollcommand=scrollbar.set)
+                markdown = self._load_help_markdown()
+                self._render_markdown_in_text_widget(text_widget, markdown)
+                text_widget.configure(state="disabled")
+            else:
+                ttk.Label(
+                    content_frame,
+                    text=(
+                        "Help content is available from README.md in the "
+                        "project root."
+                    ),
+                    wraplength=720,
+                    takefocus=True,
+                ).pack(anchor="w")
 
         self._swap_content(builder)
 
@@ -1430,25 +2307,21 @@ class CopernicanGUI:
 
         if self.current_step_index < len(self.builder_steps) - 1:
             self.current_step_index += 1
-        if self.current_step_index == len(self.builder_steps) - 1:
-            self.summary.output_links = ["/output/latest/chains.nc"]
-            self.summary.manifest_actions = [
-                "Reuse manifest for new run",
-                "Export manifest",
-            ]
-            self.show_summary()
+        self.show_run_builder()
 
     def previous_step(self) -> None:
         """Move back one builder step when possible."""
 
         if self.current_step_index > 0:
             self.current_step_index -= 1
+        self.show_run_builder()
 
     def jump_to_step(self, step_index: int) -> None:
         """Jump directly to any builder step."""
 
         if 0 <= step_index < len(self.builder_steps):
             self.current_step_index = step_index
+        self.show_run_builder()
 
     def cancel_builder(self) -> None:
         """Abandon the builder flow and reset its state."""

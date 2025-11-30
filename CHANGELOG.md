@@ -20,6 +20,21 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.8.3
+- 2025-11-30: Upgraded the Tkinter GUI so the title bar shows the version from
+             `copernican_lib/VERSION`, the Home quick actions launch the Run
+             Builder, Run Monitor and output folder, Run Builder steps through
+             seed, models, datasets, engines and plans with real selectors,
+             Data/Models/Engines panels render scrollable catalogues with working
+             folder, metadata and revalidation buttons, the Settings view adds
+             output directory helpers and environment hints, and Help renders
+             `README.md` (banner included) inside a scrollable text widget
+             (copernican_lib/gui/app.py, README.md, docs/gui_overview.md,
+             AGENTS.md, CHANGELOG.md).
+- 2025-11-30: Bumped the suite version to 10.8.3 so the runtime, citation
+             metadata and release notes stay aligned (copernican_lib/VERSION,
+             CITATION.cff, README.md, CHANGELOG.md).
+
 ## Version 10.8.2
 - 2025-11-30: Released version 10.8.2 with expanded diagnostics logging so
               GUI handoffs, Tcl/Tk environment variables and Tk failures are
