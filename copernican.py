@@ -41,15 +41,17 @@ import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping
 
 from copernican_lib.cli import dependencies as cli_dependencies
 from copernican_lib.cli import menus as cli_menus
 from copernican_lib import console_output as console
 from copernican_lib import logger as log_mod
 from copernican_lib import orchestration
+from copernican_lib import progress_state
 from copernican_lib import run_manifest
 from copernican_lib import result_writer
+from copernican_lib import utils
 from copernican_lib.gui import CopernicanGUI
 from copernican_lib.diagnostics import (
     bao_residual_diagnostics,
@@ -165,6 +167,26 @@ def _ensure_program_logging() -> logging.Logger:
         logs_dir,
     )
     return PROGRAM_LOGGER
+
+
+def _build_gui_progress_callback() -> Callable[[dict[str, object]], None] | None:
+    """Return a callable that records GUI progress updates when requested."""
+
+    path_value = os.environ.get("COPERNICAN_GUI_PROGRESS_PATH")
+    if not path_value:
+        return None
+    target = Path(path_value)
+
+    def _callback(record: dict[str, object]) -> None:
+        payload = dict(record)
+        payload.setdefault("timestamp", utils.get_timestamp())
+        try:
+            progress_state.record_progress(target, payload)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger = log_mod.get_program_logger()
+            logger.debug("Failed to update GUI progress state: %s", exc)
+
+    return _callback
 
 
 COPERNICAN_VERSION = _copernican_version()
@@ -1383,6 +1405,7 @@ def main_workflow():
         )
         logger.info(f"Running from base directory: {SCRIPT_DIR}")
         logger.info(f"All outputs will be saved to: {OUTPUT_DIR}")
+        progress_callback = _build_gui_progress_callback()
         alt_model_plugin = None
         cosmo_engine_selected = None
         selected_model = ""
@@ -1702,6 +1725,7 @@ def main_workflow():
                 evidence_tolerance=sampling_tol,
                 enlargement_fraction=sampling_enlarge,
                 display_progress=display_progress,
+                progress_callback=progress_callback,
             )
         else:
             console.write(f"  Burn-in steps: {sampling_burn_in}")
@@ -1720,6 +1744,7 @@ def main_workflow():
                 pool_size=sampling_pool,
                 burn_in_steps=sampling_burn_in,
                 display_progress=display_progress,
+                progress_callback=progress_callback,
             )
         if reuse_alt:
             logger.info(
@@ -1752,6 +1777,7 @@ def main_workflow():
                     evidence_tolerance=sampling_tol,
                     enlargement_fraction=sampling_enlarge,
                     display_progress=display_progress,
+                    progress_callback=progress_callback,
                 )
             else:
                 console.write(f"  Burn-in steps: {sampling_burn_in}")
@@ -1770,6 +1796,7 @@ def main_workflow():
                     pool_size=sampling_pool,
                     burn_in_steps=sampling_burn_in,
                     display_progress=display_progress,
+                    progress_callback=progress_callback,
                 )
             console.write(
                 (

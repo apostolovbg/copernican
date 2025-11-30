@@ -1,4 +1,4 @@
-**Version:** 10.9.0
+**Version:** 10.9.1
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -68,7 +68,10 @@ The suite is organised around a handful of focused components:
   CLI-style tips (minimum walkers, quick burn-in options, worker pool
   reminders) plus output directory helpers and environment hints, and the Help
   screen renders the README (banner included) so documentation is always
-  nearby.
+  nearby. The Run Monitor now mirrors the CLI with separate batch and walker
+  progress bars that reflect the same progress state the sampler emits plus an
+  embedded log console that tails the live `logs/runs/*.txt` file so operators
+  can follow the real run transcript directly from the GUI.
 
 All supported datasets share a uniform pipeline: parsers normalise the inputs,
 the joint likelihood composes SNe Ia, BAO and CMB components, and the engine

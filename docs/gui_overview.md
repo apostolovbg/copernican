@@ -44,6 +44,13 @@ stdout/stderr into the diagnostics panel, mirrors CLI log messages and exposes
 Cancel/Hard Stop buttons that terminate the child process when you need to stop
 early. (Pause/resume is still a CLI-only feature.)
 
+The Run Monitor now mirrors the CLI progress state with dual progress bars for
+the current batch/iteration counts and the walker-level reports plus a
+scrollable log console that tails `logs/runs/*.txt`. The filter buttons keep
+INFO, WARNING or ERROR entries visible so you can follow the exact same
+diagnostics the command line renders while the GUI keeps every alert anchored
+for quick navigation.
+
 ## Metadata dialogs
 
 Metadata, YAML and module viewers automatically size themselves to the longest

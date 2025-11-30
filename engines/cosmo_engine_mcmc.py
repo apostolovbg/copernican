@@ -508,6 +508,8 @@ def _run_stage_with_progress(
     ) = None,
     progress_label: str | None = None,
     display_progress: bool = True,
+    progress_listener: Callable[[dict[str, object]], None] | None = None,
+    stage_metadata: dict[str, str] | None = None,
 ):
     """Iterate ``sampler.sample`` while logging percentage progress.
 
@@ -532,6 +534,8 @@ def _run_stage_with_progress(
         label,
         n_steps,
         display=display_progress,
+        progress_listener=progress_listener,
+        stage_metadata=stage_metadata,
     )
     notifier: StepProgressEmitter | None = None
     if display_progress:
@@ -626,6 +630,7 @@ def fit_cosmology_parameters(
     progress_granularity: int = 20,
     burn_in_steps: int | None = None,
     display_progress: bool = True,
+    progress_callback: Callable[[dict[str, object]], None] | None = None,
 ) -> dict[str, Any]:
     """Sample cosmological parameters with joint dataset support.
 
@@ -787,6 +792,11 @@ def fit_cosmology_parameters(
             summary_callback=burnin_reporter,
             progress_label=f"{model_plugin.MODEL_NAME} burn-in",
             display_progress=display_progress,
+            progress_listener=progress_callback,
+            stage_metadata={
+                "phase": "burn-in",
+                "model": getattr(model_plugin, "MODEL_NAME", ""),
+            },
         )
         try:
             coords, log_prob = _reseed_invalid_walkers(
@@ -816,8 +826,14 @@ def fit_cosmology_parameters(
             logger=logger,
             progress_granularity=progress_granularity,
             summary_callback=production_reporter,
-            progress_label=f"{model_plugin.MODEL_NAME} production",
-            display_progress=display_progress,
+        progress_label=f"{model_plugin.MODEL_NAME} production",
+        display_progress=display_progress,
+        progress_listener=progress_callback,
+            progress_listener=progress_callback,
+            stage_metadata={
+                "phase": "production",
+                "model": getattr(model_plugin, "MODEL_NAME", ""),
+            },
         )
     finally:
         if pool is not None:
@@ -1046,6 +1062,7 @@ def fit_sne_parameters(
     progress_granularity: int = 20,
     burn_in_steps: int | None = None,
     display_progress: bool = True,
+    progress_callback: Callable[[dict[str, object]], None] | None = None,
 ) -> dict[str, Any]:
     """Compatibility wrapper for :func:`fit_cosmology_parameters`.
 
@@ -1075,6 +1092,7 @@ def fit_sne_parameters(
         progress_granularity=progress_granularity,
         burn_in_steps=burn_in_steps,
         display_progress=display_progress,
+        progress_callback=progress_callback,
     )
 
 __all__ = [

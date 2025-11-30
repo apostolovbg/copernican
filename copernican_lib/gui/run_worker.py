@@ -83,6 +83,9 @@ def main(argv: list[str] | None = None) -> int:
     config_path = Path(args.config_path)
     with config_path.open("r", encoding="utf-8") as handle:
         config = json.load(handle)
+    progress_path = config.get("progress_path")
+    if progress_path:
+        os.environ.setdefault("COPERNICAN_GUI_PROGRESS_PATH", progress_path)
     patches = _patch_cli_runtime(config)
     try:
         import copernican

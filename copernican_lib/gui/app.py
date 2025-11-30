@@ -41,6 +41,7 @@ from copernican_lib import (
     console_output,
     dataset_registry,
     logger,
+    progress_state,
     run_manifest,
     utils,
     version,
@@ -160,6 +161,7 @@ class CopernicanGUI:
         "Plan",
         "Confirm",
     ]
+    _PROGRESS_POLL_INTERVAL = 0.5
     severity_order: dict[str, int] = {
         "DEBUG": 0,
         "INFO": 1,
@@ -217,6 +219,16 @@ class CopernicanGUI:
         self._run_process: subprocess.Popen[str] | None = None
         self._run_config_path: str | None = None
         self._status_label: ttk.Label | None = None
+        self._progress_state_path: str | None = None
+        self._progress_snapshot: dict | None = None
+        self._progress_poll_thread: threading.Thread | None = None
+        self._progress_poll_stop: threading.Event | None = None
+        self._monitor_refresh_job: str | None = None
+        self._progress_status_label: ttk.Label | None = None
+        self._batch_progressbar: ttk.Progressbar | None = None
+        self._walker_progressbar: ttk.Progressbar | None = None
+        self._monitor_log_widget: tk.Text | None = None
+        self._monitor_filter_label: ttk.Label | None = None
         self._bootstrap_logging()
         self._build_navigation()
         self._initialise_rendering()
@@ -381,6 +393,11 @@ class CopernicanGUI:
         """Update the Run Monitor severity filter."""
 
         self.monitor_filter_level = severity.upper()
+        if self._monitor_filter_label:
+            self._monitor_filter_label.configure(
+                text=f"Filter: {self.monitor_filter_level}+"
+            )
+        self._refresh_run_log_widget()
 
     def copy_application_logs(self) -> str:
         """Copy filtered diagnostics logs into a clipboard buffer."""
@@ -2517,6 +2534,11 @@ class CopernicanGUI:
 
         def builder(frame: tk.Frame) -> None:
             self._status_label = None
+            self._progress_status_label = None
+            self._batch_progressbar = None
+            self._walker_progressbar = None
+            self._monitor_log_widget = None
+            self._monitor_filter_label = None
             header = ttk.Label(
                 frame, text="Run Monitor", font=("Helvetica", 16)
             )
@@ -2527,10 +2549,33 @@ class CopernicanGUI:
                 takefocus=True,
             )
             self._status_label.pack(anchor="w")
-            progress = ttk.Progressbar(
-                frame, maximum=100, value=self.progress, length=320
+            progress_frame = ttk.Frame(frame)
+            progress_frame.pack(fill="x", pady=(8, 8))
+            self._progress_status_label = ttk.Label(
+                progress_frame,
+                text="Stage: Idle",
+                font=("Helvetica", 12, "bold"),
+                takefocus=True,
             )
-            progress.pack(anchor="w", pady=(8, 8))
+            self._progress_status_label.pack(anchor="w")
+            ttk.Label(
+                progress_frame,
+                text="Overall batch progress",
+                takefocus=True,
+            ).pack(anchor="w", pady=(4, 0))
+            self._batch_progressbar = ttk.Progressbar(
+                progress_frame, maximum=100, length=360
+            )
+            self._batch_progressbar.pack(fill="x", pady=(2, 0))
+            ttk.Label(
+                progress_frame,
+                text="Walker progress",
+                takefocus=True,
+            ).pack(anchor="w", pady=(6, 0))
+            self._walker_progressbar = ttk.Progressbar(
+                progress_frame, maximum=100, length=360
+            )
+            self._walker_progressbar.pack(fill="x", pady=(2, 0))
             meta_frame = ttk.Frame(frame)
             meta_frame.pack(anchor="w", pady=(4, 4))
             ttk.Label(
@@ -2543,12 +2588,13 @@ class CopernicanGUI:
                     anchor="w"
                 )
             log_frame = ttk.LabelFrame(frame, text="Run logs")
-            log_frame.pack(fill="x", pady=(8, 4))
-            ttk.Label(
+            log_frame.pack(fill="both", expand=True, pady=(8, 4))
+            self._monitor_filter_label = ttk.Label(
                 log_frame,
                 text=f"Filter: {self.monitor_filter_level}+",
                 takefocus=True,
-            ).pack(anchor="w")
+            )
+            self._monitor_filter_label.pack(anchor="w")
             log_filters = ttk.Frame(log_frame)
             log_filters.pack(anchor="w", pady=(2, 4))
             ttk.Button(
@@ -2569,13 +2615,37 @@ class CopernicanGUI:
                 command=lambda: self.set_monitor_filter("ERROR"),
                 takefocus=True,
             ).pack(side="left", padx=2)
-            for entry in self.get_run_log_entries()[-5:]:
-                ttk.Label(
-                    log_frame,
-                    text=f"[{entry.anchor}] {entry.formatted}",
-                    wraplength=720,
-                    takefocus=True,
-                ).pack(anchor="w")
+            text_panel = ttk.Frame(log_frame)
+            text_panel.pack(fill="both", expand=True)
+            text_panel.columnconfigure(0, weight=1)
+            text_panel.rowconfigure(0, weight=1)
+            text_widget = tk.Text(
+                text_panel,
+                wrap="none",
+                padx=8,
+                pady=6,
+                borderwidth=0,
+                highlightthickness=0,
+                height=12,
+            )
+            text_widget.grid(row=0, column=0, sticky="nsew")
+            vscroll = ttk.Scrollbar(
+                text_panel,
+                orient="vertical",
+                command=text_widget.yview,
+            )
+            vscroll.grid(row=0, column=1, sticky="ns")
+            hscroll = ttk.Scrollbar(
+                text_panel,
+                orient="horizontal",
+                command=text_widget.xview,
+            )
+            hscroll.grid(row=1, column=0, sticky="ew")
+            text_widget.configure(
+                yscrollcommand=vscroll.set, xscrollcommand=hscroll.set
+            )
+            text_widget.configure(state="disabled")
+            self._monitor_log_widget = text_widget
             log_actions = ttk.Frame(log_frame)
             log_actions.pack(anchor="w", pady=(4, 0))
             ttk.Button(
@@ -2635,16 +2705,8 @@ class CopernicanGUI:
                 command=self.stop_run,
                 takefocus=True,
             ).pack(side="left", padx=4)
-            ttk.Label(
-                frame,
-                text=(
-                    "Pause/resume is not yet available for CLI runs. "
-                    "Use Cancel for graceful shutdowns or Hard Stop to "
-                    "terminate immediately."
-                ),
-                wraplength=720,
-                takefocus=True,
-            ).pack(anchor="w", pady=(6, 0))
+            self._refresh_monitor_widgets()
+            self._schedule_monitor_refresh()
 
         self._swap_content(builder)
 
@@ -2779,6 +2841,16 @@ class CopernicanGUI:
                     return entry
         raise RuntimeError("Select an engine before starting the run.")
 
+    def _prepare_progress_path(self) -> str:
+        """Return the path where the CLI worker writes GUI progress."""
+
+        directory = os.path.join("logs", "progress")
+        os.makedirs(directory, exist_ok=True)
+        return os.path.join(
+            directory,
+            f"gui_progress_{utils.get_timestamp()}.json",
+        )
+
     def _build_worker_config(self) -> dict:
         """Return the serialized configuration passed to the CLI worker."""
 
@@ -2797,12 +2869,16 @@ class CopernicanGUI:
         plan = self._build_sampling_plan_values(
             engine_entry["id"]
         )
+        progress_path = self._prepare_progress_path()
+        self._progress_state_path = progress_path
+        progress_state.clear_progress(progress_path)
         return {
             "seed": self._safe_int(self.draft.seed, default=0),
             "model_filename": Path(model_entry["path"]).name,
             "engine_filename": engine_entry["filename"],
             "datasets": datasets,
             "sampling_plan": plan,
+            "progress_path": progress_path,
         }
 
     def _write_worker_config(self, config: dict) -> str:
@@ -2852,8 +2928,11 @@ class CopernicanGUI:
             self._refresh_status_label()
             os.unlink(config_path)
             return
+        self._progress_snapshot = None
         self._run_process = process
         self._run_config_path = config_path
+        self._start_progress_poller()
+        self._schedule_monitor_refresh()
         threading.Thread(
             target=self._stream_worker_output, args=(process,), daemon=True
         ).start()
@@ -2875,6 +2954,11 @@ class CopernicanGUI:
         """Update GUI state when the worker finishes."""
 
         return_code = process.wait()
+        self._stop_progress_poller()
+        self._cancel_monitor_refresh()
+        if self._progress_state_path:
+            progress_state.clear_progress(self._progress_state_path)
+            self._progress_state_path = None
         if self._run_config_path and os.path.exists(self._run_config_path):
             os.unlink(self._run_config_path)
         self._run_config_path = None
@@ -2901,6 +2985,131 @@ class CopernicanGUI:
                     severity="ERROR",
                     context="run",
                 )
+
+    def _start_progress_poller(self) -> None:
+        """Kick off the progress file watcher when UI is active."""
+
+        if not self.render or not self._progress_state_path:
+            return
+        if self._progress_poll_thread is not None:
+            return
+        self._progress_poll_stop = threading.Event()
+        self._progress_poll_thread = threading.Thread(
+            target=self._progress_poll_loop,
+            daemon=True,
+        )
+        self._progress_poll_thread.start()
+
+    def _stop_progress_poller(self) -> None:
+        """Stop the file watcher thread if it is running."""
+
+        if self._progress_poll_stop is not None:
+            self._progress_poll_stop.set()
+        if self._progress_poll_thread is not None:
+            self._progress_poll_thread.join(timeout=0.5)
+        self._progress_poll_thread = None
+        self._progress_poll_stop = None
+
+    def _progress_poll_loop(self) -> None:
+        """Watch the progress JSON file and surface snapshots to the GUI."""
+
+        path = self._progress_state_path
+        if not path:
+            return
+        last_snapshot: dict | None = None
+        while self._progress_poll_stop is None or not self._progress_poll_stop.is_set():
+            snapshot = progress_state.load_progress(path)
+            if snapshot and snapshot != last_snapshot:
+                last_snapshot = snapshot
+                self._apply_progress_snapshot(snapshot)
+            if self._progress_poll_stop is not None and self._progress_poll_stop.wait(
+                self._PROGRESS_POLL_INTERVAL
+            ):
+                break
+
+    def _apply_progress_snapshot(self, snapshot: dict) -> None:
+        """Store the latest progress record and refresh the monitor."""
+
+        self._progress_snapshot = snapshot
+        if snapshot.get("stage_label"):
+            self.current_phase = snapshot["stage_label"]
+        if self.render and self.root is not None:
+            self.root.after(0, self._refresh_monitor_widgets)
+        else:
+            self._refresh_monitor_widgets()
+
+    def _refresh_monitor_widgets(self) -> None:
+        """Update the progress bars, status label and log console."""
+
+        snapshot = self._progress_snapshot
+        stage_label = "Stage: Idle"
+        if snapshot:
+            label = snapshot.get("stage_label", "Stage")
+            event = snapshot.get("event", "").replace("_", " ")
+            stage_label = f"{label} – {event}".strip(" –")
+            if snapshot.get("stage_label"):
+                self.current_phase = snapshot["stage_label"]
+        if self._progress_status_label:
+            self._progress_status_label.configure(text=stage_label)
+        if self._batch_progressbar:
+            percent = snapshot.get("batch_percent", 0) if snapshot else 0
+            self._batch_progressbar["value"] = min(max(percent, 0), 100)
+        if self._walker_progressbar:
+            walker_percent = snapshot.get("walker_percent", 0) if snapshot else 0
+            self._walker_progressbar["value"] = min(max(walker_percent, 0), 100)
+        self._refresh_status_label()
+        self._refresh_run_log_widget()
+
+    def _refresh_run_log_widget(self) -> None:
+        """Populate the run log text widget with the latest entries."""
+
+        if self._monitor_log_widget is None:
+            return
+        entries = self.get_run_log_entries()
+        self._monitor_log_widget.configure(state="normal")
+        self._monitor_log_widget.delete("1.0", "end")
+        for entry in entries[-200:]:
+            self._monitor_log_widget.insert(
+                "end",
+                f"[{entry.anchor}] {entry.formatted}\n",
+            )
+        self._monitor_log_widget.configure(state="disabled")
+        self._monitor_log_widget.see("end")
+
+    def _schedule_monitor_refresh(self) -> None:
+        """Keep the monitor refreshing at regular intervals."""
+
+        if not self.render or self.root is None:
+            return
+        if self._monitor_refresh_job is not None:
+            return
+        self._monitor_refresh_job = self.root.after(
+            int(self._PROGRESS_POLL_INTERVAL * 1000),
+            self._monitor_refresh_periodic,
+        )
+
+    def _monitor_refresh_periodic(self) -> None:
+        """Periodic callback that refreshes monitor widgets."""
+
+        self._monitor_refresh_job = None
+        self._refresh_monitor_widgets()
+        if (
+            self.status is RunStatus.RUNNING
+            and self.render
+            and self.root is not None
+        ):
+            self._schedule_monitor_refresh()
+
+    def _cancel_monitor_refresh(self) -> None:
+        """Stop the pending monitor refresh job."""
+
+        if (
+            self._monitor_refresh_job
+            and self.render
+            and self.root is not None
+        ):
+            self.root.after_cancel(self._monitor_refresh_job)
+        self._monitor_refresh_job = None
 
     def _terminate_run_process(self, *, force: bool) -> None:
         """Terminate the active worker process if it exists."""

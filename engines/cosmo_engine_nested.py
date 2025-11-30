@@ -27,7 +27,7 @@ import logging
 import math
 import warnings
 from dataclasses import dataclass
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 import numpy as np
 import pandas as pd
@@ -292,6 +292,7 @@ def fit_cosmology_parameters(
     evidence_tolerance: float = _DEFAULT_EVIDENCE_TOLERANCE,
     enlargement_fraction: float = _DEFAULT_ENLARGEMENT_FRACTION,
     display_progress: bool = True,
+    progress_callback: Callable[[dict[str, object]], None] | None = None,
 ) -> Mapping[str, Any]:
     """Return posterior samples and diagnostics using nested sampling.
 
@@ -355,6 +356,11 @@ def fit_cosmology_parameters(
         progress_total,
         display=bool(display_progress),
         subunit_labels=("iteration", "iterations"),
+        progress_listener=progress_callback,
+        stage_metadata={
+            "phase": "nested",
+            "model": getattr(model_plugin, "MODEL_NAME", ""),
+        },
     )
     progress_active = max_iterations > 0
     if progress_active:
@@ -559,6 +565,7 @@ def fit_sne_parameters(
     evidence_tolerance: float = _DEFAULT_EVIDENCE_TOLERANCE,
     enlargement_fraction: float = _DEFAULT_ENLARGEMENT_FRACTION,
     display_progress: bool = True,
+    progress_callback: Callable[[dict[str, object]], None] | None = None,
 ) -> Mapping[str, Any]:
     """Compatibility wrapper for :func:`fit_cosmology_parameters`.
 
@@ -586,6 +593,7 @@ def fit_sne_parameters(
         evidence_tolerance=evidence_tolerance,
         enlargement_fraction=enlargement_fraction,
         display_progress=display_progress,
+        progress_callback=progress_callback,
     )
 
 __all__ = [

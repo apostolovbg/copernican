@@ -69,6 +69,8 @@ class BatchProgressBar:
         *,
         display: bool = True,
         subunit_labels: tuple[str, str] | None = ("walker", "walkers"),
+        progress_listener: Callable[[dict[str, object]], None] | None = None,
+        stage_metadata: dict[str, str] | None = None,
     ) -> None:
         self._stage_label = stage_label
         self._total_steps = max(int(total_steps), 0)
@@ -94,6 +96,8 @@ class BatchProgressBar:
         self._spinner_index = -1
         self._last_rendered = ""
         self._lock = threading.RLock()
+        self._progress_listener = progress_listener
+        self._stage_metadata = dict(stage_metadata or {})
 
     def _build_bar(self, fraction: float, width: int) -> str:
         """Return a Unicode bar ``width`` cells wide for ``fraction``."""
@@ -177,7 +181,7 @@ class BatchProgressBar:
             f"{postfix}; {walker_fragment})"
         )
         line = f"\r{display_line}"
-        return line, percent, display_line
+        return line, percent, display_line, fraction, step_progress
 
     def _render_raw(self, rendered_text: str) -> None:
         """Write ``rendered_text`` to the console using a carriage return."""
@@ -205,6 +209,44 @@ class BatchProgressBar:
             padded = display_line
         self._last_rendered_length = max(previous_width, current_width)
         self._render_raw(padded)
+
+    def _notify_listener(
+        self,
+        *,
+        event: str,
+        step_index: int,
+        processed: int,
+        total: int,
+        percent: int,
+        batch_fraction: float,
+        step_fraction: float,
+    ) -> None:
+        """Deliver structured progress data to the listener."""
+
+        if self._progress_listener is None:
+            return
+        walker_fraction = min(max(step_fraction, 0.0), 1.0)
+        record = {
+            "event": event,
+            "stage_label": self._stage_label,
+            "stage_metadata": dict(self._stage_metadata),
+            "batch_index": self._batch_index,
+            "batch_size": self._current_span,
+            "batch_start": self._current_start,
+            "batch_end": self._current_end,
+            "batch_percent": percent,
+            "batch_fraction": min(max(batch_fraction, 0.0), 1.0),
+            "step_index": step_index,
+            "walker_processed": processed,
+            "walker_total": total,
+            "walker_fraction": walker_fraction,
+            "walker_percent": int(round(walker_fraction * 100)),
+            "status": "active" if self._active else "inactive",
+        }
+        try:
+            self._progress_listener(record)
+        except Exception:
+            pass
 
     def _clear_line(self) -> None:
         """Erase the previously rendered progress line from the console."""
@@ -243,8 +285,14 @@ class BatchProgressBar:
                 f"{self._stage_label} batch {self._batch_index} "
                 f"({span} {step_word}) progress:"
             )
-            if self._current_span > 0 and self._display:
-                line, percent, display_line = self._render_line(
+            if self._current_span > 0:
+                (
+                    line,
+                    percent,
+                    display_line,
+                    fraction,
+                    step_progress,
+                ) = self._render_line(
                     self._current_start,
                     processed=0,
                     total=max(self._current_step_total, 1),
@@ -253,6 +301,15 @@ class BatchProgressBar:
                 self._emit_display_line(display_line)
                 self._last_line = display_line
                 self._last_percent = percent
+                self._notify_listener(
+                    event="batch_start",
+                    step_index=self._current_start,
+                    processed=0,
+                    total=max(self._current_step_total, 1),
+                    percent=percent,
+                    batch_fraction=fraction,
+                    step_fraction=step_progress,
+                )
 
     def start_step(
         self, step_index: int, walker_total: int | None = None
@@ -311,7 +368,13 @@ class BatchProgressBar:
             else:
                 step_progress = float(min(max(step_progress, 0.0), 1.0))
 
-            line, percent, display_line = self._render_line(
+            (
+                line,
+                percent,
+                display_line,
+                fraction,
+                step_progress,
+            ) = self._render_line(
                 step_index,
                 processed=processed_int,
                 total=total_int,
@@ -327,6 +390,15 @@ class BatchProgressBar:
             self._last_percent = percent
             self._last_line = display_line
             self._emit_display_line(display_line)
+            self._notify_listener(
+                event="progress_update",
+                step_index=step_index,
+                processed=processed_int,
+                total=total_int,
+                percent=percent,
+                batch_fraction=fraction,
+                step_fraction=step_progress,
+            )
             return line
 
     def finish_batch(self) -> None:
@@ -335,6 +407,15 @@ class BatchProgressBar:
         with self._lock:
             if not self._active:
                 return
+            self._notify_listener(
+                event="batch_finish",
+                step_index=self._current_end or self._current_start,
+                processed=self._current_step_processed,
+                total=max(self._current_step_total, 1),
+                percent=max(self._last_percent, 0),
+                batch_fraction=1.0,
+                step_fraction=1.0,
+            )
             if self._last_line:
                 self._clear_line()
             if self._display:
