@@ -20,6 +20,23 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.9.3
+- 2025-11-30: Documented that the Union3 `data/sne/union3/` folder currently
+             stores the UNITY release and preprocessing steps.
+             This makes it clear
+             a parser must wait for the compressed distances/covariance to be
+             reproduced before the dataset can be registered (README.md,
+             docs/data_overview.md, CHANGELOG.md).
+- 2025-11-30: Added the Union3 dataset metadata so the Unity-based sample is
+             registered ahead of its parser, capturing its authors, arXiv
+             citation and license note in `data/sne/union3/metadata_union3.yml`
+             and documenting the new source in `docs/data_overview.md` and
+             `README.md` (copernican_lib/VERSION, README.md, docs/data_overview.md,
+             data/sne/union3/metadata_union3.yml, CHANGELOG.md).
+- 2025-11-30: Bumped the release metadata to 10.9.3 so documentation and
+             citation files stay aligned with the dataset addition
+             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+
 ## Version 10.9.2
 - 2025-11-30: Restored Start Run after the monitoring refactor by fixing the
              duplicated `progress_listener` argument, ensuring the session

@@ -1,0 +1,30 @@
+dataset_name: Union Through UNITY 2000 SNe sample
+attribution: "Union3 dataset by Rubin et al."
+dataset_id: union3_2025
+version: "2025.1"
+description: >-
+  Union Through UNITY builds a homogeneous cosmology sample of 2,000 Type Ia
+  supernova distances processed with a unified Bayesian framework (UNITY). The
+  release bundles the calibrated light-curve fits, covariance information and
+  example sampling scripts for downstream analyses.
+citation: >-
+  Rubin et al. (2025) – "Union Through UNITY: Cosmology with 2,000 SNe Using a
+  Unified Bayesian Framework" (arXiv:2311.12098).
+license: >-
+  Public research release; cite Rubin et al. (2025) when using the dataset.
+author: >-
+  David Rubin; Greg Aldering; Marc Betoule; Andy Fruchter; Xiaosheng Huang;
+  Alex G. Kim; Chris Lidman; Eric Linder; Saul Perlmutter; Pilar Ruiz-Lapuente;
+  Nao Suzuki
+title: "Union Through UNITY: Cosmology with 2,000 SNe Using a Unified Bayesian
+  Framework"
+year: 2025
+publisher: arXiv
+archivePrefix: arXiv
+primaryClass: astro-ph.CO
+arXiv: https://arxiv.org/abs/2311.12098
+url: https://arxiv.org/abs/2311.12098
+notes: >-
+  See `data/sne/union3/README.md` for preprocessing steps; the package contains
+  the full UNITY scripts, covariance helper utilities and example Stan code used
+  to construct the sample.

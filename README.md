@@ -1,4 +1,4 @@
-**Version:** 10.9.2
+**Version:** 10.9.3
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -51,8 +51,13 @@ The suite is organised around a handful of focused components:
   dataset compatibility. Each definition is converted into a picklable engine
   plugin so Stage 2 runs remain reproducible across processes.
 * `data/` curates vetted observations with companion parsers and metadata. The
-  loaders verify file digests, register provenance and attach citations to the
-  manifests and plot footers created for every run.
+loaders verify file digests, register provenance and attach citations to the
+manifests and plot footers created for every run. Supernova datasets currently
+include JLA and Pantheon+SH0ES. The Union3 release sits under
+`data/sne/union3/`, carrying the UNITY scripts, covariance helpers and example
+Stan code that produced the compressed distances and covariance matrix; the
+README inside that folder explains how to rerun the UNITY preprocessing before
+a parser registers the dataset.
 * `copernican_lib/gui/` provides a Tkinter-based scaffold with a navigation
   rail, quick actions, the run monitor and a Run Builder wizard. Start Run now
   spawns the CLI workflow in a managed background process using the configured

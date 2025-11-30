@@ -74,6 +74,19 @@ reordered to match. Its inverse and diagonal errors are attached to the
 `DataFrame`. If inversion fails the engine falls back to the diagonal
 uncertainties.
 
+### Union3 UNITY compilation (Rubin et al. 2025)
+*Source:* “Union Through UNITY: Cosmology with 2,000 SNe Using a Unified
+Bayesian Framework” (Rubin et al. 2025).
+*Location:* `data/sne/union3/`.
+*Status:* The directory currently ships the UNITY bookkeeping (Stan models,
+helper utilities, the `mu_mat_union3_cosmo=2_mu.fits` compressed distances and
+covariance, `read_and_sample.py`, the full UNITY inputs and related samples).
+Its README spells out the preprocessing steps that reproduce the compressed
+outputs. No parser yet exists because the dataset still depends on rerunning
+that UNITY pipeline (pystan/cython, datasets, covariance helpers) before the
+final distance moduli, covariance matrices and corpus of uncertainties can be
+registered.
+
 ## BAO Datasets
 
 ### BOSS DR12 BAO Consensus (Alam et al. 2017)
