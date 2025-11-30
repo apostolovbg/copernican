@@ -1,4 +1,4 @@
-**Version:** 10.8.5
+**Version:** 10.9.0
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -54,18 +54,21 @@ The suite is organised around a handful of focused components:
   loaders verify file digests, register provenance and attach citations to the
   manifests and plot footers created for every run.
 * `copernican_lib/gui/` provides a Tkinter-based scaffold with a navigation
-  rail, quick actions for new runs, the run monitor and the output directory,
-  and a Run Builder wizard that steps through seeds, single-selection models,
-  type-specific data menus, engine choice, plan notes and a run settings panel
-  for walkers, burn-in, production and pool-size hints while capturing the
-  manifest context. The Data, Models and Engines panes now render scrollable
-  catalogues with working folder, metadata and revalidation buttons, metadata
-  viewers resize to fit their longest line and expose an *Open file…* shortcut,
-  Settings exposes diagnostics filters plus output directory helpers and
-  environment hints, and the Help screen renders the README (banner included) so
-  the documentation is available inside the GUI. The Run Monitor mirrors the CLI
-  by streaming phase updates (initialisation, burn-in, production) and reflecting
-  the recommended settings that accompany every manifest snapshot.
+  rail, quick actions, the run monitor and a Run Builder wizard. Start Run now
+  spawns the CLI workflow in a managed background process using the configured
+  seed, model, datasets and engine, streams CLI output into the diagnostics
+  panel and honours Cancel/Hard Stop by terminating the worker. Run Builder
+  keeps models in single-selection lists and splits datasets into type-scoped,
+  wider listboxes so you can only pick one SNe/BAO/CMB candidate at a time
+  while still seeing badge counts and scrollbars for long inventories. The
+  Data, Models and Engines panes render scrollable catalogues with working
+  folder, metadata and revalidation buttons; metadata viewers size themselves
+  to the longest line, obey the 15/25-line rules, gain scrollbars, lock
+  horizontal resizing and expose an *Open file…* shortcut; Settings surfaces
+  CLI-style tips (minimum walkers, quick burn-in options, worker pool
+  reminders) plus output directory helpers and environment hints, and the Help
+  screen renders the README (banner included) so documentation is always
+  nearby.
 
 All supported datasets share a uniform pipeline: parsers normalise the inputs,
 the joint likelihood composes SNe Ia, BAO and CMB components, and the engine

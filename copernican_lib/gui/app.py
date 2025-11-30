@@ -12,13 +12,16 @@ extra frameworks.
 from __future__ import annotations
 
 import importlib
+import json
 import logging
 import os
 import re
 import subprocess
 import sys
+import tempfile
 import threading
 import time
+from threading import Event
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -187,6 +190,8 @@ class CopernicanGUI:
         self.current_phase = "Idle"
         self.selected_models: list[str] = []
         self.selected_engine: str = ""
+        self._selected_model_entry: dict | None = None
+        self._selected_engine_entry: dict | None = None
         self.selected_datasets: list[dict[str, str]] = []
         self.pending_manifest: Optional[dict] = None
         self.catalogue_index: dict[str, dict] = {}
@@ -209,8 +214,9 @@ class CopernicanGUI:
         self.alerts: list[UIMessage] = []
         self.inline_messages: list[UIMessage] = []
         self.last_log_jump: str | None = None
-        self._run_thread: threading.Thread | None = None
-        self._run_stop_event = threading.Event()
+        self._run_process: subprocess.Popen[str] | None = None
+        self._run_config_path: str | None = None
+        self._status_label: ttk.Label | None = None
         self._bootstrap_logging()
         self._build_navigation()
         self._initialise_rendering()
@@ -770,6 +776,27 @@ class CopernicanGUI:
             self._launch_folder(path)
         return path
 
+    def _open_folder_or_warn(
+        self, path: str, *, context: str, subject: str
+    ) -> None:
+        """Open ``path`` if it exists, otherwise register a toast."""
+
+        if not path:
+            self.create_toast(
+                f"No file path recorded for {subject}.",
+                severity="WARNING",
+                context=context,
+            )
+            return
+        try:
+            self.open_folder(path)
+        except FileNotFoundError:
+            self.create_toast(
+                f"{subject} folder is unavailable at {path}.",
+                severity="ERROR",
+                context=context,
+            )
+
     def _output_root(self) -> str:
         """Return the canonical output directory for GUI quick actions."""
 
@@ -823,17 +850,34 @@ class CopernicanGUI:
         window = tk.Toplevel(self.root)
         window.title(title)
         window.transient(self.root)
-        longest = max((len(line) for line in content.splitlines()), default=80)
-        char_clamp = min(max(longest, 80), 200)
-        initial_width = int(char_clamp * 7.2)
-        initial_height = 520
+        raw_lines = content.splitlines() or [""]
+        longest = max((len(line) for line in raw_lines), default=80)
+        char_units = max(longest, 80)
+        initial_width = int(char_units * 7.2)
+        min_lines = 15
+        default_lines = 25
+        line_count = max(len(raw_lines), 1)
+        resizable_vertical = line_count > min_lines
+        if not resizable_vertical:
+            display_lines = line_count
+        else:
+            display_lines = min(default_lines, line_count)
+            display_lines = max(display_lines, min_lines)
+        line_height = 20
+        chrome_height = 120
+        initial_height = display_lines * line_height + chrome_height
         window.geometry(f"{initial_width}x{initial_height}")
-        window.minsize(width=min(initial_width, 640), height=360)
+        window.resizable(False, resizable_vertical)
+        if resizable_vertical:
+            min_height = min_lines * line_height + chrome_height
+            window.minsize(width=initial_width, height=min_height)
         container = ttk.Frame(window, padding=(8, 6))
         container.pack(fill="both", expand=True)
         window.columnconfigure(0, weight=1)
         window.rowconfigure(0, weight=1)
-        text = tk.Text(container, wrap="word")
+        container.columnconfigure(0, weight=1)
+        container.rowconfigure(0, weight=1)
+        text = tk.Text(container, wrap="word", height=display_lines or 1)
         text.insert("1.0", content)
         text.configure(state="disabled")
         text.grid(row=0, column=0, sticky="nsew")
@@ -843,7 +887,7 @@ class CopernicanGUI:
         text.configure(yscrollcommand=scrollbar.set)
         scrollbar.grid(row=0, column=1, sticky="ns")
         buttons = ttk.Frame(container)
-        buttons.grid(row=1, column=0, columnspan=2, pady=(8, 0))
+        buttons.grid(row=1, column=0, columnspan=2, pady=(8, 8))
         ttk.Button(buttons, text="Close", command=window.destroy).pack(
             side="left", padx=4
         )
@@ -1302,20 +1346,32 @@ class CopernicanGUI:
                     break
         return max(sum(counts), 0)
 
-    def _compute_run_recommendations(self) -> dict[str, int]:
+    def _compute_run_recommendations(self) -> dict[str, int | str]:
         """Return heuristic recommendations for run settings."""
 
         param_total = max(self._parameter_count_for_selection(), 1)
         dataset_total = max(len(self.selected_datasets) or 1, 1)
-        walkers_min = max(param_total * 2, 10)
-        burn_in_min = max(walkers_min * 5, 200)
-        production_min = max(dataset_total * walkers_min * 5, 500)
-        cpu_limit = max(os.cpu_count() or 1, 1)
+        minimum_walkers = max(2 * param_total, 2)
+        recommended_walkers = max(32, minimum_walkers)
+        recommended_steps = max(500, dataset_total * 400)
+        burn_in_recommended = max(100, recommended_steps // 5)
+        quick_burn = max(1, recommended_steps // 5)
+        production_min = max(dataset_total * recommended_walkers * 5, 500)
+        cpu_detected = os.cpu_count() or 0
+        cpu_label = cpu_detected if cpu_detected > 0 else "unknown"
+        recommended_pool = (
+            cpu_detected if cpu_detected > 0 else recommended_walkers
+        )
+        recommended_pool = max(recommended_pool, 1)
         return {
-            "walkers_min": walkers_min,
-            "burn_in_min": burn_in_min,
+            "minimum_walkers": minimum_walkers,
+            "recommended_walkers": recommended_walkers,
+            "recommended_steps": recommended_steps,
+            "burn_in_recommended": burn_in_recommended,
+            "quick_burn": quick_burn,
             "production_min": production_min,
-            "pool_max": cpu_limit,
+            "pool_max": recommended_pool,
+            "cpu_label": cpu_label,
         }
 
     def _render_builder_step_seed(self, container: tk.Frame) -> None:
@@ -1413,13 +1469,16 @@ class CopernicanGUI:
         def _refresh_model_selection(_: tk.Event | None = None) -> None:
             indices = listbox.curselection()
             if indices:
-                selected_model = available[indices[0]]["id"]
+                entry = available[indices[0]]
+                selected_model = entry["id"]
                 self.selected_models = [selected_model]
                 self.draft.model = selected_model
+                self._selected_model_entry = entry
                 summary.config(text=f"Selected model: {selected_model}")
             else:
                 self.selected_models = []
                 self.draft.model = ""
+                self._selected_model_entry = None
                 summary.config(text="No model selected yet.")
 
         listbox.bind("<<ListboxSelect>>", _refresh_model_selection)
@@ -1492,14 +1551,21 @@ class CopernicanGUI:
                 ),
                 takefocus=True,
             ).pack(anchor="w")
+            list_frame = ttk.Frame(section)
+            list_frame.pack(fill="x", pady=(4, 0))
             listbox = tk.Listbox(
-                section,
-                height=min(6, len(records)),
+                list_frame,
+                height=min(8, max(4, len(records))),
                 selectmode="browse",
                 exportselection=False,
-                width=80,
+                width=96,
             )
-            listbox.pack(fill="x", pady=(4, 0))
+            listbox.pack(side="left", fill="both", expand=True)
+            scroll = ttk.Scrollbar(
+                list_frame, orient="vertical", command=listbox.yview
+            )
+            scroll.pack(side="right", fill="y")
+            listbox.configure(yscrollcommand=scroll.set)
             for index, record in enumerate(records):
                 listbox.insert(
                     "end",
@@ -1573,8 +1639,12 @@ class CopernicanGUI:
 
         def _open_focused_folder() -> None:
             record = focus_state["record"]
-            if record and record.get("path"):
-                self.open_folder(record["path"])
+            if record:
+                self._open_folder_or_warn(
+                    record.get("path", ""),
+                    context="data",
+                    subject=f"dataset {record.get('id', '')}",
+                )
             else:
                 self.create_toast(
                     "No dataset folder available to open.",
@@ -1680,6 +1750,7 @@ class CopernicanGUI:
             if record:
                 self.selected_engine = record["id"]
                 self.draft.engine = record["id"]
+                self._selected_engine_entry = record
                 detail_label.config(
                     text=(
                         f"{record['label']} uses module {record['id']} "
@@ -1695,6 +1766,7 @@ class CopernicanGUI:
             takefocus=True,
         )
         detail_label.pack(anchor="w", pady=(4, 4))
+        _apply_engine_selection()
         button_frame = ttk.Frame(container)
         button_frame.pack(anchor="w", pady=(4, 0))
 
@@ -1702,7 +1774,11 @@ class CopernicanGUI:
             selection = combo_var.get()
             record = display_map.get(selection)
             if record:
-                self.open_folder(os.path.dirname(record["path"]))
+                self._open_folder_or_warn(
+                    os.path.dirname(record["path"]),
+                    context="engines",
+                    subject=f"engine {record['label']}",
+                )
             else:
                 self.create_toast(
                     "Choose an engine before opening its folder.",
@@ -1767,30 +1843,82 @@ class CopernicanGUI:
         )
         settings_frame.pack(fill="x", pady=(8, 0))
         recommendations = self._compute_run_recommendations()
+        hint_texts = [
+            (
+                "Production steps control the total sampler iterations."
+                " Recommended default: "
+                f"{recommendations['recommended_steps']}."
+            ),
+            (
+                "Burn-in steps discard early samples so the chain can "
+                "stabilise. Recommended warm-up: "
+                f"{recommendations['burn_in_recommended']}."
+                f" A quicker option such as {recommendations['quick_burn']} "
+                "trades certainty for speed."
+            ),
+            (
+                "Walkers sample the posterior in parallel; more walkers "
+                "increase convergence confidence. Required minimum: "
+                f"{recommendations['minimum_walkers']}."
+                " Recommended default: "
+                f"{recommendations['recommended_walkers']}."
+            ),
+            (
+                "Worker pools accelerate sampling by spreading walkers across "
+                "processes."
+                " Recommended pool size: "
+                f"{recommendations['pool_max']} "
+                f"(detected CPUs: {recommendations['cpu_label']}). "
+                "Enter 0 to "
+                "disable multiprocessing entirely."
+            ),
+        ]
+        for tip in hint_texts:
+            ttk.Label(
+                settings_frame,
+                text=tip,
+                wraplength=720,
+                justify="left",
+                takefocus=True,
+            ).pack(anchor="w", pady=(6, 0))
         field_specs = [
             (
                 "Walkers",
                 "walkers",
                 "Number of ensemble walkers",
-                f"Recommended ≥ {recommendations['walkers_min']}",
+                (
+                    f"Minimum: {recommendations['minimum_walkers']}  "
+                    f"Recommended: {recommendations['recommended_walkers']}"
+                ),
             ),
             (
                 "Burn-in steps",
                 "burn_in",
                 "Iterations used for burn-in",
-                f"Recommended ≥ {recommendations['burn_in_min']}",
+                (
+                    "Recommended warm-up: "
+                    f"{recommendations['burn_in_recommended']}  "
+                    f"Quicker option: {recommendations['quick_burn']}"
+                ),
             ),
             (
                 "Production steps",
                 "production_steps",
                 "Iterations used during production",
-                f"Recommended ≥ {recommendations['production_min']}",
+                (
+                    "Recommended default: "
+                    f"{recommendations['recommended_steps']}  "
+                    f"Minimum suggested: {recommendations['production_min']}"
+                ),
             ),
             (
                 "Pool size",
                 "pool_size",
                 "Multiprocessing pool size",
-                f"Up to {recommendations['pool_max']} cores detected",
+                (
+                    f"Recommended pool: {recommendations['pool_max']}  "
+                    f"Detected CPUs: {recommendations['cpu_label']}"
+                ),
             ),
         ]
 
@@ -1826,7 +1954,6 @@ class CopernicanGUI:
             ttk.Label(
                 settings_frame,
                 text=recommendation,
-                foreground="#606060",
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w", padx=(16, 0))
@@ -1985,13 +2112,23 @@ class CopernicanGUI:
                 ).pack(anchor="w", pady=(0, 4))
                 actions = ttk.Frame(entry_frame)
                 actions.pack(anchor="w")
+                dataset_id = dataset["id"]
+
+                def _open_current_folder(
+                    path: str = dataset["path"], ds: str = dataset_id
+                ) -> None:
+                    self._open_folder_or_warn(
+                        path,
+                        context="data",
+                        subject=f"dataset {ds}",
+                    )
+
                 ttk.Button(
                     actions,
                     text="Open folder",
-                    command=lambda p=dataset["path"]: self.open_folder(p),
+                    command=_open_current_folder,
                     takefocus=True,
                 ).pack(side="left", padx=2)
-                dataset_id = dataset["id"]
                 def _view_current_metadata() -> None:
                     self._present_metadata(
                         dataset_id, f"Dataset metadata: {dataset_id}"
@@ -2066,7 +2203,11 @@ class CopernicanGUI:
                 model_folder = os.path.dirname(model["path"])
                 model_id = model["id"]
                 def _open_model_folder() -> None:
-                    self.open_folder(model_folder)
+                    self._open_folder_or_warn(
+                        model_folder,
+                        context="models",
+                        subject=f"model {model_id}",
+                    )
                 def _view_model_yaml() -> None:
                     self._present_metadata(
                         model_id, f"Model definition: {model_id}"
@@ -2140,7 +2281,11 @@ class CopernicanGUI:
                 engine_label = engine["label"] or engine["stem"]
 
                 def _open_engine_folder() -> None:
-                    self.open_folder(engine_folder)
+                    self._open_folder_or_warn(
+                        engine_folder,
+                        context="engines",
+                        subject=f"engine {engine_label}",
+                    )
 
                 def _view_engine_module() -> None:
                     self._present_metadata(
@@ -2247,7 +2392,16 @@ class CopernicanGUI:
             output_buttons = ttk.Frame(output_frame)
             output_buttons.pack(anchor="w", pady=(4, 0))
             def _open_output_directory() -> None:
-                self.open_folder(output_var.get().strip() or output_root)
+                target = output_var.get().strip() or output_root
+                os.makedirs(target, exist_ok=True)
+                try:
+                    self.open_folder(target)
+                except FileNotFoundError:
+                    self.create_toast(
+                        f"Output directory missing at {target}",
+                        severity="ERROR",
+                        context="settings",
+                    )
             ttk.Button(
                 output_buttons,
                 text="Open directory",
@@ -2362,22 +2516,17 @@ class CopernicanGUI:
         """Display live run status controls."""
 
         def builder(frame: tk.Frame) -> None:
+            self._status_label = None
             header = ttk.Label(
                 frame, text="Run Monitor", font=("Helvetica", 16)
             )
             header.pack(anchor="w", pady=(0, 8))
-            ttk.Label(
+            self._status_label = ttk.Label(
                 frame,
-                text=(
-                    f"Status: {self.status.value}"
-                    + (
-                        f" – {self.current_phase}"
-                        if self.current_phase
-                        else ""
-                    )
-                ),
+                text=self._status_text(),
                 takefocus=True,
-            ).pack(anchor="w")
+            )
+            self._status_label.pack(anchor="w")
             progress = ttk.Progressbar(
                 frame, maximum=100, value=self.progress, length=320
             )
@@ -2486,8 +2635,34 @@ class CopernicanGUI:
                 command=self.stop_run,
                 takefocus=True,
             ).pack(side="left", padx=4)
+            ttk.Label(
+                frame,
+                text=(
+                    "Pause/resume is not yet available for CLI runs. "
+                    "Use Cancel for graceful shutdowns or Hard Stop to "
+                    "terminate immediately."
+                ),
+                wraplength=720,
+                takefocus=True,
+            ).pack(anchor="w", pady=(6, 0))
 
         self._swap_content(builder)
+
+    def _status_text(self) -> str:
+        """Return the formatted status line for the run monitor."""
+
+        suffix = (
+            f" – {self.current_phase}"
+            if getattr(self, "current_phase", "")
+            else ""
+        )
+        return f"Status: {self.status.value}{suffix}"
+
+    def _refresh_status_label(self) -> None:
+        """Update the status label text if it is visible."""
+
+        if self._status_label is not None:
+            self._status_label.configure(text=self._status_text())
 
     def show_summary(self) -> None:
         """Display the completion summary with manifest reuse actions."""
@@ -2552,7 +2727,6 @@ class CopernicanGUI:
     def start_run(self) -> None:
         """Move into the monitoring view with a running status."""
 
-        self._run_stop_event.clear()
         self.current_phase = "Initialising"
         self.output_directory_prepared = True
         if self.pending_manifest is not None:
@@ -2567,72 +2741,227 @@ class CopernicanGUI:
         self.status = RunStatus.RUNNING
         self.progress = 0
         self.show_run_monitor()
+        self._refresh_status_label()
 
-    def _queue_run_start(self) -> None:
-        """Kick off the simulated run workflow if idle."""
+    def _resolve_model_entry(self) -> dict:
+        """Return the currently selected model metadata record."""
 
-        if self._run_thread and self._run_thread.is_alive():
-            return
-        self.start_run()
-        self._run_thread = threading.Thread(
-            target=self._simulate_run_execution, daemon=True
+        if self._selected_model_entry:
+            return self._selected_model_entry
+        candidate = ""
+        if self.selected_models:
+            candidate = self.selected_models[0]
+        elif self.draft.model:
+            candidate = self.draft.model.split(",")[0].strip()
+        if candidate:
+            for entry in self.model_index.values():
+                if (
+                    entry.get("id") == candidate
+                    or entry["filename"] == candidate
+                ):
+                    self._selected_model_entry = entry
+                    return entry
+        raise RuntimeError("Select a model before starting the run.")
+
+    def _resolve_engine_entry(self) -> dict:
+        """Return the currently selected engine metadata record."""
+
+        if self._selected_engine_entry:
+            return self._selected_engine_entry
+        candidate = self.selected_engine or self.draft.engine
+        if candidate:
+            for entry in self.engine_index.values():
+                if (
+                    entry.get("id") == candidate
+                    or entry["filename"] == candidate
+                ):
+                    self._selected_engine_entry = entry
+                    return entry
+        raise RuntimeError("Select an engine before starting the run.")
+
+    def _build_worker_config(self) -> dict:
+        """Return the serialized configuration passed to the CLI worker."""
+
+        model_entry = self._resolve_model_entry()
+        engine_entry = self._resolve_engine_entry()
+        datasets: dict[str, str] = {}
+        for entry in self.selected_datasets:
+            dataset_type = (entry.get("type") or "").lower()
+            if not dataset_type:
+                lookup = self.catalogue_index.get(entry.get("id", ""))
+                if lookup:
+                    dataset_type = (lookup.get("type") or "").lower()
+            dataset_id = entry.get("id", "")
+            if dataset_type and dataset_id:
+                datasets[dataset_type] = dataset_id
+        plan = self._build_sampling_plan_values(
+            engine_entry["id"]
         )
-        self._run_thread.start()
+        return {
+            "seed": self._safe_int(self.draft.seed, default=0),
+            "model_filename": Path(model_entry["path"]).name,
+            "engine_filename": engine_entry["filename"],
+            "datasets": datasets,
+            "sampling_plan": plan,
+        }
 
-    def _resolve_run_setting_value(self, key: str, fallback: int) -> int:
-        """Return numeric run-setting value with ``fallback`` default."""
+    def _write_worker_config(self, config: dict) -> str:
+        """Persist worker config to a temporary JSON file."""
 
-        configuration = (self.pending_manifest or {}).get("configuration", {})
-        settings = configuration.get("run_settings", {})
-        value = settings.get(key)
-        try:
-            if value is None or str(value).strip() == "":
-                raise ValueError
-            return max(int(value), 1)
-        except (ValueError, TypeError):
-            return fallback
-
-    def _simulate_run_execution(self) -> None:
-        """Simulate a backend run with incremental status feedback."""
-
-        burn_in_steps = self._resolve_run_setting_value("burn_in", 200)
-        production_steps = self._resolve_run_setting_value(
-            "production_steps", 500
+        Path(tempfile.gettempdir()).mkdir(parents=True, exist_ok=True)
+        handle = tempfile.NamedTemporaryFile(
+            "w",
+            delete=False,
+            suffix=".json",
+            dir=tempfile.gettempdir(),
+            encoding="utf-8",
         )
-        phases = [
-            ("Initialising", max(10, burn_in_steps // 10)),
-            ("Burn-in", burn_in_steps),
-            ("Production", production_steps),
+        with handle:
+            json.dump(config, handle, indent=2)
+            return handle.name
+
+    def _launch_worker_process(self, *, config: dict) -> None:
+        """Start the CLI runner in a child process."""
+
+        config_path = self._write_worker_config(config)
+        command = [
+            sys.executable,
+            "-m",
+            "copernican_lib.gui.run_worker",
+            config_path,
         ]
-        total_units = sum(max(steps, 1) for _, steps in phases)
-        processed = 0
-        for phase_name, phase_steps in phases:
-            if self._run_stop_event.is_set():
-                self._log_run_event(
-                    f"{phase_name} cancelled before starting",
-                    logging.WARNING,
-                )
-                self.current_phase = "Halted"
-                return
-            self.current_phase = phase_name
-            self._log_run_event(
-                f"{phase_name} phase started ({phase_steps} steps)",
-                logging.INFO,
+        env = os.environ.copy()
+        env.setdefault("COPERNICAN_DETACH_GUI", "0")
+        try:
+            process = subprocess.Popen(
+                command,
+                cwd=str(self._repo_root()),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
+                text=True,
+                bufsize=1,
             )
-            for _ in range(max(phase_steps, 1)):
-                if self._run_stop_event.is_set():
-                    self._log_run_event(
-                        f"{phase_name} interrupted by user",
-                        logging.WARNING,
-                    )
-                    self.current_phase = "Halted"
-                    return
-                processed += 1
-                progress_value = int((processed / total_units) * 100)
-                self.update_progress(progress_value)
-                time.sleep(0.05)
-        self.update_progress(100)
-        self.current_phase = "Completed"
+        except Exception as exc:
+            self.create_toast(
+                f"Failed to start run: {exc}",
+                severity="ERROR",
+                context="run",
+            )
+            self.status = RunStatus.ABORTED
+            self._refresh_status_label()
+            os.unlink(config_path)
+            return
+        self._run_process = process
+        self._run_config_path = config_path
+        threading.Thread(
+            target=self._stream_worker_output, args=(process,), daemon=True
+        ).start()
+        threading.Thread(
+            target=self._wait_for_worker, args=(process,), daemon=True
+        ).start()
+
+    def _stream_worker_output(self, process: subprocess.Popen[str]) -> None:
+        """Forward worker stdout into the GUI log."""
+
+        if process.stdout is None:
+            return
+        for line in process.stdout:
+            cleaned = line.rstrip()
+            if cleaned:
+                self._log_run_event(cleaned, logging.INFO)
+
+    def _wait_for_worker(self, process: subprocess.Popen[str]) -> None:
+        """Update GUI state when the worker finishes."""
+
+        return_code = process.wait()
+        if self._run_config_path and os.path.exists(self._run_config_path):
+            os.unlink(self._run_config_path)
+        self._run_config_path = None
+        self._run_process = None
+        if return_code == 0:
+            self.update_progress(100)
+            if self.status is RunStatus.RUNNING:
+                self.status = RunStatus.IDLE
+                self.current_phase = "Completed"
+                self._refresh_status_label()
+                self.create_toast(
+                    "Run completed successfully.",
+                    severity="INFO",
+                    context="run",
+                )
+                self.show_summary()
+        else:
+            if self.status is RunStatus.RUNNING:
+                self.status = RunStatus.ABORTED
+                self.current_phase = "Failed"
+                self._refresh_status_label()
+                self.create_toast(
+                    "Run aborted; review logs for details.",
+                    severity="ERROR",
+                    context="run",
+                )
+
+    def _terminate_run_process(self, *, force: bool) -> None:
+        """Terminate the active worker process if it exists."""
+
+        if self._run_process is None:
+            return
+        try:
+            if force:
+                self._run_process.kill()
+            else:
+                self._run_process.terminate()
+        except Exception as exc:
+            self._log_run_event(
+                f"Failed to terminate worker: {exc}", logging.WARNING
+            )
+
+    def _repo_root(self) -> Path:
+        """Return repository root path."""
+
+        return Path(__file__).resolve().parents[2]
+
+    def _safe_int(self, value: str, default: int | None) -> int | None:
+        """Return ``int(value)`` or ``default`` when parsing fails."""
+
+        try:
+            stripped = value.strip()
+        except AttributeError:
+            return default
+        if not stripped:
+            return default
+        try:
+            return int(stripped)
+        except ValueError:
+            return default
+
+    def _build_sampling_plan_values(self, engine_module: str) -> dict:
+        """Return the sampling plan dict fed to the CLI."""
+
+        module = importlib.import_module(engine_module)
+        kind = getattr(module, "ENGINE_KIND", "mcmc").lower()
+        if kind != "mcmc":
+            raise RuntimeError(
+                "GUI-triggered runs currently support MCMC engines only."
+            )
+        steps = self._safe_int(self.draft.production_steps, 500)
+        burn_in = self._safe_int(self.draft.burn_in, max(steps // 5, 100))
+        walkers = self._safe_int(self.draft.walkers, 32)
+        pool_text = getattr(self.draft, "pool_size", "")
+        pool_value = None
+        if isinstance(pool_text, str):
+            pool_text = pool_text.strip()
+            if pool_text:
+                pool_value = self._safe_int(pool_text, None)
+        return {
+            "engine_kind": "mcmc",
+            "n_steps": max(steps, 1),
+            "burn_in_steps": max(burn_in, 1),
+            "n_walkers": max(walkers, 1),
+            "pool_size": pool_value,
+            "display_progress": True,
+        }
 
     def update_progress(self, value: int) -> None:
         """Update the monitor progress meter."""
@@ -2641,8 +2970,10 @@ class CopernicanGUI:
         self._log_run_event(
             f"Run progress updated to {self.progress}%", logging.INFO
         )
+        self._refresh_status_label()
         if self.progress >= 100:
             self.status = RunStatus.IDLE
+            self._refresh_status_label()
             self.summary.output_links = ["/output/latest/chains.nc"]
             self.summary.manifest_actions = [
                 "Clone manifest",
@@ -2671,6 +3002,7 @@ class CopernicanGUI:
     def cancel_run(self, disposition: str | None = None) -> None:
         """Mark the run as cancelled and reset the progress."""
 
+        self._terminate_run_process(force=False)
         self.status = RunStatus.CANCELLED
         self.current_phase = "Cancelled"
         self.progress = 0
@@ -2684,27 +3016,29 @@ class CopernicanGUI:
             )
             self.summary.manifest_metadata = self._summarise_manifest()
         self._log_run_event("Run cancelled at user request", logging.WARNING)
-        self._run_stop_event.set()
+        self._refresh_status_label()
+        self.create_toast(
+            "Cancellation requested; the worker will exit shortly.",
+            severity="WARNING",
+            context="run",
+        )
 
     def pause_run(self) -> None:
         """Pause the run while keeping the monitor visible."""
 
-        self.status = RunStatus.PAUSED
-        self.current_phase = "Paused"
-        if self.pending_manifest is not None:
-            self.pending_manifest = run_manifest.annotate_outcome(
-                self.pending_manifest,
-                state="paused",
-                outputs=self.output_retention_decision,
-                reason="Pause requested",
-            )
-            self.summary.manifest_metadata = self._summarise_manifest()
-        self._log_run_event("Run paused by user", logging.WARNING)
-        self._run_stop_event.set()
+        self.create_toast(
+            (
+                "Pause/resume is not available for CLI runs; use Cancel "
+                "or Hard Stop."
+            ),
+            severity="WARNING",
+            context="run",
+        )
 
     def stop_run(self, disposition: str | None = None) -> None:
         """Stop the run while keeping the monitor visible."""
 
+        self._terminate_run_process(force=True)
         self.status = RunStatus.ABORTED
         self.current_phase = "Aborted"
         self.progress = 0
@@ -2728,7 +3062,8 @@ class CopernicanGUI:
                 context="monitor",
                 anchor=anchor,
             )
-        self._run_stop_event.set()
+        self._refresh_status_label()
+        self._refresh_status_label()
 
     def _noop(self) -> None:
         """Placeholder callback for summary actions."""
@@ -2738,14 +3073,24 @@ class CopernicanGUI:
     def confirm_start_run(self) -> None:
         """Generate a manifest snapshot and defer output creation."""
 
+        try:
+            worker_config = self._build_worker_config()
+        except Exception as exc:
+            self._log_run_event(str(exc), logging.ERROR)
+            self.create_toast(
+                f"Run aborted: {exc}",
+                severity="ERROR",
+                context="run",
+            )
+            return
         self.status = RunStatus.CONFIGURING
         self.current_phase = "Configuring"
         self.pending_manifest = self._generate_manifest_snapshot()
         self.summary.manifest_metadata = self._summarise_manifest()
         if self.pending_manifest is not None:
             self._start_run_logging(self.pending_manifest)
-        self.show_run_monitor()
-        self._queue_run_start()
+        self.start_run()
+        self._launch_worker_process(config=worker_config)
 
     def import_manifest(self, path: str) -> dict:
         """Load a manifest and seed the builder selections from it."""

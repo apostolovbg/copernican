@@ -55,9 +55,10 @@ renders `README.md` (banner and all) inside a scrollable text widget so the
 documentation is available without leaving the GUI. Full details live in
 `docs/gui_overview.md`. Metadata/YAML dialogs size themselves to the longest
 line, add an **Open file…** action that launches the source asset in the OS
-default editor, and the Run Monitor now mirrors CLI feedback by streaming
-phase updates (initialisation, burn-in, production) alongside the recorded run
-settings and manifest notes.
+default editor, and Start Run now delegates to `copernican_lib.gui.run_worker`,
+which invokes the real CLI workflow in a child process using the builder
+selections. The worker’s stdout/stderr feed the diagnostics pane while Cancel
+and Hard Stop terminate the child so runs remain interruptible from the GUI.
 `copernican.py` now accepts `--gui`, `--cli` and `--no-gui` flags plus
 `--manifest` and `--output-dir` overrides so CI can direct manifests to
 deterministic paths. GUI invocations detach automatically (``pythonw`` on

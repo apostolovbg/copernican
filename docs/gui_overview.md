@@ -16,6 +16,8 @@ from the inventories generated during GUI start-up. Revalidation, metadata
 previewing and folder opening remain available inside the builder, and the
 confirm panel lists the new run settings alongside the usual seeds, models and
 datasets before operators hit *Start Run*.
+Each dataset type renders in its own widened listbox with a dedicated scrollbar
+so even long catalogues stay visible without re-introducing multi-select menus.
 
 ## Data
 
@@ -28,16 +30,28 @@ and *Revalidate parser* buttons call the same helpers the CLI exposes.
 
 The builder now includes a Run Settings panel where you set the number of
 walkers, burn-in steps, production steps and multiprocessing pool size before
-confirming a run. These values are stored in the run manifest so downstream
-replays or audits capture every execution parameter.
+confirming a run. The panel mirrors the CLI prompts verbatim—reminding you
+about minimum walkers, recommended defaults, “quick burn-in” shortcuts and the
+current CPU count—so GUI launches receive the same context as the terminal
+workflow. These values are stored in the run manifest so downstream replays or
+audits capture every execution parameter.
+
+## Run Execution
+
+Pressing **Start Run** launches the full CLI workflow in a background worker
+process using the current builder configuration. The GUI streams the worker's
+stdout/stderr into the diagnostics panel, mirrors CLI log messages and exposes
+Cancel/Hard Stop buttons that terminate the child process when you need to stop
+early. (Pause/resume is still a CLI-only feature.)
 
 ## Metadata dialogs
 
 Metadata, YAML and module viewers automatically size themselves to the longest
-line, enforce a sensible minimum height and include an **Open file…** button
-that launches the underlying asset in the operating system's default editor.
-The dialogs remain resizable, so scrolling through long YAMLs or dataset notes
-feels the same as opening the files directly.
+line, enforce the 15/25-line minimum and default window sizes requested by
+design, and include an **Open file…** button that launches the underlying asset
+in the operating system's default editor. The dialogs keep horizontal resizing
+locked while allowing unlimited vertical resizing so short files stay compact
+and long YAMLs remain comfortable to read.
 
 ## Models
 

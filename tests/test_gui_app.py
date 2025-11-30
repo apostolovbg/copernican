@@ -3,9 +3,33 @@
 import os
 import tempfile
 from pathlib import Path
+from types import MethodType
 
 from copernican_lib import run_manifest
 from copernican_lib.gui import CopernicanGUI, RunStatus
+
+
+def _prime_gui_selections(gui: CopernicanGUI) -> None:
+    """Seed model and engine selections for tests that confirm runs."""
+
+    model_entry = next(iter(gui.model_index.values()))
+    engine_entry = next(iter(gui.engine_index.values()))
+    gui.selected_models = [model_entry["id"]]
+    gui._selected_model_entry = model_entry  # type: ignore[attr-defined]
+    gui.selected_engine = engine_entry["id"]
+    gui._selected_engine_entry = engine_entry  # type: ignore[attr-defined]
+
+
+def _stub_worker_launch(gui: CopernicanGUI) -> None:
+    """Avoid spawning the CLI worker during unit tests."""
+
+    def _no_worker(self, *, config: dict) -> None:
+        self._last_worker_config = config  # type: ignore[attr-defined]
+
+    gui._launch_worker_process = MethodType(
+        _no_worker,
+        gui,
+    )
 
 def test_catalogue_metadata_and_filters() -> None:
     gui = CopernicanGUI(render=False)
@@ -53,24 +77,22 @@ def test_builder_navigation_and_draft() -> None:
 
 def test_run_monitor_lifecycle() -> None:
     gui = CopernicanGUI(render=False)
+    _prime_gui_selections(gui)
+    _stub_worker_launch(gui)
     with tempfile.NamedTemporaryFile(delete=False) as fh:
         fh.write(b"data")
         fh.flush()
         gui.register_dataset(dataset_id="ds", path=fh.name, name="Dataset")
-    gui.selected_models.append("ModelA")
-    gui.selected_engine = "engine"
     gui.draft.seed = "3"
     gui.confirm_start_run()
-    assert gui.status is RunStatus.CONFIGURING
-    assert gui.pending_manifest is not None
-    assert gui.output_directory_prepared is False
-    gui.start_run()
     assert gui.status is RunStatus.RUNNING
+    assert gui.pending_manifest is not None
     assert gui.output_directory_prepared is True
     gui.update_progress(50)
     assert gui.progress == 50
     gui.pause_run()
-    assert gui.status is RunStatus.PAUSED
+    assert gui.status is RunStatus.RUNNING
+    assert gui.alerts[-1].message.startswith("Pause/resume")
     gui.cancel_run(disposition="archived")
     assert gui.pending_manifest["status"]["state"] == "cancelled"
     gui.stop_run(disposition="deleted")
@@ -124,10 +146,9 @@ def test_application_diagnostics_logging(tmp_path: Path) -> None:
 
 def test_run_log_confirmation_and_anchor_jump(tmp_path: Path) -> None:
     gui = CopernicanGUI(render=False)
+    _prime_gui_selections(gui)
+    _stub_worker_launch(gui)
     assert gui.run_log_path is None
-    gui.draft.model = "ModelB"
-    gui.draft.data = "Dataset"
-    gui.draft.engine = "engine"
     gui.confirm_start_run()
     assert gui.run_log_path is not None
     assert os.path.exists(gui.run_log_path)

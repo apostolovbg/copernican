@@ -20,6 +20,47 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.9.0
+- 2025-11-30: Hardened the GUI workflow so Start Run validates the active
+             selections before launching the CLI worker, widens and scrolls
+             the per-type dataset menus, improves metadata dialogs with the
+             requested 15/25-line sizing plus OS-level *Open file…* buttons,
+             adds dataset/model/engine folder fallbacks, keeps the Run Monitor
+             honest about pause support and fixes the worker import path while
+             adding coverage for the new module and GUI harness
+             (copernican_lib/gui/app.py, copernican_lib/gui/run_worker.py,
+             tests/test_gui_app.py, tests/test_gui_run_worker.py, README.md,
+             docs/gui_overview.md).
+- 2025-11-30: Bumped the release metadata to 10.9.0 so the docs and citation
+             files stay in sync with the GUI improvements
+             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+
+## Version 10.8.7
+- 2025-11-30: Removed the GUI-only run simulation and replaced it with a managed
+             CLI worker subprocess so Start Run executes the real pipeline using
+             the current builder selections. The worker is configured via a
+             temporary JSON plan, streams stdout/stderr into the diagnostics
+             pane, honours Cancel/Hard Stop by terminating the child process and
+             auto-selects datasets, engines and sampler settings without any CLI
+             prompts (copernican_lib/gui/app.py, copernican_lib/gui/run_worker.py,
+             README.md, docs/gui_overview.md, AGENTS.md).
+- 2025-11-30: Bumped the suite version to 10.8.7 so VERSION, README and
+             citations track the new GUI behaviour (copernican_lib/VERSION,
+             README.md, CITATION.cff, CHANGELOG.md).
+
+## Version 10.8.6
+- 2025-11-30: Tuned the GUI so metadata/YAML/module viewers stick to the longest
+             line width, keep scrollbars, obey the requested line-count rules and
+             add an **Open file…** button; dataset selectors now display wider
+             type-specific menus with per-entry summaries; the run monitor runs on
+             the Tk event loop with CLI-style phase updates instead of jumping to
+             the summary; and the Run Settings panel mirrors CLI guidance for
+             walkers, burn-in, production steps and worker pools using the same
+             heuristics (copernican_lib/gui/app.py, README.md, docs/gui_overview.md).
+- 2025-11-30: Bumped the suite version to 10.8.6 so README, CHANGELOG and
+             citation metadata stay in sync (copernican_lib/VERSION, README.md,
+             CITATION.cff, CHANGELOG.md).
+
 ## Version 10.8.5
 - 2025-11-30: Improved the GUI experience by resizing metadata/YAML dialogs to
              the longest line, adding OS-level *Open file…* actions, widening
