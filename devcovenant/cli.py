@@ -18,7 +18,7 @@ def main():
 
     parser.add_argument(
         "command",
-        choices=["check", "sync", "test"],
+        choices=["check", "sync", "test", "update-hashes"],
         help="Command to run",
     )
 
@@ -84,6 +84,13 @@ def main():
         except Exception as e:
             print(f"❌ Test execution failed: {e}")
             sys.exit(1)
+
+    elif args.command == "update-hashes":
+        # Update policy script hashes in registry.json
+        from .update_hashes import update_registry_hashes
+
+        result = update_registry_hashes(args.repo)
+        sys.exit(result)
 
 
 if __name__ == "__main__":
