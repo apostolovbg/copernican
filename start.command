@@ -206,7 +206,7 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
                 export COPERNICAN_DETACH_GUI=1
                 echo "Launching the Copernican GUI; the terminal will close once the detached window is running."
                 COPERNICAN_STRICT_WARNINGS=$STRICT \
-                    python copernican.py --gui
+                    nohup python copernican.py --gui >/dev/null 2>&1 &
                 exit 0 ;;
             2)
                 COPERNICAN_STRICT_WARNINGS=$STRICT \

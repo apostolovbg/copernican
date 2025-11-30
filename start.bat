@@ -247,7 +247,11 @@ if "%CHOICE%"=="1" (
     set COPERNICAN_STRICT_WARNINGS=%STRICT%
     set COPERNICAN_DETACH_GUI=1
     echo Launching the Copernican GUI; the console will close once the detached window is running.
-    python copernican.py --gui
+    if exist "%EXPECTED_VENV%\Scripts\pythonw.exe" (
+        start "" /b "%EXPECTED_VENV%\Scripts\pythonw.exe" copernican.py --gui
+    ) else (
+        start "" /b python copernican.py --gui
+    )
     goto :eof
 )
 if "%CHOICE%"=="2" (
