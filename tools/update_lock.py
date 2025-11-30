@@ -21,11 +21,13 @@ from typing import Iterable, List, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 
+
 @dataclass(frozen=True)
 class LockFilePieces:
     """Describe the pieces of a ``requirements.lock`` snapshot."""
 
     body: List[str]
+
 
 def ensure_piptools_available() -> None:
     """Abort with guidance when :mod:`piptools` is unavailable."""
@@ -42,6 +44,7 @@ def ensure_piptools_available() -> None:
             "pip-tools==7.4.1`."
         )
 
+
 def ensure_inputs(root: Path) -> tuple[Path, Path]:
     """Return the ``requirements`` inputs and ensure they exist."""
 
@@ -53,6 +56,7 @@ def ensure_inputs(root: Path) -> tuple[Path, Path]:
             "root or provide --root with a valid project directory."
         )
     return req_in, lock_path
+
 
 def run_pip_compile(
     root: Path, requirements_in: Path, output_path: Path
@@ -77,6 +81,7 @@ def run_pip_compile(
         check=True,
     )
 
+
 def normalise_header(lines: Sequence[str]) -> List[str]:
     """Stabilise ``pip-compile`` banners across Python versions."""
 
@@ -98,12 +103,15 @@ def normalise_header(lines: Sequence[str]) -> List[str]:
             break
     return result
 
+
 def split_last_updated(lines: Iterable[str]) -> LockFilePieces:
     """Separate the optional ``Last Updated`` banner from the body."""
 
     collected = list(lines)
+    if collected and collected[0].startswith("# Last Updated:"):
         return LockFilePieces(collected[1:])
     return LockFilePieces(collected)
+
 
 def compile_new_lock(root: Path, requirements_in: Path) -> LockFilePieces:
     """Generate a normalised lockfile snapshot without touching disk."""
@@ -114,6 +122,7 @@ def compile_new_lock(root: Path, requirements_in: Path) -> LockFilePieces:
         normalised = normalise_header(tmp_lock.read_text().splitlines())
     return split_last_updated(normalised)
 
+
 def read_existing_lock(lock_path: Path) -> LockFilePieces:
     """Return the current ``requirements.lock`` pieces, if any."""
 
@@ -121,10 +130,12 @@ def read_existing_lock(lock_path: Path) -> LockFilePieces:
         return LockFilePieces([])
     return split_last_updated(lock_path.read_text().splitlines())
 
+
 def write_lock(lock_path: Path, body: Sequence[str]) -> None:
     """Persist the reconstructed lockfile without metadata banners."""
 
     lock_path.write_text("\n".join(body) + "\n", encoding="utf-8")
+
 
 def update_lockfile(root: Path) -> bool:
     """Refresh ``requirements.lock`` and return ``True`` when it changed."""
@@ -136,6 +147,7 @@ def update_lockfile(root: Path) -> bool:
         return False
     write_lock(lock_path, compiled.body)
     return True
+
 
 def parse_args() -> argparse.Namespace:
     """Return command-line arguments for the helper."""
@@ -157,6 +169,7 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
+
 def main() -> None:
     """Entry-point for the command-line interface."""
 
@@ -166,6 +179,7 @@ def main() -> None:
         print("requirements.lock updated", file=sys.stdout)
     else:
         print("requirements.lock already up to date", file=sys.stdout)
+
 
 if __name__ == "__main__":
     main()

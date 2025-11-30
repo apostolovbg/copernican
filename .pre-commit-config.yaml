@@ -41,7 +41,9 @@ repos:
       - id: copernican-policy
         name: enforce Copernican repository policies (DevCovenant)
         entry: python devcovenant_check.py check
-        language: system
+        language: python
+        additional_dependencies:
+          - PyYAML==6.0.1
         types: [text]
         pass_filenames: false
         always_run: true

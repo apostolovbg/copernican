@@ -12,7 +12,6 @@ whenever they are unpickled.
 """
 
 import ast
-import datetime as _dt
 import itertools
 import logging
 import math
@@ -52,7 +51,9 @@ _LOGISTIC_SUPPORT_POINTS = (
 
 _GENERATED_NAME_COUNTER = itertools.count(1)
 _LAST_UPDATED_PATTERN = re.compile(
+    r"^#\s*Last Updated:\s*\d{4}-\d{2}-\d{2}\s*$", re.MULTILINE
 )
+
 
 class RobustQuadFailure(RuntimeError):
     """Raised when :func:`robust_quad` cannot avoid Integration warnings.
@@ -77,6 +78,7 @@ class RobustQuadFailure(RuntimeError):
         self.upper = upper
         self.attempts = attempts
         self.last_result = last_result
+
 
 class _GeneratedCallable:
     """Wrap a SymPy expression inside a self-reconstructing callable.
@@ -178,6 +180,7 @@ class _GeneratedCallable:
             name_hint=self._state["name_hint"],
         )
 
+
 def _register_generated_callable(func, *, name_hint: str | None = None):
     """Register ``func`` on this module so it can be pickled safely.
 
@@ -206,6 +209,7 @@ def _register_generated_callable(func, *, name_hint: str | None = None):
     func.__qualname__ = candidate
     func.__module__ = module.__name__
     return func
+
 
 class _ComovingDistance:
     """Picklable callable computing the comoving distance in Mpc."""
@@ -245,6 +249,7 @@ class _ComovingDistance:
         interp = np.interp(z_flat, grid, cumulative)
         return np.reshape(interp, np.shape(z_val))
 
+
 class _LuminosityDistance:
     """Return the luminosity distance from a comoving distance helper."""
 
@@ -256,6 +261,7 @@ class _LuminosityDistance:
     def __call__(self, zv, *params):
         return (1.0 + zv) * self._dm(zv, *params)
 
+
 class _AngularDiameterDistance:
     """Return the angular diameter distance from comoving distance."""
 
@@ -266,6 +272,7 @@ class _AngularDiameterDistance:
 
     def __call__(self, zv, *params):
         return self._dm(zv, *params) / (1.0 + zv)
+
 
 class _VolumeAveragedDistance:
     """Compute the BAO volume-averaged distance ``D_V`` in Mpc."""
@@ -294,6 +301,7 @@ class _VolumeAveragedDistance:
         )
         return result
 
+
 class SoundHorizonComputationError(RuntimeError):
     """Signal that the symbolic sound-horizon integral remains ill-behaved.
 
@@ -305,6 +313,7 @@ class SoundHorizonComputationError(RuntimeError):
     intent obvious to plugin consumers who catch and log domain-specific
     failures at higher levels.
     """
+
 
 class _SoundHorizonFromExpression:
     """Wrap a symbolic sound-horizon function in a picklable callable."""
@@ -330,6 +339,7 @@ class _SoundHorizonFromExpression:
                 "rs_expression diverged despite robust quadrature safeguards"
             ) from exc
 
+
 class _DistanceModulusFromLuminosity:
     """Convert luminosity distance results to distance modulus."""
 
@@ -343,6 +353,7 @@ class _DistanceModulusFromLuminosity:
         with np.errstate(divide="ignore", invalid="ignore"):
             mu = 5.0 * np.log10(dl) + 25.0
         return np.where(np.asarray(dl) > 0, mu, np.nan)
+
 
 class QuadPrinter(NumPyPrinter):
     """NumPy printer that expands ``Integral`` nodes into ``scipy``
@@ -362,6 +373,7 @@ class QuadPrinter(NumPyPrinter):
             f"{b_code})[0]"
         )
 
+
 def _is_finite_bound(value) -> bool:
     """Return ``True`` when ``value`` can be represented as a finite float."""
 
@@ -369,6 +381,7 @@ def _is_finite_bound(value) -> bool:
         return math.isfinite(float(value))
     except (TypeError, ValueError):
         return False
+
 
 def _is_pos_inf(value) -> bool:
     """Return ``True`` when ``value`` represents positive infinity."""
@@ -378,6 +391,7 @@ def _is_pos_inf(value) -> bool:
     except (TypeError, ValueError):
         return False
 
+
 def _is_neg_inf(value) -> bool:
     """Return ``True`` when ``value`` represents negative infinity."""
 
@@ -385,6 +399,7 @@ def _is_neg_inf(value) -> bool:
         return float(value) == -math.inf
     except (TypeError, ValueError):
         return False
+
 
 def _point_in_interval(point: float, lower, upper) -> bool:
     """Return ``True`` when ``point`` falls strictly between the bounds."""
@@ -403,6 +418,7 @@ def _point_in_interval(point: float, lower, upper) -> bool:
     lower_val = float(lower)
     upper_val = float(upper)
     return min(lower_val, upper_val) < point_val < max(lower_val, upper_val)
+
 
 def _map_points_for_positive_infinity(
     points: tuple[float, ...], lower: float
@@ -424,6 +440,7 @@ def _map_points_for_positive_infinity(
     mapped = tuple(dict.fromkeys(sorted(mapped)))
     return mapped
 
+
 def _map_points_for_negative_infinity(
     points: tuple[float, ...], upper: float
 ) -> tuple[float, ...]:
@@ -443,6 +460,7 @@ def _map_points_for_negative_infinity(
     mapped.extend(_LOGISTIC_SUPPORT_POINTS)
     mapped = tuple(dict.fromkeys(sorted(mapped)))
     return mapped
+
 
 def robust_quad(
     func,
@@ -516,6 +534,7 @@ def robust_quad(
         allow_infinite=True,
     )
 
+
 def _robust_quad(
     func,
     a,
@@ -552,6 +571,7 @@ def _robust_quad(
         points,
         base_kwargs,
     )
+
 
 def _robust_quad_core(
     func,
@@ -681,6 +701,7 @@ def _robust_quad_core(
         last_result=result,
     )
 
+
 def _handle_infinite_interval(
     func,
     a,
@@ -724,6 +745,7 @@ def _handle_infinite_interval(
         total_err += err
 
     return total, total_err
+
 
 def _integrate_infinite_segment(
     func,
@@ -825,12 +847,15 @@ def _integrate_infinite_segment(
         base_kwargs,
     )
 
+
 def _latex_to_sympy_str(expr: str) -> str:
     """Convert a LaTeX-style expression to a SymPy-friendly string."""
     return latex_utils.latex_to_sympy(expr)
 
+
 _SAFE_GLOBALS = {"__builtins__": {}}
 _SAFE_GLOBALS.update({name: getattr(sp, name) for name in sp.__all__})
+
 
 def _safe_parse_expr(expr_str: str, local_dict: dict) -> sp.Expr:
     """Safely parse ``expr_str`` into a SymPy expression.
@@ -853,6 +878,7 @@ def _safe_parse_expr(expr_str: str, local_dict: dict) -> sp.Expr:
         + (implicit_multiplication_application,),
     )
 
+
 def _compile_sympy_expr(sym_expr, args, name_hint: str | None = None):
     """Return a picklable callable for ``sym_expr``.
 
@@ -874,13 +900,15 @@ def _compile_sympy_expr(sym_expr, args, name_hint: str | None = None):
         sym_expr=sym_expr,
     )
 
+
 def _extract_last_updated_header(text: str) -> str:
     """Return the ``Last Updated`` header for *text* or stamp a fresh one."""
 
     for line in text.splitlines()[:3]:
         if _LAST_UPDATED_PATTERN.match(line):
             return line.strip()
-    today = _dt.datetime.now(_dt.timezone.utc).date().isoformat()
+    return None
+
 
 def generate_callables(cache_path):
     """Create callables from the cached model and update the cache file.
@@ -1023,7 +1051,7 @@ def generate_callables(cache_path):
                     error_handler.report_error(msg)
                     raise ValueError(msg)
                 console.write(
-                    "\u26A0\uFE0F  Model does not supply r_s; BAO metrics "
+                    "\u26a0\ufe0f  Model does not supply r_s; BAO metrics "
                     "are disabled."
                 )
                 model_data["valid_for_bao"] = False
@@ -1033,7 +1061,7 @@ def generate_callables(cache_path):
             raise ValueError(msg) from e
     else:
         console.write(
-            "\u26A0\uFE0F  Model does not define H(z). Distance-based "
+            "\u26a0\ufe0f  Model does not define H(z). Distance-based "
             "observables such as BAO, comoving distances, and luminosity "
             "distances will be unavailable."
         )

@@ -1,12 +1,12 @@
 """Tests for no_future_dates policy."""
 
-import datetime as dt
 import tempfile
 import unittest
 from pathlib import Path
 
 from devcovenant.base import CheckContext
 from devcovenant.policy_scripts.no_future_dates import NoFutureDatesCheck
+
 
 class TestNoFutureDatesPolicy(unittest.TestCase):
     """Test suite for NoFutureDatesCheck."""
@@ -15,7 +15,7 @@ class TestNoFutureDatesPolicy(unittest.TestCase):
         """Policy should detect future dates in Last Updated headers."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_root = Path(tmpdir)
-            future = (dt.date.today() + dt.timedelta(days=1)).isoformat()
+            # future = (dt.date.today() + dt.timedelta(days=1)).isoformat()
 
             test_file = repo_root / "test.md"
 
@@ -30,7 +30,7 @@ class TestNoFutureDatesPolicy(unittest.TestCase):
         """Policy should allow current dates."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_root = Path(tmpdir)
-            today = dt.date.today().isoformat()
+            # today = dt.date.today().isoformat()
 
             test_file = repo_root / "test.md"
 

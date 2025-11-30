@@ -13,7 +13,6 @@ validation, sanitisation and cache management rather than mere text parsing.
 # a sanitized copy to ``models/cache/``. The sanitized file is used by child
 # processes so that validation only happens once in the main process.
 
-import datetime as _dt
 import math
 import multiprocessing as _mp
 from pathlib import Path
@@ -23,9 +22,11 @@ from jsonschema import ValidationError, validate
 
 from . import error_handler, latex_utils, priors
 
+
 def _sanitise_name_to_var(name: str) -> str:
     """Return a valid Python identifier derived from a LaTeX name."""
     return latex_utils.sanitize_name(name)
+
 
 def _ensure_delim(expr: str | None) -> str | None:
     """Wrap math expressions with ``$$`` when missing.
@@ -40,6 +41,7 @@ def _ensure_delim(expr: str | None) -> str | None:
         return cleaned
     cleaned = f"$${cleaned}$$"
     return cleaned
+
 
 MODEL_SCHEMA = {
     "type": "object",
@@ -91,6 +93,7 @@ MODEL_SCHEMA = {
         "notes": {"type": "string"},
     },
 }
+
 
 def validate_and_cache_model(path, cache_dir):
     """Validate ``path`` and write cleaned YAML to ``cache_dir``.
@@ -230,7 +233,6 @@ def validate_and_cache_model(path, cache_dir):
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache_path = cache_dir / f"cache_{path.name}"
-    today = _dt.date.today().isoformat()
     with cache_path.open("w", encoding="utf-8") as f:
         yaml.safe_dump(data, f, sort_keys=False, allow_unicode=True)
     return str(cache_path)
