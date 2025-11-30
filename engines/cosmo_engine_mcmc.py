@@ -826,9 +826,8 @@ def fit_cosmology_parameters(
             logger=logger,
             progress_granularity=progress_granularity,
             summary_callback=production_reporter,
-        progress_label=f"{model_plugin.MODEL_NAME} production",
-        display_progress=display_progress,
-        progress_listener=progress_callback,
+            progress_label=f"{model_plugin.MODEL_NAME} production",
+            display_progress=display_progress,
             progress_listener=progress_callback,
             stage_metadata={
                 "phase": "production",

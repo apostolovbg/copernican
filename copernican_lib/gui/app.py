@@ -12,6 +12,7 @@ extra frameworks.
 from __future__ import annotations
 
 import importlib
+import inspect
 import json
 import logging
 import os
@@ -1363,23 +1364,75 @@ class CopernicanGUI:
                     break
         return max(sum(counts), 0)
 
+    def _engine_default_settings(self) -> tuple[int, int, int]:
+        """Return defaults for steps, walkers and worker pools."""
+
+        default_steps = 200
+        default_walkers = 32
+        default_pool = os.cpu_count() or 1
+        engine_entry = None
+        try:
+            engine_entry = self._resolve_engine_entry()
+        except RuntimeError:
+            return default_steps, default_walkers, default_pool
+        module_name = engine_entry.get("id", "")
+        if not module_name:
+            return default_steps, default_walkers, default_pool
+        try:
+            module = importlib.import_module(module_name)
+        except Exception:
+            return default_steps, default_walkers, default_pool
+        fit_fn = getattr(
+            module,
+            "fit_cosmology_parameters",
+            getattr(module, "fit_sne_parameters", None),
+        )
+        if not callable(fit_fn):
+            return default_steps, default_walkers, default_pool
+        try:
+            signature = inspect.signature(fit_fn)
+        except Exception:
+            return default_steps, default_walkers, default_pool
+        def _default_value(name: str, fallback: int) -> int:
+            param = signature.parameters.get(name)
+            if param is None or param.default is inspect._empty:
+                return fallback
+            try:
+                return int(param.default)
+            except (TypeError, ValueError):
+                return fallback
+        steps = _default_value("n_steps", default_steps)
+        walkers = _default_value("n_walkers", default_walkers)
+        pool = default_pool
+        pool_param = signature.parameters.get("pool_size")
+        if pool_param and pool_param.default is not inspect._empty:
+            try:
+                pool_val = int(pool_param.default)
+                if pool_val > 0:
+                    pool = pool_val
+            except (TypeError, ValueError):
+                pool = default_pool
+        return steps, walkers, pool
+
     def _compute_run_recommendations(self) -> dict[str, int | str]:
         """Return heuristic recommendations for run settings."""
 
         param_total = max(self._parameter_count_for_selection(), 1)
-        dataset_total = max(len(self.selected_datasets) or 1, 1)
         minimum_walkers = max(2 * param_total, 2)
-        recommended_walkers = max(32, minimum_walkers)
-        recommended_steps = max(500, dataset_total * 400)
+        default_steps, default_walkers, default_pool = (
+            self._engine_default_settings()
+        )
+        recommended_steps = max(default_steps, 1)
         burn_in_recommended = max(100, recommended_steps // 5)
         quick_burn = max(1, recommended_steps // 5)
-        production_min = max(dataset_total * recommended_walkers * 5, 500)
+        recommended_walkers = max(default_walkers, minimum_walkers)
         cpu_detected = os.cpu_count() or 0
         cpu_label = cpu_detected if cpu_detected > 0 else "unknown"
         recommended_pool = (
-            cpu_detected if cpu_detected > 0 else recommended_walkers
+            cpu_detected if cpu_detected > 0 else minimum_walkers
         )
         recommended_pool = max(recommended_pool, 1)
+        production_min = max(recommended_steps, 500)
         return {
             "minimum_walkers": minimum_walkers,
             "recommended_walkers": recommended_walkers,
@@ -1758,6 +1811,7 @@ class CopernicanGUI:
             textvariable=combo_var,
             values=choices,
             state="readonly",
+            width=48,
         )
         combo.pack(anchor="w", pady=(6, 6))
 
@@ -3017,13 +3071,19 @@ class CopernicanGUI:
         if not path:
             return
         last_snapshot: dict | None = None
-        while self._progress_poll_stop is None or not self._progress_poll_stop.is_set():
+        while (
+            self._progress_poll_stop is None
+            or not self._progress_poll_stop.is_set()
+        ):
             snapshot = progress_state.load_progress(path)
             if snapshot and snapshot != last_snapshot:
                 last_snapshot = snapshot
                 self._apply_progress_snapshot(snapshot)
-            if self._progress_poll_stop is not None and self._progress_poll_stop.wait(
-                self._PROGRESS_POLL_INTERVAL
+            if (
+                self._progress_poll_stop is not None
+                and self._progress_poll_stop.wait(
+                    self._PROGRESS_POLL_INTERVAL
+                )
             ):
                 break
 
@@ -3055,8 +3115,12 @@ class CopernicanGUI:
             percent = snapshot.get("batch_percent", 0) if snapshot else 0
             self._batch_progressbar["value"] = min(max(percent, 0), 100)
         if self._walker_progressbar:
-            walker_percent = snapshot.get("walker_percent", 0) if snapshot else 0
-            self._walker_progressbar["value"] = min(max(walker_percent, 0), 100)
+            walker_percent = (
+                snapshot.get("walker_percent", 0) if snapshot else 0
+            )
+            self._walker_progressbar["value"] = min(
+                max(walker_percent, 0), 100
+            )
         self._refresh_status_label()
         self._refresh_run_log_widget()
 

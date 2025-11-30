@@ -20,6 +20,18 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.9.2
+- 2025-11-30: Restored Start Run after the monitoring refactor by fixing the
+             duplicated `progress_listener` argument, ensuring the session
+             config actually launches the CLI worker, widening the engine
+             selector drop-down, and mirroring the CLI sampler hints for steps,
+             burn-in, walkers and worker pools inside the Run Settings panel
+             (copernican_lib/gui/app.py, engines/cosmo_engine_mcmc.py,
+             copernican_lib/progress.py, README.md, docs/gui_overview.md).
+- 2025-11-30: Bumped the release metadata to 10.9.2 so the docs and citation
+             files stay in sync with the GUI improvements
+             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+
 ## Version 10.9.1
 - 2025-11-30: Rebuilt the Run Monitor so it mirrors the CLI sampler: dual
              batch and walker progress bars stream the shared progress state,
