@@ -11,7 +11,6 @@ from typing import Dict, List, Optional
 
 from .parser import PolicyDefinition
 
-
 @dataclass
 class PolicySyncIssue:
     """
@@ -35,7 +34,6 @@ class PolicySyncIssue:
     script_exists: bool
     issue_type: str
     current_hash: Optional[str] = None
-
 
 class PolicyRegistry:
     """

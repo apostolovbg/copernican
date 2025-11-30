@@ -8,7 +8,6 @@ from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
-
 class LineLengthLimitCheck(PolicyCheck):
     """
     Check that lines are under 79 characters.

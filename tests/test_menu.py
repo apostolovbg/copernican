@@ -27,7 +27,6 @@ with mock.patch("sys.version_info", (3, 12, 0)):
         copernican = importlib.import_module("copernican")
 import copernican_lib.dataset_registry
 
-
 class SelectSourceDisplayTestCase(unittest.TestCase):
     """Ensure selection prompts show names and return identifiers."""
 
@@ -55,7 +54,6 @@ class SelectSourceDisplayTestCase(unittest.TestCase):
         out = "".join(captured)
         self.assertIn("Dummy Dataset", out)
         self.assertNotIn("dummy_id", out)
-
 
 class SamplerConfigurationPromptTestCase(unittest.TestCase):
     """Exercise the sampler configuration questionnaire."""
@@ -171,7 +169,6 @@ class SamplerConfigurationPromptTestCase(unittest.TestCase):
             },
         )
 
-
 class NestedSamplerConfigurationPromptTestCase(unittest.TestCase):
     """Exercise the nested-sampling configuration questionnaire."""
 
@@ -284,7 +281,6 @@ class NestedSamplerConfigurationPromptTestCase(unittest.TestCase):
             },
         )
 
-
 class PostRunMenuTestCase(unittest.TestCase):
     """Validate the post-run navigation menu."""
 
@@ -318,7 +314,6 @@ class PostRunMenuTestCase(unittest.TestCase):
             args[0] for args, _ in write_mock.call_args_list if args
         ]
         self.assertIn("Please choose 1 or C.", write_calls)
-
 
 if __name__ == "__main__":
     unittest.main()

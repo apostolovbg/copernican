@@ -38,7 +38,6 @@ from copernican_lib import (
     utils,
 )
 
-
 class RunStatus(Enum):
     """Enumerate the run lifecycle states shown in the status strip."""
 
@@ -48,7 +47,6 @@ class RunStatus(Enum):
     PAUSED = "Paused"
     CANCELLED = "Cancelled"
     ABORTED = "Aborted"
-
 
 @dataclass
 class RunDraft:
@@ -62,7 +60,6 @@ class RunDraft:
     notes: str = ""
     completed_step: int = 0
 
-
 @dataclass
 class NavigationItem:
     """Describe a navigation rail entry and its callback."""
@@ -72,7 +69,6 @@ class NavigationItem:
     shortcut: str
     action: Callable[["CopernicanGUI"], None]
 
-
 @dataclass
 class RunSummary:
     """Capture the artefacts exposed on the completion screen."""
@@ -80,7 +76,6 @@ class RunSummary:
     output_links: list[str] = field(default_factory=list)
     manifest_actions: list[str] = field(default_factory=list)
     manifest_metadata: list[str] = field(default_factory=list)
-
 
 @dataclass
 class LogEntry:
@@ -92,7 +87,6 @@ class LogEntry:
     anchor: str
     formatted: str
 
-
 @dataclass
 class UIMessage:
     """Track toast or inline alerts with log anchors."""
@@ -101,7 +95,6 @@ class UIMessage:
     anchor: str
     severity: str
     context: str
-
 
 class _MemoryLogHandler(logging.Handler):
     """Capture structured log lines for on-screen diagnostics."""
@@ -137,7 +130,6 @@ class _MemoryLogHandler(logging.Handler):
         if not self.entries:
             return None
         return self.entries[-1].anchor
-
 
 class CopernicanGUI:
     """Build and manage the GUI layout with optional rendering.
@@ -1785,6 +1777,5 @@ class CopernicanGUI:
 
         if self.render and self.root is not None:
             self.root.mainloop()
-
 
 __all__ = ["CopernicanGUI", "RunStatus", "RunDraft", "RunSummary"]

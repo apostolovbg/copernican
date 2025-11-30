@@ -26,7 +26,6 @@ from scipy.optimize import minimize
 
 from . import console_output as console
 
-
 def minimize_with_progress(
     func: Callable[[Iterable, Any], float],
     x0: Iterable,

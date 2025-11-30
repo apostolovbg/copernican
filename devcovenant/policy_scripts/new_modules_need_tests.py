@@ -11,7 +11,6 @@ from typing import List, Set
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
-
 class NewModulesNeedTestsCheck(PolicyCheck):
     """Ensure new Python modules ship with accompanying tests."""
 

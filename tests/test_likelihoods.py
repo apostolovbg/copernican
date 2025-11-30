@@ -16,7 +16,6 @@ import copernican_lib.likelihoods as likelihoods
 import copernican_lib.model_coder as model_coder
 import copernican_lib.model_spec_validator as model_spec_validator
 
-
 class LikelihoodTestCase(unittest.TestCase):
     """Validate the standalone likelihood helpers."""
 
@@ -328,7 +327,6 @@ class LikelihoodTestCase(unittest.TestCase):
             cmb_like_mutated.loglike(params),
             cmb_baseline,
         )
-
 
 if __name__ == "__main__":
     unittest.main()

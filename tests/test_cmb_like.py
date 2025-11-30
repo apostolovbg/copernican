@@ -18,7 +18,6 @@ from copernican_lib import (
 )
 from copernican_lib.likelihoods import cmb
 
-
 class CMBBackgroundTestCase(unittest.TestCase):
     """Validate CAMB background helpers share settings with the spectra API."""
 
@@ -175,7 +174,6 @@ class CMBBackgroundTestCase(unittest.TestCase):
                 rtol=1e-8,
                 atol=1e-8,
             )
-
 
 if __name__ == "__main__":
     unittest.main()

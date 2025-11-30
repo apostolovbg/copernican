@@ -41,7 +41,6 @@ from engines.cosmo_engine_mcmc import (
     _reseed_invalid_walkers,
 )
 
-
 def _build_model_plugin(yaml_filename: str):
     """Return a validated plugin for ``yaml_filename``.
 
@@ -57,7 +56,6 @@ def _build_model_plugin(yaml_filename: str):
     )
     func_dict, parsed = model_coder.generate_callables(cache_path)
     return engine_plugin_validation.build_plugin(parsed, func_dict)
-
 
 def _build_short_chain_plugin():
     """Return a lightweight plugin for the autocorrelation guard test."""
@@ -113,7 +111,6 @@ def _build_short_chain_plugin():
         compute_cmb_spectrum=None,
         compute_cmb_spectrum_from_dict=None,
     )
-
 
 class TestMCMCEngine(unittest.TestCase):
     """Verify that the MCMC engine produces chains and NetCDF output."""
@@ -576,7 +573,6 @@ class TestMCMCEngine(unittest.TestCase):
         )
         np.testing.assert_allclose(arr, loop)
 
-
 class TestStepProgressEmitter(unittest.TestCase):
     """Exercise the idle spinner helper under deterministic timing."""
 
@@ -643,7 +639,6 @@ class TestStepProgressEmitter(unittest.TestCase):
             _update_count(),
             final_count,
         )
-
 
 class TestMCMCHelpers(unittest.TestCase):
     """Exercise helper utilities that remain active without arviz."""
@@ -713,7 +708,6 @@ class TestMCMCHelpers(unittest.TestCase):
         fixed_spread = np.ptp(chain[:, :, 0])
         self.assertAlmostEqual(fixed_spread, 0.0, places=10)
 
-
 class TestAutocorrelationGuard(unittest.TestCase):
     """Validate that short chains skip autocorrelation diagnostics."""
 
@@ -745,7 +739,6 @@ class TestAutocorrelationGuard(unittest.TestCase):
         ]
         self.assertIsNone(result.get("autocorrelation_time"))
         self.assertFalse(runtime_warnings)
-
 
 class BatchProgressBarTestCase(unittest.TestCase):
     """Exercise the sampler progress bar without timing metadata."""
@@ -934,7 +927,6 @@ class BatchProgressBarTestCase(unittest.TestCase):
                 )
             )
 
-
 class ProgressIntegrationTestCase(unittest.TestCase):
     """Ensure sampler hooks stream live walker updates."""
 
@@ -1019,7 +1011,6 @@ class ProgressIntegrationTestCase(unittest.TestCase):
             )
         )
 
-
 class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):
     """Ensure sampler move collections attach progress notifiers."""
 
@@ -1050,7 +1041,6 @@ class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):
         self.assertIsInstance(move_obj, progress_helpers._ReportingStretchMove)
         self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
         self.assertEqual(getattr(move_obj, "a"), getattr(base_move, "a"))
-
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation
     unittest.main()

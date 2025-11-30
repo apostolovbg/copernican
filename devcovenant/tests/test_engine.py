@@ -7,7 +7,6 @@ from pathlib import Path
 
 from devcovenant.engine import DevCovenantEngine
 
-
 def test_engine_initialization():
     """Test that the engine initializes correctly."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -21,7 +20,6 @@ def test_engine_initialization():
 
         assert engine.repo_root == repo_root
         assert engine.agents_md_path.exists()
-
 
 def test_engine_check_no_violations():
     """Test engine check with no violations."""

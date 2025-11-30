@@ -42,7 +42,6 @@ except (
 from .logger import get_logger
 from .utils import ensure_dir_exists
 
-
 def save_posterior(
     chain: np.ndarray,
     param_names: Iterable[str],
@@ -127,6 +126,5 @@ def save_posterior(
         )
     except Exception as exc:  # pragma: no cover - file errors uncommon
         logger.error("Failed saving posterior to %s: %s", filepath, exc)
-
 
 __all__ = ["save_posterior"]

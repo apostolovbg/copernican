@@ -1,5 +1,4 @@
 # Contributing to the Copernican Suite
-**Last Updated:** 2025-11-24
 
 Thank you for considering a contribution. Before opening a pull request,
 please read `AGENTS.md` for the full development specification. Log every

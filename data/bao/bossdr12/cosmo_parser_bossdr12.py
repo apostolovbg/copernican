@@ -38,7 +38,6 @@ RS_FIDUCIAL_MPC = 147.78
 
 DATA_DIR = os.path.dirname(__file__)
 
-
 @register_bao_parser(data_dir=DATA_DIR)
 def parse_boss_dr12(data_dir, **kwargs):
     """Return BAO observables and covariance from the BOSS DR12 release."""

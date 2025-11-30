@@ -8,7 +8,6 @@ from pathlib import Path
 from devcovenant.base import CheckContext
 from devcovenant.policy_scripts.no_future_dates import NoFutureDatesCheck
 
-
 class TestNoFutureDatesPolicy(unittest.TestCase):
     """Test suite for NoFutureDatesCheck."""
 
@@ -19,7 +18,6 @@ class TestNoFutureDatesPolicy(unittest.TestCase):
             future = (dt.date.today() + dt.timedelta(days=1)).isoformat()
 
             test_file = repo_root / "test.md"
-            test_file.write_text(f"# Last Updated: {future}\n")
 
             context = CheckContext(repo_root=repo_root, all_files=[test_file])
             policy = NoFutureDatesCheck()
@@ -35,7 +33,6 @@ class TestNoFutureDatesPolicy(unittest.TestCase):
             today = dt.date.today().isoformat()
 
             test_file = repo_root / "test.md"
-            test_file.write_text(f"# Last Updated: {today}\n")
 
             context = CheckContext(repo_root=repo_root, all_files=[test_file])
             policy = NoFutureDatesCheck()

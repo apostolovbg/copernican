@@ -77,7 +77,6 @@ exclude = [
 [tool.setuptools.package-data]
 "copernican_lib" = ["VERSION"]
 
-
 [tool.setuptools_scm]
 version_scheme = "no-guess-dev"
 fallback_version = "0+unknown"

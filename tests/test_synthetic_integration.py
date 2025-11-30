@@ -16,7 +16,6 @@ from tests.data.synthetic import model_plugin
 # Restore ``importlib.util`` attribute removed by the frozen importlib shim.
 setattr(importlib, "util", importlib_util)
 
-
 @pytest.fixture(autouse=True)
 def _temporary_fake_cmb(monkeypatch):
     """Isolate the synthetic CMB toggle to this module's execution.
@@ -32,7 +31,6 @@ def _temporary_fake_cmb(monkeypatch):
     monkeypatch.setenv("COPERNICAN_FAKE_CMB", "1")
     monkeypatch.setenv("PYTHONDONTWRITEBYTECODE", "1")
     yield
-
 
 _EXPECTED_HASHES = {
     "bao.csv": (
@@ -52,20 +50,17 @@ _EXPECTED_HASHES = {
     ),
 }
 
-
 @pytest.fixture(
     scope="module", params=[cosmo_engine_mcmc, cosmo_engine_nested]
 )
 def engine_module(request):
     return request.param
 
-
 @pytest.fixture(scope="module")
 def synthetic_plugin():
     plugin = model_plugin.build_plugin()
     utils.set_random_seed(4)
     return plugin
-
 
 def _load_datasets():
     import tests.data.synthetic.cosmo_parser_synthetic  # noqa: F401
@@ -74,7 +69,6 @@ def _load_datasets():
     bao_df = dataset_registry.load_bao_data("synthetic_integration")
     cmb_df = dataset_registry.load_cmb_data("synthetic_integration")
     return sne_df, bao_df, cmb_df
-
 
 def _dataset_entry(df):
     return {
@@ -86,12 +80,10 @@ def _dataset_entry(df):
         "independence": df.attrs.get("independence_assumptions", []),
     }
 
-
 def _assert_hashes(df):
     hashes = df.attrs["file_hashes"]
     for key, digest in _EXPECTED_HASHES.items():
         assert hashes.get(key) == digest
-
 
 def _assert_manifest(manifest, engine_name):
     assert manifest["seed"] == utils.get_random_seed()
@@ -102,7 +94,6 @@ def _assert_manifest(manifest, engine_name):
     for key, digest in _EXPECTED_HASHES.items():
         assert entry["hashes"].get(key) == digest
     assert entry["independence"]
-
 
 @pytest.mark.parametrize("timestamp", ["20000101_000000"])
 def test_synthetic_pipeline(

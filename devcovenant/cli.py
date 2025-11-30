@@ -8,7 +8,6 @@ from pathlib import Path
 
 from .engine import DevCovenantEngine
 
-
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -91,7 +90,6 @@ def main():
 
         result = update_registry_hashes(args.repo)
         sys.exit(result)
-
 
 if __name__ == "__main__":
     main()

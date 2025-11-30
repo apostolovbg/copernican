@@ -754,7 +754,9 @@ def _prompt_nested_configuration(
                 return "back"
             if confirm in {"2", "r", "restart", "n", "no"}:
                 console.write("")
-                console.write("Restarting the nested questionnaire from step one.")
+                console.write(
+                    "Restarting the nested questionnaire from step one."
+                )
                 continue
             console.write("Please choose 1, 2, B or C.", error=True)
 
@@ -830,7 +832,9 @@ def prompt_sampling_configuration(
     except (KeyError, ValueError, TypeError):
         default_walkers = 32
 
-    lcdm_active = _count_active_parameters(lcdm_plugin, engine_module=engine_module)
+    lcdm_active = _count_active_parameters(
+        lcdm_plugin, engine_module=engine_module
+    )
     alt_active = _count_active_parameters(
         alt_model_plugin,
         engine_module=engine_module,
@@ -855,7 +859,9 @@ def prompt_sampling_configuration(
 
         while True:
             console.write("")
-            console.write("Production steps control the total sampler iterations.")
+            console.write(
+                "Production steps control the total sampler iterations."
+            )
             console.write(f"  Recommended default: {recommended_steps}")
             entry = console.ask(
                 f"Production steps [{recommended_steps}]: "
@@ -881,8 +887,8 @@ def prompt_sampling_configuration(
             )
             console.write(f"  Recommended warm-up: {default_burn}")
             console.write(
-                f"  A shorter option such as {quick_burn} trades certainty for "
-                "speed."
+                f"  A shorter option such as {quick_burn} trades "
+                "certainty for speed."
             )
             entry = console.ask(f"Burn-in steps [{default_burn}]: ").strip()
             if not entry:
@@ -905,7 +911,9 @@ def prompt_sampling_configuration(
             )
             console.write(f"  Required minimum: {minimum_walkers}")
             console.write(f"  Recommended default: {walker_default}")
-            entry = console.ask(f"Number of walkers [{walker_default}]: ").strip()
+            entry = console.ask(
+                f"Number of walkers [{walker_default}]: "
+            ).strip()
             if not entry:
                 n_walkers = walker_default
             else:

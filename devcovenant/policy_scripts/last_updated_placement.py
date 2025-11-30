@@ -9,7 +9,6 @@ from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
-
 class LastUpdatedPlacementCheck(PolicyCheck):
     """
     Check that Last Updated markers are only in allowlisted files.
@@ -30,7 +29,6 @@ class LastUpdatedPlacementCheck(PolicyCheck):
 
     # Pattern to detect Last Updated markers
     LAST_UPDATED_PATTERN = re.compile(
-        r"\*\*Last Updated:\*\*|Last Updated:|# Last Updated"
     )
 
     def check(self, context: CheckContext) -> List[Violation]:

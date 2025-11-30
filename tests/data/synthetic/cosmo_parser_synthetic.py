@@ -13,7 +13,6 @@ from copernican_lib.dataset_registry import (
 
 DATA_DIR = os.path.dirname(__file__)
 
-
 @register_sne_parser(name="synthetic_integration", data_dir=DATA_DIR)
 def parse_sne(data_dir: str):
     sne_path = os.path.join(data_dir, "sne.csv")
@@ -24,7 +23,6 @@ def parse_sne(data_dir: str):
     diag = np.square(df["e_mu_obs"].to_numpy(dtype=float))
     df.attrs["covariance_matrix_inv"] = np.diag(1.0 / diag)
     return df
-
 
 @register_bao_parser(name="synthetic_integration", data_dir=DATA_DIR)
 def parse_bao(data_dir: str):
@@ -37,7 +35,6 @@ def parse_bao(data_dir: str):
         1.0 / np.square(df["error"].to_numpy(dtype=float))
     )
     return df
-
 
 @register_cmb_parser(name="synthetic_integration", data_dir=DATA_DIR)
 def parse_cmb(data_dir: str):

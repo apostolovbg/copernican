@@ -7,7 +7,6 @@ import unittest
 
 from copernican_lib.version import get_version
 
-
 class VersionEnvTest(unittest.TestCase):
     """Ensure COPERNICAN_VERSION takes precedence over SCM lookups."""
 
@@ -24,7 +23,6 @@ class VersionEnvTest(unittest.TestCase):
                 os.environ.pop("COPERNICAN_VERSION", None)
             else:
                 os.environ["COPERNICAN_VERSION"] = old
-
 
 if __name__ == "__main__":
     unittest.main()

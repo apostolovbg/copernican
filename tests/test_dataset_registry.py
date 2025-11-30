@@ -14,7 +14,6 @@ import yaml
 from copernican_lib import dataset_registry
 from copernican_lib.utils import load_metadata_from_dir
 
-
 class DataLoaderRegistryTestCase(unittest.TestCase):
     """Exercise parser registration and metadata handling."""
 
@@ -220,7 +219,6 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                 )
         finally:
             dataset_registry.SNE_PARSER_REGISTRY = prev
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -25,7 +25,6 @@ _SYMBOLS = _MAPPINGS.get("symbol_replacements", {})
 _FUNCTIONS = _MAPPINGS.get("function_replacements", {})
 _MACROS_REMOVE = _MAPPINGS.get("macros_remove", [])
 
-
 def sanitize_name(latex: str) -> str:
     r"""Return a safe Python identifier derived from ``latex``."""
     text = str(latex)
@@ -42,7 +41,6 @@ def sanitize_name(latex: str) -> str:
     if not re.match(r"[A-Za-z_]", text):
         text = f"pyvar_{text}" if text else "pyvar"
     return text
-
 
 def latex_to_sympy(expr: str) -> str:
     r"""Convert a LaTeX expression to a SymPy-friendly string."""
@@ -75,7 +73,6 @@ def latex_to_sympy(expr: str) -> str:
     expr = re.sub(r"\s{2,}", " ", expr)
     return expr.strip()
 
-
 def wrap_math(text: str) -> str:
     r"""Return ``text`` wrapped in ``$`` for Matplotlib math rendering."""
     if text is None:
@@ -89,7 +86,6 @@ def wrap_math(text: str) -> str:
     cleaned = re.sub(r"\\rm\s*", "", cleaned)
     cleaned = re.sub(r"\s{2,}", " ", cleaned)
     return f"${cleaned}$" if cleaned else ""
-
 
 # Unicode translation table used by :func:`latex_to_unicode` for prettier
 # console output. The mappings are stored in the YAML file so new symbols
@@ -233,7 +229,6 @@ _SUPERSCRIPT_BASE = {
     "ρ": "ᵨ",
 }
 
-
 def _build_script_maps() -> tuple[Dict[str, str], Dict[str, str]]:
     """Generate full sub/superscript lookup tables.
 
@@ -288,9 +283,7 @@ def _build_script_maps() -> tuple[Dict[str, str], Dict[str, str]]:
         sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
     return sub_map, sup_map
 
-
 _SUB_MAP, _SUP_MAP = _build_script_maps()
-
 
 def latex_to_unicode(text: str) -> str:
     r"""Return ``text`` converted to basic Unicode math symbols."""

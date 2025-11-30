@@ -10,7 +10,6 @@ from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
-
 class VersionSyncCheck(PolicyCheck):
     """Ensure README, CITATION and VERSION agree on the recorded version."""
 

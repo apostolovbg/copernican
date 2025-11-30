@@ -8,7 +8,6 @@ from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
-
 class DevCovenantSelfEnforcementCheck(PolicyCheck):
     """
     Verify that devcovenant's own policy scripts follow best practices.

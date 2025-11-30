@@ -1,5 +1,4 @@
 # Copernican Suite License (CSL) v1.5
-**Last Updated:** 2025-08-30
 
 > **Effective Date:** June 22, 2025
 > **Copyright** © 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of

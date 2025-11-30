@@ -14,7 +14,6 @@ logging-aware hooks defined in :mod:`copernican_lib.logger`.
 
 import sys
 
-
 def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
     """Display ``msg`` on the console and mirror it to the log file.
 
@@ -46,7 +45,6 @@ def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
     except UnicodeEncodeError:
         fallback = msg.encode("ascii", errors="replace").decode("ascii")
         print(fallback, end=end, file=stream, flush=True)
-
 
 def ask(prompt: str = "") -> str:
     """Prompt the user and return their input while logging the exchange.

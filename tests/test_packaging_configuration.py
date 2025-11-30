@@ -10,7 +10,6 @@ the "Multiple top-level packages discovered" guard never reappears.
 import tomllib
 from pathlib import Path
 
-
 def test_pyproject_limits_package_discovery() -> None:
     """Ensure setuptools only sees the intended namespaces during packaging."""
     config_path = Path("pyproject.toml")

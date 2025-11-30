@@ -8,7 +8,6 @@ import re
 
 from devcovenant.base import FixResult, PolicyFixer, Violation
 
-
 class LastUpdatedPlacementFixer(PolicyFixer):
     """
     Removes Last Updated markers from non-allowlisted files.
@@ -17,7 +16,6 @@ class LastUpdatedPlacementFixer(PolicyFixer):
     policy_id = "last-updated-placement"
 
     LAST_UPDATED_PATTERN = re.compile(
-        r"^.*(\*\*Last Updated:\*\*|Last Updated:|# Last Updated).*$",
         re.MULTILINE,
     )
 

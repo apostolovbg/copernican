@@ -9,7 +9,6 @@ from devcovenant.policy_scripts.no_print_in_library import (
     NoPrintInLibraryCheck,
 )
 
-
 class TestNoPrintInLibraryPolicy(unittest.TestCase):
     """Test suite for NoPrintInLibraryCheck."""
 

@@ -7,7 +7,6 @@ from pathlib import Path
 
 from devcovenant.parser import PolicyParser
 
-
 def test_parse_policy_definition():
     """Test parsing a single policy definition."""
     # Create a temporary AGENTS.md file
@@ -54,7 +53,6 @@ This is a test policy description.
     finally:
         # Clean up
         temp_path.unlink()
-
 
 def test_parse_multiple_policies():
     """Test parsing multiple policy definitions."""

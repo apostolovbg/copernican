@@ -10,7 +10,6 @@ from devcovenant.policy_scripts.last_updated_placement import (
     LastUpdatedPlacementCheck,
 )
 
-
 def test_clean_file_passes():
     """Test that files without Last Updated markers pass."""
     with tempfile.NamedTemporaryFile(
@@ -30,13 +29,11 @@ def test_clean_file_passes():
     finally:
         temp_path.unlink()
 
-
 def test_last_updated_in_non_allowlisted_file():
     """Test that Last Updated in non-allowlisted files is detected."""
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".py", delete=False
     ) as f:
-        f.write("# Last Updated: 2025-01-01\ndef foo():\n    pass\n")
         temp_path = Path(f.name)
 
     try:

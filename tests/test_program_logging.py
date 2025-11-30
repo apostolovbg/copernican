@@ -4,7 +4,6 @@ from pathlib import Path
 
 from copernican_lib import logger as log_mod
 
-
 def test_program_log_rotation(tmp_path):
     log_path = log_mod.setup_program_logging(
         log_dir=tmp_path,

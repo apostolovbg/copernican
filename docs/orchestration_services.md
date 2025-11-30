@@ -1,5 +1,4 @@
 # Orchestration Services
-**Last Updated:** 2025-11-24
 
 This note maps the orchestration flow that GUI clients should reuse instead of
 re-implementing CLI logic. The `copernican_lib/orchestration.py` module

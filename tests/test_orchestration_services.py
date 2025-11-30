@@ -5,7 +5,6 @@ from pathlib import Path
 
 from copernican_lib import orchestration
 
-
 class OrchestrationServiceMapTestCase(unittest.TestCase):
     """Validate service map contents and controller defaults."""
 

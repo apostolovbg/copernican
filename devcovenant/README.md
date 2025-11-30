@@ -1,5 +1,4 @@
 # DevCovenant - Self-Enforcing Policy System
-**Last Updated:** 2025-11-29
 
 **Version:** 1.0.0
 **Status:** Production Ready
@@ -680,7 +679,6 @@ from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
-
 class [PolicyName]Check(PolicyCheck):
     """
     [Detailed docstring explaining what this policy checks for]
@@ -837,7 +835,6 @@ from pathlib import Path
 from devcovenant.base import CheckContext
 from devcovenant.policy_scripts.no_todo_comments import NoTodoCommentsCheck
 
-
 def test_detects_todo_comments():
     """Test that TODO comments are detected."""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
@@ -854,7 +851,6 @@ def test_detects_todo_comments():
         assert violations[0].line_number == 1
     finally:
         temp_path.unlink()
-
 
 def test_clean_file_passes():
     """Test that files without TODOs pass."""
@@ -890,7 +886,6 @@ Fixer for [Policy Name]
 from pathlib import Path
 
 from devcovenant.base import FixResult, PolicyFixer, Violation
-
 
 class [PolicyName]Fixer(PolicyFixer):
     """
@@ -976,7 +971,6 @@ class [PolicyName]Fixer(PolicyFixer):
 import re
 
 from devcovenant.base import FixResult, PolicyFixer, Violation
-
 
 class TrailingWhitespaceFixer(PolicyFixer):
     """Remove trailing whitespace from lines."""

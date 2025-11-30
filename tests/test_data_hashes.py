@@ -4,7 +4,6 @@ import unittest
 
 from copernican_lib import dataset_registry, utils
 
-
 class DataHashingTest(unittest.TestCase):
     """Verify SHA256 hashes are stored and logged for dataset files."""
 
@@ -17,7 +16,6 @@ class DataHashingTest(unittest.TestCase):
         expected = utils.compute_sha256(fname)
         self.assertEqual(hashes.get("compound.yml"), expected)
         self.assertTrue(any(expected in msg for msg in log.output))
-
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

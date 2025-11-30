@@ -8,7 +8,6 @@ from unittest import mock
 
 from copernican_lib.cli import dependencies
 
-
 class DependencyCacheTestCase(unittest.TestCase):
     """Guard dependency caching logic in the CLI helpers."""
 
@@ -64,7 +63,6 @@ class DependencyCacheTestCase(unittest.TestCase):
 
         self.assertNotIn("_protocol", required)
 
-
 class CheckDependenciesPromptTestCase(unittest.TestCase):
     """Validate the dependency guard now that auto-install is removed."""
 
@@ -89,7 +87,6 @@ class CheckDependenciesPromptTestCase(unittest.TestCase):
             write.assert_called()
             self.assertIn("start script", write.call_args[0][0])
             run_mock.assert_not_called()
-
 
 if __name__ == "__main__":  # pragma: no cover - manual execution hook
     unittest.main()

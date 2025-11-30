@@ -3,7 +3,6 @@
 
 """Nested sampling cosmology engine.
 
-
 This backend implements a lightweight nested-sampling routine that remains
 compatible with the Copernican plugin architecture.  The sampler focuses on
 robustness and reproducibility rather than asymptotic optimality: it draws
@@ -58,7 +57,6 @@ _MAX_INITIAL_ATTEMPTS = 2000
 _MAX_REPLACEMENT_ATTEMPTS = 5000
 _MIN_WEIGHT_FLOOR = 1e-12
 
-
 @dataclass(slots=True)
 class _Sample:
     """Container storing a single nested-sampling state."""
@@ -68,7 +66,6 @@ class _Sample:
     log_likelihood: float
     log_prior: float
     state: Mapping[str, Any]
-
 
 class _JointLogLikelihood:
     """Picklable adapter exposing bounds and transforms for the joint like."""
@@ -91,7 +88,6 @@ class _JointLogLikelihood:
 
         return float(self._joint_like.loglike(params))
 
-
 def _logsumexp_pair(a: float, b: float) -> float:
     """Return ``log(exp(a) + exp(b))`` with numerical stability."""
 
@@ -101,7 +97,6 @@ def _logsumexp_pair(a: float, b: float) -> float:
         return a
     maximum = max(a, b)
     return maximum + math.log(math.exp(a - maximum) + math.exp(b - maximum))
-
 
 def _build_joint_logposterior(
     model_plugin: Any,
@@ -185,7 +180,6 @@ def _build_joint_logposterior(
     names = list(getattr(model_plugin, "PARAMETER_NAMES", ()))
     return posterior, joint_like, names
 
-
 def _initial_live_point(
     rng: np.random.Generator,
     lower: np.ndarray,
@@ -208,7 +202,6 @@ def _initial_live_point(
             sample[idx] = draw
     return sample
 
-
 def _replacement_sample(
     rng: np.random.Generator,
     live_points: Sequence[_Sample],
@@ -227,7 +220,6 @@ def _replacement_sample(
     proposal = centre + rng.standard_normal(centre.shape) * spread
     proposal = np.clip(proposal, lower, upper)
     return proposal
-
 
 def _evaluate_point(
     posterior: engine_plugin_validation.PosteriorEvaluator,
@@ -251,7 +243,6 @@ def _evaluate_point(
         log_prior=log_prior,
         state=state,
     )
-
 
 def _prepare_bounds(
     bounds: Iterable[tuple[float | None, float | None]] | None,
@@ -280,7 +271,6 @@ def _prepare_bounds(
         initial_arr = np.asarray(initial, dtype=float)
     return lower, upper, initial_arr
 
-
 def _weights_from_logs(log_weights: np.ndarray) -> np.ndarray:
     """Return normalised weights derived from ``log_weights``."""
 
@@ -290,7 +280,6 @@ def _weights_from_logs(log_weights: np.ndarray) -> np.ndarray:
     if total <= 0:
         return np.full_like(shifted, 1.0 / max(len(shifted), 1), dtype=float)
     return shifted / total
-
 
 def fit_cosmology_parameters(
     sne_data_df: pd.DataFrame,
@@ -559,7 +548,6 @@ def fit_cosmology_parameters(
         },
     }
 
-
 def fit_sne_parameters(
     sne_data_df: pd.DataFrame,
     model_plugin: Any,
@@ -599,7 +587,6 @@ def fit_sne_parameters(
         enlargement_fraction=enlargement_fraction,
         display_progress=display_progress,
     )
-
 
 __all__ = [
     "ENGINE_KIND",

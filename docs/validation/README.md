@@ -1,5 +1,4 @@
 # Engine validation playbook
-**Last Updated:** 2025-11-23
 
 This folder stores lightweight validation runs that exercise the ensemble MCMC
 and nested-sampling engines against public ΛCDM benchmarks. The current

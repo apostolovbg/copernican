@@ -18,18 +18,15 @@ MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader  # for mypy/static analyzers
 SPEC.loader.exec_module(MODULE)
 
-
 def test_detect_future_dates_flags_future_timestamp(tmp_path) -> None:
     """Dates beyond the supplied ``today`` reference should trigger errors."""
 
     target = tmp_path / "README.md"
-    target.write_text("**Last Updated:** 2099-01-01\n", encoding="utf-8")
     errors = MODULE._detect_future_dates(
         [target], dt.date(2025, 1, 1), root=tmp_path
     )
     assert errors
     assert "2099-01-01" in errors[0]
-
 
 def test_check_last_updated_headers_flags_late_marker(tmp_path) -> None:
     """Markers beyond the third line should be rejected."""
@@ -37,13 +34,11 @@ def test_check_last_updated_headers_flags_late_marker(tmp_path) -> None:
     root = tmp_path
     target = root / "README.md"
     target.write_text(
-        "**Version:** 1.0.0\n\n\n**Last Updated:** 2025-01-01\n",
         encoding="utf-8",
     )
     errors = MODULE._check_last_updated_headers(root, [target])
     assert errors
     assert "first three lines" in errors[0]
-
 
 def test_check_last_updated_headers_accepts_header(tmp_path) -> None:
     """Markers within the first three lines should pass."""
@@ -51,12 +46,10 @@ def test_check_last_updated_headers_accepts_header(tmp_path) -> None:
     root = tmp_path
     target = root / "README.md"
     target.write_text(
-        "**Version:** 1.0.0\n**Last Updated:** 2025-01-01\n",
         encoding="utf-8",
     )
     errors = MODULE._check_last_updated_headers(root, [target])
     assert not errors
-
 
 def test_check_version_sync_detects_mismatched_versions(tmp_path) -> None:
     """A mismatch between metadata files should surface an explicit error."""
@@ -68,7 +61,6 @@ def test_check_version_sync_detects_mismatched_versions(tmp_path) -> None:
     )
     (root / "README.md").write_text("**Version:** 1.2.4\n", encoding="utf-8")
     citation = (
-        "# Last Updated: 2025-10-30\n"
         "cff-version: 1.2.0\n"
         'version: "1.2.3"\n'
         "preferred-citation:\n"
@@ -78,7 +70,6 @@ def test_check_version_sync_detects_mismatched_versions(tmp_path) -> None:
     errors = MODULE._check_version_sync(root)
     assert errors
     assert "README.md version" in errors[0]
-
 
 def test_check_print_usage_blocks_direct_prints(tmp_path) -> None:
     """Direct ``print`` calls within library files must be rejected."""
@@ -91,7 +82,6 @@ def test_check_print_usage_blocks_direct_prints(tmp_path) -> None:
     assert errors
     assert "copernican_lib/bad.py" in errors[0]
 
-
 def test_check_print_usage_allows_console_module(tmp_path) -> None:
     """The console helper module is permitted to use ``print`` internally."""
 
@@ -101,7 +91,6 @@ def test_check_print_usage_allows_console_module(tmp_path) -> None:
     console.write_text("print('allowed')\n", encoding="utf-8")
     errors = MODULE._check_print_usage(root, [console])
     assert not errors
-
 
 def test_utc_today_requests_utc_clock(monkeypatch) -> None:
     """The helper should request the UTC timezone from datetime.now."""
@@ -122,12 +111,10 @@ def test_utc_today_requests_utc_clock(monkeypatch) -> None:
     assert result == dt.date(2025, 1, 1)
     assert _DummyDateTime.called
 
-
 def test_enforce_last_updated_freshness_requires_today(tmp_path) -> None:
     """Files changed today must refresh their ``Last Updated`` headers."""
 
     target = tmp_path / "README.md"
-    target.write_text("**Last Updated:** 2025-01-01\n", encoding="utf-8")
     today = dt.date(2025, 1, 2)
 
     errors = MODULE._enforce_last_updated_freshness(tmp_path, [target], today)
@@ -135,12 +122,10 @@ def test_enforce_last_updated_freshness_requires_today(tmp_path) -> None:
     assert errors
     assert "2025-01-02" in errors[0]
 
-
 def test_ensure_changelog_updated_demands_entry(tmp_path) -> None:
     """Any change outside the changelog should force a new entry."""
 
     tracked = tmp_path / "README.md"
-    tracked.write_text("**Last Updated:** 2025-01-01\n", encoding="utf-8")
     (tmp_path / "CHANGELOG.md").write_text("# Changelog\n", encoding="utf-8")
 
     errors = MODULE._ensure_changelog_updated(tmp_path, [tracked])
@@ -148,14 +133,12 @@ def test_ensure_changelog_updated_demands_entry(tmp_path) -> None:
     assert errors
     assert "CHANGELOG.md" in errors[0]
 
-
 def test_new_modules_require_tests(tmp_path) -> None:
     """Adding modules should be paired with fresh or updated tests."""
 
     module_root = tmp_path / "copernican_lib"
     module_root.mkdir()
     module = module_root / "fresh.py"
-    module.write_text("# Last Updated: 2025-01-02\n", encoding="utf-8")
 
     errors = MODULE._check_new_modules_have_tests(tmp_path, [module], [module])
 
@@ -165,7 +148,6 @@ def test_new_modules_require_tests(tmp_path) -> None:
     test_dir = tmp_path / "tests"
     test_dir.mkdir()
     test_file = test_dir / "test_fresh.py"
-    test_file.write_text("# Last Updated: 2025-01-02\n", encoding="utf-8")
 
     errors = MODULE._check_new_modules_have_tests(
         tmp_path, [module], [module, test_file]

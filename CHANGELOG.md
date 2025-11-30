@@ -1,5 +1,4 @@
 # Changelog
-**Last Updated:** 2025-11-30
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -20,6 +19,27 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 10.8.1
+- 2025-11-30: Consolidated Development Laws into DevCovenant policies;
+              removed redundant laws #1, #4, #7, #8, #15, #20, #24 from
+              numbered list and renumbered remaining 18 laws; added note
+              explaining DevCovenant automation (AGENTS.md, CHANGELOG.md).
+- 2025-11-30: Documented 4 new DevCovenant policies in AGENTS.md:
+              version-sync, no-future-dates, new-modules-need-tests,
+              no-print-in-library (AGENTS.md, devcovenant/registry.json,
+              CHANGELOG.md).
+- 2025-11-30: Created comprehensive Law-to-Policy mapping document
+              showing transition from numbered laws to automated DevCovenant
+              policies (DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
+- 2025-11-30: Removed Last Updated markers from 108 non-allowlisted files
+              per last-updated-placement policy (*.md, *.yml, *.py, *.yaml
+              across entire repository, CHANGELOG.md).
+- 2025-11-30: Fixed 5 line-length violations in copernican.py by breaking
+              long lines (copernican.py:757, 833, 858, 884, 908,
+              CHANGELOG.md).
+- 2025-11-30: Updated AGENTS.md Last Updated marker to 2025-11-30
+              (AGENTS.md, CHANGELOG.md).
 
 ## Version 10.8.0
 - 2025-11-30: Bumped version to 10.8.0 for new DevCovenant policies
@@ -1190,7 +1210,6 @@ suffixes. Follow this template:
 ## Version 4.3.12
 - 2025-09-02: Removed dependency hash verification and related tooling, tests and documentation (OpenAI ChatGPT)
 
-
 ## Version 4.3.11
 - 2025-09-02: Derived wheel tags from the running Python version to drop
                hard-coded cp311 references in hash refresher and tests
@@ -1223,7 +1242,6 @@ suffixes. Follow this template:
 
 ## Version 4.3.4
 - 2025-09-01: Refreshed dependency lock file (OpenAI ChatGPT)
-
 
 ## Version 4.3.3
 - 2025-09-01: Added automated hash locking and pre-commit hook for dependency
@@ -1866,7 +1884,6 @@ suffixes. Follow this template:
 - 2025-07-30: Removed Unicode escape sequences from model YAML files and
   converted abstracts and descriptions to block scalars (AI assistant)
 
-
 ## Version 1.19.3
 - 2025-07-29: Fixed parsing of LaTeX names containing `\rm` and bumped version
   (AI assistant)
@@ -2095,7 +2112,6 @@ suffixes. Follow this template:
 ## Version 1.11.1
 - 2025-07-07: Unified SNe data processing and chi-squared helpers (AI
   assistant)
-
 
 ## Version 1.10.1-beta (Development Release)
 - 2025-07-07: Unified CMB handling with SNe and BAO, removed engine interface
@@ -2388,7 +2404,6 @@ suffixes. Follow this template:
 ## Version 1.4.1 (Maintenance Release)
 - LCDM model separated into lcdm.py plugin.
 - Added splash screen and improved logging with per-run timestamps.
-
 
 ## Version 1.4 (Stable Release)
 - Refactored into a fully pluggable architecture with discoverable engines,

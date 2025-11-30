@@ -12,7 +12,6 @@ from devcovenant.base import CheckContext, PolicyCheck, Violation
 
 PRINT_PATTERN = re.compile(r"(?<![\w.])print\s*\(")
 
-
 class NoPrintInLibraryCheck(PolicyCheck):
     """Prevent direct print() usage in library modules."""
 

@@ -1,6 +1,5 @@
 """Likelihood components for Copernican Suite datasets.
 
-
 The modules in this package expose small, stateful helpers that evaluate
 log-likelihoods for individual observational datasets.  Each helper implements
 :class:`LikelihoodProtocol`, guaranteeing the presence of a

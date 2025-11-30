@@ -31,7 +31,6 @@ from .utils import check_dataset_id, compute_sha256, load_metadata_from_dir
 # available data sources dynamically. The loaders below simply call the
 # registered functions after prompting the user.
 
-
 # --- Parser Registry ---
 # Each registry maps a unique ``dataset_id`` to a dictionary describing the
 # parser function, human readable ``dataset_name``, ``description`` and an
@@ -44,7 +43,6 @@ BAO_PARSER_REGISTRY: dict = {}
 CMB_PARSER_REGISTRY: dict = {}
 GW_PARSER_REGISTRY: dict = {}
 
-
 def get_parser_registries() -> dict[str, dict]:
     """Return the live mapping of dataset types to parser registries."""
 
@@ -54,7 +52,6 @@ def get_parser_registries() -> dict[str, dict]:
         "cmb": CMB_PARSER_REGISTRY,
         "gw": GW_PARSER_REGISTRY,
     }
-
 
 def get_parser_registry(dataset_key: str) -> dict:
     """Return the registry associated with ``dataset_key``.
@@ -67,7 +64,6 @@ def get_parser_registry(dataset_key: str) -> dict:
     if dataset_key not in registries:
         raise KeyError(f"Unknown dataset registry '{dataset_key}'")
     return registries[dataset_key]
-
 
 # The core cosmology pipelines treat the SNe, BAO and CMB likelihoods as
 # statistically independent.  Centralising the statements that justify that
@@ -98,7 +94,6 @@ OBSERVATION_INDEPENDENCE_NOTES: dict[str, list[str]] = {
     ],
 }
 
-
 # --- Decorators to register parsers ---
 def register_sne_parser(name=None, description="", data_dir=None):
     """Register a SNe data parsing function bound to a data source.
@@ -122,7 +117,6 @@ def register_sne_parser(name=None, description="", data_dir=None):
 
     return decorator
 
-
 def register_bao_parser(name=None, description="", data_dir=None):
     """Register a BAO data parsing function bound to a data source.
 
@@ -144,7 +138,6 @@ def register_bao_parser(name=None, description="", data_dir=None):
 
     return decorator
 
-
 def register_cmb_parser(name=None, description="", data_dir=None):
     """Register a CMB data parsing function bound to a data source.
 
@@ -165,7 +158,6 @@ def register_cmb_parser(name=None, description="", data_dir=None):
 
     return decorator
 
-
 def register_gw_parser(name=None, description="", data_dir=None):
     """Register a gravitational wave parser bound to a data source.
 
@@ -185,7 +177,6 @@ def register_gw_parser(name=None, description="", data_dir=None):
         return func
 
     return decorator
-
 
 TRUSTED_PARSER_DIGESTS = {
     # ``relative_path`` -> ``sha256``
@@ -209,7 +200,6 @@ TRUSTED_PARSER_DIGESTS = {
     ),
 }
 
-
 def _file_sha256(path: str) -> str:
     """Return the SHA256 digest for ``path`` with newline normalisation.
 
@@ -223,7 +213,6 @@ def _file_sha256(path: str) -> str:
         for chunk in iter(lambda: fh.read(65536), b""):
             hasher.update(chunk.replace(b"\r\n", b"\n"))
     return hasher.hexdigest()
-
 
 # --- Dynamic Discovery of Parser Modules ---
 def discover_trusted_parsers(base_dir: str | None = None):
@@ -346,12 +335,10 @@ def discover_trusted_parsers(base_dir: str | None = None):
                     entry["dataset_name"] = dataset_name
                     registry[dataset_id] = entry
 
-
 # Discover parsers at import time so that functions like
 # ``load_sne_data`` can simply refer to the registries without
 # additional setup.
 discover_trusted_parsers()
-
 
 # Bundle the registries and logging messages for observable categories whose
 # loaders now share the same control flow.  The shared structure keeps the
@@ -370,7 +357,6 @@ DATASET_CONFIG: dict[str, dict[str, Any]] = {
         "cancel_message": "CMB data loading canceled by user.",
     },
 }
-
 
 # --- Helper to list and select parsers ---
 def prompt_dataset_selection(parser_registry, data_type_name):
@@ -403,7 +389,6 @@ def prompt_dataset_selection(parser_registry, data_type_name):
             console.write("Invalid selection. Please try again.")
         except ValueError:
             console.write("Invalid input. Please enter a number or 'c'.")
-
 
 # --- Verbose dataset info helper ---
 def _log_dataset_info(df, data_type, logger):
@@ -440,7 +425,6 @@ def _log_dataset_info(df, data_type, logger):
             cond_number,
         )
 
-
 def _validate_bao_covariance(df, logger):
     """Ensure BAO covariance matrices are symmetric and positive definite."""
 
@@ -474,7 +458,6 @@ def _validate_bao_covariance(df, logger):
     logger.info("BAO covariance condition number: %.3e", cond_number)
     return True
 
-
 def _attach_file_hashes(df, data_dir, logger):
     """Compute SHA256 hashes for files in ``data_dir`` and log them.
 
@@ -494,7 +477,6 @@ def _attach_file_hashes(df, data_dir, logger):
     df.attrs["file_hashes"] = file_hashes
     for rel, digest in file_hashes.items():
         logger.info("SHA256 %s: %s", rel, digest)
-
 
 def _load_dataset(
     dataset_key: str,
@@ -593,25 +575,21 @@ def _load_dataset(
         )
         return None
 
-
 # --- Main Loading Functions ---
 def load_sne_data(dataset_id=None, **kwargs):
     """Load SNe data for the chosen ``dataset_id``."""
 
     return _load_dataset("sne", dataset_id=dataset_id, **kwargs)
 
-
 def load_bao_data(dataset_id=None, **kwargs):
     """Load BAO data for the chosen ``dataset_id``."""
 
     return _load_dataset("bao", dataset_id=dataset_id, **kwargs)
 
-
 def load_cmb_data(dataset_id=None, **kwargs):
     """Load CMB data for the chosen ``dataset_id``."""
 
     return _load_dataset("cmb", dataset_id=dataset_id, **kwargs)
-
 
 def load_gw_data(dataset_id=None, **kwargs):
     """Load gravitational-wave standard siren data for ``dataset_id``."""

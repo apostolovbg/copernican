@@ -10,7 +10,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-
 def compute_hash(file_path: Path) -> str:
     """Compute SHA256 hash with line-ending normalization.
 
@@ -25,7 +24,6 @@ def compute_hash(file_path: Path) -> str:
         for chunk in iter(lambda: fh.read(65536), b""):
             hasher.update(chunk.replace(b"\r\n", b"\n"))
     return hasher.hexdigest()
-
 
 def update_registry_hashes(repo_root: Path | None = None) -> int:
     """Update all policy script hashes in registry.json.
@@ -88,11 +86,9 @@ def update_registry_hashes(repo_root: Path | None = None) -> int:
     print(f"\nUpdated {updated} policy hash(es) in registry.json")
     return 0
 
-
 def main() -> int:
     """CLI entry point."""
     return update_registry_hashes()
-
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -12,7 +12,6 @@ import copernican_lib.model_coder as model_coder
 import copernican_lib.model_spec_validator as model_spec_validator
 from copernican_lib import priors as prior_mod
 
-
 class PriorParsingTestCase(unittest.TestCase):
     """Ensure priors are parsed and exposed on the plugin object."""
 
@@ -129,7 +128,6 @@ class PriorParsingTestCase(unittest.TestCase):
             if cache_path is not None:
                 cache_path = Path(cache_path)
                 cache_path.unlink(missing_ok=True)
-
 
 class PriorValidationTestCase(unittest.TestCase):
     """Invalid prior definitions must raise ValueError."""
@@ -364,7 +362,6 @@ class PriorValidationTestCase(unittest.TestCase):
             Path(tmp_path).unlink(missing_ok=True)
             if cache_path is not None:
                 cache_path.unlink(missing_ok=True)
-
 
 if __name__ == "__main__":
     unittest.main()
