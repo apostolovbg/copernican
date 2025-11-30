@@ -7,6 +7,7 @@ from pathlib import Path
 from devcovenant.base import CheckContext
 from devcovenant.policy_scripts.version_sync import VersionSyncCheck
 
+
 class TestVersionSyncPolicy(unittest.TestCase):
     """Test suite for VersionSyncCheck."""
 

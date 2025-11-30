@@ -10,6 +10,7 @@ from devcovenant.policy_scripts.devcov_self_enforcement import (
     DevCovenantSelfEnforcementCheck,
 )
 
+
 def test_policy_with_test_passes():
     """Test that policy scripts with tests pass."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -42,6 +43,7 @@ def test_policy_with_test_passes():
         violations = checker.check(context)
 
         assert len(violations) == 0
+
 
 def test_policy_without_test_fails():
     """Test that policy scripts without tests fail."""

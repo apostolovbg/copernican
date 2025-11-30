@@ -9,6 +9,7 @@ from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
+
 class NoGitConflictMarkersCheck(PolicyCheck):
     """
     Check for Git conflict markers in files.

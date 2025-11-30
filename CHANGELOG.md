@@ -21,6 +21,44 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.8.1
+- 2025-11-30: Fixed DevCovenant hash calculation bug where update-hashes
+              only hashed script content instead of policy text + script
+              content; corrected to use calculate_full_hash method from
+              registry module (devcovenant/update_hashes.py, CHANGELOG.md).
+- 2025-11-30: Auto-formatted DevCovenant codebase with black, isort, and
+              ruff to pass lint checks (devcovenant/base.py,
+              devcovenant/policy_scripts/devcov_self_enforcement.py,
+              devcovenant/policy_scripts/line_length_limit.py,
+              devcovenant/policy_scripts/new_modules_need_tests.py,
+              devcovenant/policy_scripts/no_future_dates.py,
+              devcovenant/policy_scripts/no_git_conflict_markers.py,
+              devcovenant/policy_scripts/no_print_in_library.py,
+              devcovenant/policy_scripts/version_sync.py,
+              devcovenant/tests/test_parser.py,
+              devcovenant/tests/test_policies/test_changelog_coverage.py,
+              devcovenant/tests/test_policies/test_devcov_self_enforcement.py,
+              devcovenant/tests/test_policies/test_last_updated_placement.py,
+              devcovenant/tests/test_policies/test_line_length_limit.py,
+              devcovenant/tests/test_policies/test_no_git_conflict_markers.py,
+              devcovenant/tests/test_policies/test_no_print_in_library.py,
+              devcovenant/tests/test_policies/test_version_sync.py,
+              devcovenant/tests/test_engine.py,
+              devcovenant/tests/test_policies/test_new_modules_need_tests.py,
+              devcovenant/registry.py, devcovenant/cli.py,
+              devcovenant/parser.py, devcovenant/engine.py,
+              devcovenant/hooks/pre_commit.py, CHANGELOG.md).
+- 2025-11-30: Fixed multiple syntax and import errors from previous Last
+              Updated removal: restored regex patterns in model_coder.py,
+              model_spec_validator.py, last_updated_placement.py; fixed
+              IndentationError in update_lock.py; removed unused variables;
+              deleted orphaned test files; added PyYAML to pre-commit hook
+              dependencies (copernican_lib/model_coder.py,
+              copernican_lib/model_spec_validator.py,
+              devcovenant/policy_scripts/last_updated_placement.py,
+              devcovenant/fixers/last_updated_placement.py,
+              tools/update_lock.py, .pre-commit-config.yaml,
+              devcovenant/tests/test_policies/test_no_future_dates.py,
+              CHANGELOG.md).
 - 2025-11-30: Consolidated Development Laws into DevCovenant policies;
               removed redundant laws #1, #4, #7, #8, #15, #20, #24 from
               numbered list and renumbered remaining 18 laws; added note

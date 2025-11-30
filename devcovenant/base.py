@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+
 @dataclass
 class CheckContext:
     """
@@ -25,6 +26,7 @@ class CheckContext:
     all_files: List[Path] = field(default_factory=list)
     git_diff: Optional[str] = None
     mode: str = "normal"
+
 
 @dataclass
 class Violation:
@@ -52,6 +54,7 @@ class Violation:
     can_auto_fix: bool = False
     context: Dict[str, Any] = field(default_factory=dict)
 
+
 @dataclass
 class FixResult:
     """
@@ -66,6 +69,7 @@ class FixResult:
     success: bool
     message: str
     files_modified: List[Path] = field(default_factory=list)
+
 
 class PolicyCheck(ABC):
     """
@@ -102,6 +106,7 @@ class PolicyCheck(ABC):
             "version": self.version,
             "class": self.__class__.__name__,
         }
+
 
 class PolicyFixer(ABC):
     """

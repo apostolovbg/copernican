@@ -8,6 +8,7 @@ from pathlib import Path
 from devcovenant.base import CheckContext
 from devcovenant.policy_scripts.line_length_limit import LineLengthLimitCheck
 
+
 def test_short_lines_pass():
     """Test that short lines pass."""
     with tempfile.NamedTemporaryFile(
@@ -26,6 +27,7 @@ def test_short_lines_pass():
         assert len(violations) == 0
     finally:
         temp_path.unlink()
+
 
 def test_long_lines_detected():
     """Test that long lines are detected."""

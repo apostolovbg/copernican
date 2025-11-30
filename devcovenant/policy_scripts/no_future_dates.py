@@ -12,6 +12,7 @@ from devcovenant.base import CheckContext, PolicyCheck, Violation
 
 DATE_PATTERN = re.compile(r"\b(19|20)\d{2}-\d{2}-\d{2}\b")
 
+
 class NoFutureDatesCheck(PolicyCheck):
     """Prevent future dates in Last Updated and date-released fields."""
 

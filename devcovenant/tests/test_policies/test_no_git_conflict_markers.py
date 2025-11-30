@@ -10,6 +10,7 @@ from devcovenant.policy_scripts.no_git_conflict_markers import (
     NoGitConflictMarkersCheck,
 )
 
+
 def test_no_conflict_markers():
     """Test that clean files pass."""
     with tempfile.NamedTemporaryFile(
@@ -34,6 +35,7 @@ def example():
 
     finally:
         temp_path.unlink()
+
 
 def test_detects_conflict_markers():
     """Test that conflict markers are detected."""

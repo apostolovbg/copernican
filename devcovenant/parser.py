@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
+
 @dataclass
 class PolicyDefinition:
     """
@@ -36,6 +37,7 @@ class PolicyDefinition:
     applies_to: Optional[str] = None
     hash_from_file: Optional[str] = None
     raw_metadata: Dict[str, str] = field(default_factory=dict)
+
 
 class PolicyParser:
     """

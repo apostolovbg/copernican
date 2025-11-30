@@ -13,6 +13,7 @@ from .base import CheckContext, PolicyCheck, Violation
 from .parser import PolicyDefinition, PolicyParser
 from .registry import PolicyRegistry, PolicySyncIssue
 
+
 class DevCovenantEngine:
     """
     Main engine for devcovenant policy enforcement.
@@ -422,6 +423,7 @@ class DevCovenantEngine:
                 return True
 
         return False
+
 
 class CheckResult:
     """Result of a devcovenant check operation."""

@@ -9,6 +9,7 @@ from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
+
 class LastUpdatedPlacementCheck(PolicyCheck):
     """
     Check that Last Updated markers are only in allowlisted files.

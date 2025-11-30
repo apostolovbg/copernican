@@ -16,6 +16,7 @@ sys.path.insert(0, str(repo_root))
 
 from devcovenant.engine import DevCovenantEngine  # noqa: E402
 
+
 def main():
     """Run devcovenant pre-commit checks."""
     print("Running DevCovenant pre-commit checks...\n")
@@ -41,6 +42,7 @@ def main():
         print(f"\n⚠️  DevCovenant check failed with error: {e}")
         print("Proceeding with commit (devcovenant is not blocking)")
         return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

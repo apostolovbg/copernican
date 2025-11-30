@@ -10,6 +10,7 @@ from devcovenant.policy_scripts.changelog_coverage import (
     ChangelogCoverageCheck,
 )
 
+
 def test_no_changes_passes():
     """Test that no changes results in no violations."""
     with tempfile.TemporaryDirectory() as tmpdir:

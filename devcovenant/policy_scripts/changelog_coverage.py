@@ -9,6 +9,7 @@ from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
+
 class ChangelogCoverageCheck(PolicyCheck):
     """
     Verify that all modified files are mentioned in the latest

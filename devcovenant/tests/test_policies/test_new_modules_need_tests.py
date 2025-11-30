@@ -10,6 +10,7 @@ from devcovenant.policy_scripts.new_modules_need_tests import (
     NewModulesNeedTestsCheck,
 )
 
+
 class TestNewModulesNeedTestsPolicy(unittest.TestCase):
     """Test suite for NewModulesNeedTestsCheck."""
 

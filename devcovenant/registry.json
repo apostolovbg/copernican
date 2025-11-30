@@ -1,48 +1,48 @@
 {
   "policies": {
     "changelog-coverage": {
-      "hash": "b2f324650c4c20b4c482e9f67752a5a24b0a5f8020a1ecadb48c1e0a2ed1d251",
-      "last_updated": "2025-11-30T11:29:21.293074+00:00",
+      "hash": "8ef4b2e819f97fc641701ccb9d10915f069c3fd87d30e64b319f38b354930a51",
+      "last_updated": "2025-11-30T12:38:24.659193+00:00",
       "script_path": "devcovenant/policy_scripts/changelog_coverage.py"
     },
     "no-git-conflict-markers": {
-      "hash": "93440d369fdb0ff79c12c37f13edffc3aac6405470069e0ed2823fe1b2a8e984",
-      "last_updated": "2025-11-30T11:29:21.294055+00:00",
+      "hash": "ba2568b917e4b9f016c84d149c7ba9be8a0cc22379cf48536f8e8a280f1eb480",
+      "last_updated": "2025-11-30T12:38:24.660294+00:00",
       "script_path": "devcovenant/policy_scripts/no_git_conflict_markers.py"
     },
     "line-length-limit": {
-      "hash": "aa197eb6d884d901801f68701e94c49d220aafa0a30805e78d5cbae39130d2fa",
-      "last_updated": "2025-11-30T11:29:21.294742+00:00",
+      "hash": "45e3bcae53da57c9facc65256f7469f04820322432cfdbec0e593a3379f1dcdd",
+      "last_updated": "2025-11-30T12:38:24.661188+00:00",
       "script_path": "devcovenant/policy_scripts/line_length_limit.py"
     },
     "last-updated-placement": {
-      "hash": "77cd2de37a7153bc074e7b8baa71a380e90c384571776b50e0ddfcacee0ce5bf",
-      "last_updated": "2025-11-30T11:29:21.295522+00:00",
+      "hash": "55a7afe941e4953249aefb2af5207d98965ddedf86ff5ce7520bd6326e75408b",
+      "last_updated": "2025-11-30T12:38:24.662203+00:00",
       "script_path": "devcovenant/policy_scripts/last_updated_placement.py"
     },
     "devcov-self-enforcement": {
-      "hash": "8114240ffb69209c4a6541ad9c8d82376d7fa257357e984227f550d874813658",
-      "last_updated": "2025-11-30T11:29:21.296410+00:00",
+      "hash": "d6e3cad49a394187095ad4e4d9b1d47a206e088e0951f954ffdcf6e5fec2e98c",
+      "last_updated": "2025-11-30T12:38:24.663058+00:00",
       "script_path": "devcovenant/policy_scripts/devcov_self_enforcement.py"
     },
     "no-future-dates": {
-      "hash": "6a7ccf361afa7125ddbe1fc439c759042710feb7bde59bd78f310a7d8b5fb92c",
-      "last_updated": "2025-11-30T11:29:21.298067+00:00",
+      "hash": "f8e04f561195d0d62b678c81d1492bf995018df20ba29475c257a1c6ed5d6c49",
+      "last_updated": "2025-11-30T12:38:24.664838+00:00",
       "script_path": "devcovenant/policy_scripts/no_future_dates.py"
     },
     "version-sync": {
-      "hash": "72b0b653529927b6f76bbfd431c5795f2b8f4100bfe5b292257529a2d578ec97",
-      "last_updated": "2025-11-30T11:29:21.297365+00:00",
+      "hash": "ef82a1fd3b39c85874b9d62f0cccd4c59ae9d211371a5adee63a87a88af19c28",
+      "last_updated": "2025-11-30T12:38:24.663885+00:00",
       "script_path": "devcovenant/policy_scripts/version_sync.py"
     },
     "new-modules-need-tests": {
-      "hash": "a5137fa6cb01867c09d3cb0ad4509cb356f64cdb171a32f8bdb62b4c5dec0b5e",
-      "last_updated": "2025-11-30T11:29:21.298769+00:00",
+      "hash": "9c00ddba2db52186b557188f28af62fc7d52ffebb664eb88244dbc6f0d37febb",
+      "last_updated": "2025-11-30T12:38:24.665691+00:00",
       "script_path": "devcovenant/policy_scripts/new_modules_need_tests.py"
     },
     "no-print-in-library": {
-      "hash": "f334e389f532a782242629f14329a4aa8b3da4dd0d4a7a937bf1a748fefc43fc",
-      "last_updated": "2025-11-30T11:29:21.299541+00:00",
+      "hash": "e9e0ca47b5196d75a2ffcfe751856c9c4eedc2c8082bdb509186c41e1a91844f",
+      "last_updated": "2025-11-30T12:38:24.666515+00:00",
       "script_path": "devcovenant/policy_scripts/no_print_in_library.py"
     }
   },
