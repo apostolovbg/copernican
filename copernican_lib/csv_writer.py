@@ -18,7 +18,6 @@ import numpy as np
 from .logger import get_logger
 from .utils import ensure_dir_exists, generate_filename
 
-
 def save_sne_results_detailed_csv(
     sne_data_df: Any,
     lcdm_fit_results: Any,
@@ -84,7 +83,6 @@ def save_sne_results_detailed_csv(
     except Exception as exc:
         logger.error(f"Error saving SNe detailed results CSV: {exc}")
 
-
 def save_bao_results_csv(
     bao_data_df: Any,
     lcdm_results: Any,
@@ -143,7 +141,6 @@ def save_bao_results_csv(
         logger.info(f"BAO detailed results CSV saved to {filename}")
     except Exception as exc:
         logger.error(f"Error saving BAO detailed results CSV: {exc}")
-
 
 def save_cmb_results_csv(
     cmb_data_df: Any,

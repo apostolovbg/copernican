@@ -25,12 +25,10 @@ from datetime import datetime, timezone
 import numpy as np
 import yaml
 
-
 def get_utc_now() -> datetime:
     """Return the current UTC time with timezone information."""
 
     return datetime.now(timezone.utc)
-
 
 def get_timestamp(now: datetime | None = None) -> str:
     """Generate a standardized UTC timestamp string.
@@ -50,7 +48,6 @@ def get_timestamp(now: datetime | None = None) -> str:
         moment = moment.astimezone(timezone.utc)
     return moment.strftime("%Y%m%d_%H%M%S")
 
-
 def compute_sha256(path: str) -> str:
     """Return the SHA256 hex digest for the file at ``path``.
 
@@ -65,7 +62,6 @@ def compute_sha256(path: str) -> str:
             sha256.update(block)
     return sha256.hexdigest()
 
-
 def check_dataset_id(dataset_id: str) -> str:
     """Return ``dataset_id`` stripped of forbidden characters.
 
@@ -77,7 +73,6 @@ def check_dataset_id(dataset_id: str) -> str:
 
     forbidden = set(' \\/:*?"<>|')
     return "".join(ch for ch in dataset_id if ch not in forbidden)
-
 
 def generate_filename(
     file_type,
@@ -115,11 +110,9 @@ def generate_filename(
     ts = timestamp or get_timestamp()
     return f"{base_name}_{ts}.{ext}"
 
-
 def ensure_dir_exists(directory):
     """Creates the specified directory if it does not already exist."""
     os.makedirs(directory, exist_ok=True)
-
 
 def load_metadata_from_dir(data_dir: str) -> dict:
     """Return dataset metadata from ``data_dir`` if available.
@@ -154,9 +147,7 @@ def load_metadata_from_dir(data_dir: str) -> dict:
         logger.warning("Failed to load metadata from %s: %s", path, exc)
         raise
 
-
 CURRENT_SEED = 0
-
 
 def set_random_seed(seed: int = 0) -> None:
     """Seed global RNGs and record the selected value.
@@ -183,7 +174,6 @@ def set_random_seed(seed: int = 0) -> None:
     except Exception:
         logger.debug("CAMB RNG seeding unavailable", exc_info=True)
     logger.info("Global RNG seed set to %s", seed)
-
 
 def get_random_seed() -> int:
     """Return the seed most recently passed to :func:`set_random_seed`."""

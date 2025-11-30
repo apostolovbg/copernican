@@ -1,4 +1,3 @@
-**Last Updated:** 2025-11-25
 
 This document expands on the high-level summary in the README by tracing how
 the Copernican Suite organises its architecture. The command-line launcher

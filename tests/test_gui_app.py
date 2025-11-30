@@ -7,7 +7,6 @@ from pathlib import Path
 from copernican_lib import run_manifest
 from copernican_lib.gui import CopernicanGUI, RunStatus
 
-
 def test_catalogue_metadata_and_filters() -> None:
     gui = CopernicanGUI(render=False)
     gui.refresh_inventory()
@@ -23,7 +22,6 @@ def test_catalogue_metadata_and_filters() -> None:
     record = gui.revalidate_dataset("planck_2018_lite")
     assert record["hashes"]
 
-
 def test_model_and_engine_metadata_actions() -> None:
     gui = CopernicanGUI(render=False)
     gui.refresh_inventory()
@@ -37,7 +35,6 @@ def test_model_and_engine_metadata_actions() -> None:
     assert engine_entry["hash"]
     assert engine_text
     assert gui.open_folder(Path(model_entry["path"]).parent.as_posix())
-
 
 def test_builder_navigation_and_draft() -> None:
     gui = CopernicanGUI(render=False)
@@ -53,7 +50,6 @@ def test_builder_navigation_and_draft() -> None:
     gui.cancel_builder()
     assert gui.current_step_index == 0
     assert gui.draft.completed_step == 0
-
 
 def test_run_monitor_lifecycle() -> None:
     gui = CopernicanGUI(render=False)
@@ -84,7 +80,6 @@ def test_run_monitor_lifecycle() -> None:
     assert gui.summary.output_links
     os.unlink(fh.name)
 
-
 def test_manifest_import_export_round_trip() -> None:
     gui = CopernicanGUI(render=False)
     gui.draft.model = "ModelB"
@@ -97,7 +92,6 @@ def test_manifest_import_export_round_trip() -> None:
         imported = gui.import_manifest(path)
         assert imported["selection"]["engine"]["name"]
         assert gui.selected_models
-
 
 def test_duplicate_manifest_prefills_builder(tmp_path: Path) -> None:
     gui = CopernicanGUI(render=False)
@@ -115,7 +109,6 @@ def test_duplicate_manifest_prefills_builder(tmp_path: Path) -> None:
     assert "planck_2018_lite" in gui.draft.data
     assert gui.draft.plan.startswith("Duplicate & Edit")
 
-
 def test_application_diagnostics_logging(tmp_path: Path) -> None:
     gui = CopernicanGUI(render=False)
     assert gui.application_log_path
@@ -128,7 +121,6 @@ def test_application_diagnostics_logging(tmp_path: Path) -> None:
     assert any(entry.severity == "ERROR" for entry in filtered)
     export_path = gui.export_application_logs(tmp_path)
     assert os.path.exists(export_path)
-
 
 def test_run_log_confirmation_and_anchor_jump(tmp_path: Path) -> None:
     gui = CopernicanGUI(render=False)

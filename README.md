@@ -1,5 +1,4 @@
 **Version:** 10.8.0
-**Last Updated:** 2025-11-30
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -438,7 +437,6 @@ conditional executes. This keeps `%DOWNLOAD_URL%` stable on stock
 `cmd.exe` builds without requiring delayed expansion. The empty-URL guard
 remains in place, and the macOS and Linux launchers continue to function
 unchanged.
-
 
 ## Directory Layout
 ```

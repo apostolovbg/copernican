@@ -20,13 +20,11 @@ from copernican_lib import result_writer, run_manifest
 from copernican_lib.cli import dependencies
 from copernican_lib.model_spec_validator import validate_and_cache_model
 
-
 class LaunchMode(str, Enum):
     """Available launch surfaces supported by the orchestrator."""
 
     CLI = "cli"
     GUI = "gui"
-
 
 @dataclass(frozen=True)
 class ServiceDescriptor:
@@ -37,7 +35,6 @@ class ServiceDescriptor:
     entrypoints: tuple[str, ...]
     rationale: str
 
-
 @dataclass(frozen=True)
 class OrchestrationMap:
     """Describe the shared services a GUI is allowed to import directly."""
@@ -45,7 +42,6 @@ class OrchestrationMap:
     config_validation: ServiceDescriptor
     manifest_generation: ServiceDescriptor
     run_control: ServiceDescriptor
-
 
 @dataclass
 class RunRequest:
@@ -57,14 +53,12 @@ class RunRequest:
     seed: int | None = None
     mode: LaunchMode = LaunchMode.GUI
 
-
 @dataclass
 class RunHandle:
     """Token returned when a run is scheduled or started."""
 
     token: str
     mode: LaunchMode
-
 
 @dataclass
 class RunStatus:
@@ -74,7 +68,6 @@ class RunStatus:
     stage: str
     progress: float
     message: str = ""
-
 
 class RunController(Protocol):
     """Interface consumed by GUI clients to manage run lifecycle events."""
@@ -96,7 +89,6 @@ class RunController(Protocol):
 
     def stream_logs(self, handle: RunHandle) -> Iterable[str]:
         """Yield log lines produced by the active run."""
-
 
 @dataclass
 class InProcessRunController:
@@ -141,7 +133,6 @@ class InProcessRunController:
         if self.log_hook is None:
             return ()
         return self.log_hook(handle.token)
-
 
 def describe_orchestration_services() -> OrchestrationMap:
     """Return the modules that drive config validation, manifests and runs."""

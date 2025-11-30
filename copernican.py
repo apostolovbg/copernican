@@ -754,7 +754,9 @@ def _prompt_nested_configuration(
                 return "back"
             if confirm in {"2", "r", "restart", "n", "no"}:
                 console.write("")
-                console.write("Restarting the nested questionnaire from step one.")
+                console.write(
+                    "Restarting the nested questionnaire from step one."
+                )
                 continue
             console.write("Please choose 1, 2, B or C.", error=True)
 
@@ -830,7 +832,9 @@ def prompt_sampling_configuration(
     except (KeyError, ValueError, TypeError):
         default_walkers = 32
 
-    lcdm_active = _count_active_parameters(lcdm_plugin, engine_module=engine_module)
+    lcdm_active = _count_active_parameters(
+        lcdm_plugin, engine_module=engine_module
+    )
     alt_active = _count_active_parameters(
         alt_model_plugin,
         engine_module=engine_module,
@@ -855,7 +859,9 @@ def prompt_sampling_configuration(
 
         while True:
             console.write("")
-            console.write("Production steps control the total sampler iterations.")
+            console.write(
+                "Production steps control the total sampler iterations."
+            )
             console.write(f"  Recommended default: {recommended_steps}")
             entry = console.ask(
                 f"Production steps [{recommended_steps}]: "
@@ -881,8 +887,8 @@ def prompt_sampling_configuration(
             )
             console.write(f"  Recommended warm-up: {default_burn}")
             console.write(
-                f"  A shorter option such as {quick_burn} trades certainty for "
-                "speed."
+                f"  A shorter option such as {quick_burn} trades "
+                "certainty for speed."
             )
             entry = console.ask(f"Burn-in steps [{default_burn}]: ").strip()
             if not entry:
@@ -905,14 +911,18 @@ def prompt_sampling_configuration(
             )
             console.write(f"  Required minimum: {minimum_walkers}")
             console.write(f"  Recommended default: {walker_default}")
-            entry = console.ask(f"Number of walkers [{walker_default}]: ").strip()
+            entry = console.ask(
+                f"Number of walkers [{walker_default}]: "
+            ).strip()
             if not entry:
                 n_walkers = walker_default
             else:
                 try:
                     n_walkers = int(entry)
                 except ValueError:
-                    console.write("Walker count must be an integer.", error=True)
+                    console.write(
+                        "Walker count must be an integer.", error=True
+                    )
                     continue
                 if n_walkers < minimum_walkers:
                     console.write(
@@ -959,8 +969,8 @@ def prompt_sampling_configuration(
             if adjusted_walkers != n_walkers:
                 console.write("")
                 console.write(
-                    f"Walker count increased to {adjusted_walkers} to match the "
-                    "worker pool."
+                    f"Walker count increased to {adjusted_walkers} to "
+                    "match the worker pool."
                 )
                 n_walkers = adjusted_walkers
 
@@ -996,7 +1006,9 @@ def prompt_sampling_configuration(
                 return "back"
             if confirm in {"2", "r", "restart", "n", "no"}:
                 console.write("")
-                console.write("Restarting the sampler questionnaire from step one.")
+                console.write(
+                    "Restarting the sampler questionnaire from step one."
+                )
                 continue
             console.write("Please choose 1, 2, B or C.", error=True)
 
@@ -1146,9 +1158,9 @@ def _sanity_check_numpy_scipy(log):
         _linalg.det([[1.0]])
     except Exception as exc:  # pragma: no cover - depends on local install
         log.error(
-            "Basic NumPy/SciPy check failed. This often points to CPU feature "
-            "mismatches or a corrupted install. Reinstall NumPy and SciPy with "
-            "wheels built for your machine.",
+            "Basic NumPy/SciPy check failed. This often points to CPU "
+            "feature mismatches or a corrupted install. Reinstall NumPy "
+            "and SciPy with wheels built for your machine.",
             exc_info=exc,
         )
         raise
@@ -1188,11 +1200,14 @@ def main_workflow():
         exit_clean(0 if success else 1)
 
     # Import optional third-party packages after confirming they are installed
-    global np, plt, mp, model_spec_validator, model_coder, engine_plugin_validation, \
-        dataset_registry, plotter, csv_writer, log_mod, logger, error_handler
+    global np, plt, mp, model_spec_validator, model_coder
+    global engine_plugin_validation, dataset_registry, plotter
+    global csv_writer, log_mod, logger, error_handler
     np, plt, mp = cli_dependencies.load_third_party_modules()
-    from copernican_lib import model_spec_validator, model_coder, engine_plugin_validation
     from copernican_lib import (
+        model_spec_validator,
+        model_coder,
+        engine_plugin_validation,
         dataset_registry,
         plotter,
         csv_writer,
@@ -1249,7 +1264,9 @@ def main_workflow():
         models_dir = os.path.join(SCRIPT_DIR, "models")
         yaml_path = os.path.join(models_dir, "cosmo_model_lcdm.yml")
         cache_dir = os.path.join(models_dir, "cache")
-        cache_path = model_spec_validator.validate_and_cache_model(yaml_path, cache_dir)
+        cache_path = model_spec_validator.validate_and_cache_model(
+            yaml_path, cache_dir
+        )
         func_dict, parsed = model_coder.generate_callables(cache_path)
         plugin = engine_plugin_validation.build_plugin(parsed, func_dict)
         plugin.MODEL_FILENAME = os.path.basename(yaml_path)
@@ -1308,10 +1325,10 @@ def main_workflow():
         cosmo_engine_selected = None
         selected_model = ""
 
-        # Stage 1 collects all configuration inputs. Wrapping the sequence in a
-        # loop keeps the workflow responsive when validation fails: operators can
-        # review the reported reasons, restart immediately and continue without
-        # relaunching the suite.
+        # Stage 1 collects all configuration inputs. Wrapping the
+        # sequence in a loop keeps the workflow responsive when
+        # validation fails: operators can review the reported reasons,
+        # restart immediately and continue without relaunching the suite.
         while True:
             logger.info("\n--- Stage 1: Configuration ---\n")
             # Stage 1 previously reiterated a heading and explanatory block for
@@ -1351,8 +1368,14 @@ def main_workflow():
             yaml_path = os.path.join(models_dir, selected_model)
             cache_dir = os.path.join(models_dir, "cache")
             try:
-                cache_path = model_spec_validator.validate_and_cache_model(yaml_path, cache_dir)
-                func_dict, parsed = model_coder.generate_callables(cache_path)
+                cache_path = (
+                    model_spec_validator.validate_and_cache_model(
+                        yaml_path, cache_dir
+                    )
+                )
+                func_dict, parsed = model_coder.generate_callables(
+                    cache_path
+                )
                 alt_model_plugin = engine_plugin_validation.build_plugin(
                     parsed, func_dict
                 )

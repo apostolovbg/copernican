@@ -8,36 +8,30 @@ import unittest
 
 from copernican_lib import plugins
 
-
 def distance_modulus_model(z_val, h0):
     """Toy distance modulus helper that stays trivially picklable."""
 
     return float(z_val) + float(h0)
-
 
 def get_comoving_distance_Mpc(z_val, h0):
     """Return a linearised comoving distance for testing only."""
 
     return float(z_val) * 100.0 / max(float(h0), 1.0)
 
-
 def get_luminosity_distance_Mpc(z_val, h0):
     """Derive luminosity distance directly from the comoving result."""
 
     return (1.0 + float(z_val)) * get_comoving_distance_Mpc(z_val, h0)
-
 
 def get_angular_diameter_distance_Mpc(z_val, h0):
     """Derive angular diameter distance from the comoving helper."""
 
     return get_comoving_distance_Mpc(z_val, h0) / (1.0 + float(z_val))
 
-
 def get_Hz_per_Mpc(z_val, h0):
     """Return a monotonic H(z) scaling for deterministic assertions."""
 
     return float(h0) * (1.0 + float(z_val))
-
 
 def get_DV_Mpc(z_val, h0):
     """Return a BAO-inspired helper anchored to the comoving distance."""
@@ -47,18 +41,15 @@ def get_DV_Mpc(z_val, h0):
     ratio = numerator / get_Hz_per_Mpc(z_val, h0)
     return ratio ** (1.0 / 3.0)
 
-
 def get_sound_horizon_rs_Mpc(h0):
     """Simple sound horizon approximation suitable for tests."""
 
     return 144.0 / max(float(h0), 1.0)
 
-
 def helper_extra_function():
     """Extra helper stored on the plugin to prove extras stay intact."""
 
     return "extra"
-
 
 def _build_sample_plugin() -> plugins.EnginePlugin:
     """Create a minimal plugin suitable for pickling tests."""
@@ -91,7 +82,6 @@ def _build_sample_plugin() -> plugins.EnginePlugin:
     }
     return plugins.build_engine_plugin(model_data, func_dict)
 
-
 class FrozenMappingTests(unittest.TestCase):
     """Validate the FrozenMapping wrapper used across EnginePlugin fields."""
 
@@ -115,7 +105,6 @@ class FrozenMappingTests(unittest.TestCase):
         extras_copy = plugin.extras.to_dict()
         extras_copy["custom_extra"] = "shadowed"
         self.assertEqual(plugin.extras["custom_extra"](), "extra")
-
 
 if __name__ == "__main__":  # pragma: no cover - unittest cli support
     unittest.main()

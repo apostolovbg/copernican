@@ -1,6 +1,5 @@
 """Tests for launcher scripts.
 
-
 These checks guard against regressions in the Windows bootstrapper
 where the download URL previously collapsed to an empty string on
 PowerShell. Ensuring the script defines the URL segments explicitly
@@ -14,7 +13,6 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-
 
 class StartScriptTestCase(unittest.TestCase):
     """Validate critical safeguards baked into the start scripts."""
@@ -133,7 +131,6 @@ class StartScriptTestCase(unittest.TestCase):
             'echo "2) Start Copernican Suite (CLI)"',
             self.start_command,
         )
-
 
 if __name__ == "__main__":  # pragma: no cover - manual helper
     unittest.main()

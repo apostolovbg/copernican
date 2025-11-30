@@ -29,7 +29,6 @@ DEFAULT_SALT2_M_ABS_FIXED = -19.05
 DEFAULT_SALT2_ALPHA_FIXED = 0.141
 DEFAULT_SALT2_BETA_FIXED = 3.101
 
-
 @register_sne_parser(data_dir=DATA_DIR)
 def parse_jla2014(
     data_dir,

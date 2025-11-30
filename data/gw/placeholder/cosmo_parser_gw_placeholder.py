@@ -10,7 +10,6 @@ from copernican_lib.dataset_registry import register_gw_parser
 
 DATA_DIR = os.path.dirname(__file__)
 
-
 @register_gw_parser(data_dir=DATA_DIR)
 def parse_gw_placeholder(data_dir, **kwargs):
     """Stub parser that logs a message and returns None."""

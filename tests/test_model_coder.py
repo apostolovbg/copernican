@@ -17,7 +17,6 @@ from scipy.integrate import IntegrationWarning, quad
 
 from copernican_lib import model_coder
 
-
 class TestModelCoderSecurity(unittest.TestCase):
     """Ensure potentially dangerous expressions are not executed."""
 
@@ -67,7 +66,6 @@ class TestModelCoderSecurity(unittest.TestCase):
             fn.python_function.__globals__.get("__builtins__"),
             {},
         )
-
 
 class TestSoundHorizonRigour(unittest.TestCase):
     """Validate the stricter sound-horizon requirements."""
@@ -217,7 +215,6 @@ class TestSoundHorizonRigour(unittest.TestCase):
         rs_helper = funcs["get_sound_horizon_rs_Mpc"]
         with self.assertRaises(model_coder.SoundHorizonComputationError):
             rs_helper(70.0, 1100.0)
-
 
 class TestRobustQuad(unittest.TestCase):
     """Validate the resilient quadrature wrapper used by generated models."""
@@ -369,7 +366,6 @@ class TestRobustQuad(unittest.TestCase):
                 1100.0,
                 math.inf,
             )
-
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

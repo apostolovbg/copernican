@@ -37,7 +37,6 @@ __all__ = [
     "compute_cmb_spectrum_from_dict",
 ]
 
-
 def chi_squared_sne(
     cosmo_params: Sequence[float],
     mu_model_func,
@@ -51,7 +50,6 @@ def chi_squared_sne(
     if not np.isfinite(loglike):
         return float("inf")
     return chi2 if np.isfinite(chi2) else float("inf")
-
 
 def chi_squared_bao(
     z: np.ndarray,
@@ -81,7 +79,6 @@ def chi_squared_bao(
         return float("inf")
     return chi2 if np.isfinite(chi2) else float("inf")
 
-
 def chi_squared_cmb(
     cosmo_params: Sequence[float],
     cmb_data_df,
@@ -96,7 +93,6 @@ def chi_squared_cmb(
     if not np.isfinite(loglike):
         return float("inf")
     return chi2 if np.isfinite(chi2) else float("inf")
-
 
 def calculate_bao_observables(
     bao_data_df,

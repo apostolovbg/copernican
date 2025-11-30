@@ -53,7 +53,6 @@ _CMB_PARAM_ALLOWED_KEYS = {
 }
 _MNU_PATTERN = re.compile(r"^mnu(\d+)$")
 
-
 def _validate_cmb_param_map(plugin: EnginePlugin) -> None:
     """Ensure the plugin's CAMB parameter map only exposes supported keys."""
 
@@ -87,7 +86,6 @@ def _validate_cmb_param_map(plugin: EnginePlugin) -> None:
     if conflicts:
         raise ValueError("; ".join(conflicts))
 
-
 def build_plugin(
     model_data: Mapping[str, Any], func_dict: Mapping[str, Callable]
 ) -> EnginePlugin:
@@ -97,7 +95,6 @@ def build_plugin(
     _validate_plugin(plugin)
     _validate_cmb_param_map(plugin)
     return plugin
-
 
 def validate_plugin(plugin: EnginePlugin) -> bool:
     """Validate that ``plugin`` exposes the required interface."""
@@ -110,7 +107,6 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
     except ValueError as exc:
         raise PluginValidationError(str(exc)) from exc
     return True
-
 
 __all__ = [
     "EnginePlugin",

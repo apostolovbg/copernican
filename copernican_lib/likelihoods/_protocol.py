@@ -1,6 +1,5 @@
 """Shared likelihood protocol definitions.
 
-
 The :mod:`copernican_lib.likelihoods` package exposes multiple dataset
 likelihood helpers that all share a common interface.  To avoid circular
 imports each helper depends on the protocol and state container defined here
@@ -11,7 +10,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Mapping, MutableMapping, Protocol, Sequence
-
 
 class LikelihoodProtocol(Protocol):
     """Runtime contract implemented by all likelihood helpers."""
@@ -24,7 +22,6 @@ class LikelihoodProtocol(Protocol):
     @property
     def state(self) -> Mapping[str, Any]:
         """Return diagnostic information captured during the last call."""
-
 
 @dataclass(slots=True)
 class LikelihoodState:
@@ -42,6 +39,5 @@ class LikelihoodState:
             "loglike": self.loglike,
             "metadata": dict(self.metadata),
         }
-
 
 __all__ = ["LikelihoodProtocol", "LikelihoodState"]

@@ -13,7 +13,6 @@ from copernican_lib.dataset_registry import register_sne_parser
 
 DATA_DIR = os.path.dirname(__file__)
 
-
 @register_sne_parser(data_dir=DATA_DIR)
 def parse_pantheon_plus(data_dir, **kwargs):
     """Parse Pantheon+ data and its covariance matrix."""

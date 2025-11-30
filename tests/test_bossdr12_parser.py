@@ -23,7 +23,6 @@ import copernican_lib.model_coder as model_coder
 import copernican_lib.model_spec_validator as model_spec_validator
 from copernican_lib.statistics import chi_squared_bao
 
-
 class BossDR12ParserTestCase(unittest.TestCase):
     """Exercise ``parse_boss_dr12`` under normal and failure modes."""
 
@@ -138,7 +137,6 @@ class BossDR12ParserTestCase(unittest.TestCase):
             with self.assertLogs(level="ERROR") as cm:
                 self.assertIsNone(self.parser.parse_boss_dr12(tmp))
             self.assertIn("D_V/F_AP covariance", "".join(cm.output))
-
 
 if __name__ == "__main__":
     unittest.main()

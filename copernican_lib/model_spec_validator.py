@@ -13,7 +13,6 @@ validation, sanitisation and cache management rather than mere text parsing.
 # a sanitized copy to ``models/cache/``. The sanitized file is used by child
 # processes so that validation only happens once in the main process.
 
-import datetime as _dt
 import math
 import multiprocessing as _mp
 from pathlib import Path
@@ -234,8 +233,6 @@ def validate_and_cache_model(path, cache_dir):
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache_path = cache_dir / f"cache_{path.name}"
-    today = _dt.date.today().isoformat()
     with cache_path.open("w", encoding="utf-8") as f:
-        f.write(f"# Last Updated: {today}\n")
         yaml.safe_dump(data, f, sort_keys=False, allow_unicode=True)
     return str(cache_path)

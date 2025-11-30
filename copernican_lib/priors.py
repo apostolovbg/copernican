@@ -1,6 +1,5 @@
 """Parameter prior definitions and helper utilities.
 
-
 This module centralises the construction of parameter priors so every
 engine evaluates them consistently.  Historically the project stored raw
 dictionary structures in the sanitised YAML cache and reimplemented the
@@ -43,13 +42,10 @@ import math
 from dataclasses import dataclass, field
 from typing import Callable, Mapping, MutableMapping, Optional
 
-
 class PriorError(ValueError):
     """Raised when a prior definition is incomplete or inconsistent."""
 
-
 TransformCallable = Callable[[float], tuple[float, float]]
-
 
 @dataclass(slots=True)
 class LogUniformTransform:
@@ -62,7 +58,6 @@ class LogUniformTransform:
                 "Log-uniform prior expects strictly positive values"
             )
         return value, -math.log(value)
-
 
 def _ensure_number(value: object, field: str) -> float:
     """Return ``value`` as a finite float or raise :class:`PriorError`.
@@ -85,7 +80,6 @@ def _ensure_number(value: object, field: str) -> float:
         raise PriorError(f"Prior field '{field}' must be finite")
     return number
 
-
 @dataclass(slots=True)
 class BasePrior:
     """Common behaviour shared by all prior implementations."""
@@ -106,7 +100,6 @@ class BasePrior:
         """Return an optional parameter transform for log-posterior use."""
 
         return None
-
 
 @dataclass(slots=True)
 class UniformPrior(BasePrior):
@@ -135,7 +128,6 @@ class UniformPrior(BasePrior):
             "upper": self.upper,
         }
 
-
 @dataclass(slots=True)
 class NormalPrior(BasePrior):
     """Gaussian distribution with mean ``mean`` and standard deviation."""
@@ -159,7 +151,6 @@ class NormalPrior(BasePrior):
             "mean": self.mean,
             "sigma": self.sigma,
         }
-
 
 @dataclass(slots=True)
 class LogUniformPrior(BasePrior):
@@ -203,7 +194,6 @@ class LogUniformPrior(BasePrior):
     def create_transform(self) -> TransformCallable:
         return LogUniformTransform()
 
-
 @dataclass(slots=True)
 class FixedPrior(BasePrior):
     """Degenerate prior fixing a parameter to a single value.
@@ -234,7 +224,6 @@ class FixedPrior(BasePrior):
     def to_mapping(self) -> dict[str, float | str]:
         return {"type": "fixed", "value": self.value}
 
-
 PRIOR_TYPES = {
     "uniform": UniformPrior,
     "gaussian": NormalPrior,
@@ -243,7 +232,6 @@ PRIOR_TYPES = {
     "log-uniform": LogUniformPrior,
     "fixed": FixedPrior,
 }
-
 
 def prior_from_mapping(
     mapping: Mapping[str, object] | None,
@@ -283,7 +271,6 @@ def prior_from_mapping(
         return FixedPrior("fixed", value)
     raise PriorError(f"Unsupported prior implementation for '{prior_type}'")
 
-
 def normalise_prior_mapping(mapping: MutableMapping[str, object]) -> None:
     """In-place normalisation of ``mapping`` using canonical keys.
 
@@ -301,7 +288,6 @@ def normalise_prior_mapping(mapping: MutableMapping[str, object]) -> None:
     mapping.clear()
     mapping.update(canonical)
 
-
 def transform_from_mapping(
     mapping: Mapping[str, object],
 ) -> Optional[TransformCallable]:
@@ -311,7 +297,6 @@ def transform_from_mapping(
     if prior is None:
         return None
     return prior.create_transform()
-
 
 __all__ = [
     "BasePrior",

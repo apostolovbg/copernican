@@ -1,5 +1,4 @@
 # Baseline likelihoods release
-**Last Updated:** 2025-07-06
 
 This file contains 10 likelihood files that forms the baseline Planck likelihood data release. One is used for the low-&#8467; TT (`commander`), three provide the low-&#8467; polarization part (`simall`) to account for either the EE contribution (baseline) the BB one or both the EE and BB one (options). On the high-&#8467; side, two files are provided for the baseline TT and TTTEEE `plik` likelihood, and two others for the foreground and nuisance marginalized `plik_lite`. Finally, the lensing likelihood is provided in two versions, one model dependent, and the other marginalized over the CMB reconstructed in the `plik_lite` likelihood.
 
@@ -260,13 +259,11 @@ Those are, in g:
 * `A_pol`, the calibration of the polarization relative to the temperature, which should be set to 1;
 * `A_planck`, the Planck absolute calibration.
 
-
 Recommended priors can be found in the file `plc_3.0/hi_l/plik/plik_recommended_priors.txt`
 For `cosmomc` users, a set of initialization files is available in `plc_3.0/cosmomc`
 
 ### TT only - Plik lite
 This file allows for the computation of the nuisance-marginalized CMB TT likelihood in the range &#8467;=30-2508. It should not be used with the regular high-&#8467; TT or TTTEEE files.
-
 
 #### Production process
 The Plik likelihood files described above have been explored using a Bayesian algorithm described in {{PlanckPapers|planck2015-l05}}. The joint posterior of the CMB <i>TT</i> spectrum, marginalized over the nuisance parameters, has been extracted from this analysis to build a high-&#8467; likelihood approximation for the 
@@ -288,12 +285,10 @@ When used with the library, this expects a vector of parameters consisting of th
 ### TT EE TE - Plik lite
 This file allows for the computation of the nuisance marginalized CMB joint TT, TE, EE likelihood in the range &#8467;=30-2508 for temperature and &#8467;=30-1996 for TE and EE. It should not be used with the regular high-&#8467; TT or TTTEEE files.
 
-
 #### Production process
 
 The Plik likelihood file described above have been explored using a Bayesian algorithm described in the Planck 2018 likelihood paper. The joint posterior of the CMB <i>TT</i>, <i>TE</i>, and <i>EE</i> spectra, marginalized over the nuisance parameters has been extracted from this analysis to build a high-&#8467 likelihood approximation for the 
 CMB spectrum only. The nuisance parameters have been marginalized in the priors described above.
-
 
 #### Inputs
 
@@ -348,7 +343,6 @@ are used.
 
 #### Production process
 The covariance of the CMB dependent likelihood is enlarged, and the theory spectrum is shifted to account for th marginalization over the CMB spectrum, using a gaussian approximation. The `plik_lite` likelihood is used to provide the CMB spectra and covariances.
-
 
 #### Inputs:  
 

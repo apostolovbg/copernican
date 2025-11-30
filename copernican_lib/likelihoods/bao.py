@@ -1,6 +1,5 @@
 """Baryon Acoustic Oscillation likelihood helper.
 
-
 Computes BAO observables using CAMB background distances aligned with the CMB
 likelihood configuration.  Previous revisions mixed direct model integrals with
 sound-horizon fallbacks, producing unphysical predictions for exotic models.
@@ -22,7 +21,6 @@ import numpy as np
 from ..model_coder import SoundHorizonComputationError
 from ._protocol import LikelihoodProtocol, LikelihoodState
 from .cmb import compute_camb_background_observables
-
 
 @dataclass(slots=True)
 class BAOLike(LikelihoodProtocol):
@@ -397,6 +395,5 @@ class BAOLike(LikelihoodProtocol):
         """Return diagnostics captured during the last evaluation."""
 
         return self._state.as_mapping()
-
 
 __all__ = ["BAOLike"]

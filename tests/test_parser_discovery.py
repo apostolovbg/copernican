@@ -20,7 +20,6 @@ import yaml
 
 from copernican_lib import dataset_registry
 
-
 class ParserDiscoverySecurityTestCase(unittest.TestCase):
     """Exercise parser discovery against trusted and rogue modules."""
 
@@ -133,7 +132,6 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
             dataset_registry.SNE_PARSER_REGISTRY = prev_parsers
             dataset_registry.TRUSTED_PARSER_DIGESTS = prev_hashes
             os.environ.pop("LINK_SENTINEL", None)
-
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

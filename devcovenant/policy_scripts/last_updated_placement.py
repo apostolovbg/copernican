@@ -30,7 +30,7 @@ class LastUpdatedPlacementCheck(PolicyCheck):
 
     # Pattern to detect Last Updated markers
     LAST_UPDATED_PATTERN = re.compile(
-        r"\*\*Last Updated:\*\*|Last Updated:|# Last Updated"
+        r"(\*\*Last Updated:\*\*|Last Updated:|# Last Updated)", re.IGNORECASE
     )
 
     def check(self, context: CheckContext) -> List[Violation]:

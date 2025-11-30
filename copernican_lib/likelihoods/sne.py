@@ -1,6 +1,5 @@
 """Supernova Ia likelihood helper.
 
-
 Wraps the covariance-aware χ² evaluation previously implemented in
 ``copernican_lib.statistics`` so engines can reuse it without duplicating
 validation logic.  The helper exposes a :meth:`loglike` method returning the
@@ -18,7 +17,6 @@ import numpy as np
 import pandas as pd
 
 from ._protocol import LikelihoodProtocol, LikelihoodState
-
 
 @dataclass(slots=True)
 class SNeLike(LikelihoodProtocol):
@@ -158,6 +156,5 @@ class SNeLike(LikelihoodProtocol):
         """Return diagnostics captured during the last evaluation."""
 
         return self._state.as_mapping()
-
 
 __all__ = ["SNeLike"]

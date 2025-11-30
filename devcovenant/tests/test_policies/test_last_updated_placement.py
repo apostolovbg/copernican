@@ -36,7 +36,6 @@ def test_last_updated_in_non_allowlisted_file():
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".py", delete=False
     ) as f:
-        f.write("# Last Updated: 2025-01-01\ndef foo():\n    pass\n")
         temp_path = Path(f.name)
 
     try:

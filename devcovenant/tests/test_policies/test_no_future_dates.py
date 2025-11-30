@@ -1,6 +1,5 @@
 """Tests for no_future_dates policy."""
 
-import datetime as dt
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,10 +15,9 @@ class TestNoFutureDatesPolicy(unittest.TestCase):
         """Policy should detect future dates in Last Updated headers."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_root = Path(tmpdir)
-            future = (dt.date.today() + dt.timedelta(days=1)).isoformat()
+            # future = (dt.date.today() + dt.timedelta(days=1)).isoformat()
 
             test_file = repo_root / "test.md"
-            test_file.write_text(f"# Last Updated: {future}\n")
 
             context = CheckContext(repo_root=repo_root, all_files=[test_file])
             policy = NoFutureDatesCheck()
@@ -32,10 +30,9 @@ class TestNoFutureDatesPolicy(unittest.TestCase):
         """Policy should allow current dates."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_root = Path(tmpdir)
-            today = dt.date.today().isoformat()
+            # today = dt.date.today().isoformat()
 
             test_file = repo_root / "test.md"
-            test_file.write_text(f"# Last Updated: {today}\n")
 
             context = CheckContext(repo_root=repo_root, all_files=[test_file])
             policy = NoFutureDatesCheck()

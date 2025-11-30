@@ -16,7 +16,6 @@ assert SPEC and SPEC.loader  # for static analysis tools
 sys.modules.setdefault(SPEC.name, MODULE)
 SPEC.loader.exec_module(MODULE)
 
-
 def _force_missing_piptools(monkeypatch) -> None:
     """Pretend ``piptools`` is unavailable during the test."""
 
@@ -26,12 +25,10 @@ def _force_missing_piptools(monkeypatch) -> None:
 
     monkeypatch.setattr(MODULE.importlib.util, "find_spec", _missing_find_spec)
 
-
 def _write_lock(path: Path, body: list[str]) -> None:
     """Helper that materialises a lockfile body without metadata."""
 
     path.write_text("\n".join(body) + "\n", encoding="utf-8")
-
 
 def _monkeypatch_compile(monkeypatch, body: list[str]) -> None:
     """Replace ``run_pip_compile`` with a deterministic writer."""
@@ -42,7 +39,6 @@ def _monkeypatch_compile(monkeypatch, body: list[str]) -> None:
         Path(output_path).write_text("\n".join(body) + "\n", encoding="utf-8")
 
     monkeypatch.setattr(MODULE, "run_pip_compile", _fake_compile)
-
 
 def test_update_lockfile_skips_rewrite_when_body_is_unchanged(
     tmp_path, monkeypatch
@@ -64,7 +60,6 @@ def test_update_lockfile_skips_rewrite_when_body_is_unchanged(
     assert not changed
     contents = lock.read_text(encoding="utf-8").splitlines()
     assert contents == body
-
 
 def test_update_lockfile_rewrites_when_body_changes(
     tmp_path, monkeypatch
@@ -88,7 +83,6 @@ def test_update_lockfile_rewrites_when_body_changes(
     contents = lock.read_text(encoding="utf-8").splitlines()
     assert contents == new_body
 
-
 def test_update_lockfile_requires_requirements_in(tmp_path) -> None:
     """The helper should raise ``SystemExit`` when inputs are missing."""
 
@@ -102,7 +96,6 @@ def test_update_lockfile_requires_requirements_in(tmp_path) -> None:
         raise AssertionError(
             "update_lockfile did not abort without requirements.in"
         )
-
 
 def test_run_pip_compile_aborts_without_piptools(
     tmp_path, monkeypatch

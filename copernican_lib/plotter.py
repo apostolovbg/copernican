@@ -31,7 +31,6 @@ _ = plt.get_backend()
 # plotting predictable while still conveying the global posterior geometry.
 MAX_CORNER_SAMPLES = 100_000
 
-
 # NOTE: ``_prepare_corner_inputs`` used to be spelled
 # ``_validate_corner_inputs``.  The new name emphasises that the helper both
 # validates and flattens the raw sampler output.  A backwards-compatibility
@@ -104,7 +103,6 @@ def _prepare_corner_inputs(
     stats["downsampled"] = stats["processed_count"] < stats["finite_count"]
     return clean_samples, parameter_names[:n_params], stats
 
-
 # Backwards compatibility --------------------------------------------------
 #
 # Stage 5 previously imported ``_validate_corner_inputs`` directly.  Retain the
@@ -125,7 +123,6 @@ def _validate_corner_inputs(
     """
 
     return _prepare_corner_inputs(posterior_samples, parameter_names)
-
 
 def _density_levels(
     histogram: np.ndarray,
@@ -166,7 +163,6 @@ def _density_levels(
         last_value = finite_value
     return cleaned_levels
 
-
 def _ensure_strictly_increasing(
     values: Sequence[float], *, start: float | None = None
 ) -> np.ndarray:
@@ -204,7 +200,6 @@ def _ensure_strictly_increasing(
         last = current
 
     return result
-
 
 def _build_contour_levels(
     histogram: np.ndarray,
@@ -253,7 +248,6 @@ def _build_contour_levels(
 
     return filled_levels, base_levels
 
-
 def _copernican_version() -> str:
     """Return the suite version while tolerating missing helpers.
 
@@ -270,10 +264,8 @@ def _copernican_version() -> str:
         return getter()
     return "0+unknown"
 
-
 # Query package metadata once so every plot records the same version string.
 COPERNICAN_VERSION = _copernican_version()
-
 
 def _wrap_math(text: str) -> str:
     """Return ``text`` wrapped in dollar signs for MathText rendering."""
@@ -281,7 +273,6 @@ def _wrap_math(text: str) -> str:
     # sanitisation rules are shared across plotting,
     # parsing and code generation.
     return latex_utils.wrap_math(text)
-
 
 # Corner layout tuning -----------------------------------------------------
 #
@@ -315,7 +306,6 @@ _CORNER_MAX_BOTTOM = 0.42
 # Pull the title a touch lower so it mirrors the summary plots.  This echoes
 # the user feedback that the previous 0.965 anchor hugged the canvas edge.
 _CORNER_TITLE_Y = 0.952
-
 
 def _compute_corner_layout(
     n_params: int,
@@ -412,7 +402,6 @@ def _compute_corner_layout(
     figsize = (side_length, side_length)
     return figsize, font_sizes, line_height, margins, _CORNER_FOOTER_PADDING
 
-
 def _smooth_line(
     x: np.ndarray, y: np.ndarray, points: int = 200
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -433,7 +422,6 @@ def _smooth_line(
     except Exception as exc:
         get_logger().warning(f"Could not smooth line: {exc}")
         return x, y
-
 
 def get_binned_average(
     z: np.ndarray, residuals: np.ndarray, n_bins: int = 20
@@ -460,7 +448,6 @@ def get_binned_average(
             f"Could not calculate binned average due to an error: {exc}"
         )
         return np.array([]), np.array([])
-
 
 def compose_footer(base_line: str, data_attrs: dict) -> list[tuple[str, bool]]:
     """Return formatted footer lines.
@@ -525,7 +512,6 @@ def compose_footer(base_line: str, data_attrs: dict) -> list[tuple[str, bool]]:
         )
     return wrapped
 
-
 def _format_corner_footer_stats(
     stats: dict[str, int | bool],
 ) -> list[tuple[str, bool]]:
@@ -588,7 +574,6 @@ def _format_corner_footer_stats(
 
     return lines
 
-
 def build_footer_lines(
     alt_model_plugin: Any,
     data_attrs: dict,
@@ -629,7 +614,6 @@ def build_footer_lines(
 
     return list(extra_lines)
 
-
 def _apply_common_style() -> None:
     """Apply a consistent white background and grey grid style."""
     plt.style.use("default")
@@ -641,7 +625,6 @@ def _apply_common_style() -> None:
             "grid.linewidth": 0.5,
         }
     )
-
 
 def format_model_summary_text(
     model_plugin: Any,
@@ -747,7 +730,6 @@ def format_model_summary_text(
             lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))
 
     return "\n".join(lines)
-
 
 def plot_hubble_diagram(
     sne_data_df: Any,
@@ -1072,7 +1054,6 @@ def plot_hubble_diagram(
         logger.error(f"Error saving Hubble diagram: {exc}")
     finally:
         plt.close(fig)
-
 
 def plot_bao_observables(
     bao_data_df: Any,
@@ -1414,7 +1395,6 @@ def plot_bao_observables(
         logger.error(f"Error saving BAO plot: {exc}")
     finally:
         plt.close(fig)
-
 
 def plot_cmb_spectrum(
     cmb_data_df: Any,
@@ -1777,7 +1757,6 @@ def plot_cmb_spectrum(
         logger.error(f"Error saving CMB plot: {exc}")
     finally:
         plt.close(fig)
-
 
 def plot_corner(
     posterior_samples: np.ndarray,

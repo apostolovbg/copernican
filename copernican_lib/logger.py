@@ -29,7 +29,6 @@ _PROGRAM_LOGGER_NAME = "copernican.program"
 _DEFAULT_PROGRAM_LOG_PREFIX = "copernican-program"
 _PROGRAM_LOGGER: logging.Logger | None = None
 
-
 class _PathFilter(logging.Filter):
     """Filter that strips absolute paths above the project root."""
 
@@ -46,7 +45,6 @@ class _PathFilter(logging.Filter):
             record.msg = clean.replace(self.base_dir, ".")
         return True
 
-
 class _ConsoleFilter(logging.Filter):
     """Filter to exclude captured console messages from the StreamHandler."""
 
@@ -57,7 +55,6 @@ class _ConsoleFilter(logging.Filter):
         # console via the original call, so the stream handler should ignore
         # them to avoid duplicate lines.
         return not getattr(record, "console_capture", False)
-
 
 def _patch_builtins(base_dir: str) -> None:
     """Mirror print and input to the logger with path sanitisation."""
@@ -104,7 +101,6 @@ def _patch_builtins(base_dir: str) -> None:
     input_patch.__copernican_patched__ = True
     builtins.print = print_patch
     builtins.input = input_patch
-
 
 def setup_program_logging(
     log_dir: str = "logs",
@@ -162,7 +158,6 @@ def setup_program_logging(
     _PROGRAM_LOGGER = logger_obj
     return log_path
 
-
 def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
     """Initialise logging and return the log file path.
 
@@ -209,7 +204,6 @@ def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
 
     return log_filename
 
-
 def log_environment_info(target_logger: logging.Logger | None = None) -> None:
     """Log Python, OS, CPU and key package versions.
 
@@ -243,7 +237,6 @@ def log_environment_info(target_logger: logging.Logger | None = None) -> None:
     )
     console_output.write(f"Environment summary: {summary}")
 
-
 def get_program_logger() -> logging.Logger:
     """Return the suite-level diagnostics logger."""
 
@@ -251,7 +244,6 @@ def get_program_logger() -> logging.Logger:
     if _PROGRAM_LOGGER is None:
         _PROGRAM_LOGGER = logging.getLogger(_PROGRAM_LOGGER_NAME)
     return _PROGRAM_LOGGER
-
 
 def get_logger():
     """Returns the active logger instance."""

@@ -1,6 +1,5 @@
 """Logging-oriented diagnostics helpers.
 
-
 The utilities below translate raw numerical arrays into short, stable log
 messages so long-running analyses can surface meaningful progress without
 flooding the console.  They intentionally avoid performing any logging
@@ -14,7 +13,6 @@ from typing import Iterable, Mapping
 
 import numpy as np
 import pandas as pd
-
 
 def _residual_statistics(
     residuals: np.ndarray,
@@ -35,7 +33,6 @@ def _residual_statistics(
     max_abs = float(np.max(np.abs(cleaned)))
     median = float(np.median(cleaned))
     return rms, max_abs, median, int(cleaned.size)
-
 
 def bao_residual_diagnostics(
     predictions: pd.DataFrame | None,
@@ -91,7 +88,6 @@ def bao_residual_diagnostics(
 
     return lines
 
-
 def cmb_residual_diagnostics(
     cmb_data: pd.DataFrame | None,
     theory: Mapping[str, Iterable[float]] | np.ndarray,
@@ -146,7 +142,6 @@ def cmb_residual_diagnostics(
         )
 
     return lines
-
 
 __all__ = [
     "bao_residual_diagnostics",

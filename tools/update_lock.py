@@ -108,7 +108,7 @@ def split_last_updated(lines: Iterable[str]) -> LockFilePieces:
     """Separate the optional ``Last Updated`` banner from the body."""
 
     collected = list(lines)
-    if collected and collected[0].startswith("# Last Updated: "):
+    if collected and collected[0].startswith("# Last Updated:"):
         return LockFilePieces(collected[1:])
     return LockFilePieces(collected)
 

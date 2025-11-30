@@ -12,7 +12,6 @@ whenever they are unpickled.
 """
 
 import ast
-import datetime as _dt
 import itertools
 import logging
 import math
@@ -52,7 +51,7 @@ _LOGISTIC_SUPPORT_POINTS = (
 
 _GENERATED_NAME_COUNTER = itertools.count(1)
 _LAST_UPDATED_PATTERN = re.compile(
-    r"^#\s*Last Updated:\s*(\d{4}-\d{2}-\d{2})\s*$"
+    r"^#\s*Last Updated:\s*\d{4}-\d{2}-\d{2}\s*$", re.MULTILINE
 )
 
 
@@ -908,8 +907,7 @@ def _extract_last_updated_header(text: str) -> str:
     for line in text.splitlines()[:3]:
         if _LAST_UPDATED_PATTERN.match(line):
             return line.strip()
-    today = _dt.datetime.now(_dt.timezone.utc).date().isoformat()
-    return f"# Last Updated: {today}"
+    return None
 
 
 def generate_callables(cache_path):
@@ -1053,7 +1051,7 @@ def generate_callables(cache_path):
                     error_handler.report_error(msg)
                     raise ValueError(msg)
                 console.write(
-                    "\u26A0\uFE0F  Model does not supply r_s; BAO metrics "
+                    "\u26a0\ufe0f  Model does not supply r_s; BAO metrics "
                     "are disabled."
                 )
                 model_data["valid_for_bao"] = False
@@ -1063,7 +1061,7 @@ def generate_callables(cache_path):
             raise ValueError(msg) from e
     else:
         console.write(
-            "\u26A0\uFE0F  Model does not define H(z). Distance-based "
+            "\u26a0\ufe0f  Model does not define H(z). Distance-based "
             "observables such as BAO, comoving distances, and luminosity "
             "distances will be unavailable."
         )

@@ -7,7 +7,6 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-
 class LaunchArgParsingTestCase(unittest.TestCase):
     """Ensure launcher arguments map cleanly onto orchestration modes."""
 

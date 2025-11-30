@@ -1,5 +1,4 @@
 # GUI Overview
-**Last Updated:** 2025-11-25
 
 The Copernican Suite GUI uses a Tkinter scaffold so it can run inside the
 managed virtual environment without extra dependencies. The left rail remains

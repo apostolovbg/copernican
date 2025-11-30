@@ -18,7 +18,6 @@ from copernican_lib.dataset_registry import register_cmb_parser
 
 DATA_DIR = os.path.dirname(__file__)
 
-
 @register_cmb_parser(data_dir=DATA_DIR)
 def parse_planck2018lite(data_dir, **kwargs):
     """Parse Planck 2018 lite power spectrum and covariance."""

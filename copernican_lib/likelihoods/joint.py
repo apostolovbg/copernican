@@ -1,6 +1,5 @@
 """Joint likelihood helper combining individual dataset components.
 
-
 Aggregates SNe, BAO and CMB likelihoods (or any other helper implementing
 :class:`~copernican_lib.likelihoods.LikelihoodProtocol`).  Configuration flags
 control which sub-likelihoods contribute to the total so runtime options can
@@ -15,7 +14,6 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, MutableMapping, Sequence
 
 from ._protocol import LikelihoodProtocol, LikelihoodState
-
 
 @dataclass(slots=True)
 class JointLike(LikelihoodProtocol):
@@ -101,6 +99,5 @@ class JointLike(LikelihoodProtocol):
         """Return diagnostics captured during the last evaluation."""
 
         return self._state.as_mapping()
-
 
 __all__ = ["JointLike"]

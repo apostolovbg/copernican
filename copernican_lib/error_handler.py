@@ -16,14 +16,12 @@ import logging
 import warnings
 from typing import Type
 
-
 def report_error(message: str) -> None:
     """Log ``message`` to the shared application logger."""
     # Parsers call this helper instead of accessing the root logger directly so
     # that logging configuration stays centralised. Any error messages end up
     # in the same log file as the main application output.
     logging.getLogger().error(message)
-
 
 def configure_warnings(strict: bool = False) -> None:
     """Forward warnings to the logger and optionally treat them as errors.
@@ -58,6 +56,5 @@ def configure_warnings(strict: bool = False) -> None:
     warnings.showwarning = _log_warning
     if strict:
         warnings.filterwarnings("error")
-
 
 __all__ = ["report_error", "configure_warnings"]

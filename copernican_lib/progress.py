@@ -3,7 +3,6 @@
 
 """Console progress helpers shared across Copernican engines.
 
-
 The previous implementations lived directly inside
 ``engines.cosmo_engine_mcmc`` which made the sampler difficult to reuse.
 This module centralises the console renderer, spinner pump integration and
@@ -35,7 +34,6 @@ __all__ = [
     "StepProgressEmitter",
     "configure_sampler_progress_reporting",
 ]
-
 
 class BatchProgressBar:
     """Render Stage 2 progress with direct carriage-return repainting.
@@ -387,7 +385,6 @@ class BatchProgressBar:
 
         return self._display
 
-
 class StepProgressEmitter:
     """Bridge sampler move callbacks to batch progress updates."""
 
@@ -477,7 +474,6 @@ class StepProgressEmitter:
 
         return self._idle_interval
 
-
 class _ReportingStretchMove(moves.StretchMove):
     """Stretch move variant that emits per-walker progress notifications."""
 
@@ -564,7 +560,6 @@ class _ReportingStretchMove(moves.StretchMove):
             state = self.update(state, new_state, accepted, S1)
 
         return state, accepted
-
 
 def configure_sampler_progress_reporting(
     sampler: Any,
