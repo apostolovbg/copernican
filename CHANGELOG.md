@@ -26,12 +26,17 @@ suffixes. Follow this template:
               content; corrected to use calculate_full_hash method from
               registry module (devcovenant/update_hashes.py, CHANGELOG.md).
 - 2025-11-30: Expanded the documentation commitment to highlight Law 11,
-              document the new launcher guidance and keep the corpus growing
-              while making the GUI option report status before handing off
-              to `copernican.py --gui` (AGENTS.md, README.md,
-              docs/documentation_policy.md, docs/gui_overview.md,
-              docs/launcher_gui.md, start.sh, start.command, start.bat,
-              CHANGELOG.md).
+             document the new launcher guidance and keep the corpus growing
+             while making the GUI option report status before handing off
+             to `copernican.py --gui` (AGENTS.md, README.md,
+             docs/documentation_policy.md, docs/gui_overview.md,
+             docs/launcher_gui.md, start.sh, start.command, start.bat,
+             CHANGELOG.md).
+- 2025-11-30: Rehashed the trusted parser scripts after their metadata cleanup
+              to keep dataset discovery working, explained how to update the
+              `TRUSTED_PARSER_DIGESTS` mapping in `docs/data_overview.md` and
+              recorded the new SHA256 values (copernican_lib/dataset_registry.py,
+              docs/data_overview.md, CHANGELOG.md).
 - 2025-11-30: Auto-formatted DevCovenant codebase with black, isort, and
               ruff to pass lint checks (devcovenant/base.py,
               devcovenant/policy_scripts/devcov_self_enforcement.py,

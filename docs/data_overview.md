@@ -131,3 +131,23 @@ All reference tables included with the suite are considered read-only. Parser
 scripts and metadata may be edited when necessary. If table edits are needed,
 copy the dataset to a new directory and adjust the `dataset_id` to avoid
 clashing with the shipped files.
+
+## Parser Hash Verification
+Each parser module under `data/` is hashed and recorded in
+`copernican_lib/dataset_registry.py`'s `TRUSTED_PARSER_DIGESTS` mapping. The
+launcher refuses to import a parser unless its SHA256 digest matches the trusted
+value so removing metadata such as `Last Updated` markers requires updating the
+corresponding hash before users can run the GUI or CLI again. To refresh a hash:
+
+1. Compute the new digest with newline normalisation, for example:
+
+```
+python - <<'PY'\nimport hashlib\nfrom pathlib import Path\npath = Path('data/sne/jla2014/cosmo_parser_jla2014.py')\nhashlib.sha256(path.read_bytes().replace(b\"\\r\\n\", b\"\\n\")).hexdigest()\nPY
+```
+
+2. Replace the old digest entry in `TRUSTED_PARSER_DIGESTS`.
+3. Log the update in `CHANGELOG.md` and extend the `docs/data_overview.md`
+   narrative so the history of the hash change follows Law 11.
+
+When metadata-only edits happen, documenting the update here ensures future
+contributors understand why hashes moved even when no parser logic changed.

@@ -70,6 +70,11 @@ configuration. Upcoming work extends the same infrastructure to future probes
 such as gravitational-wave standard sirens while quietly refining placeholder
 management so new probes arrive without user-facing churn.
 
+See `docs/data_overview.md` for details on how the loader verifies parser
+digests. When metadata-only cleanup touches `cosmo_parser_*.py` files the
+trusted SHA256 values must be refreshed so the detection logic still trusts the
+shipped modules.
+
 Release highlights, breaking changes and historical notes live exclusively in
 [`CHANGELOG.md`](CHANGELOG.md). The `docs/` directory holds focused guides on
 architecture, datasets, manifest structure and packaging routines. A dedicated
