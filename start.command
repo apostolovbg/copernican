@@ -204,13 +204,9 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
         case "$choice" in
             1)
                 export COPERNICAN_DETACH_GUI=1
-                if command -v nohup >/dev/null 2>&1; then
-                    COPERNICAN_STRICT_WARNINGS=$STRICT \
-                        nohup python copernican.py --gui >/dev/null 2>&1 &
-                else
-                    COPERNICAN_STRICT_WARNINGS=$STRICT \
-                        python copernican.py --gui >/dev/null 2>&1 &
-                fi
+                echo "Launching the Copernican GUI; the terminal will close once the detached window is running."
+                COPERNICAN_STRICT_WARNINGS=$STRICT \
+                    python copernican.py --gui
                 exit 0 ;;
             2)
                 COPERNICAN_STRICT_WARNINGS=$STRICT \
@@ -296,4 +292,3 @@ rm -rf build
 python -m pip install --no-deps .
 rm -rf build
 exec "$SCRIPT" "$@"
-

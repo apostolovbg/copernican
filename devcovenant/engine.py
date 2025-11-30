@@ -3,9 +3,10 @@ Main DevCovenant engine - orchestrates policy checking and enforcement.
 """
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 import yaml
 
@@ -18,6 +19,24 @@ class DevCovenantEngine:
     """
     Main engine for devcovenant policy enforcement.
     """
+
+    # Directories we never traverse for policy checks
+    _IGNORED_DIRS = frozenset(
+        {
+            ".git",
+            ".venv",
+            ".python",
+            "output",
+            "logs",
+            "build",
+            "dist",
+            "node_modules",
+            "copernican_suite.egg-info",
+            "__pycache__",
+            ".cache",
+            ".venv.lock",
+        }
+    )
 
     def __init__(self, repo_root: Optional[Path] = None):
         """
@@ -228,10 +247,8 @@ class DevCovenantEngine:
                 pass
         else:
             # Check all Python files
-            all_files = list(self.repo_root.rglob("*.py"))
-            all_files.extend(list(self.repo_root.rglob("*.md")))
-            all_files.extend(list(self.repo_root.rglob("*.yml")))
-            all_files.extend(list(self.repo_root.rglob("*.yaml")))
+            suffixes = {".py", ".md", ".yml", ".yaml"}
+            all_files = self._collect_all_files(suffixes)
 
         return CheckContext(
             repo_root=self.repo_root,
@@ -239,6 +256,43 @@ class DevCovenantEngine:
             all_files=all_files,
             mode=mode,
         )
+
+    def _collect_all_files(self, suffixes: Set[str]) -> List[Path]:
+        """
+        Walk the repository tree and collect files matching the given suffixes,
+        skipping large or third-party directories.
+        """
+        matched: List[Path] = []
+
+        for root, dirs, files in os.walk(self.repo_root):
+            # Filter out ignored directories
+            dirs[:] = [
+                d
+                for d in dirs
+                if self._should_descend_dir(Path(root) / d)
+            ]
+
+            for name in files:
+                file_path = Path(root) / name
+                if file_path.suffix.lower() in suffixes:
+                    matched.append(file_path)
+
+        return matched
+
+    def _should_descend_dir(self, candidate: Path) -> bool:
+        """
+        Decide whether to continue walking into a directory.
+        """
+        name = candidate.name
+
+        if name in self._IGNORED_DIRS:
+            return False
+
+        # Always skip __pycache__ variants
+        if name.startswith("__pycache__"):
+            return False
+
+        return True
 
     def _load_policy_script(self, policy_id: str) -> Optional[PolicyCheck]:
         """

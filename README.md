@@ -114,8 +114,24 @@ and citation information appears in [CITATION.cff](CITATION.cff).
 19. [Documentation Policy](docs/documentation_policy.md)
 20. [Run Manifest](docs/run_manifest.md)
 21. [Orchestration Services](docs/orchestration_services.md)
+22. [Documentation Expansion Commitment](#documentation-expansion-commitment)
+23. [Launchers and GUI](docs/launcher_gui.md)
 
 ---
+
+## Documentation Expansion Commitment
+Every contribution must leave the written record bigger or deeper. Law 11 in
+[`AGENTS.md`](AGENTS.md) codifies this behaviour and points teams to
+`docs/documentation_policy.md`; every welcome addition to the codebase should
+prompt a new paragraph or section in `README.md`, `AGENTS.md` and the most
+closely related file under `docs/`. The new
+[Launchers and GUI](docs/launcher_gui.md) note explains how the start scripts
+now hand the GUI to `copernican.py` while still printing a clear message to the
+keyboard, and the `docs/` tree contains the expanded narrative for every
+interface targeted by the change. This page itself is part of that expansion:
+complimenting the overview, it calls out the documentation policy, the new
+launcher guidance, and the expectation that every future task grows the shared
+story.
 
 ## Overview
 The suite compares the reference ΛCDM model with alternative theories

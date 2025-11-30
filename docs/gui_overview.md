@@ -30,3 +30,13 @@ monitor visible.
 ## Summary
 After a run completes, the Summary screen surfaces output links and manifest
 reuse actions so follow-on runs can launch from the same configuration.
+
+## Launching the GUI from the Start Scripts
+Selecting the GUI option from `start.sh`, `start.command` or `start.bat`
+still runs the shared `copernican.py --gui` entry point, but now each launcher
+prints a clear message before handing the window over to the detached process
+and waits for `copernican.py` to confirm the handoff. The new
+[Launchers and GUI](docs/launcher_gui.md) guide documents how the start scripts
+set `COPERNICAN_DETACH_GUI=1`, rely on `copernican.py` for concurrency and keep
+the terminal focused on the orchestration services log so operators quickly
+see whether the GUI actually started.

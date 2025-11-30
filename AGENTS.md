@@ -663,7 +663,15 @@ these rules:
     claims; the license forbids these actions.**
 11. **Treat documentation refresh as integral to every task.** No change is
     complete until all relevant texts reflect the update and version numbers
-    remain in sync.
+    remain in sync. Whenever a feature, workflow or launcher is touched, extend
+    `README.md`, `AGENTS.md` and the relevant files under `docs/` with new
+    sections, contextual examples and links that make the new behaviour clear.
+    This law is the heartbeat behind `docs/documentation_policy.md`—guide every
+    documentation expansion through that playbook, note the new
+    `docs/launcher_gui.md` write-up, and keep the prose growing rather than
+    merely reshuffling paragraphs. Every documentation refresh should leave the
+    corpus strictly larger or deeper so future contributors immediately see the
+    story for every change.
 12. **Commit changes only after all tests pass on every supported platform.**
 13. **Treat `start.command`, `start.bat` and `start.sh` equally.** When one
     launcher is fixed, assess the other two for the same issue and update

@@ -1,104 +1,79 @@
 # DevCovenant Policy-to-Law Mapping
 
-This document tracks the transition from numbered Development Laws to self-enforcing DevCovenant policies.
+This document tracks the transition from the numbered Development Laws to the
+self-enforcing **DevCovenant** policy system. It is the canonical place to
+record which bespoke laws have been deprecated in favor of automated checks
+and which remain manual reminders. Whenever new policies are introduced or laws
+are retired, update this file alongside `AGENTS.md` so readers can trace the
+history.
 
 ## Overview
 
-The Copernican Suite is transitioning from a numbered list of "Development Laws" to a modern **DevCovenant** self-governing policy system. DevCovenant policies are:
-- **Self-enforcing**: Automatically checked by scripts
-- **Self-documenting**: Policy text and enforcement code stay in sync
-- **AI-maintained**: Hash verification ensures policies and scripts match
+The Copernican Suite now relies on DevCovenant to enforce every policy listed in
+`AGENTS.md`. Policies are:
 
-## Laws Converted to DevCovenant Policies
+- **Self-enforcing**: Code and documentation must stay in sync via hashes.
+- **AI-maintained**: Hash mismatches trigger actionable guidance for script
+  updates.
+- **Transparent**: Each policy is documented next to the human-readable rule.
+- **Audit-ready**: Logs and manifests show which policies were checked.
 
-The following laws have been successfully converted to DevCovenant policies and **should be removed from the numbered law list**:
+Laws that are backed by policies are tracked below. Any remaining numbered law
+continues to describe a manual expectation for contributors.
 
-| Original Law # | Law Description | DevCovenant Policy | Status |
-|----------------|-----------------|-------------------|---------|
-| 1 | Summarize every change in CHANGELOG.md | `changelog-coverage` | ✅ Active in AGENTS.md |
-| 4 | Refresh documentation and Last Updated markers on allowlisted surfaces | `last-updated-placement` | ✅ Active in AGENTS.md |
-| 7 | Follow the Versioning Policy | `version-sync` | ⚠️ Implemented but NOT in AGENTS.md |
-| 8 | Never insert Git conflict markers | `no-git-conflict-markers` | ✅ Active in AGENTS.md |
-| 15 | Keep individual lines under 79 characters | `line-length-limit` | ✅ Active in AGENTS.md |
-| 20 | Add tests alongside new functionality | `new-modules-need-tests` | ⚠️ Implemented but NOT in AGENTS.md |
-| 24 | Validate every timestamp before recording it | `no-future-dates` | ⚠️ Implemented but NOT in AGENTS.md |
+## Policies Replacing Development Laws
 
-## Additional Policies Not Mapped to Laws
+| Policy ID | Description | Superseded Law(s) | Documented In | Notes |
+|-----------|-------------|-------------------|--------------|-------|
+| `changelog-coverage` | Requires every touched file to be enumerated in `CHANGELOG.md`. | Law 1 (Summarize changes in the changelog) and Law 11 (Treat documentation refresh as integral). | `AGENTS.md#policy-changelog-coverage` | Blocks commits when files are missing from the changelog summary. |
+| `last-updated-placement` | Restricts `Last Updated` headers to allowlisted surfaces. | Law 4 (Refresh documentation and `Last Updated` markers on allowlisted surfaces) and Law 11. | `AGENTS.md#policy-last-updated-marker-placement` | Provides an auto-fixer for stray markers (`--fix`). |
+| `version-sync` | Keeps `copernican_lib/VERSION`, `README.md` and `CITATION.cff` aligned. | Law 7 (Follow the versioning policy). | `AGENTS.md#policy-version-synchronization` | Prevents drift between runtime metadata and docs. |
+| `no-future-dates` | Bans `Last Updated` or date fields set in the future. | Law 24 (Validate timestamps before recording them). | `AGENTS.md#policy-no-future-dates` | Ensures changelog entries and version markers use current UTC dates. |
+| `no-git-conflict-markers` | Detects `<<<<<<<`, `=======` and `>>>>>>>`. | Law 8 (Never insert Git conflict markers). | `AGENTS.md#policy-no-git-conflict-markers` | Runs on the entire repo tree (excluding ignored directories). |
+| `line-length-limit` | Enforces the 79-character line budget in Python code. | Law 15 (Keep individual lines under 79 characters). | `AGENTS.md#policy-line-length-limit` | Emits warnings only for `.py` files. |
+| `new-modules-need-tests` | Requires tests whenever new modules appear in `copernican_lib/` or `engines/`. | Law 20 (Add tests alongside new functionality). | `AGENTS.md#policy-new-modules-need-tests` | Scans the Git status to determine added modules. |
 
-These policies exist but don't directly correspond to existing laws:
+## Additional Policies (Not Derived from Numbered Laws)
 
-| Policy ID | Description | Purpose |
-|-----------|-------------|---------|
-| `devcov-self-enforcement` | DevCovenant enforces its own policies | Meta-policy for system integrity |
-| `no-print-in-library` | Prevent direct print() in library modules | Project-specific code quality |
+- `devcov-self-enforcement` documentation and tests ensure DevCovenant enforces its own policies (`AGENTS.md#policy-devcov-self-enforcement`).
+- `no-print-in-library` forbids bare `print()` calls inside `copernican_lib/` and `engines/` so output streams remain centralized (`AGENTS.md#policy-no-print-in-library`).
 
-## Laws Remaining as Manual Guidelines
+## Manual Laws Still in AGENTS
 
-These laws remain as human-readable guidelines and have NOT been converted to automated policies:
+After the deprecations above, the remaining numbered laws in `AGENTS.md` are
+still manual guidelines that require human judgment (for example, law 1 now
+remains focused on descriptive comments rather than the changelog). When new
+policies cover a manual law, update both this file and the AGENTS entry to mark
+it as deprecated. Law 11 ("Treat documentation refresh as integral") is still
+active because no policy governs the broader content expansion requirements it
+describes; the policies above cover metadata hygiene and changelog reporting but
+do not replace the obligation to extend the relevant prose whenever substantive
+functionality or configuration shifts occur.
 
-| Law # | Description | Reason Not Automated |
-|-------|-------------|---------------------|
-| 2 | Comment the code extensively | Requires human judgment on quality |
-| 3 | Keep comments synchronized with code | Difficult to automate meaningfully |
-| 5 | Keep AGENTS.md as canonical law source | Meta-guideline |
-| 6 | Treat /data as read-only | Could be automated (future policy) |
-| 9 | Re-read laws at start of development session | AI workflow guideline |
-| 10 | Document every module, function and class | Requires judgment on adequacy |
-| 11 | Use concise, descriptive names | Requires semantic understanding |
-| 12 | Use raw strings or escape backslashes | Could be automated (future policy) |
-| 13 | Run pre-commit before committing | Enforced by git hooks (different system) |
-| 14 | Do not redistribute or assert patent claims | Legal/license requirement |
-| 16 | Treat documentation refresh as integral | Workflow guideline |
-| 17 | Commit changes only after all tests pass | Enforced by git hooks |
-| 18 | Treat start.* launchers equally | Design principle |
-| 19 | Follow compliance and security requirements | High-level principle |
-| 21 | Audit licenses for new dependencies | Could be automated (future policy) |
-| 22 | Run suite through managed virtual environment | Workflow guideline |
-| 23 | Refresh dependencies when packages change | Workflow guideline |
-| 25 | Preserve human-authored edits | Development principle |
+## Deprecated Law References
 
-## Actions Required
+- **Law 11**: "Treat documentation refresh as integral to every task..." is now
+  enforced by `changelog-coverage`, `last-updated-placement`, `version-sync` and
+  `no-future-dates`. The law text remains in `AGENTS.md` only for historical
+  context, and contributors should follow the related policies instead.
+- **Law 1**, **Law 4**, **Law 7**, **Law 8**, **Law 15**, **Law 20** and **Law 24**: The
+  original wording for these laws has been retired in favor of the policies listed
+  in the table above. See the row for each policy to understand the replacement.
 
-### 1. Add Missing Policies to AGENTS.md
+## Status Summary
 
-The following policies are implemented but not documented in AGENTS.md:
-- `version-sync`
-- `no-future-dates`
-- `new-modules-need-tests`
-- `no-print-in-library`
-
-### 2. Remove Redundant Laws from AGENTS.md
-
-Remove laws #1, #4, #7, #8, #15, #20, and #24 from the numbered list.
-
-### 3. Renumber Remaining Laws
-
-After removal, renumber the remaining laws sequentially (1-18).
-
-### 4. Update Cross-References
-
-Update any references to law numbers elsewhere in documentation.
-
-## Benefits of DevCovenant Over Numbered Laws
-
-1. **Automated Enforcement**: Policies are checked automatically on every commit
-2. **No Drift**: Policy text and enforcement code must stay synchronized
-3. **Better Developer Experience**: Clear, actionable error messages
-4. **Auto-Fixing**: Some policies can automatically fix violations
-5. **Graduated Severity**: Policies can be critical, error, warning, or info
-6. **AI-Maintained**: Hash verification ensures consistency
-7. **Extensible**: Easy to add new policies as scripts
+- Policies documented in `AGENTS.md`: **9** (all listed above).
+- Policies implemented but without a numbered-law counterpart: `devcov-self-enforcement`, `no-print-in-library`.
+- Deprecated laws maintained here: Law 11 plus the historical Law 1, 4, 7, 8, 15, 20 and 24 entries.
 
 ## Future Policy Candidates
 
-Laws that could potentially be automated in the future:
-- Law 6: Treat /data as read-only → `data-directory-immutability`
-- Law 12: Escape backslashes → `valid-escape-sequences`
-- Law 21: Audit licenses → `license-compatibility`
+The remaining laws that still require manual attention can become policies in
+the future. Candidate policies include:
 
----
+1. **Law 6** (`/data` immutability) → potential `data-directory-immutability` policy.
+2. **Law 12** (escape sequences) → potential `valid-escape-sequences` policy.
+3. **Law 21** (license audits) → potential `license-compatibility` policy.
 
-**Migration Status**: In Progress
-**Policies in AGENTS.md**: 5
-**Policies Implemented**: 9
-**Laws Remaining**: 18 (after cleanup)
+Update this file when a candidate becomes reality so the numbering stays
+accurate and the mapping reflects every policy-to-law transition.

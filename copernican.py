@@ -1331,10 +1331,9 @@ def main_workflow():
         # restart immediately and continue without relaunching the suite.
         while True:
             logger.info("\n--- Stage 1: Configuration ---\n")
-            # Stage 1 previously reiterated a heading and explanatory block for
-            # every restart.  Replacing the prose with a single spacer keeps the
-            # familiar rhythm while letting the workflow dive straight into the
-            # interactive prompts.
+            # Stage 1 repeated headers on restart.
+            # Replacing the repeated prose with a spacer keeps the rhythm.
+            # It also lets the workflow dive straight into the prompts.
             console.write("")
 
             # Seed selection appears directly after the banner so the
@@ -1386,7 +1385,10 @@ def main_workflow():
                 reasons = cli_menus.normalise_failure_reasons(str(exc))
                 if cli_menus.prompt_stage1_retry(reasons):
                     logger.info(
-                        "Restarting Stage 1 after alternative model validation failure."
+                        (
+                            "Restarting Stage 1 after alternative model "
+                            "validation failure."
+                        )
                     )
                     continue
                 _delete_log_file(log_file)
@@ -1708,7 +1710,10 @@ def main_workflow():
                     display_progress=display_progress,
                 )
             console.write(
-                f"Completed alternative sampling for {alt_model_plugin.MODEL_NAME}."
+                (
+                    "Completed alternative sampling "
+                    f"for {alt_model_plugin.MODEL_NAME}."
+                )
             )
             console.write("")
 
@@ -1729,7 +1734,11 @@ def main_workflow():
         logger.info("\n--- Stage 3: BAO Analysis ---\n")
 
         def _component_enabled(fit_results, component):
-            state = fit_results.get("likelihood_state", {}) if fit_results else {}
+            state = (
+                fit_results.get("likelihood_state", {})
+                if fit_results
+                else {}
+            )
             metadata = state.get("metadata", {})
             components = metadata.get("components", {})
             entry = components.get(component, {})
@@ -1865,7 +1874,7 @@ def main_workflow():
         logger.info("\n--- Stage 4: CMB Analysis ---\n")
 
         def run_cmb_analysis(model_plugin, fit_results):
-            """Return CMB diagnostics and theory spectra for ``model_plugin``."""
+            """Return CMB diagnostics and spectra for the provided plugin."""
 
             summary = {
                 "chi2_cmb": float(
@@ -2052,7 +2061,11 @@ def main_workflow():
             samples = fit_results.get("samples") if fit_results else None
             if samples is None:
                 return
-            param_names = fit_results.get("param_names") if fit_results else None
+            param_names = (
+                fit_results.get("param_names")
+                if fit_results
+                else None
+            )
             try:
                 plotter.plot_corner(
                     samples,

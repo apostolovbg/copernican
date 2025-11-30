@@ -25,6 +25,13 @@ suffixes. Follow this template:
               only hashed script content instead of policy text + script
               content; corrected to use calculate_full_hash method from
               registry module (devcovenant/update_hashes.py, CHANGELOG.md).
+- 2025-11-30: Expanded the documentation commitment to highlight Law 11,
+              document the new launcher guidance and keep the corpus growing
+              while making the GUI option report status before handing off
+              to `copernican.py --gui` (AGENTS.md, README.md,
+              docs/documentation_policy.md, docs/gui_overview.md,
+              docs/launcher_gui.md, start.sh, start.command, start.bat,
+              CHANGELOG.md).
 - 2025-11-30: Auto-formatted DevCovenant codebase with black, isort, and
               ruff to pass lint checks (devcovenant/base.py,
               devcovenant/policy_scripts/devcov_self_enforcement.py,
@@ -78,6 +85,11 @@ suffixes. Follow this template:
               CHANGELOG.md).
 - 2025-11-30: Updated AGENTS.md Last Updated marker to 2025-11-30
               (AGENTS.md, CHANGELOG.md).
+- 2025-11-30: Hardened DevCovenant startup checks to ignore third-party
+              directories, marked the documentation law as deprecated, and
+              refreshed the law-to-policy mapping (AGENTS.md,
+              DEVCOVENANT_LAW_MAPPING.md, devcovenant/engine.py,
+              copernican.py, CHANGELOG.md).
 
 ## Version 10.8.0
 - 2025-11-30: Bumped version to 10.8.0 for new DevCovenant policies
