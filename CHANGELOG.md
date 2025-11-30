@@ -28,6 +28,11 @@ suffixes. Follow this template:
               section (copernican.py, copernican_lib/gui/app.py,
               docs/launcher_gui.md, README.md, start.sh, start.command,
               start.bat, CHANGELOG.md).
+- 2025-11-30: Fixed GUI navigation key bindings so the Tk event strings keep
+              their casing (preventing `bad event type or keysym "control"
+              on macOS`), allowing the inline window to initialise without the
+              binding errors that previously closed the dock icon (copernican_lib/gui/app.py,
+              CHANGELOG.md).
 - 2025-11-30: Reiterated that every task must re-read the laws and policies,
              run the mandatory tooling (`pre-commit`, `devcovenant check`,
              dependency lock rebuilds when necessary) and log law compliance in

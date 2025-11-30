@@ -849,7 +849,7 @@ class CopernicanGUI:
             )
             button.pack(fill="x", pady=4)
             shortcut = item.shortcut.replace("Ctrl+", "<Control-") + ">"
-            self.root.bind(shortcut.lower(), lambda _e, i=item: i.action(self))
+            self.root.bind(shortcut, lambda _e, i=item: i.action(self))
 
         self.show_home()
 
