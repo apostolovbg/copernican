@@ -22,6 +22,8 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.7.1
+- 2025-11-30: Applied end-of-file-fixer to add final newline
+              (devcovenant/registry.json, CHANGELOG.md).
 - 2025-11-30: Fixed black exclusion regex pattern to properly exclude
               devcovenant policy scripts from reformatting
               (pyproject.toml, CHANGELOG.md).
