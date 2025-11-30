@@ -21,6 +21,22 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.8.0
+- 2025-11-30: Bumped version to 10.8.0 for new DevCovenant policies
+              (copernican_lib/VERSION, README.md, CITATION.cff,
+              CHANGELOG.md).
+- 2025-11-30: Added update-hashes command to DevCovenant CLI for automatic
+              policy hash updates (devcovenant/update_hashes.py,
+              devcovenant/cli.py, CHANGELOG.md).
+- 2025-11-30: Deleted deprecated tools/check_meta.py and
+              tools/precommit_custom_checks.py - all checks now handled by
+              DevCovenant (tools/, CHANGELOG.md).
+- 2025-11-30: Fixed pre-commit configuration to use system Python for
+              DevCovenant hook (.pre-commit-config.yaml, CHANGELOG.md).
+- 2025-11-30: Fixed line length violations in test files
+              (devcovenant/tests/test_policies/test_new_modules_need_tests.py,
+              CHANGELOG.md).
+
 ## Version 10.7.1
 - 2025-11-30: Expanded DevCovenant with four new policies to fully replace
               legacy check scripts: no_future_dates.py, version_sync.py,

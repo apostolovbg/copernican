@@ -6,39 +6,43 @@ across platforms and properly routing output through dedicated utilities.
 """
 
 import re
-from pathlib import Path
+from typing import List
 
-from devcovenant.base import PolicyScript, Violation
-
+from devcovenant.base import CheckContext, PolicyCheck, Violation
 
 PRINT_PATTERN = re.compile(r"(?<![\w.])print\s*\(")
 
 
-class NoPrintInLibraryPolicy(PolicyScript):
+class NoPrintInLibraryCheck(PolicyCheck):
     """Prevent direct print() usage in library modules."""
 
-    def check(self, file_paths: list[Path]) -> list[Violation]:
+    policy_id = "no-print-in-library"
+    version = "1.0.0"
+
+    def check(self, context: CheckContext) -> List[Violation]:
         """Check for print() usage in library code."""
         violations = []
 
         # Define allowed files (console_output.py can use print)
         allowed = {
-            self.repo_root / "copernican_lib" / "console_output.py",
+            context.repo_root / "copernican_lib" / "console_output.py",
         }
+
+        file_paths = context.changed_files or context.all_files
 
         for path in file_paths:
             if not path.is_file() or path.suffix != ".py":
                 continue
 
             try:
-                rel = path.relative_to(self.repo_root)
+                rel = path.relative_to(context.repo_root)
             except ValueError:
                 continue
 
             # Only check copernican_lib/ and engines/
-            if (
-                not rel.parts
-                or rel.parts[0] not in ("copernican_lib", "engines")
+            if not rel.parts or rel.parts[0] not in (
+                "copernican_lib",
+                "engines",
             ):
                 continue
 
@@ -54,8 +58,9 @@ class NoPrintInLibraryPolicy(PolicyScript):
             if PRINT_PATTERN.search(text):
                 violations.append(
                     Violation(
-                        policy_id="no-print-in-library",
-                        path=path,
+                        policy_id=self.policy_id,
+                        severity="error",
+                        file_path=path,
                         message=(
                             "Replace print() with "
                             "copernican_lib.console_output.write"
@@ -64,9 +69,3 @@ class NoPrintInLibraryPolicy(PolicyScript):
                 )
 
         return violations
-
-
-def run(repo_root: Path, file_paths: list[Path]) -> list[Violation]:
-    """Entry point for DevCovenant engine."""
-    policy = NoPrintInLibraryPolicy(repo_root)
-    return policy.check(file_paths)

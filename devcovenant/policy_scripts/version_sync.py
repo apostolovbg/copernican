@@ -6,30 +6,34 @@ version drift across documentation.
 """
 
 import re
-from pathlib import Path
+from typing import List
 
-from devcovenant.base import PolicyScript, Violation
+from devcovenant.base import CheckContext, PolicyCheck, Violation
 
 
-class VersionSyncPolicy(PolicyScript):
+class VersionSyncCheck(PolicyCheck):
     """Ensure README, CITATION and VERSION agree on the recorded version."""
 
-    def check(self, file_paths: list[Path]) -> list[Violation]:
+    policy_id = "version-sync"
+    version = "1.0.0"
+
+    def check(self, context: CheckContext) -> List[Violation]:
         """Check for version synchronization."""
         violations = []
 
-        version_file = self.repo_root / "copernican_lib" / "VERSION"
-        readme_file = self.repo_root / "README.md"
-        citation_file = self.repo_root / "CITATION.cff"
+        version_file = context.repo_root / "copernican_lib" / "VERSION"
+        readme_file = context.repo_root / "README.md"
+        citation_file = context.repo_root / "CITATION.cff"
 
         # Check that required files exist
         for target in (version_file, readme_file, citation_file):
             if not target.exists():
                 violations.append(
                     Violation(
-                        policy_id="version-sync",
-                        path=target,
-                        message=f"Required metadata file missing",
+                        policy_id=self.policy_id,
+                        severity="error",
+                        file_path=target,
+                        message="Required metadata file missing",
                     )
                 )
                 return violations
@@ -40,8 +44,9 @@ class VersionSyncPolicy(PolicyScript):
         except OSError as exc:
             violations.append(
                 Violation(
-                    policy_id="version-sync",
-                    path=version_file,
+                    policy_id=self.policy_id,
+                    severity="error",
+                    file_path=version_file,
                     message=f"Cannot read VERSION file: {exc}",
                 )
             )
@@ -57,8 +62,9 @@ class VersionSyncPolicy(PolicyScript):
             if not readme_match:
                 violations.append(
                     Violation(
-                        policy_id="version-sync",
-                        path=readme_file,
+                        policy_id=self.policy_id,
+                        severity="error",
+                        file_path=readme_file,
                         message="Missing Version header",
                     )
                 )
@@ -66,8 +72,9 @@ class VersionSyncPolicy(PolicyScript):
                 readme_version = readme_match.group("version")
                 violations.append(
                     Violation(
-                        policy_id="version-sync",
-                        path=readme_file,
+                        policy_id=self.policy_id,
+                        severity="error",
+                        file_path=readme_file,
                         message=(
                             f"Version {readme_version} does not match "
                             f"copernican_lib/VERSION ({version})"
@@ -77,8 +84,9 @@ class VersionSyncPolicy(PolicyScript):
         except OSError as exc:
             violations.append(
                 Violation(
-                    policy_id="version-sync",
-                    path=readme_file,
+                    policy_id=self.policy_id,
+                    severity="error",
+                    file_path=readme_file,
                     message=f"Cannot read README.md: {exc}",
                 )
             )
@@ -93,11 +101,12 @@ class VersionSyncPolicy(PolicyScript):
             if len(citation_matches) < 2:
                 violations.append(
                     Violation(
-                        policy_id="version-sync",
-                        path=citation_file,
+                        policy_id=self.policy_id,
+                        severity="error",
+                        file_path=citation_file,
                         message=(
-                            "Must declare project and preferred-citation "
-                            "versions"
+                            "Must declare project and "
+                            "preferred-citation versions"
                         ),
                     )
                 )
@@ -106,10 +115,11 @@ class VersionSyncPolicy(PolicyScript):
                 if len(unique_versions) != 1 or version not in unique_versions:
                     violations.append(
                         Violation(
-                            policy_id="version-sync",
-                            path=citation_file,
+                            policy_id=self.policy_id,
+                            severity="error",
+                            file_path=citation_file,
                             message=(
-                                f"Versions {unique_versions} are out of sync "
+                                f"Versions {unique_versions} out of sync "
                                 f"with VERSION ({version})"
                             ),
                         )
@@ -117,16 +127,11 @@ class VersionSyncPolicy(PolicyScript):
         except OSError as exc:
             violations.append(
                 Violation(
-                    policy_id="version-sync",
-                    path=citation_file,
+                    policy_id=self.policy_id,
+                    severity="error",
+                    file_path=citation_file,
                     message=f"Cannot read CITATION.cff: {exc}",
                 )
             )
 
         return violations
-
-
-def run(repo_root: Path, file_paths: list[Path]) -> list[Violation]:
-    """Entry point for DevCovenant engine."""
-    policy = VersionSyncPolicy(repo_root)
-    return policy.check(file_paths)

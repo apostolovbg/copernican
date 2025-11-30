@@ -41,8 +41,8 @@ repos:
         pass_filenames: false
       - id: copernican-policy
         name: enforce Copernican repository policies (DevCovenant)
-        entry: python devcovenant_check.py
-        language: python
+        entry: python devcovenant_check.py check
+        language: system
         types: [text]
         pass_filenames: false
         always_run: true

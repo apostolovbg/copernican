@@ -6,21 +6,25 @@ future, which would indicate a dating error or premature commitment.
 
 import datetime as dt
 import re
-from pathlib import Path
+from typing import List
 
-from devcovenant.base import PolicyScript, Violation
-
+from devcovenant.base import CheckContext, PolicyCheck, Violation
 
 DATE_PATTERN = re.compile(r"\b(19|20)\d{2}-\d{2}-\d{2}\b")
 
 
-class NoFutureDatesPolicy(PolicyScript):
+class NoFutureDatesCheck(PolicyCheck):
     """Prevent future dates in Last Updated and date-released fields."""
 
-    def check(self, file_paths: list[Path]) -> list[Violation]:
+    policy_id = "no-future-dates"
+    version = "1.0.0"
+
+    def check(self, context: CheckContext) -> List[Violation]:
         """Check for future dates in the provided files."""
         violations = []
         today = dt.datetime.now(dt.timezone.utc).date()
+
+        file_paths = context.changed_files or context.all_files
 
         for path in file_paths:
             if not path.is_file():
@@ -28,7 +32,7 @@ class NoFutureDatesPolicy(PolicyScript):
 
             # Skip test files
             try:
-                rel_path = path.relative_to(self.repo_root)
+                rel_path = path.relative_to(context.repo_root)
                 if rel_path.parts and rel_path.parts[0] == "tests":
                     continue
             except ValueError:
@@ -45,12 +49,12 @@ class NoFutureDatesPolicy(PolicyScript):
                 line_end = text.find("\n", match.end())
                 if line_end == -1:
                     line_end = len(text)
-                context = text[line_start:line_end].lower()
+                context_line = text[line_start:line_end].lower()
 
-                # Only check dates in Last Updated or date-released contexts
+                # Only check dates in Last Updated or date-released
                 if (
-                    "last updated" not in context
-                    and "date-released" not in context
+                    "last updated" not in context_line
+                    and "date-released" not in context_line
                 ):
                     continue
 
@@ -61,14 +65,14 @@ class NoFutureDatesPolicy(PolicyScript):
                 try:
                     candidate = dt.date(year, month, day)
                 except ValueError:
-                    # Invalid date, skip (other policies may catch this)
                     continue
 
                 if candidate > today:
                     violations.append(
                         Violation(
-                            policy_id="no-future-dates",
-                            path=path,
+                            policy_id=self.policy_id,
+                            severity="error",
+                            file_path=path,
                             message=(
                                 f"Contains future date "
                                 f"{candidate.isoformat()} "
@@ -79,9 +83,3 @@ class NoFutureDatesPolicy(PolicyScript):
                     break  # Only report once per file
 
         return violations
-
-
-def run(repo_root: Path, file_paths: list[Path]) -> list[Violation]:
-    """Entry point for DevCovenant engine."""
-    policy = NoFutureDatesPolicy(repo_root)
-    return policy.check(file_paths)
