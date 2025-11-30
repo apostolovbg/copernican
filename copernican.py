@@ -37,6 +37,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -45,6 +46,7 @@ from typing import Any, Iterable, Mapping
 from copernican_lib.cli import dependencies as cli_dependencies
 from copernican_lib.cli import menus as cli_menus
 from copernican_lib import console_output as console
+from copernican_lib import logger as log_mod
 from copernican_lib import orchestration
 from copernican_lib import run_manifest
 from copernican_lib import result_writer
@@ -124,6 +126,45 @@ def _copernican_version() -> str:
     if callable(getter):
         return getter()
     return "0+unknown"
+
+
+try:
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    SCRIPT_DIR = os.getcwd()
+
+CURRENT_LOG_FILE = None
+PROGRAM_LOG_FILE: str | None = None
+PROGRAM_LOGGER: logging.Logger | None = None
+_legacy_stage_menu_override = False
+_launch_args: LaunchRequest | None = None
+
+
+def _ensure_program_logging() -> logging.Logger:
+    """
+    Lazily configure program-level logging so both CLI and GUI paths write to
+    ``logs/copernican-program_*.txt``.
+    """
+
+    global PROGRAM_LOGGER, PROGRAM_LOG_FILE
+    if PROGRAM_LOGGER is not None:
+        return PROGRAM_LOGGER
+
+    logs_dir = os.path.join(SCRIPT_DIR, "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+
+    PROGRAM_LOG_FILE = log_mod.setup_program_logging(
+        log_dir=logs_dir,
+        base_dir=SCRIPT_DIR,
+        rollover_mb=10.0,
+    )
+    PROGRAM_LOGGER = log_mod.get_program_logger()
+    PROGRAM_LOGGER.info(
+        "Diagnostics logging active at %s; outputs live under %s",
+        PROGRAM_LOG_FILE,
+        logs_dir,
+    )
+    return PROGRAM_LOGGER
 
 
 COPERNICAN_VERSION = _copernican_version()
@@ -340,11 +381,19 @@ def _spawn_detached_gui(argv: list[str], launch: LaunchRequest) -> bool:
     if not launch.detach_gui:
         return False
 
+    program_logger = _ensure_program_logging()
+    program_logger.info(
+        "Attempting to detach GUI: detach flag=%s, argv=%s",
+        launch.detach_gui,
+        argv,
+    )
+
     env = os.environ.copy()
     env["COPERNICAN_DETACH_GUI"] = "0"
     command_tail = list(argv)
     failures: list[str] = []
     for candidate in _gui_executable_candidates():
+        program_logger.debug("Trying GUI detachment candidate: %s", candidate)
         cmd = [str(candidate), str(Path(__file__).resolve()), *command_tail]
         try:
             _launch_detached_process(cmd, env)
@@ -352,14 +401,23 @@ def _spawn_detached_gui(argv: list[str], launch: LaunchRequest) -> bool:
                 "Handed GUI startup to a detached Copernican process; "
                 "closing the launcher terminal."
             )
+            program_logger.info(
+                "Detached GUI launched with %s", candidate
+            )
             return True
         except Exception as exc:  # pragma: no cover - defensive guard
             failures.append(f"{candidate}: {exc}")
+            program_logger.warning(
+                "Failed to detach GUI with %s: %s", candidate, exc
+            )
     if failures:
         console.write(
             "Falling back to inline GUI startup because detaching failed: "
             + "; ".join(failures),
             error=True,
+        )
+        program_logger.warning(
+            "All GUI detachment attempts failed: %s", "; ".join(failures)
         )
     return False
 
@@ -375,8 +433,18 @@ def launch_gui() -> None:
     display server.
     """
 
+    program_logger = _ensure_program_logging()
+    program_logger.info(
+        "GUI mode requested inline; detach flag=%s, Tcl=%s, Tk=%s",
+        _launch_args.detach_gui if _launch_args else None,
+        os.getenv("TCL_LIBRARY"),
+        os.getenv("TK_LIBRARY"),
+    )
+    log_mod.log_environment_info()
+
     service_map = orchestration.describe_orchestration_services()
     console.write("GUI mode requested. Shared services available:")
+    program_logger.info("Describing orchestration services for GUI mode.")
     for descriptor in (
         service_map.config_validation,
         service_map.manifest_generation,
@@ -385,6 +453,12 @@ def launch_gui() -> None:
         entrypoints = ", ".join(descriptor.entrypoints)
         console.write(
             f"- {descriptor.name}: {descriptor.module} ({entrypoints})"
+        )
+        program_logger.info(
+            "Service available: %s (%s) entries %s",
+            descriptor.name,
+            descriptor.module,
+            descriptor.entrypoints,
         )
         console.write(f"  {descriptor.rationale}")
     console.write(
@@ -395,6 +469,7 @@ def launch_gui() -> None:
     gui = CopernicanGUI(render=True)
     gui.show_home()
     gui.run()
+    program_logger.info("GUI run loop completed; exiting inline GUI mode.")
 
 
 def _delete_log_file(path: str) -> None:
@@ -1211,7 +1286,6 @@ def main_workflow():
         dataset_registry,
         plotter,
         csv_writer,
-        logger as log_mod,
         utils,
         error_handler,
         chain_io,
@@ -1229,19 +1303,7 @@ def main_workflow():
     )
     OUTPUT_BASE_DIR = str(Path(output_root))
     os.makedirs(OUTPUT_BASE_DIR, exist_ok=True)
-    LOGS_DIR = os.path.join(SCRIPT_DIR, "logs")
-
-    program_log_file = log_mod.setup_program_logging(
-        log_dir=LOGS_DIR,
-        base_dir=SCRIPT_DIR,
-        rollover_mb=10.0,
-    )
-    program_logger = log_mod.get_program_logger()
-    program_logger.info(
-        "Diagnostics logging active at %s; outputs live under %s",
-        program_log_file,
-        LOGS_DIR,
-    )
+    program_logger = _ensure_program_logging()
     program_logger.info(
         "CLI output base directory initialised at %s", OUTPUT_BASE_DIR
     )

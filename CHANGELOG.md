@@ -20,6 +20,14 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.8.2
+- 2025-11-30: Released version 10.8.2 with expanded diagnostics logging so
+              GUI handoffs, Tcl/Tk environment variables and Tk failures are
+              recorded in `logs/copernican-program_<ts>.txt`; the behavior is
+              documented in `docs/launcher_gui.md` and the README diagnostics
+              section (copernican.py, copernican_lib/gui/app.py,
+              docs/launcher_gui.md, README.md, start.sh, start.command,
+              start.bat, CHANGELOG.md).
 ## Version 10.8.1
 - 2025-11-30: Bumped the suite version to 10.8.1 so the release metadata,
               documentation and citation records reflect the GUI and

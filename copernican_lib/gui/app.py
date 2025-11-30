@@ -14,6 +14,7 @@ from __future__ import annotations
 import importlib
 import logging
 import os
+import sys
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -467,6 +468,21 @@ class CopernicanGUI:
             )
             console_output.write(str(exc), error=True)
             self.render = False
+            try:
+                gui_logger = log_mod.get_logger()
+                gui_logger.warning(
+                    (
+                        "Tkinter initialisation failed [%s]; "
+                        "TCL_LIBRARY=%s TK_LIBRARY=%s executable=%s"
+                    ),
+                    exc,
+                    os.environ.get("TCL_LIBRARY"),
+                    os.environ.get("TK_LIBRARY"),
+                    sys.executable,
+                    exc_info=True,
+                )
+            except Exception:
+                pass
 
     def _data_root(self) -> str:
         """Return the absolute data directory used for catalogue scans.

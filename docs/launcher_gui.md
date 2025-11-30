@@ -59,6 +59,17 @@ earlier runs. If you rebuild the interpreter or install another Python, ensure
 these environment variables still point to the matching runtime under `.python`
 before launching `copernican.py --gui`.
 
+### Diagnostics logging
+
+Every launch writes a detailed log to `logs/copernican-program_<timestamp>.txt`.
+The latest updates log each GUI candidate tried, the environment variables that
+control Tcl/Tk, and any exceptions thrown during Tkinitialisation. If the GUI
+fails to open, consult the newest log file to see the failure stack trace and
+the values of `COPERNICAN_DETACH_GUI`, `TCL_LIBRARY` and `TK_LIBRARY`. The log
+also records whether the inline GUI path succeeded or whether the launcher had
+to fall back to headless mode, giving you the exact sequence for Law 11
+auditing.
+
 ## Troubleshooting
 
 - **No GUI window appears** – check whether Tkinter is installed in the

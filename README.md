@@ -1,4 +1,4 @@
-**Version:** 10.8.1
+**Version:** 10.8.2
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -145,6 +145,15 @@ window inline while the start script simply backgrounds the command with
 `nohup` or `start /b`. This keeps the terminal message visible, prevents
 double-detachment, and keeps the new GUI window on the screen when macOS
 or Linux handles the Tk event loop.
+
+## Diagnostics Logging
+Every launch writes detailed diagnostics to `logs/copernican-program_<timestamp>.txt`.
+The new runtime logging records GUI handoffs, environment variables (`TCL_LIBRARY`,
+`TK_LIBRARY`, `COPERNICAN_DETACH_GUI`), Tk initialisation status, and stdout/stderr
+from the detached launcher process so you can trace why a window failed to start.
+Use `tail -n 100 logs/copernican-program_*.txt` after a failed GUI attempt to see
+the recorded reasons, and reference the `docs/launcher_gui.md` section on Diagnostics
+for how the file is organised.
 
 ## Overview
 The suite compares the reference ΛCDM model with alternative theories
