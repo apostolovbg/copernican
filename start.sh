@@ -20,6 +20,9 @@ cd "$(dirname "$0")"
 
 EXPECTED_VENV="$(pwd)/.venv"
 PY_DIR="$(pwd)/.python"
+TCL_LIBRARY="$(pwd)/.python/lib/tcl8.6"
+TK_LIBRARY="$(pwd)/.python/lib/tk8.6"
+export TCL_LIBRARY TK_LIBRARY
 if [ -f "copernican_lib/VERSION" ]; then
     SUITE_VERSION="$(cat copernican_lib/VERSION)"
 else
@@ -208,9 +211,8 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
         choice=${choice:-2}
         case "$choice" in
             1)
-                COPERNICAN_DETACH_GUI=0
                 echo "Launching the Copernican GUI; the terminal will close once the detached window is running."
-                COPERNICAN_STRICT_WARNINGS=$STRICT \
+                COPERNICAN_STRICT_WARNINGS=$STRICT COPERNICAN_DETACH_GUI=0 \
                 nohup "$GUI_BINARY" copernican.py --gui >/dev/null 2>&1 &
                 exit 0 ;;
             2)

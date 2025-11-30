@@ -21,6 +21,10 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 10.8.1
+- 2025-11-30: Bumped the suite version to 10.8.1 so the release metadata,
+              documentation and citation records reflect the GUI and
+              documentation improvements (copernican_lib/VERSION, README.md,
+              CITATION.cff, CHANGELOG.md).
 - 2025-11-30: Fixed DevCovenant hash calculation bug where update-hashes
               only hashed script content instead of policy text + script
               content; corrected to use calculate_full_hash method from
@@ -38,11 +42,12 @@ suffixes. Follow this template:
               recorded the new SHA256 values (copernican_lib/dataset_registry.py,
               docs/data_overview.md, CHANGELOG.md).
 - 2025-11-30: Ensured the launchers use `pythonw` (when available) with
-              `COPERNICAN_DETACH_GUI=0` so GUI launches happen inline and the
-              window appears without a second detached process; documented the
-              behaviour in `docs/launcher_gui.md` and noted the guidance in
-              `README.md` (start.sh, start.command, start.bat, docs/launcher_gui.md,
-              README.md, CHANGELOG.md).
+             `COPERNICAN_DETACH_GUI=0`, set `TCL_LIBRARY`/`TK_LIBRARY` to the
+             bundled runtime and documented the inline GUI workflow so Tk now
+             initialises successfully without spawning a second detached
+             process; the guidance lives in `docs/launcher_gui.md` and
+             `README.md` (start.sh, start.command, start.bat,
+             docs/launcher_gui.md, README.md, CHANGELOG.md).
 - 2025-11-30: Auto-formatted DevCovenant codebase with black, isort, and
               ruff to pass lint checks (devcovenant/base.py,
               devcovenant/policy_scripts/devcov_self_enforcement.py,

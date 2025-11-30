@@ -21,6 +21,8 @@ if exist "copernican_lib\VERSION" (
 )
 set "EXPECTED_VENV=%CD%\.venv"
 set "PYDIR=%CD%\.python"
+set "TCL_LIBRARY=%PYDIR%\lib\tcl8.6"
+set "TK_LIBRARY=%PYDIR%\lib\tk8.6"
 set "PYBIN=%PYDIR%\python.exe"
 set "PY_VERSION_CHECK=import sys;print(1 if (3,11)<=sys.version_info<" ^
 "(3,12) else 0)"

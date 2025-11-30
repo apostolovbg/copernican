@@ -50,6 +50,15 @@ detached worker. Because the console still prints a status line before handing
 off, operators know when the GUI launch begins even though the terminal closes
 after the command is backgrounded.
 
+### Tcl/Tk runtime discovery
+
+The bundled interpreter ships its own Tcl/Tk libraries under `.python/lib`.
+The launchers export `TCL_LIBRARY` and `TK_LIBRARY` so the embedded Tcl can
+find `init.tcl` and avoid the `Can't find a usable init.tcl` error observed on
+earlier runs. If you rebuild the interpreter or install another Python, ensure
+these environment variables still point to the matching runtime under `.python`
+before launching `copernican.py --gui`.
+
 ## Troubleshooting
 
 - **No GUI window appears** – check whether Tkinter is installed in the
