@@ -183,6 +183,10 @@ if [ -n "${VIRTUAL_ENV:-}" ] && [ "$VIRTUAL_ENV" != "$EXPECTED_VENV" ]; then
     exit 1
 fi
 if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
+    GUI_BINARY=".venv/bin/python"
+    if [ -x ".venv/bin/pythonw" ]; then
+        GUI_BINARY=".venv/bin/pythonw"
+    fi
     while true; do
         echo
         echo "Copernican Suite ${SUITE_VERSION} Launcher:"
@@ -203,10 +207,10 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
         choice=${choice:-2}
         case "$choice" in
             1)
-                export COPERNICAN_DETACH_GUI=1
+                COPERNICAN_DETACH_GUI=0
                 echo "Launching the Copernican GUI; the terminal will close once the detached window is running."
                 COPERNICAN_STRICT_WARNINGS=$STRICT \
-                    nohup python copernican.py --gui >/dev/null 2>&1 &
+                    nohup "$GUI_BINARY" copernican.py --gui >/dev/null 2>&1 &
                 exit 0 ;;
             2)
                 COPERNICAN_STRICT_WARNINGS=$STRICT \

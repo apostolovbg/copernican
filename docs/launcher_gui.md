@@ -38,6 +38,18 @@ back to headless validation while the launcher notes the lack of a window so
 contributors can update the documentation (see Law 11) and explain the
 limitation in the `docs/` tree.
 
+### Inline GUI on macOS and Linux
+
+The launcher now avoids double-detachment: selecting the GUI option sets
+`COPERNICAN_DETACH_GUI=0`, prefers the managed environment's `pythonw` binary
+(or `python` if `pythonw` is missing) and backgrounds the call with `nohup` on
+Unix platforms or `start /b` on Windows. This lets `copernican.py` initialise
+its GUI normally while the start script exits immediately, leaving the Tk
+window displayed in the same process rather than spawning an additional
+detached worker. Because the console still prints a status line before handing
+off, operators know when the GUI launch begins even though the terminal closes
+after the command is backgrounded.
+
 ## Troubleshooting
 
 - **No GUI window appears** – check whether Tkinter is installed in the

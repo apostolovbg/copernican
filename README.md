@@ -138,6 +138,14 @@ complimenting the overview, it calls out the documentation policy, the new
 launcher guidance, and the expectation that every future task grows the shared
 story.
 
+The launcher now prefers the managed environment's `pythonw` (or `pythonw.exe`)
+binary when starting the GUI so Tkinter pops up in the same process instead of
+re-spawning; `COPERNICAN_DETACH_GUI` is reset to `0` so `copernican.py` runs the
+window inline while the start script simply backgrounds the command with
+`nohup` or `start /b`. This keeps the terminal message visible, prevents
+double-detachment, and keeps the new GUI window on the screen when macOS
+or Linux handles the Tk event loop.
+
 ## Overview
 The suite compares the reference ΛCDM model with alternative theories
 provided by the user. Each model is defined entirely by a YAML file

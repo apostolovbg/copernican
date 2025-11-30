@@ -108,6 +108,11 @@ if not exist .venv\Scripts\activate.bat (
 
 call .venv\Scripts\activate.bat
 set PYTHON=python
+if exist ".venv\Scripts\pythonw.exe" (
+    set "GUI_BIN=.venv\Scripts\pythonw.exe"
+) else (
+    set "GUI_BIN=.venv\Scripts\python.exe"
+)
 call :ensure_pip
 if errorlevel 1 (
     echo Unable to bootstrap pip in the Copernican virtual environment.
@@ -245,13 +250,9 @@ set /p CHOICE=Write the number of choice:
 if not defined CHOICE set "CHOICE=2"
 if "%CHOICE%"=="1" (
     set COPERNICAN_STRICT_WARNINGS=%STRICT%
-    set COPERNICAN_DETACH_GUI=1
+    set COPERNICAN_DETACH_GUI=0
     echo Launching the Copernican GUI; the console will close once the detached window is running.
-    if exist "%EXPECTED_VENV%\Scripts\pythonw.exe" (
-        start "" /b "%EXPECTED_VENV%\Scripts\pythonw.exe" copernican.py --gui
-    ) else (
-        start "" /b python copernican.py --gui
-    )
+    start "" /b "%GUI_BIN%" copernican.py --gui
     goto :eof
 )
 if "%CHOICE%"=="2" (

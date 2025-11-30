@@ -37,6 +37,12 @@ suffixes. Follow this template:
               `TRUSTED_PARSER_DIGESTS` mapping in `docs/data_overview.md` and
               recorded the new SHA256 values (copernican_lib/dataset_registry.py,
               docs/data_overview.md, CHANGELOG.md).
+- 2025-11-30: Ensured the launchers use `pythonw` (when available) with
+              `COPERNICAN_DETACH_GUI=0` so GUI launches happen inline and the
+              window appears without a second detached process; documented the
+              behaviour in `docs/launcher_gui.md` and noted the guidance in
+              `README.md` (start.sh, start.command, start.bat, docs/launcher_gui.md,
+              README.md, CHANGELOG.md).
 - 2025-11-30: Auto-formatted DevCovenant codebase with black, isort, and
               ruff to pass lint checks (devcovenant/base.py,
               devcovenant/policy_scripts/devcov_self_enforcement.py,
