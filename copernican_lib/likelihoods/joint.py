@@ -15,6 +15,7 @@ from typing import Any, Mapping, MutableMapping, Sequence
 
 from ._protocol import LikelihoodProtocol, LikelihoodState
 
+
 @dataclass(slots=True)
 class JointLike(LikelihoodProtocol):
     """Sum log-likelihoods from enabled components."""
@@ -99,5 +100,6 @@ class JointLike(LikelihoodProtocol):
         """Return diagnostics captured during the last evaluation."""
 
         return self._state.as_mapping()
+
 
 __all__ = ["JointLike"]

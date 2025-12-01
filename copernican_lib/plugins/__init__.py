@@ -94,8 +94,10 @@ _BIN_OPS = {
 }
 _UNARY_OPS = {ast.UAdd: lambda x: x, ast.USub: lambda x: -x}
 
+
 class PluginValidationError(RuntimeError):
     """Raised when an engine plugin fails validation."""
+
 
 @dataclass(slots=True)
 class CAMBParameterEvaluator:
@@ -206,6 +208,7 @@ class CAMBParameterEvaluator:
             return self._eval_node(node.body, env, depth=depth + 1)
         raise ValueError("expression not allowed")
 
+
 class FrozenMapping(Mapping[str, Any]):
     """Picklable read-only mapping used to freeze plugin metadata."""
 
@@ -250,6 +253,7 @@ class FrozenMapping(Mapping[str, Any]):
         """Expose a shallow copy for callers needing a mutable mapping."""
 
         return dict(self._data)
+
 
 @dataclass(slots=True)
 class EnginePlugin:
@@ -334,6 +338,7 @@ class EnginePlugin:
             return {}
         return evaluator(values)
 
+
 def sanitize_equation(eq_line: str) -> str:
     """Return a Matplotlib-friendly LaTeX string."""
 
@@ -343,6 +348,7 @@ def sanitize_equation(eq_line: str) -> str:
     eq = re.sub(r"^\$+", "", eq)
     eq = re.sub(r"\$+$", "", eq)
     return f"${eq.strip()}$" if eq else ""
+
 
 def _prepare_priors(
     params: Sequence[Mapping[str, Any]],
@@ -394,6 +400,7 @@ def _prepare_priors(
         transform_tuple,
         FrozenMapping(fixed_params),
     )
+
 
 def build_engine_plugin(
     model_data: Mapping[str, Any],
@@ -477,6 +484,7 @@ def build_engine_plugin(
 
     return plugin
 
+
 def validate_plugin(plugin: EnginePlugin) -> bool:
     """Validate that ``plugin`` exposes required attributes and callables."""
 
@@ -531,6 +539,7 @@ def validate_plugin(plugin: EnginePlugin) -> bool:
         )
 
     return True
+
 
 __all__ = [
     "EnginePlugin",

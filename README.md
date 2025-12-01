@@ -1,4 +1,4 @@
-**Version:** 10.9.14
+**Version:** 10.9.15
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -400,6 +400,7 @@ cite them without recomputation.
 
 ## Run Monitor and Diagnostics
 
+- The navigation rail now reserves 240 px and pins a padded Copernican logo square above the Home button so the brand anchor shares the same spacing rules as the nav panel controls, loading the new `img/logogui.png` asset sized to a quarter of the pane width.
 - The GUI now exposes a dedicated **Run Monitor** navigation entry just below
   Run Builder.  It mirrors the CLI sampler by showing both batch and walker
   progress bars, filtering options, and quick actions to **View log** or

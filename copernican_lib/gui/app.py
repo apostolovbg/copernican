@@ -49,7 +49,12 @@ from copernican_lib import (
     version,
 )
 
+log_mod = logger
+
 _PROGRESS_SPINNER_CHARS = frozenset("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+_NAV_PANE_WIDTH = 240
+_LOGO_PADDING = 12
+_LOGO_SIDE = _NAV_PANE_WIDTH // 4
 
 
 def _is_progress_line(line: str) -> bool:
@@ -269,6 +274,7 @@ class CopernicanGUI:
         self._pause_button: ttk.Button | None = None
         self._hard_stop_button: ttk.Button | None = None
         self._run_output_button: ttk.Button | None = None
+        self.logo_image: tk.PhotoImage | None = None
         self._bootstrap_logging()
         self._build_navigation()
         self._initialise_rendering()
@@ -1095,6 +1101,61 @@ class CopernicanGUI:
             )
             self.help_banner_image = None
 
+    def _logo_image_path(self) -> Path:
+        """Return the expected path to the resized navigation logo."""
+
+        return Path(__file__).resolve().parents[2] / "img" / "logogui.png"
+
+    def _load_logo_image(self) -> None:
+        """Load the navigation logo when rendering is enabled."""
+
+        if self.logo_image is not None or not self.render or tk is None:
+            return
+        logo_path = self._logo_image_path()
+        if not logo_path.exists():
+            return
+        try:
+            self.logo_image = tk.PhotoImage(file=str(logo_path))
+        except Exception as exc:
+            logger.get_program_logger().warning(
+                "Failed to load navigation logo: %s", exc
+            )
+
+    def _build_navigation_logo(self, nav_frame: tk.Frame) -> None:
+        """Add the padded logo square above the navigation buttons."""
+
+        if not self.render or tk is None:
+            return
+        self._load_logo_image()
+        logo_holder = ttk.Frame(nav_frame)
+        logo_holder.pack(fill="x", pady=(0, _LOGO_PADDING))
+        logo_holder.pack_propagate(False)
+        logo_holder.configure(height=_LOGO_SIDE + 2 * _LOGO_PADDING)
+        square = ttk.Frame(
+            logo_holder,
+            width=_LOGO_SIDE + 2 * _LOGO_PADDING,
+            height=_LOGO_SIDE + 2 * _LOGO_PADDING,
+            padding=_LOGO_PADDING,
+        )
+        square.pack_propagate(False)
+        square.pack(anchor="center")
+        square.columnconfigure(0, weight=1)
+        square.rowconfigure(0, weight=1)
+        if self.logo_image:
+            logo_widget = ttk.Label(
+                square,
+                image=self.logo_image,
+            )
+            logo_widget.image = self.logo_image
+        else:
+            logo_widget = ttk.Label(
+                square,
+                text="Copernican",
+                anchor="center",
+                justify="center",
+            )
+        logo_widget.grid(row=0, column=0, sticky="nsew")
+
     def _load_help_markdown(self) -> str:
         """Return the contents of README.md for the Help panel."""
 
@@ -1259,12 +1320,16 @@ class CopernicanGUI:
         if not self.render or self.root is None:
             return
         nav_frame = ttk.Frame(self.root, padding=(8, 8))
+        nav_frame.configure(width=_NAV_PANE_WIDTH)
         nav_frame.grid(row=0, column=0, sticky="nsw")
+        nav_frame.grid_propagate(False)
+        self.root.grid_columnconfigure(0, minsize=_NAV_PANE_WIDTH)
         self.content_area = ttk.Frame(self.root, padding=(12, 12))
         self.content_area.grid(row=0, column=1, sticky="nsew")
         self.root.grid_columnconfigure(1, weight=1)
         self.root.grid_rowconfigure(0, weight=1)
 
+        self._build_navigation_logo(nav_frame)
         for item in self.nav_items:
             button = ttk.Button(
                 nav_frame,
@@ -2108,11 +2173,11 @@ class CopernicanGUI:
         for label_text, field_name, helper, recommendation in field_specs:
             var = tk.StringVar(value=getattr(self.draft, field_name))
 
-            def _trace(field: str, string_var: tk.StringVar) -> None:
-                string_var.trace_add(
-                    "write",
-                    lambda *_: setattr(self.draft, field, string_var.get()),
-                )
+        def _trace(attribute: str, string_var: tk.StringVar) -> None:
+            string_var.trace_add(
+                "write",
+                lambda *_: setattr(self.draft, attribute, string_var.get()),
+            )
 
             _trace(field_name, var)
             field_row = ttk.Frame(settings_frame)

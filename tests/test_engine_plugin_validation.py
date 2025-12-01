@@ -13,14 +13,17 @@ from copernican_lib.plugins import PluginValidationError
 
 MAKE_POSTERIOR = engine_plugin_validation.make_logposterior
 
+
 def _dummy_func(*_args, **_kwargs):
     """Return a placeholder numerical value."""
     return 0.0
+
 
 def _linear_like(params):
     """Simple log-likelihood used to test pickling."""
 
     return -sum(params)
+
 
 class EngineInterfaceTestCase(unittest.TestCase):
     """Validate plugin construction and associated helpers."""
@@ -189,6 +192,7 @@ class EngineInterfaceTestCase(unittest.TestCase):
         payload = pickle.dumps(posterior)
         restored = pickle.loads(payload)
         self.assertAlmostEqual(restored([0.1]), posterior([0.1]))
+
 
 if __name__ == "__main__":
     unittest.main()

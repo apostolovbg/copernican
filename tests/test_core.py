@@ -51,6 +51,7 @@ if spec and spec.loader:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
+
 class FunctionalTestCase(unittest.TestCase):
     """Run a minimal end-to-end check of the public API."""
 
@@ -216,6 +217,7 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertTrue(hasattr(engine, "ENGINE_LABEL"))
         self.assertIn("MCMC", engine.ENGINE_LABEL)
 
+
 class PlotterUtilTestCase(unittest.TestCase):
     """Test helper utilities in ``plotter``."""
 
@@ -240,6 +242,7 @@ class PlotterUtilTestCase(unittest.TestCase):
         self.assertEqual(latex_utils.latex_to_unicode(r"z_{\rm rec}"), "zᵣₑc")
         self.assertEqual(latex_utils.latex_to_unicode("x_{(1+2)}"), "x₍₁₊₂₎")
         self.assertEqual(latex_utils.latex_to_unicode("y^{*}"), "y⁎")
+
 
 class CosmologicalParameterHelperTestCase(unittest.TestCase):
     """Validate parameter extraction fallbacks in ``copernican``."""
@@ -284,6 +287,7 @@ class CosmologicalParameterHelperTestCase(unittest.TestCase):
         }
         vector = extract_cosmological_param_vector(fit_results, plugin)
         self.assertIsNone(vector)
+
 
 if __name__ == "__main__":
     unittest.main()

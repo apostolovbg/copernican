@@ -31,6 +31,7 @@ import yaml
 
 from .utils import get_timestamp
 
+
 def _to_serialisable(obj: Any) -> Any:
     """Return ``obj`` converted to JSON/YAML friendly types.
 
@@ -44,6 +45,7 @@ def _to_serialisable(obj: Any) -> Any:
     if isinstance(obj, (np.floating, np.integer)):
         return obj.item()
     return obj
+
 
 def save_summary(
     results: Mapping[str, Mapping[str, Any]],
@@ -128,5 +130,6 @@ def save_summary(
     with open(yaml_path, "w", encoding="utf-8") as yh:
         yaml.safe_dump(summary, yh, sort_keys=False)
     return json_path, yaml_path
+
 
 __all__ = ["save_summary"]

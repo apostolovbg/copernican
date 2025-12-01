@@ -20,6 +20,7 @@ from . import utils
 from . import version as version_module
 from .likelihoods import cmb as cmb_module
 
+
 def _copernican_version() -> str:
     """Return the suite version while tolerating missing helpers.
 
@@ -36,6 +37,7 @@ def _copernican_version() -> str:
     if callable(getter):
         return getter()
     return "0+unknown"
+
 
 def _git_info() -> dict:
     """Return the current commit hash and dirty state.
@@ -66,6 +68,7 @@ def _git_info() -> dict:
     except Exception:
         dirty = True
     return {"commit": commit, "dirty": dirty}
+
 
 def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
     """Return CAMB metadata for models that supply a CMB mapping."""
@@ -103,6 +106,7 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         "configuration": configuration,
         "models": models_meta,
     }
+
 
 def build_manifest(
     models: Iterable[tuple[object, str]],
@@ -209,6 +213,7 @@ def build_manifest(
 
     return manifest
 
+
 def save_manifest(
     manifest: dict,
     output_dir: str,
@@ -234,11 +239,13 @@ def save_manifest(
         yaml.safe_dump(manifest, fh, sort_keys=False)
     return str(target)
 
+
 def load_manifest(path: str) -> dict:
     """Load a manifest from disk for reuse in a new run."""
 
     with open(path, "r", encoding="utf-8") as fh:
         return yaml.safe_load(fh)
+
 
 def annotate_outcome(
     manifest: dict,
@@ -264,6 +271,7 @@ def annotate_outcome(
     status["reason"] = reason
     updated["status"] = status
     return updated
+
 
 __all__ = [
     "build_manifest",

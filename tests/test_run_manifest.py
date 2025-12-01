@@ -12,6 +12,7 @@ import yaml
 from copernican_lib import run_manifest, utils
 from copernican_lib.version import get_version
 
+
 def _dummy_plugin():
     return SimpleNamespace(
         MODEL_NAME="DummyModel",
@@ -26,6 +27,7 @@ def _dummy_plugin():
             "Neff": 3.044,
         },
     )
+
 
 def test_manifest_contains_required_fields():
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -78,6 +80,7 @@ def test_manifest_contains_required_fields():
         assert "version" in camb_entry
         assert camb_entry["models"][0]["model"] == "DummyModel"
 
+
 def test_manifest_import_export_cycle() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         utils.set_random_seed(1)
@@ -109,6 +112,7 @@ def test_manifest_import_export_cycle() -> None:
         assert aborted["status"]["state"] == "aborted"
         assert aborted["status"]["outputs"] == "archived"
         assert aborted["status"]["reason"] == "Test abort"
+
 
 def test_manifest_custom_target_path() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:

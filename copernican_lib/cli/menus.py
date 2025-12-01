@@ -10,6 +10,7 @@ from typing import Iterable
 from copernican_lib import console_output as console
 from copernican_lib import utils
 
+
 def show_splash_screen(version: str) -> None:
     """Display the startup banner once at launch."""
 
@@ -35,6 +36,7 @@ def show_splash_screen(version: str) -> None:
         console.write(line)
     time.sleep(1)
     console.write("")
+
 
 def select_seed() -> int:
     """Prompt the operator to choose a reproducible random seed."""
@@ -96,6 +98,7 @@ def select_seed() -> int:
     utils.set_random_seed(seed)
     return seed
 
+
 def select_from_list(options, prompt):
     """Display ``options`` and return the item chosen by the user."""
 
@@ -120,6 +123,7 @@ def select_from_list(options, prompt):
             return options[int(choice) - 1]
         console.write("Invalid selection. Try again.")
 
+
 def normalise_failure_reasons(details: Iterable[str] | str) -> list[str]:
     """Return a list of human-readable reasons extracted from ``details``."""
 
@@ -137,6 +141,7 @@ def normalise_failure_reasons(details: Iterable[str] | str) -> list[str]:
         if cleaned:
             reasons.append(cleaned)
     return reasons or ["An unspecified error occurred during model setup."]
+
 
 def prompt_stage1_retry(reasons: Iterable[str]) -> bool:
     """Return ``True`` to restart Stage 1, ``False`` to exit the workflow."""

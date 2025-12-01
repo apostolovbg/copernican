@@ -11,6 +11,7 @@ body stable across Python versions.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import subprocess
 import sys
@@ -27,6 +28,46 @@ class LockFilePieces:
     """Describe the pieces of a ``requirements.lock`` snapshot."""
 
     body: List[str]
+
+
+def _cache_dir(root: Path) -> Path:
+    """Return the location used for transient cache metadata."""
+
+    return root / ".cache"
+
+
+def _input_hash_path(root: Path) -> Path:
+    """Return the cached hash path for ``requirements.in``."""
+
+    return _cache_dir(root) / "requirements.in.hash"
+
+
+def _ensure_cache_dir(root: Path) -> None:
+    """Create the cache directory if it is missing."""
+
+    _cache_dir(root).mkdir(parents=True, exist_ok=True)
+
+
+def _read_cached_input_hash(root: Path) -> str | None:
+    """Return the stored hash for ``requirements.in`` if available."""
+
+    path = _input_hash_path(root)
+    if not path.exists():
+        return None
+    return path.read_text(encoding="utf-8").strip()
+
+
+def _write_cached_input_hash(root: Path, value: str) -> None:
+    """Persist the current ``requirements.in`` hash for future runs."""
+
+    _ensure_cache_dir(root)
+    _input_hash_path(root).write_text(value, encoding="utf-8")
+
+
+def _compute_requirements_hash(path: Path) -> str:
+    """Return a stable digest for the input requirements."""
+
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def ensure_piptools_available() -> None:
@@ -137,12 +178,17 @@ def write_lock(lock_path: Path, body: Sequence[str]) -> None:
     lock_path.write_text("\n".join(body) + "\n", encoding="utf-8")
 
 
-def update_lockfile(root: Path) -> bool:
+def update_lockfile(root: Path, force: bool = False) -> bool:
     """Refresh ``requirements.lock`` and return ``True`` when it changed."""
 
     requirements_in, lock_path = ensure_inputs(root)
     previous = read_existing_lock(lock_path)
+    current_hash = _compute_requirements_hash(requirements_in)
+    cached_hash = _read_cached_input_hash(root)
+    if not force and cached_hash == current_hash and lock_path.exists():
+        return False
     compiled = compile_new_lock(root, requirements_in)
+    _write_cached_input_hash(root, current_hash)
     if previous.body == compiled.body:
         return False
     write_lock(lock_path, compiled.body)
@@ -167,6 +213,14 @@ def parse_args() -> argparse.Namespace:
             "Defaults to the repository root inferred from this script."
         ),
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "Force regeneration even if the requirements input hash "
+            "did not change."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -174,7 +228,7 @@ def main() -> None:
     """Entry-point for the command-line interface."""
 
     args = parse_args()
-    changed = update_lockfile(args.root)
+    changed = update_lockfile(args.root, force=args.force)
     if changed:
         print("requirements.lock updated", file=sys.stdout)
     else:

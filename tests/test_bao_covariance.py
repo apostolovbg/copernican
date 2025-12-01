@@ -10,6 +10,7 @@ import numpy as np
 from copernican_lib import engine_plugin_validation
 from copernican_lib.statistics import chi_squared_bao
 
+
 class BaoCovarianceTestCase(unittest.TestCase):
     """Ensure BAO chi-squared uses the covariance matrix when available."""
 
@@ -93,6 +94,7 @@ class BaoCovarianceTestCase(unittest.TestCase):
         self.assertAlmostEqual(chi2_cov, chi2_cov_manual)
         self.assertAlmostEqual(chi2_diag, chi2_diag_manual)
         self.assertNotEqual(chi2_cov, chi2_diag)
+
 
 if __name__ == "__main__":
     unittest.main()

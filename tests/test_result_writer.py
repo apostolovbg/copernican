@@ -20,6 +20,7 @@ from copernican_lib import (
 )
 from engines import cosmo_engine_mcmc
 
+
 class TestResultWriter(unittest.TestCase):
     """Ensure that result summaries are written with expected structure."""
 
@@ -87,6 +88,7 @@ class TestResultWriter(unittest.TestCase):
                 expected_walkers = max(4, 2 * active)
                 self.assertEqual(sampling.get("n_walkers"), expected_walkers)
                 self.assertEqual(sampling.get("pool_workers"), 0)
+
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation
     unittest.main()

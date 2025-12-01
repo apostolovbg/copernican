@@ -5,7 +5,11 @@ inside the managed virtual environment without extra framework dependencies.
 The navigation rail stays visible at all times and the Home screen shows recent
 runs, pinned configurations and explicit quick actions for launching the Run
 Builder, the Run Monitor, the output directory or the **Import manifest...**
-workflow that clones an existing manifest for reuse.
+workflow that clones an existing manifest for reuse. The navigation rail now
+reserves 240 px so the padded Copernican logo square above the Home button keeps
+equal spacing to the window chrome from the left border, title bar and the main
+pane divider without introducing extra controls. The icon sits in a 60 px square
+so the visual balance is maintained even with the tighter top/left padding.
 
 ## Run Builder
 

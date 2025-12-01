@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping, MutableMapping, Protocol, Sequence
 
+
 class LikelihoodProtocol(Protocol):
     """Runtime contract implemented by all likelihood helpers."""
 
@@ -22,6 +23,7 @@ class LikelihoodProtocol(Protocol):
     @property
     def state(self) -> Mapping[str, Any]:
         """Return diagnostic information captured during the last call."""
+
 
 @dataclass(slots=True)
 class LikelihoodState:
@@ -39,5 +41,6 @@ class LikelihoodState:
             "loglike": self.loglike,
             "metadata": dict(self.metadata),
         }
+
 
 __all__ = ["LikelihoodProtocol", "LikelihoodState"]

@@ -17,6 +17,7 @@ with mock.patch("sys.version_info", (3, 12, 0)):
         copernican = importlib.import_module("copernican")
 from copernican_lib import utils
 
+
 class SeedMenuTestCase(unittest.TestCase):
     """Verify environment, manual, random and default seed handling."""
 
@@ -55,6 +56,7 @@ class SeedMenuTestCase(unittest.TestCase):
                 with mock.patch("copernican.console.write"):
                     copernican.select_seed()
         self.assertEqual(utils.get_random_seed(), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

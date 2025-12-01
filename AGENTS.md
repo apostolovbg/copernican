@@ -59,6 +59,10 @@ default editor, and Start Run now delegates to `copernican_lib.gui.run_worker`,
 which invokes the real CLI workflow in a child process using the builder
 selections. The worker’s stdout/stderr feed the diagnostics pane while Cancel
 and Hard Stop terminate the child so runs remain interruptible from the GUI.
+The navigation rail itself now reserves 240 px so a padded Copernican logo square
+rendered from `img/logogui.png` sits above the Home button with equal spacing to
+the surrounding chrome before the other navigation controls begin. The icon now
+shares a 60 px square to stay centered with the lighter left/top padding.
 `copernican.py` now accepts `--gui`, `--cli` and `--no-gui` flags plus
 `--manifest` and `--output-dir` overrides so CI can direct manifests to
 deterministic paths. GUI invocations detach automatically (``pythonw`` on

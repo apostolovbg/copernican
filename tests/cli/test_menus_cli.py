@@ -6,6 +6,7 @@ from unittest import mock
 
 from copernican_lib.cli import menus
 
+
 class SplashScreenTestCase(unittest.TestCase):
     """Ensure the splash screen renders and pauses as expected."""
 
@@ -27,6 +28,7 @@ class SplashScreenTestCase(unittest.TestCase):
             "Splash banner text was not written to the console.",
         )
         sleep_mock.assert_called_once_with(1)
+
 
 class SelectSeedTestCase(unittest.TestCase):
     """Exercise the seed selection prompt."""
@@ -54,6 +56,7 @@ class SelectSeedTestCase(unittest.TestCase):
         self.assertEqual(seed, 0)
         seed_mock.assert_called_once_with(0)
 
+
 class FailureReasonTestCase(unittest.TestCase):
     """Confirm Stage 1 retry prompts summarise errors."""
 
@@ -72,6 +75,7 @@ class FailureReasonTestCase(unittest.TestCase):
             decision = menus.prompt_stage1_retry(["Example reason"])
         self.assertFalse(decision)
         ask_mock.assert_called()
+
 
 if __name__ == "__main__":  # pragma: no cover - manual execution hook
     unittest.main()

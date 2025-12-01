@@ -20,7 +20,76 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
-## Version 10.9.14
+## Version 10.9.15
+- 2025-12-01: Reformatted every file beneath `copernican_lib/` and `tests/`
+              so the enforced 79-character style stays consistent across the
+              shared utilities and the reference suite (copernican_lib/chain_io.py,
+              copernican_lib/cli/dependencies.py,
+              copernican_lib/cli/menus.py,
+              copernican_lib/csv_writer.py,
+              copernican_lib/dataset_registry.py,
+              copernican_lib/diagnostics.py,
+              copernican_lib/engine_plugin_validation.py,
+              copernican_lib/error_handler.py,
+              copernican_lib/gui/app.py,
+              copernican_lib/latex_utils.py,
+              copernican_lib/likelihoods/_protocol.py,
+              copernican_lib/likelihoods/bao.py,
+              copernican_lib/likelihoods/cmb.py,
+              copernican_lib/likelihoods/joint.py,
+              copernican_lib/likelihoods/sne.py,
+              copernican_lib/optim_utils.py,
+              copernican_lib/orchestration.py,
+              copernican_lib/plotter.py,
+              copernican_lib/plugins/__init__.py,
+              copernican_lib/posterior.py,
+              copernican_lib/priors.py,
+              copernican_lib/progress.py,
+              copernican_lib/result_writer.py,
+              copernican_lib/run_manifest.py,
+              copernican_lib/statistics.py,
+              copernican_lib/utils.py,
+              copernican_lib/version.py,
+              tests/cli/test_dependencies_cli.py,
+              tests/cli/test_launcher_modes.py,
+              tests/cli/test_menus_cli.py,
+              tests/data/synthetic/cosmo_parser_synthetic.py,
+              tests/data/synthetic/model_plugin.py,
+              tests/engines/test_engine_nested.py,
+              tests/test_bao_covariance.py,
+              tests/test_bossdr12_parser.py,
+              tests/test_cmb_like.py,
+              tests/test_core.py,
+              tests/test_data_hashes.py,
+              tests/test_dataset_registry.py,
+              tests/test_diagnostics.py,
+              tests/test_engine_plugin_validation.py,
+              tests/test_likelihoods.py,
+              tests/test_menu.py,
+              tests/test_model_coder.py,
+              tests/test_model_priors.py,
+              tests/test_optim_utils.py,
+              tests/test_orchestration_services.py,
+              tests/test_packaging_configuration.py,
+              tests/test_parser_discovery.py,
+              tests/test_plotter.py,
+              tests/test_plugins.py,
+              tests/test_program_logging.py,
+              tests/test_result_writer.py,
+              tests/test_run_manifest.py,
+              tests/test_seed_option.py,
+              tests/test_start_scripts.py,
+              tests/test_update_lock.py,
+              tests/test_utils.py,
+              tests/test_version_env.py,
+              tests/test_version_fallback.py,
+              tests/test_version_file.py).
+- 2025-12-01: Bumped the release metadata to 10.9.15 so documentation,
+              citation headers and helpers keep the same version string, and
+              captured the GUI logo spacing/configuration plus the cached lock
+              helper in the shared changelog entry (copernican_lib/VERSION,
+              README.md, CITATION.cff, AGENTS.md, docs/gui_overview.md,
+              copernican_lib/gui/app.py, tools/update_lock.py).
 - 2025-12-01: Anchored every per-run artefact to the run-start timestamp, saved
              the sampler configuration into the manifest, and ensured GUI
              workers log exceptions while keeping the CLI decoupled from the

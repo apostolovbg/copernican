@@ -12,6 +12,7 @@ from copernican_lib.diagnostics import (
     cmb_residual_diagnostics,
 )
 
+
 class DiagnosticsTestCase(unittest.TestCase):
     """Ensure residual diagnostics emit the expected log snippets."""
 
@@ -51,6 +52,7 @@ class DiagnosticsTestCase(unittest.TestCase):
         self.assertTrue(any("ModelX CMB TT" in line for line in lines))
         self.assertTrue(any("ModelX CMB TE" in line for line in lines))
         self.assertFalse(any("mismatched" in line for line in lines))
+
 
 if __name__ == "__main__":  # pragma: no cover - convenience for local runs
     unittest.main()

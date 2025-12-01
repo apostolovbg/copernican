@@ -26,12 +26,14 @@ DEPENDENCY_CACHE_ENV_VAR = "COPERNICAN_DEP_CACHE_DIR"
 DEPENDENCY_CACHE_FILENAME = "dependency_scan.json"
 DEPENDENCY_CACHE_SCHEMA = 1
 
+
 @dataclass
 class RuntimeOptions:
     """Runtime configuration derived from environment variables."""
 
     run_tests: bool = False
     strict_warnings: bool = False
+
 
 def get_runtime_options() -> RuntimeOptions:
     """Return options from ``COPERNICAN_*`` environment variables."""
@@ -40,6 +42,7 @@ def get_runtime_options() -> RuntimeOptions:
         run_tests=os.environ.get("COPERNICAN_RUN_TESTS") == "1",
         strict_warnings=os.environ.get("COPERNICAN_STRICT_WARNINGS") == "1",
     )
+
 
 def run_startup_tests() -> bool:
     """Execute the project's unit tests via ``python -m unittest discover``."""
@@ -54,6 +57,7 @@ def run_startup_tests() -> bool:
         return False
     return result.returncode == 0
 
+
 def _resolve_dependency_cache_paths() -> tuple[Path, Path]:
     """Return the cache directory and file for dependency scans."""
 
@@ -64,6 +68,7 @@ def _resolve_dependency_cache_paths() -> tuple[Path, Path]:
         cache_dir = Path(__file__).resolve().parent / ".cache"
     cache_file = cache_dir / DEPENDENCY_CACHE_FILENAME
     return cache_dir, cache_file
+
 
 def _scan_python_sources(
     search_dirs: list[str], ignore_dirs: set[str]
@@ -100,6 +105,7 @@ def _scan_python_sources(
     python_files.sort()
     return python_files, snapshot
 
+
 def _load_cached_dependencies(
     snapshot: dict[str, dict[str, int]], search_dirs: list[str]
 ) -> set[str] | None:
@@ -126,6 +132,7 @@ def _load_cached_dependencies(
         return None
     return set(cached_packages)
 
+
 def _store_dependency_cache(
     snapshot: dict[str, dict[str, int]],
     search_dirs: list[str],
@@ -146,6 +153,7 @@ def _store_dependency_cache(
             json.dump(serialisable, handle, indent=2, sort_keys=True)
     except OSError:
         console.write("Warning: Unable to update dependency cache.")
+
 
 def _gather_required_packages(
     search_dirs: list[str] | None = None,
@@ -227,6 +235,7 @@ def _gather_required_packages(
     _store_dependency_cache(snapshot, search_dirs, filtered)
     return filtered
 
+
 def check_dependencies() -> None:
     """Ensure required packages exist inside the local ``.venv``.
 
@@ -275,6 +284,7 @@ def check_dependencies() -> None:
         sys.exit(1)
 
     console.write("✅ System Dependency Check Passed. Continuing...\n")
+
 
 def load_third_party_modules():
     """Import heavy optional dependencies lazily for CLI use."""

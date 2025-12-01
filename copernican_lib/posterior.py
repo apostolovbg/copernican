@@ -23,6 +23,7 @@ from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from . import priors as prior_lib
 
+
 @dataclass(slots=True)
 class PosteriorEvaluator:
     """Callable that evaluates priors, bounds and the wrapped likelihood."""
@@ -107,6 +108,7 @@ class PosteriorEvaluator:
             return float("-inf")
         return float(like_value + log_prior)
 
+
 def make_logposterior(
     like: Callable[[Sequence[float]], float],
     priors: Iterable[prior_lib.BasePrior | Mapping[str, Any]] | None,
@@ -156,5 +158,6 @@ def make_logposterior(
         transforms=transforms,
         logger=logger,
     )
+
 
 __all__ = ["PosteriorEvaluator", "make_logposterior"]

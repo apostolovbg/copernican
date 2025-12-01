@@ -19,6 +19,7 @@ from copernican_lib import (
 )
 from engines import cosmo_engine_nested
 
+
 def _build_model_plugin(yaml_filename: str):
     """Return a validated plugin for the supplied YAML file."""
 
@@ -30,6 +31,7 @@ def _build_model_plugin(yaml_filename: str):
     )
     func_dict, parsed = model_coder.generate_callables(cache_path)
     return engine_plugin_validation.build_plugin(parsed, func_dict)
+
 
 class TestNestedEngine(unittest.TestCase):
     """Verify that the nested sampler returns expected diagnostics."""
@@ -222,6 +224,7 @@ class TestNestedEngine(unittest.TestCase):
                 )
 
         bar_instance.finish_batch.assert_called()
+
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation
     unittest.main()

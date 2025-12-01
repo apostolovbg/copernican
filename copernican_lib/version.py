@@ -34,6 +34,7 @@ except Exception:  # pragma: no cover - dependency missing
 PACKAGE_NAME = "copernican-suite"
 VERSION_FILENAME = "VERSION"
 
+
 def _read_version_file() -> Optional[str]:
     """Return the version stored alongside the package if available.
 
@@ -66,6 +67,7 @@ def _read_version_file() -> Optional[str]:
             return value
     return None
 
+
 def get_version() -> str:
     """Return the Copernican Suite version string.
 
@@ -94,5 +96,6 @@ def get_version() -> str:
             return scm_get_version(root="..", relative_to=__file__)
         except Exception:
             return "0+unknown"
+
 
 __all__ = ["get_version"]

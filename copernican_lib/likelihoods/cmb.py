@@ -45,12 +45,14 @@ _FAKE_CMB_PROVIDER: (
     | None
 ) = None
 
+
 def _normalise_value(value: Any) -> Any:
     """Return a cache-friendly representation of ``value``."""
 
     if isinstance(value, (int, float, np.integer, np.floating)):
         return float(value)
     return str(value)
+
 
 def _normalise_items(
     param_dict: Mapping[str, Any]
@@ -62,6 +64,7 @@ def _normalise_items(
         normalised.append((str(key), _normalise_value(param_dict[key])))
     return tuple(normalised)
 
+
 def _restore_dict(items: tuple[tuple[str, Any], ...]) -> dict[str, Any]:
     """Rehydrate a mapping created by :func:`_normalise_items`."""
 
@@ -69,6 +72,7 @@ def _restore_dict(items: tuple[tuple[str, Any], ...]) -> dict[str, Any]:
     for key, value in items:
         restored[str(key)] = value
     return restored
+
 
 def _coerce_fake_output(
     fake: Mapping[str, np.ndarray] | np.ndarray,
@@ -96,11 +100,13 @@ def _coerce_fake_output(
         return coerced
     return {spec: coerced for spec in spectra}
 
+
 def _fake_cmb_enabled() -> bool:
     """Return ``True`` when the CMB helper should bypass CAMB entirely."""
 
     flag = os.environ.get("COPERNICAN_FAKE_CMB", "")
     return flag.strip().lower() in {"1", "true", "yes", "on"}
+
 
 def _fake_background_payload(z_arr: np.ndarray) -> dict[str, np.ndarray]:
     """Return deterministic background observables for CI-only runs."""
@@ -120,6 +126,7 @@ def _fake_background_payload(z_arr: np.ndarray) -> dict[str, np.ndarray]:
         "Hz": hz_vals,
         "z": z_arr.copy(),
     }
+
 
 def _make_camb_params(
     param_dict: Mapping[str, Any], *, lmax: int | None = None
@@ -220,6 +227,7 @@ def _make_camb_params(
         params.InitPower.set_params(**power_kwargs)
     return params
 
+
 @lru_cache(maxsize=128)
 def _cached_cmb(
     key: tuple[str, tuple[tuple[str, Any], ...], int, tuple[str, ...]]
@@ -239,6 +247,7 @@ def _cached_cmb(
     if "TE" in spectra:
         out["TE"] = cls[:, 3]
     return out
+
 
 @lru_cache(maxsize=128)
 def _cached_background(
@@ -293,6 +302,7 @@ def _cached_background(
         tuple(hz.tolist()),
     )
 
+
 def compute_camb_background_observables(
     param_dict: Mapping[str, Any], redshifts: Sequence[float]
 ) -> dict[str, np.ndarray]:
@@ -332,6 +342,7 @@ def compute_camb_background_observables(
         "z": np.asarray(z_tuple, dtype=float),
     }
 
+
 def describe_camb_configuration() -> dict[str, Any]:
     """Return the default CAMB configuration used by the likelihood helpers."""
 
@@ -352,6 +363,7 @@ def describe_camb_configuration() -> dict[str, Any]:
         # tau-based parameterisation
         "accuracy": accuracy_info,
     }
+
 
 def compute_cmb_spectrum_from_dict(
     param_dict: Mapping[str, float],
@@ -400,6 +412,7 @@ def compute_cmb_spectrum_from_dict(
         return next(iter(result.values()))
     return result
 
+
 def compute_cmb_spectrum_cached(
     plugin: Any,
     cosmo_params: Sequence[float],
@@ -418,6 +431,7 @@ def compute_cmb_spectrum_cached(
 
     return compute_cmb_spectrum_from_dict(camb_params, ells, spectra=spectra)
 
+
 def compute_cmb_spectrum(
     param_dict: Mapping[str, float],
     ells: Iterable[int],
@@ -435,6 +449,7 @@ def compute_cmb_spectrum(
         },
     )()
     return compute_cmb_spectrum_cached(dummy, [], ells, spectra=spectra)
+
 
 @dataclass(slots=True)
 class CMBLike(LikelihoodProtocol):
@@ -574,6 +589,7 @@ class CMBLike(LikelihoodProtocol):
         """Return diagnostics captured during the last evaluation."""
 
         return self._state.as_mapping()
+
 
 __all__ = [
     "CMBLike",

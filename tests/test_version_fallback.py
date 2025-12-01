@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import unittest
 
+
 class VersionFallbackTest(unittest.TestCase):
     """Ensure launchers continue working when version helpers are missing."""
 
@@ -50,5 +51,6 @@ class VersionFallbackTest(unittest.TestCase):
             delattr(self.version_module, "get_version")
         importlib.reload(plotter)
         self.assertEqual(plotter.COPERNICAN_VERSION, "0+unknown")
+
 
 __all__ = ["VersionFallbackTest"]

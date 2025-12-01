@@ -18,6 +18,7 @@ import pandas as pd
 
 from ._protocol import LikelihoodProtocol, LikelihoodState
 
+
 @dataclass(slots=True)
 class SNeLike(LikelihoodProtocol):
     """Evaluate the Supernova Ia log-likelihood for a given dataset."""
@@ -156,5 +157,6 @@ class SNeLike(LikelihoodProtocol):
         """Return diagnostics captured during the last evaluation."""
 
         return self._state.as_mapping()
+
 
 __all__ = ["SNeLike"]

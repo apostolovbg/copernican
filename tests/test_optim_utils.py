@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from copernican_lib import optim_utils
 
+
 class ProgressThrottleTestCase(unittest.TestCase):
     """Ensure progress updates are rate limited."""
 
@@ -81,6 +82,7 @@ class ProgressThrottleTestCase(unittest.TestCase):
 
         progress = [c for c in calls if "Evals:" in c]
         self.assertEqual(len(progress), 5)
+
 
 if __name__ == "__main__":  # pragma: no cover - manual execution guard
     unittest.main()

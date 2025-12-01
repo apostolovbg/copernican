@@ -17,6 +17,7 @@ import pytest
 from copernican_lib import plotter
 from copernican_lib import utils as plot_utils
 
+
 class _DummyPlugin:
     """Lightweight stand-in exposing the attributes the plotter expects."""
 
@@ -26,11 +27,13 @@ class _DummyPlugin:
     PARAMETER_NAMES: list[str] = []
     PARAMETER_LATEX_NAMES: list[str] = []
 
+
 class _CornerPlugin(_DummyPlugin):
     """Extended dummy plugin carrying names for the corner plot."""
 
     PARAMETER_NAMES = ["alpha", "beta", "gamma"]
     PARAMETER_LATEX_NAMES = [r"\alpha", r"\beta", r"\gamma"]
+
 
 def test_format_model_summary_text_handles_missing_chi2_total() -> None:
     """Ensure missing totals render as ``N/A`` instead of raising errors."""
@@ -50,6 +53,7 @@ def test_format_model_summary_text_handles_missing_chi2_total() -> None:
 
     assert "$\\chi^2_{tot}$ = N/A" in summary
     assert "$\\chi^2_{CMB}$ = N/A" in summary
+
 
 @pytest.mark.parametrize(
     "value,expected_fragment",
@@ -81,6 +85,7 @@ def test_format_model_summary_text_numeric_rendering(
         assert "$\\chi^2_{tot}$ = N/A" in summary
     else:
         assert "$\\chi^2_{tot}$ = 42.00" in summary
+
 
 def test_plot_corner_renders_expected_file(tmp_path) -> None:
     """Ensure the new corner plot helper writes a PNG with suite styling."""
@@ -114,6 +119,7 @@ def test_plot_corner_renders_expected_file(tmp_path) -> None:
         timestamp=timestamp,
     )
     assert (tmp_path / expected_name).exists()
+
 
 def test_plot_corner_scales_layout_with_dimension(
     tmp_path, monkeypatch: pytest.MonkeyPatch
@@ -269,6 +275,7 @@ def test_plot_corner_scales_layout_with_dimension(
         )
         assert margins["top"] == pytest.approx(expected_top)
 
+
 def test_plot_corner_positions_title_and_footer(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -365,6 +372,7 @@ def test_plot_corner_positions_title_and_footer(
     actual_span = first_line - lowest_line
     assert actual_span == pytest.approx(expected_span)
 
+
 def test_format_corner_footer_stats_reports_processing() -> None:
     """Summaries should mention sample counts, stride and thinning."""
 
@@ -384,6 +392,7 @@ def test_format_corner_footer_stats_reports_processing() -> None:
     assert any("stride 3" in line for line in rendered)
     assert any("Automatic thinning" in line for line in rendered)
     assert any("Legacy validator" in line for line in rendered)
+
 
 def test_plot_corner_downsamples_large_chains(
     tmp_path, monkeypatch: pytest.MonkeyPatch
@@ -445,6 +454,7 @@ def test_plot_corner_downsamples_large_chains(
     assert extra_lines is not None
     assert any("Corner plot generation" in line for line, _ in extra_lines)
 
+
 def test_plot_corner_falls_back_to_agg_backend(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -488,6 +498,7 @@ def test_plot_corner_falls_back_to_agg_backend(
 
     assert attempts["count"] == 2
     assert switched == ["Agg"]
+
 
 def test_plot_corner_handles_legacy_validator_signature(
     tmp_path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
@@ -535,12 +546,14 @@ def test_plot_corner_handles_legacy_validator_signature(
     )
     assert (tmp_path / expected_name).exists()
 
+
 def test_density_levels_are_strictly_increasing() -> None:
     """Ensure contour thresholds never repeat when histogram bins coincide."""
 
     hist = np.full((2, 2), 0.25)
     levels = plotter._density_levels(hist, (0.5, 0.9))
     assert levels[0] < levels[1]
+
 
 def test_build_contour_levels_produce_increasing_sequences() -> None:
     """Even plateaued histograms should yield strictly increasing levels."""
@@ -551,6 +564,7 @@ def test_build_contour_levels_produce_increasing_sequences() -> None:
     assert np.all(np.diff(filled) > 0.0)
     assert np.all(np.diff(lines) > 0.0)
     assert filled[0] == pytest.approx(0.0)
+
 
 def test_plot_corner_omits_dataset_metadata_from_footer(
     tmp_path, monkeypatch: pytest.MonkeyPatch
@@ -594,6 +608,7 @@ def test_plot_corner_omits_dataset_metadata_from_footer(
     assert all("Corner validation stub" not in line for line in footer_text)
     assert any("Corner plot generation" in line for line in footer_text)
 
+
 def test_build_footer_lines_preserves_citation_by_default() -> None:
     """Citation strings should remain when dataset details are shown."""
 
@@ -608,6 +623,7 @@ def test_build_footer_lines_preserves_citation_by_default() -> None:
     )
 
     assert any("Corner validation stub" in line for line, _ in footer_lines)
+
 
 def test_build_footer_lines_omits_citation_when_dataset_details_disabled() -> (
     None

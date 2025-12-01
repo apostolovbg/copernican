@@ -4,6 +4,7 @@ from unittest import TestCase, mock
 
 from copernican_lib import version as version_module
 
+
 class VersionFileTests(TestCase):
     """Verify the runtime version is sourced from the tracked VERSION file."""
 

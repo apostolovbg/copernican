@@ -22,6 +22,7 @@ from ..model_coder import SoundHorizonComputationError
 from ._protocol import LikelihoodProtocol, LikelihoodState
 from .cmb import compute_camb_background_observables
 
+
 @dataclass(slots=True)
 class BAOLike(LikelihoodProtocol):
     """Evaluate BAO log-likelihoods for pre-extracted observables."""
@@ -395,5 +396,6 @@ class BAOLike(LikelihoodProtocol):
         """Return diagnostics captured during the last evaluation."""
 
         return self._state.as_mapping()
+
 
 __all__ = ["BAOLike"]
