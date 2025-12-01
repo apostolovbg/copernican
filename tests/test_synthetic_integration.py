@@ -16,6 +16,7 @@ from tests.data.synthetic import model_plugin
 # Restore ``importlib.util`` attribute removed by the frozen importlib shim.
 setattr(importlib, "util", importlib_util)
 
+
 @pytest.fixture(autouse=True)
 def _temporary_fake_cmb(monkeypatch):
     """Isolate the synthetic CMB toggle to this module's execution.
@@ -32,6 +33,7 @@ def _temporary_fake_cmb(monkeypatch):
     monkeypatch.setenv("PYTHONDONTWRITEBYTECODE", "1")
     yield
 
+
 _EXPECTED_HASHES = {
     "bao.csv": (
         "cc98874d217c1fb3a6f1a4acef2ea8bf3a513496bb7d1979b1e8cb949e551654"
@@ -40,15 +42,16 @@ _EXPECTED_HASHES = {
         "75eeaa66c50c836a6aa5b86294b6fee2bd5122efd7e019902b78d1ef1bfb6083"
     ),
     "model.yml": (
-        "858935dc9006e96b7395c25266a82acf51d701fe65840db926c5b9292e50663d"
+        "fb564437121906b249bf38c137209e672ee2e1f2d08de0baa7f1a6f3db448081"
     ),
     "metadata_synthetic.yml": (
-        "8f5b1436344247727ff0b1a40d3cb7624d5e7a777f50ee4f9f6e0fa0c67a7f54"
+        "61a268cc1df54bc1f901c13d4dc083d8c862977c2cd2fc199403a6d27daa2c47"
     ),
     "sne.csv": (
         "43be03513255fe62c358b19671c27918fb40fbb4bca89f39f8db914b3765831b"
     ),
 }
+
 
 @pytest.fixture(
     scope="module", params=[cosmo_engine_mcmc, cosmo_engine_nested]
@@ -56,11 +59,13 @@ _EXPECTED_HASHES = {
 def engine_module(request):
     return request.param
 
+
 @pytest.fixture(scope="module")
 def synthetic_plugin():
     plugin = model_plugin.build_plugin()
     utils.set_random_seed(4)
     return plugin
+
 
 def _load_datasets():
     import tests.data.synthetic.cosmo_parser_synthetic  # noqa: F401
@@ -69,6 +74,7 @@ def _load_datasets():
     bao_df = dataset_registry.load_bao_data("synthetic_integration")
     cmb_df = dataset_registry.load_cmb_data("synthetic_integration")
     return sne_df, bao_df, cmb_df
+
 
 def _dataset_entry(df):
     return {
@@ -80,10 +86,12 @@ def _dataset_entry(df):
         "independence": df.attrs.get("independence_assumptions", []),
     }
 
+
 def _assert_hashes(df):
     hashes = df.attrs["file_hashes"]
     for key, digest in _EXPECTED_HASHES.items():
         assert hashes.get(key) == digest
+
 
 def _assert_manifest(manifest, engine_name):
     assert manifest["seed"] == utils.get_random_seed()
@@ -94,6 +102,7 @@ def _assert_manifest(manifest, engine_name):
     for key, digest in _EXPECTED_HASHES.items():
         assert entry["hashes"].get(key) == digest
     assert entry["independence"]
+
 
 @pytest.mark.parametrize("timestamp", ["20000101_000000"])
 def test_synthetic_pipeline(

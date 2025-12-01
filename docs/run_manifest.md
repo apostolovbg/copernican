@@ -1,7 +1,9 @@
 # Run Manifest
 
 The suite writes a YAML manifest for every evaluation under the run's output
-folder. The file is named `run_manifest_<timestamp>.yml` and records:
+folder. The file is named `run_manifest_<timestamp>.yml`, where the timestamp
+matches the start-of-run label used by the output directory and per-run log, and
+records:
 
 Headless runs can pin the manifest location with the `--manifest` flag to
 `copernican.py` so CI pipelines always collect the same path even when output
@@ -15,6 +17,9 @@ directories change.
   files.
 - Independence statements confirming that SNe, BAO and CMB likelihoods were
   treated as statistically separate when building the joint posterior.
+- Sampler configuration stored under ``configuration.run_settings`` so walkers,
+  burn-in, production steps, pool/core hints and nested-sampling parameters stay
+  tied to the manifest that produced a run.
 - The Git commit hash and whether the tree was dirty.
 - Lifecycle and retention metadata under ``status`` indicating whether outputs
   were prepared, paused, cancelled, aborted or completed and whether artefacts
@@ -39,11 +44,17 @@ The GUI mirrors the CLI behaviour by generating the manifest at the "Start
 Run" confirmation stage rather than during draft editing. Pending manifests
 mark ``status.state`` as ``pending`` and set ``status.outputs`` to
 ``unprepared`` so operators can review the configuration before directories or
-logs exist. Starting the run flips the status to ``running`` and the
-``selection`` and ``configuration`` blocks capture the chosen models, engine
-and dataset identifiers for reuse. Hard stops or cancellations update
-``status.state`` to ``aborted`` or ``cancelled`` and embed a retention decision
-such as ``archived`` or ``deleted`` for downstream provenance checks.
+logs exist. The confirmation panel exposes an **Insert manifest** button that
+records the staged snapshot without launching a run, letting operators inspect
+metadata or export the file before committing to Start Run. Starting the run
+flips the status to ``running`` and the ``selection`` and ``configuration``
+blocks capture the chosen models, engine and dataset identifiers for reuse.
+Hard stops or cancellations update ``status.state`` to ``aborted`` or
+``cancelled`` and embed a retention decision such as ``archived`` or
+``deleted`` for downstream provenance checks. The Home quick actions now also
+offer **Import manifest...** so a manifest saved on one machine can be cloned,
+retimestamped for the current run directory and inserted directly into the
+builder.
 
 The Stage 2 sampler now constructs its NumPy random number generator from the
 shared :func:`copernican_lib.utils.get_random_seed` value.  That helper is

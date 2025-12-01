@@ -1,4 +1,4 @@
-**Version:** 10.9.13
+**Version:** 10.9.14
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -56,7 +56,12 @@ manifests and plot footers created for every run. Supernova datasets currently
 include JLA, Pantheon+SH0ES and the Union3 UNITY compilation, so the bundled
 samples appear once their parsers register with the dataset registry.
 * `copernican_lib/gui/` provides a Tkinter-based scaffold with a navigation
-  rail, quick actions, the run monitor and a Run Builder wizard. Start Run now
+  rail, quick actions, the run monitor and a Run Builder wizard. The Home tab
+  now includes an **Import manifest...** action that clones a saved manifest
+  onto the current machine before handing it to the builder. The confirmation
+  step gained an **Insert manifest** button so operators can stage the
+  generated manifest, review its metadata and then launch the run from that
+  snapshot. Start Run now
   spawns the CLI workflow in a managed background process using the configured
   seed, model, datasets and engine, streams CLI output into the diagnostics
   panel and honours Cancel/Hard Stop by terminating the worker. Run Builder
@@ -68,7 +73,10 @@ samples appear once their parsers register with the dataset registry.
   to the longest line, obey the 15/25-line rules, gain scrollbars, lock
   horizontal resizing and expose an *Open file…* shortcut; Settings surfaces
   CLI-style tips (minimum walkers, quick burn-in options, worker pool
-  reminders) plus output directory helpers and environment hints, and the Help
+  reminders) plus output directory helpers and environment hints covering
+  `COPERNICAN_SEED`, `COPERNICAN_STRICT_WARNINGS`,
+  `COPERNICAN_ENABLE_STAGED_MENU`, `COPERNICAN_DETACH_GUI` and
+  `COPERNICAN_HEADLESS_RUN`, and the Help
   screen renders the README (banner included) so documentation is always
   nearby. The Run Monitor now mirrors the CLI with separate batch and walker
   progress bars that reflect the same progress state the sampler emits plus an
@@ -707,7 +715,12 @@ successive evaluations fast during optimisation loops.
 Each run directory also contains a YAML manifest named
 `run_manifest_<timestamp>.yml` capturing the suite version, chosen models,
 engine, parameter priors, dataset names, versions, SHA256 hashes, the
-independence statements declared by the loaders and the Git commit. See
+independence statements declared by the loaders and the Git commit. The
+timestamp mirrors the start-of-run identifier used by the output directory and
+per-run log, so every artefact shares the same anchor. The manifest's
+``configuration.run_settings`` block records the sampler configuration
+(walkers, burn-in, production steps, pool/core hints and nested-sampling
+settings) so replayed runs inherit the exact engine parameters. See
 [docs/run_manifest.md](docs/run_manifest.md) for details on using this file to
 reproduce analyses.
 

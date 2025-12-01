@@ -4,7 +4,8 @@ The Copernican Suite GUI uses a lightweight Tkinter scaffold so it can run
 inside the managed virtual environment without extra framework dependencies.
 The navigation rail stays visible at all times and the Home screen shows recent
 runs, pinned configurations and explicit quick actions for launching the Run
-Builder, the Run Monitor, or the output directory.
+Builder, the Run Monitor, the output directory or the **Import manifest...**
+workflow that clones an existing manifest for reuse.
 
 ## Run Builder
 
@@ -21,6 +22,8 @@ so even long catalogues stay visible without re-introducing multi-select menus.
 The navigation controls now grey out *Previous* on the first step and *Next* on
 the last so operators always see when they can move, and the only way to launch
 sampling is through the confirmation step’s **Start Run from manifest** button.
+A companion **Insert manifest** button stages the generated manifest so you can
+review metadata or export it before launching the worker.
 
 ## Data
 
@@ -45,7 +48,10 @@ Pressing **Start Run** launches the full CLI workflow in a background worker
 process using the current builder configuration. The GUI streams the worker's
 stdout/stderr into the diagnostics panel, mirrors CLI log messages and exposes
 Cancel/Hard Stop buttons that terminate the child process when you need to stop
-early. (Pause/resume is still a CLI-only feature.)
+early. (Pause/resume is still a CLI-only feature.) GUI workers now set
+`COPERNICAN_HEADLESS_RUN=1` so the CLI exits cleanly after finishing instead of
+prompting for another run, and the per-run log captures any unexpected
+exceptions even when the run is launched from the GUI.
 
 The Run Monitor now mirrors the CLI progress state with dual progress bars
 for the current batch/iteration counts and the walker-level reports plus a

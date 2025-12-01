@@ -1,12 +1,12 @@
 """Tests for the GUI run worker that launches the CLI pipeline."""
 
 import json
+import os
 from pathlib import Path
 
 import copernican
-
-from copernican_lib.cli import menus as cli_menus
 from copernican_lib import dataset_registry
+from copernican_lib.cli import menus as cli_menus
 from copernican_lib.gui import run_worker
 
 
@@ -65,6 +65,14 @@ def test_worker_main_loads_config_and_invokes_cli(
         run_called["count"] += 1
 
     monkeypatch.setattr(copernican, "main_workflow", _fake_main_workflow)
-    exit_code = run_worker.main([str(config_path)])
-    assert exit_code == 0
-    assert run_called["count"] == 1
+    prev_flag = os.environ.get("COPERNICAN_HEADLESS_RUN")
+    try:
+        exit_code = run_worker.main([str(config_path)])
+        assert exit_code == 0
+        assert run_called["count"] == 1
+        assert os.environ.get("COPERNICAN_HEADLESS_RUN") == "1"
+    finally:
+        if prev_flag is None:
+            os.environ.pop("COPERNICAN_HEADLESS_RUN", None)
+        else:
+            os.environ["COPERNICAN_HEADLESS_RUN"] = prev_flag

@@ -1286,6 +1286,29 @@ def prompt_post_run_action():
         console.write("Please choose 1 or C.", error=True)
 
 
+def _manifest_run_settings(plan: Mapping[str, Any]) -> dict[str, Any]:
+    """Return a sanitized snapshot of ``plan`` for manifest storage."""
+
+    keep_keys = (
+        "engine_kind",
+        "n_steps",
+        "burn_in_steps",
+        "n_walkers",
+        "pool_size",
+        "n_live_points",
+        "max_iterations",
+        "evidence_tolerance",
+        "enlargement_fraction",
+        "display_progress",
+        "pool_workers",
+    )
+    settings: dict[str, Any] = {}
+    for key in keep_keys:
+        if key in plan:
+            settings[key] = plan[key]
+    return settings
+
+
 def main_workflow():
     """Main workflow for the Copernican Suite."""
     # This routine coordinates the entire user interaction:
@@ -1378,7 +1401,9 @@ def main_workflow():
         )
         global CURRENT_LOG_FILE
         log_file = log_mod.setup_logging(
-            log_dir=OUTPUT_DIR, base_dir=SCRIPT_DIR
+            log_dir=OUTPUT_DIR,
+            base_dir=SCRIPT_DIR,
+            log_tag=f"copernican-run_{run_start_ts}.txt",
         )
         # The historical Gemini-era banner declared that Copernican had
         # initialised.  The suite now conveys that status implicitly through
@@ -1657,6 +1682,25 @@ def main_workflow():
                 f"Walker ensemble {sampling_walkers}, pool {pool_label}."
             )
 
+        manifest_configuration = {
+            "notes": "CLI Stage 1 configuration snapshot.",
+            "engine": {
+                "name": getattr(cosmo_engine_selected, "__name__", "engine"),
+                "version": getattr(
+                    cosmo_engine_selected, "ENGINE_VERSION", "unknown"
+                ),
+            },
+            "models": [
+                getattr(lcdm, "MODEL_NAME", "ΛCDM"),
+                getattr(alt_model_plugin, "MODEL_NAME", "Alternative"),
+            ],
+            "datasets": [
+                entry.get("id", "")
+                for entry in dataset_info
+                if entry.get("id")
+            ],
+            "run_settings": _manifest_run_settings(sampling_plan),
+        }
         manifest = run_manifest.build_manifest(
             models=[
                 (lcdm, lcdm_parsed.get("version", "unknown")),
@@ -1664,16 +1708,24 @@ def main_workflow():
             ],
             engine_module=cosmo_engine_selected,
             datasets=dataset_info,
+            configuration=manifest_configuration,
         )
         manifest_override = (
             str(_launch_args.manifest_path)
             if _launch_args and _launch_args.manifest_path is not None
             else None
         )
+        if manifest_override:
+            manifest_target = manifest_override
+        else:
+            manifest_target = (
+                Path(OUTPUT_DIR)
+                / f"run_manifest_{run_start_ts}.yml"
+            )
         manifest_path = run_manifest.save_manifest(
             manifest,
             OUTPUT_DIR,
-            target_path=manifest_override,
+            target_path=manifest_target,
         )
         program_logger.info(
             "Run manifest saved to %s", manifest_path
@@ -1823,6 +1875,7 @@ def main_workflow():
                 alt_model_plugin.MODEL_NAME: alt_model_fit_results,
             },
             OUTPUT_DIR,
+            timestamp=run_start_ts,
         )
 
         logger.info("\n--- Stage 3: BAO Analysis ---\n")
@@ -2072,29 +2125,6 @@ def main_workflow():
 
         run_end_dt = datetime.datetime.now(datetime.timezone.utc)
         end_ts = run_end_dt.strftime("%Y%m%d_%H%M%S")
-        new_dir = os.path.join(
-            OUTPUT_BASE_DIR, f"copernican-run_{end_ts}"
-        )
-        if OUTPUT_DIR != new_dir:
-            try:
-                os.rename(OUTPUT_DIR, new_dir)
-                OUTPUT_DIR = new_dir
-                log_file = os.path.join(
-                    OUTPUT_DIR, os.path.basename(log_file)
-                )
-            except OSError as e_dir:
-                logger.error(f"Failed renaming output directory: {e_dir}")
-        new_log = os.path.join(OUTPUT_DIR, f"copernican-run_{end_ts}.txt")
-        if log_file != new_log:
-            try:
-                os.rename(log_file, new_log)
-                CURRENT_LOG_FILE = new_log
-                logger.info(
-                    f"Log file renamed to {os.path.basename(new_log)}"
-                )
-                log_file = new_log
-            except OSError as e_ren:
-                logger.error(f"Failed renaming log file: {e_ren}")
 
         plotter.plot_hubble_diagram(
             sne_data_df,
@@ -2103,7 +2133,7 @@ def main_workflow():
             lcdm,
             alt_model_plugin,
             plot_dir=OUTPUT_DIR,
-            timestamp=end_ts,
+            timestamp=run_start_ts,
         )
         if bao_data_df is not None:
             plotter.plot_bao_observables(
@@ -2114,7 +2144,7 @@ def main_workflow():
                 alt_model_plugin,
                 sne_data_df,
                 plot_dir=OUTPUT_DIR,
-                timestamp=end_ts,
+                timestamp=run_start_ts,
             )
         if cmb_data_df is not None:
             plotter.plot_cmb_spectrum(
@@ -2126,7 +2156,7 @@ def main_workflow():
                 lcdm,
                 alt_model_plugin,
                 plot_dir=OUTPUT_DIR,
-                timestamp=end_ts,
+                timestamp=run_start_ts,
             )
 
         posterior_attrs = {
@@ -2167,7 +2197,7 @@ def main_workflow():
                     posterior_attrs,
                     plot_dir=OUTPUT_DIR,
                     parameter_names=param_names,
-                    timestamp=end_ts,
+                    timestamp=run_start_ts,
                 )
             except Exception as exc:  # pragma: no cover - log path only
                 logger.error(
@@ -2242,7 +2272,7 @@ def main_workflow():
             lcdm,
             alt_model_plugin,
             csv_dir=OUTPUT_DIR,
-            timestamp=end_ts,
+            timestamp=run_start_ts,
         )
 
         if bao_data_df is not None:
@@ -2252,7 +2282,7 @@ def main_workflow():
                 alt_bao_summary,
                 alt_model_name=alt_model_plugin.MODEL_NAME,
                 csv_dir=OUTPUT_DIR,
-                timestamp=end_ts,
+                timestamp=run_start_ts,
             )
         if cmb_data_df is not None:
             csv_writer.save_cmb_results_csv(
@@ -2261,7 +2291,7 @@ def main_workflow():
                 alt_cmb_summary,
                 alt_model_name=alt_model_plugin.MODEL_NAME,
                 csv_dir=OUTPUT_DIR,
-                timestamp=end_ts,
+                timestamp=run_start_ts,
             )
 
         if lcdm_fit_results.get("samples") is not None:
@@ -2270,7 +2300,7 @@ def main_workflow():
                 sne_data_df.attrs.get("dataset_id", "sne_data"),
                 "nc",
                 model_name=lcdm.MODEL_NAME.replace(" ", "_"),
-                timestamp=end_ts,
+                timestamp=run_start_ts,
             )
             chain_io.save_posterior(
                 lcdm_fit_results["samples"],
@@ -2289,7 +2319,7 @@ def main_workflow():
                 sne_data_df.attrs.get("dataset_id", "sne_data"),
                 "nc",
                 model_name=alt_model_plugin.MODEL_NAME.replace(" ", "_"),
-                timestamp=end_ts,
+                timestamp=run_start_ts,
             )
             chain_io.save_posterior(
                 alt_model_fit_results["samples"],
@@ -2325,7 +2355,11 @@ def main_workflow():
             f"{cpu_model} {cpu_freq} running {os_info}"
         )
 
-        run_again = prompt_post_run_action()
+        headless_run = os.environ.get("COPERNICAN_HEADLESS_RUN") == "1"
+        if headless_run:
+            run_again = False
+        else:
+            run_again = prompt_post_run_action()
         cleanup_cache(SCRIPT_DIR)
         if not run_again:
             logger.info("Exiting Copernican Suite. Goodbye!")

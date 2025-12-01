@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -75,9 +75,7 @@ def _patch_cli_runtime(config: dict[str, Any]) -> list[tuple[Any, str, Any]]:
 def main(argv: list[str] | None = None) -> int:
     """Entry point for the GUI worker invoked via ``python -m``."""
 
-    parser = argparse.ArgumentParser(
-        description="Copernican GUI run worker"
-    )
+    parser = argparse.ArgumentParser(description="Copernican GUI run worker")
     parser.add_argument("config_path", help="Path to the JSON configuration")
     args = parser.parse_args(argv)
     config_path = Path(args.config_path)
@@ -91,14 +89,22 @@ def main(argv: list[str] | None = None) -> int:
         import copernican
 
         os.environ.setdefault("COPERNICAN_DETACH_GUI", "0")
+        os.environ.setdefault("COPERNICAN_HEADLESS_RUN", "1")
         try:
             copernican.main_workflow()
             return 0
         except SystemExit as exc:  # pragma: no cover - propagated status
             return int(exc.code or 0)
+        except Exception:
+            logging.getLogger().critical(
+                "GUI worker encountered an unhandled exception.",
+                exc_info=True,
+            )
+            return 1
     finally:
         for obj, attr, original in reversed(patches):
             setattr(obj, attr, original)
+
 
 if __name__ == "__main__":  # pragma: no cover - worker entry point
     raise SystemExit(main())

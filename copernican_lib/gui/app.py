@@ -11,6 +11,7 @@ extra frameworks.
 
 from __future__ import annotations
 
+import copy
 import importlib
 import inspect
 import json
@@ -22,19 +23,19 @@ import sys
 import tempfile
 import threading
 import time
-from threading import Event
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Mapping, Optional
 
 try:
     import tkinter as tk
-    from tkinter import ttk
+    from tkinter import filedialog, ttk
 except Exception:  # pragma: no cover - executed only when Tk is missing
     tk = None
     ttk = None
+    filedialog = None
 
 import yaml
 
@@ -64,6 +65,7 @@ def _is_progress_line(line: str) -> bool:
         return True
     return False
 
+
 class RunStatus(Enum):
     """Enumerate the run lifecycle states shown in the status strip."""
 
@@ -73,6 +75,7 @@ class RunStatus(Enum):
     PAUSED = "Paused"
     CANCELLED = "Cancelled"
     ABORTED = "Aborted"
+
 
 @dataclass
 class RunDraft:
@@ -90,6 +93,7 @@ class RunDraft:
     production_steps: str = ""
     pool_size: str = ""
 
+
 @dataclass
 class NavigationItem:
     """Describe a navigation rail entry and its callback."""
@@ -98,6 +102,7 @@ class NavigationItem:
     label: str
     action: Callable[["CopernicanGUI"], None]
 
+
 @dataclass
 class RunSummary:
     """Capture the artefacts exposed on the completion screen."""
@@ -105,6 +110,7 @@ class RunSummary:
     output_links: list[str] = field(default_factory=list)
     manifest_actions: list[str] = field(default_factory=list)
     manifest_metadata: list[str] = field(default_factory=list)
+
 
 @dataclass
 class LogEntry:
@@ -116,6 +122,7 @@ class LogEntry:
     anchor: str
     formatted: str
 
+
 @dataclass
 class UIMessage:
     """Track toast or inline alerts with log anchors."""
@@ -124,6 +131,7 @@ class UIMessage:
     anchor: str
     severity: str
     context: str
+
 
 class _MemoryLogHandler(logging.Handler):
     """Capture structured log lines for on-screen diagnostics."""
@@ -159,6 +167,7 @@ class _MemoryLogHandler(logging.Handler):
         if not self.entries:
             return None
         return self.entries[-1].anchor
+
 
 class CopernicanGUI:
     """Build and manage the GUI layout with optional rendering.
@@ -197,6 +206,7 @@ class CopernicanGUI:
         self.pinned_configs: list[str] = []
         self.quick_actions: list[tuple[str, Callable[[], None]]] = [
             ("New Run", self.show_run_builder),
+            ("Import manifest...", self.prompt_manifest_import),
             ("Open Run Monitor", self.show_run_monitor),
             ("Open Output Folder", self.open_output_directory),
         ]
@@ -213,6 +223,7 @@ class CopernicanGUI:
         self._selected_engine_entry: dict | None = None
         self.selected_datasets: list[dict[str, str]] = []
         self.pending_manifest: Optional[dict] = None
+        self._staged_confirm_manifest: Optional[dict] = None
         self.catalogue_index: dict[str, dict] = {}
         self.model_index: dict[str, dict] = {}
         self.engine_index: dict[str, dict] = {}
@@ -1091,9 +1102,7 @@ class CopernicanGUI:
         try:
             return readme_path.read_text(encoding="utf-8")
         except Exception as exc:
-            message = (
-                f"Unable to read README.md for Help panel: {exc}"
-            )
+            message = f"Unable to read README.md for Help panel: {exc}"
             logger.get_program_logger().warning(message)
             return message
 
@@ -1189,13 +1198,9 @@ class CopernicanGUI:
             start, end = match.span()
             widget.insert("end", text[last:start], base_tags)
             if match.group(1):
-                widget.insert(
-                    "end", match.group(1), base_tags + ("bold",)
-                )
+                widget.insert("end", match.group(1), base_tags + ("bold",))
             else:
-                widget.insert(
-                    "end", match.group(2), base_tags + ("italic",)
-                )
+                widget.insert("end", match.group(2), base_tags + ("italic",))
             last = end
         widget.insert("end", text[last:], base_tags)
 
@@ -1237,15 +1242,9 @@ class CopernicanGUI:
                 "Run Monitor",
                 CopernicanGUI.show_run_monitor,
             ),
-            NavigationItem(
-                "data", "Data", CopernicanGUI.show_data_overview
-            ),
-            NavigationItem(
-                "models", "Models", CopernicanGUI.show_models
-            ),
-            NavigationItem(
-                "engines", "Engines", CopernicanGUI.show_engines
-            ),
+            NavigationItem("data", "Data", CopernicanGUI.show_data_overview),
+            NavigationItem("models", "Models", CopernicanGUI.show_models),
+            NavigationItem("engines", "Engines", CopernicanGUI.show_engines),
             NavigationItem(
                 "settings", "Settings", CopernicanGUI.show_settings
             ),
@@ -1332,10 +1331,49 @@ class CopernicanGUI:
 
         self._swap_content(builder)
 
+    def prompt_manifest_import(self) -> None:
+        """Ask the user to select a manifest file and load it."""
+
+        if filedialog is None:
+            self.create_toast(
+                "File dialogs are unavailable in the current environment.",
+                severity="ERROR",
+                context="home",
+            )
+            return
+        initial_dir = str(self._repo_root() / "output")
+        path = filedialog.askopenfilename(
+            title="Import manifest",
+            initialdir=initial_dir,
+            filetypes=[
+                ("YAML files", "*.yml *.yaml"),
+                ("All files", "*.*"),
+            ],
+        )
+        if not path:
+            return
+        try:
+            self.import_manifest(path)
+        except Exception as exc:
+            self.create_toast(
+                f"Failed to import manifest: {exc}",
+                severity="ERROR",
+                context="home",
+            )
+            return
+        self.summary.manifest_actions.append(f"Imported manifest from {path}")
+        self.create_toast(
+            "Manifest imported. Review the Run Builder selections.",
+            severity="INFO",
+            context="home",
+        )
+        self.show_run_builder()
+
     def show_run_builder(self) -> None:
         """Render the Run Builder wizard with jump controls."""
 
         self.refresh_inventory()
+
         def builder(frame: tk.Frame) -> None:
             header = ttk.Label(
                 frame, text="Run Builder", font=("Helvetica", 16)
@@ -1370,9 +1408,7 @@ class CopernicanGUI:
                 text="Previous",
                 command=self.previous_step,
                 state=(
-                    tk.DISABLED
-                    if self.current_step_index == 0
-                    else tk.NORMAL
+                    tk.DISABLED if self.current_step_index == 0 else tk.NORMAL
                 ),
                 takefocus=True,
                 **nav_button_style,
@@ -1383,8 +1419,7 @@ class CopernicanGUI:
                 command=self.next_step,
                 state=(
                     tk.DISABLED
-                    if self.current_step_index
-                    >= len(self.builder_steps) - 1
+                    if self.current_step_index >= len(self.builder_steps) - 1
                     else tk.NORMAL
                 ),
                 takefocus=True,
@@ -1472,6 +1507,7 @@ class CopernicanGUI:
             signature = inspect.signature(fit_fn)
         except Exception:
             return default_steps, default_walkers, default_pool
+
         def _default_value(name: str, fallback: int) -> int:
             param = signature.parameters.get(name)
             if param is None or param.default is inspect._empty:
@@ -1480,6 +1516,7 @@ class CopernicanGUI:
                 return int(param.default)
             except (TypeError, ValueError):
                 return fallback
+
         steps = _default_value("n_steps", default_steps)
         walkers = _default_value("n_walkers", default_walkers)
         pool = default_pool
@@ -1666,9 +1703,7 @@ class CopernicanGUI:
             dtype = record.get("type", "other").lower()
             type_groups.setdefault(dtype, []).append(record)
         ordered_types = [
-            dtype
-            for dtype in ("sne", "bao", "cmb")
-            if dtype in type_groups
+            dtype for dtype in ("sne", "bao", "cmb") if dtype in type_groups
         ] + sorted(
             dtype
             for dtype in type_groups
@@ -1850,9 +1885,7 @@ class CopernicanGUI:
         ).pack(anchor="w", pady=(0, 6))
         ttk.Label(
             container,
-            text=(
-                "Choose the computational backend to run your models."
-            ),
+            text=("Choose the computational backend to run your models."),
             wraplength=720,
             takefocus=True,
         ).pack(anchor="w")
@@ -2108,7 +2141,21 @@ class CopernicanGUI:
                 takefocus=True,
             ).pack(anchor="w", padx=(16, 0))
 
+    def _stage_confirm_manifest(self) -> None:
+        """Capture builder selections as a manifest snapshot for later use."""
+
+        try:
+            self._staged_confirm_manifest = self._generate_manifest_snapshot()
+        except Exception as exc:
+            self._staged_confirm_manifest = None
+            self.create_toast(
+                f"Unable to capture manifest snapshot: {exc}",
+                severity="ERROR",
+                context="run",
+            )
+
     def _render_builder_step_confirm(self, container: tk.Frame) -> None:
+        self._stage_confirm_manifest()
         ttk.Label(
             container,
             text="Confirm and start",
@@ -2121,13 +2168,11 @@ class CopernicanGUI:
             ("Seed", self.draft.seed or "unset"),
             (
                 "Models",
-                ", ".join(self.selected_models) or "no models selected"
+                ", ".join(self.selected_models) or "no models selected",
             ),
             (
                 "Datasets",
-                ", ".join(
-                    entry["id"] for entry in self.selected_datasets
-                )
+                ", ".join(entry["id"] for entry in self.selected_datasets)
                 or "no datasets selected",
             ),
             ("Engine", self.selected_engine or "unspecified"),
@@ -2148,6 +2193,13 @@ class CopernicanGUI:
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w")
+        ttk.Button(
+            container,
+            text="Insert manifest",
+            command=self.insert_manifest_from_builder,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        ).pack(anchor="w", pady=(12, 0))
         ttk.Button(
             container,
             text="Start Run from manifest",
@@ -2281,12 +2333,15 @@ class CopernicanGUI:
                     command=_open_current_folder,
                     takefocus=True,
                 ).pack(side="left", padx=2)
+
                 def _view_current_metadata() -> None:
                     self._present_metadata(
                         dataset_id, f"Dataset metadata: {dataset_id}"
                     )
+
                 def _revalidate_current_parser() -> None:
                     self._revalidate_dataset_action(dataset_id)
+
                 ttk.Button(
                     actions,
                     text="View metadata",
@@ -2354,16 +2409,19 @@ class CopernicanGUI:
                 actions.pack(anchor="w")
                 model_folder = os.path.dirname(model["path"])
                 model_id = model["id"]
+
                 def _open_model_folder() -> None:
                     self._open_folder_or_warn(
                         model_folder,
                         context="models",
                         subject=f"model {model_id}",
                     )
+
                 def _view_model_yaml() -> None:
                     self._present_metadata(
                         model_id, f"Model definition: {model_id}"
                     )
+
                 ttk.Button(
                     actions,
                     text="Open model folder",
@@ -2572,6 +2630,7 @@ class CopernicanGUI:
 
             output_buttons = ttk.Frame(output_frame)
             output_buttons.pack(anchor="w", pady=(4, 0))
+
             def _open_output_directory() -> None:
                 target = output_var.get().strip() or output_root
                 os.makedirs(target, exist_ok=True)
@@ -2583,6 +2642,7 @@ class CopernicanGUI:
                         severity="ERROR",
                         context="settings",
                     )
+
             ttk.Button(
                 output_buttons,
                 text="Open directory",
@@ -2964,10 +3024,9 @@ class CopernicanGUI:
             self._monitor_log_view_button.configure(state=log_state)
         if self._monitor_log_open_button:
             self._monitor_log_open_button.configure(state=log_state)
-        output_available = (
-            bool(self._current_run_output_dir)
-            and os.path.isdir(self._current_run_output_dir)
-        )
+        output_available = bool(
+            self._current_run_output_dir
+        ) and os.path.isdir(self._current_run_output_dir)
         if self._run_output_button:
             self._run_output_button.configure(
                 state=tk.NORMAL if output_available else tk.DISABLED
@@ -3025,6 +3084,7 @@ class CopernicanGUI:
 
         self.current_step_index = 0
         self.draft = RunDraft()
+        self._staged_confirm_manifest = None
         self.show_home()
 
     def save_draft(self) -> RunDraft:
@@ -3113,9 +3173,7 @@ class CopernicanGUI:
             dataset_id = entry.get("id", "")
             if dataset_type and dataset_id:
                 datasets[dataset_type] = dataset_id
-        plan = self._build_sampling_plan_values(
-            engine_entry["id"]
-        )
+        plan = self._build_sampling_plan_values(engine_entry["id"])
         progress_path = self._prepare_progress_path()
         self._progress_state_path = progress_path
         progress_state.clear_progress(progress_path)
@@ -3279,9 +3337,7 @@ class CopernicanGUI:
                 self._apply_progress_snapshot(snapshot)
             if (
                 self._progress_poll_stop is not None
-                and self._progress_poll_stop.wait(
-                    self._PROGRESS_POLL_INTERVAL
-                )
+                and self._progress_poll_stop.wait(self._PROGRESS_POLL_INTERVAL)
             ):
                 break
 
@@ -3373,11 +3429,7 @@ class CopernicanGUI:
     def _cancel_monitor_refresh(self) -> None:
         """Stop the pending monitor refresh job."""
 
-        if (
-            self._monitor_refresh_job
-            and self.render
-            and self.root is not None
-        ):
+        if self._monitor_refresh_job and self.render and self.root is not None:
             self.root.after_cancel(self._monitor_refresh_job)
         self._monitor_refresh_job = None
 
@@ -3411,9 +3463,12 @@ class CopernicanGUI:
             )
             return
         entries = self.get_run_log_entries()
-        content = "\n".join(
-            f"[{entry.anchor}] {entry.formatted}" for entry in entries
-        ) or "Run log is empty."
+        content = (
+            "\n".join(
+                f"[{entry.anchor}] {entry.formatted}" for entry in entries
+            )
+            or "Run log is empty."
+        )
         self._show_metadata_dialog(
             "Run log",
             content,
@@ -3472,9 +3527,12 @@ class CopernicanGUI:
             )
             return
         entries = self.get_application_log_entries()
-        content = "\n".join(
-            f"[{entry.anchor}] {entry.formatted}" for entry in entries
-        ) or "Diagnostics log is empty."
+        content = (
+            "\n".join(
+                f"[{entry.anchor}] {entry.formatted}" for entry in entries
+            )
+            or "Diagnostics log is empty."
+        )
         self._show_metadata_dialog(
             "Diagnostics log",
             content,
@@ -3618,7 +3676,7 @@ class CopernicanGUI:
     def cancel_run(self, disposition: str | None = None) -> None:
         """Mark the run as cancelled and reset the progress."""
 
-        if self.status is not RunStatus.RUNNING:
+        if self.status not in (RunStatus.RUNNING, RunStatus.CANCELLED):
             return
         self._terminate_run_process(force=False)
         self.status = RunStatus.CANCELLED
@@ -3656,7 +3714,7 @@ class CopernicanGUI:
     def stop_run(self, disposition: str | None = None) -> None:
         """Stop the run while keeping the monitor visible."""
 
-        if self.status is not RunStatus.RUNNING:
+        if self.status not in (RunStatus.RUNNING, RunStatus.CANCELLED):
             return
         self._terminate_run_process(force=True)
         self.status = RunStatus.ABORTED
@@ -3711,6 +3769,24 @@ class CopernicanGUI:
             self._start_run_logging(self.pending_manifest)
         self.start_run()
         self._launch_worker_process(config=worker_config)
+
+    def insert_manifest_from_builder(self) -> None:
+        """Load the staged builder manifest without launching a run."""
+
+        if self._staged_confirm_manifest is None:
+            self._stage_confirm_manifest()
+        if self._staged_confirm_manifest is None:
+            return
+        self.pending_manifest = copy.deepcopy(self._staged_confirm_manifest)
+        self.summary.manifest_actions.append(
+            "Inserted manifest from Run Builder"
+        )
+        self.summary.manifest_metadata = self._summarise_manifest()
+        self.create_toast(
+            "Manifest inserted. Review metadata before starting the run.",
+            severity="INFO",
+            context="run",
+        )
 
     def import_manifest(self, path: str) -> dict:
         """Load a manifest and seed the builder selections from it."""
@@ -3770,6 +3846,9 @@ class CopernicanGUI:
             self.draft.engine = self.selected_engine
         confirmation = manifest.get("confirmation", {})
         self.draft.plan = confirmation.get("plan", "Duplicate manifest")
+        run_settings = configuration.get("run_settings", {})
+        if isinstance(run_settings, dict):
+            self._apply_run_settings_to_draft(run_settings)
         self.show_run_builder()
         return manifest
 
@@ -3819,12 +3898,66 @@ class CopernicanGUI:
                 "version": entry.get("version", "unknown") if entry else "",
                 "independence": entry.get("independence", []) if entry else [],
                 "type": entry.get("type", "") if entry else "",
-                "license": entry.get("license", "unspecified")
-                if entry
-                else "unspecified",
+                "license": (
+                    entry.get("license", "unspecified")
+                    if entry
+                    else "unspecified"
+                ),
                 "badges": entry.get("badges", []) if entry else [],
             }
         )
+
+    def _collect_run_settings_snapshot(self) -> dict[str, object] | None:
+        """Return canonical run settings from the builder inputs."""
+
+        try:
+            engine_entry = self._resolve_engine_entry()
+            plan = self._build_sampling_plan_values(engine_entry["id"])
+            snapshot = dict(plan)
+            return snapshot
+        except Exception:
+            pass
+        fallback_fields = {
+            "n_walkers": self.draft.walkers,
+            "burn_in_steps": self.draft.burn_in,
+            "n_steps": self.draft.production_steps,
+            "pool_size": self.draft.pool_size,
+        }
+        sanitized: dict[str, object] = {}
+        for key, value in fallback_fields.items():
+            if not isinstance(value, str):
+                continue
+            trimmed = value.strip()
+            if not trimmed:
+                continue
+            parsed = self._safe_int(trimmed, None)
+            sanitized[key] = parsed if parsed is not None else trimmed
+        if sanitized:
+            sanitized.setdefault("engine_kind", "mcmc")
+        return sanitized or None
+
+    def _apply_run_settings_to_draft(
+        self, settings: Mapping[str, object]
+    ) -> None:
+        """Populate draft controls from manifest run settings."""
+
+        def _set(field: str, key: str) -> None:
+            value = settings.get(key)
+            if value is None:
+                setattr(self.draft, field, "")
+            else:
+                setattr(self.draft, field, str(value))
+
+        _set("walkers", "n_walkers")
+        _set("burn_in", "burn_in_steps")
+        _set("production_steps", "n_steps")
+        pool_value = settings.get("pool_size")
+        if pool_value is None:
+            pool_value = settings.get("pool_workers")
+        if pool_value in ("", None):
+            self.draft.pool_size = ""
+        else:
+            self.draft.pool_size = str(pool_value)
 
     def _generate_manifest_snapshot(self) -> dict:
         """Build a manifest using the current builder selections."""
@@ -3878,22 +4011,9 @@ class CopernicanGUI:
             "datasets": [dataset.get("id", "") for dataset in datasets],
             "notes": "Snapshot captured at run start confirmation.",
         }
-        run_settings_fields = {
-            "walkers": self.draft.walkers,
-            "burn_in": self.draft.burn_in,
-            "production_steps": self.draft.production_steps,
-            "pool_size": self.draft.pool_size,
-        }
-        sanitized_settings: dict[str, int | str] = {}
-        for key, value in run_settings_fields.items():
-            trimmed = value.strip()
-            if not trimmed:
-                continue
-            sanitized_settings[key] = (
-                int(trimmed) if trimmed.isdigit() else trimmed
-            )
-        if sanitized_settings:
-            configuration["run_settings"] = sanitized_settings
+        run_settings = self._collect_run_settings_snapshot()
+        if run_settings:
+            configuration["run_settings"] = run_settings
         manifest = run_manifest.build_manifest(
             models=model_pairs,
             engine_module=engine,
@@ -3963,5 +4083,6 @@ class CopernicanGUI:
 
         if self.render and self.root is not None:
             self.root.mainloop()
+
 
 __all__ = ["CopernicanGUI", "RunStatus", "RunDraft", "RunSummary"]

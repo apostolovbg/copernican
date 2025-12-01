@@ -1,5 +1,6 @@
 """Tests for no_future_dates policy."""
 
+import datetime as dt
 import tempfile
 import unittest
 from pathlib import Path
@@ -18,6 +19,10 @@ class TestNoFutureDatesPolicy(unittest.TestCase):
             # future = (dt.date.today() + dt.timedelta(days=1)).isoformat()
 
             test_file = repo_root / "test.md"
+            future_date = (
+                dt.datetime.now(dt.timezone.utc).date() + dt.timedelta(days=1)
+            ).isoformat()
+            test_file.write_text(f"**Last Updated:** {future_date}\n")
 
             context = CheckContext(repo_root=repo_root, all_files=[test_file])
             policy = NoFutureDatesCheck()
@@ -33,6 +38,8 @@ class TestNoFutureDatesPolicy(unittest.TestCase):
             # today = dt.date.today().isoformat()
 
             test_file = repo_root / "test.md"
+            today_date = dt.datetime.now(dt.timezone.utc).date().isoformat()
+            test_file.write_text(f"**Last Updated:** {today_date}\n")
 
             context = CheckContext(repo_root=repo_root, all_files=[test_file])
             policy = NoFutureDatesCheck()

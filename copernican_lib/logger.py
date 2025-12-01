@@ -29,6 +29,7 @@ _PROGRAM_LOGGER_NAME = "copernican.program"
 _DEFAULT_PROGRAM_LOG_PREFIX = "copernican-program"
 _PROGRAM_LOGGER: logging.Logger | None = None
 
+
 class _PathFilter(logging.Filter):
     """Filter that strips absolute paths above the project root."""
 
@@ -45,6 +46,7 @@ class _PathFilter(logging.Filter):
             record.msg = clean.replace(self.base_dir, ".")
         return True
 
+
 class _ConsoleFilter(logging.Filter):
     """Filter to exclude captured console messages from the StreamHandler."""
 
@@ -55,6 +57,7 @@ class _ConsoleFilter(logging.Filter):
         # console via the original call, so the stream handler should ignore
         # them to avoid duplicate lines.
         return not getattr(record, "console_capture", False)
+
 
 def _patch_builtins(base_dir: str) -> None:
     """Mirror print and input to the logger with path sanitisation."""
@@ -104,6 +107,7 @@ def _patch_builtins(base_dir: str) -> None:
     input_patch.__copernican_patched__ = True
     builtins.print = print_patch
     builtins.input = input_patch
+
 
 def setup_program_logging(
     log_dir: str = "logs",
@@ -161,14 +165,22 @@ def setup_program_logging(
     _PROGRAM_LOGGER = logger_obj
     return log_path
 
-def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
+
+def setup_logging(
+    log_dir: str = ".",
+    base_dir: str | None = None,
+    *,
+    log_tag: str | None = None,
+) -> str:
     """Initialise logging and return the log file path.
 
     A file handler stores timestamped records while a stream handler echoes
     messages to the console.  The routine also patches ``print`` and
     ``input`` so that all interactive exchanges are captured.  When
     ``base_dir`` is provided, absolute paths inside log messages are
-    shortened to keep the output relocatable.
+    shortened to keep the output relocatable.  ``log_tag`` may be provided to
+    force the log filename (with or without ``.txt``) so callers can align the
+    log with a predetermined timestamp.
     """
 
     ensure_dir_exists(log_dir)
@@ -177,9 +189,11 @@ def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
 
-    # Name log file using an execution timestamp
-    run_tag = f"copernican-run_{get_timestamp()}.txt"
-    log_filename = os.path.join(log_dir, run_tag)
+    # Name log file using an execution timestamp or explicit tag
+    file_tag = log_tag or f"copernican-run_{get_timestamp()}.txt"
+    if not file_tag.endswith(".txt"):
+        file_tag = f"{file_tag}.txt"
+    log_filename = os.path.join(log_dir, file_tag)
 
     fh = logging.FileHandler(log_filename)
     fh.setLevel(logging.INFO)
@@ -206,6 +220,7 @@ def setup_logging(log_dir: str = ".", base_dir: str | None = None) -> str:
         _patch_builtins(base_dir)
 
     return log_filename
+
 
 def log_environment_info(target_logger: logging.Logger | None = None) -> None:
     """Log Python, OS, CPU and key package versions.
@@ -240,6 +255,7 @@ def log_environment_info(target_logger: logging.Logger | None = None) -> None:
     )
     console_output.write(f"Environment summary: {summary}")
 
+
 def get_program_logger() -> logging.Logger:
     """Return the suite-level diagnostics logger."""
 
@@ -247,6 +263,7 @@ def get_program_logger() -> logging.Logger:
     if _PROGRAM_LOGGER is None:
         _PROGRAM_LOGGER = logging.getLogger(_PROGRAM_LOGGER_NAME)
     return _PROGRAM_LOGGER
+
 
 def get_logger():
     """Returns the active logger instance."""

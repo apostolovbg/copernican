@@ -20,6 +20,30 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.9.14
+- 2025-12-01: Anchored every per-run artefact to the run-start timestamp, saved
+             the sampler configuration into the manifest, and ensured GUI
+             workers log exceptions while keeping the CLI decoupled from the
+             staged menu by setting a headless-run flag
+             (copernican.py, copernican_lib/logger.py,
+             copernican_lib/gui/run_worker.py, tests/test_gui_run_worker.py).
+- 2025-12-01: Added Insert manifest and Import manifest GUI controls, taught
+             manifest import/export to round-trip run settings and documented
+             the workflow so both CLI and GUI manifests stay in sync
+             (copernican_lib/gui/app.py, README.md, docs/gui_overview.md,
+             docs/run_manifest.md, tests/test_gui_app.py).
+- 2025-12-01: Bumped the release metadata to 10.9.14 so documentation and
+             citation headers reflect the timestamp and manifest updates
+             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+- 2025-12-01: Removed the stray “ 2” sibling files so only canonical artifacts
+            remain and appended the change here for clarity
+            (CHANGELOG.md, .gitattributes 2, .gitignore 2,
+            .pre-commit-config 2.yaml, AGENTS 2.md, CHANGELOG 2.md,
+            CITATION 2.cff, CONTRIBUTING 2.md, DEVCOVENANT_LAW_MAPPING 2.md,
+            LICENSE 2.md, MANIFEST 2.in, Makefile 2, PLAN 2.json, README 2.md,
+            THIRD_PARTY_LICENSES 2.md, copernican 2.py, cosmo_model_template 2.yml,
+            devcovenant_check 2.py, pyproject 2.toml, requirements 2.in,
+            requirements 2.lock, start 2.bat, start 2.command, start 2.sh).
 ## Version 10.9.13
 - 2025-12-01: Removed the forced active-state color from the shared ttk button
              style so conditionally enabled buttons inherit their OS-provided
