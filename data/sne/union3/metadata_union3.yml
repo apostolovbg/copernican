@@ -3,10 +3,9 @@ attribution: "Union3 dataset by Rubin et al."
 dataset_id: union3_2025
 version: "2025.1"
 description: >-
-  Union Through UNITY packages 2,000 Type Ia supernovae processed with the
-  UNITY 1.5 Bayesian framework. The release delivers the compressed distance
-  modulus vector plus inverse covariance that the Copernican Suite consumes
-  directly without rerunning the UNITY sampler.
+  Compressed Union Through UNITY distances: 2,000 Type Ia supernovae processed
+  with UNITY 1.5, delivering the distance moduli vector and inverse covariance
+  that the suite uses directly
 citation: >-
   Rubin et al. (2025) – "Union Through UNITY: Cosmology with 2,000 SNe Using a
   Unified Bayesian Framework" (arXiv:2311.12098).
