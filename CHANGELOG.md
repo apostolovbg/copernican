@@ -20,6 +20,20 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.9.6
+- 2025-12-01: Added a dedicated Run Monitor navigation button with live
+             progress bars, run log filters, **View log** / **Open log…**
+             buttons, an “Open run output” quick action, and Cancel/Pause/Hard
+             Stop controls that only enable when a run is active (copernican_lib/gui/app.py).
+- 2025-12-01: Introduced the About page, the Exit Suite shortcut, diagnostics
+             flush/open/view buttons, and suppressed progress-bar writes from
+             the CLI/GUI logs so only structured entries reach the log files
+             (ABOUT.md, copernican_lib/console_output.py,
+             copernican_lib/progress.py, copernican_lib/logger.py).
+- 2025-12-01: Bumped the release metadata to 10.9.6 so the documentation and
+             citation headers match the new behavior (copernican_lib/VERSION,
+             README.md, CITATION.cff, CHANGELOG.md).
+
 ## Version 10.9.5
 - 2025-12-01: Start-up launchers now detect whether `copernican-suite` is
              present before showing the menu, share a single option that

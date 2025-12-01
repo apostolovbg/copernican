@@ -1,4 +1,4 @@
-**Version:** 10.9.5
+**Version:** 10.9.6
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -389,6 +389,24 @@ cite them without recomputation.
    folder under `output/` when the run completes. Pass `--output-dir` to
    `copernican.py` to redirect runs to a specific base directory when building
    headless automation.
+
+## Run Monitor and Diagnostics
+
+- The GUI now exposes a dedicated **Run Monitor** navigation entry just below
+  Run Builder.  It mirrors the CLI sampler by showing both batch and walker
+  progress bars, filtering options, and quick actions to **View log** or
+  **Open log…** without leaving the GUI.  Cancel/Pause/Hard Stop buttons stay
+  greyed out until a run is active, and an **Open run output** button appears
+  once a run directory is created.  The **Exit Suite** button closes the
+  process, flushes cached progress files, and reuses the CLI exit routine so
+  the GUI and CLI remain behaviourally aligned.
+- The `Settings` page now doubles as a diagnostics cockpit: filter buttons
+  scope the application log, **View diagnostics log** and **Open diagnostics
+  log…** launch the viewer or the system editor, and the new **Flush log**
+  button forces buffered messages to disk while clearing the in-memory snapshot.
+- A fresh **About** page resides in the navigation rail and renders `ABOUT.md`
+  using the same dialog infrastructure that metadata views share, keeping the
+  project summary and citation information a single click away.
 
 ## Dependencies
 The launchers automatically bootstrap a dedicated Python 3.11 interpreter into

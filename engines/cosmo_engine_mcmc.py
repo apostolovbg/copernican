@@ -87,6 +87,7 @@ warnings.filterwarnings(
 
 ENGINE_KIND = "mcmc"
 ENGINE_LABEL = "Ensemble MCMC sampler"
+ENGINE_VERSION = "7.6.20"
 
 # ``emcee`` triggers its condition number guard when walkers occupy an almost
 # degenerate subspace.  The suite accepts wildly different model definitions,

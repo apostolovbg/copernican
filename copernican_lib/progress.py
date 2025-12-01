@@ -193,7 +193,7 @@ class BatchProgressBar:
         # newlines. The old implementation relied on ``end="\r"`` which worked
         # interactively but left blank spacer rows in logs that captured the
         # trailing carriage return as a standalone line feed.
-        console.write(f"\r{rendered_text}", end="")
+        console.write(f"\r{rendered_text}", end="", log=False)
         self._last_rendered = rendered_text
 
     def _emit_display_line(self, display_line: str) -> None:
@@ -283,7 +283,8 @@ class BatchProgressBar:
             step_word = "step" if span == 1 else "steps"
             console.write(
                 f"{self._stage_label} batch {self._batch_index} "
-                f"({span} {step_word}) progress:"
+                f"({span} {step_word}) progress:",
+                log=False,
             )
             if self._current_span > 0:
                 (
@@ -424,8 +425,8 @@ class BatchProgressBar:
                 # the spacer separate from the clearing pass ensures captured
                 # transcripts still include the blank line even when the
                 # renderer was idle at 0%.
-                console.write("")
-                console.write("")
+                console.write("", log=False)
+                console.write("", log=False)
             self._active = False
             self._last_percent = -1
             self._last_line = ""

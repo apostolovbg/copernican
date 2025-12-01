@@ -77,7 +77,10 @@ def _patch_builtins(base_dir: str) -> None:
     def print_patch(*args, **kwargs):
         """Proxy ``print`` that mirrors output to the log file."""
         orig_print(*args, **kwargs)
-        if kwargs.get("file", sys.stdout) is sys.stdout:
+        if (
+            kwargs.get("file", sys.stdout) is sys.stdout
+            and not console_output.console_logging_suppressed()
+        ):
             sep = kwargs.get("sep", " ")
             end = kwargs.get("end", "\n")
             message = sep.join(str(a) for a in args)

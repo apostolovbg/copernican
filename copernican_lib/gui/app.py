@@ -200,6 +200,7 @@ class CopernicanGUI:
         self.catalogue_index: dict[str, dict] = {}
         self.model_index: dict[str, dict] = {}
         self.engine_index: dict[str, dict] = {}
+        self._current_run_output_dir: str | None = None
         self.metadata_cache: dict[str, str] = {}
         self.validation_notes: list[str] = []
         self.last_filter_types: list[str] = []
@@ -230,6 +231,14 @@ class CopernicanGUI:
         self._walker_progressbar: ttk.Progressbar | None = None
         self._monitor_log_widget: tk.Text | None = None
         self._monitor_filter_label: ttk.Label | None = None
+        self._monitor_log_view_button: ttk.Button | None = None
+        self._monitor_log_open_button: ttk.Button | None = None
+        self._diagnostics_log_widget: tk.Text | None = None
+        self._diagnostics_filter_label: ttk.Label | None = None
+        self._cancel_button: ttk.Button | None = None
+        self._pause_button: ttk.Button | None = None
+        self._hard_stop_button: ttk.Button | None = None
+        self._run_output_button: ttk.Button | None = None
         self._bootstrap_logging()
         self._build_navigation()
         self._initialise_rendering()
@@ -314,6 +323,9 @@ class CopernicanGUI:
         os.makedirs("logs/runs", exist_ok=True)
         log_tag = f"copernican-run_{utils.get_timestamp()}.txt"
         self.run_log_path = os.path.join("logs", "runs", log_tag)
+        self._current_run_output_dir = os.path.join(
+            "output", Path(log_tag).stem
+        )
         self.run_logger = logging.getLogger("copernican.gui.run")
         self.run_logger.setLevel(logging.INFO)
         self.run_logger.propagate = False
@@ -389,6 +401,11 @@ class CopernicanGUI:
         """Update the severity filter applied in Diagnostics."""
 
         self.diagnostics_filter_level = severity.upper()
+        if self._diagnostics_filter_label:
+            self._diagnostics_filter_label.configure(
+                text=f"Filter: {self.diagnostics_filter_level}+"
+            )
+        self._refresh_diagnostics_widget()
 
     def set_monitor_filter(self, severity: str) -> None:
         """Update the Run Monitor severity filter."""
@@ -1171,6 +1188,11 @@ class CopernicanGUI:
                 CopernicanGUI.show_run_builder,
             ),
             NavigationItem(
+                "run_monitor",
+                "Run Monitor",
+                CopernicanGUI.show_run_monitor,
+            ),
+            NavigationItem(
                 "data", "Data", CopernicanGUI.show_data_overview
             ),
             NavigationItem(
@@ -1183,6 +1205,8 @@ class CopernicanGUI:
                 "settings", "Settings", CopernicanGUI.show_settings
             ),
             NavigationItem("help", "Help", CopernicanGUI.show_help),
+            NavigationItem("about", "About", CopernicanGUI.show_about),
+            NavigationItem("exit", "Exit Suite", CopernicanGUI.exit_suite),
         ]
 
     def _build_layout(self) -> None:
@@ -2398,13 +2422,16 @@ class CopernicanGUI:
             diag_frame.pack(fill="x", pady=(4, 4))
             ttk.Label(
                 diag_frame,
-                text=(
-                    f"App log path: {self.application_log_path} "
-                    f"(filter {self.diagnostics_filter_level}+)"
-                ),
+                text=f"App log path: {self.application_log_path}",
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w")
+            self._diagnostics_filter_label = ttk.Label(
+                diag_frame,
+                text=f"Filter: {self.diagnostics_filter_level}+",
+                takefocus=True,
+            )
+            self._diagnostics_filter_label.pack(anchor="w", pady=(2, 0))
             filter_frame = ttk.Frame(diag_frame)
             filter_frame.pack(anchor="w", pady=(4, 4))
             ttk.Button(
@@ -2419,25 +2446,51 @@ class CopernicanGUI:
                 command=lambda: self.set_diagnostics_filter("ERROR"),
                 takefocus=True,
             ).pack(side="left", padx=2)
-            for entry in self.get_application_log_entries()[-5:]:
-                ttk.Label(
-                    diag_frame,
-                    text=f"[{entry.anchor}] {entry.formatted}",
-                    wraplength=720,
-                    takefocus=True,
-                ).pack(anchor="w")
+            text_panel = ttk.Frame(diag_frame)
+            text_panel.pack(fill="both", expand=True)
+            text_panel.columnconfigure(0, weight=1)
+            text_panel.rowconfigure(0, weight=1)
+            diag_text = tk.Text(
+                text_panel,
+                wrap="none",
+                padx=8,
+                pady=6,
+                borderwidth=0,
+                highlightthickness=0,
+                height=10,
+            )
+            diag_text.grid(row=0, column=0, sticky="nsew")
+            vscroll = ttk.Scrollbar(
+                text_panel, orient="vertical", command=diag_text.yview
+            )
+            vscroll.grid(row=0, column=1, sticky="ns")
+            hscroll = ttk.Scrollbar(
+                text_panel, orient="horizontal", command=diag_text.xview
+            )
+            hscroll.grid(row=1, column=0, sticky="ew")
+            diag_text.configure(
+                yscrollcommand=vscroll.set, xscrollcommand=hscroll.set
+            )
+            diag_text.configure(state="disabled")
+            self._diagnostics_log_widget = diag_text
             actions = ttk.Frame(diag_frame)
             actions.pack(anchor="w", pady=(6, 0))
             ttk.Button(
                 actions,
-                text="Copy filtered log",
-                command=self.copy_application_logs,
+                text="View diagnostics log",
+                command=self._view_diagnostics_log,
                 takefocus=True,
             ).pack(side="left", padx=2)
             ttk.Button(
                 actions,
-                text="Download diagnostics",
-                command=lambda: self.export_application_logs("logs/exports"),
+                text="Open diagnostics log…",
+                command=self._open_diagnostics_log,
+                takefocus=True,
+            ).pack(side="left", padx=2)
+            ttk.Button(
+                actions,
+                text="Flush log",
+                command=self._flush_application_log,
                 takefocus=True,
             ).pack(side="left", padx=2)
 
@@ -2583,6 +2636,40 @@ class CopernicanGUI:
 
         self._swap_content(builder)
 
+    def show_about(self) -> None:
+        """Display the ABOUT.md content inside a view window."""
+
+        about_path = Path(__file__).resolve().parents[2] / "ABOUT.md"
+        if not about_path.exists():
+            self.create_toast(
+                "About document is missing; check ABOUT.md",
+                severity="ERROR",
+                context="about",
+            )
+            return
+        content = self._read_asset_text(str(about_path))
+        self._show_metadata_dialog(
+            "About the Copernican Suite",
+            content,
+            str(about_path),
+        )
+
+    def exit_suite(self) -> None:
+        """Shut down the GUI session and delegate to the CLI exit helper."""
+
+        self._stop_progress_poller()
+        self._cancel_monitor_refresh()
+        if self._progress_state_path:
+            progress_state.clear_progress(self._progress_state_path)
+            self._progress_state_path = None
+        self._log_program_event("GUI exit requested", logging.INFO)
+        try:
+            import copernican
+
+            copernican.exit_clean(0)
+        except Exception:
+            sys.exit(0)
+
     def show_run_monitor(self) -> None:
         """Display live run status controls."""
 
@@ -2702,18 +2789,20 @@ class CopernicanGUI:
             self._monitor_log_widget = text_widget
             log_actions = ttk.Frame(log_frame)
             log_actions.pack(anchor="w", pady=(4, 0))
-            ttk.Button(
+            self._monitor_log_view_button = ttk.Button(
                 log_actions,
-                text="Copy filtered log",
-                command=self.copy_run_logs,
+                text="View log",
+                command=self._view_run_log,
                 takefocus=True,
-            ).pack(side="left", padx=2)
-            ttk.Button(
+            )
+            self._monitor_log_view_button.pack(side="left", padx=2)
+            self._monitor_log_open_button = ttk.Button(
                 log_actions,
-                text="Export run log",
-                command=lambda: self.export_run_logs("logs/exports"),
+                text="Open log…",
+                command=self._open_run_log_file,
                 takefocus=True,
-            ).pack(side="left", padx=2)
+            )
+            self._monitor_log_open_button.pack(side="left", padx=2)
             alerts = ttk.LabelFrame(frame, text="Active alerts")
             alerts.pack(fill="x", pady=(4, 8))
             for alert in self.alerts[-5:]:
@@ -2741,24 +2830,34 @@ class CopernicanGUI:
                 ).pack(side="left", padx=2)
             controls = ttk.Frame(frame)
             controls.pack(anchor="w")
-            ttk.Button(
+            self._run_output_button = ttk.Button(
+                controls,
+                text="Open run output",
+                command=self.open_current_run_output,
+                takefocus=True,
+            )
+            self._run_output_button.pack(side="left", padx=4)
+            self._cancel_button = ttk.Button(
                 controls,
                 text="Cancel",
                 command=self.cancel_run,
                 takefocus=True,
-            ).pack(side="left", padx=4)
-            ttk.Button(
+            )
+            self._cancel_button.pack(side="left", padx=4)
+            self._pause_button = ttk.Button(
                 controls,
                 text="Pause",
                 command=self.pause_run,
                 takefocus=True,
-            ).pack(side="left", padx=4)
-            ttk.Button(
+            )
+            self._pause_button.pack(side="left", padx=4)
+            self._hard_stop_button = ttk.Button(
                 controls,
                 text="Hard Stop",
                 command=self.stop_run,
                 takefocus=True,
-            ).pack(side="left", padx=4)
+            )
+            self._hard_stop_button.pack(side="left", padx=4)
             self._refresh_monitor_widgets()
             self._schedule_monitor_refresh()
 
@@ -2779,6 +2878,33 @@ class CopernicanGUI:
 
         if self._status_label is not None:
             self._status_label.configure(text=self._status_text())
+
+    def _update_monitor_controls_state(self) -> None:
+        """Enable or disable monitor buttons based on current state."""
+
+        run_active = self.status is RunStatus.RUNNING
+        control_state = tk.NORMAL if run_active else tk.DISABLED
+        for button in (
+            self._cancel_button,
+            self._pause_button,
+            self._hard_stop_button,
+        ):
+            if button:
+                button.configure(state=control_state)
+        log_available = bool(self.run_log_path)
+        log_state = tk.NORMAL if log_available else tk.DISABLED
+        if self._monitor_log_view_button:
+            self._monitor_log_view_button.configure(state=log_state)
+        if self._monitor_log_open_button:
+            self._monitor_log_open_button.configure(state=log_state)
+        output_available = (
+            bool(self._current_run_output_dir)
+            and os.path.isdir(self._current_run_output_dir)
+        )
+        if self._run_output_button:
+            self._run_output_button.configure(
+                state=tk.NORMAL if output_available else tk.DISABLED
+            )
 
     def show_summary(self) -> None:
         """Display the completion summary with manifest reuse actions."""
@@ -3126,6 +3252,7 @@ class CopernicanGUI:
             )
         self._refresh_status_label()
         self._refresh_run_log_widget()
+        self._update_monitor_controls_state()
 
     def _refresh_run_log_widget(self) -> None:
         """Populate the run log text widget with the latest entries."""
@@ -3133,6 +3260,7 @@ class CopernicanGUI:
         if self._monitor_log_widget is None:
             return
         entries = self.get_run_log_entries()
+        prev_view = self._monitor_log_widget.yview()
         self._monitor_log_widget.configure(state="normal")
         self._monitor_log_widget.delete("1.0", "end")
         for entry in entries[-200:]:
@@ -3141,7 +3269,13 @@ class CopernicanGUI:
                 f"[{entry.anchor}] {entry.formatted}\n",
             )
         self._monitor_log_widget.configure(state="disabled")
-        self._monitor_log_widget.see("end")
+        if prev_view:
+            try:
+                self._monitor_log_widget.yview_moveto(
+                    max(0.0, min(prev_view[0], 1.0))
+                )
+            except Exception:
+                pass
 
     def _schedule_monitor_refresh(self) -> None:
         """Keep the monitor refreshing at regular intervals."""
@@ -3177,6 +3311,143 @@ class CopernicanGUI:
         ):
             self.root.after_cancel(self._monitor_refresh_job)
         self._monitor_refresh_job = None
+
+    def open_current_run_output(self) -> None:
+        """Open the latest run output directory if it exists."""
+
+        if not self._current_run_output_dir:
+            self.create_toast(
+                "Run output directory is not ready yet.",
+                severity="WARNING",
+                context="monitor",
+            )
+            return
+        try:
+            self.open_folder(self._current_run_output_dir)
+        except FileNotFoundError:
+            self.create_toast(
+                "Run output directory is missing on disk.",
+                severity="ERROR",
+                context="monitor",
+            )
+
+    def _view_run_log(self) -> None:
+        """Show the filtered run log entries in a read-only dialog."""
+
+        if not self.run_log_path:
+            self.create_toast(
+                "Run log is not yet available.",
+                severity="WARNING",
+                context="monitor",
+            )
+            return
+        entries = self.get_run_log_entries()
+        content = "\n".join(
+            f"[{entry.anchor}] {entry.formatted}" for entry in entries
+        ) or "Run log is empty."
+        self._show_metadata_dialog(
+            "Run log",
+            content,
+            self.run_log_path,
+        )
+
+    def _open_run_log_file(self) -> None:
+        """Open the run log with the desktop default editor."""
+
+        if not self.run_log_path:
+            self.create_toast(
+                "Run log is not yet available.",
+                severity="WARNING",
+                context="monitor",
+            )
+            return
+        try:
+            self._open_path_with_system(self.run_log_path)
+        except Exception as exc:
+            self.create_toast(
+                f"Unable to open run log: {exc}",
+                severity="ERROR",
+                context="monitor",
+            )
+
+    def _refresh_diagnostics_widget(self) -> None:
+        """Refresh the diagnostics text widget with the latest entries."""
+
+        if self._diagnostics_log_widget is None:
+            return
+        prev_view = self._diagnostics_log_widget.yview()
+        entries = self.get_application_log_entries()
+        self._diagnostics_log_widget.configure(state="normal")
+        self._diagnostics_log_widget.delete("1.0", "end")
+        for entry in entries[-200:]:
+            self._diagnostics_log_widget.insert(
+                "end", f"[{entry.anchor}] {entry.formatted}\n"
+            )
+        self._diagnostics_log_widget.configure(state="disabled")
+        if prev_view:
+            try:
+                self._diagnostics_log_widget.yview_moveto(
+                    max(0.0, min(prev_view[0], 1.0))
+                )
+            except Exception:
+                pass
+
+    def _view_diagnostics_log(self) -> None:
+        """Present the diagnostics log in a dedicated viewer."""
+
+        if not self.application_log_path:
+            self.create_toast(
+                "Diagnostics log is not yet available.",
+                severity="WARNING",
+                context="settings",
+            )
+            return
+        entries = self.get_application_log_entries()
+        content = "\n".join(
+            f"[{entry.anchor}] {entry.formatted}" for entry in entries
+        ) or "Diagnostics log is empty."
+        self._show_metadata_dialog(
+            "Diagnostics log",
+            content,
+            self.application_log_path,
+        )
+
+    def _open_diagnostics_log(self) -> None:
+        """Open the diagnostics log file with the system default editor."""
+
+        if not self.application_log_path:
+            self.create_toast(
+                "Diagnostics log is not yet available.",
+                severity="WARNING",
+                context="settings",
+            )
+            return
+        try:
+            self._open_path_with_system(self.application_log_path)
+        except Exception as exc:
+            self.create_toast(
+                f"Unable to open diagnostics log: {exc}",
+                severity="ERROR",
+                context="settings",
+            )
+
+    def _flush_application_log(self) -> None:
+        """Flush the diagnostics log buffer and clear the in-memory entries."""
+
+        program_logger = logger.get_program_logger()
+        for handler in list(program_logger.handlers):
+            try:
+                handler.flush()
+            except Exception:
+                pass
+        if self.application_log_handler:
+            self.application_log_handler.entries.clear()
+        self._refresh_diagnostics_widget()
+        self.create_toast(
+            "Diagnostics log flushed to disk.",
+            severity="INFO",
+            context="settings",
+        )
 
     def _terminate_run_process(self, *, force: bool) -> None:
         """Terminate the active worker process if it exists."""

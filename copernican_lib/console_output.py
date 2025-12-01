@@ -3,26 +3,61 @@
 
 """Console I/O helpers shared across the Copernican Suite.
 
-All user facing text is funneled through this module so that console
-messages and prompts are handled in one place.  The logger patches
-``print`` and ``input`` to capture output verbatim; these helpers provide
-the indirection necessary to keep that behaviour consistent everywhere.
-Keeping the wrapper centralised also ensures the project never writes
-directly to ``stdout`` or ``stderr`` without passing through the
-logging-aware hooks defined in :mod:`copernican_lib.logger`.
+All user facing text is funneled through this module so that the patched
+``print``/``input`` hooks in :mod:`copernican_lib.logger` can capture every
+message exactly once while the helpers centralize which outputs should be
+mirrored to the active log file.  Wrapping the calls also keeps the terminal
+display consistent and allows per-message control over whether a line should
+be persisted.  The helpers always flush so carriage-return based progress bars
+remain visible on every platform.
 """
 
+from __future__ import annotations
+
+import contextlib
 import sys
+import threading
 
-def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
-    """Display ``msg`` on the console and mirror it to the log file.
+_LOGGING_SUPPRESSION = threading.local()
 
-    Routing all prints through this function ensures the patched
-    ``print``/``input`` hooks in :mod:`copernican_lib.logger` can record
-    every message exactly once.  Direct calls to ``print`` should be
-    avoided inside the project so that logs remain faithful. The stream
-    is always flushed so progress lines using carriage returns remain
-    visible on all platforms.
+
+@contextlib.contextmanager
+def _suppress_console_logging():
+    """Temporarily disable logging for patched ``print`` calls."""
+
+    previous = getattr(_LOGGING_SUPPRESSION, "value", False)
+    _LOGGING_SUPPRESSION.value = True
+    try:
+        yield
+    finally:
+        _LOGGING_SUPPRESSION.value = previous
+
+
+def console_logging_suppressed() -> bool:
+    """Return whether console output currently suppresses logging."""
+
+    return getattr(_LOGGING_SUPPRESSION, "value", False)
+
+
+def _direct_print(msg: str, *, end: str, error: bool) -> None:
+    """Print ``msg`` to the desired stream while handling Unicode safely."""
+
+    stream = sys.stderr if error else sys.stdout
+    try:
+        print(msg, end=end, file=stream, flush=True)
+    except UnicodeEncodeError:
+        fallback = msg.encode("ascii", errors="replace").decode("ascii")
+        print(fallback, end=end, file=stream, flush=True)
+
+
+def write(
+    msg: str = "",
+    *,
+    end: str = "\n",
+    error: bool = False,
+    log: bool = True,
+) -> None:
+    """Display ``msg`` and optionally mirror it to the log file.
 
     Parameters
     ----------
@@ -31,26 +66,21 @@ def write(msg: str = "", *, end: str = "\n", error: bool = False) -> None:
     end : str, optional
         String appended after the message. Defaults to a newline.
     error : bool, optional
-        When ``True`` the message is sent to ``stderr`` rather than
-        ``stdout``.
-
-    The write is wrapped in a ``try`` block so terminals that cannot
-    represent certain Unicode characters still receive output. Unencodable
-    characters are replaced with ``?`` to avoid raising a
-    :class:`UnicodeEncodeError`.
+        When ``True`` the message is sent to ``stderr`` instead of ``stdout``.
+    log : bool, optional
+        When ``False`` the patched ``print`` hook temporarily suppresses
+        logging so the message remains visible without growing the log file.
+        This is useful for high-frequency progress bars or status refreshes.
     """
-    stream = sys.stderr if error else sys.stdout
-    try:
-        print(msg, end=end, file=stream, flush=True)
-    except UnicodeEncodeError:
-        fallback = msg.encode("ascii", errors="replace").decode("ascii")
-        print(fallback, end=end, file=stream, flush=True)
+
+    if log:
+        _direct_print(msg, end=end, error=error)
+        return
+    with _suppress_console_logging():
+        _direct_print(msg, end=end, error=error)
+
 
 def ask(prompt: str = "") -> str:
-    """Prompt the user and return their input while logging the exchange.
+    """Prompt the user and return their input while logging the exchange."""
 
-    The patched :func:`builtins.input` records both the prompt and the
-    response to the active log file.  Wrapping the call here clarifies the
-    intent and avoids scattering raw ``input`` calls across the codebase.
-    """
     return input(prompt)

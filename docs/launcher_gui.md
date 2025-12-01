@@ -56,6 +56,17 @@ or deployment. Once `.venv` exists you can also run the suites directly without
 the launcher by setting `COPERNICAN_ALLOW_DIRECT=1` before each invocation so
 the guard inside `copernican.py` permits the standalone command.
 
+## Run Monitor
+
+The GUI now exposes a dedicated **Run Monitor** button below Run Builder.
+It mirrors the CLI sampler with batch and walker progress bars, logs filtered
+by severity and buttons to **View log** or **Open log…** without leaving the
+window.  The control row also surfaces an **Open run output** button that opens
+the current output folder and keeps the Cancel/Pause/Hard Stop trio disabled
+whenever no run is active.  The Exit Suite entry in the navigation rail runs
+the CLI exit routine while purging any progress snapshots so GUI and CLI
+behaviour stay aligned.
+
 ## Detach strategy
 
 `copernican.py --gui` still detaches automatically when `COPERNICAN_DETACH_GUI`
@@ -97,8 +108,10 @@ control Tcl/Tk, and any exceptions thrown during Tkinitialisation. If the GUI
 fails to open, consult the newest log file to see the failure stack trace and
 the values of `COPERNICAN_DETACH_GUI`, `TCL_LIBRARY` and `TK_LIBRARY`. The log
 also records whether the inline GUI path succeeded or whether the launcher had
-to fall back to headless mode, giving you the exact sequence for Law 11
-auditing.
+
+The Settings panel mirrors the Run Monitor log controls with **View
+diagnostics log**, **Open diagnostics log…** and **Flush log** buttons so
+you can inspect and flush the application log without leaving the GUI.
 
 ## Troubleshooting
 
@@ -121,3 +134,7 @@ feature work, so every start script tweak must be mirrored in `README.md`,
 for the launcher workflow, referencing the shared orchestration services,
 exposing the `COPERNICAN_DETACH_GUI` flag and describing how the GUI now
 detaches cleanly across platforms.
+
+The navigation rail also carries an **About** entry that renders `ABOUT.md`
+through the same view dialog used by metadata panels, keeping the project
+summary and citation guidance tied directly to the GUI.
