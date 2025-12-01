@@ -15,9 +15,9 @@
 set -eu
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$0")"
+SCRIPT_ARGS=("$@")
 
 EXPECTED_VENV="$(pwd)/.venv"
-VENV_PYTHON="$EXPECTED_VENV/bin/python"
 PY_DIR="$(pwd)/.python"
 TCL_LIBRARY="$(pwd)/.python/lib/tcl8.6"
 TK_LIBRARY="$(pwd)/.python/lib/tk8.6"
@@ -34,7 +34,7 @@ if [ "${COPERNICAN_STRICT_WARNINGS:-}" = "1" ]; then
 fi
 SUITE_INSTALLED=0
 update_suite_state() {
-    if [ -x "$VENV_PYTHON" ] && "$VENV_PYTHON" -m pip show copernican-suite >/dev/null 2>&1; then
+    if python -m pip show copernican-suite >/dev/null 2>&1; then
         SUITE_INSTALLED=1
     else
         SUITE_INSTALLED=0
@@ -44,21 +44,23 @@ update_suite_state() {
 update_dependencies() {
     echo
     echo "Updating managed dependencies..."
-    if [ ! -x "$VENV_PYTHON" ]; then
+    local venv_python
+    venv_python="$EXPECTED_VENV/bin/python"
+    if [ ! -x "$venv_python" ]; then
         echo "The managed virtual environment is missing." >&2
         echo "Choose 'Create the managed virtual environment' first." >&2
         return 0
     fi
-    if ! "$VENV_PYTHON" -m pip install --upgrade pip; then
+    if ! "$venv_python" -m pip install --upgrade pip; then
         echo "Failed to upgrade pip." >&2
         return 1
     fi
-    if ! "$VENV_PYTHON" -m pip install -r requirements.lock; then
+    if ! "$venv_python" -m pip install -r requirements.lock; then
         echo "Failed to install dependencies." >&2
         return 1
     fi
     rm -rf build
-    if ! "$VENV_PYTHON" -m pip install --no-deps .; then
+    if ! "$venv_python" -m pip install --no-deps .; then
         echo "Failed to reinstall the Copernican Suite." >&2
         return 1
     fi
@@ -75,36 +77,26 @@ remove_environment() {
     return 0
 }
 
-	rebuild_environment() {
-	    echo
-	    echo "Rebuilding the managed virtual environment..."
-	    rm -rf "$EXPECTED_VENV"
-	    unset VIRTUAL_ENV || true
-	    exec "$SCRIPT" "$@"
-	}
+rebuild_environment() {
+    echo
+    echo "Rebuilding the managed virtual environment..."
+    rm -rf "$EXPECTED_VENV"
+    unset VIRTUAL_ENV || true
+    exec "$SCRIPT" "${SCRIPT_ARGS[@]}"
+}
 
 install_suite() {
     echo
     echo "Installing the Copernican Suite and pinned dependencies..."
-    if [ ! -x "$VENV_PYTHON" ]; then
-        echo "The managed virtual environment is missing." >&2
-        echo "Create it before installing the Copernican Suite." >&2
-        return 1
-    fi
+    source .venv/bin/activate
     if ! ensure_pip; then
         echo "Unable to bootstrap pip; try running `pip install --upgrade pip` manually." >&2
         return 1
     fi
-    if ! "$VENV_PYTHON" -m pip install --upgrade pip; then
-        return 1
-    fi
-    if ! "$VENV_PYTHON" -m pip install -r requirements.lock; then
-        return 1
-    fi
+    python -m pip install --upgrade pip || return 1
+    python -m pip install -r requirements.lock || return 1
     rm -rf build
-    if ! "$VENV_PYTHON" -m pip install --no-deps .; then
-        return 1
-    fi
+    python -m pip install --no-deps . || return 1
     rm -rf build
     update_suite_state
     echo "Installation complete."
@@ -114,12 +106,8 @@ install_suite() {
 uninstall_suite() {
     echo
     echo "Uninstalling the Copernican Suite from the managed environment..."
-    if [ ! -x "$VENV_PYTHON" ]; then
-        echo "The managed virtual environment is missing; nothing to uninstall." >&2
-        update_suite_state
-        return 0
-    fi
-    "$VENV_PYTHON" -m pip uninstall -y copernican-suite || true
+    source .venv/bin/activate
+    python -m pip uninstall -y copernican-suite || true
     update_suite_state
     echo "Uninstallation complete."
     return 0
@@ -206,7 +194,7 @@ brew_pkg() {
 }
 
 ensure_pip() {
-    if [ -x "$VENV_PYTHON" ] && "$VENV_PYTHON" -m ensurepip --upgrade; then
+    if python -m ensurepip --upgrade; then
         return 0
     fi
 
@@ -218,15 +206,9 @@ ensure_pip() {
         return 1
     fi
 
-    if [ -x "$VENV_PYTHON" ]; then
-        if ! "$VENV_PYTHON" "$tmpfile"; then
-            rm -f "$tmpfile"
-            echo "Failed to bootstrap pip via get-pip.py." >&2
-            return 1
-        fi
-    else
+    if ! python "$tmpfile"; then
         rm -f "$tmpfile"
-        echo "Managed Python missing while bootstrapping pip." >&2
+        echo "Failed to bootstrap pip via get-pip.py." >&2
         return 1
     fi
 
@@ -374,4 +356,4 @@ fi
 python -m pip install --upgrade pip
 python -m pip install -r requirements.lock
 update_suite_state
-exec "$SCRIPT" "$@"
+exec "$SCRIPT" "${SCRIPT_ARGS[@]}"

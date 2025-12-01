@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "copernican-suite"
 description = "Evaluate cosmological models using observational data."
-version = "10.9.6"
+version = "attr: copernican_lib.version:get_version"
 authors = [{name = "Copernican Developers"}]
 license = {file = "LICENSE.md"}
 requires-python = ">=3.11,<3.12"

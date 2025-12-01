@@ -1,0 +1,29 @@
+**/.DS_Store
+*.pyc
+.DS_Store
+/__pycache__
+/__pycache__/
+/models/cache
+/output
+/output/
+__pycache__/
+data/**/.DS_Store
+output/
+output/.DS_Store
+.logs/
+logs/
+.vscode/
+/.vscode
+copernican_suite.egg-info
+.venv/
+build/
+/.python
+.cache/dependency_scan.json
+# Local dependency cache generated at runtime; keep it untracked so every
+# contributor works with a private scan snapshot.
+/.cache
+/.cache/
+.cache/
+/logs
+/logs/
+logs/

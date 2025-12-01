@@ -20,7 +20,6 @@ if exist "copernican_lib\VERSION" (
     ) do set "SUITE_VERSION=%%I"
 )
 set "EXPECTED_VENV=%CD%\.venv"
-set "VENV_PYBIN=%EXPECTED_VENV%\Scripts\python.exe"
 set "PYDIR=%CD%\.python"
 set "TCL_LIBRARY=%PYDIR%\lib\tcl8.6"
 set "TK_LIBRARY=%PYDIR%\lib\tk8.6"
@@ -126,25 +125,25 @@ if errorlevel 1 (
 goto menu
 
 :update_dependencies
-if not exist "%VENV_PYBIN%" (
+if not exist "%EXPECTED_VENV%\Scripts\python.exe" (
     echo.
     echo The managed virtual environment is missing.
     exit /b 0
 )
 echo.
 echo Updating managed dependencies...
-"%VENV_PYBIN%" -m pip install --upgrade pip
+"%EXPECTED_VENV%\Scripts\python.exe" -m pip install --upgrade pip
 if errorlevel 1 (
     echo Failed to upgrade pip.
     exit /b 1
 )
-"%VENV_PYBIN%" -m pip install -r requirements.lock
+"%EXPECTED_VENV%\Scripts\python.exe" -m pip install -r requirements.lock
 if errorlevel 1 (
     echo Failed to install dependencies.
     exit /b 1
 )
 if exist build rmdir /s /q build
-"%VENV_PYBIN%" -m pip install --no-deps .
+"%EXPECTED_VENV%\Scripts\python.exe" -m pip install --no-deps .
 set "COPERNICAN_UPDATE_ERR=%ERRORLEVEL%"
 if exist build rmdir /s /q build
 if not "%COPERNICAN_UPDATE_ERR%"=="0" (
@@ -157,22 +156,21 @@ exit /b 0
 :install_suite
 echo.
 echo Installing the Copernican Suite and pinned dependencies...
-if not exist "%VENV_PYBIN%" (
-    echo The managed virtual environment is missing; create it first.
-    exit /b 1
-)
 if exist "%EXPECTED_VENV%\Scripts\activate.bat" (
     call "%EXPECTED_VENV%\Scripts\activate.bat"
+) else (
+    echo The managed virtual environment is missing; create it first.
+    exit /b 1
 )
 call :ensure_pip
 if errorlevel 1 (
     echo Unable to bootstrap pip.
     exit /b 1
 )
-"%VENV_PYBIN%" -m pip install --upgrade pip
-"%VENV_PYBIN%" -m pip install -r requirements.lock
+python -m pip install --upgrade pip
+python -m pip install -r requirements.lock
 if exist build rmdir /s /q build
-"%VENV_PYBIN%" -m pip install --no-deps .
+python -m pip install --no-deps .
 if exist build rmdir /s /q build
 echo Installation complete.
 goto :eof
@@ -180,14 +178,13 @@ goto :eof
 :uninstall_suite
 echo.
 echo Uninstalling the Copernican Suite from the managed environment...
-if not exist "%VENV_PYBIN%" (
+if exist "%EXPECTED_VENV%\Scripts\activate.bat" (
+    call "%EXPECTED_VENV%\Scripts\activate.bat"
+) else (
     echo The managed virtual environment is missing; nothing to uninstall.
     exit /b 0
 )
-if exist "%EXPECTED_VENV%\Scripts\activate.bat" (
-    call "%EXPECTED_VENV%\Scripts\activate.bat"
-)
-"%VENV_PYBIN%" -m pip uninstall -y copernican-suite || true
+python -m pip uninstall -y copernican-suite || true
 echo Uninstallation complete.
 goto :eof
 
@@ -237,7 +234,7 @@ powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
 exit /b %ERRORLEVEL%
 
 :ensure_pip
-"%VENV_PYBIN%" -m ensurepip --upgrade
+%PYTHON% -m ensurepip --upgrade
 if errorlevel 1 (
     set "COPERNICAN_GETPIP=%TEMP%\copernican-get-pip.py"
     powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
@@ -265,7 +262,6 @@ exit /b 0
 set STRICT=0
 if /I "%COPERNICAN_STRICT_WARNINGS%"=="1" set STRICT=1
 :loop
-call :update_suite_state
 echo.
 echo Copernican Suite %SUITE_VERSION% Launcher:
 echo.
@@ -279,12 +275,9 @@ if "%STRICT%"=="1" (
     echo 4^) Enable strict warning mode
 )
 echo 5^) Environment and dependency management
-if "%SUITE_INSTALLED%"=="1" (
-    echo 6^) Uninstall Copernican Suite
-) else (
-    echo 6^) Install Copernican Suite
-)
-echo 7^) Exit
+echo 6^) Install Copernican Suite
+echo 7^) Uninstall Copernican Suite
+echo 8^) Exit
 echo.
 set "CHOICE="
 set /p CHOICE=Write the number of choice:
@@ -312,15 +305,15 @@ if "%CHOICE%"=="4" (
 )
 if "%CHOICE%"=="5" goto env_menu
 if "%CHOICE%"=="6" (
-    if "%SUITE_INSTALLED%"=="1" (
-        call :uninstall_suite
-    ) else (
-        call :install_suite
-    )
+    call :install_suite
     goto loop
 )
-if "%CHOICE%"=="7" goto :eof
-echo Please enter a number between 1 and 7.
+if "%CHOICE%"=="7" (
+    call :uninstall_suite
+    goto loop
+)
+if "%CHOICE%"=="8" goto :eof
+echo Please enter a number between 1 and 8.
 goto loop
 
 :env_menu
@@ -392,17 +385,5 @@ if not "%PYTEST_ERR%"=="0" (
 )
 if not "%UNITTEST_ERR%"=="0" (
     echo Unit tests failed; see the log above.
-)
-exit /b 0
-
-:update_suite_state
-set "SUITE_INSTALLED=0"
-if exist "%VENV_PYBIN%" (
-    "%VENV_PYBIN%" -m pip show copernican-suite >nul 2>&1
-    if "%ERRORLEVEL%"=="0" (
-        set "SUITE_INSTALLED=1"
-    )
-)
-    set "SUITE_INSTALLED=1"
 )
 exit /b 0

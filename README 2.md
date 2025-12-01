@@ -1,4 +1,4 @@
-**Version:** 10.9.13
+**Version:** 10.9.4
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -366,10 +366,8 @@ cite them without recomputation.
    unit tests. Option 4 toggles strict-warning enforcement for the upcoming
    session. Option 5 opens the *Environment and dependency management* submenu
    where you can update pinned dependencies, rebuild or remove the managed
-   virtual environment, and keep `pip install -r requirements.lock` in sync with
-   the locked stack. Option 6 now toggles between installing and uninstalling
-   the `copernican-suite` package depending on whether it is already present,
-   letting the controlled environment remain optional, and option 7 exits.
+   virtual environment, and toggle automatic dependency installation for
+   future runs. Option 6 exits.
 3. Choose "Run the unit test suite" from the launcher's menu or execute
    `python -m unittest discover -v` directly. The test runner reports
    informational messages, warnings and errors while verifying the
@@ -389,24 +387,6 @@ cite them without recomputation.
    folder under `output/` when the run completes. Pass `--output-dir` to
    `copernican.py` to redirect runs to a specific base directory when building
    headless automation.
-
-## Run Monitor and Diagnostics
-
-- The GUI now exposes a dedicated **Run Monitor** navigation entry just below
-  Run Builder.  It mirrors the CLI sampler by showing both batch and walker
-  progress bars, filtering options, and quick actions to **View log** or
-  **Open log…** without leaving the GUI.  Cancel/Pause/Hard Stop buttons stay
-  greyed out until a run is active, and an **Open run output** button appears
-  once a run directory is created.  The **Exit Suite** button closes the
-  process, flushes cached progress files, and reuses the CLI exit routine so
-  the GUI and CLI remain behaviourally aligned.
-- The `Settings` page now doubles as a diagnostics cockpit: filter buttons
-  scope the application log, **View diagnostics log** and **Open diagnostics
-  log…** launch the viewer or the system editor, and the new **Flush log**
-  button forces buffered messages to disk while clearing the in-memory snapshot.
-- A fresh **About** page resides in the navigation rail and renders `ABOUT.md`
-  using the same dialog infrastructure that metadata views share, keeping the
-  project summary and citation information a single click away.
 
 ## Dependencies
 The launchers automatically bootstrap a dedicated Python 3.11 interpreter into

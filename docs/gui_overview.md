@@ -18,6 +18,9 @@ confirm panel lists the new run settings alongside the usual seeds, models and
 datasets before operators hit *Start Run*.
 Each dataset type renders in its own widened listbox with a dedicated scrollbar
 so even long catalogues stay visible without re-introducing multi-select menus.
+The navigation controls now grey out *Previous* on the first step and *Next* on
+the last so operators always see when they can move, and the only way to launch
+sampling is through the confirmation step’s **Start Run from manifest** button.
 
 ## Data
 
@@ -44,12 +47,15 @@ stdout/stderr into the diagnostics panel, mirrors CLI log messages and exposes
 Cancel/Hard Stop buttons that terminate the child process when you need to stop
 early. (Pause/resume is still a CLI-only feature.)
 
-The Run Monitor now mirrors the CLI progress state with dual progress bars for
-the current batch/iteration counts and the walker-level reports plus a
+The Run Monitor now mirrors the CLI progress state with dual progress bars
+for the current batch/iteration counts and the walker-level reports plus a
 scrollable log console that tails `logs/runs/*.txt`. The filter buttons keep
 INFO, WARNING or ERROR entries visible so you can follow the exact same
 diagnostics the command line renders while the GUI keeps every alert anchored
-for quick navigation.
+for quick navigation. That log console now drops the rapid spinner/percentage
+rows streamed from the CLI so it shows only batch summaries, and the
+Cancel/Pause/Hard Stop buttons stay disabled (greyed out) until a run starts,
+after which they return to their normal, clickable appearance.
 
 ## Metadata dialogs
 

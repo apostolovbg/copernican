@@ -48,6 +48,22 @@ from copernican_lib import (
     version,
 )
 
+_PROGRESS_SPINNER_CHARS = frozenset("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+
+
+def _is_progress_line(line: str) -> bool:
+    """Return True for stdout lines that stream the CLI progress bar."""
+
+    stripped = line.strip()
+    if not stripped:
+        return True
+    lower = stripped.lower()
+    if "progress:" in lower and "batch" in lower:
+        return True
+    if any(char in stripped for char in _PROGRESS_SPINNER_CHARS):
+        return True
+    return False
+
 class RunStatus(Enum):
     """Enumerate the run lifecycle states shown in the status strip."""
 
@@ -233,6 +249,9 @@ class CopernicanGUI:
         self._monitor_filter_label: ttk.Label | None = None
         self._monitor_log_view_button: ttk.Button | None = None
         self._monitor_log_open_button: ttk.Button | None = None
+        self._monitor_control_buttons: list[ttk.Button] = []
+        self._monitor_button_style_name = "Copernican.RunControl.TButton"
+        self._monitor_button_style_ready = False
         self._diagnostics_log_widget: tk.Text | None = None
         self._diagnostics_filter_label: ttk.Label | None = None
         self._cancel_button: ttk.Button | None = None
@@ -261,6 +280,31 @@ class CopernicanGUI:
             "GUI launch completed; diagnostics stream active",
             logging.INFO,
         )
+
+    def _ensure_monitor_button_styles(self) -> None:
+        """Configure ttk styles so disabled run controls appear grey."""
+
+        if self._monitor_button_style_ready:
+            return
+        if not self.render or ttk is None or self.root is None:
+            return
+        style = ttk.Style(self.root)
+        style.configure(self._monitor_button_style_name)
+        style.map(
+            self._monitor_button_style_name,
+            foreground=[
+                ("disabled", "#7f7f7f"),
+            ],
+        )
+        self._monitor_button_style_ready = True
+
+    def _monitor_button_kwargs(self) -> dict[str, str]:
+        """Return ttk configuration for buttons with the monitor style."""
+
+        self._ensure_monitor_button_styles()
+        if self._monitor_button_style_ready:
+            return {"style": self._monitor_button_style_name}
+        return {}
 
     def _attach_handler(
         self, logger_obj: logging.Logger, handler: _MemoryLogHandler
@@ -510,6 +554,7 @@ class CopernicanGUI:
             self.root.title(f"Copernican Suite {self.gui_version}")
             self.root.geometry("1200x800")
             self.root.configure(padx=12, pady=12)
+            self._ensure_monitor_button_styles()
             self._build_layout()
         except Exception as exc:  # pragma: no cover - only hits Tk failures
             console_output.write(
@@ -1319,35 +1364,45 @@ class CopernicanGUI:
             body.pack(anchor="w", pady=(8, 8))
             controls = ttk.Frame(frame)
             controls.pack(anchor="w")
+            nav_button_style = self._monitor_button_kwargs()
             ttk.Button(
                 controls,
                 text="Previous",
                 command=self.previous_step,
+                state=(
+                    tk.DISABLED
+                    if self.current_step_index == 0
+                    else tk.NORMAL
+                ),
                 takefocus=True,
+                **nav_button_style,
             ).pack(side="left", padx=4)
             ttk.Button(
                 controls,
                 text="Next",
                 command=self.next_step,
+                state=(
+                    tk.DISABLED
+                    if self.current_step_index
+                    >= len(self.builder_steps) - 1
+                    else tk.NORMAL
+                ),
                 takefocus=True,
+                **nav_button_style,
             ).pack(side="left", padx=4)
             ttk.Button(
                 controls,
                 text="Save Draft",
                 command=self.save_draft,
                 takefocus=True,
+                **nav_button_style,
             ).pack(side="left", padx=4)
             ttk.Button(
                 controls,
                 text="Cancel",
                 command=self.cancel_builder,
                 takefocus=True,
-            ).pack(side="left", padx=4)
-            ttk.Button(
-                controls,
-                text="Start Run",
-                command=self.confirm_start_run,
-                takefocus=True,
+                **nav_button_style,
             ).pack(side="left", padx=4)
             content_panel = ttk.Frame(frame, padding=(0, 8))
             content_panel.pack(fill="both", expand=True)
@@ -2097,6 +2152,8 @@ class CopernicanGUI:
             container,
             text="Start Run from manifest",
             command=self.confirm_start_run,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
         ).pack(anchor="w", pady=(8, 0))
 
     def _dataset_manifest_record(self, entry: dict) -> dict[str, object]:
@@ -2789,11 +2846,13 @@ class CopernicanGUI:
             self._monitor_log_widget = text_widget
             log_actions = ttk.Frame(log_frame)
             log_actions.pack(anchor="w", pady=(4, 0))
+            button_style = self._monitor_button_kwargs()
             self._monitor_log_view_button = ttk.Button(
                 log_actions,
                 text="View log",
                 command=self._view_run_log,
                 takefocus=True,
+                **button_style,
             )
             self._monitor_log_view_button.pack(side="left", padx=2)
             self._monitor_log_open_button = ttk.Button(
@@ -2801,6 +2860,7 @@ class CopernicanGUI:
                 text="Open log…",
                 command=self._open_run_log_file,
                 takefocus=True,
+                **button_style,
             )
             self._monitor_log_open_button.pack(side="left", padx=2)
             alerts = ttk.LabelFrame(frame, text="Active alerts")
@@ -2830,11 +2890,13 @@ class CopernicanGUI:
                 ).pack(side="left", padx=2)
             controls = ttk.Frame(frame)
             controls.pack(anchor="w")
+            button_style = self._monitor_button_kwargs()
             self._run_output_button = ttk.Button(
                 controls,
                 text="Open run output",
                 command=self.open_current_run_output,
                 takefocus=True,
+                **button_style,
             )
             self._run_output_button.pack(side="left", padx=4)
             self._cancel_button = ttk.Button(
@@ -2842,6 +2904,7 @@ class CopernicanGUI:
                 text="Cancel",
                 command=self.cancel_run,
                 takefocus=True,
+                **button_style,
             )
             self._cancel_button.pack(side="left", padx=4)
             self._pause_button = ttk.Button(
@@ -2849,6 +2912,7 @@ class CopernicanGUI:
                 text="Pause",
                 command=self.pause_run,
                 takefocus=True,
+                **button_style,
             )
             self._pause_button.pack(side="left", padx=4)
             self._hard_stop_button = ttk.Button(
@@ -2856,8 +2920,15 @@ class CopernicanGUI:
                 text="Hard Stop",
                 command=self.stop_run,
                 takefocus=True,
+                **button_style,
             )
             self._hard_stop_button.pack(side="left", padx=4)
+            self._monitor_control_buttons = [
+                self._cancel_button,
+                self._pause_button,
+                self._hard_stop_button,
+            ]
+            self._update_monitor_controls_state()
             self._refresh_monitor_widgets()
             self._schedule_monitor_refresh()
 
@@ -2884,11 +2955,7 @@ class CopernicanGUI:
 
         run_active = self.status is RunStatus.RUNNING
         control_state = tk.NORMAL if run_active else tk.DISABLED
-        for button in (
-            self._cancel_button,
-            self._pause_button,
-            self._hard_stop_button,
-        ):
+        for button in self._monitor_control_buttons:
             if button:
                 button.configure(state=control_state)
         log_available = bool(self.run_log_path)
@@ -3130,6 +3197,8 @@ class CopernicanGUI:
             if not cleaned:
                 continue
             if cleaned.startswith("\r"):
+                continue
+            if _is_progress_line(cleaned):
                 continue
             self._log_run_event(cleaned, logging.INFO)
 
@@ -3549,6 +3618,8 @@ class CopernicanGUI:
     def cancel_run(self, disposition: str | None = None) -> None:
         """Mark the run as cancelled and reset the progress."""
 
+        if self.status is not RunStatus.RUNNING:
+            return
         self._terminate_run_process(force=False)
         self.status = RunStatus.CANCELLED
         self.current_phase = "Cancelled"
@@ -3585,6 +3656,8 @@ class CopernicanGUI:
     def stop_run(self, disposition: str | None = None) -> None:
         """Stop the run while keeping the monitor visible."""
 
+        if self.status is not RunStatus.RUNNING:
+            return
         self._terminate_run_process(force=True)
         self.status = RunStatus.ABORTED
         self.current_phase = "Aborted"
