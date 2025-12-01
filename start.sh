@@ -16,7 +16,6 @@ set -eu
 # Resolve absolute path to this script before changing directories.
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$0")"
-SCRIPT_ARGS=("$@")
 
 EXPECTED_VENV="$(pwd)/.venv"
 PY_DIR="$(pwd)/.python"
@@ -83,7 +82,7 @@ rebuild_environment() {
     echo "Rebuilding the managed virtual environment..."
     rm -rf "$EXPECTED_VENV"
     unset VIRTUAL_ENV || true
-    exec "$SCRIPT" "${SCRIPT_ARGS[@]}"
+    exec "$SCRIPT" "$@"
 }
 
 install_suite() {
@@ -365,4 +364,4 @@ fi
 python -m pip install --upgrade pip
 python -m pip install -r requirements.lock
 update_suite_state
-exec "$SCRIPT" "${SCRIPT_ARGS[@]}"
+exec "$SCRIPT" "$@"

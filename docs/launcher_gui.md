@@ -37,6 +37,15 @@ with a fresh interpreter. The dependency update path runs `pip install -r
 requirements.lock` followed by `pip install --no-deps .`, keeping the managed
 environment in sync with the locked dependency set that the GUI relies on.
 
+The launcher now makes option 6 dynamic: it installs `copernican-suite` the
+first time the managed environment is built and switches to "Uninstall
+Copernican Suite" afterward, so the GUI runs without assuming the wheel is
+always installed and operators can remove the package explicitly when they
+prefer to use the codebase in-place. Since the scripts check `python -m pip
+show copernican-suite` before displaying the menu, the option always reflects
+the current state and you will never see both install and uninstall
+choices simultaneously.
+
 ## Running the test suites
 
 Selecting option 3 now runs `python -m pytest -q` followed by

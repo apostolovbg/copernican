@@ -30,6 +30,9 @@ suffixes. Follow this template:
 - 2025-12-01: Bumped the release metadata to 10.9.5 so the documentation and
              citation headers match the new launcher behaviour
              (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+- 2025-12-01: Extended the quick-start instructions and packaging notes so the
+             README, `docs/launcher_gui.md` and `docs/packaging.md` outline the
+             dynamic install/uninstall option and the preserved rebuild flow.
 
 ## Version 10.9.4
 - 2025-12-01: Added the Union3 parser so the suite now loads

@@ -12,7 +12,6 @@ REM environment. System-wide Python installations are ignored so Python
 REM 3.12 never leaks into the managed bootstrap sequence.
 
 setlocal
-set "SCRIPT_ARGS=%*"
 cd %~dp0
 set "SUITE_VERSION=unknown"
 if exist "copernican_lib\VERSION" (
@@ -201,7 +200,7 @@ echo.
 echo Rebuilding the managed virtual environment...
 if exist "%EXPECTED_VENV%" rmdir /s /q "%EXPECTED_VENV%"
 set "VIRTUAL_ENV="
-call "%~f0" %SCRIPT_ARGS%
+call "%~f0" %*
 exit /b 0
 
 :download_python

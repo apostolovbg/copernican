@@ -366,8 +366,10 @@ cite them without recomputation.
    unit tests. Option 4 toggles strict-warning enforcement for the upcoming
    session. Option 5 opens the *Environment and dependency management* submenu
    where you can update pinned dependencies, rebuild or remove the managed
-   virtual environment, and toggle automatic dependency installation for
-   future runs. Option 6 exits.
+   virtual environment, and keep `pip install -r requirements.lock` in sync with
+   the locked stack. Option 6 now toggles between installing and uninstalling
+   the `copernican-suite` package depending on whether it is already present,
+   letting the controlled environment remain optional, and option 7 exits.
 3. Choose "Run the unit test suite" from the launcher's menu or execute
    `python -m unittest discover -v` directly. The test runner reports
    informational messages, warnings and errors while verifying the

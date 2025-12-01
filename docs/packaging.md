@@ -53,6 +53,12 @@ ensuring every platform pulls published wheels instead of attempting source
 builds. Re-run
 the launcher after pulling updates to refresh the environment.
 
+Option 6 in the start menu now toggles between installing and uninstalling the
+`copernican-suite` wheel inside `.venv`. The helper runs
+`python -m pip show copernican-suite` before showing the menu so the entry
+always matches the package state, giving you one clear path to install the
+release wheel or remove it before testing fresh code.
+
 `requirements.lock` pins exact versions for all runtime dependencies.
 Adding or updating a package requires editing this file and the license
 summary in `THIRD_PARTY_LICENSES.md`. This release refreshed nearly every
