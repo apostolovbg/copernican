@@ -3001,8 +3001,11 @@ class CopernicanGUI:
             return
         for line in process.stdout:
             cleaned = line.rstrip()
-            if cleaned:
-                self._log_run_event(cleaned, logging.INFO)
+            if not cleaned:
+                continue
+            if cleaned.startswith("\r"):
+                continue
+            self._log_run_event(cleaned, logging.INFO)
 
     def _wait_for_worker(self, process: subprocess.Popen[str]) -> None:
         """Update GUI state when the worker finishes."""

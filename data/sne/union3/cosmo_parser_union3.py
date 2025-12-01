@@ -41,7 +41,9 @@ def _load_mu_matrix(path: str) -> np.ndarray:
     if matrix.ndim != 2 or matrix.shape[0] != matrix.shape[1]:
         raise ValueError("mu_mat FITS must be a square matrix.")
     if matrix.shape[0] < 3:
-        raise ValueError("mu_mat FITS must include at least one node plus headers.")
+        raise ValueError(
+            "mu_mat FITS must include at least one node plus headers."
+        )
     return matrix
 
 
@@ -52,14 +54,20 @@ def parse_union3(data_dir: str, **kwargs) -> pd.DataFrame | None:
     logger = logging.getLogger(__name__)
     fits_paths = _find_matching_fits(data_dir)
     if not fits_paths:
-        logger.error("Union3 directory %s does not contain a mu_mat FITS.", data_dir)
+        logger.error(
+            "Union3 directory %s does not contain a mu_mat FITS.", data_dir
+        )
         return None
 
     path = fits_paths[0]
     try:
         matrix = _load_mu_matrix(path)
     except Exception as exc:
-        logger.error("Unable to interpret Union3 matrix: %s", exc, exc_info=True)
+        logger.error(
+            "Unable to interpret Union3 matrix: %s",
+            exc,
+            exc_info=True,
+        )
         return None
 
     redshift = matrix[0, 1:]
@@ -67,7 +75,9 @@ def parse_union3(data_dir: str, **kwargs) -> pd.DataFrame | None:
     inv_covariance = matrix[1:, 1:]
 
     if not (np.isfinite(redshift).all() and np.isfinite(mu_values).all()):
-        logger.warning("Union3 mu_mat contains non-finite redshifts or mu values.")
+        logger.warning(
+            "Union3 mu_mat contains non-finite redshifts or mu values."
+        )
 
     covariance = None
     diag_errors: np.ndarray
@@ -77,7 +87,8 @@ def parse_union3(data_dir: str, **kwargs) -> pd.DataFrame | None:
     except np.linalg.LinAlgError:
         diag_errors = np.full(redshift.shape, np.nan)
         logger.warning(
-            "Union3 inverse covariance could not be inverted; diag errors set to NaN."
+            "Union3 inverse covariance could not be inverted; "
+            "diag errors set to NaN."
         )
 
     record_names = [f"Union3_bin_{idx + 1}" for idx in range(redshift.size)]

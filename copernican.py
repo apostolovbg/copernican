@@ -173,7 +173,8 @@ def _ensure_program_logging() -> logging.Logger:
     return PROGRAM_LOGGER
 
 
-def _build_gui_progress_callback() -> Callable[[dict[str, object]], None] | None:
+def _build_gui_progress_callback(
+) -> Callable[[dict[str, object]], None] | None:
     """Return a callable that records GUI progress updates when requested."""
 
     path_value = os.environ.get("COPERNICAN_GUI_PROGRESS_PATH")
