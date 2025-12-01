@@ -120,6 +120,8 @@ if errorlevel 1 (
     echo Unable to bootstrap pip in the Copernican virtual environment.
     exit /b 1
 )
+%PYTHON% -m pip install --upgrade pip
+%PYTHON% -m pip install -r requirements.lock
 goto menu
 
 :update_dependencies

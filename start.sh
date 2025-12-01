@@ -15,7 +15,6 @@
 set -eu
 # Resolve absolute path to this script before changing directories.
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
-SCRIPT_ARGS=("$@")
 cd "$(dirname "$0")"
 
 EXPECTED_VENV="$(pwd)/.venv"
@@ -75,7 +74,7 @@ rebuild_environment() {
     echo "Rebuilding the managed virtual environment..."
     rm -rf "$EXPECTED_VENV"
     unset VIRTUAL_ENV || true
-    exec "$SCRIPT" "${SCRIPT_ARGS[@]}"
+    exec "$SCRIPT" "$@"
 }
 
 install_suite() {
@@ -345,4 +344,6 @@ if ! ensure_pip; then
     echo "Unable to bootstrap pip in the Copernican virtual environment." >&2
     exit 1
 fi
+python -m pip install --upgrade pip
+python -m pip install -r requirements.lock
 exec "$SCRIPT" "$@"
