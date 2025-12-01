@@ -12,6 +12,7 @@ REM environment. System-wide Python installations are ignored so Python
 REM 3.12 never leaks into the managed bootstrap sequence.
 
 setlocal
+set "SCRIPT_ARGS=%*"
 cd %~dp0
 set "SUITE_VERSION=unknown"
 if exist "copernican_lib\VERSION" (
@@ -200,7 +201,7 @@ echo.
 echo Rebuilding the managed virtual environment...
 if exist "%EXPECTED_VENV%" rmdir /s /q "%EXPECTED_VENV%"
 set "VIRTUAL_ENV="
-call "%~f0" %*
+call "%~f0" %SCRIPT_ARGS%
 exit /b 0
 
 :download_python
@@ -262,6 +263,7 @@ exit /b 0
 set STRICT=0
 if /I "%COPERNICAN_STRICT_WARNINGS%"=="1" set STRICT=1
 :loop
+call :update_suite_state
 echo.
 echo Copernican Suite %SUITE_VERSION% Launcher:
 echo.
@@ -275,9 +277,12 @@ if "%STRICT%"=="1" (
     echo 4^) Enable strict warning mode
 )
 echo 5^) Environment and dependency management
-echo 6^) Install Copernican Suite
-echo 7^) Uninstall Copernican Suite
-echo 8^) Exit
+if "%SUITE_INSTALLED%"=="1" (
+    echo 6^) Uninstall Copernican Suite
+) else (
+    echo 6^) Install Copernican Suite
+)
+echo 7^) Exit
 echo.
 set "CHOICE="
 set /p CHOICE=Write the number of choice:
@@ -305,15 +310,15 @@ if "%CHOICE%"=="4" (
 )
 if "%CHOICE%"=="5" goto env_menu
 if "%CHOICE%"=="6" (
-    call :install_suite
+    if "%SUITE_INSTALLED%"=="1" (
+        call :uninstall_suite
+    ) else (
+        call :install_suite
+    )
     goto loop
 )
-if "%CHOICE%"=="7" (
-    call :uninstall_suite
-    goto loop
-)
-if "%CHOICE%"=="8" goto :eof
-echo Please enter a number between 1 and 8.
+if "%CHOICE%"=="7" goto :eof
+echo Please enter a number between 1 and 7.
 goto loop
 
 :env_menu
@@ -385,5 +390,13 @@ if not "%PYTEST_ERR%"=="0" (
 )
 if not "%UNITTEST_ERR%"=="0" (
     echo Unit tests failed; see the log above.
+)
+exit /b 0
+
+:update_suite_state
+set "SUITE_INSTALLED=0"
+python -m pip show copernican-suite >nul 2>&1
+if "%ERRORLEVEL%"=="0" (
+    set "SUITE_INSTALLED=1"
 )
 exit /b 0

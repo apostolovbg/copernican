@@ -15,6 +15,7 @@
 set -eu
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 cd "$(dirname "$0")"
+SCRIPT_ARGS=("$@")
 
 EXPECTED_VENV="$(pwd)/.venv"
 PY_DIR="$(pwd)/.python"
@@ -31,6 +32,14 @@ STRICT=0
 if [ "${COPERNICAN_STRICT_WARNINGS:-}" = "1" ]; then
     STRICT=1
 fi
+SUITE_INSTALLED=0
+update_suite_state() {
+    if python -m pip show copernican-suite >/dev/null 2>&1; then
+        SUITE_INSTALLED=1
+    else
+        SUITE_INSTALLED=0
+    fi
+}
 
 update_dependencies() {
     echo
@@ -73,7 +82,7 @@ rebuild_environment() {
     echo "Rebuilding the managed virtual environment..."
     rm -rf "$EXPECTED_VENV"
     unset VIRTUAL_ENV || true
-    exec "$SCRIPT" "$@"
+    exec "$SCRIPT" "${SCRIPT_ARGS[@]}"
 }
 
 install_suite() {
@@ -89,6 +98,7 @@ install_suite() {
     rm -rf build
     python -m pip install --no-deps . || return 1
     rm -rf build
+    update_suite_state
     echo "Installation complete."
     return 0
 }
@@ -98,6 +108,7 @@ uninstall_suite() {
     echo "Uninstalling the Copernican Suite from the managed environment..."
     source .venv/bin/activate
     python -m pip uninstall -y copernican-suite || true
+    update_suite_state
     echo "Uninstallation complete."
     return 0
 }
@@ -228,6 +239,7 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
     if [ -x ".venv/bin/pythonw" ]; then
         GUI_BINARY=".venv/bin/pythonw"
     fi
+    update_suite_state
     while true; do
         echo
         echo "Copernican Suite ${SUITE_VERSION} Launcher:"
@@ -242,9 +254,12 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
             echo "4) Enable strict warning mode"
         fi
         echo "5) Environment and dependency management"
-        echo "6) Install Copernican Suite"
-        echo "7) Uninstall Copernican Suite"
-        echo "8) Exit"
+        if [ "$SUITE_INSTALLED" -eq 1 ]; then
+            echo "6) Uninstall Copernican Suite"
+        else
+            echo "6) Install Copernican Suite"
+        fi
+        echo "7) Exit"
         echo
         read -r -p "Write the number of choice: " choice
         choice=${choice:-2}
@@ -267,13 +282,16 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
             5)
                 environment_menu ;;
             6)
-                install_suite ;;
+                if [ "$SUITE_INSTALLED" -eq 1 ]; then
+                    uninstall_suite
+                else
+                    install_suite
+                fi
+                ;;
             7)
-                uninstall_suite ;;
-            8)
                 exit 0 ;;
             *)
-                echo "Please enter a number between 1 and 8."
+                echo "Please enter a number between 1 and 7."
                 ;;
         esac
     done
@@ -337,4 +355,5 @@ if ! ensure_pip; then
 fi
 python -m pip install --upgrade pip
 python -m pip install -r requirements.lock
-exec "$SCRIPT" "$@"
+update_suite_state
+exec "$SCRIPT" "${SCRIPT_ARGS[@]}"

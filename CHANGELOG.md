@@ -20,6 +20,17 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.9.5
+- 2025-12-01: Start-up launchers now detect whether `copernican-suite` is
+             present before showing the menu, share a single option that
+             toggles between install/uninstall, and keep the rebuild path
+             executing with the original command-line arguments across macOS,
+             Unix and Windows (start.command, start.sh, start.bat,
+             pyproject.toml).
+- 2025-12-01: Bumped the release metadata to 10.9.5 so the documentation and
+             citation headers match the new launcher behaviour
+             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+
 ## Version 10.9.4
 - 2025-12-01: Added the Union3 parser so the suite now loads
              `mu_mat_union3_cosmo=2_mu.fits`, attaches the matched covariance, and
