@@ -53,12 +53,8 @@ The suite is organised around a handful of focused components:
 * `data/` curates vetted observations with companion parsers and metadata. The
 loaders verify file digests, register provenance and attach citations to the
 manifests and plot footers created for every run. Supernova datasets currently
-include JLA, Pantheon+SH0ES and the registered Union3 sample. The new parser
-`data/sne/union3/cosmo_parser_union3.py` reads `mu_mat_union3_cosmo=2_mu.fits`
-(row one holds redshifts, the first column carries the compressed µ and the
-remaining block is the inverse covariance matrix) so the suite can evaluate the
-Unity-derived sample directly. The metadata file records the MIT licensing terms
-that appear in [`licenses/Union3-MIT.txt`](licenses/Union3-MIT.txt).
+include JLA, Pantheon+SH0ES and the Union3 UNITY compilation, so the bundled
+samples appear once their parsers register with the dataset registry.
 * `copernican_lib/gui/` provides a Tkinter-based scaffold with a navigation
   rail, quick actions, the run monitor and a Run Builder wizard. Start Run now
   spawns the CLI workflow in a managed background process using the configured

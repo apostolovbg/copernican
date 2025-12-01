@@ -199,7 +199,7 @@ TRUSTED_PARSER_DIGESTS = {
         "0af702546dcc5fac872fa7b68892176ec2400789b18f22e1dce0759093c3ef08"
     ),
     "sne/union3/cosmo_parser_union3.py": (
-        "6e9fd184fd5e7b7871a7a8f9ab9e9ab50485d42d40f08608c23c3f297abd7e91"
+        "223888222f4b7ce7391c8a82008ed17007b831ad7d391012c55e48868ec41ae5"
     ),
 }
 

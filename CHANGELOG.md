@@ -39,6 +39,11 @@ suffixes. Follow this template:
              documentation and CI so every commit runs both frameworks
              (`start.sh`, `start.command`, `start.bat`, `.github/workflows/ci.yml`,
              AGENTS.md, docs/packaging.md, README.md, docs/launcher_gui.md).
+- 2025-12-01: Pruned the Union3 helper scripts (`helper_functions.py`,
+             `read_and_sample.py`, `simple_Gaussian_check.py`) so only the
+             parser/metadata remain registered while the supporting utilities
+             stay archived for future releases (data/sne/union3/helper_functions.py,
+             data/sne/union3/read_and_sample.py, data/sne/union3/simple_Gaussian_check.py).
 
 ## Version 10.9.3
 - 2025-11-30: Documented that the Union3 `data/sne/union3/` folder currently

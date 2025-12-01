@@ -120,14 +120,7 @@ if errorlevel 1 (
     echo Unable to bootstrap pip in the Copernican virtual environment.
     exit /b 1
 )
-%PYTHON% -m pip install --upgrade pip
-%PYTHON% -m pip install -r requirements.lock
-if exist build rmdir /s /q build
-%PYTHON% -m pip install --no-deps .
-if exist build rmdir /s /q build
-
-call "%~f0" %*
-goto :eof
+goto menu
 
 :update_dependencies
 if not exist "%EXPECTED_VENV%\Scripts\python.exe" (
@@ -157,6 +150,41 @@ if not "%COPERNICAN_UPDATE_ERR%"=="0" (
 )
 echo Dependencies updated successfully.
 exit /b 0
+
+:install_suite
+echo.
+echo Installing the Copernican Suite and pinned dependencies...
+if exist "%EXPECTED_VENV%\Scripts\activate.bat" (
+    call "%EXPECTED_VENV%\Scripts\activate.bat"
+) else (
+    echo The managed virtual environment is missing; create it first.
+    exit /b 1
+)
+call :ensure_pip
+if errorlevel 1 (
+    echo Unable to bootstrap pip.
+    exit /b 1
+)
+python -m pip install --upgrade pip
+python -m pip install -r requirements.lock
+if exist build rmdir /s /q build
+python -m pip install --no-deps .
+if exist build rmdir /s /q build
+echo Installation complete.
+goto :eof
+
+:uninstall_suite
+echo.
+echo Uninstalling the Copernican Suite from the managed environment...
+if exist "%EXPECTED_VENV%\Scripts\activate.bat" (
+    call "%EXPECTED_VENV%\Scripts\activate.bat"
+) else (
+    echo The managed virtual environment is missing; nothing to uninstall.
+    exit /b 0
+)
+python -m pip uninstall -y copernican-suite || true
+echo Uninstallation complete.
+goto :eof
 
 :remove_environment
 echo.
@@ -245,7 +273,9 @@ if "%STRICT%"=="1" (
     echo 4^) Enable strict warning mode
 )
 echo 5^) Environment and dependency management
-echo 6^) Exit
+echo 6^) Install Copernican Suite
+echo 7^) Uninstall Copernican Suite
+echo 8^) Exit
 echo.
 set "CHOICE="
 set /p CHOICE=Write the number of choice:
@@ -272,8 +302,16 @@ if "%CHOICE%"=="4" (
     goto loop
 )
 if "%CHOICE%"=="5" goto env_menu
-if "%CHOICE%"=="6" goto :eof
-echo Please enter a number between 1 and 6.
+if "%CHOICE%"=="6" (
+    call :install_suite
+    goto loop
+)
+if "%CHOICE%"=="7" (
+    call :uninstall_suite
+    goto loop
+)
+if "%CHOICE%"=="8" goto :eof
+echo Please enter a number between 1 and 8.
 goto loop
 
 :env_menu

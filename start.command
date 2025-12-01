@@ -77,6 +77,32 @@ rebuild_environment() {
     exec "$SCRIPT" "${SCRIPT_ARGS[@]}"
 }
 
+install_suite() {
+    echo
+    echo "Installing the Copernican Suite and pinned dependencies..."
+    source .venv/bin/activate
+    if ! ensure_pip; then
+        echo "Unable to bootstrap pip; try running `pip install --upgrade pip` manually." >&2
+        return 1
+    fi
+    python -m pip install --upgrade pip || return 1
+    python -m pip install -r requirements.lock || return 1
+    rm -rf build
+    python -m pip install --no-deps . || return 1
+    rm -rf build
+    echo "Installation complete."
+    return 0
+}
+
+uninstall_suite() {
+    echo
+    echo "Uninstalling the Copernican Suite from the managed environment..."
+    source .venv/bin/activate
+    python -m pip uninstall -y copernican-suite || true
+    echo "Uninstallation complete."
+    return 0
+}
+
 environment_menu() {
     while true; do
         echo
@@ -217,7 +243,9 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
             echo "4) Enable strict warning mode"
         fi
         echo "5) Environment and dependency management"
-        echo "6) Exit"
+        echo "6) Install Copernican Suite"
+        echo "7) Uninstall Copernican Suite"
+        echo "8) Exit"
         echo
         read -r -p "Write the number of choice: " choice
         choice=${choice:-2}
@@ -240,9 +268,13 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
             5)
                 environment_menu ;;
             6)
+                install_suite ;;
+            7)
+                uninstall_suite ;;
+            8)
                 exit 0 ;;
             *)
-                echo "Please enter a number between 1 and 6."
+                echo "Please enter a number between 1 and 8."
                 ;;
         esac
     done
@@ -304,12 +336,4 @@ if ! ensure_pip; then
     echo "Unable to bootstrap pip in the Copernican virtual environment." >&2
     exit 1
 fi
-python -m pip install --upgrade pip
-# Install pinned dependencies.
-python -m pip install -r requirements.lock
-# Remove any 'build/' directory before and after installing the project
-# to avoid stale build artifacts.
-rm -rf build
-python -m pip install --no-deps .
-rm -rf build
 exec "$SCRIPT" "$@"
