@@ -90,7 +90,11 @@ if sys.version_info < MIN_PYTHON:
 # site-packages are ignored.
 EXPECTED_VENV = (Path(__file__).resolve().parent / ".venv").resolve()
 current_venv = os.environ.get("VIRTUAL_ENV")
-if current_venv is None or Path(current_venv).resolve() != EXPECTED_VENV:
+allow_direct = os.environ.get("COPERNICAN_ALLOW_DIRECT") == "1"
+if (
+    not allow_direct
+    and (current_venv is None or Path(current_venv).resolve() != EXPECTED_VENV)
+):
     console.write(
         (
             "ERROR: Run Copernican Suite via start.sh, start.command or "

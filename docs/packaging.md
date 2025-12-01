@@ -106,13 +106,14 @@ pip build .
 
 ## Verify the build
 
-After installation or building a distribution, run the test suite to
-confirm everything operates correctly.
+After installation or building a distribution, run both test suites to confirm
+everything operates correctly.
 The `tests/test_engine_mcmc.py` module now exercises the sampler's reseeding
 helper so automated builds catch any regression that might reintroduce
-``nan`` walkers:
+``nan`` walkers. Run:
 
 ```bash
+python -m pytest -q
 python -m unittest discover -v
 ```
 

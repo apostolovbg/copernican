@@ -20,6 +20,26 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 10.9.4
+- 2025-12-01: Added the Union3 parser so the suite now loads
+             `mu_mat_union3_cosmo=2_mu.fits`, attaches the matched covariance, and
+             preserves the MIT-licensed Unity citation for every run
+             (data/sne/union3/cosmo_parser_union3.py,
+             data/sne/union3/metadata_union3.yml, licenses/Union3-MIT.txt).
+- 2025-12-01: Documented the Union3 rollout across the guides, license notes
+             and metadata records so the dataset appears like the other SNe
+             sources while consumers know where to find the licensing terms
+             (README.md, docs/data_overview.md, docs/dataset_metadata.md,
+             docs/dataset_licenses.md, THIRD_PARTY_LICENSES.md, CITATION.cff,
+             copernican_lib/VERSION, CHANGELOG.md).
+- 2025-12-01: Added the managed environment management options back into the
+             start scripts, ensured argparse now reports that the launcher
+             operates inside `.venv`, and made both `pytest` and
+             `python -m unittest discover -v` first-class tests in the launcher,
+             documentation and CI so every commit runs both frameworks
+             (`start.sh`, `start.command`, `start.bat`, `.github/workflows/ci.yml`,
+             AGENTS.md, docs/packaging.md, README.md, docs/launcher_gui.md).
+
 ## Version 10.9.3
 - 2025-11-30: Documented that the Union3 `data/sne/union3/` folder currently
              stores the UNITY release and preprocessing steps.

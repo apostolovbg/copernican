@@ -53,10 +53,14 @@ jobs:
           python -m pip install -e .
           python -m pip install build
 
-      - name: Run unit tests
+      - name: Run pytest suite
         # Execute the full pytest suite quietly to surface regressions while
         # keeping the log output concise.
         run: python -m pytest -q
+
+      - name: Run unittest suite
+        # Run the bundled unittest discover flow so both frameworks are exercised.
+        run: python -m unittest discover -v
 
       - name: Build distribution artifacts
         # Produce both the source distribution and universal wheel to confirm

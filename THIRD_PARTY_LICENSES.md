@@ -58,6 +58,12 @@ The optional ``dev`` extra installs ``pip-tools==7.4.1`` for contributors who
 regenerate ``requirements.lock`` locally.  Because it is not required to run
 the suite, it is excluded from the runtime license table above.
 
+## Dataset licenses
+
+| Dataset | License |
+|---------|---------|
+| Union3 (Union Through UNITY 2000 SNe sample) | [MIT](licenses/Union3-MIT.txt) |
+
 ### Notes on camb (LGPL-3.0-or-later)
 
 The CAMB library is licensed under the GNU Lesser General Public License

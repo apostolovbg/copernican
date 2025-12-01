@@ -26,6 +26,27 @@ as soon as the handoff completes.
    warning flag, and relies entirely on `copernican.py --gui` to detach the
    visual interface and log the shared services.
 
+## Environment and dependency management
+
+Each launcher now exposes the "Environment and dependency management" menu
+(option 5, or choice 5 from `start.bat`) so you can update, remove or rebuild
+the managed `.venv` without leaving the script. The removal option deletes
+`.venv` and returns you to the menu so you can rebuild it immediately, and the
+rebuild option removes the current environment before restarting the launcher
+with a fresh interpreter. The dependency update path runs `pip install -r
+requirements.lock` followed by `pip install --no-deps .`, keeping the managed
+environment in sync with the locked dependency set that the GUI relies on.
+
+## Running the test suites
+
+Selecting option 3 now runs `python -m pytest -q` followed by
+`python -m unittest discover -v` inside `.venv`, reporting any failures before
+returning to the menu. This mirrors the CI workflow so contributors know both
+test frameworks are treated as first-class and always execute before packaging
+or deployment. Once `.venv` exists you can also run the suites directly without
+the launcher by setting `COPERNICAN_ALLOW_DIRECT=1` before each invocation so
+the guard inside `copernican.py` permits the standalone command.
+
 ## Detach strategy
 
 `copernican.py --gui` still detaches automatically when `COPERNICAN_DETACH_GUI`

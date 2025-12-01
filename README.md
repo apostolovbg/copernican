@@ -1,4 +1,4 @@
-**Version:** 10.9.3
+**Version:** 10.9.4
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -53,11 +53,12 @@ The suite is organised around a handful of focused components:
 * `data/` curates vetted observations with companion parsers and metadata. The
 loaders verify file digests, register provenance and attach citations to the
 manifests and plot footers created for every run. Supernova datasets currently
-include JLA and Pantheon+SH0ES. The Union3 release sits under
-`data/sne/union3/`, carrying the UNITY scripts, covariance helpers and example
-Stan code that produced the compressed distances and covariance matrix; the
-README inside that folder explains how to rerun the UNITY preprocessing before
-a parser registers the dataset.
+include JLA, Pantheon+SH0ES and the registered Union3 sample. The new parser
+`data/sne/union3/cosmo_parser_union3.py` reads `mu_mat_union3_cosmo=2_mu.fits`
+(row one holds redshifts, the first column carries the compressed µ and the
+remaining block is the inverse covariance matrix) so the suite can evaluate the
+Unity-derived sample directly. The metadata file records the MIT licensing terms
+that appear in [`licenses/Union3-MIT.txt`](licenses/Union3-MIT.txt).
 * `copernican_lib/gui/` provides a Tkinter-based scaffold with a navigation
   rail, quick actions, the run monitor and a Run Builder wizard. Start Run now
   spawns the CLI workflow in a managed background process using the configured
@@ -588,6 +589,23 @@ archive](https://data.sdss.org/sas/dr12/boss/) does not provide a
   `JointLike` aggregator so downstream notebooks can reproduce the sampler
   state without recomputing log-likelihoods.
 
+## Running the Test Suites
+Start the launcher via one of the `start.*` scripts and select option 3 to
+execute both `pytest` and `python -m unittest discover -v`. The option now runs
+both frameworks sequentially and returns to the menu so you can rerun, rebuild
+the managed `.venv`, or continue with another action. The CI workflow mirrors
+this behaviour: it installs the locked dependencies, runs `pytest -q`, then
+runs the `unittest` discovery pass before packaging the project. If you prefer
+to execute the suites directly inside the repository `.venv` (for example from
+CI scripts or when iterating locally), pass `COPERNICAN_ALLOW_DIRECT=1` before
+invoking the test runners, e.g.:
+
+```bash
+source .venv/bin/activate
+COPERNICAN_ALLOW_DIRECT=1 python -m pytest -q
+COPERNICAN_ALLOW_DIRECT=1 python -m unittest discover -v
+```
+
 ## Plot Footers and Metadata
 Each generated plot includes a centered footer that documents the run.
 The first line shows the model comparison, Copernican Suite version and a
@@ -1039,9 +1057,10 @@ See `CHANGELOG.md` for complete version history.
 The Copernican Suite is distributed under the terms of the [Copernican Suite
 License (CSL)](LICENSE.md). The license forbids redistributing the software in
 full and disallows patent filings or assertions. Licenses for runtime
-dependencies are listed in
-[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md), and the corresponding
-license texts ship under [`licenses/`](licenses/). CAMB is licensed under
+dependencies are listed in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md),
+and the corresponding license texts ship under [`licenses/`](licenses/). The
+Union3 dataset is also available under the MIT terms at
+[`licenses/Union3-MIT.txt`](licenses/Union3-MIT.txt). CAMB is licensed under
 LGPL-3.0-or-later; you may relink the suite against a modified CAMB as
 described in that license.
 

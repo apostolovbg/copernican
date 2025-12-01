@@ -366,6 +366,9 @@ derived from the model's variables or constants.
 
 ## Development Policies (DevCovenant)
 
+**Copernican development must run inside the repository's `.venv` created by the `start.*` launchers.**  
+If `.venv` is absent, re-run `start.sh`/`start.command`/`start.bat` so the launcher downloads Python 3.11, boots the managed environment and installs every dependency before editing code or running tests. Do not bypass the managed `.venv` when working on the repository.
+
 The Copernican Suite uses **DevCovenant**, a self-enforcing policy system that
 maintains consistency between human-readable policies in this file and
 automated Python checks. When you modify a policy in this section, set its

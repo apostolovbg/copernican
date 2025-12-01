@@ -162,8 +162,8 @@ exit /b 0
 echo.
 echo Removing the managed virtual environment...
 if exist "%EXPECTED_VENV%" rmdir /s /q "%EXPECTED_VENV%"
-echo Managed environment removed. The launcher will now exit.
-exit /b 0
+echo Managed environment removed. Use the menu options to recreate it if needed.
+goto env_menu
 
 :rebuild_environment
 echo.
@@ -264,8 +264,8 @@ if "%CHOICE%"=="2" (
 )
 if "%CHOICE%"=="3" (
     set COPERNICAN_STRICT_WARNINGS=%STRICT%
-    python -m unittest discover -v
-    goto :eof
+    call :run_test_suites
+    goto loop
 )
 if "%CHOICE%"=="4" (
     if "%STRICT%"=="1" (set STRICT=0) else (set STRICT=1)
@@ -329,3 +329,21 @@ if "%ENV_PRESENT%"=="1" (
 echo %PKG_NOTICE%
 winget %*
 exit /b %ERRORLEVEL%
+
+:run_test_suites
+set "PYTEST_ERR=0"
+set "UNITTEST_ERR=0"
+echo Running pytest...
+python -m pytest -q
+if errorlevel 1 set "PYTEST_ERR=1"
+echo.
+echo Running the unit test suite...
+python -m unittest discover -v
+if errorlevel 1 set "UNITTEST_ERR=1"
+if not "%PYTEST_ERR%"=="0" (
+    echo Pytest failed; see the log above.
+)
+if not "%UNITTEST_ERR%"=="0" (
+    echo Unit tests failed; see the log above.
+)
+exit /b 0

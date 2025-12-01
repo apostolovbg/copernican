@@ -70,6 +70,16 @@ or analysis scripts.
   MCMC runs now copy the SNe chi-squared into ``χ²_Total`` so both sides of a
   self-consistency test report the same totals when models share a plugin.
 
+### Union3 metadata example
+
+- Include the Unity citation, author list and MIT license in the metadata file
+  so the loaders attach them once the compressed FITS is parsed.
+- Use the `notes` field to explain that `mu_mat_union3_cosmo=2_mu.fits`
+  contains the redshift nodes, compressed distance modulus column and inverse
+  covariance block consumed by `cosmo_parser_union3.py`.
+- Point readers to [`licenses/Union3-MIT.txt`](../licenses/Union3-MIT.txt) whenever
+  spelling out the dataset's usage terms in release notes or documentation.
+
 ### Model Parameter Priors
 
 Model YAML files now support a `prior` block for each parameter. Priors carry

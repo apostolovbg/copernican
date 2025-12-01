@@ -65,8 +65,9 @@ remove_environment() {
     echo
     echo "Removing the managed virtual environment..."
     rm -rf "$EXPECTED_VENV"
-    echo "Managed environment removed. The launcher will now exit."
-    exit 0
+    echo "Managed environment removed. Re-run the launcher or use the menu"
+    echo "to recreate the managed environment."
+    return 0
 }
 
 rebuild_environment() {
@@ -128,6 +129,18 @@ environment_menu() {
             esac
         fi
     done
+}
+
+run_test_suites() {
+    echo
+    echo "Running pytest..."
+    COPERNICAN_STRICT_WARNINGS=$STRICT python -m pytest -q
+    local pytest_status=$?
+    echo
+    echo "Running the unit test suite..."
+    COPERNICAN_STRICT_WARNINGS=$STRICT python -m unittest discover -v
+    local unittest_status=$?
+    return $((pytest_status || unittest_status))
 }
 
 pkg_notice() {
@@ -219,8 +232,10 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
                 COPERNICAN_STRICT_WARNINGS=$STRICT \
                 exec python copernican.py --cli ;;
             3)
-                COPERNICAN_STRICT_WARNINGS=$STRICT \
-                exec python -m unittest discover -v ;;
+                if ! run_test_suites; then
+                    echo "One or more test suites failed; check the log above."
+                fi
+                ;;
             4)
                 if [ "$STRICT" -eq 1 ]; then STRICT=0; else STRICT=1; fi ;;
             5)

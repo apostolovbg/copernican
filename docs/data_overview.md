@@ -78,14 +78,16 @@ uncertainties.
 *Source:* “Union Through UNITY: Cosmology with 2,000 SNe Using a Unified
 Bayesian Framework” (Rubin et al. 2025).
 *Location:* `data/sne/union3/`.
-*Status:* The directory currently ships the UNITY bookkeeping (Stan models,
-helper utilities, the `mu_mat_union3_cosmo=2_mu.fits` compressed distances and
-covariance, `read_and_sample.py`, the full UNITY inputs and related samples).
-Its README spells out the preprocessing steps that reproduce the compressed
-outputs. No parser yet exists because the dataset still depends on rerunning
-that UNITY pipeline (pystan/cython, datasets, covariance helpers) before the
-final distance moduli, covariance matrices and corpus of uncertainties can be
-registered.
+*Parser:* `cosmo_parser_union3.py` loads `mu_mat_union3_cosmo=2_mu.fits`, exposing
+the 22 redshift nodes (first row), the compressed distance moduli (first
+column) and the inverse covariance block the likelihood uses directly.
+*Status:* The release includes the UNITY bookkeeping (Stan models, helper
+utilities, `read_and_sample.py`, all inputs and the UNITY tarball), but the CLI
+and GUI only consume the compressed µ/cov matrix today. When the FITS file is
+updated rerunning the UNITY steps remains an option; the README inside the
+folder explains how to reproduce it.
+*License:* MIT via [`licenses/Union3-MIT.txt`](../licenses/Union3-MIT.txt); cite
+Rubin et al. (2025) when publishing.
 
 ## BAO Datasets
 
