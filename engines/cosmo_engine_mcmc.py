@@ -101,6 +101,7 @@ _FIXED_BOUNDS_ATOL = 1e-12
 _MAX_INITIAL_CONDITION = 1e12
 _MAX_INITIAL_ATTEMPTS = 12
 
+
 class _ActiveLogProbability:
     """Picklable adapter that expands active coordinates to full parameters.
 
@@ -159,6 +160,7 @@ class _ActiveLogProbability:
         # execution.
         return float(value)
 
+
 class _JointLogLikelihood:
     """Picklable adapter that proxies :class:`JointLike.loglike`."""
 
@@ -185,6 +187,7 @@ class _JointLogLikelihood:
         """Return the combined log-likelihood for ``params``."""
 
         return float(self._joint_like.loglike(params))
+
 
 class _SamplingProgressReporter:
     """Emit compact diagnostics for ensemble sampler updates.
@@ -311,6 +314,7 @@ class _SamplingProgressReporter:
 
         return self._scratch
 
+
 def _build_joint_logposterior(
     model_plugin: Any,
     sne_data_df: Any,
@@ -417,9 +421,11 @@ def _build_joint_logposterior(
     posterior = engine_plugin_validation.make_logposterior(loglike, priors)
     return posterior, loglike, joint_like
 
+
 # Backward compatibility for legacy imports that still reference the
 # supernova-specific helper name.
 _build_sne_logposterior = _build_joint_logposterior
+
 
 def _reseed_invalid_walkers(
     coords: np.ndarray,
@@ -495,6 +501,7 @@ def _reseed_invalid_walkers(
         )
 
     return coords, log_prob
+
 
 def _run_stage_with_progress(
     sampler: emcee.EnsembleSampler,
@@ -618,6 +625,7 @@ def _run_stage_with_progress(
 
     logger.info("Completed MCMC %s stage.", stage_name)
     return state
+
 
 def fit_cosmology_parameters(
     sne_data_df: Any,
@@ -1050,6 +1058,7 @@ def fit_cosmology_parameters(
         },
     }
 
+
 def fit_sne_parameters(
     sne_data_df: Any,
     model_plugin: Any,
@@ -1095,6 +1104,7 @@ def fit_sne_parameters(
         progress_callback=progress_callback,
     )
 
+
 __all__ = [
     "ENGINE_KIND",
     "ENGINE_LABEL",
@@ -1107,6 +1117,7 @@ __all__ = [
     "fit_cosmology_parameters",
     "fit_sne_parameters",
 ]
+
 
 def _estimate_condition_number(samples: np.ndarray) -> float | None:
     """Return the condition number of ``samples`` or ``None`` when undefined.
@@ -1133,6 +1144,7 @@ def _estimate_condition_number(samples: np.ndarray) -> float | None:
     if positive.size == 0:
         return float("inf")
     return float(positive.max() / positive.min())
+
 
 def _classify_parameter_bounds(
     bounds: Iterable[tuple[float | None, float | None]],
@@ -1178,6 +1190,7 @@ def _classify_parameter_bounds(
 
     return lower, upper, fixed_mask
 
+
 def _compute_basic_diagnostics(
     chain: np.ndarray,
     names: Sequence[str],
@@ -1219,6 +1232,7 @@ def _compute_basic_diagnostics(
     total_draws = float(max(n_chains, 1) * max(n_draws, 0))
     ess = {name: total_draws for name in names}
     return {"rhat": rhat, "ess_bulk": ess.copy(), "ess_tail": ess.copy()}
+
 
 def _initialise_active_walkers(
     initial_active: np.ndarray,

@@ -39,9 +39,7 @@ def test_last_updated_in_non_allowlisted_file():
     ) as f:
         temp_path = Path(f.name)
     today_date = dt.datetime.now(dt.timezone.utc).date().isoformat()
-    temp_path.write_text(
-        f"**Last Updated:** {today_date}\n", encoding="utf-8"
-    )
+    temp_path.write_text(f"**Last Updated:** {today_date}\n", encoding="utf-8")
 
     try:
         checker = LastUpdatedPlacementCheck()

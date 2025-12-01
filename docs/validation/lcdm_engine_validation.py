@@ -63,6 +63,7 @@ CHI2_TOLERANCES = {
     "total": 7.0,
 }
 
+
 def _ensure_importlib_util() -> None:
     """Guarantee ``importlib.util`` is available before parser discovery."""
 
@@ -70,6 +71,7 @@ def _ensure_importlib_util() -> None:
         import importlib.util as importlib_util
 
         importlib.util = importlib_util
+
 
 def _build_plugin():
     """Parse the ΛCDM YAML and return a validated engine plugin."""
@@ -82,6 +84,7 @@ def _build_plugin():
     func_dict, parsed = model_coder.generate_callables(cache_path)
     return engine_plugin_validation.build_plugin(parsed, func_dict)
 
+
 def _trim_sne_dataset(full_df: pd.DataFrame) -> pd.DataFrame:
     """Return the first ``SNE_SUBSET_SIZE`` rows with diagonal covariance."""
 
@@ -90,6 +93,7 @@ def _trim_sne_dataset(full_df: pd.DataFrame) -> pd.DataFrame:
     trimmed_attrs.pop("covariance_matrix_inv", None)
     subset.attrs = trimmed_attrs
     return subset
+
 
 def load_validation_datasets() -> tuple[pd.DataFrame, pd.DataFrame]:
     """Load the trimmed Pantheon+SH0ES sample and full BOSS DR12 table."""
@@ -102,6 +106,7 @@ def load_validation_datasets() -> tuple[pd.DataFrame, pd.DataFrame]:
         raise RuntimeError(msg)
     return _trim_sne_dataset(sne_df), bao_df
 
+
 def _parameter_vector(
     plugin: Any, values: Mapping[str, float]
 ) -> tuple[float, ...]:
@@ -113,6 +118,7 @@ def _parameter_vector(
     ):  # type: ignore[attr-defined]
         ordered.append(values[name])
     return tuple(ordered)
+
 
 def compute_reference_chi2(
     plugin: Any, sne_df: pd.DataFrame, bao_df: pd.DataFrame
@@ -137,10 +143,12 @@ def compute_reference_chi2(
         "total": chi2_total,
     }
 
+
 def _patch_cpu_count_for_tests() -> None:
     """Force sequential execution so notebook runs avoid subprocess errors."""
 
     cosmo_engine_mcmc.mp.cpu_count = lambda: 1  # type: ignore[attr-defined]
+
 
 def run_mcmc_validation(
     plugin: Any, sne_df: pd.DataFrame, bao_df: pd.DataFrame
@@ -158,6 +166,7 @@ def run_mcmc_validation(
         display_progress=False,
     )
 
+
 def run_nested_validation(
     plugin: Any, sne_df: pd.DataFrame, bao_df: pd.DataFrame
 ) -> dict[str, Any]:
@@ -172,6 +181,7 @@ def run_nested_validation(
         evidence_tolerance=0.5,
         display_progress=False,
     )  # type: ignore[no-any-return]
+
 
 def _assert_within_tolerance(
     observed: Mapping[str, float],
@@ -193,6 +203,7 @@ def _assert_within_tolerance(
                 f"(tolerance ±{tol})."
             )
             raise AssertionError(msg)
+
 
 def validate_engines() -> None:
     """Run both engines and compare against the stored ΛCDM references."""
@@ -239,6 +250,7 @@ def validate_engines() -> None:
 
     LOGGER.info("Validation completed successfully for both engines.")
 
+
 def _format_summary(label: str, result: Mapping[str, Any]) -> str:
     """Return a concise, human-readable engine summary."""
 
@@ -253,6 +265,7 @@ def _format_summary(label: str, result: Mapping[str, Any]) -> str:
         val = chi2.get(key, float("nan"))
         lines.append(f"  {key}: {val:.4f}")
     return "\n".join(lines)
+
 
 def _main() -> int:
     """Entry point for CLI execution."""
@@ -307,6 +320,7 @@ def _main() -> int:
     print(_format_summary("MCMC", mcmc_result))
     print(_format_summary("Nested", nested_result))
     return 0
+
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation
     raise SystemExit(_main())

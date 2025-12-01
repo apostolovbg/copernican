@@ -267,9 +267,7 @@ class DevCovenantEngine:
         for root, dirs, files in os.walk(self.repo_root):
             # Filter out ignored directories
             dirs[:] = [
-                d
-                for d in dirs
-                if self._should_descend_dir(Path(root) / d)
+                d for d in dirs if self._should_descend_dir(Path(root) / d)
             ]
 
             for name in files:
