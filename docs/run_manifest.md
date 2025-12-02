@@ -5,6 +5,15 @@ folder. The file is named `run_manifest_<timestamp>.yml`, where the timestamp
 matches the start-of-run label used by the output directory and per-run log, and
 records:
 
+This manifest is the starting point for every run. GUI Drafts remain pending
+until the operator confirms Start Run, at which point the manifest is
+finalised (timestamped to the run directory) and fed to
+`copernican_lib/run_executor.execute_run_from_manifest`. That helper rebuilds the
+datasets via `copernican_lib.run_config`, instantiates the chosen engine, and
+hands everything to `copernican_lib/run_pipeline.execute_run_pipeline` so the
+CLI and GUI share an identical sampling, diagnostics, plotting and export
+sequence.
+
 Headless runs can pin the manifest location with the `--manifest` flag to
 `copernican.py` so CI pipelines always collect the same path even when output
 directories change.

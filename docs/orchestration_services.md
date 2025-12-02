@@ -12,7 +12,11 @@ summarises three GUI-safe services:
    remains identical across CLI and GUI launches.
 3. **Run control**: `copernican_lib.result_writer.save_summary` serialises
    sampler outputs while `copernican_lib.cli.dependencies.get_runtime_options`
-   keeps the runtime flags and logging posture aligned with the CLI.
+   keeps the runtime flags and logging posture aligned with the CLI. Manifest
+   runners should now call `copernican_lib.run_executor.execute_run_from_manifest`
+   so the shared pipeline in `copernican_lib/run_pipeline.py` and the dataset
+   rebuild helpers in `copernican_lib/run_config.py` execute uniformly for both
+   GUI and headless runs.
 
 `copernican.py --gui` prints this service map without entering the interactive
 menus. GUI launchers should construct an
@@ -20,6 +24,12 @@ menus. GUI launchers should construct an
 that call into the shared helpers above. The `RunRequest`, `RunHandle` and
 `RunStatus` dataclasses document the minimum payloads required to drive the
 existing pipeline while letting the GUI stream logs or status updates.
+
+The GUI worker (`copernican_lib/gui/run_worker.py`) simply loads the JSON
+configuration produced by the Run Builder, sets `COPERNICAN_ALLOW_DIRECT=1`,
+and invokes `copernican.main` with `--manifest`. Any test or helper that
+imports `copernican` directly should mirror that guard so the manifest CLI
+remains usable without re-enabling the legacy menu workflow.
 
 Forward-only remains the default: the staged menu is disabled unless a caller
 sets `COPERNICAN_ENABLE_STAGED_MENU=1` or passes `--enable-legacy-stage-menu`.

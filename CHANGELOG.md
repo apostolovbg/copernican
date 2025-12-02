@@ -20,7 +20,48 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 11.0.0
+- 2025-12-02: Removed the staged interactive CLI and Stage 1–5 numbering,
+             introduced the manifest-driven entrypoint plus shared run
+             helpers, and documented the new workflow for GUI builders
+             (copernican.py, __main__.py, copernican_lib/engine_capabilities.py,
+             copernican_lib/run_config.py, copernican_lib/run_executor.py,
+             copernican_lib/run_lifecycle.py, copernican_lib/run_manifest.py,
+             copernican_lib/run_pipeline.py, copernican_lib/gui/app.py,
+             copernican_lib/gui/run_worker.py, README.md, tests/test_run_config.py,
+             tests/test_run_executor.py, tests/test_gui_run_worker.py).
+- 2025-12-02: Expanded the orchestration services note to describe the new
+             manifest executor plus run pipeline helpers so GUI clients can
+             reuse the same run control protocol (docs/orchestration_services.md).
+- 2025-12-02: Updated all trusted parser digests after reformatting the bundled
+             parser modules to keep `TRUSTED_PARSER_DIGESTS` in sync with the
+             shipped files (data/sne/jla2014/cosmo_parser_jla2014.py,
+             data/sne/pantheon/cosmo_parser_pantheon.py,
+             data/bao/bossdr12/cosmo_parser_bossdr12.py,
+             data/bao/compound/cosmo_parser_compound.py,
+             data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py,
+             data/gw/placeholder/cosmo_parser_gw_placeholder.py,
+             data/sne/union3/cosmo_parser_union3.py,
+             copernican_lib/dataset_registry.py).
+- 2025-12-02: Corrected the alternative-model branch in the shared pipeline so
+             nested and MCMC sampler metadata log consistently while stressing
+             that direct CLI imports must set `COPERNICAN_ALLOW_DIRECT=1` before
+             invoking `copernican.main` (copernican_lib/run_pipeline.py,
+             tests/test_gui_run_worker.py, README.md, docs/orchestration_services.md).
+
 ## Version 10.9.15
+- 2025-12-02: Removed the staged interactive CLI and Stage 1–5 numbering,
+             introduced the manifest-driven entrypoint plus shared run
+             helpers, and documented the new workflow for GUI builders
+             (copernican.py, __main__.py, copernican_lib/engine_capabilities.py,
+             copernican_lib/run_config.py, copernican_lib/run_executor.py,
+             copernican_lib/run_lifecycle.py, copernican_lib/run_manifest.py,
+             copernican_lib/run_pipeline.py, copernican_lib/gui/app.py,
+             copernican_lib/gui/run_worker.py, README.md, tests/test_run_config.py,
+             tests/test_run_executor.py, tests/test_gui_run_worker.py).
+- 2025-12-02: Expanded the orchestration services note to describe the new
+             manifest executor plus run pipeline helpers so GUI clients can
+             reuse the same run control protocol (docs/orchestration_services.md).
 - 2025-12-01: Reformatted every file beneath `copernican_lib/` and `tests/`
               so the enforced 79-character style stays consistent across the
               shared utilities and the reference suite (copernican_lib/chain_io.py,

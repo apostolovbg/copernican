@@ -62,6 +62,10 @@ import numpy as np
 import pandas as pd
 
 from copernican_lib import engine_plugin_validation
+from copernican_lib.engine_capabilities import (
+    EngineProgressChunk,
+    EngineSetting,
+)
 from copernican_lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
 from copernican_lib.progress import (
     BatchProgressBar,
@@ -88,6 +92,51 @@ warnings.filterwarnings(
 ENGINE_KIND = "mcmc"
 ENGINE_LABEL = "Ensemble MCMC sampler"
 ENGINE_VERSION = "7.6.20"
+
+ENGINE_SETTINGS = (
+    EngineSetting(
+        key="n_steps",
+        label="Production steps",
+        description="Iterations performed during the production phase.",
+        dtype="int",
+        default=200,
+    ),
+    EngineSetting(
+        key="burn_in_steps",
+        label="Burn-in steps",
+        description="Warm-up iterations discarded before the main chain.",
+        dtype="int",
+        default=50,
+    ),
+    EngineSetting(
+        key="n_walkers",
+        label="Walkers",
+        description="Size of the ensemble sampling the posterior.",
+        dtype="int",
+        default=32,
+    ),
+    EngineSetting(
+        key="pool_size",
+        label="Worker pool size",
+        description=(
+            "Multiprocessing pool size; 0 leaves the decision to the " "suite."
+        ),
+        dtype="int",
+        default=0,
+        hint="0=auto",
+    ),
+    EngineSetting(
+        key="display_progress",
+        label="Display progress",
+        description="Emit live progress updates to the console.",
+        dtype="bool",
+        default=True,
+    ),
+)
+ENGINE_PROGRESS_CHUNKS = (
+    EngineProgressChunk(name="burn_in", label="Burn-in"),
+    EngineProgressChunk(name="production", label="Production"),
+)
 
 # ``emcee`` triggers its condition number guard when walkers occupy an almost
 # degenerate subspace.  The suite accepts wildly different model definitions,

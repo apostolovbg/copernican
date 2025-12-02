@@ -1,4 +1,4 @@
-**Version:** 10.9.15
+**Version:** 11.0.0
 
 ![Copernican Suite banner](docs/banner_github.png)
 
@@ -15,28 +15,25 @@ using a single reproducible interface.
 
 The suite is organised around a handful of focused components:
 
-* `copernican.py` presents the command-line experience, guiding users through
-  dataset selection, model pairing and engine configuration. The launcher now
-  delegates dependency verification and menu rendering to
-  `copernican_lib/cli/dependencies.py` and `copernican_lib/cli/menus.py` so the
-  entrypoint imports only lightweight helpers before Stage 1 begins. It
-  renders progress with carriage-return repainting, honours seeded and
-  interactive workflows alike and keeps Stage 1 focused on reproducibility by
-  leading with the seed dialog. It surfaces every validation reason collected
-  during model parsing or engine import so operators can restart Stage 1 with
-  clear context instead of re-reading logs. The same console helpers power
-  both engines so nested sampling and ensemble MCMC display consistent labels,
-  spinners and walker-level updates. The launcher accepts `--gui`, `--cli` and
-  `--no-gui` switches so wrappers can request GUI bootstrap or force headless
-  mode deterministically. `--manifest` and `--output-dir` allow CI to place
-  manifests and run outputs in predictable locations while still routing all
-  logic through the shared orchestration services.
+* `copernican.py` is now a manifest-first, argument-driven orchestrator. It
+  consumes a manifest describing the selected models, datasets, engine metadata
+  and sampler settings, reuses the shared helpers defined in
+  `copernican_lib/run_pipeline.py`, and writes every run log inside the chosen
+  `output/copernican-run_*` folder so GUI or headless controllers can tail the
+  same transcripts. `--manifest` plus `--output-dir` remain the knobs CI uses to
+  direct deterministic runs, while `--gui`, `--cli` and `--no-gui` still select
+  whether the orchestration services are exposed to Tk wrappers. The manifest
+  lifecycle now drives both the GUI builder and the CLI: start scripts install
+  dependencies via their bundled `.venv`, the runtime dependency check (see
+  `copernican_lib/cli/dependencies.py`) only verifies the required packages
+  without installing anything, and missing modules force an early exit so the
+  launcher can rebuild the environment instead of invoking `pip` at runtime.
 * `copernican_lib/` houses the reusable infrastructure—data loaders, numerical
   utilities, posterior builders, plotting helpers and shared diagnostics—that
   keep every engine and plugin consistent. Progress rendering, notifier
   bridges and suspension contexts sit here so console output stays tidy even
   when samplers emit dense logs. Plotting helpers respect the enlarged footer
-  guard bands and responsive layouts expected by Stage 5, while the
+  guard bands and responsive layouts expected by the GUI, while the
   corner-plot validator continues to expose a legacy wrapper for tools that
   still import the original function name.
 * `engines/` collects computational back ends. The default
@@ -49,7 +46,7 @@ The suite is organised around a handful of focused components:
   tooling never has to special-case the chosen sampler.
 * `models/` stores YAML theories that declare priors, bounds, transforms and
   dataset compatibility. Each definition is converted into a picklable engine
-  plugin so Stage 2 runs remain reproducible across processes.
+  plugin so runs remain reproducible across processes.
 * `data/` curates vetted observations with companion parsers and metadata. The
 loaders verify file digests, register provenance and attach citations to the
 manifests and plot footers created for every run. Supernova datasets currently
@@ -189,6 +186,119 @@ provided by the user. Each model is defined entirely by a YAML file
 equations and parameters and serves as the sole source of truth. Optional
 Markdown summaries may exist for human readers but are ignored by the
 software.
+# Users select models, datasets, and computational engines at runtime through a
+# simple command line interface. Each execution creates a dedicated
+# `output/copernican-run_YYYYMMDD_HHMMSS` folder that stores plots, CSV tables
+# and posterior chains in NetCDF format, even when ArviZ is absent—an xarray
+# fallback builds the same structure during lean CI runs. Metadata such as the
+# model name is written to both the root attributes and the posterior group so
+# readers opening only the posterior block still recover the full provenance.
+## Under the hood we now drive every launch through the manifest pipeline:
+- **Dependency check** – `copernican.py` inspects every required package and caches the results so repeated starts skip the AST scan, then runs a brief NumPy/SciPy sanity check before heavy computation begins.
+- **Manifest ingestion** – each builder-run snapshot records the selected models, datasets, engine metadata and run settings in a manifest before sampling starts, and the GUI builder writes these manifests as drafts that only become runs once confirmed.
+- **Shared sampling pipeline** – `copernican_lib/run_pipeline.py` executes the engine, diagnostics, plotting and CSV export steps so all back ends share the same behaviour; `copernican_lib/run_executor.py` loads the manifest, restores datasets via `run_config`, and advances the shared pipeline while logging progress in a per-run log file.
+- **Diagnostics & exports** – BAO/CMB summaries, corner plots, CSV tables and NetCDF chains are persisted inside the run folder while the program log under `logs/` records the dependency check and GUI splash, keeping run logs focused on the scientific output.
+
+For an in-depth description of the manifest schema and how the GUI manipulates drafts,
+see [`docs/run_manifest.md`](docs/run_manifest.md). Orchestration helpers are listed in
+[`docs/orchestration_services.md`](docs/orchestration_services.md) with the
+shared `RunRequest`/`RunController` protocol so callers never have to re-implement
+the pipeline.
+
+Release highlights, breaking changes and historical notes live exclusively in
+[`CHANGELOG.md`](CHANGELOG.md). The `docs/` directory holds focused guides on
+architecture, datasets, manifest structure and packaging routines. A dedicated
+validation playbook under `docs/validation/` exercises both engines against
+public ΛCDM baselines and documents the tolerances used for routine checks.
+
+Engines, datasets and models stay fully pluggable. Generated YAML definitions
+are transformed into :class:`copernican_lib.plugins.EnginePlugin`
+instances that
+declare dataset compatibility, bounds, priors and distance functions in a
+single serialisable object. Posterior construction lives in
+:mod:`copernican_lib.posterior`, ensuring every engine evaluates priors,
+transforms and bounds consistently while keeping the callable picklable for
+``spawn`` worker pools. Additional design notes live in the `docs/` directory
+and citation information appears in [CITATION.cff](CITATION.cff).
+
+---
+
+## Table of Contents
+1. [Overview](#overview)
+2. [Quick Start](#quick-start)
+3. [Directory Layout](#directory-layout)
+4. [Design Overview](docs/design_overview.md)
+5. [Data Directory Overview](docs/data_overview.md)
+6. [BAO Compound Dataset Format](docs/bao_compound_dataset_format.md)
+7. [Dataset Metadata Fields](docs/dataset_metadata.md)
+8. [LaTeX Syntax Guide](docs/latex_syntax.md)
+9. [Using the Suite](#using-the-suite)
+10. [Plot Footers and Metadata](#plot-footers-and-metadata)
+11. [Logging and Caching](#logging-and-caching)
+12. [Validation Checks](#validation-checks)
+13. [Creating New Models](#creating-new-models)
+14. [Developer Guide](#developer-guide)
+    - [Workflow Overview](#workflow-overview)
+    - [Development History & Roadmap](#development-history--roadmap)
+    - [AI-driven and human development laws and
+      protocols](#ai-driven-and-human-development-laws-and-protocols)
+15. [License](#license)
+16. [Versioning Policy](#versioning-policy)
+17. [API Overview](docs/api_overview.md)
+18. [Packaging Guide](docs/packaging.md)
+19. [Documentation Policy](docs/documentation_policy.md)
+20. [Run Manifest](docs/run_manifest.md)
+21. [Orchestration Services](docs/orchestration_services.md)
+22. [Documentation Expansion Commitment](#documentation-expansion-commitment)
+23. [Launchers and GUI](docs/launcher_gui.md)
+
+---
+
+## Documentation Expansion Commitment
+Every contribution must leave the written record bigger or deeper. Law 11 in
+[`AGENTS.md`](AGENTS.md) codifies this behaviour and points teams to
+`docs/documentation_policy.md`; every welcome addition to the codebase should
+prompt a new paragraph or section in `README.md`, `AGENTS.md` and the most
+closely related file under `docs/`. The new
+[Launchers and GUI](docs/launcher_gui.md) note explains how the start scripts
+now hand the GUI to `copernican.py` while still printing a clear message to the
+keyboard, and the `docs/` tree contains the expanded narrative for every
+interface targeted by the change. This page itself is part of that expansion:
+complimenting the overview, it calls out the documentation policy, the new
+launcher guidance, and the expectation that every future task grows the shared
+story.
+
+The launcher now prefers the managed environment's `pythonw` (or `pythonw.exe`)
+binary when starting the GUI so Tkinter pops up in the same process instead of
+re-spawning. `COPERNICAN_DETACH_GUI` is reset to `0` and the launcher `exec`s the
+GUI inline instead of backgrounding it. This keeps the terminal message visible,
+eliminates the double-detachment race, and keeps the new Tk window on the screen
+while macOS or Linux handles its event loop.
+
+## Law & Policy Compliance Reminder
+Before beginning work, read every law in `AGENTS.md` and the policies in
+`devcovenant`. Every change must finish only after `pre-commit run --all-files`,
+`python3 devcovenant_check.py check --mode=startup`, `python -m piptools compile`
+whenever dependencies change, an updated `CHANGELOG.md` entry, and a confirmed
+version bump when metadata moves. No policy is optional; obey them all on every
+task and document that compliance in the changelog entry itself.
+
+## Diagnostics Logging
+Every launch writes detailed diagnostics to `logs/copernican-program_<timestamp>.txt`.
+The new runtime logging records GUI handoffs, environment variables (`TCL_LIBRARY`,
+`TK_LIBRARY`, `COPERNICAN_DETACH_GUI`), Tk initialisation status, and stdout/stderr
+from the detached launcher process so you can trace why a window failed to start.
+Use `tail -n 100 logs/copernican-program_*.txt` after a failed GUI attempt to see
+the recorded reasons, and reference the `docs/launcher_gui.md` section on Diagnostics
+for how the file is organised.
+
+## Overview
+The suite compares the reference ΛCDM model with alternative theories
+provided by the user. Each model is defined entirely by a YAML file
+`cosmo_model_*.yml` under `./models/`. This YAML stores all theory text,
+equations and parameters and serves as the sole source of truth. Optional
+Markdown summaries may exist for human readers but are ignored by the
+software.
 Users select models, datasets, and computational engines at runtime through a
 simple command line interface. Each execution creates a dedicated
 `output/copernican-run_YYYYMMDD_HHMMSS` folder that stores plots, CSV tables
@@ -196,8 +306,8 @@ and posterior chains in NetCDF format, even when ArviZ is absent—an xarray
 fallback builds the same structure during lean CI runs. Metadata such as the
 model name is written to both the root attributes and the posterior group so
 readers opening only the posterior block still recover the full provenance.
-Under the hood the program follows a clear pipeline:
-1. **Dependency Check** – `copernican.py` scans for required packages,
+# Under the hood the program follows a clear pipeline:
+# 1. **Dependency Check** – `copernican.py` scans for required packages,
    installs missing ones and verifies each import. The scan now caches its
    import list in `.cache/dependency_scan.json` whenever the source tree is
    unchanged, so repeated launches skip the expensive AST parse and return to
@@ -630,6 +740,12 @@ source .venv/bin/activate
 COPERNICAN_ALLOW_DIRECT=1 python -m pytest -q
 COPERNICAN_ALLOW_DIRECT=1 python -m unittest discover -v
 ```
+
+Because the GUI worker now imports `copernican.main` directly to spin up a
+manifest-driven run, any local test or helper that imports `copernican`
+without the start scripts must set `COPERNICAN_ALLOW_DIRECT=1` before the
+import. This keeps the CLI guard alive for other workflows while the GUI and
+its tests reuse the same manifest interface.
 
 ## Plot Footers and Metadata
 Each generated plot includes a centered footer that documents the run.

@@ -21,12 +21,13 @@ import platform
 import sys
 import time
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 from . import console_output
+from .run_lifecycle import prepare_program_log_path
 from .utils import ensure_dir_exists, get_timestamp
 
 _PROGRAM_LOGGER_NAME = "copernican.program"
-_DEFAULT_PROGRAM_LOG_PREFIX = "copernican-program"
 _PROGRAM_LOGGER: logging.Logger | None = None
 
 
@@ -129,8 +130,11 @@ def setup_program_logging(
     """
 
     ensure_dir_exists(log_dir)
-    log_tag = f"{_DEFAULT_PROGRAM_LOG_PREFIX}_{get_timestamp()}.txt"
-    log_path = os.path.join(log_dir, log_tag)
+    log_path = str(
+        prepare_program_log_path(
+            Path(log_dir),
+        )
+    )
 
     logger_obj = logging.getLogger(_PROGRAM_LOGGER_NAME)
     logger_obj.setLevel(logging.INFO)

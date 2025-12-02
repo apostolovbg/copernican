@@ -192,6 +192,7 @@ def build_manifest(
             "hashes": dataset.get("hashes", {}),
             "independence": independence,
             "condition_number": dataset.get("condition_number"),
+            "type": dataset.get("type", "unknown"),
         }
         manifest["selection"]["datasets"].append(dataset_id)
 

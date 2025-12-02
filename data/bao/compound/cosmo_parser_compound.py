@@ -26,6 +26,7 @@ from copernican_lib.dataset_registry import register_bao_parser
 
 DATA_DIR = os.path.dirname(__file__)
 
+
 # Explicitly register under the metadata ``dataset_id`` so that
 # ``load_bao_data('compound_bao_set')`` locates this parser.
 @register_bao_parser(name="compound_bao_set", data_dir=DATA_DIR)

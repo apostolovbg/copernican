@@ -33,6 +33,10 @@ import numpy as np
 import pandas as pd
 
 from copernican_lib import engine_plugin_validation
+from copernican_lib.engine_capabilities import (
+    EngineProgressChunk,
+    EngineSetting,
+)
 from copernican_lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
 from copernican_lib.progress import BatchProgressBar
 from copernican_lib.statistics import (
@@ -56,6 +60,47 @@ _DEFAULT_ENLARGEMENT_FRACTION = 1.6
 _MAX_INITIAL_ATTEMPTS = 2000
 _MAX_REPLACEMENT_ATTEMPTS = 5000
 _MIN_WEIGHT_FLOOR = 1e-12
+
+ENGINE_SETTINGS = (
+    EngineSetting(
+        key="n_live_points",
+        label="Live points",
+        description="Number of live points maintained during nested sampling.",
+        dtype="int",
+        default=_DEFAULT_LIVE_POINTS,
+    ),
+    EngineSetting(
+        key="max_iterations",
+        label="Max iterations",
+        description="Iteration budget before the nested sampler stops.",
+        dtype="int",
+        default=_DEFAULT_MAX_ITERATIONS,
+    ),
+    EngineSetting(
+        key="evidence_tolerance",
+        label="Evidence tolerance",
+        description="Stopping tolerance applied to the log-evidence estimate.",
+        dtype="float",
+        default=_DEFAULT_EVIDENCE_TOLERANCE,
+    ),
+    EngineSetting(
+        key="enlargement_fraction",
+        label="Enlargement fraction",
+        description="Initial enlargement multiplier for bounding ellipsoids.",
+        dtype="float",
+        default=_DEFAULT_ENLARGEMENT_FRACTION,
+    ),
+    EngineSetting(
+        key="display_progress",
+        label="Display progress",
+        description="Emit progress updates while iterating.",
+        dtype="bool",
+        default=True,
+    ),
+)
+ENGINE_PROGRESS_CHUNKS = (
+    EngineProgressChunk(name="sampling", label="Nested sampling"),
+)
 
 
 @dataclass(slots=True)

@@ -5,7 +5,6 @@
 
 import importlib.util
 import os
-import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -20,20 +19,10 @@ import copernican_lib.model_coder as model_coder
 import copernican_lib.model_spec_validator as model_spec_validator
 import engines.cosmo_engine_mcmc as engine
 from copernican_lib.likelihoods import cmb
+from copernican_lib.run_pipeline import extract_cosmological_param_vector
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 os.environ.setdefault("VIRTUAL_ENV", str(REPO_ROOT / ".venv"))
-
-COPERNICAN_PATH = REPO_ROOT / "copernican.py"
-SPEC = importlib.util.spec_from_file_location("copernican", COPERNICAN_PATH)
-if SPEC is None or SPEC.loader is None:
-    raise ImportError("Unable to resolve copernican module for testing")
-COPERNICAN_MODULE = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = COPERNICAN_MODULE
-SPEC.loader.exec_module(COPERNICAN_MODULE)
-extract_cosmological_param_vector = (
-    COPERNICAN_MODULE.extract_cosmological_param_vector
-)
 
 # Ensure compound BAO parser registration without requiring package installs
 parser_path = (

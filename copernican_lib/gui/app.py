@@ -48,6 +48,17 @@ from copernican_lib import (
     utils,
     version,
 )
+from copernican_lib.engine_capabilities import (
+    EngineCapabilities,
+    get_engine_capabilities,
+)
+from copernican_lib.run_lifecycle import (
+    ManifestDraft,
+    create_manifest_draft,
+    delete_manifest_draft,
+    finalize_run_from_draft,
+    import_manifest_to_draft,
+)
 
 log_mod = logger
 
@@ -189,7 +200,7 @@ class CopernicanGUI:
         "Models",
         "Data",
         "Engine",
-        "Plan",
+        "Save Manifest",
         "Confirm",
     ]
     _PROGRESS_POLL_INTERVAL = 0.5
@@ -226,8 +237,10 @@ class CopernicanGUI:
         self.selected_engine: str = ""
         self._selected_model_entry: dict | None = None
         self._selected_engine_entry: dict | None = None
+        self.engine_capabilities: EngineCapabilities | None = None
         self.selected_datasets: list[dict[str, str]] = []
         self.pending_manifest: Optional[dict] = None
+        self.manifest_draft: ManifestDraft | None = None
         self._staged_confirm_manifest: Optional[dict] = None
         self.catalogue_index: dict[str, dict] = {}
         self.model_index: dict[str, dict] = {}
@@ -1999,6 +2012,9 @@ class CopernicanGUI:
                 self.selected_engine = record["id"]
                 self.draft.engine = record["id"]
                 self._selected_engine_entry = record
+                self.engine_capabilities = self._load_engine_capabilities(
+                    record["id"]
+                )
                 detail_label.config(
                     text=(
                         f"{record['label']} uses module {record['id']} "
@@ -2206,17 +2222,79 @@ class CopernicanGUI:
                 takefocus=True,
             ).pack(anchor="w", padx=(16, 0))
 
+        manifest_frame = ttk.LabelFrame(
+            container,
+            text="Manifest draft",
+        )
+        manifest_frame.pack(fill="x", pady=(12, 0))
+        status_text = (
+            f"Saved: {self.manifest_draft.manifest_path}"
+            if self.manifest_draft
+            else "No manifest saved yet."
+        )
+        ttk.Label(
+            manifest_frame,
+            text=status_text,
+            wraplength=720,
+            takefocus=True,
+        ).pack(anchor="w", pady=(0, 4))
+
+        def _save_and_refresh() -> None:
+            self._save_manifest_draft(force=True, notify=True)
+            self.show_run_builder()
+
+        ttk.Button(
+            manifest_frame,
+            text="Save manifest draft",
+            command=_save_and_refresh,
+        ).pack(anchor="w")
+
+        capabilities_frame = ttk.LabelFrame(
+            container,
+            text="Engine capabilities",
+        )
+        capabilities_frame.pack(fill="x", pady=(12, 0))
+        if not self.engine_capabilities:
+            ttk.Label(
+                capabilities_frame,
+                text="No engine capability metadata available yet.",
+                wraplength=720,
+                takefocus=True,
+            ).pack(anchor="w")
+        else:
+            if self.engine_capabilities.settings:
+                for setting in self.engine_capabilities.settings:
+                    ttk.Label(
+                        capabilities_frame,
+                        text=(
+                            f"{setting.label} ({setting.key}): "
+                            f"{setting.description}"
+                        ),
+                        wraplength=720,
+                        takefocus=True,
+                    ).pack(anchor="w", pady=(0, 2))
+            chunk_labels = [
+                chunk.label
+                for chunk in self.engine_capabilities.progress_chunks
+            ]
+            if chunk_labels:
+                ttk.Label(
+                    capabilities_frame,
+                    text=("Progress chunks: " f"{', '.join(chunk_labels)}"),
+                    wraplength=720,
+                    takefocus=True,
+                ).pack(anchor="w", pady=(4, 0))
+
     def _stage_confirm_manifest(self) -> None:
         """Capture builder selections as a manifest snapshot for later use."""
 
-        try:
-            self._staged_confirm_manifest = self._generate_manifest_snapshot()
-        except Exception as exc:
-            self._staged_confirm_manifest = None
-            self.create_toast(
-                f"Unable to capture manifest snapshot: {exc}",
-                severity="ERROR",
-                context="run",
+        if self.pending_manifest is None:
+            if self._save_manifest_draft() is None:
+                self._staged_confirm_manifest = None
+                return
+        if self.pending_manifest is not None:
+            self._staged_confirm_manifest = copy.deepcopy(
+                self.pending_manifest
             )
 
     def _render_builder_step_confirm(self, container: tk.Frame) -> None:
@@ -3150,6 +3228,7 @@ class CopernicanGUI:
         self.current_step_index = 0
         self.draft = RunDraft()
         self._staged_confirm_manifest = None
+        self._reset_manifest_state()
         self.show_home()
 
     def save_draft(self) -> RunDraft:
@@ -3213,6 +3292,22 @@ class CopernicanGUI:
                     return entry
         raise RuntimeError("Select an engine before starting the run.")
 
+    def _load_engine_capabilities(
+        self, module_name: str
+    ) -> EngineCapabilities | None:
+        """Return engine metadata descriptors when available."""
+
+        try:
+            module = importlib.import_module(module_name)
+            return get_engine_capabilities(module)
+        except Exception as exc:
+            logger.get_program_logger().warning(
+                "Failed to load engine capabilities for %s: %s",
+                module_name,
+                exc,
+            )
+        return None
+
     def _prepare_progress_path(self) -> str:
         """Return the path where the CLI worker writes GUI progress."""
 
@@ -3226,28 +3321,14 @@ class CopernicanGUI:
     def _build_worker_config(self) -> dict:
         """Return the serialized configuration passed to the CLI worker."""
 
-        model_entry = self._resolve_model_entry()
-        engine_entry = self._resolve_engine_entry()
-        datasets: dict[str, str] = {}
-        for entry in self.selected_datasets:
-            dataset_type = (entry.get("type") or "").lower()
-            if not dataset_type:
-                lookup = self.catalogue_index.get(entry.get("id", ""))
-                if lookup:
-                    dataset_type = (lookup.get("type") or "").lower()
-            dataset_id = entry.get("id", "")
-            if dataset_type and dataset_id:
-                datasets[dataset_type] = dataset_id
-        plan = self._build_sampling_plan_values(engine_entry["id"])
+        if self.manifest_draft is None:
+            raise RuntimeError("No manifest draft is available.")
         progress_path = self._prepare_progress_path()
         self._progress_state_path = progress_path
         progress_state.clear_progress(progress_path)
         return {
-            "seed": self._safe_int(self.draft.seed, default=0),
-            "model_filename": Path(model_entry["path"]).name,
-            "engine_filename": engine_entry["filename"],
-            "datasets": datasets,
-            "sampling_plan": plan,
+            "manifest_path": str(self.manifest_draft.manifest_path),
+            "output_dir": str(self.manifest_draft.folder),
             "progress_path": progress_path,
         }
 
@@ -3813,9 +3894,87 @@ class CopernicanGUI:
 
         return None
 
+    def _delete_manifest_draft_file(self) -> None:
+        """Remove the current manifest draft directory if it exists."""
+
+        if self.manifest_draft is None:
+            return
+        delete_manifest_draft(self.manifest_draft)
+        self.manifest_draft = None
+
+    def _reset_manifest_state(self) -> None:
+        """Clear manifest state after a cancellation or restart."""
+
+        self._delete_manifest_draft_file()
+        self.pending_manifest = None
+        self.summary.manifest_metadata = []
+        self.summary.manifest_actions = []
+
+    def _save_manifest_draft(
+        self,
+        *,
+        force: bool = False,
+        notify: bool = False,
+    ) -> ManifestDraft | None:
+        """Write the active manifest snapshot to a draft folder."""
+
+        if self.manifest_draft and not force:
+            return self.manifest_draft
+        if force:
+            self._delete_manifest_draft_file()
+        try:
+            manifest = self._generate_manifest_snapshot()
+        except Exception as exc:
+            self.create_toast(
+                f"Manifest generation failed: {exc}",
+                severity="ERROR",
+                context="run",
+            )
+            return None
+        output_root = Path(self._output_root())
+        try:
+            draft = create_manifest_draft(output_root, manifest)
+        except Exception as exc:
+            self.create_toast(
+                f"Failed to save manifest draft: {exc}",
+                severity="ERROR",
+                context="run",
+            )
+            return None
+        self.manifest_draft = draft
+        self.pending_manifest = manifest
+        self.summary.manifest_metadata = self._summarise_manifest()
+        note = f"Manifest draft saved to {draft.manifest_path}"
+        self.summary.manifest_actions.append(note)
+        if notify:
+            self.create_toast(
+                "Manifest draft stored in the output folder.",
+                severity="INFO",
+                context="run",
+            )
+        return draft
+
     def confirm_start_run(self) -> None:
         """Generate a manifest snapshot and defer output creation."""
 
+        manifest_draft = self._save_manifest_draft()
+        if manifest_draft is None or self.pending_manifest is None:
+            self.create_toast(
+                "Cannot start run without a saved manifest.",
+                severity="ERROR",
+                context="run",
+            )
+            return
+        run_start_ts = utils.get_timestamp()
+        manifest_draft = finalize_run_from_draft(
+            manifest_draft,
+            start_timestamp=run_start_ts,
+        )
+        self.manifest_draft = manifest_draft
+        self.summary.manifest_metadata = self._summarise_manifest()
+        self.summary.manifest_actions.append(
+            f"Manifest finalised for run start: {manifest_draft.manifest_path}"
+        )
         try:
             worker_config = self._build_worker_config()
         except Exception as exc:
@@ -3828,10 +3987,7 @@ class CopernicanGUI:
             return
         self.status = RunStatus.CONFIGURING
         self.current_phase = "Configuring"
-        self.pending_manifest = self._generate_manifest_snapshot()
-        self.summary.manifest_metadata = self._summarise_manifest()
-        if self.pending_manifest is not None:
-            self._start_run_logging(self.pending_manifest)
+        self._start_run_logging(self.pending_manifest)
         self.start_run()
         self._launch_worker_process(config=worker_config)
 
@@ -3856,9 +4012,17 @@ class CopernicanGUI:
     def import_manifest(self, path: str) -> dict:
         """Load a manifest and seed the builder selections from it."""
 
-        manifest = run_manifest.load_manifest(path)
+        draft = import_manifest_to_draft(
+            Path(path),
+            Path(self._output_root()),
+        )
+        manifest = run_manifest.load_manifest(str(draft.manifest_path))
+        self.manifest_draft = draft
         self.pending_manifest = manifest
         self.summary.manifest_metadata = self._summarise_manifest()
+        self.summary.manifest_actions.append(
+            f"Imported manifest copied to {draft.manifest_path}"
+        )
         configuration = manifest.get("configuration", {})
         models = configuration.get("models", [])
         if isinstance(models, str):
@@ -4068,6 +4232,7 @@ class CopernicanGUI:
                     "path": dataset.get("path", ""),
                     "hashes": dataset.get("hashes", {}),
                     "independence": independence,
+                    "type": dataset.get("type", "unknown") or "unknown",
                 }
             )
         configuration = {
@@ -4132,6 +4297,13 @@ class CopernicanGUI:
                 for key, value in settings.items()
             )
             summary.append(f"Run settings: {formatted}")
+        if self.manifest_draft is not None:
+            summary.append(
+                f"Manifest folder: {self.manifest_draft.folder.name}"
+            )
+            summary.append(
+                f"Manifest file: {self.manifest_draft.manifest_path.name}"
+            )
         return summary
 
     def _record_output_decision(self, disposition: str | None) -> None:
