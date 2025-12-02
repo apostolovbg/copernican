@@ -12,7 +12,10 @@ from copernican_lib import (
     logger as log_mod,
     utils,
 )
-from copernican_lib.run_config import DatasetDescriptor, build_config_from_manifest
+from copernican_lib.run_config import (
+    DatasetDescriptor,
+    build_config_from_manifest,
+)
 
 
 def execute_run_from_manifest(
@@ -93,7 +96,8 @@ def _load_dataset_from_descriptor(
     loader = loader_map.get(descriptor.dataset_type.lower())
     if not loader:
         log_mod.get_logger().warning(
-            "No loader configured for dataset type '%s'", descriptor.dataset_type
+            "No loader configured for dataset type '%s'",
+            descriptor.dataset_type,
         )
         return None
     try:

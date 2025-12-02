@@ -659,15 +659,16 @@ def _finalize_cli_run() -> None:
     console.write("")
 
 
-def _run_cli_launch(launch_request: LaunchRequest, argv: Iterable[str] | None) -> int:
+def _run_cli_launch(
+    launch_request: LaunchRequest,
+    argv: Iterable[str] | None,
+) -> int:
     if not launch_request.manifest_path:
-        console.write(
-            (
-                "Copernican CLI requires a manifest file. Use --manifest to point "
-                "at a saved run configuration."
-            ),
-            error=True,
+        missing_manifest_message = (
+            "Copernican CLI requires a manifest file. Use --manifest to point"
+            " at a saved run configuration."
         )
+        console.write(missing_manifest_message, error=True)
         return 1
     try:
         main_workflow(manifest_path=launch_request.manifest_path)

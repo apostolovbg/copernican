@@ -618,7 +618,9 @@ def execute_run_pipeline(
             console_output.write(
                 f"  {disp} = {val:.5g}"
             )
-        chi2_sne = fit_res.get("chi2_sne", fit_res.get("chi2_min", float("nan")))
+        chi2_sne = fit_res.get(
+            "chi2_sne", fit_res.get("chi2_min", float("nan"))
+        )
         chi2_total = fit_res.get("chi2_total", float("nan"))
         console_output.write(f"  χ²_Total = {chi2_total:.2f}")
         console_output.write(f"  χ²_SNe = {chi2_sne:.2f}")

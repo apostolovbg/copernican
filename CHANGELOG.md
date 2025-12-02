@@ -20,6 +20,13 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 11.0.1
+- 2025-12-02: Wrapped the CLI manifest warning and manifest runner helpers to
+             respect the 79-character policy, then bumped the suite to 11.0.1 so
+             metadata files stay in sync (copernican.py,
+             copernican_lib/run_executor.py, copernican_lib/run_pipeline.py,
+             copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+
 ## Version 11.0.0
 - 2025-12-02: Removed the staged interactive CLI and Stage 1–5 numbering,
              introduced the manifest-driven entrypoint plus shared run
