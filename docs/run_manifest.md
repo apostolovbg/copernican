@@ -12,7 +12,10 @@ finalised (timestamped to the run directory) and fed to
 datasets via `copernican_lib.run_config`, instantiates the chosen engine, and
 hands everything to `copernican_lib/run_pipeline.execute_run_pipeline` so the
 CLI and GUI share an identical sampling, diagnostics, plotting and export
-sequence.
+sequence. The executor also reconstructs both the ΛCDM reference plugin and the
+manifest’s alternative model directly from their YAML caches before sampling,
+ensuring every run reuses the exact symbolic definitions recorded in the
+manifest regardless of how the configuration was authored.
 
 When editing via the GUI the Save Manifest page first writes the working
 configuration into `output/copernican_run_NEW_CONFIG/run_manifest_NEW_CONFIG.yml`

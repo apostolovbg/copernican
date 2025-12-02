@@ -14,9 +14,9 @@ summarises three GUI-safe services:
    sampler outputs while `copernican_lib.cli.dependencies.get_runtime_options`
    keeps the runtime flags and logging posture aligned with the CLI. Manifest
    runners should now call `copernican_lib.run_executor.execute_run_from_manifest`
-   so the shared pipeline in `copernican_lib/run_pipeline.py` and the dataset
-   rebuild helpers in `copernican_lib/run_config.py` execute uniformly for both
-   GUI and headless runs.
+   so the shared pipeline in `copernican_lib/run_pipeline.py`, the dataset
+   rebuild helpers in `copernican_lib/run_config.py`, and the YAML-backed model
+   plugins all execute uniformly for both GUI and headless runs.
 
 `copernican.py --gui` prints this service map without entering the interactive
 menus. GUI launchers should construct an

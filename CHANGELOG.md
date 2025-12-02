@@ -21,6 +21,10 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-02: Documented that manifest-driven runs rebuild LCDM/alternative
+              plugins before entering the shared pipeline so CLI and GUI
+              launches are identical (README.md, docs/run_manifest.md,
+              docs/orchestration_services.md).
 - 2025-12-02: Powered the manifest executor through the shared sampling
               pipeline so CLI runs now build vetted model plugins, import
               the requested engine and advance
