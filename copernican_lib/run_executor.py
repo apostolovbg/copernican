@@ -2,20 +2,102 @@
 
 from __future__ import annotations
 
-import logging
+from functools import lru_cache
+from importlib import import_module
 from pathlib import Path
 from typing import Any, Callable, Sequence
+
+import yaml
 
 from copernican_lib import (
     console_output,
     dataset_registry,
-    logger as log_mod,
+    engine_plugin_validation,
+)
+from copernican_lib import logger as log_mod
+from copernican_lib import (
+    model_coder,
+    model_spec_validator,
+    run_pipeline,
     utils,
 )
 from copernican_lib.run_config import (
     DatasetDescriptor,
     build_config_from_manifest,
 )
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_MODELS_DIR = _REPO_ROOT / "models"
+_MODEL_CACHE_DIR = _MODELS_DIR / "cache"
+_LCDM_MODEL_PATH = _MODELS_DIR / "cosmo_model_lcdm.yml"
+
+_PLUGIN_CACHE: dict[str, Any] = {}
+
+
+@lru_cache(maxsize=1)
+def _model_name_index() -> dict[str, Path]:
+    """Return a lookup table from model names to their YAML files."""
+
+    index: dict[str, Path] = {}
+    if not _MODELS_DIR.is_dir():
+        return index
+    for path in sorted(_MODELS_DIR.glob("*.yml")):
+        if path.name.startswith("__"):
+            continue
+        try:
+            raw = path.read_text(encoding="utf-8")
+            data = yaml.safe_load(raw) or {}
+        except Exception:
+            data = {}
+        model_name = str(data.get("model_name") or path.stem).strip()
+        stems = {path.stem, model_name}
+        if path.stem.startswith("cosmo_model_"):
+            stems.add(path.stem.split("cosmo_model_", 1)[-1])
+        for stem in stems:
+            if not stem:
+                continue
+            index[stem.casefold()] = path
+    return index
+
+
+def _resolve_model_path(model_name: str | None) -> Path | None:
+    """Return the YAML path associated with *model_name*."""
+
+    if not model_name:
+        return None
+    candidate = _model_name_index().get(model_name.casefold())
+    if candidate:
+        return candidate
+    fallback = (_MODELS_DIR / model_name).with_suffix(".yml")
+    return fallback if fallback.is_file() else None
+
+
+def _build_plugin_from_path(model_path: Path) -> Any:
+    """Return an EnginePlugin built from *model_path*."""
+
+    cache_key = str(model_path.resolve())
+    if cache_key in _PLUGIN_CACHE:
+        return _PLUGIN_CACHE[cache_key]
+    cache_path = Path(
+        model_spec_validator.validate_and_cache_model(
+            model_path, str(_MODEL_CACHE_DIR)
+        )
+    )
+    funcs, parsed = model_coder.generate_callables(cache_path)
+    plugin = engine_plugin_validation.build_plugin(parsed, funcs)
+    _PLUGIN_CACHE[cache_key] = plugin
+    return plugin
+
+
+def _load_model_plugin(model_name: str | None) -> Any:
+    """Load the model declared by *model_name* or fail."""
+
+    if not model_name:
+        raise RuntimeError("Model selection must include a name.")
+    model_path = _resolve_model_path(model_name)
+    if model_path is None:
+        raise RuntimeError(f"Model '{model_name}' could not be found.")
+    return _build_plugin_from_path(model_path)
 
 
 def execute_run_from_manifest(
@@ -73,6 +155,40 @@ def execute_run_from_manifest(
                 len(frame),
             )
 
+    try:
+        engine_module = import_module(config.engine.module_name)
+    except Exception as exc:
+        log.error(
+            "Failed to import engine module %s: %s",
+            config.engine.module_name,
+            exc,
+        )
+        raise
+
+    if not _LCDM_MODEL_PATH.is_file():
+        raise RuntimeError("Missing required model cosmo_model_lcdm.yml.")
+    lcdm_plugin = _build_plugin_from_path(_LCDM_MODEL_PATH)
+    alt_name = config.models[0] if config.models else None
+    alt_plugin = _load_model_plugin(alt_name) if alt_name else lcdm_plugin
+
+    sampling_plan = dict(config.run_settings.settings or {})
+    sampling_plan.setdefault("engine_kind", config.run_settings.engine_kind)
+    display_progress = bool(sampling_plan.pop("display_progress", True))
+    run_pipeline.execute_run_pipeline(
+        lcdm=lcdm_plugin,
+        alt_model_plugin=alt_plugin,
+        engine_module=engine_module,
+        sne_data_df=loaded_data.get("sne"),
+        bao_data_df=loaded_data.get("bao"),
+        cmb_data_df=loaded_data.get("cmb"),
+        sampling_plan=sampling_plan,
+        output_dir=str(output_root),
+        run_start_ts=actual_ts,
+        progress_callback=progress_callback,
+        display_progress=display_progress,
+        logger=log,
+    )
+
 
 def _describe_datasets(datasets: Sequence[DatasetDescriptor]) -> None:
     log = log_mod.get_logger()
@@ -119,5 +235,6 @@ def _resolve_run_timestamp(output_root: Path, override: str | None) -> str:
     name = output_root.name
     prefix = "copernican-run_"
     if name.startswith(prefix):
-        return name[len(prefix) :]
+        slice_start = len(prefix)
+        return name[slice_start:]
     return utils.get_timestamp()

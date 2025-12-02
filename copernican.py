@@ -589,12 +589,14 @@ def main_workflow(manifest_path: Path | None = None):
     global utils, error_handler, log_mod, logger
     np, plt, mp = cli_dependencies.load_third_party_modules()
     from copernican_lib import (
-        model_spec_validator,
-        model_coder,
         engine_plugin_validation,
         dataset_registry,
-        utils,
         error_handler,
+        model_coder,
+        model_spec_validator,
+        run_manifest,
+        run_executor,
+        utils,
     )
 
     try:
@@ -622,9 +624,11 @@ def main_workflow(manifest_path: Path | None = None):
         )
         return
 
-    _run_manifest_mode(
-        manifest_path,
-        Path(OUTPUT_BASE_DIR),
+    manifest = run_manifest.load_manifest(str(manifest_path))
+    run_executor.execute_run_from_manifest(
+        manifest,
+        script_dir=Path(SCRIPT_DIR),
+        output_root=Path(OUTPUT_BASE_DIR),
         progress_callback=progress_callback,
         strict_warnings=opts.strict_warnings,
     )

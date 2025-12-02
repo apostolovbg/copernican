@@ -14,6 +14,16 @@ hands everything to `copernican_lib/run_pipeline.execute_run_pipeline` so the
 CLI and GUI share an identical sampling, diagnostics, plotting and export
 sequence.
 
+When editing via the GUI the Save Manifest page first writes the working
+configuration into `output/copernican_run_NEW_CONFIG/run_manifest_NEW_CONFIG.yml`
+so you can continue adjusting the builder without affecting real runs. Save
+buttons stay disabled until seed, model, data and engine selections exist, and
+Start Run renames the temporary workspace to the timestamped `copernican-run_<ts>`
+folder and file before invoking the CLI worker so downstream tooling always
+sees the canonical manifest. CLI `copernican.py` invocations now pass the
+manifest directly to `copernican_lib.run_executor.execute_run_from_manifest`
+so the same manifest runner handles both interfaces.
+
 Headless runs can pin the manifest location with the `--manifest` flag to
 `copernican.py` so CI pipelines always collect the same path even when output
 directories change.

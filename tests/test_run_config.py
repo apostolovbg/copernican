@@ -1,9 +1,9 @@
 import pytest
 
 from copernican_lib.run_config import (
-    build_config_from_manifest,
     DatasetDescriptor,
- )
+    build_config_from_manifest,
+)
 
 
 @pytest.fixture

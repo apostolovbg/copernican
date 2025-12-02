@@ -31,11 +31,12 @@ from typing import Callable, Dict, Mapping, Optional
 
 try:
     import tkinter as tk
-    from tkinter import filedialog, ttk
+    from tkinter import filedialog, messagebox, ttk
 except Exception:  # pragma: no cover - executed only when Tk is missing
     tk = None
     ttk = None
     filedialog = None
+    messagebox = None
 
 import yaml
 
@@ -53,11 +54,10 @@ from copernican_lib.engine_capabilities import (
     get_engine_capabilities,
 )
 from copernican_lib.run_lifecycle import (
-    ManifestDraft,
-    create_manifest_draft,
-    delete_manifest_draft,
-    finalize_run_from_draft,
-    import_manifest_to_draft,
+    ManifestWorkspace,
+    create_manifest_workspace,
+    delete_manifest_workspace,
+    finalize_run_workspace,
 )
 
 log_mod = logger
@@ -203,6 +203,22 @@ class CopernicanGUI:
         "Save Manifest",
         "Confirm",
     ]
+    _TEMP_MANIFEST_FOLDER = "copernican_run_NEW_CONFIG"
+    _TEMP_MANIFEST_FILE = "run_manifest_NEW_CONFIG.yml"
+    _BUILDER_COMPLETION_MESSAGE = (
+        "Set all required selections in Seed, Models, Data and Engine "
+        "before saving the manifest."
+    )
+    _OVERWRITE_MANIFEST_MESSAGE = (
+        "Are you sure you want to overwrite the manifest and run "
+        "configuration with the new settings?"
+    )
+    _CLEAR_CONFIGURATION_MESSAGE = (
+        "Are you sure you want to clear the configuration?"
+    )
+    _MANIFEST_REQUIRED_MESSAGE = (
+        "Save the manifest before advancing to confirmation."
+    )
     _PROGRESS_POLL_INTERVAL = 0.5
     severity_order: dict[str, int] = {
         "DEBUG": 0,
@@ -240,7 +256,7 @@ class CopernicanGUI:
         self.engine_capabilities: EngineCapabilities | None = None
         self.selected_datasets: list[dict[str, str]] = []
         self.pending_manifest: Optional[dict] = None
-        self.manifest_draft: ManifestDraft | None = None
+        self.manifest_workspace: ManifestWorkspace | None = None
         self._staged_confirm_manifest: Optional[dict] = None
         self.catalogue_index: dict[str, dict] = {}
         self.model_index: dict[str, dict] = {}
@@ -293,6 +309,7 @@ class CopernicanGUI:
         self._initialise_rendering()
         self.refresh_inventory()
         self.help_banner_image = None
+        self._load_saved_manifest_workspace()
 
     def _bootstrap_logging(self) -> None:
         """Start the diagnostics log and capture environment details."""
@@ -1409,6 +1426,204 @@ class CopernicanGUI:
 
         self._swap_content(builder)
 
+    def _is_seed_step_complete(self) -> bool:
+        """Return True once the seed input has some text."""
+
+        return bool(self.draft.seed.strip())
+
+    def _is_model_step_complete(self) -> bool:
+        """Return True when the user has picked at least one model."""
+
+        return bool(self.selected_models or self.draft.model.strip())
+
+    def _is_data_step_complete(self) -> bool:
+        """Return True once datasets are recorded."""
+
+        return bool(self.selected_datasets)
+
+    def _is_engine_step_complete(self) -> bool:
+        """Return True when an engine is selected."""
+
+        return bool(self.selected_engine)
+
+    def _builder_ready(self) -> bool:
+        """Indicate whether the first four builder pages are complete."""
+
+        return (
+            self._is_seed_step_complete()
+            and self._is_model_step_complete()
+            and self._is_data_step_complete()
+            and self._is_engine_step_complete()
+        )
+
+    def _has_configuration(self) -> bool:
+        """Return True when there is something saved or selected."""
+
+        return bool(
+            self.manifest_workspace
+            or self.selected_models
+            or self.selected_engine
+            or self.selected_datasets
+            or self.draft.seed.strip()
+            or self.draft.data.strip()
+        )
+
+    def _can_enter_confirm(self) -> bool:
+        """Return True when the confirm page should be unlocked."""
+
+        return self.manifest_workspace is not None and self._builder_ready()
+
+    def _notify_builder_completion_required(self) -> None:
+        """Warn the operator that pages 1–4 must be filled before saving."""
+
+        message = self._BUILDER_COMPLETION_MESSAGE
+        if self.render and messagebox:
+            messagebox.showwarning(
+                "Complete Run Builder steps",
+                message,
+            )
+        self.create_toast(
+            message,
+            severity="WARNING",
+            context="builder",
+        )
+
+    def _notify_manifest_save_required(self) -> None:
+        """Remind the user to save the manifest before confirming."""
+
+        message = self._MANIFEST_REQUIRED_MESSAGE
+        if self.render and messagebox:
+            messagebox.showwarning(
+                "Save manifest first",
+                message,
+            )
+        self.create_toast(
+            message,
+            severity="WARNING",
+            context="builder",
+        )
+
+    def _handle_builder_next(self) -> None:
+        """Guard the transition from Engine to Save Manifest."""
+
+        engine_index = self.builder_steps.index("Engine")
+        if (
+            self.current_step_index == engine_index
+            and not self._builder_ready()
+        ):
+            self._notify_builder_completion_required()
+            return
+        save_index = self.builder_steps.index("Save Manifest")
+        if (
+            self.current_step_index == save_index
+            and self.manifest_workspace is None
+        ):
+            self._notify_manifest_save_required()
+            return
+        self.next_step()
+
+    def _confirm_overwrite_manifest(self) -> bool:
+        """Ask before overwriting an existing saved manifest."""
+
+        if self.render and messagebox:
+            return messagebox.askyesno(
+                "Overwrite manifest",
+                self._OVERWRITE_MANIFEST_MESSAGE,
+            )
+        self.create_toast(
+            self._OVERWRITE_MANIFEST_MESSAGE,
+            severity="WARNING",
+            context="run",
+        )
+        return True
+
+    def _confirm_clear_configuration(self) -> bool:
+        """Prompt the user before clearing the builder configuration."""
+
+        if self.render and messagebox:
+            return messagebox.askyesno(
+                "Clear configuration",
+                self._CLEAR_CONFIGURATION_MESSAGE,
+            )
+        self.create_toast(
+            self._CLEAR_CONFIGURATION_MESSAGE,
+            severity="WARNING",
+            context="builder",
+        )
+        return True
+
+    def _clear_builder_selections(self) -> None:
+        """Reset models, engines and drafts without altering workspace."""
+
+        self.draft = RunDraft()
+        self.selected_models = []
+        self.selected_engine = ""
+        self._selected_model_entry = None
+        self._selected_engine_entry = None
+        self.selected_datasets = []
+        self.engine_capabilities = None
+        self._staged_confirm_manifest = None
+
+    def _clear_manifest_configuration(self) -> None:
+        """Delete the active manifest and reset the builder wizard."""
+
+        self._reset_manifest_state()
+        self._clear_builder_selections()
+        self.current_step_index = 0
+        self.summary.manifest_actions.append(
+            "Run builder configuration cleared."
+        )
+
+    def _save_manifest_and_proceed(self) -> None:
+        """Persist the manifest and jump straight to the confirmation step."""
+
+        workspace = self._persist_manifest_workspace(notify=True)
+        if workspace:
+            confirm_index = self.builder_steps.index("Confirm")
+            self.current_step_index = confirm_index
+            self.show_run_builder()
+
+    def _save_manifest_to_external_folder(
+        self,
+        *,
+        output_path: str | None = None,
+    ) -> None:
+        """Save the current manifest to an external file."""
+
+        if output_path is None:
+            if filedialog is None:
+                self.create_toast(
+                    "File dialogs are unavailable in this environment.",
+                    severity="ERROR",
+                    context="run",
+                )
+                return
+            output_path = filedialog.asksaveasfilename(
+                title="Save manifest externally",
+                initialdir=str(self._output_root()),
+                defaultextension=".yml",
+                filetypes=[
+                    ("YAML files", "*.yml *.yaml"),
+                    ("All files", "*.*"),
+                ],
+            )
+            if not output_path:
+                return
+        manifest = self._ensure_manifest_snapshot()
+        if manifest is None:
+            return
+        directory = os.path.dirname(output_path)
+        path = run_manifest.save_manifest(
+            manifest,
+            directory or self._output_root(),
+            target_path=Path(output_path),
+        )
+        self.create_toast(
+            f"Manifest exported to {path}",
+            severity="INFO",
+            context="run",
+        )
+
     def prompt_manifest_import(self) -> None:
         """Ask the user to select a manifest file and load it."""
 
@@ -1459,11 +1674,19 @@ class CopernicanGUI:
             header.pack(anchor="w", pady=(0, 8))
             step_frame = ttk.Frame(frame)
             step_frame.pack(fill="x", pady=(0, 12))
+            confirm_index = self.builder_steps.index("Confirm")
+            confirm_ready = self._can_enter_confirm()
             for index, step in enumerate(self.builder_steps):
+                indicator_state = (
+                    tk.DISABLED
+                    if index == confirm_index and not confirm_ready
+                    else tk.NORMAL
+                )
                 indicator = ttk.Button(
                     step_frame,
                     text=f"{index + 1}. {step}",
                     command=lambda idx=index: self.jump_to_step(idx),
+                    state=indicator_state,
                     takefocus=True,
                 )
                 indicator.pack(side="left", padx=2)
@@ -1478,6 +1701,7 @@ class CopernicanGUI:
                 takefocus=True,
             )
             body.pack(anchor="w", pady=(8, 8))
+
             controls = ttk.Frame(frame)
             controls.pack(anchor="w")
             nav_button_style = self._monitor_button_kwargs()
@@ -1491,22 +1715,18 @@ class CopernicanGUI:
                 takefocus=True,
                 **nav_button_style,
             ).pack(side="left", padx=4)
+            save_index = self.builder_steps.index("Save Manifest")
+            next_disabled = self.current_step_index >= len(
+                self.builder_steps
+            ) - 1 or (
+                self.current_step_index == save_index
+                and self.manifest_workspace is None
+            )
             ttk.Button(
                 controls,
                 text="Next",
-                command=self.next_step,
-                state=(
-                    tk.DISABLED
-                    if self.current_step_index >= len(self.builder_steps) - 1
-                    else tk.NORMAL
-                ),
-                takefocus=True,
-                **nav_button_style,
-            ).pack(side="left", padx=4)
-            ttk.Button(
-                controls,
-                text="Save Draft",
-                command=self.save_draft,
+                command=self._handle_builder_next,
+                state=tk.DISABLED if next_disabled else tk.NORMAL,
                 takefocus=True,
                 **nav_button_style,
             ).pack(side="left", padx=4)
@@ -1514,6 +1734,9 @@ class CopernicanGUI:
                 controls,
                 text="Cancel",
                 command=self.cancel_builder,
+                state=(
+                    tk.NORMAL if self._has_configuration() else tk.DISABLED
+                ),
                 takefocus=True,
                 **nav_button_style,
             ).pack(side="left", padx=4)
@@ -2076,30 +2299,8 @@ class CopernicanGUI:
         ).pack(side="left", padx=2)
         _apply_engine_selection()
 
-    def _render_builder_step_plan(self, container: tk.Frame) -> None:
-        ttk.Label(
-            container,
-            text="Run plan",
-            font=("Helvetica", 14, "bold"),
-            takefocus=True,
-        ).pack(anchor="w", pady=(0, 6))
-        ttk.Label(
-            container,
-            text="Describe the production plan or testing notes for this run.",
-            wraplength=720,
-            takefocus=True,
-        ).pack(anchor="w")
-        plan_var = tk.StringVar(value=self.draft.plan)
-
-        def _update_plan(*_args: object) -> None:
-            self.draft.plan = plan_var.get()
-
-        plan_var.trace_add("write", _update_plan)
-        ttk.Entry(
-            container,
-            textvariable=plan_var,
-            width=80,
-        ).pack(anchor="w", pady=(6, 0))
+    def _render_engine_run_settings(self, container: tk.Frame) -> None:
+        """Render engine-run tuning inputs next to the engine selector."""
 
         settings_frame = ttk.LabelFrame(
             container,
@@ -2107,37 +2308,32 @@ class CopernicanGUI:
         )
         settings_frame.pack(fill="x", pady=(8, 0))
         recommendations = self._compute_run_recommendations()
-        hint_texts = [
+        hints = [
             (
-                "Production steps control the total sampler iterations."
-                " Recommended default: "
+                "Production steps control the total sampler iterations. "
+                "Recommended default: "
                 f"{recommendations['recommended_steps']}."
             ),
             (
                 "Burn-in steps discard early samples so the chain can "
                 "stabilise. Recommended warm-up: "
-                f"{recommendations['burn_in_recommended']}."
-                f" A quicker option such as {recommendations['quick_burn']} "
-                "trades certainty for speed."
+                f"{recommendations['burn_in_recommended']}. "
+                f"Quicker option: {recommendations['quick_burn']}."
             ),
             (
                 "Walkers sample the posterior in parallel; more walkers "
-                "increase convergence confidence. Required minimum: "
+                f"boost convergence. Required minimum: "
                 f"{recommendations['minimum_walkers']}."
-                " Recommended default: "
-                f"{recommendations['recommended_walkers']}."
             ),
             (
                 "Worker pools accelerate sampling by spreading walkers across "
-                "processes."
-                " Recommended pool size: "
+                "processes. Recommended pool size: "
                 f"{recommendations['pool_max']} "
                 f"(detected CPUs: {recommendations['cpu_label']}). "
-                "Enter 0 to "
-                "disable multiprocessing entirely."
+                "Enter 0 to disable multiprocessing entirely."
             ),
         ]
-        for tip in hint_texts:
+        for tip in hints:
             ttk.Label(
                 settings_frame,
                 text=tip,
@@ -2186,16 +2382,15 @@ class CopernicanGUI:
             ),
         ]
 
-        for label_text, field_name, helper, recommendation in field_specs:
-            var = tk.StringVar(value=getattr(self.draft, field_name))
-
-        def _trace(attribute: str, string_var: tk.StringVar) -> None:
+        def _track(attribute: str, string_var: tk.StringVar) -> None:
             string_var.trace_add(
                 "write",
                 lambda *_: setattr(self.draft, attribute, string_var.get()),
             )
 
-            _trace(field_name, var)
+        for label_text, field_name, helper, recommendation in field_specs:
+            var = tk.StringVar(value=getattr(self.draft, field_name))
+            _track(field_name, var)
             field_row = ttk.Frame(settings_frame)
             field_row.pack(anchor="w", pady=(4, 0))
             ttk.Label(
@@ -2222,15 +2417,40 @@ class CopernicanGUI:
                 takefocus=True,
             ).pack(anchor="w", padx=(16, 0))
 
+    def _render_builder_step_plan(self, container: tk.Frame) -> None:
+        ttk.Label(
+            container,
+            text="Run plan",
+            font=("Helvetica", 14, "bold"),
+            takefocus=True,
+        ).pack(anchor="w", pady=(0, 6))
+        ttk.Label(
+            container,
+            text="Describe the production plan or testing notes for this run.",
+            wraplength=720,
+            takefocus=True,
+        ).pack(anchor="w")
+        plan_var = tk.StringVar(value=self.draft.plan)
+
+        def _update_plan(*_args: object) -> None:
+            self.draft.plan = plan_var.get()
+
+        plan_var.trace_add("write", _update_plan)
+        ttk.Entry(
+            container,
+            textvariable=plan_var,
+            width=80,
+        ).pack(anchor="w", pady=(6, 0))
+
         manifest_frame = ttk.LabelFrame(
             container,
-            text="Manifest draft",
+            text="Manifest",
         )
         manifest_frame.pack(fill="x", pady=(12, 0))
         status_text = (
-            f"Saved: {self.manifest_draft.manifest_path}"
-            if self.manifest_draft
-            else "No manifest saved yet."
+            f"Saved: {self.manifest_workspace.manifest_path}"
+            if self.manifest_workspace
+            else "Manifest not saved yet."
         )
         ttk.Label(
             manifest_frame,
@@ -2239,15 +2459,42 @@ class CopernicanGUI:
             takefocus=True,
         ).pack(anchor="w", pady=(0, 4))
 
-        def _save_and_refresh() -> None:
-            self._save_manifest_draft(force=True, notify=True)
+        actions_frame = ttk.Frame(container)
+        actions_frame.pack(anchor="w", pady=(12, 0))
+
+        def _save_manifest_action() -> None:
+            self._persist_manifest_workspace(notify=True)
             self.show_run_builder()
 
+        save_state = tk.NORMAL if self._builder_ready() else tk.DISABLED
+        clear_state = tk.NORMAL if self._has_configuration() else tk.DISABLED
         ttk.Button(
-            manifest_frame,
-            text="Save manifest draft",
-            command=_save_and_refresh,
-        ).pack(anchor="w")
+            actions_frame,
+            text="Save manifest",
+            command=_save_manifest_action,
+            state=save_state,
+        ).pack(side="left", padx=(0, 4))
+        ttk.Button(
+            actions_frame,
+            text="Save and confirm",
+            command=self._save_manifest_and_proceed,
+            state=save_state,
+        ).pack(side="left", padx=(0, 4))
+        ttk.Button(
+            actions_frame,
+            text="Save to external folder...",
+            command=self._save_manifest_to_external_folder,
+            state=save_state,
+        ).pack(side="left", padx=(0, 4))
+        ttk.Button(
+            actions_frame,
+            text="Clear manifest",
+            command=lambda: (
+                self._clear_manifest_configuration(),
+                self.show_run_builder(),
+            ),
+            state=clear_state,
+        ).pack(side="left", padx=(0, 4))
 
         capabilities_frame = ttk.LabelFrame(
             container,
@@ -2285,17 +2532,16 @@ class CopernicanGUI:
                     takefocus=True,
                 ).pack(anchor="w", pady=(4, 0))
 
+        self._render_engine_run_settings(container)
+
     def _stage_confirm_manifest(self) -> None:
         """Capture builder selections as a manifest snapshot for later use."""
 
-        if self.pending_manifest is None:
-            if self._save_manifest_draft() is None:
-                self._staged_confirm_manifest = None
-                return
-        if self.pending_manifest is not None:
-            self._staged_confirm_manifest = copy.deepcopy(
-                self.pending_manifest
-            )
+        manifest = self._ensure_manifest_snapshot()
+        if manifest is None:
+            self._staged_confirm_manifest = None
+            return
+        self._staged_confirm_manifest = copy.deepcopy(manifest)
 
     def _render_builder_step_confirm(self, container: tk.Frame) -> None:
         self._stage_confirm_manifest()
@@ -2336,20 +2582,19 @@ class CopernicanGUI:
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w")
+        button_frame = ttk.Frame(container)
+        button_frame.pack(anchor="w", pady=(12, 0))
+        start_state = (
+            tk.NORMAL if self.manifest_workspace is not None else tk.DISABLED
+        )
         ttk.Button(
-            container,
-            text="Insert manifest",
-            command=self.insert_manifest_from_builder,
-            takefocus=True,
-            **self._monitor_button_kwargs(),
-        ).pack(anchor="w", pady=(12, 0))
-        ttk.Button(
-            container,
-            text="Start Run from manifest",
+            button_frame,
+            text="Start run",
             command=self.confirm_start_run,
+            state=start_state,
             takefocus=True,
             **self._monitor_button_kwargs(),
-        ).pack(anchor="w", pady=(8, 0))
+        ).pack(side="left")
 
     def _dataset_manifest_record(self, entry: dict) -> dict[str, object]:
         """Return the manifest-safe dict for a dataset catalogue entry."""
@@ -3218,6 +3463,10 @@ class CopernicanGUI:
     def jump_to_step(self, step_index: int) -> None:
         """Jump directly to any builder step."""
 
+        confirm_index = self.builder_steps.index("Confirm")
+        if step_index == confirm_index and not self._can_enter_confirm():
+            self._notify_manifest_save_required()
+            return
         if 0 <= step_index < len(self.builder_steps):
             self.current_step_index = step_index
         self.show_run_builder()
@@ -3225,10 +3474,9 @@ class CopernicanGUI:
     def cancel_builder(self) -> None:
         """Abandon the builder flow and reset its state."""
 
-        self.current_step_index = 0
-        self.draft = RunDraft()
-        self._staged_confirm_manifest = None
-        self._reset_manifest_state()
+        if not self._confirm_clear_configuration():
+            return
+        self._clear_manifest_configuration()
         self.show_home()
 
     def save_draft(self) -> RunDraft:
@@ -3321,14 +3569,14 @@ class CopernicanGUI:
     def _build_worker_config(self) -> dict:
         """Return the serialized configuration passed to the CLI worker."""
 
-        if self.manifest_draft is None:
-            raise RuntimeError("No manifest draft is available.")
+        if self.manifest_workspace is None:
+            raise RuntimeError("No saved manifest is available.")
         progress_path = self._prepare_progress_path()
         self._progress_state_path = progress_path
         progress_state.clear_progress(progress_path)
         return {
-            "manifest_path": str(self.manifest_draft.manifest_path),
-            "output_dir": str(self.manifest_draft.folder),
+            "manifest_path": str(self.manifest_workspace.manifest_path),
+            "output_dir": str(self.manifest_workspace.folder),
             "progress_path": progress_path,
         }
 
@@ -3894,34 +4142,48 @@ class CopernicanGUI:
 
         return None
 
-    def _delete_manifest_draft_file(self) -> None:
-        """Remove the current manifest draft directory if it exists."""
+    def _delete_manifest_workspace(self) -> None:
+        """Remove the current manifest workspace if it exists."""
 
-        if self.manifest_draft is None:
+        if self.manifest_workspace is None:
             return
-        delete_manifest_draft(self.manifest_draft)
-        self.manifest_draft = None
+        delete_manifest_workspace(self.manifest_workspace)
+        self.manifest_workspace = None
+
+    def _load_saved_manifest_workspace(self) -> bool:
+        """Load the temporary manifest workspace if the files still exist."""
+
+        if self.manifest_workspace is not None:
+            return False
+        output_root = Path(self._output_root())
+        workspace_folder = output_root / self._TEMP_MANIFEST_FOLDER
+        manifest_path = workspace_folder / self._TEMP_MANIFEST_FILE
+        if not manifest_path.exists():
+            return False
+        manifest = run_manifest.load_manifest(str(manifest_path))
+        self.manifest_workspace = ManifestWorkspace(
+            folder=workspace_folder,
+            manifest_path=manifest_path,
+            creation_timestamp=manifest_path.stem,
+        )
+        self.pending_manifest = manifest
+        self.summary.manifest_metadata = self._summarise_manifest()
+        self.summary.manifest_actions.append(
+            f"Loaded saved manifest from {manifest_path}"
+        )
+        return True
 
     def _reset_manifest_state(self) -> None:
         """Clear manifest state after a cancellation or restart."""
 
-        self._delete_manifest_draft_file()
+        self._delete_manifest_workspace()
         self.pending_manifest = None
         self.summary.manifest_metadata = []
         self.summary.manifest_actions = []
 
-    def _save_manifest_draft(
-        self,
-        *,
-        force: bool = False,
-        notify: bool = False,
-    ) -> ManifestDraft | None:
-        """Write the active manifest snapshot to a draft folder."""
+    def _ensure_manifest_snapshot(self) -> dict | None:
+        """Generate and cache the latest manifest snapshot."""
 
-        if self.manifest_draft and not force:
-            return self.manifest_draft
-        if force:
-            self._delete_manifest_draft_file()
         try:
             manifest = self._generate_manifest_snapshot()
         except Exception as exc:
@@ -3931,49 +4193,83 @@ class CopernicanGUI:
                 context="run",
             )
             return None
-        output_root = Path(self._output_root())
-        try:
-            draft = create_manifest_draft(output_root, manifest)
-        except Exception as exc:
-            self.create_toast(
-                f"Failed to save manifest draft: {exc}",
-                severity="ERROR",
-                context="run",
-            )
-            return None
-        self.manifest_draft = draft
         self.pending_manifest = manifest
+        return manifest
+
+    def _persist_manifest_workspace(
+        self,
+        *,
+        notify: bool = False,
+    ) -> ManifestWorkspace | None:
+        """Persist the current manifest snapshot into the output folder."""
+
+        manifest = self._ensure_manifest_snapshot()
+        if manifest is None:
+            return None
+        workspace = self.manifest_workspace
+        if workspace is not None:
+            if not self._confirm_overwrite_manifest():
+                return None
+            try:
+                run_manifest.save_manifest(
+                    manifest,
+                    workspace.folder,
+                    target_path=workspace.manifest_path,
+                )
+            except Exception as exc:
+                self.create_toast(
+                    f"Failed to overwrite manifest: {exc}",
+                    severity="ERROR",
+                    context="run",
+                )
+                return None
+        else:
+            output_root = Path(self._output_root())
+            try:
+                workspace = create_manifest_workspace(
+                    output_root,
+                    manifest,
+                    folder_name=self._TEMP_MANIFEST_FOLDER,
+                    manifest_filename=self._TEMP_MANIFEST_FILE,
+                )
+            except Exception as exc:
+                self.create_toast(
+                    f"Failed to save manifest: {exc}",
+                    severity="ERROR",
+                    context="run",
+                )
+                return None
+            self.manifest_workspace = workspace
         self.summary.manifest_metadata = self._summarise_manifest()
-        note = f"Manifest draft saved to {draft.manifest_path}"
+        note = f"Manifest saved to {workspace.manifest_path}"
         self.summary.manifest_actions.append(note)
         if notify:
             self.create_toast(
-                "Manifest draft stored in the output folder.",
+                "Manifest stored in the output folder.",
                 severity="INFO",
                 context="run",
             )
-        return draft
+        return workspace
 
     def confirm_start_run(self) -> None:
         """Generate a manifest snapshot and defer output creation."""
 
-        manifest_draft = self._save_manifest_draft()
-        if manifest_draft is None or self.pending_manifest is None:
+        if self.manifest_workspace is None or self.pending_manifest is None:
             self.create_toast(
-                "Cannot start run without a saved manifest.",
+                "Cannot start run without saving the manifest first.",
                 severity="ERROR",
                 context="run",
             )
             return
         run_start_ts = utils.get_timestamp()
-        manifest_draft = finalize_run_from_draft(
-            manifest_draft,
+        workspace = finalize_run_workspace(
+            self.manifest_workspace,
             start_timestamp=run_start_ts,
         )
-        self.manifest_draft = manifest_draft
+        self.manifest_workspace = workspace
         self.summary.manifest_metadata = self._summarise_manifest()
         self.summary.manifest_actions.append(
-            f"Manifest finalised for run start: {manifest_draft.manifest_path}"
+            f"Manifest finalised for run start: {workspace.manifest_path}"
         )
         try:
             worker_config = self._build_worker_config()
@@ -4012,17 +4308,11 @@ class CopernicanGUI:
     def import_manifest(self, path: str) -> dict:
         """Load a manifest and seed the builder selections from it."""
 
-        draft = import_manifest_to_draft(
-            Path(path),
-            Path(self._output_root()),
-        )
-        manifest = run_manifest.load_manifest(str(draft.manifest_path))
-        self.manifest_draft = draft
+        manifest = run_manifest.load_manifest(path)
+        self._delete_manifest_workspace()
         self.pending_manifest = manifest
         self.summary.manifest_metadata = self._summarise_manifest()
-        self.summary.manifest_actions.append(
-            f"Imported manifest copied to {draft.manifest_path}"
-        )
+        self.summary.manifest_actions.append(f"Imported manifest from {path}")
         configuration = manifest.get("configuration", {})
         models = configuration.get("models", [])
         if isinstance(models, str):
@@ -4297,12 +4587,12 @@ class CopernicanGUI:
                 for key, value in settings.items()
             )
             summary.append(f"Run settings: {formatted}")
-        if self.manifest_draft is not None:
+        if self.manifest_workspace is not None:
             summary.append(
-                f"Manifest folder: {self.manifest_draft.folder.name}"
+                f"Manifest folder: {self.manifest_workspace.folder.name}"
             )
             summary.append(
-                f"Manifest file: {self.manifest_draft.manifest_path.name}"
+                f"Manifest file: {self.manifest_workspace.manifest_path.name}"
             )
         return summary
 

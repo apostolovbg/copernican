@@ -3,22 +3,15 @@
 from __future__ import annotations
 
 import copy
-import math
 import os
 from typing import Any, Callable, Mapping, Sequence
 
 import numpy as np
 
-from copernican_lib import (
-    chain_io,
-    console_output,
-    csv_writer,
-    diagnostics,
-    logger as log_mod,
-    plotter,
-    result_writer,
-    utils,
-)
+from copernican_lib import chain_io, console_output, csv_writer, diagnostics
+from copernican_lib import logger as log_mod
+from copernican_lib import plotter, result_writer, utils
+
 
 # Fallback logger retrieved lazily so the helper works when called before
 # the global logger is available.
@@ -114,9 +107,7 @@ def _maybe_plot_corner(
             f"{sne_data_df.attrs.get('dataset_name', 'Joint dataset')} "
             "Posterior Samples"
         ),
-        "description": (
-            "Corner plot summarising the joint posterior."
-        ),
+        "description": ("Corner plot summarising the joint posterior."),
         "citation": sne_data_df.attrs.get("citation", ""),
         "notes": sne_data_df.attrs.get("notes", ""),
     }
@@ -200,7 +191,6 @@ def execute_run_pipeline(
             f"Walker ensemble {sampling_walkers}, pool {pool_label}."
         )
 
-    manifest_settings = sampling_plan
     fit_fn, _ = resolve_fit_function(engine_module)
 
     console_output.write("ΛCDM reference chain")
@@ -243,7 +233,6 @@ def execute_run_pipeline(
             progress_callback=progress_callback,
         )
 
-    reuse_alt = False
     lcdm_file = getattr(lcdm, "MODEL_FILENAME", "")
     alt_file = getattr(alt_model_plugin, "MODEL_FILENAME", "")
     same_name = (
@@ -261,7 +250,6 @@ def execute_run_pipeline(
         )
         console_output.write("")
         alt_model_fit_results = copy.deepcopy(lcdm_fit_results)
-        reuse_alt = True
     else:
         console_output.write("")
         console_output.write(
@@ -270,12 +258,10 @@ def execute_run_pipeline(
         if plan_kind == "nested":
             console_output.write(f"  Live points: {sampling_live}")
             console_output.write(f"  Max iterations: {sampling_max_iter}")
-        console_output.write(
-            f"  Evidence tolerance: {sampling_tol:g}"
-        )
-        console_output.write(
-            f"  Enlargement fraction: {sampling_enlarge:g}"
-        )
+            console_output.write(f"  Evidence tolerance: {sampling_tol:g}")
+            console_output.write(
+                f"  Enlargement fraction: {sampling_enlarge:g}"
+            )
         if plan_kind == "nested":
             console_output.write("  Starting alternative sampler...")
             console_output.write("")
@@ -330,6 +316,7 @@ def execute_run_pipeline(
 
     # BAO diagnostics.
     BAO_DIAG = diagnostics.bao_residual_diagnostics
+
     def _component_enabled(fit_results, component):
         state = fit_results.get("likelihood_state", {}) if fit_results else {}
         metadata = state.get("metadata", {})
@@ -429,16 +416,14 @@ def execute_run_pipeline(
             )
         return summary
 
-    bao_z = bao_data_df if bao_data_df is not None else None
-    lcdm_bao_summary = _run_bao_analysis(
-        lcdm, lcdm_fit_results, z_plot_smooth
-    )
+    lcdm_bao_summary = _run_bao_analysis(lcdm, lcdm_fit_results, z_plot_smooth)
     alt_bao_summary = _run_bao_analysis(
         alt_model_plugin, alt_model_fit_results, z_plot_smooth
     )
 
     # CMB diagnostics.
     CMB_DIAG = diagnostics.cmb_residual_diagnostics
+
     def _run_cmb_analysis(model_plugin, fit_results):
         summary = {
             "chi2_cmb": float(
@@ -559,21 +544,6 @@ def execute_run_pipeline(
             timestamp=run_start_ts,
         )
 
-    posterior_attrs = {
-        "dataset_id": (
-            f"{sne_data_df.attrs.get('dataset_id', 'joint')}-posterior"
-        ),
-        "dataset_name": (
-            f"{sne_data_df.attrs.get('dataset_name', 'Joint dataset')} "
-            "Posterior Samples"
-        ),
-            "description": (
-                "Corner plot summarising the joint posterior derived "
-                "from the combined SNe, BAO and CMB likelihood evaluation."
-            ),
-        "citation": sne_data_df.attrs.get("citation", ""),
-        "notes": sne_data_df.attrs.get("notes", ""),
-    }
     _maybe_plot_corner(
         lcdm_fit_results,
         lcdm,
@@ -615,9 +585,7 @@ def execute_run_pipeline(
                 val = fit_res.get("fitted_cosmological_params", {}).get(name)
                 if val is not None:
                     disp = latex_utils.latex_to_unicode(latex_name)
-            console_output.write(
-                f"  {disp} = {val:.5g}"
-            )
+            console_output.write(f"  {disp} = {val:.5g}")
         chi2_sne = fit_res.get(
             "chi2_sne", fit_res.get("chi2_min", float("nan"))
         )

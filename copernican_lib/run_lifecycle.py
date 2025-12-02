@@ -14,94 +14,104 @@ PROGRAM_LOG_SUFFIX = ".txt"
 
 
 @dataclass
-class ManifestDraft:
-    """Track a manifest draft while the Run Builder is still configuring."""
+class ManifestWorkspace:
+    """Describe a persisted manifest and its run folder."""
 
     folder: Path
     manifest_path: Path
     creation_timestamp: str
 
 
-def _draft_folder_name(prefix: str, timestamp: str) -> str:
+def _workspace_folder_name(prefix: str, timestamp: str) -> str:
     """Return the canonical folder name for a manifest timestamp."""
 
     return f"{prefix}_{timestamp}"
 
 
 def _manifest_filename(timestamp: str) -> str:
-    """Return the filename written inside every draft folder."""
+    """Return the filename written inside every workspace folder."""
 
     return f"run_manifest_{timestamp}.yml"
 
 
-def create_manifest_draft(
+def create_manifest_workspace(
     output_root: Path,
     manifest: dict,
     *,
     folder_prefix: str = "copernican-run",
-) -> ManifestDraft:
-    """Persist the provided manifest in a timestamped draft directory."""
+    folder_name: str | None = None,
+    manifest_filename: str | None = None,
+) -> ManifestWorkspace:
+    """Persist the provided manifest in a workspace."""
 
     timestamp = utils.get_timestamp()
-    draft_folder = output_root / _draft_folder_name(folder_prefix, timestamp)
-    draft_folder.mkdir(parents=True, exist_ok=True)
-    manifest_path = draft_folder / _manifest_filename(timestamp)
+    if folder_name is None:
+        folder_name = _workspace_folder_name(folder_prefix, timestamp)
+    workspace_folder = output_root / folder_name
+    workspace_folder.mkdir(parents=True, exist_ok=True)
+    if manifest_filename is None:
+        manifest_filename = _manifest_filename(timestamp)
+    manifest_path = workspace_folder / manifest_filename
     run_manifest.save_manifest(
         manifest,
-        draft_folder,
+        workspace_folder,
         target_path=manifest_path,
     )
-    return ManifestDraft(
-        folder=draft_folder,
+    return ManifestWorkspace(
+        folder=workspace_folder,
         manifest_path=manifest_path,
         creation_timestamp=timestamp,
     )
 
 
-def delete_manifest_draft(draft: ManifestDraft) -> None:
-    """Delete the draft folder and its manifest when the user cancels."""
+def delete_manifest_workspace(workspace: ManifestWorkspace) -> None:
+    """Delete the manifest workspace when the user cancels."""
 
-    if draft.folder.exists():
-        shutil.rmtree(draft.folder)
+    if workspace.folder.exists():
+        shutil.rmtree(workspace.folder)
 
 
-def import_manifest_to_draft(
+def import_manifest_to_workspace(
     source: Path,
     output_root: Path,
     *,
     folder_prefix: str = "copernican-run",
-) -> ManifestDraft:
-    """Copy an external manifest into a new draft workspace."""
+) -> ManifestWorkspace:
+    """Copy an external manifest into a new workspace."""
 
     timestamp = utils.get_timestamp()
-    draft_folder = output_root / _draft_folder_name(folder_prefix, timestamp)
-    draft_folder.mkdir(parents=True, exist_ok=True)
-    target_manifest = draft_folder / _manifest_filename(timestamp)
+    workspace_folder = output_root / _workspace_folder_name(
+        folder_prefix, timestamp
+    )
+    workspace_folder.mkdir(parents=True, exist_ok=True)
+    target_manifest = workspace_folder / _manifest_filename(timestamp)
     shutil.copy2(source, target_manifest)
-    return ManifestDraft(
-        folder=draft_folder,
+    return ManifestWorkspace(
+        folder=workspace_folder,
         manifest_path=target_manifest,
         creation_timestamp=timestamp,
     )
 
 
-def finalize_run_from_draft(
-    draft: ManifestDraft,
+def finalize_run_workspace(
+    workspace: ManifestWorkspace,
     *,
     start_timestamp: str,
     folder_prefix: str = "copernican-run",
-) -> ManifestDraft:
-    """Rename the draft workspace to the run-start timestamp."""
+) -> ManifestWorkspace:
+    """Rename the workspace to the run-start timestamp."""
 
-    new_folder = draft.folder.parent / _draft_folder_name(
+    manifest_name = _manifest_filename(start_timestamp)
+    new_manifest = workspace.folder / manifest_name
+    workspace.manifest_path.rename(new_manifest)
+    new_folder = workspace.folder.parent / _workspace_folder_name(
         folder_prefix, start_timestamp
     )
-    draft.folder.rename(new_folder)
-    new_manifest = new_folder / _manifest_filename(start_timestamp)
-    draft.manifest_path.rename(new_manifest)
-    return ManifestDraft(
+    workspace.folder.rename(new_folder)
+    final_manifest = new_folder / manifest_name
+    return ManifestWorkspace(
         folder=new_folder,
-        manifest_path=new_manifest,
+        manifest_path=final_manifest,
         creation_timestamp=start_timestamp,
     )
 

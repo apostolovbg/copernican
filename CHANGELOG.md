@@ -21,11 +21,31 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-02: Powered the manifest executor through the shared sampling
+              pipeline so CLI runs now build vetted model plugins, import
+              the requested engine and advance
+              `copernican_lib.run_pipeline.execute_run_pipeline` after the
+              dataset loaders finish (copernican_lib/run_executor.py,
+              tests/test_run_executor.py).
 - 2025-12-02: Wrapped the CLI manifest warning and manifest runner helpers to
-             respect the 79-character policy, then bumped the suite to 11.0.1 so
-             metadata files stay in sync (copernican.py,
-             copernican_lib/run_executor.py, copernican_lib/run_pipeline.py,
-             copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+              respect the 79-character policy, then bumped the suite to 11.0.1 so
+              metadata files stay in sync (copernican.py,
+              copernican_lib/run_executor.py, copernican_lib/run_pipeline.py,
+              copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+- 2025-12-02: Documented the Run Builder Save Manifest gating, temporary
+              workspace, confirmation flow and Cancel safeguards plus the new
+              external-export dialog so operators know which files move when the
+              pages open (AGENTS.md, README.md, docs/gui_overview.md,
+              docs/run_manifest.md).
+- 2025-12-02: Fixed `finalize_run_workspace` so the manifest is renamed before
+              its containing folder moves, preventing `FileNotFoundError` when
+              the GUI starts runs and ensuring the temporary workspace survives
+              until the CLI worker loads it (copernican_lib/run_lifecycle.py,
+              tests/test_gui_app.py).
+- 2025-12-02: Pointed `copernican.main_workflow` at
+              `copernican_lib.run_executor.execute_run_from_manifest` so manifest
+              launches share the executor already used by the GUI and other
+              orchestrators (copernican.py).
 
 ## Version 11.0.0
 - 2025-12-02: Removed the staged interactive CLI and Stage 1–5 numbering,

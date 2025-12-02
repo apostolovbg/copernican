@@ -80,6 +80,20 @@ samples appear once their parsers register with the dataset registry.
   embedded log console that tails the live `logs/runs/*.txt` file so operators
   can follow the real run transcript directly from the GUI.
 
+Run Builder now gates the Save Manifest page until the seed, model, dataset,
+and engine panels all have selections. Saving writes the working manifest to
+`output/copernican_run_NEW_CONFIG/run_manifest_NEW_CONFIG.yml`, keeps the
+temporary workspace so settings remain editable and unlocks the confirmation
+page. The confirmation panel stays read-only until a manifest exists; clicking
+**Start run** finalises the workspace by renaming it into `copernican-run_<ts>`
+and `run_manifest_<ts>.yml` before launching the CLI worker, while the Cancel
+button remains inactive whenever no configuration exists so inadvertent
+cancels never delete unrelated folders.
+
+CLI manifest launches now reuse `copernican_lib.run_executor.execute_run_from_manifest`
+so both the GUI and CLI share the same manifest runner and no custom helper in
+`copernican.py` is required to execute the workflow.
+
 All supported datasets share a uniform pipeline: parsers normalise the inputs,
 the joint likelihood composes SNe Ia, BAO and CMB components, and the engine
 records diagnostics, NetCDF chains and a manifest describing the chosen

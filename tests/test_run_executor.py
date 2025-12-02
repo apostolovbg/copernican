@@ -1,4 +1,5 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -62,6 +63,27 @@ def test_execute_run_from_manifest_loads_datasets(monkeypatch, tmp_path):
     def progress_callback(record):
         progress_records.append(record)
 
+    pipeline_calls = []
+
+    def fake_pipeline(**kwargs):
+        pipeline_calls.append(kwargs)
+
+    monkeypatch.setattr(
+        run_executor.run_pipeline,
+        "execute_run_pipeline",
+        fake_pipeline,
+    )
+
+    monkeypatch.setattr(
+        run_executor,
+        "_build_plugin_from_path",
+        lambda path: SimpleNamespace(
+            MODEL_NAME=path.stem,
+            MODEL_FILENAME=path.name,
+        ),
+    )
+
+    run_executor._PLUGIN_CACHE.clear()
     run_executor.execute_run_from_manifest(
         manifest,
         script_dir=Path("."),
@@ -73,3 +95,8 @@ def test_execute_run_from_manifest_loads_datasets(monkeypatch, tmp_path):
         progress_records
         and progress_records[0]["status"] == "manifest_execution_started"
     )
+    assert pipeline_calls
+    sampling_plan = pipeline_calls[0]["sampling_plan"]
+    assert sampling_plan["engine_kind"] == "mcmc"
+    assert pipeline_calls[0]["display_progress"]
+    assert pipeline_calls[0]["output_dir"] == str(tmp_path)

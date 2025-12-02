@@ -4,7 +4,7 @@ helpers."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Iterable, Mapping, Sequence, Tuple
+from typing import Any, Mapping, Sequence, Tuple
 
 MAX_ENGINE_SETTINGS = 16
 MAX_PROGRESS_CHUNKS = 3

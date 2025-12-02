@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-11-30
+**Last Updated:** 2025-12-02
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -53,12 +53,22 @@ working folder, metadata and parser revalidation buttons, Settings exposes
 diagnostics filters, output-directory helpers and environment hints, and Help
 renders `README.md` (banner and all) inside a scrollable text widget so the
 documentation is available without leaving the GUI. Full details live in
-`docs/gui_overview.md`. Metadata/YAML dialogs size themselves to the longest
-line, add an **Open file…** action that launches the source asset in the OS
-default editor, and Start Run now delegates to `copernican_lib.gui.run_worker`,
-which invokes the real CLI workflow in a child process using the builder
-selections. The worker’s stdout/stderr feed the diagnostics pane while Cancel
-and Hard Stop terminate the child so runs remain interruptible from the GUI.
+`docs/gui_overview.md`. The Save Manifest page only enables once the seed,
+model, dataset and engine panels hold selections; saving writes the active
+manifest to `output/copernican_run_NEW_CONFIG/run_manifest_NEW_CONFIG.yml`,
+updates the summary metadata and unlocks the confirmation step. Starting the
+run renames that workspace to `copernican-run_<timestamp>` so the CLI worker
+always reads the timestamped manifest while Cancel/Clear removes the temporary
+folder so no drafts linger. Metadata/YAML dialogs size themselves to the
+longest line, add an **Open file…** action that launches the source asset in
+the OS default editor, and Start Run now delegates to
+`copernican_lib.gui.run_worker`, which invokes the real CLI workflow in a child
+process using the builder selections. The worker’s stdout/stderr feed the
+diagnostics pane while Cancel and Hard Stop terminate the child so runs remain
+interruptible from the GUI. CLI manifest launches now share the same
+`copernican_lib.run_executor.execute_run_from_manifest` helper as the GUI so
+the orchestration logic stays centralized and the manifest runner can be reused
+by other frontends without duplicating the workflow.
 The navigation rail itself now reserves 240 px so a padded Copernican logo square
 rendered from `img/logogui.png` sits above the Home button with equal spacing to
 the surrounding chrome before the other navigation controls begin. The icon now

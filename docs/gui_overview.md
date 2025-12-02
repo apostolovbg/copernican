@@ -29,6 +29,15 @@ sampling is through the confirmation step’s **Start Run from manifest** button
 A companion **Insert manifest** button stages the generated manifest so you can
 review metadata or export it before launching the worker.
 
+The Save Manifest step now stays locked until every seed/model/data/engine
+panel reports a selection. Saving writes the current manifest to
+`output/copernican_run_NEW_CONFIG/run_manifest_NEW_CONFIG.yml`, leaves the
+workspace editable and enables the **Save and confirm** controls. Cancel and Clear
+actions purge that temporary folder so aborted builders never leave stray manifests,
+and the confirmation panel keeps its **Start run** button disabled until a
+manifest exists so the GUI always renames the workspace to `copernican-run_<timestamp>`
+before handing it to `copernican_lib.gui.run_worker`.
+
 ## Data
 
 The Data catalogue renders separate scrollable lists for each dataset type so
