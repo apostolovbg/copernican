@@ -21,10 +21,52 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-03: Added CLI utility flags for catalogue summaries, dataset
+             revalidation and manifest listing/preview so terminal users can
+             inspect inventories without launching the GUI
+             (copernican.py, tests/test_cli/test_cli_utilities.py,
+             docs/cli_guide.md, README.md, CHANGELOG.md).
+- 2025-12-03: Replaced the Run Builder dataset listboxes with 600 px wide
+             dropdown menus so selections stay visible and accessible even when
+             Tk list heights collapse (copernican_lib/gui/app.py,
+             CHANGELOG.md).
+- 2025-12-03: Added dedicated GUI and CLI guides plus a multi-page Help panel
+             that renders those Markdown files with builder-style navigation
+             buttons while standardising every navigation page header on the
+             bolder Run Builder style (copernican_lib/gui/app.py,
+             docs/gui_guide.md, docs/cli_guide.md, README.md, CHANGELOG.md).
+- 2025-12-03: Replaced the README and overview docs with the newer " 2" copies
+             and deleted the stale originals so the latest manifest, API and
+             GUI documentation is canonical (README.md, README 2.md,
+             docs/api_overview.md, docs/api_overview 2.md,
+             docs/data_overview.md, docs/data_overview 2.md,
+             docs/gui_overview.md, docs/gui_overview 2.md,
+             docs/orchestration_services.md, docs/orchestration_services 2.md,
+             CHANGELOG.md).
 - 2025-12-03: Added catalogue health tiles on the GUI Home screen plus the new
              environment/version status bar so operators can revalidate datasets,
              inspect model compatibility counts, and confirm COPERNICAN_*
              overrides before launching runs (copernican_lib/gui/app.py,
+             CHANGELOG.md).
+- 2025-12-03: Flattened the GUI status bar chrome so the environment strip blends
+             with the main window instead of showing a raised border
+             (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Nudged the horizontal separator and status bar text 5 px lower so
+             the Home content and environment strip have consistent spacing
+             (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Reduced the status bar height by 10 px while centering its text
+             between the separator and window border for a tighter footer layout
+             (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Pulled the separator and status text even closer to the window
+             border so the footer is slimmer while keeping the version strip
+             centered between the chrome (copernican_lib/gui/app.py,
+             CHANGELOG.md).
+- 2025-12-03: Removed the outer window padding, made the separator span edge to
+             edge, and thinned the status bar again so the footer no longer looks
+             bulky (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Dropped the placeholder Recent Runs and Quick configurations
+             blocks on the Home screen so those sections only appear when real
+             history/config data exists (copernican_lib/gui/app.py,
              CHANGELOG.md).
 - 2025-12-03: Extended the version-sync policy to cover pyproject.toml and
              tightened the modules-or-tests enforcement so new or removed
@@ -47,6 +89,25 @@ suffixes. Follow this template:
 - 2025-12-03: Restored the dynamic Engine settings panel so each backend exposes its knobs, recommendations and run-setting hints with a scrollable stage four layout (copernican_lib/gui/app.py, CHANGELOG.md).
 - 2025-12-03: Removed the redundant Engine knobs panel and moved each run-setting recommendation directly above its corresponding entry to keep the Stage 4 layout compact (copernican_lib/gui/app.py, CHANGELOG.md).
 - 2025-12-03: Reverted the experimental anchor logic on the model preview panel and shortened the preview text area by one line for a tighter default layout (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Doubled the left padding on the navigation rail so the buttons sit further from the window edge (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Reduced the status strip padding so the environment text sits closer to the window’s lower border (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Removed the root window’s bottom padding so the separator and status text align closely with the lower frame (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Simplified the status summary to stop after the venv indicator, switched separators to double spaces and tinted the strip labels with a neutral grey for both light/dark modes (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Updated the status bar branding to show “Copernican Suite … © Apostol Apostolov & Black Epsilon Ltd.” on the left and moved the Python/venv info to the right (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Increased the logo rail padding (extra 10 px above) and uncropped the image by expanding its holder so the bottom edge is visible (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Extended the navigation separator so its vertical bar meets the bottom status separator for cleaner alignment (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Locked the GUI to a minimum width of 800 px so the layout can’t collapse in narrow windows (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Stacked the dataset selectors vertically with fixed 500 px width listboxes that auto-size between one and five rows based on available entries (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Reintroduced engine capability detection so the Run Settings box reflects whichever engine is selected, showing engine-specific knobs (including nested settings) with parsed recommendations, bounded spinboxes and a checkbox for display-progress (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Swapped the Run Builder step jump buttons to Tk buttons so font highlighting works without Tk style errors (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Restored native ttk jump buttons without custom fonts so inactive steps use the standard disabled styling like the other controls (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Sized the Run Builder jump buttons to match the navigation controls and now leverage ttk’s disabled state so Manifest/Confirm grey out identically to Previous/Next/Cancel (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Raised the GUI root window above other apps (temporarily setting `-topmost`) so it appears in front of the launcher terminal when opened (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Trimmed the Run Builder header to display the active step name (“Run builder: Seed”) and resized the jump buttons to match Previous/Next/Cancel so the bar is consistent (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Fixed the dataset selectors so each listbox renders 1–5 rows at 500 px width with readable highlights instead of the clipped black slivers (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Updated the Manifest step helper text to the full storage warning copy requested for saved manifests (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Locked dataset listboxes to four rows to keep the selection highlight visible regardless of available entries (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Removed the stage headings from Run Builder pages and replaced them with consistent 30 px spacing so each step’s content lines up cleanly beneath the navigation controls (copernican_lib/gui/app.py, CHANGELOG.md).
 - 2025-12-03: Tuned the padding between the navigation buttons and separator to 24 px so the right-hand margin stays comfortably wider while retaining the tight left edge gap (copernican_lib/gui/app.py, README.md, CHANGELOG.md).
 - 2025-12-03: Rebalanced the GUI navigation spacing, expanded the data
              selectors with a provisional scrollbar, embedded the faster

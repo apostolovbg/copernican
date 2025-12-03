@@ -27,6 +27,7 @@ import time
 from collections import Counter
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Callable, Dict, Mapping, Optional
@@ -51,6 +52,11 @@ from copernican_lib import (
     utils,
     version,
 )
+from copernican_lib.engine_capabilities import (
+    EngineCapabilities,
+    EngineSetting,
+    get_engine_capabilities,
+)
 from copernican_lib.run_lifecycle import (
     ManifestWorkspace,
     create_manifest_workspace,
@@ -64,6 +70,26 @@ _PROGRESS_SPINNER_CHARS = frozenset("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
 _NAV_PANE_WIDTH = 140
 _LOGO_PADDING = 12
 _LOGO_SIDE = _NAV_PANE_WIDTH // 4
+
+_ENGINE_SETTING_LIMITS: dict[str, dict[str, dict[str, float | int | str]]] = {
+    "engines.cosmo_engine_mcmc": {
+        "n_steps": {"min": 1, "max": 500_000},
+        "burn_in_steps": {"min": 0, "max": 100_000},
+        "n_walkers": {"min": 1, "max": 10_000},
+        "pool_size": {"min": 1, "max": "cpu"},
+    },
+    "engines.cosmo_engine_nested": {
+        "n_live_points": {"min": 1, "max": 20_000},
+        "max_iterations": {"min": 1, "max": 1_000_000},
+        "evidence_tolerance": {"min": 1e-6, "max": 1.0},
+        "enlargement_fraction": {"min": 0.1, "max": 10.0},
+    },
+}
+
+_HELP_PAGES = [
+    {"id": "gui", "label": "GUI guide", "path": "docs/gui_guide.md"},
+    {"id": "cli", "label": "CLI guide", "path": "docs/cli_guide.md"},
+]
 
 
 def _is_progress_line(line: str) -> bool:
@@ -254,10 +280,20 @@ class CopernicanGUI:
         self.current_phase = "Idle"
         self.selected_models: list[str] = []
         self.selected_engine: str = ""
+        self.selected_engine_kind: str = "mcmc"
         self._selected_model_entry: dict | None = None
         self._selected_engine_entry: dict | None = None
-        self._engine_run_settings_frame: ttk.Frame | None = None
+        self.engine_capabilities: EngineCapabilities | None = None
+        self._engine_setting_vars: dict[str, tk.Variable] = {}
+        self._engine_setting_specs: dict[str, EngineSetting] = {}
+        self._engine_run_settings_frame: ttk.LabelFrame | None = None
+        self._current_engine_module: str | None = None
         self.selected_datasets: list[dict[str, str]] = []
+        self.help_page_index = 0
+        self._current_help_page_id = _HELP_PAGES[0]["id"]
+        self._help_page_buttons: dict[str, ttk.Button] = {}
+        self._help_text_widget: tk.Text | None = None
+        self._help_title_label: ttk.Label | None = None
         self.pending_manifest: Optional[dict] = None
         self.manifest_workspace: ManifestWorkspace | None = None
         self._staged_confirm_manifest: Optional[dict] = None
@@ -308,6 +344,7 @@ class CopernicanGUI:
         self._run_output_button: ttk.Button | None = None
         self.logo_image: tk.PhotoImage | None = None
         self._status_bar_frame: ttk.Frame | None = None
+        self._brand_status_label: ttk.Label | None = None
         self._environment_status_label: ttk.Label | None = None
         self._bootstrap_logging()
         self._build_navigation()
@@ -358,6 +395,18 @@ class CopernicanGUI:
         if self._monitor_button_style_ready:
             return {"style": self._monitor_button_style_name}
         return {}
+
+    def _page_header(self, frame: tk.Frame, title: str) -> ttk.Label:
+        """Render a standard page header label."""
+
+        label = ttk.Label(
+            frame,
+            text=title,
+            font=("Helvetica", 16),
+            takefocus=True,
+        )
+        label.pack(anchor="w", pady=(0, 8))
+        return label
 
     def _attach_handler(
         self, logger_obj: logging.Logger, handler: _MemoryLogHandler
@@ -606,7 +655,16 @@ class CopernicanGUI:
             self.root = tk.Tk()
             self.root.title(f"Copernican Suite {self.gui_version}")
             self.root.geometry("1200x800")
-            self.root.configure(padx=12, pady=12)
+            self.root.minsize(width=800, height=600)
+            self.root.configure(padx=0, pady=0)
+            try:
+                self.root.lift()
+                self.root.attributes("-topmost", True)
+                self.root.after(
+                    1500, lambda: self.root.attributes("-topmost", False)
+                )
+            except Exception:
+                pass
             self._ensure_monitor_button_styles()
             self._build_layout()
         except Exception as exc:  # pragma: no cover - only hits Tk failures
@@ -1241,21 +1299,26 @@ class CopernicanGUI:
             return
         self._load_logo_image()
         logo_holder = ttk.Frame(nav_frame)
-        logo_holder.pack(fill="x", pady=(0, _LOGO_PADDING))
+        logo_holder.pack(fill="x", pady=(20, _LOGO_PADDING + 10))
         logo_holder.pack_propagate(False)
         base_side = _LOGO_SIDE
         image_width = self.logo_image.width() if self.logo_image else base_side
         image_height = (
             self.logo_image.height() if self.logo_image else base_side
         )
-        holder_height = image_height + 2 * _LOGO_PADDING
+        holder_height = image_height + 2 * _LOGO_PADDING + 6
         holder_width = image_width + 2 * _LOGO_PADDING
         logo_holder.configure(height=holder_height)
         square = ttk.Frame(
             logo_holder,
             width=holder_width,
             height=holder_height,
-            padding=_LOGO_PADDING,
+            padding=(
+                _LOGO_PADDING,
+                _LOGO_PADDING,
+                _LOGO_PADDING,
+                _LOGO_PADDING - 6,
+            ),
         )
         square.pack_propagate(False)
         square.pack(anchor="center")
@@ -1276,14 +1339,14 @@ class CopernicanGUI:
             )
         logo_widget.grid(row=0, column=0, sticky="nsew")
 
-    def _load_help_markdown(self) -> str:
-        """Return the contents of README.md for the Help panel."""
+    def _load_help_markdown(self, relative_path: str) -> str:
+        """Return the contents of the requested markdown asset."""
 
-        readme_path = Path(__file__).resolve().parents[2] / "README.md"
+        doc_path = Path(__file__).resolve().parents[2] / relative_path
         try:
-            return readme_path.read_text(encoding="utf-8")
+            return doc_path.read_text(encoding="utf-8")
         except Exception as exc:
-            message = f"Unable to read README.md for Help panel: {exc}"
+            message = f"Unable to read {relative_path} for Help panel: {exc}"
             logger.get_program_logger().warning(message)
             return message
 
@@ -1385,6 +1448,54 @@ class CopernicanGUI:
             last = end
         widget.insert("end", text[last:], base_tags)
 
+    def _help_page_record(self, page_id: str | None = None) -> dict[str, str]:
+        """Return the help page metadata for the provided identifier."""
+
+        target_id = page_id or self._current_help_page_id
+        for index, page in enumerate(_HELP_PAGES):
+            if page["id"] == target_id:
+                self.help_page_index = index
+                return page
+        self.help_page_index = 0
+        self._current_help_page_id = _HELP_PAGES[0]["id"]
+        return _HELP_PAGES[0]
+
+    def _help_header_text(self) -> str:
+        """Return the title string for the current help page."""
+
+        record = self._help_page_record()
+        return f"Help: {record['label']}"
+
+    def _select_help_page(self, page_id: str) -> None:
+        """Switch the help content to a new page and refresh widgets."""
+
+        self._current_help_page_id = page_id
+        self._help_page_record(page_id)
+        self._refresh_help_page_view()
+
+    def _refresh_help_page_view(self) -> None:
+        """Update the help header, buttons and rendered markdown."""
+
+        record = self._help_page_record()
+        if self._help_title_label is not None:
+            self._help_title_label.configure(text=self._help_header_text())
+        for page in _HELP_PAGES:
+            button = self._help_page_buttons.get(page["id"])
+            if not button:
+                continue
+            if page["id"] == self._current_help_page_id:
+                button.state(["disabled"])
+            else:
+                button.state(["!disabled"])
+        if self._help_text_widget is None or not self.render or tk is None:
+            return
+        markdown = self._load_help_markdown(record["path"])
+        self._help_text_widget.configure(state="normal")
+        self._help_text_widget.delete("1.0", tk.END)
+        self._render_markdown_in_text_widget(self._help_text_widget, markdown)
+        self._help_text_widget.yview_moveto(0.0)
+        self._help_text_widget.configure(state="disabled")
+
     def view_metadata_file(self, asset_id: str) -> str:
         """Return cached metadata content for the requested asset."""
 
@@ -1439,13 +1550,13 @@ class CopernicanGUI:
 
         if not self.render or self.root is None:
             return
-        nav_frame = ttk.Frame(self.root, padding=(12, 12, 24, 12))
+        nav_frame = ttk.Frame(self.root, padding=(24, 12, 24, 12))
         nav_frame.configure(width=_NAV_PANE_WIDTH)
         nav_frame.grid(row=0, column=0, sticky="nsw")
         nav_frame.grid_propagate(False)
         self.root.grid_columnconfigure(0, minsize=_NAV_PANE_WIDTH)
         separator = ttk.Separator(self.root, orient="vertical")
-        separator.grid(row=0, column=1, sticky="ns")
+        separator.grid(row=0, column=1, rowspan=2, sticky="ns")
         self.root.grid_columnconfigure(1, minsize=2)
         self.content_area = ttk.Frame(self.root, padding=(12, 12, 12, 12))
         self.content_area.grid(row=0, column=2, sticky="nsew")
@@ -1470,7 +1581,7 @@ class CopernicanGUI:
             column=0,
             columnspan=3,
             sticky="ew",
-            pady=(12, 4),
+            pady=(4, 0),
         )
         self._build_status_bar()
         self.show_home()
@@ -1496,29 +1607,38 @@ class CopernicanGUI:
             return
         status_bar = ttk.Frame(
             self.root,
-            padding=(12, 4),
-            relief="sunken",
+            padding=(8, 0, 8, 2),
+            relief="flat",
+            borderwidth=0,
         )
         status_bar.grid(
             row=2,
             column=0,
             columnspan=3,
             sticky="ew",
+            pady=(0, 0),
         )
         status_bar.columnconfigure(0, weight=1)
         status_bar.columnconfigure(1, weight=1)
-        ttk.Label(
+        self._brand_status_label = ttk.Label(
             status_bar,
             text="",
+            foreground="#6c6c6c",
+            anchor="w",
             takefocus=True,
-        ).grid(row=0, column=0, sticky="w")
+        )
+        self._brand_status_label.grid(row=0, column=0, sticky="w", pady=(0, 0))
         self._environment_status_label = ttk.Label(
             status_bar,
             text="",
             anchor="e",
+            foreground="#6c6c6c",
             takefocus=True,
         )
-        self._environment_status_label.grid(row=0, column=1, sticky="e")
+        self._environment_status_label.grid(
+            row=0, column=1, sticky="e", pady=(0, 0)
+        )
+        self._refresh_brand_status()
         self._status_bar_frame = status_bar
 
     def _environment_summary_text(self) -> str:
@@ -1526,7 +1646,6 @@ class CopernicanGUI:
 
         python_label = platform.python_version()
         python_impl = platform.python_implementation()
-        version_text = f"Copernican {self.gui_version}"
         python_text = f"{python_impl} {python_label}"
         venv_path = os.environ.get("VIRTUAL_ENV") or ""
         if venv_path:
@@ -1537,47 +1656,71 @@ class CopernicanGUI:
                 venv_text = f"VIRTUAL_ENV={venv_name}"
         else:
             venv_text = "Managed .venv inactive"
-        overrides = [
-            f"{key}={os.environ[key]}"
-            for key in sorted(os.environ)
-            if key.startswith("COPERNICAN_") and os.environ.get(key)
-        ]
-        if overrides:
-            override_text = f"Overrides: {', '.join(overrides)}"
-        else:
-            override_text = "Overrides: none"
-        return " | ".join(
-            [version_text, python_text, venv_text, override_text]
+        summary_parts = [python_text, venv_text]
+        return "  ".join(summary_parts)
+
+    def _brand_status_text(self) -> str:
+        """Return text describing the brand for the status strip."""
+
+        return (
+            f"Copernican Suite {self.gui_version}  "
+            "\u00A9 Apostol Apostolov & Black Epsilon Ltd."
         )
 
     def _refresh_environment_status(self) -> None:
         """Update the environment strip text."""
 
+        self._refresh_brand_status()
         if self._environment_status_label is None:
             return
         self._environment_status_label.configure(
             text=self._environment_summary_text()
         )
 
+    def _builder_status_message(self) -> str:
+        """Return contextual instructions for the Run Builder header."""
+
+        if self.current_step_index <= 3:
+            return (
+                "Work through the pages to assemble a reproducible manifest.\n"
+                "After you have input all the settings, you will be able "
+                "to proceed and save your manifest for a run."
+            )
+        current_step = self.builder_steps[self.current_step_index]
+        if current_step == "Manifest":
+            if self.manifest_workspace is None:
+                return (
+                    "Your manifest is currently only in Copernican's head. "
+                    "You have to save it on your hard drive, solid state "
+                    "drive, liquid state, gas or plasma drive to proceed to "
+                    "Confirm and start your inference run."
+                )
+            return (
+                "Now Copernican knows what to work with and won't look at the "
+                "wrong model while you are sleeping. No need to babysit it "
+                "anymore—just proceed to Confirm and run."
+            )
+        if current_step == self._CONFIRM_STEP_NAME:
+            return (
+                "If you are reading this, you are either on the brink of a "
+                "groundbreaking discovery, or this diabolical software really "
+                "works. The former is far more probable. Take a look at your "
+                "run specs and start your run!"
+            )
+        return ""
+
+    def _refresh_brand_status(self) -> None:
+        """Update the left-aligned brand status label."""
+
+        if self._brand_status_label is None:
+            return
+        self._brand_status_label.configure(text=self._brand_status_text())
+
     def show_home(self) -> None:
         """Render the project home panel with recents and quick actions."""
 
-        if not self.recent_runs:
-            self.recent_runs = [
-                "copernican-run_20251124_120000",
-                "copernican-run_20251124_094500",
-            ]
-        if not self.pinned_configs:
-            self.pinned_configs = [
-                "LambdaCDM baseline",
-                "Joint likelihood sandbox",
-            ]
-
         def builder(frame: tk.Frame) -> None:
-            header = ttk.Label(
-                frame, text="Project Home", font=("Helvetica", 16)
-            )
-            header.pack(anchor="w", pady=(0, 8))
+            self._page_header(frame, "Project Home")
             tiles = ttk.Frame(frame)
             tiles.pack(fill="x", pady=(0, 12))
             tiles.columnconfigure(0, weight=1)
@@ -1714,21 +1857,26 @@ class CopernicanGUI:
                 command=self.show_engines,
                 takefocus=True,
             ).pack(side="left", padx=2)
-            ttk.Separator(frame, orient="horizontal").pack(
-                fill="x", pady=(4, 8)
-            )
-            ttk.Label(frame, text="Recent runs", takefocus=True).pack(
-                anchor="w"
-            )
-            for run in self.recent_runs:
-                ttk.Label(frame, text=run, takefocus=True).pack(anchor="w")
-            ttk.Label(
-                frame,
-                text="Pinned configurations",
-                takefocus=True,
-            ).pack(anchor="w", pady=(12, 0))
-            for config in self.pinned_configs:
-                ttk.Label(frame, text=config, takefocus=True).pack(anchor="w")
+            if self.recent_runs or self.pinned_configs:
+                ttk.Separator(frame, orient="horizontal").pack(
+                    fill="x", pady=(4, 8)
+                )
+            if self.recent_runs:
+                ttk.Label(frame, text="Recent runs", takefocus=True).pack(
+                    anchor="w"
+                )
+                for run in self.recent_runs:
+                    ttk.Label(frame, text=run, takefocus=True).pack(anchor="w")
+            if self.pinned_configs:
+                ttk.Label(
+                    frame,
+                    text="Quick configurations",
+                    takefocus=True,
+                ).pack(anchor="w", pady=(12, 0))
+                for config in self.pinned_configs:
+                    ttk.Label(frame, text=config, takefocus=True).pack(
+                        anchor="w"
+                    )
             ttk.Label(frame, text="Quick actions", takefocus=True).pack(
                 anchor="w", pady=(12, 0)
             )
@@ -1899,8 +2047,16 @@ class CopernicanGUI:
         self.draft = RunDraft()
         self.selected_models = []
         self.selected_engine = ""
+        self.selected_engine_kind = "mcmc"
         self._selected_model_entry = None
         self._selected_engine_entry = None
+        self.engine_capabilities = None
+        if self._engine_run_settings_frame is not None:
+            self._engine_run_settings_frame.destroy()
+        self._engine_setting_vars.clear()
+        self._engine_setting_specs.clear()
+        self._engine_run_settings_frame = None
+        self._current_engine_module = None
         self.selected_datasets = []
         self._staged_confirm_manifest = None
 
@@ -2008,33 +2164,33 @@ class CopernicanGUI:
         self.refresh_inventory()
 
         def builder(frame: tk.Frame) -> None:
-            header = ttk.Label(
-                frame, text="Run Builder", font=("Helvetica", 16)
-            )
-            header.pack(anchor="w", pady=(0, 8))
+            current_step = self.builder_steps[self.current_step_index]
+            self._page_header(frame, f"Run builder: {current_step}")
             step_frame = ttk.Frame(frame)
             step_frame.pack(fill="x", pady=(0, 12))
             self._builder_step_buttons = []
+            jump_button_style = self._monitor_button_kwargs()
             for index, step in enumerate(self.builder_steps):
                 indicator = ttk.Button(
                     step_frame,
-                    text=f"{index + 1}. {step}",
+                    text=step,
                     command=lambda idx=index: self.jump_to_step(idx),
+                    width=12,
+                    takefocus=True,
+                    **jump_button_style,
+                )
+                indicator.pack(side="left", padx=4)
+                self._builder_step_buttons.append(indicator)
+            status_message = self._builder_status_message()
+            if status_message:
+                body = ttk.Label(
+                    frame,
+                    text=status_message,
+                    wraplength=720,
+                    justify="left",
                     takefocus=True,
                 )
-                indicator.pack(side="left", padx=2)
-                self._builder_step_buttons.append(indicator)
-            body = ttk.Label(
-                frame,
-                text=(
-                    "Work through the stages to assemble a reproducible run "
-                    "manifest. The controls below let you move between steps, "
-                    "save your progress or cancel entirely."
-                ),
-                wraplength=720,
-                takefocus=True,
-            )
-            body.pack(anchor="w", pady=(8, 8))
+                body.pack(anchor="w", pady=(8, 8))
 
             controls = ttk.Frame(frame)
             controls.pack(anchor="w")
@@ -2090,12 +2246,6 @@ class CopernicanGUI:
         manifest_index = self.builder_steps.index("Manifest")
         confirm_index = self.builder_steps.index(self._CONFIRM_STEP_NAME)
         for index, button in enumerate(self._builder_step_buttons):
-            font = (
-                ("Helvetica", 11, "bold")
-                if index == self.current_step_index
-                else ("Helvetica", 11)
-            )
-            button.configure(font=font)
             if index == manifest_index:
                 desired_state = (
                     tk.NORMAL if self._builder_ready() else tk.DISABLED
@@ -2106,7 +2256,10 @@ class CopernicanGUI:
                 )
             else:
                 desired_state = tk.NORMAL
-            button.configure(state=desired_state)
+            if desired_state == tk.NORMAL:
+                button.state(["!disabled"])
+            else:
+                button.state(["disabled"])
 
     def _build_run_builder_step(self, container: tk.Frame) -> None:
         """Render the content for the current builder step."""
@@ -2224,12 +2377,7 @@ class CopernicanGUI:
         }
 
     def _render_builder_step_seed(self, container: tk.Frame) -> None:
-        ttk.Label(
-            container,
-            text="Seed selection",
-            font=("Helvetica", 14, "bold"),
-            takefocus=True,
-        ).pack(anchor="w", pady=(0, 6))
+        ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
         ttk.Label(
             container,
             text=(
@@ -2269,12 +2417,7 @@ class CopernicanGUI:
             ).pack(side="left", padx=2)
 
     def _render_builder_step_models(self, container: tk.Frame) -> None:
-        ttk.Label(
-            container,
-            text="Model selection",
-            font=("Helvetica", 14, "bold"),
-            takefocus=True,
-        ).pack(anchor="w", pady=(0, 6))
+        ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
         ttk.Label(
             container,
             text="Pick one YAML-defined model to include in the run.",
@@ -2422,12 +2565,7 @@ class CopernicanGUI:
         _refresh_model_selection()
 
     def _render_builder_step_data(self, container: tk.Frame) -> None:
-        ttk.Label(
-            container,
-            text="Data selection",
-            font=("Helvetica", 14, "bold"),
-            takefocus=True,
-        ).pack(anchor="w", pady=(0, 6))
+        ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
         ttk.Label(
             container,
             text=(
@@ -2460,8 +2598,9 @@ class CopernicanGUI:
             for dtype in type_groups
             if dtype not in ("sne", "bao", "cmb")
         )
-        catalogue_panel = self._create_scrollable_panel(container, height=360)
-        listboxes: dict[str, tk.Listbox] = {}
+        catalogue_panel = ttk.Frame(container)
+        catalogue_panel.pack(fill="x", pady=(6, 0))
+        dropdowns: dict[str, ttk.Combobox] = {}
         id_lookup: dict[str, tuple[str, int]] = {}
 
         def _add_dataset_section(
@@ -2470,14 +2609,14 @@ class CopernicanGUI:
             records: list[dict],
             *,
             pack_kwargs: dict[str, object] | None = None,
-            height: int | None = None,
-        ) -> tk.Listbox:
+            width_px: int = 600,
+        ) -> ttk.Combobox:
             frame = ttk.LabelFrame(
                 parent,
                 text=f"{dtype.upper()} datasets",
                 padding=(6, 4),
             )
-            pack_kwargs = pack_kwargs or {"fill": "x", "pady": 4}
+            pack_kwargs = pack_kwargs or {"anchor": "w", "pady": 4}
             frame.pack(**pack_kwargs)
             ttk.Label(
                 frame,
@@ -2487,58 +2626,30 @@ class CopernicanGUI:
                 ),
                 takefocus=True,
             ).pack(anchor="w")
-            list_frame = ttk.Frame(frame)
-            list_frame.pack(fill="both", expand=True, pady=(4, 0))
-            listbox = tk.Listbox(
-                list_frame,
-                height=(
-                    height
-                    if height is not None
-                    else min(8, max(4, len(records)))
-                ),
-                selectmode="browse",
-                exportselection=False,
-                width=32,
+            combo_frame = ttk.Frame(frame, width=width_px)
+            combo_frame.pack(anchor="w", pady=(4, 0))
+            combo_frame.pack_propagate(False)
+            placeholder = "Select dataset…"
+            values = [
+                f"{record['id']} – {record.get('name', record['id'])}"
+                for record in records
+            ]
+            var = tk.StringVar(value="")
+            combo = ttk.Combobox(
+                combo_frame,
+                textvariable=var,
+                state="readonly",
+                values=[placeholder] + values,
+                width=max(30, width_px // 8),
             )
-            listbox.pack(side="left", fill="both", expand=True)
-            scroll = ttk.Scrollbar(
-                list_frame, orient="vertical", command=listbox.yview
-            )
-            scroll.pack(side="right", fill="y")
-            listbox.configure(yscrollcommand=scroll.set)
+            combo.current(0)
+            combo.pack(fill="both", expand=True)
+            dropdowns[dtype] = combo
             for index, record in enumerate(records):
-                listbox.insert(
-                    "end",
-                    f"{record['id']} – {record.get('name', record['id'])}",
-                )
                 id_lookup[record["id"]] = (dtype, index)
-            listboxes[dtype] = listbox
-            return listbox
+            return combo
 
-        primary_types = [
-            dtype for dtype in ("sne", "bao", "cmb") if dtype in type_groups
-        ]
-        additional_types = [
-            dtype for dtype in ordered_types if dtype not in primary_types
-        ]
-        if primary_types:
-            primary_row = ttk.Frame(catalogue_panel)
-            primary_row.pack(fill="x", pady=(0, 4))
-            for dtype in primary_types:
-                records = type_groups[dtype]
-                _add_dataset_section(
-                    primary_row,
-                    dtype,
-                    records,
-                    pack_kwargs={
-                        "side": "left",
-                        "fill": "both",
-                        "expand": True,
-                        "padx": 4,
-                    },
-                    height=min(12, max(6, len(records))),
-                )
-        for dtype in additional_types:
+        for dtype in ordered_types:
             _add_dataset_section(
                 catalogue_panel,
                 dtype,
@@ -2558,11 +2669,11 @@ class CopernicanGUI:
             selection_map.clear()
             selected_records: list[dict] = []
             for dtype in ordered_types:
-                listbox = listboxes[dtype]
-                indices = listbox.curselection()
-                if not indices:
+                combo = dropdowns[dtype]
+                index = combo.current()
+                if index is None or index <= 0:
                     continue
-                record = type_groups[dtype][indices[0]]
+                record = type_groups[dtype][index - 1]
                 selection_map[dtype] = record
                 selected_records.append(record)
             self.selected_datasets = [
@@ -2593,17 +2704,18 @@ class CopernicanGUI:
                 )
             self._refresh_builder_step_indicators()
 
-        def _update_focus(dtype: str) -> None:
-            listbox = listboxes[dtype]
-            indices = listbox.curselection()
-            if indices:
-                focus_state["record"] = type_groups[dtype][indices[0]]
-
-        for dtype, listbox in listboxes.items():
-            listbox.bind(
-                "<<ListboxSelect>>",
+        for dtype, combo in dropdowns.items():
+            combo.bind(
+                "<<ComboboxSelected>>",
                 lambda _evt, t=dtype: (
-                    _update_focus(t),
+                    focus_state.__setitem__(
+                        "record",
+                        (
+                            type_groups[t][dropdowns[t].current() - 1]
+                            if dropdowns[t].current() > 0
+                            else None
+                        ),
+                    ),
                     _refresh_data_selection(),
                 ),
             )
@@ -2611,7 +2723,8 @@ class CopernicanGUI:
             lookup = id_lookup.get(dataset["id"])
             if lookup:
                 dtype, index = lookup
-                listboxes[dtype].select_set(index)
+                combo = dropdowns[dtype]
+                combo.current(index + 1)
         _refresh_data_selection()
         action_row = ttk.Frame(container)
         action_row.pack(anchor="w")
@@ -2672,12 +2785,7 @@ class CopernicanGUI:
         ).pack(side="left", padx=2)
 
     def _render_builder_step_engine(self, container: tk.Frame) -> None:
-        ttk.Label(
-            container,
-            text="Engine selection",
-            font=("Helvetica", 14, "bold"),
-            takefocus=True,
-        ).pack(anchor="w", pady=(0, 6))
+        ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
         ttk.Label(
             container,
             text=("Choose the computational backend to run your models."),
@@ -2726,9 +2834,18 @@ class CopernicanGUI:
             selection = combo_var.get()
             record = display_map.get(selection)
             if record:
+                if self._current_engine_module != record["id"]:
+                    self._engine_setting_vars.clear()
+                    self._engine_setting_specs.clear()
+                self._current_engine_module = record["id"]
                 self.selected_engine = record["id"]
                 self.draft.engine = record["id"]
                 self._selected_engine_entry = record
+                capabilities, engine_kind = self._load_engine_capabilities(
+                    record["id"]
+                )
+                self.engine_capabilities = capabilities
+                self.selected_engine_kind = engine_kind
                 detail_label.config(
                     text=(
                         f"{record['label']} uses module {record['id']} "
@@ -2736,6 +2853,11 @@ class CopernicanGUI:
                     )
                 )
             else:
+                self.engine_capabilities = None
+                self.selected_engine_kind = "mcmc"
+                self._engine_setting_vars.clear()
+                self._engine_setting_specs.clear()
+                self._current_engine_module = None
                 detail_label.config(
                     text="Select an engine to see details.",
                 )
@@ -2808,119 +2930,255 @@ class CopernicanGUI:
         )
         settings_frame.pack(fill="x", pady=(8, 0))
         self._engine_run_settings_frame = settings_frame
-        recommendations = self._compute_run_recommendations()
-        field_specs = [
-            {
-                "label": "Production steps",
-                "attribute": "production_steps",
-                "helper": "Iterations used during production",
-                "preface": (
-                    "Production steps control the total sampler iterations."
-                ),
-                "recommendation": (
-                    "Recommended default: "
-                    f"{recommendations['recommended_steps']}. "
-                    f"Minimum suggested: {recommendations['production_min']}."
-                ),
-            },
-            {
-                "label": "Burn-in steps",
-                "attribute": "burn_in",
-                "helper": "Sampler warm-up iterations",
-                "preface": (
-                    "Burn-in steps discard early samples so the chain can "
-                    "stabilise."
-                ),
-                "recommendation": (
-                    "Recommended warm-up: "
-                    f"{recommendations['burn_in_recommended']}. "
-                    f"Quicker option: {recommendations['quick_burn']}."
-                ),
-            },
-            {
-                "label": "Walkers",
-                "attribute": "walkers",
-                "helper": "Number of ensemble walkers",
-                "preface": (
-                    "Walkers sample the posterior in parallel; more walkers "
-                    "boost convergence."
-                ),
-                "recommendation": (
-                    "Required minimum: "
-                    f"{recommendations['minimum_walkers']}. "
-                    "Recommended ensemble size: "
-                    f"{recommendations['recommended_walkers']}."
-                ),
-            },
-            {
-                "label": "Pool size",
-                "attribute": "pool_size",
-                "helper": "Multiprocessing pool size",
-                "preface": (
-                    "Worker pools accelerate sampling by spreading walkers "
-                    "across processes."
-                ),
-                "recommendation": (
-                    "Recommended pool: "
-                    f"{recommendations['pool_max']} "
-                    f"(detected CPUs: {recommendations['cpu_label']}). "
-                    "Enter 0 to disable multiprocessing entirely."
-                ),
-            },
-        ]
-
-        def _track(attribute: str, string_var: tk.StringVar) -> None:
-            string_var.trace_add(
-                "write",
-                lambda *_: setattr(self.draft, attribute, string_var.get()),
+        capabilities = self.engine_capabilities
+        if not capabilities or not capabilities.settings:
+            ttk.Label(
+                settings_frame,
+                text="This engine exposes no adjustable settings.",
+                wraplength=720,
+                takefocus=True,
+            ).pack(anchor="w", pady=(6, 0))
+            return
+        recommendations: dict[str, str] | None = None
+        if self.selected_engine_kind == "mcmc":
+            recommendations = self._mcmc_recommendation_texts(
+                self._compute_run_recommendations()
             )
 
-        for index, spec in enumerate(field_specs):
-            preface_margin = (8, 0) if index > 0 else (6, 0)
+        for setting in capabilities.settings:
+            dtype = (setting.dtype or "str").lower()
+            var = self._engine_setting_vars.get(setting.key)
+            initial_value = self._initial_engine_setting_value(setting)
+            if dtype == "bool":
+                if not isinstance(var, tk.BooleanVar):
+                    var = tk.BooleanVar(value=bool(initial_value))
+                    self._engine_setting_vars[setting.key] = var
+            else:
+                if not isinstance(var, tk.StringVar):
+                    var = tk.StringVar(value=str(initial_value))
+                    self._engine_setting_vars[setting.key] = var
+                elif not var.get():
+                    var.set(str(initial_value))
+            self._engine_setting_specs[setting.key] = setting
+            row = ttk.Frame(settings_frame)
+            row.pack(anchor="w", pady=(4, 0))
             ttk.Label(
-                settings_frame,
-                text=spec["preface"],
-                wraplength=720,
-                justify="left",
-                takefocus=True,
-            ).pack(anchor="w", pady=preface_margin)
-            ttk.Label(
-                settings_frame,
-                text=spec["recommendation"],
-                wraplength=720,
-                justify="left",
-                takefocus=True,
-            ).pack(anchor="w", padx=(16, 0))
-            field_name = spec["attribute"]
-            var = tk.StringVar(value=getattr(self.draft, field_name))
-            _track(field_name, var)
-            field_row = ttk.Frame(settings_frame)
-            field_row.pack(anchor="w", pady=(4, 0))
-            ttk.Label(
-                field_row,
-                text=f"{spec['label']}:",
-                width=16,
+                row,
+                text=f"{setting.label}:",
+                width=24,
                 takefocus=True,
             ).pack(side="left")
-            ttk.Entry(
-                field_row,
-                textvariable=var,
-                width=16,
-            ).pack(side="left")
-            ttk.Label(
-                field_row,
-                text=spec["helper"],
-                wraplength=420,
-                takefocus=True,
-            ).pack(side="left", padx=(8, 0))
+            field_frame = ttk.Frame(row)
+            field_frame.pack(side="left", padx=(6, 0))
+            draft_field = self._draft_field_for_setting(setting.key)
+
+            def _bind_update(variable: tk.Variable, key: str) -> None:
+                def _update(*_: object) -> None:
+                    self._handle_engine_setting_update(key)
+
+                variable.trace_add("write", _update)
+
+            if dtype == "bool":
+                control = ttk.Checkbutton(
+                    field_frame,
+                    variable=var,
+                    takefocus=True,
+                    command=partial(
+                        self._handle_engine_setting_update, setting.key
+                    ),
+                )
+                control.pack(anchor="w")
+            else:
+                min_value, max_value = self._engine_setting_bounds(setting)
+                increment = 1 if dtype == "int" else 0.1
+
+                def _validate(value_if_allowed: str, key: str) -> bool:
+                    if not value_if_allowed.strip():
+                        return True
+                    try:
+                        parsed = (
+                            int(value_if_allowed)
+                            if dtype == "int"
+                            else float(value_if_allowed)
+                        )
+                    except ValueError:
+                        return False
+                    if parsed < min_value or parsed > max_value:
+                        return False
+                    self._handle_engine_setting_update(key)
+                    return True
+
+                validate_cmd = field_frame.register(_validate)
+                control = tk.Spinbox(
+                    field_frame,
+                    from_=min_value,
+                    to=max_value,
+                    increment=increment,
+                    textvariable=var,
+                    width=14,
+                    validate="focusout",
+                    validatecommand=(validate_cmd, "%P", setting.key),
+                )
+                control.pack(anchor="w")
+                if isinstance(var, tk.StringVar):
+                    _bind_update(var, setting.key)
+            if dtype == "bool":
+                pass
+            elif draft_field and isinstance(var, tk.StringVar):
+
+                def _sync_draft(
+                    *_: object,
+                    attr: str = draft_field,
+                    variable: tk.StringVar = var,
+                ) -> None:
+                    setattr(self.draft, attr, variable.get())
+
+                var.trace_add("write", _sync_draft)
+            metadata: list[str] = []
+            if setting.description:
+                metadata.append(setting.description)
+            if setting.default is not None:
+                metadata.append(f"Default: {setting.default}")
+            if setting.hint:
+                metadata.append(f"Recommendation: {setting.hint}")
+            if recommendations and setting.key in recommendations:
+                metadata.append(recommendations[setting.key])
+            if metadata:
+                ttk.Label(
+                    settings_frame,
+                    text=" ".join(metadata),
+                    wraplength=720,
+                    justify="left",
+                    takefocus=True,
+                ).pack(anchor="w", padx=(16, 0), pady=(0, 2))
+            self._handle_engine_setting_update(setting.key)
+
+    def _load_engine_capabilities(
+        self, module_name: str
+    ) -> tuple[EngineCapabilities | None, str]:
+        """Return engine capability descriptors and its kind."""
+
+        engine_kind = "mcmc"
+        try:
+            module = importlib.import_module(module_name)
+        except Exception as exc:
+            logger.get_program_logger().warning(
+                "Failed to import engine %s: %s", module_name, exc
+            )
+            return None, engine_kind
+        engine_kind = getattr(module, "ENGINE_KIND", "mcmc").lower()
+        try:
+            capabilities = get_engine_capabilities(module)
+        except Exception as exc:
+            logger.get_program_logger().warning(
+                "Failed to load engine capabilities for %s: %s",
+                module_name,
+                exc,
+            )
+            capabilities = None
+        return capabilities, engine_kind
+
+    def _draft_field_for_setting(self, key: str) -> str | None:
+        mapping = {
+            "n_walkers": "walkers",
+            "burn_in_steps": "burn_in",
+            "n_steps": "production_steps",
+            "pool_size": "pool_size",
+        }
+        return mapping.get(key)
+
+    def _initial_engine_setting_value(self, setting: EngineSetting) -> object:
+        field = self._draft_field_for_setting(setting.key)
+        if field:
+            current = getattr(self.draft, field, "")
+            if current:
+                dtype = (setting.dtype or "str").lower()
+                if dtype == "bool":
+                    return current.lower() in {"1", "true", "yes", "on"}
+                return current
+        if setting.default is not None:
+            if (setting.dtype or "").lower() == "bool":
+                return bool(setting.default)
+            return str(setting.default)
+        return False if (setting.dtype or "").lower() == "bool" else ""
+
+    def _handle_engine_setting_update(self, key: str) -> None:
+        """Hook fired whenever an engine setting var changes."""
+
+        field = self._draft_field_for_setting(key)
+        if not field:
+            return
+        var = self._engine_setting_vars.get(key)
+        if var is None:
+            return
+        value = var.get()
+        if isinstance(var, tk.BooleanVar):
+            setattr(self.draft, field, "true" if value else "false")
+        else:
+            setattr(self.draft, field, value)
+
+    def _mcmc_recommendation_texts(
+        self, values: dict[str, int | str]
+    ) -> dict[str, str]:
+        return {
+            "n_steps": (
+                "Production steps control the sampler iterations. "
+                f"Recommended default: {values['recommended_steps']}. "
+                f"Minimum suggested: {values['production_min']}."
+            ),
+            "burn_in_steps": (
+                "Burn-in discards early samples so the chain stabilises. "
+                f"Recommended warm-up: {values['burn_in_recommended']}. "
+                f"Quicker option: {values['quick_burn']}."
+            ),
+            "n_walkers": (
+                "Walkers explore the posterior in parallel; "
+                f"minimum required: {values['minimum_walkers']}. "
+                f"Recommended ensemble: {values['recommended_walkers']}."
+            ),
+            "pool_size": (
+                "Pools spread walkers across processes. "
+                f"Recommended size: {values['pool_max']} "
+                f"(detected CPUs: {values['cpu_label']}). "
+                "Enter 0 to disable multiprocessing entirely."
+            ),
+        }
+
+    def _engine_setting_bounds(
+        self, setting: EngineSetting
+    ) -> tuple[float, float]:
+        module_limits = _ENGINE_SETTING_LIMITS.get(
+            self._current_engine_module or "", {}
+        )
+        setting_limits = module_limits.get(setting.key, {})
+        min_value = setting_limits.get("min")
+        max_value = setting_limits.get("max")
+
+        def _resolve(value: float | int | str | None) -> float | int | None:
+            if isinstance(value, str) and value == "cpu":
+                cores = os.cpu_count() or 1
+                return max(1, cores)
+            return value
+
+        min_value = _resolve(min_value)
+        max_value = _resolve(max_value)
+        dtype = (setting.dtype or "str").lower()
+        if dtype == "int":
+            if min_value is None:
+                min_value = 0
+            if max_value is None:
+                max_value = sys.maxsize
+            return float(int(min_value)), float(int(max_value))
+        if dtype == "float":
+            if min_value is None:
+                min_value = 0.0
+            if max_value is None:
+                max_value = 1_000_000.0
+            return float(min_value), float(max_value)
+        return 0.0, float(sys.maxsize)
 
     def _render_builder_step_manifest(self, container: tk.Frame) -> None:
-        ttk.Label(
-            container,
-            text="Run plan",
-            font=("Helvetica", 14, "bold"),
-            takefocus=True,
-        ).pack(anchor="w", pady=(0, 6))
+        ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
         ttk.Label(
             container,
             text="Describe the production plan or testing notes for this run.",
@@ -3082,12 +3340,7 @@ class CopernicanGUI:
 
     def _render_builder_step_confirm(self, container: tk.Frame) -> None:
         self._stage_confirm_manifest()
-        ttk.Label(
-            container,
-            text=self._CONFIRM_HEADER_TEXT,
-            font=("Helvetica", 14, "bold"),
-            takefocus=True,
-        ).pack(anchor="w", pady=(0, 6))
+        ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
         summary_frame = ttk.Frame(container)
         summary_frame.pack(anchor="w")
         summary_entries = [
@@ -3157,9 +3410,7 @@ class CopernicanGUI:
         self.refresh_inventory()
 
         def builder(frame: tk.Frame) -> None:
-            ttk.Label(frame, text="Data catalogue", takefocus=True).pack(
-                anchor="w"
-            )
+            self._page_header(frame, "Data catalogue")
             ttk.Label(
                 frame,
                 text=(
@@ -3288,7 +3539,7 @@ class CopernicanGUI:
         self.refresh_inventory()
 
         def builder(frame: tk.Frame) -> None:
-            ttk.Label(frame, text="Models", takefocus=True).pack(anchor="w")
+            self._page_header(frame, "Models")
             ttk.Label(
                 frame,
                 text=(
@@ -3368,7 +3619,7 @@ class CopernicanGUI:
         self.refresh_inventory()
 
         def builder(frame: tk.Frame) -> None:
-            ttk.Label(frame, text="Engines", takefocus=True).pack(anchor="w")
+            self._page_header(frame, "Engines")
             ttk.Label(
                 frame,
                 text=(
@@ -3446,7 +3697,7 @@ class CopernicanGUI:
         """Display settings placeholder panel."""
 
         def builder(frame: tk.Frame) -> None:
-            ttk.Label(frame, text="Settings", takefocus=True).pack(anchor="w")
+            self._page_header(frame, "Settings")
             ttk.Label(
                 frame,
                 text=(
@@ -3612,69 +3863,83 @@ class CopernicanGUI:
         self._swap_content(builder)
 
     def show_help(self) -> None:
-        """Display contextual help panel."""
+        """Display contextual help panel with GUI and CLI guides."""
 
         def builder(frame: tk.Frame) -> None:
-            ttk.Label(
-                frame,
-                text="Copernican Suite Documentation",
-                font=("Helvetica", 16),
-                takefocus=True,
-            ).pack(anchor="w")
+            self._help_page_buttons = {}
+            self._help_text_widget = None
+            self._help_title_label = self._page_header(
+                frame, self._help_header_text()
+            )
             ttk.Label(
                 frame,
                 text=(
-                    "The repository README is rendered below so you can read "
-                    "the same guidance that ships with the suite."
+                    "Select a Copernican guide to review the GUI workflow or "
+                    "the CLI manifest pipeline. The Help view renders the "
+                    "Markdown guides exactly as they ship in docs/."
                 ),
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w", pady=(4, 8))
+            button_row = ttk.Frame(frame)
+            button_row.pack(fill="x", pady=(0, 12))
+            button_style = self._monitor_button_kwargs()
+            for page in _HELP_PAGES:
+                button = ttk.Button(
+                    button_row,
+                    text=page["label"],
+                    command=lambda pid=page["id"]: self._select_help_page(pid),
+                    width=12,
+                    takefocus=True,
+                    **button_style,
+                )
+                button.pack(side="left", padx=4)
+                self._help_page_buttons[page["id"]] = button
             content_frame = ttk.Frame(frame)
             content_frame.pack(fill="both", expand=True)
-            if self.render and tk is not None:
-                self._load_help_banner()
-                if self.help_banner_image:
-                    banner_label = ttk.Label(
-                        content_frame, image=self.help_banner_image
-                    )
-                    banner_label.image = self.help_banner_image
-                    banner_label.pack(pady=(0, 8))
-                text_frame = ttk.Frame(content_frame)
-                text_frame.pack(fill="both", expand=True)
-                text_frame.columnconfigure(0, weight=1)
-                text_frame.rowconfigure(0, weight=1)
-                text_widget = tk.Text(
-                    text_frame,
-                    wrap="word",
-                    padx=8,
-                    pady=6,
-                    borderwidth=0,
-                    highlightthickness=0,
-                )
-                text_widget.grid(
-                    row=0, column=0, sticky="nsew", padx=(0, 0), pady=(0, 0)
-                )
-                scrollbar = ttk.Scrollbar(
-                    text_frame,
-                    orient="vertical",
-                    command=text_widget.yview,
-                )
-                scrollbar.grid(row=0, column=1, sticky="ns")
-                text_widget.configure(yscrollcommand=scrollbar.set)
-                markdown = self._load_help_markdown()
-                self._render_markdown_in_text_widget(text_widget, markdown)
-                text_widget.configure(state="disabled")
-            else:
+            if not (self.render and tk is not None):
                 ttk.Label(
                     content_frame,
                     text=(
-                        "Help content is available from README.md in the "
-                        "project root."
+                        "Help content is available from docs/gui_guide.md and "
+                        "docs/cli_guide.md in the project root."
                     ),
                     wraplength=720,
                     takefocus=True,
                 ).pack(anchor="w")
+                self._refresh_help_page_view()
+                return
+            self._load_help_banner()
+            if self.help_banner_image:
+                banner_label = ttk.Label(
+                    content_frame, image=self.help_banner_image
+                )
+                banner_label.image = self.help_banner_image
+                banner_label.pack(pady=(0, 8))
+            text_frame = ttk.Frame(content_frame)
+            text_frame.pack(fill="both", expand=True)
+            text_frame.columnconfigure(0, weight=1)
+            text_frame.rowconfigure(0, weight=1)
+            text_widget = tk.Text(
+                text_frame,
+                wrap="word",
+                padx=8,
+                pady=6,
+                borderwidth=0,
+                highlightthickness=0,
+            )
+            text_widget.grid(
+                row=0, column=0, sticky="nsew", padx=(0, 0), pady=(0, 0)
+            )
+            scrollbar = ttk.Scrollbar(
+                text_frame,
+                orient="vertical",
+                command=text_widget.yview,
+            )
+            scrollbar.grid(row=0, column=1, sticky="ns")
+            text_widget.configure(yscrollcommand=scrollbar.set)
+            self._help_text_widget = text_widget
+            self._refresh_help_page_view()
 
         self._swap_content(builder)
 
@@ -3722,10 +3987,7 @@ class CopernicanGUI:
             self._walker_progressbar = None
             self._monitor_log_widget = None
             self._monitor_filter_label = None
-            header = ttk.Label(
-                frame, text="Run Monitor", font=("Helvetica", 16)
-            )
-            header.pack(anchor="w", pady=(0, 8))
+            self._page_header(frame, "Run Monitor")
             self._status_label = ttk.Label(
                 frame,
                 text=self._status_text(),
@@ -3961,10 +4223,7 @@ class CopernicanGUI:
         """Display the completion summary with manifest reuse actions."""
 
         def builder(frame: tk.Frame) -> None:
-            header = ttk.Label(
-                frame, text="Run Summary", font=("Helvetica", 16)
-            )
-            header.pack(anchor="w", pady=(0, 8))
+            self._page_header(frame, "Run Summary")
             ttk.Label(frame, text="Outputs", takefocus=True).pack(anchor="w")
             for link in self.summary.output_links:
                 ttk.Label(frame, text=link, takefocus=True).pack(anchor="w")
@@ -4552,6 +4811,46 @@ class CopernicanGUI:
             "display_progress": True,
         }
 
+    def _collect_engine_setting_values(self) -> dict[str, object]:
+        """Return sanitized values entered into engine setting controls."""
+
+        values: dict[str, object] = {}
+        for key, var in self._engine_setting_vars.items():
+            spec = self._engine_setting_specs.get(key)
+            if isinstance(var, tk.BooleanVar):
+                values[key] = bool(var.get())
+                continue
+            raw_value = var.get().strip()
+            if not raw_value:
+                continue
+            dtype = spec.dtype if spec else "str"
+            values[key] = self._parse_engine_setting_value(raw_value, dtype)
+        return values
+
+    @staticmethod
+    def _parse_engine_setting_value(raw_value: str, dtype: str) -> object:
+        """Convert a string knob value into the declared dtype."""
+
+        dtype_key = dtype.lower()
+        if dtype_key == "int":
+            try:
+                return int(raw_value)
+            except ValueError:
+                return raw_value
+        if dtype_key == "float":
+            try:
+                return float(raw_value)
+            except ValueError:
+                return raw_value
+        if dtype_key == "bool":
+            normalized = raw_value.lower()
+            if normalized in {"1", "true", "yes", "on"}:
+                return True
+            if normalized in {"0", "false", "no", "off"}:
+                return False
+            return raw_value
+        return raw_value
+
     def update_progress(self, value: int) -> None:
         """Update the monitor progress meter."""
 
@@ -4950,12 +5249,32 @@ class CopernicanGUI:
     def _collect_run_settings_snapshot(self) -> dict[str, object] | None:
         """Return canonical run settings from the builder inputs."""
 
+        snapshot: dict[str, object] = {}
         try:
             engine_entry = self._resolve_engine_entry()
-            plan = self._build_sampling_plan_values(engine_entry["id"])
-            return dict(plan)
         except Exception:
-            pass
+            engine_entry = None
+        engine_kind = "mcmc"
+        if engine_entry:
+            try:
+                module = importlib.import_module(engine_entry["id"])
+                engine_kind = getattr(module, "ENGINE_KIND", "mcmc").lower()
+            except Exception:
+                engine_kind = "mcmc"
+            if engine_kind == "mcmc":
+                try:
+                    snapshot = dict(
+                        self._build_sampling_plan_values(engine_entry["id"])
+                    )
+                except Exception:
+                    snapshot = {}
+            else:
+                snapshot["engine_kind"] = engine_kind
+        knob_settings = self._collect_engine_setting_values()
+        if knob_settings:
+            snapshot.update(knob_settings)
+        if snapshot:
+            return snapshot
         fallback_fields = {
             "n_walkers": self.draft.walkers,
             "burn_in_steps": self.draft.burn_in,

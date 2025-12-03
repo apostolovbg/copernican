@@ -1,138 +1,204 @@
 # Copernican Suite API Overview
 
-This document complements [`docs/architecture.md`](docs/architecture.md) by
-describing the runnable units most users import when scripting runs outside the
-CLI or GUI. The API is intentionally thin: it strings together the same
-validation → manifest → executor flow that the interactive shell follows and
-exposes enough utilities so tooling authors can reuse dataset loaders,
-sampling helpers, and result writers without duplicating orchestration logic.
+The suite exposes a lightweight API intended for advanced scripting.
+Most functionality lives in the ``copernican_lib`` package which can be
+imported directly without using the command-line interface.  The core
+modules are:
 
-## Core Pipeline Helpers
+- `model_spec_validator.validate_and_cache_model(path, cache_dir)` – validate and clean a
+  `cosmo_model_*.yml` file.
+- `model_coder.generate_callables(clean_path)` – compile sanitized model YAML
+  into Python callables.
+- `engine_plugin_validation.build_plugin(parsed_data, funcs)` – construct an
+  :class:`copernican_lib.plugins.EnginePlugin` instance with dataset toggles,
+  priors, bounds and distance functions ready for engine consumption.
+- `copernican_lib.plugins` – home of the picklable plugin dataclass and
+  validation helpers. Import `REQUIRED_ATTRIBUTES` and `REQUIRED_FUNCTIONS`
+  from here when building custom tooling that needs to confirm interface
+  compliance.
+- `copernican_lib.progress` – shared progress bars, walker notifiers and
+  sampler integration helpers. Engines import `BatchProgressBar`,
+  `StepProgressEmitter` and `configure_sampler_progress_reporting` so live
+  Stage 2 updates stay consistent even outside the default MCMC engine. The
+  helpers record the first frame emitted for each batch, stream walker-level
+  updates with Unicode sub-blocks and always clear the console on teardown so
+  captured logs never contain stale bars, even when a sampler aborts early.
+  Nested sampling and ensemble MCMC reuse the same renderer, keeping labels and
+  spinners aligned regardless of backend choice.
+- `copernican_lib.plotter.plot_corner(samples, plugin, data_attrs,
+  plot_dir)` – render the Stage 2 posterior as an automatically thinned
+  corner plot whose panel size and typography respond to the number of
+  parameters. Figures clamp to a twelve-inch canvas, fonts scale with the
+  derived panel width and the footer still details how samples were filtered or
+  thinned.
+  Footer guard bands preserve both the gap beneath the axes and the distance to
+  the canvas edge, keeping metadata clear of the grid even with elongated axis
+  labels or future gravitational-wave annotations. Contour thresholds remain
+  strictly increasing, preserving Matplotlib compatibility while eliding
+  redundant dataset text and retaining the citation line.
+  When Tk support is missing the helper retries with Matplotlib's Agg backend
+  so headless CI jobs still render corner plots without optional GUI
+  dependencies.
+  Stage 5 calls this helper after the probe-specific figures so every run
+  records the sampler geometry alongside Hubble, BAO and CMB outputs. The
+  underlying `_prepare_corner_inputs` validator flattens samples, derives
+  thinning statistics and remains reachable through the legacy
+  `_validate_corner_inputs` wrapper so older tools import the familiar name
+  without modification while lint hooks stay satisfied.
+- `copernican_lib.posterior` – exposes
+  :func:`copernican_lib.posterior.make_logposterior`, which now returns a
+  picklable :class:`PosteriorEvaluator` combining priors, transforms and
+  likelihood callables. Engines should always route posterior evaluations
+  through this helper to keep multiprocessing safe.
+- `copernican_lib.statistics` – shared chi-squared and BAO/CMB helper
+  functions used by every engine.  Importing from this module keeps the
+  numerical implementations in a single place so engines remain thin
+  orchestration layers. The helpers expose SNe chi-squared evaluations that
+  always return finite values for physically meaningful proposals so MCMC
+  reseeding can fall back to them reliably.
+  CI runners that lack CAMB can opt into ``COPERNICAN_FAKE_CMB=1`` so the CMB
+  helpers return deterministic synthetic spectra instead of performing heavy
+  physics evaluations, leaving production calculations untouched.
+  - `dataset_registry.load_sne_data(dataset_id)`,
+    `load_bao_data(dataset_id)`,
+    `load_cmb_data(dataset_id)` – load datasets by their identifiers. The
+    interactive prompt lists the human readable `dataset_name` and description,
+    but calls expect the `dataset_id`. Each loader logs a short summary
+    describing the dataset and whether its covariance matrix was used or
+    diagonal errors were applied.
+- `console_output.write(msg)` – unified console printing function that is
+  logged
+  verbatim via `logger`.
+- `console_output.ask(prompt)` – input helper that records prompts and
+  responses in the run log.
+- `logger.setup_logging(log_dir)` – initialise logging and patch
+  `print`/`input` so all interactions are captured.
+- `utils.get_timestamp(now=None)` – return a `YYYYMMDD_HHMMSS` string in
+  Coordinated Universal Time for consistent filenames and manifests. The
+  helper underpins logging, result writers and manifest builders so outputs
+  from CI and local runs align chronologically.
+- `chain_io.save_posterior(chain, param_names, path, metadata)` – store
+  posterior samples in NetCDF format using ArviZ, or xarray when the
+  dependency is unavailable during lightweight tests. Metadata is stamped on
+  both the InferenceData root and the posterior group so callers opening just
+  the posterior block still see the model, dataset and other provenance
+  details.
+- `csv_writer.save_sne_results_detailed_csv`,
+  `save_bao_results_csv` and `save_cmb_results_csv` – persist fitting
+  results with filenames that encode the dataset, model and timestamp.
 
-- `copernican_lib.model_spec_validator.validate_and_cache_model(path, cache_dir)`
-  – validates a `cosmo_model_*.yml`, sanitizes unknown keys, enforces that every
-  parameter declares a `type`, injects `type: fixed` when the bounds collapse,
-  and writes a timestamped cache file under `models/cache/`.
-- `copernican_lib.model_coder.generate_callables(cache_path)` – compiles the
-  sanitized YAML into NumPy-ready callables for distances, Hubble rate,
-  nuisances, and any model-specific helper functions. The code generator ensures
-  every expression is enumerated in LaTeX, never raw Python, mirroring the
-  constraints enforced by `model_spec_validator`.
-- `copernican_lib.engine_plugin_validation.build_plugin(parsed_yaml, funcs)`
-  – produces the picklable `EnginePlugin` dataclass that describes priors,
-  transforms, bounds, and dataset toggles (`valid_for_distance_metrics`,
-  `valid_for_bao`, `valid_for_cmb`). Callers that need to inspect the plugin for
-  diagnostics (e.g., GUIs or manifest checks) should use the same helper to stay
-  aligned with `copernican_lib.plugins.REQUIRED_ATTRIBUTES`.
-- `copernican_lib.plugins.validate_plugin(plugin)` – re-validates a plugin
-  instance before any sampling begins. Engines use this to double-check
-  configuration when rerunning manifests, while GUI helpers rely on the same
-  call to keep the front-end responsive to invalid selections.
+- `engines.cosmo_engine_mcmc.fit_cosmology_parameters` – returns a dictionary
+  with posterior samples, joint chi-squared diagnostics for the SNe/BAO/CMB
+  components, dataset-level point counts, burn-in length, acceptance
+  fractions and a sanitised log-probability trace. BAO and CMB data frames can
+  be passed via the `bao_data_df` and `cmb_data_df` keyword arguments to
+  enable joint sampling in a single call. ``burn_in_steps`` overrides the
+  default ``max(100, n_steps // 5)`` warm-up, keeping scripted workflows
+  nimble, and the ``pool_size`` keyword enforces user-selected multiprocessing
+  pools while automatically expanding the walker ensemble to keep every worker
+  busy. The private `_reseed_invalid_walkers` utility reseeds walkers that emit
+  `nan` coordinates after burn-in so downstream API consumers never need to
+  handle undefined sampler states. When the CLI selects this backend, Stage 2
+  prompts for production steps, burn-in length, walker counts and worker pools,
+  mirroring the available function arguments for scripted workflows. A legacy
+  ``fit_sne_parameters`` alias remains for backward compatibility but now logs
+  a deprecation warning.
+- `engines.cosmo_engine_nested.fit_cosmology_parameters` – wraps a lightweight
+  nested-sampling routine that evaluates the same plugin-provided posterior
+  while reporting log-evidence estimates, live-point counts, enlargement
+  factors and iteration diagnostics. The CLI surfaces backend-specific prompts
+  for live points, evidence tolerances and enlargement fractions so
+  interactive runs align with scripted calls that specify the same keyword
+  arguments. The legacy ``fit_sne_parameters`` name still resolves to this
+  function but is deprecated.
+- `result_writer.save_summary(results, output_dir)` – serialize fitted
+  parameters, 1σ errors, covariance matrices and the recorded sampling
+  configuration—including nested-sampling metadata such as live-point counts
+  and evidence tolerances—to JSON and YAML for later analysis.
+  - `engines.cosmo_engine_mcmc` – lightweight `emcee` sampler for SNe
+    posteriors. Walkers are initialised uniformly within declared
+    parameter bounds, a burn-in run precedes production sampling and the
+    returned dictionary includes log-probability traces, acceptance
+    fractions, estimated autocorrelation times when the production chain is
+    long enough and both MAP and posterior
+    mean parameter summaries. Invalid proposals still return ``-np.inf``
+    so callers see explicit rejections instead of opaque large negative
+    sentinels, and verbose progress updates report percentage completion
+    for burn-in and production stages. Future engines can adopt the same
+    public API to remain plug compatible with the suite.
+  - `engines.cosmo_engine_nested` – nested-sampling backend that draws live
+    points within declared bounds, replaces the lowest-likelihood point with
+    constrained proposals and tracks log-evidence accumulation alongside the
+    familiar χ² component breakdown. The result dictionary mirrors the
+    structure produced by the MCMC engine while adding nested-specific
+    diagnostics so downstream tooling remains backend agnostic.
 
-Every pipeline builder returns a picklable object so multiprocessing workers can
-initialise their state without re-reading YAML files. The helper flow is
-captured in `docs/architecture.md`, which expands on how CLI, GUI, and detached
-runners share `copernican_lib/run_executor.execute_run_from_manifest`.
+Plugins are validated through ``engine_plugin_validation.validate_plugin``—a thin
+wrapper around :func:`copernican_lib.plugins.validate_plugin`—before use.
+Chi-squared helpers assume this step has already succeeded, so validation
+should occur once before any iterative evaluation begins. Engines expect the
+attributes listed in ``copernican_lib.plugins.REQUIRED_ATTRIBUTES``. The
+resulting :class:`EnginePlugin` exposes distance functions, CMB helpers and
+initial parameter guesses derived from the model YAML while remaining fully
+picklable for multiprocessing workloads.
 
-## Dataset and Registry Access
+## Standardised Dataset Format
 
-- `copernican_lib.dataset_registry.load_sne_data(dataset_id)` (similarly for
-  BAO/CMB) – returns a `pandas.DataFrame` plus `.attrs` metadata that includes
-  `dataset_name`, `citation`, `dataset_version`, `file_hashes`, and any pre-
-  computed inverse covariance matrices. The loaders compute SHA256 digests for
-  every non-parser file in the dataset directory so manifests can pinpoint the
-  exact inputs that generated a result.
-- `copernican_lib.dataset_registry.register_parser(path, dataset_id)` – used by
-  each `cosmo_parser_*.py` to register itself with the central registry. Parsers
-  must be hashed (`copernican_lib.dataset_registry.TRUSTED_PARSER_DIGESTS`) and
-  they only load when the hash matches the trusted list, preventing tampering.
-- `copernican_lib.dataset_registry.parse_metadata(path)` – loads
-  `metadata_*.yml` files to attach `description`, `license`, BibTeX fields,
-  `independence_assumptions`, and the canonical `dataset_id`.
+All data parsers return a ``pandas.DataFrame`` with common columns and
+metadata so that engines remain agnostic to the origin of the data.
+`copernican_lib/dataset_registry.py` reads ``metadata_*.yml`` files located next
+to
+the dataset tables and attaches the fields via the ``DataFrame.attrs``
+dictionary after the parser returns. For supernovae datasets the table
+contains
+at minimum ``Name``, ``zcmb``, ``mu_obs`` and ``e_mu_obs``. Attributes such as
+``covariance_matrix_inv`` and ``diag_errors_for_plot`` are also attached. BAO
+and
+CMB loaders follow the same pattern. New datasets can therefore be added
+simply
+by placing them under ``data/<type>/<source>/`` and providing a compatible
+YAML
+parser.
 
-Custom datasets simply need a new folder under `data/<type>/<source>/`, a
-compatible parser, and metadata plus digests; see
-[`docs/data_overview.md`](docs/data_overview.md) for a write-up of every bundled
-dataset and the required metadata fields.
+## Extending the API
 
-## Progress, Logging, and Console Utilities
-
-- `copernican_lib.progress` – houses `BatchProgressBar`, `StepProgressEmitter`,
-  and `configure_sampler_progress_reporting`, ensuring every engine reports
-  burn-in/production percentages, walker-level motion, and spinner glyphs that
-  the GUI reuses for the Run Monitor. The renderer uses carriage-returns so
-  Linux/macOS/Windows terminals repaint the last active line, matching the
-  behaviour introduced in version 7.6.14.
-- `copernican_lib.console_output.write`, `console_output.ask`, and
-  `logger.setup_logging` – unify console printing, prompt logging, and handler
-  wiring so every prompt/print goes through the central logger. `faulthandler`
-  plus SIGILL/SEGV/FPE handlers dump traces to both console and log file before
-  exiting.
-- `copernican_lib.utils.get_timestamp(now=None)` – returns a UTC
-  `YYYYMMDD_HHMMSS` string used by run directories, logs, manifests, and plot
-  footers so multiple machines and CI runners stay aligned.
-
-## Engines and Result Writers
-
-- `engines.cosmo_engine_mcmc.fit_cosmology_parameters(...)` – the default MCMC
-  engine. Callers can pass `bao_data_df` and `cmb_data_df` to reuse pre-loaded
-  datasets, enabling joint likelihood evaluations with shared wrappers such as
-  `copernican_lib.statistics`. Invalid proposals return `-np.inf`, the walker
-  pool grows automatically to fill `pool_size`, and `_reseed_invalid_walkers`
-  reseeds `nan` coordinates after burn-in using jitter around the ensemble mean.
-- `engines.cosmo_engine_nested.fit_cosmology_parameters(...)` – wraps nested
-  sampling with live point controls, enlargement factors, and log-evidence
-  diagnostics. The API mirrors the MCMC result dictionary while adding nested
-  specific fields so downstream tooling can remain agnostic to the backend.
-- `result_writer.save_summary(results, output_dir)` – serializes sampler outputs
-  (JSON/YAML) with parameter summaries, covariance matrices, run settings,
-  chi-squared breakdowns, and metadata such as walker counts and evidence
-  tolerances.
-- `chain_io.save_posterior(chain, param_names, path, metadata)` – writes NetCDF
-  files with metadata stored in both the inference-data root and posterior group
-  so any tool opening only the posterior block still recovers model/dataset
-  identifiers.
-- `copernican_lib.csv_writer` exports the SNe/BAO/CMB final tables with
-  descriptive filenames that embed the dataset name, model, and timestamp.
-
-## Scripting a Run
+Third-party tools may import these modules directly. A typical scripting
+session looks like this:
 
 ```python
 from copernican_lib import (
-    model_spec_validator, model_coder, engine_plugin_validation, dataset_registry,
-    result_writer
+    model_spec_validator, model_coder, engine_plugin_validation, dataset_registry
 )
 import engines.cosmo_engine_mcmc as engine
 
 cache = model_spec_validator.validate_and_cache_model(
-    "models/cosmo_model_lcdm.yml", "models/cache"
+    'models/cosmo_model_lcdm.yml', 'models/cache'
 )
 funcs, parsed = model_coder.generate_callables(cache)
 plugin = engine_plugin_validation.build_plugin(parsed, funcs)
-sne = dataset_registry.load_sne_data("pantheon")
-
-results = engine.fit_cosmology_parameters(
-    sne,
-    plugin,
-    burn_in_steps=40,
-    production_steps=200,
-    pool_size=8,
-    bao_data_df=dataset_registry.load_bao_data("bossdr12"),
-    cmb_data_df=dataset_registry.load_cmb_data("planck2018lite"),
-)
-
-result_writer.save_summary({"LCDM": results}, "output/copernican-run_custom")
+sne = dataset_registry.load_sne_data('jla_2014')
+result = engine.fit_cosmology_parameters(sne, plugin, burn_in_steps=20)
 ```
 
-The example mirrors the CLI manifest steps: validate → encode → plugin →
-datasets → engine → results. Scripting mode is ideal for notebooks and testing
-frameworks that require fine-grained control over each stage while still
-relying on the suite’s shared helpers.
+Because the API is intentionally thin, advanced users can orchestrate custom
+pipelines or integrate the suite into larger optimisation frameworks without
+relying on the command-line wrapper.
 
 ## Parameter Summary Format
 
-`result_writer` also saves `parameter-summary_<timestamp>.json/.yml`. Each entry
-contains `parameters`, `errors_1sigma`, `covariance_matrix`, `burn_in`, and
-`production_steps` for MCMC runs; nested samplers append their `live_point`
-details and `evidence` traces. The files are JSON-friendly, so even tools that
-avoid NumPy/pandas can parse them directly for report generation.
+The :mod:`result_writer` helper stores parameter estimates after optimisation
+or sampling.  Files named ``parameter-summary_<timestamp>.json`` and ``.yml``
+are created in the current run directory.  Each model entry contains
+``parameters``, ``errors_1sigma`` and ``covariance_matrix`` with
+``param_names`` and a numeric matrix.  When results originate from the MCMC
+engine the
+summary also records the burn-in length, production steps, posterior means,
+log-probability arrays and the chi-squared value associated with the maximum
+posterior sample.  The data is fully serialisable so external analysis tools
+can parse it without importing NumPy or pandas.
+
+Example::
+
+    from copernican_lib import result_writer
+    summary = {"LCDM": engine_results}
+    result_writer.save_summary(summary, "output/run")

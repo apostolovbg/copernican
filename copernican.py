@@ -37,13 +37,17 @@ import signal
 import subprocess
 import sys
 import logging
+from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 
+import yaml
+
 from copernican_lib.cli import dependencies as cli_dependencies
 from copernican_lib import console_output as console
+from copernican_lib import dataset_registry
 from copernican_lib import logger as log_mod
 from copernican_lib import orchestration
 from copernican_lib import progress_state
@@ -202,6 +206,410 @@ class LaunchRequest:
     detach_gui: bool
     manifest_path: Path | None
     output_dir: Path | None
+    catalogue_summary: bool = False
+    revalidate_dataset: str | None = None
+    list_manifests: bool = False
+    show_manifest_path: Path | None = None
+
+
+def _data_root() -> Path:
+    return Path(SCRIPT_DIR) / "data"
+
+
+def _models_root() -> Path:
+    return Path(SCRIPT_DIR) / "models"
+
+
+def _engines_root() -> Path:
+    return Path(SCRIPT_DIR) / "engines"
+
+
+def _output_root(override: Path | None = None) -> Path:
+    if override is not None:
+        return override
+    return Path(SCRIPT_DIR) / "output"
+
+
+def _parser_path_for_dir(data_dir: Path) -> Path | None:
+    candidates = sorted(data_dir.glob("cosmo_parser_*.py"))
+    return candidates[0] if candidates else None
+
+
+def _relative_parser_key(parser_path: Path | None, data_root: Path) -> str | None:
+    if parser_path is None:
+        return None
+    try:
+        rel = parser_path.relative_to(data_root)
+    except ValueError:
+        rel = Path(os.path.relpath(parser_path, data_root))
+    return str(rel).replace("\\", "/")
+
+
+def _collect_dataset_entries(
+    data_root: Path | None = None,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    root = data_root or _data_root()
+    dataset_registry.discover_trusted_parsers(str(root))
+    registries = dataset_registry.get_parser_registries()
+    entries: list[dict[str, Any]] = []
+    notes: list[str] = []
+    for dtype, registry in registries.items():
+        for dataset_id, entry in registry.items():
+            data_dir = entry.get("data_dir")
+            if not data_dir:
+                continue
+            data_dir_path = Path(data_dir)
+            parser_path = _parser_path_for_dir(data_dir_path)
+            rel_key = _relative_parser_key(parser_path, root)
+            expected_digest = (
+                dataset_registry.TRUSTED_PARSER_DIGESTS.get(rel_key)
+                if rel_key
+                else None
+            )
+            parser_digest = (
+                dataset_registry._file_sha256(str(parser_path))
+                if parser_path
+                else ""
+            )
+            parser_trusted = bool(
+                expected_digest and parser_digest == expected_digest
+            )
+            if not parser_trusted:
+                descriptor = rel_key or (str(parser_path) if parser_path else "parser")
+                notes.append(
+                    f"Parser {descriptor} failed trust validation; verify digests."
+                )
+            entries.append(
+                {
+                    "id": dataset_id,
+                    "type": dtype,
+                    "name": entry.get("dataset_name", dataset_id),
+                    "parser_trusted": parser_trusted,
+                    "parser_digest": parser_digest,
+                    "expected_digest": expected_digest,
+                }
+            )
+    return entries, notes
+
+
+def _gather_catalogue_summary(
+    data_root: Path | None = None,
+) -> dict[str, Any]:
+    catalogue, notes = _collect_dataset_entries(data_root)
+    type_counter = Counter(entry["type"].upper() for entry in catalogue)
+    untrusted = [entry for entry in catalogue if not entry["parser_trusted"]]
+    return {
+        "dataset_count": len(catalogue),
+        "type_counter": type_counter,
+        "untrusted": untrusted,
+        "notes": notes,
+        "entries": catalogue,
+    }
+
+
+def _read_model_file(path: Path) -> dict[str, Any]:
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            return yaml.safe_load(handle) or {}
+    except yaml.YAMLError:
+        logger = log_mod.get_program_logger()
+        logger.warning("Model metadata in %s is malformed", path)
+        return {}
+
+
+def _collect_model_index(models_root: Path | None = None) -> dict[str, dict[str, Any]]:
+    root = models_root or _models_root()
+    models: dict[str, dict[str, Any]] = {}
+    for path in sorted(Path(root).glob("*.yml")):
+        if path.name.startswith("__"):
+            continue
+        meta = _read_model_file(path)
+        parameters = meta.get("parameters") or []
+        compatibility = {
+            "sne": True,
+            "bao": meta.get("valid_for_bao", True),
+            "cmb": meta.get("valid_for_cmb", True),
+        }
+        badges = [name.upper() for name, valid in compatibility.items() if valid]
+        models[path.stem] = {
+            "id": meta.get("model_name", path.stem),
+            "filename": path.name,
+            "path": str(path),
+            "citation": meta.get("citation", ""),
+            "license": meta.get(
+                "license",
+                "Copernican Suite default license; add model notes",
+            ),
+            "version": meta.get("version", "unknown"),
+            "badges": badges,
+            "hash": utils.compute_sha256(str(path)),
+            "parameter_count": len(parameters),
+        }
+    return models
+
+
+def _collect_engine_index(engines_root: Path | None = None) -> dict[str, dict[str, Any]]:
+    root = engines_root or _engines_root()
+    engines: dict[str, dict[str, Any]] = {}
+    for path in sorted(Path(root).glob("*.py")):
+        if path.name.startswith("__"):
+            continue
+        module_name = f"engines.{path.stem}"
+        try:
+            module = importlib.import_module(module_name)
+            label = getattr(module, "ENGINE_LABEL", path.stem)
+            version_label = getattr(module, "ENGINE_VERSION", "unknown")
+        except Exception:
+            module = None
+            label = path.stem
+            version_label = "unavailable"
+            log_mod.get_program_logger().warning(
+                "Engine metadata import failed for %s", module_name
+            )
+        engines[module_name] = {
+            "id": module_name,
+            "filename": path.name,
+            "path": str(path),
+            "stem": path.stem,
+            "citation": getattr(module, "__doc__", ""),
+            "license": "Copernican Suite default license; verify engines",
+            "version": version_label,
+            "label": label,
+            "badges": ["SNE", "BAO", "CMB"],
+            "hash": utils.compute_sha256(str(path)),
+        }
+    return engines
+
+
+def _gather_model_engine_summary(
+    models_root: Path | None = None,
+    engines_root: Path | None = None,
+) -> dict[str, Any]:
+    model_index = _collect_model_index(models_root)
+    engine_index = _collect_engine_index(engines_root)
+    model_badges = Counter()
+    stale_models: list[tuple[str, str]] = []
+    for entry in model_index.values():
+        for badge in entry.get("badges", []):
+            model_badges[badge.upper()] += 1
+        version_label = (entry.get("version") or "").lower()
+        if not version_label or version_label in {"unknown", "unavailable"}:
+            stale_models.append(
+                (
+                    entry.get("id") or entry.get("filename", "model"),
+                    "missing",
+                )
+            )
+    stale_engines: list[tuple[str, str]] = []
+    for entry in engine_index.values():
+        version_label = (entry.get("version") or "").lower()
+        if not version_label or version_label in {"unknown", "unavailable"}:
+            stale_engines.append(
+                (
+                    entry.get("label") or entry.get("id", "engine"),
+                    "missing",
+                )
+            )
+    return {
+        "model_count": len(model_index),
+        "engine_count": len(engine_index),
+        "model_badges": model_badges,
+        "stale_models": stale_models,
+        "stale_engines": stale_engines,
+    }
+
+
+def _print_catalogue_summary_cli(
+    data_root: Path | None = None,
+    models_root: Path | None = None,
+    engines_root: Path | None = None,
+) -> None:
+    catalogue = _gather_catalogue_summary(data_root)
+    model_engine = _gather_model_engine_summary(models_root, engines_root)
+    console.write("")
+    console.write("Catalogue summary")
+    console.write("------------------")
+    console.write(f"Datasets discovered: {catalogue['dataset_count']}")
+    if catalogue["type_counter"]:
+        console.write("By type:")
+        for dtype, count in sorted(catalogue["type_counter"].items()):
+            console.write(f"  {dtype}: {count}")
+    if catalogue["untrusted"]:
+        console.write("Untrusted datasets:")
+        for entry in catalogue["untrusted"]:
+            console.write(
+                f"  - {entry['id']} ({entry['type']}) requires parser hash validation",
+                error=True,
+            )
+    if not catalogue["untrusted"]:
+        console.write("All registered parsers match their trusted digests.")
+    if catalogue["notes"]:
+        for note in catalogue["notes"][:3]:
+            console.write(f"Note: {note}")
+    console.write("")
+    console.write(
+        f"Models discovered: {model_engine['model_count']} | Engines: {model_engine['engine_count']}"
+    )
+    if model_engine["model_badges"]:
+        badge_parts = [
+            f"{badge}: {count}"
+            for badge, count in sorted(model_engine["model_badges"].items())
+        ]
+        console.write("Model compatibility: " + ", ".join(badge_parts))
+    if model_engine["stale_models"]:
+        console.write("Models missing version metadata:")
+        for name, _reason in model_engine["stale_models"][:5]:
+            console.write(f"  - {name}")
+    if model_engine["stale_engines"]:
+        console.write("Engines missing version metadata:")
+        for name, _reason in model_engine["stale_engines"][:5]:
+            console.write(f"  - {name}")
+
+
+def _cli_revalidate_dataset(
+    dataset_id: str,
+    data_root: Path | None = None,
+) -> bool:
+    root = data_root or _data_root()
+    dataset_registry.discover_trusted_parsers(str(root))
+    registries = dataset_registry.get_parser_registries()
+    target: dict[str, Any] | None = None
+    dtype = ""
+    for dtype_name, registry in registries.items():
+        if dataset_id in registry:
+            target = registry[dataset_id]
+            dtype = dtype_name
+            break
+    if target is None:
+        console.write(f"Dataset '{dataset_id}' is not registered.", error=True)
+        return False
+    data_dir = target.get("data_dir")
+    if not data_dir:
+        console.write(
+            f"Dataset '{dataset_id}' has no associated data directory.",
+            error=True,
+        )
+        return False
+    parser_path = _parser_path_for_dir(Path(data_dir))
+    rel_key = _relative_parser_key(parser_path, root)
+    expected_digest = (
+        dataset_registry.TRUSTED_PARSER_DIGESTS.get(rel_key)
+        if rel_key
+        else None
+    )
+    parser_digest = (
+        dataset_registry._file_sha256(str(parser_path))
+        if parser_path
+        else ""
+    )
+    if expected_digest and parser_digest == expected_digest:
+        console.write(
+            f"{dataset_id} ({dtype}) parser matches trusted digest ({parser_digest})."
+        )
+        return True
+    if not expected_digest:
+        console.write(
+            f"Dataset '{dataset_id}' is missing a trusted digest entry.",
+            error=True,
+        )
+    else:
+        console.write(
+            f"Digest mismatch for {dataset_id}: expected {expected_digest} but observed {parser_digest}.",
+            error=True,
+        )
+    return False
+
+
+def _discover_manifest_records(
+    output_root: Path,
+) -> list[tuple[Path, Path]]:
+    if not output_root.exists():
+        return []
+    records: list[tuple[Path, Path]] = []
+    for child in sorted(output_root.iterdir()):
+        if not child.is_dir():
+            continue
+        manifest_files = sorted(child.glob("run_manifest_*.yml"))
+        if not manifest_files:
+            continue
+        manifest_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        records.append((child, manifest_files[0]))
+    records.sort(key=lambda item: item[1].stat().st_mtime, reverse=True)
+    return records
+
+
+def _print_manifest_listing(output_root: Path) -> None:
+    records = _discover_manifest_records(output_root)
+    console.write("")
+    console.write(f"Run manifests under {output_root}:")
+    if not records:
+        console.write("  (no manifest directories found)")
+        return
+    for directory, manifest_path in records[:20]:
+        timestamp = datetime.datetime.fromtimestamp(
+            manifest_path.stat().st_mtime,
+            datetime.timezone.utc,
+        ).isoformat()
+        console.write(
+            f"  - {directory.name}: {manifest_path.name} "
+            f"(mtime {timestamp})"
+        )
+    if len(records) > 20:
+        console.write(
+            f"  … {len(records) - 20} additional run folder(s) hidden; clean up old runs if needed."
+        )
+
+
+def _print_manifest_file(path: Path) -> bool:
+    if not path.exists():
+        console.write(f"Manifest not found at {path}", error=True)
+        return False
+    try:
+        manifest_data = run_manifest.load_manifest(str(path))
+    except Exception as exc:
+        console.write(f"Failed to load manifest {path}: {exc}", error=True)
+        return False
+    console.write("")
+    console.write(f"Manifest {path}:")
+    console.write(yaml.safe_dump(manifest_data, sort_keys=False))
+    return True
+
+
+def _handle_auxiliary_requests(
+    launch_request: LaunchRequest,
+) -> tuple[bool, int]:
+    handled = False
+    exit_code = 0
+    data_root = _data_root()
+    models_root = _models_root()
+    engines_root = _engines_root()
+    output_root = _output_root(launch_request.output_dir)
+    if launch_request.catalogue_summary:
+        _print_catalogue_summary_cli(data_root, models_root, engines_root)
+        handled = True
+    if launch_request.revalidate_dataset:
+        dataset_id = launch_request.revalidate_dataset.strip()
+        if dataset_id:
+            success = _cli_revalidate_dataset(dataset_id, data_root)
+            handled = True
+            if not success:
+                exit_code = 1
+        else:
+            console.write(
+                "--revalidate-dataset requires a non-empty dataset id.",
+                error=True,
+            )
+            handled = True
+            exit_code = 1
+    if launch_request.list_manifests:
+        _print_manifest_listing(output_root)
+        handled = True
+    if launch_request.show_manifest_path is not None:
+        success = _print_manifest_file(launch_request.show_manifest_path)
+        handled = True
+        if not success:
+            exit_code = 1
+    return handled, exit_code
 
 
 def _handle_fatal_signal(signum: int, _frame: object) -> None:
@@ -301,6 +709,35 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
             "Production launches stay forward-only."
         ),
     )
+    parser.add_argument(
+        "--catalogue-summary",
+        action="store_true",
+        help=(
+            "Print dataset, model and engine inventory health information "
+            "then exit."
+        ),
+    )
+    parser.add_argument(
+        "--revalidate-dataset",
+        metavar="DATASET_ID",
+        help=(
+            "Re-run the parser trust check for the specified dataset id "
+            "and report the digest status."
+        ),
+    )
+    parser.add_argument(
+        "--list-manifests",
+        action="store_true",
+        help=(
+            "List run directories under the output folder along with their "
+            "most recent manifest files."
+        ),
+    )
+    parser.add_argument(
+        "--show-manifest",
+        metavar="MANIFEST_PATH",
+        help="Pretty-print the specified manifest file and exit.",
+    )
     argv_list = list(argv) if argv is not None else None
     parsed, _ = parser.parse_known_args(argv_list)
     legacy_menu = parsed.enable_legacy_stage_menu or (
@@ -317,6 +754,11 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         if parsed.output_dir
         else None
     )
+    manifest_display = (
+        Path(parsed.show_manifest).expanduser().resolve()
+        if parsed.show_manifest
+        else None
+    )
     mode = (
         orchestration.LaunchMode.GUI
         if parsed.gui
@@ -330,6 +772,10 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         detach_gui=detach_gui,
         manifest_path=manifest_path,
         output_dir=output_dir,
+        catalogue_summary=parsed.catalogue_summary,
+        revalidate_dataset=parsed.revalidate_dataset,
+        list_manifests=parsed.list_manifests,
+        show_manifest_path=manifest_display,
     )
 
 
@@ -698,6 +1144,9 @@ def main(argv: Iterable[str] | None = None) -> int:
     global _launch_args, _legacy_stage_menu_override
     _launch_args = launch_request
     _legacy_stage_menu_override = launch_request.legacy_stage_menu
+    aux_handled, aux_exit = _handle_auxiliary_requests(launch_request)
+    if aux_handled:
+        return aux_exit
     if launch_request.mode is orchestration.LaunchMode.GUI:
         if _spawn_detached_gui(
             list(argv) if argv is not None else [], launch_request
