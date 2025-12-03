@@ -383,30 +383,30 @@ derived from the model's variables or constants.
 **IMPORTANT: READ FROM HERE TO THE END OF THE DOCUMENT AT THE BEGINNING OF EVERY DEVELOPMENT SESSION**
 
 **Copernican development must run inside the repository's `.venv` created by the `start.*` launchers.**  
-If `.venv` is absent, re-run `start.sh`/`start.command`/`start.bat` so the 
-launcher downloads Python 3.11, boots the managed environment and installs 
-every dependency before editing code or running tests. Do not bypass the 
-managed `.venv` when working on the repository. Following this policy (and 
+If `.venv` is absent, re-run `start.sh`/`start.command`/`start.bat` so the
+launcher downloads Python 3.11, boots the managed environment and installs
+every dependency before editing code or running tests. Do not bypass the
+managed `.venv` when working on the repository. Following this policy (and
 any other law or policy) is non-optional!
 
 The Copernican Suite uses **DevCovenant**, a self-enforcing policy system that
 maintains consistency between human-readable policies in this file and
 automated Python checks. When you modify a policy in this section, set its
 `updated: true` flag. The AI will automatically detect the change and update
-the corresponding policy script in `devcovenant/policy_scripts/`. If you are 
-an AI agent, please report to the user what changes to DevCovenant have you 
-detected and understood and how do you plan to implement automatic DevCovenant 
-enforcement (and auto fix if possible), before making any changes! 
+the corresponding policy script in `devcovenant/policy_scripts/`. If you are
+an AI agent, please report to the user what changes to DevCovenant have you
+detected and understood and how do you plan to implement automatic DevCovenant
+enforcement (and auto fix if possible), before making any changes!
 
-There are still plain English development Laws later in the document. 
+There are still plain English development Laws later in the document.
 They should be read and duly followed as well! This is non-optional!
 
-**IMPORTANT NOTICE FOR AI** 
-Artificial intelligence agent (AI agent) developers must follow all development 
-laws and policies until the end of this document. They must carefully 
+**IMPORTANT NOTICE FOR AI**
+Artificial intelligence agent (AI agent) developers must follow all development
+laws and policies until the end of this document. They must carefully
 read the plain English descriptions of each Policy and Law and follow them
-proactively and to the letter except on explicit human request! Automated 
-policy checks/fixes exist for reassurance, not to serve as reminders 
+proactively and to the letter except on explicit human request! Automated
+policy checks/fixes exist for reassurance, not to serve as reminders
 to do your job properly!
 
 ## DEVCOVENANT DEVELOPMENT POLICY MANAGEMENT AND ENFORCEMENT SYSTEM
@@ -621,7 +621,7 @@ id: version-sync
 status: updated
 severity: error
 auto_fix: false
-updated: true
+updated: false
 applies_to: copernican_lib/VERSION,README.md,CITATION.cff,pyproject.toml
 ```
 
@@ -629,16 +629,16 @@ The project follows Semantic Versioning (`MAJOR.MINOR.PATCH`). Increment the
 `MAJOR` number for breaking changes, the `MINOR` for new backward-compatible
 features and the `PATCH` for bug fixes. The canonical version is stored both
 at the top of `README.md` and inside `copernican_lib/VERSION`
-The canonical version in `copernican_lib/VERSION` must match the version 
-declared in `README.md`, `pyproject.toml` and `CITATION.cff`. This prevents 
-version drift across documentation and ensures consistency for users and 
+The canonical version in `copernican_lib/VERSION` must match the version
+declared in `README.md`, `pyproject.toml` and `CITATION.cff`. This prevents
+version drift across documentation and ensures consistency for users and
 citation tools. Runtime code must obtain the current version via
-``copernican_lib.version.get_version`` rather than hard-coded strings. This 
+``copernican_lib.version.get_version`` rather than hard-coded strings. This
 should be enforced by a DevCovenant script.
-THE FOLLOWING IS JUST FOR INFORMATION, DON'T WRITE CKECKS FOR IT: 
-The helper reads the tracked version file before falling back to package 
-metadata or Git tags. Setting ``COPERNICAN_VERSION`` in the environment 
-overrides the derived value so CI builds can embed custom prerelease 
+THE FOLLOWING IS JUST FOR INFORMATION, DON'T WRITE CKECKS FOR IT:
+The helper reads the tracked version file before falling back to package
+metadata or Git tags. Setting ``COPERNICAN_VERSION`` in the environment
+overrides the derived value so CI builds can embed custom prerelease
 identifiers that match the tracked version. There are special defensive lookups inside
 ``copernican.py``, ``copernican_lib/run_manifest.py`` and
 ``copernican_lib/plotter.py`` so the suite still boots when
@@ -672,17 +672,17 @@ id: new-modules-need-tests
 status: updated
 severity: error
 auto_fix: false
-updated: true
+updated: false
 applies_to: copernican_lib/**/*.py,engines/**/*.py
 ```
 
-New Python modules under `copernican_lib/` and `engines/` must be accompanied 
-by new or updated tests under `tests/`. This prevents untested code from 
-entering the repository and maintains code quality standards. Tests should 
-evolve with the code. No code should be tailored to satisfy tests - rather, 
-as code is being ammended, tests should follow in unison. When removing a 
-module, the tests or parts of tests associated with it should be removed or 
-ammended accordingly. 
+New Python modules under `copernican_lib/` and `engines/` must be accompanied
+by new or updated tests under `tests/`. This prevents untested code from
+entering the repository and maintains code quality standards. Tests should
+evolve with the code. No code should be tailored to satisfy tests - rather,
+as code is being ammended, tests should follow in unison. When removing a
+module, the tests or parts of tests associated with it should be removed or
+ammended accordingly.
 
 ---
 
@@ -781,7 +781,7 @@ these rules:
     update or when correcting objective errors they identify.
 
 
-Following the Development Laws, DevCovenant's policies and all good coding 
-practices is not optional; it is essential for the long-term viability and 
-success of the Copernican Suite. Failure to follow these rules will 
+Following the Development Laws, DevCovenant's policies and all good coding
+practices is not optional; it is essential for the long-term viability and
+success of the Copernican Suite. Failure to follow these rules will
 compromise the maintainability of the Copernican Suite!!!

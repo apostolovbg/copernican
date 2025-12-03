@@ -53,3 +53,35 @@ class TestNewModulesNeedTestsPolicy(unittest.TestCase):
             violations = policy.check(context)
 
             self.assertEqual(len(violations), 0)
+
+    @patch("subprocess.check_output")
+    def test_detects_removed_module_without_tests(self, mock_subprocess):
+        """Policy should flag removed modules when no tests change."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+
+            mock_subprocess.return_value = " D copernican_lib/old_module.py\n"
+
+            context = CheckContext(repo_root=repo_root)
+            policy = NewModulesNeedTestsCheck()
+            violations = policy.check(context)
+
+            self.assertEqual(len(violations), 1)
+            self.assertIn("removing modules", violations[0].message)
+
+    @patch("subprocess.check_output")
+    def test_allows_removed_module_with_tests(self, mock_subprocess):
+        """Policy should allow module removals when tests are updated."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+
+            mock_subprocess.return_value = (
+                " D copernican_lib/old_module.py\n"
+                "M  tests/test_old_module.py\n"
+            )
+
+            context = CheckContext(repo_root=repo_root)
+            policy = NewModulesNeedTestsCheck()
+            violations = policy.check(context)
+
+            self.assertEqual(len(violations), 0)

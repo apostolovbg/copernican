@@ -1,41 +1,84 @@
 # Orchestration Services
 
-This note maps the orchestration flow that GUI clients should reuse instead of
-re-implementing CLI logic. The `copernican_lib/orchestration.py` module
-summarises three GUI-safe services:
+GUI clients, launcher scripts, and any future frontends should reuse the shared
+orchestration helpers rather than re-implementing the CLI menu logic. The core
+services live in `copernican_lib/orchestration.py` and cover validation,
+manifest generation, run control, and logging so every entrypoint can call the
+same helpers in the documented order.
 
-1. **Configuration validation**: `copernican_lib.model_spec_validator` exposes
-   `validate_and_cache_model` for turning YAML models into cached callables
-   without importing menu helpers.
-2. **Manifest generation**: `copernican_lib.run_manifest.build_manifest`
-   assembles dataset digests, plugin metadata and Git state for every run and
-   remains identical across CLI and GUI launches.
-3. **Run control**: `copernican_lib.result_writer.save_summary` serialises
-   sampler outputs while `copernican_lib.cli.dependencies.get_runtime_options`
-   keeps the runtime flags and logging posture aligned with the CLI. Manifest
-   runners should now call `copernican_lib.run_executor.execute_run_from_manifest`
-   so the shared pipeline in `copernican_lib/run_pipeline.py`, the dataset
-   rebuild helpers in `copernican_lib/run_config.py`, and the YAML-backed model
-   plugins all execute uniformly for both GUI and headless runs.
+## Service Map
 
-`copernican.main_workflow`, the console script entrypoint, now relays manifests
-directly to `copernican_lib.run_executor.execute_run_from_manifest` so every
-manifest-driven launch—CLI or GUI—shares the same runner.
+1. **Configuration validation** (`copernican_lib.model_spec_validator`) –
+   validates `cosmo_model_*.yml`, strips unknown keys, caches the sanitized YAML
+   copy, and ensures every parameter has an explicit `type`. GUI builders call
+   this before populating the manifest, and CLI runs always validate the chosen
+   model before sampling.
+2. **Manifest generation** (`copernican_lib.run_manifest`) – assembles the
+   selected seed, model, dataset IDs, dataset file digests, engine plugin data,
+   run settings, plan notes, Git state, and environment hints into
+   `run_manifest_*.yml`. The builder writes the manifest to
+   `output/copernican_run_NEW_CONFIG/`, saves `run_manifest_NEW_CONFIG.yml`,
+   and once the run starts renames the workspace to `copernican-run_<timestamp>`.
+   The manifest also records whether the GUI triggered the run, the parsed engine
+   name, and every dataset digest so replays reproduce the same inputs.
+3. **Run control** (`copernican_lib.run_executor.execute_run_from_manifest`) –
+   loads the manifest, rebuilds dataset loaders, reconstructs the plugin, sets up
+   logging (via `copernican_lib.logger`), and invokes the actual engine (MCMC,
+   nested, or a future backend). It reuses the shared `copernican_lib.run_pipeline`
+   so Stage 2 progress bars, diagnostics, and result writers are consistent for
+   both CLI and GUI runs.
 
-`copernican.py --gui` prints this service map without entering the interactive
-menus. GUI launchers should construct an
-`orchestration.InProcessRunController` with run, pause, resume and cancel hooks
-that call into the shared helpers above. The `RunRequest`, `RunHandle` and
-`RunStatus` dataclasses document the minimum payloads required to drive the
-existing pipeline while letting the GUI stream logs or status updates.
+Any GUI or launcher that needs to start a run should instantiate
+`orchestration.InProcessRunController`, supply the `RunRequest`, and listen for
+`RunHandle` updates. Those dataclasses specify the minimum payloads required for
+status tracking (progress, logs, widget enablement) and allow the GUI to cancel,
+pause, or hard stop the worker.
 
-The GUI worker (`copernican_lib/gui/run_worker.py`) simply loads the JSON
-configuration produced by the Run Builder, sets `COPERNICAN_ALLOW_DIRECT=1`,
-and invokes `copernican.main` with `--manifest`. Any test or helper that
-imports `copernican` directly should mirror that guard so the manifest CLI
-remains usable without re-enabling the legacy menu workflow.
+## Manifest Structure
 
-Forward-only remains the default: the staged menu is disabled unless a caller
-sets `COPERNICAN_ENABLE_STAGED_MENU=1` or passes `--enable-legacy-stage-menu`.
-CI can toggle that flag to exercise historical prompts without reintroducing
-backward-compatible branches for regular users.
+The manifest bundles:
+
+- **Selections**: `seed`, `model_filename`, `datasets` (with `dataset_id`, path,
+  metadata, digests), `engine`, and `plan_notes`.
+- **Run Settings**: walkers, burn-in, production steps, pool size, diagnostics
+  filters, and environment hints such as `COPERNICAN_STRICT_WARNINGS`.
+- **Provenance**: git branch, commit hash, `COPERNICAN_VERSION` overrides,
+  `python_version`, `operating_system`, `cpu_info`, `copernican_lib` version,
+  and the dataset parser hashes.
+- **Outputs**: `output_dir`, `manifest_name`, `log_path`, and boolean flags
+  describing whether the GUI or CLI initiated the run.
+
+The manifest is consumed by `copernican_lib.run_executor`, `copernican_lib/plotter`,
+and `copernican_lib/gui/run_worker`. If `copernican_lib.version.get_version`
+spins up, the manifest remains the authoritative record that ties a run to the
+package release, dataset digests, and environment hints.
+
+## Logging and Diagnostics
+
+`copernican_lib.logger.setup_logging` configures file and console loggers, patches
+`print`/`input`, and records `faulthandler` output and SIGILL/SEGV/FPE stack
+traces before exiting when signals occur. It logs the Python version, OS,
+CPU model, installed critical package versions, and the manifest summary.
+`copernican_lib.console_output` wraps all terminal I/O so the GUI diagnostics
+panel and CLI logs can stay synchronized.
+
+Progress messages flush to stdout so long-running computations display
+activity on Linux terminals. Warnings are forwarded to the central logger
+unless `COPERNICAN_STRICT_WARNINGS=1` is set, in which case warnings become
+errors and the run terminates fast during CI.
+
+## Reuse Guidelines
+
+- GUIs should call `copernican_lib.orchestration.InProcessRunController` rather
+  than reimplement entire menus; the controller exposes `start`, `pause`, `resume`,
+  `cancel`, and `hard_stop` hooks that delegate to `run_executor.execute_run_from_manifest`.
+- The GUI worker sets `COPERNICAN_ALLOW_DIRECT=1` before invoking
+  `copernican.main --manifest` so any helper importing `copernican` behaves
+  identically to CLI manifests.
+- Start scripts should point to `copernican.py --gui` or `--cli` and rely on
+  `copernican_lib/orchestration` for manifest building, not local copies of the
+  CLI menus. When the staged menu is needed for CI coverage, pass
+  `COPERNICAN_ENABLE_STAGED_MENU=1` or `--enable-legacy-stage-menu`.
+
+Following this service map preserves the single orchestrator approach and keeps
+future frontends from diverging from the canonical data/model/engine pipeline.

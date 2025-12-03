@@ -11,6 +11,12 @@ from devcovenant.policy_scripts.version_sync import VersionSyncCheck
 class TestVersionSyncPolicy(unittest.TestCase):
     """Test suite for VersionSyncCheck."""
 
+    def _write_pyproject(self, repo_root: Path, version: str) -> Path:
+        """Create a minimal pyproject.toml with the requested version."""
+        pyproject = repo_root / "pyproject.toml"
+        pyproject.write_text(f'[project]\nversion = "{version}"\n')
+        return pyproject
+
     def test_detects_version_mismatch(self):
         """Policy should detect version mismatches."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -29,6 +35,8 @@ class TestVersionSyncPolicy(unittest.TestCase):
             # Create CITATION.cff with matching versions
             citation = repo_root / "CITATION.cff"
             citation.write_text('version: "1.0.0"\nversion: "1.0.0"\n')
+            self._write_pyproject(repo_root, "1.0.0")
+            self._write_pyproject(repo_root, "1.0.0")
 
             context = CheckContext(repo_root=repo_root)
             policy = VersionSyncCheck()
@@ -60,3 +68,30 @@ class TestVersionSyncPolicy(unittest.TestCase):
                 v for v in violations if "does not match" in v.message
             ]
             self.assertEqual(len(version_errs), 0)
+
+    def test_detects_pyproject_mismatch(self):
+        """Policy should flag mismatched pyproject versions."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+
+            version_dir = repo_root / "copernican_lib"
+            version_dir.mkdir()
+            version_file = version_dir / "VERSION"
+            version_file.write_text("1.0.0\n")
+
+            readme = repo_root / "README.md"
+            readme.write_text("**Version:** 1.0.0\n")
+
+            citation = repo_root / "CITATION.cff"
+            citation.write_text('version: "1.0.0"\nversion: "1.0.0"\n')
+
+            self._write_pyproject(repo_root, "2.0.0")
+
+            context = CheckContext(repo_root=repo_root)
+            policy = VersionSyncCheck()
+            violations = policy.check(context)
+
+            mismatch = [
+                v for v in violations if "pyproject.toml version" in v.message
+            ]
+            self.assertTrue(mismatch)

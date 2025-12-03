@@ -1,32 +1,45 @@
-"""DevCovenant policy: Ensure version sync across VERSION, README, CITATION.
+"""DevCovenant policy: Ensure version sync across metadata files.
 
-This policy ensures that the canonical version in copernican_lib/VERSION
-matches the version declared in README.md and CITATION.cff, preventing
-version drift across documentation.
+This policy ensures the canonical version in copernican_lib/VERSION
+matches the metadata declarations in README.md, pyproject.toml and
+CITATION.cff, preventing version drift across the project docs and tools.
 """
 
 import re
-from typing import List
+from pathlib import Path
+from typing import List, Optional
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
+try:
+    import tomllib  # type: ignore[attr-defined]
+except ModuleNotFoundError:
+    import tomli as tomllib  # type: ignore[assignment]
+
 
 class VersionSyncCheck(PolicyCheck):
-    """Ensure README, CITATION and VERSION agree on the recorded version."""
+    """Ensure README, pyproject, CITATION and VERSION agree on the version."""
 
     policy_id = "version-sync"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def check(self, context: CheckContext) -> List[Violation]:
-        """Check for version synchronization."""
-        violations = []
+        """Check for version synchronization across metadata files."""
+        violations: List[Violation] = []
 
         version_file = context.repo_root / "copernican_lib" / "VERSION"
         readme_file = context.repo_root / "README.md"
         citation_file = context.repo_root / "CITATION.cff"
+        pyproject_file = context.repo_root / "pyproject.toml"
 
-        # Check that required files exist
-        for target in (version_file, readme_file, citation_file):
+        # Verify required files exist
+        required_targets = (
+            version_file,
+            readme_file,
+            citation_file,
+            pyproject_file,
+        )
+        for target in required_targets:
             if not target.exists():
                 violations.append(
                     Violation(
@@ -56,8 +69,9 @@ class VersionSyncCheck(PolicyCheck):
         try:
             readme_text = readme_file.read_text(encoding="utf-8")
             readme_match = re.search(
-                r"\*\*Version:\*\*\s*(?P<version>\d+\.\d+\.\d+)",
+                r"^\s*\*\*Version:\*\*\s*(?P<version>\d+\.\d+\.\d+)",
                 readme_text,
+                flags=re.MULTILINE,
             )
             if not readme_match:
                 violations.append(
@@ -88,6 +102,41 @@ class VersionSyncCheck(PolicyCheck):
                     severity="error",
                     file_path=readme_file,
                     message=f"Cannot read README.md: {exc}",
+                )
+            )
+
+        # Check pyproject version
+        try:
+            pyproject_version = self._read_pyproject_version(pyproject_file)
+            if not pyproject_version:
+                violations.append(
+                    Violation(
+                        policy_id=self.policy_id,
+                        severity="error",
+                        file_path=pyproject_file,
+                        message="pyproject.toml lacks project.version",
+                    )
+                )
+            elif pyproject_version != version:
+                violations.append(
+                    Violation(
+                        policy_id=self.policy_id,
+                        severity="error",
+                        file_path=pyproject_file,
+                        message=(
+                            f"pyproject.toml version {pyproject_version} "
+                            f"does not match copernican_lib/VERSION "
+                            f"({version})"
+                        ),
+                    )
+                )
+        except (OSError, tomllib.TOMLDecodeError) as exc:
+            violations.append(
+                Violation(
+                    policy_id=self.policy_id,
+                    severity="error",
+                    file_path=pyproject_file,
+                    message=f"Cannot read pyproject.toml: {exc}",
                 )
             )
 
@@ -135,3 +184,13 @@ class VersionSyncCheck(PolicyCheck):
             )
 
         return violations
+
+    @staticmethod
+    def _read_pyproject_version(pyproject_path: Path) -> Optional[str]:
+        """Return the project.version from pyproject.toml."""
+        raw = pyproject_path.read_text(encoding="utf-8")
+        data = tomllib.loads(raw)
+        project = data.get("project")
+        if not isinstance(project, dict):
+            return None
+        return project.get("version")

@@ -1,8 +1,10 @@
-"""DevCovenant policy: Ensure new Python modules ship with tests.
+"""DevCovenant policy: Ensure new or removed Python modules ship with tests.
 
 This policy ensures that new Python modules under copernican_lib/ and
 engines/ are accompanied by new or updated tests under tests/, preventing
-untested code from entering the repository.
+untested code from entering the repository. Tests should evolve with the code,
+and removing a module must adjust its associated tests rather than leaving
+stale coverage behind.
 """
 
 import subprocess
@@ -20,7 +22,7 @@ class NewModulesNeedTestsCheck(PolicyCheck):
 
     def _collect_repo_changes(
         self, repo_root: Path
-    ) -> tuple[Set[Path], Set[Path]]:
+    ) -> tuple[Set[Path], Set[Path], Set[Path]]:
         """Return added and modified files reported by Git."""
         try:
             output = subprocess.check_output(
@@ -29,10 +31,11 @@ class NewModulesNeedTestsCheck(PolicyCheck):
                 text=True,
             )
         except (FileNotFoundError, subprocess.CalledProcessError):
-            return set(), set()
+            return set(), set(), set()
 
         added: Set[Path] = set()
         modified: Set[Path] = set()
+        deleted: Set[Path] = set()
 
         for line in output.splitlines():
             if not line or len(line) < 4:
@@ -41,6 +44,9 @@ class NewModulesNeedTestsCheck(PolicyCheck):
             path = repo_root / path_str
             index_state, worktree_state = status[0], status[1]
 
+            if index_state == "D" or worktree_state == "D":
+                deleted.add(path)
+                continue
             if index_state in {"A", "C", "R"} or worktree_state in {
                 "A",
                 "?",
@@ -51,48 +57,60 @@ class NewModulesNeedTestsCheck(PolicyCheck):
             elif index_state in {"M", "R", "C"} or worktree_state == "M":
                 modified.add(path)
 
-        return added, modified
+        return added, modified, deleted
 
     def check(self, context: CheckContext) -> List[Violation]:
         """Check that new Python modules have corresponding tests."""
         violations = []
 
-        added, modified = self._collect_repo_changes(context.repo_root)
+        (
+            added,
+            modified,
+            deleted,
+        ) = self._collect_repo_changes(context.repo_root)
+
+        def _is_library_or_engine_module(relative: Path) -> bool:
+            return (
+                relative.suffix == ".py"
+                and relative.parts
+                and relative.parts[0] in ("copernican_lib", "engines")
+            )
+
+        def _collect_changed_tests(paths: Set[Path]) -> List[Path]:
+            tests = []
+            for path in paths:
+                try:
+                    rel = path.relative_to(context.repo_root)
+                except ValueError:
+                    continue
+                if rel.parts and rel.parts[0] == "tests":
+                    tests.append(path)
+            return tests
 
         # Find new Python modules outside tests/
         new_modules = []
         for path in added:
-            if path.suffix != ".py" or not path.is_file():
-                continue
             try:
                 rel = path.relative_to(context.repo_root)
             except ValueError:
                 continue
 
-            if rel.parts and rel.parts[0] == "tests":
-                continue
-
-            # Check if it's in copernican_lib/ or engines/
-            if rel.parts and rel.parts[0] in ("copernican_lib", "engines"):
+            if _is_library_or_engine_module(rel):
                 new_modules.append(path)
 
-        if not new_modules:
-            return violations
-
-        # Check if any test files were changed
-        changed_tests = []
-        for path in modified | added:
-            if not path.is_file():
-                continue
+        removed_modules = []
+        for path in deleted:
             try:
                 rel = path.relative_to(context.repo_root)
             except ValueError:
                 continue
 
-            if rel.parts and rel.parts[0] == "tests":
-                changed_tests.append(path)
+            if _is_library_or_engine_module(rel):
+                removed_modules.append(path)
 
-        if not changed_tests:
+        tests_changed = _collect_changed_tests(added | modified | deleted)
+
+        if new_modules and not tests_changed:
             targets = ", ".join(
                 sorted(
                     path.relative_to(context.repo_root).as_posix()
@@ -107,6 +125,25 @@ class NewModulesNeedTestsCheck(PolicyCheck):
                     message=(
                         f"Add or update tests under tests/ "
                         f"for new modules: {targets}"
+                    ),
+                )
+            )
+
+        if removed_modules and not tests_changed:
+            targets = ", ".join(
+                sorted(
+                    path.relative_to(context.repo_root).as_posix()
+                    for path in removed_modules
+                )
+            )
+            violations.append(
+                Violation(
+                    policy_id=self.policy_id,
+                    severity="error",
+                    file_path=removed_modules[0],
+                    message=(
+                        f"Adjust tests under tests/ when removing modules: "
+                        f"{targets}"
                     ),
                 )
             )

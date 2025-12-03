@@ -21,6 +21,20 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-03: Extended the version-sync policy to cover pyproject.toml and
+             tightened the modules-or-tests enforcement so new or removed
+             plugins must trigger test updates while pyproject.toml now matches
+             version 11.0.1 (devcovenant/policy_scripts/version_sync.py,
+             devcovenant/tests/test_policies/test_version_sync.py,
+             devcovenant/policy_scripts/new_modules_need_tests.py,
+             devcovenant/tests/test_policies/test_new_modules_need_tests.py,
+             pyproject.toml, AGENTS.md, CHANGELOG.md).
+- 2025-12-03: Overhauled the README and docs to describe the current manifest,
+             dataset, API, GUI, and architecture flows plus the new documentation
+             guardrails so contributions match the Copernican standards
+             (README.md, docs/architecture.md, docs/api_overview.md,
+             docs/data_overview.md, docs/gui_overview.md,
+             docs/orchestration_services.md, CHANGELOG.md).
 - 2025-12-03: Rebalanced the GUI navigation rail to 140 px with equal edge padding and return the launcher menu after the GUI window closes so operators can relaunch without restarting the helper (copernican_lib/gui/app.py, start.sh, start.command, start.bat, README.md, CHANGELOG.md).
 - 2025-12-03: Restored the Run Builder Data page so the SNe, BAO and CMB selectors share a scrollable row and the dataset details sit below the lists, keeping every choice visible (copernican_lib/gui/app.py, README.md, CHANGELOG.md).
 - 2025-12-03: Reintroduced the Engine knobs frame to show per-engine descriptions, defaults and entries and feed the entered values into the manifest so GUI and CLI runs share the same tuning metadata (copernican_lib/gui/app.py, README.md, CHANGELOG.md).
