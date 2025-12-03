@@ -378,16 +378,20 @@ Models that can compute a CMB power spectrum should also define a
 object describing how standard CAMB parameters such as `H0` and `ombh2` are
 derived from the model's variables or constants.
 
-## Development Policies (DevCovenant)
+# DEVELOPMENT POLICY (DevCovenant and Laws)
+
+**IMPORTANT: READ THIS SECTION AT THE BEGINNING OF EVERY DEVELOPMENT SESSION**
 
 **Copernican development must run inside the repository's `.venv` created by the `start.*` launchers.**  
-If `.venv` is absent, re-run `start.sh`/`start.command`/`start.bat` so the launcher downloads Python 3.11, boots the managed environment and installs every dependency before editing code or running tests. Do not bypass the managed `.venv` when working on the repository.
+If `.venv` is absent, re-run `start.sh`/`start.command`/`start.bat` so the launcher downloads Python 3.11, boots the managed environment and installs every dependency before editing code or running tests. Do not bypass the managed `.venv` when working on the repository. Following this policy is non-optional!
 
 The Copernican Suite uses **DevCovenant**, a self-enforcing policy system that
 maintains consistency between human-readable policies in this file and
 automated Python checks. When you modify a policy in this section, set its
 `updated: true` flag. The AI will automatically detect the change and update
 the corresponding policy script in `devcovenant/policy_scripts/`.
+
+## DevCovenant
 
 ### How DevCovenant Works
 
@@ -599,13 +603,28 @@ id: version-sync
 status: active
 severity: error
 auto_fix: false
-updated: false
-applies_to: copernican_lib/VERSION,README.md,CITATION.cff
+updated: true
+applies_to: copernican_lib/VERSION,README.md,CITATION.cff,pyproject.toml
 ```
 
-The canonical version in `copernican_lib/VERSION` must match the version
-declared in `README.md` and `CITATION.cff`. This prevents version drift across
-documentation and ensures consistency for users and citation tools.
+The project follows Semantic Versioning (`MAJOR.MINOR.PATCH`). Increment the
+`MAJOR` number for breaking changes, the `MINOR` for new backward-compatible
+features and the `PATCH` for bug fixes. The canonical version is stored both
+at the top of `README.md` and inside `copernican_lib/VERSION`
+The canonical version in `copernican_lib/VERSION` must match the version 
+declared in `README.md`, `pyproject.toml` and `CITATION.cff`. This prevents 
+version drift across documentation and ensures consistency for users and 
+citation tools. Runtime code must obtain the current version via
+``copernican_lib.version.get_version`` rather than hard-coded strings. The
+helper reads the tracked version file before falling back to package metadata
+or Git tags. Setting ``COPERNICAN_VERSION`` in the environment overrides the
+derived value so CI builds can embed custom prerelease identifiers that
+match the tracked version. There are special defensive lookups inside
+``copernican.py``, ``copernican_lib/run_manifest.py`` and
+``copernican_lib/plotter.py`` so the suite still boots when
+``copernican_lib.version.get_version`` is temporarily unavailable during
+partial upgrades.
+
 
 ---
 
@@ -633,13 +652,17 @@ id: new-modules-need-tests
 status: active
 severity: error
 auto_fix: false
-updated: false
+updated: true
 applies_to: copernican_lib/**/*.py,engines/**/*.py
 ```
 
-New Python modules under `copernican_lib/` and `engines/` must be accompanied
-by new or updated tests under `tests/`. This prevents untested code from
-entering the repository and maintains code quality standards.
+New Python modules under `copernican_lib/` and `engines/` must be accompanied 
+by new or updated tests under `tests/`. This prevents untested code from 
+entering the repository and maintains code quality standards. Tests should 
+evolve with the code. No code should be tailored to satisfy tests - rather, 
+as code is being ammended, tests should follow in unison. When removing a 
+module, the tests or parts of tests associated with it should be removed or 
+ammended accordingly. 
 
 ---
 
@@ -662,7 +685,7 @@ through dedicated utilities. Exception: `console_output.py` itself may use
 
 ---
 
-## AI-driven and human development laws and protocols
+## AI-driven and human development LAWS (READ AND FOLLOW)
 
 **Note**: Several development requirements are now enforced automatically by
 DevCovenant policies (see above). The following laws remain as manual
@@ -737,23 +760,8 @@ these rules:
     and metadata—and only revise them when a human explicitly requests an
     update or when correcting objective errors they identify.
 
-Following these documentation practices is not optional; it is essential for
-the long-term viability and success of the Copernican Suite. Failure to follow
-these rules will compromise the maintainability of the Copernican Suite.
 
-## 7. Versioning Policy
-The project follows Semantic Versioning (`MAJOR.MINOR.PATCH`). Increment the
-`MAJOR` number for breaking changes, the `MINOR` for new backward-compatible
-features and the `PATCH` for bug fixes. The canonical version is stored both
-at the top of `README.md` and inside `copernican_lib/VERSION`. Keep these two
-locations in sync whenever the version changes so runtime banners, manifests
-and documentation all agree. Runtime code must obtain the current version via
-``copernican_lib.version.get_version`` rather than hard-coded strings. The
-helper reads the tracked version file before falling back to package metadata
-or Git tags. Setting ``COPERNICAN_VERSION`` in the environment overrides the
-derived value so CI builds can embed custom prerelease identifiers that
-match the tracked version. Version 7.0.4 added defensive lookups inside
-``copernican.py``, ``copernican_lib/run_manifest.py`` and
-``copernican_lib/plotter.py`` so the suite still boots when
-``copernican_lib.version.get_version`` is temporarily unavailable during
-partial upgrades.
+Following the Development Laws, DevCovenant's policies and all good coding 
+practices is not optional; it is essential for the long-term viability and 
+success of the Copernican Suite. Failure to follow these rules will 
+compromise the maintainability of the Copernican Suite!!!
