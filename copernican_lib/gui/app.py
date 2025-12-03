@@ -200,8 +200,8 @@ class CopernicanGUI:
         "Models",
         "Data",
         "Engine",
-        "Save Manifest",
-        "Confirm",
+        "Manifest",
+        "Confirm and start",
     ]
     _TEMP_MANIFEST_FOLDER = "copernican_run_NEW_CONFIG"
     _TEMP_MANIFEST_FILE = "run_manifest_NEW_CONFIG.yml"
@@ -218,6 +218,9 @@ class CopernicanGUI:
     )
     _MANIFEST_REQUIRED_MESSAGE = (
         "Save the manifest before advancing to confirmation."
+    )
+    _MANIFEST_REMINDER_MESSAGE = (
+        "To start a run, you need to save the manifest."
     )
     _PROGRESS_POLL_INTERVAL = 0.5
     severity_order: dict[str, int] = {
@@ -310,6 +313,7 @@ class CopernicanGUI:
         self.refresh_inventory()
         self.help_banner_image = None
         self._load_saved_manifest_workspace()
+        self._builder_step_buttons: list[ttk.Button] = []
 
     def _bootstrap_logging(self) -> None:
         """Start the diagnostics log and capture environment details."""
@@ -1160,11 +1164,18 @@ class CopernicanGUI:
         logo_holder = ttk.Frame(nav_frame)
         logo_holder.pack(fill="x", pady=(0, _LOGO_PADDING))
         logo_holder.pack_propagate(False)
-        logo_holder.configure(height=_LOGO_SIDE + 2 * _LOGO_PADDING)
+        base_side = _LOGO_SIDE
+        image_width = self.logo_image.width() if self.logo_image else base_side
+        image_height = (
+            self.logo_image.height() if self.logo_image else base_side
+        )
+        holder_height = image_height + 2 * _LOGO_PADDING
+        holder_width = image_width + 2 * _LOGO_PADDING
+        logo_holder.configure(height=holder_height)
         square = ttk.Frame(
             logo_holder,
-            width=_LOGO_SIDE + 2 * _LOGO_PADDING,
-            height=_LOGO_SIDE + 2 * _LOGO_PADDING,
+            width=holder_width,
+            height=holder_height,
             padding=_LOGO_PADDING,
         )
         square.pack_propagate(False)
@@ -1354,9 +1365,12 @@ class CopernicanGUI:
         nav_frame.grid(row=0, column=0, sticky="nsw")
         nav_frame.grid_propagate(False)
         self.root.grid_columnconfigure(0, minsize=_NAV_PANE_WIDTH)
-        self.content_area = ttk.Frame(self.root, padding=(12, 12))
-        self.content_area.grid(row=0, column=1, sticky="nsew")
-        self.root.grid_columnconfigure(1, weight=1)
+        separator = ttk.Separator(self.root, orient="vertical")
+        separator.grid(row=0, column=1, sticky="ns")
+        self.root.grid_columnconfigure(1, minsize=2)
+        self.content_area = ttk.Frame(self.root, padding=(8, 12, 12, 12))
+        self.content_area.grid(row=0, column=2, sticky="nsew")
+        self.root.grid_columnconfigure(2, weight=1)
         self.root.grid_rowconfigure(0, weight=1)
 
         self._build_navigation_logo(nav_frame)
@@ -1504,7 +1518,7 @@ class CopernicanGUI:
         )
 
     def _handle_builder_next(self) -> None:
-        """Guard the transition from Engine to Save Manifest."""
+        """Guard the transition from Engine to Manifest."""
 
         engine_index = self.builder_steps.index("Engine")
         if (
@@ -1513,9 +1527,9 @@ class CopernicanGUI:
         ):
             self._notify_builder_completion_required()
             return
-        save_index = self.builder_steps.index("Save Manifest")
+        manifest_index = self.builder_steps.index("Manifest")
         if (
-            self.current_step_index == save_index
+            self.current_step_index == manifest_index
             and self.manifest_workspace is None
         ):
             self._notify_manifest_save_required()
@@ -1579,7 +1593,7 @@ class CopernicanGUI:
 
         workspace = self._persist_manifest_workspace(notify=True)
         if workspace:
-            confirm_index = self.builder_steps.index("Confirm")
+            confirm_index = self.builder_steps.index("Confirm and start")
             self.current_step_index = confirm_index
             self.show_run_builder()
 
@@ -1674,22 +1688,16 @@ class CopernicanGUI:
             header.pack(anchor="w", pady=(0, 8))
             step_frame = ttk.Frame(frame)
             step_frame.pack(fill="x", pady=(0, 12))
-            confirm_index = self.builder_steps.index("Confirm")
-            confirm_ready = self._can_enter_confirm()
+            self._builder_step_buttons = []
             for index, step in enumerate(self.builder_steps):
-                indicator_state = (
-                    tk.DISABLED
-                    if index == confirm_index and not confirm_ready
-                    else tk.NORMAL
-                )
                 indicator = ttk.Button(
                     step_frame,
                     text=f"{index + 1}. {step}",
                     command=lambda idx=index: self.jump_to_step(idx),
-                    state=indicator_state,
                     takefocus=True,
                 )
                 indicator.pack(side="left", padx=2)
+                self._builder_step_buttons.append(indicator)
             body = ttk.Label(
                 frame,
                 text=(
@@ -1715,11 +1723,11 @@ class CopernicanGUI:
                 takefocus=True,
                 **nav_button_style,
             ).pack(side="left", padx=4)
-            save_index = self.builder_steps.index("Save Manifest")
+            manifest_index = self.builder_steps.index("Manifest")
             next_disabled = self.current_step_index >= len(
                 self.builder_steps
             ) - 1 or (
-                self.current_step_index == save_index
+                self.current_step_index == manifest_index
                 and self.manifest_workspace is None
             )
             ttk.Button(
@@ -1740,11 +1748,39 @@ class CopernicanGUI:
                 takefocus=True,
                 **nav_button_style,
             ).pack(side="left", padx=4)
-            content_panel = ttk.Frame(frame, padding=(0, 8))
-            content_panel.pack(fill="both", expand=True)
-            self._build_run_builder_step(content_panel)
+            content_container = ttk.Frame(frame)
+            content_container.pack(fill="both", expand=True)
+            scroll_panel = self._create_scrollable_panel(content_container)
+            self._build_run_builder_step(scroll_panel)
+            self._refresh_builder_step_indicators()
 
         self._swap_content(builder)
+
+    def _refresh_builder_step_indicators(self) -> None:
+        """Update builder jump buttons so only the active step is bold."""
+
+        if not self.render or not self._builder_step_buttons:
+            return
+        manifest_index = self.builder_steps.index("Manifest")
+        confirm_index = self.builder_steps.index("Confirm and start")
+        for index, button in enumerate(self._builder_step_buttons):
+            font = (
+                ("Helvetica", 11, "bold")
+                if index == self.current_step_index
+                else ("Helvetica", 11)
+            )
+            button.configure(font=font)
+            if index == manifest_index:
+                desired_state = (
+                    tk.NORMAL if self._builder_ready() else tk.DISABLED
+                )
+            elif index == confirm_index:
+                desired_state = (
+                    tk.NORMAL if self._can_enter_confirm() else tk.DISABLED
+                )
+            else:
+                desired_state = tk.NORMAL
+            button.configure(state=desired_state)
 
     def _build_run_builder_step(self, container: tk.Frame) -> None:
         """Render the content for the current builder step."""
@@ -1754,7 +1790,7 @@ class CopernicanGUI:
             self._render_builder_step_models,
             self._render_builder_step_data,
             self._render_builder_step_engine,
-            self._render_builder_step_plan,
+            self._render_builder_step_manifest,
             self._render_builder_step_confirm,
         ]
         if 0 <= self.current_step_index < len(handlers):
@@ -1881,6 +1917,7 @@ class CopernicanGUI:
 
         def _update_seed(*_args: object) -> None:
             self.draft.seed = seed_var.get().strip()
+            self._refresh_builder_step_indicators()
 
         seed_var.trace_add("write", _update_seed)
         entry = ttk.Entry(container, textvariable=seed_var, width=24)
@@ -1967,6 +2004,7 @@ class CopernicanGUI:
                 self.draft.model = ""
                 self._selected_model_entry = None
                 summary.config(text="No model selected yet.")
+            self._refresh_builder_step_indicators()
 
         listbox.bind("<<ListboxSelect>>", _refresh_model_selection)
         _refresh_model_selection()
@@ -2098,6 +2136,7 @@ class CopernicanGUI:
                         "inspect it."
                     )
                 )
+            self._refresh_builder_step_indicators()
 
         def _update_focus(dtype: str) -> None:
             listbox = listboxes[dtype]
@@ -2244,6 +2283,7 @@ class CopernicanGUI:
                         f"with SHA256 {record.get('hash', '')}."
                     )
                 )
+                self._refresh_builder_step_indicators()
 
         combo.bind("<<ComboboxSelected>>", _apply_engine_selection)
         detail_label = ttk.Label(
@@ -2298,6 +2338,7 @@ class CopernicanGUI:
             command=_view_selected_engine_module,
         ).pack(side="left", padx=2)
         _apply_engine_selection()
+        self._render_engine_run_settings(container)
 
     def _render_engine_run_settings(self, container: tk.Frame) -> None:
         """Render engine-run tuning inputs next to the engine selector."""
@@ -2417,7 +2458,7 @@ class CopernicanGUI:
                 takefocus=True,
             ).pack(anchor="w", padx=(16, 0))
 
-    def _render_builder_step_plan(self, container: tk.Frame) -> None:
+    def _render_builder_step_manifest(self, container: tk.Frame) -> None:
         ttk.Label(
             container,
             text="Run plan",
@@ -2446,7 +2487,7 @@ class CopernicanGUI:
             container,
             text="Manifest",
         )
-        manifest_frame.pack(fill="x", pady=(12, 0))
+        manifest_frame.pack(fill="both", expand=True, pady=(12, 0))
         status_text = (
             f"Saved: {self.manifest_workspace.manifest_path}"
             if self.manifest_workspace
@@ -2458,6 +2499,47 @@ class CopernicanGUI:
             wraplength=720,
             takefocus=True,
         ).pack(anchor="w", pady=(0, 4))
+        preview_panel = ttk.Frame(manifest_frame)
+        preview_panel.pack(fill="both", expand=True)
+        preview_panel.columnconfigure(0, weight=1)
+        preview_panel.rowconfigure(0, weight=1)
+        manifest_text_widget = tk.Text(
+            preview_panel,
+            wrap="none",
+            borderwidth=1,
+            relief="solid",
+            height=16,
+        )
+        manifest_text_widget.grid(row=0, column=0, sticky="nsew")
+        vscroll = ttk.Scrollbar(
+            preview_panel,
+            orient="vertical",
+            command=manifest_text_widget.yview,
+        )
+        vscroll.grid(row=0, column=1, sticky="ns")
+        hscroll = ttk.Scrollbar(
+            preview_panel,
+            orient="horizontal",
+            command=manifest_text_widget.xview,
+        )
+        hscroll.grid(row=1, column=0, sticky="ew")
+        manifest_text_widget.configure(
+            yscrollcommand=vscroll.set, xscrollcommand=hscroll.set
+        )
+        manifest_text_widget.insert("1.0", self._manifest_preview_text())
+        manifest_text_widget.configure(state="disabled")
+
+        reminder_text = (
+            self._MANIFEST_REMINDER_MESSAGE
+            if self.manifest_workspace is None
+            else "Manifest saved; proceed to confirmation."
+        )
+        ttk.Label(
+            container,
+            text=reminder_text,
+            wraplength=720,
+            takefocus=True,
+        ).pack(anchor="w", pady=(8, 0))
 
         actions_frame = ttk.Frame(container)
         actions_frame.pack(anchor="w", pady=(12, 0))
@@ -2468,6 +2550,9 @@ class CopernicanGUI:
 
         save_state = tk.NORMAL if self._builder_ready() else tk.DISABLED
         clear_state = tk.NORMAL if self._has_configuration() else tk.DISABLED
+        open_state = (
+            tk.NORMAL if self.manifest_workspace is not None else tk.DISABLED
+        )
         ttk.Button(
             actions_frame,
             text="Save manifest",
@@ -2495,44 +2580,40 @@ class CopernicanGUI:
             ),
             state=clear_state,
         ).pack(side="left", padx=(0, 4))
+        ttk.Button(
+            actions_frame,
+            text="Open manifest...",
+            command=self._open_manifest_file,
+            state=open_state,
+        ).pack(side="left", padx=(0, 4))
 
-        capabilities_frame = ttk.LabelFrame(
-            container,
-            text="Engine capabilities",
-        )
-        capabilities_frame.pack(fill="x", pady=(12, 0))
-        if not self.engine_capabilities:
-            ttk.Label(
-                capabilities_frame,
-                text="No engine capability metadata available yet.",
-                wraplength=720,
-                takefocus=True,
-            ).pack(anchor="w")
-        else:
-            if self.engine_capabilities.settings:
-                for setting in self.engine_capabilities.settings:
-                    ttk.Label(
-                        capabilities_frame,
-                        text=(
-                            f"{setting.label} ({setting.key}): "
-                            f"{setting.description}"
-                        ),
-                        wraplength=720,
-                        takefocus=True,
-                    ).pack(anchor="w", pady=(0, 2))
-            chunk_labels = [
-                chunk.label
-                for chunk in self.engine_capabilities.progress_chunks
-            ]
-            if chunk_labels:
-                ttk.Label(
-                    capabilities_frame,
-                    text=("Progress chunks: " f"{', '.join(chunk_labels)}"),
-                    wraplength=720,
-                    takefocus=True,
-                ).pack(anchor="w", pady=(4, 0))
+    def _manifest_preview_text(self) -> str:
+        """Return a textual snapshot for the manifest preview area."""
 
-        self._render_engine_run_settings(container)
+        manifest = self.pending_manifest
+        if manifest is None:
+            manifest = self._ensure_manifest_snapshot()
+        if manifest is None:
+            return (
+                "Manifest preview unavailable; complete the builder to "
+                "generate a snapshot."
+            )
+        try:
+            return yaml.safe_dump(manifest, sort_keys=False)
+        except Exception:
+            return json.dumps(manifest, indent=2)
+
+    def _open_manifest_file(self) -> None:
+        """Open the currently saved manifest using the OS default handler."""
+
+        if self.manifest_workspace is None:
+            self.create_toast(
+                "Save a manifest before opening it.",
+                severity="WARNING",
+                context="run",
+            )
+            return
+        self._open_path_with_system(str(self.manifest_workspace.manifest_path))
 
     def _stage_confirm_manifest(self) -> None:
         """Capture builder selections as a manifest snapshot for later use."""
@@ -3463,7 +3544,7 @@ class CopernicanGUI:
     def jump_to_step(self, step_index: int) -> None:
         """Jump directly to any builder step."""
 
-        confirm_index = self.builder_steps.index("Confirm")
+        confirm_index = self.builder_steps.index("Confirm and start")
         if step_index == confirm_index and not self._can_enter_confirm():
             self._notify_manifest_save_required()
             return

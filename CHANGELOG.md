@@ -21,6 +21,10 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-03: Tightened the GUI navigation padding, added the separator,
+             and rebuilt the Run Builder pages so Manifest shows a preview,
+             reminder and open action while engine settings sit on page 4
+             (copernican_lib/gui/app.py, CHANGELOG.md).
 - 2025-12-02: Documented that manifest-driven runs rebuild LCDM/alternative
               plugins before entering the shared pipeline so CLI and GUI
               launches are identical (README.md, docs/run_manifest.md,
