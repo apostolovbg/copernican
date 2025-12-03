@@ -38,6 +38,9 @@ suffixes. Follow this template:
 - 2025-12-03: Rebalanced the GUI navigation rail to 140 px with equal edge padding and return the launcher menu after the GUI window closes so operators can relaunch without restarting the helper (copernican_lib/gui/app.py, start.sh, start.command, start.bat, README.md, CHANGELOG.md).
 - 2025-12-03: Restored the Run Builder Data page so the SNe, BAO and CMB selectors share a scrollable row and the dataset details sit below the lists, keeping every choice visible (copernican_lib/gui/app.py, README.md, CHANGELOG.md).
 - 2025-12-03: Reintroduced the Engine knobs frame to show per-engine descriptions, defaults and entries and feed the entered values into the manifest so GUI and CLI runs share the same tuning metadata (copernican_lib/gui/app.py, README.md, CHANGELOG.md).
+- 2025-12-03: Synchronized the GUI builder step identifiers with the manifest confirmation tests and cleaned up trailing whitespace in the DevCovenant law mapping (copernican_lib/gui/app.py, DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
+- 2025-12-03: Restored the dynamic Engine settings panel so each backend exposes its knobs, recommendations and run-setting hints with a scrollable stage four layout (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Removed the redundant Engine knobs panel and moved each run-setting recommendation directly above its corresponding entry to keep the Stage 4 layout compact (copernican_lib/gui/app.py, CHANGELOG.md).
 - 2025-12-03: Tuned the padding between the navigation buttons and separator to 24 px so the right-hand margin stays comfortably wider while retaining the tight left edge gap (copernican_lib/gui/app.py, README.md, CHANGELOG.md).
 - 2025-12-03: Rebalanced the GUI navigation spacing, expanded the data
              selectors with a provisional scrollbar, embedded the faster

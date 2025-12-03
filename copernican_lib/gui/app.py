@@ -49,11 +49,6 @@ from copernican_lib import (
     utils,
     version,
 )
-from copernican_lib.engine_capabilities import (
-    EngineCapabilities,
-    EngineSetting,
-    get_engine_capabilities,
-)
 from copernican_lib.run_lifecycle import (
     ManifestWorkspace,
     create_manifest_workspace,
@@ -196,13 +191,15 @@ class CopernicanGUI:
     """
 
     nav_items: list[NavigationItem]
+    _CONFIRM_STEP_NAME = "Confirm"
+    _CONFIRM_HEADER_TEXT = "Confirm and start"
     builder_steps: list[str] = [
         "Seed",
         "Models",
         "Data",
         "Engine",
         "Manifest",
-        "Confirm and start",
+        _CONFIRM_STEP_NAME,
     ]
     _TEMP_MANIFEST_FOLDER = "copernican_run_NEW_CONFIG"
     _TEMP_MANIFEST_FILE = "run_manifest_NEW_CONFIG.yml"
@@ -257,10 +254,7 @@ class CopernicanGUI:
         self.selected_engine: str = ""
         self._selected_model_entry: dict | None = None
         self._selected_engine_entry: dict | None = None
-        self.engine_capabilities: EngineCapabilities | None = None
-        self._engine_setting_vars: dict[str, tk.StringVar] = {}
-        self._engine_setting_specs: dict[str, EngineSetting] = {}
-        self._engine_knobs_frame: ttk.Frame | None = None
+        self._engine_run_settings_frame: ttk.Frame | None = None
         self.selected_datasets: list[dict[str, str]] = []
         self.pending_manifest: Optional[dict] = None
         self.manifest_workspace: ManifestWorkspace | None = None
@@ -1587,7 +1581,6 @@ class CopernicanGUI:
         self._selected_model_entry = None
         self._selected_engine_entry = None
         self.selected_datasets = []
-        self.engine_capabilities = None
         self._staged_confirm_manifest = None
 
     def _clear_manifest_configuration(self) -> None:
@@ -1605,7 +1598,7 @@ class CopernicanGUI:
 
         workspace = self._persist_manifest_workspace(notify=True)
         if workspace:
-            confirm_index = self.builder_steps.index("Confirm and start")
+            confirm_index = self.builder_steps.index(self._CONFIRM_STEP_NAME)
             self.current_step_index = confirm_index
             self.show_run_builder()
 
@@ -1774,7 +1767,7 @@ class CopernicanGUI:
         if not self.render or not self._builder_step_buttons:
             return
         manifest_index = self.builder_steps.index("Manifest")
-        confirm_index = self.builder_steps.index("Confirm and start")
+        confirm_index = self.builder_steps.index(self._CONFIRM_STEP_NAME)
         for index, button in enumerate(self._builder_step_buttons):
             font = (
                 ("Helvetica", 11, "bold")
@@ -2414,16 +2407,18 @@ class CopernicanGUI:
                 self.selected_engine = record["id"]
                 self.draft.engine = record["id"]
                 self._selected_engine_entry = record
-                self.engine_capabilities = self._load_engine_capabilities(
-                    record["id"]
-                )
                 detail_label.config(
                     text=(
                         f"{record['label']} uses module {record['id']} "
                         f"with SHA256 {record.get('hash', '')}."
                     )
                 )
-                self._refresh_builder_step_indicators()
+            else:
+                detail_label.config(
+                    text="Select an engine to see details.",
+                )
+            self._render_engine_run_settings(container)
+            self._refresh_builder_step_indicators()
 
         combo.bind("<<ComboboxSelected>>", _apply_engine_selection)
         detail_label = ttk.Label(
@@ -2478,198 +2473,78 @@ class CopernicanGUI:
             command=_view_selected_engine_module,
         ).pack(side="left", padx=2)
         _apply_engine_selection()
-        self._render_engine_knobs(container)
-        self._render_engine_run_settings(container)
-
-    def _render_engine_knobs(self, container: tk.Frame) -> None:
-        """Expose the knobs declared by each engine alongside descriptions."""
-
-        if self._engine_knobs_frame is not None:
-            self._engine_knobs_frame.destroy()
-            self._engine_knobs_frame = None
-        capabilities = self.engine_capabilities
-        self._engine_setting_specs.clear()
-        if not capabilities or not capabilities.settings:
-            return
-        knobs_frame = ttk.LabelFrame(
-            container,
-            text="Engine knobs",
-            padding=(8, 6),
-        )
-        knobs_frame.pack(fill="x", pady=(8, 0))
-        self._engine_knobs_frame = knobs_frame
-        for setting in capabilities.settings:
-            row = ttk.Frame(knobs_frame)
-            row.pack(fill="x", pady=(4, 0))
-            ttk.Label(
-                row,
-                text=f"{setting.label} ({setting.key})",
-                width=26,
-                takefocus=True,
-            ).pack(side="left")
-            var = self._engine_setting_vars.get(setting.key)
-            if var is None:
-                initial = (
-                    str(setting.default) if setting.default is not None else ""
-                )
-                var = tk.StringVar(value=initial)
-                self._engine_setting_vars[setting.key] = var
-            ttk.Entry(
-                row,
-                textvariable=var,
-                width=16,
-            ).pack(side="left", padx=(6, 0))
-            self._engine_setting_specs[setting.key] = setting
-            metadata: list[str] = []
-            if setting.description:
-                metadata.append(setting.description)
-            if setting.default is not None:
-                metadata.append(f"Default: {setting.default}")
-            if setting.hint:
-                metadata.append(f"Hint: {setting.hint}")
-            if metadata:
-                ttk.Label(
-                    knobs_frame,
-                    text=" ".join(metadata),
-                    wraplength=720,
-                    takefocus=True,
-                ).pack(anchor="w", padx=(16, 0))
-        if capabilities.progress_chunks:
-            chunk_labels = ", ".join(
-                chunk.label for chunk in capabilities.progress_chunks
-            )
-            ttk.Label(
-                knobs_frame,
-                text=f"Progress reports: {chunk_labels}",
-                wraplength=720,
-                takefocus=True,
-            ).pack(anchor="w", pady=(6, 0))
-
-    def _collect_engine_knob_settings(self) -> dict[str, object]:
-        """Return the sanitized knob values entered by the operator."""
-
-        settings: dict[str, object] = {}
-        for key, var in self._engine_setting_vars.items():
-            spec = self._engine_setting_specs.get(key)
-            if spec is None:
-                continue
-            raw_value = var.get().strip()
-            if not raw_value:
-                continue
-            parsed = self._parse_engine_setting_value(
-                raw_value, spec.dtype or "str"
-            )
-            settings[key] = parsed
-        return settings
-
-    @staticmethod
-    def _parse_engine_setting_value(raw_value: str, dtype: str) -> object:
-        """Convert a string knob value into the declared dtype.
-
-        Returns the raw input when conversion fails.
-        """
-
-        dtype_key = dtype.lower()
-        if dtype_key == "int":
-            try:
-                return int(raw_value)
-            except ValueError:
-                return raw_value
-        if dtype_key == "float":
-            try:
-                return float(raw_value)
-            except ValueError:
-                return raw_value
-        if dtype_key == "bool":
-            normalized = raw_value.lower()
-            if normalized in {"1", "true", "yes", "on"}:
-                return True
-            if normalized in {"0", "false", "no", "off"}:
-                return False
-            return raw_value
-        return raw_value
 
     def _render_engine_run_settings(self, container: tk.Frame) -> None:
         """Render engine-run tuning inputs next to the engine selector."""
 
+        if self._engine_run_settings_frame is not None:
+            self._engine_run_settings_frame.destroy()
+            self._engine_run_settings_frame = None
         settings_frame = ttk.LabelFrame(
             container,
             text="Run settings",
         )
         settings_frame.pack(fill="x", pady=(8, 0))
+        self._engine_run_settings_frame = settings_frame
         recommendations = self._compute_run_recommendations()
-        hints = [
-            (
-                "Production steps control the total sampler iterations. "
-                "Recommended default: "
-                f"{recommendations['recommended_steps']}."
-            ),
-            (
-                "Burn-in steps discard early samples so the chain can "
-                "stabilise. Recommended warm-up: "
-                f"{recommendations['burn_in_recommended']}. "
-                f"Quicker option: {recommendations['quick_burn']}."
-            ),
-            (
-                "Walkers sample the posterior in parallel; more walkers "
-                f"boost convergence. Required minimum: "
-                f"{recommendations['minimum_walkers']}."
-            ),
-            (
-                "Worker pools accelerate sampling by spreading walkers across "
-                "processes. Recommended pool size: "
-                f"{recommendations['pool_max']} "
-                f"(detected CPUs: {recommendations['cpu_label']}). "
-                "Enter 0 to disable multiprocessing entirely."
-            ),
-        ]
-        for tip in hints:
-            ttk.Label(
-                settings_frame,
-                text=tip,
-                wraplength=720,
-                justify="left",
-                takefocus=True,
-            ).pack(anchor="w", pady=(6, 0))
         field_specs = [
-            (
-                "Walkers",
-                "walkers",
-                "Number of ensemble walkers",
-                (
-                    f"Minimum: {recommendations['minimum_walkers']}  "
-                    f"Recommended: {recommendations['recommended_walkers']}"
+            {
+                "label": "Production steps",
+                "attribute": "production_steps",
+                "helper": "Iterations used during production",
+                "preface": (
+                    "Production steps control the total sampler iterations."
                 ),
-            ),
-            (
-                "Burn-in steps",
-                "burn_in",
-                "Iterations used for burn-in",
-                (
-                    "Recommended warm-up: "
-                    f"{recommendations['burn_in_recommended']}  "
-                    f"Quicker option: {recommendations['quick_burn']}"
-                ),
-            ),
-            (
-                "Production steps",
-                "production_steps",
-                "Iterations used during production",
-                (
+                "recommendation": (
                     "Recommended default: "
-                    f"{recommendations['recommended_steps']}  "
-                    f"Minimum suggested: {recommendations['production_min']}"
+                    f"{recommendations['recommended_steps']}. "
+                    f"Minimum suggested: {recommendations['production_min']}."
                 ),
-            ),
-            (
-                "Pool size",
-                "pool_size",
-                "Multiprocessing pool size",
-                (
-                    f"Recommended pool: {recommendations['pool_max']}  "
-                    f"Detected CPUs: {recommendations['cpu_label']}"
+            },
+            {
+                "label": "Burn-in steps",
+                "attribute": "burn_in",
+                "helper": "Sampler warm-up iterations",
+                "preface": (
+                    "Burn-in steps discard early samples so the chain can "
+                    "stabilise."
                 ),
-            ),
+                "recommendation": (
+                    "Recommended warm-up: "
+                    f"{recommendations['burn_in_recommended']}. "
+                    f"Quicker option: {recommendations['quick_burn']}."
+                ),
+            },
+            {
+                "label": "Walkers",
+                "attribute": "walkers",
+                "helper": "Number of ensemble walkers",
+                "preface": (
+                    "Walkers sample the posterior in parallel; more walkers "
+                    "boost convergence."
+                ),
+                "recommendation": (
+                    "Required minimum: "
+                    f"{recommendations['minimum_walkers']}. "
+                    "Recommended ensemble size: "
+                    f"{recommendations['recommended_walkers']}."
+                ),
+            },
+            {
+                "label": "Pool size",
+                "attribute": "pool_size",
+                "helper": "Multiprocessing pool size",
+                "preface": (
+                    "Worker pools accelerate sampling by spreading walkers "
+                    "across processes."
+                ),
+                "recommendation": (
+                    "Recommended pool: "
+                    f"{recommendations['pool_max']} "
+                    f"(detected CPUs: {recommendations['cpu_label']}). "
+                    "Enter 0 to disable multiprocessing entirely."
+                ),
+            },
         ]
 
         def _track(attribute: str, string_var: tk.StringVar) -> None:
@@ -2678,14 +2553,30 @@ class CopernicanGUI:
                 lambda *_: setattr(self.draft, attribute, string_var.get()),
             )
 
-        for label_text, field_name, helper, recommendation in field_specs:
+        for index, spec in enumerate(field_specs):
+            preface_margin = (8, 0) if index > 0 else (6, 0)
+            ttk.Label(
+                settings_frame,
+                text=spec["preface"],
+                wraplength=720,
+                justify="left",
+                takefocus=True,
+            ).pack(anchor="w", pady=preface_margin)
+            ttk.Label(
+                settings_frame,
+                text=spec["recommendation"],
+                wraplength=720,
+                justify="left",
+                takefocus=True,
+            ).pack(anchor="w", padx=(16, 0))
+            field_name = spec["attribute"]
             var = tk.StringVar(value=getattr(self.draft, field_name))
             _track(field_name, var)
             field_row = ttk.Frame(settings_frame)
             field_row.pack(anchor="w", pady=(4, 0))
             ttk.Label(
                 field_row,
-                text=f"{label_text}:",
+                text=f"{spec['label']}:",
                 width=16,
                 takefocus=True,
             ).pack(side="left")
@@ -2696,16 +2587,10 @@ class CopernicanGUI:
             ).pack(side="left")
             ttk.Label(
                 field_row,
-                text=helper,
+                text=spec["helper"],
                 wraplength=420,
                 takefocus=True,
             ).pack(side="left", padx=(8, 0))
-            ttk.Label(
-                settings_frame,
-                text=recommendation,
-                wraplength=720,
-                takefocus=True,
-            ).pack(anchor="w", padx=(16, 0))
 
     def _render_builder_step_manifest(self, container: tk.Frame) -> None:
         ttk.Label(
@@ -2877,7 +2762,7 @@ class CopernicanGUI:
         self._stage_confirm_manifest()
         ttk.Label(
             container,
-            text="Confirm and start",
+            text=self._CONFIRM_HEADER_TEXT,
             font=("Helvetica", 14, "bold"),
             takefocus=True,
         ).pack(anchor="w", pady=(0, 6))
@@ -3793,7 +3678,7 @@ class CopernicanGUI:
     def jump_to_step(self, step_index: int) -> None:
         """Jump directly to any builder step."""
 
-        confirm_index = self.builder_steps.index("Confirm and start")
+        confirm_index = self.builder_steps.index(self._CONFIRM_STEP_NAME)
         if step_index == confirm_index and not self._can_enter_confirm():
             self._notify_manifest_save_required()
             return
@@ -3869,22 +3754,6 @@ class CopernicanGUI:
                     self._selected_engine_entry = entry
                     return entry
         raise RuntimeError("Select an engine before starting the run.")
-
-    def _load_engine_capabilities(
-        self, module_name: str
-    ) -> EngineCapabilities | None:
-        """Return engine metadata descriptors when available."""
-
-        try:
-            module = importlib.import_module(module_name)
-            return get_engine_capabilities(module)
-        except Exception as exc:
-            logger.get_program_logger().warning(
-                "Failed to load engine capabilities for %s: %s",
-                module_name,
-                exc,
-            )
-        return None
 
     def _prepare_progress_path(self) -> str:
         """Return the path where the CLI worker writes GUI progress."""
@@ -4762,11 +4631,7 @@ class CopernicanGUI:
         try:
             engine_entry = self._resolve_engine_entry()
             plan = self._build_sampling_plan_values(engine_entry["id"])
-            snapshot = dict(plan)
-            knob_settings = self._collect_engine_knob_settings()
-            if knob_settings:
-                snapshot.update(knob_settings)
-            return snapshot
+            return dict(plan)
         except Exception:
             pass
         fallback_fields = {

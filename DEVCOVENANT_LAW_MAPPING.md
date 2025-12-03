@@ -53,7 +53,7 @@ functionality or configuration shifts occur.
 ## Deprecated Law References
 
 - **Law 11**: "Treat documentation refresh as integral to every task..." is now
-  partially enforced by `changelog-coverage`, `last-updated-placement`, 
+  partially enforced by `changelog-coverage`, `last-updated-placement`,
   `version-sync` and `no-future-dates`. The law text remains in `AGENTS.md` and contributors should follow both it and the related policy.
 - **Law 1**, **Law 4**, **Law 7**, **Law 8**, **Law 15**, **Law 20** and **Law 24**: The
   original wording for these laws has been retired in favor of the policies listed
