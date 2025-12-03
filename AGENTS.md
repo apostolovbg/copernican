@@ -380,18 +380,36 @@ derived from the model's variables or constants.
 
 # DEVELOPMENT POLICY (DevCovenant and Laws)
 
-**IMPORTANT: READ THIS SECTION AT THE BEGINNING OF EVERY DEVELOPMENT SESSION**
+**IMPORTANT: READ FROM HERE TO THE END OF THE DOCUMENT AT THE BEGINNING OF EVERY DEVELOPMENT SESSION**
 
 **Copernican development must run inside the repository's `.venv` created by the `start.*` launchers.**  
-If `.venv` is absent, re-run `start.sh`/`start.command`/`start.bat` so the launcher downloads Python 3.11, boots the managed environment and installs every dependency before editing code or running tests. Do not bypass the managed `.venv` when working on the repository. Following this policy is non-optional!
+If `.venv` is absent, re-run `start.sh`/`start.command`/`start.bat` so the 
+launcher downloads Python 3.11, boots the managed environment and installs 
+every dependency before editing code or running tests. Do not bypass the 
+managed `.venv` when working on the repository. Following this policy (and 
+any other law or policy) is non-optional!
 
 The Copernican Suite uses **DevCovenant**, a self-enforcing policy system that
 maintains consistency between human-readable policies in this file and
 automated Python checks. When you modify a policy in this section, set its
 `updated: true` flag. The AI will automatically detect the change and update
-the corresponding policy script in `devcovenant/policy_scripts/`.
+the corresponding policy script in `devcovenant/policy_scripts/`. If you are 
+an AI agent, please report to the user what changes to DevCovenant have you 
+detected and understood and how do you plan to implement automatic DevCovenant 
+enforcement (and auto fix if possible), before making any changes! 
 
-## DevCovenant
+There are still plain English development Laws later in the document. 
+They should be read and duly followed as well! This is non-optional!
+
+**IMPORTANT NOTICE FOR AI** 
+Artificial intelligence agent (AI agent) developers must follow all development 
+laws and policies until the end of this document. They must carefully 
+read the plain English descriptions of each Policy and Law and follow them
+proactively and to the letter except on explicit human request! Automated 
+policy checks/fixes exist for reassurance, not to serve as reminders 
+to do your job properly!
+
+## DEVCOVENANT DEVELOPMENT POLICY MANAGEMENT AND ENFORCEMENT SYSTEM
 
 ### How DevCovenant Works
 
@@ -408,12 +426,12 @@ the corresponding policy script in `devcovenant/policy_scripts/`.
 #### 1. **At the START of Every Work Session** (REQUIRED)
 
 **Before beginning any work on the repository**, run:
+**Run `pre-commit run --all-files`**
 
-```bash
-python devcovenant_check.py check --mode=startup
-```
+DevCovenant runs as part of pre-commit. The repository should pass the other
+pre-commit hooks anyway if everything has been clean on last commit.
 
-This ensures:
+Running pre-commit with DevCovenant at the beginning of work ensures:
 - All policies are synchronized with their implementation scripts
 - Any updated policies trigger immediate script updates
 - The AI is aware of all current policies before proceeding
@@ -600,7 +618,7 @@ DevCovenant enforces its own policies on itself. All policy scripts must:
 
 ```policy-def
 id: version-sync
-status: active
+status: updated
 severity: error
 auto_fix: false
 updated: true
@@ -649,7 +667,7 @@ validated against the current date before being recorded.
 
 ```policy-def
 id: new-modules-need-tests
-status: active
+status: updated
 severity: error
 auto_fix: false
 updated: true
@@ -685,7 +703,7 @@ through dedicated utilities. Exception: `console_output.py` itself may use
 
 ---
 
-## AI-driven and human development LAWS (READ AND FOLLOW)
+## AI-DRIVEN AND HUMAN DEVELOPMENT LAWS (READ AND FOLLOW)
 
 **Note**: Several development requirements are now enforced automatically by
 DevCovenant policies (see above). The following laws remain as manual
