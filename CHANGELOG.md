@@ -21,6 +21,11 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-03: Rebalanced the GUI navigation spacing, expanded the data
+             selectors with a provisional scrollbar, embedded the faster
+             model preview pane and restored the engine knob descriptions on
+             page 4 so users can read what each backend option controls
+             (copernican_lib/gui/app.py, CHANGELOG.md).
 - 2025-12-03: Tightened the GUI navigation padding, added the separator,
              and rebuilt the Run Builder pages so Manifest shows a preview,
              reminder and open action while engine settings sit on page 4

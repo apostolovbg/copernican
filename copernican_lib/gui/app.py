@@ -63,7 +63,7 @@ from copernican_lib.run_lifecycle import (
 log_mod = logger
 
 _PROGRESS_SPINNER_CHARS = frozenset("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
-_NAV_PANE_WIDTH = 240
+_NAV_PANE_WIDTH = 140
 _LOGO_PADDING = 12
 _LOGO_SIDE = _NAV_PANE_WIDTH // 4
 
@@ -1360,7 +1360,7 @@ class CopernicanGUI:
 
         if not self.render or self.root is None:
             return
-        nav_frame = ttk.Frame(self.root, padding=(8, 8))
+        nav_frame = ttk.Frame(self.root, padding=(12, 12))
         nav_frame.configure(width=_NAV_PANE_WIDTH)
         nav_frame.grid(row=0, column=0, sticky="nsw")
         nav_frame.grid_propagate(False)
@@ -1368,7 +1368,7 @@ class CopernicanGUI:
         separator = ttk.Separator(self.root, orient="vertical")
         separator.grid(row=0, column=1, sticky="ns")
         self.root.grid_columnconfigure(1, minsize=2)
-        self.content_area = ttk.Frame(self.root, padding=(8, 12, 12, 12))
+        self.content_area = ttk.Frame(self.root, padding=(12, 12, 12, 12))
         self.content_area.grid(row=0, column=2, sticky="nsew")
         self.root.grid_columnconfigure(2, weight=1)
         self.root.grid_rowconfigure(0, weight=1)
@@ -1966,29 +1966,112 @@ class CopernicanGUI:
             ).pack(anchor="w", pady=(6, 0))
             return
         list_container = ttk.Frame(container)
-        list_container.pack(fill="x", pady=(8, 4))
+        list_container.pack(fill="both", expand=True, pady=(8, 4))
+        list_frame = ttk.Frame(list_container)
+        list_frame.pack(side="left", fill="both", expand=True)
         listbox = tk.Listbox(
-            list_container,
-            height=6,
+            list_frame,
+            height=8,
             selectmode="browse",
             exportselection=False,
         )
         listbox.pack(side="left", fill="both", expand=True)
         scrollbar = ttk.Scrollbar(
-            list_container, orient="vertical", command=listbox.yview
+            list_frame, orient="vertical", command=listbox.yview
         )
         scrollbar.pack(side="right", fill="y")
         listbox.configure(yscrollcommand=scrollbar.set)
-        initial_model = (
-            self.selected_models[0] if self.selected_models else None
-        )
+        button_frame = ttk.Frame(list_container)
+        button_frame.pack(side="left", fill="y", padx=(8, 0), anchor="n")
+
+        def _view_selected_model() -> None:
+            entry = self._selected_model_entry
+            if not entry:
+                self.create_toast(
+                    "Select a model before viewing its definition.",
+                    severity="WARNING",
+                    context="models",
+                )
+                return
+            self._present_metadata(
+                entry["id"], f"Model definition: {entry['id']}"
+            )
+
+        def _open_selected_model_file() -> None:
+            entry = self._selected_model_entry
+            if not entry:
+                self.create_toast(
+                    "Select a model before opening its YAML file.",
+                    severity="WARNING",
+                    context="models",
+                )
+                return
+            self._open_path_with_system(entry["path"])
+
+        ttk.Button(
+            button_frame,
+            text="View model",
+            command=_view_selected_model,
+        ).pack(fill="x", pady=(0, 4))
+        ttk.Button(
+            button_frame,
+            text="Open model YML...",
+            command=_open_selected_model_file,
+        ).pack(fill="x")
         summary = ttk.Label(container, text="", wraplength=720, takefocus=True)
         summary.pack(anchor="w", pady=(4, 4))
 
         for index, model in enumerate(available):
             listbox.insert("end", f"{model['id']} ({model['filename']})")
-            if model["id"] == initial_model:
+            if model["id"] == (
+                self.selected_models[0] if self.selected_models else None
+            ):
                 listbox.select_set(index)
+
+        preview_frame = ttk.LabelFrame(
+            container,
+            text="Model preview",
+            padding=(8, 6),
+        )
+        preview_frame.pack(fill="both", expand=True, pady=(8, 0))
+        preview_frame.columnconfigure(0, weight=1)
+        preview_frame.rowconfigure(0, weight=1)
+        preview_text = tk.Text(
+            preview_frame,
+            wrap="none",
+            borderwidth=1,
+            relief="solid",
+        )
+        preview_text.grid(row=0, column=0, sticky="nsew")
+        vscroll = ttk.Scrollbar(
+            preview_frame, orient="vertical", command=preview_text.yview
+        )
+        vscroll.grid(row=0, column=1, sticky="ns")
+        hscroll = ttk.Scrollbar(
+            preview_frame, orient="horizontal", command=preview_text.xview
+        )
+        hscroll.grid(row=1, column=0, sticky="ew")
+        preview_text.configure(
+            yscrollcommand=vscroll.set,
+            xscrollcommand=hscroll.set,
+        )
+
+        def _refresh_model_preview(entry: dict | None = None) -> None:
+            preview_text.configure(state="normal")
+            preview_text.delete("1.0", "end")
+            if entry:
+                try:
+                    content = self._read_asset_text(entry["path"])
+                except Exception as exc:
+                    content = f"Unable to load {entry['id']}: {exc}"
+                preview_text.insert("1.0", content)
+            else:
+                preview_text.insert(
+                    "1.0",
+                    "Select a model to preview its YAML definition.",
+                )
+            preview_text.configure(state="disabled")
+            preview_text.yview_moveto(0)
 
         def _refresh_model_selection(_: tk.Event | None = None) -> None:
             indices = listbox.curselection()
@@ -1999,11 +2082,13 @@ class CopernicanGUI:
                 self.draft.model = selected_model
                 self._selected_model_entry = entry
                 summary.config(text=f"Selected model: {selected_model}")
+                _refresh_model_preview(entry)
             else:
                 self.selected_models = []
                 self.draft.model = ""
                 self._selected_model_entry = None
                 summary.config(text="No model selected yet.")
+                _refresh_model_preview(None)
             self._refresh_builder_step_indicators()
 
         listbox.bind("<<ListboxSelect>>", _refresh_model_selection)
@@ -2048,40 +2133,45 @@ class CopernicanGUI:
             for dtype in type_groups
             if dtype not in ("sne", "bao", "cmb")
         )
-        detail_label = ttk.Label(
-            container,
-            text="Select datasets to preview details.",
-            wraplength=720,
-            takefocus=True,
-        )
-        detail_label.pack(anchor="w", pady=(6, 6))
-        catalogue_panel = self._create_scrollable_panel(container)
+        catalogue_panel = self._create_scrollable_panel(container, height=360)
         listboxes: dict[str, tk.Listbox] = {}
         id_lookup: dict[str, tuple[str, int]] = {}
-        for dtype in ordered_types:
-            records = type_groups[dtype]
-            section = ttk.LabelFrame(
-                catalogue_panel,
+
+        def _add_dataset_section(
+            parent: tk.Frame,
+            dtype: str,
+            records: list[dict],
+            *,
+            pack_kwargs: dict[str, object] | None = None,
+            height: int | None = None,
+        ) -> tk.Listbox:
+            frame = ttk.LabelFrame(
+                parent,
                 text=f"{dtype.upper()} datasets",
                 padding=(6, 4),
             )
-            section.pack(fill="x", pady=4)
+            pack_kwargs = pack_kwargs or {"fill": "x", "pady": 4}
+            frame.pack(**pack_kwargs)
             ttk.Label(
-                section,
+                frame,
                 text=(
                     f"{len(records)} "
                     f"{'candidate' if len(records) == 1 else 'candidates'}"
                 ),
                 takefocus=True,
             ).pack(anchor="w")
-            list_frame = ttk.Frame(section)
-            list_frame.pack(fill="x", pady=(4, 0))
+            list_frame = ttk.Frame(frame)
+            list_frame.pack(fill="both", expand=True, pady=(4, 0))
             listbox = tk.Listbox(
                 list_frame,
-                height=min(8, max(4, len(records))),
+                height=(
+                    height
+                    if height is not None
+                    else min(8, max(4, len(records)))
+                ),
                 selectmode="browse",
                 exportselection=False,
-                width=96,
+                width=32,
             )
             listbox.pack(side="left", fill="both", expand=True)
             scroll = ttk.Scrollbar(
@@ -2096,6 +2186,44 @@ class CopernicanGUI:
                 )
                 id_lookup[record["id"]] = (dtype, index)
             listboxes[dtype] = listbox
+            return listbox
+
+        primary_types = [
+            dtype for dtype in ("sne", "bao", "cmb") if dtype in type_groups
+        ]
+        additional_types = [
+            dtype for dtype in ordered_types if dtype not in primary_types
+        ]
+        if primary_types:
+            primary_row = ttk.Frame(catalogue_panel)
+            primary_row.pack(fill="x", pady=(0, 4))
+            for dtype in primary_types:
+                records = type_groups[dtype]
+                _add_dataset_section(
+                    primary_row,
+                    dtype,
+                    records,
+                    pack_kwargs={
+                        "side": "left",
+                        "fill": "both",
+                        "expand": True,
+                        "padx": 4,
+                    },
+                    height=min(12, max(6, len(records))),
+                )
+        for dtype in additional_types:
+            _add_dataset_section(
+                catalogue_panel,
+                dtype,
+                type_groups[dtype],
+            )
+        detail_label = ttk.Label(
+            container,
+            text="Select datasets to preview details.",
+            wraplength=720,
+            takefocus=True,
+        )
+        detail_label.pack(anchor="w", pady=(6, 6))
         selection_map: dict[str, dict] = {}
         focus_state: dict[str, dict | None] = {"record": None}
 
@@ -2338,7 +2466,53 @@ class CopernicanGUI:
             command=_view_selected_engine_module,
         ).pack(side="left", padx=2)
         _apply_engine_selection()
+        self._render_engine_knobs(container)
         self._render_engine_run_settings(container)
+
+    def _render_engine_knobs(self, container: tk.Frame) -> None:
+        """Describe the per-engine knobs discovered in the module."""
+
+        capabilities = self.engine_capabilities
+        if not capabilities or not capabilities.settings:
+            return
+        knobs_frame = ttk.LabelFrame(
+            container,
+            text="Engine knobs",
+            padding=(8, 6),
+        )
+        knobs_frame.pack(fill="x", pady=(8, 0))
+        for setting in capabilities.settings:
+            label_row = ttk.Frame(knobs_frame)
+            label_row.pack(fill="x", pady=(2, 0))
+            ttk.Label(
+                label_row,
+                text=f"{setting.label} ({setting.key})",
+                takefocus=True,
+            ).pack(anchor="w")
+            details: list[str] = []
+            if setting.description:
+                details.append(setting.description)
+            if setting.default is not None:
+                details.append(f"Default: {setting.default}")
+            if setting.hint:
+                details.append(f"Hint: {setting.hint}")
+            if details:
+                ttk.Label(
+                    knobs_frame,
+                    text=" ".join(details),
+                    wraplength=720,
+                    takefocus=True,
+                ).pack(anchor="w", padx=(16, 0))
+        if capabilities.progress_chunks:
+            chunk_labels = ", ".join(
+                chunk.label for chunk in capabilities.progress_chunks
+            )
+            ttk.Label(
+                knobs_frame,
+                text=f"Progress reports: {chunk_labels}",
+                wraplength=720,
+                takefocus=True,
+            ).pack(anchor="w", pady=(6, 0))
 
     def _render_engine_run_settings(self, container: tk.Frame) -> None:
         """Render engine-run tuning inputs next to the engine selector."""

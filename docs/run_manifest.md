@@ -25,7 +25,8 @@ Start Run renames the temporary workspace to the timestamped `copernican-run_<ts
 folder and file before invoking the CLI worker so downstream tooling always
 sees the canonical manifest. CLI `copernican.py` invocations now pass the
 manifest directly to `copernican_lib.run_executor.execute_run_from_manifest`
-so the same manifest runner handles both interfaces.
+so the same manifest runner handles both interfaces, and `copernican.main_workflow`
+just relays the manifest to that helper.
 
 Headless runs can pin the manifest location with the `--manifest` flag to
 `copernican.py` so CI pipelines always collect the same path even when output

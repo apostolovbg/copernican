@@ -18,6 +18,10 @@ summarises three GUI-safe services:
    rebuild helpers in `copernican_lib/run_config.py`, and the YAML-backed model
    plugins all execute uniformly for both GUI and headless runs.
 
+`copernican.main_workflow`, the console script entrypoint, now relays manifests
+directly to `copernican_lib.run_executor.execute_run_from_manifest` so every
+manifest-driven launch—CLI or GUI—shares the same runner.
+
 `copernican.py --gui` prints this service map without entering the interactive
 menus. GUI launchers should construct an
 `orchestration.InProcessRunController` with run, pause, resume and cancel hooks

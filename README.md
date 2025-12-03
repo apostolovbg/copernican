@@ -211,6 +211,10 @@ software.
 - **Dependency check** – `copernican.py` inspects every required package and caches the results so repeated starts skip the AST scan, then runs a brief NumPy/SciPy sanity check before heavy computation begins.
 - **Manifest ingestion** – each builder-run snapshot records the selected models, datasets, engine metadata and run settings in a manifest before sampling starts, and the GUI builder writes these manifests as drafts that only become runs once confirmed.
 - **Shared sampling pipeline** – `copernican_lib/run_pipeline.py` executes the engine, diagnostics, plotting and CSV export steps so all back ends share the same behaviour; `copernican_lib/run_executor.py` loads the manifest, restores datasets via `run_config`, rebuilds the declared model plugins (including the ΛCDM reference chain) straight from the YAML cache, and advances the shared pipeline while logging progress in a per-run log file.
+- **Manifest entrypoint alignment** – the `copernican` console script registers
+  `copernican.main_workflow`, which now passes the manifest to
+  `copernican_lib.run_executor.execute_run_from_manifest`, keeping CLI and GUI
+  launches on the same pipeline.
 - **Diagnostics & exports** – BAO/CMB summaries, corner plots, CSV tables and NetCDF chains are persisted inside the run folder while the program log under `logs/` records the dependency check and GUI splash, keeping run logs focused on the scientific output.
 
 For an in-depth description of the manifest schema and how the GUI manipulates drafts,
