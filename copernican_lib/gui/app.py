@@ -17,12 +17,14 @@ import inspect
 import json
 import logging
 import os
+import platform
 import re
 import subprocess
 import sys
 import tempfile
 import threading
 import time
+from collections import Counter
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -305,6 +307,8 @@ class CopernicanGUI:
         self._hard_stop_button: ttk.Button | None = None
         self._run_output_button: ttk.Button | None = None
         self.logo_image: tk.PhotoImage | None = None
+        self._status_bar_frame: ttk.Frame | None = None
+        self._environment_status_label: ttk.Label | None = None
         self._bootstrap_logging()
         self._build_navigation()
         self._initialise_rendering()
@@ -881,6 +885,69 @@ class CopernicanGUI:
         self.model_index = self._discover_model_library()
         self.engine_index = self._discover_engine_library()
 
+    def _catalogue_health_summary(self) -> dict[str, object]:
+        """Return dataset, trust and filter metadata for the Home dashboard."""
+
+        datasets = list(self.catalogue_index.values())
+        type_counter = Counter(
+            (entry.get("type") or "unknown").upper() for entry in datasets
+        )
+        untrusted = [
+            {
+                "id": entry.get("id", ""),
+                "type": entry.get("type", "unknown"),
+                "name": entry.get("name", entry.get("id", "")),
+            }
+            for entry in datasets
+            if not entry.get("parser_trusted", True)
+        ]
+        return {
+            "dataset_count": len(datasets),
+            "type_counter": type_counter,
+            "untrusted": untrusted,
+            "notes": self.validation_notes[:3],
+        }
+
+    def _model_engine_health_summary(self) -> dict[str, object]:
+        """Return compatibility and version health for models and engines."""
+
+        model_badges = Counter()
+        stale_models: list[tuple[str, str]] = []
+        for entry in self.model_index.values():
+            for badge in entry.get("badges", []):
+                model_badges[badge.upper()] += 1
+            version_label = (entry.get("version") or "").lower()
+            if not version_label or version_label in {
+                "unknown",
+                "unavailable",
+            }:
+                stale_models.append(
+                    (
+                        entry.get("id") or entry.get("filename", "model"),
+                        "missing",
+                    )
+                )
+        stale_engines: list[tuple[str, str]] = []
+        for entry in self.engine_index.values():
+            version_label = (entry.get("version") or "").lower()
+            if not version_label or version_label in {
+                "unknown",
+                "unavailable",
+            }:
+                stale_engines.append(
+                    (
+                        entry.get("label") or entry.get("id", "engine"),
+                        "missing",
+                    )
+                )
+        return {
+            "model_count": len(self.model_index),
+            "engine_count": len(self.engine_index),
+            "model_badges": model_badges,
+            "stale_models": stale_models,
+            "stale_engines": stale_engines,
+        }
+
     def filter_catalogue(self, types: list[str] | None = None) -> list[dict]:
         """Return datasets matching ``types`` while recording the filter."""
 
@@ -895,6 +962,12 @@ class CopernicanGUI:
             for entry in self.catalogue_index.values()
             if entry.get("type", "").lower() in resolved
         ]
+
+    def _show_data_with_filter(self, dataset_types: list[str]) -> None:
+        """Filter the catalogue and open the Data tab."""
+
+        self.filter_catalogue(dataset_types)
+        self.show_data_overview()
 
     def open_folder(self, path: str) -> str:
         """Return ``path`` after confirming it exists for quick actions."""
@@ -1378,6 +1451,8 @@ class CopernicanGUI:
         self.content_area.grid(row=0, column=2, sticky="nsew")
         self.root.grid_columnconfigure(2, weight=1)
         self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_rowconfigure(1, weight=0)
+        self.root.grid_rowconfigure(2, weight=0)
 
         self._build_navigation_logo(nav_frame)
         for item in self.nav_items:
@@ -1389,7 +1464,17 @@ class CopernicanGUI:
             )
             button.pack(fill="x", pady=4)
 
+        separator_bottom = ttk.Separator(self.root, orient="horizontal")
+        separator_bottom.grid(
+            row=1,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(12, 4),
+        )
+        self._build_status_bar()
         self.show_home()
+        self._refresh_environment_status()
 
     def _swap_content(self, frame_builder: Callable[[tk.Frame], None]) -> None:
         """Replace the right-hand content area with a new frame."""
@@ -1401,6 +1486,78 @@ class CopernicanGUI:
         frame = ttk.Frame(self.content_area, padding=(8, 8))
         frame.pack(fill="both", expand=True)
         frame_builder(frame)
+
+    def _build_status_bar(self) -> None:
+        """Create the bottom status bar that shows environment metadata."""
+
+        if not self.render or self.root is None:
+            return
+        if self._status_bar_frame is not None:
+            return
+        status_bar = ttk.Frame(
+            self.root,
+            padding=(12, 4),
+            relief="sunken",
+        )
+        status_bar.grid(
+            row=2,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+        )
+        status_bar.columnconfigure(0, weight=1)
+        status_bar.columnconfigure(1, weight=1)
+        ttk.Label(
+            status_bar,
+            text="",
+            takefocus=True,
+        ).grid(row=0, column=0, sticky="w")
+        self._environment_status_label = ttk.Label(
+            status_bar,
+            text="",
+            anchor="e",
+            takefocus=True,
+        )
+        self._environment_status_label.grid(row=0, column=1, sticky="e")
+        self._status_bar_frame = status_bar
+
+    def _environment_summary_text(self) -> str:
+        """Return text describing the active Copernican environment."""
+
+        python_label = platform.python_version()
+        python_impl = platform.python_implementation()
+        version_text = f"Copernican {self.gui_version}"
+        python_text = f"{python_impl} {python_label}"
+        venv_path = os.environ.get("VIRTUAL_ENV") or ""
+        if venv_path:
+            venv_name = Path(venv_path).name
+            if venv_name == ".venv":
+                venv_text = "Managed .venv active"
+            else:
+                venv_text = f"VIRTUAL_ENV={venv_name}"
+        else:
+            venv_text = "Managed .venv inactive"
+        overrides = [
+            f"{key}={os.environ[key]}"
+            for key in sorted(os.environ)
+            if key.startswith("COPERNICAN_") and os.environ.get(key)
+        ]
+        if overrides:
+            override_text = f"Overrides: {', '.join(overrides)}"
+        else:
+            override_text = "Overrides: none"
+        return " | ".join(
+            [version_text, python_text, venv_text, override_text]
+        )
+
+    def _refresh_environment_status(self) -> None:
+        """Update the environment strip text."""
+
+        if self._environment_status_label is None:
+            return
+        self._environment_status_label.configure(
+            text=self._environment_summary_text()
+        )
 
     def show_home(self) -> None:
         """Render the project home panel with recents and quick actions."""
@@ -1421,6 +1578,145 @@ class CopernicanGUI:
                 frame, text="Project Home", font=("Helvetica", 16)
             )
             header.pack(anchor="w", pady=(0, 8))
+            tiles = ttk.Frame(frame)
+            tiles.pack(fill="x", pady=(0, 12))
+            tiles.columnconfigure(0, weight=1)
+            tiles.columnconfigure(1, weight=1)
+            catalogue_health = self._catalogue_health_summary()
+            cat_card = ttk.LabelFrame(
+                tiles, text="Catalogue health", padding=(10, 8)
+            )
+            cat_card.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+            dataset_summary = (
+                f"{catalogue_health['dataset_count']} dataset(s) "
+                f"/ {len(catalogue_health['untrusted'])} trust alert(s)"
+            )
+            ttk.Label(cat_card, text=dataset_summary, takefocus=True).pack(
+                anchor="w"
+            )
+            type_counter = Counter(catalogue_health.get("type_counter") or {})
+            if type_counter:
+                type_summary = ", ".join(
+                    f"{name}: {count}"
+                    for name, count in sorted(type_counter.items())
+                )
+            else:
+                type_summary = "No datasets discovered."
+            ttk.Label(cat_card, text=type_summary, takefocus=True).pack(
+                anchor="w", pady=(2, 4)
+            )
+            filter_row = ttk.Frame(cat_card)
+            filter_row.pack(anchor="w", pady=(0, 6))
+            filter_actions = [
+                ("All data", ()),
+                ("SNe", ("sne",)),
+                ("BAO", ("bao",)),
+                ("CMB", ("cmb",)),
+            ]
+            for label_text, filter_types in filter_actions:
+                ttk.Button(
+                    filter_row,
+                    text=label_text,
+                    command=(
+                        lambda types=filter_types: self._show_data_with_filter(
+                            list(types)
+                        )
+                    ),
+                    takefocus=True,
+                ).pack(side="left", padx=2)
+            if catalogue_health["notes"]:
+                ttk.Label(
+                    cat_card,
+                    text="; ".join(catalogue_health["notes"]),
+                    wraplength=320,
+                    takefocus=True,
+                ).pack(anchor="w", pady=(0, 4))
+            if catalogue_health["untrusted"]:
+                ttk.Label(
+                    cat_card,
+                    text="Revalidate untrusted datasets:",
+                    takefocus=True,
+                ).pack(anchor="w", pady=(4, 0))
+                for offender in catalogue_health["untrusted"][:3]:
+                    display_name = offender["name"] or offender["id"]
+                    ttk.Button(
+                        cat_card,
+                        text=f"Revalidate {display_name}",
+                        command=lambda dataset_id=offender[
+                            "id"
+                        ]: self._handle_home_revalidate(dataset_id),
+                        takefocus=True,
+                    ).pack(anchor="w", pady=2)
+            models_health = self._model_engine_health_summary()
+            models_card = ttk.LabelFrame(
+                tiles, text="Models & Engines", padding=(10, 8)
+            )
+            models_card.grid(row=0, column=1, sticky="nsew")
+            badge_summary = (
+                ", ".join(
+                    f"{badge}: {count}"
+                    for badge, count in sorted(
+                        models_health["model_badges"].items()
+                    )
+                )
+                if models_health["model_badges"]
+                else "No compatibility badges recorded."
+            )
+            ttk.Label(
+                models_card,
+                text=(
+                    f"{models_health['model_count']} model(s) / "
+                    f"{models_health['engine_count']} engine(s)"
+                ),
+                takefocus=True,
+            ).pack(anchor="w")
+            ttk.Label(
+                models_card,
+                text=badge_summary,
+                wraplength=320,
+                takefocus=True,
+            ).pack(anchor="w", pady=(2, 4))
+            if models_health["stale_models"]:
+                stale_models_text = ", ".join(
+                    entry[0] for entry in models_health["stale_models"][:3]
+                )
+            else:
+                stale_models_text = "None"
+            if models_health["stale_engines"]:
+                stale_engines_text = ", ".join(
+                    entry[0] for entry in models_health["stale_engines"][:2]
+                )
+            else:
+                stale_engines_text = "None"
+            ttk.Label(
+                models_card,
+                text=f"Stale models: {stale_models_text}",
+                wraplength=320,
+                takefocus=True,
+            ).pack(anchor="w")
+            ttk.Label(
+                models_card,
+                text=f"Stale engines: {stale_engines_text}",
+                wraplength=320,
+                takefocus=True,
+            ).pack(anchor="w")
+            action_row = ttk.Frame(models_card)
+            action_row.pack(anchor="w", pady=(6, 0))
+            ttk.Button(
+                action_row,
+                text="View models",
+                command=self.show_models,
+                takefocus=True,
+            ).pack(side="left", padx=2)
+            ttk.Button(
+                action_row,
+                text="View engines",
+                command=self.show_engines,
+                takefocus=True,
+            ).pack(side="left", padx=2)
+            ttk.Separator(frame, orient="horizontal").pack(
+                fill="x", pady=(4, 8)
+            )
             ttk.Label(frame, text="Recent runs", takefocus=True).pack(
                 anchor="w"
             )
@@ -1436,15 +1732,40 @@ class CopernicanGUI:
             ttk.Label(frame, text="Quick actions", takefocus=True).pack(
                 anchor="w", pady=(12, 0)
             )
-            for label, callback in self.quick_actions:
+            for label_text, callback in self.quick_actions:
                 ttk.Button(
                     frame,
-                    text=label,
+                    text=label_text,
                     command=callback,
                     takefocus=True,
                 ).pack(anchor="w", pady=2)
 
         self._swap_content(builder)
+        self._refresh_environment_status()
+
+    def _handle_home_revalidate(self, dataset_id: str) -> None:
+        """Revalidate an untrusted dataset from the Home dashboard."""
+
+        try:
+            record = self.revalidate_dataset(dataset_id)
+        except KeyError:
+            self.create_toast(
+                f"{dataset_id} is not present in the catalogue.",
+                severity="ERROR",
+                context="data",
+            )
+            self.show_home()
+            return
+        if record.get("parser_trusted"):
+            severity = "INFO"
+            message = f"{dataset_id} passed parser validation."
+        else:
+            severity = "WARNING"
+            message = (
+                f"{dataset_id} is still untrusted; verify parser digests."
+            )
+        self.create_toast(message, severity=severity, context="data")
+        self.show_home()
 
     def _is_seed_step_complete(self) -> bool:
         """Return True once the seed input has some text."""
@@ -2046,6 +2367,7 @@ class CopernicanGUI:
             wrap="none",
             borderwidth=1,
             relief="solid",
+            height=18,
         )
         preview_text.grid(row=0, column=0, sticky="nsew")
         vscroll = ttk.Scrollbar(

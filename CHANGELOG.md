@@ -21,6 +21,11 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-03: Added catalogue health tiles on the GUI Home screen plus the new
+             environment/version status bar so operators can revalidate datasets,
+             inspect model compatibility counts, and confirm COPERNICAN_*
+             overrides before launching runs (copernican_lib/gui/app.py,
+             CHANGELOG.md).
 - 2025-12-03: Extended the version-sync policy to cover pyproject.toml and
              tightened the modules-or-tests enforcement so new or removed
              plugins must trigger test updates while pyproject.toml now matches
@@ -41,6 +46,7 @@ suffixes. Follow this template:
 - 2025-12-03: Synchronized the GUI builder step identifiers with the manifest confirmation tests and cleaned up trailing whitespace in the DevCovenant law mapping (copernican_lib/gui/app.py, DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
 - 2025-12-03: Restored the dynamic Engine settings panel so each backend exposes its knobs, recommendations and run-setting hints with a scrollable stage four layout (copernican_lib/gui/app.py, CHANGELOG.md).
 - 2025-12-03: Removed the redundant Engine knobs panel and moved each run-setting recommendation directly above its corresponding entry to keep the Stage 4 layout compact (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Reverted the experimental anchor logic on the model preview panel and shortened the preview text area by one line for a tighter default layout (copernican_lib/gui/app.py, CHANGELOG.md).
 - 2025-12-03: Tuned the padding between the navigation buttons and separator to 24 px so the right-hand margin stays comfortably wider while retaining the tight left edge gap (copernican_lib/gui/app.py, README.md, CHANGELOG.md).
 - 2025-12-03: Rebalanced the GUI navigation spacing, expanded the data
              selectors with a provisional scrollbar, embedded the faster
