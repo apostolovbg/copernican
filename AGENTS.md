@@ -633,11 +633,13 @@ The canonical version in `copernican_lib/VERSION` must match the version
 declared in `README.md`, `pyproject.toml` and `CITATION.cff`. This prevents 
 version drift across documentation and ensures consistency for users and 
 citation tools. Runtime code must obtain the current version via
-``copernican_lib.version.get_version`` rather than hard-coded strings. The
-helper reads the tracked version file before falling back to package metadata
-or Git tags. Setting ``COPERNICAN_VERSION`` in the environment overrides the
-derived value so CI builds can embed custom prerelease identifiers that
-match the tracked version. There are special defensive lookups inside
+``copernican_lib.version.get_version`` rather than hard-coded strings. This 
+should be enforced by a DevCovenant script.
+THE FOLLOWING IS JUST FOR INFORMATION, DON'T WRITE CKECKS FOR IT: 
+The helper reads the tracked version file before falling back to package 
+metadata or Git tags. Setting ``COPERNICAN_VERSION`` in the environment 
+overrides the derived value so CI builds can embed custom prerelease 
+identifiers that match the tracked version. There are special defensive lookups inside
 ``copernican.py``, ``copernican_lib/run_manifest.py`` and
 ``copernican_lib/plotter.py`` so the suite still boots when
 ``copernican_lib.version.get_version`` is temporarily unavailable during
