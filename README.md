@@ -498,14 +498,16 @@ cite them without recomputation.
 2. When the launcher prints "Copernican Suite <version> Launcher" press Enter
    to start the CLI immediately or enter one of the numbered options. Option 1
    launches the GUI in a detached `pythonw`/`nohup` process so the terminal can
-   close after the handoff. Option 2 starts the CLI directly. Option 3 runs the
-   unit tests. Option 4 toggles strict-warning enforcement for the upcoming
-   session. Option 5 opens the *Environment and dependency management* submenu
-   where you can update pinned dependencies, rebuild or remove the managed
-   virtual environment, and keep `pip install -r requirements.lock` in sync with
-   the locked stack. Option 6 now toggles between installing and uninstalling
-   the `copernican-suite` package depending on whether it is already present,
-   letting the controlled environment remain optional, and option 7 exits.
+   close after the handoff—closing that window now returns you to the launcher
+   menu so you can pick another option without rerunning the script. Option 2
+   starts the CLI directly. Option 3 runs the unit tests. Option 4 toggles
+   strict-warning enforcement for the upcoming session. Option 5 opens the
+   *Environment and dependency management* submenu where you can update pinned
+   dependencies, rebuild or remove the managed virtual environment, and keep
+   `pip install -r requirements.lock` in sync with the locked stack. Option 6 now
+   toggles between installing and uninstalling the `copernican-suite` package
+   depending on whether it is already present, letting the controlled environment
+   remain optional, and option 7 exits.
 3. Choose "Run the unit test suite" from the launcher's menu or execute
    `python -m unittest discover -v` directly. The test runner reports
    informational messages, warnings and errors while verifying the
@@ -528,7 +530,7 @@ cite them without recomputation.
 
 ## Run Monitor and Diagnostics
 
-- The navigation rail now reserves 240 px and pins a padded Copernican logo square above the Home button so the brand anchor shares the same spacing rules as the nav panel controls, loading the new `img/logogui.png` asset sized to a quarter of the pane width.
+- The navigation rail now spans 140 px, keeps 12 px of padding between the buttons and the window edge, 24 px between the buttons and the separator, and still pins a padded Copernican logo square above the Home button so the brand anchor shares the same spacing rules as the nav panel controls while reusing the `img/logogui.png` asset sized to a quarter of the pane width.
 - The GUI now exposes a dedicated **Run Monitor** navigation entry just below
   Run Builder.  It mirrors the CLI sampler by showing both batch and walker
   progress bars, filtering options, and quick actions to **View log** or
@@ -544,6 +546,14 @@ cite them without recomputation.
 - A fresh **About** page resides in the navigation rail and renders `ABOUT.md`
   using the same dialog infrastructure that metadata views share, keeping the
   project summary and citation information a single click away.
+- The Run Builder's Data panel now renders the SNe, BAO and CMB selectors
+  inside a fixed-height scrollable panel so every list remains visible, and
+  the dataset summary text moved below the selectors keeps the detail widget
+  within reach without overlapping the choices.
+- The Engines page now exposes an **Engine knobs** frame that lists each backend
+  setting with its description, default and hint plus an entry so operators can
+  tune values directly; those knob entries now flow into the manifest so GUI
+  and CLI launches share the same tuning metadata.
 
 ## Dependencies
 The launchers automatically bootstrap a dedicated Python 3.11 interpreter into

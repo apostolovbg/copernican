@@ -51,6 +51,7 @@ from copernican_lib import (
 )
 from copernican_lib.engine_capabilities import (
     EngineCapabilities,
+    EngineSetting,
     get_engine_capabilities,
 )
 from copernican_lib.run_lifecycle import (
@@ -257,6 +258,9 @@ class CopernicanGUI:
         self._selected_model_entry: dict | None = None
         self._selected_engine_entry: dict | None = None
         self.engine_capabilities: EngineCapabilities | None = None
+        self._engine_setting_vars: dict[str, tk.StringVar] = {}
+        self._engine_setting_specs: dict[str, EngineSetting] = {}
+        self._engine_knobs_frame: ttk.Frame | None = None
         self.selected_datasets: list[dict[str, str]] = []
         self.pending_manifest: Optional[dict] = None
         self.manifest_workspace: ManifestWorkspace | None = None
@@ -1029,12 +1033,20 @@ class CopernicanGUI:
                 command=lambda: self._open_path_with_system(source_path),
             ).pack(side="left", padx=4)
 
-    def _create_scrollable_panel(self, parent: tk.Frame) -> tk.Frame:
+    def _create_scrollable_panel(
+        self, parent: tk.Frame, *, height: int | None = None
+    ) -> tk.Frame:
         """Return a frame that scrolls vertically with the given parent."""
 
         container = ttk.Frame(parent)
         container.pack(fill="both", expand=True)
-        canvas = tk.Canvas(container, borderwidth=0, highlightthickness=0)
+        canvas_kwargs: dict[str, int | str] = {
+            "borderwidth": 0,
+            "highlightthickness": 0,
+        }
+        if height is not None:
+            canvas_kwargs["height"] = height
+        canvas = tk.Canvas(container, **canvas_kwargs)
         scrollbar = ttk.Scrollbar(
             container, orient="vertical", command=canvas.yview
         )
@@ -1360,7 +1372,7 @@ class CopernicanGUI:
 
         if not self.render or self.root is None:
             return
-        nav_frame = ttk.Frame(self.root, padding=(12, 12))
+        nav_frame = ttk.Frame(self.root, padding=(12, 12, 24, 12))
         nav_frame.configure(width=_NAV_PANE_WIDTH)
         nav_frame.grid(row=0, column=0, sticky="nsw")
         nav_frame.grid_propagate(False)
@@ -2470,9 +2482,13 @@ class CopernicanGUI:
         self._render_engine_run_settings(container)
 
     def _render_engine_knobs(self, container: tk.Frame) -> None:
-        """Describe the per-engine knobs discovered in the module."""
+        """Expose the knobs declared by each engine alongside descriptions."""
 
+        if self._engine_knobs_frame is not None:
+            self._engine_knobs_frame.destroy()
+            self._engine_knobs_frame = None
         capabilities = self.engine_capabilities
+        self._engine_setting_specs.clear()
         if not capabilities or not capabilities.settings:
             return
         knobs_frame = ttk.LabelFrame(
@@ -2481,25 +2497,40 @@ class CopernicanGUI:
             padding=(8, 6),
         )
         knobs_frame.pack(fill="x", pady=(8, 0))
+        self._engine_knobs_frame = knobs_frame
         for setting in capabilities.settings:
-            label_row = ttk.Frame(knobs_frame)
-            label_row.pack(fill="x", pady=(2, 0))
+            row = ttk.Frame(knobs_frame)
+            row.pack(fill="x", pady=(4, 0))
             ttk.Label(
-                label_row,
+                row,
                 text=f"{setting.label} ({setting.key})",
+                width=26,
                 takefocus=True,
-            ).pack(anchor="w")
-            details: list[str] = []
+            ).pack(side="left")
+            var = self._engine_setting_vars.get(setting.key)
+            if var is None:
+                initial = (
+                    str(setting.default) if setting.default is not None else ""
+                )
+                var = tk.StringVar(value=initial)
+                self._engine_setting_vars[setting.key] = var
+            ttk.Entry(
+                row,
+                textvariable=var,
+                width=16,
+            ).pack(side="left", padx=(6, 0))
+            self._engine_setting_specs[setting.key] = setting
+            metadata: list[str] = []
             if setting.description:
-                details.append(setting.description)
+                metadata.append(setting.description)
             if setting.default is not None:
-                details.append(f"Default: {setting.default}")
+                metadata.append(f"Default: {setting.default}")
             if setting.hint:
-                details.append(f"Hint: {setting.hint}")
-            if details:
+                metadata.append(f"Hint: {setting.hint}")
+            if metadata:
                 ttk.Label(
                     knobs_frame,
-                    text=" ".join(details),
+                    text=" ".join(metadata),
                     wraplength=720,
                     takefocus=True,
                 ).pack(anchor="w", padx=(16, 0))
@@ -2513,6 +2544,50 @@ class CopernicanGUI:
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w", pady=(6, 0))
+
+    def _collect_engine_knob_settings(self) -> dict[str, object]:
+        """Return the sanitized knob values entered by the operator."""
+
+        settings: dict[str, object] = {}
+        for key, var in self._engine_setting_vars.items():
+            spec = self._engine_setting_specs.get(key)
+            if spec is None:
+                continue
+            raw_value = var.get().strip()
+            if not raw_value:
+                continue
+            parsed = self._parse_engine_setting_value(
+                raw_value, spec.dtype or "str"
+            )
+            settings[key] = parsed
+        return settings
+
+    @staticmethod
+    def _parse_engine_setting_value(raw_value: str, dtype: str) -> object:
+        """Convert a string knob value into the declared dtype.
+
+        Returns the raw input when conversion fails.
+        """
+
+        dtype_key = dtype.lower()
+        if dtype_key == "int":
+            try:
+                return int(raw_value)
+            except ValueError:
+                return raw_value
+        if dtype_key == "float":
+            try:
+                return float(raw_value)
+            except ValueError:
+                return raw_value
+        if dtype_key == "bool":
+            normalized = raw_value.lower()
+            if normalized in {"1", "true", "yes", "on"}:
+                return True
+            if normalized in {"0", "false", "no", "off"}:
+                return False
+            return raw_value
+        return raw_value
 
     def _render_engine_run_settings(self, container: tk.Frame) -> None:
         """Render engine-run tuning inputs next to the engine selector."""
@@ -4688,6 +4763,9 @@ class CopernicanGUI:
             engine_entry = self._resolve_engine_entry()
             plan = self._build_sampling_plan_values(engine_entry["id"])
             snapshot = dict(plan)
+            knob_settings = self._collect_engine_knob_settings()
+            if knob_settings:
+                snapshot.update(knob_settings)
             return snapshot
         except Exception:
             pass
