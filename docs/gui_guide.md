@@ -43,7 +43,10 @@ each page. The steps are:
 
 1. **Seed** – Enter a numeric seed or accept the default. The GUI respects the
    `COPERNICAN_SEED` environment variable and logs the final value into the run
-   manifest and summary tables.
+   manifest and summary tables. Default (0), Random timestamp, Alien invasion,
+   Emoji meteors, Constellation and the environment override buttons are
+   arranged in a single vertical stack so screen-readers and keyboard users can
+   tab through them predictably.
 2. **Models** – Single-select list with quick metadata access. The preview pane
    stays pinned above the footer and shortens automatically so dataset controls
    remain visible.

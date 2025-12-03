@@ -382,7 +382,7 @@ derived from the model's variables or constants.
 
 **IMPORTANT: READ FROM HERE TO THE END OF THE DOCUMENT AT THE BEGINNING OF EVERY DEVELOPMENT SESSION**
 
-**Copernican development must run inside the repository's `.venv` created by the `start.*` launchers.**  
+**Copernican development must run inside the repository's `.venv`**
 If `.venv` is absent, re-run `start.sh`/`start.command`/`start.bat` so the
 launcher downloads Python 3.11, boots the managed environment and installs
 every dependency before editing code or running tests. Do not bypass the
@@ -392,9 +392,10 @@ any other law or policy) is non-optional!
 The Copernican Suite uses **DevCovenant**, a self-enforcing policy system that
 maintains consistency between human-readable policies in this file and
 automated Python checks. When you modify a policy in this section, set its
-`updated: true` flag. The AI will automatically detect the change and update
+`updated: true` flag. The AI SHOULD automatically detect the change and update
 the corresponding policy script in `devcovenant/policy_scripts/`. If you are
-an AI agent, please report to the user what changes to DevCovenant have you
+an AI agent and see an `updated: true` flag or more than one, please STOP WORK
+and report to the user what changes to DevCovenant have you
 detected and understood and how do you plan to implement automatic DevCovenant
 enforcement (and auto fix if possible), before making any changes!
 
@@ -621,7 +622,7 @@ id: version-sync
 status: updated
 severity: error
 auto_fix: false
-updated: false
+updated: true
 applies_to: copernican_lib/VERSION,README.md,CITATION.cff,pyproject.toml
 ```
 

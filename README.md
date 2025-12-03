@@ -168,6 +168,7 @@ and citation information appears in [CITATION.cff](CITATION.cff).
 23. [Launchers and GUI](docs/launcher_gui.md)
 24. [GUI Guide](docs/gui_guide.md)
 25. [CLI Guide](docs/cli_guide.md)
+26. [Mini-game Seed Tools](docs/minigames.md)
 
 ---
 
@@ -461,6 +462,14 @@ console so logs capture only the surrounding diagnostics instead of partial
 progress lines.
 The summary concludes with a menu that lets users continue, revisit earlier
 questions or cancel the run entirely.
+
+The GUI seed page also exposes optional mini-games—Emoji Meteors,
+Constellation and Alien Invasion—that forge playful RNG seeds while
+remaining fully deterministic. The Default (0), Random timestamp and mini-game
+buttons now stack vertically so keyboard focus follows a single column, and the
+implementations live in `copernican_lib/gui/minigames/` (one module per game).
+See [docs/minigames.md](docs/minigames.md) for the gameplay details and
+guidance on adding new experiences.
 
 ### Interpreting the new convergence diagnostics
 

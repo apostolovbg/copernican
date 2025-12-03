@@ -30,6 +30,56 @@ suffixes. Follow this template:
              dropdown menus so selections stay visible and accessible even when
              Tk list heights collapse (copernican_lib/gui/app.py,
              CHANGELOG.md).
+- 2025-12-03: Shrunk the Run Builder page buttons so their widths now match the
+             Previous/Next/Cancel controls, keeping the jump bar consistent
+             with the rest of the navigation chrome (copernican_lib/gui/app.py,
+             CHANGELOG.md).
+- 2025-12-03: Added the Emoji meteors seed generator so the Run Builder can
+             derive playful random seeds from animal emoji trios alongside the
+             timestamp helper (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Expanded Emoji meteors into an interactive canvas with larger
+             falling animals, “Cute enough”/“Try again” controls, and an enlarged
+             selection preview so seed picking feels like a mini-game
+             (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Widened the Emoji meteors playfield, doubled the animal count and
+             moved the instructions near the selection controls so players pet
+             three animals before confirming the seed (copernican_lib/gui/app.py,
+             CHANGELOG.md).
+- 2025-12-03: Added the Constellation and Alien Invasion mini-games,
+             refreshed Emoji Meteors to require five selections, added Cancel
+             buttons to every mini-game, and documented the system under
+             docs/minigames.md with README/AGENTS cross-references
+             (copernican_lib/gui/app.py, docs/minigames.md, README.md, AGENTS.md,
+             CHANGELOG.md).
+- 2025-12-03: Stacked the seed helper buttons vertically, moved every
+             mini-game into `copernican_lib/gui/minigames/` modules and updated
+             the README, GUI guide and mini-game documentation so contributors
+             know where the helpers live (copernican_lib/gui/app.py,
+             copernican_lib/gui/minigames/__init__.py,
+             copernican_lib/gui/minigames/emoji_meteors.py,
+             copernican_lib/gui/minigames/constellation_connect.py,
+             copernican_lib/gui/minigames/alien_invasion.py,
+             docs/minigames.md, docs/gui_guide.md, README.md, AGENTS.md,
+             CHANGELOG.md).
+- 2025-12-03: Added two more invader rows, randomized shooter selection,
+             automatic capsule pickup and refreshed instructions for the Alien
+             Invasion seed mini-game so charges are easier to collect and attack
+             patterns less predictable (copernican_lib/gui/minigames/alien_invasion.py,
+             docs/minigames.md, CHANGELOG.md).
+- 2025-12-03: Fixed the Alien Invasion timer bug, centered every formation and
+             gave the general a dedicated rapid-fire cycle so the flagship
+             peppers players with constant shots (copernican_lib/gui/minigames/alien_invasion.py,
+             docs/minigames.md, CHANGELOG.md).
+- 2025-12-03: Renamed Constellation Connect to Constellation, clamped its star
+             palette to valid Tk colours and rebuilt the modal so it mirrors the
+             Emoji Meteors layout (copernican_lib/gui/minigames/constellation.py,
+             copernican_lib/gui/app.py, docs/minigames.md, README.md, AGENTS.md,
+             docs/gui_guide.md, CHANGELOG.md).
+- 2025-12-03: Reworked Constellation with a denser star field, ten-star
+             paths, halo highlights, right-click removal and the “Ad astra!”
+             dialog so the mini-game mirrors the Emoji Meteors layout
+             (copernican_lib/gui/minigames/constellation_connect.py,
+             docs/minigames.md, CHANGELOG.md).
 - 2025-12-03: Added dedicated GUI and CLI guides plus a multi-page Help panel
              that renders those Markdown files with builder-style navigation
              buttons while standardising every navigation page header on the

@@ -57,6 +57,11 @@ from copernican_lib.engine_capabilities import (
     EngineSetting,
     get_engine_capabilities,
 )
+from copernican_lib.gui.minigames import (
+    launch_alien_invasion,
+    launch_constellation,
+    launch_emoji_meteors,
+)
 from copernican_lib.run_lifecycle import (
     ManifestWorkspace,
     create_manifest_workspace,
@@ -70,7 +75,6 @@ _PROGRESS_SPINNER_CHARS = frozenset("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
 _NAV_PANE_WIDTH = 140
 _LOGO_PADDING = 12
 _LOGO_SIDE = _NAV_PANE_WIDTH // 4
-
 _ENGINE_SETTING_LIMITS: dict[str, dict[str, dict[str, float | int | str]]] = {
     "engines.cosmo_engine_mcmc": {
         "n_steps": {"min": 1, "max": 500_000},
@@ -2175,7 +2179,6 @@ class CopernicanGUI:
                     step_frame,
                     text=step,
                     command=lambda idx=index: self.jump_to_step(idx),
-                    width=12,
                     takefocus=True,
                     **jump_button_style,
                 )
@@ -2381,8 +2384,8 @@ class CopernicanGUI:
         ttk.Label(
             container,
             text=(
-                "Choose a deterministic seed or let the system generate one. "
-                "Hints are logged in the run manifest for reproducibility."
+                "Choose a deterministic seed, use the timestamp generator, or "
+                "play one of the mini-games to forge a reproducible value."
             ),
             wraplength=720,
             takefocus=True,
@@ -2396,25 +2399,42 @@ class CopernicanGUI:
         seed_var.trace_add("write", _update_seed)
         entry = ttk.Entry(container, textvariable=seed_var, width=24)
         entry.pack(anchor="w", pady=(6, 8))
-        button_row = ttk.Frame(container)
-        button_row.pack(anchor="w")
-        ttk.Button(
-            button_row,
-            text="Default (0)",
-            command=lambda: seed_var.set("0"),
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            button_row,
-            text="Random timestamp",
-            command=lambda: seed_var.set(str(int(time.time()))),
-        ).pack(side="left", padx=2)
+        button_column = ttk.Frame(container)
+        button_column.pack(anchor="w", fill="x", pady=(0, 8))
+
+        def _add_seed_button(
+            label: str,
+            action: Callable[[], None],
+        ) -> None:
+            ttk.Button(
+                button_column,
+                text=label,
+                command=action,
+            ).pack(anchor="w", pady=2, ipadx=8, ipady=4)
+
+        _add_seed_button("Default (0)", lambda: seed_var.set("0"))
+        _add_seed_button(
+            "Random timestamp",
+            lambda: seed_var.set(str(int(time.time()))),
+        )
+        _add_seed_button(
+            "Alien invasion",
+            lambda: launch_alien_invasion(self, seed_var),
+        )
+        _add_seed_button(
+            "Emoji meteors",
+            lambda: launch_emoji_meteors(self, seed_var),
+        )
+        _add_seed_button(
+            "Constellation",
+            lambda: launch_constellation(self, seed_var),
+        )
         env_seed = os.environ.get("COPERNICAN_SEED")
         if env_seed:
-            ttk.Button(
-                button_row,
-                text="Use COPERNICAN_SEED",
-                command=lambda: seed_var.set(env_seed),
-            ).pack(side="left", padx=2)
+            _add_seed_button(
+                "Use COPERNICAN_SEED",
+                lambda: seed_var.set(env_seed),
+            )
 
     def _render_builder_step_models(self, container: tk.Frame) -> None:
         ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
@@ -2600,7 +2620,7 @@ class CopernicanGUI:
         )
         catalogue_panel = ttk.Frame(container)
         catalogue_panel.pack(fill="x", pady=(6, 0))
-        dropdowns: dict[str, ttk.Combobox] = {}
+        dropdown_vars: dict[str, tk.StringVar] = {}
         id_lookup: dict[str, tuple[str, int]] = {}
 
         def _add_dataset_section(
@@ -2608,53 +2628,38 @@ class CopernicanGUI:
             dtype: str,
             records: list[dict],
             *,
-            pack_kwargs: dict[str, object] | None = None,
-            width_px: int = 600,
-        ) -> ttk.Combobox:
-            frame = ttk.LabelFrame(
-                parent,
-                text=f"{dtype.upper()} datasets",
-                padding=(6, 4),
-            )
-            pack_kwargs = pack_kwargs or {"anchor": "w", "pady": 4}
-            frame.pack(**pack_kwargs)
+            width_px: int = 500,
+        ) -> None:
             ttk.Label(
-                frame,
+                parent,
                 text=(
-                    f"{len(records)} "
+                    f"{dtype.upper()} datasets – {len(records)} "
                     f"{'candidate' if len(records) == 1 else 'candidates'}"
                 ),
                 takefocus=True,
-            ).pack(anchor="w")
-            combo_frame = ttk.Frame(frame, width=width_px)
-            combo_frame.pack(anchor="w", pady=(4, 0))
-            combo_frame.pack_propagate(False)
+            ).pack(anchor="w", pady=(4, 2))
+            menu_frame = ttk.Frame(parent, width=width_px)
+            menu_frame.pack(anchor="w", pady=(0, 4))
+            menu_frame.pack_propagate(False)
             placeholder = "Select dataset…"
             values = [
                 f"{record['id']} – {record.get('name', record['id'])}"
                 for record in records
             ]
-            var = tk.StringVar(value="")
-            combo = ttk.Combobox(
-                combo_frame,
-                textvariable=var,
-                state="readonly",
-                values=[placeholder] + values,
-                width=max(30, width_px // 8),
+            var = tk.StringVar(value=placeholder)
+            option = ttk.OptionMenu(
+                menu_frame,
+                var,
+                placeholder,
+                *([placeholder] + values),
             )
-            combo.current(0)
-            combo.pack(fill="both", expand=True)
-            dropdowns[dtype] = combo
+            option.pack(fill="both", expand=True)
+            dropdown_vars[dtype] = var
             for index, record in enumerate(records):
                 id_lookup[record["id"]] = (dtype, index)
-            return combo
 
         for dtype in ordered_types:
-            _add_dataset_section(
-                catalogue_panel,
-                dtype,
-                type_groups[dtype],
-            )
+            _add_dataset_section(catalogue_panel, dtype, type_groups[dtype])
         detail_label = ttk.Label(
             container,
             text="Select datasets to preview details.",
@@ -2669,11 +2674,22 @@ class CopernicanGUI:
             selection_map.clear()
             selected_records: list[dict] = []
             for dtype in ordered_types:
-                combo = dropdowns[dtype]
-                index = combo.current()
-                if index is None or index <= 0:
+                var = dropdown_vars[dtype]
+                choice = var.get()
+                if not choice or choice.startswith("Select"):
                     continue
-                record = type_groups[dtype][index - 1]
+                record = next(
+                    (
+                        rec
+                        for rec in type_groups[dtype]
+                        if choice
+                        == f"{rec['id']} – {rec.get('name', rec['id'])}"
+                    ),
+                    None,
+                )
+                if record is None:
+                    continue
+
                 selection_map[dtype] = record
                 selected_records.append(record)
             self.selected_datasets = [
@@ -2704,27 +2720,37 @@ class CopernicanGUI:
                 )
             self._refresh_builder_step_indicators()
 
-        for dtype, combo in dropdowns.items():
-            combo.bind(
-                "<<ComboboxSelected>>",
-                lambda _evt, t=dtype: (
-                    focus_state.__setitem__(
-                        "record",
-                        (
-                            type_groups[t][dropdowns[t].current() - 1]
-                            if dropdowns[t].current() > 0
-                            else None
-                        ),
-                    ),
-                    _refresh_data_selection(),
-                ),
-            )
+        def _make_trace(dtype: str) -> None:
+            var = dropdown_vars[dtype]
+
+            def _trace(*_args: object) -> None:
+                choice = var.get()
+                if not choice or choice.startswith("Select"):
+                    focus_state["record"] = None
+                else:
+                    for index, record in enumerate(type_groups[dtype]):
+                        label = (
+                            f"{record['id']} – "
+                            f"{record.get('name', record['id'])}"
+                        )
+                        if label == choice:
+                            focus_state["record"] = record
+                            break
+                _refresh_data_selection()
+
+            var.trace_add("write", _trace)
+
+        for dtype in ordered_types:
+            _make_trace(dtype)
+
         for dataset in self.selected_datasets:
             lookup = id_lookup.get(dataset["id"])
             if lookup:
                 dtype, index = lookup
-                combo = dropdowns[dtype]
-                combo.current(index + 1)
+                record = type_groups[dtype][index]
+                dropdown_vars[dtype].set(
+                    f"{record['id']} – {record.get('name', record['id'])}"
+                )
         _refresh_data_selection()
         action_row = ttk.Frame(container)
         action_row.pack(anchor="w")
