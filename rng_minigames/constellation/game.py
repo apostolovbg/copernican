@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import random
 import time
-from typing import TYPE_CHECKING
 
 try:  # pragma: no cover - Tk is optional
     import tkinter as tk

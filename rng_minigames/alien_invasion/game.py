@@ -7,7 +7,7 @@ import math
 import random
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import Callable
 
 try:  # pragma: no cover - Tk only available with GUI rendering
     import tkinter as tk
@@ -16,11 +16,12 @@ except Exception:  # pragma: no cover - executed when Tk is unavailable
     tk = None
     ttk = None
 
+from rng_minigames.api import MinigameContext
+
 from .ai_agent import AlienInvasionAI
 from .ai_config import load_settings as load_ai_settings
 from .game_config import load_settings as load_game_settings
 from .hall_of_fame import HallOfFame
-from rng_minigames.api import MinigameContext
 
 
 def launch_alien_invasion(context: MinigameContext) -> None:
@@ -304,7 +305,10 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 return
             cluster_count = random.randint(3, 6)
             centers = [
-                (random.uniform(0, canvas_width), sky_height + random.uniform(-10, 8))
+                (
+                    random.uniform(0, canvas_width),
+                    sky_height + random.uniform(-10, 8),
+                )
                 for _ in range(cluster_count)
             ]
             total_trees = random.randint(30, 50)
@@ -634,7 +638,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         if not _ai_in_control():
             return
         rank = record.get("rank", "lieutenant")
-        ai_brain.reward_enemy_destroyed(rank, general=record.get("general", False))
+        ai_brain.reward_enemy_destroyed(
+            rank, general=record.get("general", False)
+        )
 
     def _penalize_enemy_respawned(record: dict) -> None:
         if not _ai_in_control():
@@ -868,6 +874,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     pause_button.configure(command=_toggle_pause)
     player_width = 26
     player_height = 22
+
     def _player_shape_coords(cx: float, cy: float) -> list[float]:
         return [
             cx,
@@ -889,6 +896,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             cx - 10,
             cy - 10,
         ]
+
     player = {
         "x": canvas_width / 2,
         "y": canvas_height - ground_height - 60,
@@ -934,7 +942,11 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         desired_velocity = max(
             -player_speed_limit, min(player_speed_limit, delta)
         )
-        step = player_accel if abs(desired_velocity) > abs(player_velocity) else player_decel
+        step = (
+            player_accel
+            if abs(desired_velocity) > abs(player_velocity)
+            else player_decel
+        )
         step = max(step, 0.01)
         change = max(-step, min(step, desired_velocity - player_velocity))
         player_velocity += change
@@ -952,6 +964,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             player_item,
             *_player_shape_coords(player["x"], player["y"]),
         )
+
     player_shots: list[dict] = []
     enemy_shots: list[dict] = []
     charges: list[dict] = []
@@ -1062,9 +1075,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 row_index = row_counter
                 row_cols = cols
                 stagger_row = (
-                    not general_group
-                    and row_index == 1
-                    and cols >= 2
+                    not general_group and row_index == 1 and cols >= 2
                 )
                 if stagger_row:
                     row_cols = max(1, cols - 1)
@@ -1108,7 +1119,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                         continue
                     eid += 1
                     if not general:
-                        x = max(field_margin, min(canvas_width - field_margin, x))
+                        x = max(
+                            field_margin, min(canvas_width - field_margin, x)
+                        )
                         row_positions.append(x)
                     if general:
                         rank = "general"
@@ -1149,24 +1162,22 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                             "vx": 0.0,
                         }
                     _update_enemy_shield_visual(enemy_id)
-                if (
-                    stagger_row
-                    and not general_group
-                    and row_positions
-                ):
+                if stagger_row and not general_group and row_positions:
                     if len(row_positions) >= 2:
                         delta = row_positions[1] - row_positions[0]
                     else:
-                        delta = spacing or (canvas_width - 2 * field_margin) / max(
-                            cols - 1, 1
-                        )
+                        delta = spacing or (
+                            canvas_width - 2 * field_margin
+                        ) / max(cols - 1, 1)
                     delta = max(delta, 20)
                     extensions = [
                         row_positions[0] - delta,
                         row_positions[-1] + delta,
                     ]
                     for offset in (-1, 1):
-                        extra_x = extensions[0] if offset < 0 else extensions[1]
+                        extra_x = (
+                            extensions[0] if offset < 0 else extensions[1]
+                        )
                         extra_x = max(10, min(canvas_width - 10, extra_x))
                         eid += 1
                         x = extra_x
@@ -1333,7 +1344,12 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         _schedule_next_shooting_star()
         destroyed_stack.clear()
         kill_order = []
-        general_ai = {"target": None, "mode": "patrol", "cooldown": 0.0, "vx": 0.0}
+        general_ai = {
+            "target": None,
+            "mode": "patrol",
+            "cooldown": 0.0,
+            "vx": 0.0,
+        }
         timers_started = False
         run_start_time = None
         charge_count = 0
@@ -1365,8 +1381,10 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             return
         _cancel_learning_restart()
         action_var.set("AI reviewing the battle log. Next sortie incoming...")
+
         def _restart() -> None:
             _reset_game(preserve_ai=True)
+
         learning_restart_handle = _scaled_after(1200, _restart)
 
     def _respawn_enemy(enemy_id: str, *, opposite: bool = False) -> None:
@@ -1395,7 +1413,11 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         for rank in priorities:
             for enemy_id in reversed(destroyed_stack):
                 record = enemy_data.get(enemy_id)
-                if record and record.get("rank") == rank and not record["alive"]:
+                if (
+                    record
+                    and record.get("rank") == rank
+                    and not record["alive"]
+                ):
                     destroyed_stack.remove(enemy_id)
                     return enemy_id
         return destroyed_stack.pop()
@@ -1412,13 +1434,17 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         if run_start_time is not None:
             duration = (time.time() - run_start_time) * _time_scale()
         controlling = _ai_in_control()
-        _record_ai_outcome(success=False, duration=duration, controlling=controlling)
+        _record_ai_outcome(
+            success=False, duration=duration, controlling=controlling
+        )
         if learning_mode:
             action_var.set("Training run failed. Relaunching immediately.")
             _reset_game(preserve_ai=True)
             return
         _start_player_explosion()
-        action_var.set("Your shield collapsed! Reset or wait for auto-restart.")
+        action_var.set(
+            "Your shield collapsed! Reset or wait for auto-restart."
+        )
         autopilot_active = False
         if ai_controller:
             ai_controller.stop()
@@ -1431,7 +1457,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         player_hits = min(player_shield_max, player_hits + 1)
         _update_status()
         if player_hits >= player_shield_max:
-            action_var.set("Your shield collapsed! Reset now or wait a moment.")
+            action_var.set(
+                "Your shield collapsed! Reset now or wait a moment."
+            )
             _player_defeated()
             return
         revived = _pick_revive_target()
@@ -1471,9 +1499,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             descriptor = (
                 "Colonel"
                 if record.get("rank") == "colonel"
-                else "Major"
-                if record.get("rank") == "major"
-                else "Cruiser"
+                else "Major" if record.get("rank") == "major" else "Cruiser"
             )
             action_var.set(
                 f"{descriptor} absorbed the hit ({remaining_hp}/"
@@ -1496,7 +1522,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         if len(kill_order) >= total_enemies and total_enemies > 0:
             pending_order = kill_order[:]
             if run_start_time is not None:
-                pending_duration = (time.time() - run_start_time) * _time_scale()
+                pending_duration = (
+                    time.time() - run_start_time
+                ) * _time_scale()
             else:
                 pending_duration = 0.0
             controlling = _ai_in_control()
@@ -1560,7 +1588,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             return
         _set_player_target(event.x)
 
-    def _fire_enemy_shot(enemy_id: str, *, aim_for: float | None = None) -> bool:
+    def _fire_enemy_shot(
+        enemy_id: str, *, aim_for: float | None = None
+    ) -> bool:
         record = enemy_data.get(enemy_id)
         if not record or not record["alive"]:
             return False
@@ -1683,7 +1713,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         )
         bombs.append({"item": item, "vy": -1.5})
 
-    def _handle_right_click(event: "tk.Event | None", *, announce: bool = True) -> None:
+    def _handle_right_click(
+        event: "tk.Event | None", *, announce: bool = True
+    ) -> None:
         nonlocal charge_count
         if game_over or paused:
             return
@@ -1711,10 +1743,16 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 return eid
         return None
 
-    def _rects_overlap(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> bool:
-        return not (a[2] <= b[0] or a[0] >= b[2] or a[3] <= b[1] or a[1] >= b[3])
+    def _rects_overlap(
+        a: tuple[int, int, int, int], b: tuple[int, int, int, int]
+    ) -> bool:
+        return not (
+            a[2] <= b[0] or a[0] >= b[2] or a[3] <= b[1] or a[1] >= b[3]
+        )
 
-    def _check_projectile_overlap(item_id: int, projectiles: list[dict]) -> dict | None:
+    def _check_projectile_overlap(
+        item_id: int, projectiles: list[dict]
+    ) -> dict | None:
         bbox = canvas.bbox(item_id)
         if not bbox:
             return None
@@ -1758,7 +1796,12 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 }
             )
         player_projectiles = [
-            {"x": (canvas.bbox(shot["item"])[0] + canvas.bbox(shot["item"])[2]) / 2}
+            {
+                "x": (
+                    canvas.bbox(shot["item"])[0] + canvas.bbox(shot["item"])[2]
+                )
+                / 2
+            }
             for shot in player_shots
             if canvas.bbox(shot["item"])
         ]
@@ -1961,9 +2004,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     general_ai["mode"] = "patrol"
                     general_ai["cooldown"] = random.randint(50, 110)
 
-                if (
-                    random.random() < 0.12
-                    and general_ai.get("mode") not in ("pressure", "harass")
+                if random.random() < 0.12 and general_ai.get("mode") not in (
+                    "pressure",
+                    "harass",
                 ):
                     flank_direction = -1 if random.random() < 0.5 else 1
                     flank_offset = 160 + random.uniform(-110, 110)
@@ -1985,7 +2028,8 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                             safe_margin,
                             min(
                                 canvas_width - safe_margin,
-                                record["x"] + direction * (200 + random.uniform(0, 80)),
+                                record["x"]
+                                + direction * (200 + random.uniform(0, 80)),
                             ),
                         )
                         general_ai["cooldown"] = 35
@@ -2007,7 +2051,10 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                         )
                         general_ai["cooldown"] = random.randint(60, 140)
                 target = general_ai.get("target", canvas_width / 2)
-                if abs(target - record["x"]) < 5 and general_ai["mode"] == "evade":
+                if (
+                    abs(target - record["x"]) < 5
+                    and general_ai["mode"] == "evade"
+                ):
                     general_ai["mode"] = "patrol"
                     general_ai["cooldown"] = random.randint(40, 100)
                 direction_to_target = 0
@@ -2034,24 +2081,31 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     movement = target - record["x"]
                 jitter = random.uniform(-0.6, 0.6)
                 general_vel = general_ai.get("vx", 0.0)
-                general_accel = max(
-                    0.25, min(1.0, general_speed_limit * 0.15)
-                )
+                general_accel = max(0.25, min(1.0, general_speed_limit * 0.15))
                 desired_velocity = movement
                 general_vel += max(
-                    -general_accel, min(general_accel, desired_velocity - general_vel)
+                    -general_accel,
+                    min(general_accel, desired_velocity - general_vel),
                 )
                 general_vel += random.uniform(-0.4, 0.4)
                 general_ai["vx"] = max(
                     -general_speed_limit, min(general_speed_limit, general_vel)
                 )
                 new_x = record["x"] + general_ai["vx"] + jitter
-                new_x = max(safe_margin, min(canvas_width - safe_margin, new_x))
+                new_x = max(
+                    safe_margin, min(canvas_width - safe_margin, new_x)
+                )
                 canvas.move(record["item"], new_x - record["x"], 0)
                 record["x"] = new_x
-                if general_ai.get("mode") in ("pressure", "harass") and not player_lingering:
+                if (
+                    general_ai.get("mode") in ("pressure", "harass")
+                    and not player_lingering
+                ):
                     general_ai["mode"] = "patrol"
-                if general_ai.get("mode") == "flank" and general_ai["cooldown"] <= 0:
+                if (
+                    general_ai.get("mode") == "flank"
+                    and general_ai["cooldown"] <= 0
+                ):
                     general_ai["mode"] = "stalk"
 
     def _tick() -> None:
@@ -2134,7 +2188,11 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     ai_controller = AIPilotController()
 
     def _spawn_debris(
-        x: float, y: float, *, count: int | None = None, speed_scale: float = 1.0
+        x: float,
+        y: float,
+        *,
+        count: int | None = None,
+        speed_scale: float = 1.0,
     ) -> None:
         base_count = count if count is not None else debris_default_count
         actual_count = max(1, int(base_count * explosion_violence))

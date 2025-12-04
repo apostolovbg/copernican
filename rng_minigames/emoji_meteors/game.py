@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING
 
 try:  # pragma: no cover - Tk only available when GUI rendering is enabled
     import tkinter as tk

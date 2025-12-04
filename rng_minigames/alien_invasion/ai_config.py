@@ -56,4 +56,3 @@ def load_settings() -> Dict[str, Any]:
     except Exception:
         raw = {}
     return _merge(DEFAULT_SETTINGS, raw)
-

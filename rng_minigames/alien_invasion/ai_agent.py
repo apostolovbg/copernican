@@ -92,7 +92,9 @@ class AlienInvasionAI:
         respawn_cfg = self.settings.get("respawn_penalty", {})
         default_penalty = float(respawn_cfg.get("default", 0.25))
         self.respawn_penalty = {
-            "lieutenant": float(respawn_cfg.get("lieutenant", default_penalty)),
+            "lieutenant": float(
+                respawn_cfg.get("lieutenant", default_penalty)
+            ),
             "major": float(respawn_cfg.get("major", 0.35)),
             "colonel": float(respawn_cfg.get("colonel", 0.45)),
             "default": default_penalty,
@@ -121,7 +123,9 @@ class AlienInvasionAI:
         edge_correction = -features["edge_bias"] * 0.35
         general_proximity = max(0.0, 0.8 - features["general_distance"] * 3.0)
         general_correction = (
-            -features["general_offset"] * general_proximity * (0.5 + weights["caution"] * 0.3)
+            -features["general_offset"]
+            * general_proximity
+            * (0.5 + weights["caution"] * 0.3)
         )
         urgency = self._time_pressure
         move_value = math.tanh(
@@ -146,7 +150,9 @@ class AlienInvasionAI:
 
         charge_bias = weights["charge"] * 0.2 + urgency * 0.45
         charge_prob = min(0.98, max(0.01, forward["charge"] + charge_bias))
-        charge = snapshot.get("charges", 0) > 0 and charge_prob > random.random()
+        charge = (
+            snapshot.get("charges", 0) > 0 and charge_prob > random.random()
+        )
 
         if random.random() < self.exploration_rate:  # exploration
             move_dir = random.choice([-1.0, 0.0, 1.0])
@@ -169,12 +175,16 @@ class AlienInvasionAI:
         self._intermediate_reward = 0.0
         self._kill_count = 0
 
-    def reward_enemy_destroyed(self, rank: str, *, general: bool = False) -> None:
+    def reward_enemy_destroyed(
+        self, rank: str, *, general: bool = False
+    ) -> None:
         """Provide a small carrot whenever a hostile is eliminated."""
 
         self._kill_count += 1
         base = self.kill_base + (self.kill_general_bonus if general else 0.0)
-        increment = min(self._kill_count * self.kill_increment, self.kill_increment_cap)
+        increment = min(
+            self._kill_count * self.kill_increment, self.kill_increment_cap
+        )
         self._intermediate_reward += base + increment
 
     def penalize_enemy_respawned(self, rank: str) -> None:
@@ -187,7 +197,9 @@ class AlienInvasionAI:
 
     def _compute_time_pressure_value(self, fraction: float) -> float:
         clamped = max(0.0, min(1.0, fraction))
-        return self.tp_base + (1.0 - clamped) ** self.tp_exponent * self.tp_scale
+        return (
+            self.tp_base + (1.0 - clamped) ** self.tp_exponent * self.tp_scale
+        )
 
     def record_run(self, *, success: bool, duration: float) -> None:
         """Adjust weights and train the neural policy based on run outcome."""
@@ -243,7 +255,8 @@ class AlienInvasionAI:
         if enemies:
             target = min(
                 enemies,
-                key=lambda entry: abs(entry["x"] - player_x) + entry["y"] * 0.3,
+                key=lambda entry: abs(entry["x"] - player_x)
+                + entry["y"] * 0.3,
             )
             alignment = abs(target["x"] - player_x)
             target_offset = (target["x"] - player_x) / canvas_width
@@ -343,7 +356,9 @@ class AlienInvasionAI:
                 self.state["network"]
             )
 
-    def _validate_or_reset_network(self, network: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_or_reset_network(
+        self, network: Dict[str, Any]
+    ) -> Dict[str, Any]:
         try:
             if (
                 int(network.get("input_size")) != len(INPUT_FEATURES)
@@ -465,22 +480,33 @@ class AlienInvasionAI:
     ) -> None:
         forward = self._forward_internal(sample["features"])
         move_target = sample["move"] if reward >= 0 else -sample["move"]
-        move_delta = (move_target - forward["move"]) * (1 - forward["move"] ** 2)
+        move_delta = (move_target - forward["move"]) * (
+            1 - forward["move"] ** 2
+        )
 
         shoot_target = sample["shoot"] if reward >= 0 else 1 - sample["shoot"]
         shoot_error = shoot_target - forward["shoot"]
         shoot_delta = shoot_error * forward["shoot"] * (1 - forward["shoot"])
 
-        charge_target = sample["charge"] if reward >= 0 else 1 - sample["charge"]
+        charge_target = (
+            sample["charge"] if reward >= 0 else 1 - sample["charge"]
+        )
         charge_error = charge_target - forward["charge"]
-        charge_delta = charge_error * forward["charge"] * (1 - forward["charge"])
+        charge_delta = (
+            charge_error * forward["charge"] * (1 - forward["charge"])
+        )
 
         output_deltas = [move_delta, shoot_delta, charge_delta]
         network = self.state["network"]
 
         for out_idx in range(OUTPUT_UNITS):
             for h_idx in range(HIDDEN_UNITS):
-                delta = lr * reward * output_deltas[out_idx] * forward["hidden"][h_idx]
+                delta = (
+                    lr
+                    * reward
+                    * output_deltas[out_idx]
+                    * forward["hidden"][h_idx]
+                )
                 network["w2"][out_idx][h_idx] = self._clamp(
                     network["w2"][out_idx][h_idx] + delta
                 )
@@ -494,7 +520,9 @@ class AlienInvasionAI:
                 network["w2"][out_idx][h_idx] * output_deltas[out_idx]
                 for out_idx in range(OUTPUT_UNITS)
             )
-            hidden_deltas.append(influence * (1 - forward["hidden"][h_idx] ** 2))
+            hidden_deltas.append(
+                influence * (1 - forward["hidden"][h_idx] ** 2)
+            )
 
         for h_idx in range(HIDDEN_UNITS):
             for in_idx, value in enumerate(sample["features"]):

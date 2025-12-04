@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-
 NotifyCallback = Callable[[str, str], None]
 SetSeedCallback = Callable[[str], None]
 

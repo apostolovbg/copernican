@@ -11,7 +11,9 @@ import pytest
 from rng_minigames.alien_invasion import ai_agent, hall_of_fame
 
 
-def test_alien_invasion_ai_persists_learning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_alien_invasion_ai_persists_learning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The AI brain should write its weights and reload them on the next run."""
 
     # Keep the decision path deterministic by disabling the exploration branch.
@@ -40,15 +42,26 @@ def test_alien_invasion_ai_persists_learning(tmp_path: Path, monkeypatch: pytest
     assert reloaded.state["best_time"] == pytest.approx(7.5)
     assert reloaded.state["runs"] >= 1
     assert reloaded.state["worlds_saved"] >= 1
-    assert reloaded.state["weights"]["aggression"] > original_weights["aggression"]
-    assert reloaded.state["network"]["w1"][0][0] != original_network["w1"][0][0]
-    assert reloaded.state["network"]["w1"][0][0] == brain.state["network"]["w1"][0][0]
+    assert (
+        reloaded.state["weights"]["aggression"]
+        > original_weights["aggression"]
+    )
+    assert (
+        reloaded.state["network"]["w1"][0][0] != original_network["w1"][0][0]
+    )
+    assert (
+        reloaded.state["network"]["w1"][0][0]
+        == brain.state["network"]["w1"][0][0]
+    )
 
     # A failed run should increase the caution weight and persist it.
     reloaded.record_run(success=False, duration=0)
     final = ai_agent.AlienInvasionAI(tmp_path)
     assert final.state["worlds_lost"] >= 1
-    assert final.state["weights"]["caution"] >= reloaded.state["weights"]["caution"]
+    assert (
+        final.state["weights"]["caution"]
+        >= reloaded.state["weights"]["caution"]
+    )
 
 
 def test_alien_invasion_ai_forget(tmp_path: Path) -> None:
@@ -61,7 +74,11 @@ def test_alien_invasion_ai_forget(tmp_path: Path) -> None:
     brain.forget()
     assert brain.state["runs"] == 0
     assert brain.state["best_time"] is None
-    assert brain.state["weights"] == {"aggression": 0.5, "caution": 0.5, "charge": 0.3}
+    assert brain.state["weights"] == {
+        "aggression": 0.5,
+        "caution": 0.5,
+        "charge": 0.3,
+    }
     assert brain.state["network"]["w1"][0][0] != previous_network["w1"][0][0]
 
 
@@ -86,10 +103,12 @@ def test_hall_of_fame_sorts_and_limits_entries(tmp_path: Path) -> None:
     assert math.isclose(max(times_left), 30.0, rel_tol=0, abs_tol=0.01)
 
 
-def test_registry_refresh_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_registry_refresh_roundtrip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Refreshing the registry should produce descriptors for each game."""
 
-    from rng_minigames import load_registry, load_launcher, refresh_registry
+    from rng_minigames import load_launcher, load_registry, refresh_registry
 
     entries = refresh_registry()
     ids = {entry.id for entry in entries}

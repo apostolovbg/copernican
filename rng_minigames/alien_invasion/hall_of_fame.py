@@ -70,7 +70,9 @@ class HallOfFame:
         )
         for col in columns:
             tree.heading(col, text=col)
-            tree.column(col, width=120 if col != "Rank" else 60, anchor="center")
+            tree.column(
+                col, width=120 if col != "Rank" else 60, anchor="center"
+            )
         for idx, entry in enumerate(self.entries):
             tree.insert(
                 "",
