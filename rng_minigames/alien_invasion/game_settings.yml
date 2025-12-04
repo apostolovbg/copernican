@@ -1,0 +1,21 @@
+player:
+  shield: 50
+general:
+  shield: 20
+  max_speed: 7.0
+charges:
+  capacity: 3
+player_motion:
+  max_speed: 14.0
+  accel: 0.45
+  decel: 0.4
+  snap_error: 1.2
+explosion:
+  shard_count: 90
+  frame_ms: 40
+  violence_scale: 1.0
+player_explosion:
+  hold_seconds: 3.0
+debris:
+  count: 14
+  damages_all: false

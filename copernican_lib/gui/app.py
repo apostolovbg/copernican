@@ -43,6 +43,7 @@ except Exception:  # pragma: no cover - executed only when Tk is missing
 
 import yaml
 
+import rng_minigames
 from copernican_lib import (
     console_output,
     dataset_registry,
@@ -56,11 +57,6 @@ from copernican_lib.engine_capabilities import (
     EngineCapabilities,
     EngineSetting,
     get_engine_capabilities,
-)
-from copernican_lib.gui.minigames import (
-    launch_alien_invasion,
-    launch_constellation,
-    launch_emoji_meteors,
 )
 from copernican_lib.run_lifecycle import (
     ManifestWorkspace,
@@ -318,6 +314,7 @@ class CopernicanGUI:
         self.diagnostics_filter_level = "INFO"
         self.monitor_filter_level = "INFO"
         self.diagnostics_clipboard = ""
+        self._minigame_catalog = rng_minigames.load_registry()
         self.run_clipboard = ""
         self.alerts: list[UIMessage] = []
         self.inline_messages: list[UIMessage] = []
@@ -658,19 +655,20 @@ class CopernicanGUI:
         try:
             self.root = tk.Tk()
             self.root.title(f"Copernican Suite {self.gui_version}")
-            self.root.geometry("1200x800")
-            self.root.minsize(width=800, height=600)
+            screen_width = max(self.root.winfo_screenwidth(), 1)
+            screen_height = max(self.root.winfo_screenheight(), 1)
+            preferred_width, preferred_height = (
+                (1200, 900)
+                if screen_width > 1280 and screen_height > 900
+                else (1100, 670)
+            )
+            self.root.geometry(f"{preferred_width}x{preferred_height}")
+            self.root.minsize(width=900, height=670)
             self.root.configure(padx=0, pady=0)
-            try:
-                self.root.lift()
-                self.root.attributes("-topmost", True)
-                self.root.after(
-                    1500, lambda: self.root.attributes("-topmost", False)
-                )
-            except Exception:
-                pass
             self._ensure_monitor_button_styles()
             self._build_layout()
+            if self.root is not None:
+                self.root.after(10, self._raise_root_window)
         except Exception as exc:  # pragma: no cover - only hits Tk failures
             console_output.write(
                 (
@@ -696,6 +694,23 @@ class CopernicanGUI:
                 )
             except Exception:
                 pass
+
+    def _raise_root_window(self) -> None:
+        """Bring the GUI window to the foreground when it launches."""
+
+        if not self.render or self.root is None:
+            return
+        try:
+            self.root.deiconify()
+            self.root.lift()
+            self.root.focus_force()
+            self.root.attributes("-topmost", True)
+            self.root.after(
+                1500,
+                lambda: self.root and self.root.attributes("-topmost", False),
+            )
+        except Exception:
+            pass
 
     def _data_root(self) -> str:
         """Return the absolute data directory used for catalogue scans.
@@ -1082,6 +1097,42 @@ class CopernicanGUI:
             console_output.write(
                 f"Unable to open folder {path}: {exc}", error=True
             )
+
+    def _launch_minigame(
+        self, minigame_id: str, seed_var: "tk.StringVar"
+    ) -> None:
+        """Import and launch a mini-game on-demand."""
+
+        try:
+            launcher = rng_minigames.load_launcher(minigame_id)
+        except KeyError:
+            self.create_toast(
+                f"Unknown mini-game '{minigame_id}'.",
+                severity="ERROR",
+                context="seed",
+            )
+            return
+        except Exception as exc:  # pragma: no cover - import failure path
+            log_mod.error(
+                "Failed to import mini-game %s: %s",
+                minigame_id,
+                exc,
+            )
+            self.create_toast(
+                f"Could not load mini-game: {exc}",
+                severity="ERROR",
+                context="seed",
+            )
+            return
+        context = rng_minigames.MinigameContext(
+            set_seed=lambda value: seed_var.set(value),
+            notify=lambda msg, severity="INFO": self.create_toast(
+                msg, severity=severity, context="seed"
+            ),
+            render=self.render,
+            tk_root=self.root,
+        )
+        launcher(context)
 
     def open_output_directory(self) -> str:
         """Ensure the output directory exists and open it for the user."""
@@ -2412,29 +2463,70 @@ class CopernicanGUI:
                 command=action,
             ).pack(anchor="w", pady=2, ipadx=8, ipady=4)
 
+        env_seed = os.environ.get("COPERNICAN_SEED")
+        self._build_seed_button_column(button_column, seed_var, env_seed)
+
+    def _build_seed_button_column(
+        self,
+        container: tk.Frame,
+        seed_var: "tk.StringVar",
+        env_seed: str | None,
+    ) -> None:
+        for child in container.winfo_children():
+            child.destroy()
+
+        def _add_seed_button(label: str, action: Callable[[], None]) -> None:
+            ttk.Button(
+                container,
+                text=label,
+                command=action,
+            ).pack(anchor="w", pady=2, ipadx=8, ipady=4)
+
         _add_seed_button("Default (0)", lambda: seed_var.set("0"))
         _add_seed_button(
             "Random timestamp",
             lambda: seed_var.set(str(int(time.time()))),
         )
-        _add_seed_button(
-            "Alien invasion",
-            lambda: launch_alien_invasion(self, seed_var),
-        )
-        _add_seed_button(
-            "Emoji meteors",
-            lambda: launch_emoji_meteors(self, seed_var),
-        )
-        _add_seed_button(
-            "Constellation",
-            lambda: launch_constellation(self, seed_var),
-        )
-        env_seed = os.environ.get("COPERNICAN_SEED")
+        for descriptor in self._minigame_catalog:
+            _add_seed_button(
+                descriptor.name,
+                lambda game_id=descriptor.id: self._launch_minigame(
+                    game_id, seed_var
+                ),
+            )
         if env_seed:
             _add_seed_button(
                 "Use COPERNICAN_SEED",
                 lambda: seed_var.set(env_seed),
             )
+        _add_seed_button(
+            "Refresh RNG mini-games",
+            lambda: self._refresh_minigame_catalog(
+                container, seed_var, env_seed
+            ),
+        )
+
+    def _refresh_minigame_catalog(
+        self,
+        container: tk.Frame,
+        seed_var: "tk.StringVar",
+        env_seed: str | None,
+    ) -> None:
+        try:
+            self._minigame_catalog = rng_minigames.refresh_registry()
+        except Exception as exc:
+            self.create_toast(
+                f"Mini-game refresh failed: {exc}",
+                severity="ERROR",
+                context="seed",
+            )
+            return
+        self.create_toast(
+            "Mini-games refreshed from rng_minigames/",
+            severity="INFO",
+            context="seed",
+        )
+        self._build_seed_button_column(container, seed_var, env_seed)
 
     def _render_builder_step_models(self, container: tk.Frame) -> None:
         ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
@@ -2620,7 +2712,7 @@ class CopernicanGUI:
         )
         catalogue_panel = ttk.Frame(container)
         catalogue_panel.pack(fill="x", pady=(6, 0))
-        dropdown_vars: dict[str, tk.StringVar] = {}
+        dropdown_widgets: dict[str, ttk.Combobox] = {}
         id_lookup: dict[str, tuple[str, int]] = {}
 
         def _add_dataset_section(
@@ -2638,23 +2730,22 @@ class CopernicanGUI:
                 ),
                 takefocus=True,
             ).pack(anchor="w", pady=(4, 2))
-            menu_frame = ttk.Frame(parent, width=width_px)
-            menu_frame.pack(anchor="w", pady=(0, 4))
-            menu_frame.pack_propagate(False)
+            combo_frame = ttk.Frame(parent, width=width_px)
+            combo_frame.pack(anchor="w", pady=(0, 16))
             placeholder = "Select dataset…"
             values = [
                 f"{record['id']} – {record.get('name', record['id'])}"
                 for record in records
             ]
-            var = tk.StringVar(value=placeholder)
-            option = ttk.OptionMenu(
-                menu_frame,
-                var,
-                placeholder,
-                *([placeholder] + values),
+            combo = ttk.Combobox(
+                combo_frame,
+                values=[placeholder] + values,
+                state="readonly",
+                width=max(40, width_px // 9),
             )
-            option.pack(fill="both", expand=True)
-            dropdown_vars[dtype] = var
+            combo.current(0)
+            combo.pack(fill="both", expand=True)
+            dropdown_widgets[dtype] = combo
             for index, record in enumerate(records):
                 id_lookup[record["id"]] = (dtype, index)
 
@@ -2674,22 +2765,11 @@ class CopernicanGUI:
             selection_map.clear()
             selected_records: list[dict] = []
             for dtype in ordered_types:
-                var = dropdown_vars[dtype]
-                choice = var.get()
-                if not choice or choice.startswith("Select"):
+                combo = dropdown_widgets[dtype]
+                index = combo.current()
+                if index is None or index <= 0:
                     continue
-                record = next(
-                    (
-                        rec
-                        for rec in type_groups[dtype]
-                        if choice
-                        == f"{rec['id']} – {rec.get('name', rec['id'])}"
-                    ),
-                    None,
-                )
-                if record is None:
-                    continue
-
+                record = type_groups[dtype][index - 1]
                 selection_map[dtype] = record
                 selected_records.append(record)
             self.selected_datasets = [
@@ -2720,37 +2800,29 @@ class CopernicanGUI:
                 )
             self._refresh_builder_step_indicators()
 
-        def _make_trace(dtype: str) -> None:
-            var = dropdown_vars[dtype]
+        def _make_bind(dtype: str) -> None:
+            combo = dropdown_widgets[dtype]
 
-            def _trace(*_args: object) -> None:
-                choice = var.get()
-                if not choice or choice.startswith("Select"):
-                    focus_state["record"] = None
-                else:
-                    for index, record in enumerate(type_groups[dtype]):
-                        label = (
-                            f"{record['id']} – "
-                            f"{record.get('name', record['id'])}"
-                        )
-                        if label == choice:
-                            focus_state["record"] = record
-                            break
+            def _on_select(_event: tk.Event | None = None) -> None:
+                index = combo.current()
+                focus_state["record"] = (
+                    type_groups[dtype][index - 1]
+                    if index and index > 0
+                    else None
+                )
                 _refresh_data_selection()
 
-            var.trace_add("write", _trace)
+            combo.bind("<<ComboboxSelected>>", _on_select)
 
         for dtype in ordered_types:
-            _make_trace(dtype)
+            _make_bind(dtype)
 
         for dataset in self.selected_datasets:
             lookup = id_lookup.get(dataset["id"])
             if lookup:
                 dtype, index = lookup
-                record = type_groups[dtype][index]
-                dropdown_vars[dtype].set(
-                    f"{record['id']} – {record.get('name', record['id'])}"
-                )
+                combo = dropdown_widgets[dtype]
+                combo.current(index + 1)
         _refresh_data_selection()
         action_row = ttk.Frame(container)
         action_row.pack(anchor="w")

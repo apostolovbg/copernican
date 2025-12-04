@@ -21,7 +21,7 @@ class VersionSyncCheck(PolicyCheck):
     """Ensure README, pyproject, CITATION and VERSION agree on the version."""
 
     policy_id = "version-sync"
-    version = "1.1.0"
+    version = "1.2.0"
 
     def check(self, context: CheckContext) -> List[Violation]:
         """Check for version synchronization across metadata files."""
@@ -183,6 +183,38 @@ class VersionSyncCheck(PolicyCheck):
                 )
             )
 
+        # Prevent runtime code from hard-coding the suite version.
+        runtime_hits: List[Path] = []
+        for runtime_file in self._runtime_python_files(context.repo_root):
+            try:
+                contents = runtime_file.read_text(encoding="utf-8")
+            except OSError as exc:
+                violations.append(
+                    Violation(
+                        policy_id=self.policy_id,
+                        severity="error",
+                        file_path=runtime_file,
+                        message=f"Cannot read runtime file: {exc}",
+                    )
+                )
+                continue
+
+            if version in contents:
+                runtime_hits.append(runtime_file)
+
+        for runtime_file in runtime_hits:
+            violations.append(
+                Violation(
+                    policy_id=self.policy_id,
+                    severity="error",
+                    file_path=runtime_file,
+                    message=(
+                        f"Hard-coded suite version {version}; "
+                        "call copernican_lib.version.get_version() instead"
+                    ),
+                )
+            )
+
         return violations
 
     @staticmethod
@@ -194,3 +226,19 @@ class VersionSyncCheck(PolicyCheck):
         if not isinstance(project, dict):
             return None
         return project.get("version")
+
+    def _runtime_python_files(self, repo_root: Path) -> List[Path]:
+        """Return Python files that represent runtime entrypoints."""
+        runtime_files: List[Path] = []
+
+        copernican_entry = repo_root / "copernican.py"
+        if copernican_entry.is_file():
+            runtime_files.append(copernican_entry)
+
+        for folder_name in ("copernican_lib", "engines"):
+            root = repo_root / folder_name
+            if not root.exists():
+                continue
+            runtime_files.extend(root.rglob("*.py"))
+
+        return runtime_files

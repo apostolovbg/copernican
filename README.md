@@ -168,7 +168,7 @@ and citation information appears in [CITATION.cff](CITATION.cff).
 23. [Launchers and GUI](docs/launcher_gui.md)
 24. [GUI Guide](docs/gui_guide.md)
 25. [CLI Guide](docs/cli_guide.md)
-26. [Mini-game Seed Tools](docs/minigames.md)
+26. [Mini-game Seed Tools](rng_minigames/README.md)
 
 ---
 
@@ -467,9 +467,21 @@ The GUI seed page also exposes optional mini-games—Emoji Meteors,
 Constellation and Alien Invasion—that forge playful RNG seeds while
 remaining fully deterministic. The Default (0), Random timestamp and mini-game
 buttons now stack vertically so keyboard focus follows a single column, and the
-implementations live in `copernican_lib/gui/minigames/` (one module per game).
-See [docs/minigames.md](docs/minigames.md) for the gameplay details and
-guidance on adding new experiences.
+implementations live inside the new `rng_minigames/` marsupial project so they
+can be vendored into other repositories without touching Copernican internals.
+Mini-games reload automatically every time they launch, so editing a game’s
+files and closing the modal is enough to test changes—no need to restart the
+Copernican GUI.
+Alien Invasion also ships with a **Let AI take care** autopilot and a Hall of
+Fame scoreboard: both persist their state inside the mini-game’s own
+`_storage/` directory (for example,
+`rng_minigames/alien_invasion/_storage/alien_invasion_ai_state.yml`). Every
+autopilot session—whether a single Let AI take care run or a full
+**Let AI learn** loop—feeds back into the AI’s heuristics. The modal also
+includes **Pause/Resume** and **Let AI forget** controls so you can reset the AI
+“university notes” file without leaving the GUI. See
+[rng_minigames/README.md](rng_minigames/README.md) for the gameplay details,
+the registry format and the embeddable launcher API.
 
 ### Interpreting the new convergence diagnostics
 

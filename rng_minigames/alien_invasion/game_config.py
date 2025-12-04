@@ -1,0 +1,59 @@
+"""Game settings loader for Alien Invasion."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Dict
+
+import yaml
+
+DEFAULT_SETTINGS: Dict[str, Any] = {
+    "player": {"shield": 50},
+    "general": {"shield": 20, "max_speed": 7.0},
+    "charges": {"capacity": 3},
+    "player_motion": {
+        "max_speed": 14.0,
+        "accel": 0.45,
+        "decel": 0.4,
+        "snap_error": 1.2,
+    },
+    "explosion": {
+        "shard_count": 90,
+        "frame_ms": 40,
+        "violence_scale": 1.0,
+    },
+    "player_explosion": {
+        "hold_seconds": 5.0,
+    },
+    "debris": {
+        "count": 14,
+        "damages_all": False,
+    },
+}
+
+
+def _merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    result = dict(base)
+    for key, value in override.items():
+        if (
+            key in result
+            and isinstance(result[key], dict)
+            and isinstance(value, dict)
+        ):
+            result[key] = _merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def load_settings() -> Dict[str, Any]:
+    """Read game settings YAML, falling back to built-in defaults."""
+
+    path = Path(__file__).with_name("game_settings.yml")
+    try:
+        data = yaml.safe_load(path.read_text()) or {}
+    except FileNotFoundError:
+        data = {}
+    except Exception:
+        data = {}
+    return _merge(DEFAULT_SETTINGS, data)

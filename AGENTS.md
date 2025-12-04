@@ -116,6 +116,19 @@ run manifest and logged so analyses can be reproduced.  The launcher keeps a
 blank spacer after logging initialisation—replacing the retired "Copernican has
 initialised" banner—so the Stage 1 configuration menu aligns with historical
 spacing without repeating redundant text.
+GUI users can also forge deterministic seeds via the mini-games described in
+[`rng_minigames/README.md`](rng_minigames/README.md). Emoji Meteors,
+Constellation and Alien Invasion each expose the same manifest pipeline while
+offering playful interfaces, and the entire `rng_minigames/` tree can be dropped
+into other repositories as a standalone RNG project. Modules reload
+automatically whenever a game launches, so editing a mini-game and reopening its
+window is enough to test changes. Whenever a new mini-game
+ships, update that document, this file and the README entry so every contributor
+knows where the helpers live and how to extend them responsibly. Alien Invasion
+now includes a **Let AI take care** autopilot, **Let AI learn** (continuous
+training loop where every sortie runs back-to-back), **Let AI forget** (wipes
+`alien_invasion/_storage/alien_invasion_ai_state.yml`) and a Hall of Fame
+scoreboard stored alongside the game assets.
 
 The program enables Python's ``faulthandler`` at startup and registers
 ``SIGILL``, ``SIGSEGV`` and ``SIGFPE`` handlers. When triggered, they dump
@@ -622,7 +635,7 @@ id: version-sync
 status: updated
 severity: error
 auto_fix: false
-updated: true
+updated: false
 applies_to: copernican_lib/VERSION,README.md,CITATION.cff,pyproject.toml
 ```
 

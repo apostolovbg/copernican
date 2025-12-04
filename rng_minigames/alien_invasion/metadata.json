@@ -1,0 +1,7 @@
+{
+  "id": "alien_invasion",
+  "name": "Alien Invasion",
+  "module": "rng_minigames.alien_invasion",
+  "callable": "launch_alien_invasion",
+  "description": "Defend Earth from invaders; kill order and runtime forge the seed."
+}

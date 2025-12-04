@@ -12,8 +12,7 @@ except Exception:  # pragma: no cover - executed on headless environments
     tk = None
     ttk = None
 
-if TYPE_CHECKING:  # pragma: no cover - imported for typing only
-    from copernican_lib.gui.app import CopernicanGUI
+from rng_minigames.api import MinigameContext
 
 _EMOJI_METEOR_CHOICES = [
     "🐱",
@@ -48,9 +47,7 @@ _EMOJI_METEOR_CHOICES = [
 ]
 
 
-def launch_emoji_meteors(
-    host: "CopernicanGUI", seed_var: "tk.StringVar"
-) -> None:
+def launch_emoji_meteors(context: MinigameContext) -> None:
     """Open an interactive emoji picker that forges a whimsical seed."""
 
     def _apply_seed(picks: list[str]) -> None:
@@ -58,21 +55,20 @@ def launch_emoji_meteors(
             return
         value = "".join(f"{ord(symbol) % 1000:03d}" for symbol in picks)
         seed_value = value.lstrip("0") or "0"
-        seed_var.set(seed_value)
-        host.create_toast(
+        context.set_seed(seed_value)
+        context.notify(
             f"Emoji meteors {' '.join(picks)} forged seed {seed_value}.",
-            severity="INFO",
-            context="seed",
+            "INFO",
         )
 
-    if not host.render or tk is None or host.root is None:
+    if not context.render or tk is None or context.tk_root is None:
         _apply_seed(random.sample(_EMOJI_METEOR_CHOICES, 5))
         return
 
-    window = tk.Toplevel(host.root)
+    window = tk.Toplevel(context.tk_root)
     window.title("Emoji meteors")
     window.resizable(False, False)
-    window.transient(host.root)
+    window.transient(context.tk_root)
     canvas_width = 760
     canvas_height = 480
     canvas = tk.Canvas(

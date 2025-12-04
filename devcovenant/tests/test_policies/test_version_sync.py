@@ -95,3 +95,36 @@ class TestVersionSyncPolicy(unittest.TestCase):
                 v for v in violations if "pyproject.toml version" in v.message
             ]
             self.assertTrue(mismatch)
+
+    def test_flags_hardcoded_runtime_version(self):
+        """Policy should reject hard-coded versions in runtime code."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+
+            version_dir = repo_root / "copernican_lib"
+            version_dir.mkdir()
+            version_file = version_dir / "VERSION"
+            version_file.write_text("1.0.0\n")
+
+            readme = repo_root / "README.md"
+            readme.write_text("**Version:** 1.0.0\n")
+
+            citation = repo_root / "CITATION.cff"
+            citation.write_text('version: "1.0.0"\nversion: "1.0.0"\n')
+
+            self._write_pyproject(repo_root, "1.0.0")
+
+            runtime_file = repo_root / "copernican.py"
+            runtime_file.write_text('APP_VERSION = "1.0.0"\n')
+
+            context = CheckContext(repo_root=repo_root)
+            policy = VersionSyncCheck()
+            violations = policy.check(context)
+
+            hardcoded = [
+                v
+                for v in violations
+                if "Hard-coded suite version" in v.message
+            ]
+            self.assertEqual(len(hardcoded), 1)
+            self.assertEqual(hardcoded[0].file_path, runtime_file)
