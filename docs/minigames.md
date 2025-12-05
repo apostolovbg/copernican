@@ -7,11 +7,15 @@ guidelines.
 
 ## Quick reference
 
-- `rng_minigames/README.md` – authoritative guide for every mini-game plus the
-  embedding API.
+- `rng_minigames/README.md` – architectural overview, embedding guidance and
+  registry notes.
+- `rng_minigames/emoji_meteors/README.md`, `rng_minigames/constellation/README.md`
+  and `rng_minigames/alien_invasion/README.md` – game-specific docs that describe
+  controls, accessibility considerations and configuration files.
 - `rng_minigames/alien_invasion/ai_settings.yml` – tune the autopilot’s
-  exploration rate, kill rewards, time-pressure curve and learning speed
-  multiplier without touching Python code.
+  exploration rate, hidden-layer width, history window, kill rewards,
+  time-pressure curve and learning speed multiplier without touching Python
+  code.
 - `rng_minigames/alien_invasion/game_settings.yml` – adjust gameplay knobs such
   as player/general shields, movement acceleration and snap tolerances, Neutron
   charge capacity, explosion cadence and debris behaviour. Update-and-save is
@@ -19,3 +23,5 @@ guidelines.
   explosion parameters now govern both player and enemy blasts, while
   `player_explosion.hold_seconds` sets the defeat animation delay before an
   auto-reset and `debris.damages_all` enables or disables friendly-fire shrapnel.
+- `rng_minigames/CHANGELOG.md` – dedicated history for everything that changes
+  inside the RNG bundle.

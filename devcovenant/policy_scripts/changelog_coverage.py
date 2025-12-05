@@ -1,7 +1,8 @@
 """
 Policy: Changelog Coverage
 
-Ensures all changed files are documented in CHANGELOG.md.
+Ensures Copernican changes land in CHANGELOG.md and RNG mini-game changes
+land in rng_minigames/CHANGELOG.md.
 """
 
 import subprocess
@@ -11,17 +12,14 @@ from devcovenant.base import CheckContext, PolicyCheck, Violation
 
 
 class ChangelogCoverageCheck(PolicyCheck):
-    """
-    Verify that all modified files are mentioned in the latest
-    CHANGELOG.md entry.
-    """
+    """Verify that modified files are mentioned in the appropriate changelog."""
 
     policy_id = "changelog-coverage"
-    version = "1.0.0"
+    version = "2.0.0"
 
     def check(self, context: CheckContext) -> List[Violation]:
         """
-        Check if all changed files are documented in CHANGELOG.md.
+        Check if all changed files are documented in the relevant changelog.
 
         Args:
             context: Check context with repository info
@@ -29,9 +27,8 @@ class ChangelogCoverageCheck(PolicyCheck):
         Returns:
             List of violations (empty if all files are documented)
         """
-        violations = []
+        violations: List[Violation] = []
 
-        # Get list of changed files from git
         try:
             result = subprocess.run(
                 ["git", "diff", "--name-only", "HEAD"],
@@ -44,62 +41,108 @@ class ChangelogCoverageCheck(PolicyCheck):
                 f for f in result.stdout.strip().split("\n") if f
             ]
         except Exception:
-            # If git fails, skip this check
             return violations
 
         if not changed_files:
-            # No changes, nothing to check
             return violations
 
-        # Read CHANGELOG.md
-        changelog_path = context.repo_root / "CHANGELOG.md"
-        if not changelog_path.exists():
-            violations.append(
-                Violation(
-                    policy_id=self.policy_id,
-                    severity="error",
-                    message="CHANGELOG.md does not exist",
-                    suggestion="Create CHANGELOG.md and document your changes",
-                    can_auto_fix=False,
-                )
-            )
-            return violations
+        root_changelog = context.repo_root / "CHANGELOG.md"
+        rng_changelog = context.repo_root / "rng_minigames" / "CHANGELOG.md"
 
-        with open(changelog_path, "r", encoding="utf-8") as f:
-            changelog_content = f.read()
+        skip_files = {
+            "CHANGELOG.md",
+            "rng_minigames/CHANGELOG.md",
+            ".gitignore",
+            ".pre-commit-config.yaml",
+        }
 
-        # Check if each changed file is mentioned in the changelog
-        missing_files = []
+        main_files: List[str] = []
+        rng_files: List[str] = []
+
         for file_path in changed_files:
-            # Skip certain files
-            if file_path in [
-                "CHANGELOG.md",
-                ".gitignore",
-                ".pre-commit-config.yaml",
-            ]:
+            if file_path in skip_files:
                 continue
+            if file_path.startswith("rng_minigames/"):
+                rng_files.append(file_path)
+            else:
+                main_files.append(file_path)
 
-            # Check if file is mentioned in changelog
-            if file_path not in changelog_content:
-                missing_files.append(file_path)
-
-        if missing_files:
-            files_str = ', '.join(missing_files)
-            violations.append(
-                Violation(
-                    policy_id=self.policy_id,
-                    severity="error",
-                    file_path=changelog_path,
-                    message=(
-                        f"The following changed files are not "
-                        f"documented in CHANGELOG.md: {files_str}"
-                    ),
-                    suggestion=(
-                        f"Add entries to CHANGELOG.md documenting "
-                        f"changes to: {files_str}"
-                    ),
-                    can_auto_fix=False,
+        if main_files:
+            if not root_changelog.exists():
+                violations.append(
+                    Violation(
+                        policy_id=self.policy_id,
+                        severity="error",
+                        message="CHANGELOG.md does not exist",
+                        suggestion=(
+                            "Create CHANGELOG.md and document non-RNG changes"
+                        ),
+                        can_auto_fix=False,
+                    )
                 )
-            )
+            else:
+                root_content = root_changelog.read_text(encoding="utf-8")
+                missing = [
+                    path for path in main_files if path not in root_content
+                ]
+                if missing:
+                    files_str = ", ".join(missing)
+                    violations.append(
+                        Violation(
+                            policy_id=self.policy_id,
+                            severity="error",
+                            file_path=root_changelog,
+                            message=(
+                                "The following files are not mentioned in "
+                                f"CHANGELOG.md: {files_str}"
+                            ),
+                            suggestion=(
+                                "Add entries to CHANGELOG.md documenting "
+                                f"changes to: {files_str}"
+                            ),
+                            can_auto_fix=False,
+                        )
+                    )
+
+        if rng_files:
+            if not rng_changelog.exists():
+                violations.append(
+                    Violation(
+                        policy_id=self.policy_id,
+                        severity="error",
+                        message=(
+                            "rng_minigames/CHANGELOG.md does not exist, "
+                            "but files under rng_minigames/ changed"
+                        ),
+                        suggestion=(
+                            "Create rng_minigames/CHANGELOG.md and log the "
+                            "mini-game updates"
+                        ),
+                        can_auto_fix=False,
+                    )
+                )
+            else:
+                rng_content = rng_changelog.read_text(encoding="utf-8")
+                missing_rng = [
+                    path for path in rng_files if path not in rng_content
+                ]
+                if missing_rng:
+                    files_str = ", ".join(missing_rng)
+                    violations.append(
+                        Violation(
+                            policy_id=self.policy_id,
+                            severity="error",
+                            file_path=rng_changelog,
+                            message=(
+                                "The following files are not mentioned in "
+                                f"rng_minigames/CHANGELOG.md: {files_str}"
+                            ),
+                            suggestion=(
+                                "Add entries to rng_minigames/CHANGELOG.md "
+                                f"documenting changes to: {files_str}"
+                            ),
+                            can_auto_fix=False,
+                        )
+                    )
 
         return violations

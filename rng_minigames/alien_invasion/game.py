@@ -90,6 +90,18 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     player_explosion_end: float | None = None
     player_explosion_active = False
     player_auto_reset_handle: str | None = None
+    learning_stats = {
+        "runs": 0,
+        "wins": 0,
+        "losses": 0,
+        "kill_total": 0.0,
+        "kill_samples": 0,
+        "edge_total": 0.0,
+        "edge_samples": 0,
+    }
+    current_ai_kills = 0
+    current_edge_penalty = 0.0
+    current_edge_samples = 0
 
     def _clamp_learning_speed(value: int) -> int:
         return max(1, min(10, value))
@@ -599,6 +611,34 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         anchor="w", pady=(0, 4)
     )
     ai_stats_var = tk.StringVar()
+    ai_learning_var = tk.StringVar()
+
+    def _format_learning_summary() -> str:
+        runs = learning_stats["runs"]
+        wins = learning_stats["wins"]
+        losses = learning_stats["losses"]
+        total = max(1, wins + losses)
+        win_rate = (wins / total) * 100 if total else 0.0
+        kill_avg = (
+            learning_stats["kill_total"] / learning_stats["kill_samples"]
+            if learning_stats["kill_samples"]
+            else 0.0
+        )
+        edge_avg = (
+            learning_stats["edge_total"] / learning_stats["edge_samples"]
+            if learning_stats["edge_samples"]
+            else 0.0
+        )
+        edge_score = max(0.0, min(1.0, 1.0 - edge_avg)) * 100
+        return (
+            "Runs trained: {runs}     Win rate: {rate:.0f}%     "
+            "Avg kills: {kills:.1f}     Edge discipline: {edge:.0f}% center"
+        ).format(
+            runs=runs,
+            rate=win_rate,
+            kills=kill_avg,
+            edge=edge_score,
+        )
 
     def _update_ai_stats() -> None:
         runs = ai_brain.state.get("runs", 0)
@@ -609,11 +649,17 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 runs=runs, saved=saved, lost=lost
             )
         )
+        ai_learning_var.set(_format_learning_summary())
 
     _update_ai_stats()
     ttk.Label(
         status_frame,
         textvariable=ai_stats_var,
+        font=("Helvetica", 10, "normal"),
+    ).pack(anchor="w", pady=(0, 2))
+    ttk.Label(
+        status_frame,
+        textvariable=ai_learning_var,
         font=("Helvetica", 10, "normal"),
     ).pack(anchor="w", pady=(0, 8))
     button_bar = ttk.Frame(window)
@@ -633,6 +679,40 @@ def launch_alien_invasion(context: MinigameContext) -> None:
 
     def _ai_in_control() -> bool:
         return autopilot_active or learning_mode
+
+    def _sample_edge_discipline() -> None:
+        nonlocal current_edge_penalty, current_edge_samples
+        if not _ai_in_control():
+            return
+        margin = max(1.0, float(field_margin))
+        distance = min(player["x"], canvas_width - player["x"])
+        penalty = 0.0
+        if distance < margin:
+            penalty = min(1.0, (margin - distance) / margin)
+        current_edge_penalty += penalty
+        current_edge_samples += 1
+
+    def _finalize_learning_stats(success: bool) -> None:
+        nonlocal current_ai_kills, current_edge_penalty, current_edge_samples
+        if not _ai_in_control():
+            return
+        learning_stats["runs"] += 1
+        if success:
+            learning_stats["wins"] += 1
+        else:
+            learning_stats["losses"] += 1
+        learning_stats["kill_total"] += current_ai_kills
+        learning_stats["kill_samples"] += 1
+        avg_edge = (
+            current_edge_penalty / current_edge_samples
+            if current_edge_samples
+            else 0.0
+        )
+        learning_stats["edge_total"] += avg_edge
+        learning_stats["edge_samples"] += 1
+        current_ai_kills = 0
+        current_edge_penalty = 0.0
+        current_edge_samples = 0
 
     def _reward_enemy_destroyed(record: dict) -> None:
         if not _ai_in_control():
@@ -1258,6 +1338,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         if not controlling:
             return
         ai_brain.record_run(success=success, duration=duration)
+        _finalize_learning_stats(success)
         _update_ai_stats()
 
     def _cancel_timers() -> None:
@@ -1312,6 +1393,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         nonlocal pending_order, pending_duration, game_over, debris
         nonlocal player_hits, autopilot_active, ai_controller, completed_by_ai
         nonlocal paused, learning_mode, player_velocity, player_target_x
+        nonlocal current_ai_kills, current_edge_penalty, current_edge_samples
         _cancel_learning_restart()
         if paused:
             paused = False
@@ -1360,6 +1442,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         player_hits = 0
         player_velocity = 0.0
         player_target_x = canvas_width / 2
+        current_ai_kills = 0
+        current_edge_penalty = 0.0
+        current_edge_samples = 0
         completed_by_ai = False
         restart_ai = preserve_ai and ai_controller and ai_controller.running
         if ai_controller and ai_controller.running:
@@ -1475,7 +1560,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
 
     def _destroy_enemy(enemy_id: str, explosion: bool = False) -> None:
         nonlocal pending_order, pending_duration, game_over, general_hits
-        nonlocal completed_by_ai
+        nonlocal completed_by_ai, current_ai_kills
         record = enemy_data.get(enemy_id)
         if not record or not record["alive"]:
             return
@@ -1508,6 +1593,8 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             return
         canvas.delete(record["item"])
         record["alive"] = False
+        if _ai_in_control():
+            current_ai_kills += 1
         _reward_enemy_destroyed(record)
         destroyed_stack.append(enemy_id)
         kill_order.append(enemy_id)
@@ -2125,6 +2212,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             if game_over or paused:
                 break
             _update_player_motion()
+            _sample_edge_discipline()
             _update_entities()
         _update_status()
         tick_handle = _scaled_after(40, _tick)

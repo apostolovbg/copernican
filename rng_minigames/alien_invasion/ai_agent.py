@@ -26,16 +26,18 @@ INPUT_FEATURES = (
     "general_distance",
     "time_remaining_fraction",
 )
-HIDDEN_UNITS = 12
+DEFAULT_HIDDEN_UNITS = 12
 OUTPUT_UNITS = 3
-HISTORY_LIMIT = 320
+DEFAULT_HISTORY_LIMIT = 320
 RUN_DURATION_DEFAULT = 300.0
 
 
-def _initial_state() -> Dict[str, Any]:
+def _initial_state(
+    hidden_units: int = DEFAULT_HIDDEN_UNITS,
+) -> Dict[str, Any]:
     return {
         "weights": {"aggression": 0.5, "caution": 0.5, "charge": 0.3},
-        "network": _init_network(),
+        "network": _init_network(hidden_units),
         "best_time": None,
         "runs": 0,
         "worlds_saved": 0,
@@ -43,21 +45,21 @@ def _initial_state() -> Dict[str, Any]:
     }
 
 
-def _init_network() -> Dict[str, Any]:
+def _init_network(hidden_units: int = DEFAULT_HIDDEN_UNITS) -> Dict[str, Any]:
     """Create a small neural policy network."""
 
     rng = random.Random()
     network = {
         "input_size": len(INPUT_FEATURES),
-        "hidden_size": HIDDEN_UNITS,
+        "hidden_size": hidden_units,
         "output_size": OUTPUT_UNITS,
         "w1": [
             [rng.uniform(-0.3, 0.3) for _ in range(len(INPUT_FEATURES))]
-            for _ in range(HIDDEN_UNITS)
+            for _ in range(hidden_units)
         ],
-        "b1": [rng.uniform(-0.1, 0.1) for _ in range(HIDDEN_UNITS)],
+        "b1": [rng.uniform(-0.1, 0.1) for _ in range(hidden_units)],
         "w2": [
-            [rng.uniform(-0.25, 0.25) for _ in range(HIDDEN_UNITS)]
+            [rng.uniform(-0.25, 0.25) for _ in range(hidden_units)]
             for _ in range(OUTPUT_UNITS)
         ],
         "b2": [0.0 for _ in range(OUTPUT_UNITS)],
@@ -69,13 +71,19 @@ class AlienInvasionAI:
     """Self-adjusting pilot that persists a lightweight neural policy."""
 
     def __init__(self, storage_dir: Path) -> None:
+        self.settings = load_settings()
+        self.hidden_units = max(
+            1, int(self.settings.get("hidden_units", DEFAULT_HIDDEN_UNITS))
+        )
+        self.history_limit = max(
+            1, int(self.settings.get("history_limit", DEFAULT_HISTORY_LIMIT))
+        )
         self.state_path = storage_dir / "alien_invasion_ai_state.yml"
-        self.state: Dict[str, Any] = _initial_state()
+        self.state: Dict[str, Any] = _initial_state(self.hidden_units)
         self._history: List[Dict[str, Any]] = []
         self._time_pressure = 0.0
         self._intermediate_reward = 0.0
         self._kill_count = 0
-        self.settings = load_settings()
         self.exploration_rate = float(
             self.settings.get("exploration_rate", 0.75)
         )
@@ -103,6 +111,7 @@ class AlienInvasionAI:
             self.settings.get("run_duration_seconds", RUN_DURATION_DEFAULT)
         )
         self._load()
+        self._ensure_network()
 
     def decide(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
         """Return movement/shoot/charge decisions based on the snapshot."""
@@ -304,9 +313,11 @@ class AlienInvasionAI:
             self.state["weights"].update(data["weights"])
         network = data.get("network")
         if not isinstance(network, dict):
-            network = _init_network()
+            network = _init_network(self.hidden_units)
         else:
-            network = self._validate_or_reset_network(network)
+            network = self._validate_or_reset_network(
+                network, self.hidden_units
+            )
         self.state["network"] = network
         if "best_time" in data:
             self.state["best_time"] = data["best_time"]
@@ -335,7 +346,7 @@ class AlienInvasionAI:
     def forget(self) -> None:
         """Wipe the saved weights so the AI restarts from scratch."""
 
-        self.state = _initial_state()
+        self.state = _initial_state(self.hidden_units)
         self._history.clear()
         try:
             if self.state_path.exists():
@@ -350,19 +361,19 @@ class AlienInvasionAI:
 
     def _ensure_network(self) -> None:
         if "network" not in self.state:
-            self.state["network"] = _init_network()
+            self.state["network"] = _init_network(self.hidden_units)
         else:
             self.state["network"] = self._validate_or_reset_network(
-                self.state["network"]
+                self.state["network"], self.hidden_units
             )
 
     def _validate_or_reset_network(
-        self, network: Dict[str, Any]
+        self, network: Dict[str, Any], hidden_units: int
     ) -> Dict[str, Any]:
         try:
             if (
                 int(network.get("input_size")) != len(INPUT_FEATURES)
-                or int(network.get("hidden_size")) != HIDDEN_UNITS
+                or int(network.get("hidden_size")) != hidden_units
                 or int(network.get("output_size")) != OUTPUT_UNITS
             ):
                 raise ValueError("network dimensions mismatch")
@@ -370,7 +381,7 @@ class AlienInvasionAI:
                 [float(value) for value in row]
                 for row in network.get("w1", [])
             ]
-            if len(w1) != HIDDEN_UNITS:
+            if len(w1) != hidden_units:
                 raise ValueError("invalid w1 rows")
             for row in w1:
                 if len(row) != len(INPUT_FEATURES):
@@ -382,15 +393,15 @@ class AlienInvasionAI:
             if len(w2) != OUTPUT_UNITS:
                 raise ValueError("invalid w2 rows")
             for row in w2:
-                if len(row) != HIDDEN_UNITS:
+                if len(row) != hidden_units:
                     raise ValueError("invalid w2 cols")
             b1 = [float(value) for value in network.get("b1", [])]
             b2 = [float(value) for value in network.get("b2", [])]
-            if len(b1) != HIDDEN_UNITS or len(b2) != OUTPUT_UNITS:
+            if len(b1) != hidden_units or len(b2) != OUTPUT_UNITS:
                 raise ValueError("invalid bias length")
             return {
                 "input_size": len(INPUT_FEATURES),
-                "hidden_size": HIDDEN_UNITS,
+                "hidden_size": hidden_units,
                 "output_size": OUTPUT_UNITS,
                 "w1": w1,
                 "b1": b1,
@@ -398,7 +409,7 @@ class AlienInvasionAI:
                 "b2": b2,
             }
         except Exception:
-            return _init_network()
+            return _init_network(hidden_units)
 
     def _feature_vector(self, features: Dict[str, float]) -> List[float]:
         return [float(features[key]) for key in INPUT_FEATURES]
@@ -420,7 +431,7 @@ class AlienInvasionAI:
                 "charge": int(charge),
             }
         )
-        if len(self._history) > HISTORY_LIMIT:
+        if len(self._history) > self.history_limit:
             self._history.pop(0)
 
     def _forward(self, features: List[float]) -> Dict[str, float]:
@@ -434,7 +445,7 @@ class AlienInvasionAI:
     def _forward_internal(self, features: List[float]) -> Dict[str, Any]:
         network = self.state["network"]
         hidden: List[float] = []
-        for i in range(HIDDEN_UNITS):
+        for i in range(self.hidden_units):
             total = network["b1"][i]
             for j, value in enumerate(features):
                 total += network["w1"][i][j] * value
@@ -468,7 +479,7 @@ class AlienInvasionAI:
             passes += 1
         if magnitude > 4.5:
             passes += 1
-        recent_history = self._history[-HISTORY_LIMIT:]
+        recent_history = self._history[-self.history_limit :]
         history_len = len(recent_history)
         for _ in range(passes):
             for index, sample in enumerate(recent_history):
@@ -500,7 +511,7 @@ class AlienInvasionAI:
         network = self.state["network"]
 
         for out_idx in range(OUTPUT_UNITS):
-            for h_idx in range(HIDDEN_UNITS):
+            for h_idx in range(self.hidden_units):
                 delta = (
                     lr
                     * reward
@@ -515,7 +526,7 @@ class AlienInvasionAI:
             )
 
         hidden_deltas: List[float] = []
-        for h_idx in range(HIDDEN_UNITS):
+        for h_idx in range(self.hidden_units):
             influence = sum(
                 network["w2"][out_idx][h_idx] * output_deltas[out_idx]
                 for out_idx in range(OUTPUT_UNITS)
@@ -524,7 +535,7 @@ class AlienInvasionAI:
                 influence * (1 - forward["hidden"][h_idx] ** 2)
             )
 
-        for h_idx in range(HIDDEN_UNITS):
+        for h_idx in range(self.hidden_units):
             for in_idx, value in enumerate(sample["features"]):
                 delta = lr * reward * hidden_deltas[h_idx] * value
                 network["w1"][h_idx][in_idx] = self._clamp(

@@ -1,143 +1,81 @@
 # RNG Mini-games
 
-`rng_minigames/` is a self-contained collection of playful random-number
-generators. Each game produces a deterministic seed by capturing player
-interactions, hashing the result and calling a shared `MinigameContext`. Because
-the project ships as a marsupial folder, other applications can copy
-`rng_minigames/` verbatim, point their GUI at the registry and immediately gain
-the same seed-forging experience Copernican uses inside its Run Builder.
+`rng_minigames/` is a portable bundle of deterministic random-number games.
+Each title records player interactions, hashes the payload and emits a seed via
+`MinigameContext.set_seed`. Because the project is intentionally “marsupial,”
+other applications can copy the directory verbatim, run the registry and pick up
+the same playful seed-forging experience Copernican offers inside its GUI.
 
-- Every mini-game lives in its own directory with a `metadata.json` file and a
-  launcher module (for example, `emoji_meteors/metadata.json` and
-  `emoji_meteors/game.py`).
-- `registry.json` caches the discovered games. Calling
-  `rng_minigames.refresh_registry()` recomputes hashes and rewrites the file,
-  while `rng_minigames.load_registry()` returns the current descriptors.
-- `rng_minigames.api.MinigameContext` packages the host callbacks:
-  `set_seed(value)`, `notify(message, severity)` plus the `render` flag and the
-  optional Tk root window. Launchers call `context.set_seed` when finished so
-  hosts can update their manifests.
-- Seed consumers such as Copernican build their UI dynamically by iterating the
-  descriptors and calling `rng_minigames.load_launcher(game_id)` on demand. The
-  loader automatically reloads the module each time, so editing a game’s code
-  and closing its window is enough to test changes—no full application restart
-  required.
+## Architecture
 
-Each game only writes local data inside its folder—Alien Invasion, for example,
-stores AI progress inside `alien_invasion/_storage/`. Copying the directory into
-another repository preserves both the code and any accumulated scores without
-depending on Copernican’s `.cache` structure.
+- Every game lives inside `rng_minigames/<id>/` with a `metadata.json` descriptor
+  and a launcher module.
+- `registry.json` caches hashes for every descriptor/launcher pair. Call
+  `rng_minigames.refresh_registry()` after adding or editing a game so hosts can
+  verify integrity before loading it.
+- `rng_minigames.api.MinigameContext` packages the host’s callbacks
+  (`set_seed`, `notify`, optional Tk root and `render` flag). Launchers call the
+  provided functions when they complete or want to display toast messages.
+- `rng_minigames.load_launcher(game_id)` automatically reloads the module each
+  time it is invoked, making iterative development as simple as editing the file
+  and reopening the mini-game window. No GUI restart is required.
 
-## Emoji Meteors
-- **Flow**: click five falling animal emojis to "pet" them. Each selection
-  enlarges the emoji and the captured combination is hashed with the time spent
-  in the game.
-- **Extras**: Cute Enough confirms the generated seed, Try Again refreshes the
-  sky and Cancel closes the window. The mini-game falls back to a deterministic
-  random selection when GUI rendering is disabled.
+Each title only writes data inside its own folder—Alien Invasion persists state
+inside `_storage/`, for instance—so vendoring the directory preserves both the
+code _and_ accumulated scores.
 
-## Constellation
-- **Flow**: select ten stars on a dense field to weave a constellation. Each
-  pick draws lines between the stars and the final path plus completion time
-  determine the seed.
-- **Controls**: Left-click to add a star, right-click to remove one, and watch
-  the “Stars connected” counter climb toward ten. Try Again clears the canvas,
-  Cancel exits, and “Ad astra!” confirms once all ten stars are connected.
+## Available Games
 
-## Alien Invasion
-- **Flow**: future Earth pilots fend off four stacked rows of 16 invaders, a
-  support row of eight, and a roving general. Move the ship with the mouse,
-  left-click to fire lasers and right-click to launch stored space charges. A
-  capsule loads automatically the moment it touches your ship, so you only need
-  to focus on dodging and firing. Every destroyed ship records its ID; the kill
-  order plus total completion time forge the seed.
-- **Gameplay notes**:
-  - Your ship now carries a 50-hit shield. Each hit revives the most recently
-    destroyed invader, and if the shield collapses you must restart via Try
-    Again.
-  - The bold status line tracks your 50-hit shield alongside the general’s
-    shield, the Neutron charge stockpile and the live run timer so you always
-    know when either side is close to collapse and how long the attempt took.
-  - Space charges are rare (only one capsule drops at a time). Touching one
-    stores it automatically (up to three in reserve), and launching it sends a
-    slow-moving blue bomb that always triggers a massive chain explosion. Every
-    ship caught in that blast sheds a storm of debris that can knock you out of
-    position, so expect the skyline to rain shrapnel after a good hit.
-  - The lowermost Colonels wear heavy plating: they need five regular hits (or a
-    single space charge) before they explode and their bright shield border
-    thins as you chip away at it. The full-width row above them holds Majors
-    with one shield pip, and both ranks fire more frequently than the
-    Lieutenant rows stacked overhead.
-  - The roaming general now patrols a dedicated horizontal rail, picking new
-    waypoints across the skyline and dashing away the moment you fly beneath
-    him. He never leaves the field, yet keeps firing at your position until his
-    20-hit shield collapses.
-  - Darts can intercept each other mid-air, lasers vaporise debris, and the
-    skyline includes pine clusters, hills, cities and moonlit gradients so the
-    battlefield evolves as you play.
-  - The mini-game ends once all invaders are down and the Use Seed button
-    becomes available.
-  - A **Let AI take care** button spins up the `AlienInvasionAI` helper. It
-    honours the same 0.1 s firing cooldown, respects the player speed cap and
-    learns from every run by updating `_storage/alien_invasion_ai_state.yml`.
-    Toggle it off at any time to resume manual control; even one-off autopilot
-    sorties contribute to training.
-  - When your shield collapses the game now auto-resets after a short explosion
-    animation; pressing **Reset** respawns immediately, and continuous **Let AI
-    learn** loops skip the animation altogether so the AI can keep iterating.
-  - **Let AI learn** keeps launching AI-controlled runs back-to-back; wins still
-    land in the hall of fame and every finished run bumps the on-screen AI games
-    counter plus the “Everybody lives/Everybody dies” digits that track how many
-    worlds the autopilot has saved or doomed. Use **Let AI forget** to wipe
-    `alien_invasion/_storage/alien_invasion_ai_state.yml` via a Wipe/Pardon
-    dialog.
-  - **Pause/Resume** freezes the action mid-run so you can grab a capsule or
-    step away without losing progress, and the hall-of-fame button opens the
-    `_storage/alien_invasion_hof.yml` scoreboard from the same window.
+- [Emoji Meteors](emoji_meteors/README.md) – pet five falling animals; the order
+  and elapsed time define the seed.
+- [Constellation](constellation/README.md) – connect ten stars to weave a
+  constellation whose path becomes the seed payload.
+- [Alien Invasion](alien_invasion/README.md) – defend Earth, store Neutron
+  charges and optionally let the autopilot learn from every run.
 
-### Configuring Alien Invasion
+Every folder ships with a README describing controls, accessibility notes,
+seed-generation logic and any configuration files specific to that title.
 
-Alien Invasion exposes two YAML files alongside its code so downstream
-applications can rebalance the encounter without editing Python:
+## Configuration & Storage
 
-- `alien_invasion/ai_settings.yml` tweaks the autopilot—exploration rate,
-  learning speed multiplier, time-pressure curve, kill rewards and respawn
-  penalties. Editing the file takes effect on the next launch because the
-  settings loader runs every time the module is imported.
-- `alien_invasion/game_settings.yml` defines gameplay knobs: player/general
-  shields, general/max player speed limits, motion acceleration and snap
-  tolerances, Neutron charge capacity plus the explosion/debris behaviour (frame
-  cadence, shard volume, debris damage and more). Update the file to try out new
-  pacing without recompiling anything.
-- Global explosion settings now control both the player animation and the
-  charge-triggered chain reactions; `player_explosion.hold_seconds` sets how long
-  the defeat animation is shown before the auto-reset kicks in.
-- `debris.damages_all` toggles whether shrapnel from any source can hurt the
-  invading fleet as well as the player—flip it on for full friendly fire.
+- Alien Invasion exposes `alien_invasion/ai_settings.yml` (all autopilot tunables)
+  plus `alien_invasion/game_settings.yml` (shield counts, motion limits, debris
+  behaviour, etc.). Both files are hot-reloaded whenever the game launches.
+- Sample data and persistent state (AI weights, hall-of-fame entries) live in
+  `_storage/` under each game so the bundle remains self-contained.
+- Stateless titles such as Emoji Meteors and Constellation rely only on the
+  shared API and metadata.
 
-# Embedding the Mini-games
+## Documentation & Changelog
+
+- High-level architecture and embedding instructions live in this README.
+- Each mini-game folder provides its own README with gameplay and configuration
+  details.
+- RNG-specific history is recorded in `rng_minigames/CHANGELOG.md`. Copernican’s
+  root changelog only tracks non-RNG work; note every RNG edit in the local
+  changelog so downstream users can audit the bundle independently.
+
+## Embedding Checklist
 
 1. Vendor the entire `rng_minigames/` directory into your repository.
-2. Call `rng_minigames.load_registry()` to retrieve the list of available games.
-3. When a user launches a game, instantiate `rng_minigames.MinigameContext` with
-   your `set_seed` and `notify` callbacks plus any GUI toolkit handles.
-4. Pass that context object to the launcher returned by
-   `rng_minigames.load_launcher(descriptor.id)`.
+2. Call `rng_minigames.load_registry()` to enumerate available games.
+3. Instantiate `rng_minigames.MinigameContext` with `set_seed`, `notify` and an
+   optional Tk root (or `render=False` for headless environments).
+4. Load a launcher via `rng_minigames.load_launcher(descriptor.id)` and hand the
+   context to it.
 5. Offer a **Refresh** button that calls `rng_minigames.refresh_registry()` so
-   new games or metadata changes become available without restarting the host.
+   new games or metadata edits are recognised without restarting your UI.
 
-# Adding a New Game
+## Adding a Game
 
-1. Create a subdirectory (`rng_minigames/<game_id>/`) containing:
-   - `metadata.json` with `id`, `name`, `module`, `callable`, and `description`.
-   - A module exporting the callable declared in the metadata.
-   - Optional storage directories for AI brains, hall-of-fame files, etc.
-2. Implement the launcher so it accepts a single `MinigameContext`.
-3. Run `python - <<'PY'` sample? or simply call `rng_minigames.refresh_registry()`
-   to rebuild the hashes.
-4. Add or update tests under `rng_minigames/tests/`.
-5. Update this README (and any embedding host documentation) with the gameplay
-   summary and new ID.
+1. Create `rng_minigames/<game_id>/` with `metadata.json`, the launcher module
+   and any supporting assets.
+2. Update or add tests under `rng_minigames/tests/` if the new code requires
+   coverage.
+3. Run `rng_minigames.refresh_registry()` to regenerate `registry.json`.
+4. Document the gameplay in `rng_minigames/<game_id>/README.md`.
+5. Log the change in both `rng_minigames/CHANGELOG.md` and, if relevant, the
+   host application’s changelog.
 
-Following this pattern keeps RNG Mini-games portable—drop the folder into any
-Python project, refresh the registry and hook the launchers into your UI.
+Follow this blueprint and RNG Mini-games will remain easy to drop into any GUI
+that needs deterministic yet entertaining seed generators.

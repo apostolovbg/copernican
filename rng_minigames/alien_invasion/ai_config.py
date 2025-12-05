@@ -11,6 +11,8 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "exploration_rate": 0.75,
     "learning_speed": 10,
     "run_duration_seconds": 300,
+    "hidden_units": 12,
+    "history_limit": 320,
     "time_pressure": {
         "base": 0.6,
         "scale": 0.4,

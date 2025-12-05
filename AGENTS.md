@@ -116,19 +116,17 @@ run manifest and logged so analyses can be reproduced.  The launcher keeps a
 blank spacer after logging initialisation—replacing the retired "Copernican has
 initialised" banner—so the Stage 1 configuration menu aligns with historical
 spacing without repeating redundant text.
-GUI users can also forge deterministic seeds via the mini-games described in
-[`rng_minigames/README.md`](rng_minigames/README.md). Emoji Meteors,
-Constellation and Alien Invasion each expose the same manifest pipeline while
-offering playful interfaces, and the entire `rng_minigames/` tree can be dropped
-into other repositories as a standalone RNG project. Modules reload
-automatically whenever a game launches, so editing a mini-game and reopening its
-window is enough to test changes. Whenever a new mini-game
-ships, update that document, this file and the README entry so every contributor
-knows where the helpers live and how to extend them responsibly. Alien Invasion
-now includes a **Let AI take care** autopilot, **Let AI learn** (continuous
-training loop where every sortie runs back-to-back), **Let AI forget** (wipes
-`alien_invasion/_storage/alien_invasion_ai_state.yml`) and a Hall of Fame
-scoreboard stored alongside the game assets.
+GUI users can also forge deterministic seeds via the mini-games described under
+`rng_minigames/`. The top-level README covers the embedding API, while each
+folder (Emoji Meteors, Constellation, Alien Invasion, etc.) contains its own
+README with gameplay notes, accessibility tips and configuration files. Because
+the project is vendorable, contributors must keep those README files and
+`rng_minigames/CHANGELOG.md` current whenever they add content, tune the
+autopilot or edit the visuals. The Copernican README/AGENTS entries now only
+reference the bundle, so all authoritative documentation lives beside the code.
+Alien Invasion’s autopilot (**Let AI take care**, **Let AI learn**, **Let AI
+forget**) and modal controls (**Pause/Resume**, Hall of Fame) are documented in
+`rng_minigames/alien_invasion/README.md`.
 
 The program enables Python's ``faulthandler`` at startup and registers
 ``SIGILL``, ``SIGSEGV`` and ``SIGFPE`` handlers. When triggered, they dump
@@ -543,13 +541,18 @@ id: changelog-coverage
 status: active
 severity: error
 auto_fix: false
-updated: false
+updated: true
 applies_to: *
 ```
 
-All changed files must be documented in CHANGELOG.md. Compare `git diff
---name-only` against the newest changelog entry before every commit. Legacy
-`dev_note` headers should be migrated to the changelog when touched.
+All changed files must be documented in the appropriate changelog. Files under
+`rng_minigames/` (including its tests and documentation) must appear in
+`rng_minigames/CHANGELOG.md`, while every other change belongs in the root
+`CHANGELOG.md`. Compare `git diff --name-only` against the newest entry in the
+relevant file before every commit. Legacy `dev_note` headers should be migrated
+to the changelog when touched. **Explicitly enumerate every changed file in each
+entry**—the lint hook fails whenever any touched path is missing from the
+changelog summary.
 **Explicitly enumerate every changed file in each entry**—the lint hook fails
 whenever any touched path is missing from the changelog summary.
 

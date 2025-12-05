@@ -42,18 +42,19 @@ contextual two-line message under the buttons explains what needs to happen on
 each page. The steps are:
 
 1. **Seed** – Enter a numeric seed or accept the default. The GUI respects the
-   `COPERNICAN_SEED` environment variable and logs the final value into the run
-   manifest and summary tables. Default (0), Random timestamp, Alien Invasion,
-   Emoji Meteors, Constellation and the environment override buttons are
-   arranged in a single vertical stack so screen-readers and keyboard users can
-   tab through them predictably. The three mini-games are documented in
-   [`rng_minigames/README.md`](../rng_minigames/README.md) so contributors know how each title
-   works and how to add future games safely. Alien Invasion exposes both a
-   **Let AI take care** autopilot (which learns per workstation using cache
-   files) and a Hall of Fame leaderboard so players can compare the fastest
-   completions or let the AI practice on their behalf. The window also exposes
-   Pause/Resume, **Let AI learn** (continuous loops) and **Let AI forget**
-   controls, all documented in the mini-game guide.
+  `COPERNICAN_SEED` environment variable and logs the final value into the run
+  manifest and summary tables. Default (0), Random timestamp, Alien Invasion,
+  Emoji Meteors, Constellation and the environment override buttons are
+  arranged in a single vertical stack so screen-readers and keyboard users can
+  tab through them predictably. Mini-game documentation lives next to the code:
+  see [`rng_minigames/README.md`](../rng_minigames/README.md) for the API and the
+  per-game READMEs under `rng_minigames/<game>/` for rules, accessibility notes
+  and configuration settings. Alien Invasion exposes both a **Let AI take care**
+  autopilot (which learns per workstation using cache files) and a Hall of Fame
+  leaderboard so players can compare the fastest completions or let the AI
+  practice on their behalf. The window also exposes Pause/Resume, **Let AI
+  learn** (continuous loops) and **Let AI forget** controls, all documented in
+  the alien-invasion README.
 2. **Models** – Single-select list with quick metadata access. The preview pane
    stays pinned above the footer and shortens automatically so dataset controls
    remain visible.
