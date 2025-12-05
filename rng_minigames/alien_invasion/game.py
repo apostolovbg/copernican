@@ -582,6 +582,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     total_enemies = 0
     charge_capacity = max(1, int(charges_cfg.get("capacity", 3)))
     general_shield_max = max(1, int(general_cfg.get("shield", 20)))
+    base_general_shield_max = general_shield_max
     general_speed_limit = float(general_cfg.get("max_speed", 7.0))
     player_shield_max = max(1, int(player_cfg.get("shield", 50)))
     player_speed_limit = float(
@@ -591,9 +592,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         )
     )
     player_speed_limit = max(player_speed_limit, 1.0)
-    player_accel = max(0.05, float(motion_cfg.get("accel", 0.45)))
-    player_decel = max(0.05, float(motion_cfg.get("decel", 0.4)))
-    motion_snap_error = max(0.1, float(motion_cfg.get("snap_error", 1.2)))
+    player_accel = max(0.05, float(motion_cfg.get("accel", 0.75)))
+    player_decel = max(0.05, float(motion_cfg.get("decel", 0.65)))
+    motion_snap_error = max(0.1, float(motion_cfg.get("snap_error", 0.6)))
     explosion_shard_count = max(1, int(explosion_cfg.get("shard_count", 90)))
     explosion_frame_ms = max(10, int(explosion_cfg.get("frame_ms", 40)))
     explosion_violence = max(
@@ -708,6 +709,10 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             penalty = min(1.0, (margin - distance) / margin)
         current_edge_penalty += penalty
         current_edge_samples += 1
+        if penalty > 0.0:
+            ai_brain.penalize_edge(penalty)
+        else:
+            ai_brain.cool_edge_streak()
 
     def _finalize_learning_stats(success: bool) -> None:
         nonlocal current_ai_kills, current_edge_penalty, current_edge_samples
@@ -1069,7 +1074,14 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     debris: list[dict] = []
     enemy_data: dict[str, dict] = {}
     general_id: str | None = None
-    general_ai = {"target": None, "mode": "patrol", "cooldown": 0.0, "vx": 0.0}
+    general_ai = {
+        "target": None,
+        "mode": "patrol",
+        "cooldown": 0.0,
+        "vx": 0.0,
+        "retreat": False,
+        "retreat_target": None,
+    }
     charge_count = 0
     destroyed_stack: list[str] = []
     pending_order: list[str] | None = None
@@ -1077,11 +1089,21 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     game_over = False
     last_shooter: str | None = None
     general_hits = 0
+    def _minions_alive() -> bool:
+        return any(
+            record.get("alive")
+            and eid != general_id
+            for eid, record in enemy_data.items()
+        )
+
+    def _effective_general_shield_max() -> int:
+        return 1 if not _minions_alive() else base_general_shield_max
     player_hits = 0
     tick_handle: str | None = None
     fire_handle: str | None = None
     charge_handle: str | None = None
     general_fire_handle: str | None = None
+    general_barrage_cooldown = 0
 
     def _update_enemy_shield_visual(enemy_id: str) -> None:
         record = enemy_data.get(enemy_id)
@@ -1222,7 +1244,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                         row_positions.append(x)
                     if general:
                         rank = "general"
-                        max_hp = general_shield_max
+                        max_hp = base_general_shield_max
                     elif is_bottom:
                         rank = "colonel"
                         max_hp = 5
@@ -1331,7 +1353,8 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     def _update_status() -> None:
         elapsed = _elapsed_seconds()
         player_remaining = max(player_shield_max - player_hits, 0)
-        general_remaining = max(general_shield_max - general_hits, 0)
+        current_general_shield = _effective_general_shield_max()
+        general_remaining = max(current_general_shield - general_hits, 0)
         gap_primary = " " * 10
         gap_secondary = " " * 12
         gap_timer = " " * 10
@@ -1342,7 +1365,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         shield_status_var.set(
             f"Your shield: {player_remaining}/{player_shield_max}"
             f"{gap_primary}"
-            f"General shield: {general_remaining}/{general_shield_max}"
+            f"General shield: {general_remaining}/{current_general_shield}"
             f"{gap_secondary}Neutron charges: {charge_count}/{charge_capacity}"
             f"{gap_timer}Time left: {_format_time_left()}{urgency}"
         )
@@ -1586,11 +1609,11 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 rec["alive"] and not rec["general"]
                 for rec in enemy_data.values()
             )
-            if remaining and general_hits < general_shield_max:
+            if remaining and general_hits < _effective_general_shield_max():
                 general_hits += 1
                 action_var.set(
                     "The general deflects the blast "
-                    f"({general_hits}/{general_shield_max})."
+                    f"({general_hits}/{_effective_general_shield_max()})."
                 )
                 _update_status()
                 return
@@ -1621,7 +1644,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             )
             _spawn_debris(record["x"], record["y"], speed_scale=1.6)
         if record["general"]:
-            general_hits = general_shield_max
+            general_hits = _effective_general_shield_max()
         _update_status()
         if len(kill_order) >= total_enemies and total_enemies > 0:
             pending_order = kill_order[:]
@@ -1797,11 +1820,16 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         if paused:
             general_fire_handle = _scaled_after(600, _general_fire_cycle)
             return
-        if general_id:
-            bursts = random.randint(1, 4)
+        interval = random.randint(600, 1200)
+        if general_id and general_barrage_cooldown <= 0:
+            bursts = random.randint(1, 3)
             for _ in range(bursts):
                 _fire_enemy_shot(general_id, aim_for=player["x"])
-        interval = random.randint(600, 1200)
+            general_barrage_cooldown = random.randint(2200, 3600)
+        else:
+            general_barrage_cooldown = max(
+                0, general_barrage_cooldown - interval
+            )
         general_fire_handle = _scaled_after(interval, _general_fire_cycle)
 
     def _launch_bomb() -> None:
@@ -2094,6 +2122,11 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 )
                 gap = player["x"] - record["x"]
                 player_lingering = _player_lingering()
+                player_edge_distance = min(player["x"], canvas_width - player["x"])
+                near_player_edge = player_edge_distance < 90
+                near_player_edge = (
+                    min(player["x"], canvas_width - player["x"]) < 90
+                )
                 if player_lingering:
                     general_ai["mode"] = random.choice(["pressure", "harass"])
                     offset = 0.0
@@ -2102,11 +2135,26 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     general_ai["target"] = max(
                         safe_margin,
                         min(canvas_width - safe_margin, player["x"] + offset),
-                    )
+                        )
                     general_ai["cooldown"] = random.randint(15, 35)
                 elif general_ai.get("mode") == "pressure":
                     general_ai["mode"] = "patrol"
                     general_ai["cooldown"] = random.randint(50, 110)
+
+                if (
+                    near_player_edge
+                    and not general_ai.get("retreat", False)
+                    and random.random() < 0.4
+                ):
+                    far_side = (
+                        canvas_width - safe_margin
+                        if player["x"] < canvas_width / 2
+                        else safe_margin
+                    )
+                    general_ai["retreat"] = True
+                    general_ai["mode"] = "retreat"
+                    general_ai["retreat_target"] = far_side
+                    general_ai["cooldown"] = random.randint(60, 110)
 
                 if random.random() < 0.12 and general_ai.get("mode") not in (
                     "pressure",
@@ -2155,12 +2203,19 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                         )
                         general_ai["cooldown"] = random.randint(60, 140)
                 target = general_ai.get("target", canvas_width / 2)
+                if general_ai.get("retreat"):
+                    target = general_ai.get("retreat_target", target)
                 if (
                     abs(target - record["x"]) < 5
                     and general_ai["mode"] == "evade"
                 ):
                     general_ai["mode"] = "patrol"
                     general_ai["cooldown"] = random.randint(40, 100)
+                if general_ai.get("retreat") and abs(target - record["x"]) < 12:
+                    general_ai["retreat"] = False
+                    general_ai["retreat_target"] = None
+                    general_ai["mode"] = "patrol"
+                    general_ai["cooldown"] = random.randint(60, 120)
                 direction_to_target = 0
                 if target > record["x"]:
                     direction_to_target = 1

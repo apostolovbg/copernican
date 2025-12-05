@@ -8,8 +8,8 @@ from typing import Any, Dict
 import yaml
 
 DEFAULT_SETTINGS: Dict[str, Any] = {
-    "exploration_rate": 0.9,
-    "learning_speed": 10,
+    "exploration_rate": 0.7,
+    "learning_speed": 30,
     "run_duration_seconds": 300,
     "hidden_units": [40, 32, 24, 15, 12],
     "history_limit": 320,
@@ -20,16 +20,24 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
         "fallback": 0.8,
     },
     "kill_reward": {
-        "base": 0.7,
-        "general_bonus": 1.5,
-        "increment": 0.15,
-        "max_increment": 4,
+        "base": 1.4,
+        "general_bonus": 2.2,
+        "increment": 0.35,
+        "max_increment": 7,
     },
     "respawn_penalty": {
-        "lieutenant": 0.3,
-        "major": 0.5,
-        "colonel": 0.8,
+        "lieutenant": 0.05,
+        "major": 0.1,
+        "colonel": 0.2,
     },
+    "edge_penalty_multiplier": 8.0,
+    "edge_streak_scale": 3.0,
+    "edge_streak_decay": 1.5,
+    "initial_weights": {"aggression": 0.7, "caution": 0.3, "charge": 0.5},
+    "win_bonus": {"aggression": 0.2, "charge": 0.15, "caution": -0.05},
+    "loss_caution_cap": 1.1,
+    "kill_time_bonus": {"multiplier": 2.5, "exponent": 1.5},
+    "kill_drought_penalty": {"multiplier": 1.7, "kills": 1},
 }
 SETTINGS_PATH = Path(__file__).with_name("ai_settings.yml")
 

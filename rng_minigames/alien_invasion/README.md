@@ -14,6 +14,8 @@ given sequence of inputs so reproducibility never suffers.
   using a gentle acceleration/deceleration curve (think “car on ice”) capped at
   twice the general’s max speed. The craft returns to centre when the game
   resets.
+- The acceleration/deceleration curve now feels tighter so the ship responds
+  immediately to your mouse movements instead of wobbling.
 - **Fire** – Left-click to shoot. A short built-in cooldown mirrors the CLI
   engine so humans and the autopilot share the same capabilities.
 - **Space charges** – Right-click (or Ctrl-click) to expend a stored Neutron
@@ -42,9 +44,16 @@ training remains fast).
 - The general can only die after the main fleet is gone or after you land 20
   direct hits. He darts across a dedicated rail, alternates between pressure
   and patrol modes and fires straight down when you linger beneath him.
+- The general now pauses between barrages, so you can dive under him to draw
+  shots, and once every other enemy is gone his shield drops to a single dart
+  so you can finish him cleanly.
 - Enemy and player darts can destroy each other. Debris harms the player but
   never the invaders unless `debris.damages_all` is enabled in
   `_storage/game_settings.yml`.
+- The general now retreats all the way to the opposite rail whenever you camp
+  near a corner so you get a breather instead of staying pinned.
+- The general now drifts toward the opposite rail whenever you linger near a
+  corner, giving you a little breathing space instead of pinning you by the wall.
 - Shooting stars, city skylines, pine clusters and rolling hills are cosmetic,
   but they reinforce the feeling that you are defending Earth.
 
@@ -102,11 +111,35 @@ reopening the window is sufficient to try new behaviours.
 - `respawn_penalty` (`lieutenant`, `major`, `colonel`) – Deducted whenever a
   destroyed ship respawns (for example, after the player gets hit). Use higher
   values to encourage evasive behaviour.
+- `edge_penalty_multiplier` – Scales how harshly the autoscaler punishes
+  excursions near the screen edges; higher numbers make edge-camping more
+  expensive so the AI spends more time defending the centre line. The default
+  factor is now tuned so corner hugging still hurts but clean runs can recover.
+- `edge_streak_scale` – Applies a stacking penalty whenever the AI stays near
+  the edge for multiple frames; staying pinned in the corner rapidly saturates
+  the extra cost.
+- `edge_streak_decay` – Controls how quickly the accumulated streak penalty
+  unwinds once the AI leaves the wall; higher values let you clean the streak
+  faster so the brain can bounce back between runs.
+- `kill_time_bonus` – Parameters (`multiplier`, `exponent`) that apply an
+  exponential reward when the pilot kills more enemies in less time so fast,
+  aggressive sessions get amplified.
+- `kill_drought_penalty` – Applies a growing penalty whenever a run ends with
+  only a few kills for the time spent, so time-wasting sessions feel worse than
+  they did before.
+- `initial_weights` – Starting aggression/caution/charge weights. The defaults
+  now bias the brain toward aggression from the very first run so it doesn’t
+  retreat into cowardice before it learns to kill.
+- `win_bonus` – Manual adjustments applied after every successful run so
+  aggression/charge gets a boost and caution drops slightly, reinforcing wins.
+- `loss_caution_cap` – Prevents a single loss from inflating caution indefinitely.
 
 Tuning these values lets you experiment with aggressive or cautious play styles
-without touching Python code. Document every adjustment in
-`rng_minigames/CHANGELOG.md` so downstream teams know why the AI behaves
-differently.
+without touching Python code. The bundled defaults now bias toward aggressive,
+fast-learning behavior (high learning speed, steeper kill rewards, softer respawn
+penalties, and a heavy edge penalty) so the pilot quickly becomes a challenging,
+human-beating opponent. Document every adjustment in `rng_minigames/CHANGELOG.md`
+so downstream teams know why the AI behaves differently.
 
 ## Gameplay Settings (`_storage/game_settings.yml`)
 

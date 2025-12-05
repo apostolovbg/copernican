@@ -129,6 +129,7 @@ class AlienInvasionAI:
         self._time_pressure = 0.0
         self._intermediate_reward = 0.0
         self._kill_count = 0
+        self._edge_streak = 0.0
         self.exploration_rate = float(
             self.settings.get("exploration_rate", 0.9)
         )
@@ -152,6 +153,38 @@ class AlienInvasionAI:
             "colonel": float(respawn_cfg.get("colonel", 0.8)),
             "default": default_penalty,
         }
+        self.edge_penalty_multiplier = float(
+            self.settings.get("edge_penalty_multiplier", 8.0)
+        )
+        self.edge_streak_scale = float(
+            self.settings.get("edge_streak_scale", 3.0)
+        )
+        self.edge_streak_decay = float(
+            self.settings.get("edge_streak_decay", 1.5)
+        )
+        self.initial_weights = self.settings.get(
+            "initial_weights",
+            {"aggression": 0.7, "caution": 0.3, "charge": 0.5},
+        )
+        self.win_bonus = self.settings.get(
+            "win_bonus", {"aggression": 0.2, "charge": 0.15, "caution": -0.05}
+        )
+        self.loss_caution_cap = float(
+            self.settings.get("loss_caution_cap", 1.1)
+        )
+        self.kill_time_bonus = self.settings.get(
+            "kill_time_bonus", {"multiplier": 2.5, "exponent": 1.5}
+        )
+        drought_cfg = self.settings.get(
+            "kill_drought_penalty", {"multiplier": 1.7, "kills": 1}
+        )
+        self.kill_drought_multiplier = float(
+            drought_cfg.get("multiplier", 1.7)
+        )
+        self.kill_drought_kills = float(drought_cfg.get("kills", 1))
+        self.edge_streak_scale = float(
+            self.settings.get("edge_streak_scale", 5.0)
+        )
         self.max_run_duration = float(
             self.settings.get("run_duration_seconds", RUN_DURATION_DEFAULT)
         )
@@ -159,6 +192,8 @@ class AlienInvasionAI:
         self._ensure_network()
         if not self.state_path.exists():
             self._save()
+        if self.state.get("runs", 0) == 0:
+            self.state["weights"].update(self.initial_weights)
 
     def decide(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
         """Return movement/shoot/charge decisions based on the snapshot."""
@@ -251,6 +286,24 @@ class AlienInvasionAI:
         )
         self._intermediate_reward -= penalty
 
+    def penalize_edge(self, amount: float) -> None:
+        """Discourage the AI from hugging the screen edge."""
+
+        if amount <= 0:
+            return
+        self._edge_streak += amount
+        streak_penalty = self.edge_streak_scale * self._edge_streak
+        penalty_value = (
+            self.edge_penalty_multiplier * amount + streak_penalty
+        )
+        self._intermediate_reward -= penalty_value
+
+    def cool_edge_streak(self, decay: float = 0.3) -> None:
+        """Wind down the accumulated edge penalty when the AI leaves the wall."""
+
+        decay_value = decay if decay is not None else self.edge_streak_decay
+        self._edge_streak = max(0.0, self._edge_streak - decay_value)
+
     def _compute_time_pressure_value(self, fraction: float) -> float:
         clamped = max(0.0, min(1.0, fraction))
         return (
@@ -274,6 +327,12 @@ class AlienInvasionAI:
             speed_bonus = 6.0 * (0.3 + 0.7 * normalized)
             streak_bonus = 1.0 + self.state["worlds_saved"] * 0.06
             reward = 12.0 * streak_bonus + speed_bonus + 3.5
+        kill_rate = self._kill_count / max(duration if duration > 0 else 1.0, 1.0)
+        multiplier = float(self.kill_time_bonus.get("multiplier", 1.0))
+        exponent = float(self.kill_time_bonus.get("exponent", 1.0))
+        reward += multiplier * (kill_rate**exponent)
+        if self._kill_count <= self.kill_drought_kills:
+            reward -= self.kill_drought_multiplier * max(duration, 1.0)
             if best_time is None or duration < best_time:
                 self.state["best_time"] = duration
                 reward += 4.0
@@ -281,6 +340,9 @@ class AlienInvasionAI:
             weights["aggression"] += lr * (2.1 + victories * 0.08)
             weights["charge"] += lr * 0.55 * (1 + victories * 0.05)
             weights["caution"] -= lr * 0.4
+            for key, bonus in self.win_bonus.items():
+                if key in weights:
+                    weights[key] += bonus
         else:
             self.state["worlds_lost"] = self.state.get("worlds_lost", 0) + 1
             defeats = self.state["worlds_lost"]
@@ -288,6 +350,7 @@ class AlienInvasionAI:
             time_penalty = min(6.0, duration / 35.0)
             reward = -7.5 * penalty - time_penalty - 2.0
             weights["caution"] += lr * 1.0 * penalty
+            weights["caution"] = min(weights["caution"], self.loss_caution_cap)
             weights["aggression"] -= lr * 0.85 * penalty
             weights["charge"] -= lr * 0.25
         reward += self._intermediate_reward

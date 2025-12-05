@@ -27,6 +27,72 @@
             `rng_minigames/alien_invasion/game_settings.yml`,
             `rng_minigames/alien_invasion/_storage/.gitkeep`,
             `rng_minigames/alien_invasion/ai_settings.yml`).
+- 2025-12-05: Pushed a heavier edge discipline penalty into the autopilot
+            (`ai_settings.yml`, `rng_minigames/alien_invasion/ai_config.py`,
+            `rng_minigames/alien_invasion/ai_agent.py`, `rng_minigames/alien_invasion/game.py`,
+            `rng_minigames/alien_invasion/README.md`, `rng_minigames/CHANGELOG.md`).
+- 2025-12-05: Made the general back off to the opposite flank whenever you camp
+            near the edge so it doesn’t squeeze you into the corner
+            (`rng_minigames/alien_invasion/game.py`, `rng_minigames/alien_invasion/README.md`,
+            `rng_minigames/CHANGELOG.md`).
+- 2025-12-05: The general now flips into a retreat mode when you hug a corner,
+            lurching all the way to the far rail before resuming patrol so you
+            get some breathing room (`rng_minigames/alien_invasion/game.py`,
+            `rng_minigames/alien_invasion/README.md`,
+            `rng_minigames/CHANGELOG.md`).
+- 2025-12-05: Raised the edge-camping penalty multiplier to 6× and added a
+            probabilistic retreat fallback so the general only retreats when
+            you are putting him under too much pressure (`rng_minigames/alien_invasion/ai_settings.yml`,
+            `rng_minigames/alien_invasion/ai_config.py`,
+            `rng_minigames/alien_invasion/ai_agent.py`,
+            `rng_minigames/alien_invasion/game.py`,
+            `rng_minigames/alien_invasion/README.md`,
+            `rng_minigames/CHANGELOG.md`).
+- 2025-12-05: Re-tuned every AI runtime default (learning speed, exploration,
+            rewards, penalties, edge multiplier) so new installs boot straight
+            into a fast-learning, aggressive pilot that cements its strategy
+            quickly (`rng_minigames/alien_invasion/ai_config.py`,
+            `rng_minigames/alien_invasion/ai_settings.yml`,
+            `rng_minigames/alien_invasion/README.md`,
+            `rng_minigames/CHANGELOG.md`).
+- 2025-12-05: Made corner camping unbearable by raising the edge multiplier to
+            12×, introducing an escalating streak penalty, and emphasizing the
+            new parameters in the docs (`rng_minigames/alien_invasion/ai_config.py`,
+            `rng_minigames/alien_invasion/ai_settings.yml`,
+            `rng_minigames/alien_invasion/ai_agent.py`,
+            `rng_minigames/alien_invasion/README.md`,
+            `rng_minigames/CHANGELOG.md`).
+- 2025-12-05: Tuned the edge penalty defaults back toward the playable range while adding
+            a configurable decay so the AI can recover faster after a few clean runs
+            (`rng_minigames/alien_invasion/ai_config.py`, `rng_minigames/alien_invasion/ai_settings.yml`,
+            `rng_minigames/alien_invasion/ai_agent.py`, `rng_minigames/CHANGELOG.md`).
+- 2025-12-05: Added initial weight, win bonus and caution cap tuning plus story in the docs
+            so the pilot launches confidently, boosts aggression on wins and never
+            gets stuck as a coward after an edge-heavy loss
+            (`rng_minigames/alien_invasion/ai_config.py`,
+            `rng_minigames/alien_invasion/ai_settings.yml`,
+            `rng_minigames/alien_invasion/ai_agent.py`,
+            `rng_minigames/alien_invasion/README.md`,
+            `rng_minigames/CHANGELOG.md`).
+- 2025-12-05: Added the `kill_time_bonus` multiplier/exponent so rapid kills
+            now produce an exponential reward, encouraging the AI to be
+            aggressive and finish enemies quickly (`rng_minigames/alien_invasion/ai_config.py`,
+            `rng_minigames/alien_invasion/ai_settings.yml`,
+            `rng_minigames/alien_invasion/ai_agent.py`,
+            `rng_minigames/alien_invasion/README.md`,
+            `rng_minigames/CHANGELOG.md`).
+- 2025-12-05: Introduced `kill_drought_penalty`, a configurable stick that
+            punishes low-kill/long-duration runs so wasting time without scoring
+            is a sure way to boost caution (`rng_minigames/alien_invasion/ai_config.py`,
+            `rng_minigames/alien_invasion/ai_settings.yml`,
+            `rng_minigames/alien_invasion/ai_agent.py`,
+            `rng_minigames/alien_invasion/README.md`,
+            `rng_minigames/CHANGELOG.md`).
+- 2025-12-05: General barrages now rest between volleys and his shield drops to
+            1 when he is the last enemy alive, and the ship’s motion defaults
+            were tuned for a tighter, wobble-free feel so you can dive in for a
+            shot (`rng_minigames/alien_invasion/game.py`,
+            `rng_minigames/alien_invasion/README.md`, `rng_minigames/CHANGELOG.md`).
 - 2025-12-05: Restored the stacked Alien Invasion pilot defaults to a
             five-layer `40,32,24,15,12` network so freshly generated AI config
             files immediately train deeper brains and documented how to supply
