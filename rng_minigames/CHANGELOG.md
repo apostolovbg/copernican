@@ -1,6 +1,14 @@
 # RNG Mini-games Changelog
 
 ## Version 11.0.1
+- 2025-12-05: Removed stray Finder " 2" copies from the RNG docs and promoted
+            the Alien Invasion README duplicate to the canonical filename so
+            the bundle only ships one copy of each reference (rng_minigames/
+            CHANGELOG.md, rng_minigames/CHANGELOG 2.md,
+            rng_minigames/README 2.md,
+            rng_minigames/constellation/README 2.md,
+            rng_minigames/alien_invasion/README 2.md,
+            rng_minigames/alien_invasion/README.md).
 - 2025-12-05: Raised the Alien Invasion learning-speed cap to 60x while keeping
             the default 10x multiplier and tuned the fast-learning scheduler so
             continuous training sessions can run up to sixty times faster
