@@ -43,22 +43,32 @@ training remains fast).
   direct hits. He darts across a dedicated rail, alternates between pressure
   and patrol modes and fires straight down when you linger beneath him.
 - Enemy and player darts can destroy each other. Debris harms the player but
-  never the invaders unless `debris.damages_all` is enabled in `game_settings`.
+  never the invaders unless `debris.damages_all` is enabled in
+  `_storage/game_settings.yml`.
 - Shooting stars, city skylines, pine clusters and rolling hills are cosmetic,
   but they reinforce the feeling that you are defending Earth.
 
 ## Autopilot and Learning Modes
 
 `AlienInvasionAI` lives in `alien_invasion/ai_agent.py` and persists its state in
-`_storage/alien_invasion_ai_state.yml`. “Let AI take care” starts a single
+`_storage/alien_invasion_ai_state.yml`. The file is created automatically on the
+first launch (and ignored by Git) so every install keeps its own pilot history.
+“Let AI take care” starts a single
 autopilot run, while “Let AI learn” loops indefinitely, restarting a new sortie
 the moment the previous one ends. “Let AI forget” deletes the stored weights so
 the helper relearns from scratch. All autopilot attempts honor the same movement
 constraints that human players face, and every stitched run updates both the
 hall-of-fame board and the AI statistics banner (runs trained, win rate, average
 kills and edge discipline).
+The default brain now ships with a five-layer stack (40,32,24,15,12 neurons) so
+fresh installs immediately enjoy a deeper, more aggressive pilot.
 
 ## AI Settings Reference (`ai_settings.yml`)
+
+Copernican writes `ai_settings.yml` next to the game the first time you open the
+window. Deleting it regenerates the default template; otherwise the file is
+reused between runs so your preferred configuration sticks even after pulling
+updates.
 
 All knobs are hot-reloaded when the game launches, so editing the YAML and
 reopening the window is sufficient to try new behaviours.
@@ -72,9 +82,10 @@ reopening the window is sufficient to try new behaviours.
   movement/shoot/charge decisions instead of following the neural network’s
   recommendation. Higher values help the brain escape local optima (for example,
   edge camping).
-- `hidden_units` – Width of the neural network’s hidden layer. Increasing this
-  value adds more neurons and yields a richer policy at the cost of additional
-  training time and a heavier state file.
+- `hidden_units` – Comma-separated list or YAML array describing each hidden
+  layer. The default stack is `40,32,24,15,12`, giving the pilot five layers of
+  progressively narrower neurons. Add/remove entries to reshape the network;
+  wider/deeper layouts amplify learning capacity at the cost of training time.
 - `history_limit` – Number of recorded decision samples the trainer replays when
   adjusting the network after each run. Lower values focus on the most recent
   behaviour, while higher values preserve long-term context.
@@ -97,7 +108,10 @@ without touching Python code. Document every adjustment in
 `rng_minigames/CHANGELOG.md` so downstream teams know why the AI behaves
 differently.
 
-## Gameplay Settings (`game_settings.yml`)
+## Gameplay Settings (`_storage/game_settings.yml`)
+
+Copernican writes `game_settings.yml` into `_storage/` alongside the other
+runtime files. Deleting it regenerates the defaults on the next launch.
 
 - `player` / `general` blocks control shield counts and descriptive metadata
   shown in the status bar.
@@ -117,7 +131,11 @@ the CLI engines.
   historical metrics.
 - `_storage/alien_invasion_hof.yml` – Hall-of-fame entries (only the 10 fastest
   runs are kept).
+- `_storage/game_settings.yml` – User-tuned gameplay knobs (shields, debris,
+  motion parameters, etc.).
 
-Deleting either file resets the corresponding data. Both live alongside the game
-so the `rng_minigames/` folder stays self-contained when vendored into other
-projects.
+Deleting any of these files resets the corresponding data. The AI state file is
+deleted automatically when you choose **Let AI forget**, the hall of fame entry
+list is safe to clear whenever you want a fresh scoreboard, and `game_settings`
+regenerates with defaults whenever it is removed. All runtime data lives inside
+`_storage/` so the `rng_minigames/` folder stays self-contained when vendored.

@@ -20,10 +20,13 @@ class HallOfFame:
     """Lightweight YAML-backed scoreboard."""
 
     def __init__(self, storage_dir: Path, *, limit: int = 10) -> None:
+        storage_dir.mkdir(parents=True, exist_ok=True)
         self.limit = limit
         self.path = storage_dir / "alien_invasion_hof.yml"
         self.entries: List[dict[str, Any]] = []
         self._load()
+        if not self.path.exists():
+            self._save()
 
     def record(self, initials: str, time_left: float) -> None:
         """Persist a new run."""
@@ -91,6 +94,8 @@ class HallOfFame:
         try:
             data = yaml.safe_load(self.path.read_text()) or {}
         except Exception:
+            self.entries = []
+            self._save()
             return
         entries = data.get("entries", [])
         if isinstance(entries, list):

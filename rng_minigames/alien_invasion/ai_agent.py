@@ -114,6 +114,7 @@ class AlienInvasionAI:
     """Self-adjusting pilot that persists a lightweight neural policy."""
 
     def __init__(self, storage_dir: Path) -> None:
+        storage_dir.mkdir(parents=True, exist_ok=True)
         self.settings = load_settings()
         self.hidden_layers = _normalize_hidden_layers(
             self.settings.get("hidden_units", DEFAULT_HIDDEN_UNITS)
@@ -129,7 +130,7 @@ class AlienInvasionAI:
         self._intermediate_reward = 0.0
         self._kill_count = 0
         self.exploration_rate = float(
-            self.settings.get("exploration_rate", 0.75)
+            self.settings.get("exploration_rate", 0.9)
         )
         tp_settings = self.settings.get("time_pressure", {})
         self.tp_base = float(tp_settings.get("base", 0.6))
@@ -139,16 +140,16 @@ class AlienInvasionAI:
         kill_cfg = self.settings.get("kill_reward", {})
         self.kill_base = float(kill_cfg.get("base", 0.7))
         self.kill_general_bonus = float(kill_cfg.get("general_bonus", 1.5))
-        self.kill_increment = float(kill_cfg.get("increment", 0.08))
-        self.kill_increment_cap = float(kill_cfg.get("max_increment", 2.5))
+        self.kill_increment = float(kill_cfg.get("increment", 0.15))
+        self.kill_increment_cap = float(kill_cfg.get("max_increment", 4))
         respawn_cfg = self.settings.get("respawn_penalty", {})
-        default_penalty = float(respawn_cfg.get("default", 0.25))
+        default_penalty = float(respawn_cfg.get("default", 0.3))
         self.respawn_penalty = {
             "lieutenant": float(
                 respawn_cfg.get("lieutenant", default_penalty)
             ),
-            "major": float(respawn_cfg.get("major", 0.35)),
-            "colonel": float(respawn_cfg.get("colonel", 0.45)),
+            "major": float(respawn_cfg.get("major", 0.5)),
+            "colonel": float(respawn_cfg.get("colonel", 0.8)),
             "default": default_penalty,
         }
         self.max_run_duration = float(
@@ -156,6 +157,8 @@ class AlienInvasionAI:
         )
         self._load()
         self._ensure_network()
+        if not self.state_path.exists():
+            self._save()
 
     def decide(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
         """Return movement/shoot/charge decisions based on the snapshot."""
@@ -397,7 +400,6 @@ class AlienInvasionAI:
                 self.state_path.unlink()
         except Exception:
             pass
-        self._save()
 
     #
     # Neural helpers

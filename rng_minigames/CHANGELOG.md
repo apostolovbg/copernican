@@ -1,6 +1,39 @@
 # RNG Mini-games Changelog
 
 ## Version 11.0.1
+- 2025-12-05: Turned Alien Invasion's AI settings, hall-of-fame and neural state
+            files into runtime artifacts so every install keeps its own
+            configuration, auto-generated defaults appear on first launch and
+            Let AI forget rewrites the state file immediately (`.gitignore`,
+            `rng_minigames/alien_invasion/_storage/.gitkeep`,
+            `rng_minigames/alien_invasion/ai_config.py`,
+            `rng_minigames/alien_invasion/ai_agent.py`,
+            `rng_minigames/alien_invasion/hall_of_fame.py`,
+            `rng_minigames/alien_invasion/README.md`,
+            `rng_minigames/README.md`, `docs/minigames.md`,
+            `rng_minigames/alien_invasion/ai_settings.yml`,
+            `rng_minigames/alien_invasion/_storage/alien_invasion_ai_state.yml`,
+            `rng_minigames/alien_invasion/_storage/alien_invasion_hof.yml`,
+            `rng_minigames/CHANGELOG.md`).
+- 2025-12-05: Ignored the entire `_storage/` folder, removed the placeholder
+            `.gitkeep`, relocated `game_settings.yml` into `_storage/` and
+            taught the loaders to regenerate AI/game configs on first launch
+            while **Let AI forget** now removes the saved state file entirely
+            (`rng_minigames/.gitignore`,
+            `rng_minigames/alien_invasion/ai_agent.py`,
+            `rng_minigames/alien_invasion/game_config.py`,
+            `rng_minigames/alien_invasion/README.md`,
+            `rng_minigames/README.md`, `docs/minigames.md`,
+            `rng_minigames/alien_invasion/game_settings.yml`,
+            `rng_minigames/alien_invasion/_storage/.gitkeep`,
+            `rng_minigames/alien_invasion/ai_settings.yml`).
+- 2025-12-05: Restored the stacked Alien Invasion pilot defaults to a
+            five-layer `40,32,24,15,12` network so freshly generated AI config
+            files immediately train deeper brains and documented how to supply
+            multi-layer lists (`rng_minigames/alien_invasion/ai_config.py`,
+            `rng_minigames/alien_invasion/README.md`,
+            `rng_minigames/README.md`, `docs/minigames.md`,
+            `rng_minigames/CHANGELOG.md`).
 - 2025-12-05: Removed stray Finder " 2" copies from the RNG docs and promoted
             the Alien Invasion README duplicate to the canonical filename so
             the bundle only ships one copy of each reference (rng_minigames/

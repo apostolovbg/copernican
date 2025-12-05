@@ -38,11 +38,17 @@ seed-generation logic and any configuration files specific to that title.
 
 ## Configuration & Storage
 
-- Alien Invasion exposes `alien_invasion/ai_settings.yml` (all autopilot tunables)
-  plus `alien_invasion/game_settings.yml` (shield counts, motion limits, debris
-  behaviour, etc.). Both files are hot-reloaded whenever the game launches.
+- Alien Invasion exposes `alien_invasion/ai_settings.yml` (autopilot tunables)
+  plus `_storage/game_settings.yml` (shield counts, motion limits, debris
+  behaviour, etc.). Each file is generated on the first launch, ignored by Git
+  and reused between runs so user tweaks survive pulls; delete either to
+  regenerate fresh defaults. Both are hot-reloaded whenever the game launches,
+  and the AI template already declares a five-layer network (`40,32,24,15,12`)
+  so deeper brains appear automatically.
 - Sample data and persistent state (AI weights, hall-of-fame entries) live in
-  `_storage/` under each game so the bundle remains self-contained.
+  `_storage/` under each game so the bundle remains self-contained. Alien
+  Invasion creates its AI state and hall-of-fame YAML files the first time it
+  runs; deleting either resets the corresponding data on the next launch.
 - Stateless titles such as Emoji Meteors and Constellation rely only on the
   shared API and metadata.
 

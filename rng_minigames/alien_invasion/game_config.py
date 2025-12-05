@@ -30,6 +30,8 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
         "damages_all": False,
     },
 }
+_STORAGE_DIR = Path(__file__).resolve().parent / "_storage"
+_SETTINGS_NAME = "game_settings.yml"
 
 
 def _merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
@@ -46,14 +48,28 @@ def _merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
+def _write_default_settings(path: Path) -> None:
+    try:
+        path.write_text(
+            yaml.safe_dump(DEFAULT_SETTINGS, sort_keys=False).strip() + "\n"
+        )
+    except Exception:
+        pass
+
+
 def load_settings() -> Dict[str, Any]:
     """Read game settings YAML, falling back to built-in defaults."""
 
-    path = Path(__file__).with_name("game_settings.yml")
+    _STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+    path = _STORAGE_DIR / _SETTINGS_NAME
     try:
         data = yaml.safe_load(path.read_text()) or {}
     except FileNotFoundError:
         data = {}
+        _write_default_settings(path)
     except Exception:
         data = {}
+        _write_default_settings(path)
+    if not path.exists():
+        _write_default_settings(path)
     return _merge(DEFAULT_SETTINGS, data)
