@@ -72,12 +72,9 @@ reopening the window is sufficient to try new behaviours.
   movement/shoot/charge decisions instead of following the neural network’s
   recommendation. Higher values help the brain escape local optima (for example,
   edge camping).
-- `hidden_units` – Either a single integer (one hidden layer) or a comma-
-  separated/YAML list of up to ten integers describing successive hidden layers.
-  Each layer is clamped to 1–64 neurons, so `hidden_units: 24, 24, 12` produces a
-  three-layer policy network running 24→24→12 activations before the output head.
-  Wider or deeper stacks learn more complex behaviors at the cost of additional
-  training time and larger saved states.
+- `hidden_units` – Width of the neural network’s hidden layer. Increasing this
+  value adds more neurons and yields a richer policy at the cost of additional
+  training time and a heavier state file.
 - `history_limit` – Number of recorded decision samples the trainer replays when
   adjusting the network after each run. Lower values focus on the most recent
   behaviour, while higher values preserve long-term context.

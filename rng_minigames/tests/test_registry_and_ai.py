@@ -47,11 +47,12 @@ def test_alien_invasion_ai_persists_learning(
         > original_weights["aggression"]
     )
     assert (
-        reloaded.state["network"]["w1"][0][0] != original_network["w1"][0][0]
+        reloaded.state["network"]["weights"][0][0][0]
+        != original_network["weights"][0][0][0]
     )
     assert (
-        reloaded.state["network"]["w1"][0][0]
-        == brain.state["network"]["w1"][0][0]
+        reloaded.state["network"]["weights"][0][0][0]
+        == brain.state["network"]["weights"][0][0][0]
     )
 
     # A failed run should increase the caution weight and persist it.
@@ -79,7 +80,10 @@ def test_alien_invasion_ai_forget(tmp_path: Path) -> None:
         "caution": 0.5,
         "charge": 0.3,
     }
-    assert brain.state["network"]["w1"][0][0] != previous_network["w1"][0][0]
+    assert (
+        brain.state["network"]["weights"][0][0][0]
+        != previous_network["weights"][0][0][0]
+    )
 
 
 def test_hall_of_fame_sorts_and_limits_entries(tmp_path: Path) -> None:

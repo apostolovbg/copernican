@@ -84,6 +84,11 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     shooting_stars: list[dict] = []
     next_shooting_star_time = time.time() + random.expovariate(0.1)
     learning_speed_multiplier = default_learning_speed
+    learning_speed_min = 1
+    learning_speed_max = 60
+    base_tick_delay_ms = 40
+    min_event_delay_ms = 8
+    base_ticks_per_second = 1000 / base_tick_delay_ms
     learning_speed_var: "tk.IntVar | None" = None
     player_explosion: list[dict] = []
     player_explosion_handle: str | None = None
@@ -104,7 +109,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     current_edge_samples = 0
 
     def _clamp_learning_speed(value: int) -> int:
-        return max(1, min(10, value))
+        return max(learning_speed_min, min(learning_speed_max, value))
 
     def _current_learning_speed() -> int:
         nonlocal learning_speed_multiplier
@@ -134,6 +139,16 @@ def launch_alien_invasion(context: MinigameContext) -> None:
 
     def _time_scale() -> float:
         return _current_learning_speed() if learning_mode else 1.0
+
+    def _tick_steps(scale: float) -> int:
+        if not learning_mode or scale <= 1:
+            return 1
+        effective_delay = max(
+            min_event_delay_ms, base_tick_delay_ms / max(scale, 1.0)
+        )
+        ticks_per_second = 1000 / effective_delay
+        desired_steps_per_second = base_ticks_per_second * scale
+        return max(1, int(math.ceil(desired_steps_per_second / ticks_per_second)))
 
     def _draw_background() -> None:
         gradient_steps = 60
@@ -882,8 +897,8 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         )
         learning_speed_spin = ttk.Spinbox(
             button_bar,
-            from_=1,
-            to=10,
+            from_=learning_speed_min,
+            to=learning_speed_max,
             width=4,
             textvariable=learning_speed_var,
             justify="center",
@@ -1293,7 +1308,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
 
     def _scaled_after(delay_ms: int, callback: Callable[[], None]) -> str:
         scale = _time_scale()
-        scaled = max(1, int(delay_ms / scale))
+        scaled = max(
+            min_event_delay_ms, int(delay_ms / max(scale, 1.0))
+        )
         return canvas.after(scaled, callback)
 
     MAX_RUN_SECONDS = max_run_seconds
@@ -2207,7 +2224,8 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         else:
             player_idle_ticks = 0
         player_last_x = player["x"]
-        steps = _current_learning_speed() if learning_mode else 1
+        scale = _time_scale()
+        steps = _tick_steps(scale)
         for _ in range(int(steps)):
             if game_over or paused:
                 break

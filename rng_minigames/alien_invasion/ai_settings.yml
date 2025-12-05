@@ -1,6 +1,6 @@
 run_duration_seconds: 300
 learning_speed: 10
-exploration_rate: 0.75
+exploration_rate: 0.9
 hidden_units: 12
 history_limit: 320
 time_pressure:
@@ -11,9 +11,9 @@ time_pressure:
 kill_reward:
   base: 0.7
   general_bonus: 1.5
-  increment: 0.08
-  max_increment: 2.5
+  increment: 0.15
+  max_increment: 4
 respawn_penalty:
-  lieutenant: 0.25
-  major: 0.35
-  colonel: 0.45
+  lieutenant: 0.3
+  major: 0.5
+  colonel: 0.8

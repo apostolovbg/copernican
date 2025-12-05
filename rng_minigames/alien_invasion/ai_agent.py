@@ -6,7 +6,7 @@ import math
 import random
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Sequence
 
 import yaml
 
@@ -27,17 +27,53 @@ INPUT_FEATURES = (
     "time_remaining_fraction",
 )
 DEFAULT_HIDDEN_UNITS = 12
+MAX_HIDDEN_LAYERS = 10
+MAX_LAYER_WIDTH = 64
 OUTPUT_UNITS = 3
 DEFAULT_HISTORY_LIMIT = 320
 RUN_DURATION_DEFAULT = 300.0
 
 
+def _normalize_hidden_layers(raw: Any) -> List[int]:
+    values: List[int] = []
+
+    def _extend_from_entry(entry: Any) -> None:
+        if isinstance(entry, str) and "," in entry:
+            for chunk in entry.split(","):
+                _extend_from_entry(chunk.strip())
+            return
+        try:
+            number = int(entry)
+        except Exception:
+            return
+        number = max(1, min(MAX_LAYER_WIDTH, number))
+        values.append(number)
+
+    if isinstance(raw, str):
+        for token in raw.split(","):
+            token = token.strip()
+            if token:
+                _extend_from_entry(token)
+    elif isinstance(raw, (list, tuple)):
+        for entry in raw:
+            _extend_from_entry(entry)
+    elif raw is not None:
+        _extend_from_entry(raw)
+
+    if not values:
+        values = [DEFAULT_HIDDEN_UNITS]
+    if len(values) > MAX_HIDDEN_LAYERS:
+        values = values[:MAX_HIDDEN_LAYERS]
+    return values
+
+
 def _initial_state(
-    hidden_units: int = DEFAULT_HIDDEN_UNITS,
+    hidden_layers: Sequence[int] | None = None,
 ) -> Dict[str, Any]:
+    layers = list(hidden_layers) if hidden_layers else [DEFAULT_HIDDEN_UNITS]
     return {
         "weights": {"aggression": 0.5, "caution": 0.5, "charge": 0.3},
-        "network": _init_network(hidden_units),
+        "network": _init_network(layers),
         "best_time": None,
         "runs": 0,
         "worlds_saved": 0,
@@ -45,26 +81,33 @@ def _initial_state(
     }
 
 
-def _init_network(hidden_units: int = DEFAULT_HIDDEN_UNITS) -> Dict[str, Any]:
-    """Create a small neural policy network."""
+def _init_network(hidden_layers: Sequence[int]) -> Dict[str, Any]:
+    """Create a neural policy network with arbitrary hidden layers."""
 
+    layers = list(hidden_layers) if hidden_layers else [DEFAULT_HIDDEN_UNITS]
     rng = random.Random()
-    network = {
+    layer_sizes = [len(INPUT_FEATURES)] + layers + [OUTPUT_UNITS]
+    weights: List[List[List[float]]] = []
+    biases: List[List[float]] = []
+    for idx in range(1, len(layer_sizes)):
+        prev_size = layer_sizes[idx - 1]
+        curr_size = layer_sizes[idx]
+        weight_rows: List[List[float]] = []
+        for _ in range(curr_size):
+            spread = 0.25 if idx == len(layer_sizes) - 1 else 0.3
+            weight_rows.append(
+                [rng.uniform(-spread, spread) for _ in range(prev_size)]
+            )
+        weights.append(weight_rows)
+        biases.append([rng.uniform(-0.1, 0.1) for _ in range(curr_size)])
+    return {
         "input_size": len(INPUT_FEATURES),
-        "hidden_size": hidden_units,
+        "hidden_layers": layers,
+        "hidden_size": layers[-1],
         "output_size": OUTPUT_UNITS,
-        "w1": [
-            [rng.uniform(-0.3, 0.3) for _ in range(len(INPUT_FEATURES))]
-            for _ in range(hidden_units)
-        ],
-        "b1": [rng.uniform(-0.1, 0.1) for _ in range(hidden_units)],
-        "w2": [
-            [rng.uniform(-0.25, 0.25) for _ in range(hidden_units)]
-            for _ in range(OUTPUT_UNITS)
-        ],
-        "b2": [0.0 for _ in range(OUTPUT_UNITS)],
+        "weights": weights,
+        "biases": biases,
     }
-    return network
 
 
 class AlienInvasionAI:
@@ -72,14 +115,15 @@ class AlienInvasionAI:
 
     def __init__(self, storage_dir: Path) -> None:
         self.settings = load_settings()
-        self.hidden_units = max(
-            1, int(self.settings.get("hidden_units", DEFAULT_HIDDEN_UNITS))
+        self.hidden_layers = _normalize_hidden_layers(
+            self.settings.get("hidden_units", DEFAULT_HIDDEN_UNITS)
         )
+        self.hidden_units = self.hidden_layers[-1]
         self.history_limit = max(
             1, int(self.settings.get("history_limit", DEFAULT_HISTORY_LIMIT))
         )
         self.state_path = storage_dir / "alien_invasion_ai_state.yml"
-        self.state: Dict[str, Any] = _initial_state(self.hidden_units)
+        self.state: Dict[str, Any] = _initial_state(self.hidden_layers)
         self._history: List[Dict[str, Any]] = []
         self._time_pressure = 0.0
         self._intermediate_reward = 0.0
@@ -313,10 +357,10 @@ class AlienInvasionAI:
             self.state["weights"].update(data["weights"])
         network = data.get("network")
         if not isinstance(network, dict):
-            network = _init_network(self.hidden_units)
+            network = _init_network(self.hidden_layers)
         else:
             network = self._validate_or_reset_network(
-                network, self.hidden_units
+                network, self.hidden_layers
             )
         self.state["network"] = network
         if "best_time" in data:
@@ -346,7 +390,7 @@ class AlienInvasionAI:
     def forget(self) -> None:
         """Wipe the saved weights so the AI restarts from scratch."""
 
-        self.state = _initial_state(self.hidden_units)
+        self.state = _initial_state(self.hidden_layers)
         self._history.clear()
         try:
             if self.state_path.exists():
@@ -361,22 +405,80 @@ class AlienInvasionAI:
 
     def _ensure_network(self) -> None:
         if "network" not in self.state:
-            self.state["network"] = _init_network(self.hidden_units)
+            self.state["network"] = _init_network(self.hidden_layers)
         else:
             self.state["network"] = self._validate_or_reset_network(
-                self.state["network"], self.hidden_units
+                self.state["network"], self.hidden_layers
             )
 
     def _validate_or_reset_network(
-        self, network: Dict[str, Any], hidden_units: int
+        self, network: Dict[str, Any], hidden_layers: Sequence[int]
     ) -> Dict[str, Any]:
+        configured = list(hidden_layers) if hidden_layers else [DEFAULT_HIDDEN_UNITS]
         try:
+            input_size = len(INPUT_FEATURES)
+            output_size = OUTPUT_UNITS
+            if {
+                "weights",
+                "biases",
+            }.issubset(network.keys()):
+                stored_layers = network.get("hidden_layers", configured)
+                stored_layers = _normalize_hidden_layers(stored_layers)
+                if stored_layers != configured:
+                    raise ValueError("hidden layer mismatch")
+                weights = network.get("weights")
+                biases = network.get("biases")
+                if not isinstance(weights, list) or not isinstance(biases, list):
+                    raise ValueError("missing weight/bias matrices")
+                if len(weights) != len(biases):
+                    raise ValueError("weight/bias length mismatch")
+                expected_sizes = [input_size] + configured + [output_size]
+                if len(weights) != len(expected_sizes) - 1:
+                    raise ValueError("layer count mismatch")
+                sanitized_weights: List[List[List[float]]] = []
+                sanitized_biases: List[List[float]] = []
+                for idx, (out_size, in_size) in enumerate(
+                    zip(expected_sizes[1:], expected_sizes[:-1])
+                ):
+                    layer_weights = weights[idx]
+                    layer_biases = biases[idx]
+                    if len(layer_weights) != out_size:
+                        raise ValueError("invalid weight rows")
+                    if len(layer_biases) != out_size:
+                        raise ValueError("invalid bias rows")
+                    sanitized_layer: List[List[float]] = []
+                    for row in layer_weights:
+                        if len(row) != in_size:
+                            raise ValueError("invalid weight cols")
+                        sanitized_layer.append([float(value) for value in row])
+                    sanitized_biases.append([float(value) for value in layer_biases])
+                    sanitized_weights.append(sanitized_layer)
+                return {
+                    "input_size": input_size,
+                    "hidden_layers": configured,
+                    "hidden_size": configured[-1],
+                    "output_size": output_size,
+                    "weights": sanitized_weights,
+                    "biases": sanitized_biases,
+                }
+            # Legacy single-hidden-layer format
+            if len(configured) != 1:
+                raise ValueError("legacy network incompatible with layers")
+            hidden_units = configured[0]
+            legacy = {
+                "w1",
+                "b1",
+                "w2",
+                "b2",
+            }
+            if not legacy.issubset(network.keys()):
+                raise ValueError("missing legacy weights")
             if (
-                int(network.get("input_size")) != len(INPUT_FEATURES)
-                or int(network.get("hidden_size")) != hidden_units
-                or int(network.get("output_size")) != OUTPUT_UNITS
+                int(network.get("input_size", input_size)) != input_size
+                or int(network.get("hidden_size", hidden_units)) != hidden_units
+                or int(network.get("output_size", output_size)) != output_size
             ):
-                raise ValueError("network dimensions mismatch")
+                raise ValueError("legacy dimension mismatch")
             w1 = [
                 [float(value) for value in row]
                 for row in network.get("w1", [])
@@ -384,32 +486,31 @@ class AlienInvasionAI:
             if len(w1) != hidden_units:
                 raise ValueError("invalid w1 rows")
             for row in w1:
-                if len(row) != len(INPUT_FEATURES):
+                if len(row) != input_size:
                     raise ValueError("invalid w1 cols")
             w2 = [
                 [float(value) for value in row]
                 for row in network.get("w2", [])
             ]
-            if len(w2) != OUTPUT_UNITS:
+            if len(w2) != output_size:
                 raise ValueError("invalid w2 rows")
             for row in w2:
                 if len(row) != hidden_units:
                     raise ValueError("invalid w2 cols")
             b1 = [float(value) for value in network.get("b1", [])]
             b2 = [float(value) for value in network.get("b2", [])]
-            if len(b1) != hidden_units or len(b2) != OUTPUT_UNITS:
-                raise ValueError("invalid bias length")
+            if len(b1) != hidden_units or len(b2) != output_size:
+                raise ValueError("invalid legacy bias length")
             return {
-                "input_size": len(INPUT_FEATURES),
+                "input_size": input_size,
+                "hidden_layers": configured,
                 "hidden_size": hidden_units,
-                "output_size": OUTPUT_UNITS,
-                "w1": w1,
-                "b1": b1,
-                "w2": w2,
-                "b2": b2,
+                "output_size": output_size,
+                "weights": [w1, w2],
+                "biases": [b1, b2],
             }
         except Exception:
-            return _init_network(hidden_units)
+            return _init_network(configured)
 
     def _feature_vector(self, features: Dict[str, float]) -> List[float]:
         return [float(features[key]) for key in INPUT_FEATURES]
@@ -444,24 +545,40 @@ class AlienInvasionAI:
 
     def _forward_internal(self, features: List[float]) -> Dict[str, Any]:
         network = self.state["network"]
-        hidden: List[float] = []
-        for i in range(self.hidden_units):
-            total = network["b1"][i]
-            for j, value in enumerate(features):
-                total += network["w1"][i][j] * value
-            hidden.append(math.tanh(total))
-        raw_outputs: List[float] = []
-        for k in range(OUTPUT_UNITS):
-            total = network["b2"][k]
-            for i, h_val in enumerate(hidden):
-                total += network["w2"][k][i] * h_val
-            raw_outputs.append(total)
-        move = math.tanh(raw_outputs[0])
-        shoot = 1.0 / (1.0 + math.exp(-raw_outputs[1]))
-        charge = 1.0 / (1.0 + math.exp(-raw_outputs[2]))
+        weights = network["weights"]
+        biases = network["biases"]
+        prev_activation = [float(value) for value in features]
+        layer_states: List[Dict[str, Any]] = []
+        for idx, weight_matrix in enumerate(weights):
+            layer_biases = biases[idx]
+            raw_outputs: List[float] = []
+            for neuron_idx, weight_row in enumerate(weight_matrix):
+                total = layer_biases[neuron_idx]
+                for prev_idx, value in enumerate(prev_activation):
+                    total += weight_row[prev_idx] * value
+                raw_outputs.append(total)
+            if idx == len(weights) - 1:
+                activated = raw_outputs[:]
+            else:
+                activated = [math.tanh(value) for value in raw_outputs]
+            layer_states.append(
+                {
+                    "raw": raw_outputs,
+                    "activated": activated,
+                    "input": prev_activation,
+                    "is_output": idx == len(weights) - 1,
+                }
+            )
+            prev_activation = activated
+        final_raw = (
+            layer_states[-1]["raw"] if layer_states else [0.0] * OUTPUT_UNITS
+        )
+        move = math.tanh(final_raw[0])
+        shoot = 1.0 / (1.0 + math.exp(-final_raw[1]))
+        charge = 1.0 / (1.0 + math.exp(-final_raw[2]))
         return {
-            "hidden": hidden,
-            "outputs": raw_outputs,
+            "layers": layer_states,
+            "raw_outputs": final_raw,
             "move": move,
             "shoot": shoot,
             "charge": charge,
@@ -509,41 +626,46 @@ class AlienInvasionAI:
 
         output_deltas = [move_delta, shoot_delta, charge_delta]
         network = self.state["network"]
-
-        for out_idx in range(OUTPUT_UNITS):
-            for h_idx in range(self.hidden_units):
-                delta = (
-                    lr
-                    * reward
-                    * output_deltas[out_idx]
-                    * forward["hidden"][h_idx]
+        weights = network["weights"]
+        biases = network["biases"]
+        layers_info = forward["layers"]
+        if not weights or not layers_info:
+            return
+        layer_deltas: List[List[float]] = [
+            [0.0 for _ in layer["activated"]] for layer in layers_info
+        ]
+        layer_deltas[-1] = output_deltas
+        for layer_idx in range(len(weights) - 2, -1, -1):
+            next_weights = weights[layer_idx + 1]
+            next_delta = layer_deltas[layer_idx + 1]
+            activations = layers_info[layer_idx]["activated"]
+            current_delta: List[float] = []
+            for neuron_idx, neuron_activation in enumerate(activations):
+                influence = 0.0
+                for next_idx, next_weights_row in enumerate(next_weights):
+                    influence += next_weights_row[neuron_idx] * next_delta[next_idx]
+                current_delta.append(
+                    influence * (1 - neuron_activation ** 2)
                 )
-                network["w2"][out_idx][h_idx] = self._clamp(
-                    network["w2"][out_idx][h_idx] + delta
-                )
-            network["b2"][out_idx] = self._clamp(
-                network["b2"][out_idx] + lr * reward * output_deltas[out_idx]
-            )
+            layer_deltas[layer_idx] = current_delta
 
-        hidden_deltas: List[float] = []
-        for h_idx in range(self.hidden_units):
-            influence = sum(
-                network["w2"][out_idx][h_idx] * output_deltas[out_idx]
-                for out_idx in range(OUTPUT_UNITS)
+        for layer_idx, delta_vec in enumerate(layer_deltas):
+            prev_activation = (
+                sample["features"]
+                if layer_idx == 0
+                else layers_info[layer_idx - 1]["activated"]
             )
-            hidden_deltas.append(
-                influence * (1 - forward["hidden"][h_idx] ** 2)
-            )
-
-        for h_idx in range(self.hidden_units):
-            for in_idx, value in enumerate(sample["features"]):
-                delta = lr * reward * hidden_deltas[h_idx] * value
-                network["w1"][h_idx][in_idx] = self._clamp(
-                    network["w1"][h_idx][in_idx] + delta
+            weight_matrix = weights[layer_idx]
+            bias_vec = biases[layer_idx]
+            for neuron_idx, delta_value in enumerate(delta_vec):
+                for prev_idx, value in enumerate(prev_activation):
+                    update = lr * reward * delta_value * value
+                    weight_matrix[neuron_idx][prev_idx] = self._clamp(
+                        weight_matrix[neuron_idx][prev_idx] + update
+                    )
+                bias_vec[neuron_idx] = self._clamp(
+                    bias_vec[neuron_idx] + lr * reward * delta_value
                 )
-            network["b1"][h_idx] = self._clamp(
-                network["b1"][h_idx] + lr * reward * hidden_deltas[h_idx]
-            )
 
     @staticmethod
     def _clamp(value: float, limit: float = 5.0) -> float:

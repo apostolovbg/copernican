@@ -1,24 +1,6 @@
 # RNG Mini-games Changelog
 
 ## Version 11.0.1
-- 2025-12-05: Raised the Alien Invasion learning-speed cap to 60x while keeping
-            the default 10x multiplier and tuned the fast-learning scheduler so
-            continuous training sessions can run up to sixty times faster
-            without overwhelming Tk's event loop (rng_minigames/alien_invasion/
-            game.py, rng_minigames/CHANGELOG.md).
-- 2025-12-05: Let the Alien Invasion autopilot declare up to ten comma-
-            separated hidden layer sizes (1–64 neurons each) and upgraded the
-            neural trainer to honor multi-layer stacks so downstream configs can
-            describe richer brains directly in `ai_settings.yml`
-            (rng_minigames/alien_invasion/ai_agent.py,
-            rng_minigames/alien_invasion/README.md,
-            rng_minigames/tests/test_registry_and_ai.py,
-            rng_minigames/CHANGELOG.md).
-- 2025-12-05: Updated the default Alien Invasion pilot to a layered
-            configuration (40,32,24,15,12 neurons) so fresh installs immediately
-            train deeper brains without editing YAML by hand
-            (rng_minigames/alien_invasion/ai_settings.yml,
-            rng_minigames/CHANGELOG.md).
 - 2025-12-05: Created the dedicated RNG changelog and broke documentation out
             into per-game README files so the marsupial project can be vendored
             independently (rng_minigames/CHANGELOG.md, rng_minigames/README.md,
