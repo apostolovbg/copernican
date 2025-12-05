@@ -2,8 +2,8 @@
 Tests for changelog-coverage policy.
 """
 
-from types import SimpleNamespace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -31,7 +31,9 @@ def test_no_changes_passes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     assert checker.check(context) == []
 
 
-def test_root_changelog_required(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_root_changelog_required(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     """Non-RNG files must be listed in the root changelog."""
 
     (tmp_path / "CHANGELOG.md").write_text("docs/readme.md", encoding="utf-8")
@@ -46,7 +48,9 @@ def test_root_changelog_required(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert "src/module.py" in violations[0].message
 
 
-def test_rng_changelog_required(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_rng_changelog_required(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     """RNG files must be documented in rng_minigames/CHANGELOG.md."""
 
     (tmp_path / "CHANGELOG.md").write_text("", encoding="utf-8")
@@ -60,7 +64,9 @@ def test_rng_changelog_required(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     assert "rng_minigames/CHANGELOG.md" in violations[0].message
 
 
-def test_rng_changelog_entry_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_rng_changelog_entry_found(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     """RNG files pass when mentioned in rng_minigames/CHANGELOG.md."""
 
     (tmp_path / "CHANGELOG.md").write_text("", encoding="utf-8")
