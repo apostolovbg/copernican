@@ -9,6 +9,8 @@ import time
 from pathlib import Path
 from typing import Callable
 
+import yaml
+
 try:  # pragma: no cover - Tk only available with GUI rendering
     import tkinter as tk
     from tkinter import ttk
@@ -60,6 +62,47 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     hall_of_fame = HallOfFame(storage_dir)
     ai_brain = AlienInvasionAI(storage_dir)
     ai_brain.begin_run()
+    learning_history_path = storage_dir / "ai_learning_stats.yml"
+    ALLTIME_LEARNING_DEFAULTS = {
+        "runs": 0,
+        "wins": 0,
+        "losses": 0,
+        "kill_total": 0.0,
+        "kill_samples": 0,
+        "edge_total": 0.0,
+        "edge_samples": 0,
+    }
+
+    def _persist_learning_history() -> None:
+        try:
+            learning_history_path.write_text(
+                yaml.safe_dump(learning_alltime_stats, sort_keys=False)
+            )
+        except Exception:
+            pass
+
+    def _load_learning_history() -> dict[str, float | int]:
+        if not learning_history_path.exists():
+            return dict(ALLTIME_LEARNING_DEFAULTS)
+        try:
+            raw = yaml.safe_load(learning_history_path.read_text()) or {}
+        except Exception:
+            raw = {}
+        stats: dict[str, float | int] = {}
+        for key, default in ALLTIME_LEARNING_DEFAULTS.items():
+            value = raw.get(key, default)
+            stats[key] = value
+        return stats
+
+    def _reset_learning_history() -> None:
+        learning_alltime_stats.clear()
+        learning_alltime_stats.update(dict(ALLTIME_LEARNING_DEFAULTS))
+        _persist_learning_history()
+
+    learning_alltime_stats = _load_learning_history()
+    _persist_learning_history()
+
+*** End Patch**
 
     window = tk.Toplevel(context.tk_root)
     window.title("Alien invasion")
@@ -630,6 +673,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     )
     ai_stats_var = tk.StringVar()
     ai_learning_var = tk.StringVar()
+    kill_meter_var = tk.StringVar()
 
     def _format_learning_summary() -> str:
         runs = learning_stats["runs"]
@@ -659,15 +703,21 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         )
 
     def _update_ai_stats() -> None:
-        runs = ai_brain.state.get("runs", 0)
-        saved = ai_brain.state.get("worlds_saved", 0)
-        lost = ai_brain.state.get("worlds_lost", 0)
+        runs = int(learning_alltime_stats.get("runs", 0))
+        saved = int(learning_alltime_stats.get("wins", 0))
+        lost = int(learning_alltime_stats.get("losses", 0))
         ai_stats_var.set(
             "AI games: {runs}     Everybody lives: {saved}     Everybody dies: {lost}".format(
                 runs=runs, saved=saved, lost=lost
             )
         )
         ai_learning_var.set(_format_learning_summary())
+        _update_kill_meter()
+
+    def _update_kill_meter() -> None:
+        kill_meter_var.set(
+            f"Kill meter: {current_ai_kills} kills (this run)"
+        )
 
     _update_ai_stats()
     ttk.Label(
@@ -678,6 +728,11 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     ttk.Label(
         status_frame,
         textvariable=ai_learning_var,
+        font=("Helvetica", 10, "normal"),
+    ).pack(anchor="w", pady=(0, 8))
+    ttk.Label(
+        status_frame,
+        textvariable=kill_meter_var,
         font=("Helvetica", 10, "normal"),
     ).pack(anchor="w", pady=(0, 8))
     button_bar = ttk.Frame(window)
@@ -732,7 +787,19 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         )
         learning_stats["edge_total"] += avg_edge
         learning_stats["edge_samples"] += 1
+        learning_alltime_stats["runs"] += 1
+        if success:
+            learning_alltime_stats["wins"] += 1
+        else:
+            learning_alltime_stats["losses"] += 1
+        learning_alltime_stats["kill_total"] += current_ai_kills
+        learning_alltime_stats["kill_samples"] += 1
+        learning_alltime_stats["edge_total"] += avg_edge
+        learning_alltime_stats["edge_samples"] += 1
+        _persist_learning_history()
+        _update_ai_stats()
         current_ai_kills = 0
+        _update_kill_meter()
         current_edge_penalty = 0.0
         current_edge_samples = 0
 
@@ -743,6 +810,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         ai_brain.reward_enemy_destroyed(
             rank, general=record.get("general", False)
         )
+        nonlocal current_ai_kills
+        current_ai_kills += 1
+        _update_kill_meter()
 
     def _penalize_enemy_respawned(record: dict) -> None:
         if not _ai_in_control():
@@ -917,6 +987,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
 
     def _perform_ai_forget() -> None:
         ai_brain.forget()
+        _reset_learning_history()
         _update_ai_stats()
         action_var.set("AI memory wiped. Fresh slate!")
 
