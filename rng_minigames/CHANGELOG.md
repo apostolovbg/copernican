@@ -15,6 +15,15 @@
             `rng_minigames/alien_invasion/_storage/alien_invasion_ai_state.yml`,
             `rng_minigames/alien_invasion/_storage/alien_invasion_hof.yml`,
             `rng_minigames/CHANGELOG.md`).
+- 2025-12-05: Cleaned up lingering lint issues by splitting the explosion
+            helpers' `nonlocal` declarations, rewrapping the auxiliary
+            docstrings, and shortening the hall-of-fame labels so the
+            pre-commit suite (black/flake8) ran cleanly
+            (`rng_minigames/alien_invasion/game.py`,
+            `rng_minigames/alien_invasion/ai_agent.py`,
+            `rng_minigames/alien_invasion/hall_of_fame.py`,
+            `rng_minigames/tests/test_registry_and_ai.py`,
+            `rng_minigames/CHANGELOG.md`).
 - 2025-12-05: Ignored the entire `_storage/` folder, removed the placeholder
             `.gitkeep`, relocated `game_settings.yml` into `_storage/` and
             taught the loaders to regenerate AI/game configs on first launch
@@ -86,6 +95,12 @@
             is a sure way to boost caution (`rng_minigames/alien_invasion/ai_config.py`,
             `rng_minigames/alien_invasion/ai_settings.yml`,
             `rng_minigames/alien_invasion/ai_agent.py`,
+            `rng_minigames/alien_invasion/README.md`,
+            `rng_minigames/CHANGELOG.md`).
+- 2025-12-05: Added persistent learning stats, the kill meter and auto-reset so
+            small status counters now reflect the all-time history stored in
+            `_storage/ai_learning_stats.yml` and the counter resets whenever
+            the AI forgets (`rng_minigames/alien_invasion/game.py`,
             `rng_minigames/alien_invasion/README.md`,
             `rng_minigames/CHANGELOG.md`).
 - 2025-12-05: General barrages now rest between volleys and his shield drops to

@@ -102,8 +102,6 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     learning_alltime_stats = _load_learning_history()
     _persist_learning_history()
 
-*** End Patch**
-
     window = tk.Toplevel(context.tk_root)
     window.title("Alien invasion")
     window.resizable(False, False)
@@ -457,7 +455,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         canvas.create_polygon(flat_points, fill="#152a1e", outline="#0f1c15")
 
     def _color_from_hex(hex_color: str) -> tuple[int, int, int]:
-        return tuple(int(hex_color[i : i + 2], 16) for i in (1, 3, 5))
+        return tuple(int(hex_color[slice(i, i + 2)], 16) for i in (1, 3, 5))
 
     def _color_for_star(base: tuple[int, int, int], brightness: float) -> str:
         brightness = max(0.0, min(1.0, brightness))
@@ -609,9 +607,11 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     instructions = ttk.Label(
         window,
         text=(
-            "Move with the mouse, left-click to fire, right-click (or ctrl-click) "
-            "to launch stored space charges. Catch capsules to stockpile up to "
-            "three and watch the shields, charges and countdown timers."
+            "Move with the mouse, left-click to fire, "
+            "right-click (or ctrl-click) to launch stored "
+            "space charges. Catch capsules to stockpile up "
+            "to three and watch the shields, charges and "
+            "countdown timers."
         ),
         wraplength=canvas_width,
         padding=(0, 4),
@@ -628,12 +628,10 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     base_general_shield_max = general_shield_max
     general_speed_limit = float(general_cfg.get("max_speed", 7.0))
     player_shield_max = max(1, int(player_cfg.get("shield", 50)))
-    player_speed_limit = float(
-        motion_cfg.get(
-            "max_speed",
-            general_speed_limit * 2 if general_speed_limit > 0 else 14.0,
-        )
+    fallback_speed = (
+        general_speed_limit * 2 if general_speed_limit > 0 else 14.0
     )
+    player_speed_limit = float(motion_cfg.get("max_speed", fallback_speed))
     player_speed_limit = max(player_speed_limit, 1.0)
     player_accel = max(0.05, float(motion_cfg.get("accel", 0.75)))
     player_decel = max(0.05, float(motion_cfg.get("decel", 0.65)))
@@ -707,17 +705,16 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         saved = int(learning_alltime_stats.get("wins", 0))
         lost = int(learning_alltime_stats.get("losses", 0))
         ai_stats_var.set(
-            "AI games: {runs}     Everybody lives: {saved}     Everybody dies: {lost}".format(
-                runs=runs, saved=saved, lost=lost
-            )
+            (
+                "AI games: {runs}     Everybody lives: {saved}     "
+                "Everybody dies: {lost}"
+            ).format(runs=runs, saved=saved, lost=lost)
         )
         ai_learning_var.set(_format_learning_summary())
         _update_kill_meter()
 
     def _update_kill_meter() -> None:
-        kill_meter_var.set(
-            f"Kill meter: {current_ai_kills} kills (this run)"
-        )
+        kill_meter_var.set(f"Kill meter: {current_ai_kills} kills (this run)")
 
     _update_ai_stats()
     ttk.Label(
@@ -842,7 +839,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         player_auto_reset_handle = canvas.after(delay_ms, _auto_reset)
 
     def _clear_player_explosion() -> None:
-        nonlocal player_explosion_handle, player_explosion_end, player_explosion_active
+        nonlocal player_explosion_handle
+        nonlocal player_explosion_end
+        nonlocal player_explosion_active
         for shard in player_explosion:
             canvas.delete(shard["item"])
         player_explosion.clear()
@@ -856,7 +855,8 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         player_explosion_active = False
 
     def _animate_player_explosion() -> None:
-        nonlocal player_explosion_handle, player_explosion_active
+        nonlocal player_explosion_handle
+        nonlocal player_explosion_active
         if not player_explosion or player_explosion_end is None:
             _clear_player_explosion()
             return
@@ -886,13 +886,16 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             _clear_player_explosion()
             return
         player_explosion_handle = canvas.after(
-            explosion_frame_ms, _animate_player_explosion
+            explosion_frame_ms,
+            _animate_player_explosion,
         )
 
     def _start_player_explosion() -> None:
-        nonlocal player_explosion_end, player_explosion_active
+        nonlocal player_explosion_handle
+        nonlocal player_explosion_end
+        nonlocal player_explosion_active
         _clear_player_explosion()
-        player_explosion_end = time.time() + explosion_duration
+        player_explosion_end = time.time() + player_explosion_hold
         player_explosion_active = True
         canvas.itemconfigure(player_item, state="hidden")
         colors = ["#ffd166", "#ff8a5b", "#ff4d6d", "#ffe29a", "#ffb347"]
@@ -922,7 +925,8 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 }
             )
         player_explosion_handle = canvas.after(
-            explosion_frame_ms, _animate_player_explosion
+            explosion_frame_ms,
+            _animate_player_explosion,
         )
 
     hall_button = ttk.Button(
@@ -1045,7 +1049,6 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             timers_started = True
 
     pause_button.configure(command=_toggle_pause)
-    player_width = 26
     player_height = 22
 
     def _player_shape_coords(cx: float, cy: float) -> list[float]:
@@ -1160,15 +1163,16 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     game_over = False
     last_shooter: str | None = None
     general_hits = 0
+
     def _minions_alive() -> bool:
         return any(
-            record.get("alive")
-            and eid != general_id
+            record.get("alive") and eid != general_id
             for eid, record in enemy_data.items()
         )
 
     def _effective_general_shield_max() -> int:
         return 1 if not _minions_alive() else base_general_shield_max
+
     player_hits = 0
     tick_handle: str | None = None
     fire_handle: str | None = None
@@ -1422,7 +1426,6 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         return f"{minutes:02d}:{seconds:02d}"
 
     def _update_status() -> None:
-        elapsed = _elapsed_seconds()
         player_remaining = max(player_shield_max - player_hits, 0)
         current_general_shield = _effective_general_shield_max()
         general_remaining = max(current_general_shield - general_hits, 0)
@@ -1885,7 +1888,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         charge_handle = _scaled_after(6000, _charge_cycle)
 
     def _general_fire_cycle() -> None:
-        nonlocal general_fire_handle
+        nonlocal general_fire_handle, general_barrage_cooldown
         if game_over:
             return
         if paused:
@@ -2193,7 +2196,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 )
                 gap = player["x"] - record["x"]
                 player_lingering = _player_lingering()
-                player_edge_distance = min(player["x"], canvas_width - player["x"])
+                player_edge_distance = min(
+                    player["x"], canvas_width - player["x"]
+                )
                 near_player_edge = player_edge_distance < 90
                 near_player_edge = (
                     min(player["x"], canvas_width - player["x"]) < 90
@@ -2206,7 +2211,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     general_ai["target"] = max(
                         safe_margin,
                         min(canvas_width - safe_margin, player["x"] + offset),
-                        )
+                    )
                     general_ai["cooldown"] = random.randint(15, 35)
                 elif general_ai.get("mode") == "pressure":
                     general_ai["mode"] = "patrol"
@@ -2282,7 +2287,10 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 ):
                     general_ai["mode"] = "patrol"
                     general_ai["cooldown"] = random.randint(40, 100)
-                if general_ai.get("retreat") and abs(target - record["x"]) < 12:
+                if (
+                    general_ai.get("retreat")
+                    and abs(target - record["x"]) < 12
+                ):
                     general_ai["retreat"] = False
                     general_ai["retreat_target"] = None
                     general_ai["mode"] = "patrol"

@@ -12,9 +12,13 @@ from rng_minigames.alien_invasion import ai_agent, hall_of_fame
 
 
 def test_alien_invasion_ai_persists_learning(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The AI brain should write its weights and reload them on the next run."""
+    """The AI brain should write its weights repeatedly.
+
+    It should reload them on the next run.
+    """
 
     # Keep the decision path deterministic by disabling the exploration branch.
     monkeypatch.setattr(ai_agent.random, "random", lambda: 0.5)

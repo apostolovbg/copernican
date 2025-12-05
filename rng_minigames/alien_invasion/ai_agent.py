@@ -293,13 +293,14 @@ class AlienInvasionAI:
             return
         self._edge_streak += amount
         streak_penalty = self.edge_streak_scale * self._edge_streak
-        penalty_value = (
-            self.edge_penalty_multiplier * amount + streak_penalty
-        )
+        penalty_value = self.edge_penalty_multiplier * amount + streak_penalty
         self._intermediate_reward -= penalty_value
 
     def cool_edge_streak(self, decay: float = 0.3) -> None:
-        """Wind down the accumulated edge penalty when the AI leaves the wall."""
+        """Wind down the accumulated edge penalty.
+
+        The streak decays while the AI leaves the wall.
+        """
 
         decay_value = decay if decay is not None else self.edge_streak_decay
         self._edge_streak = max(0.0, self._edge_streak - decay_value)
@@ -327,7 +328,9 @@ class AlienInvasionAI:
             speed_bonus = 6.0 * (0.3 + 0.7 * normalized)
             streak_bonus = 1.0 + self.state["worlds_saved"] * 0.06
             reward = 12.0 * streak_bonus + speed_bonus + 3.5
-        kill_rate = self._kill_count / max(duration if duration > 0 else 1.0, 1.0)
+        kill_rate = self._kill_count / max(
+            duration if duration > 0 else 1.0, 1.0
+        )
         multiplier = float(self.kill_time_bonus.get("multiplier", 1.0))
         exponent = float(self.kill_time_bonus.get("exponent", 1.0))
         reward += multiplier * (kill_rate**exponent)
@@ -668,7 +671,8 @@ class AlienInvasionAI:
             passes += 1
         if magnitude > 4.5:
             passes += 1
-        recent_history = self._history[-self.history_limit :]
+        limit = self.history_limit
+        recent_history = self._history[-limit:]
         history_len = len(recent_history)
         for _ in range(passes):
             for index, sample in enumerate(recent_history):

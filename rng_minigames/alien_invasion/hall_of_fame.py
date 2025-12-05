@@ -53,7 +53,10 @@ class HallOfFame:
         window.resizable(False, False)
         if ttk is None:
             text = "\n".join(
-                f"{idx + 1}. {entry['initials']} - {entry['time_left']}s remaining"
+                (
+                    f"{idx + 1}. {entry['initials']} - "
+                    f"{entry['time_left']}s remaining"
+                )
                 for idx, entry in enumerate(self.entries)
             )
             tk.Label(window, text=text or "No runs recorded yet.").pack(

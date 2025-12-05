@@ -164,6 +164,9 @@ the CLI engines.
   historical metrics.
 - `_storage/alien_invasion_hof.yml` – Hall-of-fame entries (only the 10 fastest
   runs are kept).
+- `_storage/ai_learning_stats.yml` – Cumulative training stats (runs, wins, losses,
+  kill averages, edge discipline) that persist across sessions unless you reset
+  the AI helper.
 - `_storage/game_settings.yml` – User-tuned gameplay knobs (shields, debris,
   motion parameters, etc.).
 
