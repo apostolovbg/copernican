@@ -3,6 +3,7 @@ Tests for changelog-coverage policy.
 """
 
 from pathlib import Path
+from textwrap import dedent
 from types import SimpleNamespace
 
 import pytest
@@ -74,6 +75,63 @@ def test_rng_changelog_entry_found(
     rng_changelog.parent.mkdir(parents=True, exist_ok=True)
     rng_changelog.write_text(
         "rng_minigames/emoji_meteors/game.py", encoding="utf-8"
+    )
+    _set_git_diff(monkeypatch, "rng_minigames/emoji_meteors/game.py\n")
+
+    checker = ChangelogCoverageCheck()
+    context = CheckContext(repo_root=tmp_path, all_files=[])
+    violations = checker.check(context)
+
+    assert violations == []
+
+
+def test_rng_files_not_logged_in_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """RNG files should not appear in the root changelog."""
+
+    root_changelog = tmp_path / "CHANGELOG.md"
+    root_changelog.write_text(
+        "rng_minigames/emoji_meteors/game.py", encoding="utf-8"
+    )
+    rng_changelog = tmp_path / "rng_minigames" / "CHANGELOG.md"
+    rng_changelog.parent.mkdir(parents=True, exist_ok=True)
+    rng_changelog.write_text(
+        "rng_minigames/emoji_meteors/game.py", encoding="utf-8"
+    )
+    _set_git_diff(monkeypatch, "rng_minigames/emoji_meteors/game.py\n")
+
+    checker = ChangelogCoverageCheck()
+    context = CheckContext(repo_root=tmp_path, all_files=[])
+    violations = checker.check(context)
+
+    assert len(violations) == 1
+    assert "root changelog" in violations[0].message
+
+
+def test_rng_entries_ignore_old_root_sections(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Old root entries mentioning RNG files should not trigger violations."""
+
+    root_changelog = tmp_path / "CHANGELOG.md"
+    root_changelog.write_text(
+        dedent(
+            """
+            ## Version 2.0.0
+            - entry about docs/readme.md
+
+            ## Version 1.0.0
+            - rng_minigames/emoji_meteors/game.py
+            """
+        ).strip(),
+        encoding="utf-8",
+    )
+    rng_changelog = tmp_path / "rng_minigames" / "CHANGELOG.md"
+    rng_changelog.parent.mkdir(parents=True, exist_ok=True)
+    rng_changelog.write_text(
+        "## Version 2.0.0\n- rng_minigames/emoji_meteors/game.py",
+        encoding="utf-8",
     )
     _set_git_diff(monkeypatch, "rng_minigames/emoji_meteors/game.py\n")
 

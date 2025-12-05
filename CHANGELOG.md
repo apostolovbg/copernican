@@ -21,6 +21,12 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-05: Locked the changelog coverage policy to RNG-only logging, added
+            exclusivity tests and refreshed the policy registry so future RNG
+            changes stay isolated in their own log (AGENTS.md,
+            devcovenant/policy_scripts/changelog_coverage.py,
+            devcovenant/tests/test_policies/test_changelog_coverage.py,
+            devcovenant/registry.json, CHANGELOG.md).
 - 2025-12-05: RNG mini-game updates from 2025-12-03 through 2025-12-05 now live in `rng_minigames/CHANGELOG.md`.
 - 2025-12-05: Moved RNG documentation into per-game READMEs, pointed README/AGENTS/docs at the new location and updated the DevCovenant changelog policy to enforce the split (README.md, AGENTS.md, docs/gui_guide.md, docs/minigames.md, devcovenant/policy_scripts/changelog_coverage.py, devcovenant/tests/test_policies/test_changelog_coverage.py).
 - 2025-12-03: Added CLI utility flags for catalogue summaries, dataset revalidation and manifest listing/preview so terminal users can inspect inventories without launching the GUI (copernican.py, tests/test_cli/test_cli_utilities.py, docs/cli_guide.md, README.md, CHANGELOG.md).

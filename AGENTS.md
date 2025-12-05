@@ -541,18 +541,18 @@ id: changelog-coverage
 status: active
 severity: error
 auto_fix: false
-updated: true
+updated: false
 applies_to: *
 ```
 
 All changed files must be documented in the appropriate changelog. Files under
-`rng_minigames/` (including its tests and documentation) must appear in
-`rng_minigames/CHANGELOG.md`, while every other change belongs in the root
-`CHANGELOG.md`. Compare `git diff --name-only` against the newest entry in the
-relevant file before every commit. Legacy `dev_note` headers should be migrated
-to the changelog when touched. **Explicitly enumerate every changed file in each
-entry**—the lint hook fails whenever any touched path is missing from the
-changelog summary.
+`rng_minigames/` (including its tests and documentation) must appear only in
+`rng_minigames/CHANGELOG.md` and must not be listed in the root `CHANGELOG.md`.
+All other changes belong in the root `CHANGELOG.md`. Compare
+`git diff --name-only` against the newest entry in the relevant file before
+every commit. Legacy `dev_note` headers should be migrated to the changelog when
+touched. **Explicitly enumerate every changed file in each entry**—the lint hook
+fails whenever any touched path is missing from the changelog summary.
 **Explicitly enumerate every changed file in each entry**—the lint hook fails
 whenever any touched path is missing from the changelog summary.
 

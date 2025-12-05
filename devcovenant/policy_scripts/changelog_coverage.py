@@ -11,11 +11,31 @@ from typing import List
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
 
+def _latest_section(content: str) -> str:
+    """Return the newest version section from a changelog."""
+
+    marker = "## Version"
+    search_start = 0
+    log_marker = "## Log changes here"
+    log_index = content.find(log_marker)
+    if log_index != -1:
+        search_start = log_index
+    start = content.find(marker, search_start)
+    if start == -1:
+        start = content.find(marker)
+        if start == -1:
+            return content
+    next_start = content.find("\n" + marker, start + len(marker))
+    if next_start == -1:
+        return content[start:]
+    return content[start:next_start]
+
+
 class ChangelogCoverageCheck(PolicyCheck):
-    """Verify that modified files are mentioned in the appropriate changelog."""
+    """Verify that modified files land in the appropriate changelog."""
 
     policy_id = "changelog-coverage"
-    version = "2.0.0"
+    version = "2.2.0"
 
     def check(self, context: CheckContext) -> List[Violation]:
         """
@@ -67,8 +87,21 @@ class ChangelogCoverageCheck(PolicyCheck):
             else:
                 main_files.append(file_path)
 
+        root_content = (
+            root_changelog.read_text(encoding="utf-8")
+            if (main_files or rng_files) and root_changelog.exists()
+            else None
+        )
+        rng_content = (
+            rng_changelog.read_text(encoding="utf-8")
+            if (rng_files or main_files) and rng_changelog.exists()
+            else None
+        )
+        root_section = _latest_section(root_content) if root_content else None
+        rng_section = _latest_section(rng_content) if rng_content else None
+
         if main_files:
-            if not root_changelog.exists():
+            if root_content is None:
                 violations.append(
                     Violation(
                         policy_id=self.policy_id,
@@ -81,9 +114,8 @@ class ChangelogCoverageCheck(PolicyCheck):
                     )
                 )
             else:
-                root_content = root_changelog.read_text(encoding="utf-8")
                 missing = [
-                    path for path in main_files if path not in root_content
+                    path for path in main_files if path not in root_section
                 ]
                 if missing:
                     files_str = ", ".join(missing)
@@ -105,7 +137,7 @@ class ChangelogCoverageCheck(PolicyCheck):
                     )
 
         if rng_files:
-            if not rng_changelog.exists():
+            if rng_content is None:
                 violations.append(
                     Violation(
                         policy_id=self.policy_id,
@@ -122,9 +154,8 @@ class ChangelogCoverageCheck(PolicyCheck):
                     )
                 )
             else:
-                rng_content = rng_changelog.read_text(encoding="utf-8")
                 missing_rng = [
-                    path for path in rng_files if path not in rng_content
+                    path for path in rng_files if path not in rng_section
                 ]
                 if missing_rng:
                     files_str = ", ".join(missing_rng)
@@ -144,5 +175,28 @@ class ChangelogCoverageCheck(PolicyCheck):
                             can_auto_fix=False,
                         )
                     )
+
+        if rng_files and root_section:
+            forbidden_main_mentions = [
+                path for path in rng_files if path in root_section
+            ]
+            if forbidden_main_mentions:
+                files_str = ", ".join(forbidden_main_mentions)
+                violations.append(
+                    Violation(
+                        policy_id=self.policy_id,
+                        severity="error",
+                        file_path=root_changelog,
+                        message=(
+                            "RNG mini-game files must not be logged in the "
+                            f"root changelog: {files_str}"
+                        ),
+                        suggestion=(
+                            "Remove RNG entries from CHANGELOG.md and log "
+                            "them only in rng_minigames/CHANGELOG.md"
+                        ),
+                        can_auto_fix=False,
+                    )
+                )
 
         return violations
