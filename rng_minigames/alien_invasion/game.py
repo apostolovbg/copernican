@@ -148,7 +148,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         )
         ticks_per_second = 1000 / effective_delay
         desired_steps_per_second = base_ticks_per_second * scale
-        return max(1, int(math.ceil(desired_steps_per_second / ticks_per_second)))
+        return max(
+            1, int(math.ceil(desired_steps_per_second / ticks_per_second))
+        )
 
     def _draw_background() -> None:
         gradient_steps = 60
@@ -1308,9 +1310,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
 
     def _scaled_after(delay_ms: int, callback: Callable[[], None]) -> str:
         scale = _time_scale()
-        scaled = max(
-            min_event_delay_ms, int(delay_ms / max(scale, 1.0))
-        )
+        scaled = max(min_event_delay_ms, int(delay_ms / max(scale, 1.0)))
         return canvas.after(scaled, callback)
 
     MAX_RUN_SECONDS = max_run_seconds

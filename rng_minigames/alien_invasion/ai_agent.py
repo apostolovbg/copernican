@@ -414,7 +414,9 @@ class AlienInvasionAI:
     def _validate_or_reset_network(
         self, network: Dict[str, Any], hidden_layers: Sequence[int]
     ) -> Dict[str, Any]:
-        configured = list(hidden_layers) if hidden_layers else [DEFAULT_HIDDEN_UNITS]
+        configured = (
+            list(hidden_layers) if hidden_layers else [DEFAULT_HIDDEN_UNITS]
+        )
         try:
             input_size = len(INPUT_FEATURES)
             output_size = OUTPUT_UNITS
@@ -428,7 +430,9 @@ class AlienInvasionAI:
                     raise ValueError("hidden layer mismatch")
                 weights = network.get("weights")
                 biases = network.get("biases")
-                if not isinstance(weights, list) or not isinstance(biases, list):
+                if not isinstance(weights, list) or not isinstance(
+                    biases, list
+                ):
                     raise ValueError("missing weight/bias matrices")
                 if len(weights) != len(biases):
                     raise ValueError("weight/bias length mismatch")
@@ -451,7 +455,9 @@ class AlienInvasionAI:
                         if len(row) != in_size:
                             raise ValueError("invalid weight cols")
                         sanitized_layer.append([float(value) for value in row])
-                    sanitized_biases.append([float(value) for value in layer_biases])
+                    sanitized_biases.append(
+                        [float(value) for value in layer_biases]
+                    )
                     sanitized_weights.append(sanitized_layer)
                 return {
                     "input_size": input_size,
@@ -475,7 +481,8 @@ class AlienInvasionAI:
                 raise ValueError("missing legacy weights")
             if (
                 int(network.get("input_size", input_size)) != input_size
-                or int(network.get("hidden_size", hidden_units)) != hidden_units
+                or int(network.get("hidden_size", hidden_units))
+                != hidden_units
                 or int(network.get("output_size", output_size)) != output_size
             ):
                 raise ValueError("legacy dimension mismatch")
@@ -643,10 +650,10 @@ class AlienInvasionAI:
             for neuron_idx, neuron_activation in enumerate(activations):
                 influence = 0.0
                 for next_idx, next_weights_row in enumerate(next_weights):
-                    influence += next_weights_row[neuron_idx] * next_delta[next_idx]
-                current_delta.append(
-                    influence * (1 - neuron_activation ** 2)
-                )
+                    influence += (
+                        next_weights_row[neuron_idx] * next_delta[next_idx]
+                    )
+                current_delta.append(influence * (1 - neuron_activation**2))
             layer_deltas[layer_idx] = current_delta
 
         for layer_idx, delta_vec in enumerate(layer_deltas):
