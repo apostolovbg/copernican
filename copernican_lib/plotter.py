@@ -30,6 +30,8 @@ _ = plt.get_backend()
 # memory and stalling Stage 5 of the suite. Capping the processed samples keeps
 # plotting predictable while still conveying the global posterior geometry.
 MAX_CORNER_SAMPLES = 100_000
+_INFO_BOX_WIDTH = 0.22
+_INFO_BOX_MARGIN = 0.03
 
 
 # NOTE: ``_prepare_corner_inputs`` used to be spelled
@@ -125,6 +127,13 @@ def _validate_corner_inputs(
     """
 
     return _prepare_corner_inputs(posterior_samples, parameter_names)
+
+
+def _info_box_layout(right: float) -> tuple[float, float]:
+    """Return the x-coordinate and gap for the info boxes."""
+
+    info_x = 1.0 - _INFO_BOX_WIDTH - _INFO_BOX_MARGIN
+    return info_x, info_x - right
 
 
 def _density_levels(
@@ -819,8 +828,7 @@ def plot_hubble_diagram(
     right = 0.75
     top = 0.92
     box_height = 0.33
-    info_x = 0.77
-    info_gap = info_x - right
+    info_x, info_gap = _info_box_layout(right)
 
     fig, axs = plt.subplots(
         2,
@@ -1021,7 +1029,8 @@ def plot_hubble_diagram(
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
-        wrap=False,
+        wrap=True,
+        multialignment="left",
         bbox=bbox_lcdm,
     )
     fig.text(
@@ -1035,7 +1044,8 @@ def plot_hubble_diagram(
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
-        wrap=False,
+        wrap=True,
+        multialignment="left",
         bbox=bbox_alt,
     )
 
@@ -1105,8 +1115,7 @@ def plot_bao_observables(
     right = 0.75
     top = 0.90
     box_height = 0.33
-    info_x = 0.77
-    info_gap = info_x - right
+    info_x, info_gap = _info_box_layout(right)
 
     fig, axs = plt.subplots(
         2,
@@ -1362,7 +1371,8 @@ def plot_bao_observables(
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
-        wrap=False,
+        wrap=True,
+        multialignment="left",
         bbox=bbox_lcdm,
     )
     fig.text(
@@ -1377,7 +1387,8 @@ def plot_bao_observables(
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
-        wrap=False,
+        wrap=True,
+        multialignment="left",
         bbox=bbox_alt,
     )
 
@@ -1469,8 +1480,7 @@ def plot_cmb_spectrum(
     right = 0.75
     top = 0.92
     box_height = 0.33
-    info_x = 0.77
-    info_gap = info_x - right
+    info_x, info_gap = _info_box_layout(right)
 
     fig, axs = plt.subplots(
         len(components) * 2,
@@ -1724,7 +1734,8 @@ def plot_cmb_spectrum(
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
-        wrap=False,
+        wrap=True,
+        multialignment="left",
         bbox=bbox_lcdm,
     )
     fig.text(
@@ -1740,7 +1751,8 @@ def plot_cmb_spectrum(
         fontsize=font_sizes["infobox"],
         va="top",
         ha="left",
-        wrap=False,
+        wrap=True,
+        multialignment="left",
         bbox=bbox_alt,
     )
 
