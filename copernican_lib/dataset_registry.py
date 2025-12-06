@@ -20,12 +20,28 @@ import importlib
 import logging
 import os
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from . import console_output as console
 from .utils import check_dataset_id, compute_sha256, load_metadata_from_dir
+
+_DATA_FILE_EXTENSIONS = {
+    ".dat",
+    ".cov",
+    ".txt",
+    ".csv",
+    ".fits",
+    ".fit",
+    ".npz",
+    ".npy",
+    ".h5",
+    ".yaml",
+    ".yml",
+}
+_DOCUMENTATION_PREFIXES = ("readme", "license", "notes", "citation")
 
 # Each parser is registered via a decorator so that ``copernican.py`` can list
 # available data sources dynamically. The loaders below simply call the
@@ -476,25 +492,194 @@ def _validate_bao_covariance(df, logger):
     return True
 
 
-def _attach_file_hashes(df, data_dir, logger):
-    """Compute SHA256 hashes for files in ``data_dir`` and log them.
+def _attach_file_hashes(df, data_dir, metadata, logger):
+    """Compute SHA256 hashes for trusted dataset files and log them."""
 
-    The resulting mapping is stored on ``df.attrs['file_hashes']`` so later
-    stages such as the run manifest can embed the exact input digests.  Each
-    hash is logged for audit purposes to aid reproducibility.
-    """
-
-    file_hashes = {}
-    for root, _, files in os.walk(data_dir):
-        for fname in sorted(files):
-            if fname.endswith(".py"):
-                continue
-            path = os.path.join(root, fname)
-            rel = os.path.relpath(path, data_dir)
-            file_hashes[rel] = compute_sha256(path)
+    file_hashes = collect_dataset_hashes(data_dir, metadata or {}, logger)
     df.attrs["file_hashes"] = file_hashes
     for rel, digest in file_hashes.items():
         logger.info("SHA256 %s: %s", rel, digest)
+
+
+def collect_dataset_hashes(
+    data_dir: str,
+    metadata: dict | None = None,
+    logger: logging.Logger | None = None,
+) -> dict[str, str]:
+    """Return the SHA256 hashes for the relevant files in ``data_dir``."""
+
+    metadata = metadata or {}
+    data_dir_path = Path(data_dir)
+    if not data_dir_path.is_dir():
+        if logger:
+            logger.warning(
+                "Dataset directory %s unavailable for hashing", data_dir
+            )
+        return {}
+    resolved_dir = data_dir_path.resolve()
+    targets = _resolve_hash_targets(resolved_dir, metadata, logger)
+    hashes: dict[str, str] = {}
+    for target in sorted(targets, key=lambda p: p.as_posix()):
+        rel = _relative_to_dir(resolved_dir, target)
+        if rel is None:
+            continue
+        if not target.is_file():
+            if logger:
+                logger.warning(
+                    "Hash target %s is not a file; skipping", target
+                )
+            continue
+        hashes[rel] = compute_sha256(str(target))
+    return hashes
+
+
+def _resolve_hash_targets(
+    data_dir_path: Path, metadata: dict, logger: logging.Logger | None
+) -> set[Path]:
+    """Return the set of file paths whose hashes should be recorded."""
+
+    try:
+        entries = list(data_dir_path.iterdir())
+    except OSError as exc:
+        if logger:
+            logger.warning(
+                "Failed to list dataset directory %s for hashing: %s",
+                data_dir_path,
+                exc,
+            )
+        return set()
+
+    metadata_paths = _metadata_files(entries)
+    parser_paths = _parser_files(entries)
+    targets: set[Path] = {
+        path.resolve() for path in (*metadata_paths, *parser_paths)
+    }
+    explicit_data = _explicit_data_files(data_dir_path, metadata, logger)
+    if explicit_data:
+        targets.update(explicit_data)
+    else:
+        fallback = _fallback_data_files(entries, metadata_paths, parser_paths)
+        targets.update(path.resolve() for path in fallback)
+    return targets
+
+
+def _metadata_files(entries: list[Path]) -> list[Path]:
+    """Return metadata YAML files from ``entries``."""
+
+    return sorted(
+        entry
+        for entry in entries
+        if entry.is_file()
+        and entry.name.startswith("metadata")
+        and entry.suffix.lower() in (".yml", ".yaml")
+    )
+
+
+def _parser_files(entries: list[Path]) -> list[Path]:
+    """Return parser scripts from ``entries``."""
+
+    return sorted(
+        entry
+        for entry in entries
+        if entry.is_file()
+        and entry.name.startswith("cosmo_parser_")
+        and entry.suffix == ".py"
+    )
+
+
+def _explicit_data_files(
+    data_dir_path: Path,
+    metadata: dict,
+    logger: logging.Logger | None,
+) -> set[Path]:
+    """Resolve ``metadata['data_files']`` entries to absolute paths."""
+
+    data_files = metadata.get("data_files")
+    if data_files is None:
+        return set()
+    if isinstance(data_files, str):
+        candidates = [data_files]
+    else:
+        try:
+            candidates = list(data_files)
+        except TypeError:
+            return set()
+
+    resolved: set[Path] = set()
+    for entry in candidates:
+        if not isinstance(entry, str):
+            continue
+        candidate = Path(entry)
+        if candidate.is_absolute():
+            if logger:
+                logger.warning(
+                    "Ignoring absolute data_files entry %r for %s",
+                    entry,
+                    data_dir_path,
+                )
+            continue
+        target = (data_dir_path / candidate).resolve()
+        try:
+            target.relative_to(data_dir_path)
+        except ValueError:
+            if logger:
+                logger.warning(
+                    "data_files entry %r escapes %s; skipping",
+                    entry,
+                    data_dir_path,
+                )
+            continue
+        if not target.exists():
+            if logger:
+                logger.warning(
+                    "data_files entry %r missing in %s",
+                    entry,
+                    data_dir_path,
+                )
+            continue
+        if not target.is_file():
+            if logger:
+                logger.warning(
+                    "data_files entry %r is not a file in %s; skipping",
+                    entry,
+                    data_dir_path,
+                )
+            continue
+        resolved.add(target)
+    return resolved
+
+
+def _fallback_data_files(
+    entries: list[Path], metadata_paths: list[Path], parser_paths: list[Path]
+) -> list[Path]:
+    """Return fallback files to hash when metadata lacks ``data_files``."""
+
+    metadata_names = {entry.name for entry in metadata_paths}
+    parser_names = {entry.name for entry in parser_paths}
+    candidates = []
+    for entry in entries:
+        if not entry.is_file():
+            continue
+        if entry.name in metadata_names or entry.name in parser_names:
+            continue
+        name_lower = entry.name.lower()
+        if any(
+            name_lower.startswith(prefix) for prefix in _DOCUMENTATION_PREFIXES
+        ):
+            continue
+        if entry.suffix.lower() not in _DATA_FILE_EXTENSIONS:
+            continue
+        candidates.append(entry)
+    return sorted(candidates, key=lambda path: path.name.lower())
+
+
+def _relative_to_dir(base: Path, target: Path) -> str | None:
+    """Return a posix relative path from ``base`` to ``target``."""
+
+    try:
+        return target.relative_to(base).as_posix()
+    except ValueError:
+        return None
 
 
 def _load_dataset(
@@ -573,7 +758,7 @@ def _load_dataset(
                 label,
             )
             if data_dir:
-                _attach_file_hashes(data_df, data_dir, logger)
+                _attach_file_hashes(data_df, data_dir, meta, logger)
             _log_dataset_info(data_df, label, logger)
         elif data_df is None:
             logger.error(
@@ -658,7 +843,7 @@ def load_gw_data(dataset_id=None, **kwargs):
                 "data points.",
                 len(data_df),
             )
-            _attach_file_hashes(data_df, data_dir, logger)
+            _attach_file_hashes(data_df, data_dir, meta, logger)
             _log_dataset_info(
                 data_df, "Gravitational-wave standard siren", logger
             )

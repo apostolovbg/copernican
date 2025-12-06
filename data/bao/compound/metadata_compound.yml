@@ -32,6 +32,8 @@ publisher: N/A
 year: N/A
 month: N/A
 pages: N/A
+data_files:
+  - compound.yml
 notes: >-
   Observable types: DV_over_rs (D_V(z)/r_s), DM_over_rs (D_M(z)/r_s),
   DH_over_rs (D_H(z)/r_s = c/(H(z) r_s)). All r_s values are the model's

@@ -2,7 +2,7 @@ model_name: w0waCDM
 version: '1.0'
 description: >-
   ### w₀wₐCDM overview
-  
+
   The w₀wₐCDM catalog entry elevates the CPL parametrisation to a full sample
   model. A time-varying dark-energy equation of state tracks the present-day
   value w₀ plus a linear run rate wₐ that multiplies the scale factor.
@@ -10,14 +10,14 @@ description: >-
   freedom so operators can inspect whether the early universe already hints at
   evolving dark energy or if the late-time acceleration remains indistinguishable
   from a cosmological constant.
-  
+
   The Hubble expansion used by the likelihoods incorporates curvature, baryon
   density and radiation support while the CPL factors enter only through the
   dark-energy density. High-redshift physics stays intact thanks to the standard
   photon term, and the H(z) expression below keeps Omega_de coupled explicitly to
   w₀ and wₐ so the manifest documents the exact functional form the pipelines
   use during bootstrapping.
-  
+
   This sample keeps the inference knobs transparent. The w₀ constraint comes
   from the position of the acoustic scale, wₐ influences how smoothly the
   H(z) curve transitions between z≈0 and z≈2, and curvature remains a separate

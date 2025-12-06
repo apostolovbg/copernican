@@ -29,6 +29,7 @@ dependencies = [
     "xarray-einstats==0.6.0",
     "typing_extensions==4.10.0",
     "arviz==0.16.1",
+    "pre-commit==4.5.0",
 ]
 
 classifiers = [

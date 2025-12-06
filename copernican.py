@@ -136,6 +136,10 @@ try:
 except NameError:
     SCRIPT_DIR = os.getcwd()
 
+MPL_CONFIG_DIR = Path(SCRIPT_DIR) / ".matplotlib-cache"
+os.environ.setdefault("MPLCONFIGDIR", str(MPL_CONFIG_DIR))
+MPL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
 CURRENT_LOG_FILE = None
 PROGRAM_LOG_FILE: str | None = None
 PROGRAM_LOGGER: logging.Logger | None = None
@@ -210,6 +214,7 @@ class LaunchRequest:
     revalidate_dataset: str | None = None
     list_manifests: bool = False
     show_manifest_path: Path | None = None
+    run_validation: bool = False
 
 
 def _data_root() -> Path:
@@ -538,8 +543,8 @@ def _cli_revalidate_dataset(
     else:
         console.write(
             (
-                f"Digest mismatch for {dataset_id}: expected {expected_digest} "
-                f"but observed {parser_digest}."
+                f"Digest mismatch for {dataset_id}: expected "
+                f"{expected_digest} but observed {parser_digest}."
             ),
             error=True,
         )
@@ -582,7 +587,10 @@ def _print_manifest_listing(output_root: Path) -> None:
         )
     if len(records) > 20:
         console.write(
-            f"  … {len(records) - 20} additional run folder(s) hidden; clean up old runs if needed."
+            (
+                f"  … {len(records) - 20} additional run folder(s) hidden; "
+                "clean up old runs if needed."
+            )
         )
 
 
@@ -601,6 +609,34 @@ def _print_manifest_file(path: Path) -> bool:
     return True
 
 
+def _run_validation_cli() -> bool:
+    from validation.runner import run_validation_suite
+
+    from copernican_lib import validation as validation_utils
+
+    repo_root = Path(__file__).resolve().parent
+    try:
+        code, summary = run_validation_suite(script_dir=repo_root)
+    except Exception as exc:
+        code = 1
+        summary = f"Validation runner could not start: {exc}"
+        console.write(summary, error=True)
+    console.write("")
+    console.write("Validation summary")
+    console.write("------------------")
+    if summary:
+        for line in summary.splitlines():
+            console.write(line)
+    validation_utils.write_validation_summary(summary, code == 0)
+    console.write(
+        (
+            "Saved validation report to "
+            f"{validation_utils.VALIDATION_FILE}"
+        )
+    )
+    return code == 0
+
+
 def _handle_auxiliary_requests(
     launch_request: LaunchRequest,
 ) -> tuple[bool, int]:
@@ -610,6 +646,12 @@ def _handle_auxiliary_requests(
     models_root = _models_root()
     engines_root = _engines_root()
     output_root = _output_root(launch_request.output_dir)
+    if launch_request.run_validation:
+        success = _run_validation_cli()
+        handled = True
+        if not success:
+            exit_code = 1
+        return handled, exit_code
     if launch_request.catalogue_summary:
         _print_catalogue_summary_cli(data_root, models_root, engines_root)
         handled = True
@@ -764,6 +806,14 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         metavar="MANIFEST_PATH",
         help="Pretty-print the specified manifest file and exit.",
     )
+    parser.add_argument(
+        "--run-validation",
+        action="store_true",
+        help=(
+            "Execute the lightweight validation suite "
+            "and record the summary."
+        ),
+    )
     argv_list = list(argv) if argv is not None else None
     parsed, _ = parser.parse_known_args(argv_list)
     legacy_menu = parsed.enable_legacy_stage_menu or (
@@ -802,6 +852,7 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         revalidate_dataset=parsed.revalidate_dataset,
         list_manifests=parsed.list_manifests,
         show_manifest_path=manifest_display,
+        run_validation=parsed.run_validation,
     )
 
 

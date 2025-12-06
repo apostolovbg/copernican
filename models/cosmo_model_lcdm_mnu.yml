@@ -2,14 +2,14 @@ model_name: LambdaCDM+Mnu
 version: '1.0'
 description: >-
   ### LambdaCDM with variable neutrino mass
-  
+
   This sample keeps the flat ΛCDM background but promotes the summed neutrino
   mass to a sampled quantity instead of a fixed heritage value. Supernovae and BAO
   distances remain governed by the same H(z) expression while the CAMB-based CMB
   likelihood now sees the explicit nummerical contribution through Omnus.
   Elevating m_ν lets the manifest capture the neutrino signature shown by galaxy
   clustering without rewriting the BAO or SNe integrals.
-  
+
   Observationally, raising sum_mnu shifts the small-scale power while leaving the
   high-z acoustic scale practically untouched; the sampler mitigates this by
   letting Omega_m0 adjust in concert with Omega_b while the massless photon

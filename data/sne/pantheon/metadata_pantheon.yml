@@ -33,6 +33,9 @@ publisher: American Astronomical Society
 year: 2022
 month: oct
 pages: 110
+data_files:
+  - Pantheon+SH0ES.dat
+  - Pantheon+SH0ES_STAT+SYS.cov
 notes: >-
   Distance moduli are loaded alongside the full statistical and systematic
   covariance matrix. The parser identifies the data and covariance files

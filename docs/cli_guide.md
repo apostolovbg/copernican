@@ -69,6 +69,15 @@ flags execute their action and exit immediately:
   output directory and shows the most recent manifest file in each folder.
 - `--show-manifest PATH` – Pretty-prints a saved manifest file so you can
   inspect it without opening a GUI metadata viewer.
+- `--run-validation` – Executes the golden manifests under
+  `validation/manifests/` (currently `reference_planck2018.yml`), runs the fixed
+  `models/cosmo_model_ref_planck2018.yml`, writes the NEW_CONFIG/results into
+  `validation/output/<manifest_stem>/copernican-run_<timestamp>/` and saves the
+  textual summary to `VALIDATION.md` before exiting.
+  The reference model uses uniform priors with matching lower/upper bounds so
+  the sampler still emits its reference trace and the plots keep drawing the
+  comparison lines even though the parameters never wander from the Planck 2018
+  anchor.
 
 ## Executing Saved Manifests
 Both the CLI and GUI rely on

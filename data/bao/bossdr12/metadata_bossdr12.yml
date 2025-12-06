@@ -40,6 +40,11 @@ publisher: Oxford University Press (OUP)
 year: 2017
 month: mar
 pages: 2617-2652
+data_files:
+  - BAO_consensus_results_dM_Hz.txt
+  - BAO_consensus_results_dV_FAP.txt
+  - BAO_consensus_covtot_dM_Hz.txt
+  - BAO_consensus_covtot_dV_FAP.txt
 notes: >-
   Published dM(rs_fid/rs) and Hz(rs/rs_fid) measurements are converted to
   D_M/rs and D_H/rs and combined with D_V/rs results. The dM/Hz and D_V/F_AP

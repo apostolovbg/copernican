@@ -6,4 +6,5 @@ license: >-
   CC0 1.0 Universal (CC0 1.0) Public Domain Dedication.
   https://creativecommons.org/publicdomain/zero/1.0/
 authors_all: N/A
+data_files: []
 notes: Stub parser for future gravitational-wave standard siren observations

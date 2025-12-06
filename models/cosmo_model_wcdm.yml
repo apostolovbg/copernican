@@ -2,7 +2,7 @@ model_name: wCDM
 version: '1.0'
 description: >-
   ### wCDM overview
-  
+
   The wCDM variation holds cold matter (baryons, photons and cold dark matter)
   exactly where ΛCDM places it but lets the dark-energy sector carry a
   constant equation-of-state parameter w_de that can deviate from -1. Deviating
@@ -11,7 +11,7 @@ description: >-
   rewriting the microphysics of the acoustic peaks. Small curvature is also
   permitted, giving the model the freedom to test the longstanding Ω_k ≈ 0
   assumption in the same inference run.
-  
+
   Observational anchors appear through multiple datasets. SNe Ia constrain the
   late-time integral of 1/H(z), BAO samples measure the combination of angular
   and radial distances, and the CMB links early-universe densities to today’s
@@ -19,7 +19,7 @@ description: >-
   across those probes so the covariance between w_de and Ω_k (or any H0 shift)
   is explicit and recoverable from the cached manifest; the manifest records the
   inferred w_de value and the derived curvature contribution.
-  
+
   Parameter degeneracies remain transparent because the ΔΩ_k term appears in
   the H(z) expression alongside a (1+z)**3 matter term; that structure lets
   MCMC walkers see when curvature scans start to mimic running dark energy and

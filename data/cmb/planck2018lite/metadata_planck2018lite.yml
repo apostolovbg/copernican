@@ -61,6 +61,9 @@ publisher: EDP Sciences
 year: 2020
 month: sep
 pages: A1
+data_files:
+  - cl_cmb_plik_v22.dat
+  - c_matrix_plik_v22.dat
 notes: >-
   TT, TE and EE angular power spectra are converted to D_l and aligned to
   the TT multipole grid. The covariance matrix is read from the binary

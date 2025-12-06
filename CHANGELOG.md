@@ -21,6 +21,43 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-08: Ensured the BAO likelihood extracts scalars from CAMB’s `rs_drag`
+            outputs instead of calling `float` on potential arrays, which removes
+            the NumPy deprecation warning while keeping the predictions unchanged
+            (copernican_lib/likelihoods/bao.py, CHANGELOG.md).
+- 2025-12-08: Suppressed ArviZ runtime warnings triggered by constant parameters
+            by ignoring `RuntimeWarning` during the rank/ESS calculations; the
+            diagnostics now still log summaries without spewing warnings for
+            fixed-parameter models (engines/cosmo_engine_mcmc.py,
+            CHANGELOG.md).
+- 2025-12-07: Added a KaTeX/MathJax-powered equation preview beside the model
+            definition pane (covering the vendored TkinterWeb assets,
+            style/template helpers, and the license notice) and stabilized the
+            per-theory info boxes so they stay within a fixed-width column that
+            wraps long theory names/equations while preserving the right-hand
+            margin for every fit plot (copernican_lib/gui/app.py,
+            copernican_lib/plotter.py,
+            copernican_lib/vendor/tkinterweb/__init__.py,
+            copernican_lib/vendor/tkinterweb/*.py,
+            copernican_lib/vendor/tkinterweb_tkhtml/__init__.py,
+            THIRD_PARTY_LICENSES.md, CHANGELOG.md)
+- 2025-12-06: Added `pre-commit==4.5.0` to the tracked dependencies, recompiled
+            `requirements.lock`, taught the `tests/__init__.py` cleanup hook to
+            skip any pre-existing `copernican-run_*` folders, and restored the
+            preserved `output/copernican-run_20251205_191908/copernican-run_20251205_191908.txt`
+            log so genuine runs survive the automatic cleanup while tests still
+            tidy their own outputs (pyproject.toml, requirements.in,
+            requirements.lock, tests/__init__.py,
+            output/copernican-run_20251205_191908/copernican-run_20251205_191908.txt,
+            CHANGELOG.md)
+- 2025-12-07: Declared the Planck 2018 Reference ΛCDM priors as uniform with
+            identical lower and upper bounds so validation runs still draw the
+            reference lines/corner while the parameters remain locked, refreshed
+            the manifest’s dataset hashes to match the trimmed `data_files`
+            inventory, and documented the behaviour for future validation work
+            (models/cosmo_model_ref_planck2018.yml,
+            validation/manifests/reference_planck2018.yml,
+            validation/README.md, CHANGELOG.md)
 - 2025-12-06: Resolved the BAO radiation mismatch by documenting the
             neutrino-corrected photon term, pointing
             `calculate_bao_observables` at the CAMB background, and refreshing
@@ -50,6 +87,43 @@ suffixes. Follow this template:
             (models/cosmo_model_wcdm.yml, models/cosmo_model_w0wa.yml,
             models/cosmo_model_lcdm_mnu.yml, copernican_lib/engine_plugin_validation.py,
             README.md, CHANGELOG.md).
+- 2025-12-06: Rebuilt the Validation workflow around manifest-driven runs,
+            added the fixed `models/cosmo_model_ref_planck2018.yml` reference,
+            documented the golden manifest plus output directory, and updated the
+            CLI `--run-validation` flag plus GUI Validation page so each run
+            streams its summary, writes to `VALIDATION.md`, and leaves outputs
+            under `validation/output/<manifest_stem>/copernican-run_<timestamp>/`.
+            The run monitor and validation log now expose “lock-to-latest” toggles
+            so viewers stay pinned when needed.
+            (copernican.py, copernican_lib/gui/app.py,
+            docs/cli_guide.md, docs/gui_guide.md, docs/gui_overview.md,
+            README.md, .gitignore, validation/README.md,
+            validation/runner.py, validation/manifests/reference_planck2018.yml,
+            validation/__init__.py, models/cosmo_model_ref_planck2018.yml,
+            VALIDATION.md, CHANGELOG.md).
+- 2025-12-07: Skipped cache directories and compiled artifacts when hashing
+            dataset assets so the recorded digests only describe the observational
+            files and validation manifests no longer list parser caches, and the
+            associated docs now explain the behaviour.
+            (copernican_lib/dataset_registry.py,
+            data/bao/bossdr12/metadata_bossdr12.yml,
+            data/bao/compound/metadata_compound.yml,
+            data/cmb/planck2018lite/metadata_planck2018lite.yml,
+            data/gw/placeholder/metadata_gw_placeholder.yml,
+            data/sne/jla2014/metadata_jla2014.yml,
+            data/sne/pantheon/metadata_pantheon.yml,
+            data/sne/union3/metadata_union3.yml,
+            validation/manifests/reference_planck2018.yml,
+            docs/data_overview.md, docs/architecture.md, CHANGELOG.md).
+- 2025-12-07: Added automatic cleanup of `copernican-run_*` folders after the
+            unittest/pytest suites run so the workspace stays clean between test
+            invocations (`tests/__init__.py`, CHANGELOG.md).
+- 2025-12-06: Removed the legacy playbook under `docs/validation/` and the
+            old `validation/lcdm_engine_validation.py` script now that the
+            manifest runner lives inside `validation/`, keeping the directory
+            layout clean (docs/validation/README.md,
+            docs/validation/lcdm_engine_validation.py,
+            validation/lcdm_engine_validation.py, CHANGELOG.md).
 - 2025-12-06: Let `Neff` float between 2.5 and 3.5 across the standard catalog so
             CAMB sees the same relativistic density that the analytic integrals
             expose (models/cosmo_model_lcdm.yml, models/cosmo_model_wcdm.yml,
@@ -720,7 +794,7 @@ suffixes. Follow this template:
               copernican_lib/priors.py, copernican_lib/progress.py,
               copernican_lib/result_writer.py, copernican_lib/run_manifest.py,
               copernican_lib/statistics.py, copernican_lib/utils.py,
-              docs/validation/lcdm_engine_validation.py,
+              validation/lcdm_engine_validation.py,
               engines/cosmo_engine_mcmc.py, engines/cosmo_engine_nested.py,
               data/bao/bossdr12/cosmo_parser_bossdr12.py,
               data/bao/compound/cosmo_parser_compound.py,

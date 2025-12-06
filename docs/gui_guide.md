@@ -21,6 +21,16 @@ plus buttons for every page:
   cached registries. Each page includes open-folder actions, metadata panes,
   parser revalidation controls and trust notes so you can inspect assets before
   entering the builder.
+- **Validation** – Executes the golden manifests under `validation/manifests/`
+  (currently `reference_planck2018.yml` using `models/cosmo_model_ref_planck2018.yml`),
+  streams the Run Monitor–style summary into a text box, saves outputs under
+  `validation/output/<manifest_stem>/copernican-run_<timestamp>/`, writes the
+  latest summary to `VALIDATION.md` and exposes a “Lock summary to latest entry”
+  checkbox so the text view can stay pinned to the bottom when desired.
+  The reference model declares uniform priors whose lower and upper bounds
+  coincide with the Planck 2018 numbers so the sampler still leaves a trace and
+  the corner plot highlights that canonical point even though the parameters are
+  numerically fixed for validation.
 - **Settings** – Provides diagnostics filters, log viewers and output-directory
   helpers plus a recap of the `COPERNICAN_*` environment variables currently in
   effect.

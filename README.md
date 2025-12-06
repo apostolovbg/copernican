@@ -109,7 +109,7 @@ shipped modules.
 Release highlights, breaking changes and historical notes live exclusively in
 [`CHANGELOG.md`](CHANGELOG.md). The `docs/` directory holds focused guides on
 architecture, datasets, manifest structure and packaging routines. A dedicated
-validation playbook under `docs/validation/` exercises both engines against
+validation playbook under `validation/` exercises both engines against
 public ΛCDM baselines and documents the tolerances used for routine checks.
 Dedicated GUI and CLI walkthroughs live in `docs/gui_guide.md` and
 `docs/cli_guide.md`, and the GUI Help page renders those Markdown files inline
@@ -125,6 +125,9 @@ the GUI menus:
 - `python copernican.py --list-manifests` enumerates timestamped run folders
   under the output directory, while `--show-manifest <path>` pretty-prints a
   saved manifest file.
+- `python copernican.py --run-validation` executes the lightweight validation
+  suite, prints the reference summary, stores it in `VALIDATION.md` (ignored),
+  and exits without launching the GUI.
 
 Engines, datasets and models stay fully pluggable. Generated YAML definitions
 are transformed into :class:`copernican_lib.plugins.EnginePlugin`
@@ -243,7 +246,7 @@ the pipeline.
 Release highlights, breaking changes and historical notes live exclusively in
 [`CHANGELOG.md`](CHANGELOG.md). The `docs/` directory holds focused guides on
 architecture, datasets, manifest structure and packaging routines. A dedicated
-validation playbook under `docs/validation/` exercises both engines against
+validation playbook under `validation/` exercises both engines against
 public ΛCDM baselines and documents the tolerances used for routine checks.
 
 Engines, datasets and models stay fully pluggable. Generated YAML definitions
@@ -898,15 +901,26 @@ Fatal signals such as ``SIGILL``, ``SIGSEGV`` or ``SIGFPE`` trigger handlers
 that dump stack traces to the console and active log file before termination.
 
 ## Validation Checks
-Lightweight cross-engine checks live in
-`docs/validation/lcdm_engine_validation.py` and are described in
-`docs/validation/README.md`. The helper loads the first 40 Pantheon+SH0ES 2022
-entries with diagonal uncertainties, pairs them with the BOSS DR12 BAO
-covariance and evaluates the Planck 2018 base-ΛCDM parameters. Run
-`python docs/validation/lcdm_engine_validation.py` from the repository root to
-compare each engine's posterior means and χ² breakdown against the recorded
-reference values. Acceptable drift tolerances are documented alongside the
-reference χ² totals in the validation readme.
+Validation manifests now live under `validation/manifests/` alongside the
+reference model file `models/cosmo_model_ref_planck2018.yml`, which fixes every
+ΛCDM degree of freedom to the Planck Collaboration VI (2018, Table 2)
+best-fit values that originally validated Worthington et al.'s likelihood
+stack. Every parameter still declares a uniform prior whose lower and upper
+bounds coincide with the published values so the sampler continues to record the
+reference point and the plots render the comparison lines even though the
+parameters are numerically pinned.
+
+The canonical manifest `reference_planck2018.yml` runs this fixed model against
+Pantheon+SH0ES 2022, BOSS DR12 BAO and Planck 2018 Lite via the standard manifest
+pipeline, writes its NEW_CONFIG and plots into
+`validation/output/<manifest_stem>/copernican-run_<timestamp>/`, and copies a
+summary of each manifest result (pass/fail plus the output directory) into
+`VALIDATION.md` (gitignored). CLI users execute the same flow with
+`python copernican.py --run-validation`, while the GUI Validation page replays
+the manifests, streams their Run Monitor–style text to the summary pane, and
+offers a “Lock summary to latest entry” checkbox so you can keep the view fixed
+while logs continue to arrive. Tolerances for the reference outputs remain
+documented in `validation/README.md`.
 
 ## Creating New Models
 All model details, including theory text and equations, must be stored in a

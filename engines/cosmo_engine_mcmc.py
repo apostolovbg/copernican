@@ -971,6 +971,7 @@ def fit_cosmology_parameters(
             # container.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=UserWarning)
+                warnings.simplefilter("ignore", category=RuntimeWarning)
                 inference_data = az.from_dict(
                     posterior={"parameters": np.swapaxes(chain, 0, 1)},
                     coords={"parameter": list(names)},

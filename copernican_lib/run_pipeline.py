@@ -576,20 +576,34 @@ def execute_run_pipeline(
         plugin,
     ):
         console_output.write(f"--- {label} Fit Report ---\n")
+        chi2_sne = float("nan")
+        chi2_total = float("nan")
         if fit_res:
             from copernican_lib import latex_utils
 
             p_names = getattr(plugin, "PARAMETER_NAMES", [])
             p_latex = getattr(plugin, "PARAMETER_LATEX_NAMES", [])
+            fitted = fit_res.get("fitted_cosmological_params", {})
+            printed_any = False
             for name, latex_name in zip(p_names, p_latex):
-                val = fit_res.get("fitted_cosmological_params", {}).get(name)
-                if val is not None:
-                    disp = latex_utils.latex_to_unicode(latex_name)
-            console_output.write(f"  {disp} = {val:.5g}")
-        chi2_sne = fit_res.get(
-            "chi2_sne", fit_res.get("chi2_min", float("nan"))
-        )
-        chi2_total = fit_res.get("chi2_total", float("nan"))
+                val = fitted.get(name)
+                if val is None:
+                    continue
+                disp = latex_utils.latex_to_unicode(latex_name)
+                console_output.write(f"  {disp} = {val:.5g}")
+                printed_any = True
+            if not printed_any:
+                console_output.write(
+                    "  Parameters unavailable in fit results."
+                )
+            chi2_sne = fit_res.get(
+                "chi2_sne", fit_res.get("chi2_min", float("nan"))
+            )
+            chi2_total = fit_res.get("chi2_total", float("nan"))
+        else:
+            console_output.write(
+                "  Fit results unavailable (fixed parameters?)."
+            )
         console_output.write(f"  χ²_Total = {chi2_total:.2f}")
         console_output.write(f"  χ²_SNe = {chi2_sne:.2f}")
         if bao_res:

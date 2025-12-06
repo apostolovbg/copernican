@@ -456,7 +456,7 @@ class TestMCMCEngine(unittest.TestCase):
             sne_df,
             plugin,
             n_walkers=30,
-            n_steps=4,
+            n_steps=10,
             pool_size=1,
             burn_in_steps=12,
         )
@@ -704,7 +704,7 @@ class TestMCMCHelpers(unittest.TestCase):
             sne_df,
             plugin,
             n_walkers=10,
-            n_steps=4,
+            n_steps=10,
             pool_size=1,
             burn_in_steps=12,
         )

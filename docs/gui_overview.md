@@ -71,10 +71,26 @@ for the current batch/iteration counts and the walker-level reports plus a
 scrollable log console that tails `logs/runs/*.txt`. The filter buttons keep
 INFO, WARNING or ERROR entries visible so you can follow the exact same
 diagnostics the command line renders while the GUI keeps every alert anchored
-for quick navigation. That log console now drops the rapid spinner/percentage
-rows streamed from the CLI so it shows only batch summaries, and the
-Cancel/Pause/Hard Stop buttons stay disabled (greyed out) until a run starts,
-after which they return to their normal, clickable appearance.
+for quick navigation. A new “Lock log to latest entry” checkbox beside the
+filters pins the view to the most recent lines whenever you want to watch the
+ensemble finish without manually scrolling back down. That log console now
+drops the rapid spinner/percentage rows streamed from the CLI so it shows only
+batch summaries, and the Cancel/Pause/Hard Stop buttons stay disabled
+(greyed out) until a run starts, after which they return to their normal,
+clickable appearance.
+
+## Validation
+The navigation rail now includes a **Validation** button positioned between
+Engines and Settings. When you press it, the GUI executes the golden manifests
+under `validation/manifests/` (currently `reference_planck2018.yml` running
+`models/cosmo_model_ref_planck2018.yml`), streams the Run Monitor–style summary
+(MCMC and Nested posterior means plus reference χ²) into a text box, writes the
+NEW_CONFIG, plots and logs into `validation/output/<manifest_stem>/copernican-run_<timestamp>/`,
+and stores the textual summary in the gitignored `VALIDATION.md` file so the
+panel can reload the latest results even when the suite is not rerun. A “Lock
+summary to latest entry” checkbox keeps the view pinned to the newest lines
+while outputs continue to arrive, and the validation button stays disabled
+while the run is active so you cannot stack overlapping validations.
 
 ## Metadata dialogs
 

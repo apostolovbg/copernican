@@ -28,9 +28,10 @@ from collections import Counter
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import partial
+from html import escape
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Callable, Dict, Mapping, Optional
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence
 
 try:
     import tkinter as tk
@@ -40,6 +41,11 @@ except Exception:  # pragma: no cover - executed only when Tk is missing
     ttk = None
     filedialog = None
     messagebox = None
+
+if tk is not None:
+    from .vendor.tkinterweb import HtmlFrame
+else:
+    HtmlFrame = None
 
 import yaml
 
@@ -51,19 +57,83 @@ from copernican_lib import (
     progress_state,
     run_manifest,
     utils,
-    version,
 )
+from copernican_lib import validation as validation_utils
+from copernican_lib import version
 from copernican_lib.engine_capabilities import (
     EngineCapabilities,
     EngineSetting,
     get_engine_capabilities,
 )
+
+_KATEX_VERSION = "0.16.4"
+_EQUATION_EMPTY_BODY = (
+    "<p class='hint'>Select a model to preview its symbolic equations.</p>"
+)
+_EQUATION_HTML_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@{version}/dist/katex.min.css">
+  <style>
+    body {{ margin: 0; padding: 12px; font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; background-color: transparent; color: #111; }}
+    .model-name {{ font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem; word-break: break-word; }}
+    .expressions {{ margin-top: 0.5rem; }}
+    .expression-block {{ margin-bottom: 0.95rem; }}
+    .expression-title {{ font-size: 0.95rem; font-weight: 600; margin-bottom: 0.18rem; word-break: break-word; }}
+    .equation {{ min-height: 1.4em; width: 100%; word-break: break-word; white-space: normal; }}
+    .hint {{ color: #666; font-style: italic; margin-top: 0.5rem; }}
+  </style>
+</head>
+<body>
+  <div class="model-name">{model_name}</div>
+  <div class="expressions">
+    {expressions}
+  </div>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@{version}/dist/katex.min.js"></script>
+  <script defer>
+    (() => {{
+      const containers = document.querySelectorAll(".equation");
+      const fit = node => {{
+        let size = parseFloat(getComputedStyle(node).fontSize) || 18;
+        while (node.scrollWidth > node.clientWidth && size > 10) {{
+          size -= 1;
+          node.style.fontSize = size + "px";
+        }}
+      }};
+      const render = () => {{
+        containers.forEach(node => {{
+          const latex = node.getAttribute("data-latex") || "";
+          if (window.katex) {{
+            try {{
+              katex.render(latex, node, {{ throwOnError: false, displayMode: true }});
+            }} catch (_error) {{
+              node.textContent = latex;
+            }}
+          }} else {{
+            node.textContent = latex;
+          }}
+          fit(node);
+        }});
+      }};
+      window.addEventListener("load", render);
+      window.addEventListener("resize", () => {{
+        containers.forEach(node => {{
+          node.style.fontSize = "";
+          fit(node);
+        }});
+      }});
+    }})();
+  </script>
+</body>
+</html>"""
 from copernican_lib.run_lifecycle import (
     ManifestWorkspace,
     create_manifest_workspace,
     delete_manifest_workspace,
     finalize_run_workspace,
 )
+from validation.runner import run_validation_suite
 
 log_mod = logger
 
@@ -283,6 +353,7 @@ class CopernicanGUI:
         self.selected_engine_kind: str = "mcmc"
         self._selected_model_entry: dict | None = None
         self._selected_engine_entry: dict | None = None
+        self._equation_html_frame: HtmlFrame | None = None
         self.engine_capabilities: EngineCapabilities | None = None
         self._engine_setting_vars: dict[str, tk.Variable] = {}
         self._engine_setting_specs: dict[str, EngineSetting] = {}
@@ -334,10 +405,16 @@ class CopernicanGUI:
         self._monitor_filter_label: ttk.Label | None = None
         self._monitor_log_view_button: ttk.Button | None = None
         self._monitor_log_open_button: ttk.Button | None = None
+        self._monitor_log_lock_var: tk.BooleanVar | None = None
         self._monitor_control_buttons: list[ttk.Button] = []
         self._monitor_button_style_name = "Copernican.RunControl.TButton"
         self._monitor_button_style_ready = False
         self._diagnostics_log_widget: tk.Text | None = None
+        self._validation_status_label: ttk.Label | None = None
+        self._validation_text_widget: tk.Text | None = None
+        self._validation_log_lock_var: tk.BooleanVar | None = None
+        self._validation_button: ttk.Button | None = None
+        self._validation_running = False
         self._diagnostics_filter_label: ttk.Label | None = None
         self._cancel_button: ttk.Button | None = None
         self._pause_button: ttk.Button | None = None
@@ -755,24 +832,13 @@ class CopernicanGUI:
             return None
         return str(candidates[0])
 
-    def _collect_dataset_hashes(self, data_dir: str) -> dict[str, str]:
-        """Compute SHA256 digests for non-parser files under ``data_dir``.
+    def _collect_dataset_hashes(
+        self, data_dir: str, metadata: dict
+    ) -> dict[str, str]:
+        """Mirror the CLI hashing rules so the catalogue lists identical
+        digests."""
 
-        The manifest builder expects per-file hashes so duplicated runs can
-        prove they consumed identical inputs.  The GUI mirrors
-        :func:`dataset_registry._attach_file_hashes` here so the catalogue view
-        can surface the same digests without forcing a full data load.
-        """
-
-        hashes: dict[str, str] = {}
-        for root, _, files in os.walk(data_dir):
-            for fname in sorted(files):
-                if fname.endswith(".py"):
-                    continue
-                path = os.path.join(root, fname)
-                rel = os.path.relpath(path, data_dir)
-                hashes[rel] = utils.compute_sha256(path)
-        return hashes
+        return dataset_registry.collect_dataset_hashes(data_dir, metadata)
 
     def _compatibility_badges(self, dataset_key: str, meta: dict) -> list[str]:
         """Return badges describing dataset compatibility and claims.
@@ -861,7 +927,7 @@ class CopernicanGUI:
                     "parser_digest": parser_digest,
                     "expected_digest": expected_digest,
                     "parser_trusted": parser_trusted,
-                    "hashes": self._collect_dataset_hashes(data_dir),
+                    "hashes": self._collect_dataset_hashes(data_dir, meta),
                     "badges": self._compatibility_badges(dtype, meta),
                     "independence": independence_notes,
                 }
@@ -911,6 +977,7 @@ class CopernicanGUI:
                 "badges": badges,
                 "hash": utils.compute_sha256(str(path)),
                 "parameter_count": len(parameters),
+                "metadata": meta,
             }
         return models
 
@@ -1593,6 +1660,11 @@ class CopernicanGUI:
             NavigationItem("models", "Models", CopernicanGUI.show_models),
             NavigationItem("engines", "Engines", CopernicanGUI.show_engines),
             NavigationItem(
+                "validation",
+                "Validation",
+                CopernicanGUI.show_validation,
+            ),
+            NavigationItem(
                 "settings", "Settings", CopernicanGUI.show_settings
             ),
             NavigationItem("help", "Help", CopernicanGUI.show_help),
@@ -1944,6 +2016,153 @@ class CopernicanGUI:
                 ).pack(anchor="w", pady=2)
 
         self._swap_content(builder)
+
+    def show_validation(self) -> None:
+        """Display the lightweight validation runner and latest summary."""
+
+        def builder(frame: tk.Frame) -> None:
+            self._page_header(frame, "Validation")
+            self._validation_status_label = ttk.Label(
+                frame,
+                text="Status: idle",
+                takefocus=True,
+            )
+            self._validation_status_label.pack(anchor="w")
+            controls = ttk.Frame(frame)
+            controls.pack(fill="x", pady=(8, 4))
+            self._validation_button = ttk.Button(
+                controls,
+                text="Run validation suite",
+                command=self._start_validation_run,
+                takefocus=True,
+            )
+            self._validation_button.pack(side="left")
+            summary_frame = ttk.LabelFrame(frame, text="Validation summary")
+            summary_frame.pack(fill="both", expand=True, pady=(8, 0))
+            summary_frame.columnconfigure(0, weight=1)
+            summary_frame.rowconfigure(0, weight=0)
+            summary_frame.rowconfigure(1, weight=1)
+            lock_frame = ttk.Frame(summary_frame)
+            lock_frame.grid(row=0, column=0, sticky="w", pady=(0, 4))
+            self._validation_log_lock_var = tk.BooleanVar(value=True)
+            ttk.Checkbutton(
+                lock_frame,
+                text="Lock summary to latest entry",
+                variable=self._validation_log_lock_var,
+                takefocus=True,
+            ).pack(side="left")
+            text_panel = ttk.Frame(summary_frame)
+            text_panel.grid(row=1, column=0, sticky="nsew")
+            text_panel.columnconfigure(0, weight=1)
+            text_panel.rowconfigure(0, weight=1)
+            text_widget = tk.Text(
+                text_panel,
+                wrap="none",
+                padx=8,
+                pady=6,
+                borderwidth=0,
+                highlightthickness=0,
+                height=12,
+            )
+            text_widget.grid(row=0, column=0, sticky="nsew")
+            vscroll = ttk.Scrollbar(
+                text_panel,
+                orient="vertical",
+                command=text_widget.yview,
+            )
+            vscroll.grid(row=0, column=1, sticky="ns")
+            hscroll = ttk.Scrollbar(
+                text_panel,
+                orient="horizontal",
+                command=text_widget.xview,
+            )
+            hscroll.grid(row=1, column=0, sticky="ew")
+            text_widget.configure(
+                yscrollcommand=vscroll.set, xscrollcommand=hscroll.set
+            )
+            text_widget.configure(state="disabled")
+            self._validation_text_widget = text_widget
+            existing_summary = validation_utils.read_validation_summary()
+            if existing_summary:
+                self._validation_status_label.configure(
+                    text="Status: summary available"
+                )
+            else:
+                existing_summary = "Validation summary not yet generated."
+            self._update_validation_text(existing_summary)
+
+        self._swap_content(builder)
+
+    def _start_validation_run(self) -> None:
+        """Kick off the validation suite inside a background thread."""
+
+        if self._validation_running:
+            return
+        self._validation_running = True
+        if self._validation_button:
+            self._validation_button.configure(state=tk.DISABLED)
+        if self._validation_status_label:
+            self._validation_status_label.configure(
+                text="Status: running validation…"
+            )
+        thread = threading.Thread(target=self._validation_worker, daemon=True)
+        thread.start()
+
+    def _validation_worker(self) -> None:
+        """Run the validation suite and post the result to the GUI."""
+
+        try:
+            code, summary = run_validation_suite()
+        except Exception as exc:
+            code = 1
+            summary = f"Validation runner could not start: {exc}"
+        validation_utils.write_validation_summary(summary, code == 0)
+        if self.content_area is None:
+            return
+        self.content_area.after(
+            0, lambda: self._complete_validation_run(code, summary)
+        )
+
+    def _complete_validation_run(self, code: int, summary: str) -> None:
+        """Update the validation view after a run finishes."""
+
+        self._validation_running = False
+        status = "passed" if code == 0 else "failed"
+        if self._validation_status_label:
+            self._validation_status_label.configure(
+                text=f"Status: validation {status}"
+            )
+        if self._validation_button:
+            self._validation_button.configure(state=tk.NORMAL)
+        self._update_validation_text(
+            summary or "Validation completed without producing summary text."
+        )
+
+    def _update_validation_text(self, summary: str) -> None:
+        """Render validation summary text inside the current widget."""
+
+        if not self._validation_text_widget:
+            return
+        lock_tail = self._validation_log_lock_var is None or bool(
+            self._validation_log_lock_var.get()
+        )
+        prev_view = None if lock_tail else self._validation_text_widget.yview()
+        self._validation_text_widget.configure(state="normal")
+        self._validation_text_widget.delete("1.0", tk.END)
+        self._validation_text_widget.insert("1.0", summary)
+        self._validation_text_widget.configure(state="disabled")
+        if lock_tail:
+            try:
+                self._validation_text_widget.yview_moveto(1.0)
+            except Exception:
+                pass
+        elif prev_view:
+            try:
+                self._validation_text_widget.yview_moveto(
+                    max(0.0, min(prev_view[0], 1.0))
+                )
+            except Exception:
+                pass
         self._refresh_environment_status()
 
     def _handle_home_revalidate(self, dataset_id: str) -> None:
@@ -2615,10 +2834,16 @@ class CopernicanGUI:
             padding=(8, 6),
         )
         preview_frame.pack(fill="both", expand=True, pady=(8, 0))
-        preview_frame.columnconfigure(0, weight=1)
+        preview_frame.columnconfigure(0, weight=3)
+        preview_frame.columnconfigure(1, weight=2)
         preview_frame.rowconfigure(0, weight=1)
+
+        preview_panel = ttk.Frame(preview_frame)
+        preview_panel.grid(row=0, column=0, sticky="nsew")
+        preview_panel.columnconfigure(0, weight=1)
+        preview_panel.rowconfigure(0, weight=1)
         preview_text = tk.Text(
-            preview_frame,
+            preview_panel,
             wrap="none",
             borderwidth=1,
             relief="solid",
@@ -2626,17 +2851,46 @@ class CopernicanGUI:
         )
         preview_text.grid(row=0, column=0, sticky="nsew")
         vscroll = ttk.Scrollbar(
-            preview_frame, orient="vertical", command=preview_text.yview
+            preview_panel, orient="vertical", command=preview_text.yview
         )
         vscroll.grid(row=0, column=1, sticky="ns")
         hscroll = ttk.Scrollbar(
-            preview_frame, orient="horizontal", command=preview_text.xview
+            preview_panel, orient="horizontal", command=preview_text.xview
         )
         hscroll.grid(row=1, column=0, sticky="ew")
         preview_text.configure(
             yscrollcommand=vscroll.set,
             xscrollcommand=hscroll.set,
         )
+
+        eq_container = ttk.LabelFrame(
+            preview_frame,
+            text="Equations & expressions",
+            padding=(8, 6),
+        )
+        eq_container.grid(
+            row=0,
+            column=1,
+            sticky="nsew",
+            padx=(15, 24),
+        )
+        eq_container.columnconfigure(0, weight=1)
+        eq_container.rowconfigure(0, weight=1)
+        if HtmlFrame is not None:
+            self._equation_html_frame = HtmlFrame(
+                eq_container,
+                horizontal_scrollbar=False,
+                vertical_scrollbar="auto",
+                javascript_enabled=True,
+            )
+            self._equation_html_frame.grid(row=0, column=0, sticky="nsew")
+        else:
+            ttk.Label(
+                eq_container,
+                text="Equation preview requires Tkinter and KaTeX.",
+                wraplength=260,
+                justify="left",
+            ).grid(row=0, column=0, sticky="nsew")
 
         def _refresh_model_preview(entry: dict | None = None) -> None:
             preview_text.configure(state="normal")
@@ -2654,6 +2908,7 @@ class CopernicanGUI:
                 )
             preview_text.configure(state="disabled")
             preview_text.yview_moveto(0)
+            self._refresh_equation_panel(entry)
 
         def _refresh_model_selection(_: tk.Event | None = None) -> None:
             indices = listbox.curselection()
@@ -2675,6 +2930,68 @@ class CopernicanGUI:
 
         listbox.bind("<<ListboxSelect>>", _refresh_model_selection)
         _refresh_model_selection()
+
+    def _collect_model_expressions(
+        self, metadata: Mapping[str, Any] | None
+    ) -> list[tuple[str, str]]:
+        """Return a list of (title, LaTeX) tuples for the equation panel."""
+
+        expressions: list[tuple[str, str]] = []
+
+        def _append(title: str, value: Any | None) -> None:
+            if isinstance(value, str) and value.strip():
+                expressions.append((title, value.strip()))
+
+        meta = metadata or {}
+        _append("H(z)", meta.get("Hz_expression"))
+        _append("Sound horizon", meta.get("rs_expression"))
+
+        equations = meta.get("equations")
+        if isinstance(equations, Mapping):
+            for section, value in equations.items():
+                if isinstance(value, str):
+                    _append(section, value)
+                elif isinstance(value, Sequence) and not isinstance(value, str):
+                    for idx, entry in enumerate(value):
+                        _append(f"{section} {idx + 1}", entry)
+        return expressions
+
+    def _build_equation_html(self, entry: dict | None) -> str:
+        """Return an HTML document that renders the model's LaTeX expressions."""
+
+        if entry is None:
+            expressions_html = _EQUATION_EMPTY_BODY
+            model_name = "Model preview unloaded"
+        else:
+            metadata = entry.get("metadata")
+            expressions = self._collect_model_expressions(metadata)
+            if expressions:
+                expressions_html = "".join(
+                    (
+                        "<div class='expression-block'>"
+                        f"<div class='expression-title'>{escape(title)}</div>"
+                        f"<div class='equation' data-latex=\"{escape(expr)}\"></div>"
+                        "</div>"
+                    )
+                    for title, expr in expressions
+                )
+            else:
+                expressions_html = _EQUATION_EMPTY_BODY
+            model_name = (metadata or {}).get("model_name") or entry.get("id", "")
+
+        return _EQUATION_HTML_TEMPLATE.format(
+            version=_KATEX_VERSION,
+            model_name=escape(model_name),
+            expressions=expressions_html,
+        )
+
+    def _refresh_equation_panel(self, entry: dict | None = None) -> None:
+        """Update the KaTeX HTML view based on the selected model."""
+
+        if self._equation_html_frame is None:
+            return
+        html = self._build_equation_html(entry)
+        self._equation_html_frame.load_html(html)
 
     def _render_builder_step_data(self, container: tk.Frame) -> None:
         ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
@@ -4158,6 +4475,15 @@ class CopernicanGUI:
                 command=lambda: self.set_monitor_filter("ERROR"),
                 takefocus=True,
             ).pack(side="left", padx=2)
+            lock_frame = ttk.Frame(log_frame)
+            lock_frame.pack(anchor="w", pady=(0, 4))
+            self._monitor_log_lock_var = tk.BooleanVar(value=True)
+            ttk.Checkbutton(
+                lock_frame,
+                text="Lock log to latest entry",
+                variable=self._monitor_log_lock_var,
+                takefocus=True,
+            ).pack(side="left")
             text_panel = ttk.Frame(log_frame)
             text_panel.pack(fill="both", expand=True)
             text_panel.columnconfigure(0, weight=1)
@@ -4657,7 +4983,10 @@ class CopernicanGUI:
         if self._monitor_log_widget is None:
             return
         entries = self.get_run_log_entries()
-        prev_view = self._monitor_log_widget.yview()
+        lock_tail = self._monitor_log_lock_var is None or bool(
+            self._monitor_log_lock_var.get()
+        )
+        prev_view = None if lock_tail else self._monitor_log_widget.yview()
         self._monitor_log_widget.configure(state="normal")
         self._monitor_log_widget.delete("1.0", "end")
         for entry in entries[-200:]:
@@ -4666,7 +4995,12 @@ class CopernicanGUI:
                 f"[{entry.anchor}] {entry.formatted}\n",
             )
         self._monitor_log_widget.configure(state="disabled")
-        if prev_view:
+        if lock_tail:
+            try:
+                self._monitor_log_widget.yview_moveto(1.0)
+            except Exception:
+                pass
+        elif prev_view:
             try:
                 self._monitor_log_widget.yview_moveto(
                     max(0.0, min(prev_view[0], 1.0))

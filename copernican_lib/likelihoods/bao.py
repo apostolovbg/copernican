@@ -162,7 +162,15 @@ class BAOLike(LikelihoodProtocol):
 
         rs_mpc = self._rs_override
         if rs_mpc is None:
-            rs_background = float(background.get("rs_drag", float("nan")))
+            rs_drag = background.get("rs_drag")
+            if rs_drag is None:
+                rs_background = float("nan")
+            else:
+                rs_arr = np.asarray(rs_drag)
+                if rs_arr.size == 0:
+                    rs_background = float("nan")
+                else:
+                    rs_background = float(rs_arr.flat[0])
             if np.isnan(rs_background) and self._fallback_rs is not None:
                 try:
                     rs_background = float(

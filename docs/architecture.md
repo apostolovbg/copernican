@@ -52,7 +52,7 @@ as policy enforcement and dataset validation.
 
 ## Data Provenance
 
-- Parsers compute SHA256 digests for non-parser files and store them on `df.attrs['file_hashes']`. The manifest records these digests to guarantee the same dataset content when replaying a run.
+- Parsers compute SHA256 digests for the metadata files, the parser source and the dataset files listed in the metadata's `data_files` sequence (falling back to recognised table extensions when omitted) and store those digests on `df.attrs['file_hashes']`. Documentation such as `README`s and `LICENSE`s is skipped so the manifest records only the inputs that affect the likelihood, keeping every replayed run consistent.
 - `dataset_registry.TRUSTED_PARSER_DIGESTS` keeps line endings normalised to `\n`; the GUI revalidation button calls the same digest check the CLI uses so the dataset list reflects parser trust status.
 - Metadata files determine citation text, authorship, license, and dataset IDs; they remain the reference for CLI metadata viewers and the GUI **View metadata** action.
 

@@ -1,6 +1,9 @@
 # RNG Mini-games Changelog
 
-## Version 11.0.1
+-## Version 11.0.1
+- 2025-12-06: Ensured `rng_minigames/registry.json` ends with a newline and
+            matched the registry checksum so the RNG bundle stays parsable
+            (`rng_minigames/registry.json`, `rng_minigames/CHANGELOG.md`).
 - 2025-12-06: Guarded the Alien Invasion AI reward sum so failing runs no longer
             reference an uninitialised value, keeping the test harness stable
             (`rng_minigames/alien_invasion/ai_agent.py`,
