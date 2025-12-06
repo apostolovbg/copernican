@@ -39,6 +39,14 @@ class NoPrintInLibraryCheck(PolicyCheck):
             except ValueError:
                 continue
 
+            # Skip bundled vendor code under copernican_lib/vendor/
+            if (
+                len(rel.parts) >= 2
+                and rel.parts[0] == "copernican_lib"
+                and rel.parts[1] == "vendor"
+            ):
+                continue
+
             # Only check copernican_lib/ and engines/
             if not rel.parts or rel.parts[0] not in (
                 "copernican_lib",

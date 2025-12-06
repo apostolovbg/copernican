@@ -586,7 +586,8 @@ applies_to: *.py
 ```
 
 Keep individual lines under 79 characters to maintain readability. This
-applies to all Python source files.
+applies to all Python source files **except** the bundled vendor tree under
+`copernican_lib/vendor/`.
 
 ---
 
@@ -718,7 +719,8 @@ Library and engine code must use the managed console output helper
 (`copernican_lib/console_output.py`) instead of bare `print()` calls. This
 keeps diagnostics consistent across platforms and properly routes output
 through dedicated utilities. Exception: `console_output.py` itself may use
-`print()`.
+`print()`. Vendor code under `copernican_lib/vendor/` is excluded from this
+requirement.
 
 ---
 

@@ -2,6 +2,7 @@
 Tests for line-length-limit policy.
 """
 
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -50,3 +51,20 @@ def test_long_lines_detected():
         assert violations[0].policy_id == "line-length-limit"
     finally:
         temp_path.unlink()
+
+
+def test_vendor_files_ignored():
+    """Vendor files should be skipped even when lines are long."""
+    temp_dir = Path(tempfile.mkdtemp())
+    try:
+        vendor_file = temp_dir / "copernican_lib" / "vendor" / "bundle.py"
+        vendor_file.parent.mkdir(parents=True, exist_ok=True)
+        vendor_file.write_text("# " + "x" * 200 + "\n")
+
+        checker = LineLengthLimitCheck()
+        context = CheckContext(repo_root=temp_dir, all_files=[vendor_file])
+        violations = checker.check(context)
+
+        assert len(violations) == 0
+    finally:
+        shutil.rmtree(temp_dir)

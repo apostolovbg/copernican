@@ -44,6 +44,18 @@ class LineLengthLimitCheck(PolicyCheck):
 
         for file_path in files_to_check:
             try:
+                rel_path = file_path.relative_to(context.repo_root)
+            except ValueError:
+                continue
+
+            if (
+                len(rel_path.parts) >= 2
+                and rel_path.parts[0] == "copernican_lib"
+                and rel_path.parts[1] == "vendor"
+            ):
+                continue
+
+            try:
                 with open(file_path, "r", encoding="utf-8") as f:
                     lines = f.readlines()
             except Exception:

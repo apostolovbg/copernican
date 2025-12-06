@@ -21,6 +21,16 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-08: Updated the DevCovenant line-length and no-print policies to ignore
+            `copernican_lib/vendor/`, rewrote the policy scripts/tests to match,
+            refreshed `AGENTS.md`/`devcovenant/registry.json`, and noted the
+            existing CLI dependency change so the changelog covers every touched
+            file (copernican_lib/cli/dependencies.py, AGENTS.md,
+            devcovenant/policy_scripts/line_length_limit.py,
+            devcovenant/tests/test_policies/test_line_length_limit.py,
+            devcovenant/policy_scripts/no_print_in_library.py,
+            devcovenant/tests/test_policies/test_no_print_in_library.py,
+            devcovenant/registry.json, CHANGELOG.md).
 - 2025-12-08: Ensured the BAO likelihood extracts scalars from CAMB’s `rs_drag`
             outputs instead of calling `float` on potential arrays, which removes
             the NumPy deprecation warning while keeping the predictions unchanged

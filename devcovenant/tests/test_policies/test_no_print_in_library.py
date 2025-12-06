@@ -63,3 +63,21 @@ class TestNoPrintInLibraryPolicy(unittest.TestCase):
             violations = policy.check(context)
 
             self.assertEqual(len(violations), 0)
+
+    def test_vendor_prints_ignored(self):
+        """Vendor print() usage should be permitted."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+
+            vendor_dir = repo_root / "copernican_lib" / "vendor"
+            vendor_dir.mkdir(parents=True)
+            vendor_file = vendor_dir / "vendor_module.py"
+            vendor_file.write_text('print("vendor")\n')
+
+            context = CheckContext(
+                repo_root=repo_root, all_files=[vendor_file]
+            )
+            policy = NoPrintInLibraryCheck()
+            violations = policy.check(context)
+
+            self.assertEqual(len(violations), 0)
