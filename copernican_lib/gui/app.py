@@ -43,7 +43,7 @@ except Exception:  # pragma: no cover - executed only when Tk is missing
     messagebox = None
 
 if tk is not None:
-    from .vendor.tkinterweb import HtmlFrame
+    from copernican_lib.vendor.tkinterweb import HtmlFrame
 else:
     HtmlFrame = None
 
@@ -65,6 +65,13 @@ from copernican_lib.engine_capabilities import (
     EngineSetting,
     get_engine_capabilities,
 )
+from copernican_lib.run_lifecycle import (
+    ManifestWorkspace,
+    create_manifest_workspace,
+    delete_manifest_workspace,
+    finalize_run_workspace,
+)
+from validation.runner import run_validation_suite
 
 _KATEX_VERSION = "0.16.4"
 _EQUATION_EMPTY_BODY = (
@@ -74,15 +81,47 @@ _EQUATION_HTML_TEMPLATE = """<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@{version}/dist/katex.min.css">
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/katex@{version}/dist/katex.min.css"
+  >
   <style>
-    body {{ margin: 0; padding: 12px; font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; background-color: transparent; color: #111; }}
-    .model-name {{ font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem; word-break: break-word; }}
-    .expressions {{ margin-top: 0.5rem; }}
-    .expression-block {{ margin-bottom: 0.95rem; }}
-    .expression-title {{ font-size: 0.95rem; font-weight: 600; margin-bottom: 0.18rem; word-break: break-word; }}
-    .equation {{ min-height: 1.4em; width: 100%; word-break: break-word; white-space: normal; }}
-    .hint {{ color: #666; font-style: italic; margin-top: 0.5rem; }}
+    body {{
+      margin: 0;
+      padding: 12px;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      background-color: transparent;
+      color: #111;
+    }}
+    .model-name {{
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      word-break: break-word;
+    }}
+    .expressions {{
+      margin-top: 0.5rem;
+    }}
+    .expression-block {{
+      margin-bottom: 0.95rem;
+    }}
+    .expression-title {{
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 0.18rem;
+      word-break: break-word;
+    }}
+    .equation {{
+      min-height: 1.4em;
+      width: 100%;
+      word-break: break-word;
+      white-space: normal;
+    }}
+    .hint {{
+      color: #666;
+      font-style: italic;
+      margin-top: 0.5rem;
+    }}
   </style>
 </head>
 <body>
@@ -90,7 +129,10 @@ _EQUATION_HTML_TEMPLATE = """<!DOCTYPE html>
   <div class="expressions">
     {expressions}
   </div>
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@{version}/dist/katex.min.js"></script>
+  <script
+    defer
+    src="https://cdn.jsdelivr.net/npm/katex@{version}/dist/katex.min.js"
+  ></script>
   <script defer>
     (() => {{
       const containers = document.querySelectorAll(".equation");
@@ -106,7 +148,11 @@ _EQUATION_HTML_TEMPLATE = """<!DOCTYPE html>
           const latex = node.getAttribute("data-latex") || "";
           if (window.katex) {{
             try {{
-              katex.render(latex, node, {{ throwOnError: false, displayMode: true }});
+              katex.render(
+                latex,
+                node,
+                {{ throwOnError: false, displayMode: true }},
+              );
             }} catch (_error) {{
               node.textContent = latex;
             }}
@@ -127,14 +173,6 @@ _EQUATION_HTML_TEMPLATE = """<!DOCTYPE html>
   </script>
 </body>
 </html>"""
-from copernican_lib.run_lifecycle import (
-    ManifestWorkspace,
-    create_manifest_workspace,
-    delete_manifest_workspace,
-    finalize_run_workspace,
-)
-from validation.runner import run_validation_suite
-
 log_mod = logger
 
 _PROGRESS_SPINNER_CHARS = frozenset("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
@@ -428,6 +466,7 @@ class CopernicanGUI:
         self._build_navigation()
         self._initialise_rendering()
         self.refresh_inventory()
+        console_output.write("GUI: inventory refreshed and navigation ready.")
         self.help_banner_image = None
         self._load_saved_manifest_workspace()
         self._builder_step_buttons: list[ttk.Button] = []
@@ -1360,6 +1399,9 @@ class CopernicanGUI:
         """Run parser trust validation and share the result."""
 
         try:
+            console_output.write(
+                f"GUI: revalidation requested for dataset {dataset_id}."
+            )
             record = self.revalidate_dataset(dataset_id)
         except KeyError as exc:
             self.create_toast(
@@ -1631,6 +1673,10 @@ class CopernicanGUI:
         if dataset_id not in self.catalogue_index:
             raise KeyError(dataset_id)
         record = self.catalogue_index[dataset_id]
+        console_output.write(
+            f"GUI: dataset {dataset_id} diagnostics refreshed "
+            f"(parser digest {record.get('parser_digest', 'n/a')})."
+        )
         if record.get("expected_digest") and record.get("parser_digest"):
             if record["expected_digest"] != record["parser_digest"]:
                 note = (
@@ -2106,11 +2152,15 @@ class CopernicanGUI:
                 text="Status: running validation…"
             )
         thread = threading.Thread(target=self._validation_worker, daemon=True)
+        console_output.write("GUI: validation suite queued for execution.")
         thread.start()
 
     def _validation_worker(self) -> None:
         """Run the validation suite and post the result to the GUI."""
 
+        console_output.write(
+            "GUI validation: executing manifests via shared pipeline."
+        )
         try:
             code, summary = run_validation_suite()
         except Exception as exc:
@@ -2136,6 +2186,10 @@ class CopernicanGUI:
             self._validation_button.configure(state=tk.NORMAL)
         self._update_validation_text(
             summary or "Validation completed without producing summary text."
+        )
+        console_output.write(
+            f"GUI validation: completed with code {code} and summary length "
+            f"{len(summary)}."
         )
 
     def _update_validation_text(self, summary: str) -> None:
@@ -2951,13 +3005,17 @@ class CopernicanGUI:
             for section, value in equations.items():
                 if isinstance(value, str):
                     _append(section, value)
-                elif isinstance(value, Sequence) and not isinstance(value, str):
+                elif isinstance(value, Sequence) and not isinstance(
+                    value, str
+                ):
                     for idx, entry in enumerate(value):
                         _append(f"{section} {idx + 1}", entry)
         return expressions
 
     def _build_equation_html(self, entry: dict | None) -> str:
-        """Return an HTML document that renders the model's LaTeX expressions."""
+        """
+        Return an HTML document that renders the model's LaTeX expressions.
+        """
 
         if entry is None:
             expressions_html = _EQUATION_EMPTY_BODY
@@ -2970,14 +3028,17 @@ class CopernicanGUI:
                     (
                         "<div class='expression-block'>"
                         f"<div class='expression-title'>{escape(title)}</div>"
-                        f"<div class='equation' data-latex=\"{escape(expr)}\"></div>"
+                        "<div class='equation' "
+                        f'data-latex="{escape(expr)}"></div>'
                         "</div>"
                     )
                     for title, expr in expressions
                 )
             else:
                 expressions_html = _EQUATION_EMPTY_BODY
-            model_name = (metadata or {}).get("model_name") or entry.get("id", "")
+            model_name = (metadata or {}).get("model_name") or entry.get(
+                "id", ""
+            )
 
         return _EQUATION_HTML_TEMPLATE.format(
             version=_KATEX_VERSION,

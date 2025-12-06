@@ -6,29 +6,32 @@ repos:
     hooks:
       - id: black
         args: [--line-length, "79"]
+        exclude: "(^copernican_lib/vendor/)"
   - repo: https://github.com/pycqa/isort
     rev: 5.12.0
     hooks:
       - id: isort
         args: [--profile, black, --line-length, "79"]
+        exclude: "(^copernican_lib/vendor/)"
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.4.4
     hooks:
       - id: ruff
-        args: [--fix, --exit-non-zero-on-fix, --line-length, "79"]
+        args: [--fix, --exit-non-zero-on-fix, --line-length, "79", --extend-exclude, "copernican_lib/vendor"]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
       - id: end-of-file-fixer
-        exclude: "(^archive/|^data/|^licenses/|^start\\.|^Makefile$)"
+        exclude: "(^archive/|^data/|^licenses/|^start\\.|^Makefile$|^copernican_lib/vendor/)"
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
-        exclude: "(^archive/|^data/|^licenses/|^start\\.|^Makefile$)"
+        exclude: "(^archive/|^data/|^licenses/|^start\\.|^Makefile$|^copernican_lib/vendor/)"
   - repo: https://github.com/pycqa/flake8
     rev: 6.1.0
     hooks:
       - id: flake8
         args: [--max-line-length=79]
+        exclude: "(^copernican_lib/vendor/)"
   - repo: local
     hooks:
       - id: make-lock

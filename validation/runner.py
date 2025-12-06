@@ -76,9 +76,7 @@ def run_validation_suite(
             _LOGGER.exception(
                 "Validation manifest %s failed", manifest_path.name
             )
-            summary_lines.append(
-                f"  {manifest_path.name}: FAILURE ({exc})"
-            )
+            summary_lines.append(f"  {manifest_path.name}: FAILURE ({exc})")
         else:
             summary_lines.append(
                 f"  {manifest_path.name}: PASS (outputs in {run_dir})"

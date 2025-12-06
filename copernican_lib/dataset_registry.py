@@ -261,6 +261,7 @@ def discover_trusted_parsers(base_dir: str | None = None):
         base_dir = os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "data"
         )
+    console.write("Dataset discovery: scanning data/ for trusted parsers...")
     # Resolve the discovery root to an absolute path so subsequent checks can
     # verify that candidate entries never escape the repository via symlinks
     # or ".." components.
@@ -297,6 +298,10 @@ def discover_trusted_parsers(base_dir: str | None = None):
                     src_dir,
                 )
                 continue
+            console.write(
+                f"Dataset discovery: found {dataset_id} "
+                f"({dataset_name}) in {dtype.upper()}."
+            )
             placeholder_key = os.path.basename(src_dir)
             for fname in os.listdir(src_dir):
                 if fname.startswith("cosmo_parser_") and fname.endswith(".py"):
@@ -510,6 +515,12 @@ def collect_dataset_hashes(
 
     metadata = metadata or {}
     data_dir_path = Path(data_dir)
+    dataset_label = metadata.get(
+        "dataset_name", data_dir_path.name if metadata else data_dir_path.name
+    )
+    console.write(
+        f"Dataset hashing: {dataset_label} ({data_dir_path.name}) starting..."
+    )
     if not data_dir_path.is_dir():
         if logger:
             logger.warning(
@@ -518,6 +529,10 @@ def collect_dataset_hashes(
         return {}
     resolved_dir = data_dir_path.resolve()
     targets = _resolve_hash_targets(resolved_dir, metadata, logger)
+    console.write(
+        f"Dataset hashing: {dataset_label} ({data_dir_path.name}) "
+        f"found {len(targets)} target file(s)."
+    )
     hashes: dict[str, str] = {}
     for target in sorted(targets, key=lambda p: p.as_posix()):
         rel = _relative_to_dir(resolved_dir, target)

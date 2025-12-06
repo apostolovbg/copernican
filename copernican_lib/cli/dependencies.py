@@ -130,6 +130,7 @@ def _load_cached_dependencies(
     cached_packages = cached.get("packages", [])
     if not isinstance(cached_packages, list):
         return None
+    console.write("Dependency scan: cache hit, using cached package list.")
     return set(cached_packages)
 
 
@@ -173,7 +174,13 @@ def _gather_required_packages(
             str(Path(__file__).resolve().parents[2] / "engines"),
         ]
     ignore_dirs = {"__pycache__", "tests", "output", "logs"}
+    console.write(
+        "Dependency scan: scanning Python sources for dependency imports..."
+    )
     python_files, snapshot = _scan_python_sources(search_dirs, ignore_dirs)
+    console.write(
+        f"Dependency scan: inspected {len(python_files)} Python files."
+    )
     cached = _load_cached_dependencies(snapshot, search_dirs)
     if cached is not None:
         return cached
@@ -226,6 +233,9 @@ def _gather_required_packages(
         "logger",
         "utils",
     }
+    console.write(
+        "Dependency scan: cache missing or stale; analysing parsed imports..."
+    )
     filtered = {
         pkg
         for pkg in pkg_names
@@ -233,6 +243,9 @@ def _gather_required_packages(
         and not pkg.startswith(("copernican_lib", "engines"))
     }
     _store_dependency_cache(snapshot, search_dirs, filtered)
+    console.write(
+        f"Dependency scan: resolved {len(filtered)} external package(s)."
+    )
     return filtered
 
 
