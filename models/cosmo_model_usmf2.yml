@@ -217,6 +217,17 @@ parameters:
     type: uniform
     lower: 1.0e-05
     upper: 0.0001
+- name: Effective neutrino species
+  bounds:
+  - 2.5
+  - 3.5
+  unit: ''
+  latex_name: N_{\rm eff}
+  definition: Sampled relativistic species count used in CAMB.
+  prior:
+    type: uniform
+    lower: 2.5
+    upper: 3.5
 - name: Recombination redshift
   bounds:
   - 1000
@@ -252,7 +263,7 @@ rs_expression: >-
       )
     ), (z, z_rec, oo)
   )
-predicts_bao: true
+skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
@@ -260,10 +271,16 @@ cmb:
     H0: H_A
     ombh2: \Omega_b*(H_A/100)**2
     omch2: 0.0
-    omnuh2: \Omega_{\gamma}*(H_A/100)**2
+    omnuh2: \Omega_{\gamma}*(1 + 0.2271 * Neff)*(H_A/100)**2
+    Neff: Neff
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
-notes: Detailed theory embedded in this JSON.
+notes: >-
+  Detailed theory embedded in this JSON. The BAO radiation mapping multiplies
+  Omega_gamma by (1 + 0.2271 * Neff) inside omnuh2 so the neutrino content
+  matches the CAMB background, and letting Neff float between 2.5 and 3.5 keeps
+  the sampled radiation density aligned with the analytic integrals without
+  hard-coding the Planck default.
 title: The Unified Shrinking Matter Framework (USMF) Version 2
 date: '2025-05-26'

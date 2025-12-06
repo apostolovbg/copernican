@@ -911,36 +911,49 @@ reference χ² totals in the validation readme.
 ## Creating New Models
 All model details, including theory text and equations, must be stored in a
 single YAML file. Markdown summaries are optional and have no effect on the
-software. To create a new model:
-See `cosmo_model_template.yml` for a detailed template.
+software. See `cosmo_model_template.yml` for a fully annotated example before
+you start work. To create a new model:
 1. Copy an existing `cosmo_model_*.yml` file and edit the fields to describe
    your theory.
 2. *(Optional)* Create `cosmo_model_name.md` if you want a human-friendly
    summary of the same content. The suite does not read this file.
 3. Include an `Hz_expression` written in LaTeX math form defining `H(z)` using
    your model parameters. Explicit `*` is optional since implicit
-multiplication
-   is now supported, though adding it can improve readability.
+   multiplication is now supported, though adding it can improve readability.
 4. Provide an `rs_expression` in LaTeX for the sound horizon at recombination
    whenever the model advertises BAO support. The automatic fallback integral
-   has been removed; models that omit `rs_expression` must set
-   `valid_for_bao: false` or drop the BAO section entirely. Use `oo` (or
-   `\infty`) for upper limits that extend to infinity and repeat the model's
-   full `H(z)` formula inside the integrand.
-5. Python code must never appear in `cosmo_model_*.yml`; all expressions are
+   has been removed; models that omit `rs_expression` must set `skip_bao: true`
+   or `valid_for_bao: false` and expect BAO diagnostics to be disabled. Use
+   `oo` (or `\infty`) for upper limits that extend to infinity and repeat the
+   model's full `H(z)` formula inside the integrand.
+5. When you intentionally do not want BAO included (e.g., the model deals with
+   a theory that cannot define a sound horizon) set `skip_bao: true`. Otherwise
+   leave the key absent or explicitly set it to `false`, maintaining the
+   standard expectation that `rs_expression` is present whenever `valid_for_bao`
+   stays `true`.
+6. Always model the total radiation by combining photons and neutrinos. Define
+   an `Omega_gamma` parameter (photons) plus a sampled `Neff` parameter (range
+   2.5–3.5 centered on the Planck value) and insert
+   `Omega_gamma * (1 + 0.2271 * Neff)` anywhere the radiation density appears
+   in `H(z)` or the `rs_expression` so that BAO plots, CSVs and likelihoods all
+   rely on the same CAMB background. While the baryon density may vary between
+   models, the BAO residual regression expects `Omega_b` to stay near 0.04
+   (±0.01) whenever BAO support is advertised so DM/rs ratios align with the
+   BOSS DR12 observations used in regression tests.
+7. Python code must never appear in `cosmo_model_*.yml`; all expressions are
    written in LaTeX.
-6. Backslashes may be written normally; the parser automatically escapes them
+8. Backslashes may be written normally; the parser automatically escapes them
    so
    LaTeX commands like `\frac` work without doubled characters. Prefer YAML
    block scalars (`|` or `>`) for long expressions instead of quoting strings;
    this avoids accidental escape sequences such as `\beta` becoming a
    backspace.
-7. Expressions may include `Integral(...)` terms with explicit limits. They
+9. Expressions may include `Integral(...)` terms with explicit limits. They
    are
    evaluated numerically with SciPy's `quad` when the model is loaded.
-8. Parameter initial guesses are calculated automatically as the midpoint of
+10. Parameter initial guesses are calculated automatically as the midpoint of
    each parameter's bounds.
-9. Each parameter may define a `prior` block describing sampling assumptions.
+11. Each parameter may define a `prior` block describing sampling assumptions.
    `type: gaussian` requires `mean` and `sigma`, `type: uniform` needs
    `lower` and `upper`, and `type: loguniform` expects strictly positive
    `lower`/`upper` bounds. When the declared bounds are identical the parser
@@ -952,13 +965,13 @@ multiplication
    `PARAMETER_PRIORS`, instantiated helper objects via
    `PARAMETER_PRIOR_OBJECTS` and deterministic constants through
    `FIXED_PARAMS` so samplers can reuse consistent mechanics.
-10. Every parameter must define a `latex_name`. When a `python_var` field is
+12. Every parameter must define a `latex_name`. When a `python_var` field is
     omitted, a valid identifier is derived automatically from this LaTeX
     name. Provide an explicit `python_var` when you want short variable names
     such as `Omega_b` or `A1`; the refreshed sample models show this pattern.
-11. `latex_name` values do not require `$` delimiters. Plots automatically
+13. `latex_name` values do not require `$` delimiters. Plots automatically
     wrap parameter names in math mode.
-12. Console and log outputs display parameter names with Greek letters,
+14. Console and log outputs display parameter names with Greek letters,
     subscripts and superscripts when possible for easier reading. The
     conversion tables cover every Latin and Greek letter, digits and common
     operators.
@@ -974,21 +987,29 @@ schema, regardless of how the original model was authored.
 ### Updated example models
 The non-\LambdaCDM samples now demonstrate several design patterns:
 
-* `cosmo_model_cfsc.yml` shows how to drive sound-horizon fits with explicit
-  phenomenological parameters.
-* `cosmo_model_cpc.yml` illustrates a compact f(R) toy model using explicit
-  `python_var` names instead of escaped LaTeX.
-* `cosmo_model_qauc.yml` and the refreshed `cosmo_model_usmf{3..7}.yml` files
-  document different shrink-based expansion laws while keeping YAML easy to
-  extend. These examples double as regression fixtures that should parse
-  cleanly without hand-editing cached outputs.
+* `cosmo_model_qauc.yml` and `cosmo_model_usmf2.yml` document different
+  shrink-based expansion laws while keeping YAML easy to extend. These
+  examples double as regression fixtures that should parse cleanly without
+  hand-editing cached outputs.
+* `cosmo_model_wcdm.yml` lets a constant-w dark energy sector and curvature
+  vary alongside the standard cold-matter background so the manifest records
+  which direction the sampler takes toward w ≠ -1.
+* `cosmo_model_w0wa.yml` exposes CPL-style evolution so wₐ can soften or steepen
+  the late-time H(z) slope while BAO and CMB still share the same calibrated
+  kernel functions.
+* `cosmo_model_lcdm_mnu.yml` keeps the ΛCDM expansion law but treats the full
+  neutrino mass sum as a sampled quantity so downstream runs already resolve the
+  Omnuh2 value they later feed to CAMB.
 * `cosmo_model_qrsf.yml` locks in the dual-channel Quantum Relational Scale
   Field revision with its internal version raised to 2.0 so archival analyses
   remain reproducible without inventing new particles.
-* `cosmo_model_qrsfv3.yml` advances that lineage with a Quantum Relational
-  Synthesis Field coherence kernel that removes the dark sector, grounds the
-  dynamics in open-quantum-system physics and limits the free-parameter count
-  while targeting simultaneous BAO, CMB and supernova χ² improvements.
+
+Removed or retired variants such as the CFSC, CPC, QRSF v2-v5 and USMFv4
+samples leave only the current catalog as living examples.
+
+All currently active models allow the effective relativistic species `Neff` to
+float between 2.5 and 3.5 so the CAMB background matches the sampled radiation
+density without hard-coding the Planck default.
 
 **Common mistakes**
 * Missing `*` between variables and parentheses results in a `'Symbol' object

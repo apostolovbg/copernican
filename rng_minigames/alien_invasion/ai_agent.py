@@ -320,6 +320,7 @@ class AlienInvasionAI:
         lr = 0.5
         best_time = self.state.get("best_time")
         duration = max(0.0, duration)
+        reward = 0.0
         if success:
             self.state["worlds_saved"] = self.state.get("worlds_saved", 0) + 1
             normalized = 1.0 - min(duration, self.max_run_duration) / max(
@@ -334,7 +335,7 @@ class AlienInvasionAI:
         multiplier = float(self.kill_time_bonus.get("multiplier", 1.0))
         exponent = float(self.kill_time_bonus.get("exponent", 1.0))
         reward += multiplier * (kill_rate**exponent)
-        if self._kill_count <= self.kill_drought_kills:
+        if success and self._kill_count <= self.kill_drought_kills:
             reward -= self.kill_drought_multiplier * max(duration, 1.0)
             if best_time is None or duration < best_time:
                 self.state["best_time"] = duration

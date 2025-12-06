@@ -22,6 +22,7 @@ from copernican_lib.likelihoods import (
     BAOLike,
     CMBLike,
     SNeLike,
+    compute_camb_background_observables,
     compute_cmb_spectrum,
     compute_cmb_spectrum_cached,
     compute_cmb_spectrum_from_dict,
@@ -124,131 +125,272 @@ def calculate_bao_observables(
         param_str,
     )
 
-    try:
-        model_rs_Mpc = model_plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
-        if not (np.isfinite(model_rs_Mpc) and model_rs_Mpc > 0):
+    z_array = bao_pred_df["redshift"].to_numpy(dtype=float)
+    obs_type = bao_pred_df["observable_type"].to_numpy(dtype=object)
+    mask_dm = obs_type == "DM_over_rs"
+    mask_dh = obs_type == "DH_over_rs"
+    mask_dv = obs_type == "DV_over_rs"
+
+    z_smooth_arr = None
+    if z_smooth is not None:
+        z_smooth_arr = np.asarray(z_smooth, dtype=float)
+        if z_smooth_arr.size == 0:
+            z_smooth_arr = None
+
+    background = None
+    smooth_background = None
+    camb_params = None
+    get_camb_params = getattr(model_plugin, "get_camb_params", None)
+    if get_camb_params is not None:
+        try:
+            camb_params = get_camb_params(cosmo_params)
+        except Exception as exc:
             logger.warning(
-                "Model '%s' returned invalid r_s (%.3f Mpc).",
-                model_name,
-                model_rs_Mpc,
+                "Failed to obtain CAMB parameters for BAO predictions: %s",
+                exc,
             )
-            return bao_pred_df, np.nan, None
-    except Exception as exc:
-        logger.error(
-            "Failed to calculate r_s for model '%s': %s",
-            model_name,
-            exc,
-            exc_info=True,
-        )
-        return bao_pred_df, np.nan, None
+        else:
+
+            def _load_background(redshifts):
+                if redshifts is None or redshifts.size == 0:
+                    return None
+                try:
+                    return compute_camb_background_observables(
+                        camb_params,
+                        redshifts,
+                    )
+                except (
+                    Exception
+                ) as exc:  # pragma: no cover - CAMB errors are logged
+                    logger.warning(
+                        "Failed to compute CAMB background for BAO plots: %s",
+                        exc,
+                    )
+                    return None
+
+            background = _load_background(z_array)
+            if z_smooth_arr is not None:
+                smooth_background = _load_background(z_smooth_arr)
+
+    rs_mpc = float("nan")
+    if background is not None:
+        rs_candidate = background.get("rs_drag", float("nan"))
+        if np.isfinite(rs_candidate) and rs_candidate > 0:
+            rs_mpc = float(rs_candidate)
+
+    def _fill_from_background() -> bool:
+        if background is None or not np.isfinite(rs_mpc):
+            return False
+        try:
+            dm_vals = np.asarray(background["DM"], dtype=float)
+            dh_vals = np.asarray(background["DH"], dtype=float)
+            dv_vals = np.asarray(background["DV"], dtype=float)
+        except KeyError as exc:
+            logger.warning(
+                "CAMB background missing %s for %s.",
+                exc,
+                model_name,
+            )
+            return False
+        if (
+            dm_vals.shape != z_array.shape
+            or dh_vals.shape != z_array.shape
+            or dv_vals.shape != z_array.shape
+        ):
+            logger.warning(
+                "CAMB background shape mismatch for %s BAO data.",
+                model_name,
+            )
+            return False
+
+        if np.any(mask_dm):
+            bao_pred_df.loc[mask_dm, "model_prediction"] = (
+                dm_vals[mask_dm] / rs_mpc
+            )
+        if np.any(mask_dh):
+            bao_pred_df.loc[mask_dh, "model_prediction"] = (
+                dh_vals[mask_dh] / rs_mpc
+            )
+        if np.any(mask_dv):
+            bao_pred_df.loc[mask_dv, "model_prediction"] = (
+                dv_vals[mask_dv] / rs_mpc
+            )
+        return True
+
+    def _smooth_from_background() -> dict[str, np.ndarray] | None:
+        if (
+            smooth_background is None
+            or z_smooth_arr is None
+            or not np.isfinite(rs_mpc)
+        ):
+            return None
+        try:
+            dm_smooth = np.asarray(smooth_background["DM"], dtype=float)
+            dh_smooth = np.asarray(smooth_background["DH"], dtype=float)
+            dv_smooth = np.asarray(smooth_background["DV"], dtype=float)
+        except KeyError as exc:
+            logger.warning(
+                "CAMB background missing smooth BAO observable %s for %s.",
+                exc,
+                model_name,
+            )
+            return None
+        return {
+            "z": z_smooth_arr,
+            "dm_over_rs": dm_smooth / rs_mpc,
+            "dh_over_rs": dh_smooth / rs_mpc,
+            "dv_over_rs": dv_smooth / rs_mpc,
+        }
+
+    smooth_predictions = None
+    background_used = _fill_from_background()
+
+    def _fill_from_plugin(
+        rs_guess: float,
+    ) -> tuple[float, dict[str, np.ndarray] | None]:
+        try:
+            get_DM_model = getattr(model_plugin, "get_comoving_distance_Mpc")
+            get_Hz_model = getattr(model_plugin, "get_Hz_per_Mpc")
+            get_DV_model_specific = getattr(model_plugin, "get_DV_Mpc", None)
+            get_DA_model = getattr(
+                model_plugin,
+                "get_angular_diameter_distance_Mpc",
+            )
+            C_LIGHT = model_plugin.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458)
+        except AttributeError as exc:
+            logger.error(
+                "Model plugin '%s' missing required function for BAO: %s",
+                model_name,
+                exc,
+            )
+            return float("nan"), None
+
+        rs_value = rs_guess
+        if not (np.isfinite(rs_value) and rs_value > 0):
+            try:
+                rs_value = float(
+                    model_plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
+                )
+            except Exception as exc:
+                logger.error(
+                    "Failed to calculate r_s for model '%s': %s",
+                    model_name,
+                    exc,
+                    exc_info=True,
+                )
+                return float("nan"), None
+            if not (np.isfinite(rs_value) and rs_value > 0):
+                logger.warning(
+                    "Model '%s' returned invalid r_s (%.3f Mpc).",
+                    model_name,
+                    rs_value,
+                )
+                return float("nan"), None
+
+        for index, row in bao_pred_df.iterrows():
+            z_val = row["redshift"]
+            obs = row["observable_type"]
+            model_pred_numerator = np.nan
+            try:
+                if obs == "DM_over_rs":
+                    model_pred_numerator = get_DM_model(z_val, *cosmo_params)
+                elif obs == "DH_over_rs":
+                    hz_val = get_Hz_model(z_val, *cosmo_params)
+                    if np.isfinite(hz_val) and abs(hz_val) > 1e-9:
+                        model_pred_numerator = C_LIGHT / hz_val
+                elif obs == "DV_over_rs":
+                    if get_DV_model_specific:
+                        model_pred_numerator = get_DV_model_specific(
+                            z_val,
+                            *cosmo_params,
+                        )
+                    else:
+                        dm_val = get_DM_model(z_val, *cosmo_params)
+                        hz_val = get_Hz_model(z_val, *cosmo_params)
+                        if (
+                            np.isfinite(dm_val)
+                            and dm_val >= 0
+                            and np.isfinite(hz_val)
+                            and abs(hz_val) > 1e-9
+                            and z_val > 1e-9
+                        ):
+                            term = (dm_val**2) * C_LIGHT * z_val / hz_val
+                            model_pred_numerator = (
+                                term ** (1.0 / 3.0) if term >= 0 else np.nan
+                            )
+                        elif abs(z_val) < 1e-9:
+                            model_pred_numerator = 0.0
+
+                if np.isfinite(model_pred_numerator):
+                    bao_pred_df.loc[index, "model_prediction"] = (
+                        model_pred_numerator / rs_value
+                    )
+            except Exception:
+                logger.exception(
+                    "statistics.calculate_bao_observables: "
+                    "BAO prediction failed for %s at z=%s in model '%s'",
+                    obs,
+                    z_val,
+                    model_name,
+                )
+
+        smooth_preds = None
+        if z_smooth_arr is not None:
+            try:
+                dm_smooth = get_DM_model(z_smooth_arr, *cosmo_params)
+                hz_smooth = get_Hz_model(z_smooth_arr, *cosmo_params)
+                dh_smooth = np.where(
+                    hz_smooth > 0, C_LIGHT / hz_smooth, np.nan
+                )
+
+                if get_DV_model_specific:
+                    dv_smooth = get_DV_model_specific(
+                        z_smooth_arr,
+                        *cosmo_params,
+                    )
+                else:
+                    da_smooth = get_DA_model(z_smooth_arr, *cosmo_params)
+                    term = (
+                        np.power(1 + z_smooth_arr, 2)
+                        * np.power(da_smooth, 2)
+                        * C_LIGHT
+                        * z_smooth_arr
+                        / hz_smooth
+                    )
+                    dv_smooth = np.power(
+                        term,
+                        1 / 3,
+                        where=term >= 0,
+                        out=np.full_like(z_smooth_arr, np.nan),
+                    )
+
+                smooth_preds = {
+                    "z": z_smooth_arr,
+                    "dm_over_rs": dm_smooth / rs_value,
+                    "dh_over_rs": dh_smooth / rs_value,
+                    "dv_over_rs": dv_smooth / rs_value,
+                }
+            except Exception as exc:
+                logger.error(
+                    "Failed to calculate smooth BAO curves for %s: %s",
+                    model_name,
+                    exc,
+                    exc_info=True,
+                )
+        return rs_value, smooth_preds
+
+    if not background_used:
+        bao_pred_df["model_prediction"] = np.nan
+        rs_mpc, smooth_predictions = _fill_from_plugin(rs_mpc)
+    else:
+        smooth_predictions = _smooth_from_background()
+
+    if not (np.isfinite(rs_mpc) and rs_mpc > 0):
+        return bao_pred_df, float("nan"), None
 
     logger.info(
         "Successfully calculated r_s for %s: %.3f Mpc",
         model_name,
-        model_rs_Mpc,
+        rs_mpc,
     )
-
-    try:
-        get_DM_model = getattr(model_plugin, "get_comoving_distance_Mpc")
-        get_Hz_model = getattr(model_plugin, "get_Hz_per_Mpc")
-        get_DV_model_specific = getattr(model_plugin, "get_DV_Mpc", None)
-        get_DA_model = getattr(
-            model_plugin,
-            "get_angular_diameter_distance_Mpc",
-        )
-        C_LIGHT = model_plugin.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458)
-    except AttributeError as exc:
-        logger.error(
-            "Model plugin '%s' missing required function for BAO: %s",
-            model_name,
-            exc,
-        )
-        return bao_pred_df, model_rs_Mpc, None
-
-    for index, row in bao_pred_df.iterrows():
-        z_val = row["redshift"]
-        obs_type = row["observable_type"]
-        model_pred_numerator = np.nan
-        try:
-            if obs_type == "DM_over_rs":
-                model_pred_numerator = get_DM_model(z_val, *cosmo_params)
-            elif obs_type == "DH_over_rs":
-                hz_val = get_Hz_model(z_val, *cosmo_params)
-                if np.isfinite(hz_val) and abs(hz_val) > 1e-9:
-                    model_pred_numerator = C_LIGHT / hz_val
-            elif obs_type == "DV_over_rs":
-                if get_DV_model_specific:
-                    model_pred_numerator = get_DV_model_specific(
-                        z_val,
-                        *cosmo_params,
-                    )
-                else:
-                    dm_val = get_DM_model(z_val, *cosmo_params)
-                    hz_val = get_Hz_model(z_val, *cosmo_params)
-                    if (
-                        np.isfinite(dm_val)
-                        and dm_val >= 0
-                        and np.isfinite(hz_val)
-                        and abs(hz_val) > 1e-9
-                        and z_val > 1e-9
-                    ):
-                        term = (dm_val**2) * C_LIGHT * z_val / hz_val
-                        model_pred_numerator = (
-                            term ** (1.0 / 3.0) if term >= 0 else np.nan
-                        )
-                    elif abs(z_val) < 1e-9:
-                        model_pred_numerator = 0.0
-
-            if np.isfinite(model_pred_numerator):
-                bao_pred_df.loc[index, "model_prediction"] = (
-                    model_pred_numerator / model_rs_Mpc
-                )
-        except Exception:
-            logger.exception(
-                "statistics.calculate_bao_observables: "
-                "BAO prediction failed for %s at z=%s in model '%s'",
-                obs_type,
-                z_val,
-                model_name,
-            )
-
-    smooth_predictions = None
-    if z_smooth is not None:
-        try:
-            dm_smooth = get_DM_model(z_smooth, *cosmo_params)
-            hz_smooth = get_Hz_model(z_smooth, *cosmo_params)
-            dh_smooth = np.where(hz_smooth > 0, C_LIGHT / hz_smooth, np.nan)
-
-            if get_DV_model_specific:
-                dv_smooth = get_DV_model_specific(z_smooth, *cosmo_params)
-            else:
-                da_smooth = get_DA_model(z_smooth, *cosmo_params)
-                term = (
-                    np.power(1 + z_smooth, 2)
-                    * np.power(da_smooth, 2)
-                    * C_LIGHT
-                    * z_smooth
-                    / hz_smooth
-                )
-                dv_smooth = np.power(
-                    term,
-                    1 / 3,
-                    where=term >= 0,
-                    out=np.full_like(z_smooth, np.nan),
-                )
-
-            smooth_predictions = {
-                "z": z_smooth,
-                "dm_over_rs": dm_smooth / model_rs_Mpc,
-                "dh_over_rs": dh_smooth / model_rs_Mpc,
-                "dv_over_rs": dv_smooth / model_rs_Mpc,
-            }
-        except Exception as exc:
-            logger.error(
-                "Failed to calculate smooth BAO curves for %s: %s",
-                model_name,
-                exc,
-                exc_info=True,
-            )
-
-    return bao_pred_df, model_rs_Mpc, smooth_predictions
+    return bao_pred_df, rs_mpc, smooth_predictions

@@ -80,7 +80,7 @@ class BossDR12ParserTestCase(unittest.TestCase):
     def test_chi_squared_bao_residuals_small(self):
         """Residuals stay near zero for reasonable ΛCDM parameters."""
         df = self.parser.parse_boss_dr12(str(self.data_dir))
-        params = (67.66, 0.31, 0.112, 5e-5, 1090)
+        params = (67.66, 0.31, 0.041, 5e-5, 3.044, 1090)
         rs = self.plugin.get_sound_horizon_rs_Mpc(*params)
         z = df["redshift"].to_numpy(dtype=float)
         obs_type = df["observable_type"].to_numpy()

@@ -86,7 +86,7 @@ MODEL_SCHEMA = {
         "rs_expression": {"type": "string"},
         "cmb": {"type": "object"},
         "gravitational_waves": {"type": "object"},
-        "predicts_bao": {"type": "boolean"},
+        "skip_bao": {"type": "boolean"},
         # Optional human-readable fields used by upcoming UI modules
         "abstract": {"type": "string"},
         "description": {"type": "string"},

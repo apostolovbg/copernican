@@ -121,8 +121,8 @@ class TestMCMCEngine(unittest.TestCase):
     def _build_lcdm_plugin(self):
         return _build_model_plugin("cosmo_model_lcdm.yml")
 
-    def _build_cfsc_plugin(self):
-        return _build_model_plugin("cosmo_model_cfsc.yml")
+    def _build_wcdm_plugin(self):
+        return _build_model_plugin("cosmo_model_wcdm.yml")
 
     def test_sampler_produces_netcdf(self):
         plugin = self._build_lcdm_plugin()
@@ -142,7 +142,7 @@ class TestMCMCEngine(unittest.TestCase):
             burn_in_steps=12,
         )
         n_params = len(plugin.PARAMETER_NAMES)
-        expected = (5, max(4, 2 * n_params), n_params)
+        expected = (5, res["n_walkers"], n_params)
         self.assertEqual(res["samples"].shape, expected)
         self.assertEqual(res["log_probability"].shape, expected[:2])
         self.assertTrue(res["success"])
@@ -444,7 +444,7 @@ class TestMCMCEngine(unittest.TestCase):
         self.assertTrue(math.isfinite(result["log_posterior_best"]))
 
     def test_sampler_handles_fixed_bounds(self):
-        plugin = self._build_cfsc_plugin()
+        plugin = self._build_wcdm_plugin()
         sne_df = pd.DataFrame(
             {
                 "zcmb": [0.01, 0.02],
@@ -463,7 +463,7 @@ class TestMCMCEngine(unittest.TestCase):
         self.assertTrue(result["success"])
         chain = result["samples"]
         self.assertEqual(chain.shape[2], len(plugin.PARAMETER_NAMES))
-        const_idx = plugin.PARAMETER_NAMES.index("c")
+        const_idx = plugin.PARAMETER_NAMES.index("c_light")
         fixed_spread = np.ptp(chain[:, :, const_idx])
         self.assertAlmostEqual(fixed_spread, 0.0, places=10)
 

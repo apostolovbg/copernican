@@ -28,6 +28,9 @@ The validation pins both engines to Planck 2018’s base-ΛCDM best-fit paramete
 - `Omega_b = 0.04897`
 - `Omega_gamma = 5.38e-5`
 - `z_rec = 1089.92`
+- `Neff = 3.044` (note: most sample models now allow `Neff` to float between 2.5 and
+  3.5 so this validation run keeps it at the Planck value while the sampler can
+  explore small departures later).
 
 Evaluating the trimmed Pantheon+SH0ES sample and the full BOSS DR12 BAO table at
 this point yields these reference χ² contributions:

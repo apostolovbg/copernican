@@ -1,6 +1,4 @@
 # Copernican Suite CLI Guide
-Last Updated: 2025-12-03
-
 The command-line interface (CLI) drives the same manifest-based workflow as the
 GUI. This guide explains how to launch the CLI, describes every interactive
 prompt, shows how to feed saved manifests into the executor, and lists the key

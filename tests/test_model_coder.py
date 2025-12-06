@@ -107,7 +107,7 @@ class TestSoundHorizonRigour(unittest.TestCase):
                 },
             ],
             "Hz_expression": "H(z) = H0 * sqrt(1 + z)",
-            "predicts_bao": True,
+            "skip_bao": False,
             "valid_for_bao": True,
         }
         with tempfile.TemporaryDirectory() as tmp:
@@ -158,7 +158,7 @@ class TestSoundHorizonRigour(unittest.TestCase):
                 "H0 * sqrt(Omega_m0 * (1 + z)**3 + (1 - Omega_m0))"
                 "), (z, z_rec, oo))"
             ),
-            "predicts_bao": True,
+            "skip_bao": False,
             "valid_for_bao": True,
         }
         with tempfile.TemporaryDirectory() as tmp:
@@ -205,7 +205,7 @@ class TestSoundHorizonRigour(unittest.TestCase):
             ],
             "Hz_expression": "H(z) = H0",
             "rs_expression": ("r_s = Integral(1 / (1 + z), (z, z_rec, oo))"),
-            "predicts_bao": True,
+            "skip_bao": False,
             "valid_for_bao": True,
         }
 

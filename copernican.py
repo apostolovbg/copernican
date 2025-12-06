@@ -235,7 +235,10 @@ def _parser_path_for_dir(data_dir: Path) -> Path | None:
     return candidates[0] if candidates else None
 
 
-def _relative_parser_key(parser_path: Path | None, data_root: Path) -> str | None:
+def _relative_parser_key(
+    parser_path: Path | None,
+    data_root: Path,
+) -> str | None:
     if parser_path is None:
         return None
     try:
@@ -275,9 +278,14 @@ def _collect_dataset_entries(
                 expected_digest and parser_digest == expected_digest
             )
             if not parser_trusted:
-                descriptor = rel_key or (str(parser_path) if parser_path else "parser")
+                descriptor = (
+                    rel_key or (str(parser_path) if parser_path else "parser")
+                )
                 notes.append(
-                    f"Parser {descriptor} failed trust validation; verify digests."
+                    (
+                        f"Parser {descriptor} failed trust validation; "
+                        "verify digests."
+                    )
                 )
             entries.append(
                 {
@@ -317,7 +325,9 @@ def _read_model_file(path: Path) -> dict[str, Any]:
         return {}
 
 
-def _collect_model_index(models_root: Path | None = None) -> dict[str, dict[str, Any]]:
+def _collect_model_index(
+    models_root: Path | None = None,
+) -> dict[str, dict[str, Any]]:
     root = models_root or _models_root()
     models: dict[str, dict[str, Any]] = {}
     for path in sorted(Path(root).glob("*.yml")):
@@ -330,7 +340,9 @@ def _collect_model_index(models_root: Path | None = None) -> dict[str, dict[str,
             "bao": meta.get("valid_for_bao", True),
             "cmb": meta.get("valid_for_cmb", True),
         }
-        badges = [name.upper() for name, valid in compatibility.items() if valid]
+        badges = [
+            name.upper() for name, valid in compatibility.items() if valid
+        ]
         models[path.stem] = {
             "id": meta.get("model_name", path.stem),
             "filename": path.name,
@@ -348,7 +360,9 @@ def _collect_model_index(models_root: Path | None = None) -> dict[str, dict[str,
     return models
 
 
-def _collect_engine_index(engines_root: Path | None = None) -> dict[str, dict[str, Any]]:
+def _collect_engine_index(
+    engines_root: Path | None = None,
+) -> dict[str, dict[str, Any]]:
     root = engines_root or _engines_root()
     engines: dict[str, dict[str, Any]] = {}
     for path in sorted(Path(root).glob("*.py")):
@@ -438,7 +452,10 @@ def _print_catalogue_summary_cli(
         console.write("Untrusted datasets:")
         for entry in catalogue["untrusted"]:
             console.write(
-                f"  - {entry['id']} ({entry['type']}) requires parser hash validation",
+                (
+                    f"  - {entry['id']} ({entry['type']}) requires "
+                    "parser hash validation"
+                ),
                 error=True,
             )
     if not catalogue["untrusted"]:
@@ -448,7 +465,10 @@ def _print_catalogue_summary_cli(
             console.write(f"Note: {note}")
     console.write("")
     console.write(
-        f"Models discovered: {model_engine['model_count']} | Engines: {model_engine['engine_count']}"
+        (
+            f"Models discovered: {model_engine['model_count']} | "
+            f"Engines: {model_engine['engine_count']}"
+        )
     )
     if model_engine["model_badges"]:
         badge_parts = [
@@ -504,7 +524,10 @@ def _cli_revalidate_dataset(
     )
     if expected_digest and parser_digest == expected_digest:
         console.write(
-            f"{dataset_id} ({dtype}) parser matches trusted digest ({parser_digest})."
+            (
+                f"{dataset_id} ({dtype}) parser matches trusted digest "
+                f"({parser_digest})."
+            )
         )
         return True
     if not expected_digest:
@@ -514,7 +537,10 @@ def _cli_revalidate_dataset(
         )
     else:
         console.write(
-            f"Digest mismatch for {dataset_id}: expected {expected_digest} but observed {parser_digest}.",
+            (
+                f"Digest mismatch for {dataset_id}: expected {expected_digest} "
+                f"but observed {parser_digest}."
+            ),
             error=True,
         )
     return False

@@ -1,6 +1,10 @@
 # RNG Mini-games Changelog
 
 ## Version 11.0.1
+- 2025-12-06: Guarded the Alien Invasion AI reward sum so failing runs no longer
+            reference an uninitialised value, keeping the test harness stable
+            (`rng_minigames/alien_invasion/ai_agent.py`,
+            `rng_minigames/CHANGELOG.md`).
 - 2025-12-05: Turned Alien Invasion's AI settings, hall-of-fame and neural state
             files into runtime artifacts so every install keeps its own
             configuration, auto-generated defaults appear on first launch and

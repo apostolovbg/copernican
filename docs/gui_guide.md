@@ -1,6 +1,4 @@
 # Copernican Suite GUI Guide
-Last Updated: 2025-12-03
-
 The Copernican Suite GUI wraps the manifest-driven workflow in a Tkinter
 application so you can compose reproducible runs without touching the console.
 This guide walks through the navigation rail, the Run Builder wizard, the Run

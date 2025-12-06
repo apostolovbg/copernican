@@ -60,6 +60,16 @@ parameters:
       type: uniform
       lower: 1.0e-05
       upper: 0.001
+  - name: Effective neutrino species
+    bounds: [2.5, 3.5]
+    unit: ''
+    latex_name: N_{\rm eff}
+    python_var: Neff
+    definition: Sampled relativistic neutrino count aligned with CAMB inputs.
+    prior:
+      type: uniform
+      lower: 2.5
+      upper: 3.5
   - name: Recombination redshift
     bounds: [900.0, 1200.0]
     unit: ''
@@ -158,7 +168,7 @@ Hz_expression: >-
         / (1 + ((1 + z)/(1 + z_trans))**n_trans)
       )
     )
-    + Omega_gamma * (1 + z)**4
+    + Omega_gamma * (1 + 0.2271 * Neff) * (1 + z)**4
     + Omega_rel0 * (1 + z)**(3 * (1 + w_rel0 + w_rel_a))
         * exp(-3 * w_rel_a * z / (1 + z))
   )
@@ -191,13 +201,13 @@ rs_expression: >-
             / (1 + ((1 + z)/(1 + z_trans))**n_trans)
           )
         )
-        + Omega_gamma * (1 + z)**4
+        + Omega_gamma * (1 + 0.2271 * Neff) * (1 + z)**4
         + Omega_rel0 * (1 + z)**(3 * (1 + w_rel0 + w_rel_a))
             * exp(-3 * w_rel_a * z / (1 + z))
       )
     ), (z, z_rec, oo)
   )
-predicts_bao: true
+skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
@@ -205,11 +215,11 @@ cmb:
     H0: H_star
     ombh2: Omega_b * (H_star/100)**2
     omch2: Omega_b * xi_high * (H_star/100)**2
-    omnuh2: Omega_gamma * (H_star/100)**2
+    omnuh2: Omega_gamma * (1 + 0.2271 * Neff) * (H_star/100)**2
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
-    Neff: 3.044
+    Neff: Neff
     num_massive_neutrinos: 3
     sum_mnu: 0.06
 notes: >-
@@ -217,7 +227,11 @@ notes: >-
   toward xi_low today, so CMB-era inertia matches a cold-matter analogue while
   late-time distances preserve Supernova calibration. The relational release
   fluid behaves like a CPL parameterisation with density Omega_rel0 and slopes
-  w_rel0, w_rel_a. Interpret the CAMB cold-dark-matter density as geometric
+  w_rel0, w_rel_a. The relativistic species count Neff floats between 2.5 and
+  3.5 so reported BAO ratios and CAMB inputs always share the same effective
+  radiation density. Interpret the CAMB cold-dark-matter density as geometric
   inertia arising from the entanglement channel rather than particulate matter.
+  The BAO radiation term multiplies Omega_gamma by (1 + 0.2271 * Neff) so the
+  sonic scale shares the same relativistic density as the CAMB background.
 title: Quantum Relational Scale Field Cosmology
 date: '2025-11-08'

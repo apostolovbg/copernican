@@ -1040,9 +1040,9 @@ def generate_callables(cache_path):
                     error_handler.report_error(msg)
                     raise ValueError(msg) from e
             else:
-                expects_bao = bool(model_data.get("predicts_bao", True))
+                skip_bao = bool(model_data.get("skip_bao", False))
                 advertises_bao = bool(model_data.get("valid_for_bao", True))
-                if expects_bao or advertises_bao:
+                if not skip_bao and advertises_bao:
                     msg = (
                         "Model declares BAO support but omits an explicit "
                         "rs_expression. Provide a sound-horizon formula to "

@@ -48,6 +48,17 @@ parameters:
     type: uniform
     lower: 1.0e-05
     upper: 0.0001
+- name: Effective neutrino species
+  python_var: Neff
+  bounds:
+  - 2.5
+  - 3.5
+  latex_name: N_{\rm eff}
+  definition: Effective number of relativistic neutrinos.
+  prior:
+    type: uniform
+    lower: 2.5
+    upper: 3.5
 - name: Recombination redshift
   bounds:
   - 1000
@@ -61,8 +72,8 @@ parameters:
 Hz_expression: >-
   H(z) = H_0 * sqrt(
     Omega_{m0}*(1 + z)**3
-    + Omega_{\gamma}*(1 + z)**4
-    + (1 - Omega_{m0} - Omega_{\gamma})
+    + Omega_{\gamma}*(1 + 0.2271 * Neff)*(1 + z)**4
+    + (1 - Omega_{m0} - Omega_{\gamma}*(1 + 0.2271 * Neff))
   )
 equations:
   sne:
@@ -79,12 +90,12 @@ rs_expression: >-
     ) / (
       H_0 * sqrt(
         Omega_{m0} * (1 + z)**3
-        + Omega_{\gamma} * (1 + z)**4
-        + (1 - Omega_{m0} - Omega_{\gamma})
+        + Omega_{\gamma} * (1 + 0.2271 * Neff) * (1 + z)**4
+        + (1 - Omega_{m0} - Omega_{\gamma} * (1 + 0.2271 * Neff))
       )
     ), (z, z_rec, oo)
   )
-predicts_bao: true
+skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
@@ -95,7 +106,9 @@ cmb:
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
-    Neff: 3.044
+    Neff: Neff
     num_massive_neutrinos: 3
     sum_mnu: 0.06
-notes: Additional notes available.
+notes: >-
+  The radiation term multiplies Omega_gamma by (1 + 0.2271 * Neff) so BAO
+  ratios and CAMB backgrounds now use the same effective relativistic density.

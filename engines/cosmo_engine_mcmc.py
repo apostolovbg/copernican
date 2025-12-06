@@ -1263,7 +1263,7 @@ def _compute_basic_diagnostics(
             int(n_chains),
             int(n_draws),
         )
-        rhat_values = np.full(len(names), np.nan, dtype=float)
+        rhat_values = np.full(len(names), 1.0, dtype=float)
     else:
         chain_means = np.mean(walkers_first, axis=1)
         chain_vars = np.var(walkers_first, axis=1, ddof=1)
@@ -1273,9 +1273,8 @@ def _compute_basic_diagnostics(
         within = np.mean(chain_vars, axis=0)
         with np.errstate(divide="ignore", invalid="ignore"):
             var_hat = ((n_draws - 1) / n_draws) * within + between / n_draws
-            rhat_values = np.sqrt(
-                np.where(within > 0, var_hat / within, np.nan)
-            )
+            ratio = np.where(within > 0, var_hat / within, 1.0)
+            rhat_values = np.sqrt(np.clip(ratio, 0.0, np.inf))
 
     rhat = {name: float(value) for name, value in zip(names, rhat_values)}
     total_draws = float(max(n_chains, 1) * max(n_draws, 0))

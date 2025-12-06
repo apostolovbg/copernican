@@ -1,0 +1,171 @@
+model_name: wCDM
+version: '1.0'
+description: >-
+  ### wCDM overview
+  
+  The wCDM variation holds cold matter (baryons, photons and cold dark matter)
+  exactly where ΛCDM places it but lets the dark-energy sector carry a
+  constant equation-of-state parameter w_de that can deviate from -1. Deviating
+  from the cosmological constant shifts both the distance ladder measured by
+  supernovae and the background expansion that fixes the BAO feature without
+  rewriting the microphysics of the acoustic peaks. Small curvature is also
+  permitted, giving the model the freedom to test the longstanding Ω_k ≈ 0
+  assumption in the same inference run.
+  
+  Observational anchors appear through multiple datasets. SNe Ia constrain the
+  late-time integral of 1/H(z), BAO samples measure the combination of angular
+  and radial distances, and the CMB links early-universe densities to today’s
+  expansion. The unified description below therefore layers the same variables
+  across those probes so the covariance between w_de and Ω_k (or any H0 shift)
+  is explicit and recoverable from the cached manifest; the manifest records the
+  inferred w_de value and the derived curvature contribution.
+  
+  Parameter degeneracies remain transparent because the ΔΩ_k term appears in
+  the H(z) expression alongside a (1+z)**3 matter term; that structure lets
+  MCMC walkers see when curvature scans start to mimic running dark energy and
+  when supernova residuals begin to tilt the same way BAO currently does.
+abstract: >-
+  The wCDM cosmology replaces Λ with a fluid whose pressure-to-density ratio
+  stays constant but need not equal -1. This maintains the familiar cold-matter
+  background while letting the dark sector slowly stiffen or soften. Allowing a
+  nonzero Ω_k keeps the CMB and BAO responses consistent with that freedom and
+  records how far data drift from the flat assumption.
+parameters:
+  - name: Hubble constant
+    python_var: H0
+    bounds: [50.0, 100.0]
+    unit: km/s/Mpc
+    latex_name: H_0
+    definition: Present-day expansion rate.
+    prior:
+      type: uniform
+      lower: 50.0
+      upper: 100.0
+  - name: Matter density
+    python_var: Omega_m0
+    bounds: [0.05, 0.7]
+    latex_name: Omega_{m0}
+    definition: Includes both baryons and cold dark matter.
+    prior:
+      type: uniform
+      lower: 0.05
+      upper: 0.7
+  - name: Baryon density
+    python_var: Omega_b
+    bounds: [0.01, 0.1]
+    latex_name: Omega_b
+    definition: Physical baryon mass fraction today.
+    prior:
+      type: uniform
+      lower: 0.01
+      upper: 0.1
+  - name: Photon density
+    python_var: Omega_gamma
+    bounds: [1.0e-05, 0.0001]
+    latex_name: Omega_{gamma}
+    definition: Photon contribution that appears in r_s and the high-redshift H(z)
+      tail.
+    prior:
+      type: uniform
+      lower: 1.0e-05
+      upper: 0.0001
+  - name: Effective neutrino species
+    python_var: Neff
+    bounds: [2.5, 3.5]
+    latex_name: N_{\rm eff}
+    definition: Effective number of relativistic species.
+    prior:
+      type: uniform
+      lower: 2.5
+      upper: 3.5
+  - name: Curvature density
+    python_var: Omega_k
+    bounds: [-0.1, 0.1]
+    latex_name: Omega_k
+    definition: Spatial curvature contribution (positive=open, negative=closed).
+    prior:
+      type: uniform
+      lower: -0.1
+      upper: 0.1
+  - name: Equation-of-state
+    python_var: w_de
+    bounds: [-1.5, -0.5]
+    latex_name: w_{\rm de}
+    definition: Constant dark-energy equation-of-state.
+    prior:
+      type: uniform
+      lower: -1.5
+      upper: -0.5
+  - name: Recombination redshift
+    python_var: z_rec
+    bounds: [1000.0, 1200.0]
+    latex_name: z_{\rm rec}
+    definition: Upper limit for the sound-horizon integral.
+    prior:
+      type: uniform
+      lower: 1000.0
+      upper: 1200.0
+  - name: Speed of light
+    python_var: c_light
+    bounds: [299792.458, 299792.458]
+    unit: km/s
+    latex_name: c
+    definition: Used in distance and sound-horizon integrals.
+    prior:
+      type: fixed
+      value: 299792.458
+Hz_expression: >-
+  H(z) = H0 * sqrt(
+    Omega_m0 * (1 + z)**3
+    + Omega_gamma * (1 + 0.2271 * Neff) * (1 + z)**4
+    + (1 - Omega_m0 - Omega_gamma * (1 + 0.2271 * Neff) - Omega_k) * (1 + z)**(3 * (1 + w_de))
+    + Omega_k * (1 + z)**2
+  )
+equations:
+  sne:
+    - d_L(z) = (1+z) \int_0^z \frac{c_light\,dz'}{H(z')}
+    - \mu(z) = 5\log_{10}[d_L(z)/{\rm Mpc}] + 25
+  bao:
+    - D_M(z) = \int_0^z \frac{c_light\,dz'}{H(z')}
+    - D_H(z) = \frac{c_light}{H(z)}
+    - D_V(z) = [D_M(z)**2 * D_H(z)]**(1/3)
+rs_expression: >-
+  r_s = Integral(
+    c_light / sqrt(
+      3 * (1 + 3 * Omega_b / (4 * Omega_gamma) / (1 + z))
+    ) / (
+      H0 * sqrt(
+        Omega_m0 * (1 + z)**3
+        + Omega_gamma * (1 + 0.2271 * Neff) * (1 + z)**4
+        + (1 - Omega_m0 - Omega_gamma * (1 + 0.2271 * Neff) - Omega_k)
+          * (1 + z)**(3 * (1 + w_de))
+        + Omega_k * (1 + z)**2
+      )
+    ), (z, z_rec, oo)
+  )
+skip_bao: false
+valid_for_bao: true
+valid_for_cmb: true
+cmb:
+  param_map:
+    H0: H0
+    ombh2: Omega_b * (H0/100)**2
+    omch2: (Omega_m0 - Omega_b) * (H0/100)**2
+    w0: w_de
+    tau: 0.054
+    As: 2.1e-09
+    ns: 0.965
+    Neff: Neff
+    num_massive_neutrinos: 3
+    sum_mnu: 0.06
+    omk: Omega_k
+notes: >-
+  The constant-w dark energy couples to the same densities that feed the BAO
+  and CMB integrals; deviations from -1 show up both in the H(z) polynomial and
+  in the CAMB w0 parameter. Curvature and w_de share the same redshift leverage,
+  which exposes the degeneracy between curvature and running dark energy while
+  keeping the matter density anchored to the baryon fraction.
+  The radiation term now multiplies Omega_gamma by (1 + 0.2271 * Neff) so BAO
+  residuals map to the CAMB background that supplies the likelihood.
+title: wCDM model for controlled curvature+DE
+date: '2025-12-06'

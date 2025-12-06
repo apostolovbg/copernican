@@ -61,6 +61,16 @@ parameters:
       type: uniform
       lower: 1.0e-06
       upper: 0.0001
+  - name: Effective neutrino species
+    python_var: Neff
+    bounds: [2.5, 3.5]
+    unit: ''
+    latex_name: N_{\rm eff}
+    definition: Sampled relativistic neutrino count built into Omega_r0.
+    prior:
+      type: uniform
+      lower: 2.5
+      upper: 3.5
   - name: Recombination redshift
     bounds: [800.0, 1500.0]
     unit: ''
@@ -138,7 +148,7 @@ rs_expression: >-
       )
     ), (z, z_rec, oo)
   )
-predicts_bao: true
+skip_bao: false
 valid_for_bao: true
 valid_for_cmb: true
 cmb:
@@ -149,9 +159,15 @@ cmb:
     tau: 0.054
     As: 2.1e-09
     ns: 0.965
-    Neff: 3.044
+    Neff: Neff
     num_massive_neutrinos: 3
     sum_mnu: 0.1
 notes: >-
   Provide explicit sound-horizon integrals so BAO fits remain physically
-  consistent with the Quasi-Accelerating Unified Cosmology background.
+  consistent with the Quasi-Accelerating Unified Cosmology background. The
+  radiation density Omega_r0 already includes the neutrino contribution
+  (Omega_gamma * (1 + 0.2271 * Neff)) so BAO ratios align with the CAMB
+  background without reinterpreting Omega_r0.
+  Neff now ranges between 2.5 and 3.5 so the BAO integrals and CAMB inputs
+  share the same effective relativistic density even when the sampler explores
+  departures from the classic 3.044 value.

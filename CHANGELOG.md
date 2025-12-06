@@ -21,6 +21,47 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-06: Resolved the BAO radiation mismatch by documenting the
+            neutrino-corrected photon term, pointing
+            `calculate_bao_observables` at the CAMB background, and refreshing
+            every shared model YAML so each H(z)/r_s definition relies on
+            `Omega_gamma*(1 + 0.2271 * Neff)` prior to exporting plots or CSVs
+            (README.md, cosmo_model_template.yml,
+            copernican_lib/statistics.py, models/cosmo_model_lcdm.yml,
+            models/cosmo_model_lcdm_mnu.yml, models/cosmo_model_qauc.yml,
+            models/cosmo_model_qrsf.yml, models/cosmo_model_usmf2.yml,
+            models/cosmo_model_w0wa.yml, models/cosmo_model_wcdm.yml,
+            copernican.py, docs/cli_guide.md, docs/gui_guide.md,
+            tests/test_bossdr12_parser.py, tests/test_engine_mcmc.py,
+            CHANGELOG.md)
+- 2025-12-06: Renamed `predicts_bao` to `skip_bao`, inverted the expectation, and
+            documented the new flag plus schema, loader, and regression guidance
+            while flipping every sample YAML to `skip_bao: false` and updating
+            the model coder/tests accordingly (README.md,
+            cosmo_model_template.yml, copernican_lib/model_coder.py,
+            copernican_lib/model_spec_validator.py,
+            models/cosmo_model_lcdm.yml, models/cosmo_model_lcdm_mnu.yml,
+            models/cosmo_model_qauc.yml, models/cosmo_model_qrsf.yml,
+            models/cosmo_model_usmf2.yml, models/cosmo_model_w0wa.yml,
+            models/cosmo_model_wcdm.yml, tests/test_model_coder.py,
+            CHANGELOG.md)
+- 2025-12-06: Added the wCDM, w₀wₐ and neutrino-augmented ΛCDM samples, refreshed
+            their README description and documented the new files for the catalog
+            (models/cosmo_model_wcdm.yml, models/cosmo_model_w0wa.yml,
+            models/cosmo_model_lcdm_mnu.yml, copernican_lib/engine_plugin_validation.py,
+            README.md, CHANGELOG.md).
+- 2025-12-06: Let `Neff` float between 2.5 and 3.5 across the standard catalog so
+            CAMB sees the same relativistic density that the analytic integrals
+            expose (models/cosmo_model_lcdm.yml, models/cosmo_model_wcdm.yml,
+            models/cosmo_model_w0wa.yml, models/cosmo_model_lcdm_mnu.yml,
+            README.md, CHANGELOG.md).
+- 2025-12-05: Retired several legacy sample models so the catalog only ships
+            `cosmo_model_qrsf.yml`, rewrote the README summary, and logged the
+            deletions (models/cosmo_model_cfsc.yml,
+            models/cosmo_model_cpc.yml, models/cosmo_model_qrsfv2.yml,
+            models/cosmo_model_qrsfv3.yml, models/cosmo_model_qrsfv4.yml,
+            models/cosmo_model_qrsfv5.yml, models/cosmo_model_usmf4.yml,
+            README.md, CHANGELOG.md).
 - 2025-12-05: Locked the changelog coverage policy to RNG-only logging, added
             exclusivity tests and refreshed the policy registry so future RNG
             changes stay isolated in their own log (AGENTS.md,

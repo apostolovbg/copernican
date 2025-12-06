@@ -35,6 +35,8 @@ _CMB_PARAM_ALLOWED_KEYS = {
     "tau",
     "As",
     "ns",
+    "w0",
+    "wa",
     "nrun",
     "nrunrun",
     "r",
