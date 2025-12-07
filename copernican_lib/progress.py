@@ -5,10 +5,10 @@
 
 The module keeps the shared listener contract used by both the GUI and CLI
 workers while replacing the carriage-return renderer with a lightweight counter
-that logs stage completion as ``<stage>: <current>/<total> steps completed
-(<percent>%)``. Clients still receive structured ``batch_start``,
-``progress_update`` and ``batch_finish`` events so the Run Builder/Monitor can
-mirror the sampler state without co-opting the terminal.
+that logs stage completion as ``<stage>: <current>/<total> batches complete``.
+Clients still receive structured ``batch_start``, ``progress_update`` and
+``batch_finish`` events so the Run Builder/Monitor can mirror the sampler state
+without co-opting the terminal.
 """
 
 from __future__ import annotations
@@ -49,6 +49,8 @@ class BatchProgressBar:
         self._current_step_processed = 0
         self._active = False
         self._last_logged_percent = -1
+        self._batch_interval: int | None = None
+        self._expected_batches = 1
 
     def _batch_fraction(self, step_index: int, fraction: float) -> float:
         span = max(self._current_span, 1)
@@ -64,19 +66,13 @@ class BatchProgressBar:
     def _percent_for(self, step_index: int, fraction: float) -> int:
         return int(round(self._rope_fraction(step_index, fraction) * 100))
 
-    def _log_line(self, step_index: int, percent: int) -> str:
+    def _log_batch_completion(self) -> None:
         if not self._display:
-            return ""
-        step_num = min(max(step_index, 1), max(self._total_steps, 1))
+            return
+        batches = max(self._expected_batches, 1)
         console_output.write(
-            f"{self._stage_label} batch {self._batch_index}: "
-            f"{step_num}/{max(self._total_steps, 1)} steps completed "
-            f"({percent}%)"
-        )
-        return (
-            f"{self._stage_label} batch {self._batch_index}: "
-            f"{step_num}/{max(self._total_steps, 1)} steps completed "
-            f"({percent}%)"
+            f"{self._stage_label} progress: "
+            f"{min(self._batch_index, batches)}/{batches} batches complete."
         )
 
     def _notify_listener(
@@ -128,18 +124,15 @@ class BatchProgressBar:
             self._current_span = max(
                 self._current_end - self._current_start + 1, 0
             )
+            if self._batch_interval is None and self._current_span > 0:
+                self._batch_interval = self._current_span
+                self._expected_batches = math.ceil(
+                    max(self._total_steps, 1) / self._batch_interval
+                )
             self._active = self._current_span > 0
             self._current_step_total = max(self._total_steps, 1)
             self._current_step_processed = 0
             self._last_logged_percent = 0
-            if self._display:
-                count = self._current_span
-                step_word = "step" if count == 1 else "steps"
-                console_output.write(
-                    f"{self._stage_label} batch {self._batch_index} "
-                    f"({count} {step_word}) progress at "
-                    f"{self._current_start}/{max(self._total_steps, 1)}"
-                )
             self._notify_listener(
                 event="batch_start",
                 step_index=self._current_start,
@@ -224,7 +217,6 @@ class BatchProgressBar:
                 )
                 return None
             self._last_logged_percent = percent
-            msg = self._log_line(step_index, percent)
             self._notify_listener(
                 event="progress_update",
                 step_index=step_index,
@@ -234,7 +226,7 @@ class BatchProgressBar:
                 batch_fraction=batch_fraction,
                 step_fraction=step_fraction,
             )
-            return msg
+            return None
 
     def finish_batch(self) -> None:
         """Close the current batch, inserting required spacing."""
@@ -242,10 +234,7 @@ class BatchProgressBar:
         with self._lock:
             if not self._active:
                 return
-            if self._display:
-                console_output.write(
-                    f"{self._stage_label} batch {self._batch_index} complete"
-                )
+            self._log_batch_completion()
             self._notify_listener(
                 event="batch_finish",
                 step_index=self._current_end or self._current_start,

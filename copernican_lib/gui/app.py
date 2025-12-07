@@ -233,20 +233,6 @@ _HELP_PAGES = [
 ]
 
 
-def _is_progress_line(line: str) -> bool:
-    """Return True for stdout lines emitted by the CLI progress counter."""
-
-    stripped = line.strip()
-    if not stripped:
-        return True
-    lower = stripped.lower()
-    if "batch" in lower and "steps" in lower and "completed" in lower:
-        return True
-    if "batch" in lower and "complete" in lower:
-        return True
-    return False
-
-
 class RunStatus(Enum):
     """Enumerate the run lifecycle states shown in the status strip."""
 
@@ -497,6 +483,8 @@ class CopernicanGUI:
         self._validation_stdout_thread: threading.Thread | None = None
         self._validation_running = False
         self._validation_status_base = "Status: idle"
+        self._validation_log_lines: list[str] = []
+        self._validation_last_stage_label: str | None = None
         self._diagnostics_filter_label: ttk.Label | None = None
         self._cancel_button: ttk.Button | None = None
         self._pause_button: ttk.Button | None = None
@@ -2291,12 +2279,9 @@ class CopernicanGUI:
                     if existing_summary
                     else "Status: idle"
                 )
-            summary_text = (
-                existing_summary
-                if existing_summary
-                else "Validation summary not yet generated."
-            )
-            self._set_validation_summary_text(summary_text)
+            if existing_summary and not self._validation_log_lines:
+                self._append_validation_summary_text(existing_summary)
+            self._refresh_validation_log_widget_from_history()
             self._update_validation_status_label(self._progress_snapshot)
             self._update_validation_control_states()
             self._refresh_validation_progress_widgets()
@@ -2445,6 +2430,7 @@ class CopernicanGUI:
     def _append_validation_log_line(self, line: str) -> None:
         """Append a single log *line* to the validation text widget."""
 
+        self._validation_log_lines.append(line)
         if not self._validation_text_widget:
             return
         lock_tail = self._validation_log_lock_var is None or bool(
@@ -2464,10 +2450,11 @@ class CopernicanGUI:
 
         if not self._validation_text_widget:
             return
+        self._validation_log_lines.clear()
         self._validation_text_widget.configure(state="normal")
         self._validation_text_widget.delete("1.0", tk.END)
         if message:
-            self._validation_text_widget.insert("1.0", f"{message}\n")
+            self._append_validation_log_line(message)
         self._validation_text_widget.configure(state="disabled")
         if (
             self._validation_log_lock_var
@@ -2478,14 +2465,15 @@ class CopernicanGUI:
             except Exception:
                 pass
 
-    def _set_validation_summary_text(self, summary: str) -> None:
-        """Show the latest validation summary when no run is active."""
+    def _refresh_validation_log_widget_from_history(self) -> None:
+        """Repopulate the log widget when the UI is rebuilt."""
 
         if not self._validation_text_widget:
             return
         self._validation_text_widget.configure(state="normal")
         self._validation_text_widget.delete("1.0", tk.END)
-        self._validation_text_widget.insert("1.0", summary)
+        for line in self._validation_log_lines:
+            self._validation_text_widget.insert("end", f"{line}\n")
         self._validation_text_widget.configure(state="disabled")
         if (
             self._validation_log_lock_var
@@ -2550,9 +2538,6 @@ class CopernicanGUI:
         self._reset_validation_log_widget(
             "Validation outputs cleared. Run the suite to regenerate the log."
         )
-        self._set_validation_summary_text(
-            "Validation summary not yet generated."
-        )
         self._validation_status_base = "Status: idle"
         self._update_validation_status_label(self._progress_snapshot)
         self.create_toast(
@@ -2594,6 +2579,7 @@ class CopernicanGUI:
         else:
             os.environ.pop("COPERNICAN_GUI_PROGRESS_PATH", None)
         self._progress_snapshot = None
+        self._validation_last_stage_label = None
 
     def _handle_home_revalidate(self, dataset_id: str) -> None:
         """Revalidate an untrusted dataset from the Home dashboard."""
@@ -5820,8 +5806,6 @@ class CopernicanGUI:
                 continue
             if cleaned.startswith("\r"):
                 continue
-            if _is_progress_line(cleaned):
-                continue
             self._log_run_event(cleaned, logging.INFO)
 
     def _wait_for_worker(self, process: subprocess.Popen[str]) -> None:
@@ -5909,6 +5893,10 @@ class CopernicanGUI:
         """Store the latest progress record and refresh the monitor."""
 
         self._progress_snapshot = snapshot
+        if snapshot:
+            stage_name = snapshot.get("stage_label")
+            if stage_name:
+                self._validation_last_stage_label = stage_name
         if snapshot.get("stage_label"):
             self.current_phase = snapshot["stage_label"]
         if self.render and self.root is not None:
@@ -5980,7 +5968,12 @@ class CopernicanGUI:
             return
         text = self._validation_status_base
         if self._validation_running:
-            stage_label = self._stage_label_text(snapshot)
+            stage_snapshot = snapshot
+            if stage_snapshot is None and self._validation_last_stage_label:
+                stage_snapshot = {
+                    "stage_label": self._validation_last_stage_label
+                }
+            stage_label = self._stage_label_text(stage_snapshot)
             if stage_label and stage_label != "Stage: Idle":
                 text = f"{text} – {stage_label}"
         self._validation_status_label.configure(text=text)
