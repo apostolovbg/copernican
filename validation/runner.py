@@ -35,7 +35,7 @@ def run_validation_suite(
 
     The golden manifests live under ``validation/manifests/`` and their outputs
     are written to
-    ``validation/output/{manifest_stem}/copernican-run_<timestamp>``.
+    ``validation/output/{manifest_stem}/validation_run_<timestamp>``.
     """
 
     manifest_list = (
@@ -58,7 +58,7 @@ def run_validation_suite(
         manifest_path = manifest_path.resolve()
         run_root = output_base / manifest_path.stem
         timestamp = utils.get_timestamp()
-        run_dir = run_root / f"copernican-run_{timestamp}"
+        run_dir = run_root / f"validation_run_{timestamp}"
         run_dir.mkdir(parents=True, exist_ok=True)
         _LOGGER.info("Running validation manifest %s", manifest_path.name)
         try:
@@ -70,6 +70,7 @@ def run_validation_suite(
                 progress_callback=progress_callback,
                 strict_warnings=strict_warnings,
                 run_start_ts=timestamp,
+                log_prefix="validation_run",
             )
         except Exception as exc:
             exit_code = 1

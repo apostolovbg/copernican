@@ -2252,7 +2252,7 @@ class CopernicanGUI:
                 pady=6,
                 borderwidth=0,
                 highlightthickness=0,
-                height=10,
+                height=20,
             )
             text_widget.grid(row=0, column=0, sticky="nsew")
             vscroll = ttk.Scrollbar(

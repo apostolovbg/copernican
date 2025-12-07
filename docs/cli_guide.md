@@ -72,7 +72,7 @@ flags execute their action and exit immediately:
 - `--run-validation` – Executes the golden manifests under
   `validation/manifests/` (currently `reference_planck2018.yml`), runs the fixed
   `models/cosmo_model_ref_planck2018.yml`, writes the NEW_CONFIG/results into
-  `validation/output/<manifest_stem>/copernican-run_<timestamp>/` and saves the
+  `validation/output/<manifest_stem>/validation_run_<timestamp>/` and saves the
   textual summary to `VALIDATION.md` before exiting.
   The manifest evaluates this fixed reference model against Union Through UNITY
   2000 SNe, BOSS DR12 BAO and Planck 2018 Lite, and every parameter uses a

@@ -108,8 +108,15 @@ def execute_run_from_manifest(
     progress_callback: Callable[[dict[str, object]], None] | None = None,
     strict_warnings: bool = False,
     run_start_ts: str | None = None,
+    log_prefix: str = "copernican-run",
 ) -> None:
-    """Execute the run described by ``manifest``."""
+    """Execute the run described by ``manifest``.
+
+    The ``log_prefix`` argument controls the prefix of the generated
+    ``<prefix>_<timestamp>.txt`` file written inside ``output_root`` so
+    validation runs can keep their own naming without altering the shared
+    manifest executor.
+    """
 
     log = log_mod.get_logger()
     console_output.write("Manifest-driven run path invoked.")
@@ -137,7 +144,7 @@ def execute_run_from_manifest(
     run_log = log_mod.setup_logging(
         log_dir=str(output_root),
         base_dir=str(script_dir),
-        log_tag=f"copernican-run_{actual_ts}.txt",
+        log_tag=f"{log_prefix}_{actual_ts}.txt",
     )
     console_output.write(
         f"Output directory: {output_root}",

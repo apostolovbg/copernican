@@ -23,7 +23,7 @@ regression tracking.
    so the pinned Python 3.11 interpreter and dependencies are available.
 2. Execute `python copernican.py --run-validation`. The command runs every
    manifest in `validation/manifests/`, writes its logs/plots into
-   `validation/output/<manifest_stem>/copernican-run_<timestamp>/`, and saves a
+   `validation/output/<manifest_stem>/validation_run_<timestamp>/`, and saves a
    textual summary of the pass/fail status plus the output directory to
    `VALIDATION.md` (which is ignored by Git).
 3. Alternatively, open the GUI and select the **Validation** navigation button.
@@ -32,7 +32,7 @@ regression tracking.
    the control scrolled to the bottom while the run is active.
 
 Each validation run writes the standard artifacts (plots, CSVs, corner plots,
-NEW_CONFIG) to its own `validation/output/<manifest>/<copernican-run_YYYYMMDD_HHMMSS>`
+NEW_CONFIG) to its own `validation/output/<manifest>/validation_run_YYYYMMDD_HHMMSS`
 directory, just like a regular run. You can reuse the generated manifest or
 configurations by opening the `run_manifest_<timestamp>.yml` file inside that
 folder and copying it into the GUI builder.

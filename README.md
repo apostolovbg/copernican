@@ -917,14 +917,14 @@ point even though the values remain numerically locked for validation purposes.
 The canonical manifest `reference_planck2018.yml` runs this fixed model against
 Union Through UNITY 2000 SNe, BOSS DR12 BAO and Planck 2018 Lite via the
 standard manifest pipeline, writes its NEW_CONFIG and plots into
-`validation/output/<manifest_stem>/copernican-run_<timestamp>/`, and copies a
+`validation/output/<manifest_stem>/validation_run_<timestamp>/`, and copies a
 summary of each manifest result (pass/fail plus the output directory) into
 `VALIDATION.md` (gitignored). CLI users execute the same flow with
 `python copernican.py --run-validation`. The GUI Validation page now launches
 that same command, streams the CLI stdout into the log panel, keeps the batch
 and walker progress bars synced with the CLI counter-driven updates, and disables the Run
 button while the worker is active. A **Cancel validation** button terminates the
-worker early, **Clear validation** wipes every `validation/output/...`
+worker early, **Clear validation** wipes every `validation/output/.../validation_run_*`
 directory together with the gitignored summary so you can rerun from a clean
 state, and the “Lock summary to latest entry” checkbox keeps the log pinned to
 the newest lines while outputs stream in. Tolerances for the reference outputs
