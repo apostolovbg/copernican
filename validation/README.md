@@ -5,18 +5,18 @@ the GUI and CLI use for ordinary analyses. The manifest files live under
 `validation/manifests/`, and the canonical manifest
 `reference_planck2018.yml` evaluates the fixed-parameter
 `models/cosmo_model_ref_planck2018.yml` against the publicly released
-Pantheon+SH0ES 2022, BOSS DR12 BAO and Planck 2018 Lite datasets.
+Union Through UNITY 2000 SNe, BOSS DR12 BAO and Planck 2018 Lite datasets.
 
 ## Reference model
 `models/cosmo_model_ref_planck2018.yml` fixes the Hubble constant, matter/baryon
 densities, photon density, effective neutrino number and recombination redshift
-to the values reported in Planck Collaboration VI (2018, Table 2). The priors are
-uniform distributions whose lower and upper bounds coincide with the published
-best-fit values so the run still samples via MCMC, the plotter draws reference
-lines, and the corner output shows the anchor point even though the parameters
-do not wander. Because the parameters remain numerically locked, the manifest
-run is deterministic, reproducible across environments and continues to provide
-the golden dataset used for validation and regression tracking.
+to the values reported in Planck Collaboration VI (2018, Table 2). Each prior is
+declared as a `fixed` value so the run still records the reference trace, the
+plotter draws the canonical comparison lines, and the corner output highlights the
+sameness even though the parameters do not wander. Because the parameters remain
+numerically locked, the manifest run is deterministic, reproducible across
+environments and continues to provide the golden dataset used for validation and
+regression tracking.
 
 ## Running validation
 1. Activate the managed environment (`start.sh`, `start.command` or `start.bat`)

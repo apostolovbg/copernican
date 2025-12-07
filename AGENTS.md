@@ -35,12 +35,12 @@ backward-compatibility shims are intentionally absent to keep the interactive
 shell lean while the GUI evolves. Avoid reintroducing fallbacks unless the
 roadmap later requests them explicitly. GUI launchers should use the
 `copernican_lib/orchestration` service map rather than duplicating CLI helpers;
-the `copernican.py --gui` shim lists the available modules. Keep the staged
-menu disabled by default and only re-enable it for CI coverage with
-`COPERNICAN_ENABLE_STAGED_MENU=1` or `--enable-legacy-stage-menu`. The new
-Tkinter scaffold under `copernican_lib/gui/` preserves the navigation rail,
-Run Builder and monitor shells even when the renderer falls back to headless
-mode for automated environments.
+the `copernican.py --gui` shim lists the available modules. The staged menu
+has been retired—there is no `COPERNICAN_ENABLE_STAGED_MENU` flag or
+`--enable-legacy-stage-menu` CLI option—so the Tkinter scaffold under
+`copernican_lib/gui/` preserves the navigation rail, Run Builder and monitor
+shells even when the renderer falls back to headless mode for automated
+environments.
 The root window now displays the version from `copernican_lib/VERSION`, Home
 quick actions open the output directory, Run Builder and Run Monitor, and the
 builder itself walks through seed, model, data, engine and plan steps with live

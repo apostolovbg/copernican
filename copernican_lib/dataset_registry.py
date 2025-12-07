@@ -43,6 +43,9 @@ _DATA_FILE_EXTENSIONS = {
 }
 _DOCUMENTATION_PREFIXES = ("readme", "license", "notes", "citation")
 
+_DISCOVERY_ROOT: str | None = None
+_DISCOVERY_PERFORMED = False
+
 # Each parser is registered via a decorator so that ``copernican.py`` can list
 # available data sources dynamically. The loaders below simply call the
 # registered functions after prompting the user.
@@ -244,7 +247,9 @@ def _file_sha256(path: str) -> str:
 
 
 # --- Dynamic Discovery of Parser Modules ---
-def discover_trusted_parsers(base_dir: str | None = None):
+def discover_trusted_parsers(
+    base_dir: str | None = None, *, force: bool = False
+):
     """Import parser modules and populate registries with dataset metadata.
 
     The scan walks ``data/`` recursively, ignoring ``placeholder`` folders so
@@ -261,11 +266,16 @@ def discover_trusted_parsers(base_dir: str | None = None):
         base_dir = os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "data"
         )
-    console.write("Dataset discovery: scanning data/ for trusted parsers...")
     # Resolve the discovery root to an absolute path so subsequent checks can
     # verify that candidate entries never escape the repository via symlinks
     # or ".." components.
     base_dir = os.path.realpath(base_dir)
+    global _DISCOVERY_PERFORMED, _DISCOVERY_ROOT
+    if not force and _DISCOVERY_PERFORMED and _DISCOVERY_ROOT == base_dir:
+        return
+    console.write("Dataset discovery: scanning data/ for trusted parsers...")
+    _DISCOVERY_PERFORMED = True
+    _DISCOVERY_ROOT = base_dir
     for dtype in ("sne", "bao", "cmb", "gw"):
         type_dir = os.path.join(base_dir, dtype)
         # Skip symlinks or paths that resolve outside the data directory.

@@ -82,15 +82,20 @@ clickable appearance.
 ## Validation
 The navigation rail now includes a **Validation** button positioned between
 Engines and Settings. When you press it, the GUI executes the golden manifests
-under `validation/manifests/` (currently `reference_planck2018.yml` running
-`models/cosmo_model_ref_planck2018.yml`), streams the Run Monitor–style summary
-(MCMC and Nested posterior means plus reference χ²) into a text box, writes the
-NEW_CONFIG, plots and logs into `validation/output/<manifest_stem>/copernican-run_<timestamp>/`,
-and stores the textual summary in the gitignored `VALIDATION.md` file so the
-panel can reload the latest results even when the suite is not rerun. A “Lock
-summary to latest entry” checkbox keeps the view pinned to the newest lines
-while outputs continue to arrive, and the validation button stays disabled
-while the run is active so you cannot stack overlapping validations.
+under `validation/manifests/` (currently `reference_planck2018.yml`, which
+runs `models/cosmo_model_ref_planck2018.yml`), streams the Run Monitor–style
+summary (MCMC and Nested posterior means plus reference χ²) into a text box,
+writes the NEW_CONFIG, plots and logs into
+`validation/output/<manifest_stem>/copernican-run_<timestamp>/`, and stores the
+textual summary in the gitignored `VALIDATION.md` file so the panel can reload
+the latest results even when the suite is not rerun. The manifest evaluates the
+fixed reference model against Union Through UNITY 2000 SNe, BOSS DR12 BAO and
+Planck 2018 Lite and declares each parameter using `fixed` priors so the sampler
+still records the canonical point while keeping the values numerically locked
+for regression checks. A “Lock summary to latest entry” checkbox keeps the view
+pinned to the newest lines while outputs continue to arrive, and the validation
+button stays disabled while the run is active so you cannot stack overlapping
+validations.
 
 ## Metadata dialogs
 
@@ -116,11 +121,19 @@ handful of engines.
 
 ## Settings
 
-The Settings screen keeps the diagnostics frame from before while adding an
-Output directory helper (entry, create/refresh buttons and an open flag) and
-environment hints for variables such as `COPERNICAN_SEED`,
-`COPERNICAN_STRICT_WARNINGS`, `COPERNICAN_ENABLE_STAGED_MENU` and
-`COPERNICAN_DETACH_GUI`.
+The Settings screen now mirrors the Run Builder navigation: four tabs list
+Logging, Datasets, GUI and Tools options in the same style as the wizard
+controls above.  Logging lets operators set retention counts, severity
+thresholds and console capture before purging archived diagnostics files
+directly from the same panel.  The Datasets page toggles automatic discovery,
+hash caching and offers a manual digest rebuild so trusted parsers stay current.
+GUI settings cover automatic detachment, managed `.venv` enforcement and the
+environment hints (`COPERNICAN_SEED`, `COPERNICAN_STRICT_WARNINGS`,
+`COPERNICAN_DETACH_GUI`) shown on the status bar.  The Tools tab surfaces
+maintenance helpers such as rebuilding the sanitized `models/cache` files,
+revalidating the parser registry, and resetting the Run Builder workspace.
+All preferences persist through `copernican_lib/settings.py` into the shared
+`copernican_settings.yml` file so GUI and CLI launches honour the same defaults.
 
 ## Help
 

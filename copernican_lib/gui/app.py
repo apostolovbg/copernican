@@ -54,10 +54,12 @@ from copernican_lib import (
     console_output,
     dataset_registry,
     logger,
+    model_spec_validator,
     progress_state,
     run_manifest,
-    utils,
 )
+from copernican_lib import settings as settings_mod
+from copernican_lib import utils
 from copernican_lib import validation as validation_utils
 from copernican_lib import version
 from copernican_lib.engine_capabilities import (
@@ -77,6 +79,37 @@ _KATEX_VERSION = "0.16.4"
 _EQUATION_EMPTY_BODY = (
     "<p class='hint'>Select a model to preview its symbolic equations.</p>"
 )
+_EQUATION_WINDOW_SHIM = """\
+  <script>
+    (function() {
+      const globalObj =
+        typeof globalThis !== "undefined" ? globalThis : this;
+      if (typeof window === "undefined") {
+        window = globalObj;
+      }
+      if (typeof document === "undefined") {
+        document = globalObj.document || {
+          createElement() {
+            const node = {
+              style: {},
+              appendChild() {},
+              removeChild() {},
+              setAttribute() {},
+              innerHTML: "",
+              className: "",
+            };
+            node.getBoundingClientRect = () => ({ width: 0, height: 0 });
+            return node;
+          },
+          body: {
+            appendChild() {},
+            removeChild() {},
+          },
+        };
+      }
+    })();
+  </script>"""
+
 _EQUATION_HTML_TEMPLATE = """<!DOCTYPE html>
 <html>
 <head>
@@ -85,6 +118,7 @@ _EQUATION_HTML_TEMPLATE = """<!DOCTYPE html>
     rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/katex@{version}/dist/katex.min.css"
   >
+{shim}
   <style>
     body {{
       margin: 0;
@@ -392,6 +426,8 @@ class CopernicanGUI:
         self._selected_model_entry: dict | None = None
         self._selected_engine_entry: dict | None = None
         self._equation_html_frame: HtmlFrame | None = None
+        self._equations_window: tk.Toplevel | None = None
+        self._equations_text_widget: tk.Text | None = None
         self.engine_capabilities: EngineCapabilities | None = None
         self._engine_setting_vars: dict[str, tk.Variable] = {}
         self._engine_setting_specs: dict[str, EngineSetting] = {}
@@ -447,6 +483,10 @@ class CopernicanGUI:
         self._monitor_control_buttons: list[ttk.Button] = []
         self._monitor_button_style_name = "Copernican.RunControl.TButton"
         self._monitor_button_style_ready = False
+        self._validation_progress_status_label: ttk.Label | None = None
+        self._validation_batch_progressbar: ttk.Progressbar | None = None
+        self._validation_walker_progressbar: ttk.Progressbar | None = None
+        self._validation_progress_env_backup: str | None = None
         self._diagnostics_log_widget: tk.Text | None = None
         self._validation_status_label: ttk.Label | None = None
         self._validation_text_widget: tk.Text | None = None
@@ -462,6 +502,59 @@ class CopernicanGUI:
         self._status_bar_frame: ttk.Frame | None = None
         self._brand_status_label: ttk.Label | None = None
         self._environment_status_label: ttk.Label | None = None
+        self._settings_sections = [
+            {
+                "id": "logs",
+                "label": "Logging",
+                "description": (
+                    "Control the diagnostics archive retention count and "
+                    "severity threshold while mirroring console output into "
+                    "the log before pruning old files."
+                ),
+                "builder": self._build_settings_logs_page,
+            },
+            {
+                "id": "datasets",
+                "label": "Datasets",
+                "description": (
+                    "Toggle automatic discovery, manage dataset hash caching "
+                    "and recalculate digests on demand to keep the catalogue "
+                    "aligned with the registered parsers."
+                ),
+                "builder": self._build_settings_datasets_page,
+            },
+            {
+                "id": "gui",
+                "label": "GUI",
+                "description": (
+                    "Adjust detachment, managed environment requirements and "
+                    "the environment hints shown in the status bar."
+                ),
+                "builder": self._build_settings_gui_page,
+            },
+            {
+                "id": "tools",
+                "label": "Tools",
+                "description": (
+                    "Run cache rebuilds, parser revalidation or reset the Run "
+                    "Builder workspace without leaving the settings screen."
+                ),
+                "builder": self._build_settings_tools_page,
+            },
+        ]
+        self._settings_section_buttons: list[ttk.Button] = []
+        self._settings_current_index = 0
+        self._settings_header_label: ttk.Label | None = None
+        self._settings_description_label: ttk.Label | None = None
+        self._settings_page_body: ttk.Frame | None = None
+        self._settings_defaults_button: ttk.Button | None = None
+        self._settings_cancel_button: ttk.Button | None = None
+        self._settings_save_button: ttk.Button | None = None
+        self._settings_dirty = False
+        self._suppress_setting_events = False
+        self._saved_settings = copy.deepcopy(settings_mod.get_settings())
+        self._pending_settings = copy.deepcopy(self._saved_settings)
+        self._settings_vars: dict[str, dict[str, tk.Variable]] = {}
         self._bootstrap_logging()
         self._build_navigation()
         self._initialise_rendering()
@@ -474,15 +567,14 @@ class CopernicanGUI:
     def _bootstrap_logging(self) -> None:
         """Start the diagnostics log and capture environment details."""
 
-        base_dir = os.getcwd()
-        self.application_log_path = logger.setup_program_logging(
-            log_dir="logs",
-            base_dir=base_dir,
-        )
         program_logger = logger.get_program_logger()
+        self.application_log_path = logger.get_program_log_path() or ""
         self.application_log_handler = _MemoryLogHandler(prefix="app")
         self._attach_handler(program_logger, self.application_log_handler)
-        logger.log_environment_info(target_logger=program_logger)
+        logger.log_environment_info(
+            target_logger=program_logger,
+            console=False,
+        )
         self._log_program_event(
             "GUI launch completed; diagnostics stream active",
             logging.INFO,
@@ -897,7 +989,9 @@ class CopernicanGUI:
             badges.append(str(meta.get("version")))
         return badges
 
-    def _discover_dataset_catalogue(self) -> dict[str, dict]:
+    def _discover_dataset_catalogue(
+        self, force_discovery: bool = False
+    ) -> dict[str, dict]:
         """Return dataset metadata indexed by dataset identifier.
 
         Discovery defers to :func:`dataset_registry.discover_trusted_parsers`
@@ -906,7 +1000,10 @@ class CopernicanGUI:
         compatibility badges for the detail panes.
         """
 
-        dataset_registry.discover_trusted_parsers(self._data_root())
+        dataset_registry.discover_trusted_parsers(
+            self._data_root(),
+            force=force_discovery,
+        )
         catalogue: dict[str, dict] = {}
         registries = dataset_registry.get_parser_registries()
         for dtype, registry in registries.items():
@@ -1054,7 +1151,7 @@ class CopernicanGUI:
             }
         return engines
 
-    def refresh_inventory(self) -> None:
+    def refresh_inventory(self, force_discovery: bool = False) -> None:
         """Refresh catalogue, model and engine metadata for list views.
 
         The method runs at startup and when panels request a revalidation.  It
@@ -1064,7 +1161,9 @@ class CopernicanGUI:
         """
 
         self.validation_notes = []
-        self.catalogue_index = self._discover_dataset_catalogue()
+        self.catalogue_index = self._discover_dataset_catalogue(
+            force_discovery=force_discovery
+        )
         self.model_index = self._discover_model_library()
         self.engine_index = self._discover_engine_library()
 
@@ -1669,7 +1768,7 @@ class CopernicanGUI:
     def revalidate_dataset(self, dataset_id: str) -> dict[str, str]:
         """Re-run parser trust checks and return the refreshed record."""
 
-        self.refresh_inventory()
+        self.refresh_inventory(force_discovery=True)
         if dataset_id not in self.catalogue_index:
             raise KeyError(dataset_id)
         record = self.catalogue_index[dataset_id]
@@ -1739,9 +1838,14 @@ class CopernicanGUI:
         self.root.grid_rowconfigure(2, weight=0)
 
         self._build_navigation_logo(nav_frame)
+        nav_body = ttk.Frame(nav_frame)
+        nav_body.pack(fill="both", expand=True)
+        exit_frame = ttk.Frame(nav_frame)
+        exit_frame.pack(fill="x", side="bottom")
         for item in self.nav_items:
+            target_frame = exit_frame if item.name == "exit" else nav_body
             button = ttk.Button(
-                nav_frame,
+                target_frame,
                 text=item.label,
                 command=lambda i=item: i.action(self),
                 takefocus=True,
@@ -2067,6 +2171,9 @@ class CopernicanGUI:
         """Display the lightweight validation runner and latest summary."""
 
         def builder(frame: tk.Frame) -> None:
+            self._validation_progress_status_label = None
+            self._validation_batch_progressbar = None
+            self._validation_walker_progressbar = None
             self._page_header(frame, "Validation")
             self._validation_status_label = ttk.Label(
                 frame,
@@ -2074,6 +2181,33 @@ class CopernicanGUI:
                 takefocus=True,
             )
             self._validation_status_label.pack(anchor="w")
+            progress_frame = ttk.Frame(frame)
+            progress_frame.pack(fill="x", pady=(8, 8))
+            self._validation_progress_status_label = ttk.Label(
+                progress_frame,
+                text="Stage: Idle",
+                font=("Helvetica", 12, "bold"),
+                takefocus=True,
+            )
+            self._validation_progress_status_label.pack(anchor="w")
+            ttk.Label(
+                progress_frame,
+                text="Overall validation progress",
+                takefocus=True,
+            ).pack(anchor="w", pady=(4, 0))
+            self._validation_batch_progressbar = ttk.Progressbar(
+                progress_frame, maximum=100, length=360
+            )
+            self._validation_batch_progressbar.pack(fill="x", pady=(2, 0))
+            ttk.Label(
+                progress_frame,
+                text="Per-manifest progress",
+                takefocus=True,
+            ).pack(anchor="w", pady=(6, 0))
+            self._validation_walker_progressbar = ttk.Progressbar(
+                progress_frame, maximum=100, length=360
+            )
+            self._validation_walker_progressbar.pack(fill="x", pady=(2, 0))
             controls = ttk.Frame(frame)
             controls.pack(fill="x", pady=(8, 4))
             self._validation_button = ttk.Button(
@@ -2084,10 +2218,10 @@ class CopernicanGUI:
             )
             self._validation_button.pack(side="left")
             summary_frame = ttk.LabelFrame(frame, text="Validation summary")
-            summary_frame.pack(fill="both", expand=True, pady=(8, 0))
+            summary_frame.pack(fill="x", pady=(8, 0))
             summary_frame.columnconfigure(0, weight=1)
             summary_frame.rowconfigure(0, weight=0)
-            summary_frame.rowconfigure(1, weight=1)
+            summary_frame.rowconfigure(1, weight=0)
             lock_frame = ttk.Frame(summary_frame)
             lock_frame.grid(row=0, column=0, sticky="w", pady=(0, 4))
             self._validation_log_lock_var = tk.BooleanVar(value=True)
@@ -2108,7 +2242,7 @@ class CopernicanGUI:
                 pady=6,
                 borderwidth=0,
                 highlightthickness=0,
-                height=12,
+                height=10,
             )
             text_widget.grid(row=0, column=0, sticky="nsew")
             vscroll = ttk.Scrollbar(
@@ -2142,6 +2276,13 @@ class CopernicanGUI:
     def _start_validation_run(self) -> None:
         """Kick off the validation suite inside a background thread."""
 
+        if self.status is RunStatus.RUNNING:
+            self.create_toast(
+                "Finish the active run before starting validation.",
+                severity="WARNING",
+                context="validation",
+            )
+            return
         if self._validation_running:
             return
         self._validation_running = True
@@ -2151,6 +2292,7 @@ class CopernicanGUI:
             self._validation_status_label.configure(
                 text="Status: running validation…"
             )
+        self._prepare_validation_progress_monitor()
         thread = threading.Thread(target=self._validation_worker, daemon=True)
         console_output.write("GUI: validation suite queued for execution.")
         thread.start()
@@ -2168,6 +2310,7 @@ class CopernicanGUI:
             summary = f"Validation runner could not start: {exc}"
         validation_utils.write_validation_summary(summary, code == 0)
         if self.content_area is None:
+            self._cleanup_validation_progress_monitor()
             return
         self.content_area.after(
             0, lambda: self._complete_validation_run(code, summary)
@@ -2187,6 +2330,7 @@ class CopernicanGUI:
         self._update_validation_text(
             summary or "Validation completed without producing summary text."
         )
+        self._cleanup_validation_progress_monitor()
         console_output.write(
             f"GUI validation: completed with code {code} and summary length "
             f"{len(summary)}."
@@ -2218,6 +2362,37 @@ class CopernicanGUI:
             except Exception:
                 pass
         self._refresh_environment_status()
+
+    def _prepare_validation_progress_monitor(self) -> None:
+        """Configure progress state tracking for the validation runner."""
+
+        if self._progress_state_path:
+            return
+        progress_path = self._prepare_progress_path()
+        self._progress_state_path = progress_path
+        progress_state.clear_progress(progress_path)
+        self._validation_progress_env_backup = os.environ.get(
+            "COPERNICAN_GUI_PROGRESS_PATH"
+        )
+        os.environ["COPERNICAN_GUI_PROGRESS_PATH"] = progress_path
+        self._start_progress_poller()
+        self._refresh_validation_progress_widgets()
+
+    def _cleanup_validation_progress_monitor(self) -> None:
+        """Stop monitoring and remove the temporary progress state."""
+
+        self._stop_progress_poller()
+        if self._progress_state_path:
+            progress_state.clear_progress(self._progress_state_path)
+            self._progress_state_path = None
+        if self._validation_progress_env_backup is not None:
+            os.environ["COPERNICAN_GUI_PROGRESS_PATH"] = (
+                self._validation_progress_env_backup
+            )
+            self._validation_progress_env_backup = None
+        else:
+            os.environ.pop("COPERNICAN_GUI_PROGRESS_PATH", None)
+        self._progress_snapshot = None
 
     def _handle_home_revalidate(self, dataset_id: str) -> None:
         """Revalidate an untrusted dataset from the Home dashboard."""
@@ -2917,34 +3092,13 @@ class CopernicanGUI:
             xscrollcommand=hscroll.set,
         )
 
-        eq_container = ttk.LabelFrame(
-            preview_frame,
-            text="Equations & expressions",
-            padding=(8, 6),
-        )
-        eq_container.grid(
-            row=0,
-            column=1,
-            sticky="nsew",
-            padx=(15, 24),
-        )
-        eq_container.columnconfigure(0, weight=1)
-        eq_container.rowconfigure(0, weight=1)
-        if HtmlFrame is not None:
-            self._equation_html_frame = HtmlFrame(
-                eq_container,
-                horizontal_scrollbar=False,
-                vertical_scrollbar="auto",
-                javascript_enabled=True,
-            )
-            self._equation_html_frame.grid(row=0, column=0, sticky="nsew")
-        else:
-            ttk.Label(
-                eq_container,
-                text="Equation preview requires Tkinter and KaTeX.",
-                wraplength=260,
-                justify="left",
-            ).grid(row=0, column=0, sticky="nsew")
+        action_frame = ttk.Frame(container)
+        action_frame.pack(fill="x", pady=(4, 4))
+        ttk.Button(
+            action_frame,
+            text="Equations & expressions…",
+            command=self._show_equations_window,
+        ).pack(side="right")
 
         def _refresh_model_preview(entry: dict | None = None) -> None:
             preview_text.configure(state="normal")
@@ -2985,6 +3139,73 @@ class CopernicanGUI:
         listbox.bind("<<ListboxSelect>>", _refresh_model_selection)
         _refresh_model_selection()
 
+    def _show_equations_window(self) -> None:
+        """Open a standalone window that displays the current model's
+        equations."""
+
+        if not self.render or self.root is None:
+            return
+        entry = self._selected_model_entry
+        if not entry:
+            self.create_toast(
+                "Select a model before viewing its equations.",
+                severity="WARNING",
+                context="models",
+            )
+            return
+        if self._equations_window is not None:
+            self._equations_window.deiconify()
+            self._equations_window.lift()
+            self._refresh_equation_panel(entry)
+            return
+        window = tk.Toplevel(self.root)
+        window.title(f"Equations & expressions — {entry['id']}")
+        window.geometry("460x400")
+        window.minsize(360, 260)
+        window.transient(self.root)
+        window.rowconfigure(0, weight=1)
+        window.columnconfigure(0, weight=1)
+        body = ttk.Frame(window, padding=(12, 12, 12, 12))
+        body.grid(row=0, column=0, sticky="nsew")
+        body.rowconfigure(0, weight=1)
+        body.columnconfigure(0, weight=1)
+        if HtmlFrame is not None:
+            html = HtmlFrame(
+                body,
+                horizontal_scrollbar=False,
+                vertical_scrollbar="auto",
+                javascript_enabled=True,
+            )
+            html.grid(row=0, column=0, sticky="nsew")
+            self._equation_html_frame = html
+            self._equations_text_widget = None
+        else:
+            text_widget = tk.Text(
+                body,
+                wrap="word",
+                borderwidth=1,
+                relief="solid",
+            )
+            text_widget.grid(row=0, column=0, sticky="nsew")
+            text_widget.configure(state="disabled")
+            self._equations_text_widget = text_widget
+            self._equation_html_frame = None
+        window.protocol(
+            "WM_DELETE_WINDOW",
+            lambda: self._close_equations_window(window),
+        )
+        self._equations_window = window
+        self._refresh_equation_panel(entry)
+
+    def _close_equations_window(self, window: tk.Toplevel) -> None:
+        """Cleanup references when the equations window closes."""
+
+        if self._equations_window is window:
+            self._equations_window = None
+        self._equation_html_frame = None
+        self._equations_text_widget = None
+        window.destroy()
+
     def _collect_model_expressions(
         self, metadata: Mapping[str, Any] | None
     ) -> list[tuple[str, str]]:
@@ -3012,6 +3233,15 @@ class CopernicanGUI:
                         _append(f"{section} {idx + 1}", entry)
         return expressions
 
+    def _format_plain_expression_text(self, entry: dict | None) -> str:
+        """Return a textual summary of the expressions for fallback views."""
+
+        metadata = entry.get("metadata") if entry else None
+        expressions = self._collect_model_expressions(metadata)
+        if not expressions:
+            return "Select a model to preview its symbolic equations."
+        return "\n\n".join(f"{title}:\n{expr}" for title, expr in expressions)
+
     def _build_equation_html(self, entry: dict | None) -> str:
         """
         Return an HTML document that renders the model's LaTeX expressions.
@@ -3028,8 +3258,8 @@ class CopernicanGUI:
                     (
                         "<div class='expression-block'>"
                         f"<div class='expression-title'>{escape(title)}</div>"
-                        "<div class='equation' "
-                        f'data-latex="{escape(expr)}"></div>'
+                        f"<div class='equation' data-latex=\"{escape(expr)}\">"
+                        f"{escape(expr)}</div>"
                         "</div>"
                     )
                     for title, expr in expressions
@@ -3042,6 +3272,7 @@ class CopernicanGUI:
 
         return _EQUATION_HTML_TEMPLATE.format(
             version=_KATEX_VERSION,
+            shim=_EQUATION_WINDOW_SHIM,
             model_name=escape(model_name),
             expressions=expressions_html,
         )
@@ -3049,10 +3280,19 @@ class CopernicanGUI:
     def _refresh_equation_panel(self, entry: dict | None = None) -> None:
         """Update the KaTeX HTML view based on the selected model."""
 
-        if self._equation_html_frame is None:
-            return
-        html = self._build_equation_html(entry)
-        self._equation_html_frame.load_html(html)
+        if self._equations_window is not None and entry:
+            self._equations_window.title(
+                f"Equations & expressions — {entry['id']}"
+            )
+        if self._equation_html_frame is not None:
+            html = self._build_equation_html(entry)
+            self._equation_html_frame.load_html(html)
+        if self._equations_text_widget is not None:
+            body = self._format_plain_expression_text(entry)
+            self._equations_text_widget.configure(state="normal")
+            self._equations_text_widget.delete("1.0", "end")
+            self._equations_text_widget.insert("1.0", body)
+            self._equations_text_widget.configure(state="disabled")
 
     def _render_builder_step_data(self, container: tk.Frame) -> None:
         ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
@@ -4169,174 +4409,638 @@ class CopernicanGUI:
 
         self._swap_content(builder)
 
+    def _handle_setting_change(
+        self, section: str, key: str, *_args: Any
+    ) -> None:
+        """Persist the updated widget value into the pending settings."""
+
+        if self._suppress_setting_events:
+            return
+        section_vars = self._settings_vars.get(section, {})
+        var = section_vars.get(key)
+        if var is None:
+            return
+        if isinstance(var, tk.BooleanVar):
+            new_value = bool(var.get())
+        elif isinstance(var, tk.IntVar):
+            try:
+                new_value = int(var.get())
+            except (TypeError, ValueError):
+                new_value = 0
+        else:
+            new_value = str(var.get())
+        old_value = self._pending_settings.get(section, {}).get(key)
+        if old_value == new_value:
+            return
+        self._pending_settings[section][key] = new_value
+        self._mark_settings_dirty()
+
+    def _ensure_setting_var(
+        self, section: str, key: str
+    ) -> tk.Variable | None:
+        """Return or create the Tk variable for *section/key*."""
+
+        if not self.render or tk is None:
+            return None
+        section_vars = self._settings_vars.setdefault(section, {})
+        if key in section_vars:
+            return section_vars[key]
+        value = self._pending_settings.get(section, {}).get(key)
+        if isinstance(value, bool):
+            var = tk.BooleanVar(value=value)
+        elif isinstance(value, int):
+            var = tk.IntVar(value=value)
+        elif isinstance(value, float):
+            var = tk.DoubleVar(value=value)
+        else:
+            var = tk.StringVar(value=str(value))
+        var.trace_add(
+            "write",
+            partial(self._handle_setting_change, section, key),
+        )
+        section_vars[key] = var
+        return var
+
+    def _refresh_setting_vars(self) -> None:
+        """Synchronise the Tk variables with the pending settings."""
+
+        if self._suppress_setting_events:
+            return
+        self._suppress_setting_events = True
+        try:
+            for section, values in self._pending_settings.items():
+                section_vars = self._settings_vars.get(section, {})
+                for key, var in section_vars.items():
+                    pending_value = values.get(key)
+                    if isinstance(var, tk.BooleanVar):
+                        var.set(bool(pending_value))
+                    elif isinstance(var, tk.IntVar):
+                        try:
+                            var.set(int(pending_value))
+                        except (TypeError, ValueError):
+                            var.set(0)
+                    elif isinstance(var, tk.DoubleVar):
+                        try:
+                            var.set(float(pending_value))
+                        except (TypeError, ValueError):
+                            var.set(0.0)
+                    else:
+                        var.set(str(pending_value))
+        finally:
+            self._suppress_setting_events = False
+
+    def _set_settings_dirty(self, value: bool) -> None:
+        """Update the dirty flag and refresh the action button states."""
+
+        self._settings_dirty = value
+        self._update_settings_action_states()
+
+    def _update_settings_action_states(self) -> None:
+        """Toggle the Save/Cancel buttons based on dirty state."""
+
+        if self._settings_save_button is not None:
+            if self._settings_dirty:
+                self._settings_save_button.state(["!disabled"])
+            else:
+                self._settings_save_button.state(["disabled"])
+        if self._settings_cancel_button is not None:
+            if self._settings_dirty:
+                self._settings_cancel_button.state(["!disabled"])
+            else:
+                self._settings_cancel_button.state(["disabled"])
+
+    def _mark_settings_dirty(self) -> None:
+        """Mark the settings as modified if they are not already."""
+
+        if not self._settings_dirty:
+            self._set_settings_dirty(True)
+
+    def _refresh_settings_section_indicators(self) -> None:
+        """Highlight which settings section is active."""
+
+        # Buttons remain active; the current page is already indicated
+        # by the header.
+
+    def _render_settings_section(self) -> None:
+        """Rebuild the active section's content."""
+
+        if self._settings_page_body is None:
+            return
+        for child in self._settings_page_body.winfo_children():
+            child.destroy()
+        section = self._settings_sections[self._settings_current_index]
+        if self._settings_header_label is not None:
+            self._settings_header_label.configure(
+                text=f"Settings: {section['label']}"
+            )
+        if self._settings_description_label is not None:
+            self._settings_description_label.configure(
+                text=section["description"]
+            )
+        section["builder"](self._settings_page_body)
+        self._refresh_settings_section_indicators()
+
+    def _navigate_settings_section(self, index: int) -> None:
+        """Switch to another tab, guarding against unsaved changes."""
+
+        if index == self._settings_current_index:
+            return
+        if not self._confirm_settings_navigation():
+            return
+        self._settings_current_index = index
+        self._render_settings_section()
+
+    def _confirm_settings_navigation(self) -> bool:
+        """Ensure the user saves or reverts before leaving a dirty section."""
+
+        if not self._settings_dirty:
+            return True
+        decision = self._prompt_settings_discard_dialog()
+        if decision == "save":
+            self._persist_pending_settings(notify=False)
+            return True
+        if decision == "revert":
+            self._reset_settings_to_saved()
+            return True
+        return False
+
+    def _prompt_settings_discard_dialog(self) -> str | None:
+        """Ask the operator whether to save or revert unsaved changes."""
+
+        if not (
+            self.render
+            and tk is not None
+            and messagebox is not None
+            and self.root is not None
+        ):
+            self.create_toast(
+                "Save or revert settings before navigating away.",
+                severity="WARNING",
+                context="settings",
+            )
+            return None
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Unsaved settings")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        dialog.columnconfigure(0, weight=1)
+        ttk.Label(
+            dialog,
+            text="You must either save or revert changes to navigate away.",
+            wraplength=320,
+            justify="left",
+            takefocus=True,
+        ).grid(row=0, column=0, padx=12, pady=(12, 8), sticky="w")
+        button_frame = ttk.Frame(dialog)
+        button_frame.grid(row=1, column=0, pady=(0, 12), padx=12)
+
+        choice: dict[str, str | None] = {"value": None}
+
+        def _close() -> None:
+            if dialog.grab_current() is dialog:
+                dialog.grab_release()
+            dialog.destroy()
+
+        def _select(value: str) -> None:
+            choice["value"] = value
+            _close()
+
+        ttk.Button(
+            button_frame,
+            text="Revert",
+            command=lambda: _select("revert"),
+            takefocus=True,
+        ).pack(side="left", padx=4)
+        ttk.Button(
+            button_frame,
+            text="Save and continue",
+            command=lambda: _select("save"),
+            takefocus=True,
+        ).pack(side="left", padx=4)
+        dialog.protocol("WM_DELETE_WINDOW", _close)
+        dialog.wait_window()
+        return choice["value"]
+
+    def _persist_pending_settings(self, *, notify: bool = True) -> None:
+        """Save the pending settings to disk."""
+
+        settings_mod.save_settings(self._pending_settings)
+        self._saved_settings = copy.deepcopy(self._pending_settings)
+        self._set_settings_dirty(False)
+        if notify:
+            self.create_toast(
+                "Settings saved.",
+                severity="INFO",
+                context="settings",
+            )
+
+    def _reset_settings_to_saved(self) -> None:
+        """Revert the UI to the last-saved values."""
+
+        self._pending_settings = copy.deepcopy(self._saved_settings)
+        self._refresh_setting_vars()
+        self._set_settings_dirty(False)
+        self._render_settings_section()
+
+    def _reset_settings_to_defaults(self) -> None:
+        """Load the defaults so operators can start over."""
+
+        self._pending_settings = copy.deepcopy(settings_mod.DEFAULT_SETTINGS)
+        self._refresh_setting_vars()
+        self._set_settings_dirty(True)
+        self._render_settings_section()
+
     def show_settings(self) -> None:
-        """Display settings placeholder panel."""
+        """Display the configurable settings panel with section tabs."""
 
         def builder(frame: tk.Frame) -> None:
-            self._page_header(frame, "Settings")
-            ttk.Label(
+            section_label = self._settings_sections[
+                self._settings_current_index
+            ]["label"]
+            self._settings_header_label = self._page_header(
                 frame,
-                text=(
-                    "Adjust notification and logging preferences before "
-                    "launching runs. Diagnostics stream from GUI launch "
-                    "throughout the session so early environment checks "
-                    "remain available."
-                ),
+                f"Settings: {section_label}",
+            )
+            tab_bar = ttk.Frame(frame)
+            tab_bar.pack(fill="x", pady=(0, 8))
+            self._settings_section_buttons = []
+            button_style = self._monitor_button_kwargs()
+            for index, section in enumerate(self._settings_sections):
+                button = ttk.Button(
+                    tab_bar,
+                    text=section["label"],
+                    command=lambda idx=index: self._navigate_settings_section(
+                        idx
+                    ),
+                    takefocus=True,
+                    **button_style,
+                )
+                button.pack(side="left", padx=4)
+                self._settings_section_buttons.append(button)
+            self._settings_description_label = ttk.Label(
+                frame,
+                text=self._settings_sections[self._settings_current_index][
+                    "description"
+                ],
                 wraplength=720,
                 takefocus=True,
-            ).pack(anchor="w", pady=(4, 8))
-            diag_frame = ttk.LabelFrame(frame, text="Diagnostics")
-            diag_frame.pack(fill="x", pady=(4, 4))
+            )
+            self._settings_description_label.pack(anchor="w", pady=(0, 8))
+            action_row = ttk.Frame(frame)
+            action_row.pack(fill="x", pady=(0, 32))
+            self._settings_defaults_button = ttk.Button(
+                action_row,
+                text="Defaults",
+                command=self._reset_settings_to_defaults,
+                takefocus=True,
+                **button_style,
+            )
+            self._settings_defaults_button.pack(side="left", padx=4)
+            self._settings_cancel_button = ttk.Button(
+                action_row,
+                text="Cancel",
+                command=self._reset_settings_to_saved,
+                takefocus=True,
+                **button_style,
+            )
+            self._settings_cancel_button.pack(side="left", padx=4)
+            self._settings_save_button = ttk.Button(
+                action_row,
+                text="Save",
+                command=self._persist_pending_settings,
+                takefocus=True,
+                **button_style,
+            )
+            self._settings_save_button.pack(side="left", padx=4)
+            body = ttk.Frame(frame)
+            body.pack(fill="both", expand=True)
+            self._settings_page_body = body
+            self._set_settings_dirty(self._settings_dirty)
+            self._render_settings_section()
+
+        self._swap_content(builder)
+
+    def _build_settings_logs_page(self, container: tk.Frame) -> None:
+        """Render the controls used to shape the diagnostics log."""
+
+        row = ttk.Frame(container)
+        row.pack(fill="x", pady=(0, 6))
+        ttk.Label(
+            row,
+            text="Log retention (files):",
+        ).pack(side="left")
+        retention_var = self._ensure_setting_var("logs", "log_retention_count")
+        if retention_var is not None:
+            tk.Spinbox(
+                row,
+                from_=1,
+                to=99,
+                width=4,
+                textvariable=retention_var,
+            ).pack(side="left", padx=6)
+        ttk.Label(
+            row,
+            text="Keep the most recent diagnostics log files before pruning.",
+            wraplength=420,
+            justify="left",
+        ).pack(anchor="w", pady=(4, 0))
+
+        level_row = ttk.Frame(container)
+        level_row.pack(fill="x", pady=(0, 6))
+        ttk.Label(
+            level_row,
+            text="Log level:",
+        ).pack(side="left")
+        level_var = self._ensure_setting_var("logs", "log_level")
+        if level_var is not None:
+            ttk.Combobox(
+                level_row,
+                values=("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"),
+                state="readonly",
+                width=12,
+                textvariable=level_var,
+            ).pack(side="left", padx=6)
+        ttk.Label(
+            container,
+            text="Higher severity thresholds keep the file lean while still "
+            "capturing key events.",
+            wraplength=720,
+            justify="left",
+        ).pack(anchor="w", pady=(0, 8))
+
+        capture_var = self._ensure_setting_var("logs", "capture_console")
+        if capture_var is not None:
+            ttk.Checkbutton(
+                container,
+                text="Mirror stdout/stderr into the diagnostics log",
+                variable=capture_var,
+                takefocus=True,
+            ).pack(anchor="w", pady=(0, 6))
+
+        button_frame = ttk.Frame(container)
+        button_frame.pack(fill="x", pady=(10, 0))
+        ttk.Button(
+            button_frame,
+            text="Purge program logs",
+            command=self._purge_program_logs,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        ).pack(side="left")
+
+    def _build_settings_datasets_page(self, container: tk.Frame) -> None:
+        """Render dataset discovery toggles and digest helpers."""
+
+        auto_var = self._ensure_setting_var(
+            "datasets", "auto_dataset_discovery"
+        )
+        if auto_var is not None:
+            ttk.Checkbutton(
+                container,
+                text="Enable automatic dataset discovery",
+                variable=auto_var,
+                takefocus=True,
+            ).pack(anchor="w", pady=(0, 4))
+        rebuild_var = self._ensure_setting_var(
+            "datasets", "dataset_hash_auto_rebuild"
+        )
+        if rebuild_var is not None:
+            ttk.Checkbutton(
+                container,
+                text="Rebuild dataset hashes automatically",
+                variable=rebuild_var,
+                takefocus=True,
+            ).pack(anchor="w", pady=(0, 4))
+        ttl_var = self._ensure_setting_var(
+            "datasets", "dataset_hash_ttl_hours"
+        )
+        if ttl_var is not None:
+            ttl_frame = ttk.Frame(container)
+            ttl_frame.pack(fill="x", pady=(4, 6))
+            ttk.Label(ttl_frame, text="Hash TTL (hours):").pack(side="left")
+            tk.Spinbox(
+                ttl_frame,
+                from_=1,
+                to=168,
+                width=4,
+                textvariable=ttl_var,
+            ).pack(side="left", padx=6)
             ttk.Label(
-                diag_frame,
-                text=f"App log path: {self.application_log_path}",
+                ttl_frame,
+                text="Rebuild caches after this many hours when flagged.",
+                wraplength=520,
+                justify="left",
+            ).pack(anchor="w", pady=(4, 0))
+        ttk.Button(
+            container,
+            text="Recalculate digests",
+            command=self._rebuild_dataset_hashes_action,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        ).pack(anchor="w", pady=(8, 0))
+
+    def _build_settings_gui_page(self, container: tk.Frame) -> None:
+        """Surface GUI-specific toggles and environment hints."""
+
+        detach_var = self._ensure_setting_var("gui", "detach_gui")
+        if detach_var is not None:
+            ttk.Checkbutton(
+                container,
+                text="Detach GUI launches by default",
+                variable=detach_var,
+                takefocus=True,
+            ).pack(anchor="w", pady=(0, 4))
+        venv_var = self._ensure_setting_var("gui", "require_managed_venv")
+        if venv_var is not None:
+            ttk.Checkbutton(
+                container,
+                text="Require the managed .venv before running",
+                variable=venv_var,
+                takefocus=True,
+            ).pack(anchor="w", pady=(0, 4))
+        hints_var = self._ensure_setting_var("gui", "show_environment_hints")
+        if hints_var is not None:
+            ttk.Checkbutton(
+                container,
+                text="Show environment hints in the status bar",
+                variable=hints_var,
+                takefocus=True,
+            ).pack(anchor="w", pady=(0, 4))
+
+        env_frame = ttk.LabelFrame(container, text="Environment hints")
+        env_frame.pack(fill="x", pady=(8, 4))
+        env_values = [
+            ("COPERNICAN_SEED", os.environ.get("COPERNICAN_SEED", "unset")),
+            (
+                "COPERNICAN_STRICT_WARNINGS",
+                os.environ.get("COPERNICAN_STRICT_WARNINGS", "0"),
+            ),
+            (
+                "COPERNICAN_DETACH_GUI",
+                os.environ.get("COPERNICAN_DETACH_GUI", "0"),
+            ),
+        ]
+        for name, value in env_values:
+            ttk.Label(
+                env_frame,
+                text=f"{name}: {value}",
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w")
-            self._diagnostics_filter_label = ttk.Label(
-                diag_frame,
-                text=f"Filter: {self.diagnostics_filter_level}+",
-                takefocus=True,
-            )
-            self._diagnostics_filter_label.pack(anchor="w", pady=(2, 0))
-            filter_frame = ttk.Frame(diag_frame)
-            filter_frame.pack(anchor="w", pady=(4, 4))
-            ttk.Button(
-                filter_frame,
-                text="Show all",
-                command=lambda: self.set_diagnostics_filter("INFO"),
-                takefocus=True,
-            ).pack(side="left", padx=2)
-            ttk.Button(
-                filter_frame,
-                text="Errors only",
-                command=lambda: self.set_diagnostics_filter("ERROR"),
-                takefocus=True,
-            ).pack(side="left", padx=2)
-            text_panel = ttk.Frame(diag_frame)
-            text_panel.pack(fill="both", expand=True)
-            text_panel.columnconfigure(0, weight=1)
-            text_panel.rowconfigure(0, weight=1)
-            diag_text = tk.Text(
-                text_panel,
-                wrap="none",
-                padx=8,
-                pady=6,
-                borderwidth=0,
-                highlightthickness=0,
-                height=10,
-            )
-            diag_text.grid(row=0, column=0, sticky="nsew")
-            vscroll = ttk.Scrollbar(
-                text_panel, orient="vertical", command=diag_text.yview
-            )
-            vscroll.grid(row=0, column=1, sticky="ns")
-            hscroll = ttk.Scrollbar(
-                text_panel, orient="horizontal", command=diag_text.xview
-            )
-            hscroll.grid(row=1, column=0, sticky="ew")
-            diag_text.configure(
-                yscrollcommand=vscroll.set, xscrollcommand=hscroll.set
-            )
-            diag_text.configure(state="disabled")
-            self._diagnostics_log_widget = diag_text
-            actions = ttk.Frame(diag_frame)
-            actions.pack(anchor="w", pady=(6, 0))
-            ttk.Button(
-                actions,
-                text="View diagnostics log",
-                command=self._view_diagnostics_log,
-                takefocus=True,
-            ).pack(side="left", padx=2)
-            ttk.Button(
-                actions,
-                text="Open diagnostics log…",
-                command=self._open_diagnostics_log,
-                takefocus=True,
-            ).pack(side="left", padx=2)
-            ttk.Button(
-                actions,
-                text="Flush log",
-                command=self._flush_application_log,
-                takefocus=True,
-            ).pack(side="left", padx=2)
 
-            output_frame = ttk.LabelFrame(frame, text="Output directory")
-            output_frame.pack(fill="x", pady=(6, 4))
-            output_root = self._output_root()
-            output_var = tk.StringVar(value=output_root)
-            ttk.Entry(
-                output_frame,
-                textvariable=output_var,
-                width=64,
-            ).pack(anchor="w", pady=(4, 0))
+    def _build_settings_tools_page(self, container: tk.Frame) -> None:
+        """Expose shared maintenance helpers."""
 
-            def _apply_output_path() -> None:
-                target = output_var.get().strip() or output_root
-                os.makedirs(target, exist_ok=True)
-                self.create_toast(
-                    f"Output directory ready at {target}",
-                    severity="INFO",
-                    context="settings",
+        button_style = self._monitor_button_kwargs()
+
+        def _tool_row(
+            text: str, command: Callable[[], None], desc: str
+        ) -> None:
+            row = ttk.Frame(container)
+            row.pack(fill="x", pady=(0, 14))
+            ttk.Button(
+                row,
+                text=text,
+                command=command,
+                takefocus=True,
+                **button_style,
+            ).pack(anchor="w", padx=(0, 6), pady=(0, 6))
+            ttk.Label(
+                row,
+                text=desc,
+                wraplength=720,
+                justify="left",
+            ).pack(anchor="w", padx=(0, 6), pady=(0, 10))
+
+        _tool_row(
+            "Rebuild model cache",
+            self._rebuild_model_cache_action,
+            "Re-validate every YAML model and regenerate the sanitized cache.",
+        )
+        _tool_row(
+            "Revalidate parsers",
+            self._revalidate_all_parsers_action,
+            (
+                "Force the parser registry to re-run trust checks before "
+                "refreshing the catalogue."
+            ),
+        )
+        _tool_row(
+            "Reset Run Builder",
+            self._reset_builder_workspace_action,
+            "Clear the Run Builder selections and draft manifest.",
+        )
+
+    def _purge_program_logs(self) -> None:
+        """Delete archived diagnostics logs except the active one."""
+
+        logs_dir = Path(__file__).resolve().parents[2] / "logs"
+        current_path = log_mod.get_program_log_path()
+        skip_path = Path(current_path) if current_path else None
+        removed = 0
+        for candidate in sorted(logs_dir.glob("copernican_log_*.txt")):
+            if skip_path and candidate.samefile(skip_path):
+                continue
+            try:
+                candidate.unlink()
+            except OSError as exc:
+                logger.get_program_logger().warning(
+                    "Failed to remove program log %s: %s", candidate, exc
                 )
+                continue
+            removed += 1
+        if removed:
+            message = f"Purged {removed} archived log file(s)."
+        else:
+            message = "No archived program logs were removed."
+        self.create_toast(message, severity="INFO", context="settings")
 
-            output_buttons = ttk.Frame(output_frame)
-            output_buttons.pack(anchor="w", pady=(4, 0))
+    def _rebuild_dataset_hashes_action(self) -> None:
+        """Force the catalogue to recompute every dataset digest."""
 
-            def _open_output_directory() -> None:
-                target = output_var.get().strip() or output_root
-                os.makedirs(target, exist_ok=True)
-                try:
-                    self.open_folder(target)
-                except FileNotFoundError:
-                    self.create_toast(
-                        f"Output directory missing at {target}",
-                        severity="ERROR",
-                        context="settings",
-                    )
+        try:
+            self.refresh_inventory(force_discovery=True)
+        except Exception as exc:
+            self.create_toast(
+                f"Failed to refresh dataset digests: {exc}",
+                severity="ERROR",
+                context="settings",
+            )
+            logger.get_program_logger().warning(
+                "Failed to refresh dataset hashes", exc_info=exc
+            )
+            return
+        self.create_toast(
+            "Dataset digests refreshed.",
+            severity="INFO",
+            context="settings",
+        )
 
-            ttk.Button(
-                output_buttons,
-                text="Open directory",
-                command=_open_output_directory,
-                takefocus=True,
-            ).pack(side="left", padx=2)
-            ttk.Button(
-                output_buttons,
-                text="Create/refresh",
-                command=_apply_output_path,
-                takefocus=True,
-            ).pack(side="left", padx=2)
+    def _revalidate_all_parsers_action(self) -> None:
+        """Re-run parser trust checks across every observation."""
 
-            env_frame = ttk.LabelFrame(frame, text="Environment hints")
-            env_frame.pack(fill="x", pady=(6, 4))
-            env_values = [
-                (
-                    "COPERNICAN_SEED",
-                    os.environ.get("COPERNICAN_SEED", "unset"),
-                ),
-                (
-                    "COPERNICAN_STRICT_WARNINGS",
-                    os.environ.get("COPERNICAN_STRICT_WARNINGS", "0"),
-                ),
-                (
-                    "COPERNICAN_ENABLE_STAGED_MENU",
-                    os.environ.get("COPERNICAN_ENABLE_STAGED_MENU", "0"),
-                ),
-                (
-                    "COPERNICAN_DETACH_GUI",
-                    os.environ.get("COPERNICAN_DETACH_GUI", "0"),
-                ),
-            ]
-            for name, value in env_values:
-                ttk.Label(
-                    env_frame,
-                    text=f"{name}: {value}",
-                    wraplength=720,
-                    takefocus=True,
-                ).pack(anchor="w")
+        try:
+            dataset_registry.discover_trusted_parsers(
+                self._data_root(),
+                force=True,
+            )
+            self.refresh_inventory(force_discovery=True)
+        except Exception as exc:
+            self.create_toast(
+                f"Parser revalidation failed: {exc}",
+                severity="ERROR",
+                context="settings",
+            )
+            logger.get_program_logger().warning(
+                "Parser revalidation failed", exc_info=exc
+            )
+            return
+        self.create_toast(
+            "Parsers revalidated successfully.",
+            severity="INFO",
+            context="settings",
+        )
 
-        self._swap_content(builder)
+    def _rebuild_model_cache_action(self) -> None:
+        """Recreate the cached YAML models from disk."""
+
+        models_root = Path(self._models_root())
+        cache_dir = models_root / "cache"
+        rebuilt = 0
+        try:
+            for yaml_path in sorted(models_root.glob("*.yml")):
+                if yaml_path.name.startswith("__"):
+                    continue
+                model_spec_validator.validate_and_cache_model(
+                    yaml_path, cache_dir
+                )
+                rebuilt += 1
+        except Exception as exc:
+            self.create_toast(
+                f"Model cache rebuild failed: {exc}",
+                severity="ERROR",
+                context="settings",
+            )
+            logger.get_program_logger().warning(
+                "Model cache rebuild failed", exc_info=exc
+            )
+            return
+        self.create_toast(
+            f"Rebuilt cache for {rebuilt} model(s).",
+            severity="INFO",
+            context="settings",
+        )
+
+    def _reset_builder_workspace_action(self) -> None:
+        """Clear the Run Builder selections along with the draft manifest."""
+
+        self._clear_builder_selections()
+        self.manifest_workspace = None
+        self.create_toast(
+            "Run Builder selections reset.",
+            severity="INFO",
+            context="settings",
+        )
 
     def show_help(self) -> None:
         """Display contextual help panel with GUI and CLI guides."""
@@ -5010,6 +5714,7 @@ class CopernicanGUI:
             self.root.after(0, self._refresh_monitor_widgets)
         else:
             self._refresh_monitor_widgets()
+        self._refresh_validation_progress_widgets()
 
     def _refresh_monitor_widgets(self) -> None:
         """Update the progress bars, status label and log console."""
@@ -5037,6 +5742,30 @@ class CopernicanGUI:
         self._refresh_status_label()
         self._refresh_run_log_widget()
         self._update_monitor_controls_state()
+
+    def _refresh_validation_progress_widgets(self) -> None:
+        """Update the validation progress UI with the latest snapshot."""
+
+        snapshot = self._progress_snapshot
+        stage_label = "Stage: Idle"
+        if snapshot:
+            label = snapshot.get("stage_label", "Stage")
+            event = snapshot.get("event", "").replace("_", " ")
+            stage_label = f"{label} – {event}".strip(" –")
+        if self._validation_progress_status_label is not None:
+            self._validation_progress_status_label.configure(text=stage_label)
+        if self._validation_batch_progressbar is not None:
+            percent = snapshot.get("batch_percent", 0) if snapshot else 0
+            self._validation_batch_progressbar["value"] = min(
+                max(percent, 0), 100
+            )
+        if self._validation_walker_progressbar is not None:
+            walker_percent = (
+                snapshot.get("walker_percent", 0) if snapshot else 0
+            )
+            self._validation_walker_progressbar["value"] = min(
+                max(walker_percent, 0), 100
+            )
 
     def _refresh_run_log_widget(self) -> None:
         """Populate the run log text widget with the latest entries."""

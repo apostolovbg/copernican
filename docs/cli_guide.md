@@ -74,10 +74,11 @@ flags execute their action and exit immediately:
   `models/cosmo_model_ref_planck2018.yml`, writes the NEW_CONFIG/results into
   `validation/output/<manifest_stem>/copernican-run_<timestamp>/` and saves the
   textual summary to `VALIDATION.md` before exiting.
-  The reference model uses uniform priors with matching lower/upper bounds so
-  the sampler still emits its reference trace and the plots keep drawing the
-  comparison lines even though the parameters never wander from the Planck 2018
-  anchor.
+  The manifest evaluates this fixed reference model against Union Through UNITY
+  2000 SNe, BOSS DR12 BAO and Planck 2018 Lite, and every parameter uses a
+  `fixed` prior so the sampler still emits its reference trace and the plots keep
+  drawing the comparison lines even though the values never wander from the
+  Planck 2018 anchor.
 
 ## Executing Saved Manifests
 Both the CLI and GUI rely on
@@ -98,14 +99,14 @@ log output match the GUI’s Run Monitor display.
 
 - `COPERNICAN_STRICT_WARNINGS=1` – Elevates Python warnings to errors, useful in
   CI pipelines.
-- `COPERNICAN_ENABLE_STAGED_MENU=1` – Re-enables the retired staged CLI menu
-  for legacy automation. The default remains the streamlined manifest first
-  workflow.
 - `COPERNICAN_SEED=<value>` – Pre-fills the seed question.
 - `COPERNICAN_DEP_CACHE_DIR=<path>` – Overrides the default `.cache/` location
   used by the dependency scanner.
 - `COPERNICAN_DETACH_GUI=1` – Forces the GUI to detach if you need to keep the
   CLI prompt free while the window runs.
+
+The staged CLI menu has been retired; there is no longer a `COPERNICAN_ENABLE_STAGED_MENU`
+flag or equivalent toggle.
 
 Review `AGENTS.md` for the rest of the configuration knobs, especially the
 launcher policies and DevCovenant rules enforced in CI.

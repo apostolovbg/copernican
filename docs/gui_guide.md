@@ -27,10 +27,11 @@ plus buttons for every page:
   `validation/output/<manifest_stem>/copernican-run_<timestamp>/`, writes the
   latest summary to `VALIDATION.md` and exposes a “Lock summary to latest entry”
   checkbox so the text view can stay pinned to the bottom when desired.
-  The reference model declares uniform priors whose lower and upper bounds
-  coincide with the Planck 2018 numbers so the sampler still leaves a trace and
-  the corner plot highlights that canonical point even though the parameters are
-  numerically fixed for validation.
+  The manifest evaluates the fixed reference model against Union Through UNITY
+  2000 SNe, BOSS DR12 BAO and Planck 2018 Lite, declaring every parameter via
+  `fixed` priors so the sampler still leaves a trace and the corner plot
+  highlights that canonical point even though the values remain numerically fixed
+  for validation.
 - **Settings** – Provides diagnostics filters, log viewers and output-directory
   helpers plus a recap of the `COPERNICAN_*` environment variables currently in
   effect.

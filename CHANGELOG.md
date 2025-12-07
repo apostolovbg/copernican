@@ -21,6 +21,14 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-06: Documented that the validation manifest now drives the fixed
+            Planck 2018 reference model against Union Through UNITY 2000 SNe
+            instead of Pantheon, and clarified the fixed-prior behavior across
+            the README, CLI/GUI guides, validation readme and reference model
+            (models/cosmo_model_ref_planck2018.yml,
+            validation/manifests/reference_planck2018.yml,
+            validation/README.md, README.md, docs/cli_guide.md,
+            docs/gui_overview.md, docs/gui_guide.md, CHANGELOG.md).
 - 2025-12-08: Updated the DevCovenant line-length and no-print policies to ignore
             `copernican_lib/vendor/`, rewrote the policy scripts/tests to match,
             refreshed `AGENTS.md`/`devcovenant/registry.json`, and noted the
@@ -40,6 +48,35 @@ suffixes. Follow this template:
             diagnostics now still log summaries without spewing warnings for
             fixed-parameter models (engines/cosmo_engine_mcmc.py,
             CHANGELOG.md).
+- 2025-12-08: Removed the legacy staged menu entirely so no `COPERNICAN_ENABLE_STAGED_MENU`
+            flag or `--enable-legacy-stage-menu` option exists, ensuring the
+            launcher always follows the shared CLI/GUI flow; the documentation
+            and policies now describe the forward-only posture and the test
+            suite no longer toggles the retired menu (copernican.py, README.md,
+            AGENTS.md, docs/cli_guide.md, docs/gui_overview.md,
+            docs/orchestration_services.md, tests/cli/test_launcher_modes.py,
+            CHANGELOG.md).
+- 2025-12-08: Added `pythonmonkey==1.3.0` to the runtime dependency set so the
+            TkinterWeb KaTeX window can evaluate its JavaScript helpers; the
+            requirements files and license table now document the package that
+            ships along with the GUI (requirements.in, requirements.lock,
+            THIRD_PARTY_LICENSES.md, CHANGELOG.md).
+- 2025-12-09: Persisted settings via `copernican_lib/settings.py` and the
+            generated `copernican_settings.yml`, and rewrote the Settings
+            screen as four tabbed panels (Logging, Datasets, GUI, Tools)
+            mirroring the Run Builder layout. Each tab now exposes the requested
+            purge/refresh/rebuild helpers plus environment hints and default
+            toggles, letting GUI and CLI launches share the same defaults
+            without reintroducing the staged menu (copernican_lib/settings.py,
+            copernican_lib/gui/app.py, README.md, docs/gui_overview.md,
+            docs/orchestration_services.md, CHANGELOG.md).
+- 2025-12-09: Program-level diagnostics now respect the stored settings
+            (retention count, log level and console capture) and close/delete
+            the parent log when a detached GUI handoff succeeds so only one
+            `logs/copernican_log_*.txt` remains while every console line,
+            including dataset discovery, is mirrored into that file
+            (copernican.py, copernican_lib/logger.py,
+            copernican_lib/gui/app.py, CHANGELOG.md).
 - 2025-12-07: Added a KaTeX/MathJax-powered equation preview beside the model
             definition pane (covering the vendored TkinterWeb assets,
             style/template helpers, and the license notice) and stabilized the
@@ -51,6 +88,41 @@ suffixes. Follow this template:
             copernican_lib/vendor/tkinterweb/*.py,
             copernican_lib/vendor/tkinterweb_tkhtml/__init__.py,
             THIRD_PARTY_LICENSES.md, CHANGELOG.md)
+- 2025-12-06: Booted diagnostics logging immediately after the launcher option
+            is chosen so the console now shows “Copernican Suite has
+            initialised”, version, interpreter path, working directory, and
+            hardware/software details before the GUI/CLI logic begins, and the
+            manifest now records that the start scripts manage dependencies via
+            a simple sanity check message instead of running the previous
+            NumPy/SciPy microtest (copernican.py,
+            copernican_lib/logger.py, copernican_lib/gui/app.py, CHANGELOG.md)
+            The logging helper now mirrors every console stream (stdout and
+            stderr) into both the primary diagnostics log and the new program
+            logger so stack traces and TkinterWeb warnings appear in
+            `logs/copernican_log_*.txt` without requiring extra configuration
+            (copernican_lib/logger.py, CHANGELOG.md)
+- 2025-12-06: Restored the model preview panel’s original height, moved the
+            Equations & expressions content into a dedicated pop-up window, and
+            added a KaTeX/plaintext fallback so the builder stays usable on
+            tall screens while still exposing every symbolic expression
+            (copernican_lib/gui/app.py, CHANGELOG.md)
+- 2025-12-06: Cached dataset discovery so the scanner only logs once per
+            repository while still allowing forced rechecks; GUI refreshes flag
+            the forced scan when prompted and CLI revalidation also re-runs the
+            parser registry, preventing the catalog from walking ``data/`` twice
+            in a single launch and keeping the list views snappy
+            (copernican_lib/dataset_registry.py, copernican_lib/gui/app.py,
+            copernican.py, tests/test_dataset_registry.py,
+            tests/test_parser_discovery.py, CHANGELOG.md)
+- 2025-12-06: Ensured the vendored helper root inserts itself into ``sys.path``
+            so TkinterWeb and the other bundled widgets remain importable even
+            when GUI modules are deferred until after diagnostics logging
+            initializes (copernican_lib/vendor/__init__.py, CHANGELOG.md)
+- 2025-12-06: Moved the dataset registry import until after diagnostics
+            logging initializes, so “Dataset discovery…” messages now land
+            inside `logs/copernican-program_*.txt` instead of missing the
+            log entirely when they fire at startup
+            (copernican.py, CHANGELOG.md)
 - 2025-12-06: Added `pre-commit==4.5.0` to the tracked dependencies, recompiled
             `requirements.lock`, taught the `tests/__init__.py` cleanup hook to
             skip any pre-existing `copernican-run_*` folders, and restored the

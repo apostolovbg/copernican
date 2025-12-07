@@ -52,6 +52,7 @@ users can review the full terms offline.
 | referencing | 0.34.0 | [MIT](licenses/MIT.txt) |
 | rpds-py | 0.18.0 | [MIT](licenses/MIT.txt) |
 | pyerfa | 2.0.1.1 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
+| pythonmonkey | 1.3.0 | [MIT](licenses/MIT.txt) |
 | tkinterweb | vendored | [MIT](licenses/MIT.txt) |
 | tkinterweb_tkhtml | vendored | [MIT](licenses/MIT.txt) |
 | astropy-iers-data | 0.2024.10.28.0.34.7 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |

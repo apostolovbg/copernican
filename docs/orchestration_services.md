@@ -22,6 +22,12 @@ summarises three GUI-safe services:
 directly to `copernican_lib.run_executor.execute_run_from_manifest` so every
 manifest-driven launch—CLI or GUI—shares the same runner.
 
+The Settings surface persists choices through `copernican_lib/settings.py`
+and the generated `copernican_settings.yml` file at the repository root.  The
+Logging, Datasets, GUI and Tools tabs reuse the shared services listed above so
+deterministic launches keep the same retention levels, dataset hashes and GUI
+flags whether they start from the command line or the Tkinter shell.
+
 `copernican.py --gui` prints this service map without entering the interactive
 menus. GUI launchers should construct an
 `orchestration.InProcessRunController` with run, pause, resume and cancel hooks
@@ -35,7 +41,7 @@ and invokes `copernican.main` with `--manifest`. Any test or helper that
 imports `copernican` directly should mirror that guard so the manifest CLI
 remains usable without re-enabling the legacy menu workflow.
 
-Forward-only remains the default: the staged menu is disabled unless a caller
-sets `COPERNICAN_ENABLE_STAGED_MENU=1` or passes `--enable-legacy-stage-menu`.
-CI can toggle that flag to exercise historical prompts without reintroducing
-backward-compatible branches for regular users.
+Forward-only remains the default: the staged menu has been retired and the
+codebase no longer exposes `COPERNICAN_ENABLE_STAGED_MENU` or
+`--enable-legacy-stage-menu`. CI workflows now exercise the unified
+GUI/CLI pipeline without branching into archived prompts.

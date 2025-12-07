@@ -71,9 +71,8 @@ samples appear once their parsers register with the dataset registry.
   horizontal resizing and expose an *Open file…* shortcut; Settings surfaces
   CLI-style tips (minimum walkers, quick burn-in options, worker pool
   reminders) plus output directory helpers and environment hints covering
-  `COPERNICAN_SEED`, `COPERNICAN_STRICT_WARNINGS`,
-  `COPERNICAN_ENABLE_STAGED_MENU`, `COPERNICAN_DETACH_GUI` and
-  `COPERNICAN_HEADLESS_RUN`, and the Help
+  `COPERNICAN_SEED`, `COPERNICAN_STRICT_WARNINGS`, `COPERNICAN_DETACH_GUI`
+  and `COPERNICAN_HEADLESS_RUN`, and the Help
   screen renders the README (banner included) so documentation is always
   nearby. The Run Monitor now mirrors the CLI with separate batch and walker
   progress bars that reflect the same progress state the sampler emits plus an
@@ -228,7 +227,7 @@ software.
 # model name is written to both the root attributes and the posterior group so
 # readers opening only the posterior block still recover the full provenance.
 ## Under the hood we now drive every launch through the manifest pipeline:
-- **Dependency check** – `copernican.py` inspects every required package and caches the results so repeated starts skip the AST scan, then runs a brief NumPy/SciPy sanity check before heavy computation begins.
+- **Sanity check** – `copernican.py` inspects every required package, caches the AST scan results, and records that the start scripts provision the managed dependencies without performing an in-process NumPy/SciPy check.
 - **Manifest ingestion** – each builder-run snapshot records the selected models, datasets, engine metadata and run settings in a manifest before sampling starts, and the GUI builder writes these manifests as drafts that only become runs once confirmed.
 - **Shared sampling pipeline** – `copernican_lib/run_pipeline.py` executes the engine, diagnostics, plotting and CSV export steps so all back ends share the same behaviour; `copernican_lib/run_executor.py` loads the manifest, restores datasets via `run_config`, rebuilds the declared model plugins (including the ΛCDM reference chain) straight from the YAML cache, and advances the shared pipeline while logging progress in a per-run log file.
 - **Manifest entrypoint alignment** – the `copernican` console script registers
@@ -567,10 +566,15 @@ cite them without recomputation.
   once a run directory is created.  The **Exit Suite** button closes the
   process, flushes cached progress files, and reuses the CLI exit routine so
   the GUI and CLI remain behaviourally aligned.
-- The `Settings` page now doubles as a diagnostics cockpit: filter buttons
-  scope the application log, **View diagnostics log** and **Open diagnostics
-  log…** launch the viewer or the system editor, and the new **Flush log**
-  button forces buffered messages to disk while clearing the in-memory snapshot.
+- The `Settings` page now mirrors the Run Builder layout with four tabs
+  (Logging, Datasets, GUI and Tools).  Operators can tune the diagnostics
+  retention level and severity, purge archived logs, refresh dataset digests,
+  toggle detachment/environment hints, rebuild the sanitized model cache,
+  revalidate parsers, and reset the Run Builder workspace.  Every change
+  persists via `copernican_lib/settings.py` inside the generated
+  `copernican_settings.yml` file so CLI and GUI launches share the same
+  defaults, and the status strip still surfaces the managed `.venv` hints
+  beside the seed and strict-warning overrides.
 - A fresh **About** page resides in the navigation rail and renders `ABOUT.md`
   using the same dialog infrastructure that metadata views share, keeping the
   project summary and citation information a single click away.
@@ -905,14 +909,13 @@ Validation manifests now live under `validation/manifests/` alongside the
 reference model file `models/cosmo_model_ref_planck2018.yml`, which fixes every
 ΛCDM degree of freedom to the Planck Collaboration VI (2018, Table 2)
 best-fit values that originally validated Worthington et al.'s likelihood
-stack. Every parameter still declares a uniform prior whose lower and upper
-bounds coincide with the published values so the sampler continues to record the
-reference point and the plots render the comparison lines even though the
-parameters are numerically pinned.
+stack. Each parameter now declares a `fixed` prior so the sampler keeps the
+reference trace alive and the plots/summary lines still highlight the canonical
+point even though the values remain numerically locked for validation purposes.
 
 The canonical manifest `reference_planck2018.yml` runs this fixed model against
-Pantheon+SH0ES 2022, BOSS DR12 BAO and Planck 2018 Lite via the standard manifest
-pipeline, writes its NEW_CONFIG and plots into
+Union Through UNITY 2000 SNe, BOSS DR12 BAO and Planck 2018 Lite via the
+standard manifest pipeline, writes its NEW_CONFIG and plots into
 `validation/output/<manifest_stem>/copernican-run_<timestamp>/`, and copies a
 summary of each manifest result (pass/fail plus the output directory) into
 `VALIDATION.md` (gitignored). CLI users execute the same flow with
@@ -1135,25 +1138,24 @@ explicitly name the files or subsystems touched. Before committing, compare
 `git diff --name-only` with the latest changelog entry so the policy hook never
 blocks on missing metadata. Legacy `dev_note` headers embedded in source files
 have been removed in favour of changelog entries.
-The suite is presently developed in a forward-only mode: legacy prompts, staged
-menus and backward-compatibility shims are intentionally absent while the
-interactive shell evolves toward the forthcoming GUI. Contributors should avoid
-reintroducing fallbacks unless a future roadmap explicitly calls for them.
-GUI launchers should import `copernican_lib.orchestration` to discover the
-configuration validators, manifest builder and run-controller interfaces that
-mirror the CLI without pulling in menu code. Keep the staged menu disabled by
-default; only set `COPERNICAN_ENABLE_STAGED_MENU=1` or pass
-`--enable-legacy-stage-menu` during CI experiments that must exercise the old
-flow. GUI sessions now start an application log as soon as the shell loads,
-recording environment checks and exposing severity filters plus download
-actions under Settings → Diagnostics. Run logs remain dormant until the user
-confirms the manifest; once active they stream into the Run Monitor with
-severity filters, copy/export controls and toast or inline alerts anchored to
-each log line. Dataset, model and engine panels now list compatibility badges,
-SHA256 digests, citations and licenses, with quick actions to open containing
-folders, view metadata files or revalidate trusted parsers. Manifest files can
-be duplicated into the Run Builder via "Duplicate & Edit" so existing
-selections seed new experiments without re-entering compatibility choices.
+The suite is developed in a forward-only mode: legacy prompts, staged menus and
+backward-compatibility shims have been removed so the interactive shell can
+evolve alongside the GUI. Contributors should avoid reintroducing fallbacks
+unless the roadmap explicitly calls for them. GUI launchers should import
+`copernican_lib.orchestration` to discover the shared configuration validators,
+manifest builder and run-controller interfaces without dragging in menu helpers.
+There is no `COPERNICAN_ENABLE_STAGED_MENU` or `--enable-legacy-stage-menu`;
+tests and CI exercise the current flow only. GUI sessions now start an
+application log as soon as the shell loads, recording environment checks and
+exposing severity filters plus download actions under Settings → Diagnostics.
+Run logs remain dormant until the user confirms the manifest; once active they
+stream into the Run Monitor with severity filters, copy/export controls and
+toast or inline alerts anchored to each log line. Dataset, model and engine
+panels now list compatibility badges, SHA256 digests, citations and licenses,
+with quick actions to open containing folders, view metadata files or
+revalidate trusted parsers. Manifest files can be duplicated into the Run
+Builder via "Duplicate & Edit" so existing selections seed new experiments
+without re-entering compatibility choices.
 Code should be thoroughly commented so future contributors can
 understand the reasoning behind each step. The documentation in `README.md`
 and

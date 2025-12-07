@@ -95,7 +95,9 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                 rel_path = os.path.relpath(parser_path, base)
                 dataset_registry.TRUSTED_PARSER_DIGESTS[rel_path] = "0" * 64
                 dataset_registry.SNE_PARSER_REGISTRY = {}
-                dataset_registry.discover_trusted_parsers(base_dir=base)
+                dataset_registry.discover_trusted_parsers(
+                    base_dir=base, force=True
+                )
                 self.assertNotIn(
                     "rogue2_sne", dataset_registry.SNE_PARSER_REGISTRY
                 )
@@ -143,7 +145,9 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                     return orig_relpath(path, start).replace("/", "\\")
 
                 with mock.patch("os.path.relpath", side_effect=fake_relpath):
-                    dataset_registry.discover_trusted_parsers(base_dir=base)
+                    dataset_registry.discover_trusted_parsers(
+                        base_dir=base, force=True
+                    )
                 self.assertIn(
                     "trusted_sne", dataset_registry.SNE_PARSER_REGISTRY
                 )
@@ -214,7 +218,9 @@ class DataLoaderRegistryTestCase(unittest.TestCase):
                 with open(parser_path, "w", encoding="utf-8") as fh:
                     fh.write(code)
                 dataset_registry.SNE_PARSER_REGISTRY = {}
-                dataset_registry.discover_trusted_parsers(base_dir=base)
+                dataset_registry.discover_trusted_parsers(
+                    base_dir=base, force=True
+                )
                 self.assertNotIn(
                     "rogue_sne", dataset_registry.SNE_PARSER_REGISTRY
                 )

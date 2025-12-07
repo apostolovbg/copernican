@@ -47,13 +47,12 @@ import yaml
 
 from copernican_lib.cli import dependencies as cli_dependencies
 from copernican_lib import console_output as console
-from copernican_lib import dataset_registry
 from copernican_lib import logger as log_mod
 from copernican_lib import orchestration
 from copernican_lib import progress_state
 from copernican_lib import run_manifest
 from copernican_lib import utils
-from copernican_lib.gui import CopernicanGUI
+from copernican_lib import settings as settings_mod
 import copernican_lib.version as version_module
 from copernican_lib.plugins import PluginValidationError
 
@@ -143,7 +142,7 @@ MPL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 CURRENT_LOG_FILE = None
 PROGRAM_LOG_FILE: str | None = None
 PROGRAM_LOGGER: logging.Logger | None = None
-_legacy_stage_menu_override = False
+_dataset_registry: Any | None = None
 _launch_args: LaunchRequest | None = None
 
 
@@ -160,10 +159,19 @@ def _ensure_program_logging() -> logging.Logger:
     logs_dir = os.path.join(SCRIPT_DIR, "logs")
     os.makedirs(logs_dir, exist_ok=True)
 
+    settings_data = settings_mod.get_settings()
+    logs_settings = settings_data.get("logs", {})
+    retention = int(logs_settings.get("log_retention_count", 10))
+    retention = max(retention, 1)
+    log_level = str(logs_settings.get("log_level", "INFO")).upper()
+    capture_console = bool(logs_settings.get("capture_console", True))
+
     PROGRAM_LOG_FILE = log_mod.setup_program_logging(
         log_dir=logs_dir,
         base_dir=SCRIPT_DIR,
         rollover_mb=10.0,
+        log_level=log_level,
+        max_logs=retention,
     )
     PROGRAM_LOGGER = log_mod.get_program_logger()
     PROGRAM_LOGGER.info(
@@ -171,7 +179,20 @@ def _ensure_program_logging() -> logging.Logger:
         PROGRAM_LOG_FILE,
         logs_dir,
     )
+    if capture_console:
+        log_mod.ensure_console_capture(SCRIPT_DIR)
     return PROGRAM_LOGGER
+
+
+def _get_dataset_registry():
+    """Lazily import the dataset registry after logging is ready."""
+
+    global _dataset_registry
+    if _dataset_registry is None:
+        from copernican_lib import dataset_registry as registry_module
+
+        _dataset_registry = registry_module
+    return _dataset_registry
 
 
 def _build_gui_progress_callback(
@@ -197,7 +218,6 @@ def _build_gui_progress_callback(
 
 COPERNICAN_VERSION = _copernican_version()
 CURRENT_LOG_FILE = None
-_legacy_stage_menu_override = False
 _launch_args: LaunchRequest | None = None
 
 
@@ -206,7 +226,6 @@ class LaunchRequest:
     """Parsed launcher arguments shared across CLI and GUI flows."""
 
     mode: orchestration.LaunchMode
-    legacy_stage_menu: bool
     detach_gui: bool
     manifest_path: Path | None
     output_dir: Path | None
@@ -257,8 +276,9 @@ def _collect_dataset_entries(
     data_root: Path | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     root = data_root or _data_root()
-    dataset_registry.discover_trusted_parsers(str(root))
-    registries = dataset_registry.get_parser_registries()
+    registry_module = _get_dataset_registry()
+    registry_module.discover_trusted_parsers(str(root))
+    registries = registry_module.get_parser_registries()
     entries: list[dict[str, Any]] = []
     notes: list[str] = []
     for dtype, registry in registries.items():
@@ -270,12 +290,12 @@ def _collect_dataset_entries(
             parser_path = _parser_path_for_dir(data_dir_path)
             rel_key = _relative_parser_key(parser_path, root)
             expected_digest = (
-                dataset_registry.TRUSTED_PARSER_DIGESTS.get(rel_key)
+                registry_module.TRUSTED_PARSER_DIGESTS.get(rel_key)
                 if rel_key
                 else None
             )
             parser_digest = (
-                dataset_registry._file_sha256(str(parser_path))
+                registry_module._file_sha256(str(parser_path))
                 if parser_path
                 else ""
             )
@@ -496,8 +516,9 @@ def _cli_revalidate_dataset(
     data_root: Path | None = None,
 ) -> bool:
     root = data_root or _data_root()
-    dataset_registry.discover_trusted_parsers(str(root))
-    registries = dataset_registry.get_parser_registries()
+    registry_module = _get_dataset_registry()
+    registry_module.discover_trusted_parsers(str(root), force=True)
+    registries = registry_module.get_parser_registries()
     target: dict[str, Any] | None = None
     dtype = ""
     for dtype_name, registry in registries.items():
@@ -518,12 +539,12 @@ def _cli_revalidate_dataset(
     parser_path = _parser_path_for_dir(Path(data_dir))
     rel_key = _relative_parser_key(parser_path, root)
     expected_digest = (
-        dataset_registry.TRUSTED_PARSER_DIGESTS.get(rel_key)
+        registry_module.TRUSTED_PARSER_DIGESTS.get(rel_key)
         if rel_key
         else None
     )
     parser_digest = (
-        dataset_registry._file_sha256(str(parser_path))
+        registry_module._file_sha256(str(parser_path))
         if parser_path
         else ""
     )
@@ -721,14 +742,6 @@ for _name in ("SIGILL", "SIGSEGV", "SIGFPE"):
         signal.signal(_sig, _handle_fatal_signal)
 
 
-def legacy_stage_menu_enabled() -> bool:
-    """Return ``True`` when the staged menu is explicitly requested."""
-
-    return _legacy_stage_menu_override or (
-        os.environ.get("COPERNICAN_ENABLE_STAGED_MENU") == "1"
-    )
-
-
 def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
     """Return launch settings covering GUI, CLI and manifest routing."""
 
@@ -770,14 +783,6 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         ),
     )
     parser.add_argument(
-        "--enable-legacy-stage-menu",
-        action="store_true",
-        help=(
-            "Re-enable the retired staged menu for CI-only coverage runs. "
-            "Production launches stay forward-only."
-        ),
-    )
-    parser.add_argument(
         "--catalogue-summary",
         action="store_true",
         help=(
@@ -816,10 +821,13 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
     )
     argv_list = list(argv) if argv is not None else None
     parsed, _ = parser.parse_known_args(argv_list)
-    legacy_menu = parsed.enable_legacy_stage_menu or (
-        os.environ.get("COPERNICAN_ENABLE_STAGED_MENU") == "1"
+    settings_data = settings_mod.get_settings()
+    gui_defaults = settings_data.get("gui", {})
+    default_detach = bool(gui_defaults.get("detach_gui", True))
+    detach_env = os.environ.get("COPERNICAN_DETACH_GUI")
+    detach_gui = (
+        detach_env != "0" if detach_env is not None else default_detach
     )
-    detach_gui = os.environ.get("COPERNICAN_DETACH_GUI", "1") != "0"
     manifest_path = (
         Path(parsed.manifest).expanduser().resolve()
         if parsed.manifest
@@ -844,7 +852,6 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         mode = orchestration.LaunchMode.CLI
     return LaunchRequest(
         mode=mode,
-        legacy_stage_menu=legacy_menu,
         detach_gui=detach_gui,
         manifest_path=manifest_path,
         output_dir=output_dir,
@@ -927,12 +934,13 @@ def _spawn_detached_gui(argv: list[str], launch: LaunchRequest) -> bool:
         cmd = [str(candidate), str(Path(__file__).resolve()), *command_tail]
         try:
             _launch_detached_process(cmd, env)
+            program_logger.info(
+                "Detached GUI launched with %s", candidate
+            )
+            _cleanup_program_logger(remove_log=True)
             console.write(
                 "Handed GUI startup to a detached Copernican process; "
                 "closing the launcher terminal."
-            )
-            program_logger.info(
-                "Detached GUI launched with %s", candidate
             )
             return True
         except Exception as exc:  # pragma: no cover - defensive guard
@@ -964,13 +972,13 @@ def launch_gui() -> None:
     """
 
     program_logger = _ensure_program_logging()
+    from copernican_lib.gui import CopernicanGUI
     program_logger.info(
         "GUI mode requested inline; detach flag=%s, Tcl=%s, Tk=%s",
         _launch_args.detach_gui if _launch_args else None,
         os.getenv("TCL_LIBRARY"),
         os.getenv("TK_LIBRARY"),
     )
-    log_mod.log_environment_info()
 
     service_map = orchestration.describe_orchestration_services()
     console.write("GUI mode requested. Shared services available:")
@@ -1024,6 +1032,26 @@ def _delete_log_file(path: str) -> None:
                     error=True,
                 )
 
+
+def _cleanup_program_logger(remove_log: bool = False) -> None:
+    """Release the diagnostics logger and optionally delete its file."""
+
+    global PROGRAM_LOGGER, PROGRAM_LOG_FILE
+    program_logger = PROGRAM_LOGGER or log_mod.get_program_logger()
+    for handler in list(program_logger.handlers):
+        try:
+            handler.close()
+        except Exception:
+            pass
+        program_logger.removeHandler(handler)
+    PROGRAM_LOGGER = None
+    PROGRAM_LOG_FILE = None
+    setattr(log_mod, "_PROGRAM_LOGGER", None)
+    if remove_log:
+        log_path = log_mod.get_program_log_path()
+        if log_path:
+            _delete_log_file(log_path)
+        setattr(log_mod, "_PROGRAM_LOG_PATH", None)
 
 def _remove_run_dir(path: str) -> None:
     """Delete the run output directory and its contents."""
@@ -1102,18 +1130,16 @@ def _get_cpu_info() -> tuple[str, str]:
 
 def main_workflow(manifest_path: Path | None = None):
     opts = cli_dependencies.get_runtime_options()
-    cli_dependencies.check_dependencies()
     if opts.run_tests:
         success = cli_dependencies.run_startup_tests()
         exit_clean(0 if success else 1)
 
     global np, plt, mp, model_spec_validator, model_coder
-    global engine_plugin_validation, dataset_registry
+    global engine_plugin_validation
     global utils, error_handler, log_mod, logger
     np, plt, mp = cli_dependencies.load_third_party_modules()
     from copernican_lib import (
         engine_plugin_validation,
-        dataset_registry,
         error_handler,
         model_coder,
         model_spec_validator,
@@ -1207,6 +1233,47 @@ def _run_cli_launch(
         _finalize_cli_run()
 
 
+def _ensure_managed_environment() -> None:
+    """Abort if the interpreter is not the managed Copernican `.venv`."""
+
+    if Path(sys.prefix).resolve().name != ".venv":
+        console.write(
+            (
+                "ERROR: Run Copernican Suite only through start.sh, "
+                "start.command or start.bat so the managed .venv is "
+                "prepared automatically."
+            ),
+            error=True,
+        )
+        exit_clean(1)
+
+
+def _announce_program_start(
+    launch_request: LaunchRequest, logger: logging.Logger
+) -> None:
+    """Print the launcher banner, environment metadata and sanity check."""
+
+    _ensure_managed_environment()
+    console.write("")
+    console.write("Copernican Suite has initialised.")
+    console.write(f"Version: {COPERNICAN_VERSION}")
+    mode_label = getattr(launch_request.mode, "name", str(launch_request.mode))
+    console.write(f"Launch mode: {mode_label}")
+    console.write(f"Python interpreter: {sys.executable}")
+    console.write(f"Working directory: {Path.cwd()}")
+    cpu_model, freq_str = _get_cpu_info()
+    console.write(f"Hardware: {cpu_model} @ {freq_str}")
+    log_mod.log_environment_info(console=True)
+    console.write(
+        "Sanity check: dependency provisioning is handled by the start "
+        "scripts (start.sh/.command/.bat). Re-run them if packages go missing."
+    )
+    logger.info(
+        "Sanity check noted: start scripts manage dependencies without an "
+        "in-process check."
+    )
+
+
 def main(argv: Iterable[str] | None = None) -> int:
     import multiprocessing as _mp
 
@@ -1218,12 +1285,13 @@ def main(argv: Iterable[str] | None = None) -> int:
     launch_request = _parse_launch_args(
         list(argv) if argv is not None else None
     )
-    global _launch_args, _legacy_stage_menu_override
+    global _launch_args
     _launch_args = launch_request
-    _legacy_stage_menu_override = launch_request.legacy_stage_menu
+    program_logger = _ensure_program_logging()
     aux_handled, aux_exit = _handle_auxiliary_requests(launch_request)
     if aux_handled:
         return aux_exit
+    _announce_program_start(launch_request, program_logger)
     if launch_request.mode is orchestration.LaunchMode.GUI:
         if _spawn_detached_gui(
             list(argv) if argv is not None else [], launch_request

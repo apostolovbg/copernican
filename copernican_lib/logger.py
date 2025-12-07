@@ -22,13 +22,15 @@ import sys
 import time
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import Any, TextIO
 
 from . import console_output
-from .run_lifecycle import prepare_program_log_path
+from .run_lifecycle import MAX_PROGRAM_LOGS, prepare_program_log_path
 from .utils import ensure_dir_exists, get_timestamp
 
 _PROGRAM_LOGGER_NAME = "copernican.program"
 _PROGRAM_LOGGER: logging.Logger | None = None
+_PROGRAM_LOG_PATH: str | None = None
 
 
 class _PathFilter(logging.Filter):
@@ -78,6 +80,25 @@ def _patch_builtins(base_dir: str) -> None:
         base = os.path.abspath(base_dir)
         return msg.replace(base + os.sep, "").replace(base, ".")
 
+    def _log_console_message(text: str) -> None:
+        """Log console lines that would otherwise only hit stdout/stderr."""
+
+        if console_output.console_logging_suppressed():
+            return
+        cleaned = _shorten(text).rstrip("\n")
+        if not cleaned.strip():
+            return
+        logger.info(
+            cleaned,
+            extra={"console_capture": True},
+        )
+        program_logger = _PROGRAM_LOGGER
+        if program_logger is not None:
+            program_logger.info(
+                cleaned,
+                extra={"console_capture": True},
+            )
+
     def print_patch(*args, **kwargs):
         """Proxy ``print`` that mirrors output to the log file."""
         orig_print(*args, **kwargs)
@@ -90,24 +111,46 @@ def _patch_builtins(base_dir: str) -> None:
             message = sep.join(str(a) for a in args)
             if end != "\n":
                 message += end
-            logger.info(
-                _shorten(message),
-                extra={"console_capture": True},
-            )
+            _log_console_message(message)
 
     def input_patch(prompt: str = ""):
         """Proxy ``input`` that logs the prompt and response."""
         response = orig_input(prompt)
-        logger.info(
-            _shorten(f"{prompt}{response}"),
-            extra={"console_capture": True},
-        )
+        _log_console_message(f"{prompt}{response}")
         return response
 
     print_patch.__copernican_patched__ = True
     input_patch.__copernican_patched__ = True
     builtins.print = print_patch
     builtins.input = input_patch
+
+    class _StreamProxy:
+        """Proxy that mirrors stream writes to the logger."""
+
+        def __init__(self, stream: TextIO) -> None:
+            self._stream = stream
+
+        def write(self, data: str) -> None:
+            self._stream.write(data)
+            if data:
+                _log_console_message(data)
+
+        def flush(self) -> None:
+            self._stream.flush()
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self._stream, name)
+
+    if not isinstance(sys.stdout, _StreamProxy):
+        sys.stdout = _StreamProxy(sys.stdout)
+    if not isinstance(sys.stderr, _StreamProxy):
+        sys.stderr = _StreamProxy(sys.stderr)
+
+
+def ensure_console_capture(base_dir: str) -> None:
+    """Install the patched ``print``/``input`` functions if needed."""
+
+    _patch_builtins(base_dir)
 
 
 def setup_program_logging(
@@ -116,6 +159,8 @@ def setup_program_logging(
     base_dir: str | None = None,
     rollover_mb: float = 10.0,
     backup_count: int = 3,
+    log_level: str = "INFO",
+    max_logs: int | None = None,
 ) -> str:
     """Initialise the rotating diagnostics log for the suite shell.
 
@@ -126,18 +171,25 @@ def setup_program_logging(
     ``rollover_mb`` is exceeded to prevent unbounded growth during long
     sessions.  Logs live outside the run directories to keep Git history
     clean and to avoid bundling diagnostics with reproducibility
-    artifacts.
+    artifacts.  ``log_level`` controls the logged severity threshold while
+    ``max_logs`` dictates how many archived files are retained.
     """
 
     ensure_dir_exists(log_dir)
+    max_logs = max_logs if max_logs is not None else MAX_PROGRAM_LOGS
+    max_logs = max(int(max_logs), 1)
+
     log_path = str(
         prepare_program_log_path(
             Path(log_dir),
+            max_logs=max_logs,
         )
     )
 
     logger_obj = logging.getLogger(_PROGRAM_LOGGER_NAME)
-    logger_obj.setLevel(logging.INFO)
+    level_name = str(log_level).upper()
+    level = getattr(logging, level_name, logging.INFO)
+    logger_obj.setLevel(level)
     logger_obj.propagate = False
     for handler in logger_obj.handlers[:]:
         logger_obj.removeHandler(handler)
@@ -165,8 +217,9 @@ def setup_program_logging(
         backup_count,
     )
 
-    global _PROGRAM_LOGGER
+    global _PROGRAM_LOGGER, _PROGRAM_LOG_PATH
     _PROGRAM_LOGGER = logger_obj
+    _PROGRAM_LOG_PATH = log_path
     return log_path
 
 
@@ -226,38 +279,40 @@ def setup_logging(
     return log_filename
 
 
-def log_environment_info(target_logger: logging.Logger | None = None) -> None:
+def log_environment_info(
+    target_logger: logging.Logger | None = None,
+    *,
+    console: bool = True,
+) -> None:
     """Log Python, OS, CPU and key package versions.
 
-    Detailed information is written to the log file while a short
-    summary prints to the console. This aids in reproducing results
-    across different systems. The caller can override ``target_logger``
-    so GUI diagnostics remain separate from run-level logs while the
-    CLI continues to use the root logger.
+    When ``console`` is ``True`` the stream handler prints each line so the
+    caller sees the environment details immediately; otherwise the records stay
+    in the program log only.
     """
 
     logger = target_logger or logging.getLogger()
+    log_kwargs = {"extra": {"console_capture": not console}}
     py_ver = platform.python_version()
     os_info = platform.platform()
     cpu = platform.processor() or "Unknown CPU"
-    pkgs = {}
+    pkgs: dict[str, str] = {}
     for name in ("numpy", "scipy", "matplotlib"):
         try:
             mod = importlib.import_module(name)
             pkgs[name] = getattr(mod, "__version__", "unknown")
         except Exception:
             pkgs[name] = "not installed"
-    log_kwargs = {"extra": {"console_capture": True}}
     logger.info("Environment details:", **log_kwargs)
     logger.info(f"  Python: {py_ver}", **log_kwargs)
     logger.info(f"  OS: {os_info}", **log_kwargs)
     logger.info(f"  CPU: {cpu}", **log_kwargs)
-    for n, v in pkgs.items():
-        logger.info(f"  {n} {v}", **log_kwargs)
+    for name, version in pkgs.items():
+        logger.info(f"  {name} {version}", **log_kwargs)
     summary = f"Python {py_ver}; {os_info}; CPU {cpu}; " + ", ".join(
         f"{n} {v}" for n, v in pkgs.items()
     )
-    console_output.write(f"Environment summary: {summary}")
+    logger.info(f"Environment summary: {summary}", **log_kwargs)
 
 
 def get_program_logger() -> logging.Logger:
@@ -272,3 +327,9 @@ def get_program_logger() -> logging.Logger:
 def get_logger():
     """Returns the active logger instance."""
     return logging.getLogger()
+
+
+def get_program_log_path() -> str | None:
+    """Return the active program log path, if available."""
+
+    return _PROGRAM_LOG_PATH

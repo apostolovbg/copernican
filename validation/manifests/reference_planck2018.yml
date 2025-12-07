@@ -10,10 +10,10 @@ engine:
   version: validation
 seed: 0
 datasets:
-  pantheon+sh0es_2022:
-    name: Pantheon+SH0ES 2022
-    version: '2022.10'
-    path: /Users/apostolov/Documents/GitHub/copernican/data/sne/pantheon
+  union3_2025:
+    name: Union Through UNITY 2000 SNe
+    version: '2025.1'
+    path: /Users/apostolov/Documents/GitHub/copernican/data/sne/union3
     hashes:
       cosmo_parser_union3.py: 5664f326ddaa8371f7797aa5fdce9fc71e8f0c2227a058f410032dc12a992eaa
       metadata_union3.yml: 74ac21fa162fcc1c58319726abe35560573ec3c5204aa263195cd2d1a3c3dcdd
@@ -65,7 +65,7 @@ selection:
     name: engines.cosmo_engine_mcmc
     version: validation
   datasets:
-  - pantheon+sh0es_2022
+  - union3_2025
   - boss_dr12_bao
   - planck_2018_lite
 configuration:
@@ -75,7 +75,7 @@ configuration:
     name: engines.cosmo_engine_mcmc
     version: validation
   datasets:
-  - pantheon+sh0es_2022
+  - union3_2025
   - boss_dr12_bao
   - planck_2018_lite
   notes: Reference validation manifest for Planck 2018 base-ΛCDM.

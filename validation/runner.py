@@ -9,7 +9,7 @@ from typing import Callable, Iterable
 from copernican_lib import run_executor, run_manifest, utils
 
 _LOGGER = logging.getLogger(__name__)
-_VALIDATION_DIR = Path(__file__).resolve().parents[1]
+_VALIDATION_DIR = Path(__file__).resolve().parent
 _MANIFEST_DIR = _VALIDATION_DIR / "manifests"
 _OUTPUT_DIR = _VALIDATION_DIR / "output"
 

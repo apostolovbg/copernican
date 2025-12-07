@@ -73,7 +73,9 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
                 os.environ["MAL_SENTINEL"] = str(sentinel)
 
                 dataset_registry.SNE_PARSER_REGISTRY = {}
-                dataset_registry.discover_trusted_parsers(base_dir=tmp)
+                dataset_registry.discover_trusted_parsers(
+                    base_dir=tmp, force=True
+                )
                 self.assertIn("trusted", dataset_registry.SNE_PARSER_REGISTRY)
                 self.assertNotIn("rogue", dataset_registry.SNE_PARSER_REGISTRY)
                 self.assertFalse(sentinel.exists())
@@ -126,7 +128,9 @@ class ParserDiscoverySecurityTestCase(unittest.TestCase):
                 (real_dir / "cosmo_parser_real.py").symlink_to(bad_parser)
 
                 dataset_registry.SNE_PARSER_REGISTRY = {}
-                dataset_registry.discover_trusted_parsers(base_dir=tmp)
+                dataset_registry.discover_trusted_parsers(
+                    base_dir=tmp, force=True
+                )
                 self.assertFalse(sentinel.exists())
                 self.assertEqual(dataset_registry.SNE_PARSER_REGISTRY, {})
         finally:
