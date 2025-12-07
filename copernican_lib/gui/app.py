@@ -496,6 +496,7 @@ class CopernicanGUI:
         self._validation_process: subprocess.Popen[str] | None = None
         self._validation_stdout_thread: threading.Thread | None = None
         self._validation_running = False
+        self._validation_status_base = "Status: idle"
         self._diagnostics_filter_label: ttk.Label | None = None
         self._cancel_button: ttk.Button | None = None
         self._pause_button: ttk.Button | None = None
@@ -2180,7 +2181,7 @@ class CopernicanGUI:
             self._page_header(frame, "Validation")
             self._validation_status_label = ttk.Label(
                 frame,
-                text="Status: idle",
+                text=self._validation_status_base,
                 takefocus=True,
             )
             self._validation_status_label.pack(anchor="w")
@@ -2284,24 +2285,33 @@ class CopernicanGUI:
             text_widget.configure(state="disabled")
             self._validation_text_widget = text_widget
             existing_summary = validation_utils.read_validation_summary()
-            if existing_summary:
-                self._validation_status_label.configure(
-                    text="Status: summary available"
+            if not self._validation_running:
+                self._validation_status_base = (
+                    "Status: summary available"
+                    if existing_summary
+                    else "Status: idle"
                 )
-            else:
-                existing_summary = "Validation summary not yet generated."
-            self._set_validation_summary_text(existing_summary)
+            summary_text = (
+                existing_summary
+                if existing_summary
+                else "Validation summary not yet generated."
+            )
+            self._set_validation_summary_text(summary_text)
+            self._update_validation_status_label(self._progress_snapshot)
             self._update_validation_control_states()
+            self._refresh_validation_progress_widgets()
 
         self._swap_content(builder)
 
     def _start_validation_run(self) -> None:
         """Kick off the validation suite inside a background thread."""
 
-        if self.status is RunStatus.RUNNING:
-            self.create_toast(
-                "Finish the active run before starting validation.",
-                severity="WARNING",
+        if self.status in (RunStatus.RUNNING, RunStatus.CONFIGURING):
+            self._notify_pipeline_conflict(
+                "Production run active",
+                "The pipeline is busy with a production run. Please wait "
+                "for it to finish or cancel it so a validation run can be "
+                "started.",
                 context="validation",
             )
             return
@@ -2310,17 +2320,25 @@ class CopernicanGUI:
         self._validation_running = True
         if self._validation_button:
             self._validation_button.configure(state=tk.DISABLED)
-        if self._validation_status_label:
-            self._validation_status_label.configure(
-                text="Status: running validation…"
-            )
+        self._validation_status_base = "Status: running validation…"
+        self._update_validation_status_label(self._progress_snapshot)
         self._prepare_validation_progress_monitor()
+        self._refresh_validation_progress_widgets()
         self._reset_validation_log_widget(
             "Validation log streaming; progress updates appear below."
         )
         self._update_validation_control_states()
         console_output.write("GUI: validation suite queued for execution.")
         self._launch_validation_worker()
+
+    def _notify_pipeline_conflict(
+        self, title: str, message: str, *, context: str
+    ) -> None:
+        """Warn when a concurrent pipeline operation blocks the request."""
+
+        if self.render and messagebox:
+            messagebox.showwarning(title, message, parent=self.root)
+        self.create_toast(message, severity="WARNING", context=context)
 
     def _launch_validation_worker(self) -> None:
         """Start the CLI helper that runs the validation suite."""
@@ -2404,10 +2422,8 @@ class CopernicanGUI:
 
         self._validation_running = False
         status = "passed" if code == 0 else "failed"
-        if self._validation_status_label:
-            self._validation_status_label.configure(
-                text=f"Status: validation {status}"
-            )
+        self._validation_status_base = f"Status: validation {status}"
+        self._update_validation_status_label(self._progress_snapshot)
         self._append_validation_summary_text(
             summary or "Validation completed without producing summary text."
         )
@@ -2537,8 +2553,8 @@ class CopernicanGUI:
         self._set_validation_summary_text(
             "Validation summary not yet generated."
         )
-        if self._validation_status_label:
-            self._validation_status_label.configure(text="Status: idle")
+        self._validation_status_base = "Status: idle"
+        self._update_validation_status_label(self._progress_snapshot)
         self.create_toast(
             "Validation reports and outputs removed.",
             severity="INFO",
@@ -5901,17 +5917,23 @@ class CopernicanGUI:
             self._refresh_monitor_widgets()
         self._refresh_validation_progress_widgets()
 
-    def _refresh_monitor_widgets(self) -> None:
-        """Update the progress bars, status label and log console."""
+    def _stage_label_text(self, snapshot: dict | None) -> str:
+        """Return the textual stage label derived from the snapshot."""
 
-        snapshot = self._progress_snapshot
         stage_label = "Stage: Idle"
         if snapshot:
             label = snapshot.get("stage_label", "Stage")
             event = snapshot.get("event", "").replace("_", " ")
             stage_label = f"{label} – {event}".strip(" –")
-            if snapshot.get("stage_label"):
-                self.current_phase = snapshot["stage_label"]
+        return stage_label
+
+    def _refresh_monitor_widgets(self) -> None:
+        """Update the progress bars, status label and log console."""
+
+        snapshot = self._progress_snapshot
+        stage_label = self._stage_label_text(snapshot)
+        if snapshot and snapshot.get("stage_label"):
+            self.current_phase = snapshot["stage_label"]
         if self._progress_status_label:
             self._progress_status_label.configure(text=stage_label)
         if self._batch_progressbar:
@@ -5932,11 +5954,7 @@ class CopernicanGUI:
         """Update the validation progress UI with the latest snapshot."""
 
         snapshot = self._progress_snapshot
-        stage_label = "Stage: Idle"
-        if snapshot:
-            label = snapshot.get("stage_label", "Stage")
-            event = snapshot.get("event", "").replace("_", " ")
-            stage_label = f"{label} – {event}".strip(" –")
+        stage_label = self._stage_label_text(snapshot)
         if self._validation_progress_status_label is not None:
             self._validation_progress_status_label.configure(text=stage_label)
         if self._validation_batch_progressbar is not None:
@@ -5951,6 +5969,21 @@ class CopernicanGUI:
             self._validation_walker_progressbar["value"] = min(
                 max(walker_percent, 0), 100
             )
+        self._update_validation_status_label(snapshot)
+
+    def _update_validation_status_label(
+        self, snapshot: dict | None = None
+    ) -> None:
+        """Keep the validation status label aligned with the base text."""
+
+        if self._validation_status_label is None:
+            return
+        text = self._validation_status_base
+        if self._validation_running:
+            stage_label = self._stage_label_text(snapshot)
+            if stage_label and stage_label != "Stage: Idle":
+                text = f"{text} – {stage_label}"
+        self._validation_status_label.configure(text=text)
 
     def _refresh_run_log_widget(self) -> None:
         """Populate the run log text widget with the latest entries."""
@@ -6480,6 +6513,16 @@ class CopernicanGUI:
 
     def confirm_start_run(self) -> None:
         """Generate a manifest snapshot and defer output creation."""
+
+        if self._validation_running:
+            self._notify_pipeline_conflict(
+                "Validation running",
+                "The pipeline is busy with a validation run. Please wait "
+                "for it to finish or cancel it, so a production run can "
+                "be started.",
+                context="run",
+            )
+            return
 
         if self.manifest_workspace is None or self.pending_manifest is None:
             self.create_toast(
