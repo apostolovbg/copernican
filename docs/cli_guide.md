@@ -44,10 +44,21 @@ The CLI mirrors the Run Builder pages:
    is `engines/cosmo_engine_mcmc.py` unless you override it. Engine metadata
    (walkers, burn-in, production steps, pool size) is gathered immediately after
    the engine choice.
+   When a selected engine detects that every parameter is fixed (for example,
+   when the validation manifest runs `Planck 2018 Reference LambdaCDM`), the
+   sampler now mirrors the reference values, fabricates identical chains, and
+   still reports the configured worker pool count. This keeps diagnostics,
+   plots and manifest metadata consistent even though no sampling steps are
+   actually executed.
 5. **Run plan / Manifest** – Provide notes for the run plan. The CLI then writes
    a manifest under `output/copernican_run_NEW_CONFIG/` using the same naming
    convention as the GUI. The manifest records dataset hashes, model metadata,
    engine knobs and Git information.
+   The CLI run log for each manifest resides under the resulting
+   `output/copernican-run_<timestamp>/` folder as `copernican-run_<timestamp>.txt`.
+   GUI-launched runs also write a lighter monitoring log to `logs/runs/*.txt`
+   so the Run Monitor can tail progress without editing the reproducibility
+   artifacts.
 6. **Confirm and Launch** – The CLI displays a summary, asks for confirmation
    and starts the worker. Logs stream to stdout and to
    `logs/copernican-run_<timestamp>.txt` in parallel.

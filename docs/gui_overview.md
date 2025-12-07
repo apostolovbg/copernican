@@ -78,6 +78,15 @@ drops the CLI counter rows (e.g., “Burn-in stage batch 1: 3/200 steps
 completed”) so it shows only batch summaries, and the Cancel/Pause/Hard Stop
 buttons stay disabled (greyed out) until a run starts, after which they return
 to their normal, clickable appearance.
+Run executor logs remain separate: the CLI worker still writes its full trace,
+including dataset discovery, to `output/copernican-run_<timestamp>/copernican-run_<timestamp>.txt`
+for reproducibility, while the Run Monitor tails the dedicated GUI stream under
+`logs/runs/` so you can inspect a compact monitoring log without trimming the
+scientific artefacts.
+The monitor refresh loop now verifies every progress label, bar and log text
+widget still exists before touching it, so switching away from the Run Monitor
+or Validation tabs no longer triggers Tk errors while the background run keeps
+streaming updates uninterrupted.
 
 ## Validation
 The navigation rail now includes a **Validation** button positioned between

@@ -273,6 +273,41 @@ def setup_logging(
     return log_filename
 
 
+def setup_monitor_logging(
+    log_dir: str = "logs/runs",
+    *,
+    log_tag: str | None = None,
+) -> tuple[logging.Logger, str]:
+    """Prepare a dedicated monitor log file and return its logger.
+
+    The GUI Run Monitor writes to this logger so its tail can be displayed in
+    the console.  The logs live under ``logs/runs`` by default so they remain
+    separate from the per-run reproducibility files stored under ``output/``.
+    """
+
+    ensure_dir_exists(log_dir)
+    logger_obj = logging.getLogger("copernican.gui.run")
+    logger_obj.setLevel(logging.INFO)
+    logger_obj.propagate = False
+    for handler in list(logger_obj.handlers):
+        logger_obj.removeHandler(handler)
+
+    tag = log_tag or f"monitor_{get_timestamp()}.txt"
+    if not tag.endswith(".txt"):
+        tag = f"{tag}.txt"
+    log_path = os.path.join(log_dir, tag)
+
+    handler = logging.FileHandler(log_path)
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    formatter.converter = time.gmtime
+    handler.setFormatter(formatter)
+    handler.addFilter(_PathFilter(str(Path(log_dir).resolve())))
+    logger_obj.addHandler(handler)
+
+    return logger_obj, log_path
+
+
 def log_environment_info(
     target_logger: logging.Logger | None = None,
     *,

@@ -672,25 +672,19 @@ class CopernicanGUI:
     def _start_run_logging(self, manifest: dict) -> None:
         """Initialise run-level logging after confirmation."""
 
-        os.makedirs("logs/runs", exist_ok=True)
         log_tag = f"copernican-run_{utils.get_timestamp()}.txt"
-        self.run_log_path = os.path.join("logs", "runs", log_tag)
+        self.run_logger, self.run_log_path = logger.setup_monitor_logging(
+            log_dir="logs/runs",
+            log_tag=log_tag,
+        )
         self._current_run_output_dir = os.path.join(
             "output", Path(log_tag).stem
         )
-        self.run_logger = logging.getLogger("copernican.gui.run")
-        self.run_logger.setLevel(logging.INFO)
-        self.run_logger.propagate = False
-        for handler in list(self.run_logger.handlers):
-            self.run_logger.removeHandler(handler)
-        file_handler = logging.FileHandler(self.run_log_path)
+        self.run_log_handler = _MemoryLogHandler(prefix="run")
         formatter = logging.Formatter(
             "%(asctime)s - %(levelname)s - %(message)s"
         )
         formatter.converter = time.gmtime
-        file_handler.setFormatter(formatter)
-        self.run_logger.addHandler(file_handler)
-        self.run_log_handler = _MemoryLogHandler(prefix="run")
         self.run_log_handler.setFormatter(formatter)
         self._attach_handler(self.run_logger, self.run_log_handler)
         selection = manifest.get("selection", {})
@@ -753,20 +747,24 @@ class CopernicanGUI:
         """Update the severity filter applied in Diagnostics."""
 
         self.diagnostics_filter_level = severity.upper()
-        if self._diagnostics_filter_label:
+        if self._widget_is_alive(self._diagnostics_filter_label):
             self._diagnostics_filter_label.configure(
                 text=f"Filter: {self.diagnostics_filter_level}+"
             )
+        else:
+            self._diagnostics_filter_label = None
         self._refresh_diagnostics_widget()
 
     def set_monitor_filter(self, severity: str) -> None:
         """Update the Run Monitor severity filter."""
 
         self.monitor_filter_level = severity.upper()
-        if self._monitor_filter_label:
+        if self._widget_is_alive(self._monitor_filter_label):
             self._monitor_filter_label.configure(
                 text=f"Filter: {self.monitor_filter_level}+"
             )
+        else:
+            self._monitor_filter_label = None
         self._refresh_run_log_widget()
 
     def copy_application_logs(self) -> str:
@@ -5575,30 +5573,41 @@ class CopernicanGUI:
     def _refresh_status_label(self) -> None:
         """Update the status label text if it is visible."""
 
-        if self._status_label is not None:
+        if self._widget_is_alive(self._status_label):
             self._status_label.configure(text=self._status_text())
+        else:
+            self._status_label = None
 
     def _update_monitor_controls_state(self) -> None:
         """Enable or disable monitor buttons based on current state."""
 
         run_active = self.status is RunStatus.RUNNING
         control_state = tk.NORMAL if run_active else tk.DISABLED
+        alive_control_buttons: list[ttk.Button] = []
         for button in self._monitor_control_buttons:
-            if button:
+            if self._widget_is_alive(button):
                 button.configure(state=control_state)
+                alive_control_buttons.append(button)
+        self._monitor_control_buttons = alive_control_buttons
         log_available = bool(self.run_log_path)
         log_state = tk.NORMAL if log_available else tk.DISABLED
-        if self._monitor_log_view_button:
+        if self._widget_is_alive(self._monitor_log_view_button):
             self._monitor_log_view_button.configure(state=log_state)
-        if self._monitor_log_open_button:
+        else:
+            self._monitor_log_view_button = None
+        if self._widget_is_alive(self._monitor_log_open_button):
             self._monitor_log_open_button.configure(state=log_state)
+        else:
+            self._monitor_log_open_button = None
         output_available = bool(
             self._current_run_output_dir
         ) and os.path.isdir(self._current_run_output_dir)
-        if self._run_output_button:
+        if self._widget_is_alive(self._run_output_button):
             self._run_output_button.configure(
                 state=tk.NORMAL if output_available else tk.DISABLED
             )
+        else:
+            self._run_output_button = None
 
     def show_summary(self) -> None:
         """Display the completion summary with manifest reuse actions."""
@@ -5920,6 +5929,16 @@ class CopernicanGUI:
             stage_label = f"{label} – {event}".strip(" –")
         return stage_label
 
+    def _widget_is_alive(self, widget: tk.Widget | None) -> bool:
+        """Return True if the widget has not been destroyed."""
+
+        if widget is None:
+            return False
+        try:
+            return bool(widget.winfo_exists())
+        except tk.TclError:
+            return False
+
     def _refresh_monitor_widgets(self) -> None:
         """Update the progress bars, status label and log console."""
 
@@ -5927,18 +5946,24 @@ class CopernicanGUI:
         stage_label = self._stage_label_text(snapshot)
         if snapshot and snapshot.get("stage_label"):
             self.current_phase = snapshot["stage_label"]
-        if self._progress_status_label:
+        if self._widget_is_alive(self._progress_status_label):
             self._progress_status_label.configure(text=stage_label)
-        if self._batch_progressbar:
+        else:
+            self._progress_status_label = None
+        if self._widget_is_alive(self._batch_progressbar):
             percent = snapshot.get("batch_percent", 0) if snapshot else 0
             self._batch_progressbar["value"] = min(max(percent, 0), 100)
-        if self._walker_progressbar:
+        else:
+            self._batch_progressbar = None
+        if self._widget_is_alive(self._walker_progressbar):
             walker_percent = (
                 snapshot.get("walker_percent", 0) if snapshot else 0
             )
             self._walker_progressbar["value"] = min(
                 max(walker_percent, 0), 100
             )
+        else:
+            self._walker_progressbar = None
         self._refresh_status_label()
         self._refresh_run_log_widget()
         self._update_monitor_controls_state()
@@ -5948,20 +5973,26 @@ class CopernicanGUI:
 
         snapshot = self._progress_snapshot
         stage_label = self._stage_label_text(snapshot)
-        if self._validation_progress_status_label is not None:
+        if self._widget_is_alive(self._validation_progress_status_label):
             self._validation_progress_status_label.configure(text=stage_label)
-        if self._validation_batch_progressbar is not None:
+        else:
+            self._validation_progress_status_label = None
+        if self._widget_is_alive(self._validation_batch_progressbar):
             percent = snapshot.get("batch_percent", 0) if snapshot else 0
             self._validation_batch_progressbar["value"] = min(
                 max(percent, 0), 100
             )
-        if self._validation_walker_progressbar is not None:
+        else:
+            self._validation_batch_progressbar = None
+        if self._widget_is_alive(self._validation_walker_progressbar):
             walker_percent = (
                 snapshot.get("walker_percent", 0) if snapshot else 0
             )
             self._validation_walker_progressbar["value"] = min(
                 max(walker_percent, 0), 100
             )
+        else:
+            self._validation_walker_progressbar = None
         self._update_validation_status_label(snapshot)
 
     def _update_validation_status_label(
@@ -5969,7 +6000,8 @@ class CopernicanGUI:
     ) -> None:
         """Keep the validation status label aligned with the base text."""
 
-        if self._validation_status_label is None:
+        if not self._widget_is_alive(self._validation_status_label):
+            self._validation_status_label = None
             return
         text = self._validation_status_base
         if self._validation_running:
@@ -5986,7 +6018,8 @@ class CopernicanGUI:
     def _refresh_run_log_widget(self) -> None:
         """Populate the run log text widget with the latest entries."""
 
-        if self._monitor_log_widget is None:
+        if not self._widget_is_alive(self._monitor_log_widget):
+            self._monitor_log_widget = None
             return
         entries = self.get_run_log_entries()
         lock_tail = self._monitor_log_lock_var is None or bool(
