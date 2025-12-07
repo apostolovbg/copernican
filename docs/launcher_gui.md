@@ -59,9 +59,10 @@ the guard inside `copernican.py` permits the standalone command.
 ## Run Monitor
 
 The GUI now exposes a dedicated **Run Monitor** button below Run Builder.
-It mirrors the CLI sampler with batch and walker progress bars, logs filtered
-by severity and buttons to **View log** or **Open log…** without leaving the
-window.  The control row also surfaces an **Open run output** button that opens
+It mirrors the CLI sampler with batch and walker progress bars that stay in
+lockstep with the counter-driven CLI updates, logs filtered by severity and
+buttons to **View log** or **Open log…** without leaving the window.  The
+control row also surfaces an **Open run output** button that opens
 the current output folder and keeps the Cancel/Pause/Hard Stop trio disabled
 whenever no run is active.  The Exit Suite entry in the navigation rail runs
 the CLI exit routine while purging any progress snapshots so GUI and CLI

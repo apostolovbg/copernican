@@ -24,7 +24,6 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any, TextIO
 
-from . import console_output
 from .run_lifecycle import MAX_PROGRAM_LOGS, prepare_program_log_path
 from .utils import ensure_dir_exists, get_timestamp
 
@@ -83,8 +82,6 @@ def _patch_builtins(base_dir: str) -> None:
     def _log_console_message(text: str) -> None:
         """Log console lines that would otherwise only hit stdout/stderr."""
 
-        if console_output.console_logging_suppressed():
-            return
         cleaned = _shorten(text).rstrip("\n")
         if not cleaned.strip():
             return
@@ -102,10 +99,7 @@ def _patch_builtins(base_dir: str) -> None:
     def print_patch(*args, **kwargs):
         """Proxy ``print`` that mirrors output to the log file."""
         orig_print(*args, **kwargs)
-        if (
-            kwargs.get("file", sys.stdout) is sys.stdout
-            and not console_output.console_logging_suppressed()
-        ):
+        if kwargs.get("file", sys.stdout) is sys.stdout:
             sep = kwargs.get("sep", " ")
             end = kwargs.get("end", "\n")
             message = sep.join(str(a) for a in args)

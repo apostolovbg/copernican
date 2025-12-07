@@ -27,12 +27,12 @@ as policy enforcement and dataset validation.
 - `model_spec_validator`, `model_coder`, and `plugins` – validate YAML models, cache sanitized copies, convert equations into callables, and assemble picklable engine plugins compliant with the expected interface.
 - `engine_plugin_validation` – ensures plugins declare required functions and dataset compatibility before any engine consumes them.
 - `posterior`, `statistics`, `chain_io`, `csv_writer`, `result_writer` – provide shared likelihoods, chi-squared helpers, NetCDF/CSV writers, and summary serialization that every engine reuses.
-- `progress`, `console_output`, `logger`, `utils` – unify progress reporting, console I/O, logging, timestamp generation, and other utilities so CLI and GUI flows mirror each other.
+- `progress`, `console_output`, `logger`, `utils` – unify progress reporting, console I/O, logging, timestamp generation, and other utilities so CLI and GUI flows mirror each other via the counter-based `BatchProgressBar`.
 - `gui` – contains Tkinter scaffolds, Run Builder controls, diagnostics panels, and the `run_worker` that spawns the CLI workflow with `COPERNICAN_ALLOW_DIRECT=1`.
 
 ### Engines Layer
 
-- `engines/cosmo_engine_mcmc.py` – ensemble MCMC sampler with `emcee`, walker reseeding for `nan` positions, `-np.inf` when proposals are invalid, and progress messages threaded through `copernican_lib.progress`.
+- `engines/cosmo_engine_mcmc.py` – ensemble MCMC sampler with `emcee`, walker reseeding for `nan` positions, `-np.inf` when proposals are invalid, and counter-based progress updates emitted via `copernican_lib.progress`.
 - `engines/cosmo_engine_nested.py` – nested sampling backend providing live point counts, enlargement factors, and log-evidence tracking while matching the MCMC result schema.
 - Future engines must keep shared dependencies pure compute-only and rely on `copernican_lib.optim_utils` for shared helpers rather than importing CLI helpers themselves.
 
@@ -60,7 +60,7 @@ as policy enforcement and dataset validation.
 
 - Logging is initialised early, records Python/OS/package versions, and flushes warnings through `copernican_lib.logger`. `console_output` ensures prints and inputs route through the logger.
 - `faulthandler` plus SIGILL/SIGSEGV/SIGFPE handlers capture stack traces on fatal signals and write them to both console and log paths before exiting so w/ `logs/runs` remains complete.
-- Progress updates flush per line to ensure stage updates appear in long computations; Stage 2 emits walker updates and a spinner (carriage return) so CLI and GUI log mirrors look identical.
+- Progress updates flush per line to ensure stage updates appear in long computations; Stage 2 emits walker updates and the same counter records so CLI and GUI log mirrors look identical.
 
 ## Policies and Documentation Guardrails
 

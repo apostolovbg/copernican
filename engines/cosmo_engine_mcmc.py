@@ -17,12 +17,11 @@ bounds and optional reparameterisation transforms while exposing diagnostic
 metadata alongside sampled chains.
 
 Version 7.6.20 removes walker snapshot logging entirely, dedicates the output
-channel to concise diagnostics, keeps a background repaint pump alive so the
-spinner and bar animate even when sampler steps take several seconds to
-complete, and clears each console line when a batch finishes so transcripts
-never retain stale progress bars. The bar no longer mirrors its state to the
-log file, leaving the console display as the single source of progress updates
-while the logger concentrates on statistical summaries.
+channel to concise diagnostics, and now emits simple counter lines instead of
+maintaining a repaint pump. The carriage-return spinner has been retired but
+each batch still announces its completion so transcripts never retain stale
+bars. The counter updates log the stage label, completed steps and percentage,
+keeping the GUI monitor and log in sync while the logger focuses on statistics.
 
 Version 7.2.10 extends the reproducibility contract by constructing every
 NumPy :class:`~numpy.random.Generator` from the shared
@@ -37,7 +36,6 @@ from __future__ import annotations
 import logging
 import math
 import multiprocessing as mp
-import threading
 import warnings
 from typing import Any, Callable, Iterable, Iterator, Sequence
 
@@ -67,11 +65,7 @@ from copernican_lib.engine_capabilities import (
     EngineSetting,
 )
 from copernican_lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
-from copernican_lib.progress import (
-    BatchProgressBar,
-    StepProgressEmitter,
-    configure_sampler_progress_reporting,
-)
+from copernican_lib.progress import BatchProgressBar
 from copernican_lib.statistics import (
     calculate_bao_observables,
     chi_squared_bao,
@@ -594,10 +588,6 @@ def _run_stage_with_progress(
         progress_listener=progress_listener,
         stage_metadata=stage_metadata,
     )
-    notifier: StepProgressEmitter | None = None
-    if display_progress:
-        notifier = StepProgressEmitter(progress_bar)
-    configure_sampler_progress_reporting(sampler, notifier)
     if n_steps <= progress_granularity:
         interval = max(1, n_steps)
     else:
@@ -606,27 +596,6 @@ def _run_stage_with_progress(
     batch_end = min(interval, n_steps)
     progress_bar.start_batch(batch_start, batch_end)
 
-    pump_thread: threading.Thread | None = None
-    pump_stop: threading.Event | None = None
-    if notifier is not None and progress_bar.uses_live_display:
-        pump_stop = threading.Event()
-
-        def _pump() -> None:
-            """Repaint the spinner while sampler steps are in flight."""
-
-            interval = max(0.05, notifier.idle_interval / 2.0)
-            while not pump_stop.is_set():
-                notifier.tick()
-                if pump_stop.wait(interval):
-                    break
-
-        pump_thread = threading.Thread(
-            target=_pump,
-            name=f"copernican-mcmc-{stage_name}-pump",
-            daemon=True,
-        )
-        pump_thread.start()
-
     state = None
     iterator: Iterator[emcee.State] | None = None
     try:
@@ -634,14 +603,7 @@ def _run_stage_with_progress(
             initial_state, iterations=n_steps, progress=False
         )
         for idx in range(1, n_steps + 1):
-            if notifier is not None:
-                notifier.start(idx, sampler.nwalkers)
-            if notifier is not None:
-                notifier.tick()
             state = next(iterator)
-            if notifier is not None:
-                notifier.tick()
-                notifier.clear()
             progress_bar.update(
                 idx,
                 processed=sampler.nwalkers,
@@ -663,10 +625,6 @@ def _run_stage_with_progress(
                     for line in summary_callback(idx, state):
                         logger.info("%s", line)
     finally:
-        if pump_stop is not None:
-            pump_stop.set()
-        if pump_thread is not None:
-            pump_thread.join()
         progress_bar.finish_batch()
 
     if state is None:

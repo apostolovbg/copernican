@@ -28,10 +28,11 @@ reproducible.
   run-level logs, the GUI mirrors the live logs inside its Run Monitor, and
   both CLI and GUI feed the same audited log streams.
 - **Live monitoring improvements.** The new Run Monitor navigation button
-  exposes live progress bars, filtered run logs with a dedicated viewer, an
-  “Open run output” link, Cancel/Pause/Hard Stop controls, and the Exit Suite
-  action so GUI sessions mimic the CLI exit routine while the diagnostics pane
-  still provides View/Open/Flush buttons for its log stream.
+  exposes live progress bars that stay synced with the CLI’s counter-based
+  updates, filtered run logs with a dedicated viewer, an “Open run output”
+  link, Cancel/Pause/Hard Stop controls, and the Exit Suite action so GUI
+  sessions mimic the CLI exit routine while the diagnostics pane still
+  provides View/Open/Flush buttons for its log stream.
 
 ## Citation
 

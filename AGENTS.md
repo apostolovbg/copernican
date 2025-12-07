@@ -157,8 +157,7 @@ frames once outside optimisation loops. Joint likelihoods use
 simultaneously, recording per-dataset χ² values in the sampler output. When both
 models reference the same YAML file the Stage 2 workflow compares
 `MODEL_FILENAME` values and reuses the initial posterior so BAO and CMB overlays
-align exactly during ΛCDM self-consistency checks. The engine emits step-by-step
-progress messages for both burn-in and production phases, displays percentage
+align exactly during ΛCDM self-consistency checks. The engine emits step-by-step counter summaries (e.g., “Burn-in stage batch 1: 3/200 steps completed (1%)”) for both burn-in and production phases, displays percentage
 indicators and continues to return ``-np.inf`` whenever a proposal falls outside
 declared parameter bounds or yields a non-finite chi-squared so the sampler
 rejects invalid walkers deterministically.
@@ -181,6 +180,10 @@ spinner, and Version 7.6.14 retires `tqdm` entirely in favour of a native
 carriage-return renderer so macOS, Linux and Windows terminals repaint every
 walker update on a single console line while the logged Unicode glyphs remain
 identical to the interactive output.
+Recent refactors now replace that renderer with line-based counter updates,
+keeping the same ``batch_start``, ``progress_update`` and ``batch_finish``
+records for the GUI while eliminating the spinner pump and carriage-return
+artifacts from the console logs.
 
 Version 7.1.1 standardises every runtime timestamp on Coordinated
 Universal Time (UTC) so log files, manifests and output directories

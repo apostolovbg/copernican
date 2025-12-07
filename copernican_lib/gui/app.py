@@ -209,7 +209,6 @@ _EQUATION_HTML_TEMPLATE = """<!DOCTYPE html>
 </html>"""
 log_mod = logger
 
-_PROGRESS_SPINNER_CHARS = frozenset("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
 _NAV_PANE_WIDTH = 140
 _LOGO_PADDING = 12
 _LOGO_SIDE = _NAV_PANE_WIDTH // 4
@@ -235,15 +234,15 @@ _HELP_PAGES = [
 
 
 def _is_progress_line(line: str) -> bool:
-    """Return True for stdout lines that stream the CLI progress bar."""
+    """Return True for stdout lines emitted by the CLI progress counter."""
 
     stripped = line.strip()
     if not stripped:
         return True
     lower = stripped.lower()
-    if "progress:" in lower and "batch" in lower:
+    if "batch" in lower and "steps" in lower and "completed" in lower:
         return True
-    if any(char in stripped for char in _PROGRESS_SPINNER_CHARS):
+    if "batch" in lower and "complete" in lower:
         return True
     return False
 

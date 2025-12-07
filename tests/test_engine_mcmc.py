@@ -12,11 +12,9 @@ import warnings
 from types import SimpleNamespace
 from unittest import mock
 
-import emcee
 import numpy as np
 import pandas as pd
 import xarray as xr
-from emcee import moves
 
 from copernican_lib import (
     chain_io,
@@ -24,12 +22,7 @@ from copernican_lib import (
     model_coder,
     model_spec_validator,
 )
-from copernican_lib import progress as progress_helpers
-from copernican_lib.progress import (
-    BatchProgressBar,
-    StepProgressEmitter,
-    configure_sampler_progress_reporting,
-)
+from copernican_lib.progress import BatchProgressBar
 from copernican_lib.utils import set_random_seed
 from engines import cosmo_engine_mcmc
 from engines.cosmo_engine_mcmc import (
@@ -577,74 +570,6 @@ class TestMCMCEngine(unittest.TestCase):
         np.testing.assert_allclose(arr, loop)
 
 
-class TestStepProgressEmitter(unittest.TestCase):
-    """Exercise the idle spinner helper under deterministic timing."""
-
-    def test_idle_tick_repaints_after_single_update(self) -> None:
-        """``tick`` repaints repeatedly after a lone walker update."""
-
-        class _DummyBar:
-            def __init__(self) -> None:
-                self.calls: list[tuple[str, int, int]] = []
-                self.uses_live_display = True
-
-            def start_step(self, step_index: int, walker_total: int) -> str:
-                self.calls.append(("start", step_index, walker_total))
-                return ""
-
-            def update(
-                self,
-                step_index: int,
-                *,
-                processed: int,
-                total: int,
-                step_progress: float | None = None,
-                force: bool = False,
-            ) -> str:
-                self.calls.append(("update", processed, total))
-                return f"line-{len(self.calls)}"
-
-        dummy_bar = _DummyBar()
-        emitter = StepProgressEmitter(dummy_bar)
-        idle_times = [0.0]
-
-        def _fake_timer() -> float:
-            return idle_times[0]
-
-        def _update_count() -> int:
-            count = 0
-            for call in dummy_bar.calls:
-                if call[0] == "update":
-                    count += 1
-            return count
-
-        emitter._timer = _fake_timer  # type: ignore[attr-defined]
-        emitter._idle_interval = 0.1  # type: ignore[attr-defined]
-        emitter.start(1, 1)
-        idle_times[0] = 0.05
-        emitter(1, 1)
-        initial_updates = _update_count()
-        idle_times[0] = 0.14
-        emitter.tick()
-        self.assertEqual(_update_count(), initial_updates)
-        idle_times[0] = 0.16
-        emitter.tick()
-        idle_times[0] = 0.30
-        emitter.tick()
-        self.assertGreaterEqual(
-            _update_count(),
-            initial_updates + 2,
-        )
-        final_count = _update_count()
-        emitter.clear()
-        idle_times[0] = 0.50
-        emitter.tick()
-        self.assertEqual(
-            _update_count(),
-            final_count,
-        )
-
-
 class TestMCMCHelpers(unittest.TestCase):
     """Exercise helper utilities that remain active without arviz."""
 
@@ -748,308 +673,96 @@ class TestAutocorrelationGuard(unittest.TestCase):
 
 
 class BatchProgressBarTestCase(unittest.TestCase):
-    """Exercise the sampler progress bar without timing metadata."""
+    """Validate the counter-based progress reporter."""
 
-    def test_progress_bar_reports_pluralisation_and_width(self) -> None:
-        """Progress lines reflect partial updates and honour the width."""
+    def test_logs_counter_updates_and_notifies_listener(self) -> None:
+        """Counter lines and listener records align with percent changes."""
 
-        captured: list[tuple[str, str]] = []
+        events: list[dict[str, object]] = []
+        messages: list[str] = []
 
-        def _capture(
-            msg: str = "", *, end: str = "\n", error: bool = False, **kwargs
+        def listener(record: dict[str, object]) -> None:
+            events.append(record)
+
+        def recorder(
+            msg: str = "", *, end: str = "\n", error: bool = False
         ) -> None:
-            captured.append((msg, end))
+            messages.append(msg)
 
         bar = BatchProgressBar(
-            "Test stage",
-            4,
+            "Stage",
+            total_steps=5,
             display=True,
+            progress_listener=listener,
         )
-        with (
-            mock.patch(
-                "copernican_lib.progress.console.write",
-                side_effect=_capture,
-            ),
-        ):
-            bar.start_batch(1, 4)
-            self.assertTrue(bar.uses_live_display)
-            initial_line = bar.start_step(1, walker_total=8)
-            self.assertIn("  0%", initial_line)
-            spinner_frames = set(BatchProgressBar._SPINNER_FRAMES)
-            self.assertTrue(spinner_frames & set(initial_line))
-            half_line = bar.update(1, processed=4, total=8)
-            self.assertIn("step 1 of 4 steps", half_line)
-            self.assertIn("4 steps remaining", half_line)
-            self.assertTrue(spinner_frames & set(half_line))
-            bar_segment = half_line.lstrip("\r").split(" ", 1)[0]
-            self.assertEqual(
-                len(bar_segment),
-                BatchProgressBar._BAR_WIDTH,
-            )
-            self.assertIn("█", bar_segment)
-            self.assertIn("4/8", half_line)
-            walker_segment = (
-                half_line.split(";", 1)[1].strip().split(",", 1)[0]
-            )
-            walker_bar_segment, walker_counts = walker_segment.rsplit(" ", 1)
-            self.assertEqual(
-                len(walker_bar_segment),
-                BatchProgressBar._WALKER_BAR_WIDTH,
-            )
-            self.assertEqual(walker_counts, "4/8")
-            later_line = bar.start_step(2, walker_total=8)
-            self.assertIn("step 2 of 4 steps", later_line)
-            self.assertIn("3 steps remaining", later_line)
-            bar.start_step(3, walker_total=8)
-            near_end = bar.update(3, processed=8, total=8)
-            self.assertIn("1 step remaining", near_end)
-            bar.start_step(4, walker_total=8)
-            final_line = bar.update(4, processed=8, total=8)
-            self.assertIn("0 steps remaining", final_line)
-            bar.finish_batch()
-
-        announcements = [msg for msg, _ in captured if "batch" in msg]
-        self.assertTrue(announcements)
-        newline_calls = [end for msg, end in captured if msg == ""]
-        self.assertIn("\n", newline_calls)
-        emitted_lines = [msg for msg, end in captured if end == ""]
-        self.assertTrue(emitted_lines)
-        self.assertTrue(all(msg.startswith("\r") for msg in emitted_lines))
-        # Spinner frames appear in subsequent captured repaint strings.
-        spinner_hits = [set(msg) & spinner_frames for msg in emitted_lines]
-        self.assertTrue(any(hit for hit in spinner_hits))
-
-    def test_progress_bar_emits_partial_block_during_small_updates(
-        self,
-    ) -> None:
-        """Fractional updates render the Unicode sub-block glyphs."""
-
-        bar = BatchProgressBar(
-            "Unicode stage",
-            10,
-            display=True,
-        )
-        with (
-            mock.patch(
-                "copernican_lib.progress.console.write",
-                side_effect=lambda *args, **kwargs: None,
-            ),
+        with mock.patch(
+            "copernican_lib.console_output.write",
+            side_effect=recorder,
         ):
             bar.start_batch(1, 5)
-            fractional_line = bar.start_step(1, walker_total=20)
-            partial_line = bar.update(1, processed=1, total=20)
-            self.assertIsNotNone(fractional_line)
-            bar_segment = partial_line.lstrip("\r").split(" ", 1)[0]
-            self.assertEqual(
-                len(bar_segment),
-                BatchProgressBar._BAR_WIDTH,
-            )
-            partial_set = set(BatchProgressBar._PARTIAL_GLYPHS)
-            has_partial = bool(set(bar_segment) & partial_set)
-            self.assertTrue(has_partial)
-            spinner_frames = set(BatchProgressBar._SPINNER_FRAMES)
-            self.assertTrue(set(partial_line) & spinner_frames)
+            updated = bar.update(1, processed=1, total=5)
+            bar.finish_batch()
 
-    def test_progress_bar_accepts_custom_subunit_labels(self) -> None:
-        """Alternative engines can rename the per-step subunit labels."""
+        self.assertIsNotNone(updated)
+        self.assertTrue(any("batch 1" in msg for msg in messages))
+        self.assertTrue(any("completed" in msg for msg in messages))
+        self.assertEqual(
+            [record["event"] for record in events],
+            ["batch_start", "progress_update", "batch_finish"],
+        )
 
+    def test_listener_receives_events_even_when_percent_stalls(self) -> None:
+        """Listeners still see duplicate records when the counter stalls."""
+
+        events: list[dict[str, object]] = []
+        bar = BatchProgressBar(
+            "Stage",
+            total_steps=5,
+            display=False,
+            progress_listener=lambda record: events.append(record),
+        )
+        with mock.patch("copernican_lib.console_output.write") as patched:
+            bar.start_batch(1, 5)
+            bar.update(1, processed=0, total=5)
+            bar.update(1, processed=0, total=5)
+        self.assertFalse(patched.called)
+        self.assertEqual(
+            [record["event"] for record in events],
+            ["batch_start", "progress_update", "progress_update"],
+        )
+
+    def test_finish_batch_emits_completion_event(self) -> None:
+        """Closing a batch logs a completion line and notifies the listener."""
+
+        final_event: dict[str, object] | None = None
         captured: list[str] = []
 
-        def _capture(
-            msg: str = "", *, end: str = "\n", error: bool = False, **kwargs
+        def listener(record: dict[str, object]) -> None:
+            nonlocal final_event
+            if record["event"] == "batch_finish":
+                final_event = record
+
+        def recorder(
+            msg: str = "", *, end: str = "\n", error: bool = False
         ) -> None:
             captured.append(msg)
 
         bar = BatchProgressBar(
-            "Custom stage",
-            5,
+            "Stage",
+            total_steps=1,
             display=True,
-            subunit_labels=("iteration", "iterations"),
+            progress_listener=listener,
         )
         with mock.patch(
-            "copernican_lib.progress.console.write",
-            side_effect=_capture,
+            "copernican_lib.console_output.write",
+            side_effect=recorder,
         ):
             bar.start_batch(1, 1)
-            line = bar.update(1, processed=2, total=5, step_progress=0.4)
-            self.assertIsNotNone(line)
-            rendered = line.lstrip("\r")
-            self.assertIn("iteration", rendered)
-            self.assertIn("iterations left", rendered)
-            bar.finish_batch()
-        self.assertTrue(any("iterations left" in msg for msg in captured))
-
-    def test_force_update_rerenders_identical_text(self) -> None:
-        """Explicitly forced updates repaint even when text is stable."""
-
-        with mock.patch("copernican_lib.progress.console.write") as patched:
-            bar = BatchProgressBar("Forced stage", 2, display=True)
-            bar.start_batch(1, 2)
-            bar.start_step(1, 4)
-            with mock.patch.object(bar, "_next_spinner", return_value="⠋"):
-                first_line = bar.update(1, processed=2, total=4)
-                self.assertIsNotNone(first_line)
-                patched.reset_mock()
-                self.assertIsNone(bar.update(1, processed=2, total=4))
-                forced_line = bar.update(1, processed=2, total=4, force=True)
-            self.assertIsNotNone(forced_line)
-            patched.assert_called()
-
-    def test_finish_batch_clears_active_line(self) -> None:
-        """Closing a batch wipes the progress line before spacing."""
-
-        with mock.patch("copernican_lib.progress.console.write") as patched:
-            bar = BatchProgressBar("Cleanup stage", 1, display=True)
-            bar.start_batch(1, 1)
-            bar.start_step(1, 4)
-            bar.update(1, processed=4, total=4)
-            patched.reset_mock()
-            bar.finish_batch()
-            self.assertGreaterEqual(patched.call_count, 3)
-            blank_call = patched.call_args_list[0]
-            self.assertTrue(
-                blank_call.args[0].startswith("\r")
-                and set(blank_call.args[0].lstrip("\r")) <= {" "}
-            )
-            self.assertEqual(blank_call.kwargs.get("end"), "")
-
-    def test_finish_batch_clears_line_without_updates(self) -> None:
-        """Initial 0% renders are tracked so cleanup blanks the console."""
-
-        with mock.patch("copernican_lib.progress.console.write") as patched:
-            bar = BatchProgressBar("Idle stage", 2, display=True)
-            bar.start_batch(1, 2)
-            patched.reset_mock()
-            bar.finish_batch()
-            self.assertGreaterEqual(patched.call_count, 3)
-            blank_calls = [
-                call for call in patched.call_args_list if call.args
-            ]
-            self.assertTrue(
-                any(
-                    entry.args[0].startswith("\r")
-                    and set(entry.args[0].lstrip("\r")) <= {" "}
-                    and entry.kwargs.get("end") == ""
-                    for entry in blank_calls
-                )
-            )
-
-
-class ProgressIntegrationTestCase(unittest.TestCase):
-    """Ensure sampler hooks stream live walker updates."""
-
-    def test_sampler_emits_walker_progress_before_step_finishes(self) -> None:
-        """Instrumented sampler writes partial walker counts to the bar."""
-
-        def _log_prob(coord: np.ndarray) -> float:
-            vec = np.atleast_1d(coord)
-            return float(-0.5 * np.dot(vec, vec))
-
-        sampler = emcee.EnsembleSampler(6, 2, _log_prob)
-        bar = BatchProgressBar("Integration stage", 1, display=True)
-        emitter = StepProgressEmitter(bar)
-        configure_sampler_progress_reporting(sampler, emitter)
-        initial = np.random.default_rng(42).standard_normal((6, 2))
-        iterator = sampler.sample(initial, iterations=1, progress=False)
-
-        with mock.patch("copernican_lib.progress.console.write") as patched:
-            bar.start_batch(1, 1)
-            emitter.start(1, sampler.nwalkers)
-            next(iterator)
-            emitter.clear()
-            bar.update(
-                1,
-                processed=sampler.nwalkers,
-                total=sampler.nwalkers,
-                step_progress=1.0,
-            )
             bar.finish_batch()
 
-        walker_prefix = f"/{sampler.nwalkers}"
-        walker_updates = [
-            call.args[0]
-            for call in patched.call_args_list
-            if call.args and walker_prefix in call.args[0]
-        ]
-        self.assertGreaterEqual(len(walker_updates), 2)
-        self.assertTrue(
-            any(f"1{walker_prefix}" in msg for msg in walker_updates)
-        )
-
-    def test_stage_cleanup_wipes_progress_when_sampler_errors(self) -> None:
-        """Failing samplers still trigger a final console clear."""
-
-        class _FailingSampler:
-            def __init__(self) -> None:
-                self.nwalkers = 4
-                self._moves = [moves.StretchMove()]
-
-            def sample(
-                self, *args, **kwargs
-            ):  # pragma: no cover - generator stub
-                raise RuntimeError("sampler failure")
-
-            def get_last_sample(self):  # pragma: no cover - unused guard
-                raise AssertionError("should not be called")
-
-        sampler = _FailingSampler()
-        initial_state = np.zeros((sampler.nwalkers, 2))
-
-        with mock.patch("copernican_lib.progress.console.write") as patched:
-            with self.assertRaises(RuntimeError):
-                cosmo_engine_mcmc._run_stage_with_progress(
-                    sampler,
-                    initial_state,
-                    3,
-                    stage_name="error-prone",
-                    logger=logging.getLogger("copernican.tests"),
-                    progress_granularity=2,
-                    summary_callback=None,
-                    progress_label="Failing stage",
-                    display_progress=True,
-                )
-
-        blank_calls = [entry for entry in patched.call_args_list if entry.args]
-        self.assertTrue(
-            any(
-                entry.args[0].startswith("\r")
-                and set(entry.args[0].lstrip("\r")) <= {" "}
-                and entry.kwargs.get("end") == ""
-                for entry in blank_calls
-            )
-        )
-
-
-class ConfigureSamplerProgressReportingTestCase(unittest.TestCase):
-    """Ensure sampler move collections attach progress notifiers."""
-
-    def test_weight_first_pair_wraps_stretch_move(self) -> None:
-        """Tuples storing ``(weight, move)`` gain reporting wrappers."""
-
-        sampler = SimpleNamespace(_moves=[(0.75, moves.StretchMove())])
-        notifier = object()
-
-        configure_sampler_progress_reporting(sampler, notifier)
-
-        weight, move_obj = sampler._moves[0]
-        self.assertEqual(weight, 0.75)
-        self.assertIsInstance(move_obj, progress_helpers._ReportingStretchMove)
-        self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
-
-    def test_move_first_pair_wraps_stretch_move(self) -> None:
-        """Tuples storing ``(move, weight)`` gain reporting wrappers."""
-
-        base_move = moves.StretchMove(a=3.5)
-        sampler = SimpleNamespace(_moves=[(base_move, 0.5)])
-        notifier = object()
-
-        configure_sampler_progress_reporting(sampler, notifier)
-
-        move_obj, weight = sampler._moves[0]
-        self.assertEqual(weight, 0.5)
-        self.assertIsInstance(move_obj, progress_helpers._ReportingStretchMove)
-        self.assertIs(getattr(move_obj, "_progress_notifier"), notifier)
-        self.assertEqual(getattr(move_obj, "a"), getattr(base_move, "a"))
+        self.assertTrue(any("complete" in msg for msg in captured))
+        self.assertIsNotNone(final_event)
+        self.assertEqual(final_event["event"], "batch_finish")
 
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation

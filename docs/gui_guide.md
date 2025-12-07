@@ -31,8 +31,8 @@ plus buttons for every page:
   though the values remain numerically fixed for validation. **Cancel validation**
   terminates the background worker, **Clear validation** removes every
   `validation/output/...` folder plus `VALIDATION.md`, and the “Lock summary to
-  latest entry” checkbox keeps the log pinned to the newest lines while the
-  progress bars mirror the live CLI worker.
+  latest entry” checkbox keeps the log pinned to the newest lines while the GUI
+  progress bars mirror the CLI counter state.
 - **Settings** – Provides diagnostics filters, log viewers and output-directory
   helpers plus a recap of the `COPERNICAN_*` environment variables currently in
   effect.

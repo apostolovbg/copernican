@@ -74,10 +74,10 @@ diagnostics the command line renders while the GUI keeps every alert anchored
 for quick navigation. A new “Lock log to latest entry” checkbox beside the
 filters pins the view to the most recent lines whenever you want to watch the
 ensemble finish without manually scrolling back down. That log console now
-drops the rapid spinner/percentage rows streamed from the CLI so it shows only
-batch summaries, and the Cancel/Pause/Hard Stop buttons stay disabled
-(greyed out) until a run starts, after which they return to their normal,
-clickable appearance.
+drops the CLI counter rows (e.g., “Burn-in stage batch 1: 3/200 steps
+completed”) so it shows only batch summaries, and the Cancel/Pause/Hard Stop
+buttons stay disabled (greyed out) until a run starts, after which they return
+to their normal, clickable appearance.
 
 ## Validation
 The navigation rail now includes a **Validation** button positioned between
@@ -93,7 +93,8 @@ still records the canonical point while keeping the values numerically locked
 for regression checks. A **Cancel validation** button terminates the worker mid-run,
 **Clear validation** removes every `validation/output/...` directory plus the
 gitignored summary, and the “Lock summary to latest entry” checkbox keeps the log
-pinned to the newest lines while the progress bars mirror the live CLI worker.
+pinned to the newest lines while the GUI progress bars mirror the CLI counter
+state.
 The validation button stays disabled while the run is active so you cannot stack
 overlapping validations.
 

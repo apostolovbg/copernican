@@ -21,6 +21,7 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-07: Replaced the CLI Stage 2 carriage-return spinner/bar with simple counter lines, removed the console logging suppression plumbing, kept the shared batch events intact for the GUI monitor and refreshed the GUI log filters plus every document that referenced the renderer (ABOUT.md, AGENTS.md, README.md, copernican_lib/console_output.py, copernican_lib/gui/app.py, copernican_lib/logger.py, copernican_lib/progress.py, docs/api_overview.md, docs/architecture.md, docs/design_overview.md, docs/gui_guide.md, docs/gui_overview.md, docs/launcher_gui.md, engines/cosmo_engine_mcmc.py, tests/test_engine_mcmc.py, requirements.lock, CHANGELOG.md).
 - 2025-12-06: Documented that the validation manifest now drives the fixed
             Planck 2018 reference model against Union Through UNITY 2000 SNe
             instead of Pantheon, and clarified the fixed-prior behavior across

@@ -24,11 +24,11 @@ described throughout this document.
   posterior construction, validation checks, plotting helpers and diagnostics.
   Engines and parsers import from this package instead of reimplementing
   numerical plumbing. Shared progress helpers live in
-  `copernican_lib.progress`, along with the spinner pump, notifier bridge and
-  suspension context that keeps console output coherent even when diagnostics
-  print between walker updates. The helpers record the first render emitted by
-  each batch and always wipe the console line with a spacer on teardown so
-  captured transcripts never trap stale 0% bars.
+  `copernican_lib.progress`, which now exposes `BatchProgressBar`. The helper
+  writes simple counter lines such as “Burn-in stage batch 1: 3/200 steps
+  completed (1%)”, preserves the listener contract and exposes a no-op
+  suspension context so diagnostics can print between updates without the old
+  carriage-return renderer.
 * `engines/` contains back ends such as the default ``cosmo_engine_mcmc.py``.
   Engines consume `EnginePlugin` definitions, evaluate joint likelihoods
   spanning SNe Ia, BAO and CMB data and surface ArviZ-powered convergence
@@ -36,9 +36,8 @@ described throughout this document.
   back to a conservative Gelman–Rubin summary while logging the downgrade.
   CI runners that cannot call CAMB can opt into the ``COPERNICAN_FAKE_CMB``
   shortcut while production evaluations still query the physics engine. Nested
-  sampling and ensemble MCMC both rely on the shared Stage 2 renderer so the
-  carriage-return bar, spinner and walker metrics stay consistent regardless of
-  backend.
+  sampling and ensemble MCMC both rely on the shared Stage 2 helper so the
+  counter lines and listener events stay consistent regardless of backend.
 * `models/` holds YAML descriptions that declare bounds, priors, transforms and
   dataset compatibility. Each file is compiled into a picklable
   :class:`copernican_lib.plugins.EnginePlugin` so multiprocessing pools can
@@ -123,15 +122,16 @@ and assembles the combined SNe, BAO and CMB likelihoods via
 :class:`copernican_lib.posterior.PosteriorEvaluator` so multiprocessing pools
 can reuse the same callable safely.
 
-The shared renderer in :mod:`copernican_lib.progress` keeps interactive output
-stable across engines. It paints a fifty-character carriage-return bar with
-Unicode sub-blocks, a walker-progress meter and an animated spinner. Updates
-flush on every write to keep terminals responsive, while a suspension context
-allows diagnostic messages to print without corrupting the bar. When a batch
-ends the renderer clears the line and inserts a spacer so transcripts never
-contain half-drawn bars. If ArviZ is installed the engine records R-hat and
-effective sample sizes for every parameter on each batch; otherwise it logs a
-conservative Gelman–Rubin fallback.
+The shared helper in :mod:`copernican_lib.progress` keeps interactive output
+stable across engines. It writes counter lines such as “Burn-in stage batch
+1: 3/200 steps completed (1%)”, emits the same ``batch_start``,
+``progress_update`` and ``batch_finish`` events that feed the GUI progress
+panels, and still offers a suspension context so diagnostics can print between
+updates without disrupting the counter output. When a batch ends it logs a
+completion line before the next batch begins, giving both terminals and log
+files a clear record of progress. If ArviZ is installed the engine records
+R-hat and effective sample sizes for every parameter on each batch; otherwise
+it logs a conservative Gelman–Rubin fallback.
 
 ### Stage 3–4 post-processing
 

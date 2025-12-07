@@ -75,9 +75,9 @@ samples appear once their parsers register with the dataset registry.
   and `COPERNICAN_HEADLESS_RUN`, and the Help
   screen renders the README (banner included) so documentation is always
   nearby. The Run Monitor now mirrors the CLI with separate batch and walker
-  progress bars that reflect the same progress state the sampler emits plus an
-  embedded log console that tails the live `logs/runs/*.txt` file so operators
-  can follow the real run transcript directly from the GUI.
+  progress bars that reflect the same counter-based progress state the sampler
+  emits plus an embedded log console that tails the live `logs/runs/*.txt` file
+  so operators can follow the real run transcript directly from the GUI.
 
 Run Builder now gates the Save Manifest page until the seed, model, dataset,
 and engine panels all have selections. Saving writes the working manifest to
@@ -407,20 +407,19 @@ readers opening only the posterior block still recover the full provenance.
    chain and copies the recorded dataset diagnostics so every component shares
    the same walker history. Otherwise the ΛCDM reference and the alternative
    model are sampled in turn with independent random seeds.
-  A confirmation menu summarises the proposed sampler plan with numbered
-  options for accepting it, restarting the questionnaire, returning to the
-  defaults summary or cancelling entirely so the intent behind each choice is
-  explicit. Stage 2 progress always streams through the shared
-  carriage-return renderer with Unicode partial-block glyphs, walker-level
-  meters and an animated spinner. The helper throttles repainting enough to
-  keep transcripts readable while still showing sub-character movement during
-  long iterations. Console output is always resumed after diagnostic messages
-  with a final blank spacer so stale bars never linger in logs. When ArviZ is
-  available the sampler reports convergence diagnostics on every batch; when
-  it is missing the engine falls back to conservative Gelman–Rubin summaries
-  while logging the downgrade. The notifier bridge persists even when ``emcee``
-  stores weights alongside moves so live updates remain accurate across
-  sampler implementations.
+ A confirmation menu summarises the proposed sampler plan with numbered
+ options for accepting it, restarting the questionnaire, returning to the
+ defaults summary or cancelling entirely so the intent behind each choice is
+ explicit. Stage 2 progress now streams through the counter-based
+ `BatchProgressBar`, emitting lines such as “Burn-in stage batch 1: 3/200 steps
+ completed (1%)” in place of the previous carriage-return spinner. The helper
+ still throttles updates to keep transcripts readable, provides a suspension
+ hook for diagnostics, and inserts a blank spacer after each diagnostic message
+ so no stale counters linger in the log. When ArviZ is available the sampler
+ reports convergence diagnostics on every batch; when it is missing the engine
+ falls back to conservative Gelman–Rubin summaries while logging the downgrade.
+ The notifier bridge persists even when ``emcee`` stores weights alongside
+ moves so live updates remain accurate across sampler implementations.
 5. **BAO Analysis** – Stage 3 reuses the sampler's diagnostics to report BAO
    chi-squared contributions directly from the joint fit while still
    generating smooth predictions for plots and CSV exports. Shared helpers
@@ -457,11 +456,11 @@ prints the collected reasons as bullet points before offering to restart
 Stage 1 or exit, ensuring even multi-cause exceptions—such as conflicting
 bounds and missing likelihood hooks—are explained without consulting the log
 file. The sampler questionnaire concludes Stage 1 with a summary of
-recommended settings, an explanation of how the per-batch progress bars will
-animate during Stage 2 and a preview of the Unicode sub-block fills and
-bracket-free layout used by the live renderer. Progress updates stay on the
-console so logs capture only the surrounding diagnostics instead of partial
-progress lines.
+recommended settings, an explanation of how the per-batch counters update
+during Stage 2 and a preview of the counter lines (e.g.,
+“Burn-in stage batch 1: 3/200 steps completed (1%)”) that now appear in the
+console. Progress updates stay on the console so logs capture the counters
+instead of extra noise.
 The summary concludes with a menu that lets users continue, revisit earlier
 questions or cancel the run entirely.
 
@@ -560,8 +559,9 @@ cite them without recomputation.
 - The navigation rail now spans 140 px, keeps 12 px of padding between the buttons and the window edge, 24 px between the buttons and the separator, and still pins a padded Copernican logo square above the Home button so the brand anchor shares the same spacing rules as the nav panel controls while reusing the `img/logogui.png` asset sized to a quarter of the pane width.
 - The GUI now exposes a dedicated **Run Monitor** navigation entry just below
   Run Builder.  It mirrors the CLI sampler by showing both batch and walker
-  progress bars, filtering options, and quick actions to **View log** or
-  **Open log…** without leaving the GUI.  Cancel/Pause/Hard Stop buttons stay
+  progress bars that stay aligned with the CLI counter updates, filtering
+  options, and quick actions to **View log** or **Open log…** without leaving
+  the GUI.  Cancel/Pause/Hard Stop buttons stay
   greyed out until a run is active, and an **Open run output** button appears
   once a run directory is created.  The **Exit Suite** button closes the
   process, flushes cached progress files, and reuses the CLI exit routine so
@@ -922,7 +922,7 @@ summary of each manifest result (pass/fail plus the output directory) into
 `VALIDATION.md` (gitignored). CLI users execute the same flow with
 `python copernican.py --run-validation`. The GUI Validation page now launches
 that same command, streams the CLI stdout into the log panel, keeps the batch
-and walker progress bars synced with the live worker, and disables the Run
+and walker progress bars synced with the CLI counter-driven updates, and disables the Run
 button while the worker is active. A **Cancel validation** button terminates the
 worker early, **Clear validation** wipes every `validation/output/...`
 directory together with the gitignored summary so you can rerun from a clean

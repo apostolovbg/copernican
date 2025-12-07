@@ -16,15 +16,13 @@ modules are:
   validation helpers. Import `REQUIRED_ATTRIBUTES` and `REQUIRED_FUNCTIONS`
   from here when building custom tooling that needs to confirm interface
   compliance.
-- `copernican_lib.progress` – shared progress bars, walker notifiers and
-  sampler integration helpers. Engines import `BatchProgressBar`,
-  `StepProgressEmitter` and `configure_sampler_progress_reporting` so live
-  Stage 2 updates stay consistent even outside the default MCMC engine. The
-  helpers record the first frame emitted for each batch, stream walker-level
-  updates with Unicode sub-blocks and always clear the console on teardown so
-  captured logs never contain stale bars, even when a sampler aborts early.
-  Nested sampling and ensemble MCMC reuse the same renderer, keeping labels and
-  spinners aligned regardless of backend choice.
+- `copernican_lib.progress` – shared progress reporting helpers. Engines import
+  `BatchProgressBar` so CLI runs log simple counters such as
+  “Burn-in stage batch 1: 3/200 steps completed (1%)” while still emitting the
+  structured ``batch_start``, ``progress_update`` and ``batch_finish`` records
+  that power the GUI progress monitors. The helper keeps stage metadata and the
+  listener contract unchanged so every backend can report progress without
+  depending on carriage-return renderers or spinner pumps.
 - `copernican_lib.plotter.plot_corner(samples, plugin, data_attrs,
   plot_dir)` – render the Stage 2 posterior as an automatically thinned
   corner plot whose panel size and typography respond to the number of
