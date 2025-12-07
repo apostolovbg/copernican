@@ -81,10 +81,8 @@ clickable appearance.
 
 ## Validation
 The navigation rail now includes a **Validation** button positioned between
-Engines and Settings. When you press it, the GUI executes the golden manifests
-under `validation/manifests/` (currently `reference_planck2018.yml`, which
-runs `models/cosmo_model_ref_planck2018.yml`), streams the Run Monitor–style
-summary (MCMC and Nested posterior means plus reference χ²) into a text box,
+Engines and Settings. When you press it, the GUI launches `python copernican.py
+--run-validation`, streams the CLI stdout into the Run Monitor–style log box,
 writes the NEW_CONFIG, plots and logs into
 `validation/output/<manifest_stem>/copernican-run_<timestamp>/`, and stores the
 textual summary in the gitignored `VALIDATION.md` file so the panel can reload
@@ -92,10 +90,12 @@ the latest results even when the suite is not rerun. The manifest evaluates the
 fixed reference model against Union Through UNITY 2000 SNe, BOSS DR12 BAO and
 Planck 2018 Lite and declares each parameter using `fixed` priors so the sampler
 still records the canonical point while keeping the values numerically locked
-for regression checks. A “Lock summary to latest entry” checkbox keeps the view
-pinned to the newest lines while outputs continue to arrive, and the validation
-button stays disabled while the run is active so you cannot stack overlapping
-validations.
+for regression checks. A **Cancel validation** button terminates the worker mid-run,
+**Clear validation** removes every `validation/output/...` directory plus the
+gitignored summary, and the “Lock summary to latest entry” checkbox keeps the log
+pinned to the newest lines while the progress bars mirror the live CLI worker.
+The validation button stays disabled while the run is active so you cannot stack
+overlapping validations.
 
 ## Metadata dialogs
 

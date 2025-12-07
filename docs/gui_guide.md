@@ -21,17 +21,18 @@ plus buttons for every page:
   cached registries. Each page includes open-folder actions, metadata panes,
   parser revalidation controls and trust notes so you can inspect assets before
   entering the builder.
-- **Validation** – Executes the golden manifests under `validation/manifests/`
-  (currently `reference_planck2018.yml` using `models/cosmo_model_ref_planck2018.yml`),
-  streams the Run Monitor–style summary into a text box, saves outputs under
-  `validation/output/<manifest_stem>/copernican-run_<timestamp>/`, writes the
-  latest summary to `VALIDATION.md` and exposes a “Lock summary to latest entry”
-  checkbox so the text view can stay pinned to the bottom when desired.
-  The manifest evaluates the fixed reference model against Union Through UNITY
-  2000 SNe, BOSS DR12 BAO and Planck 2018 Lite, declaring every parameter via
-  `fixed` priors so the sampler still leaves a trace and the corner plot
-  highlights that canonical point even though the values remain numerically fixed
-  for validation.
+- **Validation** – Executes `python copernican.py --run-validation`,
+  streams the CLI output into a Run Monitor–style log box, saves outputs under
+  `validation/output/<manifest_stem>/copernican-run_<timestamp>/` and writes the
+  latest summary to the gitignored `VALIDATION.md`. The manifest evaluates the
+  fixed reference model against Union Through UNITY 2000 SNe, BOSS DR12 BAO and
+  Planck 2018 Lite, declaring every parameter via `fixed` priors so the sampler
+  still leaves a trace and the corner plot highlights that canonical point even
+  though the values remain numerically fixed for validation. **Cancel validation**
+  terminates the background worker, **Clear validation** removes every
+  `validation/output/...` folder plus `VALIDATION.md`, and the “Lock summary to
+  latest entry” checkbox keeps the log pinned to the newest lines while the
+  progress bars mirror the live CLI worker.
 - **Settings** – Provides diagnostics filters, log viewers and output-directory
   helpers plus a recap of the `COPERNICAN_*` environment variables currently in
   effect.

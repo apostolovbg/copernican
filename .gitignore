@@ -18,6 +18,7 @@ validation/output/
 copernican_suite.egg-info
 .venv/
 build/
+/copernican_settings.yml
 /.matplotlib-cache
 /.python
 .cache/dependency_scan.json

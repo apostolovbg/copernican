@@ -572,8 +572,9 @@ cite them without recomputation.
   toggle detachment/environment hints, rebuild the sanitized model cache,
   revalidate parsers, and reset the Run Builder workspace.  Every change
   persists via `copernican_lib/settings.py` inside the generated
-  `copernican_settings.yml` file so CLI and GUI launches share the same
-  defaults, and the status strip still surfaces the managed `.venv` hints
+  `copernican_settings.yml` file (per-user and gitignored; set
+  `COPERNICAN_SETTINGS_PATH` to relocate it) so CLI and GUI launches share the
+  same defaults, and the status strip still surfaces the managed `.venv` hints
   beside the seed and strict-warning overrides.
 - A fresh **About** page resides in the navigation rail and renders `ABOUT.md`
   using the same dialog infrastructure that metadata views share, keeping the
@@ -919,11 +920,15 @@ standard manifest pipeline, writes its NEW_CONFIG and plots into
 `validation/output/<manifest_stem>/copernican-run_<timestamp>/`, and copies a
 summary of each manifest result (pass/fail plus the output directory) into
 `VALIDATION.md` (gitignored). CLI users execute the same flow with
-`python copernican.py --run-validation`, while the GUI Validation page replays
-the manifests, streams their Run Monitor–style text to the summary pane, and
-offers a “Lock summary to latest entry” checkbox so you can keep the view fixed
-while logs continue to arrive. Tolerances for the reference outputs remain
-documented in `validation/README.md`.
+`python copernican.py --run-validation`. The GUI Validation page now launches
+that same command, streams the CLI stdout into the log panel, keeps the batch
+and walker progress bars synced with the live worker, and disables the Run
+button while the worker is active. A **Cancel validation** button terminates the
+worker early, **Clear validation** wipes every `validation/output/...`
+directory together with the gitignored summary so you can rerun from a clean
+state, and the “Lock summary to latest entry” checkbox keeps the log pinned to
+the newest lines while outputs stream in. Tolerances for the reference outputs
+remain documented in `validation/README.md`.
 
 ## Creating New Models
 All model details, including theory text and equations, must be stored in a

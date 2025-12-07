@@ -23,9 +23,10 @@ directly to `copernican_lib.run_executor.execute_run_from_manifest` so every
 manifest-driven launch—CLI or GUI—shares the same runner.
 
 The Settings surface persists choices through `copernican_lib/settings.py`
-and the generated `copernican_settings.yml` file at the repository root.  The
-Logging, Datasets, GUI and Tools tabs reuse the shared services listed above so
-deterministic launches keep the same retention levels, dataset hashes and GUI
+and the generated `copernican_settings.yml` file at the repository root (the file
+is per-user, gitignored and can be relocated via `COPERNICAN_SETTINGS_PATH`).
+The Logging, Datasets, GUI and Tools tabs reuse the shared services listed above
+so deterministic launches keep the same retention levels, dataset hashes and GUI
 flags whether they start from the command line or the Tkinter shell.
 
 `copernican.py --gui` prints this service map without entering the interactive

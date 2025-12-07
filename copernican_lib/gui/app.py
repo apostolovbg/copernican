@@ -19,6 +19,7 @@ import logging
 import os
 import platform
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -73,7 +74,6 @@ from copernican_lib.run_lifecycle import (
     delete_manifest_workspace,
     finalize_run_workspace,
 )
-from validation.runner import run_validation_suite
 
 _KATEX_VERSION = "0.16.4"
 _EQUATION_EMPTY_BODY = (
@@ -492,6 +492,10 @@ class CopernicanGUI:
         self._validation_text_widget: tk.Text | None = None
         self._validation_log_lock_var: tk.BooleanVar | None = None
         self._validation_button: ttk.Button | None = None
+        self._validation_cancel_button: ttk.Button | None = None
+        self._validation_clear_button: ttk.Button | None = None
+        self._validation_process: subprocess.Popen[str] | None = None
+        self._validation_stdout_thread: threading.Thread | None = None
         self._validation_running = False
         self._diagnostics_filter_label: ttk.Label | None = None
         self._cancel_button: ttk.Button | None = None
@@ -2210,14 +2214,32 @@ class CopernicanGUI:
             self._validation_walker_progressbar.pack(fill="x", pady=(2, 0))
             controls = ttk.Frame(frame)
             controls.pack(fill="x", pady=(8, 4))
+            button_style = self._monitor_button_kwargs()
             self._validation_button = ttk.Button(
                 controls,
                 text="Run validation suite",
                 command=self._start_validation_run,
                 takefocus=True,
+                **button_style,
             )
-            self._validation_button.pack(side="left")
-            summary_frame = ttk.LabelFrame(frame, text="Validation summary")
+            self._validation_button.pack(side="left", padx=4)
+            self._validation_cancel_button = ttk.Button(
+                controls,
+                text="Cancel validation",
+                command=self._cancel_validation_run,
+                takefocus=True,
+                **button_style,
+            )
+            self._validation_cancel_button.pack(side="left", padx=4)
+            self._validation_clear_button = ttk.Button(
+                controls,
+                text="Clear validation",
+                command=self._clear_validation_results,
+                takefocus=True,
+                **button_style,
+            )
+            self._validation_clear_button.pack(side="left", padx=4)
+            summary_frame = ttk.LabelFrame(frame, text="Validation log")
             summary_frame.pack(fill="x", pady=(8, 0))
             summary_frame.columnconfigure(0, weight=1)
             summary_frame.rowconfigure(0, weight=0)
@@ -2269,7 +2291,8 @@ class CopernicanGUI:
                 )
             else:
                 existing_summary = "Validation summary not yet generated."
-            self._update_validation_text(existing_summary)
+            self._set_validation_summary_text(existing_summary)
+            self._update_validation_control_states()
 
         self._swap_content(builder)
 
@@ -2293,31 +2316,92 @@ class CopernicanGUI:
                 text="Status: running validation…"
             )
         self._prepare_validation_progress_monitor()
-        thread = threading.Thread(target=self._validation_worker, daemon=True)
-        console_output.write("GUI: validation suite queued for execution.")
-        thread.start()
-
-    def _validation_worker(self) -> None:
-        """Run the validation suite and post the result to the GUI."""
-
-        console_output.write(
-            "GUI validation: executing manifests via shared pipeline."
+        self._reset_validation_log_widget(
+            "Validation log streaming; progress updates appear below."
         )
+        self._update_validation_control_states()
+        console_output.write("GUI: validation suite queued for execution.")
+        self._launch_validation_worker()
+
+    def _launch_validation_worker(self) -> None:
+        """Start the CLI helper that runs the validation suite."""
+
+        if self._validation_process is not None:
+            return
+        command = [
+            sys.executable,
+            "-m",
+            "copernican",
+            "--run-validation",
+        ]
+        env = os.environ.copy()
+        env.setdefault("COPERNICAN_DETACH_GUI", "0")
+        env.setdefault("COPERNICAN_HEADLESS_RUN", "1")
+        if self._progress_state_path:
+            env["COPERNICAN_GUI_PROGRESS_PATH"] = self._progress_state_path
+        else:
+            env.pop("COPERNICAN_GUI_PROGRESS_PATH", None)
         try:
-            code, summary = run_validation_suite()
+            process = subprocess.Popen(
+                command,
+                cwd=str(self._repo_root()),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                env=env,
+            )
         except Exception as exc:
-            code = 1
-            summary = f"Validation runner could not start: {exc}"
-        validation_utils.write_validation_summary(summary, code == 0)
-        if self.content_area is None:
+            self.create_toast(
+                f"Failed to launch validation: {exc}",
+                severity="ERROR",
+                context="validation",
+            )
+            self._validation_running = False
             self._cleanup_validation_progress_monitor()
+            self._update_validation_control_states()
+            return
+        self._validation_process = process
+        self._validation_stdout_thread = threading.Thread(
+            target=self._stream_validation_output,
+            args=(process,),
+            daemon=True,
+        )
+        self._validation_stdout_thread.start()
+        threading.Thread(
+            target=self._monitor_validation_process,
+            args=(process,),
+            daemon=True,
+        ).start()
+
+    def _stream_validation_output(
+        self, process: subprocess.Popen[str]
+    ) -> None:
+        """Append the worker stdout lines to the validation log."""
+
+        if process.stdout is None:
+            return
+        for line in process.stdout:
+            cleaned = line.rstrip()
+            if cleaned:
+                self._append_validation_log_line(cleaned)
+
+    def _monitor_validation_process(
+        self, process: subprocess.Popen[str]
+    ) -> None:
+        """Watch the validation worker and react when it exits."""
+
+        return_code = process.wait()
+        summary = validation_utils.read_validation_summary()
+        if self.content_area is None:
+            self._complete_validation_run(return_code, summary)
             return
         self.content_area.after(
-            0, lambda: self._complete_validation_run(code, summary)
+            0, lambda: self._complete_validation_run(return_code, summary)
         )
 
     def _complete_validation_run(self, code: int, summary: str) -> None:
-        """Update the validation view after a run finishes."""
+        """Update the validation view after the worker finishes."""
 
         self._validation_running = False
         status = "passed" if code == 0 else "failed"
@@ -2325,42 +2409,144 @@ class CopernicanGUI:
             self._validation_status_label.configure(
                 text=f"Status: validation {status}"
             )
-        if self._validation_button:
-            self._validation_button.configure(state=tk.NORMAL)
-        self._update_validation_text(
+        self._append_validation_summary_text(
             summary or "Validation completed without producing summary text."
         )
-        self._cleanup_validation_progress_monitor()
         console_output.write(
             f"GUI validation: completed with code {code} and summary length "
             f"{len(summary)}."
         )
+        self._cleanup_validation_progress_monitor()
+        self._validation_process = None
+        self._validation_stdout_thread = None
+        self._update_validation_control_states()
 
-    def _update_validation_text(self, summary: str) -> None:
-        """Render validation summary text inside the current widget."""
+    def _append_validation_summary_text(self, summary: str) -> None:
+        """Append the validation summary text to the log widget."""
+
+        for line in summary.splitlines():
+            self._append_validation_log_line(line)
+
+    def _append_validation_log_line(self, line: str) -> None:
+        """Append a single log *line* to the validation text widget."""
 
         if not self._validation_text_widget:
             return
         lock_tail = self._validation_log_lock_var is None or bool(
             self._validation_log_lock_var.get()
         )
-        prev_view = None if lock_tail else self._validation_text_widget.yview()
         self._validation_text_widget.configure(state="normal")
-        self._validation_text_widget.delete("1.0", tk.END)
-        self._validation_text_widget.insert("1.0", summary)
+        self._validation_text_widget.insert("end", f"{line}\n")
         self._validation_text_widget.configure(state="disabled")
         if lock_tail:
             try:
                 self._validation_text_widget.yview_moveto(1.0)
             except Exception:
                 pass
-        elif prev_view:
+
+    def _reset_validation_log_widget(self, message: str | None = None) -> None:
+        """Clear the log widget so new entries can stream in."""
+
+        if not self._validation_text_widget:
+            return
+        self._validation_text_widget.configure(state="normal")
+        self._validation_text_widget.delete("1.0", tk.END)
+        if message:
+            self._validation_text_widget.insert("1.0", f"{message}\n")
+        self._validation_text_widget.configure(state="disabled")
+        if (
+            self._validation_log_lock_var
+            and self._validation_log_lock_var.get()
+        ):
             try:
-                self._validation_text_widget.yview_moveto(
-                    max(0.0, min(prev_view[0], 1.0))
-                )
+                self._validation_text_widget.yview_moveto(1.0)
             except Exception:
                 pass
+
+    def _set_validation_summary_text(self, summary: str) -> None:
+        """Show the latest validation summary when no run is active."""
+
+        if not self._validation_text_widget:
+            return
+        self._validation_text_widget.configure(state="normal")
+        self._validation_text_widget.delete("1.0", tk.END)
+        self._validation_text_widget.insert("1.0", summary)
+        self._validation_text_widget.configure(state="disabled")
+        if (
+            self._validation_log_lock_var
+            and self._validation_log_lock_var.get()
+        ):
+            try:
+                self._validation_text_widget.yview_moveto(1.0)
+            except Exception:
+                pass
+
+    def _update_validation_control_states(self) -> None:
+        """Enable/disable buttons depending on the validation state."""
+
+        if self._validation_button:
+            self._validation_button.configure(
+                state=tk.DISABLED if self._validation_running else tk.NORMAL
+            )
+        if self._validation_cancel_button:
+            self._validation_cancel_button.configure(
+                state=tk.NORMAL if self._validation_running else tk.DISABLED
+            )
+        if self._validation_clear_button:
+            self._validation_clear_button.configure(
+                state=tk.DISABLED if self._validation_running else tk.NORMAL
+            )
+
+    def _cancel_validation_run(self) -> None:
+        """Signal the running validation worker to stop early."""
+
+        if not self._validation_running or self._validation_process is None:
+            return
+        try:
+            self._validation_process.terminate()
+        except Exception as exc:
+            self.create_toast(
+                f"Failed to cancel validation: {exc}",
+                severity="WARNING",
+                context="validation",
+            )
+            return
+        self.create_toast(
+            "Validation cancellation requested.",
+            severity="INFO",
+            context="validation",
+        )
+
+    def _clear_validation_results(self) -> None:
+        """Remove every generated validation artifact and reset the view."""
+
+        if self._validation_running:
+            self.create_toast(
+                "Stop the validation run before clearing outputs.",
+                severity="WARNING",
+                context="validation",
+            )
+            return
+        output_dir = self._repo_root() / "validation" / "output"
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
+        if validation_utils.VALIDATION_FILE.exists():
+            validation_utils.VALIDATION_FILE.unlink(missing_ok=True)
+        self._reset_validation_log_widget(
+            "Validation outputs cleared. Run the suite to regenerate the log."
+        )
+        self._set_validation_summary_text(
+            "Validation summary not yet generated."
+        )
+        if self._validation_status_label:
+            self._validation_status_label.configure(text="Status: idle")
+        self.create_toast(
+            "Validation reports and outputs removed.",
+            severity="INFO",
+            context="validation",
+        )
+        self._update_validation_control_states()
+
         self._refresh_environment_status()
 
     def _prepare_validation_progress_monitor(self) -> None:
