@@ -560,7 +560,12 @@ class CopernicanGUI:
         """Start the diagnostics log and capture environment details."""
 
         program_logger = logger.get_program_logger()
-        self.application_log_path = logger.get_program_log_path() or ""
+        if not log_mod.get_program_log_path():
+            log_mod.setup_program_logging(
+                log_dir=str(self._repo_root() / "logs"),
+                base_dir=str(self._repo_root()),
+            )
+        self.application_log_path = log_mod.get_program_log_path() or ""
         self.application_log_handler = _MemoryLogHandler(prefix="app")
         self._attach_handler(program_logger, self.application_log_handler)
         logger.log_environment_info(

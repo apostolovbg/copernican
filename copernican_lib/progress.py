@@ -34,12 +34,16 @@ class BatchProgressBar:
         display: bool = True,
         progress_listener: Callable[[dict[str, object]], None] | None = None,
         stage_metadata: dict[str, str] | None = None,
+        subunit_labels: tuple[str, str] | None = None,
     ) -> None:
         self._stage_label = str(stage_label)
         self._total_steps = max(int(total_steps), 0)
         self._display = bool(display and self._total_steps > 0)
         self._progress_listener = progress_listener
         self._stage_metadata = dict(stage_metadata or {})
+        self._subunit_labels = (
+            tuple(subunit_labels) if subunit_labels else None
+        )
         self._lock = threading.RLock()
         self._batch_index = 0
         self._current_start = 1
