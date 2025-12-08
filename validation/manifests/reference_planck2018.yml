@@ -81,7 +81,7 @@ configuration:
   notes: Reference validation manifest for Planck 2018 base-ΛCDM.
   run_settings:
     engine_kind: mcmc
-    n_steps: 50 
+    n_steps: 50
     burn_in_steps: 10
     n_walkers: 64
     pool_size: 4
