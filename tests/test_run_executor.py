@@ -100,3 +100,68 @@ def test_execute_run_from_manifest_loads_datasets(monkeypatch, tmp_path):
     assert sampling_plan["engine_kind"] == "mcmc"
     assert pipeline_calls[0]["display_progress"]
     assert pipeline_calls[0]["output_dir"] == str(tmp_path)
+
+
+def test_execute_run_from_manifest_persists_manifest(monkeypatch, tmp_path):
+    manifest = {
+        "seed": 999,
+        "selection": {
+            "models": ["LambdaCDM"],
+            "engine": {
+                "name": "engines.cosmo_engine_mcmc",
+                "version": "7.6.20",
+            },
+        },
+        "datasets": {
+            "sne/pantheon": {
+                "name": "Pantheon",
+                "type": "sne",
+                "version": "1.0",
+                "path": "/tmp",
+            },
+        },
+        "configuration": {"run_settings": {"engine_kind": "mcmc"}},
+    }
+
+    def fake_dataset(*_, **__):
+        return FakeDataset()
+
+    monkeypatch.setattr(
+        run_executor.dataset_registry,
+        "load_sne_data",
+        lambda **kwargs: fake_dataset(),
+    )
+    monkeypatch.setattr(
+        run_executor.dataset_registry,
+        "load_bao_data",
+        lambda **kwargs: fake_dataset(),
+    )
+    monkeypatch.setattr(
+        run_executor.run_pipeline,
+        "execute_run_pipeline",
+        lambda **kwargs: ({}, {}),
+    )
+    monkeypatch.setattr(
+        run_executor,
+        "_build_plugin_from_path",
+        lambda path: SimpleNamespace(
+            MODEL_NAME=path.stem,
+            MODEL_FILENAME=path.name,
+        ),
+    )
+    monkeypatch.setattr(
+        run_executor.utils,
+        "get_timestamp",
+        lambda: "20250101_000000",
+    )
+
+    run_executor._PLUGIN_CACHE.clear()
+    run_executor.execute_run_from_manifest(
+        manifest,
+        script_dir=Path("."),
+        output_root=tmp_path,
+    )
+    manifest_path = tmp_path / "run_manifest_20250101_000000.yml"
+    assert manifest_path.exists()
+    content = manifest_path.read_text(encoding="utf-8")
+    assert "seed: 999" in content

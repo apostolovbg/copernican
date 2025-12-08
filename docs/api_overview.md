@@ -200,3 +200,42 @@ Example::
     from copernican_lib import result_writer
     summary = {"LCDM": engine_results}
     result_writer.save_summary(summary, "output/run")
+
+## Run Analysis Helpers
+
+The new :mod:`copernican_lib.analysis` module inspects an existing run directory,
+reads the latest manifest/parameter summary, scans the generated log, and
+assembles a structured :class:`copernican_lib.analysis.RunAnalysisResult`.  The
+summary includes run timing, diagnostics such as R-hat and ESS, dataset
+counts, and per-model chi-squared plus BAO/CMB residual metadata so tools can
+report consistent tables or JSON blobs without re-parsing log files manually.
+
+Calling :func:`copernican_lib.analysis.analyze_run` on ``output/copernican-run_...`` returns
+the dataclass, while :meth:`RunAnalysisResult.to_dict` produces a serialisable
+representation for downstream APIs:
+
+```python
+from copernican_lib import analysis
+
+result = analysis.analyze_run("output/copernican-run_20251207_200254")
+print(result.model_summaries["LambdaCDM"].chi2["chi2_total"])
+print(result.duration_seconds)
+```
+
+For workflows that need files rather than dataclasses, use
+``analysis.save_run_summary`` to persist the structured result:
+
+```python
+from pathlib import Path
+from copernican_lib import analysis
+
+summary_paths = analysis.save_run_summary(
+    Path("output/copernican-run_20251207_200254"),
+    Path("reports/analysis"),
+    formats=("yml", "json"),
+)
+print(summary_paths["yml"])  # analysis-summary_20251207_200254.yml
+```
+
+Each file contains the mapped fields from :class:`RunAnalysisResult`, including
+datasets, diagnostics, ``model_summaries`` and links back to the manifest/log.

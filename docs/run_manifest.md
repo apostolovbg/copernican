@@ -78,6 +78,11 @@ Hard stops or cancellations update ``status.state`` to ``aborted`` or
 offer **Import manifest...** so a manifest saved on one machine can be cloned,
 retimestamped for the current run directory and inserted directly into the
 builder.
+`copernican_lib.run_executor.execute_run_from_manifest` now ensures a
+timestamped `run_manifest_<timestamp>.yml` file is saved beneath `output_dir`
+before sampling begins. That copy surfaces inside CLI, GUI, and validation runs
+so every run directory permanently archives the manifest that drove the
+execution regardless of where the source manifest file originated.
 
 The Stage 2 sampler now constructs its NumPy random number generator from the
 shared :func:`copernican_lib.utils.get_random_seed` value.  That helper is

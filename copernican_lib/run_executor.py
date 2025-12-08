@@ -18,6 +18,7 @@ from copernican_lib import logger as log_mod
 from copernican_lib import (
     model_coder,
     model_spec_validator,
+    run_manifest,
     run_pipeline,
     utils,
 )
@@ -140,7 +141,24 @@ def execute_run_from_manifest(
     )
     if strict_warnings:
         log.info("Strict warnings enforced via manifest run.")
+    output_root.mkdir(parents=True, exist_ok=True)
     actual_ts = _resolve_run_timestamp(output_root, run_start_ts)
+    manifest_filename = f"run_manifest_{actual_ts}.yml"
+    manifest_target = output_root / manifest_filename
+    try:
+        run_manifest.save_manifest(
+            manifest,
+            str(output_root),
+            target_path=manifest_target,
+        )
+    except Exception as exc:
+        log.warning(
+            "Failed to copy manifest into %s: %s",
+            manifest_target,
+            exc,
+        )
+    else:
+        log.info("Persisted manifest at %s", manifest_target)
     run_log = log_mod.setup_logging(
         log_dir=str(output_root),
         base_dir=str(script_dir),

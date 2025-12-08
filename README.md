@@ -895,7 +895,10 @@ Each run directory also contains a YAML manifest named
 engine, parameter priors, dataset names, versions, SHA256 hashes, the
 independence statements declared by the loaders and the Git commit. The
 timestamp mirrors the start-of-run identifier used by the output directory and
-per-run log, so every artefact shares the same anchor. The manifest's
+per-run log, so every artefact shares the same anchor. `copernican_lib.run_executor`
+always copies the manifest into each run directory before sampling, so CLI runs
+started with `--manifest`, validation executions and GUI-launched analyses all
+archive the manifest alongside their plots, chains and logs. The manifest's
 ``configuration.run_settings`` block records the sampler configuration
 (walkers, burn-in, production steps, pool/core hints and nested-sampling
 settings) so replayed runs inherit the exact engine parameters. See

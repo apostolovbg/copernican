@@ -90,6 +90,9 @@ flags execute their action and exit immediately:
   `fixed` prior so the sampler still emits its reference trace and the plots keep
   drawing the comparison lines even though the values never wander from the
   Planck 2018 anchor.
+  The executor now persists a `run_manifest_<timestamp>.yml` copy inside each
+  validation run directory so the manifest that drove the analysis stays
+  alongside the outputs.
 
 ## Executing Saved Manifests
 Both the CLI and GUI rely on
@@ -100,6 +103,11 @@ Both the CLI and GUI rely on
 2. Run `python copernican.py --manifest /path/to/manifest.yml`.
 3. (Optional) Set `--output-dir` to store outputs in a deterministic folder for
    CI environments.
+
+`copernican_lib.run_executor.execute_run_from_manifest` also saves a timestamped
+`run_manifest_<timestamp>.yml` inside the provided output directory before
+sampling begins, so CLI and validation runs archive the manifest even when they
+only receive a reference to an existing YAML file.
 
 The executor rebuilds the declared models via
 `copernican_lib.plugins.build_engine_plugin`, reloads datasets using the
