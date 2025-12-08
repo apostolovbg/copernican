@@ -29,6 +29,14 @@ suffixes. Follow this template:
             exposes `RunAnalysisResult.to_dict` for serialisation and is
             documented next to validation-focused tests (copernican_lib/analysis.py,
             docs/api_overview.md, tests/test_analysis.py, CHANGELOG.md).
+- 2025-12-12: Introduced the GUI Analysis tab (between Engines and
+            Validation) with a tabbed scaffold mirroring Settings plus a
+            Run Summary page that loads manifests/logs, renders dataset counts,
+            diagnostics and chi² breakdowns, and lets operators reload,
+            export or copy the structured `analysis-summary_<ts>` files while
+            the other tabs stay scaffolded for future diagnostics/posterior
+            work (copernican_lib/gui/app.py, docs/gui_overview.md,
+            CHANGELOG.md).
 - 2025-12-11: Stabilized reference-model manifests (e.g. Planck 2018 Reference LambdaCDM) by having `engines/cosmo_engine_mcmc.py` mirror the fixed parameter vector, emit placeholder chains, and always report the configured worker pool count so diagnostics stay complete even when no active dimensions remain (engines/cosmo_engine_mcmc.py, CHANGELOG.md).
 - 2025-12-11: Split the GUI Run Monitor stream from the per-run reproducibility log by introducing a dedicated monitor logger at `logs/runs/*.txt`; the CLI still writes its full trace under each `output/copernican-run_<timestamp>/` folder so the archive and the UI view stay distinct (copernican_lib/gui/app.py, copernican_lib/logger.py, docs/gui_overview.md, docs/cli_guide.md, CHANGELOG.md).
 

@@ -12,7 +12,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 import yaml
 
@@ -84,7 +84,9 @@ def _load_yaml_or_json(path: Path) -> Any:
         return json.load(fh)
 
 
-def load_parameter_summary(run_dir: Path) -> tuple[Optional[Mapping[str, Any]], Optional[Path]]:
+def load_parameter_summary(
+    run_dir: Path,
+) -> tuple[Optional[Mapping[str, Any]], Optional[Path]]:
     """Return the latest parameter-summary file and its contents."""
 
     run_dir = Path(run_dir)
@@ -98,7 +100,9 @@ def load_parameter_summary(run_dir: Path) -> tuple[Optional[Mapping[str, Any]], 
     return None, None
 
 
-def load_manifest(run_dir: Path) -> tuple[Optional[Mapping[str, Any]], Optional[Path]]:
+def load_manifest(
+    run_dir: Path,
+) -> tuple[Optional[Mapping[str, Any]], Optional[Path]]:
     """Return the most recent manifest under ``run_dir``."""
 
     run_dir = Path(run_dir)
@@ -114,22 +118,35 @@ _FIT_REPORT_RE = re.compile(r"^--- (?P<label>.+?) Fit Report ---$")
 _DATASET_INFO_RE = re.compile(
     r"^Dataset (?P<id>[^ ]+) \((?P<type>[^)]+)\): (?P<name>.+)$"
 )
-_DATASET_LOADED_RE = re.compile(r"^Loaded dataset (?P<id>[^:]+): (?P<count>\d+) entries$")
+_DATASET_LOADED_RE = re.compile(
+    r"^Loaded dataset (?P<id>[^:]+): (?P<count>\d+) entries$"
+)
 _RHAT_RE = re.compile(
-    r"^Rank-normalised R-hat summary: min=(?P<min>[\d.+-eE]+) median=(?P<median>[\d.+-eE]+) max=(?P<max>[\d.+-eE]+)$"
+    r"^Rank-normalised R-hat summary: "
+    r"min=(?P<min>[\d.+-eE]+) "
+    r"median=(?P<median>[\d.+-eE]+) "
+    r"max=(?P<max>[\d.+-eE]+)$"
 )
 _ESS_RE = re.compile(
-    r"^Effective sample sizes: bulk median=(?P<bulk>[\d.+-eE]+) tail median=(?P<tail>[\d.+-eE]+)$"
+    r"^Effective sample sizes: "
+    r"bulk median=(?P<bulk>[\d.+-eE]+) "
+    r"tail median=(?P<tail>[\d.+-eE]+)$"
 )
 _ACCEPTANCE_RE = re.compile(
-    r"^MCMC acceptance for (?P<label>.+): mean=(?P<mean>[\d.+-eE]+), min=(?P<min>[\d.+-eE]+), max=(?P<max>[\d.+-eE]+)$"
+    r"^MCMC acceptance for (?P<label>.+): "
+    r"mean=(?P<mean>[\d.+-eE]+), "
+    r"min=(?P<min>[\d.+-eE]+), "
+    r"max=(?P<max>[\d.+-eE]+)$"
 )
 _BAO_RS_RE = re.compile(
-    r"^(?P<label>.+) BAO: r_s = (?P<rs>[\d.+-eE]+) Mpc, [^=]+= (?P<chi2>[\d.+-eE]+)$"
+    r"^(?P<label>.+) BAO: r_s = (?P<rs>[\d.+-eE]+) "
+    r"Mpc, [^=]+= (?P<chi2>[\d.+-eE]+)$"
 )
 
 
-def _split_log_line(line: str) -> tuple[Optional[datetime.datetime], Optional[str]]:
+def _split_log_line(
+    line: str,
+) -> tuple[Optional[datetime.datetime], Optional[str]]:
     parts = line.split(" - ", 2)
     if len(parts) < 3:
         return None, line.strip()
@@ -139,7 +156,9 @@ def _split_log_line(line: str) -> tuple[Optional[datetime.datetime], Optional[st
 
 def _parse_timestamp(timestamp: str) -> Optional[datetime.datetime]:
     try:
-        return datetime.datetime.strptime(timestamp.strip(), "%Y-%m-%d %H:%M:%S,%f")
+        return datetime.datetime.strptime(
+            timestamp.strip(), "%Y-%m-%d %H:%M:%S,%f"
+        )
     except ValueError:
         return None
 
@@ -157,7 +176,9 @@ def _find_log_file(run_dir: Path) -> Optional[Path]:
 
 
 def parse_log(log_path: Path) -> Mapping[str, Any]:
-    """Parse the Copernican run log for diagnostics and chi-squared summaries."""
+    """
+    Parse the Copernican run log for diagnostics and chi-squared summaries.
+    """
 
     datasets: dict[str, dict[str, str]] = {}
     counts: dict[str, int] = {}
@@ -195,7 +216,9 @@ def parse_log(log_path: Path) -> Mapping[str, Any]:
                 }
             loaded_match = _DATASET_LOADED_RE.match(message)
             if loaded_match:
-                counts[loaded_match.group("id")] = int(loaded_match.group("count"))
+                counts[loaded_match.group("id")] = int(
+                    loaded_match.group("count")
+                )
             rhat_match = _RHAT_RE.match(message)
             if rhat_match:
                 rhat = {
@@ -219,10 +242,16 @@ def parse_log(log_path: Path) -> Mapping[str, Any]:
                 }
             fit_match = _FIT_REPORT_RE.match(message)
             if fit_match:
-                current_model_key = _normalize_model_label(fit_match.group("label"))
+                current_model_key = _normalize_model_label(
+                    fit_match.group("label")
+                )
                 log_models.setdefault(
                     current_model_key,
-                    {"label": fit_match.group("label"), "chi2": {}, "bao_rs": None},
+                    {
+                        "label": fit_match.group("label"),
+                        "chi2": {},
+                        "bao_rs": None,
+                    },
                 )
                 continue
             bao_match = _BAO_RS_RE.match(message)
@@ -230,7 +259,11 @@ def parse_log(log_path: Path) -> Mapping[str, Any]:
                 key = _normalize_model_label(bao_match.group("label"))
                 entry = log_models.setdefault(
                     key,
-                    {"label": bao_match.group("label"), "chi2": {}, "bao_rs": None},
+                    {
+                        "label": bao_match.group("label"),
+                        "chi2": {},
+                        "bao_rs": None,
+                    },
                 )
                 entry["bao_rs"] = _parse_float(bao_match.group("rs"))
                 if "chi2_bao" not in entry["chi2"]:
@@ -245,7 +278,7 @@ def parse_log(log_path: Path) -> Mapping[str, Any]:
                 key, value = map(str.strip, content.split("=", 1))
                 log_models[current_model_key]["chi2"][
                     _sanitize_metric_name(key)
-                ] = _parse_float(value) or 0.0
+                ] = (_parse_float(value) or 0.0)
 
     if end_time is None and last_ts is not None:
         end_time = last_ts
@@ -312,7 +345,9 @@ class RunAnalysisResult:
             str(self.manifest_path) if self.manifest_path else None
         )
         result["parameter_summary_path"] = (
-            str(self.parameter_summary_path) if self.parameter_summary_path else None
+            str(self.parameter_summary_path)
+            if self.parameter_summary_path
+            else None
         )
         result["log_path"] = str(self.log_path) if self.log_path else None
         result["model_summaries"] = {
@@ -403,7 +438,9 @@ def _normalize_formats(formats: Sequence[str] | str) -> list[str]:
     return [fmt.casefold() for fmt in formats]
 
 
-def _summary_timestamp(result: RunAnalysisResult, *, override: str | None) -> str:
+def _summary_timestamp(
+    result: RunAnalysisResult, *, override: str | None
+) -> str:
     if override:
         return override
     ts_source = result.start_time
@@ -428,7 +465,10 @@ def save_run_summary(
     run_dir: Path | str,
     output_dir: Path | str,
     *,
-    formats: Sequence[str] | str = ("yml", "json"),
+    formats: Sequence[str] | str = (
+        "yml",
+        "json",
+    ),
     timestamp: str | None = None,
     result: RunAnalysisResult | None = None,
 ) -> dict[str, Path]:
@@ -440,8 +480,8 @@ def save_run_summary(
         Directory that produced the run outputs.  If ``result`` is provided the
         helper skips re-running :func:`analyze_run`.
     output_dir:
-        Directory where the summary files will be written.  Parent directories are
-        created automatically.
+        Directory where the summary files will be written.
+        Parent directories are created automatically.
     formats:
         Case-insensitive list of file formats to produce. Supported values are
         ``"yml"``/``"yaml"`` and ``"json"``.  Defaults to both YAML and JSON.
@@ -474,4 +514,9 @@ def save_run_summary(
     return saved
 
 
-__all__ = ["analyze_run", "RunAnalysisResult", "ModelSummary", "RunDiagnostics"]
+__all__ = [
+    "analyze_run",
+    "RunAnalysisResult",
+    "ModelSummary",
+    "RunDiagnostics",
+]

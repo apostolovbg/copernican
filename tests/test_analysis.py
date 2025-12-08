@@ -18,18 +18,35 @@ def _write_log(tmp_path, content: str, name: str) -> None:
 
 
 def test_parse_log_extracts_metrics(tmp_path):
-    log_lines = """
-        2025-12-08 01:09:21,563 - INFO - --- ΛCDM Fit Report ---
-        2025-12-08 01:09:21,564 - INFO -   χ²_Total = 352.47
-        2025-12-08 01:09:21,565 - INFO -   χ²_SNe = 29.44
-        2025-12-08 01:09:21,565 - INFO -   χ²_BAO = 5.03
-        2025-12-08 01:09:21,566 - INFO -   χ²_CMB = 318.00
-        2025-12-08 01:09:21,567 - INFO - LambdaCDM BAO: r_s = 145.89 Mpc, χ²_BAO = 5.03
-        2025-12-08 01:09:21,567 - INFO - Rank-normalised R-hat summary: min=1.317 median=1.464 max=1.524
-        2025-12-08 01:09:21,567 - INFO - Effective sample sizes: bulk median=64.0 tail median=155.5
-        2025-12-08 01:09:21,567 - INFO - MCMC acceptance for ΛCDM: mean=0.457, min=0.390, max=0.560
-        2025-12-08 01:09:21,568 - INFO - Evaluation complete.
-    """
+    log_lines = "\n".join(
+        [
+            "2025-12-08 01:09:21,563 - INFO - --- ΛCDM Fit Report ---",
+            "2025-12-08 01:09:21,564 - INFO -   χ²_Total = 352.47",
+            "2025-12-08 01:09:21,565 - INFO -   χ²_SNe = 29.44",
+            "2025-12-08 01:09:21,565 - INFO -   χ²_BAO = 5.03",
+            "2025-12-08 01:09:21,566 - INFO -   χ²_CMB = 318.00",
+            (
+                "2025-12-08 01:09:21,567 - INFO - LambdaCDM BAO: "
+                "r_s = 145.89 Mpc, χ²_BAO = 5.03"
+            ),
+            (
+                "2025-12-08 01:09:21,567 - INFO - "
+                "Rank-normalised R-hat summary: min=1.317 "
+                "median=1.464 max=1.524"
+            ),
+            (
+                "2025-12-08 01:09:21,567 - INFO - "
+                "Effective sample sizes: bulk median=64.0 "
+                "tail median=155.5"
+            ),
+            (
+                "2025-12-08 01:09:21,567 - INFO - "
+                "MCMC acceptance for ΛCDM: "
+                "mean=0.457, min=0.390, max=0.560"
+            ),
+            "2025-12-08 01:09:21,568 - INFO - Evaluation complete.",
+        ]
+    )
     log_path = _write_log(tmp_path, log_lines, "validation_run_test.txt")
     parsed = analysis.parse_log(log_path)
     assert parsed["diagnostics"]["rhat"]["median"] == 1.464
@@ -70,14 +87,22 @@ def test_analyze_run_merges_sources(tmp_path):
     summary_path = run_dir / "parameter-summary_20250101_000000.yml"
     summary_path.write_text(yaml.safe_dump(summary))
 
-    log_lines = """
-        2025-12-08 01:09:21,563 - INFO - --- ΛCDM Fit Report ---
-        2025-12-08 01:09:21,564 - INFO -   χ²_Total = 360.11
-        2025-12-08 01:09:21,565 - INFO -   χ²_BAO = 4.50
-        2025-12-08 01:09:21,566 - INFO - LambdaCDM BAO: r_s = 146.12 Mpc, χ²_BAO = 4.50
-        2025-12-08 01:09:21,566 - INFO - Loaded dataset union3_2025: 5 entries
-        2025-12-08 01:09:21,568 - INFO - Evaluation complete.
-    """
+    log_lines = "\n".join(
+        [
+            "2025-12-08 01:09:21,563 - INFO - --- ΛCDM Fit Report ---",
+            "2025-12-08 01:09:21,564 - INFO -   χ²_Total = 360.11",
+            "2025-12-08 01:09:21,565 - INFO -   χ²_BAO = 4.50",
+            (
+                "2025-12-08 01:09:21,566 - INFO - LambdaCDM BAO: "
+                "r_s = 146.12 Mpc, χ²_BAO = 4.50"
+            ),
+            (
+                "2025-12-08 01:09:21,566 - INFO - Loaded dataset "
+                "union3_2025: 5 entries"
+            ),
+            "2025-12-08 01:09:21,568 - INFO - Evaluation complete.",
+        ]
+    )
     log_file = run_dir / "copernican-run_20250101_000000.txt"
     log_file.write_text(textwrap.dedent(log_lines).strip() + "\n")
 
@@ -122,14 +147,22 @@ def test_save_run_summary_creates_serialised_files(tmp_path):
         yaml.safe_dump(summary)
     )
 
-    log_lines = """
-        2025-12-08 01:09:21,563 - INFO - --- ΛCDM Fit Report ---
-        2025-12-08 01:09:21,564 - INFO -   χ²_Total = 360.11
-        2025-12-08 01:09:21,565 - INFO -   χ²_BAO = 4.50
-        2025-12-08 01:09:21,566 - INFO -   LambdaCDM BAO: r_s = 146.12 Mpc, χ²_BAO = 4.50
-        2025-12-08 01:09:21,566 - INFO - Loaded dataset union3_2025: 5 entries
-        2025-12-08 01:09:21,568 - INFO - Evaluation complete.
-    """
+    log_lines = "\n".join(
+        [
+            "2025-12-08 01:09:21,563 - INFO - --- ΛCDM Fit Report ---",
+            "2025-12-08 01:09:21,564 - INFO -   χ²_Total = 360.11",
+            "2025-12-08 01:09:21,565 - INFO -   χ²_BAO = 4.50",
+            (
+                "2025-12-08 01:09:21,566 - INFO - "
+                "LambdaCDM BAO: r_s = 146.12 Mpc, χ²_BAO = 4.50"
+            ),
+            (
+                "2025-12-08 01:09:21,566 - INFO - Loaded dataset "
+                "union3_2025: 5 entries"
+            ),
+            "2025-12-08 01:09:21,568 - INFO - Evaluation complete.",
+        ]
+    )
     log_file = run_dir / "copernican-run_20250101_000000.txt"
     log_file.write_text(textwrap.dedent(log_lines).strip() + "\n")
 
@@ -140,5 +173,7 @@ def test_save_run_summary_creates_serialised_files(tmp_path):
     loaded = yaml.safe_load(saved["yml"].read_text())
     assert loaded["datasets"]["union3_2025"]["name"] == "Union sample"
     assert "LambdaCDM" in loaded["model_summaries"]
-    assert loaded["model_summaries"]["LambdaCDM"]["chi2"]["chi2_total"] == 360.11
+    assert (
+        loaded["model_summaries"]["LambdaCDM"]["chi2"]["chi2_total"] == 360.11
+    )
     assert saved["json"].exists()

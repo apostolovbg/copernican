@@ -88,6 +88,24 @@ widget still exists before touching it, so switching away from the Run Monitor
 or Validation tabs no longer triggers Tk errors while the background run keeps
 streaming updates uninterrupted.
 
+## Analysis
+
+The navigation rail now includes an **Analysis** button between Engines and
+Validation. Pressing it opens a 4-tab workspace that mirrors the Settings
+screen’s tab bar. Each tab shows a contextual description, a row of three action
+buttons and a dedicated body frame—Run Summary is fully wired while Diagnostics,
+Posteriors and Comparisons remain placeholder panels (their buttons are currently
+labeled “1”, “2” and “3” and do nothing until those pages ship).
+
+Run Summary lets you browse to any ``output/copernican-run_*`` folder, load the
+manifest/log/parameter summary-derived diagnostics and render the results inside a
+scrollable text pane. The “Reload summary” button re-parses the folder,
+“Export summary” saves structured ``analysis-summary_<timestamp>.yml``/``.json``
+copies into the selected directory, and “Copy JSON” pours the serialised result
+into the clipboard for quick reporting. The summary lists datasets, row counts,
+R-hat/ESS diagnostics, model χ² components, BAO ``r_s`` values and the run’s
+timestamps without forcing you to re-run the CLI workflow.
+
 ## Validation
 The navigation rail now includes a **Validation** button positioned between
 Engines and Settings. When you press it, the GUI launches `python copernican.py

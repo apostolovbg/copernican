@@ -52,6 +52,7 @@ import yaml
 
 import rng_minigames
 from copernican_lib import (
+    analysis,
     console_output,
     dataset_registry,
     logger,
@@ -534,6 +535,117 @@ class CopernicanGUI:
                 "builder": self._build_settings_tools_page,
             },
         ]
+        self._analysis_sections = [
+            {
+                "id": "run_summary",
+                "label": "Run Summary",
+                "description": (
+                    "Select an existing output folder, inspect the summary "
+                    "metadata and load diagnostics/χ² breakdowns without "
+                    "replaying the CLI log."
+                ),
+                "builder": self._build_analysis_run_summary_page,
+                "actions": [
+                    {
+                        "label": "Reload summary",
+                        "command": self._load_analysis_summary,
+                    },
+                    {
+                        "label": "Export summary",
+                        "command": self._export_analysis_summary,
+                    },
+                    {
+                        "label": "Copy JSON",
+                        "command": self._copy_analysis_summary_to_clipboard,
+                    },
+                ],
+            },
+            {
+                "id": "diagnostics",
+                "label": "Diagnostics",
+                "description": (
+                    "Diagnostics explorers and runtime alerts will surface "
+                    "here once implemented."
+                ),
+                "builder": lambda frame: self._build_analysis_placeholder_page(
+                    frame, "Diagnostics"
+                ),
+                "actions": [
+                    {
+                        "label": "1",
+                        "command": self._analysis_placeholder_action,
+                    },
+                    {
+                        "label": "2",
+                        "command": self._analysis_placeholder_action,
+                    },
+                    {
+                        "label": "3",
+                        "command": self._analysis_placeholder_action,
+                    },
+                ],
+            },
+            {
+                "id": "posteriors",
+                "label": "Posteriors",
+                "description": (
+                    "Posterior explorers, plots and trace analysis will "
+                    "appear here in future phases."
+                ),
+                "builder": lambda frame: self._build_analysis_placeholder_page(
+                    frame, "Posteriors"
+                ),
+                "actions": [
+                    {
+                        "label": "1",
+                        "command": self._analysis_placeholder_action,
+                    },
+                    {
+                        "label": "2",
+                        "command": self._analysis_placeholder_action,
+                    },
+                    {
+                        "label": "3",
+                        "command": self._analysis_placeholder_action,
+                    },
+                ],
+            },
+            {
+                "id": "comparisons",
+                "label": "Comparisons",
+                "description": (
+                    "Comparison reports for pairs of manifests will live here "
+                    "once the workflow matures."
+                ),
+                "builder": lambda frame: self._build_analysis_placeholder_page(
+                    frame, "Comparisons"
+                ),
+                "actions": [
+                    {
+                        "label": "1",
+                        "command": self._analysis_placeholder_action,
+                    },
+                    {
+                        "label": "2",
+                        "command": self._analysis_placeholder_action,
+                    },
+                    {
+                        "label": "3",
+                        "command": self._analysis_placeholder_action,
+                    },
+                ],
+            },
+        ]
+        self._analysis_current_index = 0
+        self._analysis_section_buttons: list[ttk.Button] = []
+        self._analysis_action_buttons: list[ttk.Button] = []
+        self._analysis_header_label: ttk.Label | None = None
+        self._analysis_description_label: ttk.Label | None = None
+        self._analysis_page_body: ttk.Frame | None = None
+        self._analysis_run_path_var: tk.StringVar | None = None
+        self._analysis_summary_status_label: ttk.Label | None = None
+        self._analysis_summary_text_widget: tk.Text | None = None
+        self._analysis_summary_result: analysis.RunAnalysisResult | None = None
         self._settings_section_buttons: list[ttk.Button] = []
         self._settings_current_index = 0
         self._settings_header_label: ttk.Label | None = None
@@ -1800,6 +1912,11 @@ class CopernicanGUI:
             NavigationItem("models", "Models", CopernicanGUI.show_models),
             NavigationItem("engines", "Engines", CopernicanGUI.show_engines),
             NavigationItem(
+                "analysis",
+                "Analysis",
+                CopernicanGUI.show_analysis,
+            ),
+            NavigationItem(
                 "validation",
                 "Validation",
                 CopernicanGUI.show_validation,
@@ -2290,6 +2407,414 @@ class CopernicanGUI:
             self._refresh_validation_progress_widgets()
 
         self._swap_content(builder)
+
+    def show_analysis(self) -> None:
+        """Display an analysis workspace with tabbed sections."""
+
+        def builder(frame: tk.Frame) -> None:
+            section = self._analysis_sections[self._analysis_current_index]
+            header_text = f"Analysis: {section['label']}"
+            self._analysis_header_label = self._page_header(frame, header_text)
+            tab_bar = ttk.Frame(frame)
+            tab_bar.pack(fill="x", pady=(0, 8))
+            self._analysis_section_buttons = []
+            button_style = self._monitor_button_kwargs()
+            for index, sec in enumerate(self._analysis_sections):
+                button = ttk.Button(
+                    tab_bar,
+                    text=sec["label"],
+                    command=lambda idx=index: self._navigate_analysis_section(
+                        idx
+                    ),
+                    takefocus=True,
+                    **button_style,
+                )
+                button.pack(side="left", padx=4)
+                self._analysis_section_buttons.append(button)
+            self._analysis_description_label = ttk.Label(
+                frame,
+                text=section["description"],
+                wraplength=720,
+                takefocus=True,
+            )
+            self._analysis_description_label.pack(anchor="w", pady=(0, 8))
+            action_row = ttk.Frame(frame)
+            action_row.pack(fill="x", pady=(0, 20))
+            self._analysis_action_buttons = []
+            for _ in range(3):
+                button = ttk.Button(
+                    action_row,
+                    text="",
+                    command=self._analysis_placeholder_action,
+                    takefocus=True,
+                    **button_style,
+                )
+                button.pack(side="left", padx=4)
+                self._analysis_action_buttons.append(button)
+            body = ttk.Frame(frame)
+            body.pack(fill="both", expand=True)
+            self._analysis_page_body = body
+            self._refresh_analysis_section()
+
+        if not self.render or self.root is None:
+            return
+        self._swap_content(builder)
+
+    def _navigate_analysis_section(self, index: int) -> None:
+        """Switch to a different analysis section tab."""
+
+        if index == self._analysis_current_index:
+            return
+        self._analysis_current_index = index
+        self._refresh_analysis_section()
+
+    def _refresh_analysis_section(self) -> None:
+        """Update labels, buttons and builder content for the current tab."""
+
+        if not self._analysis_sections:
+            return
+        section = self._analysis_sections[self._analysis_current_index]
+        if self._analysis_header_label is not None:
+            self._analysis_header_label.configure(
+                text=f"Analysis: {section['label']}"
+            )
+        if self._analysis_description_label is not None:
+            self._analysis_description_label.configure(
+                text=section["description"]
+            )
+        for index, button in enumerate(self._analysis_section_buttons):
+            if index == self._analysis_current_index:
+                button.state(["disabled"])
+            else:
+                button.state(["!disabled"])
+        self._refresh_analysis_action_buttons(section["actions"])
+        if self._analysis_page_body is not None:
+            for child in self._analysis_page_body.winfo_children():
+                child.destroy()
+            section["builder"](self._analysis_page_body)
+
+    def _refresh_analysis_action_buttons(
+        self, actions: Sequence[Mapping[str, Any]]
+    ) -> None:
+        """Update the action buttons beneath the description."""
+
+        for button, action in zip(self._analysis_action_buttons, actions):
+            button.configure(text=action["label"], command=action["command"])
+
+    def _analysis_placeholder_action(self) -> None:
+        """No-op placeholder invoked by unfinished action buttons."""
+
+        return
+
+    def _build_analysis_run_summary_page(self, container: tk.Frame) -> None:
+        """Render the Run Summary tab content."""
+
+        if tk is None:
+            ttk.Label(
+                container,
+                text="GUI is unavailable in this environment.",
+                wraplength=720,
+            ).pack(anchor="w")
+            return
+
+        run_path_var = self._analysis_run_path_var
+        if run_path_var is None:
+            run_path_var = tk.StringVar()
+            self._analysis_run_path_var = run_path_var
+
+        row = ttk.Frame(container)
+        row.pack(fill="x", pady=(0, 6))
+        ttk.Label(row, text="Run directory:").pack(side="left")
+        entry = ttk.Entry(row, textvariable=run_path_var, width=60)
+        entry.pack(side="left", fill="x", expand=True, padx=(4, 4))
+        entry.bind("<Return>", lambda event: self._load_analysis_summary())
+        ttk.Button(
+            row,
+            text="Browse…",
+            command=self._browse_analysis_run_dir,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        ).pack(side="left")
+        ttk.Button(
+            row,
+            text="Load summary",
+            command=self._load_analysis_summary,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        ).pack(side="left", padx=(4, 0))
+
+        self._analysis_summary_status_label = ttk.Label(
+            container,
+            text="Select a run output directory and load its summary.",
+            wraplength=720,
+            takefocus=True,
+        )
+        self._analysis_summary_status_label.pack(anchor="w", pady=(4, 6))
+
+        text_panel = ttk.Frame(container)
+        text_panel.pack(fill="both", expand=True)
+        text_panel.columnconfigure(0, weight=1)
+        text_panel.rowconfigure(0, weight=1)
+        if tk is not None:
+            self._analysis_summary_text_widget = tk.Text(
+                text_panel,
+                wrap="none",
+                padx=8,
+                pady=6,
+                borderwidth=0,
+                highlightthickness=0,
+                height=18,
+            )
+            self._analysis_summary_text_widget.grid(
+                row=0, column=0, sticky="nsew"
+            )
+            vscroll = ttk.Scrollbar(
+                text_panel,
+                orient="vertical",
+                command=self._analysis_summary_text_widget.yview,
+            )
+            vscroll.grid(row=0, column=1, sticky="ns")
+            hscroll = ttk.Scrollbar(
+                text_panel,
+                orient="horizontal",
+                command=self._analysis_summary_text_widget.xview,
+            )
+            hscroll.grid(row=1, column=0, sticky="ew")
+            self._analysis_summary_text_widget.configure(
+                yscrollcommand=vscroll.set, xscrollcommand=hscroll.set
+            )
+            self._analysis_summary_text_widget.configure(state="disabled")
+
+            ttk.Label(
+                container,
+                text=(
+                    "Loaded summaries show run metadata, diagnostics and "
+                    "chi² breakdowns sourced from the manifest, parameter "
+                    "summary and log."
+                ),
+                wraplength=720,
+                justify="left",
+            ).pack(anchor="w", pady=(8, 0))
+
+    def _build_analysis_placeholder_page(
+        self, container: tk.Frame, label: str
+    ) -> None:
+        """Render a placeholder tab that is pending implementation."""
+
+        ttk.Label(
+            container,
+            text=(
+                f"{label} tools are coming soon. "
+                "Check the run summary first."
+            ),
+            wraplength=720,
+            justify="left",
+        ).pack(anchor="w")
+        ttk.Label(
+            container,
+            text="Use the numbered buttons above once those tabs are live.",
+            wraplength=720,
+            justify="left",
+        ).pack(anchor="w", pady=(4, 0))
+
+    def _browse_analysis_run_dir(self) -> None:
+        """Ask the user to pick a run output folder."""
+
+        if filedialog is None:
+            self.create_toast(
+                "File dialogs are unavailable in this environment.",
+                severity="ERROR",
+                context="analysis",
+            )
+            return
+        directory = filedialog.askdirectory(initialdir=self._output_root())
+        if directory:
+            if self._analysis_run_path_var is None:
+                self._analysis_run_path_var = tk.StringVar(value=directory)
+            else:
+                self._analysis_run_path_var.set(directory)
+
+    def _load_analysis_summary(self) -> None:
+        """
+        Load the selected run directory, analyse it and render the results.
+        """
+
+        if tk is None:
+            return
+        run_path = (
+            (self._analysis_run_path_var.get().strip())
+            if self._analysis_run_path_var
+            else ""
+        )
+        if not run_path:
+            self._set_analysis_status(
+                "Please choose a run directory first.", severity="ERROR"
+            )
+            return
+        path = Path(run_path).expanduser()
+        if not path.is_dir():
+            self._set_analysis_status(
+                "Selected path does not exist or is not a directory.",
+                severity="ERROR",
+            )
+            return
+        try:
+            result = analysis.analyze_run(path)
+        except Exception as exc:
+            self.create_toast(
+                f"Failed to load run summary: {exc}",
+                severity="ERROR",
+                context="analysis",
+            )
+            self._set_analysis_status(
+                "Summary load failed; check the logs for details.",
+                severity="ERROR",
+            )
+            return
+        self._analysis_summary_result = result
+        formatted = self._format_analysis_summary_text(result)
+        if self._analysis_summary_text_widget is not None:
+            self._analysis_summary_text_widget.configure(state="normal")
+            self._analysis_summary_text_widget.delete("1.0", tk.END)
+            self._analysis_summary_text_widget.insert("1.0", formatted)
+            self._analysis_summary_text_widget.configure(state="disabled")
+        self._set_analysis_status("Run summary loaded successfully.")
+
+    def _format_analysis_summary_text(
+        self, result: analysis.RunAnalysisResult
+    ) -> str:
+        """Render a textual run summary suitable for the GUI text widget."""
+
+        lines: list[str] = []
+        lines.append(f"Run directory: {result.run_dir}")
+        lines.append(f"Manifest: {result.manifest_path or 'n/a'}")
+        lines.append(
+            f"Parameter summary: {result.parameter_summary_path or 'n/a'}"
+        )
+        lines.append(f"Log: {result.log_path or 'n/a'}")
+        if result.start_time:
+            lines.append(f"Started: {result.start_time.isoformat()}")
+        if result.end_time:
+            lines.append(f"Finished: {result.end_time.isoformat()}")
+        if result.duration_seconds is not None:
+            lines.append(f"Duration: {result.duration_seconds:.1f} s")
+        lines.append("")
+
+        if result.datasets:
+            lines.append("Datasets:")
+            for dataset_id, info in result.datasets.items():
+                count = result.dataset_counts.get(dataset_id, "n/a")
+                lines.append(
+                    f"  {dataset_id} ({info.get('type','unknown')}): "
+                    f"{info.get('name','unknown')} – {count} rows"
+                )
+            lines.append("")
+
+        diagnostics = result.diagnostics
+        if diagnostics.rhat:
+            lines.append(
+                "R‑hat summary: "
+                f"{diagnostics.rhat.get('min','?')}/"
+                f"{diagnostics.rhat.get('median','?')}/"
+                f"{diagnostics.rhat.get('max','?')}"
+            )
+        if diagnostics.ess:
+            lines.append(
+                "Effective sample sizes: "
+                f"bulk={diagnostics.ess.get('bulk_median','?')}, "
+                f"tail={diagnostics.ess.get('tail_median','?')}"
+            )
+        lines.append("")
+
+        if result.model_summaries:
+            for model_name, summary in result.model_summaries.items():
+                lines.append(f"Model: {model_name}")
+                for key, value in sorted(summary.chi2.items()):
+                    lines.append(f"  {key}: {value}")
+                if summary.acceptance:
+                    lines.append(
+                        "  Acceptance "
+                        f"mean={summary.acceptance.get('mean','?')}, "
+                        f"min={summary.acceptance.get('min','?')}, "
+                        f"max={summary.acceptance.get('max','?')}"
+                    )
+                if summary.bao_rs is not None:
+                    lines.append(f"  BAO r_s = {summary.bao_rs:.2f} Mpc")
+                lines.append("")
+        return "\n".join(lines).strip()
+
+    def _export_analysis_summary(self) -> None:
+        """Export the currently loaded summary to disk."""
+
+        if self._analysis_summary_result is None:
+            self._set_analysis_status(
+                "Load a run summary before exporting.",
+                severity="ERROR",
+            )
+            return
+        if filedialog is None:
+            self.create_toast(
+                "File dialogs are unavailable in this environment.",
+                severity="ERROR",
+                context="analysis",
+            )
+            return
+        target_dir = filedialog.askdirectory(initialdir=self._output_root())
+        if not target_dir:
+            return
+        try:
+            saved = analysis.save_run_summary(
+                self._analysis_summary_result.run_dir, target_dir
+            )
+        except Exception as exc:
+            self.create_toast(
+                f"Export failed: {exc}",
+                severity="ERROR",
+                context="analysis",
+            )
+            self._set_analysis_status("Export failed.")
+            return
+        self.create_toast(
+            "Analysis summary exported.",
+            severity="INFO",
+            context="analysis",
+        )
+        self._set_analysis_status(
+            "Summary exported to "
+            + ", ".join(str(path) for path in saved.values())
+        )
+
+    def _copy_analysis_summary_to_clipboard(self) -> None:
+        """Copy the JSON summary to the clipboard."""
+
+        if self._analysis_summary_result is None or tk is None:
+            self._set_analysis_status(
+                "Load a run summary before copying.", severity="ERROR"
+            )
+            return
+        payload = json.dumps(self._analysis_summary_result.to_dict(), indent=2)
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(payload)
+        except Exception as exc:
+            self.create_toast(
+                f"Clipboard copy failed: {exc}",
+                severity="ERROR",
+                context="analysis",
+            )
+            self._set_analysis_status("Clipboard copy failed.")
+            return
+        self._set_analysis_status("Summary copied to clipboard.")
+
+    def _set_analysis_status(
+        self, message: str, *, severity: str = "INFO"
+    ) -> None:
+        """Update the per-tab status label."""
+
+        if self._analysis_summary_status_label is not None:
+            self._analysis_summary_status_label.configure(text=message)
+        if severity.upper() == "ERROR":
+            logger.get_program_logger().warning("Analysis tab: %s", message)
 
     def _start_validation_run(self) -> None:
         """Kick off the validation suite inside a background thread."""
