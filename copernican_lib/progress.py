@@ -76,7 +76,15 @@ class BatchProgressBar:
         batches = max(self._expected_batches, 1)
         console_output.write(
             f"{self._stage_label} progress: "
-            f"{min(self._batch_index, batches)}/{batches} batches complete."
+            f"{min(self._batch_index, batches)}/{batches} batches completed."
+        )
+
+    def _format_progress_message(
+        self, processed: int, total: int, percent: int
+    ) -> str:
+        return (
+            f"{self._stage_label} batch {self._batch_index}: "
+            f"{processed}/{total} steps completed ({percent}%)"
         )
 
     def _notify_listener(
@@ -221,6 +229,12 @@ class BatchProgressBar:
                 )
                 return None
             self._last_logged_percent = percent
+            message: str | None = None
+            if self._display:
+                message = self._format_progress_message(
+                    processed_int, total_int, percent
+                )
+                console_output.write(message)
             self._notify_listener(
                 event="progress_update",
                 step_index=step_index,
@@ -230,7 +244,7 @@ class BatchProgressBar:
                 batch_fraction=batch_fraction,
                 step_fraction=step_fraction,
             )
-            return None
+            return message
 
     def finish_batch(self) -> None:
         """Close the current batch, inserting required spacing."""

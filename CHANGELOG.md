@@ -71,6 +71,10 @@ suffixes. Follow this template:
             requirements files and license table now document the package that
             ships along with the GUI (requirements.in, requirements.lock,
             THIRD_PARTY_LICENSES.md, CHANGELOG.md).
+- 2025-12-08: Made `BatchProgressBar.update` return and log the stage-specific
+            counter line on every percent advance so the CLI output matches
+            the documented “batch X” message and the listener-based tests stop
+            observing `None` (copernican_lib/progress.py, CHANGELOG.md).
 - 2025-12-09: Persisted settings via `copernican_lib/settings.py` and the
             generated `copernican_settings.yml`, and rewrote the Settings
             screen as four tabbed panels (Logging, Datasets, GUI, Tools)
