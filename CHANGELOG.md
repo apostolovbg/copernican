@@ -48,6 +48,23 @@ suffixes. Follow this template:
             manifest and posterior metadata so other frontends can reuse the
             same summary (copernican_lib/analysis.py,
             docs/api_overview.md, tests/test_analysis.py, CHANGELOG.md).
+- 2025-12-08: Extended the GUI Analysis workspace with a Posteriors tab that
+            drives the shared `PlotViewer`, refreshes NetCDF snapshots via
+            `posterior_explorer.find_posterior_files`, and exposes autoscale/
+            zoom/pan controls so the trace/hist overview stays readable without
+            re-running the sampler (copernican_lib/gui/app.py,
+            copernican_lib/gui/plot_viewer.py,
+            docs/gui_overview.md, docs/api_overview.md, CHANGELOG.md).
+- 2025-12-08: Added CLI switches for run summaries, comparisons and posterior
+            overviews so every Analysis tab workflow is now available via
+            `copernican.py --analysis-*` (copernican.py,
+            docs/cli_guide.md, README.md, CHANGELOG.md).
+- 2025-12-08: Added comparisons support to the Analysis workspace so users
+            can load two run directories, inspect Δχ²/parameter shifts and
+            dataset-count differences, and export structured JSON/YAML deltas via
+            the new `copernican_lib.analysis.compare_runs` helpers (copernican_lib/analysis.py,
+            copernican_lib/gui/app.py, docs/api_overview.md, docs/gui_overview.md,
+            CHANGELOG.md).
 - 2025-12-08: `copernican_lib.run_executor.execute_run_from_manifest` now saves a timestamped `run_manifest_<timestamp>.yml` inside every output directory before sampling, so CLI and validation runs always archive the manifest alongside their logs and chains while the documentation notes the behavior (copernican_lib/run_executor.py, README.md, docs/run_manifest.md, docs/cli_guide.md, tests/test_run_executor.py, CHANGELOG.md).
 - 2025-12-07: Reworked the CLI batch progress helper so the sampler emits concise counter lines instead of repeated percentages, removed the progress-line filter so every counter is archived, and taught the Validation monitor to retain its cached log/history plus the latest stage label after tab switches instead of showing the stale placeholder (copernican_lib/progress.py, copernican_lib/gui/app.py, CHANGELOG.md).
 - 2025-12-07: Removed stale duplicate helper files so only the canonical `copernican_lib/console_output.py` and `copernican_lib/progress.py` remain (copernican_lib/console_output 2.py, copernican_lib/progress 2.py).

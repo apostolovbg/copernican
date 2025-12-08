@@ -39,20 +39,22 @@ import sys
 import logging
 from collections import Counter
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 
 import yaml
 
 from copernican_lib.cli import dependencies as cli_dependencies
+from copernican_lib import analysis as analysis
 from copernican_lib import console_output as console
 from copernican_lib import logger as log_mod
 from copernican_lib import orchestration
+from copernican_lib import posterior_explorer
 from copernican_lib import progress_state
 from copernican_lib import run_manifest
-from copernican_lib import utils
 from copernican_lib import settings as settings_mod
+from copernican_lib import utils
 import copernican_lib.version as version_module
 from copernican_lib.plugins import PluginValidationError
 
@@ -234,6 +236,16 @@ class LaunchRequest:
     list_manifests: bool = False
     show_manifest_path: Path | None = None
     run_validation: bool = False
+    analysis_summary_dir: Path | None = None
+    analysis_summary_output: Path | None = None
+    analysis_summary_formats: tuple[str, ...] = field(
+        default_factory=lambda: ("yml", "json")
+    )
+    analysis_compare_dirs: tuple[Path, Path] | None = None
+    analysis_compare_output: Path | None = None
+    analysis_posterior_dir: Path | None = None
+    analysis_posterior_file: Path | None = None
+    analysis_posterior_output: Path | None = None
 
 
 def _data_root() -> Path:
@@ -658,6 +670,167 @@ def _run_validation_cli() -> bool:
     return code == 0
 
 
+def _run_analysis_summary_cli(
+    run_dir: Path,
+    output_dir: Path | None,
+    formats: tuple[str, ...],
+) -> bool:
+    """Print a run summary and optionally write the structured files."""
+
+    if not run_dir.exists():
+        console.write(f"Run directory not found: {run_dir}", error=True)
+        return False
+    if not run_dir.is_dir():
+        console.write(f"Expected a directory but found: {run_dir}", error=True)
+        return False
+    try:
+        result = analysis.analyze_run(run_dir)
+    except Exception as exc:
+        console.write(
+            f"Failed to analyse run {run_dir}: {exc}", error=True
+        )
+        return False
+
+    console.write("")
+    console.write("Run analysis summary")
+    console.write("--------------------")
+    console.write(analysis.format_run_summary_text(result))
+
+    if output_dir:
+        try:
+            saved = analysis.save_run_summary(
+                run_dir,
+                output_dir,
+                formats=formats,
+                result=result,
+            )
+        except Exception as exc:
+            console.write(
+                f"Failed to export run summary: {exc}", error=True
+            )
+            return False
+        console.write(
+            "Summary exports:\n"
+            + "\n".join(f"  - {path}" for path in saved.values())
+        )
+    return True
+
+
+def _run_analysis_compare_cli(
+    base_dir: Path,
+    alt_dir: Path,
+    output_dir: Path | None,
+    formats: tuple[str, ...],
+) -> bool:
+    """Compare two runs and print the delta summary."""
+
+    if not base_dir.is_dir() or not alt_dir.is_dir():
+        console.write(
+            "Both base and alternative run directories must exist.",
+            error=True,
+        )
+        return False
+    try:
+        base_result = analysis.analyze_run(base_dir)
+        alt_result = analysis.analyze_run(alt_dir)
+        comparison = analysis.compare_runs(base_result, alt_result)
+    except Exception as exc:
+        console.write(f"Comparison failed: {exc}", error=True)
+        return False
+
+    console.write("")
+    console.write("Analysis comparison")
+    console.write("-------------------")
+    console.write(yaml.safe_dump(comparison, sort_keys=False))
+
+    if output_dir:
+        try:
+            saved = analysis.save_comparison_summary(
+                base_result,
+                alt_result,
+                output_dir,
+                formats=formats,
+            )
+        except Exception as exc:
+            console.write(
+                f"Failed to export comparison summary: {exc}", error=True
+            )
+            return False
+        console.write(
+            "Comparison exports:\n"
+            + "\n".join(f"  - {path}" for path in saved.values())
+        )
+    return True
+
+
+def _run_analysis_posterior_cli(
+    run_dir: Path,
+    posterior_file: Path | None,
+    output_file: Path | None,
+) -> bool:
+    """Generate a posterior overview plot for a run directory."""
+
+    if not run_dir.is_dir():
+        console.write("Posterior analysis requires an existing run folder.", error=True)
+        return False
+
+    try:
+        result = analysis.analyze_run(run_dir)
+    except Exception as exc:
+        console.write(f"Failed to analyse run for posterior: {exc}", error=True)
+        return False
+
+    if posterior_file:
+        target = posterior_file
+        if not target.is_absolute():
+            target = run_dir / target
+    else:
+        posterior_files = posterior_explorer.find_posterior_files(run_dir)
+        if not posterior_files:
+            console.write(
+                f"No posterior files found inside {run_dir}", error=True
+            )
+            return False
+        target = posterior_files[-1]
+
+    if not target.is_file():
+        console.write(f"Posterior file not found: {target}", error=True)
+        return False
+
+    try:
+        figure = posterior_explorer.create_posterior_overview_figure(
+            result, target
+        )
+    except Exception as exc:
+        console.write(f"Failed to render posterior: {exc}", error=True)
+        return False
+
+    destination = (
+        output_file
+        if output_file
+        else run_dir / "analysis-posterior.png"
+    )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        figure.savefig(str(destination))
+    except Exception as exc:
+        console.write(
+            f"Failed to save posterior overview: {exc}", error=True
+        )
+        return False
+    finally:
+        try:
+            from matplotlib import pyplot as mpl_plt
+
+            mpl_plt.close(figure)
+        except Exception:
+            pass
+
+    console.write(f"Saved posterior overview to {destination}")
+    return True
+
+
 def _handle_auxiliary_requests(
     launch_request: LaunchRequest,
 ) -> tuple[bool, int]:
@@ -667,6 +840,38 @@ def _handle_auxiliary_requests(
     models_root = _models_root()
     engines_root = _engines_root()
     output_root = _output_root(launch_request.output_dir)
+    if launch_request.analysis_summary_dir is not None:
+        success = _run_analysis_summary_cli(
+            launch_request.analysis_summary_dir,
+            launch_request.analysis_summary_output,
+            launch_request.analysis_summary_formats,
+        )
+        handled = True
+        if not success:
+            exit_code = 1
+        return handled, exit_code
+    if launch_request.analysis_compare_dirs is not None:
+        base_dir, alt_dir = launch_request.analysis_compare_dirs
+        success = _run_analysis_compare_cli(
+            base_dir,
+            alt_dir,
+            launch_request.analysis_compare_output,
+            launch_request.analysis_summary_formats,
+        )
+        handled = True
+        if not success:
+            exit_code = 1
+        return handled, exit_code
+    if launch_request.analysis_posterior_dir is not None:
+        success = _run_analysis_posterior_cli(
+            launch_request.analysis_posterior_dir,
+            launch_request.analysis_posterior_file,
+            launch_request.analysis_posterior_output,
+        )
+        handled = True
+        if not success:
+            exit_code = 1
+        return handled, exit_code
     if launch_request.run_validation:
         success = _run_validation_cli()
         handled = True
@@ -819,6 +1024,50 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
             "and record the summary."
         ),
     )
+    parser.add_argument(
+        "--analysis-summary",
+        metavar="RUN_DIR",
+        help="Inspect a run directory, print its summary, and optionally export it.",
+    )
+    parser.add_argument(
+        "--analysis-summary-output",
+        metavar="OUTPUT_DIR",
+        help="Directory where structured summary files will be written.",
+    )
+    parser.add_argument(
+        "--analysis-summary-formats",
+        metavar="FORMATS",
+        default="yml,json",
+        help=(
+            "Comma-separated formats (yml,json) for exported run summaries."
+        ),
+    )
+    parser.add_argument(
+        "--analysis-compare",
+        nargs=2,
+        metavar=("BASE_DIR", "ALT_DIR"),
+        help="Compare two run directories and report χ²/parameter deltas.",
+    )
+    parser.add_argument(
+        "--analysis-compare-output",
+        metavar="OUTPUT_DIR",
+        help="Directory for analysis comparison summary files.",
+    )
+    parser.add_argument(
+        "--analysis-posterior",
+        metavar="RUN_DIR",
+        help="Render a posterior overview plot for the selected run directory.",
+    )
+    parser.add_argument(
+        "--analysis-posterior-file",
+        metavar="POSTERIOR_FILE",
+        help="Posterior NetCDF file (relative to the run) to visualise.",
+    )
+    parser.add_argument(
+        "--analysis-posterior-output",
+        metavar="OUTPUT_FILE",
+        help="Destination PNG for the posterior overview (defaults inside run).",
+    )
     argv_list = list(argv) if argv is not None else None
     parsed, _ = parser.parse_known_args(argv_list)
     settings_data = settings_mod.get_settings()
@@ -843,6 +1092,48 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         if parsed.show_manifest
         else None
     )
+    analysis_summary_dir = (
+        Path(parsed.analysis_summary).expanduser().resolve()
+        if parsed.analysis_summary
+        else None
+    )
+    analysis_summary_output = (
+        Path(parsed.analysis_summary_output).expanduser().resolve()
+        if parsed.analysis_summary_output
+        else None
+    )
+    analysis_summary_formatted = tuple(
+        fmt.strip().lower()
+        for fmt in (parsed.analysis_summary_formats or "yml,json").split(",")
+        if fmt.strip()
+    )
+    if not analysis_summary_formatted:
+        analysis_summary_formatted = ("yml", "json")
+    analysis_compare_dirs = None
+    if parsed.analysis_compare:
+        base_path = Path(parsed.analysis_compare[0]).expanduser().resolve()
+        alt_path = Path(parsed.analysis_compare[1]).expanduser().resolve()
+        analysis_compare_dirs = (base_path, alt_path)
+    analysis_compare_output = (
+        Path(parsed.analysis_compare_output).expanduser().resolve()
+        if parsed.analysis_compare_output
+        else None
+    )
+    analysis_posterior_dir = (
+        Path(parsed.analysis_posterior).expanduser().resolve()
+        if parsed.analysis_posterior
+        else None
+    )
+    analysis_posterior_file = (
+        Path(parsed.analysis_posterior_file).expanduser()
+        if parsed.analysis_posterior_file
+        else None
+    )
+    analysis_posterior_output = (
+        Path(parsed.analysis_posterior_output).expanduser()
+        if parsed.analysis_posterior_output
+        else None
+    )
     mode = (
         orchestration.LaunchMode.GUI
         if parsed.gui
@@ -860,6 +1151,14 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
         list_manifests=parsed.list_manifests,
         show_manifest_path=manifest_display,
         run_validation=parsed.run_validation,
+        analysis_summary_dir=analysis_summary_dir,
+        analysis_summary_output=analysis_summary_output,
+        analysis_summary_formats=analysis_summary_formatted,
+        analysis_compare_dirs=analysis_compare_dirs,
+        analysis_compare_output=analysis_compare_output,
+        analysis_posterior_dir=analysis_posterior_dir,
+        analysis_posterior_file=analysis_posterior_file,
+        analysis_posterior_output=analysis_posterior_output,
     )
 
 

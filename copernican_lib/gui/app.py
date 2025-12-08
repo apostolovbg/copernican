@@ -57,6 +57,7 @@ from copernican_lib import (
     dataset_registry,
     logger,
     model_spec_validator,
+    posterior_explorer,
     progress_state,
     run_manifest,
 )
@@ -69,6 +70,7 @@ from copernican_lib.engine_capabilities import (
     EngineSetting,
     get_engine_capabilities,
 )
+from copernican_lib.gui.plot_viewer import PlotViewer
 from copernican_lib.run_lifecycle import (
     ManifestWorkspace,
     create_manifest_workspace,
@@ -592,21 +594,19 @@ class CopernicanGUI:
                     "Posterior explorers, plots and trace analysis will "
                     "appear here in future phases."
                 ),
-                "builder": lambda frame: self._build_analysis_placeholder_page(
-                    frame, "Posteriors"
-                ),
+                "builder": self._build_analysis_posterior_page,
                 "actions": [
                     {
-                        "label": "1",
-                        "command": self._analysis_placeholder_action,
+                        "label": "Refresh files",
+                        "command": self._refresh_analysis_posterior_list,
                     },
                     {
-                        "label": "2",
-                        "command": self._analysis_placeholder_action,
+                        "label": "Fit to screen",
+                        "command": self._analysis_fit_posterior_to_screen,
                     },
                     {
-                        "label": "3",
-                        "command": self._analysis_placeholder_action,
+                        "label": "Toggle zoom",
+                        "command": self._analysis_toggle_posterior_zoom,
                     },
                 ],
             },
@@ -614,24 +614,22 @@ class CopernicanGUI:
                 "id": "comparisons",
                 "label": "Comparisons",
                 "description": (
-                    "Comparison reports for pairs of manifests will live here "
-                    "once the workflow matures."
+                    "Compare two run directories side by side "
+                    "to see Δχ², parameter shifts and dataset counts."
                 ),
-                "builder": lambda frame: self._build_analysis_placeholder_page(
-                    frame, "Comparisons"
-                ),
+                "builder": self._build_analysis_comparison_page,
                 "actions": [
                     {
-                        "label": "1",
-                        "command": self._analysis_placeholder_action,
+                        "label": "Refresh diff",
+                        "command": self._analysis_compare_runs,
                     },
                     {
-                        "label": "2",
-                        "command": self._analysis_placeholder_action,
+                        "label": "Export summary",
+                        "command": self._export_analysis_comparison,
                     },
                     {
-                        "label": "3",
-                        "command": self._analysis_placeholder_action,
+                        "label": "Copy JSON",
+                        "command": self._copy_analysis_comparison_to_clipboard,
                     },
                 ],
             },
@@ -646,6 +644,21 @@ class CopernicanGUI:
         self._analysis_summary_status_label: ttk.Label | None = None
         self._analysis_summary_text_widget: tk.Text | None = None
         self._analysis_summary_result: analysis.RunAnalysisResult | None = None
+        self._analysis_comparison_base_var: tk.StringVar | None = None
+        self._analysis_comparison_alt_var: tk.StringVar | None = None
+        self._analysis_comparison_text_widget: tk.Text | None = None
+        self._analysis_comparison_status_label: ttk.Label | None = None
+        self._analysis_comparison_result: dict[str, Any] | None = None
+        self._analysis_comparison_pair: (
+            tuple[analysis.RunAnalysisResult, analysis.RunAnalysisResult]
+            | None
+        ) = None
+        self._analysis_posterior_files: list[Path] = []
+        self._analysis_posterior_file_var: tk.StringVar | None = None
+        self._analysis_posterior_combobox: ttk.Combobox | None = None
+        self._analysis_plot_viewer: PlotViewer | None = None
+        self._analysis_posterior_status_label: ttk.Label | None = None
+        self._analysis_current_posterior_path: Path | None = None
         self._settings_section_buttons: list[ttk.Button] = []
         self._settings_current_index = 0
         self._settings_header_label: ttk.Label | None = None
@@ -2596,6 +2609,339 @@ class CopernicanGUI:
                 justify="left",
             ).pack(anchor="w", pady=(8, 0))
 
+    def _build_analysis_posterior_page(self, container: tk.Frame) -> None:
+        """Render the Posteriors tab with the shared plot viewer."""
+
+        if tk is None:
+            ttk.Label(
+                container,
+                text="GUI is unavailable in this environment.",
+                wraplength=720,
+            ).pack(anchor="w")
+            return
+
+        run_dir = self._analysis_run_dir()
+        run_label = (
+            f"Current run: {run_dir}"
+            if run_dir
+            else "Current run: <select from Run Summary>"
+        )
+        ttk.Label(
+            container,
+            text=run_label,
+            wraplength=720,
+            takefocus=True,
+        ).pack(anchor="w", pady=(0, 4))
+
+        selection_row = ttk.Frame(container)
+        selection_row.pack(fill="x", pady=(0, 4))
+        ttk.Label(selection_row, text="Posterior file:").pack(side="left")
+        if self._analysis_posterior_file_var is None:
+            self._analysis_posterior_file_var = tk.StringVar()
+        combobox = ttk.Combobox(
+            selection_row,
+            textvariable=self._analysis_posterior_file_var,
+            values=[path.name for path in self._analysis_posterior_files],
+            state="readonly",
+            width=48,
+        )
+        combobox.pack(side="left", fill="x", expand=True, padx=(4, 0))
+        self._analysis_posterior_combobox = combobox
+        ttk.Button(
+            selection_row,
+            text="Load",
+            command=self._analysis_load_selected_posterior,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        ).pack(side="left", padx=(4, 0))
+
+        self._analysis_posterior_status_label = ttk.Label(
+            container,
+            text=(
+                "Find a run directory and load one of its posterior "
+                "snapshots."
+            ),
+            wraplength=720,
+            takefocus=True,
+        )
+        self._analysis_posterior_status_label.pack(anchor="w", pady=(4, 6))
+
+        viewer_holder = ttk.Frame(container)
+        viewer_holder.pack(fill="both", expand=True)
+        viewer_holder.columnconfigure(0, weight=1)
+        viewer_holder.rowconfigure(0, weight=1)
+        try:
+            viewer = PlotViewer(viewer_holder)
+        except RuntimeError as exc:  # pragma: no cover - unlikely in Tk env
+            ttk.Label(
+                viewer_holder,
+                text=f"Plot viewer unavailable: {exc}",
+                wraplength=720,
+            ).grid(row=0, column=0, sticky="nsew")
+            self._analysis_plot_viewer = None
+        else:
+            viewer.grid(row=0, column=0, sticky="nsew")
+            self._analysis_plot_viewer = viewer
+
+        controls = ttk.Frame(container)
+        controls.pack(fill="x", pady=(6, 0))
+        ttk.Button(
+            controls,
+            text="Fit all",
+            command=self._analysis_fit_posterior_full,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        ).pack(side="left")
+        ttk.Label(
+            controls,
+            text="Enable zoom mode above to pan the figure by dragging.",
+            wraplength=520,
+            takefocus=True,
+        ).pack(side="left", padx=(12, 0))
+
+        self._analysis_current_posterior_path = None
+        self._refresh_analysis_posterior_list()
+
+    def _build_analysis_comparison_page(self, container: tk.Frame) -> None:
+        """Render the Comparisons tab content that diff two runs."""
+
+        if tk is None:
+            ttk.Label(
+                container,
+                text="GUI is unavailable in this environment.",
+                wraplength=720,
+            ).pack(anchor="w")
+            return
+
+        if self._analysis_comparison_base_var is None:
+            self._analysis_comparison_base_var = tk.StringVar()
+        if self._analysis_comparison_alt_var is None:
+            self._analysis_comparison_alt_var = tk.StringVar()
+
+        def _render_selector(label_text: str, var: tk.StringVar) -> None:
+            row = ttk.Frame(container)
+            row.pack(fill="x", pady=(0, 4))
+            ttk.Label(row, text=label_text).pack(side="left")
+            entry = ttk.Entry(row, textvariable=var, width=60)
+            entry.pack(side="left", fill="x", expand=True, padx=(4, 4))
+            entry.bind("<Return>", lambda event: self._analysis_compare_runs())
+            ttk.Button(
+                row,
+                text="Browse…",
+                command=lambda: self._analysis_browse_comparison_path(var),
+                takefocus=True,
+                **self._monitor_button_kwargs(),
+            ).pack(side="left")
+
+        _render_selector(
+            "Base run directory:", self._analysis_comparison_base_var
+        )
+        _render_selector(
+            "Alternative run directory:", self._analysis_comparison_alt_var
+        )
+
+        self._analysis_comparison_status_label = ttk.Label(
+            container,
+            text="Provide both directories and refresh to see deltas.",
+            wraplength=720,
+            takefocus=True,
+        )
+        self._analysis_comparison_status_label.pack(anchor="w", pady=(4, 6))
+
+        panel = ttk.Frame(container)
+        panel.pack(fill="both", expand=True)
+        panel.columnconfigure(0, weight=1)
+        panel.rowconfigure(0, weight=1)
+        text_widget = tk.Text(
+            panel,
+            wrap="none",
+            padx=8,
+            pady=6,
+            borderwidth=0,
+            highlightthickness=0,
+            height=16,
+        )
+        text_widget.grid(row=0, column=0, sticky="nsew")
+        vscroll = ttk.Scrollbar(
+            panel,
+            orient="vertical",
+            command=text_widget.yview,
+        )
+        vscroll.grid(row=0, column=1, sticky="ns")
+        hscroll = ttk.Scrollbar(
+            panel,
+            orient="horizontal",
+            command=text_widget.xview,
+        )
+        hscroll.grid(row=1, column=0, sticky="ew")
+        text_widget.configure(
+            yscrollcommand=vscroll.set, xscrollcommand=hscroll.set
+        )
+        text_widget.configure(state="disabled")
+        self._analysis_comparison_text_widget = text_widget
+
+        ttk.Label(
+            container,
+            text=(
+                "Comparisons highlight duration deltas, dataset row counts "
+                "and χ²/parameter shifts between two runs."
+            ),
+            wraplength=720,
+            justify="left",
+        ).pack(anchor="w", pady=(6, 0))
+
+        self._analysis_comparison_result = None
+        self._analysis_comparison_pair = None
+        self._analysis_set_comparison_status(
+            "Configure the runs above and press 'Refresh diff'."
+        )
+
+    def _analysis_path_from_var(self, var: tk.StringVar | None) -> Path | None:
+        """Resolve the selected run directory from a StringVar."""
+
+        if var:
+            raw = var.get().strip()
+            if raw:
+                return Path(raw).expanduser()
+        return None
+
+    def _analysis_browse_comparison_path(self, var: tk.StringVar) -> None:
+        """Open a directory chooser and store the result in ``var``."""
+
+        if filedialog is None:
+            self.create_toast(
+                "File dialogs are unavailable in this environment.",
+                severity="ERROR",
+                context="analysis",
+            )
+            return
+        directory = filedialog.askdirectory(initialdir=self._output_root())
+        if directory:
+            var.set(directory)
+
+    def _analysis_set_comparison_status(
+        self, message: str, *, severity: str = "INFO"
+    ) -> None:
+        """Update the status label for the Comparisons tab."""
+
+        if self._analysis_comparison_status_label is not None:
+            self._analysis_comparison_status_label.configure(text=message)
+        if severity.upper() == "ERROR":
+            logger.get_program_logger().warning(
+                "Analysis comparison: %s", message
+            )
+
+    def _analysis_compare_runs(self) -> None:
+        """Analyse the two selected runs and populate the comparison pane."""
+
+        base_path = self._analysis_path_from_var(
+            self._analysis_comparison_base_var
+        )
+        alt_path = self._analysis_path_from_var(
+            self._analysis_comparison_alt_var
+        )
+        if not base_path or not alt_path:
+            self._analysis_set_comparison_status(
+                "Select both run directories before comparing.",
+                severity="ERROR",
+            )
+            return
+        if not base_path.is_dir() or not alt_path.is_dir():
+            self._analysis_set_comparison_status(
+                "One of the specified paths is not a directory.",
+                severity="ERROR",
+            )
+            return
+        try:
+            base_result = analysis.analyze_run(base_path)
+            alt_result = analysis.analyze_run(alt_path)
+            comparison = analysis.compare_runs(base_result, alt_result)
+        except Exception as exc:
+            self.create_toast(
+                f"Comparison failed: {exc}",
+                severity="ERROR",
+                context="analysis",
+            )
+            self._analysis_set_comparison_status(
+                "Comparison failed; check the logs.",
+                severity="ERROR",
+            )
+            return
+        self._analysis_comparison_result = comparison
+        self._analysis_comparison_pair = (base_result, alt_result)
+        if self._analysis_comparison_text_widget is not None:
+            payload = json.dumps(comparison, indent=2)
+            self._analysis_comparison_text_widget.configure(state="normal")
+            self._analysis_comparison_text_widget.delete("1.0", tk.END)
+            self._analysis_comparison_text_widget.insert("1.0", payload)
+            self._analysis_comparison_text_widget.configure(state="disabled")
+        self._analysis_set_comparison_status("Comparison ready.")
+
+    def _export_analysis_comparison(self) -> None:
+        """Export the cached comparison payload to a directory."""
+
+        if not self._analysis_comparison_pair:
+            self._analysis_set_comparison_status(
+                "Run a comparison before exporting.", severity="ERROR"
+            )
+            return
+        if filedialog is None:
+            self.create_toast(
+                "File dialogs are unavailable in this environment.",
+                severity="ERROR",
+                context="analysis",
+            )
+            return
+        target_dir = filedialog.askdirectory(initialdir=self._output_root())
+        if not target_dir:
+            return
+        base_result, alt_result = self._analysis_comparison_pair
+        try:
+            saved = analysis.save_comparison_summary(
+                base_result, alt_result, target_dir
+            )
+        except Exception as exc:
+            self.create_toast(
+                f"Export failed: {exc}",
+                severity="ERROR",
+                context="analysis",
+            )
+            self._analysis_set_comparison_status(
+                "Export failed.", severity="ERROR"
+            )
+            return
+        self.create_toast(
+            "Analysis comparison exported.",
+            severity="INFO",
+            context="analysis",
+        )
+        self._analysis_set_comparison_status(
+            "Comparison exported to "
+            + ", ".join(str(path) for path in saved.values())
+        )
+
+    def _copy_analysis_comparison_to_clipboard(self) -> None:
+        """Copy the JSON comparison payload into the clipboard."""
+
+        if not self._analysis_comparison_result or tk is None:
+            self._analysis_set_comparison_status(
+                "Run a comparison before copying.", severity="ERROR"
+            )
+            return
+        payload = json.dumps(self._analysis_comparison_result, indent=2)
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(payload)
+        except Exception as exc:
+            self.create_toast(
+                f"Clipboard copy failed: {exc}",
+                severity="ERROR",
+                context="analysis",
+            )
+            self._analysis_set_comparison_status("Clipboard copy failed.")
+            return
+        self._analysis_set_comparison_status("Comparison copied to clipboard.")
+
     def _build_analysis_placeholder_page(
         self, container: tk.Frame, label: str
     ) -> None:
@@ -2616,6 +2962,182 @@ class CopernicanGUI:
             wraplength=720,
             justify="left",
         ).pack(anchor="w", pady=(4, 0))
+
+    def _analysis_run_dir(self) -> Path | None:
+        """Return the currently targeted run directory for analysis helpers."""
+
+        if self._analysis_run_path_var:
+            raw = self._analysis_run_path_var.get().strip()
+            if raw:
+                return Path(raw).expanduser()
+        if self._analysis_summary_result:
+            return self._analysis_summary_result.run_dir
+        return None
+
+    def _analysis_set_posterior_status(
+        self, message: str, *, severity: str = "INFO"
+    ) -> None:
+        """Update the status label for the Posterior tab."""
+
+        if self._analysis_posterior_status_label is not None:
+            self._analysis_posterior_status_label.configure(text=message)
+        if severity.upper() == "ERROR":
+            logger.get_program_logger().warning(
+                "Analysis posteriors: %s", message
+            )
+
+    def _analysis_summary_for_run(
+        self, run_dir: Path
+    ) -> analysis.RunAnalysisResult | None:
+        """Return a cached summary for ``run_dir`` or recreate it."""
+
+        current = self._analysis_summary_result
+        if current and current.run_dir == run_dir:
+            return current
+        try:
+            result = analysis.analyze_run(run_dir)
+        except Exception as exc:
+            self.create_toast(
+                f"Failed to analyse run for posteriors: {exc}",
+                severity="ERROR",
+                context="analysis",
+            )
+            self._analysis_set_posterior_status(
+                "Failed to analyse run directory; check the logs.",
+                severity="ERROR",
+            )
+            return None
+        self._analysis_summary_result = result
+        if self._analysis_run_path_var is not None:
+            self._analysis_run_path_var.set(str(run_dir))
+        return result
+
+    def _refresh_analysis_posterior_list(self) -> None:
+        """Refresh the list of posterior NetCDF files for the current run."""
+
+        run_dir = self._analysis_run_dir()
+        if not run_dir:
+            self._analysis_posterior_files = []
+            if self._analysis_posterior_combobox is not None:
+                self._analysis_posterior_combobox["values"] = []
+            self._analysis_set_posterior_status(
+                "Provide a run directory to discover posterior files.",
+                severity="ERROR",
+            )
+            return
+        if not run_dir.is_dir():
+            self._analysis_set_posterior_status(
+                "Selected run path is not a directory.", severity="ERROR"
+            )
+            return
+        files = posterior_explorer.find_posterior_files(run_dir)
+        self._analysis_posterior_files = files
+        names = [path.name for path in files]
+        if self._analysis_posterior_combobox is not None:
+            self._analysis_posterior_combobox["values"] = names
+        if self._analysis_posterior_file_var is not None:
+            self._analysis_posterior_file_var.set(names[0] if names else "")
+        self._analysis_set_posterior_status(
+            f"{len(names)} posterior file(s) available."
+        )
+
+    def _analysis_load_selected_posterior(self) -> None:
+        """Load the chosen posterior file and render it inside the viewer."""
+
+        run_dir = self._analysis_run_dir()
+        if not run_dir:
+            self._analysis_set_posterior_status(
+                "Select a run directory before loading posteriors.",
+                severity="ERROR",
+            )
+            return
+        if not run_dir.is_dir():
+            self._analysis_set_posterior_status(
+                "The configured run path does not exist.", severity="ERROR"
+            )
+            return
+        if not self._analysis_posterior_files:
+            self._refresh_analysis_posterior_list()
+        if not self._analysis_posterior_files:
+            self._analysis_set_posterior_status(
+                "No posterior files were found for that run.", severity="ERROR"
+            )
+            return
+        selection = (
+            self._analysis_posterior_file_var.get()
+            if self._analysis_posterior_file_var
+            else ""
+        )
+        target = None
+        for candidate in self._analysis_posterior_files:
+            if candidate.name == selection:
+                target = candidate
+                break
+        if target is None:
+            target = self._analysis_posterior_files[0]
+        result = self._analysis_summary_for_run(run_dir)
+        if result is None:
+            return
+        try:
+            figure = posterior_explorer.create_posterior_overview_figure(
+                result, target
+            )
+        except Exception as exc:
+            self._analysis_set_posterior_status(
+                f"Failed to render {target.name}: {exc}", severity="ERROR"
+            )
+            return
+        viewer = self._analysis_plot_viewer
+        if viewer is None:
+            self._analysis_set_posterior_status(
+                "Plot viewer is unavailable.", severity="ERROR"
+            )
+            return
+        viewer.load_figure(figure)
+        viewer.fit_to_screen()
+        self._analysis_current_posterior_path = target
+        self._analysis_set_posterior_status(f"Showing {target.name}.")
+
+    def _analysis_fit_posterior_to_screen(self) -> None:
+        """Autoscale the current figure in the viewer."""
+
+        viewer = self._analysis_plot_viewer
+        if viewer is None:
+            self._analysis_set_posterior_status(
+                "Load a posterior before fitting the view.",
+                severity="ERROR",
+            )
+            return
+        viewer.fit_to_screen()
+        self._analysis_set_posterior_status("Figure fitted to screen.")
+
+    def _analysis_fit_posterior_full(self) -> None:
+        """Restore the original figure limits captured at draw time."""
+
+        viewer = self._analysis_plot_viewer
+        if viewer is None:
+            self._analysis_set_posterior_status(
+                "Load a posterior before restoring the view.",
+                severity="ERROR",
+            )
+            return
+        viewer.fit_all()
+        self._analysis_set_posterior_status(
+            "View restored to original limits."
+        )
+
+    def _analysis_toggle_posterior_zoom(self) -> None:
+        """Toggle pan/zoom mode for the viewer."""
+
+        viewer = self._analysis_plot_viewer
+        if viewer is None:
+            self._analysis_set_posterior_status(
+                "Load a posterior before enabling zoom.", severity="ERROR"
+            )
+            return
+        viewer.toggle_zoom()
+        state = "enabled" if viewer.zoom_active else "disabled"
+        self._analysis_set_posterior_status(f"Zoom mode {state}.")
 
     def _browse_analysis_run_dir(self) -> None:
         """Ask the user to pick a run output folder."""
@@ -2672,76 +3194,15 @@ class CopernicanGUI:
             )
             return
         self._analysis_summary_result = result
-        formatted = self._format_analysis_summary_text(result)
+        formatted = analysis.format_run_summary_text(result)
         if self._analysis_summary_text_widget is not None:
             self._analysis_summary_text_widget.configure(state="normal")
             self._analysis_summary_text_widget.delete("1.0", tk.END)
             self._analysis_summary_text_widget.insert("1.0", formatted)
             self._analysis_summary_text_widget.configure(state="disabled")
+        if self._analysis_run_path_var is not None:
+            self._analysis_run_path_var.set(str(result.run_dir))
         self._set_analysis_status("Run summary loaded successfully.")
-
-    def _format_analysis_summary_text(
-        self, result: analysis.RunAnalysisResult
-    ) -> str:
-        """Render a textual run summary suitable for the GUI text widget."""
-
-        lines: list[str] = []
-        lines.append(f"Run directory: {result.run_dir}")
-        lines.append(f"Manifest: {result.manifest_path or 'n/a'}")
-        lines.append(
-            f"Parameter summary: {result.parameter_summary_path or 'n/a'}"
-        )
-        lines.append(f"Log: {result.log_path or 'n/a'}")
-        if result.start_time:
-            lines.append(f"Started: {result.start_time.isoformat()}")
-        if result.end_time:
-            lines.append(f"Finished: {result.end_time.isoformat()}")
-        if result.duration_seconds is not None:
-            lines.append(f"Duration: {result.duration_seconds:.1f} s")
-        lines.append("")
-
-        if result.datasets:
-            lines.append("Datasets:")
-            for dataset_id, info in result.datasets.items():
-                count = result.dataset_counts.get(dataset_id, "n/a")
-                lines.append(
-                    f"  {dataset_id} ({info.get('type','unknown')}): "
-                    f"{info.get('name','unknown')} – {count} rows"
-                )
-            lines.append("")
-
-        diagnostics = result.diagnostics
-        if diagnostics.rhat:
-            lines.append(
-                "R‑hat summary: "
-                f"{diagnostics.rhat.get('min','?')}/"
-                f"{diagnostics.rhat.get('median','?')}/"
-                f"{diagnostics.rhat.get('max','?')}"
-            )
-        if diagnostics.ess:
-            lines.append(
-                "Effective sample sizes: "
-                f"bulk={diagnostics.ess.get('bulk_median','?')}, "
-                f"tail={diagnostics.ess.get('tail_median','?')}"
-            )
-        lines.append("")
-
-        if result.model_summaries:
-            for model_name, summary in result.model_summaries.items():
-                lines.append(f"Model: {model_name}")
-                for key, value in sorted(summary.chi2.items()):
-                    lines.append(f"  {key}: {value}")
-                if summary.acceptance:
-                    lines.append(
-                        "  Acceptance "
-                        f"mean={summary.acceptance.get('mean','?')}, "
-                        f"min={summary.acceptance.get('min','?')}, "
-                        f"max={summary.acceptance.get('max','?')}"
-                    )
-                if summary.bao_rs is not None:
-                    lines.append(f"  BAO r_s = {summary.bao_rs:.2f} Mpc")
-                lines.append("")
-        return "\n".join(lines).strip()
 
     def _export_analysis_summary(self) -> None:
         """Export the currently loaded summary to disk."""

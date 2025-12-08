@@ -93,9 +93,9 @@ streaming updates uninterrupted.
 The navigation rail now includes an **Analysis** button between Engines and
 Validation. Pressing it opens a 4-tab workspace that mirrors the Settings
 screen’s tab bar. Each tab shows a contextual description, a row of three action
-buttons and a dedicated body frame—Run Summary is fully wired while Diagnostics,
-Posteriors and Comparisons remain placeholder panels (their buttons are currently
-labeled “1”, “2” and “3” and do nothing until those pages ship).
+buttons and a dedicated body frame—Diagnostics remains a placeholder while Run
+Summary, Posteriors and Comparisons now present concrete workflows powered by the
+shared `copernican_lib.analysis` helpers.
 
 Run Summary lets you browse to any ``output/copernican-run_*`` folder, load the
 manifest/log/parameter summary-derived diagnostics and render the results inside a
@@ -105,6 +105,20 @@ copies into the selected directory, and “Copy JSON” pours the serialised res
 into the clipboard for quick reporting. The summary lists datasets, row counts,
 R-hat/ESS diagnostics, model χ² components, BAO ``r_s`` values and the run’s
 timestamps without forcing you to re-run the CLI workflow.
+
+The Posteriors tab now hooks directly into ``posterior-*.nc`` outputs via
+``copernican_lib.posterior_explorer`` and renders their trace/hist overview inside the
+shared :class:`copernican_lib.gui.plot_viewer.PlotViewer`. The action buttons above the
+tab refresh the file list, autoscale the plot and toggle drag-enabled zoom/pan while the
+control row lets you pick a snapshot and load it into the viewer. Fit-to-screen and
+“restore view” helpers keep the traces legible, and the zoom toggle enables a click-and-drag
+pan so you can inspect any region without re-creating the plot.
+
+The Comparisons tab now lets you load two run directories, view Δχ²/parameter shifts
+and dataset-count deltas in a JSON panel, and export or copy the structured
+comparison summary that the new `copernican_lib.analysis.compare_runs` helper produces.
+Refreshing the diff re-analyses both folders via `copernican_lib.analysis.analyze_run`
+so you can compare any historical results without re-running the CLI workflow.
 
 ## Validation
 The navigation rail now includes a **Validation** button positioned between

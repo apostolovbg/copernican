@@ -94,6 +94,23 @@ flags execute their action and exit immediately:
   validation run directory so the manifest that drove the analysis stays
   alongside the outputs.
 
+### Analysis helpers
+
+- `--analysis-summary RUN_DIR` reads the manifest, parameter summary and log for
+  the chosen run directory, prints the dataset counts, R-hat/ESS diagnostics and
+  per-model χ² breakdown, and lets you export structured
+  `analysis-summary_<timestamp>.yml/.json` files by also passing
+  `--analysis-summary-output <dir>` and optional `--analysis-summary-formats
+  yml,json`.
+- `--analysis-compare BASE_DIR ALT_DIR` runs the structured comparator described
+  in `copernican_lib.analysis`, prints the resulting JSON/YAML fragment with
+  duration, dataset count and parameter deltas, and writes the same filer when
+  combined with `--analysis-compare-output <dir>`.
+- `--analysis-posterior RUN_DIR` reuses `copernican_lib.posterior_explorer` to
+  render the trace/hist overview for the most recent `posterior-*.nc` snapshot,
+  and `--analysis-posterior-output <file.png>` captures that figure so the CLI
+  reproduces what the Analysis PlotViewer shows without opening the GUI.
+
 ## Executing Saved Manifests
 Both the CLI and GUI rely on
 `copernican_lib.run_executor.execute_run_from_manifest`. To reuse a manifest:

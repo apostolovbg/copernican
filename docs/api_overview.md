@@ -239,3 +239,43 @@ print(summary_paths["yml"])  # analysis-summary_20251207_200254.yml
 
 Each file contains the mapped fields from :class:`RunAnalysisResult`, including
 datasets, diagnostics, ``model_summaries`` and links back to the manifest/log.
+
+## Posterior Explorer
+
+Posterior summaries rely on :mod:`copernican_lib.posterior_explorer` to locate the
+``posterior-*.nc`` snapshots inside a run directory and build a compact trace/hist figure
+that reuses the shared analysis metadata. Use
+``posterior_explorer.find_posterior_files(run_dir)`` to enumerate the NetCDF files and
+``posterior_explorer.create_posterior_overview_figure(result, posterior_path)`` to
+draw the plot that appears inside the GUI’s Analysis workspace. The GUI also exposes the
+plot through :class:`copernican_lib.gui.plot_viewer.PlotViewer`, but you can use the same
+helpers directly in scripts or notebooks:
+
+```python
+from pathlib import Path
+
+from copernican_lib import analysis, posterior_explorer
+
+run_dir = Path("output/copernican-run_20251207_200254")
+result = analysis.analyze_run(run_dir)
+posterior_files = posterior_explorer.find_posterior_files(run_dir)
+if posterior_files:
+    figure = posterior_explorer.create_posterior_overview_figure(
+        result, posterior_files[0]
+    )
+    figure.savefig("reports/posterior_overview.png")
+```
+
+## Run Comparison Helpers
+
+Comparisons between two runs reuse the same run analysis helpers to produce
+consistent summary files and delta tables. Use
+``analysis.compare_runs(base_result, alt_result)`` to compute a JSON-friendly
+summary that includes descriptors for both runs, `duration_seconds` deltas,
+dataset row-count differences, and per-model χ²/parameter comparisons.
+``analysis.compare_run_dirs(base_dir, alt_dir)`` shortcuts the analysis step by
+loading each output directory before calling ``compare_runs``. When you need a
+file rather than an in-memory dictionary, call
+``analysis.save_comparison_summary`` to persist the comparison as
+``analysis-comparison_<timestamp>.yml/json`` using the same timestamping helper
+that run summaries rely on.

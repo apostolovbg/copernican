@@ -6,6 +6,7 @@ from __future__ import annotations
 import datetime
 import textwrap
 
+import pytest
 import yaml
 
 from copernican_lib import analysis
@@ -177,3 +178,89 @@ def test_save_run_summary_creates_serialised_files(tmp_path):
         loaded["model_summaries"]["LambdaCDM"]["chi2"]["chi2_total"] == 360.11
     )
     assert saved["json"].exists()
+
+
+def _make_mock_run_dir(tmp_path, name, chi2_total, dataset_count, param_value):
+    run_dir = tmp_path / name
+    run_dir.mkdir()
+    manifest = {
+        "datasets": {
+            "union3_2025": {
+                "name": "Union sample",
+                "path": "/tmp/data/sne",
+                "hashes": {},
+                "type": "sne",
+            }
+        }
+    }
+    (run_dir / "run_manifest_20250101_000000.yml").write_text(
+        yaml.safe_dump(manifest)
+    )
+    summary = {
+        "LambdaCDM": {
+            "parameters": {"H_0": param_value},
+            "errors_1sigma": {"H_0": 0.4},
+            "covariance_matrix": {"param_names": ["H_0"], "matrix": [[0.16]]},
+            "sampling": {"production_steps": 200},
+        }
+    }
+    (run_dir / "parameter-summary_20250101_000000.yml").write_text(
+        yaml.safe_dump(summary)
+    )
+    log_lines = "\n".join(
+        [
+            "2025-12-08 01:09:21,563 - INFO - --- ΛCDM Fit Report ---",
+            f"2025-12-08 01:09:21,564 - INFO -   χ²_Total = {chi2_total}",
+            "2025-12-08 01:09:21,565 - INFO -   χ²_BAO = 4.50",
+            (
+                "2025-12-08 01:09:21,566 - INFO - "
+                "LambdaCDM BAO: r_s = 146.12 Mpc, χ²_BAO = 4.50"
+            ),
+            (
+                "2025-12-08 01:09:21,566 - INFO - Loaded dataset "
+                "union3_2025: " + str(dataset_count) + " entries"
+            ),
+            "2025-12-08 01:09:21,568 - INFO - Evaluation complete.",
+        ]
+    )
+    log_file = run_dir / "copernican-run_20250101_000000.txt"
+    log_file.write_text(textwrap.dedent(log_lines).strip() + "\n")
+    return run_dir
+
+
+def test_compare_runs_reports_deltas(tmp_path):
+    base_dir = _make_mock_run_dir(tmp_path, "base", 360.11, 5, 67.2)
+    alt_dir = _make_mock_run_dir(tmp_path, "alt", 362.40, 4, 67.9)
+    base_result = analysis.analyze_run(base_dir)
+    alt_result = analysis.analyze_run(alt_dir)
+    comparison = analysis.compare_runs(base_result, alt_result)
+    diff = comparison["difference"]
+    assert diff["models"]["LambdaCDM"]["chi2"]["chi2_total"][
+        "delta"
+    ] == pytest.approx(2.29, rel=1e-5)
+    assert diff["models"]["LambdaCDM"]["parameters"]["H_0"][
+        "delta"
+    ] == pytest.approx(0.7, rel=1e-5)
+    assert diff["dataset_counts"]["union3_2025"]["delta"] == -1
+    # Re-analysing the directories should reproduce the delta dictionary.
+    reloaded = analysis.compare_run_dirs(base_dir, alt_dir)
+    assert reloaded["difference"]["models"]["LambdaCDM"]["chi2"]["chi2_total"][
+        "delta"
+    ] == pytest.approx(2.29, rel=1e-5)
+
+
+def test_save_comparison_summary(tmp_path):
+    base_dir = _make_mock_run_dir(tmp_path, "base", 360.11, 5, 67.2)
+    alt_dir = _make_mock_run_dir(tmp_path, "alt", 361.00, 5, 67.4)
+    base_result = analysis.analyze_run(base_dir)
+    alt_result = analysis.analyze_run(alt_dir)
+    output_dir = tmp_path / "comparison"
+    saved = analysis.save_comparison_summary(
+        base_result, alt_result, output_dir
+    )
+    assert "yml" in saved and "json" in saved
+    loaded = yaml.safe_load(saved["yml"].read_text())
+    assert "difference" in loaded
+    assert loaded["difference"]["models"]["LambdaCDM"]["chi2"]["chi2_total"][
+        "delta"
+    ] == pytest.approx(0.89, rel=1e-5)

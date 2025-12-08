@@ -514,9 +514,234 @@ def save_run_summary(
     return saved
 
 
+def _run_descriptor(result: RunAnalysisResult) -> dict[str, Any]:
+    """Return a compact descriptor describing the analysed run."""
+
+    return {
+        "run_dir": str(result.run_dir),
+        "manifest_path": (
+            str(result.manifest_path) if result.manifest_path else None
+        ),
+        "parameter_summary_path": (
+            str(result.parameter_summary_path)
+            if result.parameter_summary_path
+            else None
+        ),
+        "log_path": str(result.log_path) if result.log_path else None,
+        "start_time": (
+            result.start_time.isoformat() if result.start_time else None
+        ),
+        "end_time": result.end_time.isoformat() if result.end_time else None,
+        "duration_seconds": result.duration_seconds,
+        "models": sorted(result.model_summaries.keys()),
+        "datasets": sorted(result.datasets.keys()),
+    }
+
+
+def _safe_numeric(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        return _parse_float(value)
+    return None
+
+
+def _diff_entry(base_value: Any, alt_value: Any) -> dict[str, Any]:
+    base_num = _safe_numeric(base_value)
+    alt_num = _safe_numeric(alt_value)
+    delta = None
+    if base_num is not None and alt_num is not None:
+        delta = alt_num - base_num
+    elif alt_num is not None:
+        delta = alt_num
+    elif base_num is not None:
+        delta = -base_num
+    return {
+        "base": base_value,
+        "alternative": alt_value,
+        "delta": delta,
+    }
+
+
+def _model_diff(
+    base_entry: ModelSummary | None,
+    alt_entry: ModelSummary | None,
+) -> dict[str, Any]:
+    chi2_keys = set()
+    if base_entry:
+        chi2_keys.update(base_entry.chi2.keys())
+    if alt_entry:
+        chi2_keys.update(alt_entry.chi2.keys())
+    param_keys = set()
+    if base_entry:
+        param_keys.update(base_entry.parameters.keys())
+    if alt_entry:
+        param_keys.update(alt_entry.parameters.keys())
+
+    return {
+        "chi2": {
+            metric: _diff_entry(
+                base_entry.chi2.get(metric) if base_entry else None,
+                alt_entry.chi2.get(metric) if alt_entry else None,
+            )
+            for metric in sorted(chi2_keys)
+        },
+        "parameters": {
+            param: _diff_entry(
+                base_entry.parameters.get(param) if base_entry else None,
+                alt_entry.parameters.get(param) if alt_entry else None,
+            )
+            for param in sorted(param_keys)
+        },
+    }
+
+
+def compare_runs(
+    base_result: RunAnalysisResult,
+    alternative_result: RunAnalysisResult,
+) -> dict[str, Any]:
+    """Compare two analysed runs and report deltas."""
+
+    dataset_ids = set(base_result.datasets.keys()) | set(
+        alternative_result.datasets.keys()
+    )
+    model_names = set(base_result.model_summaries.keys()) | set(
+        alternative_result.model_summaries.keys()
+    )
+
+    return {
+        "runs": {
+            "base": _run_descriptor(base_result),
+            "alternative": _run_descriptor(alternative_result),
+        },
+        "difference": {
+            "duration_seconds": _diff_entry(
+                base_result.duration_seconds,
+                alternative_result.duration_seconds,
+            ),
+            "dataset_counts": {
+                dataset: _diff_entry(
+                    base_result.dataset_counts.get(dataset),
+                    alternative_result.dataset_counts.get(dataset),
+                )
+                for dataset in sorted(dataset_ids)
+            },
+            "models": {
+                model: _model_diff(
+                    base_result.model_summaries.get(model),
+                    alternative_result.model_summaries.get(model),
+                )
+                for model in sorted(model_names)
+            },
+        },
+    }
+
+
+def compare_run_dirs(
+    base_dir: Path | str,
+    alternative_dir: Path | str,
+) -> dict[str, Any]:
+    """Analyse two run directories and compare their summaries."""
+
+    base_result = analyze_run(Path(base_dir))
+    alt_result = analyze_run(Path(alternative_dir))
+    return compare_runs(base_result, alt_result)
+
+
+def save_comparison_summary(
+    base_result: RunAnalysisResult,
+    alternative_result: RunAnalysisResult,
+    output_dir: Path | str,
+    *,
+    formats: Sequence[str] | str = ("yml", "json"),
+    timestamp: str | None = None,
+) -> dict[str, Path]:
+    """Serialize a comparison summary to disk."""
+
+    summary = compare_runs(base_result, alternative_result)
+    ts = timestamp or _summary_timestamp(base_result, override=None)
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    saved: dict[str, Path] = {}
+    for fmt in _normalize_formats(formats):
+        filename = f"analysis-comparison_{ts}.{fmt}"
+        target = output_path / filename
+        _dump_summary(summary, target, fmt)
+        saved[fmt] = target
+    return saved
+
+
+def format_run_summary_text(result: RunAnalysisResult) -> str:
+    """Render a human-readable summary for terminal or log output."""
+
+    lines: list[str] = []
+    lines.append(f"Run directory: {result.run_dir}")
+    lines.append(f"Manifest: {result.manifest_path or 'n/a'}")
+    lines.append(
+        f"Parameter summary: {result.parameter_summary_path or 'n/a'}"
+    )
+    lines.append(f"Log: {result.log_path or 'n/a'}")
+    if result.start_time:
+        lines.append(f"Started: {result.start_time.isoformat()}")
+    if result.end_time:
+        lines.append(f"Finished: {result.end_time.isoformat()}")
+    if result.duration_seconds is not None:
+        lines.append(f"Duration: {result.duration_seconds:.1f} s")
+    lines.append("")
+
+    if result.datasets:
+        lines.append("Datasets:")
+        for dataset_id, info in result.datasets.items():
+            count = result.dataset_counts.get(dataset_id, "n/a")
+            lines.append(
+                f"  {dataset_id} ({info.get('type','unknown')}): "
+                f"{info.get('name','unknown')} – {count} rows"
+            )
+        lines.append("")
+
+    diagnostics = result.diagnostics
+    if diagnostics.rhat:
+        lines.append(
+            "R‑hat summary: "
+            f"{diagnostics.rhat.get('min','?')}/"
+            f"{diagnostics.rhat.get('median','?')}/"
+            f"{diagnostics.rhat.get('max','?')}"
+        )
+    if diagnostics.ess:
+        lines.append(
+            "Effective sample sizes: "
+            f"bulk={diagnostics.ess.get('bulk_median','?')}, "
+            f"tail={diagnostics.ess.get('tail_median','?')}"
+        )
+    lines.append("")
+
+    if result.model_summaries:
+        for model_name, summary in result.model_summaries.items():
+            lines.append(f"Model: {model_name}")
+            for key, value in sorted(summary.chi2.items()):
+                lines.append(f"  {key}: {value}")
+            if summary.acceptance:
+                lines.append(
+                    "  Acceptance "
+                    f"mean={summary.acceptance.get('mean','?')}, "
+                    f"min={summary.acceptance.get('min','?')}, "
+                    f"max={summary.acceptance.get('max','?')}"
+                )
+            if summary.bao_rs is not None:
+                lines.append(f"  BAO r_s = {summary.bao_rs:.2f} Mpc")
+            lines.append("")
+    return "\n".join(lines).strip()
+
+
 __all__ = [
     "analyze_run",
     "RunAnalysisResult",
     "ModelSummary",
     "RunDiagnostics",
+    "compare_runs",
+    "compare_run_dirs",
+    "save_comparison_summary",
+    "format_run_summary_text",
 ]
