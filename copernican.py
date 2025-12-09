@@ -765,8 +765,8 @@ def _run_analysis_compare_cli(
 
 def _run_analysis_posterior_cli(
     run_dir: Path,
-    posterior_file: Path | None,
-    output_file: Path | None,
+    posterior_file: Path | str | None,
+    output_file: Path | str | None,
 ) -> bool:
     """Generate a posterior overview plot for a run directory."""
 
@@ -780,54 +780,32 @@ def _run_analysis_posterior_cli(
         console.write(f"Failed to analyse run for posterior: {exc}", error=True)
         return False
 
-    if posterior_file:
-        target = posterior_file
-        if not target.is_absolute():
-            target = run_dir / target
-    else:
-        posterior_files = posterior_explorer.find_posterior_files(run_dir)
-        if not posterior_files:
-            console.write(
-                f"No posterior files found inside {run_dir}", error=True
-            )
-            return False
-        target = posterior_files[-1]
-
-    if not target.is_file():
-        console.write(f"Posterior file not found: {target}", error=True)
-        return False
+    output_dest = None
+    output_directory = run_dir
+    if output_file:
+        provided = Path(output_file)
+        if provided.suffix.lower() == ".png":
+            output_dest = provided
+            output_directory = provided.parent
+        else:
+            output_directory = provided
+    output_directory.mkdir(parents=True, exist_ok=True)
 
     try:
-        figure = posterior_explorer.create_posterior_overview_figure(
-            result, target
+        saved = analysis.plot_posterior(
+            run_dir,
+            output_dir=output_directory,
+            posterior_file=posterior_file,
+            kinds=("overview", "corner", "histograms"),
+            result=result,
+            overview_path=output_dest,
         )
     except Exception as exc:
         console.write(f"Failed to render posterior: {exc}", error=True)
         return False
 
-    destination = (
-        output_file
-        if output_file
-        else run_dir / "analysis-posterior.png"
-    )
-    destination.parent.mkdir(parents=True, exist_ok=True)
-
-    try:
-        figure.savefig(str(destination))
-    except Exception as exc:
-        console.write(
-            f"Failed to save posterior overview: {exc}", error=True
-        )
-        return False
-    finally:
-        try:
-            from matplotlib import pyplot as mpl_plt
-
-            mpl_plt.close(figure)
-        except Exception:
-            pass
-
-    console.write(f"Saved posterior overview to {destination}")
+    for label, path in saved.items():
+        console.write(f"{label.title()} plot saved to {path}")
     return True
 
 

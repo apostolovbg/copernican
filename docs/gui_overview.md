@@ -112,7 +112,10 @@ shared :class:`copernican_lib.gui.plot_viewer.PlotViewer`. The action buttons ab
 tab refresh the file list, autoscale the plot and toggle drag-enabled zoom/pan while the
 control row lets you pick a snapshot and load it into the viewer. Fit-to-screen and
 “restore view” helpers keep the traces legible, and the zoom toggle enables a click-and-drag
-pan so you can inspect any region without re-creating the plot.
+pan so you can inspect any region without re-creating the plot. A second control row
+offers “Show corner plot” and “Show histograms” actions that load the latest archived PNGs
+from the run directory so you can quickly compare the derived Surfaces without re-opening
+the sampler output.
 
 The Comparisons tab now lets you load two run directories, view Δχ²/parameter shifts
 and dataset-count deltas in a JSON panel, and export or copy the structured

@@ -11,15 +11,28 @@ macOS, Linux and Windows. Developers must consult
 [AGENTS.md](AGENTS.md) and the DevCovenant policies before making any edits
 because the repository enforces its laws through pre-commit checks.
 
-## Table of contents
-1. [Overview](#overview)
-2. [Directory layout](#directory-layout)
-3. [Run Builder & GUI](#run-builder--gui)
-4. [Analysis workspace](#analysis-workspace)
-5. [Validation](#validation)
-6. [Documentation & policy](#documentation--policy)
-7. [Maintenance helpers](#maintenance-helpers)
-8. [Law & policy compliance reminder](#law--policy-compliance-reminder)
+## Highlights
+- **Manifest-driven orchestration:** `copernican.py` consumes theory, data and
+  engine selections, writes every run into `output/copernican-run_*`, and
+  re-uses `copernican_lib/run_pipeline.py` helpers so CLI and GUI paths stay
+  consistent.
+- **Modular library layout:** `copernican_lib/` hosts shared helpers (plotting,
+  analysis, diagnostics, GUI scaffolding and dataset registries) while
+  `models/`, `engines/`, `data/` and `output/` remain the canonical asset roots.
+- **Run Builder & GUI:** a navigation rail keeps the Run Builder, Run Monitor,
+  Analysis workspace and validation tools at your fingertips while metadata
+  dialogs, builder panels, and the detached launcher preserve the historic flow.
+- **Analysis workspace:** Run Summary, Posteriors, Diagnostics and Comparisons
+  tabs rely on `copernican_lib.analysis`, `posterior_explorer`, and the shared
+  `PlotViewer` so summaries, comparisons and posterior plots stay in sync with
+  CLI helpers.
+- **Validation & documentation:** Fixed Planck 2018 manifests drive the
+  validation suite, while `docs/` guides, `README.md`, `CHANGELOG.md` and the
+  AGENTS/DevCovenant policies capture every procedural rule.
+- **Maintenance helpers:** CLI commands such as run summaries, comparisons,
+  validations and dataset revalidation keep operators productive without the GUI.
+- **Law & policy reminder:** Always obey the DevCovenant laws in `AGENTS.md`
+  and run `pre-commit run --all-files` before finishing work.
 
 ## Overview
  - `copernican.py` acts as a manifest-first orchestrator: it consumes a manifest
@@ -104,6 +117,13 @@ you can inspect any region without re-creating the plot. The Comparisons tab
 lets you point at two run directories, refresh Δχ²/parameter shifts and dataset
 count deltas, and export or copy the structured comparison summary that the new
 `copernican_lib.analysis.compare_runs` helper produces.
+
+Every run now also writes ArviZ-powered corner plots and parameter histograms
+into the `output/copernican-run_*` folders so the Analysis workspace can render
+them inside the PlotViewer without re-running the sampler.  Use
+`python copernican.py --analysis-posterior output/copernican-run_*` to rerun
+`copernican_lib.analysis.plot_posterior`, producing the overview, corner and
+histogram assets from each `posterior-*.nc` snapshot on demand.
 
 ## Validation
 The Validation tab runs `python copernican.py --run-validation`, streams CLI

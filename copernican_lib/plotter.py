@@ -6,6 +6,7 @@
 # All plotting code lives here so that engines only perform computations.
 # Functions create Matplotlib figures summarising SNe, BAO and CMB results.
 
+import math
 import os
 import textwrap
 import tkinter
@@ -13,6 +14,7 @@ from typing import Any, Iterable, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import ListedColormap
 
 from . import latex_utils
 from . import version as version_module
@@ -22,6 +24,11 @@ from .utils import ensure_dir_exists, generate_filename, get_timestamp
 # Resolve the Matplotlib backend during import so later calls do not trigger
 # the auto-backend sentinel while tests monitor ``switch_backend``.
 _ = plt.get_backend()
+
+try:  # pragma: no cover - coverage uses the environment-installed backend
+    import arviz as az
+except ModuleNotFoundError:  # pragma: no cover - pytest installs ArviZ already
+    az = None
 
 # ``MAX_CORNER_SAMPLES`` bounds the number of posterior draws processed by the
 # corner plot helper. Stage 2 runs can easily accumulate millions of samples
@@ -596,6 +603,273 @@ def _format_corner_footer_stats(
         )
 
     return lines
+
+
+def _build_arviz_inference_data(
+    samples: np.ndarray, labels: list[str]
+) -> tuple[object, list[str]]:
+    """Construct an ArviZ InferenceData object from flattened samples."""
+
+    if az is None:
+        raise RuntimeError("ArviZ is not available")
+
+    data: dict[str, np.ndarray] = {}
+    var_names: list[str] = []
+    for idx, name in enumerate(labels):
+        base = name or f"param_{idx + 1}"
+        candidate = base
+        suffix = 1
+        while candidate in data:
+            candidate = f"{base}_{suffix}"
+            suffix += 1
+        data[candidate] = samples[:, idx]
+        var_names.append(candidate)
+    inference_data = az.from_dict(posterior=data)
+    return inference_data, var_names
+
+
+def _render_corner_grid_legacy(
+    axes: np.ndarray,
+    n_params: int,
+    samples: np.ndarray,
+    wrapped_labels: list[str],
+    font_sizes: dict[str, float],
+    bins: int,
+    percentile_lines: tuple[float, float, float],
+    contour_levels: tuple[float, float],
+) -> None:
+    """Draw the original Matplotlib-based corner grid."""
+
+    for row in range(n_params):
+        for col in range(n_params):
+            ax = axes[row, col]
+            if row < col:
+                ax.axis("off")
+                continue
+
+            if row == col:
+                param_samples = samples[:, col]
+                ax.hist(
+                    param_samples,
+                    bins=bins,
+                    density=True,
+                    color="#4e79a7",
+                    alpha=0.7,
+                    edgecolor="white",
+                )
+                quantiles = np.percentile(param_samples, percentile_lines)
+                for quantile, style in zip(
+                    quantiles,
+                    ["dashed", "solid", "dashed"],
+                ):
+                    ax.axvline(
+                        quantile,
+                        color="#e15759",
+                        linestyle=style,
+                        linewidth=1.2,
+                    )
+                ax.set_ylabel(
+                    "Density",
+                    fontsize=font_sizes["label"],
+                )
+            else:
+                x = samples[:, col]
+                y = samples[:, row]
+                hist, x_edges, y_edges = np.histogram2d(
+                    x,
+                    y,
+                    bins=bins,
+                    density=True,
+                )
+                if np.allclose(hist, 0.0):
+                    ax.scatter(
+                        x,
+                        y,
+                        s=6,
+                        alpha=0.25,
+                        color="#4e79a7",
+                    )
+                else:
+                    x_centers = 0.5 * (x_edges[1:] + x_edges[:-1])
+                    y_centers = 0.5 * (y_edges[1:] + y_edges[:-1])
+                    filled_levels, line_levels = _build_contour_levels(
+                        hist,
+                        contour_levels,
+                    )
+                    ax.contourf(
+                        x_centers,
+                        y_centers,
+                        hist.T,
+                        levels=filled_levels,
+                        colors=["#dbe9f6", "#afc5e5", "#7da0d4"],
+                        alpha=0.9,
+                    )
+                    ax.contour(
+                        x_centers,
+                        y_centers,
+                        hist.T,
+                        levels=line_levels.tolist(),
+                        colors="#2a5176",
+                        linewidths=1.0,
+                    )
+                ax.grid(True, alpha=0.3)
+
+            if row == n_params - 1:
+                ax.set_xlabel(
+                    wrapped_labels[col],
+                    fontsize=font_sizes["label"],
+                )
+            else:
+                ax.set_xticklabels([])
+
+            if col == 0:
+                ax.set_ylabel(
+                    wrapped_labels[row],
+                    fontsize=font_sizes["label"],
+                )
+            elif row != col:
+                ax.set_yticklabels([])
+
+            ax.tick_params(axis="both", labelsize=font_sizes["ticks"])
+
+
+def _render_corner_with_arviz(
+    axes: np.ndarray,
+    n_params: int,
+    wrapped_labels: list[str],
+    font_sizes: dict[str, float],
+    percentile_lines: tuple[float, float, float],
+    samples: np.ndarray,
+    inference_data: object,
+    var_names: list[str],
+    bins: int,
+) -> None:
+    """Render the corner grid using ArviZ while keeping Copernican styling."""
+
+    cmap = ListedColormap(["#dbe9f6", "#afc5e5", "#7da0d4"])
+    kde_kwargs = {
+        "contour_kwargs": {"colors": "#2a5176", "linewidths": 1.0},
+        "contourf_kwargs": {"cmap": cmap, "alpha": 0.9},
+        "fill_last": True,
+    }
+    marginal_kwargs = {
+        "kind": "hist",
+        "hist_kwargs": {
+            "bins": bins,
+            "color": "#4e79a7",
+            "alpha": 0.7,
+            "edgecolor": "white",
+            "rwidth": 0.9,
+            "density": True,
+        },
+        "quantiles": [value / 100.0 for value in percentile_lines],
+    }
+
+    az.plot_pair(
+        inference_data,
+        var_names=var_names,
+        kind="kde",
+        marginals=True,
+        ax=axes,
+        textsize=font_sizes["label"],
+        kde_kwargs=kde_kwargs,
+        marginal_kwargs=marginal_kwargs,
+        show=False,
+    )
+
+    for row in range(n_params):
+        for col in range(n_params):
+            if row < col:
+                continue
+            ax = axes[row, col]
+            if row == col:
+                ax.set_ylabel(
+                    "Density",
+                    fontsize=font_sizes["label"],
+                )
+                quantiles = np.percentile(samples[:, row], percentile_lines)
+                for quantile, style in zip(
+                    quantiles,
+                    ["dashed", "solid", "dashed"],
+                ):
+                    ax.axvline(
+                        quantile,
+                        color="#e15759",
+                        linestyle=style,
+                        linewidth=1.2,
+                    )
+                if row == n_params - 1:
+                    ax.set_xlabel(
+                        wrapped_labels[col],
+                        fontsize=font_sizes["label"],
+                    )
+                else:
+                    ax.set_xticklabels([])
+            else:
+                if row == n_params - 1:
+                    ax.set_xlabel(
+                        wrapped_labels[col],
+                        fontsize=font_sizes["label"],
+                    )
+                else:
+                    ax.set_xticklabels([])
+                if col == 0:
+                    ax.set_ylabel(
+                        wrapped_labels[row],
+                        fontsize=font_sizes["label"],
+                    )
+                else:
+                    ax.set_yticklabels([])
+                ax.grid(True, alpha=0.3)
+            ax.tick_params(axis="both", labelsize=font_sizes["ticks"])
+
+
+def _render_single_param_arviz(
+    ax: plt.Axes,
+    samples: np.ndarray,
+    label: str,
+    font_sizes: dict[str, float],
+    bins: int,
+    percentile_lines: tuple[float, float, float],
+) -> None:
+    """Draw a single-parameter histogram using ArviZ."""
+
+    hist_kwargs = {
+        "bins": bins,
+        "color": "#4e79a7",
+        "alpha": 0.7,
+        "edgecolor": "white",
+        "density": True,
+        "rwidth": 0.9,
+    }
+    quantiles = [value / 100.0 for value in percentile_lines]
+
+    az.plot_dist(
+        samples,
+        kind="hist",
+        hist_kwargs=hist_kwargs,
+        quantiles=quantiles,
+        ax=ax,
+        show=False,
+        textsize=font_sizes["label"],
+    )
+
+    quantile_values = np.percentile(samples, percentile_lines)
+    for quantile, style in zip(
+        quantile_values,
+        ["dashed", "solid", "dashed"],
+    ):
+        ax.axvline(
+            quantile,
+            color="#e15759",
+            linestyle=style,
+            linewidth=1.2,
+        )
+
+    ax.set_xlabel(label, fontsize=font_sizes["label"])
+    ax.set_ylabel("Density", fontsize=font_sizes["label"])
+    ax.grid(True, alpha=0.3)
+    ax.tick_params(axis="both", labelsize=font_sizes["ticks"])
 
 
 def build_footer_lines(
@@ -1906,11 +2180,16 @@ def plot_corner(
         wrapped_labels.append(_wrap_math(label))
 
     alt_name = getattr(alt_model_plugin, "MODEL_NAME", "AltModel")
+    extra_lines = _format_corner_footer_stats(stats)
+    if az is not None:
+        extra_lines.append(
+            ("Corner densities rendered via ArviZ backend.", False)
+        )
     footer_lines = build_footer_lines(
         alt_model_plugin,
         attrs,
         timestamp,
-        extra_lines=_format_corner_footer_stats(stats),
+        extra_lines=extra_lines,
         include_dataset_details=False,
     )
 
@@ -1993,108 +2272,71 @@ def plot_corner(
     # derived from ``_compute_corner_layout`` so the panels resize gracefully
     # as the dimensionality grows while remaining within a manageable figure.
     fig, axes = _build_corner_figure()
-    if n_params == 1:
-        axes = np.array([[axes]])
+    if isinstance(axes, np.ndarray):
+        axes_array = np.asarray(axes)
+    else:
+        axes_array = np.array([[axes]])
+    if axes_array.ndim != 2:
+        axes_array = axes_array.reshape((n_params, n_params))
 
     bins = max(25, int(np.sqrt(samples.shape[0]) // 2))
     percentile_lines = (16.0, 50.0, 84.0)
     contour_levels = (0.68, 0.95)
 
-    for row in range(n_params):
-        for col in range(n_params):
-            ax = axes[row, col]
-            if row < col:
-                # Hide the upper-triangular panels so the plot reads as a
-                # triangle, matching the Copernican documentation.
-                ax.axis("off")
-                continue
-
-            if row == col:
-                param_samples = samples[:, col]
-                ax.hist(
-                    param_samples,
-                    bins=bins,
-                    density=True,
-                    color="#4e79a7",
-                    alpha=0.7,
-                    edgecolor="white",
-                )
-                quantiles = np.percentile(param_samples, percentile_lines)
-                for quantile, style in zip(
-                    quantiles,
-                    ["dashed", "solid", "dashed"],
-                ):
-                    ax.axvline(
-                        quantile,
-                        color="#e15759",
-                        linestyle=style,
-                        linewidth=1.2,
-                    )
-                ax.set_ylabel("Density", fontsize=font_sizes["label"])
-            else:
-                x = samples[:, col]
-                y = samples[:, row]
-                hist, x_edges, y_edges = np.histogram2d(
-                    x,
-                    y,
-                    bins=bins,
-                    density=True,
-                )
-                if np.allclose(hist, 0.0):
-                    ax.scatter(
-                        x,
-                        y,
-                        s=6,
-                        alpha=0.25,
-                        color="#4e79a7",
-                    )
-                else:
-                    x_centers = 0.5 * (x_edges[1:] + x_edges[:-1])
-                    y_centers = 0.5 * (y_edges[1:] + y_edges[:-1])
-                    # Robustly derive contour levels so even plateaued
-                    # histograms render without raising ``ValueError``
-                    # exceptions inside Matplotlib.
-                    filled_levels, line_levels = _build_contour_levels(
-                        hist,
-                        contour_levels,
-                    )
-                    ax.contourf(
-                        x_centers,
-                        y_centers,
-                        hist.T,
-                        levels=filled_levels,
-                        colors=["#dbe9f6", "#afc5e5", "#7da0d4"],
-                        alpha=0.9,
-                    )
-                    # Draw thin outlines so the contour levels remain legible
-                    # when exported to PDF or scaled PNG assets.
-                    ax.contour(
-                        x_centers,
-                        y_centers,
-                        hist.T,
-                        levels=line_levels.tolist(),
-                        colors="#2a5176",
-                        linewidths=1.0,
-                    )
-                ax.grid(True, alpha=0.3)
-
-            if row == n_params - 1:
-                ax.set_xlabel(
-                    wrapped_labels[col],
-                    fontsize=font_sizes["label"],
+    if az is not None:
+        try:
+            if n_params == 1:
+                _render_single_param_arviz(
+                    axes_array[0, 0],
+                    samples[:, 0],
+                    wrapped_labels[0],
+                    font_sizes,
+                    bins,
+                    percentile_lines,
                 )
             else:
-                ax.set_xticklabels([])
-
-            if col == 0:
-                ax.set_ylabel(
-                    wrapped_labels[row],
-                    fontsize=font_sizes["label"],
+                inference_data, var_names = _build_arviz_inference_data(
+                    samples,
+                    labels,
                 )
-            elif row != col:
-                ax.set_yticklabels([])
-
-            ax.tick_params(axis="both", labelsize=font_sizes["ticks"])
+                _render_corner_with_arviz(
+                    axes_array,
+                    n_params,
+                    wrapped_labels,
+                    font_sizes,
+                    percentile_lines,
+                    samples,
+                    inference_data,
+                    var_names,
+                    bins,
+                )
+        except Exception as exc:  # pragma: no cover - ArviZ-specific failures
+            logger.warning(
+                "ArviZ corner rendering failed (%s); falling back "
+                "to legacy grid.",
+                exc,
+            )
+            _render_corner_grid_legacy(
+                axes_array,
+                n_params,
+                samples,
+                wrapped_labels,
+                font_sizes,
+                bins,
+                percentile_lines,
+                contour_levels,
+            )
+    else:
+        _render_corner_grid_legacy(
+            axes_array,
+            n_params,
+            samples,
+            wrapped_labels,
+            font_sizes,
+            bins,
+            percentile_lines,
+            contour_levels,
+        )
 
     fig.suptitle(
         f"Posterior corner plot: {alt_name}",
@@ -2107,22 +2349,11 @@ def plot_corner(
     footer_bottom = margins["bottom"]
 
     footer_stack_offset = max(len(footer_lines) - 1, 0) * line_height
-    # Drop the entire footer stack further below the axes so the first line
-    # lands at least one span beneath the axis labels.  Earlier builds anchored
-    # the top line directly beneath ``footer_bottom`` which still allowed
-    # overlaps whenever the x-labels protruded downward.  Offsetting by the
-    # remaining line span keeps the Stage 5 cadence while guaranteeing extra
-    # clearance for dense annotations and future plots that reuse the layout
-    # helper.
     y = footer_bottom - footer_padding - footer_stack_offset
     lowest_line = (
         y - (len(footer_lines) - 1) * line_height if footer_lines else y
     )
     if lowest_line < _CORNER_FOOTER_CLEARANCE - 1e-6:
-        # Layout rounding should keep ``lowest_line`` above the clearance
-        # floor.  Protect against pathological floating-point surprises by
-        # nudging the stack just enough to meet the promise, mirroring the
-        # safeguards used by the Stage 3 plots.
         y += _CORNER_FOOTER_CLEARANCE - lowest_line
 
     for idx, (line, is_bold) in enumerate(footer_lines):
@@ -2152,5 +2383,241 @@ def plot_corner(
         logger.info(f"Corner plot saved to {filename}")
     except Exception as exc:  # pragma: no cover - log path only
         logger.error(f"Error saving corner plot: {exc}")
+    finally:
+        plt.close(fig)
+
+
+def plot_parameter_histograms(
+    posterior_samples: np.ndarray,
+    alt_model_plugin: Any,
+    data_attrs: dict[str, Any] | None,
+    plot_dir: str = ".",
+    parameter_names: list[str] | None = None,
+    timestamp: str | None = None,
+) -> None:
+    """Generate per-parameter histograms using ArviZ."""
+
+    ensure_dir_exists(plot_dir)
+    logger = get_logger()
+    logger.info("Generating parameter histograms for posterior samples...")
+    attrs = data_attrs or {}
+
+    default_names = list(getattr(alt_model_plugin, "PARAMETER_NAMES", []))
+    label_candidates = list(
+        getattr(alt_model_plugin, "PARAMETER_LATEX_NAMES", [])
+    )
+    effective_names = parameter_names or default_names
+
+    validated = _prepare_corner_inputs(
+        posterior_samples,
+        effective_names,
+    )
+
+    if not isinstance(validated, tuple):
+        raise TypeError(
+            "_prepare_corner_inputs must return a tuple of outputs"
+        )
+
+    if len(validated) == 3:
+        samples, labels, stats = validated
+    elif len(validated) == 2:
+        samples, labels = validated
+        stats = {
+            "original_count": int(samples.shape[0]),
+            "finite_count": int(samples.shape[0]),
+            "processed_count": int(samples.shape[0]),
+            "stride": 1,
+            "downsampled": False,
+            "legacy_validator": True,
+        }
+    else:
+        raise ValueError(
+            "_prepare_corner_inputs returned an unexpected number of values"
+        )
+
+    stats.setdefault("legacy_validator", False)
+    n_params = samples.shape[1]
+
+    wrapped_labels: list[str] = []
+    for idx in range(n_params):
+        latex_name = (
+            label_candidates[idx] if idx < len(label_candidates) else None
+        )
+        label = latex_name or labels[idx]
+        wrapped_labels.append(_wrap_math(label))
+
+    model_label = getattr(alt_model_plugin, "MODEL_NAME", "model")
+
+    bins = max(25, int(np.sqrt(samples.shape[0]) // 2))
+    percentile_lines = (16.0, 50.0, 84.0)
+
+    max_columns = 3
+    columns = min(n_params, max_columns)
+    columns = max(1, columns)
+    rows = max(1, math.ceil(n_params / columns))
+
+    base_panel = 3.3
+    width = min(max(columns * base_panel, base_panel), 12.0)
+    height = min(max(rows * base_panel, base_panel), 12.0)
+
+    _apply_common_style()
+    fig, axes = plt.subplots(
+        rows, columns, figsize=(width, height), squeeze=False
+    )
+    axes_flat = axes.flatten()
+
+    for idx in range(rows * columns):
+        ax = axes_flat[idx]
+        if idx >= n_params:
+            ax.axis("off")
+            continue
+
+        values = samples[:, idx]
+        hist_kwargs = {
+            "bins": bins,
+            "color": "#4e79a7",
+            "alpha": 0.7,
+            "edgecolor": "white",
+            "density": True,
+            "rwidth": 0.9,
+        }
+        if az is not None:
+            az.plot_dist(
+                values,
+                kind="hist",
+                hist_kwargs=hist_kwargs,
+                quantiles=[value / 100.0 for value in percentile_lines],
+                ax=ax,
+                show=False,
+                textsize=12,
+            )
+        else:
+            logger.warning(
+                "ArviZ unavailable; falling back to Matplotlib histograms."
+            )
+            ax.hist(values, **hist_kwargs)
+
+        quantiles = np.percentile(values, percentile_lines)
+        for quantile, style in zip(
+            quantiles,
+            ["dashed", "solid", "dashed"],
+        ):
+            ax.axvline(
+                quantile,
+                color="#e15759",
+                linestyle=style,
+                linewidth=1.2,
+            )
+
+        ax.set_title(
+            wrapped_labels[idx],
+            fontsize=14,
+        )
+        ax.set_ylabel(
+            "Density",
+            fontsize=14,
+        )
+        ax.grid(True, alpha=0.3)
+        ax.tick_params(labelsize=10)
+
+    plt.subplots_adjust(
+        left=0.06,
+        right=0.78,
+        top=0.92,
+        bottom=0.18,
+        hspace=0.45,
+        wspace=0.35,
+    )
+
+    info_text_parts = [
+        f"Model: {model_label}",
+        f"Dataset: {attrs.get('dataset_name', 'Joint posterior')}",
+    ]
+    readable_params = default_names or labels
+    if readable_params:
+        info_text_parts.append(
+            f"Parameters: {', '.join(readable_params[:5])}"
+            + ("…" if len(readable_params) > 5 else "")
+        )
+    bbox = dict(
+        boxstyle="round,pad=0.5", fc="#F5F5F5", ec="#9C9C9C", alpha=0.95
+    )
+    fig.text(
+        0.82,
+        0.85,
+        "\n".join(info_text_parts),
+        fontsize=10,
+        va="top",
+        ha="left",
+        bbox=bbox,
+        wrap=True,
+    )
+
+    extra_lines = [
+        (
+            f"Histograms use {stats['processed_count']:,} samples "
+            f"from {stats['finite_count']:,} finite draws.",
+            False,
+        ),
+        ("Parameter histograms rendered via ArviZ backend.", False),
+    ]
+    if stats.get("downsampled"):
+        extra_lines.append(
+            (
+                "Automatic thinning applied to satisfy MAX_CORNER_SAMPLES.",
+                False,
+            )
+        )
+
+    footer_lines = build_footer_lines(
+        alt_model_plugin,
+        attrs,
+        timestamp,
+        extra_lines=extra_lines,
+        include_dataset_details=True,
+    )
+
+    footer_padding = 0.04
+    line_height = 0.018
+    footer_bottom = 0.12
+    y = footer_bottom - footer_padding
+    lowest_line = (
+        y - (len(footer_lines) - 1) * line_height if footer_lines else y
+    )
+    if lowest_line < 0.02:
+        y += 0.02 - lowest_line
+
+    for idx, (line, is_bold) in enumerate(footer_lines):
+        weight = "bold" if is_bold else "normal"
+        fig.text(
+            0.5,
+            y - idx * line_height,
+            line,
+            ha="center",
+            fontsize=10,
+            fontweight=weight,
+            wrap=True,
+        )
+
+    fig.suptitle(
+        f"Parameter histograms: {model_label}",
+        fontsize=22,
+    )
+
+    dataset_id = attrs.get("dataset_id", "joint")
+    alt_model_name = model_label.replace(" ", "_")
+    filename = generate_filename(
+        "parameter-histograms",
+        dataset_id,
+        "png",
+        model_name=f"vs-{alt_model_name}",
+        timestamp=timestamp,
+    )
+
+    try:
+        plt.savefig(os.path.join(plot_dir, filename), dpi=300)
+        logger.info(f"Parameter histograms saved to {filename}")
+    except Exception as exc:
+        logger.error(f"Error saving parameter histograms: {exc}")
     finally:
         plt.close(fig)

@@ -16,6 +16,7 @@ from typing import Any, Mapping, Optional, Sequence
 
 import yaml
 
+from . import plotter, posterior_explorer
 from . import run_manifest as run_manifest_module
 from . import utils
 
@@ -449,6 +450,183 @@ def _summary_timestamp(
     return utils.get_timestamp()
 
 
+@dataclass
+class _PosteriorPlotPlugin:
+    MODEL_NAME: str
+    PARAMETER_NAMES: list[str]
+    PARAMETER_LATEX_NAMES: list[str]
+
+
+def _normalize_posterior_kinds(
+    kinds: Sequence[str] | str,
+) -> list[str]:
+    if isinstance(kinds, str):
+        kinds = (kinds,)
+    normalized = [kind.strip().lower() for kind in kinds if kind.strip()]
+    return normalized or ["overview"]
+
+
+def _resolve_posterior_path(
+    run_dir: Path,
+    posterior_file: Path | str | None,
+) -> Path:
+    if posterior_file:
+        target = Path(posterior_file)
+        if not target.is_absolute():
+            target = run_dir / target
+    else:
+        files = posterior_explorer.find_posterior_files(run_dir)
+        if not files:
+            raise FileNotFoundError(
+                f"No posterior files found inside {run_dir}"
+            )
+        target = files[-1]
+    if not target.is_file():
+        raise FileNotFoundError(f"Posterior file not found: {target}")
+    return target
+
+
+def _posterior_dataset_id(
+    result: RunAnalysisResult,
+) -> str:
+    if result.datasets:
+        return next(iter(result.datasets))
+    return "joint"
+
+
+def _posterior_data_attrs(
+    result: RunAnalysisResult, dataset_id: str
+) -> dict[str, str]:
+    dataset_meta = result.datasets.get(dataset_id, {})
+    return {
+        "dataset_id": dataset_id,
+        "dataset_name": dataset_meta.get("name", dataset_id),
+        "description": dataset_meta.get("description", ""),
+        "citation": dataset_meta.get("citation", ""),
+        "notes": dataset_meta.get("notes", ""),
+    }
+
+
+def _posterior_plugin(
+    result: RunAnalysisResult,
+    param_names: list[str],
+) -> _PosteriorPlotPlugin:
+    model_names = list(result.model_summaries.keys())
+    model_label = model_names[0] if model_names else "Posterior"
+    latex_names = list(param_names)
+    return _PosteriorPlotPlugin(
+        MODEL_NAME=model_label,
+        PARAMETER_NAMES=list(param_names),
+        PARAMETER_LATEX_NAMES=latex_names,
+    )
+
+
+def _sanitize_model_name(name: str) -> str:
+    return name.replace(" ", "_").replace(".", "")
+
+
+def _corner_filename(dataset_id: str, model_name: str, timestamp: str) -> str:
+    return utils.generate_filename(
+        "corner-plot",
+        dataset_id,
+        "png",
+        model_name=f"vs-{_sanitize_model_name(model_name)}",
+        timestamp=timestamp,
+    )
+
+
+def _histogram_filename(
+    dataset_id: str, model_name: str, timestamp: str
+) -> str:
+    return utils.generate_filename(
+        "parameter-histograms",
+        dataset_id,
+        "png",
+        model_name=f"vs-{_sanitize_model_name(model_name)}",
+        timestamp=timestamp,
+    )
+
+
+def plot_posterior(
+    run_dir: Path | str,
+    output_dir: Path | str | None = None,
+    *,
+    posterior_file: Path | str | None = None,
+    kinds: Sequence[str] | str = ("corner", "histograms", "overview"),
+    timestamp: str | None = None,
+    result: RunAnalysisResult | None = None,
+    overview_path: Path | str | None = None,
+) -> dict[str, Path]:
+    """Render cached posterior diagnostics for an existing run."""
+
+    resolved_run_dir = Path(run_dir)
+    resolved_result = result or analyze_run(resolved_run_dir)
+    selected_kinds = _normalize_posterior_kinds(kinds)
+    allowed = {"corner", "histograms", "overview"}
+    invalid = [kind for kind in selected_kinds if kind not in allowed]
+    if invalid:
+        raise ValueError(f"Unsupported posterior plot kinds: {invalid}")
+
+    out_dir = Path(output_dir) if output_dir else resolved_run_dir
+    out_dir.mkdir(parents=True, exist_ok=True)
+    target = _resolve_posterior_path(resolved_run_dir, posterior_file)
+    dataset = posterior_explorer.load_inference_data(target)
+    samples, param_names = posterior_explorer.flatten_posterior_arrays(dataset)
+    if param_names == []:
+        raise RuntimeError("No posterior variables found for plotting.")
+
+    dataset_id = _posterior_dataset_id(resolved_result)
+    data_attrs = _posterior_data_attrs(resolved_result, dataset_id)
+    plugin = _posterior_plugin(resolved_result, param_names)
+    ts = _summary_timestamp(resolved_result, override=timestamp)
+
+    saved: dict[str, Path] = {}
+    if "corner" in selected_kinds:
+        plotter.plot_corner(
+            samples,
+            plugin,
+            data_attrs,
+            plot_dir=str(out_dir),
+            parameter_names=param_names,
+            timestamp=ts,
+        )
+        saved["corner"] = out_dir / _corner_filename(
+            dataset_id, plugin.MODEL_NAME, ts
+        )
+    if "histograms" in selected_kinds:
+        plotter.plot_parameter_histograms(
+            samples,
+            plugin,
+            data_attrs,
+            plot_dir=str(out_dir),
+            parameter_names=param_names,
+            timestamp=ts,
+        )
+        saved["histograms"] = out_dir / _histogram_filename(
+            dataset_id, plugin.MODEL_NAME, ts
+        )
+    if "overview" in selected_kinds:
+        figure = posterior_explorer.create_posterior_overview_figure(
+            resolved_result, target
+        )
+        dest = (
+            Path(overview_path)
+            if overview_path
+            else out_dir / f"analysis-posterior_{ts}.png"
+        )
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        figure.savefig(dest)
+        try:
+            from matplotlib import pyplot as mpl
+
+            mpl.close(figure)
+        except ImportError:  # pragma: no cover - Matplotlib always present
+            pass
+        saved["overview"] = dest
+
+    return saved
+
+
 def _dump_summary(data: Mapping[str, Any], path: Path, fmt: str) -> None:
     if fmt in ("yml", "yaml"):
         with open(path, "w", encoding="utf-8") as fh:
@@ -744,4 +922,5 @@ __all__ = [
     "compare_run_dirs",
     "save_comparison_summary",
     "format_run_summary_text",
+    "plot_posterior",
 ]

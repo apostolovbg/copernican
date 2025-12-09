@@ -106,10 +106,13 @@ flags execute their action and exit immediately:
   in `copernican_lib.analysis`, prints the resulting JSON/YAML fragment with
   duration, dataset count and parameter deltas, and writes the same filer when
   combined with `--analysis-compare-output <dir>`.
-- `--analysis-posterior RUN_DIR` reuses `copernican_lib.posterior_explorer` to
-  render the trace/hist overview for the most recent `posterior-*.nc` snapshot,
-  and `--analysis-posterior-output <file.png>` captures that figure so the CLI
-  reproduces what the Analysis PlotViewer shows without opening the GUI.
+- `--analysis-posterior RUN_DIR` reruns `copernican_lib.analysis.plot_posterior`,
+  producing the ArviZ-powered overview, corner and histogram figures from the
+  latest `posterior-*.nc` snapshot.  `--analysis-posterior-output` accepts either
+  a directory (defaulting to the run folder) or a `.png` path. When given a
+  directory all generated assets go inside it; supplying a `.png` stores the
+  overview figure at that path while the corner/histogram files still accompany
+  it in the same directory.
 
 ## Executing Saved Manifests
 Both the CLI and GUI rely on

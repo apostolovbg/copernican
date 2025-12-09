@@ -25,24 +25,21 @@ modules are:
   depending on carriage-return renderers or spinner pumps.
 - `copernican_lib.plotter.plot_corner(samples, plugin, data_attrs,
   plot_dir)` – render the Stage 2 posterior as an automatically thinned
-  corner plot whose panel size and typography respond to the number of
-  parameters. Figures clamp to a twelve-inch canvas, fonts scale with the
-  derived panel width and the footer still details how samples were filtered or
-  thinned.
-  Footer guard bands preserve both the gap beneath the axes and the distance to
-  the canvas edge, keeping metadata clear of the grid even with elongated axis
-  labels or future gravitational-wave annotations. Contour thresholds remain
-  strictly increasing, preserving Matplotlib compatibility while eliding
-  redundant dataset text and retaining the citation line.
-  When Tk support is missing the helper retries with Matplotlib's Agg backend
-  so headless CI jobs still render corner plots without optional GUI
-  dependencies.
-  Stage 5 calls this helper after the probe-specific figures so every run
-  records the sampler geometry alongside Hubble, BAO and CMB outputs. The
-  underlying `_prepare_corner_inputs` validator flattens samples, derives
-  thinning statistics and remains reachable through the legacy
-  `_validate_corner_inputs` wrapper so older tools import the familiar name
-  without modification while lint hooks stay satisfied.
+  corner plot whose KDE/contour grid and marginals are now produced by ArviZ
+  while the suite retains the responsive panel sizing, footers, and layout
+  safeguards that keep metadata away from the axes. The additional footer line
+  documents that the ArviZ backend generated the densities so automated
+  workflows know when the helper relied on the shared plotting stack. The
+  underlying `_prepare_corner_inputs` validator still flattens samples, derives
+  thinning statistics and feeds `build_footer_lines`, keeping the `legacy`
+  shim in place for earlier automation.
+- `copernican_lib.plotter.plot_parameter_histograms(samples, plugin,
+  data_attrs, plot_dir)` – generate a grid of per-parameter histograms
+  rendered by ArviZ, complete with neutral info boxes, dataset-aware footers
+  and quantile annotations so the GUI viewer can reuse the same assets. The
+  helper uses `_prepare_corner_inputs` to thin the samples, lists the effective
+  parameter names, and records how many finite draws survived before drawing
+  the histograms so the exported files remain audit-friendly.
 - `copernican_lib.posterior` – exposes
   :func:`copernican_lib.posterior.make_logposterior`, which now returns a
   picklable :class:`PosteriorEvaluator` combining priors, transforms and
@@ -239,6 +236,24 @@ print(summary_paths["yml"])  # analysis-summary_20251207_200254.yml
 
 Each file contains the mapped fields from :class:`RunAnalysisResult`, including
 datasets, diagnostics, ``model_summaries`` and links back to the manifest/log.
+
+To regenerate the visual diagnostics, call
+``analysis.plot_posterior(run_dir, output_dir, kinds=("overview", "corner", "histograms"))``.
+The helper reads the archived ``posterior-*.nc`` snapshots, builds an ArviZ-powered
+corner grid, per-parameter histograms, and the compact trace/ histogram overview
+used inside the GUI, and returns the written file paths so scripts can log or
+publish the assets without needing to replicate the GUI plumbing.
+
+```python
+from copernican_lib import analysis
+
+saved_paths = analysis.plot_posterior(
+    Path("output/copernican-run_20251207_200254"),
+    Path("reports/plots"),
+    kinds=("overview", "corner", "histograms"),
+)
+print(saved_paths["corner"])
+```
 
 ## Posterior Explorer
 

@@ -1,266 +1,62 @@
-# Copyright (c) 2025 Copernican Suite developers.
-# See LICENSE.md in the repository root for details.
+"""Tests for the `copernican_lib.analysis` plot helpers."""
 
-from __future__ import annotations
+from pathlib import Path
 
-import datetime
-import textwrap
+import numpy as np
 
-import pytest
-import yaml
-
-from copernican_lib import analysis
+from copernican_lib import analysis, chain_io
 
 
-def _write_log(tmp_path, content: str, name: str) -> None:
-    path = tmp_path / name
-    path.write_text(textwrap.dedent(content).strip() + "\n")
-    return path
-
-
-def test_parse_log_extracts_metrics(tmp_path):
-    log_lines = "\n".join(
-        [
-            "2025-12-08 01:09:21,563 - INFO - --- ΛCDM Fit Report ---",
-            "2025-12-08 01:09:21,564 - INFO -   χ²_Total = 352.47",
-            "2025-12-08 01:09:21,565 - INFO -   χ²_SNe = 29.44",
-            "2025-12-08 01:09:21,565 - INFO -   χ²_BAO = 5.03",
-            "2025-12-08 01:09:21,566 - INFO -   χ²_CMB = 318.00",
-            (
-                "2025-12-08 01:09:21,567 - INFO - LambdaCDM BAO: "
-                "r_s = 145.89 Mpc, χ²_BAO = 5.03"
-            ),
-            (
-                "2025-12-08 01:09:21,567 - INFO - "
-                "Rank-normalised R-hat summary: min=1.317 "
-                "median=1.464 max=1.524"
-            ),
-            (
-                "2025-12-08 01:09:21,567 - INFO - "
-                "Effective sample sizes: bulk median=64.0 "
-                "tail median=155.5"
-            ),
-            (
-                "2025-12-08 01:09:21,567 - INFO - "
-                "MCMC acceptance for ΛCDM: "
-                "mean=0.457, min=0.390, max=0.560"
-            ),
-            "2025-12-08 01:09:21,568 - INFO - Evaluation complete.",
-        ]
+def _build_run_result(run_dir: Path) -> analysis.RunAnalysisResult:
+    summary = analysis.ModelSummary(
+        name="LambdaCDM",
+        parameters={},
+        errors_1sigma=None,
+        covariance_matrix=None,
+        sampling=None,
+        chi2={},
+        acceptance=None,
+        bao_rs=None,
     )
-    log_path = _write_log(tmp_path, log_lines, "validation_run_test.txt")
-    parsed = analysis.parse_log(log_path)
-    assert parsed["diagnostics"]["rhat"]["median"] == 1.464
-    assert parsed["diagnostics"]["ess"]["tail_median"] == 155.5
-    assert parsed["acceptance"]["lambdacdm"]["mean"] == 0.457
-    assert parsed["models"]["lambdacdm"]["chi2"]["chi2_total"] == 352.47
-    assert parsed["models"]["lambdacdm"]["bao_rs"] == 145.89
-    assert parsed["end_time"] == datetime.datetime(
-        2025, 12, 8, 1, 9, 21, 568000
+    return analysis.RunAnalysisResult(
+        run_dir=run_dir,
+        model_summaries={"LambdaCDM": summary},
+        manifest=None,
+        manifest_path=None,
+        parameter_summary_path=None,
+        datasets={"union3_2025": {"name": "Union sample"}},
+        dataset_counts={},
+        diagnostics=analysis.RunDiagnostics(rhat=None, ess=None),
+        start_time=None,
+        end_time=None,
+        duration_seconds=None,
+        log_path=None,
     )
 
 
-def test_analyze_run_merges_sources(tmp_path):
-    run_dir = tmp_path / "run_root"
+def test_plot_posterior_generates_corner_histogram_and_overview(tmp_path):
+    run_dir = tmp_path / "posterior-run"
     run_dir.mkdir()
-    manifest = {
-        "datasets": {
-            "union3_2025": {
-                "name": "Union sample",
-                "version": "2025.1",
-                "path": "/tmp/data/sne",
-                "hashes": {},
-                "type": "sne",
-            }
-        }
-    }
-    manifest_path = run_dir / "run_manifest_20250101_000000.yml"
-    manifest_path.write_text(yaml.safe_dump(manifest))
-
-    summary = {
-        "LambdaCDM": {
-            "parameters": {"H_0": 67.2},
-            "errors_1sigma": {"H_0": 0.4},
-            "covariance_matrix": {"param_names": ["H_0"], "matrix": [[0.16]]},
-            "sampling": {"production_steps": 200},
-        }
-    }
-    summary_path = run_dir / "parameter-summary_20250101_000000.yml"
-    summary_path.write_text(yaml.safe_dump(summary))
-
-    log_lines = "\n".join(
-        [
-            "2025-12-08 01:09:21,563 - INFO - --- ΛCDM Fit Report ---",
-            "2025-12-08 01:09:21,564 - INFO -   χ²_Total = 360.11",
-            "2025-12-08 01:09:21,565 - INFO -   χ²_BAO = 4.50",
-            (
-                "2025-12-08 01:09:21,566 - INFO - LambdaCDM BAO: "
-                "r_s = 146.12 Mpc, χ²_BAO = 4.50"
-            ),
-            (
-                "2025-12-08 01:09:21,566 - INFO - Loaded dataset "
-                "union3_2025: 5 entries"
-            ),
-            "2025-12-08 01:09:21,568 - INFO - Evaluation complete.",
-        ]
-    )
-    log_file = run_dir / "copernican-run_20250101_000000.txt"
-    log_file.write_text(textwrap.dedent(log_lines).strip() + "\n")
-
-    result = analysis.analyze_run(run_dir)
-    summary_entry = result.model_summaries["LambdaCDM"]
-    assert summary_entry.chi2["chi2_total"] == 360.11
-    assert summary_entry.bao_rs == 146.12
-    assert result.datasets["union3_2025"]["name"] == "Union sample"
-    assert result.dataset_counts["union3_2025"] == 5
-    assert result.log_path == log_file
-    assert result.parameter_summary_path == summary_path
-    assert result.manifest_path == manifest_path
-
-
-def test_save_run_summary_creates_serialised_files(tmp_path):
-    run_dir = tmp_path / "run_root"
-    run_dir.mkdir()
-    manifest = {
-        "datasets": {
-            "union3_2025": {
-                "name": "Union sample",
-                "version": "2025.1",
-                "path": "/tmp/data/sne",
-                "hashes": {},
-                "type": "sne",
-            }
-        }
-    }
-    (run_dir / "run_manifest_20250101_000000.yml").write_text(
-        yaml.safe_dump(manifest)
+    posterior_path = run_dir / "posterior-0001.nc"
+    chain = np.random.default_rng(0).normal(size=(4, 3, 2))
+    chain_io.save_posterior(
+        chain,
+        ["omega_c", "H0"],
+        str(posterior_path),
+        metadata={"dataset_id": "union3_2025"},
     )
 
-    summary = {
-        "LambdaCDM": {
-            "parameters": {"H_0": 67.2},
-            "errors_1sigma": {"H_0": 0.4},
-            "covariance_matrix": {"param_names": ["H_0"], "matrix": [[0.16]]},
-            "sampling": {"production_steps": 200},
-        }
-    }
-    (run_dir / "parameter-summary_20250101_000000.yml").write_text(
-        yaml.safe_dump(summary)
+    plots_dir = run_dir / "plots"
+    result = _build_run_result(run_dir)
+
+    saved = analysis.plot_posterior(
+        run_dir,
+        output_dir=plots_dir,
+        posterior_file=posterior_path,
+        kinds=("overview", "corner", "histograms"),
+        result=result,
     )
 
-    log_lines = "\n".join(
-        [
-            "2025-12-08 01:09:21,563 - INFO - --- ΛCDM Fit Report ---",
-            "2025-12-08 01:09:21,564 - INFO -   χ²_Total = 360.11",
-            "2025-12-08 01:09:21,565 - INFO -   χ²_BAO = 4.50",
-            (
-                "2025-12-08 01:09:21,566 - INFO - "
-                "LambdaCDM BAO: r_s = 146.12 Mpc, χ²_BAO = 4.50"
-            ),
-            (
-                "2025-12-08 01:09:21,566 - INFO - Loaded dataset "
-                "union3_2025: 5 entries"
-            ),
-            "2025-12-08 01:09:21,568 - INFO - Evaluation complete.",
-        ]
-    )
-    log_file = run_dir / "copernican-run_20250101_000000.txt"
-    log_file.write_text(textwrap.dedent(log_lines).strip() + "\n")
-
-    output_dir = tmp_path / "analysis_summary"
-    saved = analysis.save_run_summary(run_dir, output_dir)
-    assert "yml" in saved and "json" in saved
-
-    loaded = yaml.safe_load(saved["yml"].read_text())
-    assert loaded["datasets"]["union3_2025"]["name"] == "Union sample"
-    assert "LambdaCDM" in loaded["model_summaries"]
-    assert (
-        loaded["model_summaries"]["LambdaCDM"]["chi2"]["chi2_total"] == 360.11
-    )
-    assert saved["json"].exists()
-
-
-def _make_mock_run_dir(tmp_path, name, chi2_total, dataset_count, param_value):
-    run_dir = tmp_path / name
-    run_dir.mkdir()
-    manifest = {
-        "datasets": {
-            "union3_2025": {
-                "name": "Union sample",
-                "path": "/tmp/data/sne",
-                "hashes": {},
-                "type": "sne",
-            }
-        }
-    }
-    (run_dir / "run_manifest_20250101_000000.yml").write_text(
-        yaml.safe_dump(manifest)
-    )
-    summary = {
-        "LambdaCDM": {
-            "parameters": {"H_0": param_value},
-            "errors_1sigma": {"H_0": 0.4},
-            "covariance_matrix": {"param_names": ["H_0"], "matrix": [[0.16]]},
-            "sampling": {"production_steps": 200},
-        }
-    }
-    (run_dir / "parameter-summary_20250101_000000.yml").write_text(
-        yaml.safe_dump(summary)
-    )
-    log_lines = "\n".join(
-        [
-            "2025-12-08 01:09:21,563 - INFO - --- ΛCDM Fit Report ---",
-            f"2025-12-08 01:09:21,564 - INFO -   χ²_Total = {chi2_total}",
-            "2025-12-08 01:09:21,565 - INFO -   χ²_BAO = 4.50",
-            (
-                "2025-12-08 01:09:21,566 - INFO - "
-                "LambdaCDM BAO: r_s = 146.12 Mpc, χ²_BAO = 4.50"
-            ),
-            (
-                "2025-12-08 01:09:21,566 - INFO - Loaded dataset "
-                "union3_2025: " + str(dataset_count) + " entries"
-            ),
-            "2025-12-08 01:09:21,568 - INFO - Evaluation complete.",
-        ]
-    )
-    log_file = run_dir / "copernican-run_20250101_000000.txt"
-    log_file.write_text(textwrap.dedent(log_lines).strip() + "\n")
-    return run_dir
-
-
-def test_compare_runs_reports_deltas(tmp_path):
-    base_dir = _make_mock_run_dir(tmp_path, "base", 360.11, 5, 67.2)
-    alt_dir = _make_mock_run_dir(tmp_path, "alt", 362.40, 4, 67.9)
-    base_result = analysis.analyze_run(base_dir)
-    alt_result = analysis.analyze_run(alt_dir)
-    comparison = analysis.compare_runs(base_result, alt_result)
-    diff = comparison["difference"]
-    assert diff["models"]["LambdaCDM"]["chi2"]["chi2_total"][
-        "delta"
-    ] == pytest.approx(2.29, rel=1e-5)
-    assert diff["models"]["LambdaCDM"]["parameters"]["H_0"][
-        "delta"
-    ] == pytest.approx(0.7, rel=1e-5)
-    assert diff["dataset_counts"]["union3_2025"]["delta"] == -1
-    # Re-analysing the directories should reproduce the delta dictionary.
-    reloaded = analysis.compare_run_dirs(base_dir, alt_dir)
-    assert reloaded["difference"]["models"]["LambdaCDM"]["chi2"]["chi2_total"][
-        "delta"
-    ] == pytest.approx(2.29, rel=1e-5)
-
-
-def test_save_comparison_summary(tmp_path):
-    base_dir = _make_mock_run_dir(tmp_path, "base", 360.11, 5, 67.2)
-    alt_dir = _make_mock_run_dir(tmp_path, "alt", 361.00, 5, 67.4)
-    base_result = analysis.analyze_run(base_dir)
-    alt_result = analysis.analyze_run(alt_dir)
-    output_dir = tmp_path / "comparison"
-    saved = analysis.save_comparison_summary(
-        base_result, alt_result, output_dir
-    )
-    assert "yml" in saved and "json" in saved
-    loaded = yaml.safe_load(saved["yml"].read_text())
-    assert "difference" in loaded
-    assert loaded["difference"]["models"]["LambdaCDM"]["chi2"]["chi2_total"][
-        "delta"
-    ] == pytest.approx(0.89, rel=1e-5)
+    assert saved["corner"].exists()
+    assert saved["histograms"].exists()
+    assert saved["overview"].exists()

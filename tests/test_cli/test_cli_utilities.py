@@ -136,3 +136,7 @@ def test_analysis_posterior_cli_creates_plot(tmp_path):
     output_file = tmp_path / "posterior.png"
     assert copernican._run_analysis_posterior_cli(run_dir, None, output_file)
     assert output_file.exists()
+    corner_files = list(tmp_path.glob("corner-plot-*.png"))
+    hist_files = list(tmp_path.glob("parameter-histograms-*.png"))
+    assert corner_files
+    assert hist_files

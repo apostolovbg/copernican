@@ -21,7 +21,27 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-09: Simplified `README.md` navigation by replacing the redundant
+            table of contents with a highlights summary while keeping every
+            overview, GUI, analysis and validation explanation intact.
 
+- 2025-12-09: Updated `copernican_lib.plotter.plot_corner` so ArviZ now produces
+            the KDE/contour grid while the existing layout helpers still enforce
+            the footer guard bands and dataset citations; the extra footer line
+            records the ArviZ backend, a new `plot_parameter_histograms`
+            helper renders per-parameter grids with neutral info boxes, and the
+            pipeline saves both kinds of plots through `run_pipeline` so the GUI
+            viewer has fresh assets (copernican_lib/plotter.py,
+            copernican_lib/run_pipeline.py, docs/api_overview.md,
+            tests/test_plotter.py, README.md, CHANGELOG.md).
+- 2025-12-09: Added `copernican_lib.analysis.plot_posterior`,
+            which reads the archived `posterior-*.nc` files, reruns the ArviZ
+            corner/histogram grid plus the trace overview, and returns the
+            written paths so CLI/GUI workflows can re-use the same assets (copernican_lib/analysis.py,
+            copernican_lib/posterior_explorer.py, copernican.py,
+            README.md, docs/api_overview.md, docs/cli_guide.md,
+            tests/test_analysis.py, tests/test_cli/test_cli_utilities.py,
+            CHANGELOG.md).
 - 2025-12-12: Added `copernican_lib.analysis` so run directories can be
             summarised programmatically—log parsing now feeds chi-squared
             breakdowns, BAO/CMB residuals, diagnostics (R-hat/ESS), dataset

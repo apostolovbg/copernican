@@ -121,6 +121,38 @@ def test_plot_corner_renders_expected_file(tmp_path) -> None:
     assert (tmp_path / expected_name).exists()
 
 
+def test_plot_parameter_histograms_renders_expected_file(tmp_path) -> None:
+    """Ensure the parameter histogram helper writes a PNG summary."""
+
+    rng = np.random.default_rng(8)
+    samples = rng.normal(size=(10, 2, 3))
+
+    attrs = {
+        "dataset_id": "joint_posterior",
+        "dataset_name": "Joint posterior",
+        "description": "Synthetic description",
+        "citation": "Histogram validation stub",
+    }
+
+    timestamp = "20251108_000500"
+    plotter.plot_parameter_histograms(
+        samples,
+        _CornerPlugin,
+        attrs,
+        plot_dir=str(tmp_path),
+        timestamp=timestamp,
+    )
+
+    expected_name = plot_utils.generate_filename(
+        "parameter-histograms",
+        "joint_posterior",
+        "png",
+        model_name="vs-TestModel",
+        timestamp=timestamp,
+    )
+    assert (tmp_path / expected_name).exists()
+
+
 def test_plot_corner_scales_layout_with_dimension(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

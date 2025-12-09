@@ -23,9 +23,10 @@ def find_posterior_files(run_dir: Path | str) -> list[Path]:
     return sorted(directory.glob("posterior-*.nc"))
 
 
-def _load_inference_data(path: Path) -> xr.Dataset:
+def load_inference_data(path: Path | str) -> xr.Dataset:
     """Load the posterior data from disk via ArviZ or xarray."""
 
+    path = Path(path)
     if az is not None:
         try:
             return az.from_netcdf(str(path)).posterior
@@ -34,7 +35,7 @@ def _load_inference_data(path: Path) -> xr.Dataset:
     return xr.open_dataset(path, engine="scipy")
 
 
-def _posterior_arrays(dataset: xr.Dataset) -> dict[str, np.ndarray]:
+def extract_posterior_arrays(dataset: xr.Dataset) -> dict[str, np.ndarray]:
     arrays: dict[str, np.ndarray] = {}
     for name, da in dataset.data_vars.items():
         if da.values is None:
@@ -44,6 +45,17 @@ def _posterior_arrays(dataset: xr.Dataset) -> dict[str, np.ndarray]:
             continue
         arrays[name] = arr
     return arrays
+
+
+def flatten_posterior_arrays(
+    dataset: xr.Dataset,
+) -> tuple[np.ndarray, list[str]]:
+    arrays = extract_posterior_arrays(dataset)
+    if not arrays:
+        return np.empty((0, 0)), []
+    names = list(arrays.keys())
+    stacked = np.column_stack([arrays[name] for name in names])
+    return stacked, names
 
 
 def _footer_lines(
@@ -83,8 +95,8 @@ def create_posterior_overview_figure(
 ) -> plt.Figure:
     """Build a compact posterior overview figure from NetCDF output."""
 
-    dataset = _load_inference_data(posterior_path)
-    arrays = _posterior_arrays(dataset)
+    dataset = load_inference_data(posterior_path)
+    arrays = extract_posterior_arrays(dataset)
     if not arrays:
         raise RuntimeError("No posterior variables found in the file.")
 
@@ -127,5 +139,8 @@ def create_posterior_overview_figure(
 
 __all__ = [
     "find_posterior_files",
+    "load_inference_data",
+    "extract_posterior_arrays",
+    "flatten_posterior_arrays",
     "create_posterior_overview_figure",
 ]

@@ -87,6 +87,23 @@ def extract_cosmological_param_vector(
     return [params[name] for name in names]
 
 
+def _posterior_metadata(sne_data_df: Any) -> dict[str, str]:
+    """Return metadata used for posterior-related plots."""
+
+    return {
+        "dataset_id": (
+            f"{sne_data_df.attrs.get('dataset_id', 'joint')}-posterior"
+        ),
+        "dataset_name": (
+            f"{sne_data_df.attrs.get('dataset_name', 'Joint dataset')} "
+            "Posterior Samples"
+        ),
+        "description": "Posterior summary for corner/histogram plots.",
+        "citation": sne_data_df.attrs.get("citation", ""),
+        "notes": sne_data_df.attrs.get("notes", ""),
+    }
+
+
 def _maybe_plot_corner(
     fit_results: Mapping[str, Any],
     plugin: Any,
@@ -99,22 +116,33 @@ def _maybe_plot_corner(
     if samples is None:
         return
     param_names = fit_results.get("param_names")
-    posterior_attrs = {
-        "dataset_id": (
-            f"{sne_data_df.attrs.get('dataset_id', 'joint')}-posterior"
-        ),
-        "dataset_name": (
-            f"{sne_data_df.attrs.get('dataset_name', 'Joint dataset')} "
-            "Posterior Samples"
-        ),
-        "description": ("Corner plot summarising the joint posterior."),
-        "citation": sne_data_df.attrs.get("citation", ""),
-        "notes": sne_data_df.attrs.get("notes", ""),
-    }
+    posterior_attrs = _posterior_metadata(sne_data_df)
     plotter.plot_corner(
         samples,
         plugin,
         posterior_attrs,
+        plot_dir=output_dir,
+        parameter_names=param_names,
+        timestamp=timestamp,
+    )
+
+
+def _maybe_plot_parameter_histograms(
+    fit_results: Mapping[str, Any],
+    plugin: Any,
+    label: str,
+    sne_data_df: Any,
+    output_dir: str,
+    timestamp: str,
+) -> None:
+    samples = fit_results.get("samples")
+    if samples is None:
+        return
+    param_names = fit_results.get("param_names")
+    plotter.plot_parameter_histograms(
+        samples,
+        plugin,
+        _posterior_metadata(sne_data_df),
         plot_dir=output_dir,
         parameter_names=param_names,
         timestamp=timestamp,
@@ -552,7 +580,23 @@ def execute_run_pipeline(
         output_dir,
         run_start_ts,
     )
+    _maybe_plot_parameter_histograms(
+        lcdm_fit_results,
+        lcdm,
+        lcdm.MODEL_NAME,
+        sne_data_df,
+        output_dir,
+        run_start_ts,
+    )
     _maybe_plot_corner(
+        alt_model_fit_results,
+        alt_model_plugin,
+        alt_model_plugin.MODEL_NAME,
+        sne_data_df,
+        output_dir,
+        run_start_ts,
+    )
+    _maybe_plot_parameter_histograms(
         alt_model_fit_results,
         alt_model_plugin,
         alt_model_plugin.MODEL_NAME,

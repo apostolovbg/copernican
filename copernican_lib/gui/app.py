@@ -48,7 +48,9 @@ if tk is not None:
 else:
     HtmlFrame = None
 
+import matplotlib.image as mpimage
 import yaml
+from matplotlib.figure import Figure
 
 import rng_minigames
 from copernican_lib import (
@@ -659,6 +661,8 @@ class CopernicanGUI:
         self._analysis_plot_viewer: PlotViewer | None = None
         self._analysis_posterior_status_label: ttk.Label | None = None
         self._analysis_current_posterior_path: Path | None = None
+        self._analysis_corner_files: list[Path] = []
+        self._analysis_histogram_files: list[Path] = []
         self._settings_section_buttons: list[ttk.Button] = []
         self._settings_current_index = 0
         self._settings_header_label: ttk.Label | None = None
@@ -2699,7 +2703,25 @@ class CopernicanGUI:
             takefocus=True,
         ).pack(side="left", padx=(12, 0))
 
+        asset_controls = ttk.Frame(container)
+        asset_controls.pack(fill="x", pady=(4, 0))
+        ttk.Button(
+            asset_controls,
+            text="Show corner plot",
+            command=self._analysis_show_corner_plot,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        ).pack(side="left")
+        ttk.Button(
+            asset_controls,
+            text="Show histograms",
+            command=self._analysis_show_histogram_plot,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        ).pack(side="left", padx=(8, 0))
+
         self._analysis_current_posterior_path = None
+        self._analysis_refresh_plot_assets()
         self._refresh_analysis_posterior_list()
 
     def _build_analysis_comparison_page(self, container: tk.Frame) -> None:
@@ -2986,6 +3008,79 @@ class CopernicanGUI:
                 "Analysis posteriors: %s", message
             )
 
+    def _analysis_refresh_plot_assets(self) -> None:
+        """Refresh references to saved corner/histogram PNGs for the run."""
+
+        run_dir = self._analysis_run_dir()
+        self._analysis_corner_files = []
+        self._analysis_histogram_files = []
+        if not run_dir or not run_dir.is_dir():
+            return
+
+        try:
+            self._analysis_corner_files = sorted(
+                run_dir.glob("corner-plot-*.png"),
+                key=lambda entry: entry.stat().st_mtime,
+            )
+            self._analysis_histogram_files = sorted(
+                run_dir.glob("parameter-histograms-*.png"),
+                key=lambda entry: entry.stat().st_mtime,
+            )
+        except OSError:
+            pass
+
+    def _analysis_latest_plot(self, files: list[Path]) -> Path | None:
+        if not files:
+            return None
+        try:
+            return max(files, key=lambda entry: entry.stat().st_mtime)
+        except OSError:
+            return files[-1]
+
+    def _analysis_load_image(self, path: Path, title: str) -> None:
+        viewer = self._analysis_plot_viewer
+        if viewer is None:
+            self._analysis_set_posterior_status(
+                "Plot viewer unavailable.", severity="ERROR"
+            )
+            return
+        try:
+            image = mpimage.imread(str(path))
+        except Exception as exc:
+            self._analysis_set_posterior_status(
+                f"Failed to load {path.name}: {exc}", severity="ERROR"
+            )
+            return
+        figure = Figure(figsize=(8, 6))
+        ax = figure.subplots()
+        ax.imshow(image)
+        ax.axis("off")
+        figure.suptitle(title, fontsize=14)
+        viewer.load_figure(figure)
+        viewer.fit_to_screen()
+        self._analysis_current_posterior_path = path
+        self._analysis_set_posterior_status(f"Showing {path.name} ({title}).")
+
+    def _analysis_show_corner_plot(self) -> None:
+        self._analysis_refresh_plot_assets()
+        path = self._analysis_latest_plot(self._analysis_corner_files)
+        if path is None:
+            self._analysis_set_posterior_status(
+                "No saved corner plot found for that run.", severity="ERROR"
+            )
+            return
+        self._analysis_load_image(path, "Corner plot")
+
+    def _analysis_show_histogram_plot(self) -> None:
+        self._analysis_refresh_plot_assets()
+        path = self._analysis_latest_plot(self._analysis_histogram_files)
+        if path is None:
+            self._analysis_set_posterior_status(
+                "No saved histogram plot found for that run.", severity="ERROR"
+            )
+            return
+        self._analysis_load_image(path, "Parameter histograms")
+
     def _analysis_summary_for_run(
         self, run_dir: Path
     ) -> analysis.RunAnalysisResult | None:
@@ -3010,6 +3105,7 @@ class CopernicanGUI:
         self._analysis_summary_result = result
         if self._analysis_run_path_var is not None:
             self._analysis_run_path_var.set(str(run_dir))
+        self._analysis_refresh_plot_assets()
         return result
 
     def _refresh_analysis_posterior_list(self) -> None:
@@ -3097,6 +3193,7 @@ class CopernicanGUI:
         viewer.fit_to_screen()
         self._analysis_current_posterior_path = target
         self._analysis_set_posterior_status(f"Showing {target.name}.")
+        self._analysis_refresh_plot_assets()
 
     def _analysis_fit_posterior_to_screen(self) -> None:
         """Autoscale the current figure in the viewer."""
