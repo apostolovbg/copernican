@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+
 import matplotlib.pyplot as plt
 
 try:
@@ -30,7 +31,10 @@ class PlotViewer(ttk.Frame):
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
         self._zoom_active = False
         self._press_event = None
-        self._original_limits: dict[tuple[float, float], tuple[tuple[float, float], tuple[float, float]]] = {}
+        self._original_limits: dict[
+            tuple[float, float],
+            tuple[tuple[float, float], tuple[float, float]],
+        ] = {}
         self.canvas.mpl_connect("button_press_event", self._on_press)
         self.canvas.mpl_connect("button_release_event", self._on_release)
         self.canvas.mpl_connect("motion_notify_event", self._on_motion)
