@@ -32,6 +32,10 @@ continues to describe a manual expectation for contributors.
 | `no-git-conflict-markers` | Detects `<<<<<<<`, `=======` and `>>>>>>>`. | Law 8 (Never insert Git conflict markers). | `AGENTS.md#policy-no-git-conflict-markers` | Runs on the entire repo tree (excluding ignored directories). |
 | `line-length-limit` | Enforces the 79-character line budget in Python code. | Law 15 (Keep individual lines under 79 characters). | `AGENTS.md#policy-line-length-limit` | Emits warnings only for `.py` files. |
 | `new-modules-need-tests` | Requires tests whenever new modules appear in `copernican_lib/` or `engines/`. | Law 20 (Add tests alongside new functionality). | `AGENTS.md#policy-new-modules-need-tests` | Scans the Git status to determine added modules. |
+| `read-only-directories` | Guards the pattern list under `devcovenant/read_only_directories.txt`, blocking edits to datasets or parser files unless a waiver exists. | Law 4 (Treat `/data` as read-only). | `AGENTS.md#policy-read-only-directories` | Waivers live under `.devcovenant/waivers/read-only-directories.txt` and the patterns are refreshed every run. |
+| `docstring-and-comment-coverage` | Warns when modules, classes or functions in `copernican_lib/` or `engines/` lack docstrings or nearby explanatory comments. | Law 6 (Document every module, function and class with clear "what" and "why" explanations). | `AGENTS.md#policy-docstring-and-comment-coverage` | Both short docstrings and descriptive pre-definition comments satisfy the check. |
+| `dependency-license-sync` | Requires simultaneous updates to dependency inputs, `THIRD_PARTY_LICENSES.md` (including a `## License Report` section) and `licenses/`. | Laws 15 and 17 (Audit licenses for new dependencies; refresh dependencies after package changes). | `AGENTS.md#policy-dependency-license-sync` | The report must mention each touched dependency file so reviewers can confirm the coverage. |
+| `documentation-growth-tracking` | Reminds contributors to grow README/AGENTS/docs when user-facing files change so the corpus strictly expands. | Law 11 (Treat documentation refresh as integral to every task). | `AGENTS.md#policy-documentation-growth-tracking` | Runs at fiducial enforcement and surfaces the policy text when user-visible components move. |
 
 ## Additional Policies (Not Derived from Numbered Laws)
 
@@ -41,38 +45,38 @@ continues to describe a manual expectation for contributors.
 ## Manual Laws Still in AGENTS
 
 After the deprecations above, the remaining numbered laws in `AGENTS.md` are
-still manual guidelines that require human judgment (for example, law 1 now
-remains focused on descriptive comments rather than the changelog). When new
-policies cover a manual law, update both this file and the AGENTS entry to mark
-it as deprecated. Law 11 ("Treat documentation refresh as integral") is still
-active because no policy governs the broader content expansion requirements it
-describes; the policies above cover metadata hygiene and changelog reporting but
-do not replace the obligation to extend the relevant prose whenever substantive
-functionality or configuration shifts occur.
+still manual guidelines that require human judgment. When new policies cover a
+manual law, update both this file and the AGENTS entry to mark it as deprecated.
+The new policies now cover data immutability, docstrings/comments,
+documentation growth, and license auditing so the manual list focuses on the
+broader development discipline items outlined in the law section.
 
 ## Deprecated Law References
 
-- **Law 11**: "Treat documentation refresh as integral to every task..." is now
-  partially enforced by `changelog-coverage`, `last-updated-placement`,
-  `version-sync` and `no-future-dates`. The law text remains in `AGENTS.md` and contributors should follow both it and the related policy.
-- **Law 1**, **Law 4**, **Law 7**, **Law 8**, **Law 15**, **Law 20** and **Law 24**: The
-  original wording for these laws has been retired in favor of the policies listed
-  in the table above. See the row for each policy to understand the replacement.
+- **Law 11**: “Treat documentation refresh as integral…” is now enforced by
+  `documentation-growth-tracking`, which issues reminders when user-visible files
+  change so the corpus strictly grows alongside semantic updates.
+- **Law 4**: “Treat `/data` as read-only” is enforced by `read-only-directories`
+  (with waivers under `.devcovenant/waivers/read-only-directories.txt`), and
+  **Law 6** (“Document every module, function and class…”) is enforced by
+  `docstring-and-comment-coverage`.
+- **Law 15** and **Law 17** (license audits and dependency refreshes) are now
+  consolidated under `dependency-license-sync`, which requires `THIRD_PARTY_LICENSES.md`,
+  `licenses/*`, and the dependency inputs to change in lockstep with a `## License Report`.
+- **Law 1**, **Law 7**, **Law 8**, **Law 20** and **Law 24** have already been retired in favor of the policies in the table above (`changelog-coverage`, `last-updated-placement`, `version-sync`, `line-length-limit`, `new-modules-need-tests` and its companions).
 
 ## Status Summary
 
-- Policies documented in `AGENTS.md`: **9** (all listed above).
+- Policies documented in `AGENTS.md`: **13** (the eleven numbered policies above plus `devcov-self-enforcement` and `no-print-in-library`).
 - Policies implemented but without a numbered-law counterpart: `devcov-self-enforcement`, `no-print-in-library`.
-- Deprecated laws maintained here: Law 11 plus the historical Law 1, 4, 7, 8, 15, 20 and 24 entries.
+- Deprecated laws maintained here: Laws 1, 4, 6, 7, 8, 11, 15, 17, 20 and 24.
 
 ## Future Policy Candidates
 
-The remaining laws that still require manual attention can become policies in
-the future. Candidate policies include:
-
-1. **Law 6** (`/data` immutability) → potential `data-directory-immutability` policy.
-2. **Law 12** (escape sequences) → potential `valid-escape-sequences` policy.
-3. **Law 21** (license audits) → potential `license-compatibility` policy.
+When one of the current manual laws becomes automatable, update this file. The
+escape-sequence law (use raw strings or escape backslashes explicitly) still
+requires tooling support, so a `valid-escape-sequences` policy remains a strong
+candidate.
 
 Update this file when a candidate becomes reality so the numbering stays
 accurate and the mapping reflects every policy-to-law transition.

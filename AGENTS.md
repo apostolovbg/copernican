@@ -546,6 +546,8 @@ severity: error
 auto_fix: false
 updated: false
 applies_to: *
+enforcement: active
+waiver: false
 ```
 
 All changed files must be documented in the appropriate changelog. Files under
@@ -570,6 +572,8 @@ severity: critical
 auto_fix: false
 updated: false
 applies_to: *
+enforcement: active
+waiver: false
 ```
 
 Never insert Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any
@@ -586,6 +590,8 @@ severity: warning
 auto_fix: false
 updated: false
 applies_to: *.py
+enforcement: active
+waiver: false
 ```
 
 Keep individual lines under 79 characters to maintain readability. This
@@ -603,6 +609,8 @@ severity: warning
 auto_fix: true
 updated: false
 applies_to: *
+enforcement: active
+waiver: false
 ```
 
 Refresh documentation and `Last Updated` markers only on allowlisted
@@ -624,6 +632,8 @@ severity: error
 auto_fix: false
 updated: false
 applies_to: devcovenant/**/*
+enforcement: active
+waiver: false
 ```
 
 DevCovenant enforces its own policies on itself. All policy scripts must:
@@ -644,6 +654,8 @@ severity: error
 auto_fix: false
 updated: false
 applies_to: copernican_lib/VERSION,README.md,CITATION.cff,pyproject.toml
+enforcement: active
+waiver: false
 ```
 
 The project follows Semantic Versioning (`MAJOR.MINOR.PATCH`). Increment the
@@ -678,6 +690,8 @@ severity: error
 auto_fix: false
 updated: false
 applies_to: *
+enforcement: active
+waiver: false
 ```
 
 `Last Updated` timestamps and date fields must never extend into the future.
@@ -695,6 +709,8 @@ severity: error
 auto_fix: false
 updated: false
 applies_to: copernican_lib/**/*.py,engines/**/*.py
+enforcement: active
+waiver: false
 ```
 
 New Python modules under `copernican_lib/` and `engines/` must be accompanied
@@ -716,6 +732,8 @@ severity: error
 auto_fix: false
 updated: false
 applies_to: copernican_lib/**/*.py,engines/**/*.py
+enforcement: active
+waiver: false
 ```
 
 Library and engine code must use the managed console output helper
@@ -724,6 +742,94 @@ keeps diagnostics consistent across platforms and properly routes output
 through dedicated utilities. Exception: `console_output.py` itself may use
 `print()`. Vendor code under `copernican_lib/vendor/` is excluded from this
 requirement.
+
+---
+## Policy: Read-Only Directories
+
+```policy-def
+id: read-only-directories
+status: active
+severity: error
+auto_fix: false
+updated: false
+applies_to: *
+enforcement: active
+waiver: true
+```
+
+Read-only paths are enumerated in `devcovenant/read_only_directories.txt` using
+gitignore-style globs (e.g. `data/**` or `data/*/cosmo_parser_*.py`). The
+policy re-reads that file on every run so the protected directories stay
+registered automatically. Editing a protected path is blocked unless you create
+`.devcovenant/waivers/read-only-directories.txt` with the allowed relative paths
+or glob patterns; keep the waiver specific to the approved dataset/parser change
+and remove it once the work is complete so the guard returns to its normal state.
+
+---
+
+## Policy: Docstring and Comment Coverage
+
+```policy-def
+id: docstring-and-comment-coverage
+status: active
+severity: info
+auto_fix: false
+updated: false
+applies_to: copernican_lib/**/*.py,engines/**/*.py
+enforcement: active
+waiver: false
+```
+
+Libraries under `copernican_lib/` and `engines/` should document modules,
+classes and functions with short docstrings or adjacent explanatory comments.
+The checker looks for either an `ast` docstring or a descriptive comment
+immediately before the definition so both concise docstrings and longer comments
+trigger compliance. The policy currently emits info-level reminders so the team
+can grow coverage gradually before the enforcement level increases.
+
+---
+
+## Policy: Dependency License Sync
+
+```policy-def
+id: dependency-license-sync
+status: active
+severity: error
+auto_fix: false
+updated: false
+applies_to: requirements.in,requirements.lock,pyproject.toml,THIRD_PARTY_LICENSES.md,licenses/*
+enforcement: active
+waiver: false
+```
+
+Every dependency addition, removal or version change must simultaneously update
+`THIRD_PARTY_LICENSES.md` and the corresponding files under `licenses/`, plus
+include a `## License Report` section that mentions each modified dependency
+file. The policy checks the tracked dependency inputs, the license table, and
+the `licenses/` directory so CI always captures the dependency list and any new
+license obligations in lockstep.
+
+---
+
+## Policy: Documentation Growth Tracking
+
+```policy-def
+id: documentation-growth-tracking
+status: active
+severity: info
+auto_fix: false
+updated: false
+applies_to: README.md,AGENTS.md,docs/**/*.md,copernican.py,start.sh,start.command,start.bat
+enforcement: fiducial
+waiver: false
+```
+
+When user-visible files or launchers change, the documentation corpus must
+“strictly grow” by adding a new paragraph, subsection or example that explains
+the updated behavior, workflow or configuration. This fiducial reminder script
+simply surfaces the policy text and points editors at the relevant docs so they
+remember to expand the prose before the enforcement level increases in the
+future.
 
 ---
 
@@ -735,7 +841,10 @@ guidelines that require human judgment or workflow adherence. For a complete
 mapping of laws to policies, see `DEVCOVENANT_LAW_MAPPING.md`.
 
 To keep the project maintainable all contributors, human or AI, must follow
-these rules:
+these rules. The policies listed above now cover the old instructions about
+read-only data, expanded documentation, docstrings/comments and license audits
+so the remaining laws focus on broader development discipline.
+
 1. **Comment the code extensively.** Explain the "why" as well as the "what",
    clarifying both obvious and non-obvious, simple or complex logic or
    algorithms.
@@ -745,35 +854,18 @@ these rules:
 3. **Keep this file as the canonical law source.** `README.md` must point back
    to `AGENTS.md` instead of duplicating the rules. Amendments to any law
    require an explicit human request.
-4. **Treat `/data` as read-only.** Do not modify datasets or parsers in-place;
-   add new data only through reviewed contributions and keep parser metadata
-   stable unless a specific change is requested.
-5. **Re-read these laws at the start of every development session.**
-6. **Document every module, function and class with clear "what" and "why"
-    explanations.** Comments and docstrings should describe both behaviour and
-    rationale.
-7. **Use concise, descriptive function and identifier names that accurately
-    convey their purpose without unnecessary length.**
-8. **Use raw strings or escape backslashes explicitly to avoid invalid escape
-    sequence warnings in docstrings or string literals.**
-9. **Run `pre-commit run --all-files` before committing** so formatting,
-    linting, metadata and policy hooks (including changelog coverage, allowed
-    `Last Updated` placement and version sync) all execute once per change.
-10. **Do not redistribute the Copernican Suite in full or assert patent
-    claims; the license forbids these actions.**
-11. **Treat documentation refresh as integral to every task.** No change is
-    complete until all relevant texts reflect the update and version numbers
-    remain in sync. Whenever a feature, workflow or launcher is touched, extend
-    `README.md`, `AGENTS.md` and the relevant files under `docs/` with new
-    sections, contextual examples and links that make the new behaviour clear.
-    This law is the heartbeat behind `docs/documentation_policy.md`—guide every
-    documentation expansion through that playbook, note the new
-    `docs/launcher_gui.md` write-up, and keep the prose growing rather than
-    merely reshuffling paragraphs. Every documentation refresh should leave the
-    corpus strictly larger or deeper so future contributors immediately see the
-    story for every change.
-12. **Commit changes only after all tests pass on every supported platform.**
-13. **Treat `start.command`, `start.bat` and `start.sh` equally.** When one
+4. **Re-read these laws at the start of every development session.**
+5. **Use concise, descriptive function and identifier names that accurately
+   convey their purpose without unnecessary length.**
+6. **Use raw strings or escape backslashes explicitly to avoid invalid escape
+   sequence warnings in docstrings or string literals.**
+7. **Run `pre-commit run --all-files` before committing** so formatting,
+   linting, metadata and policy hooks (including changelog coverage, allowed
+   `Last Updated` placement and version sync) all execute once per change.
+8. **Do not redistribute the Copernican Suite in full or assert patent
+   claims; the license forbids these actions.**
+9. **Commit changes only after all tests pass on every supported platform.**
+10. **Treat `start.command`, `start.bat` and `start.sh` equally.** When one
     launcher is fixed, assess the other two for the same issue and update
     them as needed. Investigate how code changes affect the start scripts and
     adjust them accordingly. Keep multi-line PowerShell calls inside helper
@@ -781,23 +873,14 @@ these rules:
     closing parentheses inside conditional blocks. Prefer computing release
     metadata outside conditional parentheses or enable delayed expansion so
     `%DOWNLOAD_URL%` resolves consistently on Windows builds.
-14. **Follow current compliance and security requirements for all work.** The
+11. **Follow current compliance and security requirements for all work.** The
     suite processes user-provided files, so every change must meet the latest
     security guidelines and consider their impact on the `start.*` scripts.
-15. **Audit licenses for new dependencies.** Ensure added packages are
-    license-compatible and update `THIRD_PARTY_LICENSES.md` and the
-    `licenses/` directory accordingly.
-16. **Run the suite exclusively through the managed virtual environment.**
+12. **Run the suite exclusively through the managed virtual environment.**
     Always launch via `start.sh`, `start.command` or `start.bat` so the
     repository's `.venv` is created or updated automatically; other Python
     environments must be ignored.
-17. **Refresh dependencies whenever packages are added or changed.**
-   Run `python -m piptools compile requirements.in --allow-unsafe
-   --output-file requirements.lock` (or simply `make lock`), commit the
-   updated `requirements.lock`, and audit `THIRD_PARTY_LICENSES.md`. The local
-   pre-commit hook provisions `pip-tools==7.4.1` automatically before invoking
-   `make lock` so the workflow succeeds even in clean CI environments.
-18. **Preserve human-authored edits across the project.** Respect the
+13. **Preserve human-authored edits across the project.** Respect the
     structure, wording and intent of human-made changes—including timestamps
     and metadata—and only revise them when a human explicitly requests an
     update or when correcting objective errors they identify.

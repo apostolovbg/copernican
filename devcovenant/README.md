@@ -605,6 +605,16 @@ hash: [sha256-hash] (optional, auto-maintained)
 | `updated`    | Yes      | Set to `true` when policy text changes, triggers AI script update           |
 | `applies_to` | No       | File pattern (glob) this policy applies to, e.g., `*.py`, `src/**/*.js`     |
 | `hash`       | No       | SHA256 hash of policy + script, auto-maintained by DevCovenant              |
+| `enforcement` | No      | `active` for blocking policies, `fiducial` when the script only reminds      |
+| `waiver`     | No       | `true` when the policy accepts temporary exemptions via `.devcovenant/waivers/<policy-id>.txt` |
+
+Fiducial policies emit informational reminders without blocking commits
+(you can promote them to `active` enforcement once the reminders are addressed).  
+Waiver-enabled policies (e.g., `read-only-directories`) expect the agent to add
+the approved exceptions to the matching file under `.devcovenant/waivers/`
+before editing the protected paths. The read-only directory list itself is
+stored in `devcovenant/read_only_directories.txt` and read on every run so the
+policy re-registers the protected patterns automatically.
 
 ### Example Policies
 

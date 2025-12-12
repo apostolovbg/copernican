@@ -42,6 +42,7 @@ suffixes. Follow this template:
             README.md, docs/api_overview.md, docs/cli_guide.md,
             tests/test_analysis.py, tests/test_cli/test_cli_utilities.py,
             CHANGELOG.md).
+- 2025-12-12: Added four new DevCovenant policies (`read-only-directories`, `docstring-and-comment-coverage`, `dependency-license-sync`, `documentation-growth-tracking`) plus supporting scripts, tests, waiver/setup files and documentation so the manual laws for dataset immutability, docstrings, documentation growth and license auditing can retire (AGENTS.md, DEVCOVENANT_LAW_MAPPING.md, devcovenant/policy_scripts/read_only_directories.py, devcovenant/policy_scripts/docstring_and_comment_coverage.py, devcovenant/policy_scripts/dependency_license_sync.py, devcovenant/policy_scripts/documentation_growth_tracking.py, devcovenant/tests/test_policies/test_read_only_directories.py, devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py, devcovenant/tests/test_policies/test_dependency_license_sync.py, devcovenant/tests/test_policies/test_documentation_growth_tracking.py, devcovenant/read_only_directories.txt, devcovenant/waivers/README.md, devcovenant/README.md, CHANGELOG.md).
 - 2025-12-12: Added `copernican_lib.analysis` so run directories can be
             summarised programmatically—log parsing now feeds chi-squared
             breakdowns, BAO/CMB residuals, diagnostics (R-hat/ESS), dataset
