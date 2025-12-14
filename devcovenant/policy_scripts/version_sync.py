@@ -6,6 +6,7 @@ CITATION.cff, preventing version drift across the project docs and tools.
 """
 
 import re
+import subprocess
 from pathlib import Path
 from typing import List, Optional
 
@@ -15,6 +16,12 @@ try:
     import tomllib  # type: ignore[attr-defined]
 except ModuleNotFoundError:
     import tomli as tomllib  # type: ignore[assignment]
+
+
+try:
+    from semver import VersionInfo
+except ImportError:  # pragma: no cover - dependency misconfigured
+    VersionInfo = None  # type: ignore[assignment]
 
 
 class VersionSyncCheck(PolicyCheck):
@@ -61,6 +68,36 @@ class VersionSyncCheck(PolicyCheck):
                     severity="error",
                     file_path=version_file,
                     message=f"Cannot read VERSION file: {exc}",
+                )
+            )
+            return violations
+
+        if VersionInfo is None:
+            violations.append(
+                Violation(
+                    policy_id=self.policy_id,
+                    severity="error",
+                    file_path=version_file,
+                    message=(
+                        "SemVer runtime dependency missing; install `semver` "
+                        "so version sync can validate the tracked string."
+                    ),
+                )
+            )
+            return violations
+
+        try:
+            current_semver = VersionInfo.parse(version)
+        except ValueError:
+            violations.append(
+                Violation(
+                    policy_id=self.policy_id,
+                    severity="error",
+                    file_path=version_file,
+                    message=(
+                        f"Tracked VERSION '{version}' is not valid SemVer; "
+                        "use MAJOR.MINOR.PATCH notation."
+                    ),
                 )
             )
             return violations
@@ -215,6 +252,39 @@ class VersionSyncCheck(PolicyCheck):
                 )
             )
 
+        previous_version = self._previous_version(context.repo_root)
+        if previous_version and previous_version != version:
+            try:
+                previous_semver = VersionInfo.parse(previous_version)
+            except ValueError:
+                violations.append(
+                    Violation(
+                        policy_id=self.policy_id,
+                        severity="error",
+                        file_path=version_file,
+                        message=(
+                            "Previous version recorded in Git is not valid "
+                            "SemVer; update copernican_lib/VERSION before "
+                            "bumping again."
+                        ),
+                    )
+                )
+            else:
+                if current_semver <= previous_semver:
+                    violations.append(
+                        Violation(
+                            policy_id=self.policy_id,
+                            severity="error",
+                            file_path=version_file,
+                            message=(
+                                "Version must advance beyond "
+                                f"{previous_version}; "
+                                f"{version} is not a forward-moving "
+                                "SemVer bump."
+                            ),
+                        )
+                    )
+
         return violations
 
     @staticmethod
@@ -242,3 +312,20 @@ class VersionSyncCheck(PolicyCheck):
             runtime_files.extend(root.rglob("*.py"))
 
         return runtime_files
+
+    def _previous_version(self, repo_root: Path) -> Optional[str]:
+        """Return the version string from the previous commit if available."""
+
+        try:
+            completed = subprocess.run(
+                ["git", "show", "HEAD:copernican_lib/VERSION"],
+                cwd=repo_root,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+            return None
+        output = completed.stdout.strip()
+        return output or None

@@ -309,6 +309,7 @@ class _MemoryLogHandler(logging.Handler):
     """Capture structured log lines for on-screen diagnostics."""
 
     def __init__(self, *, prefix: str) -> None:
+        """Initialize the handler and store the log anchor prefix."""
         super().__init__(level=logging.INFO)
         self.prefix = prefix
         self.entries: list[LogEntry] = []
@@ -390,6 +391,7 @@ class CopernicanGUI:
     }
 
     def __init__(self, render: bool = True) -> None:
+        """Initialize GUI state, frames and backend selectors."""
         self.render = render and tk is not None
         self.root: Optional[tk.Tk] = None
         self.frames: Dict[str, tk.Frame] = {}
@@ -2126,6 +2128,7 @@ class CopernicanGUI:
         """Render the project home panel with recents and quick actions."""
 
         def builder(frame: tk.Frame) -> None:
+            """Render the project home view inside the main panel."""
             self._page_header(frame, "Project Home")
             tiles = ttk.Frame(frame)
             tiles.pack(fill="x", pady=(0, 12))
@@ -2300,6 +2303,7 @@ class CopernicanGUI:
         """Display the lightweight validation runner and latest summary."""
 
         def builder(frame: tk.Frame) -> None:
+            """Render the validation runner dashboard and controls."""
             self._validation_progress_status_label = None
             self._validation_batch_progressbar = None
             self._validation_walker_progressbar = None
@@ -2429,6 +2433,7 @@ class CopernicanGUI:
         """Display an analysis workspace with tabbed sections."""
 
         def builder(frame: tk.Frame) -> None:
+            """Render the analysis workspace tabs and body content."""
             section = self._analysis_sections[self._analysis_current_index]
             header_text = f"Analysis: {section['label']}"
             self._analysis_header_label = self._page_header(frame, header_text)
@@ -2741,6 +2746,7 @@ class CopernicanGUI:
             self._analysis_comparison_alt_var = tk.StringVar()
 
         def _render_selector(label_text: str, var: tk.StringVar) -> None:
+            """Render a labelled entry plus browse button for run paths."""
             row = ttk.Frame(container)
             row.pack(fill="x", pady=(0, 4))
             ttk.Label(row, text=label_text).pack(side="left")
@@ -3030,6 +3036,7 @@ class CopernicanGUI:
             pass
 
     def _analysis_latest_plot(self, files: list[Path]) -> Path | None:
+        """Return the newest file from the supplied plot list."""
         if not files:
             return None
         try:
@@ -3038,6 +3045,7 @@ class CopernicanGUI:
             return files[-1]
 
     def _analysis_load_image(self, path: Path, title: str) -> None:
+        """Load *path* into the plot viewer with the supplied *title*."""
         viewer = self._analysis_plot_viewer
         if viewer is None:
             self._analysis_set_posterior_status(
@@ -3062,6 +3070,7 @@ class CopernicanGUI:
         self._analysis_set_posterior_status(f"Showing {path.name} ({title}).")
 
     def _analysis_show_corner_plot(self) -> None:
+        """Display the latest corner plot for the selected run."""
         self._analysis_refresh_plot_assets()
         path = self._analysis_latest_plot(self._analysis_corner_files)
         if path is None:
@@ -3072,6 +3081,7 @@ class CopernicanGUI:
         self._analysis_load_image(path, "Corner plot")
 
     def _analysis_show_histogram_plot(self) -> None:
+        """Display the latest histogram plot for the selected run."""
         self._analysis_refresh_plot_assets()
         path = self._analysis_latest_plot(self._analysis_histogram_files)
         if path is None:
@@ -3940,6 +3950,7 @@ class CopernicanGUI:
         self.refresh_inventory()
 
         def builder(frame: tk.Frame) -> None:
+            """Render the Run Builder navigation controls and status."""
             current_step = self.builder_steps[self.current_step_index]
             self._page_header(frame, f"Run builder: {current_step}")
             step_frame = ttk.Frame(frame)
@@ -4100,6 +4111,7 @@ class CopernicanGUI:
             return default_steps, default_walkers, default_pool
 
         def _default_value(name: str, fallback: int) -> int:
+            """Return the default parameter value declared by the engine."""
             param = signature.parameters.get(name)
             if param is None or param.default is inspect._empty:
                 return fallback
@@ -4152,6 +4164,7 @@ class CopernicanGUI:
         }
 
     def _render_builder_step_seed(self, container: tk.Frame) -> None:
+        """Render the Seed step UI, including seed entry and buttons."""
         ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
         ttk.Label(
             container,
@@ -4165,6 +4178,7 @@ class CopernicanGUI:
         seed_var = tk.StringVar(value=self.draft.seed)
 
         def _update_seed(*_args: object) -> None:
+            """Mirror entry text to the draft seed as it changes."""
             self.draft.seed = seed_var.get().strip()
             self._refresh_builder_step_indicators()
 
@@ -4178,6 +4192,7 @@ class CopernicanGUI:
             label: str,
             action: Callable[[], None],
         ) -> None:
+            """Add a configured button to the temporary seed button column."""
             ttk.Button(
                 button_column,
                 text=label,
@@ -4193,10 +4208,12 @@ class CopernicanGUI:
         seed_var: "tk.StringVar",
         env_seed: str | None,
     ) -> None:
+        """Rebuild the mini-game seed buttons when the catalog changes."""
         for child in container.winfo_children():
             child.destroy()
 
         def _add_seed_button(label: str, action: Callable[[], None]) -> None:
+            """Place a seed shortcut button inside the provided container."""
             ttk.Button(
                 container,
                 text=label,
@@ -4233,6 +4250,7 @@ class CopernicanGUI:
         seed_var: "tk.StringVar",
         env_seed: str | None,
     ) -> None:
+        """Reload the RNG mini-game registry and refresh the buttons."""
         try:
             self._minigame_catalog = rng_minigames.refresh_registry()
         except Exception as exc:
@@ -4250,6 +4268,7 @@ class CopernicanGUI:
         self._build_seed_button_column(container, seed_var, env_seed)
 
     def _render_builder_step_models(self, container: tk.Frame) -> None:
+        """Render the Models step UI for selecting and previewing a model."""
         ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
         ttk.Label(
             container,
@@ -4287,6 +4306,7 @@ class CopernicanGUI:
         button_frame.pack(side="left", fill="y", padx=(8, 0), anchor="n")
 
         def _view_selected_model() -> None:
+            """Preview the currently selected model metadata."""
             entry = self._selected_model_entry
             if not entry:
                 self.create_toast(
@@ -4300,6 +4320,7 @@ class CopernicanGUI:
             )
 
         def _open_selected_model_file() -> None:
+            """Launch the selected model file in the OS default editor."""
             entry = self._selected_model_entry
             if not entry:
                 self.create_toast(
@@ -4374,6 +4395,7 @@ class CopernicanGUI:
         ).pack(side="right")
 
         def _refresh_model_preview(entry: dict | None = None) -> None:
+            """Update the model YAML preview and equation panel."""
             preview_text.configure(state="normal")
             preview_text.delete("1.0", "end")
             if entry:
@@ -4392,6 +4414,7 @@ class CopernicanGUI:
             self._refresh_equation_panel(entry)
 
         def _refresh_model_selection(_: tk.Event | None = None) -> None:
+            """React to model list changes and refresh selection state."""
             indices = listbox.curselection()
             if indices:
                 entry = available[indices[0]]
@@ -4487,6 +4510,7 @@ class CopernicanGUI:
         expressions: list[tuple[str, str]] = []
 
         def _append(title: str, value: Any | None) -> None:
+            """Add a non-empty expression entry to the list."""
             if isinstance(value, str) and value.strip():
                 expressions.append((title, value.strip()))
 
@@ -4568,6 +4592,7 @@ class CopernicanGUI:
             self._equations_text_widget.configure(state="disabled")
 
     def _render_builder_step_data(self, container: tk.Frame) -> None:
+        """Render dataset selection panels grouped by observation type."""
         ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
         ttk.Label(
             container,
@@ -4613,6 +4638,7 @@ class CopernicanGUI:
             *,
             width_px: int = 500,
         ) -> None:
+            """Insert a dataset selector row for the given observation type."""
             ttk.Label(
                 parent,
                 text=(
@@ -4653,6 +4679,7 @@ class CopernicanGUI:
         focus_state: dict[str, dict | None] = {"record": None}
 
         def _refresh_data_selection() -> None:
+            """Update the builder draft whenever dataset choices change."""
             selection_map.clear()
             selected_records: list[dict] = []
             for dtype in ordered_types:
@@ -4692,9 +4719,11 @@ class CopernicanGUI:
             self._refresh_builder_step_indicators()
 
         def _make_bind(dtype: str) -> None:
+            """Attach selection listeners to each dataset combobox."""
             combo = dropdown_widgets[dtype]
 
             def _on_select(_event: tk.Event | None = None) -> None:
+                """Refresh the focus record when a selection occurs."""
                 index = combo.current()
                 focus_state["record"] = (
                     type_groups[dtype][index - 1]
@@ -4719,6 +4748,7 @@ class CopernicanGUI:
         action_row.pack(anchor="w")
 
         def _open_focused_folder() -> None:
+            """Open the folder of the currently highlighted dataset."""
             record = focus_state["record"]
             if record:
                 self._open_folder_or_warn(
@@ -4734,6 +4764,7 @@ class CopernicanGUI:
                 )
 
         def _view_focused_metadata() -> None:
+            """Show metadata for the highlighted dataset."""
             record = focus_state["record"]
             if record:
                 self._present_metadata(
@@ -4747,6 +4778,7 @@ class CopernicanGUI:
                 )
 
         def _revalidate_focused_parser() -> None:
+            """Re-run parser trust checks for the focused dataset."""
             record = focus_state["record"]
             if record:
                 self._revalidate_dataset_action(record["id"])
@@ -4774,6 +4806,7 @@ class CopernicanGUI:
         ).pack(side="left", padx=2)
 
     def _render_builder_step_engine(self, container: tk.Frame) -> None:
+        """Render the engine picker and run settings controls."""
         ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
         ttk.Label(
             container,
@@ -4820,6 +4853,7 @@ class CopernicanGUI:
         combo.pack(anchor="w", pady=(6, 6))
 
         def _apply_engine_selection(_: tk.Event | None = None) -> None:
+            """Refresh the UI when a different engine is selected."""
             selection = combo_var.get()
             record = display_map.get(selection)
             if record:
@@ -4866,6 +4900,7 @@ class CopernicanGUI:
         button_frame.pack(anchor="w", pady=(4, 0))
 
         def _open_selected_engine_folder() -> None:
+            """Open the folder containing the selected engine module."""
             selection = combo_var.get()
             record = display_map.get(selection)
             if record:
@@ -4882,6 +4917,7 @@ class CopernicanGUI:
                 )
 
         def _view_selected_engine_module() -> None:
+            """Present metadata for the selected engine module."""
             selection = combo_var.get()
             record = display_map.get(selection)
             if record:
@@ -4962,7 +4998,11 @@ class CopernicanGUI:
             draft_field = self._draft_field_for_setting(setting.key)
 
             def _bind_update(variable: tk.Variable, key: str) -> None:
+                """Attach a listener that mirrors widget writes
+                into settings."""
+
                 def _update(*_: object) -> None:
+                    """Trigger the engine-setting update handler."""
                     self._handle_engine_setting_update(key)
 
                 variable.trace_add("write", _update)
@@ -4982,6 +5022,8 @@ class CopernicanGUI:
                 increment = 1 if dtype == "int" else 0.1
 
                 def _validate(value_if_allowed: str, key: str) -> bool:
+                    """Clamp engine setting inputs between the declared
+                    bounds."""
                     if not value_if_allowed.strip():
                         return True
                     try:
@@ -5020,6 +5062,7 @@ class CopernicanGUI:
                     attr: str = draft_field,
                     variable: tk.StringVar = var,
                 ) -> None:
+                    """Mirror widget values to the manifest draft."""
                     setattr(self.draft, attr, variable.get())
 
                 var.trace_add("write", _sync_draft)
@@ -5068,6 +5111,7 @@ class CopernicanGUI:
         return capabilities, engine_kind
 
     def _draft_field_for_setting(self, key: str) -> str | None:
+        """Return the draft field name linked to the given engine key."""
         mapping = {
             "n_walkers": "walkers",
             "burn_in_steps": "burn_in",
@@ -5077,6 +5121,7 @@ class CopernicanGUI:
         return mapping.get(key)
 
     def _initial_engine_setting_value(self, setting: EngineSetting) -> object:
+        """Return the initial value to display for a given engine setting."""
         field = self._draft_field_for_setting(setting.key)
         if field:
             current = getattr(self.draft, field, "")
@@ -5109,6 +5154,7 @@ class CopernicanGUI:
     def _mcmc_recommendation_texts(
         self, values: dict[str, int | str]
     ) -> dict[str, str]:
+        """Describe recommended ranges for MCMC run settings."""
         return {
             "n_steps": (
                 "Production steps control the sampler iterations. "
@@ -5136,6 +5182,7 @@ class CopernicanGUI:
     def _engine_setting_bounds(
         self, setting: EngineSetting
     ) -> tuple[float, float]:
+        """Return enforced numeric bounds for an engine setting."""
         module_limits = _ENGINE_SETTING_LIMITS.get(
             self._current_engine_module or "", {}
         )
@@ -5144,6 +5191,7 @@ class CopernicanGUI:
         max_value = setting_limits.get("max")
 
         def _resolve(value: float | int | str | None) -> float | int | None:
+            """Convert special labels into numeric capability bounds."""
             if isinstance(value, str) and value == "cpu":
                 cores = os.cpu_count() or 1
                 return max(1, cores)
@@ -5167,6 +5215,7 @@ class CopernicanGUI:
         return 0.0, float(sys.maxsize)
 
     def _render_builder_step_manifest(self, container: tk.Frame) -> None:
+        """Render the manifest description/editor step for the builder."""
         ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
         ttk.Label(
             container,
@@ -5177,6 +5226,7 @@ class CopernicanGUI:
         plan_var = tk.StringVar(value=self.draft.plan)
 
         def _update_plan(*_args: object) -> None:
+            """Mirror the plan input back into the draft manifest."""
             self.draft.plan = plan_var.get()
 
         plan_var.trace_add("write", _update_plan)
@@ -5248,6 +5298,7 @@ class CopernicanGUI:
         actions_frame.pack(anchor="w", pady=(12, 0))
 
         def _save_manifest_action() -> None:
+            """Persist the current manifest and return to the builder."""
             self._persist_manifest_workspace(notify=True)
             self.show_run_builder()
 
@@ -5328,6 +5379,7 @@ class CopernicanGUI:
         self._staged_confirm_manifest = copy.deepcopy(manifest)
 
     def _render_builder_step_confirm(self, container: tk.Frame) -> None:
+        """Show the confirmation summary and start-run controls."""
         self._stage_confirm_manifest()
         ttk.Frame(container, height=30).pack(fill="x", pady=(0, 6))
         summary_frame = ttk.Frame(container)
@@ -5399,6 +5451,7 @@ class CopernicanGUI:
         self.refresh_inventory()
 
         def builder(frame: tk.Frame) -> None:
+            """Render the dataset catalogue view with filters."""
             self._page_header(frame, "Data catalogue")
             ttk.Label(
                 frame,
@@ -5486,6 +5539,7 @@ class CopernicanGUI:
                 def _open_current_folder(
                     path: str = dataset["path"], ds: str = dataset_id
                 ) -> None:
+                    """Open the dataset directory currently listed."""
                     self._open_folder_or_warn(
                         path,
                         context="data",
@@ -5500,11 +5554,13 @@ class CopernicanGUI:
                 ).pack(side="left", padx=2)
 
                 def _view_current_metadata() -> None:
+                    """Show metadata for the dataset currently displayed."""
                     self._present_metadata(
                         dataset_id, f"Dataset metadata: {dataset_id}"
                     )
 
                 def _revalidate_current_parser() -> None:
+                    """Revalidate the parser for the displayed dataset."""
                     self._revalidate_dataset_action(dataset_id)
 
                 ttk.Button(
@@ -5528,6 +5584,7 @@ class CopernicanGUI:
         self.refresh_inventory()
 
         def builder(frame: tk.Frame) -> None:
+            """Render the model catalogue with metadata and hash info."""
             self._page_header(frame, "Models")
             ttk.Label(
                 frame,
@@ -5576,6 +5633,7 @@ class CopernicanGUI:
                 model_id = model["id"]
 
                 def _open_model_folder() -> None:
+                    """Open the directory containing the selected model."""
                     self._open_folder_or_warn(
                         model_folder,
                         context="models",
@@ -5583,6 +5641,7 @@ class CopernicanGUI:
                     )
 
                 def _view_model_yaml() -> None:
+                    """Show the YAML content of the selected model."""
                     self._present_metadata(
                         model_id, f"Model definition: {model_id}"
                     )
@@ -5608,6 +5667,7 @@ class CopernicanGUI:
         self.refresh_inventory()
 
         def builder(frame: tk.Frame) -> None:
+            """Render the engine catalogue with badges and hashes."""
             self._page_header(frame, "Engines")
             ttk.Label(
                 frame,
@@ -5656,6 +5716,7 @@ class CopernicanGUI:
                 engine_label = engine["label"] or engine["stem"]
 
                 def _open_engine_folder() -> None:
+                    """Open the directory containing the current engine."""
                     self._open_folder_or_warn(
                         engine_folder,
                         context="engines",
@@ -5663,6 +5724,7 @@ class CopernicanGUI:
                     )
 
                 def _view_engine_module() -> None:
+                    """Show the metadata for the engine module."""
                     self._present_metadata(
                         engine_id, f"Engine module: {engine_label}"
                     )
@@ -5871,11 +5933,13 @@ class CopernicanGUI:
         choice: dict[str, str | None] = {"value": None}
 
         def _close() -> None:
+            """Close the unsaved settings dialog."""
             if dialog.grab_current() is dialog:
                 dialog.grab_release()
             dialog.destroy()
 
         def _select(value: str) -> None:
+            """Capture the user's decision in the confirmation dialog."""
             choice["value"] = value
             _close()
 
@@ -5928,6 +5992,7 @@ class CopernicanGUI:
         """Display the configurable settings panel with section tabs."""
 
         def builder(frame: tk.Frame) -> None:
+            """Render the settings tabs and actions for the current section."""
             section_label = self._settings_sections[
                 self._settings_current_index
             ]["label"]
@@ -6169,6 +6234,7 @@ class CopernicanGUI:
         def _tool_row(
             text: str, command: Callable[[], None], desc: str
         ) -> None:
+            """Add a helper row with an action button and description."""
             row = ttk.Frame(container)
             row.pack(fill="x", pady=(0, 14))
             ttk.Button(
@@ -6319,6 +6385,7 @@ class CopernicanGUI:
         """Display contextual help panel with GUI and CLI guides."""
 
         def builder(frame: tk.Frame) -> None:
+            """Render the help navigation buttons and markdown viewer."""
             self._help_page_buttons = {}
             self._help_text_widget = None
             self._help_title_label = self._page_header(
@@ -6434,6 +6501,7 @@ class CopernicanGUI:
         """Display live run status controls."""
 
         def builder(frame: tk.Frame) -> None:
+            """Render the run monitor view with progress bars and logs."""
             self._status_label = None
             self._progress_status_label = None
             self._batch_progressbar = None
@@ -6589,6 +6657,7 @@ class CopernicanGUI:
                 jump_target = alert.anchor
 
                 def _jump(anchor: str = jump_target) -> None:
+                    """Scroll the log view to the specified anchor."""
                     self.jump_to_log_anchor(anchor)
 
                 ttk.Button(
@@ -6696,6 +6765,7 @@ class CopernicanGUI:
         """Display the completion summary with manifest reuse actions."""
 
         def builder(frame: tk.Frame) -> None:
+            """Render the run summary view with output links and metadata."""
             self._page_header(frame, "Run Summary")
             ttk.Label(frame, text="Outputs", takefocus=True).pack(anchor="w")
             for link in self.summary.output_links:
@@ -7864,6 +7934,7 @@ class CopernicanGUI:
         """Populate draft controls from manifest run settings."""
 
         def _set(field: str, key: str) -> None:
+            """Copy a numeric run-setting from the manifest snapshot."""
             value = settings.get(key)
             if value is None:
                 setattr(self.draft, field, "")

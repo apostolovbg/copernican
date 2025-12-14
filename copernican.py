@@ -207,6 +207,7 @@ def _build_gui_progress_callback(
     target = Path(path_value)
 
     def _callback(record: dict[str, object]) -> None:
+        """Persist GUI progress updates to the configured file."""
         payload = dict(record)
         payload.setdefault("timestamp", utils.get_timestamp())
         try:
@@ -249,24 +250,34 @@ class LaunchRequest:
 
 
 def _data_root() -> Path:
+    """Return the repository's canonical data directory."""
+
     return Path(SCRIPT_DIR) / "data"
 
 
 def _models_root() -> Path:
+    """Return the path where YAML models are stored."""
+
     return Path(SCRIPT_DIR) / "models"
 
 
 def _engines_root() -> Path:
+    """Return the path containing computational engine modules."""
+
     return Path(SCRIPT_DIR) / "engines"
 
 
 def _output_root(override: Path | None = None) -> Path:
+    """Return the output directory, optionally using an override."""
+
     if override is not None:
         return override
     return Path(SCRIPT_DIR) / "output"
 
 
 def _parser_path_for_dir(data_dir: Path) -> Path | None:
+    """Locate the parser module belonging to a dataset directory."""
+
     candidates = sorted(data_dir.glob("cosmo_parser_*.py"))
     return candidates[0] if candidates else None
 
@@ -275,6 +286,8 @@ def _relative_parser_key(
     parser_path: Path | None,
     data_root: Path,
 ) -> str | None:
+    """Normalize the parser path relative to the shared data root."""
+
     if parser_path is None:
         return None
     try:
@@ -287,6 +300,8 @@ def _relative_parser_key(
 def _collect_dataset_entries(
     data_root: Path | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
+    """Return every dataset entry along with parser trust validation notes."""
+
     root = data_root or _data_root()
     registry_module = _get_dataset_registry()
     registry_module.discover_trusted_parsers(str(root))
@@ -340,6 +355,8 @@ def _collect_dataset_entries(
 def _gather_catalogue_summary(
     data_root: Path | None = None,
 ) -> dict[str, Any]:
+    """Summarize discovered datasets and parser health for CLI output."""
+
     catalogue, notes = _collect_dataset_entries(data_root)
     type_counter = Counter(entry["type"].upper() for entry in catalogue)
     untrusted = [entry for entry in catalogue if not entry["parser_trusted"]]
@@ -353,6 +370,8 @@ def _gather_catalogue_summary(
 
 
 def _read_model_file(path: Path) -> dict[str, Any]:
+    """Safely parse a YAML model definition and warn on syntax failures."""
+
     try:
         with path.open("r", encoding="utf-8") as handle:
             return yaml.safe_load(handle) or {}
@@ -365,6 +384,8 @@ def _read_model_file(path: Path) -> dict[str, Any]:
 def _collect_model_index(
     models_root: Path | None = None,
 ) -> dict[str, dict[str, Any]]:
+    """Build a metadata index for every YAML model in the models folder."""
+
     root = models_root or _models_root()
     models: dict[str, dict[str, Any]] = {}
     for path in sorted(Path(root).glob("*.yml")):
@@ -400,6 +421,8 @@ def _collect_model_index(
 def _collect_engine_index(
     engines_root: Path | None = None,
 ) -> dict[str, dict[str, Any]]:
+    """Build metadata records for each engine module."""
+
     root = engines_root or _engines_root()
     engines: dict[str, dict[str, Any]] = {}
     for path in sorted(Path(root).glob("*.py")):
@@ -436,6 +459,8 @@ def _gather_model_engine_summary(
     models_root: Path | None = None,
     engines_root: Path | None = None,
 ) -> dict[str, Any]:
+    """Summarize model and engine compatibility badges plus missing data."""
+
     model_index = _collect_model_index(models_root)
     engine_index = _collect_engine_index(engines_root)
     model_badges = Counter()
@@ -475,6 +500,8 @@ def _print_catalogue_summary_cli(
     models_root: Path | None = None,
     engines_root: Path | None = None,
 ) -> None:
+    """Emit the catalogue summary details to the CLI."""
+
     catalogue = _gather_catalogue_summary(data_root)
     model_engine = _gather_model_engine_summary(models_root, engines_root)
     console.write("")
@@ -527,6 +554,8 @@ def _cli_revalidate_dataset(
     dataset_id: str,
     data_root: Path | None = None,
 ) -> bool:
+    """Recompute and report parser trust for a single dataset identifier."""
+
     root = data_root or _data_root()
     registry_module = _get_dataset_registry()
     registry_module.discover_trusted_parsers(str(root), force=True)
@@ -587,6 +616,8 @@ def _cli_revalidate_dataset(
 def _discover_manifest_records(
     output_root: Path,
 ) -> list[tuple[Path, Path]]:
+    """Find recent run manifest files inside the output directory."""
+
     if not output_root.exists():
         return []
     records: list[tuple[Path, Path]] = []
@@ -603,6 +634,8 @@ def _discover_manifest_records(
 
 
 def _print_manifest_listing(output_root: Path) -> None:
+    """Present the most recent manifests under the configured output path."""
+
     records = _discover_manifest_records(output_root)
     console.write("")
     console.write(f"Run manifests under {output_root}:")
@@ -628,6 +661,8 @@ def _print_manifest_listing(output_root: Path) -> None:
 
 
 def _print_manifest_file(path: Path) -> bool:
+    """Load and pretty-print a manifest file, returning success."""
+
     if not path.exists():
         console.write(f"Manifest not found at {path}", error=True)
         return False
@@ -643,6 +678,8 @@ def _print_manifest_file(path: Path) -> bool:
 
 
 def _run_validation_cli() -> bool:
+    """Execute the lightweight validation suite and summarize results."""
+
     from validation.runner import run_validation_suite
 
     from copernican_lib import validation as validation_utils
@@ -816,6 +853,8 @@ def _run_analysis_posterior_cli(
 def _handle_auxiliary_requests(
     launch_request: LaunchRequest,
 ) -> tuple[bool, int]:
+    """Process auxiliary CLI options such as analysis helpers or validation."""
+
     handled = False
     exit_code = 0
     data_root = _data_root()
@@ -1420,6 +1459,7 @@ def _get_cpu_info() -> tuple[str, str]:
 
 
 def main_workflow(manifest_path: Path | None = None):
+    """Execute the manifest-driven CLI workflow after dependency checks."""
     opts = cli_dependencies.get_runtime_options()
     if opts.run_tests:
         success = cli_dependencies.run_startup_tests()
@@ -1472,7 +1512,10 @@ def main_workflow(manifest_path: Path | None = None):
         progress_callback=progress_callback,
         strict_warnings=opts.strict_warnings,
     )
+
+
 def _handle_cli_exception(exc: Exception) -> None:
+    """Log and display unexpected exceptions from the CLI."""
     logger_obj = log_mod.get_logger() if log_mod else None
     if logger_obj and logger_obj.hasHandlers():
         logger_obj.critical(
@@ -1487,6 +1530,8 @@ def _handle_cli_exception(exc: Exception) -> None:
 
 
 def _finalize_cli_run() -> None:
+    """Display any remaining Matplotlib figures and print a separator."""
+
     if (
         plt is not None
         and hasattr(plt, "get_fignums")
@@ -1507,6 +1552,8 @@ def _run_cli_launch(
     launch_request: LaunchRequest,
     argv: Iterable[str] | None,
 ) -> int:
+    """Run the CLI path when a manifest is provided, logging failures."""
+
     if not launch_request.manifest_path:
         missing_manifest_message = (
             "Copernican CLI requires a manifest file. Use --manifest to point"
@@ -1566,6 +1613,7 @@ def _announce_program_start(
 
 
 def main(argv: Iterable[str] | None = None) -> int:
+    """Entry point that decides whether to run GUI or CLI workflows."""
     import multiprocessing as _mp
 
     _mp.freeze_support()

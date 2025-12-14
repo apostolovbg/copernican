@@ -21,6 +21,7 @@ def _find_matching_fits(data_dir: str) -> list[str]:
     """Return FITS files that look like the compressed `mu_mat` outputs."""
 
     def looks_like_mu_mat(name: str) -> bool:
+        """Return True when a file name matches the mu_mat pattern."""
         lower = name.lower()
         return lower.endswith(".fits") and "mu_mat" in lower
 

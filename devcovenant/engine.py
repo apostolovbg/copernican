@@ -486,6 +486,7 @@ class CheckResult:
         should_block: bool,
         sync_issues: List[PolicySyncIssue],
     ):
+        """Store the check result metadata for later inspection."""
         self.violations = violations
         self.should_block = should_block
         self.sync_issues = sync_issues

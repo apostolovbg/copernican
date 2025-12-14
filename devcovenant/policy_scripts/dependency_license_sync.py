@@ -53,6 +53,7 @@ class DependencyLicenseSyncCheck(PolicyCheck):
     version = "1.0.0"
 
     def check(self, context: CheckContext):
+        """Verify dependency changes match the recorded license summary."""
         files = context.changed_files or []
         if not files:
             return []

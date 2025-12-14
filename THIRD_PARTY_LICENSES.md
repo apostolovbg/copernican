@@ -20,7 +20,7 @@ users can review the full terms offline.
 | astropy | 6.0.0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | psutil | 5.9.8 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | setuptools | 69.5.1 | [MIT](licenses/MIT.txt) |
-| setuptools_scm | 8.0.4 | [MIT](licenses/MIT.txt) |
+| semver | 3.0.1 | [MIT](licenses/MIT.txt) |
 | emcee | 3.1.4 | [MIT](licenses/MIT.txt) |
 | h5netcdf | 1.3.0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |
 | h5py | 3.10.0 | [BSD-3-Clause](licenses/BSD-3-Clause.txt) |

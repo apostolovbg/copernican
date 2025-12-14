@@ -69,6 +69,7 @@ class RobustQuadFailure(RuntimeError):
     """
 
     def __init__(self, *, lower, upper, attempts, last_result):
+        """Record the interval, attempts, and final result for the failure."""
         message = (
             "robust_quad exhausted retries between "
             f"{lower} and {upper} after {attempts} attempts"
@@ -96,6 +97,7 @@ class _GeneratedCallable:
     def __init__(
         self, *, expr_repr, arg_names, has_integral, name_hint, sym_expr=None
     ):
+        """Capture expression metadata and build the wrapped callable."""
         self._state = {
             "expr_repr": expr_repr,
             "arg_names": tuple(arg_names),
@@ -217,12 +219,14 @@ class _ComovingDistance:
     __slots__ = ("_hz_fn",)
 
     def __init__(self, hz_fn):
+        """Store the Hubble function for later comoving distance calls."""
         self._hz_fn = hz_fn
 
     def __call__(self, z_val, *params):
         """Integrate ``c/H(z)`` using either ``quad`` or a trapezoid grid."""
 
         def integrand(zp):
+            """Return ``c/H(zp)`` for the integrator."""
             return 299792.458 / self._hz_fn(zp, *params)
 
         if np.isscalar(z_val):
@@ -256,9 +260,11 @@ class _LuminosityDistance:
     __slots__ = ("_dm",)
 
     def __init__(self, dm_fn):
+        """Capture the comoving distance helper for luminosity distances."""
         self._dm = dm_fn
 
     def __call__(self, zv, *params):
+        """Return luminosity distance by scaling the comoving result."""
         return (1.0 + zv) * self._dm(zv, *params)
 
 
@@ -268,9 +274,11 @@ class _AngularDiameterDistance:
     __slots__ = ("_dm",)
 
     def __init__(self, dm_fn):
+        """Capture the comoving distance helper for angular-diameter calls."""
         self._dm = dm_fn
 
     def __call__(self, zv, *params):
+        """Compute the angular diameter distance from the comoving value."""
         return self._dm(zv, *params) / (1.0 + zv)
 
 
@@ -280,10 +288,12 @@ class _VolumeAveragedDistance:
     __slots__ = ("_dm", "_hz_fn")
 
     def __init__(self, dm_fn, hz_fn):
+        """Store the comoving and H(z) helpers for D_V computations."""
         self._dm = dm_fn
         self._hz_fn = hz_fn
 
     def __call__(self, z_val, *params):
+        """Return the BAO volume-averaged distance (D_V) from helpers."""
         dm_val = self._dm(z_val, *params)
         hz_val = self._hz_fn(z_val, *params)
         term = dm_val**2 * 299792.458 * z_val / hz_val
@@ -321,6 +331,7 @@ class _SoundHorizonFromExpression:
     __slots__ = ("_fn",)
 
     def __init__(self, fn):
+        """Wrap the symbolic sound-horizon callable for later use."""
         self._fn = fn
 
     def __call__(self, *params):
@@ -346,9 +357,11 @@ class _DistanceModulusFromLuminosity:
     __slots__ = ("_luminosity_fn",)
 
     def __init__(self, luminosity_fn):
+        """Store the luminosity distance helper used for conversion."""
         self._luminosity_fn = luminosity_fn
 
     def __call__(self, zv, *params):
+        """Translate luminosity distances to distance moduli."""
         dl = self._luminosity_fn(zv, *params)
         with np.errstate(divide="ignore", invalid="ignore"):
             mu = 5.0 * np.log10(dl) + 25.0
@@ -586,6 +599,7 @@ def _robust_quad_core(
     """Core retry and segmentation loop for :func:`robust_quad`."""
 
     def _call_quad(lower, upper, limit_value, dynamic_points):
+        """Execute SciPy quad with the supplied dynamic arguments."""
         quad_kwargs = dict(base_kwargs)
         if dynamic_points:
             quad_kwargs["points"] = tuple(dynamic_points)
@@ -791,6 +805,7 @@ def _integrate_infinite_segment(
         mapped_points = _map_points_for_negative_infinity(points, finite_upper)
 
         def transformed(t, *fn_args):
+            """Map logistic ``t`` to the original interval when ``a=-inf``."""
             t_safe = float(t)
             if t_safe <= 0.0:
                 t_safe = float(np.nextafter(0.0, 1.0))
@@ -816,6 +831,7 @@ def _integrate_infinite_segment(
         mapped_points = _map_points_for_positive_infinity(points, finite_lower)
 
         def transformed(t, *fn_args):
+            """Map logistic ``t`` to the original interval when ``b=+inf``."""
             t_safe = float(t)
             if t_safe <= 0.0:
                 t_safe = float(np.nextafter(0.0, 1.0))

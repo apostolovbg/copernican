@@ -70,6 +70,7 @@ class NewModulesNeedTestsCheck(PolicyCheck):
         ) = self._collect_repo_changes(context.repo_root)
 
         def _is_library_or_engine_module(relative: Path) -> bool:
+            """Return True when motion paths point at core Python modules."""
             return (
                 relative.suffix == ".py"
                 and relative.parts
@@ -77,6 +78,7 @@ class NewModulesNeedTestsCheck(PolicyCheck):
             )
 
         def _collect_changed_tests(paths: Set[Path]) -> List[Path]:
+            """Collect touched files that live under tests/."""
             tests = []
             for path in paths:
                 try:

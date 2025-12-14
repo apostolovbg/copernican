@@ -216,6 +216,7 @@ def execute_run_from_manifest(
 
 
 def _describe_datasets(datasets: Sequence[DatasetDescriptor]) -> None:
+    """Log the metadata for selected datasets before running."""
     log = log_mod.get_logger()
     for descriptor in datasets:
         log.info(
@@ -229,6 +230,7 @@ def _describe_datasets(datasets: Sequence[DatasetDescriptor]) -> None:
 def _load_dataset_from_descriptor(
     descriptor: DatasetDescriptor,
 ):
+    """Load a dataset using its descriptor and registered loaders."""
     loader_map = {
         "sne": dataset_registry.load_sne_data,
         "bao": dataset_registry.load_bao_data,
@@ -255,6 +257,7 @@ def _load_dataset_from_descriptor(
 
 
 def _resolve_run_timestamp(output_root: Path, override: str | None) -> str:
+    """Return either the override timestamp or derive one from the folder."""
     if override:
         return override
     name = output_root.name

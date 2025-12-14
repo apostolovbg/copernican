@@ -152,6 +152,7 @@ def calculate_bao_observables(
         else:
 
             def _load_background(redshifts):
+                """Return CAMB background values for a set of redshifts."""
                 if redshifts is None or redshifts.size == 0:
                     return None
                 try:
@@ -179,6 +180,7 @@ def calculate_bao_observables(
             rs_mpc = float(rs_candidate)
 
     def _fill_from_background() -> bool:
+        """Populate BAO predictions from the CAMB background table."""
         if background is None or not np.isfinite(rs_mpc):
             return False
         try:
@@ -218,6 +220,7 @@ def calculate_bao_observables(
         return True
 
     def _smooth_from_background() -> dict[str, np.ndarray] | None:
+        """Return the smoothed CAMB observables for plotting."""
         if (
             smooth_background is None
             or z_smooth_arr is None
@@ -248,6 +251,7 @@ def calculate_bao_observables(
     def _fill_from_plugin(
         rs_guess: float,
     ) -> tuple[float, dict[str, np.ndarray] | None]:
+        """Fallback to plugin-supplied BAO predictions when available."""
         try:
             get_DM_model = getattr(model_plugin, "get_comoving_distance_Mpc")
             get_Hz_model = getattr(model_plugin, "get_Hz_per_Mpc")

@@ -50,6 +50,7 @@ def get_settings_path() -> Path:
 def _merge_settings(
     base: dict[str, object], override: dict[str, object]
 ) -> dict[str, object]:
+    """Recursively apply ``override`` values on top of ``base``."""
     merged = copy.deepcopy(base)
     for key, value in override.items():
         if isinstance(value, dict) and isinstance(merged.get(key), dict):

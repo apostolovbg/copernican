@@ -3,33 +3,20 @@
 
 """Version helpers for the Copernican Suite.
 
-This module centralises retrieval of the project's version string so that
-all components report a consistent value.  The lookup order honours the
-``COPERNICAN_VERSION`` environment variable first so build pipelines can
-inject prerelease identifiers.  When the variable is unset the helper reads
-the ``copernican_lib/VERSION`` file that ships with the source and wheel
-distributions.  Falling back to a tracked file keeps the runtime version in
-sync with the value advertised in ``README.md`` even when a Git tag for the
-next release has not yet been created.  If the file is missing the function
-queries :mod:`importlib.metadata` for the installed package version and, when
-that fails, asks :func:`setuptools_scm.get_version` for a Git-derived
-identifier.  A final fallback of ``"0+unknown"`` ensures logging and plot
-footers still display a version-like string in degenerate environments.
+This module centralises retrieval of the project's version string so every
+component reports a consistent value.  The helper first respects the
+``COPERNICAN_VERSION`` environment variable, enabling CI pipelines to pin
+prerelease identifiers without editing the source.  When that variable is
+unset it reads the tracked ``copernican_lib/VERSION`` file, keeping runtime
+metadata aligned with the documented version number.  If every lookup fails a
+final fallback of ``"0+unknown"`` ensures the logger and plot footers still
+display a version-like string.
 """
 
 import os
 from importlib import resources
-from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Optional
-
-try:
-    from setuptools_scm import get_version as scm_get_version
-except Exception:  # pragma: no cover - dependency missing
-    # ``setuptools_scm`` is listed as a runtime dependency, but guard the
-    # import so source-only checkouts can still run the suite after installing
-    # requirements manually.
-    scm_get_version = None  # type: ignore[assignment]
 
 PACKAGE_NAME = "copernican-suite"
 VERSION_FILENAME = "VERSION"
@@ -73,11 +60,10 @@ def get_version() -> str:
 
     The function first honours the ``COPERNICAN_VERSION`` environment
     variable so CI or development builds can supply custom prerelease
-    identifiers. If the variable is unset the helper attempts to read the
-    tracked ``copernican_lib/VERSION`` file. When the package metadata is
-    unavailable the lookup falls back to :mod:`importlib.metadata` and then to
-    :func:`setuptools_scm.get_version`. If every stage fails, the placeholder
-    ``"0+unknown"`` is returned.
+    identifiers. When the variable is unset the helper attempts to read the
+    tracked ``copernican_lib/VERSION`` file.
+    A final fallback of ``"0+unknown"`` ensures logging and plot footers still
+    display a version-like string in degenerate environments.
     """
 
     env_version = os.environ.get("COPERNICAN_VERSION")
@@ -87,15 +73,7 @@ def get_version() -> str:
     file_version = _read_version_file()
     if file_version:
         return file_version
-    try:
-        return version(PACKAGE_NAME)
-    except PackageNotFoundError:
-        if scm_get_version is None:
-            return "0+unknown"
-        try:
-            return scm_get_version(root="..", relative_to=__file__)
-        except Exception:
-            return "0+unknown"
+    return "0+unknown"
 
 
 __all__ = ["get_version"]

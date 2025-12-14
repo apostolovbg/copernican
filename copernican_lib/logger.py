@@ -122,17 +122,21 @@ def _patch_builtins(base_dir: str) -> None:
         """Proxy that mirrors stream writes to the logger."""
 
         def __init__(self, stream: TextIO) -> None:
+            """Initialize the proxy with the wrapped stream."""
             self._stream = stream
 
         def write(self, data: str) -> None:
+            """Write to the original stream and mirror the text to logs."""
             self._stream.write(data)
             if data:
                 _log_console_message(data)
 
         def flush(self) -> None:
+            """Flush the underlying stream."""
             self._stream.flush()
 
         def __getattr__(self, name: str) -> Any:
+            """Forward attribute access to the wrapped stream."""
             return getattr(self._stream, name)
 
     if not isinstance(sys.stdout, _StreamProxy):

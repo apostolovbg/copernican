@@ -27,12 +27,16 @@ class MinigameDescriptor:
 
 
 def _hash_file(path: Path) -> str:
+    """Return the SHA256 digest for a metadata or module file."""
+
     digest = hashlib.sha256()
     digest.update(path.read_bytes())
     return digest.hexdigest()
 
 
 def _module_path(module: str) -> Path:
+    """Resolve the on-disk path for a given RNG module identifier."""
+
     parts = module.split(".")
     if parts[0] == "rng_minigames":
         parts = parts[1:]
@@ -43,10 +47,14 @@ def _module_path(module: str) -> Path:
 
 
 def _load_metadata(path: Path) -> Dict[str, Any]:
+    """Load metadata JSON from the provided path."""
+
     return json.loads(path.read_text())
 
 
 def _build_registry() -> List[Dict[str, Any]]:
+    """Rebuild metadata entries for every RNG mini-game."""
+
     entries: List[Dict[str, Any]] = []
     for meta_path in PACKAGE_ROOT.glob("*/metadata.json"):
         data = _load_metadata(meta_path)

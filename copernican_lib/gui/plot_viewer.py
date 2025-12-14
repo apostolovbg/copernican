@@ -23,6 +23,7 @@ class PlotViewer(ttk.Frame):
     """A canvas that displays Matplotlib figures with pan/zoom controls."""
 
     def __init__(self, master, *, figure: Figure | None = None):
+        """Initialize the plot viewer canvas and event handlers."""
         if tk is None or ttk is None:
             raise RuntimeError("Tkinter is required for the plot viewer.")
         super().__init__(master)
@@ -96,16 +97,19 @@ class PlotViewer(ttk.Frame):
             )
 
     def _on_press(self, event) -> None:
+        """Record the press event to start drag panning."""
         if not self._zoom_active or event.inaxes is None:
             return
         self._press_event = event
 
     def _on_release(self, event) -> None:
+        """Clear the stored press event at the end of a pan."""
         if not self._zoom_active:
             return
         self._press_event = None
 
     def _on_motion(self, event) -> None:
+        """Pan the axes as the mouse moves while zoom is active."""
         if not self._zoom_active or self._press_event is None:
             return
         if event.inaxes is None or self._press_event.inaxes is None:

@@ -111,6 +111,8 @@ class CAMBParameterEvaluator:
     _replacements: dict[str, str] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
+        """Prepare internal helpers after dataclass creation."""
+
         object.__setattr__(
             self, "_logger", logging.getLogger(self.logger_name)
         )
@@ -124,6 +126,8 @@ class CAMBParameterEvaluator:
         )
 
     def __call__(self, values: Sequence[float]) -> dict[str, float]:
+        """Evaluate the parameter map using the supplied parameter values."""
+
         env = {
             name: float(val) for name, val in zip(self.parameter_names, values)
         }
@@ -137,6 +141,8 @@ class CAMBParameterEvaluator:
         return results
 
     def _replace_latex(self, expr: str) -> str:
+        """Swap LaTeX placeholders with Python-friendly variable names."""
+
         cleaned = expr
         for latex, name in self._replacements.items():
             pattern = re.compile(
@@ -146,6 +152,8 @@ class CAMBParameterEvaluator:
         return cleaned
 
     def _eval_expression(self, expr: str, env: Mapping[str, float]) -> float:
+        """Parse and evaluate a mathematical expression securely."""
+
         try:
             node = ast.parse(expr, mode="eval")
         except SyntaxError as exc:  # pragma: no cover - guarded by validation
@@ -165,6 +173,8 @@ class CAMBParameterEvaluator:
         *,
         depth: int,
     ) -> float:
+        """Recursively compute the AST node value with safety guards."""
+
         if depth > 20:
             raise ValueError("expression too complex")
         if isinstance(node, ast.Constant):
@@ -228,15 +238,23 @@ class FrozenMapping(Mapping[str, Any]):
         self._data = dict(source or {})
 
     def __getitem__(self, key: str) -> Any:
+        """Return the stored value for *key* (supports pickling)."""
+
         return self._data[key]
 
     def __iter__(self) -> Iterator[str]:
+        """Yield the recorded keys for mapping iteration."""
+
         return iter(self._data)
 
     def __len__(self) -> int:
+        """Return the number of stored entries."""
+
         return len(self._data)
 
     def __repr__(self) -> str:
+        """Show a repr that reveals the wrapped data."""
+
         return f"FrozenMapping({self._data!r})"
 
     def __getstate__(self) -> dict[str, Any]:
@@ -294,6 +312,8 @@ class EnginePlugin:
     )
 
     def __post_init__(self) -> None:
+        """Normalise extras and prepare the CAMB parameter evaluator."""
+
         self.extras = FrozenMapping(self.extras)
         if self.valid_for_cmb and not self.CMB_PARAM_MAP:
             LOGGER.warning(
@@ -312,6 +332,8 @@ class EnginePlugin:
             object.__setattr__(self, "_camb_evaluator", None)
 
     def __getattr__(self, name: str) -> Any:
+        """Delegate attribute lookups to the extras mapping when missing."""
+
         if name == "extras":
             raise AttributeError(name)
 
@@ -326,6 +348,8 @@ class EnginePlugin:
             raise AttributeError(name) from exc
 
     def __dir__(self) -> list[str]:
+        """Include extras keys alongside the normal attribute list."""
+
         default = set(super().__dir__())
         default.update(self.extras.keys())
         return sorted(default)
@@ -358,6 +382,7 @@ def _prepare_priors(
     tuple[Callable[[float], Any] | None, ...] | None,
     Mapping[str, float],
 ]:
+    """Build prior metadata, transform callables and fixed constants."""
     prior_mappings: list[Mapping[str, Any]] = []
     prior_objects: list[prior_lib.BasePrior | None] = []
     transforms: list[Callable[[float], Any] | None] = []

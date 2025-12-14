@@ -35,6 +35,7 @@ _SETTINGS_NAME = "game_settings.yml"
 
 
 def _merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    """Merge override settings into the base dictionary recursively."""
     result = dict(base)
     for key, value in override.items():
         if (
@@ -49,6 +50,7 @@ def _merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _write_default_settings(path: Path) -> None:
+    """Write the defaults to disk so the YAML loader always finds a file."""
     try:
         path.write_text(
             yaml.safe_dump(DEFAULT_SETTINGS, sort_keys=False).strip() + "\n"

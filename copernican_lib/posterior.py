@@ -35,6 +35,7 @@ class PosteriorEvaluator:
     logger: logging.Logger
 
     def __call__(self, params: Sequence[float]) -> float:
+        """Transform parameters and evaluate the log posterior."""
         try:
             raw_values = tuple(float(val) for val in params)
         except (TypeError, ValueError):

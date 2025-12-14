@@ -36,6 +36,8 @@ def load_inference_data(path: Path | str) -> xr.Dataset:
 
 
 def extract_posterior_arrays(dataset: xr.Dataset) -> dict[str, np.ndarray]:
+    """Return flattened arrays for every posterior data variable."""
+
     arrays: dict[str, np.ndarray] = {}
     for name, da in dataset.data_vars.items():
         if da.values is None:
@@ -50,6 +52,8 @@ def extract_posterior_arrays(dataset: xr.Dataset) -> dict[str, np.ndarray]:
 def flatten_posterior_arrays(
     dataset: xr.Dataset,
 ) -> tuple[np.ndarray, list[str]]:
+    """Stack every posterior array into a 2d matrix with column names."""
+
     arrays = extract_posterior_arrays(dataset)
     if not arrays:
         return np.empty((0, 0)), []
@@ -61,6 +65,8 @@ def flatten_posterior_arrays(
 def _footer_lines(
     result: analysis.RunAnalysisResult, posterior_path: Path
 ) -> list[tuple[str, bool]]:
+    """Compose the centered footer lines for posterior plots."""
+
     lines: list[tuple[str, bool]] = []
     model_names = list(result.model_summaries.keys())
     if model_names:
@@ -74,6 +80,8 @@ def _footer_lines(
 
 
 def _render_footer(fig: plt.Figure, lines: list[tuple[str, bool]]) -> None:
+    """Draw the centered footer text with optional bold styling."""
+
     y = 0.02
     for line, bold in lines:
         fig.text(

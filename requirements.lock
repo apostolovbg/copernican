@@ -118,7 +118,6 @@ packaging==24.2
     #   h5netcdf
     #   matplotlib
     #   pytest
-    #   setuptools-scm
     #   xarray
 pandas==2.2.1
     # via
@@ -191,7 +190,7 @@ scipy==1.12.0
     #   arviz
     #   camb
     #   xarray-einstats
-setuptools-scm==8.0.4
+semver==3.0.1
     # via -r requirements.in
 six==1.16.0
     # via
@@ -208,7 +207,6 @@ typing-extensions==4.10.0
     #   -r requirements.in
     #   aiosignal
     #   arviz
-    #   setuptools-scm
 tzdata==2024.1
     # via
     #   -r requirements.in
@@ -234,4 +232,3 @@ setuptools==69.5.1
     # via
     #   -r requirements.in
     #   arviz
-    #   setuptools-scm

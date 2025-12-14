@@ -30,6 +30,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     """Space-invader inspired mini-game."""
 
     def _apply_seed(order: list[str], duration: float) -> None:
+        """Derive a deterministic seed from the selected enemy order."""
         payload = "|".join(order) + f"|{int(duration * 1000)}"
         digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
         seed_value = str(int(digest[:14], 16))
@@ -74,6 +75,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     }
 
     def _persist_learning_history() -> None:
+        """Save the long-term learning statistics to disk."""
         try:
             learning_history_path.write_text(
                 yaml.safe_dump(learning_alltime_stats, sort_keys=False)
@@ -82,6 +84,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             pass
 
     def _load_learning_history() -> dict[str, float | int]:
+        """Load archived learning stats or reset to defaults."""
         if not learning_history_path.exists():
             return dict(ALLTIME_LEARNING_DEFAULTS)
         try:
@@ -95,6 +98,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         return stats
 
     def _reset_learning_history() -> None:
+        """Reset the persisted learning stats to their defaults."""
         learning_alltime_stats.clear()
         learning_alltime_stats.update(dict(ALLTIME_LEARNING_DEFAULTS))
         _persist_learning_history()
@@ -150,9 +154,12 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     current_edge_samples = 0
 
     def _clamp_learning_speed(value: int) -> int:
+        """Keep the learning-speed slider within configured bounds."""
+
         return max(learning_speed_min, min(learning_speed_max, value))
 
     def _current_learning_speed() -> int:
+        """Return the currently cached learning-speed multiplier."""
         nonlocal learning_speed_multiplier
         value = learning_speed_multiplier
         if learning_speed_var is not None:
@@ -165,6 +172,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         return value
 
     def _handle_learning_speed_change(*_args: object) -> None:
+        """Update the multiplier when the UI spinbox changes."""
         nonlocal learning_speed_multiplier
         if learning_speed_var is None:
             return
@@ -179,9 +187,11 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             learning_speed_var.set(value)
 
     def _time_scale() -> float:
+        """Translate learning mode into a frame-rate multiplier."""
         return _current_learning_speed() if learning_mode else 1.0
 
     def _tick_steps(scale: float) -> int:
+        """Determine how many ticks to run per visual update."""
         if not learning_mode or scale <= 1:
             return 1
         effective_delay = max(
@@ -194,6 +204,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         )
 
     def _draw_background() -> None:
+        """Paint the night sky gradient and landscape once per launch."""
         gradient_steps = 60
         last_color = "#040912"
         for step in range(gradient_steps):
@@ -257,6 +268,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             ridge_points.append((x, y))
 
         def _hill_y_at(x_val: float) -> float:
+            """Interpolate the hill height at the given horizontal position."""
             if len(ridge_points) < 2:
                 return sky_height
             for (x0, y0), (x1, y1) in zip(ridge_points[:-1], ridge_points[1:]):
@@ -268,6 +280,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             return ridge_points[-1][1]
 
         def _draw_skyline() -> None:
+            """Draw city skylines over flatter hill intervals."""
             if len(ridge_points) < 2:
                 return
             threshold = sky_height + 5
@@ -308,6 +321,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             city_clusters = 0
 
             def _draw_city_segment(bounds: tuple[float, float]) -> bool:
+                """Render one city block within the skyline gap."""
                 nonlocal city_clusters
                 start_x, end_x = bounds
                 region_width = end_x - start_x
@@ -371,6 +385,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     _draw_city_segment(bounds)
 
         def _draw_trees() -> None:
+            """Scatter stylized trees along the hill line."""
             if len(ridge_points) < 2:
                 return
             cluster_count = random.randint(3, 6)
@@ -422,6 +437,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     )
 
         def _draw_bushes() -> None:
+            """Dot the foreground with brushy shrubs."""
             bush_count = random.randint(20, 38)
             for _ in range(bush_count):
                 x = random.uniform(0, canvas_width)
@@ -455,9 +471,11 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         canvas.create_polygon(flat_points, fill="#152a1e", outline="#0f1c15")
 
     def _color_from_hex(hex_color: str) -> tuple[int, int, int]:
+        """Convert an HTML hex string into an RGB tuple."""
         return tuple(int(hex_color[slice(i, i + 2)], 16) for i in (1, 3, 5))
 
     def _color_for_star(base: tuple[int, int, int], brightness: float) -> str:
+        """Blend the base color with white according to brightness."""
         brightness = max(0.0, min(1.0, brightness))
         r = int(base[0] * brightness + 255 * (1 - brightness))
         g = int(base[1] * brightness + 255 * (1 - brightness))
@@ -465,12 +483,14 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         return f"#{r:02x}{g:02x}{b:02x}"
 
     def _clear_shooting_stars() -> None:
+        """Remove every scheduled shooting star from the canvas."""
         for star in shooting_stars:
             canvas.delete(star["head"])
             canvas.delete(star["tail"])
         shooting_stars.clear()
 
     def _schedule_next_shooting_star(multiplier: float = 1.0) -> None:
+        """Plan the next shooting-star spawn time."""
         nonlocal next_shooting_star_time
         if learning_mode:
             next_shooting_star_time = float("inf")
@@ -485,6 +505,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         next_shooting_star_time = time.time() + interval * multiplier
 
     def _spawn_shooting_star() -> None:
+        """Create a shooting star and animate it across the sky."""
         if learning_mode:
             return
         base_colors = ["#fef5d7", "#ffe5b0", "#cde8ff", "#fff0ef"]
@@ -543,6 +564,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         _schedule_next_shooting_star()
 
     def _update_shooting_stars() -> None:
+        """Advance every shooting star and expire finished ones."""
         nonlocal shooting_stars
         if learning_mode:
             return
@@ -674,6 +696,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     kill_meter_var = tk.StringVar()
 
     def _format_learning_summary() -> str:
+        """Return a short summary string for the learning statistics."""
         runs = learning_stats["runs"]
         wins = learning_stats["wins"]
         losses = learning_stats["losses"]
@@ -701,6 +724,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         )
 
     def _update_ai_stats() -> None:
+        """Refresh the AI status labels based on stored learning stats."""
         runs = int(learning_alltime_stats.get("runs", 0))
         saved = int(learning_alltime_stats.get("wins", 0))
         lost = int(learning_alltime_stats.get("losses", 0))
@@ -714,6 +738,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         _update_kill_meter()
 
     def _update_kill_meter() -> None:
+        """Update the kill counter displayed beneath the AI stats."""
         kill_meter_var.set(f"Kill meter: {current_ai_kills} kills (this run)")
 
     _update_ai_stats()
@@ -745,12 +770,15 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     pause_button.pack(side="left", padx=(0, 8))
 
     def _show_hall_of_fame() -> None:
+        """Open the hall-of-fame overlay for the player."""
         hall_of_fame.show(window)
 
     def _ai_in_control() -> bool:
+        """Return True when the AI has control (learning or autopilot)."""
         return autopilot_active or learning_mode
 
     def _sample_edge_discipline() -> None:
+        """Record how close the ship is to the edges for punishment."""
         nonlocal current_edge_penalty, current_edge_samples
         if not _ai_in_control():
             return
@@ -767,6 +795,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             ai_brain.cool_edge_streak()
 
     def _finalize_learning_stats(success: bool) -> None:
+        """Persist a learning run result and reset temporary counters."""
         nonlocal current_ai_kills, current_edge_penalty, current_edge_samples
         if not _ai_in_control():
             return
@@ -801,6 +830,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         current_edge_samples = 0
 
     def _reward_enemy_destroyed(record: dict) -> None:
+        """Award a reward when the AI destroys an enemy."""
         if not _ai_in_control():
             return
         rank = record.get("rank", "lieutenant")
@@ -812,12 +842,14 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         _update_kill_meter()
 
     def _penalize_enemy_respawned(record: dict) -> None:
+        """Apply a penalty when the AI's target respawns."""
         if not _ai_in_control():
             return
         rank = record.get("rank", "lieutenant")
         ai_brain.penalize_enemy_respawned(rank)
 
     def _cancel_player_auto_reset() -> None:
+        """Cancel any scheduled automatic game reset after explosions."""
         nonlocal player_auto_reset_handle
         if player_auto_reset_handle:
             try:
@@ -827,6 +859,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             player_auto_reset_handle = None
 
     def _schedule_player_auto_reset() -> None:
+        """Schedule an automatic reset after the player explodes."""
         nonlocal player_auto_reset_handle
         if learning_mode:
             return
@@ -834,11 +867,13 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         delay_ms = max(100, int(player_explosion_hold * 1000))
 
         def _auto_reset() -> None:
+            """Reset the level automatically after a delay."""
             _reset_game()
 
         player_auto_reset_handle = canvas.after(delay_ms, _auto_reset)
 
     def _clear_player_explosion() -> None:
+        """Remove explosion shards and cancel their animation timer."""
         nonlocal player_explosion_handle
         nonlocal player_explosion_end
         nonlocal player_explosion_active
@@ -855,6 +890,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         player_explosion_active = False
 
     def _animate_player_explosion() -> None:
+        """Animate the remaining explosion shards until the effect ends."""
         nonlocal player_explosion_handle
         nonlocal player_explosion_active
         if not player_explosion or player_explosion_end is None:
@@ -891,6 +927,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         )
 
     def _start_player_explosion() -> None:
+        """Spawn explosion fragments and begin their animation."""
         nonlocal player_explosion_handle
         nonlocal player_explosion_end
         nonlocal player_explosion_active
@@ -935,6 +972,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     hall_button.pack(side="left", padx=(0, 8))
 
     def _toggle_ai_pilot() -> None:
+        """Enable or disable the autopilot controller."""
         if ai_controller.running:
             ai_controller.stop()
             action_var.set("AI disengaged. Manual control restored.")
@@ -947,6 +985,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     ai_button.pack(side="left", padx=(0, 8))
 
     def _toggle_learning() -> None:
+        """Start or stop the continuous learning loop."""
         nonlocal learning_mode
         if learning_mode:
             learning_mode = False
@@ -990,12 +1029,14 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         learning_speed_var = None
 
     def _perform_ai_forget() -> None:
+        """Wipe the AI history and learning stats for a fresh start."""
         ai_brain.forget()
         _reset_learning_history()
         _update_ai_stats()
         action_var.set("AI memory wiped. Fresh slate!")
 
     def _request_forget() -> None:
+        """Prompt the user before erasing the AI memory."""
         if tk is None:
             _perform_ai_forget()
             return
@@ -1012,6 +1053,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         btn_row.pack(padx=12, pady=(0, 12))
 
         def _wipe() -> None:
+            """Perform the AI memory wipe after confirmation."""
             _perform_ai_forget()
             dialog.destroy()
 
@@ -1031,6 +1073,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     forget_button.pack(side="left", padx=(0, 8))
 
     def _toggle_pause() -> None:
+        """Pause or resume the gameplay loop."""
         nonlocal paused, timers_started
         if game_over:
             return
@@ -1052,6 +1095,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     player_height = 22
 
     def _player_shape_coords(cx: float, cy: float) -> list[float]:
+        """Return the polygon coordinates for the player sprite."""
         return [
             cx,
             cy - 22,
@@ -1090,6 +1134,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     PLAYER_LINGER_THRESHOLD = 60
 
     def _set_player_target(target_x: float, *, snap: bool = False) -> None:
+        """Update the desired horizontal target for the player sprite."""
         nonlocal player_target_x, player_velocity
         clamped = max(40, min(canvas_width - 40, target_x))
         player_target_x = clamped
@@ -1102,6 +1147,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             )
 
     def _update_player_motion() -> None:
+        """Move the player toward the target position respecting accel."""
         nonlocal player_velocity
         if game_over or paused:
             return
@@ -1165,12 +1211,16 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     general_hits = 0
 
     def _minions_alive() -> bool:
+        """Return True when enemies besides the general still survive."""
+
         return any(
             record.get("alive") and eid != general_id
             for eid, record in enemy_data.items()
         )
 
     def _effective_general_shield_max() -> int:
+        """Lower the general's shield when it is the only threat left."""
+
         return 1 if not _minions_alive() else base_general_shield_max
 
     player_hits = 0
@@ -1181,6 +1231,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     general_barrage_cooldown = 0
 
     def _update_enemy_shield_visual(enemy_id: str) -> None:
+        """Refresh the outline/width for the enemy shield indicator."""
         record = enemy_data.get(enemy_id)
         if not record:
             return
@@ -1213,6 +1264,8 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     def _enemy_polygon(
         x: float, y: float, *, general: bool = False, elite: bool = False
     ) -> int:
+        """Return a Tk polygon id for the given enemy type and position."""
+
         if general:
             return canvas.create_polygon(
                 x - 18,
@@ -1249,6 +1302,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         )
 
     def _spawn_enemies() -> None:
+        """Populate each wave of enemies before a run begins."""
         nonlocal general_id, general_ai, total_enemies
         general_id = None
         row_gap = 70
@@ -1406,6 +1460,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         total_enemies = len(enemy_data)
 
     def _scaled_after(delay_ms: int, callback: Callable[[], None]) -> str:
+        """Schedule a callback factoring in the current time scale."""
         scale = _time_scale()
         scaled = max(min_event_delay_ms, int(delay_ms / max(scale, 1.0)))
         return canvas.after(scaled, callback)
@@ -1413,19 +1468,23 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     MAX_RUN_SECONDS = max_run_seconds
 
     def _elapsed_seconds() -> int:
+        """Return the scaled seconds elapsed since the game started."""
         if run_start_time is None:
             return 0
         return max(0, int((time.time() - run_start_time) * _time_scale()))
 
     def _time_left_seconds() -> int:
+        """Compute how many scaled seconds remain in the current round."""
         return max(0, MAX_RUN_SECONDS - _elapsed_seconds())
 
     def _format_time_left() -> str:
+        """Format the remaining time as minutes and seconds."""
         remaining = _time_left_seconds()
         minutes, seconds = divmod(remaining, 60)
         return f"{minutes:02d}:{seconds:02d}"
 
     def _update_status() -> None:
+        """Refresh shield, charge and timer labels in the status bar."""
         player_remaining = max(player_shield_max - player_hits, 0)
         current_general_shield = _effective_general_shield_max()
         general_remaining = max(current_general_shield - general_hits, 0)
@@ -1447,6 +1506,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     def _record_ai_outcome(
         success: bool, duration: float, *, controlling: bool | None = None
     ) -> None:
+        """Log what happened to the AI after a run completes."""
         if controlling is None:
             controlling = _ai_in_control()
         if not controlling:
@@ -1456,6 +1516,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         _update_ai_stats()
 
     def _cancel_timers() -> None:
+        """Cancel every recurring timer task currently scheduled."""
         nonlocal tick_handle, fire_handle, charge_handle, general_fire_handle
         for handle in (
             tick_handle,
@@ -1471,6 +1532,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         tick_handle = fire_handle = charge_handle = general_fire_handle = None
 
     def _close_window() -> None:
+        """Shut down the game window and stop all background tasks."""
         nonlocal learning_mode
         _cancel_learning_restart()
         _cancel_player_auto_reset()
@@ -1482,6 +1544,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         window.destroy()
 
     def _cancel_learning_restart() -> None:
+        """Cancel the pending learning restart timer if active."""
         nonlocal learning_restart_handle
         if learning_restart_handle:
             try:
@@ -1491,6 +1554,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             learning_restart_handle = None
 
     def _center_player() -> None:
+        """Reposition and reorient the player to the centre of the field."""
         nonlocal player_last_x, player_idle_ticks
         player["y"] = canvas_height - ground_height - 60
         _set_player_target(canvas_width / 2, snap=True)
@@ -1498,9 +1562,12 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         player_idle_ticks = 0
 
     def _player_lingering() -> bool:
+        """Return True once the player has stayed idle long enough."""
         return player_idle_ticks >= PLAYER_LINGER_THRESHOLD
 
     def _reset_game(*, preserve_ai: bool = False) -> None:
+        """Reset the game state while optionally keeping the AI learning
+        loop alive."""
         nonlocal run_start_time, kill_order, charge_count
         nonlocal general_hits, general_ai, timers_started
         nonlocal player_shots, enemy_shots, charges, bombs, destroyed_stack
@@ -1575,6 +1642,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             ai_controller.start()
 
     def _schedule_learning_restart() -> None:
+        """Queue another learning round once the AI finishes its sortie."""
         nonlocal learning_restart_handle
         if not learning_mode:
             return
@@ -1582,11 +1650,13 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         action_var.set("AI reviewing the battle log. Next sortie incoming...")
 
         def _restart() -> None:
+            """Restart the run without resetting the AI state."""
             _reset_game(preserve_ai=True)
 
         learning_restart_handle = _scaled_after(1200, _restart)
 
     def _respawn_enemy(enemy_id: str, *, opposite: bool = False) -> None:
+        """Bring a destroyed enemy back to life for revives."""
         record = enemy_data.get(enemy_id)
         if not record or record["alive"]:
             return
@@ -1606,6 +1676,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         _penalize_enemy_respawned(record)
 
     def _pick_revive_target() -> str | None:
+        """Choose the next destroyed enemy that should revive."""
         if not destroyed_stack:
             return None
         priorities = ("lieutenant", "major", "colonel", "general")
@@ -1622,6 +1693,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         return destroyed_stack.pop()
 
     def _player_defeated() -> None:
+        """Handle the player losing their shields and ending the run."""
         nonlocal game_over, autopilot_active
         if game_over:
             return
@@ -1650,6 +1722,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         _schedule_player_auto_reset()
 
     def _handle_player_hit() -> None:
+        """Process when the player takes damage and update the UI."""
         nonlocal player_hits
         if game_over:
             return
@@ -1673,6 +1746,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             action_var.set("You were hit, but the fleet holds steady!")
 
     def _destroy_enemy(enemy_id: str, explosion: bool = False) -> None:
+        """Mark an enemy as destroyed and update the fight status."""
         nonlocal pending_order, pending_duration, game_over, general_hits
         nonlocal completed_by_ai, current_ai_kills
         record = enemy_data.get(enemy_id)
@@ -1753,6 +1827,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             _schedule_learning_restart()
 
     def _fire_player_shot(_event: "tk.Event | None") -> None:
+        """Launch a player laser shot if firing rate and state allow."""
         nonlocal last_shot_time
         if len(player_shots) > 4 or game_over or paused:
             return
@@ -1772,6 +1847,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         player_shots.append({"item": item, "vy": -12})
 
     def _ensure_game_started() -> None:
+        """Start the tick/shot timers once the player acts."""
         nonlocal timers_started, run_start_time
         if timers_started:
             return
@@ -1780,11 +1856,13 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         _start_timers()
 
     def _move_player_to(target_x: float, *, snap: bool = False) -> None:
+        """Set a movement target for the player, ignoring game-over events."""
         if game_over:
             return
         _set_player_target(target_x, snap=snap)
 
     def _move_player(event: "tk.Event") -> None:
+        """Handle mouse movement to steer the player sprite."""
         if game_over or paused:
             return
         _set_player_target(event.x)
@@ -1792,6 +1870,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     def _fire_enemy_shot(
         enemy_id: str, *, aim_for: float | None = None
     ) -> bool:
+        """Have the specified enemy fire a projectile toward the player."""
         record = enemy_data.get(enemy_id)
         if not record or not record["alive"]:
             return False
@@ -1813,6 +1892,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         return True
 
     def _fire_weight(enemy_id: str) -> float:
+        """Return a weight that biases enemy shot selection."""
         record = enemy_data.get(enemy_id)
         if not record:
             return 1.0
@@ -1826,6 +1906,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         return 1.0
 
     def _spawn_enemy_shot_once() -> None:
+        """Have a subset of enemies fire once per cycle."""
         nonlocal last_shooter
         live_enemies = [eid for eid, rec in enemy_data.items() if rec["alive"]]
         if not live_enemies:
@@ -1858,6 +1939,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 last_shooter = shooter_id
 
     def _spawn_charge_once() -> None:
+        """Spawn an extra space charge capsule when permitted."""
         if len(charges) >= 2 or charge_count >= charge_capacity:
             return
         x = random.randint(60, canvas_width - 60)
@@ -1867,6 +1949,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         charges.append({"item": item, "vy": 1.5})
 
     def _enemy_fire_cycle() -> None:
+        """Timer callback that periodically triggers enemy shots."""
         nonlocal fire_handle
         if game_over:
             return
@@ -1878,6 +1961,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         fire_handle = _scaled_after(interval, _enemy_fire_cycle)
 
     def _charge_cycle() -> None:
+        """Timer callback that spawns charges at fixed intervals."""
         nonlocal charge_handle
         if game_over:
             return
@@ -1888,6 +1972,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         charge_handle = _scaled_after(6000, _charge_cycle)
 
     def _general_fire_cycle() -> None:
+        """Handle the general's occasional barrage."""
         nonlocal general_fire_handle, general_barrage_cooldown
         if game_over:
             return
@@ -1907,6 +1992,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         general_fire_handle = _scaled_after(interval, _general_fire_cycle)
 
     def _launch_bomb() -> None:
+        """Launch a stored space charge bomb from the player."""
         item = canvas.create_polygon(
             player["x"] - 6,
             player["y"] - 10,
@@ -1922,6 +2008,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     def _handle_right_click(
         event: "tk.Event | None", *, announce: bool = True
     ) -> None:
+        """Handle right-clicking to fire a stored space charge."""
         nonlocal charge_count
         if game_over or paused:
             return
@@ -1940,6 +2027,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 action_var.set("No stored space charge yet—catch a capsule.")
 
     def _check_enemy_collision(item_id: int) -> str | None:
+        """Return the enemy id overlapping the given canvas item."""
         bbox = canvas.bbox(item_id)
         if not bbox:
             return None
@@ -1952,6 +2040,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     def _rects_overlap(
         a: tuple[int, int, int, int], b: tuple[int, int, int, int]
     ) -> bool:
+        """Return True if two bounding boxes intersect."""
         return not (
             a[2] <= b[0] or a[0] >= b[2] or a[3] <= b[1] or a[1] >= b[3]
         )
@@ -1959,6 +2048,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     def _check_projectile_overlap(
         item_id: int, projectiles: list[dict]
     ) -> dict | None:
+        """Return a projectile that overlaps the supplied item, if any."""
         bbox = canvas.bbox(item_id)
         if not bbox:
             return None
@@ -1969,6 +2059,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         return None
 
     def _check_debris_collision(item_id: int) -> dict | None:
+        """Return a debris fragment that overlaps the item, if any."""
         bbox = canvas.bbox(item_id)
         if not bbox:
             return None
@@ -1979,6 +2070,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         return None
 
     def _build_ai_snapshot() -> dict:
+        """Return the current AI-visible state for diagnostics."""
         enemies = [
             {
                 "x": rec["x"],
@@ -2032,6 +2124,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         }
 
     def _update_entities() -> None:
+        """Advance every entity (shots, enemies, debris) each tick."""
         nonlocal charge_count, general_ai
         if paused:
             return
@@ -2347,6 +2440,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     general_ai["mode"] = "stalk"
 
     def _tick() -> None:
+        """Drive the per-frame simulation loop (moves, AI, entities)."""
         nonlocal tick_handle, player_last_x, player_idle_ticks
         if game_over:
             return
@@ -2373,10 +2467,12 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         """Lightweight controller that bridges the AI brain and the canvas."""
 
         def __init__(self) -> None:
+            """Prepare the autopilot controller for the Tk loop."""
             self.running = False
             self.handle: str | None = None
 
         def start(self) -> None:
+            """Begin the AI pilot background loop."""
             nonlocal autopilot_active
             if self.running:
                 return
@@ -2388,6 +2484,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             self._loop()
 
         def stop(self) -> None:
+            """Stop the AI pilot and restore manual control."""
             nonlocal autopilot_active
             if not self.running:
                 return
@@ -2402,6 +2499,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             ai_button.configure(text="Let AI take care")
 
         def _loop(self) -> None:
+            """Run the AI decision loop until stopped or the game ends."""
             if not self.running:
                 return
             if game_over:
@@ -2434,6 +2532,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         count: int | None = None,
         speed_scale: float = 1.0,
     ) -> None:
+        """Create some explosion debris particles around a point."""
         base_count = count if count is not None else debris_default_count
         actual_count = max(1, int(base_count * explosion_violence))
         for _ in range(actual_count):
@@ -2459,6 +2558,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             )
 
     def _start_timers() -> None:
+        """Kick off the recurring timers for ticks, firing and charges."""
         nonlocal tick_handle, fire_handle, charge_handle, general_fire_handle
         tick_handle = _scaled_after(40, _tick)
         fire_handle = _scaled_after(900, _enemy_fire_cycle)
@@ -2468,6 +2568,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         )
 
     def _accept_seed() -> None:
+        """Apply the pending kill order as a seed and close the window."""
         if pending_order is None:
             return
         _apply_seed(pending_order, pending_duration)

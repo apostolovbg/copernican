@@ -29,7 +29,11 @@ def test_flags_missing_docstrings(tmp_path: Path):
     target = _create_file(tmp_path, source)
 
     checker = DocstringAndCommentCoverageCheck()
-    context = CheckContext(repo_root=tmp_path, changed_files=[target])
+    context = CheckContext(
+        repo_root=tmp_path,
+        changed_files=[target],
+        all_files=[target],
+    )
     violations = checker.check(context)
 
     assert len(violations) >= 3
@@ -53,7 +57,11 @@ def test_comments_satisfy_policy(tmp_path: Path):
     target = _create_file(tmp_path, source)
 
     checker = DocstringAndCommentCoverageCheck()
-    context = CheckContext(repo_root=tmp_path, changed_files=[target])
+    context = CheckContext(
+        repo_root=tmp_path,
+        changed_files=[target],
+        all_files=[target],
+    )
     violations = checker.check(context)
 
     assert violations == []

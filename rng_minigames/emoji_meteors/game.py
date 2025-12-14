@@ -50,6 +50,7 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
     """Open an interactive emoji picker that forges a whimsical seed."""
 
     def _apply_seed(picks: list[str]) -> None:
+        """Map the selected emoji IDs into a numeric seed."""
         if not picks:
             return
         value = "".join(f"{ord(symbol) % 1000:03d}" for symbol in picks)
@@ -102,6 +103,7 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
     meteor_items: dict[int, dict[str, object]] = {}
 
     def _spawn_meteor() -> tuple[int, dict[str, object]]:
+        """Spawn a random emoji meteor with jittery motion."""
         emoji = random.choice(_EMOJI_METEOR_CHOICES)
         x_pos = random.randint(40, canvas_width - 40)
         y_pos = random.randint(-canvas_height, -20)
@@ -124,6 +126,7 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
     after_id: str | None = None
 
     def _animate() -> None:
+        """Advance all meteors down the canvas and wrap them."""
         nonlocal after_id
         for item, meta in meteor_items.items():
             canvas.move(item, 0, meta["speed"])
@@ -138,16 +141,19 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
         after_id = canvas.after(60, _animate)
 
     def _finalize_and_close(picks: list[str]) -> None:
+        """Apply the seed and tear down the window when selection completes."""
         if after_id:
             canvas.after_cancel(after_id)
         _apply_seed(picks)
         window.destroy()
 
     def _render_selection_status() -> None:
+        """Update the UI label describing the current picks."""
         display = " ".join(selections)
         status_var.set(f"Selections: {display if display else '(none yet)'}")
 
     def _handle_click(event: "tk.Event") -> None:
+        """Handle meteors being clicked to add them to the selection."""
         if len(selections) >= 5:
             return
         hits = canvas.find_closest(event.x, event.y)
@@ -166,6 +172,7 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
         _redraw_preview()
 
     def _on_close() -> None:
+        """Cancel the animation timer and close the window."""
         if after_id:
             canvas.after_cancel(after_id)
         window.destroy()
@@ -186,6 +193,7 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
     selected_preview.pack(side="left", anchor="w")
 
     def _redraw_preview() -> None:
+        """Refresh the preview of selected emojis in the footer."""
         for child in selected_preview.winfo_children():
             child.destroy()
         if selections:
@@ -201,6 +209,7 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
             )
 
     def _handle_try_again() -> None:
+        """Clear the selections and respawn all meteors."""
         nonlocal after_id
         selections.clear()
         _render_selection_status()
@@ -216,6 +225,7 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
             _animate()
 
     def _handle_accept() -> None:
+        """Confirm the selection if five emojis are chosen."""
         if len(selections) >= 5:
             _finalize_and_close(selections[:5])
         else:

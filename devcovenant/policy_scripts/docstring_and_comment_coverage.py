@@ -58,10 +58,12 @@ class DocstringAndCommentCoverageCheck(PolicyCheck):
 
     def check(self, context: CheckContext):
         """Detect functions, classes or modules without documentation."""
-        files = context.changed_files or context.all_files or []
+        files = context.all_files or context.changed_files or []
         violations = []
 
         for path in files:
+            if not path.is_file():
+                continue
             if path.suffix != ".py":
                 continue
 

@@ -22,6 +22,7 @@ def launch_constellation(context: MinigameContext) -> None:
     target_connections = 10
 
     def _apply_seed(selection: list[int], duration: float) -> None:
+        """Hash the chosen constellation path into a deterministic seed."""
         if not selection:
             return
         payload = "".join(f"{index:02d}" for index in selection)
@@ -58,6 +59,7 @@ def launch_constellation(context: MinigameContext) -> None:
     random.seed()
 
     def _clamp(value: float) -> int:
+        """Clamp a color channel value between 0 and 255."""
         return max(0, min(255, int(round(value))))
 
     for index in range(star_count):
@@ -128,6 +130,7 @@ def launch_constellation(context: MinigameContext) -> None:
     accept_button: ttk.Button | None = None
 
     def _render_selection_status() -> None:
+        """Update the status line to reflect how many stars are connected."""
         count = len(selected_indices)
         status_var.set(f"Stars connected: {count}/{target_connections}")
         if count < target_connections:
@@ -139,6 +142,7 @@ def launch_constellation(context: MinigameContext) -> None:
             action_var.set(message)
 
     def _redraw_preview() -> None:
+        """Refresh the UI preview of currently selected stars."""
         for child in selected_preview.winfo_children():
             child.destroy()
         if selected_indices:
@@ -154,6 +158,7 @@ def launch_constellation(context: MinigameContext) -> None:
             )
 
     def _redraw_lines() -> None:
+        """Draw the connecting lines between the selected stars."""
         for line in line_items:
             canvas.delete(line)
         line_items.clear()
@@ -172,6 +177,7 @@ def launch_constellation(context: MinigameContext) -> None:
             )
 
     def _highlight_star(index: int) -> None:
+        """Highlight a star that has been selected."""
         star = stars[index]
         halo = canvas.create_oval(
             star["x"] - star["radius"] - 6,
@@ -185,6 +191,7 @@ def launch_constellation(context: MinigameContext) -> None:
         halo_items[index] = halo
 
     def _remove_highlight(index: int) -> None:
+        """Remove the highlight from a previously selected star."""
         star = stars[index]
         canvas.itemconfigure(star["id"], fill=star["color"])
         halo = halo_items.pop(index, None)
@@ -192,6 +199,7 @@ def launch_constellation(context: MinigameContext) -> None:
             canvas.delete(halo)
 
     def _reset_selection() -> None:
+        """Clear the current selection and reset the preview."""
         for line in line_items:
             canvas.delete(line)
         line_items.clear()
@@ -204,14 +212,17 @@ def launch_constellation(context: MinigameContext) -> None:
             accept_button.state(["disabled"])
 
     def _finalize() -> None:
+        """Apply the constructed constellation as a seed and close."""
         duration = time.time() - start_time
         _apply_seed(selected_indices[:], duration)
         window.destroy()
 
     def _cancel_window() -> None:
+        """Close the constellation window without applying a seed."""
         window.destroy()
 
     def _handle_click(event: "tk.Event") -> None:
+        """Handle left-clicks to add the nearest star to the selection."""
         if len(selected_indices) >= target_connections:
             return
         nearest = None
@@ -234,6 +245,7 @@ def launch_constellation(context: MinigameContext) -> None:
             accept_button.state(["!disabled"])
 
     def _handle_right_click(event: "tk.Event") -> None:
+        """Handle right-clicks to remove the nearest selected star."""
         if not selected_indices:
             return
         nearest = None

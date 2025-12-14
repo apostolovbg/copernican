@@ -112,6 +112,7 @@ def _maybe_plot_corner(
     output_dir: str,
     timestamp: str,
 ) -> None:
+    """Render a corner plot when samples exist for ``fit_results``."""
     samples = fit_results.get("samples")
     if samples is None:
         return
@@ -135,6 +136,7 @@ def _maybe_plot_parameter_histograms(
     output_dir: str,
     timestamp: str,
 ) -> None:
+    """Render histogram plots when posterior samples are available."""
     samples = fit_results.get("samples")
     if samples is None:
         return
@@ -371,6 +373,7 @@ def execute_run_pipeline(
         fit_results,
         z_smooth_arr: np.ndarray | None,
     ):
+        """Produce BAO predictions and diagnostics for ``model_plugin``."""
         summary = {
             "sne_fit_results": fit_results,
             "pred_df": None,
@@ -619,6 +622,7 @@ def execute_run_pipeline(
         cmb_res,
         plugin,
     ):
+        """Dump a summary report of the latest fit."""
         console_output.write(f"--- {label} Fit Report ---\n")
         chi2_sne = float("nan")
         chi2_total = float("nan")

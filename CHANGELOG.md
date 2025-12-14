@@ -21,9 +21,50 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-14: Added docstrings for the CLI entry helpers, Run Builder/monitor
+            scaffolds and the `__main__.py` launcher so the policy now
+            records the intent of `copernican.py`, `copernican_lib/gui/app.py`
+            and the entry shim before future docstring fixes continue.
+
+- 2025-12-14: Added SemVer validation to the version-sync policy, removed the
+            `setuptools_scm` fallback, introduced `semver` as a runtime
+            dependency, and taught the docstring coverage check to audit every
+            non-test module while updating the policy docs and registry
+            (copernican_lib/version.py, requirements.in, requirements.lock,
+            pyproject.toml, THIRD_PARTY_LICENSES.md,
+            devcovenant/policy_scripts/version_sync.py,
+            devcovenant/tests/test_policies/test_version_sync.py,
+            devcovenant/policy_scripts/docstring_and_comment_coverage.py,
+            devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py,
+            tests/test_version_file.py, AGENTS.md,
+            DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
+
+- 2025-12-14: Added descriptive docstrings for the run-analysis helpers to
+            describe each helper’s role so `copernican_lib/analysis.py`
+            satisfies the docstring coverage policy before further updates
+            follow the same intent (copernican_lib/analysis.py, CHANGELOG.md).
+
+- 2025-12-14: Documented the logger utilities and orchestration service hooks
+            so every proxy, helper and lifecycle method now records why the
+            GUI still reuses the shared logging/orchestration plumbing
+            (copernican_lib/logger.py, copernican_lib/orchestration.py,
+            CHANGELOG.md).
+
+- 2025-12-14: Documented the engine capability helpers, posterior/prior
+            tooling, policy engine, Union3 parser and nested engine adapters
+            so `copernican_lib/engine_capabilities.py`, `copernican_lib/posterior.py`,
+            `copernican_lib/priors.py`, `devcovenant/engine.py`,
+            `data/sne/union3/cosmo_parser_union3.py` and
+            `engines/cosmo_engine_nested.py` expose their intent for the
+            docstring coverage policy (CHANGELOG.md).
+
 - 2025-12-09: Simplified `README.md` navigation by replacing the redundant
             table of contents with a highlights summary while keeping every
             overview, GUI, analysis and validation explanation intact.
+
+- 2025-12-18: Documented the plugin assembly utilities so every helper in
+            `copernican_lib/plugins/__init__.py` exposes its purpose before
+            engines or tests rely on the builder (AGENTS.md, CHANGELOG.md).
 
 - 2025-12-09: Updated `copernican_lib.plotter.plot_corner` so ArviZ now produces
             the KDE/contour grid while the existing layout helpers still enforce

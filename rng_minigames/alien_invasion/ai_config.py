@@ -43,6 +43,7 @@ SETTINGS_PATH = Path(__file__).with_name("ai_settings.yml")
 
 
 def _merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    """Merge override settings into the base dict recursively."""
     result: Dict[str, Any] = dict(base)
     for key, value in override.items():
         if (

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]"]
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -21,7 +21,7 @@ dependencies = [
     "PyYAML==6.0.1",
     "astropy==6.0.0",
     "psutil==5.9.8",
-    "setuptools_scm==8.0.4",
+    "semver==3.0.1",
     "emcee==3.1.4",
     "h5netcdf==1.3.0",
     "h5py==3.10.0",
@@ -77,10 +77,6 @@ exclude = [
 
 [tool.setuptools.package-data]
 "copernican_lib" = ["VERSION"]
-
-[tool.setuptools_scm]
-version_scheme = "no-guess-dev"
-fallback_version = "0+unknown"
 
 [tool.black]
 line-length = 79

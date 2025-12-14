@@ -35,9 +35,12 @@ RUN_DURATION_DEFAULT = 300.0
 
 
 def _normalize_hidden_layers(raw: Any) -> List[int]:
+    """Normalise various hidden-layer inputs into a bounded integer list."""
+
     values: List[int] = []
 
     def _extend_from_entry(entry: Any) -> None:
+        """Convert a single entry into one or more layer sizes."""
         if isinstance(entry, str) and "," in entry:
             for chunk in entry.split(","):
                 _extend_from_entry(chunk.strip())
@@ -70,6 +73,8 @@ def _normalize_hidden_layers(raw: Any) -> List[int]:
 def _initial_state(
     hidden_layers: Sequence[int] | None = None,
 ) -> Dict[str, Any]:
+    """Create a fresh policy state for new AI instances."""
+
     layers = list(hidden_layers) if hidden_layers else [DEFAULT_HIDDEN_UNITS]
     return {
         "weights": {"aggression": 0.5, "caution": 0.5, "charge": 0.3},
@@ -114,6 +119,7 @@ class AlienInvasionAI:
     """Self-adjusting pilot that persists a lightweight neural policy."""
 
     def __init__(self, storage_dir: Path) -> None:
+        """Create the AI state directory and load persisted parameters."""
         storage_dir.mkdir(parents=True, exist_ok=True)
         self.settings = load_settings()
         self.hidden_layers = _normalize_hidden_layers(
@@ -306,6 +312,8 @@ class AlienInvasionAI:
         self._edge_streak = max(0.0, self._edge_streak - decay_value)
 
     def _compute_time_pressure_value(self, fraction: float) -> float:
+        """Compute a time pressure scalar between 0 and 1."""
+
         clamped = max(0.0, min(1.0, fraction))
         return (
             self.tp_base + (1.0 - clamped) ** self.tp_exponent * self.tp_scale
@@ -417,6 +425,7 @@ class AlienInvasionAI:
         }
 
     def _load(self) -> None:
+        """Populate the AI state from disk when available."""
         if not self.state_path.exists():
             return
         try:
@@ -443,6 +452,7 @@ class AlienInvasionAI:
             self.state["worlds_lost"] = data["worlds_lost"]
 
     def _save(self) -> None:
+        """Persist the AI state and network to disk."""
         payload = {
             "weights": self.state["weights"],
             "network": self.state["network"],
@@ -483,6 +493,10 @@ class AlienInvasionAI:
     def _validate_or_reset_network(
         self, network: Dict[str, Any], hidden_layers: Sequence[int]
     ) -> Dict[str, Any]:
+        """Ensure the stored network matches the configured shape.
+
+        Rebuild it when validation fails so the AI keeps a valid policy.
+        """
         configured = (
             list(hidden_layers) if hidden_layers else [DEFAULT_HIDDEN_UNITS]
         )
@@ -589,6 +603,7 @@ class AlienInvasionAI:
             return _init_network(configured)
 
     def _feature_vector(self, features: Dict[str, float]) -> List[float]:
+        """Pack observation features into the model input order."""
         return [float(features[key]) for key in INPUT_FEATURES]
 
     def _remember_sample(
@@ -598,6 +613,7 @@ class AlienInvasionAI:
         shoot: int,
         charge: int,
     ) -> None:
+        """Record the latest decision/sample for subsequent training."""
         if not features:
             return
         self._history.append(
@@ -612,6 +628,7 @@ class AlienInvasionAI:
             self._history.pop(0)
 
     def _forward(self, features: List[float]) -> Dict[str, float]:
+        """Return action probabilities derived from the current network."""
         result = self._forward_internal(features)
         return {
             "move": result["move"],
@@ -620,6 +637,7 @@ class AlienInvasionAI:
         }
 
     def _forward_internal(self, features: List[float]) -> Dict[str, Any]:
+        """Run the network forward pass and expose intermediate layers."""
         network = self.state["network"]
         weights = network["weights"]
         biases = network["biases"]
@@ -661,6 +679,7 @@ class AlienInvasionAI:
         }
 
     def _train_history(self, reward: float) -> None:
+        """Train on recent history samples using reward-adjusted steps."""
         if not self._history:
             return
         magnitude = max(0.2, min(6.0, abs(reward)))
@@ -683,6 +702,7 @@ class AlienInvasionAI:
     def _train_sample(
         self, sample: Dict[str, Any], reward: float, lr: float
     ) -> None:
+        """Apply a single sample's gradients to the network weights."""
         forward = self._forward_internal(sample["features"])
         move_target = sample["move"] if reward >= 0 else -sample["move"]
         move_delta = (move_target - forward["move"]) * (
@@ -746,4 +766,6 @@ class AlienInvasionAI:
 
     @staticmethod
     def _clamp(value: float, limit: float = 5.0) -> float:
+        """Clamp a value within ±limit to keep gradients bounded."""
+
         return float(max(-limit, min(limit, value)))

@@ -1,5 +1,5 @@
 # Copernican Suite Development Guide
-**Last Updated:** 2025-12-02
+**Last Updated:** 2025-12-14
 
 Development notes were previously kept at the top of this file. That history
 now
@@ -658,25 +658,15 @@ enforcement: active
 waiver: false
 ```
 
-The project follows Semantic Versioning (`MAJOR.MINOR.PATCH`). Increment the
-`MAJOR` number for breaking changes, the `MINOR` for new backward-compatible
-features and the `PATCH` for bug fixes. The canonical version is stored both
-at the top of `README.md` and inside `copernican_lib/VERSION`
-The canonical version in `copernican_lib/VERSION` must match the version
-declared in `README.md`, `pyproject.toml` and `CITATION.cff`. This prevents
-version drift across documentation and ensures consistency for users and
-citation tools. Runtime code must obtain the current version via
-``copernican_lib.version.get_version`` rather than hard-coded strings. This
-should be enforced by a DevCovenant script.
-THE FOLLOWING IS JUST FOR INFORMATION, DON'T WRITE CKECKS FOR IT:
-The helper reads the tracked version file before falling back to package
-metadata or Git tags. Setting ``COPERNICAN_VERSION`` in the environment
-overrides the derived value so CI builds can embed custom prerelease
-identifiers that match the tracked version. There are special defensive lookups inside
-``copernican.py``, ``copernican_lib/run_manifest.py`` and
-``copernican_lib/plotter.py`` so the suite still boots when
-``copernican_lib.version.get_version`` is temporarily unavailable during
-partial upgrades.
+The project follows Semantic Versioning (`MAJOR.MINOR.PATCH`). Record the
+active version both at the top of `README.md` and inside
+`copernican_lib/VERSION`, and keep those declarations in sync with
+`pyproject.toml` and `CITATION.cff`. Runtime code must obtain the current
+version via ``copernican_lib.version.get_version`` instead of embedding strings.
+This policy uses the `semver` helper to validate the canonical string and to
+compare it against the previous commit’s recorded version. Any mismatch,
+invalid SemVer format, or non-increasing bump causes a violation so version
+numbers never regress or drift from the documented sources.
 
 
 ---
@@ -704,7 +694,7 @@ validated against the current date before being recorded.
 
 ```policy-def
 id: new-modules-need-tests
-status: updated
+status: active
 severity: error
 auto_fix: false
 updated: false
@@ -782,10 +772,11 @@ waiver: false
 
 Every non-test Python module across the repository should include a descriptive
 docstring or an adjacent explanatory comment for modules, classes and functions.
-The checker scans any `.py` file outside `tests/` (excluding vendor code) and
-accepts either short docstrings or inline comments placed just before the
-definition so the team can grow coverage gradually before the enforcement level
-increases.
+The checker uses the `all_files` snapshot when available, so every `.py` outside
+`tests/` (excluding vendor code) gets evaluated even before it is staged. The
+policy accepts short docstrings or inline comments positioned immediately before
+the definition so the team can grow coverage gradually before the enforcement
+level walks up from `info`.
 Running DevCovenant in a non-`pre-commit` mode (e.g., `lint` or `startup`)
 virtually inspects *all* matching `.py` files so the policy uncovers gaps beyond
 just the staged files.
@@ -823,16 +814,15 @@ severity: info
 auto_fix: false
 updated: false
 applies_to: README.md,AGENTS.md,docs/**/*.md,copernican.py,start.sh,start.command,start.bat
-enforcement: fiducial
+enforcement: active
 waiver: false
 ```
 
 When user-visible files or launchers change, the documentation corpus must
 “strictly grow” by adding a new paragraph, subsection or example that explains
-the updated behavior, workflow or configuration. This fiducial reminder script
-simply surfaces the policy text and points editors at the relevant docs so they
-remember to expand the prose before the enforcement level increases in the
-future.
+the updated behavior, workflow or configuration. This active info-level reminder
+policy simply surfaces the policy text and points editors at the relevant docs
+so they remember to expand the prose before we raise the severity.
 
 ---
 

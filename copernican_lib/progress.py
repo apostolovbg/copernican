@@ -36,6 +36,7 @@ class BatchProgressBar:
         stage_metadata: dict[str, str] | None = None,
         subunit_labels: tuple[str, str] | None = None,
     ) -> None:
+        """Initialize the progress bar with stage metadata and listeners."""
         self._stage_label = str(stage_label)
         self._total_steps = max(int(total_steps), 0)
         self._display = bool(display and self._total_steps > 0)
@@ -57,20 +58,24 @@ class BatchProgressBar:
         self._expected_batches = 1
 
     def _batch_fraction(self, step_index: int, fraction: float) -> float:
+        """Return the normalized position inside the current batch."""
         span = max(self._current_span, 1)
         offset = max(step_index - self._current_start, 0)
         raw = (offset + fraction) / span
         return min(max(raw, 0.0), 1.0)
 
     def _rope_fraction(self, step_index: int, fraction: float) -> float:
+        """Return progress fraction measured across all steps."""
         total = max(self._total_steps, 1)
         raw = (max(step_index - 1, 0) + fraction) / total
         return min(max(raw, 0.0), 1.0)
 
     def _percent_for(self, step_index: int, fraction: float) -> int:
+        """Convert a rope fraction into an integer percentage."""
         return int(round(self._rope_fraction(step_index, fraction) * 100))
 
     def _log_batch_completion(self) -> None:
+        """Log the batch completion line when display is enabled."""
         if not self._display:
             return
         batches = max(self._expected_batches, 1)
@@ -82,6 +87,7 @@ class BatchProgressBar:
     def _format_progress_message(
         self, processed: int, total: int, percent: int
     ) -> str:
+        """Build the textual progress summary echoed to the console."""
         return (
             f"{self._stage_label} batch {self._batch_index}: "
             f"{processed}/{total} steps completed ({percent}%)"
@@ -98,6 +104,7 @@ class BatchProgressBar:
         batch_fraction: float,
         step_fraction: float,
     ) -> None:
+        """Notify the optional listener with structured progress data."""
         if self._progress_listener is None:
             return
         walker_fraction = min(max(step_fraction, 0.0), 1.0)

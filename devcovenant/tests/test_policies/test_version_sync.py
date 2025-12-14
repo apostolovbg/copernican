@@ -3,6 +3,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from devcovenant.base import CheckContext
 from devcovenant.policy_scripts.version_sync import VersionSyncCheck
@@ -128,3 +129,35 @@ class TestVersionSyncPolicy(unittest.TestCase):
             ]
             self.assertEqual(len(hardcoded), 1)
             self.assertEqual(hardcoded[0].file_path, runtime_file)
+
+    def test_requires_forward_semver_bump(self):
+        """Policy should forbid decreasing or same version numbers."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+
+            version_dir = repo_root / "copernican_lib"
+            version_dir.mkdir()
+            version_file = version_dir / "VERSION"
+            version_file.write_text("1.0.0\n")
+
+            readme = repo_root / "README.md"
+            readme.write_text("**Version:** 1.0.0\n")
+
+            citation = repo_root / "CITATION.cff"
+            citation.write_text('version: "1.0.0"\nversion: "1.0.0"\n')
+
+            self._write_pyproject(repo_root, "1.0.0")
+
+            context = CheckContext(repo_root=repo_root)
+            policy = VersionSyncCheck()
+            with mock.patch.object(
+                policy, "_previous_version", return_value="1.0.1"
+            ):
+                violations = policy.check(context)
+
+            bump_violations = [
+                v
+                for v in violations
+                if "forward-moving SemVer bump" in v.message
+            ]
+            self.assertEqual(len(bump_violations), 1)

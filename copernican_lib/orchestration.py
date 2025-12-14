@@ -110,10 +110,12 @@ class InProcessRunController:
     log_hook: Callable[[str], Iterable[str]] | None = None
 
     def request_run(self, request: RunRequest) -> RunHandle:
+        """Run the executor and wrap the returned token."""
         token = self.run_executor(request)
         return RunHandle(token=token, mode=request.mode)
 
     def cancel(self, handle: RunHandle) -> None:
+        """Cancel the run via the configured hook or raise if absent."""
         if self.cancel_hook is None:
             raise RuntimeError(
                 "Cancel hook is not configured for this runner."
@@ -121,11 +123,13 @@ class InProcessRunController:
         self.cancel_hook(handle.token)
 
     def pause(self, handle: RunHandle) -> None:
+        """Pause the run through the optional pause hook."""
         if self.pause_hook is None:
             raise RuntimeError("Pause hook is not configured for this runner.")
         self.pause_hook(handle.token)
 
     def resume(self, handle: RunHandle) -> None:
+        """Resume execution by invoking the resume hook."""
         if self.resume_hook is None:
             raise RuntimeError(
                 "Resume hook is not configured for this runner."
@@ -133,11 +137,13 @@ class InProcessRunController:
         self.resume_hook(handle.token)
 
     def stream_status(self, handle: RunHandle) -> Iterable[RunStatus]:
+        """Delegate status streaming to the configured hook."""
         if self.status_hook is None:
             return ()
         return self.status_hook(handle.token)
 
     def stream_logs(self, handle: RunHandle) -> Iterable[str]:
+        """Stream log lines using the configured log hook."""
         if self.log_hook is None:
             return ()
         return self.log_hook(handle.token)

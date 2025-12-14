@@ -125,6 +125,7 @@ class _JointLogLikelihood:
         parameter_bounds: Iterable[tuple[float | None, float | None]] | None,
         parameter_transforms: Iterable[Any] | None,
     ) -> None:
+        """Store joint likelihood metadata for later evaluation."""
         self._joint_like = joint_like
         self.parameter_bounds = list(parameter_bounds or [])
         if parameter_transforms is not None:

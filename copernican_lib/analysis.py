@@ -71,6 +71,7 @@ def _sanitize_metric_name(metric: str) -> str:
 
 
 def _find_latest_file(run_dir: Path, pattern: str) -> Optional[Path]:
+    """Return the newest file under `run_dir` that matches `pattern`."""
     matches = sorted(run_dir.glob(pattern))
     if not matches:
         return None
@@ -78,6 +79,7 @@ def _find_latest_file(run_dir: Path, pattern: str) -> Optional[Path]:
 
 
 def _load_yaml_or_json(path: Path) -> Any:
+    """Read either a YAML or JSON document from `path`."""
     if path.suffix.lower() in {".yml", ".yaml"}:
         with open(path, "r", encoding="utf-8") as fh:
             return yaml.safe_load(fh)
@@ -148,6 +150,7 @@ _BAO_RS_RE = re.compile(
 def _split_log_line(
     line: str,
 ) -> tuple[Optional[datetime.datetime], Optional[str]]:
+    """Split a log line into its timestamp and message components."""
     parts = line.split(" - ", 2)
     if len(parts) < 3:
         return None, line.strip()
@@ -156,6 +159,7 @@ def _split_log_line(
 
 
 def _parse_timestamp(timestamp: str) -> Optional[datetime.datetime]:
+    """Parse a log timestamp string into a `datetime`, or return `None`."""
     try:
         return datetime.datetime.strptime(
             timestamp.strip(), "%Y-%m-%d %H:%M:%S,%f"
@@ -165,6 +169,7 @@ def _parse_timestamp(timestamp: str) -> Optional[datetime.datetime]:
 
 
 def _find_log_file(run_dir: Path) -> Optional[Path]:
+    """Locate the most recent diagnostics log inside `run_dir`."""
     run_dir = Path(run_dir)
     for pattern in _LOG_PATTERNS:
         candidate = _find_latest_file(run_dir, pattern)
@@ -299,11 +304,14 @@ def parse_log(log_path: Path) -> Mapping[str, Any]:
 
 
 def _ensure_mapping(value: Optional[Mapping[str, Any]]) -> Mapping[str, Any]:
+    """Return the supplied mapping or an empty dict when it is None."""
     return value or {}
 
 
 @dataclass
 class ModelSummary:
+    """Record summary statistics returned by run analysis for a model."""
+
     name: str
     parameters: Mapping[str, Any]
     errors_1sigma: Optional[Mapping[str, Any]]
@@ -316,12 +324,16 @@ class ModelSummary:
 
 @dataclass
 class RunDiagnostics:
+    """Hold diagnostics such as R-hat and ESS from a run log."""
+
     rhat: Optional[Mapping[str, float]]
     ess: Optional[Mapping[str, float]]
 
 
 @dataclass
 class RunAnalysisResult:
+    """Represent the evaluated metadata of a Copernican run directory."""
+
     run_dir: Path
     model_summaries: Mapping[str, ModelSummary]
     manifest: Optional[Mapping[str, Any]]
@@ -336,6 +348,7 @@ class RunAnalysisResult:
     log_path: Optional[Path]
 
     def to_dict(self) -> dict[str, Any]:
+        """Return JSON-serializable representation of the analysis result."""
         result = dataclasses.asdict(self)
         result["run_dir"] = str(self.run_dir)
         if self.start_time:
@@ -434,6 +447,7 @@ def analyze_run(run_dir: Path) -> RunAnalysisResult:
 
 
 def _normalize_formats(formats: Sequence[str] | str) -> list[str]:
+    """Return a lowercase list of format names from the input."""
     if isinstance(formats, str):
         formats = (formats,)
     return [fmt.casefold() for fmt in formats]
@@ -442,6 +456,7 @@ def _normalize_formats(formats: Sequence[str] | str) -> list[str]:
 def _summary_timestamp(
     result: RunAnalysisResult, *, override: str | None
 ) -> str:
+    """Return the supplied override or a timestamp derived from the run."""
     if override:
         return override
     ts_source = result.start_time
@@ -452,6 +467,8 @@ def _summary_timestamp(
 
 @dataclass
 class _PosteriorPlotPlugin:
+    """Configuration container describing a posterior plotting plugin."""
+
     MODEL_NAME: str
     PARAMETER_NAMES: list[str]
     PARAMETER_LATEX_NAMES: list[str]
@@ -460,6 +477,7 @@ class _PosteriorPlotPlugin:
 def _normalize_posterior_kinds(
     kinds: Sequence[str] | str,
 ) -> list[str]:
+    """Normalize requested posterior plot kinds into a clean list."""
     if isinstance(kinds, str):
         kinds = (kinds,)
     normalized = [kind.strip().lower() for kind in kinds if kind.strip()]
@@ -470,6 +488,7 @@ def _resolve_posterior_path(
     run_dir: Path,
     posterior_file: Path | str | None,
 ) -> Path:
+    """Locate a posterior file for plotting, defaulting to the latest."""
     if posterior_file:
         target = Path(posterior_file)
         if not target.is_absolute():
@@ -489,6 +508,7 @@ def _resolve_posterior_path(
 def _posterior_dataset_id(
     result: RunAnalysisResult,
 ) -> str:
+    """Return the preferred dataset identifier for posterior outputs."""
     if result.datasets:
         return next(iter(result.datasets))
     return "joint"
@@ -497,6 +517,7 @@ def _posterior_dataset_id(
 def _posterior_data_attrs(
     result: RunAnalysisResult, dataset_id: str
 ) -> dict[str, str]:
+    """Produce metadata attributes for the selected dataset."""
     dataset_meta = result.datasets.get(dataset_id, {})
     return {
         "dataset_id": dataset_id,
@@ -511,6 +532,7 @@ def _posterior_plugin(
     result: RunAnalysisResult,
     param_names: list[str],
 ) -> _PosteriorPlotPlugin:
+    """Create a plotting plugin summarizing the run's posterior parameters."""
     model_names = list(result.model_summaries.keys())
     model_label = model_names[0] if model_names else "Posterior"
     latex_names = list(param_names)
@@ -522,10 +544,12 @@ def _posterior_plugin(
 
 
 def _sanitize_model_name(name: str) -> str:
+    """Create a filesystem-friendly model name without spaces or dots."""
     return name.replace(" ", "_").replace(".", "")
 
 
 def _corner_filename(dataset_id: str, model_name: str, timestamp: str) -> str:
+    """Generate the corner plot filename for a dataset/model pair."""
     return utils.generate_filename(
         "corner-plot",
         dataset_id,
@@ -538,6 +562,7 @@ def _corner_filename(dataset_id: str, model_name: str, timestamp: str) -> str:
 def _histogram_filename(
     dataset_id: str, model_name: str, timestamp: str
 ) -> str:
+    """Generate the histogram plot filename for a dataset/model pair."""
     return utils.generate_filename(
         "parameter-histograms",
         dataset_id,
@@ -628,6 +653,7 @@ def plot_posterior(
 
 
 def _dump_summary(data: Mapping[str, Any], path: Path, fmt: str) -> None:
+    """Serialize summary data to YAML or JSON depending on `fmt`."""
     if fmt in ("yml", "yaml"):
         with open(path, "w", encoding="utf-8") as fh:
             yaml.safe_dump(data, fh, sort_keys=False)
@@ -717,6 +743,7 @@ def _run_descriptor(result: RunAnalysisResult) -> dict[str, Any]:
 
 
 def _safe_numeric(value: Any) -> Optional[float]:
+    """Coerce numeric-like inputs into a float when possible."""
     if value is None:
         return None
     if isinstance(value, (int, float)):
@@ -727,6 +754,7 @@ def _safe_numeric(value: Any) -> Optional[float]:
 
 
 def _diff_entry(base_value: Any, alt_value: Any) -> dict[str, Any]:
+    """Compare two values and report their delta if numeric."""
     base_num = _safe_numeric(base_value)
     alt_num = _safe_numeric(alt_value)
     delta = None
@@ -747,6 +775,7 @@ def _model_diff(
     base_entry: ModelSummary | None,
     alt_entry: ModelSummary | None,
 ) -> dict[str, Any]:
+    """Produce chi² and parameter deltas between two model summaries."""
     chi2_keys = set()
     if base_entry:
         chi2_keys.update(base_entry.chi2.keys())

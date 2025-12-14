@@ -20,6 +20,7 @@ class HallOfFame:
     """Lightweight YAML-backed scoreboard."""
 
     def __init__(self, storage_dir: Path, *, limit: int = 10) -> None:
+        """Ensure the hall-of-fame cache exists and load entries."""
         storage_dir.mkdir(parents=True, exist_ok=True)
         self.limit = limit
         self.path = storage_dir / "alien_invasion_hof.yml"
@@ -114,6 +115,7 @@ class HallOfFame:
             self.entries = converted[: self.limit]
 
     def _save(self) -> None:
+        """Persist the current hall-of-fame entries to disk."""
         payload = {"entries": self.entries}
         try:
             self.path.write_text(yaml.safe_dump(payload))
