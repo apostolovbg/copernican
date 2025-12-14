@@ -775,17 +775,20 @@ status: active
 severity: info
 auto_fix: false
 updated: false
-applies_to: copernican_lib/**/*.py,engines/**/*.py
+applies_to: *.py
 enforcement: active
 waiver: false
 ```
 
-Libraries under `copernican_lib/` and `engines/` should document modules,
-classes and functions with short docstrings or adjacent explanatory comments.
-The checker looks for either an `ast` docstring or a descriptive comment
-immediately before the definition so both concise docstrings and longer comments
-trigger compliance. The policy currently emits info-level reminders so the team
-can grow coverage gradually before the enforcement level increases.
+Every non-test Python module across the repository should include a descriptive
+docstring or an adjacent explanatory comment for modules, classes and functions.
+The checker scans any `.py` file outside `tests/` (excluding vendor code) and
+accepts either short docstrings or inline comments placed just before the
+definition so the team can grow coverage gradually before the enforcement level
+increases.
+Running DevCovenant in a non-`pre-commit` mode (e.g., `lint` or `startup`)
+virtually inspects *all* matching `.py` files so the policy uncovers gaps beyond
+just the staged files.
 
 ---
 

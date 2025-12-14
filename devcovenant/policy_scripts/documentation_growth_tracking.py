@@ -1,4 +1,4 @@
-"""DevCovenant policy: Remind contributors to grow documentation for user-facing changes."""
+"""Remind contributors to grow documentation for user-facing changes."""
 
 from pathlib import PurePosixPath
 from typing import List
@@ -60,9 +60,9 @@ class DocumentationGrowthTrackingCheck(PolicyCheck):
                 policy_id=self.policy_id,
                 severity="info",
                 message=(
-                    "User-facing code or docs changed. Please expand README.md, "
-                    "AGENTS.md or the relevant docs/ entry with a new paragraph "
-                    "or example so the corpus grows."
+                    "User-facing code or docs changed. Please expand "
+                    "README.md, AGENTS.md or the relevant docs/ entry "
+                    "with a new paragraph or example so the corpus grows."
                 ),
             )
         ]

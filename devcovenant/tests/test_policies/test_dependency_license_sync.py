@@ -11,8 +11,12 @@ from devcovenant.policy_scripts.dependency_license_sync import (
 def _setup_repo(tmp_path: Path) -> Path:
     tmp_path.joinpath("licenses").mkdir(parents=True, exist_ok=True)
     (tmp_path / "requirements.in").write_text("numpy==1.0\n", encoding="utf-8")
-    (tmp_path / "requirements.lock").write_text("numpy==1.0\n", encoding="utf-8")
-    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test'\n", encoding="utf-8")
+    (tmp_path / "requirements.lock").write_text(
+        "numpy==1.0\n", encoding="utf-8"
+    )
+    (tmp_path / "pyproject.toml").write_text(
+        "[project]\nname = 'test'\n", encoding="utf-8"
+    )
     (tmp_path / "THIRD_PARTY_LICENSES.md").write_text(
         "# Third-Party Licenses\n", encoding="utf-8"
     )
@@ -40,7 +44,8 @@ def test_passes_when_report_and_license_refreshed(tmp_path: Path):
     repo = _setup_repo(tmp_path)
     report = repo / "THIRD_PARTY_LICENSES.md"
     report.write_text(
-        "# Third-Party Licenses\n\n## License Report\n- requirements.lock updated\n",
+        "# Third-Party Licenses\n\n## License Report\n"
+        "- requirements.lock updated\n",
         encoding="utf-8",
     )
     # Create a new license snapshot
@@ -66,14 +71,19 @@ def test_report_mentions_all_changed_files(tmp_path: Path):
     repo = _setup_repo(tmp_path)
     report = repo / "THIRD_PARTY_LICENSES.md"
     report.write_text(
-        "# Third-Party Licenses\n\n## License Report\n- requirements.in added\n",
+        "# Third-Party Licenses\n\n## License Report\n"
+        "- requirements.in added\n",
         encoding="utf-8",
     )
 
     checker = DependencyLicenseSyncCheck()
     context = CheckContext(
         repo_root=repo,
-        changed_files=[repo / "requirements.lock", report, repo / "licenses" / "BSD-3-Clause.txt"],
+        changed_files=[
+            repo / "requirements.lock",
+            report,
+            repo / "licenses" / "BSD-3-Clause.txt",
+        ],
     )
     violations = checker.check(context)
 

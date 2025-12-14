@@ -16,7 +16,8 @@ def _create_file(tmp_path: Path, source: str) -> Path:
 
 
 def test_flags_missing_docstrings(tmp_path: Path):
-    """Modules and functions without comments or docstrings trigger violations."""
+    """Modules and functions without comments or docstrings
+    trigger violations."""
     source = (
         "def foo():\n"
         "    return 42\n"
@@ -34,8 +35,7 @@ def test_flags_missing_docstrings(tmp_path: Path):
     assert len(violations) >= 3
     assert any("Module lacks" in v.message for v in violations)
     assert any(
-        "function" in v.message.lower()
-        and "foo" in v.message.lower()
+        "function" in v.message.lower() and "foo" in v.message.lower()
         for v in violations
     )
 
@@ -57,3 +57,19 @@ def test_comments_satisfy_policy(tmp_path: Path):
     violations = checker.check(context)
 
     assert violations == []
+
+
+def test_all_files_scanned_when_no_changes(tmp_path: Path):
+    """Ensure all_files is inspected when no changed files are present."""
+    source = "def foo():\n    return 5\n"
+    target = _create_file(tmp_path, source)
+
+    checker = DocstringAndCommentCoverageCheck()
+    context = CheckContext(
+        repo_root=tmp_path,
+        changed_files=[],
+        all_files=[target],
+    )
+    violations = checker.check(context)
+
+    assert any("Module lacks" in v.message for v in violations)

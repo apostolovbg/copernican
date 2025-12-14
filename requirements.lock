@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --strip-extras --output-file=requirements.lock requirements.in
 #
-aiodns==3.6.0
+aiodns==3.6.1
     # via aiohttp
 aiohappyeyeballs==2.6.1
     # via aiohttp

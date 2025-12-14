@@ -616,6 +616,10 @@ before editing the protected paths. The read-only directory list itself is
 stored in `devcovenant/read_only_directories.txt` and read on every run so the
 policy re-registers the protected patterns automatically.
 
+The `docstring-and-comment-coverage` policy always scans any `.py` file outside
+`tests/` (in addition to the staged files), so running DevCovenant in `lint`
+or `startup` mode inspects the entire workspace for missing docstrings/comments.
+
 ### Example Policies
 
 **Critical Policy (Always Blocks):**

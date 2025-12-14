@@ -771,13 +771,17 @@ def _run_analysis_posterior_cli(
     """Generate a posterior overview plot for a run directory."""
 
     if not run_dir.is_dir():
-        console.write("Posterior analysis requires an existing run folder.", error=True)
+        console.write(
+            "Posterior analysis requires an existing run folder.", error=True
+        )
         return False
 
     try:
         result = analysis.analyze_run(run_dir)
     except Exception as exc:
-        console.write(f"Failed to analyse run for posterior: {exc}", error=True)
+        console.write(
+            f"Failed to analyse run for posterior: {exc}", error=True
+        )
         return False
 
     output_dest = None
@@ -1005,7 +1009,10 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
     parser.add_argument(
         "--analysis-summary",
         metavar="RUN_DIR",
-        help="Inspect a run directory, print its summary, and optionally export it.",
+        help=(
+            "Inspect a run directory, print its summary, "
+            "and optionally export it."
+        ),
     )
     parser.add_argument(
         "--analysis-summary-output",
@@ -1034,17 +1041,24 @@ def _parse_launch_args(argv: Iterable[str] | None = None) -> LaunchRequest:
     parser.add_argument(
         "--analysis-posterior",
         metavar="RUN_DIR",
-        help="Render a posterior overview plot for the selected run directory.",
+        help=(
+            "Render a posterior overview plot for the selected run directory."
+        ),
     )
     parser.add_argument(
         "--analysis-posterior-file",
         metavar="POSTERIOR_FILE",
-        help="Posterior NetCDF file (relative to the run) to visualise.",
+        help=(
+            "Posterior NetCDF file (relative to the run) to visualise."
+        ),
     )
     parser.add_argument(
         "--analysis-posterior-output",
         metavar="OUTPUT_FILE",
-        help="Destination PNG for the posterior overview (defaults inside run).",
+        help=(
+            "Destination PNG for the posterior overview "
+            "(defaults inside run)."
+        ),
     )
     argv_list = list(argv) if argv is not None else None
     parsed, _ = parser.parse_known_args(argv_list)

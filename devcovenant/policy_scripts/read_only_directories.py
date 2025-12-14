@@ -1,4 +1,4 @@
-"""DevCovenant policy: Prevent edits to read-only data directories."""
+"""Guard editing access to read-only data directories."""
 
 import fnmatch
 from pathlib import Path, PurePosixPath
@@ -73,13 +73,14 @@ class ReadOnlyDirectoriesCheck(PolicyCheck):
                     file_path=path,
                     message=(
                         "Read-only directories (see "
-                        "`devcovenant/read_only_directories.txt`) were modified "
-                        "without a waiver."
+                        "`devcovenant/read_only_directories.txt`) were "
+                        "modified without a waiver."
                     ),
                     suggestion=(
-                        "Create `.devcovenant/waivers/read-only-directories.txt` "
-                        "with the allowed relative paths or remove the change to "
-                        "stay compliant."
+                        "Create `.devcovenant/waivers/"
+                        "read-only-directories.txt` "
+                        "with the allowed relative paths "
+                        "or remove the change to stay compliant."
                     ),
                 )
             )

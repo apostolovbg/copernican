@@ -1,4 +1,4 @@
-"""DevCovenant policy: Keep dependency listings and license documentation in sync."""
+"""DevCovenant policy: Keep dependency listings and license docs in sync."""
 
 from pathlib import Path
 from typing import List
@@ -25,10 +25,16 @@ def _extract_license_report(text: str) -> str:
 
     # Collect lines until the next section header
     section_lines: List[str] = [lines[start]]
-    for line in lines[start + 1 :]:
-        if line.strip().startswith("## ") and not line.strip().lower().startswith(
+    remaining = iter(lines)
+    for _ in range(start + 1):
+        next(remaining, None)
+    for line in remaining:
+        stripped = line.strip()
+        header_prefix = stripped.startswith("## ")
+        header_not_report = not stripped.lower().startswith(
             LICENSE_REPORT_HEADING.lower()
-        ):
+        )
+        if header_prefix and header_not_report:
             break
         section_lines.append(line)
 
@@ -66,8 +72,8 @@ class DependencyLicenseSyncCheck(PolicyCheck):
                     policy_id=self.policy_id,
                     severity="error",
                     message=(
-                        "Dependencies changed without updating the license table "
-                        "`THIRD_PARTY_LICENSES.md`."
+                        "Dependencies changed without updating "
+                        "the license table `THIRD_PARTY_LICENSES.md`."
                     ),
                 )
             )
@@ -118,7 +124,7 @@ class DependencyLicenseSyncCheck(PolicyCheck):
                             policy_id=self.policy_id,
                             severity="error",
                             message=(
-                                f"The license report must mention changes to "
+                                "The license report must mention changes to "
                                 f"`{dep_file}` when dependencies are altered."
                             ),
                         )

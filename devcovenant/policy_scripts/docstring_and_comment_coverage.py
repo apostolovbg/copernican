@@ -1,10 +1,10 @@
-"""DevCovenant policy: Encourage documentation for modules, classes and functions."""
+"""Encourage documentation for modules, classes and functions."""
 
 import ast
 import io
 import tokenize
 from pathlib import PurePosixPath
-from typing import Iterable, Set
+from typing import Set
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
@@ -22,8 +22,11 @@ def _collect_comment_lines(source: str) -> Set[int]:
     return lines
 
 
-def _has_comment_before(line: int, comment_lines: Set[int], lookback: int = 3) -> bool:
-    """Check if a comment exists in the lines immediately preceding the given line."""
+def _has_comment_before(
+    line: int, comment_lines: Set[int], lookback: int = 3
+) -> bool:
+    """Check whether a comment exists in the lines immediately preceding
+    the given line."""
     for offset in range(lookback + 1):
         target = line - offset
         if target <= 0:
@@ -37,21 +40,25 @@ def _should_inspect(rel_path: PurePosixPath) -> bool:
     """Determine whether the file falls under the policy scope."""
     if not rel_path.parts:
         return False
-    if rel_path.parts[0] == "copernican_lib":
-        if len(rel_path.parts) > 1 and rel_path.parts[1] == "vendor":
+    # Skip vendor folders
+    if rel_path.parts[0] == "copernican_lib" and len(rel_path.parts) > 1:
+        if rel_path.parts[1] == "vendor":
             return False
-    return rel_path.parts[0] in {"copernican_lib", "engines"}
+    # Skip any tests directory
+    if "tests" in rel_path.parts:
+        return False
+    return True
 
 
 class DocstringAndCommentCoverageCheck(PolicyCheck):
-    """Warn about modules or symbols that lack docstrings or explanatory comments."""
+    """Warn when modules or symbols lack docstrings or explanatory comments."""
 
     policy_id = "docstring-and-comment-coverage"
     version = "1.0.0"
 
     def check(self, context: CheckContext):
         """Detect functions, classes or modules without documentation."""
-        files = context.changed_files or []
+        files = context.changed_files or context.all_files or []
         violations = []
 
         for path in files:
@@ -89,8 +96,8 @@ class DocstringAndCommentCoverageCheck(PolicyCheck):
                         severity="info",
                         file_path=path,
                         message=(
-                            "Module lacks a descriptive top-level docstring or "
-                            "preceding comment."
+                            "Module lacks a descriptive top-level docstring "
+                            "or preceding comment."
                         ),
                     )
                 )
@@ -117,8 +124,8 @@ class DocstringAndCommentCoverageCheck(PolicyCheck):
                         severity="info",
                         file_path=path,
                         message=(
-                            f"{symbol_type.title()} '{symbol}' is missing a "
-                            "docstring or adjacent explanatory comment."
+                            f"{symbol_type.title()} '{symbol}' is missing "
+                            "a docstring or adjacent explanatory comment."
                         ),
                     )
                 )

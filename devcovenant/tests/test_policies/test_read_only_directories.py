@@ -25,7 +25,9 @@ def _prepare_file(tmp_path: Path) -> Path:
 
 def _write_waiver(tmp_path: Path, relative_path: str) -> None:
     """Write a waiver entry that permits the relative path."""
-    waiver = tmp_path / ".devcovenant" / "waivers" / "read-only-directories.txt"
+    waiver = (
+        tmp_path / ".devcovenant" / "waivers" / "read-only-directories.txt"
+    )
     waiver.parent.mkdir(parents=True, exist_ok=True)
     waiver.write_text(f"{relative_path}\n", encoding="utf-8")
 
