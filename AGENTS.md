@@ -783,6 +783,68 @@ just the staged files.
 
 ---
 
+## Policy: Raw String Escapes
+
+```policy-def
+id: raw-string-escapes
+status: active
+severity: info
+auto_fix: false
+updated: false
+applies_to: *.py
+enforcement: active
+waiver: false
+```
+
+String literals outside `tests/` and `copernican_lib/vendor/` must either be
+prefixed with `r` or use explicit escape sequences for each backslash. The
+policy scans every matching `.py` file and warns when a bare backslash appears
+without being part of a known escape sequence, encouraging raw strings or
+double-escaped paths before the enforcement level rises.
+
+---
+
+## Policy: Start Script Parity
+
+```policy-def
+id: start-script-parity
+status: active
+severity: error
+auto_fix: false
+updated: false
+applies_to: start.sh,start.command,start.bat
+enforcement: active
+waiver: false
+```
+
+Changes touching any of the three `start.*` launchers must consider the others.
+If one launcher is updated while its siblings remain untouched, the policy
+raises an error reminding the maintainer to mirror the changes so the GUI
+handoff remains consistent across platforms.
+
+---
+
+## Policy: Name Clarity
+
+```policy-def
+id: name-clarity
+status: active
+severity: info
+auto_fix: false
+updated: false
+applies_to: *.py
+enforcement: active
+waiver: false
+```
+
+New Python symbols should avoid placeholder or overly short names (e.g.,
+`foo`, `tmp`, `var`, `data`). The check scans the staged files (and all files
+during `lint`/`startup`) and reminds authors whenever an identifier is either
+blacklisted or shorter than three characters outside conventional loop counters;
+add a `# name-clarity: allow` comment to suppress intentional exceptions.
+
+---
+
 ## Policy: Dependency License Sync
 
 ```policy-def
