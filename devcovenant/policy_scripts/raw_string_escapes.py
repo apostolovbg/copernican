@@ -1,4 +1,6 @@
-"""Warn when string literals use bare backslashes instead of raw/escaped form."""
+"""Warn when string literals use bare backslashes instead of raw strings.
+Encourage raw or explicitly escaped forms for safe literals.
+"""
 
 import re
 import tokenize
@@ -32,7 +34,7 @@ def _is_raw_literal(token_value: str) -> bool:
 
 
 def _contains_suspicious_escape(token_value: str) -> bool:
-    """Return True when a bare backslash is present outside standard escapes."""
+    """Return True when a bare backslash appears outside standard escapes."""
     return bool(_SUSPICIOUS_ESCAPE_RE.search(token_value))
 
 
@@ -73,9 +75,10 @@ class RawStringEscapesCheck(PolicyCheck):
                                     file_path=path,
                                     line_number=token.start[0],
                                     message=(
-                                        "String literal contains a bare backslash; "
-                                        "use a raw string or double-escape the slash "
-                                        "to avoid accidental escapes."
+                                        "String literal has a bare backslash;"
+                                        " use a raw string or double-escape"
+                                        " the slash to avoid accidental"
+                                        " escapes."
                                     ),
                                 )
                             )

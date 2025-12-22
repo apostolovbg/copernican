@@ -51,7 +51,7 @@ def _should_inspect(rel_path: PurePosixPath) -> bool:
 
 
 class DocstringAndCommentCoverageCheck(PolicyCheck):
-    """Warn when modules or symbols lack docstrings or explanatory comments."""
+    """Treat missing docstrings/comments as policy violations."""
 
     policy_id = "docstring-and-comment-coverage"
     version = "1.0.0"
@@ -95,7 +95,7 @@ class DocstringAndCommentCoverageCheck(PolicyCheck):
                 violations.append(
                     Violation(
                         policy_id=self.policy_id,
-                        severity="info",
+                        severity="error",
                         file_path=path,
                         message=(
                             "Module lacks a descriptive top-level docstring "
@@ -123,7 +123,7 @@ class DocstringAndCommentCoverageCheck(PolicyCheck):
                 violations.append(
                     Violation(
                         policy_id=self.policy_id,
-                        severity="info",
+                        severity="error",
                         file_path=path,
                         message=(
                             f"{symbol_type.title()} '{symbol}' is missing "

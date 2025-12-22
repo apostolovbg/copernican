@@ -21,6 +21,20 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 11.0.1
+- 2025-12-20: Raised the `docstring-and-comment-coverage` policy to error
+            severity, synced the script/tests, and documented the
+            `name_clarity` helpers while polishing the raw-string/start-script
+            tests so the enforcement code now reports intentional hints
+            clearly before the style-only helpers run (AGENTS.md,
+            CHANGELOG.md,
+            devcovenant/policy_scripts/docstring_and_comment_coverage.py,
+            devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py,
+            devcovenant/policy_scripts/name_clarity.py,
+            devcovenant/policy_scripts/raw_string_escapes.py,
+            devcovenant/tests/test_policies/test_raw_string_escapes.py,
+            devcovenant/tests/test_policies/test_start_script_parity.py,
+            devcovenant/registry.json).
+
 - 2025-12-14: Added docstrings for the CLI entry helpers, Run Builder/monitor
             scaffolds and the `__main__.py` launcher so the policy now
             records the intent of `copernican.py`, `copernican_lib/gui/app.py`

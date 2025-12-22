@@ -762,7 +762,7 @@ and remove it once the work is complete so the guard returns to its normal state
 ```policy-def
 id: docstring-and-comment-coverage
 status: active
-severity: info
+severity: error
 auto_fix: false
 updated: false
 applies_to: *.py
@@ -775,8 +775,8 @@ docstring or an adjacent explanatory comment for modules, classes and functions.
 The checker uses the `all_files` snapshot when available, so every `.py` outside
 `tests/` (excluding vendor code) gets evaluated even before it is staged. The
 policy accepts short docstrings or inline comments positioned immediately before
-the definition so the team can grow coverage gradually before the enforcement
-level walks up from `info`.
+the definition so the team can grow coverage gradually. Missing documentation now
+triggers an error-level violation so that gaps in coverage are addressed promptly.
 Running DevCovenant in a non-`pre-commit` mode (e.g., `lint` or `startup`)
 virtually inspects *all* matching `.py` files so the policy uncovers gaps beyond
 just the staged files.
@@ -890,55 +890,37 @@ so they remember to expand the prose before we raise the severity.
 
 ## AI-DRIVEN AND HUMAN DEVELOPMENT LAWS (READ AND FOLLOW)
 
-**Note**: Several development requirements are now enforced automatically by
-DevCovenant policies (see above). The following laws remain as manual
-guidelines that require human judgment or workflow adherence. For a complete
+**Note**: Several development requirements are already enforced automatically by
+DevCovenant policies (see above). The policies cover the former instructions
+about read-only data, documentation growth, docstrings/comments, comment
+synchronization, identifier naming, raw-string usage and start-script parity, so
+the remaining laws focus on broader development discipline. For a complete
 mapping of laws to policies, see `DEVCOVENANT_LAW_MAPPING.md`.
 
 To keep the project maintainable all contributors, human or AI, must follow
-these rules. The policies listed above now cover the old instructions about
-read-only data, expanded documentation, docstrings/comments and license audits
-so the remaining laws focus on broader development discipline.
+these rules.
 
-1. **Comment the code extensively.** Explain the "why" as well as the "what",
-   clarifying both obvious and non-obvious, simple or complex logic or
-   algorithms.
-2. **Keep comments synchronized with the actual code.** Whenever behaviour
-   changes, update all nearby comments immediately so future contributors can
-   rely on them.
-3. **Keep this file as the canonical law source.** `README.md` must point back
+1. **Keep this file as the canonical law source.** `README.md` must point back
    to `AGENTS.md` instead of duplicating the rules. Amendments to any law
    require an explicit human request.
-4. **Re-read these laws at the start of every development session.**
-5. **Use concise, descriptive function and identifier names that accurately
-   convey their purpose without unnecessary length.**
-6. **Use raw strings or escape backslashes explicitly to avoid invalid escape
-   sequence warnings in docstrings or string literals.**
-7. **Run `pre-commit run --all-files` before committing** so formatting,
+2. **Re-read these laws at the start of every development session.**
+3. **Run `pre-commit run --all-files` before committing** so formatting,
    linting, metadata and policy hooks (including changelog coverage, allowed
    `Last Updated` placement and version sync) all execute once per change.
-8. **Do not redistribute the Copernican Suite in full or assert patent
+4. **Do not redistribute the Copernican Suite in full or assert patent
    claims; the license forbids these actions.**
-9. **Commit changes only after all tests pass on every supported platform.**
-10. **Treat `start.command`, `start.bat` and `start.sh` equally.** When one
-    launcher is fixed, assess the other two for the same issue and update
-    them as needed. Investigate how code changes affect the start scripts and
-    adjust them accordingly. Keep multi-line PowerShell calls inside helper
-    subroutines when editing `start.bat` so `cmd.exe` never mis-parses
-    closing parentheses inside conditional blocks. Prefer computing release
-    metadata outside conditional parentheses or enable delayed expansion so
-    `%DOWNLOAD_URL%` resolves consistently on Windows builds.
-11. **Follow current compliance and security requirements for all work.** The
-    suite processes user-provided files, so every change must meet the latest
-    security guidelines and consider their impact on the `start.*` scripts.
-12. **Run the suite exclusively through the managed virtual environment.**
-    Always launch via `start.sh`, `start.command` or `start.bat` so the
-    repository's `.venv` is created or updated automatically; other Python
-    environments must be ignored.
-13. **Preserve human-authored edits across the project.** Respect the
-    structure, wording and intent of human-made changes—including timestamps
-    and metadata—and only revise them when a human explicitly requests an
-    update or when correcting objective errors they identify.
+5. **Commit changes only after all tests pass on every supported platform.**
+6. **Follow current compliance and security requirements for all work.** The
+   suite processes user-provided files, so every change must meet the latest
+   security guidelines and consider their impact on the `start.*` scripts.
+7. **Run the suite exclusively through the managed virtual environment.**
+   Always launch via `start.sh`, `start.command` or `start.bat` so the
+   repository's `.venv` is created or updated automatically; other Python
+   environments must be ignored.
+8. **Preserve human-authored edits across the project.** Respect the
+   structure, wording and intent of human-made changes—including timestamps
+   and metadata—and only revise them when a human explicitly requests an
+   update or when correcting objective errors they identify.
 
 
 Following the Development Laws, DevCovenant's policies and all good coding

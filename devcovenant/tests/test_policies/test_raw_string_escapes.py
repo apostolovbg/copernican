@@ -3,9 +3,7 @@
 from pathlib import Path
 
 from devcovenant.base import CheckContext
-from devcovenant.policy_scripts.raw_string_escapes import (
-    RawStringEscapesCheck,
-)
+from devcovenant.policy_scripts.raw_string_escapes import RawStringEscapesCheck
 
 
 def _write_module(tmp_path: Path, source: str) -> Path:

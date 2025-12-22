@@ -37,6 +37,7 @@ def test_flags_missing_docstrings(tmp_path: Path):
     violations = checker.check(context)
 
     assert len(violations) >= 3
+    assert all(v.severity == "error" for v in violations)
     assert any("Module lacks" in v.message for v in violations)
     assert any(
         "function" in v.message.lower() and "foo" in v.message.lower()

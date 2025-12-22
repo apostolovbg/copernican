@@ -4,8 +4,8 @@ from pathlib import Path
 
 from devcovenant.base import CheckContext
 from devcovenant.policy_scripts.start_script_parity import (
-    StartScriptParityCheck,
     START_SCRIPTS,
+    StartScriptParityCheck,
 )
 
 

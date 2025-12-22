@@ -33,7 +33,7 @@ continues to describe a manual expectation for contributors.
 | `line-length-limit` | Enforces the 79-character line budget in Python code. | Law 15 (Keep individual lines under 79 characters). | `AGENTS.md#policy-line-length-limit` | Emits warnings only for `.py` files. |
 | `new-modules-need-tests` | Requires tests whenever new modules appear in `copernican_lib/` or `engines/`. | Law 20 (Add tests alongside new functionality). | `AGENTS.md#policy-new-modules-need-tests` | Scans the Git status to determine added modules. |
 | `read-only-directories` | Guards the pattern list under `devcovenant/read_only_directories.txt`, blocking edits to datasets or parser files unless a waiver exists. | Law 4 (Treat `/data` as read-only). | `AGENTS.md#policy-read-only-directories` | Waivers live under `.devcovenant/waivers/read-only-directories.txt` and the patterns are refreshed every run. |
-| `docstring-and-comment-coverage` | Warns when any non-test Python module lacks docstrings or nearby explanatory comments; the check now inspects every matching `.py` (info-level reminders) so coverage gaps in untouched files are surfaced before escalation. | Law 6 (Document every module, function and class with clear "what" and "why" explanations). | `AGENTS.md#policy-docstring-and-comment-coverage` | Both short docstrings and descriptive pre-definition comments satisfy the check; vendor/test code is ignored. |
+| `docstring-and-comment-coverage` | Warns when any non-test Python module lacks docstrings or nearby explanatory comments; the check now inspects every matching `.py` (info-level reminders) so coverage gaps in untouched files are surfaced before escalation. | Law 1 (Explain the "why" as well as the "what" in comments), Law 2 (Keep comments synchronized), and Law 6 (Document every module, function and class with clear explanations). | `AGENTS.md#policy-docstring-and-comment-coverage` | Both short docstrings and descriptive pre-definition comments satisfy the check; vendor/test code is ignored. |
 | `raw-string-escapes` | Detects bare backslashes in string literals outside tests/vendor so developers switch to raw strings or explicit escaping before the severity increases. | Law 6 (Use raw strings or escape backslashes explicitly). | `AGENTS.md#policy-raw-string-escapes` | Scans all `.py` files and flags suspicious escape sequences; law-level severity is still informational for now. |
 | `name-clarity` | Warns when new identifiers use placeholders or are too short, promoting descriptive functionality names and parameters. | Law 5 (Use concise, descriptive function and identifier names). | `AGENTS.md#policy-name-clarity` | Flags blacklisted names (`foo`, `tmp`, etc.) or sub-3-character identifiers outside conventional loop counters; overrides via `# name-clarity: allow`. |
 | `dependency-license-sync` | Requires simultaneous updates to dependency inputs, `THIRD_PARTY_LICENSES.md` (including a `## License Report` section) and `licenses/`. | Laws 15 and 17 (Audit licenses for new dependencies; refresh dependencies after package changes). | `AGENTS.md#policy-dependency-license-sync` | The report must mention each touched dependency file so reviewers can confirm the coverage. |
@@ -59,10 +59,17 @@ broader development discipline items outlined in the law section.
 - **Law 11**: “Treat documentation refresh as integral…” is now enforced by
   `documentation-growth-tracking`, which issues reminders when user-visible files
   change so the corpus strictly grows alongside semantic updates.
-- **Law 4**: “Treat `/data` as read-only” is enforced by `read-only-directories`
-  (with waivers under `.devcovenant/waivers/read-only-directories.txt`), and
-  **Law 6** (“Document every module, function and class…”) is enforced by
-  `docstring-and-comment-coverage`.
+- **Law 4**: “Treat `/data` as read-only” remains enforced by `read-only-directories`
+  (with waivers under `.devcovenant/waivers/read-only-directories.txt`).
+- **Laws 1, 2 and 6** (the comment/documentation expectations) are now covered by
+  `docstring-and-comment-coverage`, which blocks modules, classes and functions
+  that lack a docstring or adjacent explanatory comment.
+- **Law 5** (use concise, descriptive identifiers) is enforced by `name-clarity`.
+- **Law 6** (use raw strings or escape backslashes explicitly) is also enforced by
+  `raw-string-escapes`, which flags suspicious literal escapes outside tests/vendor.
+- **Law 10** (keep the three `start.*` launchers in sync) is enforced by
+  `start-script-parity`, which raises errors when one launcher changes without the
+  others.
 - **Law 15** and **Law 17** (license audits and dependency refreshes) are now
   consolidated under `dependency-license-sync`, which requires `THIRD_PARTY_LICENSES.md`,
   `licenses/*`, and the dependency inputs to change in lockstep with a `## License Report`.
@@ -72,7 +79,7 @@ broader development discipline items outlined in the law section.
 
 - Policies documented in `AGENTS.md`: **13** (the eleven numbered policies above plus `devcov-self-enforcement` and `no-print-in-library`).
 - Policies implemented but without a numbered-law counterpart: `devcov-self-enforcement`, `no-print-in-library`.
-- Deprecated laws maintained here: Laws 1, 4, 6, 7, 8, 11, 15, 17, 20 and 24.
+- Deprecated laws maintained here: Laws 1, 2, 4, 5, 6, 7, 8, 10, 11, 15, 17, 20 and 24.
 
 ## Future Policy Candidates
 
