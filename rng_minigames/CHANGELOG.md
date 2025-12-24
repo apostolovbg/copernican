@@ -1,5 +1,6 @@
 # RNG Mini-games Changelog
 
+- 2025-12-15: Polished the RNG bundle for the new name-clarity guard rails by aliasing Tk helpers uniformly, expanding velocity/shield identifiers, and normalising the registry descriptor/manifest while keeping the tests aligned (`rng_minigames/alien_invasion/game.py`, `rng_minigames/alien_invasion/ai_config.py`, `rng_minigames/alien_invasion/game_config.py`, `rng_minigames/alien_invasion/hall_of_fame.py`, `rng_minigames/constellation/game.py`, `rng_minigames/emoji_meteors/game.py`, `rng_minigames/registry.py`, `rng_minigames/tests/test_registry_and_ai.py`, `rng_minigames/registry.json`).
 -## Version 11.0.1
 - 2025-12-14: Added docstrings to the Alien Invasion AI helpers, game logic
 - 2025-12-14: Added docstrings to the Alien Invasion AI helpers, game logic

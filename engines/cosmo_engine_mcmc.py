@@ -52,9 +52,9 @@ except Exception:  # pragma: no cover - SciPy layout varies
         pass
 
 try:
-    import arviz as az
+    import arviz as arviz_module
 except ModuleNotFoundError:  # pragma: no cover - optional fallback for tests
-    az = None
+    arviz_module = None
 import emcee
 import numpy as np
 import pandas as pd
@@ -197,12 +197,12 @@ class _ActiveLogProbability:
         """Evaluate the posterior for ``position`` in the active subspace."""
 
         full = self.assemble_full(position)
-        value = self._posterior(full)
+        posterior_value = self._posterior(full)
         # ``emcee`` expects a Python ``float`` rather than a NumPy scalar for
         # predictable ``isfinite`` checks.  Coercing here guarantees downstream
         # consumers see the same type under both serial and multiprocessing
         # execution.
-        return float(value)
+        return float(posterior_value)
 
 
 class _JointLogLikelihood:
@@ -757,7 +757,7 @@ def fit_cosmology_parameters(
             active_indices,
         )
         try:
-            p0, logp = _initialise_active_walkers(
+            initial_positions, logp = _initialise_active_walkers(
                 initial_active,
                 lower,
                 upper,
@@ -810,7 +810,7 @@ def fit_cosmology_parameters(
             )
             last = _run_stage_with_progress(
                 sampler,
-                p0,
+                initial_positions,
                 burn_in,
                 stage_name="burn-in",
                 logger=logger,
@@ -948,7 +948,7 @@ def fit_cosmology_parameters(
         "ess_bulk": {},
         "ess_tail": {},
     }
-    if az is not None:
+    if arviz_module is not None:
         try:
             # ``arviz`` expects chains ordered as ``(n_chains, n_draws, ...)``.
             # ``emcee`` stores them as ``(n_draws, n_chains, n_params)``,
@@ -957,14 +957,18 @@ def fit_cosmology_parameters(
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=UserWarning)
                 warnings.simplefilter("ignore", category=RuntimeWarning)
-                inference_data = az.from_dict(
+                inference_data = arviz_module.from_dict(
                     posterior={"parameters": np.swapaxes(chain, 0, 1)},
                     coords={"parameter": list(names)},
                     dims={"parameters": ["parameter"]},
                 )
-                rhat_dataset = az.rhat(inference_data, method="rank")
-                ess_bulk_dataset = az.ess(inference_data, method="bulk")
-                ess_tail_dataset = az.ess(inference_data, method="tail")
+                rhat_dataset = arviz_module.rhat(inference_data, method="rank")
+                ess_bulk_dataset = arviz_module.ess(
+                    inference_data, method="bulk"
+                )
+                ess_tail_dataset = arviz_module.ess(
+                    inference_data, method="tail"
+                )
 
             def _dataset_to_dict(dataset: Any) -> dict[str, float]:
                 """Return scalar diagnostics keyed by parameter name."""

@@ -119,8 +119,8 @@ def test_registry_refresh_roundtrip(
     from rng_minigames import load_launcher, load_registry, refresh_registry
 
     entries = refresh_registry()
-    ids = {entry.id for entry in entries}
+    ids = {entry.game_id for entry in entries}
     assert {"emoji_meteors", "constellation", "alien_invasion"} <= ids
     for descriptor in load_registry():
-        launcher = load_launcher(descriptor.id)
+        launcher = load_launcher(descriptor.game_id)
         assert callable(launcher)

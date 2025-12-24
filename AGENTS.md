@@ -842,6 +842,8 @@ New Python symbols should avoid placeholder or overly short names (e.g.,
 during `lint`/`startup`) and reminds authors whenever an identifier is either
 blacklisted or shorter than three characters outside conventional loop counters;
 add a `# name-clarity: allow` comment to suppress intentional exceptions.
+`copernican_lib/vendor/` is exempted so upstream packages keep their original
+identifiers.
 
 ---
 
@@ -885,6 +887,70 @@ When user-visible files or launchers change, the documentation corpus must
 the updated behavior, workflow or configuration. This active info-level reminder
 policy simply surfaces the policy text and points editors at the relevant docs
 so they remember to expand the prose before we raise the severity.
+
+---
+
+## Policy: Security Compliance Notes
+
+```policy-def
+id: security-compliance-notes
+status: active
+severity: error
+auto_fix: false
+updated: false
+applies_to: *
+enforcement: active
+waiver: false
+```
+
+Security-critical files (launchers, guards, helpers under `docs/security` and
+`copernican_lib/security`) must be accompanied by a short entry in
+`docs/security_changes.md` describing the compliance or mitigation rationale.
+The policy ensures the security log grows whenever those guarded files change
+so reviewers can confirm the latest requirements were considered before a
+change lands. When `docs/security_changes.md` is untouched while a guarded file
+changes, DevCovenant blocks the commit and requests the missing entry.
+
+---
+
+## Policy: Security Scanner
+
+```policy-def
+id: security-scanner
+status: active
+severity: error
+auto_fix: false
+updated: false
+applies_to: *.py
+enforcement: active
+waiver: false
+```
+
+Automated scanning flags known compliance risks—`eval`, `exec`, `pickle.loads`
+or `subprocess.run(..., shell=True)`—inside repository modules. The policy runs
+on every Python file (excluding tests/vendor code) and halts the commit with a
+clear message whenever a risky construct is found, nudging contributors to pick
+a safer implementation before the change lands.
+
+---
+
+## Policy: Start Script Guardrails
+
+```policy-def
+id: start-script-guardrails
+status: active
+severity: error
+auto_fix: false
+updated: false
+applies_to: start.sh,start.command,start.bat
+enforcement: active
+waiver: false
+```
+
+Every launcher keeps essential guardrails intact. Unix/macos scripts must retain
+the `sudo -k` prompt and the `pkg_notice` helper, while the Windows batch
+launcher must still define `PKG_NOTICE`. If any script loses those snippets,
+the policy raises an error so the security guidance cannot disappear silently.
 
 ---
 

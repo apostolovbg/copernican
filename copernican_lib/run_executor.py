@@ -47,10 +47,10 @@ def _model_name_index() -> dict[str, Path]:
             continue
         try:
             raw = path.read_text(encoding="utf-8")
-            data = yaml.safe_load(raw) or {}
+            model_metadata = yaml.safe_load(raw) or {}
         except Exception:
-            data = {}
-        model_name = str(data.get("model_name") or path.stem).strip()
+            model_metadata = {}
+        model_name = str(model_metadata.get("model_name") or path.stem).strip()
         stems = {path.stem, model_name}
         if path.stem.startswith("cosmo_model_"):
             stems.add(path.stem.split("cosmo_model_", 1)[-1])

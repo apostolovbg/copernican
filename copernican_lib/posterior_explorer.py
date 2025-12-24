@@ -11,9 +11,9 @@ import xarray as xr
 from . import analysis
 
 try:
-    import arviz as az
+    import arviz as arviz_module
 except ModuleNotFoundError:
-    az = None
+    arviz_module = None
 
 
 def find_posterior_files(run_dir: Path | str) -> list[Path]:
@@ -27,9 +27,9 @@ def load_inference_data(path: Path | str) -> xr.Dataset:
     """Load the posterior data from disk via ArviZ or xarray."""
 
     path = Path(path)
-    if az is not None:
+    if arviz_module is not None:
         try:
-            return az.from_netcdf(str(path)).posterior
+            return arviz_module.from_netcdf(str(path)).posterior
         except Exception:
             pass
     return xr.open_dataset(path, engine="scipy")
@@ -39,10 +39,10 @@ def extract_posterior_arrays(dataset: xr.Dataset) -> dict[str, np.ndarray]:
     """Return flattened arrays for every posterior data variable."""
 
     arrays: dict[str, np.ndarray] = {}
-    for name, da in dataset.data_vars.items():
-        if da.values is None:
+    for name, data_var in dataset.data_vars.items():
+        if data_var.values is None:
             continue
-        arr = np.asarray(da.values).reshape(-1)
+        arr = np.asarray(data_var.values).reshape(-1)
         if arr.size == 0:
             continue
         arrays[name] = arr
@@ -110,9 +110,9 @@ def create_posterior_overview_figure(
 
     selected = list(arrays.keys())[:limit_parameters]
     fig = plt.Figure(figsize=(8, 6))
-    gs = fig.add_gridspec(2, 1, height_ratios=[3, 1], hspace=0.35)
-    trace_ax = fig.add_subplot(gs[0])
-    hist_ax = fig.add_subplot(gs[1])
+    grid_spec = fig.add_gridspec(2, 1, height_ratios=[3, 1], hspace=0.35)
+    trace_ax = fig.add_subplot(grid_spec[0])
+    hist_ax = fig.add_subplot(grid_spec[1])
 
     for idx, name in enumerate(selected):
         values = arrays[name]

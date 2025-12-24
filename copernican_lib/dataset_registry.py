@@ -16,10 +16,11 @@ statistical independence statements. The additional metadata is consumed by the
 run manifest builder and keeps the suite honest about likelihood assumptions.
 """
 import hashlib
-import importlib
 import logging
 import os
+import types
 from collections.abc import Callable
+from importlib.machinery import SourceFileLoader
 from pathlib import Path
 from typing import Any
 
@@ -211,22 +212,22 @@ TRUSTED_PARSER_DIGESTS = {
         "a2abf7b2bc92f6ef60b81b6a3f91f440fff9661905d92468c52153db20983a99"
     ),
     "sne/jla2014/cosmo_parser_jla2014.py": (
-        "3fb85d6ce4b8de95f6d66851fa8114146feb6d5319d13f395f76a0a0c94f6a99"
+        "80e0dc13052cde00b59d25bb5015d48959e14302ec73e2f540dd3193248f1062"
     ),
     "bao/bossdr12/cosmo_parser_bossdr12.py": (
-        "56dc89bee0c7ccc164f46f6c03b268398b554d2e32af852bbc81da3179de707e"
+        "8c616a272133ca7c2ab86ae48139ae3f297734014f0806ed4f6538152957bbaf"
     ),
     "bao/compound/cosmo_parser_compound.py": (
-        "d125f0fc6e9ce1d8c6f27466660a4a3d00386e01132274a8c880c4cf1cf975a5"
+        "84960483a29c6691e99ae8fc6eb5f741952ab281c6a44a5a0ded5e98ccebbe69"
     ),
     "cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py": (
-        "7c5d70d7b63b921bfffe4d910b334a490b81155d93c9a60de481278f3605352d"
+        "8ce91c97a5cb67a68b04803b010fb46d0a337c289ad4fa8aeda98cf37b2af60a"
     ),
     "gw/placeholder/cosmo_parser_gw_placeholder.py": (
         "0af702546dcc5fac872fa7b68892176ec2400789b18f22e1dce0759093c3ef08"
     ),
     "sne/union3/cosmo_parser_union3.py": (
-        "5664f326ddaa8371f7797aa5fdce9fc71e8f0c2227a058f410032dc12a992eaa"
+        "7b5891a3677457ee3444689af79dc8ea648536c75568b1294b4aa1d406e1450a"
     ),
 }
 
@@ -341,23 +342,17 @@ def discover_trusted_parsers(
                             actual_hash,
                         )
                         continue
-                    spec = importlib.util.spec_from_file_location(
-                        module_name,
-                        file_path,
-                    )
-                    if spec and spec.loader:
-                        module = importlib.util.module_from_spec(spec)
-                        try:
-                            spec.loader.exec_module(module)
-                        except Exception as e:
-                            logging.getLogger().error(
-                                "Failed loading parser module %s: %s",
-                                file_path,
-                                e,
-                            )
-                    else:
+                    module_loader = SourceFileLoader(module_name, file_path)
+                    module = types.ModuleType(module_name)
+                    module.__file__ = file_path
+                    module.__package__ = module_name.rpartition(".")[0]
+                    try:
+                        module_loader.exec_module(module)
+                    except Exception as e:
                         logging.getLogger().error(
-                            "Missing loader for parser module %s", file_path
+                            "Failed loading parser module %s: %s",
+                            file_path,
+                            e,
                         )
                     registry = get_parser_registry(dtype)
                     key = None
@@ -438,24 +433,26 @@ def prompt_dataset_selection(parser_registry, data_type_name):
 
 
 # --- Verbose dataset info helper ---
-def _log_dataset_info(df, data_type, logger):
-    """Log summary and covariance usage for ``df``."""
+def _log_dataset_info(dataset_df, data_type, logger):
+    """Log summary and covariance usage for ``dataset_df``."""
     # Centralised helper so that every loader reports consistent
     # information about the dataset and whether a covariance matrix was
     # actually used.  ``load_*_data`` attaches all metadata via
     # :func:`load_metadata_from_dir` so the log entries rely solely on the
     # DataFrame attributes.
-    if df is None or df.empty:
+    if dataset_df is None or dataset_df.empty:
         return
     # Prefer the human-readable dataset name but fall back to ``dataset_id``
     # when only the identifier is available. Loaders attach both fields so
     # that logs remain descriptive while filenames stay concise.
-    name = df.attrs.get("dataset_name", df.attrs.get("dataset_id", ""))
-    logger.info(
-        f"Loaded {data_type} dataset '{name}' with {len(df)} rows.",
+    name = dataset_df.attrs.get(
+        "dataset_name", dataset_df.attrs.get("dataset_id", "")
     )
-    if "covariance_matrix_inv" in df.attrs:
-        if df.attrs["covariance_matrix_inv"] is not None:
+    logger.info(
+        f"Loaded {data_type} dataset '{name}' with {len(dataset_df)} rows.",
+    )
+    if "covariance_matrix_inv" in dataset_df.attrs:
+        if dataset_df.attrs["covariance_matrix_inv"] is not None:
             logger.info(
                 f"{data_type} covariance matrix inverted successfully.",
             )
@@ -464,7 +461,7 @@ def _log_dataset_info(df, data_type, logger):
                 f"{data_type} parser provided no usable covariance matrix; "
                 "using diagonal errors only.",
             )
-    cond_number = df.attrs.get("covariance_condition_number")
+    cond_number = dataset_df.attrs.get("covariance_condition_number")
     if cond_number is not None:
         logger.info(
             "%s covariance condition number: %.3e",
@@ -473,10 +470,10 @@ def _log_dataset_info(df, data_type, logger):
         )
 
 
-def _validate_bao_covariance(df, logger):
+def _validate_bao_covariance(dataset_df, logger):
     """Ensure BAO covariance matrices are symmetric and positive definite."""
 
-    inv_cov = df.attrs.get("covariance_matrix_inv")
+    inv_cov = dataset_df.attrs.get("covariance_matrix_inv")
     if inv_cov is None:
         logger.warning(
             "BAO dataset is missing an inverse covariance matrix; "
@@ -502,16 +499,16 @@ def _validate_bao_covariance(df, logger):
         )
         return False
     cond_number = float(np.linalg.cond(inv_arr))
-    df.attrs["covariance_condition_number"] = cond_number
+    dataset_df.attrs["covariance_condition_number"] = cond_number
     logger.info("BAO covariance condition number: %.3e", cond_number)
     return True
 
 
-def _attach_file_hashes(df, data_dir, metadata, logger):
+def _attach_file_hashes(dataset_df, data_dir, metadata, logger):
     """Compute SHA256 hashes for trusted dataset files and log them."""
 
     file_hashes = collect_dataset_hashes(data_dir, metadata or {}, logger)
-    df.attrs["file_hashes"] = file_hashes
+    dataset_df.attrs["file_hashes"] = file_hashes
     for rel, digest in file_hashes.items():
         logger.info("SHA256 %s: %s", rel, digest)
 

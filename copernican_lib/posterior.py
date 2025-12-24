@@ -37,7 +37,7 @@ class PosteriorEvaluator:
     def __call__(self, params: Sequence[float]) -> float:
         """Transform parameters and evaluate the log posterior."""
         try:
-            raw_values = tuple(float(val) for val in params)
+            raw_values = tuple(float(param_val) for param_val in params)
         except (TypeError, ValueError):
             self.logger.debug(
                 "(PosteriorEvaluator): received non-numeric params"
@@ -48,13 +48,13 @@ class PosteriorEvaluator:
         log_jacobian = 0.0
         transforms = self.transforms or ()
 
-        for idx, value in enumerate(raw_values):
+        for idx, raw_param in enumerate(raw_values):
             transform = transforms[idx] if idx < len(transforms) else None
             if transform is None:
-                transformed.append(value)
+                transformed.append(raw_param)
                 continue
             try:
-                result = transform(value)
+                result = transform(raw_param)
             except Exception as exc:  # pragma: no cover - defensive guard
                 self.logger.debug(
                     "(PosteriorEvaluator): transform %d failed: %s", idx, exc
@@ -83,23 +83,23 @@ class PosteriorEvaluator:
 
         bounds = self.bounds
         if bounds is not None:
-            for idx, value in enumerate(transformed):
-                try:
-                    low_val, high_val = bounds[idx]
-                except IndexError:
-                    low_val = high_val = None
-                if low_val is not None and value < low_val:
-                    return float("-inf")
-                if high_val is not None and value > high_val:
-                    return float("-inf")
+        for idx, transformed_value in enumerate(transformed):
+            try:
+                low_val, high_val = bounds[idx]
+            except IndexError:
+                low_val = high_val = None
+            if low_val is not None and transformed_value < low_val:
+                return float("-inf")
+            if high_val is not None and transformed_value > high_val:
+                return float("-inf")
 
         log_prior = log_jacobian
-        for value, prior in zip_longest(
+        for transformed_value, prior in zip_longest(
             transformed, self.priors, fillvalue=None
         ):
             if prior is None:
                 continue
-            density = prior.log_density(value)
+            density = prior.log_density(transformed_value)
             if not math.isfinite(density):
                 return float("-inf")
             log_prior += density

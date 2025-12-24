@@ -55,10 +55,10 @@ def chi_squared_sne(
 
 
 def chi_squared_bao(
-    z: np.ndarray,
-    obs_type: np.ndarray,
-    obs_val: np.ndarray,
-    obs_err: np.ndarray,
+    redshifts: np.ndarray,
+    observable_types: np.ndarray,
+    observable_values: np.ndarray,
+    observable_errors: np.ndarray,
     model_plugin,
     cosmo_params: Sequence[float],
     model_rs_Mpc: float,
@@ -68,10 +68,10 @@ def chi_squared_bao(
     """Return the χ² value for BAO observations."""
 
     like = BAOLike(
-        z=z,
-        obs_type=obs_type,
-        obs_val=obs_val,
-        obs_err=obs_err,
+        redshifts=redshifts,
+        observable_types=observable_types,
+        observable_values=observable_values,
+        observable_errors=observable_errors,
         model_plugin=model_plugin,
         covariance_matrix_inv=covariance_matrix_inv,
         rs_override=model_rs_Mpc,
@@ -126,10 +126,10 @@ def calculate_bao_observables(
     )
 
     z_array = bao_pred_df["redshift"].to_numpy(dtype=float)
-    obs_type = bao_pred_df["observable_type"].to_numpy(dtype=object)
-    mask_dm = obs_type == "DM_over_rs"
-    mask_dh = obs_type == "DH_over_rs"
-    mask_dv = obs_type == "DV_over_rs"
+    observable_types = bao_pred_df["observable_type"].to_numpy(dtype=object)
+    mask_dm = observable_types == "DM_over_rs"
+    mask_dh = observable_types == "DH_over_rs"
+    mask_dv = observable_types == "DV_over_rs"
 
     z_smooth_arr = None
     if z_smooth is not None:

@@ -82,16 +82,16 @@ class BossDR12ParserTestCase(unittest.TestCase):
         df = self.parser.parse_boss_dr12(str(self.data_dir))
         params = (67.66, 0.31, 0.041, 5e-5, 3.044, 1090)
         rs = self.plugin.get_sound_horizon_rs_Mpc(*params)
-        z = df["redshift"].to_numpy(dtype=float)
-        obs_type = df["observable_type"].to_numpy()
-        obs_val = df["value"].to_numpy(dtype=float)
-        obs_err = df["error"].to_numpy(dtype=float)
+        redshifts_array = df["redshift"].to_numpy(dtype=float)
+        observable_types_array = df["observable_type"].to_numpy()
+        observable_values_array = df["value"].to_numpy(dtype=float)
+        observable_errors_array = df["error"].to_numpy(dtype=float)
         cov_inv = df.attrs.get("covariance_matrix_inv")
         chi2 = chi_squared_bao(
-            z,
-            obs_type,
-            obs_val,
-            obs_err,
+            redshifts_array,
+            observable_types_array,
+            observable_values_array,
+            observable_errors_array,
             self.plugin,
             params,
             rs,
@@ -99,26 +99,29 @@ class BossDR12ParserTestCase(unittest.TestCase):
         )
         self.assertLess(chi2, 10.0)
 
-        pred = np.full_like(obs_val, np.nan, dtype=float)
-        mask = obs_type == "DM_over_rs"
+        pred = np.full_like(observable_values_array, np.nan, dtype=float)
+        mask = observable_types_array == "DM_over_rs"
         if np.any(mask):
             pred[mask] = (
-                self.plugin.get_comoving_distance_Mpc(z[mask], *params) / rs
+                self.plugin.get_comoving_distance_Mpc(
+                    redshifts_array[mask], *params
+                )
+                / rs
             )
-        mask = obs_type == "DH_over_rs"
+        mask = observable_types_array == "DH_over_rs"
         if np.any(mask):
-            hz = self.plugin.get_Hz_per_Mpc(z[mask], *params)
+            hz = self.plugin.get_Hz_per_Mpc(redshifts_array[mask], *params)
             pred[mask] = (
                 self.plugin.FIXED_PARAMS.get("C_LIGHT_KM_S", 299792.458)
                 / hz
                 / rs
             )
-        mask = obs_type == "DV_over_rs"
+        mask = observable_types_array == "DV_over_rs"
         if np.any(mask):
-            dv = self.plugin.get_DV_Mpc(z[mask], *params)
+            dv = self.plugin.get_DV_Mpc(redshifts_array[mask], *params)
             pred[mask] = dv / rs
 
-        resid = obs_val - pred
+        resid = observable_values_array - pred
         self.assertLess(np.max(np.abs(resid)), 1.0)
 
     def test_missing_covariance_files(self):

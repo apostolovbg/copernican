@@ -137,15 +137,17 @@ class _JointLogLikelihood:
         return float(self._joint_like.loglike(params))
 
 
-def _logsumexp_pair(a: float, b: float) -> float:
+def _logsumexp_pair(first_term: float, second_term: float) -> float:
     """Return ``log(exp(a) + exp(b))`` with numerical stability."""
 
-    if not math.isfinite(a):
-        return b
-    if not math.isfinite(b):
-        return a
-    maximum = max(a, b)
-    return maximum + math.log(math.exp(a - maximum) + math.exp(b - maximum))
+    if not math.isfinite(first_term):
+        return second_term
+    if not math.isfinite(second_term):
+        return first_term
+    maximum = max(first_term, second_term)
+    return maximum + math.log(
+        math.exp(first_term - maximum) + math.exp(second_term - maximum)
+    )
 
 
 def _build_joint_logposterior(
@@ -240,16 +242,18 @@ def _initial_live_point(
     """Return a candidate sampled uniformly within finite bounds."""
 
     sample = np.empty_like(lower, dtype=float)
-    for idx, (lo, hi) in enumerate(zip(lower, upper, strict=False)):
-        if math.isfinite(lo) and math.isfinite(hi):
-            sample[idx] = rng.uniform(lo, hi)
+    for idx, (lower_bound, upper_bound) in enumerate(
+        zip(lower, upper, strict=False)
+    ):
+        if math.isfinite(lower_bound) and math.isfinite(upper_bound):
+            sample[idx] = rng.uniform(lower_bound, upper_bound)
         else:
             width = max(abs(centre[idx]), 1.0)
             draw = rng.normal(centre[idx], width)
-            if math.isfinite(lo):
-                draw = max(draw, lo)
-            if math.isfinite(hi):
-                draw = min(draw, hi)
+            if math.isfinite(lower_bound):
+                draw = max(draw, lower_bound)
+            if math.isfinite(upper_bound):
+                draw = min(draw, upper_bound)
             sample[idx] = draw
     return sample
 
@@ -310,9 +314,9 @@ def _prepare_bounds(
         bounds = [(None, None)] * ndim
     lower = np.empty(len(bounds), dtype=float)
     upper = np.empty(len(bounds), dtype=float)
-    for idx, (lo, hi) in enumerate(bounds):
-        lower[idx] = -math.inf if lo is None else float(lo)
-        upper[idx] = math.inf if hi is None else float(hi)
+    for idx, (lower_value, upper_value) in enumerate(bounds):
+        lower[idx] = -math.inf if lower_value is None else float(lower_value)
+        upper[idx] = math.inf if upper_value is None else float(upper_value)
         if (
             math.isfinite(lower[idx])
             and math.isfinite(upper[idx])

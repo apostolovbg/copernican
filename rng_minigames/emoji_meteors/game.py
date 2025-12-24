@@ -5,10 +5,10 @@ from __future__ import annotations
 import random
 
 try:  # pragma: no cover - Tk only available when GUI rendering is enabled
-    import tkinter as tk
+    import tkinter as tkinter_module
     from tkinter import ttk
 except Exception:  # pragma: no cover - executed on headless environments
-    tk = None
+    tkinter_module = None
     ttk = None
 
 from rng_minigames.api import MinigameContext
@@ -53,25 +53,27 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
         """Map the selected emoji IDs into a numeric seed."""
         if not picks:
             return
-        value = "".join(f"{ord(symbol) % 1000:03d}" for symbol in picks)
-        seed_value = value.lstrip("0") or "0"
+        encoded_payload = "".join(
+            f"{ord(symbol) % 1000:03d}" for symbol in picks
+        )
+        seed_value = encoded_payload.lstrip("0") or "0"
         context.set_seed(seed_value)
         context.notify(
             f"Emoji meteors {' '.join(picks)} forged seed {seed_value}.",
             "INFO",
         )
 
-    if not context.render or tk is None or context.tk_root is None:
+    if not context.render or tkinter_module is None or context.tk_root is None:
         _apply_seed(random.sample(_EMOJI_METEOR_CHOICES, 5))
         return
 
-    window = tk.Toplevel(context.tk_root)
+    window = tkinter_module.Toplevel(context.tk_root)
     window.title("Emoji meteors")
     window.resizable(False, False)
     window.transient(context.tk_root)
     canvas_width = 760
     canvas_height = 480
-    canvas = tk.Canvas(
+    canvas = tkinter_module.Canvas(
         window,
         width=canvas_width,
         height=canvas_height,
@@ -90,7 +92,7 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
     instructions.pack(anchor="w", padx=16)
     selection_frame = ttk.Frame(window)
     selection_frame.pack(fill="x", padx=16, pady=(0, 6))
-    status_var = tk.StringVar(value="Selections: (none yet)")
+    status_var = tkinter_module.StringVar(value="Selections: (none yet)")
     ttk.Label(
         selection_frame,
         textvariable=status_var,
@@ -98,7 +100,7 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
     ).pack(side="left", anchor="w")
     button_frame = ttk.Frame(selection_frame)
     button_frame.pack(side="right", anchor="e")
-    action_var = tk.StringVar()
+    action_var = tkinter_module.StringVar()
     selections: list[str] = []
     meteor_items: dict[int, dict[str, object]] = {}
 
@@ -120,24 +122,24 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
         return item_id, meta
 
     for _ in range(20):
-        item, meta = _spawn_meteor()
-        meteor_items[item] = meta
+        meteor_id, meteor_meta = _spawn_meteor()
+        meteor_items[meteor_id] = meteor_meta
 
     after_id: str | None = None
 
     def _animate() -> None:
         """Advance all meteors down the canvas and wrap them."""
         nonlocal after_id
-        for item, meta in meteor_items.items():
-            canvas.move(item, 0, meta["speed"])
-            x_pos, y_pos = canvas.coords(item)
+        for meteor_id, meteor_meta in meteor_items.items():
+            canvas.move(meteor_id, 0, meteor_meta["speed"])
+            x_pos, y_pos = canvas.coords(meteor_id)
             if y_pos > canvas_height + 50:
                 new_x = random.randint(40, canvas_width - 40)
-                canvas.coords(item, new_x, -30)
+                canvas.coords(meteor_id, new_x, -30)
                 new_emoji = random.choice(_EMOJI_METEOR_CHOICES)
-                meta["emoji"] = new_emoji
-                meta["speed"] = random.uniform(1.5, 3.5)
-                canvas.itemconfigure(item, text=new_emoji)
+                meteor_meta["emoji"] = new_emoji
+                meteor_meta["speed"] = random.uniform(1.5, 3.5)
+                canvas.itemconfigure(meteor_id, text=new_emoji)
         after_id = canvas.after(60, _animate)
 
     def _finalize_and_close(picks: list[str]) -> None:
@@ -152,22 +154,22 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
         display = " ".join(selections)
         status_var.set(f"Selections: {display if display else '(none yet)'}")
 
-    def _handle_click(event: "tk.Event") -> None:
+    def _handle_click(event: "tkinter_module.Event") -> None:
         """Handle meteors being clicked to add them to the selection."""
         if len(selections) >= 5:
             return
         hits = canvas.find_closest(event.x, event.y)
         if not hits:
             return
-        item = hits[0]
-        meta = meteor_items.get(item)
-        if not meta:
+        hit_id = hits[0]
+        hit_meta = meteor_items.get(hit_id)
+        if not hit_meta:
             return
-        emoji = meta["emoji"]
+        emoji = hit_meta["emoji"]
         if not isinstance(emoji, str):
             return
         selections.append(emoji)
-        canvas.itemconfigure(item, font=("Helvetica", 80))
+        canvas.itemconfigure(hit_id, font=("Helvetica", 80))
         _render_selection_status()
         _redraw_preview()
 
@@ -214,13 +216,15 @@ def launch_emoji_meteors(context: MinigameContext) -> None:
         selections.clear()
         _render_selection_status()
         _redraw_preview()
-        for item, meta in meteor_items.items():
+        for meteor_id, meteor_meta in meteor_items.items():
             new_x = random.randint(40, canvas_width - 40)
-            canvas.coords(item, new_x, -20)
+            canvas.coords(meteor_id, new_x, -20)
             new_emoji = random.choice(_EMOJI_METEOR_CHOICES)
-            meta["emoji"] = new_emoji
-            meta["speed"] = random.uniform(1.5, 3.5)
-            canvas.itemconfigure(item, text=new_emoji, font=("Helvetica", 58))
+            meteor_meta["emoji"] = new_emoji
+            meteor_meta["speed"] = random.uniform(1.5, 3.5)
+            canvas.itemconfigure(
+                meteor_id, text=new_emoji, font=("Helvetica", 58)
+            )
         if after_id is None:
             _animate()
 

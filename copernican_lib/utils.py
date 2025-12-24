@@ -112,8 +112,8 @@ def generate_filename(
         if sanitized_model
         else f"{sanitized_type}-{checked_id}"
     )
-    ts = timestamp or get_timestamp()
-    return f"{base_name}_{ts}.{ext}"
+    timestamp_suffix = timestamp or get_timestamp()
+    return f"{base_name}_{timestamp_suffix}.{ext}"
 
 
 def ensure_dir_exists(directory):

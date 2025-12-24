@@ -52,13 +52,15 @@ def _merge_settings(
 ) -> dict[str, object]:
     """Recursively apply ``override`` values on top of ``base``."""
     merged = copy.deepcopy(base)
-    for key, value in override.items():
-        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+    for key, override_value in override.items():
+        if isinstance(override_value, dict) and isinstance(
+            merged.get(key), dict
+        ):
             merged[key] = _merge_settings(
-                merged[key].copy(), value  # type: ignore[arg-type]
+                merged[key].copy(), override_value  # type: ignore[arg-type]
             )
         else:
-            merged[key] = value
+            merged[key] = override_value
     return merged
 
 

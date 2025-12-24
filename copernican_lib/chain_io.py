@@ -33,11 +33,11 @@ except Exception:  # pragma: no cover - SciPy layout varies
         pass
 
 try:
-    import arviz as az
+    import arviz as arviz_module
 except (
     ModuleNotFoundError
 ):  # pragma: no cover - exercised in minimal test envs
-    az = None
+    arviz_module = None
 
 from .logger import get_logger
 from .utils import ensure_dir_exists
@@ -81,10 +81,10 @@ def save_posterior(
 
     metadata = metadata or {}
 
-    if az is not None:
+    if arviz_module is not None:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
-            idata = az.from_dict(posterior=posterior_dict)
+            idata = arviz_module.from_dict(posterior=posterior_dict)
         if metadata:
             idata.attrs.update(metadata)
             # Persist metadata on the posterior group as well so callers that

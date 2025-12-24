@@ -188,20 +188,20 @@ class CAMBParameterEvaluator:
                 return _ALLOWED_CONSTANTS[node.id]
             raise ValueError(f"name '{node.id}' not allowed")
         if isinstance(node, ast.BinOp):
-            op = _BIN_OPS.get(type(node.op))
-            if op is None:
+            operator_func = _BIN_OPS.get(type(node.op))
+            if operator_func is None:
                 raise ValueError("operator not allowed")
             left = self._eval_node(node.left, env, depth=depth + 1)
             right = self._eval_node(node.right, env, depth=depth + 1)
-            if op is math.fsum:
+            if operator_func is math.fsum:
                 return math.fsum((left, right))
-            return op(left, right)
+            return operator_func(left, right)
         if isinstance(node, ast.UnaryOp):
-            op = _UNARY_OPS.get(type(node.op))
-            if op is None:
+            operator_func = _UNARY_OPS.get(type(node.op))
+            if operator_func is None:
                 raise ValueError("operator not allowed")
             operand = self._eval_node(node.operand, env, depth=depth + 1)
-            return op(operand)
+            return operator_func(operand)
         if isinstance(node, ast.Call):
             if not isinstance(node.func, ast.Name):
                 raise ValueError("invalid function call")
@@ -363,15 +363,15 @@ class EnginePlugin:
         return evaluator(values)
 
 
-def sanitize_equation(eq_line: str) -> str:
+def sanitize_equation(equation_line: str) -> str:
     """Return a Matplotlib-friendly LaTeX string."""
 
     if not isinstance(eq_line, str):
         return ""
-    eq = eq_line.strip()
-    eq = re.sub(r"^\$+", "", eq)
-    eq = re.sub(r"\$+$", "", eq)
-    return f"${eq.strip()}$" if eq else ""
+    equation = eq_line.strip()
+    equation = re.sub(r"^\$+", "", equation)
+    equation = re.sub(r"\$+$", "", equation)
+    return f"${equation.strip()}$" if equation else ""
 
 
 def _prepare_priors(
@@ -403,14 +403,14 @@ def _prepare_priors(
             transforms.append(None)
         prior_objects.append(prior_obj)
         if isinstance(prior_obj, prior_lib.FixedPrior):
-            value = prior_obj.value
+            prior_value = prior_obj.value
             python_var = param.get("python_var") or param.get("name")
             if python_var:
-                fixed_params[python_var] = value
-                fixed_params[python_var.upper()] = value
+                fixed_params[python_var] = prior_value
+                fixed_params[python_var.upper()] = prior_value
             latex_name = param.get("latex_name")
             if isinstance(latex_name, str) and latex_name:
-                fixed_params[latex_name.strip("$")] = value
+                fixed_params[latex_name.strip("$")] = prior_value
 
     if any(transform is not None for transform in transforms):
         transform_tuple: tuple[Callable[[float], Any] | None, ...] | None = (

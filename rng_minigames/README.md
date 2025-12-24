@@ -67,7 +67,7 @@ seed-generation logic and any configuration files specific to that title.
 2. Call `rng_minigames.load_registry()` to enumerate available games.
 3. Instantiate `rng_minigames.MinigameContext` with `set_seed`, `notify` and an
    optional Tk root (or `render=False` for headless environments).
-4. Load a launcher via `rng_minigames.load_launcher(descriptor.id)` and hand the
+4. Load a launcher via `rng_minigames.load_launcher(descriptor.game_id)` and hand the
    context to it.
 5. Offer a **Refresh** button that calls `rng_minigames.refresh_registry()` so
    new games or metadata edits are recognised without restarting your UI.

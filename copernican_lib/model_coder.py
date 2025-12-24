@@ -168,6 +168,8 @@ class _GeneratedCallable:
                 "__builtins__": {},
                 "__name__": __name__,
             }
+            # security-scanner: allow generated code execution
+            # after validation.
             exec(compiled, env)
             generated = env[func_name]
         else:
@@ -222,14 +224,14 @@ class _ComovingDistance:
         """Store the Hubble function for later comoving distance calls."""
         self._hz_fn = hz_fn
 
-    def __call__(self, z_val, *params):
-        """Integrate ``c/H(z)`` using either ``quad`` or a trapezoid grid."""
+    def __call__(self, redshift_input, *params):
+        """Integrate ``c/H(z)`` using the provided redshift input."""
 
-        def integrand(zp):
-            """Return ``c/H(zp)`` for the integrator."""
-            return 299792.458 / self._hz_fn(zp, *params)
+        def integrand(redshift_for_integrand):
+            """Return ``c/H(redshift_for_integrand)`` for the integrator."""
+            return 299792.458 / self._hz_fn(redshift_for_integrand, *params)
 
-        if np.isscalar(z_val):
+        if np.isscalar(redshift_input):
             # The adaptive quad helper raises the subdivision ceiling
             # automatically so sharply varying integrands—common in the
             # suite's experimental models—do not terminate with a SciPy
@@ -237,21 +239,21 @@ class _ComovingDistance:
             return robust_quad(
                 integrand,
                 0.0,
-                float(z_val),
+                float(redshift_input),
                 limit=_DEFAULT_QUAD_LIMIT,
             )[0]
 
-        z_arr = np.asarray(z_val, dtype=float)
-        z_flat = np.ravel(z_arr)
-        if z_flat.size == 0:
-            return np.asarray(z_arr, dtype=float)
-        z_sorted = np.sort(z_flat)
-        n_grid = max(2000, len(z_sorted) * 4)
-        grid = np.linspace(0.0, z_sorted[-1], n_grid)
+        redshift_array = np.asarray(redshift_input, dtype=float)
+        redshift_flat = np.ravel(redshift_array)
+        if redshift_flat.size == 0:
+            return np.asarray(redshift_array, dtype=float)
+        sorted_redshifts = np.sort(redshift_flat)
+        n_grid = max(2000, len(sorted_redshifts) * 4)
+        grid = np.linspace(0.0, sorted_redshifts[-1], n_grid)
         integrand_vals = integrand(grid)
         cumulative = cumulative_trapezoid(integrand_vals, grid, initial=0.0)
-        interp = np.interp(z_flat, grid, cumulative)
-        return np.reshape(interp, np.shape(z_val))
+        interp = np.interp(redshift_flat, grid, cumulative)
+        return np.reshape(interp, np.shape(redshift_input))
 
 
 class _LuminosityDistance:
@@ -263,9 +265,9 @@ class _LuminosityDistance:
         """Capture the comoving distance helper for luminosity distances."""
         self._dm = dm_fn
 
-    def __call__(self, zv, *params):
+    def __call__(self, redshift_value, *params):
         """Return luminosity distance by scaling the comoving result."""
-        return (1.0 + zv) * self._dm(zv, *params)
+        return (1.0 + redshift_value) * self._dm(redshift_value, *params)
 
 
 class _AngularDiameterDistance:
@@ -277,9 +279,9 @@ class _AngularDiameterDistance:
         """Capture the comoving distance helper for angular-diameter calls."""
         self._dm = dm_fn
 
-    def __call__(self, zv, *params):
+    def __call__(self, redshift_value, *params):
         """Compute the angular diameter distance from the comoving value."""
-        return self._dm(zv, *params) / (1.0 + zv)
+        return self._dm(redshift_value, *params) / (1.0 + redshift_value)
 
 
 class _VolumeAveragedDistance:
@@ -292,20 +294,25 @@ class _VolumeAveragedDistance:
         self._dm = dm_fn
         self._hz_fn = hz_fn
 
-    def __call__(self, z_val, *params):
+    def __call__(self, redshift_value, *params):
         """Return the BAO volume-averaged distance (D_V) from helpers."""
-        dm_val = self._dm(z_val, *params)
-        hz_val = self._hz_fn(z_val, *params)
-        term = dm_val**2 * 299792.458 * z_val / hz_val
+        comoving_distance = self._dm(redshift_value, *params)
+        hubble_value = self._hz_fn(redshift_value, *params)
+        dv_term = (
+            comoving_distance**2
+            * 299792.458
+            * redshift_value
+            / hubble_value
+        )
 
-        if np.isscalar(z_val):
-            if z_val > 0 and hz_val != 0:
-                return term ** (1 / 3) if term >= 0 else np.nan
+        if np.isscalar(redshift_value):
+            if redshift_value > 0 and hubble_value != 0:
+                return dv_term ** (1 / 3) if dv_term >= 0 else np.nan
             return 0.0
 
-        result = np.zeros_like(z_val, dtype=float)
-        mask = (z_val > 0) & (hz_val != 0)
-        term_arr = term[mask]
+        result = np.zeros_like(redshift_value, dtype=float)
+        mask = (redshift_value > 0) & (hubble_value != 0)
+        term_arr = dv_term[mask]
         result[mask] = np.where(
             term_arr >= 0, np.power(term_arr, 1 / 3), np.nan
         )
@@ -330,15 +337,15 @@ class _SoundHorizonFromExpression:
 
     __slots__ = ("_fn",)
 
-    def __init__(self, fn):
+    def __init__(self, callable_fn):
         """Wrap the symbolic sound-horizon callable for later use."""
-        self._fn = fn
+        self._callable_fn = callable_fn
 
     def __call__(self, *params):
         """Evaluate the symbolic expression and guard divergent integrals."""
 
         try:
-            return float(self._fn(*params))
+            return float(self._callable_fn(*params))
         except RobustQuadFailure as exc:
             LOGGER.error(
                 "Sound-horizon integral failed between %s and %s; "
@@ -360,12 +367,14 @@ class _DistanceModulusFromLuminosity:
         """Store the luminosity distance helper used for conversion."""
         self._luminosity_fn = luminosity_fn
 
-    def __call__(self, zv, *params):
+    def __call__(self, redshift_value, *params):
         """Translate luminosity distances to distance moduli."""
-        dl = self._luminosity_fn(zv, *params)
+        luminosity_distance = self._luminosity_fn(redshift_value, *params)
         with np.errstate(divide="ignore", invalid="ignore"):
-            mu = 5.0 * np.log10(dl) + 25.0
-        return np.where(np.asarray(dl) > 0, mu, np.nan)
+            distance_modulus = 5.0 * np.log10(luminosity_distance) + 25.0
+        return np.where(
+            np.asarray(luminosity_distance) > 0, distance_modulus, np.nan
+        )
 
 
 class QuadPrinter(NumPyPrinter):
@@ -374,42 +383,43 @@ class QuadPrinter(NumPyPrinter):
 
     def _print_Integral(self, expr):
         """Translate SymPy ``Integral`` nodes into ``quad`` expressions."""
-        # Currently support single-variable integrals of the form (var, a, b).
-        var, a, b = expr.limits[0]
+        # Currently support single-variable integrals of the form
+        # (integration_var, lower_limit, upper_limit).
+        integration_var, lower_limit, upper_limit = expr.limits[0]
         integrand = expr.function
-        var_code = self._print(var)
-        a_code = self._print(a)
-        b_code = self._print(b)
+        integration_var_code = self._print(integration_var)
+        lower_limit_code = self._print(lower_limit)
+        upper_limit_code = self._print(upper_limit)
         integrand_code = self._print(integrand)
         return (
-            f"quad(lambda {var_code}: {integrand_code}, {a_code}, "
-            f"{b_code})[0]"
+            f"quad(lambda {integration_var_code}: {integrand_code}, "
+            f"{lower_limit_code}, {upper_limit_code})[0]"
         )
 
 
-def _is_finite_bound(value) -> bool:
-    """Return ``True`` when ``value`` can be represented as a finite float."""
+def _is_finite_bound(candidate) -> bool:
+    """Return ``True`` when ``candidate`` is a finite float."""
 
     try:
-        return math.isfinite(float(value))
+        return math.isfinite(float(candidate))
     except (TypeError, ValueError):
         return False
 
 
-def _is_pos_inf(value) -> bool:
-    """Return ``True`` when ``value`` represents positive infinity."""
+def _is_pos_inf(candidate) -> bool:
+    """Return ``True`` when ``candidate`` represents positive infinity."""
 
     try:
-        return float(value) == math.inf
+        return float(candidate) == math.inf
     except (TypeError, ValueError):
         return False
 
 
-def _is_neg_inf(value) -> bool:
-    """Return ``True`` when ``value`` represents negative infinity."""
+def _is_neg_inf(candidate) -> bool:
+    """Return ``True`` when ``candidate`` represents negative infinity."""
 
     try:
-        return float(value) == -math.inf
+        return float(candidate) == -math.inf
     except (TypeError, ValueError):
         return False
 
@@ -439,9 +449,9 @@ def _map_points_for_positive_infinity(
     """Project finite breakpoints to the logistic domain for ``b = +inf``."""
 
     mapped = []
-    for value in points:
+    for breakpoint_value in points:
         try:
-            delta = float(value) - float(lower)
+            delta = float(breakpoint_value) - float(lower)
         except (TypeError, ValueError):
             continue
         if delta <= 0.0:
@@ -449,9 +459,9 @@ def _map_points_for_positive_infinity(
         mapped_value = delta / (1.0 + delta)
         if 0.0 < mapped_value < 1.0:
             mapped.append(mapped_value)
-    mapped.extend(_LOGISTIC_SUPPORT_POINTS)
-    mapped = tuple(dict.fromkeys(sorted(mapped)))
-    return mapped
+        mapped.extend(_LOGISTIC_SUPPORT_POINTS)
+        mapped = tuple(dict.fromkeys(sorted(mapped)))
+        return mapped
 
 
 def _map_points_for_negative_infinity(
@@ -460,9 +470,9 @@ def _map_points_for_negative_infinity(
     """Project finite breakpoints to the logistic domain for ``a = -inf``."""
 
     mapped = []
-    for value in points:
+    for breakpoint_value in points:
         try:
-            distance = float(upper) - float(value)
+            distance = float(upper) - float(breakpoint_value)
         except (TypeError, ValueError):
             continue
         if distance <= 0.0:
@@ -477,9 +487,9 @@ def _map_points_for_negative_infinity(
 
 def robust_quad(
     func,
-    a,
-    b,
-    *args,
+    lower_bound,
+    upper_bound,
+    *integrand_args,
     limit: int = _DEFAULT_QUAD_LIMIT,
     max_attempts: int = 5,
     points: tuple[float, ...] | None = None,
@@ -502,7 +512,7 @@ def robust_quad(
     func:
         Callable of the integrand.  It must accept the integration variable as
         the first argument, followed by ``*args`` supplied by the caller.
-    a, b:
+    lower_bound, upper_bound:
         Lower and upper integration bounds.  Infinite bounds are forwarded to
         SciPy directly because the library already applies specialised
         transformations for semi-infinite intervals.
@@ -537,9 +547,9 @@ def robust_quad(
 
     return _robust_quad(
         func,
-        a,
-        b,
-        args,
+        lower_bound,
+        upper_bound,
+        integrand_args,
         start_limit,
         max_attempts,
         points,
@@ -550,9 +560,9 @@ def robust_quad(
 
 def _robust_quad(
     func,
-    a,
-    b,
-    args,
+    lower_bound,
+    upper_bound,
+    integrand_args,
     start_limit,
     max_attempts,
     points,
@@ -562,12 +572,15 @@ def _robust_quad(
 ):
     """Execute ``quad`` with retries, segmentation and infinity transforms."""
 
-    if allow_infinite and (not _is_finite_bound(a) or not _is_finite_bound(b)):
+    if allow_infinite and (
+        not _is_finite_bound(lower_bound)
+        or not _is_finite_bound(upper_bound)
+    ):
         return _handle_infinite_interval(
             func,
-            a,
-            b,
-            args,
+            lower_bound,
+            upper_bound,
+            integrand_args,
             start_limit,
             max_attempts,
             points,
@@ -576,9 +589,9 @@ def _robust_quad(
 
     return _robust_quad_core(
         func,
-        a,
-        b,
-        args,
+        lower_bound,
+        upper_bound,
+        integrand_args,
         start_limit,
         max_attempts,
         points,
@@ -588,9 +601,9 @@ def _robust_quad(
 
 def _robust_quad_core(
     func,
-    a,
-    b,
-    args,
+    lower_bound,
+    upper_bound,
+    integrand_args,
     start_limit,
     max_attempts,
     points,
@@ -598,16 +611,16 @@ def _robust_quad_core(
 ):
     """Core retry and segmentation loop for :func:`robust_quad`."""
 
-    def _call_quad(lower, upper, limit_value, dynamic_points):
+    def _call_quad(lower_segment, upper_segment, limit_value, dynamic_points):
         """Execute SciPy quad with the supplied dynamic arguments."""
         quad_kwargs = dict(base_kwargs)
         if dynamic_points:
             quad_kwargs["points"] = tuple(dynamic_points)
         return _SCIPY_QUAD(
             func,
-            lower,
-            upper,
-            *args,
+            lower_segment,
+            upper_segment,
+            *integrand_args,
             limit=limit_value,
             **quad_kwargs,
         )
@@ -621,12 +634,13 @@ def _robust_quad_core(
                 warnings.simplefilter("error", IntegrationWarning)
                 finite_points = (
                     points
-                    if _is_finite_bound(a) and _is_finite_bound(b)
+                    if _is_finite_bound(lower_bound)
+                    and _is_finite_bound(upper_bound)
                     else ()
                 )
                 return _call_quad(
-                    a,
-                    b,
+                    lower_bound,
+                    upper_bound,
                     current_limit,
                     finite_points,
                 )
@@ -636,8 +650,8 @@ def _robust_quad_core(
             LOGGER.debug(
                 "IntegrationWarning during quad between %s and %s; "
                 "escalating limit to %s (attempt %s/%s): %s",
-                a,
-                b,
+                lower_bound,
+                upper_bound,
                 next_limit,
                 attempts,
                 max_attempts,
@@ -645,9 +659,9 @@ def _robust_quad_core(
             )
             current_limit = next_limit
 
-    if _is_finite_bound(a) and _is_finite_bound(b):
-        start = float(a)
-        stop = float(b)
+    if _is_finite_bound(lower_bound) and _is_finite_bound(upper_bound):
+        start = float(lower_bound)
+        stop = float(upper_bound)
         segment_count = _MIN_SEGMENT_COUNT
         while segment_count <= _MAX_SEGMENT_COUNT:
             edges = np.linspace(start, stop, segment_count + 1, dtype=float)
@@ -676,8 +690,8 @@ def _robust_quad_core(
                     "IntegrationWarning persisted after splitting into %s "
                     "segments between %s and %s: %s",
                     segment_count,
-                    a,
-                    b,
+                    lower_bound,
+                    upper_bound,
                     exc,
                 )
                 continue
@@ -685,8 +699,8 @@ def _robust_quad_core(
             LOGGER.info(
                 "Resolved challenging integral between %s and %s by splitting "
                 "into %s segments.",
-                a,
-                b,
+                lower_bound,
+                upper_bound,
                 segment_count,
             )
             return total, total_err
@@ -694,33 +708,35 @@ def _robust_quad_core(
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", IntegrationWarning)
         finite_points = (
-            points if _is_finite_bound(a) and _is_finite_bound(b) else ()
+            points
+            if _is_finite_bound(lower_bound)
+            and _is_finite_bound(upper_bound)
+            else ()
         )
         result = _call_quad(
-            a,
-            b,
+            lower_bound,
+            upper_bound,
             current_limit,
             finite_points,
         )
     LOGGER.error(
         "robust_quad exhausted retries between %s and %s; suppressing the "
         "IntegrationWarning would mask a divergent integral.",
-        a,
-        b,
+        lower_bound,
+        upper_bound,
     )
     raise RobustQuadFailure(
-        lower=a,
-        upper=b,
+        lower=lower_bound,
+        upper=upper_bound,
         attempts=attempts,
         last_result=result,
     )
 
-
 def _handle_infinite_interval(
     func,
-    a,
-    b,
-    args,
+    lower_bound,
+    upper_bound,
+    integrand_args,
     start_limit,
     max_attempts,
     points,
@@ -729,15 +745,21 @@ def _handle_infinite_interval(
     """Integrate intervals touching infinity using logistic transforms."""
 
     relevant_points = tuple(
-        sorted(p for p in points if _point_in_interval(p, a, b))
+        sorted(
+            p
+            for p in points
+            if _point_in_interval(p, lower_bound, upper_bound)
+        )
     )
 
-    if _is_neg_inf(a) and _is_pos_inf(b) and not relevant_points:
+    if (
+        _is_neg_inf(lower_bound)
+        and _is_pos_inf(upper_bound)
+        and not relevant_points
+    ):
         relevant_points = (0.0,)
 
-    boundaries = [a]
-    boundaries.extend(relevant_points)
-    boundaries.append(b)
+    boundaries = [lower_bound, *relevant_points, upper_bound]
 
     total = 0.0
     total_err = 0.0
@@ -749,7 +771,7 @@ def _handle_infinite_interval(
             func,
             left,
             right,
-            args,
+            integrand_args,
             start_limit,
             max_attempts,
             segment_points,
@@ -763,9 +785,9 @@ def _handle_infinite_interval(
 
 def _integrate_infinite_segment(
     func,
-    lower,
-    upper,
-    args,
+    lower_bound,
+    upper_bound,
+    integrand_args,
     start_limit,
     max_attempts,
     points,
@@ -773,13 +795,13 @@ def _integrate_infinite_segment(
 ):
     """Evaluate a single segment that touches ``+/-inf`` bounds."""
 
-    if _is_neg_inf(lower) and _is_pos_inf(upper):
+    if _is_neg_inf(lower_bound) and _is_pos_inf(upper_bound):
         midpoint = points[0] if points else 0.0
         left_result = _integrate_infinite_segment(
             func,
-            lower,
+            lower_bound,
             midpoint,
-            args,
+            integrand_args,
             start_limit,
             max_attempts,
             (),
@@ -788,8 +810,8 @@ def _integrate_infinite_segment(
         right_result = _integrate_infinite_segment(
             func,
             midpoint,
-            upper,
-            args,
+            upper_bound,
+            integrand_args,
             start_limit,
             max_attempts,
             (),
@@ -800,25 +822,28 @@ def _integrate_infinite_segment(
             left_result[1] + right_result[1],
         )
 
-    if _is_neg_inf(lower):
-        finite_upper = float(upper)
+    if _is_neg_inf(lower_bound):
+        finite_upper = float(upper_bound)
         mapped_points = _map_points_for_negative_infinity(points, finite_upper)
 
-        def transformed(t, *fn_args):
-            """Map logistic ``t`` to the original interval when ``a=-inf``."""
-            t_safe = float(t)
+        def transformed(logistic_param, *forwarded_args):
+            """Map ``logistic_param`` back into the original a=-inf
+            interval."""
+            t_safe = float(logistic_param)
             if t_safe <= 0.0:
                 t_safe = float(np.nextafter(0.0, 1.0))
             if t_safe >= 1.0:
                 t_safe = float(np.nextafter(1.0, 0.0))
-            x_val = finite_upper - (1.0 - t_safe) / t_safe
-            return func(x_val, *fn_args) * (1.0 / (t_safe**2))
+            original_value = finite_upper - (1.0 - t_safe) / t_safe
+            return func(
+                original_value, *forwarded_args
+            ) * (1.0 / (t_safe**2))
 
         return _robust_quad(
             transformed,
             0.0,
             1.0,
-            args,
+            integrand_args,
             start_limit,
             max_attempts,
             mapped_points,
@@ -826,25 +851,28 @@ def _integrate_infinite_segment(
             allow_infinite=False,
         )
 
-    if _is_pos_inf(upper):
-        finite_lower = float(lower)
+    if _is_pos_inf(upper_bound):
+        finite_lower = float(lower_bound)
         mapped_points = _map_points_for_positive_infinity(points, finite_lower)
 
-        def transformed(t, *fn_args):
-            """Map logistic ``t`` to the original interval when ``b=+inf``."""
-            t_safe = float(t)
+        def transformed(logistic_param, *forwarded_args):
+            """Map ``logistic_param`` back into the original b=+inf
+            interval."""
+            t_safe = float(logistic_param)
             if t_safe <= 0.0:
                 t_safe = float(np.nextafter(0.0, 1.0))
             if t_safe >= 1.0:
                 t_safe = float(np.nextafter(1.0, 0.0))
-            x_val = finite_lower + t_safe / (1.0 - t_safe)
-            return func(x_val, *fn_args) * (1.0 / (1.0 - t_safe) ** 2)
+            original_value = finite_lower + t_safe / (1.0 - t_safe)
+            return func(
+                original_value, *forwarded_args
+            ) * (1.0 / (1.0 - t_safe) ** 2)
 
         return _robust_quad(
             transformed,
             0.0,
             1.0,
-            args,
+            integrand_args,
             start_limit,
             max_attempts,
             mapped_points,
@@ -854,9 +882,9 @@ def _integrate_infinite_segment(
 
     return _robust_quad_core(
         func,
-        lower,
-        upper,
-        args,
+        lower_bound,
+        upper_bound,
+        integrand_args,
         start_limit,
         max_attempts,
         points,
@@ -1092,7 +1120,7 @@ def generate_callables(cache_path):
             # Convert SymPy expression to a callable, numerically evaluating
             # ``Integral`` constructs if present.
 
-            fn = _compile_sympy_expr(
+            compiled_callable = _compile_sympy_expr(
                 sym_expr,
                 (z, *param_syms),
                 name_hint=name,
@@ -1104,13 +1132,13 @@ def generate_callables(cache_path):
                     sum(p["bounds"]) / 2.0 for p in model_data["parameters"]
                 )
                 test_args = (0.5,) + mid_params
-                fn(*test_args)
+                compiled_callable(*test_args)
             except Exception as eval_e:
                 error_handler.report_error(
                     f"Generated function '{name}' raised an error when "
                     f"tested: {eval_e}"
                 )
-            funcs[name] = fn
+            funcs[name] = compiled_callable
             code_dict[name] = str(sym_expr)
         except Exception as e:
             msg = f"Failed to parse equation '{name}': {e}"

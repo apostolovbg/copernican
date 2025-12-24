@@ -634,11 +634,11 @@ def execute_run_pipeline(
             fitted = fit_res.get("fitted_cosmological_params", {})
             printed_any = False
             for name, latex_name in zip(p_names, p_latex):
-                val = fitted.get(name)
-                if val is None:
+                param_value = fitted.get(name)
+                if param_value is None:
                     continue
                 disp = latex_utils.latex_to_unicode(latex_name)
-                console_output.write(f"  {disp} = {val:.5g}")
+                console_output.write(f"  {disp} = {param_value:.5g}")
                 printed_any = True
             if not printed_any:
                 console_output.write(

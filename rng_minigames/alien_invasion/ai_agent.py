@@ -325,7 +325,7 @@ class AlienInvasionAI:
         self._ensure_network()
         self.state["runs"] += 1
         weights = self.state["weights"]
-        lr = 0.5
+        learning_rate = 0.5
         best_time = self.state.get("best_time")
         duration = max(0.0, duration)
         reward = 0.0
@@ -349,9 +349,9 @@ class AlienInvasionAI:
                 self.state["best_time"] = duration
                 reward += 4.0
             victories = self.state["worlds_saved"]
-            weights["aggression"] += lr * (2.1 + victories * 0.08)
-            weights["charge"] += lr * 0.55 * (1 + victories * 0.05)
-            weights["caution"] -= lr * 0.4
+            weights["aggression"] += learning_rate * (2.1 + victories * 0.08)
+            weights["charge"] += learning_rate * 0.55 * (1 + victories * 0.05)
+            weights["caution"] -= learning_rate * 0.4
             for key, bonus in self.win_bonus.items():
                 if key in weights:
                     weights[key] += bonus
@@ -361,10 +361,10 @@ class AlienInvasionAI:
             penalty = 1 + defeats * 0.16
             time_penalty = min(6.0, duration / 35.0)
             reward = -7.5 * penalty - time_penalty - 2.0
-            weights["caution"] += lr * 1.0 * penalty
+            weights["caution"] += learning_rate * 1.0 * penalty
             weights["caution"] = min(weights["caution"], self.loss_caution_cap)
-            weights["aggression"] -= lr * 0.85 * penalty
-            weights["charge"] -= lr * 0.25
+            weights["aggression"] -= learning_rate * 0.85 * penalty
+            weights["charge"] -= learning_rate * 0.25
         reward += self._intermediate_reward
         self._intermediate_reward = 0.0
         for key in ("aggression", "caution", "charge"):
@@ -429,12 +429,12 @@ class AlienInvasionAI:
         if not self.state_path.exists():
             return
         try:
-            data = yaml.safe_load(self.state_path.read_text()) or {}
+            saved_state = yaml.safe_load(self.state_path.read_text()) or {}
         except Exception:
             return
-        if "weights" in data:
-            self.state["weights"].update(data["weights"])
-        network = data.get("network")
+        if "weights" in saved_state:
+            self.state["weights"].update(saved_state["weights"])
+        network = saved_state.get("network")
         if not isinstance(network, dict):
             network = _init_network(self.hidden_layers)
         else:
@@ -442,14 +442,14 @@ class AlienInvasionAI:
                 network, self.hidden_layers
             )
         self.state["network"] = network
-        if "best_time" in data:
-            self.state["best_time"] = data["best_time"]
-        if "runs" in data:
-            self.state["runs"] = data["runs"]
-        if "worlds_saved" in data:
-            self.state["worlds_saved"] = data["worlds_saved"]
-        if "worlds_lost" in data:
-            self.state["worlds_lost"] = data["worlds_lost"]
+        if "best_time" in saved_state:
+            self.state["best_time"] = saved_state["best_time"]
+        if "runs" in saved_state:
+            self.state["runs"] = saved_state["runs"]
+        if "worlds_saved" in saved_state:
+            self.state["worlds_saved"] = saved_state["worlds_saved"]
+        if "worlds_lost" in saved_state:
+            self.state["worlds_lost"] = saved_state["worlds_lost"]
 
     def _save(self) -> None:
         """Persist the AI state and network to disk."""
@@ -537,9 +537,11 @@ class AlienInvasionAI:
                     for row in layer_weights:
                         if len(row) != in_size:
                             raise ValueError("invalid weight cols")
-                        sanitized_layer.append([float(value) for value in row])
+                        sanitized_layer.append(
+                            [float(cell_value) for cell_value in row]
+                        )
                     sanitized_biases.append(
-                        [float(value) for value in layer_biases]
+                        [float(bias_value) for bias_value in layer_biases]
                     )
                     sanitized_weights.append(sanitized_layer)
                 return {
@@ -569,35 +571,42 @@ class AlienInvasionAI:
                 or int(network.get("output_size", output_size)) != output_size
             ):
                 raise ValueError("legacy dimension mismatch")
-            w1 = [
-                [float(value) for value in row]
+            layer_one_weights = [
+                [float(entry_value) for entry_value in row]
                 for row in network.get("w1", [])
             ]
-            if len(w1) != hidden_units:
-                raise ValueError("invalid w1 rows")
-            for row in w1:
+            if len(layer_one_weights) != hidden_units:
+                raise ValueError("invalid first-layer rows")
+            for row in layer_one_weights:
                 if len(row) != input_size:
-                    raise ValueError("invalid w1 cols")
-            w2 = [
-                [float(value) for value in row]
+                    raise ValueError("invalid first-layer cols")
+            layer_two_weights = [
+                [float(entry_value) for entry_value in row]
                 for row in network.get("w2", [])
             ]
-            if len(w2) != output_size:
-                raise ValueError("invalid w2 rows")
-            for row in w2:
+            if len(layer_two_weights) != output_size:
+                raise ValueError("invalid second-layer rows")
+            for row in layer_two_weights:
                 if len(row) != hidden_units:
-                    raise ValueError("invalid w2 cols")
-            b1 = [float(value) for value in network.get("b1", [])]
-            b2 = [float(value) for value in network.get("b2", [])]
-            if len(b1) != hidden_units or len(b2) != output_size:
+                    raise ValueError("invalid second-layer cols")
+            layer_one_biases = [
+                float(bias_value) for bias_value in network.get("b1", [])
+            ]
+            layer_two_biases = [
+                float(bias_value) for bias_value in network.get("b2", [])
+            ]
+            if (
+                len(layer_one_biases) != hidden_units
+                or len(layer_two_biases) != output_size
+            ):
                 raise ValueError("invalid legacy bias length")
             return {
                 "input_size": input_size,
                 "hidden_layers": configured,
                 "hidden_size": hidden_units,
                 "output_size": output_size,
-                "weights": [w1, w2],
-                "biases": [b1, b2],
+                "weights": [layer_one_weights, layer_two_weights],
+                "biases": [layer_one_biases, layer_two_biases],
             }
         except Exception:
             return _init_network(configured)
@@ -641,20 +650,24 @@ class AlienInvasionAI:
         network = self.state["network"]
         weights = network["weights"]
         biases = network["biases"]
-        prev_activation = [float(value) for value in features]
+        prev_activation = [float(feature_value) for feature_value in features]
         layer_states: List[Dict[str, Any]] = []
         for idx, weight_matrix in enumerate(weights):
             layer_biases = biases[idx]
             raw_outputs: List[float] = []
             for neuron_idx, weight_row in enumerate(weight_matrix):
                 total = layer_biases[neuron_idx]
-                for prev_idx, value in enumerate(prev_activation):
-                    total += weight_row[prev_idx] * value
+                for prev_idx, prev_activation_value in enumerate(
+                    prev_activation
+                ):
+                    total += weight_row[prev_idx] * prev_activation_value
                 raw_outputs.append(total)
             if idx == len(weights) - 1:
                 activated = raw_outputs[:]
             else:
-                activated = [math.tanh(value) for value in raw_outputs]
+                activated = [
+                    math.tanh(raw_output) for raw_output in raw_outputs
+                ]
             layer_states.append(
                 {
                     "raw": raw_outputs,
@@ -700,7 +713,7 @@ class AlienInvasionAI:
                 self._train_sample(sample, adjusted * decay, base_lr)
 
     def _train_sample(
-        self, sample: Dict[str, Any], reward: float, lr: float
+        self, sample: Dict[str, Any], reward: float, learning_rate: float
     ) -> None:
         """Apply a single sample's gradients to the network weights."""
         forward = self._forward_internal(sample["features"])
@@ -755,17 +768,24 @@ class AlienInvasionAI:
             weight_matrix = weights[layer_idx]
             bias_vec = biases[layer_idx]
             for neuron_idx, delta_value in enumerate(delta_vec):
-                for prev_idx, value in enumerate(prev_activation):
-                    update = lr * reward * delta_value * value
+                for prev_idx, prev_activation_value in enumerate(
+                    prev_activation
+                ):
+                    update = (
+                        learning_rate
+                        * reward
+                        * delta_value
+                        * prev_activation_value
+                    )
                     weight_matrix[neuron_idx][prev_idx] = self._clamp(
                         weight_matrix[neuron_idx][prev_idx] + update
                     )
                 bias_vec[neuron_idx] = self._clamp(
-                    bias_vec[neuron_idx] + lr * reward * delta_value
+                    bias_vec[neuron_idx] + learning_rate * reward * delta_value
                 )
 
     @staticmethod
-    def _clamp(value: float, limit: float = 5.0) -> float:
+    def _clamp(scalar_value: float, limit: float = 5.0) -> float:
         """Clamp a value within ±limit to keep gradients bounded."""
 
-        return float(max(-limit, min(limit, value)))
+        return float(max(-limit, min(limit, scalar_value)))

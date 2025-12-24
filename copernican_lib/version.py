@@ -42,16 +42,16 @@ def _read_version_file() -> Optional[str]:
     for candidate in candidates:
         try:
             if hasattr(candidate, "read_text"):
-                data = candidate.read_text(encoding="utf-8")
+                version_text = candidate.read_text(encoding="utf-8")
             else:  # pragma: no cover - safety net for unexpected types
-                data = Path(candidate).read_text(encoding="utf-8")
+                version_text = Path(candidate).read_text(encoding="utf-8")
         except FileNotFoundError:
             continue
         except Exception:
             continue
-        value = data.strip()
-        if value:
-            return value
+        version_str = version_text.strip()
+        if version_str:
+            return version_str
     return None
 
 

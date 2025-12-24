@@ -63,9 +63,9 @@ MIN_PYTHON = (3, 11)
 
 # Initialise optional heavy imports so cleanup code can reference them safely
 # even when the dependency guard exits early.
-np = None
+numpy_module = None
 plt = None
-mp = None
+multiprocessing_module = None
 
 
 def exit_clean(code: int = 0) -> None:
@@ -1465,10 +1465,13 @@ def main_workflow(manifest_path: Path | None = None):
         success = cli_dependencies.run_startup_tests()
         exit_clean(0 if success else 1)
 
-    global np, plt, mp, model_spec_validator, model_coder
+    global numpy_module, plt, multiprocessing_module, model_spec_validator
+    global model_coder
     global engine_plugin_validation
     global utils, error_handler, log_mod, logger
-    np, plt, mp = cli_dependencies.load_third_party_modules()
+    numpy_module, plt, multiprocessing_module = (
+        cli_dependencies.load_third_party_modules()
+    )
     from copernican_lib import (
         engine_plugin_validation,
         error_handler,

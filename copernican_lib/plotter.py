@@ -26,9 +26,9 @@ from .utils import ensure_dir_exists, generate_filename, get_timestamp
 _ = plt.get_backend()
 
 try:  # pragma: no cover - coverage uses the environment-installed backend
-    import arviz as az
+    import arviz as arviz_module
 except ModuleNotFoundError:  # pragma: no cover - pytest installs ArviZ already
-    az = None
+    arviz_module = None
 
 # ``MAX_CORNER_SAMPLES`` bounds the number of posterior draws processed by the
 # corner plot helper. Stage 2 runs can easily accumulate millions of samples
@@ -169,8 +169,8 @@ def _density_levels(
     cleaned_levels: list[float] = []
     last_value = -np.inf
     epsilon = np.finfo(float).eps
-    for value in level_values:
-        finite_value = value if np.isfinite(value) else 0.0
+    for level_height in level_values:
+        finite_value = level_height if np.isfinite(level_height) else 0.0
         finite_value = max(finite_value, 0.0)
         if finite_value <= last_value:
             finite_value = (
@@ -610,21 +610,21 @@ def _build_arviz_inference_data(
 ) -> tuple[object, list[str]]:
     """Construct an ArviZ InferenceData object from flattened samples."""
 
-    if az is None:
+    if arviz_module is None:
         raise RuntimeError("ArviZ is not available")
 
-    data: dict[str, np.ndarray] = {}
+    posterior_arrays: dict[str, np.ndarray] = {}
     var_names: list[str] = []
     for idx, name in enumerate(labels):
         base = name or f"param_{idx + 1}"
         candidate = base
         suffix = 1
-        while candidate in data:
+        while candidate in posterior_arrays:
             candidate = f"{base}_{suffix}"
             suffix += 1
-        data[candidate] = samples[:, idx]
+        posterior_arrays[candidate] = samples[:, idx]
         var_names.append(candidate)
-    inference_data = az.from_dict(posterior=data)
+    inference_data = arviz_module.from_dict(posterior=posterior_arrays)
     return inference_data, var_names
 
 
@@ -642,14 +642,14 @@ def _render_corner_grid_legacy(
 
     for row in range(n_params):
         for col in range(n_params):
-            ax = axes[row, col]
+            corner_axis = axes[row, col]
             if row < col:
-                ax.axis("off")
+                corner_axis.axis("off")
                 continue
 
             if row == col:
                 param_samples = samples[:, col]
-                ax.hist(
+                corner_axis.hist(
                     param_samples,
                     bins=bins,
                     density=True,
@@ -662,13 +662,13 @@ def _render_corner_grid_legacy(
                     quantiles,
                     ["dashed", "solid", "dashed"],
                 ):
-                    ax.axvline(
+                    corner_axis.axvline(
                         quantile,
                         color="#e15759",
                         linestyle=style,
                         linewidth=1.2,
                     )
-                ax.set_ylabel(
+                corner_axis.set_ylabel(
                     "Density",
                     fontsize=font_sizes["label"],
                 )
@@ -682,7 +682,7 @@ def _render_corner_grid_legacy(
                     density=True,
                 )
                 if np.allclose(hist, 0.0):
-                    ax.scatter(
+                    corner_axis.scatter(
                         x,
                         y,
                         s=6,
@@ -696,7 +696,7 @@ def _render_corner_grid_legacy(
                         hist,
                         contour_levels,
                     )
-                    ax.contourf(
+                    corner_axis.contourf(
                         x_centers,
                         y_centers,
                         hist.T,
@@ -704,7 +704,7 @@ def _render_corner_grid_legacy(
                         colors=["#dbe9f6", "#afc5e5", "#7da0d4"],
                         alpha=0.9,
                     )
-                    ax.contour(
+                    corner_axis.contour(
                         x_centers,
                         y_centers,
                         hist.T,
@@ -712,25 +712,28 @@ def _render_corner_grid_legacy(
                         colors="#2a5176",
                         linewidths=1.0,
                     )
-                ax.grid(True, alpha=0.3)
+                corner_axis.grid(True, alpha=0.3)
 
             if row == n_params - 1:
-                ax.set_xlabel(
+                corner_axis.set_xlabel(
                     wrapped_labels[col],
                     fontsize=font_sizes["label"],
                 )
             else:
-                ax.set_xticklabels([])
+                corner_axis.set_xticklabels([])
 
             if col == 0:
-                ax.set_ylabel(
+                corner_axis.set_ylabel(
                     wrapped_labels[row],
                     fontsize=font_sizes["label"],
                 )
             elif row != col:
-                ax.set_yticklabels([])
+                corner_axis.set_yticklabels([])
 
-            ax.tick_params(axis="both", labelsize=font_sizes["ticks"])
+            corner_axis.tick_params(
+                axis="both",
+                labelsize=font_sizes["ticks"],
+            )
 
 
 def _render_corner_with_arviz(
@@ -765,7 +768,7 @@ def _render_corner_with_arviz(
         "quantiles": [value / 100.0 for value in percentile_lines],
     }
 
-    az.plot_pair(
+    arviz_module.plot_pair(
         inference_data,
         var_names=var_names,
         kind="kde",
@@ -781,9 +784,9 @@ def _render_corner_with_arviz(
         for col in range(n_params):
             if row < col:
                 continue
-            ax = axes[row, col]
+            pair_axis = axes[row, col]
             if row == col:
-                ax.set_ylabel(
+                pair_axis.set_ylabel(
                     "Density",
                     fontsize=font_sizes["label"],
                 )
@@ -792,40 +795,40 @@ def _render_corner_with_arviz(
                     quantiles,
                     ["dashed", "solid", "dashed"],
                 ):
-                    ax.axvline(
+                    pair_axis.axvline(
                         quantile,
                         color="#e15759",
                         linestyle=style,
                         linewidth=1.2,
                     )
                 if row == n_params - 1:
-                    ax.set_xlabel(
+                    pair_axis.set_xlabel(
                         wrapped_labels[col],
                         fontsize=font_sizes["label"],
                     )
                 else:
-                    ax.set_xticklabels([])
+                    pair_axis.set_xticklabels([])
             else:
                 if row == n_params - 1:
-                    ax.set_xlabel(
+                    pair_axis.set_xlabel(
                         wrapped_labels[col],
                         fontsize=font_sizes["label"],
                     )
                 else:
-                    ax.set_xticklabels([])
+                    pair_axis.set_xticklabels([])
                 if col == 0:
-                    ax.set_ylabel(
+                    pair_axis.set_ylabel(
                         wrapped_labels[row],
                         fontsize=font_sizes["label"],
                     )
                 else:
-                    ax.set_yticklabels([])
-                ax.grid(True, alpha=0.3)
-            ax.tick_params(axis="both", labelsize=font_sizes["ticks"])
+                    pair_axis.set_yticklabels([])
+                pair_axis.grid(True, alpha=0.3)
+            pair_axis.tick_params(axis="both", labelsize=font_sizes["ticks"])
 
 
 def _render_single_param_arviz(
-    ax: plt.Axes,
+    axis_obj: plt.Axes,
     samples: np.ndarray,
     label: str,
     font_sizes: dict[str, float],
@@ -844,12 +847,12 @@ def _render_single_param_arviz(
     }
     quantiles = [value / 100.0 for value in percentile_lines]
 
-    az.plot_dist(
+    arviz_module.plot_dist(
         samples,
         kind="hist",
         hist_kwargs=hist_kwargs,
         quantiles=quantiles,
-        ax=ax,
+        ax=axis_obj,
         show=False,
         textsize=font_sizes["label"],
     )
@@ -859,17 +862,17 @@ def _render_single_param_arviz(
         quantile_values,
         ["dashed", "solid", "dashed"],
     ):
-        ax.axvline(
+        axis_obj.axvline(
             quantile,
             color="#e15759",
             linestyle=style,
             linewidth=1.2,
         )
 
-    ax.set_xlabel(label, fontsize=font_sizes["label"])
-    ax.set_ylabel("Density", fontsize=font_sizes["label"])
-    ax.grid(True, alpha=0.3)
-    ax.tick_params(axis="both", labelsize=font_sizes["ticks"])
+    axis_obj.set_xlabel(label, fontsize=font_sizes["label"])
+    axis_obj.set_ylabel("Density", fontsize=font_sizes["label"])
+    axis_obj.grid(True, alpha=0.3)
+    axis_obj.tick_params(axis="both", labelsize=font_sizes["ticks"])
 
 
 def build_footer_lines(
@@ -940,9 +943,10 @@ def format_model_summary_text(
     lines.append(rf"**Model: {model_name_latex}**")
 
     def _format_numeric_line(
-        label_tex: str, value: Any, *, unit: str | None = None
+        label_tex: str, numeric_value: Any, *, unit: str | None = None
     ) -> str:
-        """Return a readable line or ``N/A`` when ``value`` is non-finite.
+        """Return a readable line or ``N/A`` when ``numeric_value`` is
+        non-finite.
 
         The helper prevents ``:.2f`` formatting from raising when optimisation
         metadata is incomplete. Cosmological fits occasionally leave global
@@ -951,7 +955,7 @@ def format_model_summary_text(
         """
 
         try:
-            numeric = float(value)
+            numeric = float(numeric_value)
         except (TypeError, ValueError):
             return rf"  {label_tex} = N/A"
         if not np.isfinite(numeric):
@@ -978,14 +982,14 @@ def format_model_summary_text(
 
     if fitted_cosmo_params:
         for i, name in enumerate(param_names):
-            val = fitted_cosmo_params.get(name)
+            param_value = fitted_cosmo_params.get(name)
             if i < len(param_latex_names):
                 latex_name = param_latex_names[i]
             else:
                 latex_name = name
             latex_name = _wrap_math(latex_name)
-            if val is not None:
-                lines.append(rf"  {latex_name} = ${val:.4g}$")
+            if param_value is not None:
+                lines.append(rf"  {latex_name} = ${param_value:.4g}$")
             else:
                 lines.append(rf"  {latex_name} = N/A")
     else:
@@ -993,13 +997,17 @@ def format_model_summary_text(
 
     if dataset_type == "sne" and fit_results.get("fitted_nuisance_params"):
         lines.append("$\\mathbf{SNe\\ Nuisance\\ Parameters:}$")
-        for name, val in fit_results["fitted_nuisance_params"].items():
+        for name, nuisance_value in (
+            fit_results["fitted_nuisance_params"].items()
+        ):
             name_latex = {
                 "M_B": r"M_B",
                 "alpha_salt2": r"\alpha",
                 "beta_salt2": r"\beta",
             }.get(name, name)
-            lines.append(rf"  {_wrap_math(name_latex)} = ${val:.4g}$")
+            lines.append(
+                rf"  {_wrap_math(name_latex)} = ${nuisance_value:.4g}$"
+            )
 
     if dataset_type == "sne":
         lines.append("$\\mathbf{SNe\\ Fit\\ Statistics:}$")
@@ -1325,14 +1333,16 @@ def plot_hubble_diagram(
 
     y = start_y
     for idx, (line, is_bold) in enumerate(footer_lines):
-        fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
+        tick_font_size = (
+            font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
+        )
         weight = "bold" if is_bold else "normal"
         fig.text(
             0.5,
             y,
             line,
             ha="center",
-            fontsize=fs,
+            fontsize=tick_font_size,
             fontweight=weight,
             wrap=True,
         )
@@ -1398,8 +1408,8 @@ def plot_bao_observables(
         sharex=True,
         gridspec_kw={"height_ratios": [4, 1.5], "hspace": 0.05},
     )
-    ax = axs[0]
-    res_ax = axs[1]
+    main_axis = axs[0]
+    residual_axis = axs[1]
 
     footer_lines = build_footer_lines(
         alt_model_plugin,
@@ -1422,7 +1432,7 @@ def plot_bao_observables(
     for i, obs_type in enumerate(obs_types):
         subset = bao_data_df[bao_data_df["observable_type"] == obs_type]
         label = f"Data: {obs_type.replace('_', '/')}"
-        ax.errorbar(
+        main_axis.errorbar(
             subset["redshift"],
             subset["value"],
             yerr=subset["error"],
@@ -1460,7 +1470,9 @@ def plot_bao_observables(
             """Plot only valid data points to avoid runtime warnings."""
             valid_indices = np.isfinite(z_vals) & np.isfinite(y_vals)
             if np.any(valid_indices):
-                ax.plot(z_vals[valid_indices], y_vals[valid_indices], **kwargs)
+                main_axis.plot(
+                    z_vals[valid_indices], y_vals[valid_indices], **kwargs
+                )
             else:
                 logger.warning(
                     f"No valid data points to plot for {kwargs.get('label')}"
@@ -1513,7 +1525,7 @@ def plot_bao_observables(
     if lcdm_pred is not None:
         res_lcdm = val_data - lcdm_pred["model_prediction"].values
         all_res.append(res_lcdm)
-        res_ax.errorbar(
+        residual_axis.errorbar(
             bao_data_df["redshift"],
             res_lcdm,
             yerr=bao_data_df["error"],
@@ -1530,7 +1542,7 @@ def plot_bao_observables(
             res_lcdm,
         )
         z_avg, r_avg = _smooth_line(z_avg, r_avg)
-        res_ax.plot(
+        residual_axis.plot(
             z_avg,
             r_avg,
             color="darkred",
@@ -1544,7 +1556,7 @@ def plot_bao_observables(
     if alt_pred is not None:
         res_alt = val_data - alt_pred["model_prediction"].values
         all_res.append(res_alt)
-        res_ax.errorbar(
+        residual_axis.errorbar(
             bao_data_df["redshift"],
             res_alt,
             yerr=bao_data_df["error"],
@@ -1563,7 +1575,7 @@ def plot_bao_observables(
             res_alt,
         )
         z_avg, r_avg = _smooth_line(z_avg, r_avg)
-        res_ax.plot(
+        residual_axis.plot(
             z_avg,
             r_avg,
             color="darkblue",
@@ -1576,21 +1588,21 @@ def plot_bao_observables(
     if all_res:
         max_res = np.nanmax(np.abs(np.concatenate(all_res)))
         if np.isfinite(max_res) and max_res > 0:
-            res_ax.set_ylim(-1.2 * max_res, 1.2 * max_res)
+            residual_axis.set_ylim(-1.2 * max_res, 1.2 * max_res)
 
-    ax.set_ylabel(r"$D_X/r_s$", fontsize=font_sizes["label"])
-    ax.set_title(
+    main_axis.set_ylabel(r"$D_X/r_s$", fontsize=font_sizes["label"])
+    main_axis.set_title(
         f"BAO Observables vs. Redshift: {dataset_name}",
         fontsize=font_sizes["title"],
     )
-    ax.legend(fontsize=font_sizes["legend"], loc="best")
-    ax.minorticks_on()
-    ax.tick_params(
+    main_axis.legend(fontsize=font_sizes["legend"], loc="best")
+    main_axis.minorticks_on()
+    main_axis.tick_params(
         axis="both",
         which="major",
         labelsize=font_sizes["ticks"],
     )
-    ax.grid(
+    main_axis.grid(
         True,
         which="both",
         color="#E0E0E0",
@@ -1598,20 +1610,20 @@ def plot_bao_observables(
         linewidth=0.5,
     )
 
-    res_ax.axhline(0, color="black", ls="--", lw=1)
-    res_ax.set_xlabel("Redshift (z)", fontsize=font_sizes["label"])
-    res_ax.set_ylabel(
+    residual_axis.axhline(0, color="black", ls="--", lw=1)
+    residual_axis.set_xlabel("Redshift (z)", fontsize=font_sizes["label"])
+    residual_axis.set_ylabel(
         r"$D_X/r_s^{obs} - D_X/r_s^{th}$",
         fontsize=font_sizes["label"],
     )
-    res_ax.legend(fontsize=font_sizes["legend"], loc="best")
-    res_ax.minorticks_on()
-    res_ax.tick_params(
+    residual_axis.legend(fontsize=font_sizes["legend"], loc="best")
+    residual_axis.minorticks_on()
+    residual_axis.tick_params(
         axis="both",
         which="major",
         labelsize=font_sizes["ticks"],
     )
-    res_ax.grid(
+    residual_axis.grid(
         True,
         which="both",
         color="#E0E0E0",
@@ -1668,14 +1680,16 @@ def plot_bao_observables(
 
     y = start_y
     for idx, (line, is_bold) in enumerate(footer_lines):
-        fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
+        tick_font_size = (
+            font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
+        )
         weight = "bold" if is_bold else "normal"
         fig.text(
             0.5,
             y,
             line,
             ha="center",
-            fontsize=fs,
+            fontsize=tick_font_size,
             fontweight=weight,
             wrap=True,
         )
@@ -1830,12 +1844,12 @@ def plot_cmb_spectrum(
         )
 
         if lcdm_theory is not None:
-            th = (
+            theory_values = (
                 lcdm_theory.get(comp)
                 if isinstance(lcdm_theory, dict)
                 else (lcdm_theory if comp == "TT" else None)
             )
-            if th is not None:
+            if theory_values is not None:
                 chi2_lcdm = (
                     f"{lcdm_cmb_results.get('chi2_cmb', np.nan):.2f}"
                     if comp == "TT"
@@ -1846,27 +1860,29 @@ def plot_cmb_spectrum(
                 )
                 axs[idx_main].plot(
                     ells,
-                    th,
+                    theory_values,
                     color="red",
                     ls="-",
                     lw=2.0,
                     label=label,
                 )
-                cv = np.sqrt(2.0 / (2 * ells + 1.0)) * th
-                lower = np.clip(th - cv, 1e-8, None)
+                cosmic_variance = (
+                    np.sqrt(2.0 / (2 * ells + 1.0)) * theory_values
+                )
+                lower = np.clip(theory_values - cosmic_variance, 1e-8, None)
                 axs[idx_main].fill_between(
                     ells,
                     lower,
-                    th + cv,
+                    theory_values + cosmic_variance,
                     color="red",
                     alpha=0.1,
                     label="Cosmic var.",
                     zorder=0,
                 )
-                res = obs - th
+                residuals = obs - theory_values
                 axs[idx_res].errorbar(
                     ells,
-                    res,
+                    residuals,
                     yerr=err,
                     fmt=".",
                     color="red",
@@ -1876,7 +1892,7 @@ def plot_cmb_spectrum(
                     capsize=2,
                     ms=4,
                 )
-                z_avg, r_avg = get_binned_average(ells, res)
+                z_avg, r_avg = get_binned_average(ells, residuals)
                 z_avg, r_avg = _smooth_line(z_avg, r_avg)
                 axs[idx_res].plot(
                     z_avg,
@@ -1889,12 +1905,12 @@ def plot_cmb_spectrum(
                 )
 
         if alt_theory is not None:
-            th = (
+            alt_theory_values = (
                 alt_theory.get(comp)
                 if isinstance(alt_theory, dict)
                 else (alt_theory if comp == "TT" else None)
             )
-            if th is not None:
+            if alt_theory_values is not None:
                 chi2_alt = (
                     f"{alt_cmb_results.get('chi2_cmb', np.nan):.2f}"
                     if comp == "TT"
@@ -1905,16 +1921,16 @@ def plot_cmb_spectrum(
                 )
                 axs[idx_main].plot(
                     ells,
-                    th,
+                    alt_theory_values,
                     color="blue",
                     ls="--",
                     lw=2.0,
                     label=label,
                 )
-                res = obs - th
+                residuals = obs - alt_theory_values
                 axs[idx_res].errorbar(
                     ells,
-                    res,
+                    residuals,
                     yerr=err,
                     fmt=".",
                     mfc="none",
@@ -1926,7 +1942,7 @@ def plot_cmb_spectrum(
                     capsize=2,
                     ms=4,
                 )
-                z_avg, r_avg = get_binned_average(ells, res)
+                z_avg, r_avg = get_binned_average(ells, residuals)
                 z_avg, r_avg = _smooth_line(z_avg, r_avg)
                 axs[idx_res].plot(
                     z_avg,
@@ -2032,14 +2048,16 @@ def plot_cmb_spectrum(
 
     y = start_y
     for idx, (line, is_bold) in enumerate(footer_lines):
-        fs = font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
+        tick_font_size = (
+            font_sizes["ticks"] if idx == 0 else font_sizes["ticks"] - 1
+        )
         weight = "bold" if is_bold else "normal"
         fig.text(
             0.5,
             y,
             line,
             ha="center",
-            fontsize=fs,
+            fontsize=tick_font_size,
             fontweight=weight,
             wrap=True,
         )
@@ -2181,7 +2199,7 @@ def plot_corner(
 
     alt_name = getattr(alt_model_plugin, "MODEL_NAME", "AltModel")
     extra_lines = _format_corner_footer_stats(stats)
-    if az is not None:
+    if arviz_module is not None:
         extra_lines.append(
             ("Corner densities rendered via ArviZ backend.", False)
         )
@@ -2283,7 +2301,7 @@ def plot_corner(
     percentile_lines = (16.0, 50.0, 84.0)
     contour_levels = (0.68, 0.95)
 
-    if az is not None:
+    if arviz_module is not None:
         try:
             if n_params == 1:
                 _render_single_param_arviz(
@@ -2467,9 +2485,9 @@ def plot_parameter_histograms(
     axes_flat = axes.flatten()
 
     for idx in range(rows * columns):
-        ax = axes_flat[idx]
+        param_axis = axes_flat[idx]
         if idx >= n_params:
-            ax.axis("off")
+            param_axis.axis("off")
             continue
 
         values = samples[:, idx]
@@ -2481,13 +2499,13 @@ def plot_parameter_histograms(
             "density": True,
             "rwidth": 0.9,
         }
-        if az is not None:
-            az.plot_dist(
+        if arviz_module is not None:
+            arviz_module.plot_dist(
                 values,
                 kind="hist",
                 hist_kwargs=hist_kwargs,
                 quantiles=[value / 100.0 for value in percentile_lines],
-                ax=ax,
+                ax=param_axis,
                 show=False,
                 textsize=12,
             )
@@ -2495,30 +2513,30 @@ def plot_parameter_histograms(
             logger.warning(
                 "ArviZ unavailable; falling back to Matplotlib histograms."
             )
-            ax.hist(values, **hist_kwargs)
+            param_axis.hist(values, **hist_kwargs)
 
         quantiles = np.percentile(values, percentile_lines)
         for quantile, style in zip(
             quantiles,
             ["dashed", "solid", "dashed"],
         ):
-            ax.axvline(
+            param_axis.axvline(
                 quantile,
                 color="#e15759",
                 linestyle=style,
                 linewidth=1.2,
             )
 
-        ax.set_title(
+        param_axis.set_title(
             wrapped_labels[idx],
             fontsize=14,
         )
-        ax.set_ylabel(
+        param_axis.set_ylabel(
             "Density",
             fontsize=14,
         )
-        ax.grid(True, alpha=0.3)
-        ax.tick_params(labelsize=10)
+        param_axis.grid(True, alpha=0.3)
+        param_axis.tick_params(labelsize=10)
 
     plt.subplots_adjust(
         left=0.06,

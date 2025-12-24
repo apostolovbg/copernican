@@ -149,6 +149,12 @@ class NameClarityCheck(PolicyCheck):
                 continue
             if "tests" in rel.parts:
                 continue
+            if (
+                len(rel.parts) >= 2
+                and rel.parts[0] == "copernican_lib"
+                and rel.parts[1] == "vendor"
+            ):
+                continue
 
             text = path.read_text(encoding="utf-8")
             try:

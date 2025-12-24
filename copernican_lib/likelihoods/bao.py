@@ -27,10 +27,10 @@ from .cmb import compute_camb_background_observables
 class BAOLike(LikelihoodProtocol):
     """Evaluate BAO log-likelihoods for pre-extracted observables."""
 
-    z: np.ndarray
-    obs_type: np.ndarray
-    obs_val: np.ndarray
-    obs_err: np.ndarray
+    redshifts: np.ndarray
+    observable_types: np.ndarray
+    observable_values: np.ndarray
+    observable_errors: np.ndarray
     model_plugin: Any
     covariance_matrix_inv: np.ndarray | None = None
     rs_override: float | None = None
@@ -67,10 +67,10 @@ class BAOLike(LikelihoodProtocol):
     def __post_init__(self) -> None:
         """Normalise arrays and cache model callables for fast evaluation."""
 
-        self._z_values = np.asarray(self.z, dtype=float).copy()
-        self._obs_type = np.asarray(self.obs_type, dtype=object).copy()
-        self._observed = np.asarray(self.obs_val, dtype=float).copy()
-        self._errors = np.asarray(self.obs_err, dtype=float).copy()
+        self._z_values = np.asarray(self.redshifts, dtype=float).copy()
+        self._obs_type = np.asarray(self.observable_types, dtype=object).copy()
+        self._observed = np.asarray(self.observable_values, dtype=float).copy()
+        self._errors = np.asarray(self.observable_errors, dtype=float).copy()
         self._cov_inv = (
             None
             if self.covariance_matrix_inv is None

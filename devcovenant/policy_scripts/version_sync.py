@@ -291,8 +291,8 @@ class VersionSyncCheck(PolicyCheck):
     def _read_pyproject_version(pyproject_path: Path) -> Optional[str]:
         """Return the project.version from pyproject.toml."""
         raw = pyproject_path.read_text(encoding="utf-8")
-        data = tomllib.loads(raw)
-        project = data.get("project")
+        pyproject_data = tomllib.loads(raw)
+        project = pyproject_data.get("project")
         if not isinstance(project, dict):
             return None
         return project.get("version")

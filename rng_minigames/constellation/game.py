@@ -7,10 +7,10 @@ import random
 import time
 
 try:  # pragma: no cover - Tk is optional
-    import tkinter as tk
+    import tkinter as tkinter_module
     from tkinter import ttk
 except Exception:  # pragma: no cover - executed when Tk is missing
-    tk = None
+    tkinter_module = None
     ttk = None
 
 from rng_minigames.api import MinigameContext
@@ -35,18 +35,18 @@ def launch_constellation(context: MinigameContext) -> None:
             "INFO",
         )
 
-    if not context.render or tk is None or context.tk_root is None:
+    if not context.render or tkinter_module is None or context.tk_root is None:
         random_selection = random.sample(range(300), target_connections)
         _apply_seed(random_selection, random.random() * 10)
         return
 
-    window = tk.Toplevel(context.tk_root)
+    window = tkinter_module.Toplevel(context.tk_root)
     window.title("Constellation")
     window.resizable(False, False)
     window.transient(context.tk_root)
     canvas_width = 760
     canvas_height = 480
-    canvas = tk.Canvas(
+    canvas = tkinter_module.Canvas(
         window,
         width=canvas_width,
         height=canvas_height,
@@ -58,9 +58,9 @@ def launch_constellation(context: MinigameContext) -> None:
     stars: list[dict[str, object]] = []
     random.seed()
 
-    def _clamp(value: float) -> int:
+    def _clamp(channel_value: float) -> int:
         """Clamp a color channel value between 0 and 255."""
-        return max(0, min(255, int(round(value))))
+        return max(0, min(255, int(round(channel_value))))
 
     for index in range(star_count):
         x_pos = random.randint(10, canvas_width - 10)
@@ -103,7 +103,9 @@ def launch_constellation(context: MinigameContext) -> None:
     instructions.pack(anchor="w", padx=16)
     selection_frame = ttk.Frame(window)
     selection_frame.pack(fill="x", padx=16, pady=(0, 6))
-    status_var = tk.StringVar(value=f"Stars connected: 0/{target_connections}")
+    status_var = tkinter_module.StringVar(
+        value=f"Stars connected: 0/{target_connections}"
+    )
     ttk.Label(
         selection_frame,
         textvariable=status_var,
@@ -111,7 +113,7 @@ def launch_constellation(context: MinigameContext) -> None:
     ).pack(side="left", anchor="w")
     button_frame = ttk.Frame(selection_frame)
     button_frame.pack(side="right", anchor="e")
-    action_var = tk.StringVar(
+    action_var = tkinter_module.StringVar(
         value="Connect 10 stars to forge your constellation."
     )
     ttk.Label(window, textvariable=action_var, padding=(16, 0)).pack(
@@ -221,16 +223,16 @@ def launch_constellation(context: MinigameContext) -> None:
         """Close the constellation window without applying a seed."""
         window.destroy()
 
-    def _handle_click(event: "tk.Event") -> None:
+    def _handle_click(event: "tkinter_module.Event") -> None:
         """Handle left-clicks to add the nearest star to the selection."""
         if len(selected_indices) >= target_connections:
             return
         nearest = None
         nearest_dist = float("inf")
         for idx, star in enumerate(stars):
-            dx = event.x - star["x"]
-            dy = event.y - star["y"]
-            dist = (dx * dx + dy * dy) ** 0.5
+            delta_x = event.x - star["x"]
+            delta_y = event.y - star["y"]
+            dist = (delta_x * delta_x + delta_y * delta_y) ** 0.5
             if dist < star["radius"] + 8 and dist < nearest_dist:
                 nearest = idx
                 nearest_dist = dist
@@ -244,7 +246,7 @@ def launch_constellation(context: MinigameContext) -> None:
         if len(selected_indices) >= target_connections and accept_button:
             accept_button.state(["!disabled"])
 
-    def _handle_right_click(event: "tk.Event") -> None:
+    def _handle_right_click(event: "tkinter_module.Event") -> None:
         """Handle right-clicks to remove the nearest selected star."""
         if not selected_indices:
             return
@@ -252,9 +254,9 @@ def launch_constellation(context: MinigameContext) -> None:
         nearest_dist = float("inf")
         for idx in selected_indices:
             star = stars[idx]
-            dx = event.x - star["x"]
-            dy = event.y - star["y"]
-            dist = (dx * dx + dy * dy) ** 0.5
+            delta_x = event.x - star["x"]
+            delta_y = event.y - star["y"]
+            dist = (delta_x * delta_x + delta_y * delta_y) ** 0.5
             if dist < star["radius"] + 10 and dist < nearest_dist:
                 nearest = idx
                 nearest_dist = dist
@@ -282,7 +284,7 @@ def launch_constellation(context: MinigameContext) -> None:
         button_bar,
         text="Ad astra!",
         command=_finalize,
-        state=tk.DISABLED,
+        state=tkinter_module.DISABLED,
     )
     accept_button.pack(side="right", padx=(8, 0))
     ttk.Button(

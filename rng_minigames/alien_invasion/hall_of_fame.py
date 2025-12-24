@@ -9,10 +9,10 @@ from typing import Any, List
 import yaml
 
 try:  # pragma: no cover - Tk may be unavailable during tests
-    import tkinter as tk
+    import tkinter as tkinter_module
     from tkinter import ttk
 except Exception:  # pragma: no cover - executed when Tk is missing
-    tk = None
+    tkinter_module = None
     ttk = None
 
 
@@ -44,12 +44,12 @@ class HallOfFame:
         self.entries = self.entries[: self.limit]
         self._save()
 
-    def show(self, parent: "tk.Tk") -> None:
+    def show(self, parent: "tkinter_module.Tk") -> None:
         """Display the scoreboard in a modal window."""
 
-        if tk is None or parent is None:
+        if tkinter_module is None or parent is None:
             return
-        window = tk.Toplevel(parent)
+        window = tkinter_module.Toplevel(parent)
         window.title("Alien Invasion Hall of Fame")
         window.resizable(False, False)
         if ttk is None:
@@ -60,9 +60,9 @@ class HallOfFame:
                 )
                 for idx, entry in enumerate(self.entries)
             )
-            tk.Label(window, text=text or "No runs recorded yet.").pack(
-                padx=16, pady=16
-            )
+            tkinter_module.Label(
+                window, text=text or "No runs recorded yet."
+            ).pack(padx=16, pady=16)
             return
         ttk.Label(
             window,
@@ -96,12 +96,12 @@ class HallOfFame:
         if not self.path.exists():
             return
         try:
-            data = yaml.safe_load(self.path.read_text()) or {}
+            raw_payload = yaml.safe_load(self.path.read_text()) or {}
         except Exception:
             self.entries = []
             self._save()
             return
-        entries = data.get("entries", [])
+        entries = raw_payload.get("entries", [])
         if isinstance(entries, list):
             converted: List[dict[str, Any]] = []
             for entry in entries:

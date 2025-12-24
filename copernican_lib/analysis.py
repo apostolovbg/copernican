@@ -52,10 +52,10 @@ def _normalize_model_label(label: str) -> str:
     return ascii_only.casefold()
 
 
-def _parse_float(value: str) -> Optional[float]:
-    """Parse ``value`` as float while tolerating unicode minus signs."""
+def _parse_float(raw_value: str) -> Optional[float]:
+    """Parse ``raw_value`` as float while tolerating unicode minus signs."""
 
-    cleaned = value.replace("−", "-").replace("\u2212", "-").strip()
+    cleaned = raw_value.replace("−", "-").replace("\u2212", "-").strip()
     try:
         return float(cleaned)
     except ValueError:
@@ -281,10 +281,10 @@ def parse_log(log_path: Path) -> Mapping[str, Any]:
                 content = message.strip()
                 if not ("chi" in content.lower() or "χ" in content):
                     continue
-                key, value = map(str.strip, content.split("=", 1))
+                key, metric_value = map(str.strip, content.split("=", 1))
                 log_models[current_model_key]["chi2"][
                     _sanitize_metric_name(key)
-                ] = (_parse_float(value) or 0.0)
+                ] = (_parse_float(metric_value) or 0.0)
 
     if end_time is None and last_ts is not None:
         end_time = last_ts
@@ -303,9 +303,11 @@ def parse_log(log_path: Path) -> Mapping[str, Any]:
     }
 
 
-def _ensure_mapping(value: Optional[Mapping[str, Any]]) -> Mapping[str, Any]:
+def _ensure_mapping(
+    maybe_mapping: Optional[Mapping[str, Any]]
+) -> Mapping[str, Any]:
     """Return the supplied mapping or an empty dict when it is None."""
-    return value or {}
+    return maybe_mapping or {}
 
 
 @dataclass
@@ -397,9 +399,9 @@ def analyze_run(run_dir: Path) -> RunAnalysisResult:
             covariance_matrix=model_data.get("covariance_matrix"),
             sampling=model_data.get("sampling"),
             chi2={
-                key: value
-                for key, value in chi2_vals.items()
-                if isinstance(value, (int, float))
+                metric_key: metric_value
+                for metric_key, metric_value in chi2_vals.items()
+                if isinstance(metric_value, (int, float))
             },
             acceptance=acceptance.get(norm),
             bao_rs=model_log.get(norm, {}).get("bao_rs"),
@@ -415,9 +417,11 @@ def analyze_run(run_dir: Path) -> RunAnalysisResult:
                 covariance_matrix=None,
                 sampling=None,
                 chi2={
-                    key: value
-                    for key, value in log_entry.get("chi2", {}).items()
-                    if isinstance(value, (int, float))
+                    metric_key: metric_value
+                    for metric_key, metric_value in log_entry.get(
+                        "chi2", {}
+                    ).items()
+                    if isinstance(metric_value, (int, float))
                 },
                 acceptance=acceptance.get(norm_key),
                 bao_rs=log_entry.get("bao_rs"),
@@ -603,7 +607,7 @@ def plot_posterior(
     dataset_id = _posterior_dataset_id(resolved_result)
     data_attrs = _posterior_data_attrs(resolved_result, dataset_id)
     plugin = _posterior_plugin(resolved_result, param_names)
-    ts = _summary_timestamp(resolved_result, override=timestamp)
+    summary_timestamp = _summary_timestamp(resolved_result, override=timestamp)
 
     saved: dict[str, Path] = {}
     if "corner" in selected_kinds:
@@ -613,10 +617,10 @@ def plot_posterior(
             data_attrs,
             plot_dir=str(out_dir),
             parameter_names=param_names,
-            timestamp=ts,
+            timestamp=summary_timestamp,
         )
         saved["corner"] = out_dir / _corner_filename(
-            dataset_id, plugin.MODEL_NAME, ts
+            dataset_id, plugin.MODEL_NAME, summary_timestamp
         )
     if "histograms" in selected_kinds:
         plotter.plot_parameter_histograms(
@@ -625,10 +629,10 @@ def plot_posterior(
             data_attrs,
             plot_dir=str(out_dir),
             parameter_names=param_names,
-            timestamp=ts,
+            timestamp=summary_timestamp,
         )
         saved["histograms"] = out_dir / _histogram_filename(
-            dataset_id, plugin.MODEL_NAME, ts
+            dataset_id, plugin.MODEL_NAME, summary_timestamp
         )
     if "overview" in selected_kinds:
         figure = posterior_explorer.create_posterior_overview_figure(
@@ -637,7 +641,7 @@ def plot_posterior(
         dest = (
             Path(overview_path)
             if overview_path
-            else out_dir / f"analysis-posterior_{ts}.png"
+            else out_dir / f"analysis-posterior_{summary_timestamp}.png"
         )
         dest.parent.mkdir(parents=True, exist_ok=True)
         figure.savefig(dest)
@@ -652,15 +656,17 @@ def plot_posterior(
     return saved
 
 
-def _dump_summary(data: Mapping[str, Any], path: Path, fmt: str) -> None:
+def _dump_summary(
+    summary_data: Mapping[str, Any], path: Path, fmt: str
+) -> None:
     """Serialize summary data to YAML or JSON depending on `fmt`."""
     if fmt in ("yml", "yaml"):
         with open(path, "w", encoding="utf-8") as fh:
-            yaml.safe_dump(data, fh, sort_keys=False)
+            yaml.safe_dump(summary_data, fh, sort_keys=False)
         return
     if fmt == "json":
         with open(path, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2)
+            json.dump(summary_data, fh, indent=2)
         return
     raise ValueError(f"Unsupported summary format: {fmt!r}")
 
@@ -702,18 +708,18 @@ def save_run_summary(
     """
 
     resolved_result = result or analyze_run(Path(run_dir))
-    data = resolved_result.to_dict()
+    summary_payload = resolved_result.to_dict()
     formats_list = _normalize_formats(formats)
-    ts = _summary_timestamp(resolved_result, override=timestamp)
+    summary_timestamp = _summary_timestamp(resolved_result, override=timestamp)
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    base_name = f"analysis-summary_{ts}"
+    base_name = f"analysis-summary_{summary_timestamp}"
     saved: dict[str, Path] = {}
     for fmt in formats_list:
         filename = f"{base_name}.{fmt}"
         target = output_path / filename
-        _dump_summary(data, target, fmt)
+        _dump_summary(summary_payload, target, fmt)
         saved[fmt] = target
     return saved
 
@@ -742,21 +748,21 @@ def _run_descriptor(result: RunAnalysisResult) -> dict[str, Any]:
     }
 
 
-def _safe_numeric(value: Any) -> Optional[float]:
+def _safe_numeric(candidate_value: Any) -> Optional[float]:
     """Coerce numeric-like inputs into a float when possible."""
-    if value is None:
+    if candidate_value is None:
         return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, str):
-        return _parse_float(value)
+    if isinstance(candidate_value, (int, float)):
+        return float(candidate_value)
+    if isinstance(candidate_value, str):
+        return _parse_float(candidate_value)
     return None
 
 
-def _diff_entry(base_value: Any, alt_value: Any) -> dict[str, Any]:
+def _diff_entry(base_measure: Any, alternative_measure: Any) -> dict[str, Any]:
     """Compare two values and report their delta if numeric."""
-    base_num = _safe_numeric(base_value)
-    alt_num = _safe_numeric(alt_value)
+    base_num = _safe_numeric(base_measure)
+    alt_num = _safe_numeric(alternative_measure)
     delta = None
     if base_num is not None and alt_num is not None:
         delta = alt_num - base_num
@@ -765,8 +771,8 @@ def _diff_entry(base_value: Any, alt_value: Any) -> dict[str, Any]:
     elif base_num is not None:
         delta = -base_num
     return {
-        "base": base_value,
-        "alternative": alt_value,
+        "base": base_measure,
+        "alternative": alternative_measure,
         "delta": delta,
     }
 
@@ -868,12 +874,14 @@ def save_comparison_summary(
     """Serialize a comparison summary to disk."""
 
     summary = compare_runs(base_result, alternative_result)
-    ts = timestamp or _summary_timestamp(base_result, override=None)
+    summary_timestamp = timestamp or _summary_timestamp(
+        base_result, override=None
+    )
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     saved: dict[str, Path] = {}
     for fmt in _normalize_formats(formats):
-        filename = f"analysis-comparison_{ts}.{fmt}"
+        filename = f"analysis-comparison_{summary_timestamp}.{fmt}"
         target = output_path / filename
         _dump_summary(summary, target, fmt)
         saved[fmt] = target
@@ -927,8 +935,8 @@ def format_run_summary_text(result: RunAnalysisResult) -> str:
     if result.model_summaries:
         for model_name, summary in result.model_summaries.items():
             lines.append(f"Model: {model_name}")
-            for key, value in sorted(summary.chi2.items()):
-                lines.append(f"  {key}: {value}")
+            for chi2_key, chi2_value in sorted(summary.chi2.items()):
+                lines.append(f"  {chi2_key}: {chi2_value}")
             if summary.acceptance:
                 lines.append(
                     "  Acceptance "

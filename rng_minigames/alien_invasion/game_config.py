@@ -37,15 +37,15 @@ _SETTINGS_NAME = "game_settings.yml"
 def _merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
     """Merge override settings into the base dictionary recursively."""
     result = dict(base)
-    for key, value in override.items():
+    for key, override_value in override.items():
         if (
             key in result
             and isinstance(result[key], dict)
-            and isinstance(value, dict)
+            and isinstance(override_value, dict)
         ):
-            result[key] = _merge(result[key], value)
+            result[key] = _merge(result[key], override_value)
         else:
-            result[key] = value
+            result[key] = override_value
     return result
 
 
@@ -65,13 +65,13 @@ def load_settings() -> Dict[str, Any]:
     _STORAGE_DIR.mkdir(parents=True, exist_ok=True)
     path = _STORAGE_DIR / _SETTINGS_NAME
     try:
-        data = yaml.safe_load(path.read_text()) or {}
+        disk_settings = yaml.safe_load(path.read_text()) or {}
     except FileNotFoundError:
-        data = {}
+        disk_settings = {}
         _write_default_settings(path)
     except Exception:
-        data = {}
+        disk_settings = {}
         _write_default_settings(path)
     if not path.exists():
         _write_default_settings(path)
-    return _merge(DEFAULT_SETTINGS, data)
+    return _merge(DEFAULT_SETTINGS, disk_settings)

@@ -252,40 +252,43 @@ def _build_script_maps() -> tuple[Dict[str, str], Dict[str, str]]:
     greek_lower = "αβγδεζηθικλμνξοπρστυφχψω"
     digits = "0123456789"
 
-    for ch in latin_upper:
-        sub_map[ch] = _SUBSCRIPT_BASE.get(ch.lower(), ch)
-        sup_map[ch] = _SUPERSCRIPT_BASE.get(
-            ch,
-            _SUPERSCRIPT_BASE.get(ch.lower(), ch),
+    for char in latin_upper:
+        sub_map[char] = _SUBSCRIPT_BASE.get(char.lower(), char)
+        sup_map[char] = _SUPERSCRIPT_BASE.get(
+            char,
+            _SUPERSCRIPT_BASE.get(char.lower(), char),
         )
-    for ch in latin_lower:
-        sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
-        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
-    for ch in greek_upper:
-        lower = ch.lower()
-        sub_map[ch] = _SUBSCRIPT_BASE.get(lower, _SUBSCRIPT_BASE.get(ch, ch))
-        sup_map[ch] = _SUPERSCRIPT_BASE.get(
-            ch,
-            _SUPERSCRIPT_BASE.get(lower, ch),
+    for char in latin_lower:
+        sub_map[char] = _SUBSCRIPT_BASE.get(char, char)
+        sup_map[char] = _SUPERSCRIPT_BASE.get(char, char)
+    for char in greek_upper:
+        lower = char.lower()
+        sub_map[char] = _SUBSCRIPT_BASE.get(
+            lower,
+            _SUBSCRIPT_BASE.get(char, char),
         )
-    for ch in greek_lower:
-        sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
-        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
-    for ch in digits:
-        sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
-        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
-    for ch in "()":
-        sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
-        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
-    for ch in "[]":
-        sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
-        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
-    for ch in "{}":
-        sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
-        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
-    for ch in "+-*/=":
-        sub_map[ch] = _SUBSCRIPT_BASE.get(ch, ch)
-        sup_map[ch] = _SUPERSCRIPT_BASE.get(ch, ch)
+        sup_map[char] = _SUPERSCRIPT_BASE.get(
+            char,
+            _SUPERSCRIPT_BASE.get(lower, char),
+        )
+    for char in greek_lower:
+        sub_map[char] = _SUBSCRIPT_BASE.get(char, char)
+        sup_map[char] = _SUPERSCRIPT_BASE.get(char, char)
+    for char in digits:
+        sub_map[char] = _SUBSCRIPT_BASE.get(char, char)
+        sup_map[char] = _SUPERSCRIPT_BASE.get(char, char)
+    for char in "()":
+        sub_map[char] = _SUBSCRIPT_BASE.get(char, char)
+        sup_map[char] = _SUPERSCRIPT_BASE.get(char, char)
+    for char in "[]":
+        sub_map[char] = _SUBSCRIPT_BASE.get(char, char)
+        sup_map[char] = _SUPERSCRIPT_BASE.get(char, char)
+    for char in "{}":
+        sub_map[char] = _SUBSCRIPT_BASE.get(char, char)
+        sup_map[char] = _SUPERSCRIPT_BASE.get(char, char)
+    for char in "+-*/=":
+        sub_map[char] = _SUBSCRIPT_BASE.get(char, char)
+        sup_map[char] = _SUPERSCRIPT_BASE.get(char, char)
     return sub_map, sup_map
 
 
@@ -306,13 +309,13 @@ def latex_to_unicode(text: str) -> str:
         if inner in _UNICODE_SYMBOLS:
             inner_char = _UNICODE_SYMBOLS[inner]
             return _SUB_MAP.get(inner_char, inner_char)
-        return "".join(_SUB_MAP.get(ch, ch) for ch in inner)
+        return "".join(_SUB_MAP.get(char, char) for char in inner)
 
     def _sup_repl(match: re.Match[str]) -> str:
         """Translate a ``^{} `` group into Unicode superscripts."""
         inner = match.group(1)
         inner = inner.replace(" ", "")
-        return "".join(_SUP_MAP.get(ch, ch) for ch in inner)
+        return "".join(_SUP_MAP.get(char, char) for char in inner)
 
     cleaned = re.sub(r"_\{([^{}]+)\}", _sub_repl, cleaned)
     cleaned = re.sub(r"\^\{([^{}]+)\}", _sup_repl, cleaned)

@@ -37,3 +37,19 @@ def test_allows_explicit_override(tmp_path: Path):
     context = CheckContext(repo_root=tmp_path, changed_files=[target])
 
     assert NameClarityCheck().check(context) == []
+
+
+def test_ignores_vendor_files(tmp_path: Path):
+    path = (
+        tmp_path
+        / "copernican_lib"
+        / "vendor"
+        / "third_party"
+        / "example"
+        / "module.py"
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("foo = 1\n", encoding="utf-8")
+    context = CheckContext(repo_root=tmp_path, changed_files=[path])
+
+    assert NameClarityCheck().check(context) == []

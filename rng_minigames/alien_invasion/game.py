@@ -12,11 +12,11 @@ from typing import Callable
 import yaml
 
 try:  # pragma: no cover - Tk only available with GUI rendering
-    import tkinter as tk
-    from tkinter import ttk
+    import tkinter as tkinter_module
+    from tkinter import ttk as tkinter_ttk
 except Exception:  # pragma: no cover - executed when Tk is unavailable
-    tk = None
-    ttk = None
+    tkinter_module = None
+    tkinter_ttk = None
 
 from rng_minigames.api import MinigameContext
 
@@ -40,7 +40,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             "INFO",
         )
 
-    if not context.render or tk is None or context.tk_root is None:
+    if not context.render or tkinter_module is None or context.tk_root is None:
         dummy_order = [f"E{i}" for i in range(10)]
         random.shuffle(dummy_order)
         _apply_seed(dummy_order, random.random() * 20)
@@ -93,8 +93,8 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             raw = {}
         stats: dict[str, float | int] = {}
         for key, default in ALLTIME_LEARNING_DEFAULTS.items():
-            value = raw.get(key, default)
-            stats[key] = value
+            stat_value = raw.get(key, default)
+            stats[key] = stat_value
         return stats
 
     def _reset_learning_history() -> None:
@@ -106,13 +106,13 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     learning_alltime_stats = _load_learning_history()
     _persist_learning_history()
 
-    window = tk.Toplevel(context.tk_root)
+    window = tkinter_module.Toplevel(context.tk_root)
     window.title("Alien invasion")
     window.resizable(False, False)
     window.transient(context.tk_root)
     canvas_width = int(760 * 1.5)
     canvas_height = int(480 * 1.5)
-    canvas = tk.Canvas(
+    canvas = tkinter_module.Canvas(
         window,
         width=canvas_width,
         height=canvas_height,
@@ -134,7 +134,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     base_tick_delay_ms = 40
     min_event_delay_ms = 8
     base_ticks_per_second = 1000 / base_tick_delay_ms
-    learning_speed_var: "tk.IntVar | None" = None
+    learning_speed_var: "tkinter_module.IntVar | None" = None
     player_explosion: list[dict] = []
     player_explosion_handle: str | None = None
     player_explosion_end: float | None = None
@@ -153,38 +153,38 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     current_edge_penalty = 0.0
     current_edge_samples = 0
 
-    def _clamp_learning_speed(value: int) -> int:
+    def _clamp_learning_speed(speed: int) -> int:
         """Keep the learning-speed slider within configured bounds."""
 
-        return max(learning_speed_min, min(learning_speed_max, value))
+        return max(learning_speed_min, min(learning_speed_max, speed))
 
     def _current_learning_speed() -> int:
         """Return the currently cached learning-speed multiplier."""
         nonlocal learning_speed_multiplier
-        value = learning_speed_multiplier
+        candidate_speed = learning_speed_multiplier
         if learning_speed_var is not None:
             try:
-                value = int(learning_speed_var.get())
+                candidate_speed = int(learning_speed_var.get())
             except Exception:
-                value = learning_speed_multiplier
-        value = _clamp_learning_speed(value)
-        learning_speed_multiplier = value
-        return value
+                candidate_speed = learning_speed_multiplier
+        candidate_speed = _clamp_learning_speed(candidate_speed)
+        learning_speed_multiplier = candidate_speed
+        return candidate_speed
 
     def _handle_learning_speed_change(*_args: object) -> None:
         """Update the multiplier when the UI spinbox changes."""
         nonlocal learning_speed_multiplier
         if learning_speed_var is None:
             return
-        current = learning_speed_var.get()
-        try:
-            value = int(current)
-        except Exception:
-            value = learning_speed_multiplier
-        value = _clamp_learning_speed(value)
-        learning_speed_multiplier = value
-        if current != value:
-            learning_speed_var.set(value)
+            current = learning_speed_var.get()
+            try:
+                requested_speed = int(current)
+            except Exception:
+                requested_speed = learning_speed_multiplier
+            requested_speed = _clamp_learning_speed(requested_speed)
+            learning_speed_multiplier = requested_speed
+            if current != requested_speed:
+                learning_speed_var.set(requested_speed)
 
     def _time_scale() -> float:
         """Translate learning mode into a frame-rate multiplier."""
@@ -209,15 +209,20 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         last_color = "#040912"
         for step in range(gradient_steps):
             ratio = step / gradient_steps
-            r = int(5 + ratio * 20)
-            g = int(6 + ratio * 25)
-            b = int(12 + ratio * 35)
-            color = f"#{r:02x}{g:02x}{b:02x}"
+            red = int(5 + ratio * 20)
+            green = int(6 + ratio * 25)
+            blue = int(12 + ratio * 35)
+            color = f"#{red:02x}{green:02x}{blue:02x}"
             last_color = color
-            y0 = sky_height * (step / gradient_steps)
-            y1 = sky_height * ((step + 1) / gradient_steps)
+            stripe_top = sky_height * (step / gradient_steps)
+            stripe_bottom = sky_height * ((step + 1) / gradient_steps)
             canvas.create_rectangle(
-                0, y0, canvas_width, y1, fill=color, outline=""
+                0,
+                stripe_top,
+                canvas_width,
+                stripe_bottom,
+                fill=color,
+                outline="",
             )
         canvas.create_rectangle(
             0,
@@ -271,12 +276,16 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             """Interpolate the hill height at the given horizontal position."""
             if len(ridge_points) < 2:
                 return sky_height
-            for (x0, y0), (x1, y1) in zip(ridge_points[:-1], ridge_points[1:]):
-                if (x0 <= x_val <= x1) or (x1 <= x_val <= x0):
-                    if x1 == x0:
-                        return (y0 + y1) / 2
-                    ratio = (x_val - x0) / (x1 - x0)
-                    return y0 + ratio * (y1 - y0)
+            for (left_x, left_y), (right_x, right_y) in zip(
+                ridge_points[:-1], ridge_points[1:]
+            ):
+                if (left_x <= x_val <= right_x) or (
+                    right_x <= x_val <= left_x
+                ):
+                    if right_x == left_x:
+                        return (left_y + right_y) / 2
+                    ratio = (x_val - left_x) / (right_x - left_x)
+                    return left_y + ratio * (right_y - left_y)
             return ridge_points[-1][1]
 
         def _draw_skyline() -> None:
@@ -358,19 +367,19 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                         outline="#2d3445",
                     )
                     for column_offset in (2, building_width - 3):
-                        wx = left + column_offset - 1
-                        wy = base_y - 4
-                        while wy > top_y + 2:
+                        window_x = left + column_offset - 1
+                        window_y = base_y - 4
+                        while window_y > top_y + 2:
                             lit = random.random() < 0.35
                             canvas.create_rectangle(
-                                wx,
-                                wy,
-                                wx + 1,
-                                wy + 1,
+                                window_x,
+                                window_y,
+                                window_x + 1,
+                                window_y + 1,
                                 fill="#ffdd7a" if lit else "#4c5d89",
                                 outline="",
                             )
-                            wy -= 4
+                            window_y -= 4
                 city_clusters += 1
                 return True
 
@@ -477,10 +486,10 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     def _color_for_star(base: tuple[int, int, int], brightness: float) -> str:
         """Blend the base color with white according to brightness."""
         brightness = max(0.0, min(1.0, brightness))
-        r = int(base[0] * brightness + 255 * (1 - brightness))
-        g = int(base[1] * brightness + 255 * (1 - brightness))
-        b = int(base[2] * brightness + 255 * (1 - brightness))
-        return f"#{r:02x}{g:02x}{b:02x}"
+        red_component = int(base[0] * brightness + 255 * (1 - brightness))
+        green_component = int(base[1] * brightness + 255 * (1 - brightness))
+        blue_component = int(base[2] * brightness + 255 * (1 - brightness))
+        return f"#{red_component:02x}{green_component:02x}{blue_component:02x}"
 
     def _clear_shooting_stars() -> None:
         """Remove every scheduled shooting star from the canvas."""
@@ -519,8 +528,8 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             target_len = random.uniform(30, 150)
         start_x = random.uniform(-60, canvas_width + 60)
         start_y = random.uniform(-80, sky_height * 0.4)
-        vx = math.cos(angle) * speed
-        vy = math.sin(angle) * speed
+        horizontal_velocity = math.cos(angle) * speed
+        vertical_velocity = math.sin(angle) * speed
         grow_rate = max(4.0, target_len / random.uniform(6.0, 10.0))
         decay_rate = grow_rate / random.uniform(1.5, 2.5)
         base_color = _color_from_hex(random.choice(base_colors))
@@ -549,8 +558,8 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 "tail": tail,
                 "head_x": start_x,
                 "head_y": start_y,
-                "vx": vx,
-                "vy": vy,
+                "velocity_x": horizontal_velocity,
+                "velocity_y": vertical_velocity,
                 "size": size,
                 "current_len": 5.0,
                 "target_len": target_len,
@@ -573,11 +582,11 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             _spawn_shooting_star()
             now = time.time()
         for star in list(shooting_stars):
-            speed = math.hypot(star["vx"], star["vy"]) or 1.0
-            ux = star["vx"] / speed
-            uy = star["vy"] / speed
-            star["head_x"] += star["vx"]
-            star["head_y"] += star["vy"]
+            speed = math.hypot(star["velocity_x"], star["velocity_y"]) or 1.0
+            direction_x = star["velocity_x"] / speed
+            direction_y = star["velocity_y"] / speed
+            star["head_x"] += star["velocity_x"]
+            star["head_y"] += star["velocity_y"]
             if star["phase"] == "grow":
                 star["current_len"] = min(
                     star["target_len"],
@@ -599,8 +608,8 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 canvas.delete(star["tail"])
                 shooting_stars.remove(star)
                 continue
-            tail_x = star["head_x"] - ux * star["current_len"]
-            tail_y = star["head_y"] - uy * star["current_len"]
+            tail_x = star["head_x"] - direction_x * star["current_len"]
+            tail_y = star["head_y"] - direction_y * star["current_len"]
             canvas.coords(
                 star["tail"],
                 star["head_x"],
@@ -626,7 +635,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
 
     _draw_background()
     _schedule_next_shooting_star()
-    instructions = ttk.Label(
+    instructions = tkinter_ttk.Label(
         window,
         text=(
             "Move with the mouse, left-click to fire, "
@@ -679,21 +688,21 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     autopilot_active = False
     ai_controller = None
     completed_by_ai = False
-    status_frame = ttk.Frame(window)
+    status_frame = tkinter_ttk.Frame(window)
     status_frame.pack(fill="x", padx=16, pady=(0, 2))
-    shield_status_var = tk.StringVar()
-    ttk.Label(
+    shield_status_var = tkinter_module.StringVar()
+    tkinter_ttk.Label(
         status_frame,
         textvariable=shield_status_var,
         font=("Helvetica", 15, "bold"),
     ).pack(anchor="w", pady=(0, 2))
-    action_var = tk.StringVar()
-    ttk.Label(status_frame, textvariable=action_var).pack(
+    action_var = tkinter_module.StringVar()
+    tkinter_ttk.Label(status_frame, textvariable=action_var).pack(
         anchor="w", pady=(0, 4)
     )
-    ai_stats_var = tk.StringVar()
-    ai_learning_var = tk.StringVar()
-    kill_meter_var = tk.StringVar()
+    ai_stats_var = tkinter_module.StringVar()
+    ai_learning_var = tkinter_module.StringVar()
+    kill_meter_var = tkinter_module.StringVar()
 
     def _format_learning_summary() -> str:
         """Return a short summary string for the learning statistics."""
@@ -742,31 +751,33 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         kill_meter_var.set(f"Kill meter: {current_ai_kills} kills (this run)")
 
     _update_ai_stats()
-    ttk.Label(
+    tkinter_ttk.Label(
         status_frame,
         textvariable=ai_stats_var,
         font=("Helvetica", 10, "normal"),
     ).pack(anchor="w", pady=(0, 2))
-    ttk.Label(
+    tkinter_ttk.Label(
         status_frame,
         textvariable=ai_learning_var,
         font=("Helvetica", 10, "normal"),
     ).pack(anchor="w", pady=(0, 8))
-    ttk.Label(
+    tkinter_ttk.Label(
         status_frame,
         textvariable=kill_meter_var,
         font=("Helvetica", 10, "normal"),
     ).pack(anchor="w", pady=(0, 8))
-    button_bar = ttk.Frame(window)
+    button_bar = tkinter_ttk.Frame(window)
     button_bar.pack(fill="x", padx=16, pady=(2, 12))
-    accept_button = ttk.Button(button_bar, text="Use seed", state=tk.DISABLED)
+    accept_button = tkinter_ttk.Button(
+        button_bar, text="Use seed", state=tkinter_module.DISABLED
+    )
     accept_button.pack(side="right", padx=(0, 8))
-    cancel_button = ttk.Button(button_bar, text="Cancel")
+    cancel_button = tkinter_ttk.Button(button_bar, text="Cancel")
     cancel_button.pack(side="right", padx=(0, 8))
-    try_again_button = ttk.Button(button_bar, text="Reset")
+    try_again_button = tkinter_ttk.Button(button_bar, text="Reset")
     try_again_button.pack(side="right", padx=(0, 8))
 
-    pause_button = ttk.Button(button_bar, text="Pause")
+    pause_button = tkinter_ttk.Button(button_bar, text="Pause")
     pause_button.pack(side="left", padx=(0, 8))
 
     def _show_hall_of_fame() -> None:
@@ -898,22 +909,24 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             return
         now = time.time()
         for shard in list(player_explosion):
-            canvas.move(shard["item"], shard["vx"], shard["vy"])
-            shard["vy"] += 0.08 * explosion_violence
+            canvas.move(
+                shard["item"], shard["velocity_x"], shard["velocity_y"]
+            )
+            shard["velocity_y"] += 0.08 * explosion_violence
             shard["life"] -= 0.015
             coords = canvas.coords(shard["item"])
             if not coords:
                 player_explosion.remove(shard)
                 continue
-            cx = (coords[0] + coords[2]) / 2
-            cy = (coords[1] + coords[3]) / 2
+            shard_center_x = (coords[0] + coords[2]) / 2
+            shard_center_y = (coords[1] + coords[3]) / 2
             size = max(0.5, shard["size"] * shard["life"])
             canvas.coords(
                 shard["item"],
-                cx - size,
-                cy - size,
-                cx + size,
-                cy + size,
+                shard_center_x - size,
+                shard_center_y - size,
+                shard_center_x + size,
+                shard_center_y + size,
             )
             if shard["life"] <= 0:
                 canvas.delete(shard["item"])
@@ -941,10 +954,10 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             angle = random.uniform(0, 2 * math.pi)
             speed = random.uniform(2.5, 6.5) * explosion_violence
             size = random.uniform(3.5, 8.5) * size_scale
-            vx = math.cos(angle) * speed
-            vy = math.sin(angle) * speed
+            horizontal_velocity = math.cos(angle) * speed
+            vertical_velocity = math.sin(angle) * speed
             color = random.choice(colors)
-            item = canvas.create_oval(
+            fragment_shape_id = canvas.create_oval(
                 player["x"] - size,
                 player["y"] - size,
                 player["x"] + size,
@@ -954,9 +967,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             )
             player_explosion.append(
                 {
-                    "item": item,
-                    "vx": vx,
-                    "vy": vy,
+                    "item": fragment_shape_id,
+                    "velocity_x": horizontal_velocity,
+                    "velocity_y": vertical_velocity,
                     "size": size,
                     "life": random.uniform(0.8, 1.2),
                 }
@@ -966,7 +979,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             _animate_player_explosion,
         )
 
-    hall_button = ttk.Button(
+    hall_button = tkinter_ttk.Button(
         button_bar, text="Hall of fame", command=_show_hall_of_fame
     )
     hall_button.pack(side="left", padx=(0, 8))
@@ -979,7 +992,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         else:
             ai_controller.start()
 
-    ai_button = ttk.Button(
+    ai_button = tkinter_ttk.Button(
         button_bar, text="Let AI take care", command=_toggle_ai_pilot
     )
     ai_button.pack(side="left", padx=(0, 8))
@@ -1004,18 +1017,20 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 ai_controller.start()
             action_var.set("AI is now running continuous practice rounds.")
 
-    learning_button = ttk.Button(
+    learning_button = tkinter_ttk.Button(
         button_bar, text="Let AI learn", command=_toggle_learning
     )
     learning_button.pack(side="left", padx=(0, 8))
 
-    if tk is not None and ttk is not None:
-        learning_speed_var = tk.IntVar(value=learning_speed_multiplier)
+    if tkinter_module is not None and tkinter_ttk is not None:
+        learning_speed_var = tkinter_module.IntVar(
+            value=learning_speed_multiplier
+        )
         learning_speed_var.trace_add("write", _handle_learning_speed_change)
-        ttk.Label(button_bar, text="Learning speed").pack(
+        tkinter_ttk.Label(button_bar, text="Learning speed").pack(
             side="left", padx=(8, 4)
         )
-        learning_speed_spin = ttk.Spinbox(
+        learning_speed_spin = tkinter_ttk.Spinbox(
             button_bar,
             from_=learning_speed_min,
             to=learning_speed_max,
@@ -1037,19 +1052,19 @@ def launch_alien_invasion(context: MinigameContext) -> None:
 
     def _request_forget() -> None:
         """Prompt the user before erasing the AI memory."""
-        if tk is None:
+        if tkinter_module is None:
             _perform_ai_forget()
             return
-        dialog = tk.Toplevel(window)
+        dialog = tkinter_module.Toplevel(window)
         dialog.title("Let AI forget?")
         dialog.resizable(False, False)
-        ttk.Label(
+        tkinter_ttk.Label(
             dialog,
             text="Are you sure you will wipe the poor fella's memory?",
             wraplength=320,
             padding=12,
         ).pack(fill="x")
-        btn_row = ttk.Frame(dialog)
+        btn_row = tkinter_ttk.Frame(dialog)
         btn_row.pack(padx=12, pady=(0, 12))
 
         def _wipe() -> None:
@@ -1057,17 +1072,17 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             _perform_ai_forget()
             dialog.destroy()
 
-        ttk.Button(btn_row, text="Wipe", command=_wipe).pack(
+        tkinter_ttk.Button(btn_row, text="Wipe", command=_wipe).pack(
             side="left", padx=(0, 8)
         )
-        ttk.Button(btn_row, text="Pardon", command=dialog.destroy).pack(
-            side="left", padx=(0, 8)
-        )
+        tkinter_ttk.Button(
+            btn_row, text="Pardon", command=dialog.destroy
+        ).pack(side="left", padx=(0, 8))
         dialog.transient(window)
         dialog.grab_set()
         dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
 
-    forget_button = ttk.Button(
+    forget_button = tkinter_ttk.Button(
         button_bar, text="Let AI forget", command=_request_forget
     )
     forget_button.pack(side="left", padx=(0, 8))
@@ -1094,27 +1109,27 @@ def launch_alien_invasion(context: MinigameContext) -> None:
     pause_button.configure(command=_toggle_pause)
     player_height = 22
 
-    def _player_shape_coords(cx: float, cy: float) -> list[float]:
+    def _player_shape_coords(center_x: float, center_y: float) -> list[float]:
         """Return the polygon coordinates for the player sprite."""
         return [
-            cx,
-            cy - 22,
-            cx + 10,
-            cy - 10,
-            cx + 14,
-            cy - 2,
-            cx + 10,
-            cy + 8,
-            cx + 4,
-            cy + 16,
-            cx - 4,
-            cy + 16,
-            cx - 10,
-            cy + 8,
-            cx - 14,
-            cy - 2,
-            cx - 10,
-            cy - 10,
+            center_x,
+            center_y - 22,
+            center_x + 10,
+            center_y - 10,
+            center_x + 14,
+            center_y - 2,
+            center_x + 10,
+            center_y + 8,
+            center_x + 4,
+            center_y + 16,
+            center_x - 4,
+            center_y + 16,
+            center_x - 10,
+            center_y + 8,
+            center_x - 14,
+            center_y - 2,
+            center_x - 10,
+            center_y - 10,
         ]
 
     player = {
@@ -1198,7 +1213,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         "target": None,
         "mode": "patrol",
         "cooldown": 0.0,
-        "vx": 0.0,
+        "velocity_x": 0.0,
         "retreat": False,
         "retreat_target": None,
     }
@@ -1239,7 +1254,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         outline = ""
         width = 0
         if rank == "colonel":
-            ratio = record["hp"] / record["max_hp"]
+            ratio = record["health_points"] / record["max_health_points"]
             outline = "#faf08c"
             if ratio > 0.8:
                 width = 4
@@ -1251,7 +1266,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 width = 1
         elif rank == "major":
             outline = "#a8e3ff"
-            width = 2 if record["hp"] > 1 else 0
+            width = 2 if record["health_points"] > 1 else 0
         elif rank == "general":
             outline = "#ffdbe8"
             width = 3
@@ -1355,13 +1370,13 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     and non_general_index == non_general_total_rows - 2
                 )
                 row_positions: list[float] = []
-                for c in range(row_cols):
+                for column_index in range(row_cols):
                     general = general_group
-                    x = start_x + c * spacing
+                    x = start_x + column_index * spacing
                     if (
                         stagger_row
                         and row_cols > 1
-                        and c == row_cols - 1
+                        and column_index == row_cols - 1
                         and not general
                     ):
                         continue
@@ -1371,45 +1386,45 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                             field_margin, min(canvas_width - field_margin, x)
                         )
                         row_positions.append(x)
-                    if general:
-                        rank = "general"
-                        max_hp = base_general_shield_max
-                    elif is_bottom:
-                        rank = "colonel"
-                        max_hp = 5
-                    elif is_major:
-                        rank = "major"
-                        max_hp = 2
-                    else:
-                        rank = "lieutenant"
-                        max_hp = 1
-                    hp = max_hp
-                    item = _enemy_polygon(
-                        x, y, general=general, elite=is_bottom or is_major
-                    )
-                    enemy_id = f"E{eid:02d}"
-                    enemy_data[enemy_id] = {
-                        "item": item,
-                        "x": x,
-                        "y": y,
-                        "spawn_x": x,
-                        "spawn_y": y,
-                        "alive": True,
-                        "general": general,
-                        "hp": hp,
-                        "max_hp": max_hp,
-                        "rank": rank,
-                        "rail_y": y if general else None,
+                if general:
+                    rank = "general"
+                    max_health_points = base_general_shield_max
+                elif is_bottom:
+                    rank = "colonel"
+                    max_health_points = 5
+                elif is_major:
+                    rank = "major"
+                    max_health_points = 2
+                else:
+                    rank = "lieutenant"
+                    max_health_points = 1
+                health_points = max_health_points
+                enemy_shape_id = _enemy_polygon(
+                    x, y, general=general, elite=is_bottom or is_major
+                )
+                enemy_id = f"E{eid:02d}"
+                enemy_data[enemy_id] = {
+                    "item": enemy_shape_id,
+                    "x": x,
+                    "y": y,
+                    "spawn_x": x,
+                    "spawn_y": y,
+                    "alive": True,
+                    "general": general,
+                    "health_points": health_points,
+                    "max_health_points": max_health_points,
+                    "rank": rank,
+                    "rail_y": y if general else None,
+                }
+                if general:
+                    general_id = enemy_id
+                    general_ai = {
+                        "target": canvas_width - field_margin,
+                        "mode": "patrol",
+                        "cooldown": random.randint(60, 120),
+                        "velocity_x": 0.0,
                     }
-                    if general:
-                        general_id = enemy_id
-                        general_ai = {
-                            "target": canvas_width - field_margin,
-                            "mode": "patrol",
-                            "cooldown": random.randint(60, 120),
-                            "vx": 0.0,
-                        }
-                    _update_enemy_shield_visual(enemy_id)
+                _update_enemy_shield_visual(enemy_id)
                 if stagger_row and not general_group and row_positions:
                     if len(row_positions) >= 2:
                         delta = row_positions[1] - row_positions[0]
@@ -1431,28 +1446,28 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                         x = extra_x
                         if is_bottom:
                             rank = "colonel"
-                            max_hp = 5
+                            max_health_points = 5
                         elif is_major:
                             rank = "major"
-                            max_hp = 2
+                            max_health_points = 2
                         else:
                             rank = "lieutenant"
-                            max_hp = 1
-                        hp = max_hp
-                        item = _enemy_polygon(
+                            max_health_points = 1
+                        health_points = max_health_points
+                        staggered_enemy_shape_id = _enemy_polygon(
                             x, y, general=False, elite=is_bottom or is_major
                         )
                         enemy_id = f"E{eid:02d}"
                         enemy_data[enemy_id] = {
-                            "item": item,
+                            "item": staggered_enemy_shape_id,
                             "x": x,
                             "y": y,
                             "spawn_x": x,
                             "spawn_y": y,
                             "alive": True,
                             "general": False,
-                            "hp": hp,
-                            "max_hp": max_hp,
+                            "health_points": health_points,
+                            "max_health_points": max_health_points,
                             "rank": rank,
                             "rail_y": None,
                         }
@@ -1611,7 +1626,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             "target": None,
             "mode": "patrol",
             "cooldown": 0.0,
-            "vx": 0.0,
+            "velocity_x": 0.0,
         }
         timers_started = False
         run_start_time = None
@@ -1664,7 +1679,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         spawn_y = record.get("spawn_y", record.get("y", 80))
         record["x"] = spawn_x
         record["y"] = spawn_y
-        record["hp"] = record["max_hp"]
+        record["health_points"] = record["max_health_points"]
         elite = record["rank"] in ("colonel", "major")
         record["item"] = _enemy_polygon(
             record["x"], record["y"], general=record["general"], elite=elite
@@ -1765,9 +1780,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 )
                 _update_status()
                 return
-        elif record.get("hp", 1) > 1 and not explosion:
-            record["hp"] -= 1
-            remaining_hp = record["hp"]
+        elif record.get("health_points", 1) > 1 and not explosion:
+            record["health_points"] -= 1
+            remaining_hp = record["health_points"]
             _update_enemy_shield_visual(enemy_id)
             descriptor = (
                 "Colonel"
@@ -1776,7 +1791,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             )
             action_var.set(
                 f"{descriptor} absorbed the hit ({remaining_hp}/"
-                f"{record['max_hp']} shields)."
+                f"{record['max_health_points']} shields)."
             )
             return
         canvas.delete(record["item"])
@@ -1826,7 +1841,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 ai_controller.stop()
             _schedule_learning_restart()
 
-    def _fire_player_shot(_event: "tk.Event | None") -> None:
+    def _fire_player_shot(_event: "tkinter_module.Event | None") -> None:
         """Launch a player laser shot if firing rate and state allow."""
         nonlocal last_shot_time
         if len(player_shots) > 4 or game_over or paused:
@@ -1836,7 +1851,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             return
         _ensure_game_started()
         last_shot_time = now
-        item = canvas.create_rectangle(
+        player_shot_id = canvas.create_rectangle(
             player["x"] - 2,
             player["y"] - player_height / 2,
             player["x"] + 2,
@@ -1844,7 +1859,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             fill="#ffffff",
             outline="",
         )
-        player_shots.append({"item": item, "vy": -12})
+        player_shots.append({"item": player_shot_id, "velocity_y": -12})
 
     def _ensure_game_started() -> None:
         """Start the tick/shot timers once the player acts."""
@@ -1861,7 +1876,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             return
         _set_player_target(target_x, snap=snap)
 
-    def _move_player(event: "tk.Event") -> None:
+    def _move_player(event: "tkinter_module.Event") -> None:
         """Handle mouse movement to steer the player sprite."""
         if game_over or paused:
             return
@@ -1874,11 +1889,11 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         record = enemy_data.get(enemy_id)
         if not record or not record["alive"]:
             return False
-        vy = 6
-        vx = 0.0
+        vertical_velocity = 6
+        horizontal_velocity = 0.0
         if record.get("rank") == "general":
-            vy = 5
-        item = canvas.create_rectangle(
+            vertical_velocity = 5
+        enemy_projectile_id = canvas.create_rectangle(
             record["x"] - 4,
             record["y"] + 10,
             record["x"] + 4,
@@ -1887,7 +1902,12 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             outline="",
         )
         enemy_shots.append(
-            {"item": item, "vy": vy, "vx": vx, "owner": enemy_id}
+            {
+                "item": enemy_projectile_id,
+                "velocity_y": vertical_velocity,
+                "velocity_x": horizontal_velocity,
+                "owner": enemy_id,
+            }
         )
         return True
 
@@ -1943,10 +1963,10 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         if len(charges) >= 2 or charge_count >= charge_capacity:
             return
         x = random.randint(60, canvas_width - 60)
-        item = canvas.create_oval(
+        charge_capsule_id = canvas.create_oval(
             x - 8, 30, x + 8, 46, fill="#b0f3ff", outline="#68d4ff"
         )
-        charges.append({"item": item, "vy": 1.5})
+        charges.append({"item": charge_capsule_id, "velocity_y": 1.5})
 
     def _enemy_fire_cycle() -> None:
         """Timer callback that periodically triggers enemy shots."""
@@ -1993,7 +2013,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
 
     def _launch_bomb() -> None:
         """Launch a stored space charge bomb from the player."""
-        item = canvas.create_polygon(
+        bomb_shape_id = canvas.create_polygon(
             player["x"] - 6,
             player["y"] - 10,
             player["x"],
@@ -2003,10 +2023,10 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             fill="#7dd9ff",
             outline="#bdefff",
         )
-        bombs.append({"item": item, "vy": -1.5})
+        bombs.append({"item": bomb_shape_id, "velocity_y": -1.5})
 
     def _handle_right_click(
-        event: "tk.Event | None", *, announce: bool = True
+        event: "tkinter_module.Event | None", *, announce: bool = True
     ) -> None:
         """Handle right-clicking to fire a stored space charge."""
         nonlocal charge_count
@@ -2038,11 +2058,15 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         return None
 
     def _rects_overlap(
-        a: tuple[int, int, int, int], b: tuple[int, int, int, int]
+        first_bbox: tuple[int, int, int, int],
+        second_bbox: tuple[int, int, int, int],
     ) -> bool:
         """Return True if two bounding boxes intersect."""
         return not (
-            a[2] <= b[0] or a[0] >= b[2] or a[3] <= b[1] or a[1] >= b[3]
+            first_bbox[2] <= second_bbox[0]
+            or first_bbox[0] >= second_bbox[2]
+            or first_bbox[3] <= second_bbox[1]
+            or first_bbox[1] >= second_bbox[3]
         )
 
     def _check_projectile_overlap(
@@ -2076,7 +2100,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 "x": rec["x"],
                 "y": rec["y"],
                 "rank": rec["rank"],
-                "hp": rec["hp"],
+                "health_points": rec["health_points"],
             }
             for rec in enemy_data.values()
             if rec["alive"]
@@ -2090,7 +2114,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 {
                     "x": (bbox[0] + bbox[2]) / 2,
                     "y": bbox[1],
-                    "vy": shot["vy"],
+                    "velocity_y": shot["velocity_y"],
                 }
             )
         player_projectiles = [
@@ -2138,7 +2162,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         player_box = canvas.bbox(player_item)
 
         for shot in list(player_shots):
-            canvas.move(shot["item"], 0, shot["vy"])
+            canvas.move(shot["item"], 0, shot["velocity_y"])
             coords = canvas.coords(shot["item"])
             if not coords or coords[1] < 0:
                 canvas.delete(shot["item"])
@@ -2166,7 +2190,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 continue
 
         for shot in list(enemy_shots):
-            canvas.move(shot["item"], shot.get("vx", 0.0), shot["vy"])
+            canvas.move(
+                shot["item"], shot.get("velocity_x", 0.0), shot["velocity_y"]
+            )
             coords = canvas.coords(shot["item"])
             if not coords or coords[3] > canvas_height:
                 canvas.delete(shot["item"])
@@ -2187,7 +2213,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     _handle_player_hit()
 
         for bomb in list(bombs):
-            canvas.move(bomb["item"], 0, bomb["vy"])
+            canvas.move(bomb["item"], 0, bomb["velocity_y"])
             coords = canvas.coords(bomb["item"])
             if not coords or coords[1] < 0:
                 canvas.delete(bomb["item"])
@@ -2212,7 +2238,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                                 _destroy_enemy(eid, explosion=True)
 
         for charge in list(charges):
-            canvas.move(charge["item"], 0, charge["vy"])
+            canvas.move(charge["item"], 0, charge["velocity_y"])
             coords = canvas.coords(charge["item"])
             if coords and coords[3] > canvas_height:
                 canvas.delete(charge["item"])
@@ -2240,9 +2266,13 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 break
 
         for fragment in list(debris):
-            fragment["vy"] = min(fragment["vy"] + 0.04, 5.0)
-            fragment["vx"] *= 0.99
-            canvas.move(fragment["item"], fragment["vx"], fragment["vy"])
+            fragment["velocity_y"] = min(fragment["velocity_y"] + 0.04, 5.0)
+            fragment["velocity_x"] *= 0.99
+            canvas.move(
+                fragment["item"],
+                fragment["velocity_x"],
+                fragment["velocity_y"],
+            )
             coords = canvas.coords(fragment["item"])
             if not coords or coords[1] > canvas_height - ground_height + 5:
                 canvas.delete(fragment["item"])
@@ -2411,7 +2441,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                 if abs(target - record["x"]) < abs(movement):
                     movement = target - record["x"]
                 jitter = random.uniform(-0.6, 0.6)
-                general_vel = general_ai.get("vx", 0.0)
+                general_vel = general_ai.get("velocity_x", 0.0)
                 general_accel = max(0.25, min(1.0, general_speed_limit * 0.15))
                 desired_velocity = movement
                 general_vel += max(
@@ -2419,10 +2449,10 @@ def launch_alien_invasion(context: MinigameContext) -> None:
                     min(general_accel, desired_velocity - general_vel),
                 )
                 general_vel += random.uniform(-0.4, 0.4)
-                general_ai["vx"] = max(
+                general_ai["velocity_x"] = max(
                     -general_speed_limit, min(general_speed_limit, general_vel)
                 )
-                new_x = record["x"] + general_ai["vx"] + jitter
+                new_x = record["x"] + general_ai["velocity_x"] + jitter
                 new_x = max(
                     safe_margin, min(canvas_width - safe_margin, new_x)
                 )
@@ -2537,9 +2567,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         actual_count = max(1, int(base_count * explosion_violence))
         for _ in range(actual_count):
             speed = random.uniform(1.0, 4.0) * speed_scale * explosion_violence
-            vx = speed * random.uniform(-1.0, 1.0)
-            vy = -abs(speed) + random.uniform(-1.0, 2.0)
-            item = canvas.create_polygon(
+            horizontal_velocity = speed * random.uniform(-1.0, 1.0)
+            vertical_velocity = -abs(speed) + random.uniform(-1.0, 2.0)
+            debris_piece_id = canvas.create_polygon(
                 x - 4,
                 y - 4,
                 x + 4,
@@ -2551,9 +2581,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             )
             debris.append(
                 {
-                    "item": item,
-                    "vx": vx,
-                    "vy": vy,
+                    "item": debris_piece_id,
+                    "velocity_x": horizontal_velocity,
+                    "velocity_y": vertical_velocity,
                 }
             )
 

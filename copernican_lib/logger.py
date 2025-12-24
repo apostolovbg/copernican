@@ -125,11 +125,11 @@ def _patch_builtins(base_dir: str) -> None:
             """Initialize the proxy with the wrapped stream."""
             self._stream = stream
 
-        def write(self, data: str) -> None:
+        def write(self, text: str) -> None:
             """Write to the original stream and mirror the text to logs."""
-            self._stream.write(data)
-            if data:
-                _log_console_message(data)
+            self._stream.write(text)
+            if text:
+                _log_console_message(text)
 
         def flush(self) -> None:
             """Flush the underlying stream."""
@@ -250,22 +250,22 @@ def setup_logging(
         file_tag = f"{file_tag}.txt"
     log_filename = os.path.join(log_dir, file_tag)
 
-    fh = logging.FileHandler(log_filename)
-    fh.setLevel(logging.INFO)
+    file_handler = logging.FileHandler(log_filename)
+    file_handler.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     formatter.converter = time.gmtime
-    fh.setFormatter(formatter)
+    file_handler.setFormatter(formatter)
     if base_dir:
-        fh.addFilter(_PathFilter(base_dir))
-    logger.addHandler(fh)
+        file_handler.addFilter(_PathFilter(base_dir))
+    logger.addHandler(file_handler)
 
-    ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.INFO)
-    ch.setFormatter(logging.Formatter("%(message)s"))
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(logging.Formatter("%(message)s"))
     # Exclude messages that already appeared on the console via patched
     # ``print``/``input`` calls.
-    ch.addFilter(_ConsoleFilter())
-    logger.addHandler(ch)
+    console_handler.addFilter(_ConsoleFilter())
+    logger.addHandler(console_handler)
 
     logging.info(
         f"Logging initialized with UTC timestamps. Log file: {log_filename}"

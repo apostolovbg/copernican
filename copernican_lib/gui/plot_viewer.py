@@ -7,10 +7,10 @@ import logging
 import matplotlib.pyplot as plt
 
 try:
-    import tkinter as tk
+    import tkinter as tk_module
     from tkinter import ttk
 except ImportError:  # pragma: no cover - GUI disabled
-    tk = None
+    tk_module = None
     ttk = None
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -24,14 +24,14 @@ class PlotViewer(ttk.Frame):
 
     def __init__(self, master, *, figure: Figure | None = None):
         """Initialize the plot viewer canvas and event handlers."""
-        if tk is None or ttk is None:
+        if tk_module is None or ttk is None:
             raise RuntimeError("Tkinter is required for the plot viewer.")
         super().__init__(master)
         self.figure: Figure = figure or plt.Figure(figsize=(6, 4))
         self.canvas = FigureCanvasTkAgg(self.figure, master=self)
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
         self._zoom_active = False
-        self._press_event = None
+        self._pan_press_event = None
         self._original_limits: dict[
             tuple[float, float],
             tuple[tuple[float, float], tuple[float, float]],
@@ -47,16 +47,16 @@ class PlotViewer(ttk.Frame):
         self.figure = figure
         self.canvas.figure = figure
         self._zoom_active = False
-        self._press_event = None
+        self._pan_press_event = None
         self._save_original_limits(None)
         self.canvas.draw_idle()
 
     def fit_to_screen(self) -> None:
         """Autoscale all axes to their data limits."""
 
-        for ax in self.figure.axes:
-            ax.relim()
-            ax.autoscale_view()
+        for axis_obj in self.figure.axes:
+            axis_obj.relim()
+            axis_obj.autoscale_view()
         self.canvas.draw_idle()
 
     def fit_all(self) -> None:
@@ -65,12 +65,12 @@ class PlotViewer(ttk.Frame):
         if not self._original_limits:
             self.fit_to_screen()
             return
-        for ax in self.figure.axes:
-            limits = self._original_limits.get(id(ax))
+        for axis_obj in self.figure.axes:
+            limits = self._original_limits.get(id(axis_obj))
             if not limits:
                 continue
-            ax.set_xlim(limits[0])
-            ax.set_ylim(limits[1])
+            axis_obj.set_xlim(limits[0])
+            axis_obj.set_ylim(limits[1])
         self.canvas.draw_idle()
 
     def toggle_zoom(self) -> None:
@@ -90,36 +90,40 @@ class PlotViewer(ttk.Frame):
         """Remember the axes limits for later restoration."""
 
         self._original_limits = {}
-        for ax in self.figure.axes:
-            self._original_limits[id(ax)] = (
-                ax.get_xlim(),
-                ax.get_ylim(),
+        for axis_obj in self.figure.axes:
+            self._original_limits[id(axis_obj)] = (
+                axis_obj.get_xlim(),
+                axis_obj.get_ylim(),
             )
 
     def _on_press(self, event) -> None:
         """Record the press event to start drag panning."""
         if not self._zoom_active or event.inaxes is None:
             return
-        self._press_event = event
+        self._pan_press_event = event
 
     def _on_release(self, event) -> None:
         """Clear the stored press event at the end of a pan."""
         if not self._zoom_active:
             return
-        self._press_event = None
+        self._pan_press_event = None
 
     def _on_motion(self, event) -> None:
         """Pan the axes as the mouse moves while zoom is active."""
-        if not self._zoom_active or self._press_event is None:
+        if not self._zoom_active or self._pan_press_event is None:
             return
-        if event.inaxes is None or self._press_event.inaxes is None:
+        if event.inaxes is None or self._pan_press_event.inaxes is None:
             return
-        dx = event.xdata - self._press_event.xdata
-        dy = event.ydata - self._press_event.ydata
-        ax = event.inaxes
-        xlim = ax.get_xlim()
-        ylim = ax.get_ylim()
-        ax.set_xlim(xlim[0] - dx, xlim[1] - dx)
-        ax.set_ylim(ylim[0] - dy, ylim[1] - dy)
-        self._press_event = event
+        pan_delta_x = event.xdata - self._pan_press_event.xdata
+        pan_delta_y = event.ydata - self._pan_press_event.ydata
+        target_axis = event.inaxes
+        xlim = target_axis.get_xlim()
+        ylim = target_axis.get_ylim()
+        target_axis.set_xlim(
+            xlim[0] - pan_delta_x, xlim[1] - pan_delta_x
+        )
+        target_axis.set_ylim(
+            ylim[0] - pan_delta_y, ylim[1] - pan_delta_y
+        )
+        self._pan_press_event = event
         self.canvas.draw_idle()

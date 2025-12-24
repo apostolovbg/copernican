@@ -354,10 +354,10 @@ class DevCovenantEngine:
 
         # Group by severity
         by_severity = {}
-        for v in violations:
-            if v.severity not in by_severity:
-                by_severity[v.severity] = []
-            by_severity[v.severity].append(v)
+        for violation_entry in violations:
+            if violation_entry.severity not in by_severity:
+                by_severity[violation_entry.severity] = []
+            by_severity[violation_entry.severity].append(violation_entry)
 
         # Report in order: critical, error, warning, info
         for severity in ["critical", "error", "warning", "info"]:

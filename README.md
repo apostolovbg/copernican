@@ -1,4 +1,4 @@
-**Version:** 11.0.1
+**Version:** 11.0.2
 
 ![Copernican Suite banner](docs/banner_github.png)
 

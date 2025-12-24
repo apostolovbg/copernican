@@ -32,19 +32,19 @@ import yaml
 from .utils import get_timestamp
 
 
-def _to_serialisable(obj: Any) -> Any:
-    """Return ``obj`` converted to JSON/YAML friendly types.
+def _to_serialisable(payload: Any) -> Any:
+    """Return ``payload`` converted to JSON/YAML friendly types.
 
     NumPy arrays are cast to nested lists while scalars become plain ``float``
     objects.  This keeps the writer lightweight and avoids introducing a
     heavier dependency such as ``pandas`` for simple transformations.
     """
 
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, (np.floating, np.integer)):
-        return obj.item()
-    return obj
+    if isinstance(payload, np.ndarray):
+        return payload.tolist()
+    if isinstance(payload, (np.floating, np.integer)):
+        return payload.item()
+    return payload
 
 
 def save_summary(
@@ -75,7 +75,7 @@ def save_summary(
 
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
-    ts = timestamp or get_timestamp()
+    summary_timestamp = timestamp or get_timestamp()
 
     summary: Dict[str, Dict[str, Any]] = {}
     for model_name, res in results.items():
@@ -105,12 +105,12 @@ def save_summary(
             ("iterations_completed", "iterations_completed"),
         )
         for out_key, res_key in sampling_fields:
-            value = res.get(res_key)
-            if value is None:
+            sampling_value = res.get(res_key)
+            if sampling_value is None:
                 continue
             if sampling_entry is None:
                 sampling_entry = {}
-            sampling_entry[out_key] = _to_serialisable(value)
+            sampling_entry[out_key] = _to_serialisable(sampling_value)
         summary[model_name] = {
             "parameters": {k: _to_serialisable(v) for k, v in params.items()},
             "errors_1sigma": (
@@ -122,7 +122,7 @@ def save_summary(
             "sampling": sampling_entry,
         }
 
-    base_name = f"parameter-summary_{ts}"
+    base_name = f"parameter-summary_{summary_timestamp}"
     json_path = out_path / f"{base_name}.json"
     yaml_path = out_path / f"{base_name}.yml"
     with open(json_path, "w", encoding="utf-8") as jh:

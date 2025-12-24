@@ -17,7 +17,7 @@ REGISTRY_FILE = PACKAGE_ROOT / "registry.json"
 class MinigameDescriptor:
     """Describe an RNG mini-game."""
 
-    id: str
+    game_id: str
     name: str
     module: str
     callable: str
@@ -57,20 +57,21 @@ def _build_registry() -> List[Dict[str, Any]]:
 
     entries: List[Dict[str, Any]] = []
     for meta_path in PACKAGE_ROOT.glob("*/metadata.json"):
-        data = _load_metadata(meta_path)
-        module_path = _module_path(data["module"])
+        metadata = _load_metadata(meta_path)
+        module_path = _module_path(metadata["module"])
         entries.append(
             {
-                "id": data["id"],
-                "name": data["name"],
-                "module": data["module"],
-                "callable": data["callable"],
-                "description": data.get("description", ""),
+                "id": metadata["id"],
+                "game_id": metadata["id"],
+                "name": metadata["name"],
+                "module": metadata["module"],
+                "callable": metadata["callable"],
+                "description": metadata.get("description", ""),
                 "metadata_hash": _hash_file(meta_path),
                 "module_hash": _hash_file(module_path),
             }
         )
-    entries.sort(key=lambda entry: entry["id"])
+    entries.sort(key=lambda entry: entry["game_id"])
     return entries
 
 
@@ -79,7 +80,7 @@ def refresh_registry() -> List[MinigameDescriptor]:
 
     entries = _build_registry()
     REGISTRY_FILE.write_text(json.dumps(entries, indent=2))
-    return [MinigameDescriptor(**entry) for entry in entries]
+    return [_descriptor_from_entry(entry) for entry in entries]
 
 
 def load_registry() -> List[MinigameDescriptor]:
@@ -91,14 +92,23 @@ def load_registry() -> List[MinigameDescriptor]:
         entries = json.loads(REGISTRY_FILE.read_text())
     except Exception:
         return refresh_registry()
-    return [MinigameDescriptor(**entry) for entry in entries]
+    return [_descriptor_from_entry(entry) for entry in entries]
+
+
+def _descriptor_from_entry(entry: Dict[str, Any]) -> MinigameDescriptor:
+    """Normalize a registry entry so the dataclass receives `game_id`."""
+
+    descriptor_data = dict(entry)
+    descriptor_data.setdefault("game_id", descriptor_data.get("id"))
+    descriptor_data.pop("id", None)
+    return MinigameDescriptor(**descriptor_data)
 
 
 def get_descriptor(game_id: str) -> MinigameDescriptor | None:
     """Return the descriptor for ``game_id`` if present."""
 
     for entry in load_registry():
-        if entry.id == game_id:
+        if entry.game_id == game_id:
             return entry
     return None
 

@@ -54,18 +54,18 @@ TransformCallable = Callable[[float], tuple[float, float]]
 class LogUniformTransform:
     """Picklable helper implementing the log-uniform Jacobian term."""
 
-    def __call__(self, value: float) -> tuple[float, float]:
+    def __call__(self, param_value: float) -> tuple[float, float]:
         """Return the transformed value and the log-Jacobian correction."""
-        value = float(value)
-        if value <= 0.0:
+        numeric_value = float(param_value)
+        if numeric_value <= 0.0:
             raise ValueError(
                 "Log-uniform prior expects strictly positive values"
             )
-        return value, -math.log(value)
+        return numeric_value, -math.log(numeric_value)
 
 
-def _ensure_number(value: object, field: str) -> float:
-    """Return ``value`` as a finite float or raise :class:`PriorError`.
+def _ensure_number(field_value: object, field: str) -> float:
+    """Return ``field_value`` as a finite float or raise :class:`PriorError`.
 
     Parameters
     ----------
@@ -75,10 +75,10 @@ def _ensure_number(value: object, field: str) -> float:
         Human-readable field name for error reporting.
     """
 
-    if value is None:
+    if field_value is None:
         raise PriorError(f"Prior field '{field}' is required")
     try:
-        number = float(value)
+        number = float(field_value)
     except (TypeError, ValueError) as exc:  # pragma: no cover - defensive
         raise PriorError(f"Prior field '{field}' must be a number") from exc
     if not math.isfinite(number):
@@ -92,8 +92,9 @@ class BasePrior:
 
     kind: str
 
-    def log_density(self, value: float) -> float:
-        """Return log p(value) or ``-inf`` when outside the support."""
+    def log_density(self, candidate_value: float) -> float:
+        """Return log p(candidate_value) or ``-inf`` when outside the
+        support."""
 
         raise NotImplementedError
 
@@ -124,9 +125,9 @@ class UniformPrior(BasePrior):
             raise PriorError("Uniform prior requires upper > lower")
         self._log_width = -math.log(self.upper - self.lower)
 
-    def log_density(self, value: float) -> float:
+    def log_density(self, param_value: float) -> float:
         """Return the log density or ``-inf`` when outside the bounds."""
-        if value < self.lower or value > self.upper:
+        if param_value < self.lower or param_value > self.upper:
             return float("-inf")
         return self._log_width
 
@@ -153,9 +154,9 @@ class NormalPrior(BasePrior):
             raise PriorError("Gaussian prior requires finite sigma > 0")
         self._norm = -math.log(self.sigma * math.sqrt(2.0 * math.pi))
 
-    def log_density(self, value: float) -> float:
-        """Return the Gaussian log-density for ``value``."""
-        delta = (value - self.mean) / self.sigma
+    def log_density(self, param_value: float) -> float:
+        """Return the Gaussian log-density for ``param_value``."""
+        delta = (param_value - self.mean) / self.sigma
         return self._norm - 0.5 * delta * delta
 
     def to_mapping(self) -> dict[str, float | str]:
@@ -192,13 +193,13 @@ class LogUniformPrior(BasePrior):
             raise PriorError("Invalid log-uniform interval")
         self._log_interval = -math.log(log_interval)
 
-    def log_density(self, value: float) -> float:
+    def log_density(self, param_value: float) -> float:
         """Return ``log_density`` with the log-Jacobian correction."""
-        if value <= 0:
+        if param_value <= 0:
             return float("-inf")
-        if value < self.lower or value > self.upper:
+        if param_value < self.lower or param_value > self.upper:
             return float("-inf")
-        return self._log_interval - math.log(value)
+        return self._log_interval - math.log(param_value)
 
     def to_mapping(self) -> dict[str, float | str]:
         """Serialize the log-uniform specification for caching."""
@@ -226,26 +227,29 @@ class FixedPrior(BasePrior):
     behaving deterministically.
     """
 
-    value: float
+    fixed_value: float
     _abs_tol: float = field(default=1e-12, init=False, repr=False)
     _rel_tol: float = field(default=1e-12, init=False, repr=False)
 
     def __post_init__(self) -> None:
         """Ensure the fixed value is finite before use."""
-        if not math.isfinite(self.value):
+        if not math.isfinite(self.fixed_value):
             raise PriorError("Fixed priors require a finite value")
 
-    def log_density(self, value: float) -> float:
+    def log_density(self, param_value: float) -> float:
         """Return zero near the fixed value and ``-inf`` otherwise."""
         if math.isclose(
-            value, self.value, rel_tol=self._rel_tol, abs_tol=self._abs_tol
+            param_value,
+            self.fixed_value,
+            rel_tol=self._rel_tol,
+            abs_tol=self._abs_tol,
         ):
             return 0.0
         return float("-inf")
 
     def to_mapping(self) -> dict[str, float | str]:
         """Serialize the fixed prior value for manifest logging."""
-        return {"type": "fixed", "value": self.value}
+        return {"type": "fixed", "value": self.fixed_value}
 
 
 PRIOR_TYPES = {
@@ -292,8 +296,8 @@ def prior_from_mapping(
         upper = _ensure_number(mapping.get("upper"), "upper")
         return LogUniformPrior("loguniform", lower, upper)
     if cls is FixedPrior:
-        value = _ensure_number(mapping.get("value"), "value")
-        return FixedPrior("fixed", value)
+        fixed_value = _ensure_number(mapping.get("value"), "value")
+        return FixedPrior("fixed", fixed_value)
     raise PriorError(f"Unsupported prior implementation for '{prior_type}'")
 
 
