@@ -20,19 +20,20 @@ plus buttons for every page:
 - **Data / Models / Engines** – Expose searchable catalogues sourced from the
   cached registries. Each page includes open-folder actions, metadata panes,
   parser revalidation controls and trust notes so you can inspect assets before
-  entering the builder.
--- **Validation** – Executes `python copernican.py --run-validation`,
-  streams the CLI output into a Run Monitor–style log box, saves outputs under
-  `validation/output/<manifest_stem>/validation_run_<timestamp>/` and writes the
-  latest summary to the gitignored `VALIDATION.md`. The manifest evaluates the
-  fixed reference model against Union Through UNITY 2000 SNe, BOSS DR12 BAO and
-  Planck 2018 Lite, declaring every parameter via `fixed` priors so the sampler
-  still leaves a trace and the corner plot highlights that canonical point even
-  though the values remain numerically fixed for validation. **Cancel validation**
-  terminates the background worker, **Clear validation** removes every
-  `validation/output/.../validation_run_*` folder plus `VALIDATION.md`, and the “Lock summary to
-  latest entry” checkbox keeps the log pinned to the newest lines while the GUI
-  progress bars mirror the CLI counter state.
+  entering the builder. -- **Validation** – Executes `python copernican.py
+  --run-validation`, streams the CLI output into a Run Monitor–style log box,
+  saves outputs under
+  `validation/output/<manifest_stem>/validation_run_<timestamp>/` and writes
+  the latest summary to the gitignored `VALIDATION.md`. The manifest evaluates
+  the fixed reference model against Union Through UNITY 2000 SNe, BOSS DR12 BAO
+  and Planck 2018 Lite, declaring every parameter via `fixed` priors so the
+  sampler still leaves a trace and the corner plot highlights that canonical
+  point even though the values remain numerically fixed for validation.
+  **Cancel validation** terminates the background worker, **Clear validation**
+  removes every `validation/output/.../validation_run_*` folder plus
+  `VALIDATION.md`, and the “Lock summary to latest entry” checkbox keeps the
+  log pinned to the newest lines while the GUI progress bars mirror the CLI
+  counter state.
 - **Settings** – Provides diagnostics filters, log viewers and output-directory
   helpers plus a recap of the `COPERNICAN_*` environment variables currently in
   effect.
@@ -52,19 +53,19 @@ contextual two-line message under the buttons explains what needs to happen on
 each page. The steps are:
 
 1. **Seed** – Enter a numeric seed or accept the default. The GUI respects the
-  `COPERNICAN_SEED` environment variable and logs the final value into the run
-  manifest and summary tables. Default (0), Random timestamp, Alien Invasion,
-  Emoji Meteors, Constellation and the environment override buttons are
-  arranged in a single vertical stack so screen-readers and keyboard users can
-  tab through them predictably. Mini-game documentation lives next to the code:
-  see [`rng_minigames/README.md`](../rng_minigames/README.md) for the API and the
-  per-game READMEs under `rng_minigames/<game>/` for rules, accessibility notes
-  and configuration settings. Alien Invasion exposes both a **Let AI take care**
-  autopilot (which learns per workstation using cache files) and a Hall of Fame
-  leaderboard so players can compare the fastest completions or let the AI
-  practice on their behalf. The window also exposes Pause/Resume, **Let AI
-  learn** (continuous loops) and **Let AI forget** controls, all documented in
-  the alien-invasion README.
+   `COPERNICAN_SEED` environment variable and logs the final value into the run
+   manifest and summary tables. Default (0), Random timestamp, Alien Invasion,
+   Emoji Meteors, Constellation and the environment override buttons are
+   arranged in a single vertical stack so screen-readers and keyboard users can
+   tab through them predictably. Mini-game documentation lives next to the
+   code: see [`rng_minigames/README.md`](../rng_minigames/README.md) for the
+   API and the per-game READMEs under `rng_minigames/<game>/` for rules,
+   accessibility notes and configuration settings. Alien Invasion exposes both
+   a **Let AI take care** autopilot (which learns per workstation using cache
+   files) and a Hall of Fame leaderboard so players can compare the fastest
+   completions or let the AI practice on their behalf. The window also exposes
+   Pause/Resume, **Let AI learn** (continuous loops) and **Let AI forget**
+   controls, all documented in the alien-invasion README.
 2. **Models** – Single-select list with quick metadata access. The preview pane
    stays pinned above the footer and shortens automatically so dataset controls
    remain visible.
@@ -82,9 +83,9 @@ each page. The steps are:
    you save, save-and-confirm, export to an external path, open the on-disk
    manifest or clear the workspace.
 6. **Confirm** – Summarises the entire run, including walker/burn-in/production
-   settings and pool size hints. The **Start run** button stays disabled until a
-   manifest exists so every execution renames the workspace
-   (`copernican-run_<timestamp>`) before launching the CLI worker.
+   settings and pool size hints. The **Start run** button stays disabled until
+   a manifest exists so every execution renames the workspace (`copernican-
+   run_<timestamp>`) before launching the CLI worker.
 
 `Next` is blocked on the Engine step until all of the first four pages have
 selections. Attempting to proceed triggers a toast and a modal warning telling
@@ -94,17 +95,18 @@ workspace on disk.
 
 ## Saving and Exporting Manifests
 The builder creates a temporary workspace under `output/` named
-`copernican_run_NEW_CONFIG`. Saving writes
-`run_manifest_NEW_CONFIG.yml` into that directory, updates the summary metadata
-and unlocks the Confirm step. You can then:
+`copernican_run_NEW_CONFIG`. Saving writes `run_manifest_NEW_CONFIG.yml` into
+that directory, updates the summary metadata and unlocks the Confirm step. You
+can then:
 
 - Export the manifest to another folder via **Save to external folder...**
 - Open the existing manifest with the OS default application
 - Clear the configuration, which deletes the workspace and resets every field
 - Save and jump straight to Confirm without manually clicking `Next`
 
-The GUI and CLI now share `copernican_lib.run_executor.execute_run_from_manifest`,
-so every saved manifest flows through the exact same orchestration code.
+The GUI and CLI now share
+`copernican_lib.run_executor.execute_run_from_manifest`, so every saved
+manifest flows through the exact same orchestration code.
 
 ## Run Monitor and Diagnostics
 The Run Monitor page exposes:

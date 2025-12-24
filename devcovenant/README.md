@@ -1,10 +1,12 @@
 # DevCovenant - Self-Enforcing Policy System
 
-**Version:** 1.0.0
-**Status:** Production Ready
-**License:** MIT (when standalone)
+**Version:** 1.0.0 **Status:** Production Ready **License:** MIT (when
+standalone)
 
-DevCovenant is an autonomous, AI-driven policy enforcement system that maintains perfect consistency between human-readable policies and automated compliance checks. Originally developed for the Copernican Suite, it's designed to be a standalone system that can be integrated into any repository.
+DevCovenant is an autonomous, AI-driven policy enforcement system that
+maintains perfect consistency between human-readable policies and automated
+compliance checks. Originally developed for the Copernican Suite, it's designed
+to be a standalone system that can be integrated into any repository.
 
 ---
 
@@ -34,22 +36,31 @@ DevCovenant is an autonomous, AI-driven policy enforcement system that maintains
 
 ### The Problem
 
-Development policies are typically documented in one place (README, CONTRIBUTING.md, etc.) but enforced separately through linters, pre-commit hooks, and CI checks. This creates several issues:
+Development policies are typically documented in one place (README,
+CONTRIBUTING.md, etc.) but enforced separately through linters, pre-commit
+hooks, and CI checks. This creates several issues:
 
 - **Drift**: Policy documentation and enforcement logic diverge over time
-- **Manual Sync**: Developers must manually update enforcement scripts when policies change
-- **Inconsistency**: Different tools enforce different interpretations of the same policy
+- **Manual Sync**: Developers must manually update enforcement scripts when
+  policies change
+- **Inconsistency**: Different tools enforce different interpretations of the
+  same policy
 - **Discovery**: New contributors struggle to find and understand all policies
 
 ### The Solution
 
 DevCovenant solves this by making policies **self-enforcing**:
 
-1. **Single Source of Truth**: Policies are defined in plain English in your main documentation file (AGENTS.md, CONTRIBUTING.md, etc.)
-2. **Structured Metadata**: Each policy has machine-readable metadata (severity, status, auto-fix capability)
-3. **Automated Sync**: AI agents automatically generate and update enforcement scripts from policy text
-4. **Hash Verification**: Cryptographic hashes ensure policies and scripts stay in sync
-5. **Continuous Enforcement**: Pre-commit hooks, lint, and CI all use the same policy engine
+1. **Single Source of Truth**: Policies are defined in plain English in your
+   main documentation file (AGENTS.md, CONTRIBUTING.md, etc.)
+2. **Structured Metadata**: Each policy has machine-readable metadata
+   (severity, status, auto-fix capability)
+3. **Automated Sync**: AI agents automatically generate and update enforcement
+   scripts from policy text
+4. **Hash Verification**: Cryptographic hashes ensure policies and scripts stay
+   in sync
+5. **Continuous Enforcement**: Pre-commit hooks, lint, and CI all use the same
+   policy engine
 
 ### Key Benefits
 
@@ -67,18 +78,15 @@ DevCovenant solves this by making policies **self-enforcing**:
 
 ### Policy Definition
 
-A **policy** is a development rule defined in structured format within your documentation:
+A **policy** is a development rule defined in structured format within your
+documentation:
 
 ```markdown
 ## Policy: No Hardcoded Secrets
 
 ```policy-def
-id: no-hardcoded-secrets
-status: active
-severity: critical
-auto_fix: false
-updated: false
-applies_to: *.py,*.js,*.yml
+id: no-hardcoded-secrets status: active severity: critical auto_fix: false
+updated: false applies_to: *.py,*.js,*.yml
 ```
 
 Never commit secrets, API keys, passwords, or tokens to the repository.
@@ -118,30 +126,34 @@ DevCovenant maintains a **registry** that stores cryptographic hashes of:
 - Policy text (from documentation)
 - Policy script (Python implementation)
 
-When the hash of policy text changes but the script hash hasn't, DevCovenant detects this mismatch and alerts the AI to update the script.
+When the hash of policy text changes but the script hash hasn't, DevCovenant
+detects this mismatch and alerts the AI to update the script.
 
 ### Severity Levels
 
 Policies have severity levels that control when they block operations:
 
-| Severity   | Description                        | Blocks At           |
-|------------|------------------------------------|---------------------|
-| `critical` | Must fix immediately, always blocks | Always              |
-| `error`    | Should fix, blocks at error threshold | error, warning, info |
-| `warning`  | Should address, blocks at warning threshold | warning, info       |
-| `info`     | Informational only                 | Never               |
+| Severity   | Description                 | Blocks At |
+|------------|-----------------------------|-----------|
+| `critical` | Must fix immediately        | Always    |
+| `error`    | Blocks at error threshold   | error+    |
+| `warning`  | Blocks at warning threshold | warning+  |
+| `info`     | Informational only          | Never     |
+
+`error+` covers error, warning and info runs. `warning+` covers warning and
+info runs.
 
 ### Status Values
 
 Policies have status values that control their lifecycle:
 
-| Status       | Description                           | AI Action Required     |
-|--------------|---------------------------------------|------------------------|
-| `new`        | Policy is newly added                 | Create script & tests  |
-| `active`     | Policy is active and enforced         | None                   |
-| `updated`    | Policy text has changed               | Update script & tests  |
-| `deprecated` | Policy is being phased out            | None (warnings only)   |
-| `deleted`    | Policy has been removed               | Delete script & tests  |
+| Status       | Description                 | AI Action          |
+|--------------|-----------------------------|--------------------|
+| `new`        | Policy is newly added       | Create script/tests |
+| `active`     | Policy is enforced          | None               |
+| `updated`    | Policy text has changed     | Update script/tests |
+| `deprecated` | Policy is being phased out  | None (warn only)   |
+| `deleted`    | Policy has been removed     | Remove script/tests |
 
 ---
 
@@ -196,6 +208,7 @@ devcovenant/
 ├── __init__.py              # Package initialization
 ├── README.md                # This file
 ├── config.yaml              # Configuration settings
+├── devcovignore.md          # Gitignore-style global policy exclusions
 ├── registry.json            # Policy hash registry (auto-generated)
 │
 ├── base.py                  # Base classes and data structures
@@ -287,7 +300,9 @@ chmod +x devcovenant_check.py
 
 #### 1. Define Your Policy Documentation File
 
-DevCovenant reads policies from a markdown file (typically `AGENTS.md`, `CONTRIBUTING.md`, or `POLICIES.md`). Update `devcovenant/parser.py` if using a different filename:
+DevCovenant reads policies from a markdown file (typically `AGENTS.md`,
+`CONTRIBUTING.md`, or `POLICIES.md`). Update `devcovenant/parser.py` if using a
+different filename:
 
 ```python
 # In parser.py
@@ -310,12 +325,8 @@ Add policy definitions to your documentation file using the structured format:
 ## Policy: Your Policy Name
 
 ```policy-def
-id: your-policy-id
-status: active
-severity: error
-auto_fix: false
-updated: false
-applies_to: *.py
+id: your-policy-id status: active severity: error auto_fix: false updated:
+false applies_to: *.py
 ```
 
 Policy description here...
@@ -432,7 +443,8 @@ $ python devcovenant_check.py check --mode=startup
 
 #### Before Committing Code
 
-DevCovenant runs automatically via pre-commit hook, but AI can also run manually:
+DevCovenant runs automatically via pre-commit hook, but AI can also run
+manually:
 
 ```bash
 python devcovenant_check.py check --mode=pre-commit
@@ -566,13 +578,10 @@ Configure your IDE to run DevCovenant on save or as a task:
 ## Policy: [Human-Readable Name]
 
 ```policy-def
-id: [unique-identifier-kebab-case]
-status: [new|active|updated|deprecated|deleted]
-severity: [critical|error|warning|info]
-auto_fix: [true|false]
-updated: [true|false]
-applies_to: [file-pattern] (optional)
-hash: [sha256-hash] (optional, auto-maintained)
+id: [unique-identifier-kebab-case] status:
+[new|active|updated|deprecated|deleted] severity: [critical|error|warning|info]
+auto_fix: [true|false] updated: [true|false] applies_to: [file-pattern]
+(optional) hash: [sha256-hash] (optional, auto-maintained)
 ```
 
 [Detailed policy description in plain English]
@@ -596,20 +605,27 @@ hash: [sha256-hash] (optional, auto-maintained)
 
 ### Field Descriptions
 
-| Field        | Required | Description                                                                 |
-|--------------|----------|-----------------------------------------------------------------------------|
-| `id`         | Yes      | Unique identifier in kebab-case (e.g., `no-hardcoded-secrets`)              |
-| `status`     | Yes      | Lifecycle status: `new`, `active`, `updated`, `deprecated`, `deleted`       |
-| `severity`   | Yes      | Enforcement level: `critical`, `error`, `warning`, `info`                   |
-| `auto_fix`   | Yes      | Whether auto-fixing is available: `true` or `false`                         |
-| `updated`    | Yes      | Set to `true` when policy text changes, triggers AI script update           |
-| `applies_to` | No       | File pattern (glob) this policy applies to, e.g., `*.py`, `src/**/*.js`     |
-| `hash`       | No       | SHA256 hash of policy + script, auto-maintained by DevCovenant              |
-| `enforcement` | No      | `active` for blocking policies, `fiducial` when the script only reminds      |
-| `waiver`     | No       | `true` when the policy accepts temporary exemptions via `.devcovenant/waivers/<policy-id>.txt` |
+- **`id`** *(required)* — Unique identifier in kebab-case (for example,
+  `no-hardcoded-secrets`).
+- **`status`** *(required)* — Lifecycle flag: `new`, `active`, `updated`,
+  `deprecated` or `deleted`.
+- **`severity`** *(required)* — Enforcement tier: `critical`, `error`,
+  `warning` or `info`.
+- **`auto_fix`** *(required)* — Whether the policy offers an auto-fix
+  helper (`true` or `false`).
+- **`updated`** *(required)* — Set to `true` whenever the policy text changes
+  so the AI knows to refresh the script and tests.
+- **`applies_to`** *(optional)* — Glob or path expression defining the files
+  to check (for example, `*.py` or `src/**/*.js`).
+- **`hash`** *(optional)* — SHA256 hash of the policy text plus the script,
+  maintained by DevCovenant.
+- **`enforcement`** *(optional)* — `active` for blocking checks or
+  `fiducial` for informational reminders.
+- **`waiver`** *(optional)* — `true` when deviations can be recorded in
+  `.devcovenant/waivers/<policy-id>.txt`.
 
-Fiducial policies emit informational reminders without blocking commits
-(you can promote them to `active` enforcement once the reminders are addressed).  
+Fiducial policies emit informational reminders without blocking commits (you
+can promote them to `active` enforcement once the reminders are addressed).
 Waiver-enabled policies (e.g., `read-only-directories`) expect the agent to add
 the approved exceptions to the matching file under `.devcovenant/waivers/`
 before editing the protected paths. The read-only directory list itself is
@@ -617,8 +633,8 @@ stored in `devcovenant/read_only_directories.txt` and read on every run so the
 policy re-registers the protected patterns automatically.
 
 The `docstring-and-comment-coverage` policy always scans any `.py` file outside
-`tests/` (in addition to the staged files), so running DevCovenant in `lint`
-or `startup` mode inspects the entire workspace for missing docstrings/comments.
+`tests/` (in addition to the staged files), so running DevCovenant in `lint` or
+`startup` mode inspects the entire workspace for missing docstrings/comments.
 
 ### Example Policies
 
@@ -628,12 +644,8 @@ or `startup` mode inspects the entire workspace for missing docstrings/comments.
 ## Policy: No Secrets in Code
 
 ```policy-def
-id: no-secrets-in-code
-status: active
-severity: critical
-auto_fix: false
-updated: false
-applies_to: *
+id: no-secrets-in-code status: active severity: critical auto_fix: false
+updated: false applies_to: *
 ```
 
 Never commit secrets, API keys, passwords, or tokens.
@@ -657,12 +669,8 @@ Use environment variables:
 ## Policy: Trailing Whitespace
 
 ```policy-def
-id: no-trailing-whitespace
-status: active
-severity: warning
-auto_fix: true
-updated: false
-applies_to: *.py,*.js,*.md
+id: no-trailing-whitespace status: active severity: warning auto_fix: true
+updated: false applies_to: *.py,*.js,*.md
 ```
 
 Remove trailing whitespace from lines.
@@ -1078,19 +1086,60 @@ reporting:
 
 ### Configuration Options Explained
 
-| Option              | Default   | Description                                                    |
-|---------------------|-----------|----------------------------------------------------------------|
-| `master_update`     | `true`    | Allow AI to update scripts automatically                       |
-| `fix_threshold`     | `warning` | Auto-fix violations at this level and above                    |
-| `fail_threshold`    | `error`   | Block operations on violations at this level and above         |
-| `auto_fix_enabled`  | `true`    | Enable auto-fixers globally                                    |
-| `parallel_checks`   | `true`    | Run policy checks in parallel (faster)                         |
-| `verbose`           | `true`    | Detailed output messages                                       |
-| `self_enforcement`  | `true`    | DevCovenant checks itself                                      |
-| `pre_commit`        | `true`    | Enable pre-commit hook                                         |
-| `show_policy_links` | `true`    | Include links to policy docs in violation messages             |
-| `audit_trail`       | `true`    | Track policy update history                                    |
-| `use_colors`        | `true`    | ANSI color codes in output                                     |
+- **`master_update`** *(default `true`)* — Allows the AI to update scripts
+  automatically.
+- **`fix_threshold`** *(default `warning`)* — Auto-fixes issues at this
+  severity and above.
+- **`fail_threshold`** *(default `error`)* — Blocks runs when violations at
+  this level (or worse) appear.
+- **`auto_fix_enabled`** *(default `true`)* — Toggles all auto-fixers.
+- **`parallel_checks`** *(default `true`)* — Runs policy checks in parallel
+  for faster feedback.
+- **`verbose`** *(default `true`)* — Prints detailed progress messages.
+- **`self_enforcement`** *(default `true`)* — Enables DevCovenant's
+  self-checks.
+- **`pre_commit`** *(default `true`)* — Installs the pre-commit hook.
+- **`show_policy_links`** *(default `true`)* — Adds documentation links to
+  violation messages.
+- **`audit_trail`** *(default `true`)* — Tracks policy updates in the registry.
+- **`use_colors`** *(default `true`)* — Emits ANSI color codes in the CLI
+  output.
+
+### Global Ignore List
+
+Repository-wide exclusions live in `devcovenant/devcovignore.md`. The file uses
+`.gitignore` syntax (one pattern per line, comments start with `#`) and is read
+by `CheckContext` before any policy runs. Paths matching a pattern are removed
+from both `changed_files` and `all_files`, so every policy automatically skips
+vendored code, generated artifacts or other shared exclusions. The current file
+ship with:
+
+```
+copernican_lib/vendor/**
+tests/**
+**/tests/**
+```
+
+Update `devcovignore.md` whenever a new global exclusion is required instead of
+duplicating logic inside each policy script.
+
+---
+
+### Semantic Version Scope Markers
+
+Releases that bump `copernican_lib/VERSION` must also tag the newest changelog
+section with `[semver:patch]`, `[semver:minor]` or `[semver:major]`. The
+`semantic-version-scope` policy compares those markers to the difference
+between the newest two `## Version` headers and blocks when the bump is smaller
+than the declared scope. Use patch for backwards-compatible fixes, minor for
+backwards-compatible features and major for breaking changes. Scope checks
+ignore changes scoped entirely to `devcovenant/` or `rng_minigames/`, and
+exceptional cases may specify `override=<level>` in
+`.devcovenant/waivers/semantic-version-scope.txt`. Remove the override file as
+soon as the release lands so future bumps use the changelog markers again. When
+a changelog release is recorded, bump `copernican_lib/VERSION` in the same
+commit and keep every `[semver:*]` tag in that release block at the same scope;
+mixed scopes or changelog-only scope changes now trigger a policy violation.
 
 ---
 
@@ -1153,7 +1202,8 @@ Policy 'my-policy' has been updated.
 The policy script is out of sync and must be updated FIRST.
 ```
 
-**Cause:** Policy text in AGENTS.md was changed, but the script hasn't been updated yet.
+**Cause:** Policy text in AGENTS.md was changed, but the script hasn't been
+updated yet.
 
 **Solution:**
 1. Update the script in `devcovenant/policy_scripts/<policy_id>.py`
@@ -1220,7 +1270,8 @@ export PYTHONPATH=$PYTHONPATH:/path/to/repo
 1. **Be Specific**: Write clear, unambiguous policy descriptions
 2. **Provide Examples**: Include both violations and fixes
 3. **Explain Why**: Document the rationale for each policy
-4. **Set Appropriate Severity**: Reserve `critical` for security/data loss issues
+4. **Set Appropriate Severity**: Reserve `critical` for security/data loss
+   issues
 5. **Enable Auto-fix When Possible**: Makes compliance easier
 6. **Update Tests**: Always update tests when changing policies
 

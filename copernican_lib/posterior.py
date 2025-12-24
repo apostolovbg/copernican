@@ -83,15 +83,15 @@ class PosteriorEvaluator:
 
         bounds = self.bounds
         if bounds is not None:
-        for idx, transformed_value in enumerate(transformed):
-            try:
-                low_val, high_val = bounds[idx]
-            except IndexError:
-                low_val = high_val = None
-            if low_val is not None and transformed_value < low_val:
-                return float("-inf")
-            if high_val is not None and transformed_value > high_val:
-                return float("-inf")
+            for idx, transformed_value in enumerate(transformed):
+                try:
+                    low_val, high_val = bounds[idx]
+                except IndexError:
+                    low_val = high_val = None
+                if low_val is not None and transformed_value < low_val:
+                    return float("-inf")
+                if high_val is not None and transformed_value > high_val:
+                    return float("-inf")
 
         log_prior = log_jacobian
         for transformed_value, prior in zip_longest(

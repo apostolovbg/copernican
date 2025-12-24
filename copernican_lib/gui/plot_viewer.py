@@ -119,11 +119,7 @@ class PlotViewer(ttk.Frame):
         target_axis = event.inaxes
         xlim = target_axis.get_xlim()
         ylim = target_axis.get_ylim()
-        target_axis.set_xlim(
-            xlim[0] - pan_delta_x, xlim[1] - pan_delta_x
-        )
-        target_axis.set_ylim(
-            ylim[0] - pan_delta_y, ylim[1] - pan_delta_y
-        )
+        target_axis.set_xlim(xlim[0] - pan_delta_x, xlim[1] - pan_delta_x)
+        target_axis.set_ylim(ylim[0] - pan_delta_y, ylim[1] - pan_delta_y)
         self._pan_press_event = event
         self.canvas.draw_idle()

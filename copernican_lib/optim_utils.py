@@ -135,9 +135,7 @@ def minimize_with_progress(
             last_update = now
             last_eval = eval_count["count"]
 
-        return (
-            objective_value if np.isfinite(objective_value) else 1e12
-        )
+        return objective_value if np.isfinite(objective_value) else 1e12
 
     result = None
     try:

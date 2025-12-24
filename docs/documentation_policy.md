@@ -9,8 +9,8 @@ more than fix typos.
 - Update `README.md`, `AGENTS.md` and any affected files under `docs/`.
 - Expand the scope or depth of documentation so it grows alongside the code.
 - Synchronise version strings and `Last Updated` fields across all documents.
-- Keep every `Last Updated` marker within the first three lines of its file
-  and record only the ISO calendar date (YYYY-MM-DD) with no time component.
+- Keep every `Last Updated` marker within the first three lines of its file and
+  record only the ISO calendar date (YYYY-MM-DD) with no time component.
 - Record the changes in `CHANGELOG.md`.
 - Document user-facing console behaviour changes, including logging output and
   progress indicators, so users understand new interactions. The retirement of
@@ -22,11 +22,11 @@ more than fix typos.
 - Call out sampler stability updates (for example walker reseeding to remove
   emcee warnings) so run logs and archived outputs stay interpretable for
   researchers auditing LCDM self-tests.
-- Treat every model `description` block as a manuscript-length document.
-  Expand it to at least ten pages of theory, derivations and observational
-  context whenever a model changes, and bump the model's internal `version`
-  even if the suite version stays fixed. Only `cosmo_model_lcdm.yml` is
-  mandatory; all other models evolve as their documentation grows.
+- Treat every model `description` block as a manuscript-length document. Expand
+  it to at least ten pages of theory, derivations and observational context
+  whenever a model changes, and bump the model's internal `version` even if the
+  suite version stays fixed. Only `cosmo_model_lcdm.yml` is mandatory; all
+  other models evolve as their documentation grows.
 
 ## Law 11 and Documentation Growth
 Law 11 in [`AGENTS.md`](../AGENTS.md) enshrines the expectation that every
@@ -38,10 +38,10 @@ additional paragraphs, images or usage notes describing the new behaviour.
   the new `docs/` pages that catalogue the change.
 - Increase the depth of `docs/` entries, for example by appending a new
   subsection for the updated start scripts or a call-out in the GUI overview.
-- When a launcher, menu or parser changes, create or expand a `docs/`
-  reference (such as the new `docs/launcher_gui.md`) so operators know how to
-  reach the GUI without delving into shell scripts and so the Law 11 story
-  tracks the behaviour in both prose and code.
+- When a launcher, menu or parser changes, create or expand a `docs/` reference
+  (such as the new `docs/launcher_gui.md`) so operators know how to reach the
+  GUI without delving into shell scripts and so the Law 11 story tracks the
+  behaviour in both prose and code.
 
 Adhering to this policy keeps the suite's knowledge base accurate and protects
 our intellectual property by clearly documenting provenance and intent.

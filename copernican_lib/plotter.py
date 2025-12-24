@@ -507,10 +507,10 @@ def compose_footer(base_line: str, data_attrs: dict) -> list[tuple[str, bool]]:
     # bold text while preserving spaces in the displayed name.
     safe_name = (
         dataset_name.replace("\\", "\\\\")
-        .replace("{", "\\{")
-        .replace("}", "\\}")
-        .replace("_", "\\_")
-        .replace(" ", "\\ ")  # Preserve spaces for MathText rendering
+        .replace("{", r"\{")
+        .replace("}", r"\}")
+        .replace("_", r"\_")
+        .replace(" ", r"\ ")  # Preserve spaces for MathText rendering
     )
     description = data_attrs.get("description", "")
     notes = data_attrs.get("notes", "")
@@ -519,9 +519,9 @@ def compose_footer(base_line: str, data_attrs: dict) -> list[tuple[str, bool]]:
     # ``mathtext`` does not support ``\textbf`` so ``\mathbf`` is used instead
     # to emphasise the dataset name while keeping the rest of the line in the
     # default font. Spaces are escaped above to preserve their appearance.
+    dataset_block = rf"$\mathbf{{{safe_name}}}$: {description} {notes}"
     second_line = (
-        "Observational dataset and processing: "
-        f"$\\mathbf{{{safe_name}}}$: {description} {notes}"
+        "Observational dataset and processing: " + dataset_block
     ).strip()
 
     wrapped: list[tuple[str, bool]] = [(base_line, True)]
@@ -964,14 +964,14 @@ def format_model_summary_text(
         formatted = f"{numeric:.2f}"
         return rf"  {label_tex} = {formatted}{suffix}"
 
-    lines.append("$\\mathbf{Mathematical\\ Form:}$")
+    lines.append(r"$\mathbf{Mathematical\ Form:}$")
     for eq_line in getattr(model_plugin, "MODEL_EQUATIONS_LATEX_SN", []):
         lines.append(f"  {_wrap_math(eq_line)}")
     if dataset_type == "bao":
         for eq_line in getattr(model_plugin, "MODEL_EQUATIONS_LATEX_BAO", []):
             lines.append(f"  {_wrap_math(eq_line)}")
 
-    lines.append("$\\mathbf{Cosmological\\ Parameters:}$")
+    lines.append(r"$\mathbf{Cosmological\ Parameters:}$")
     param_names = getattr(model_plugin, "PARAMETER_NAMES", [])
     param_latex_names = getattr(
         model_plugin,
@@ -996,10 +996,10 @@ def format_model_summary_text(
         lines.append("  (Fit failed or parameters unavailable)")
 
     if dataset_type == "sne" and fit_results.get("fitted_nuisance_params"):
-        lines.append("$\\mathbf{SNe\\ Nuisance\\ Parameters:}$")
-        for name, nuisance_value in (
-            fit_results["fitted_nuisance_params"].items()
-        ):
+        lines.append(r"$\mathbf{SNe\ Nuisance\ Parameters:}$")
+        for name, nuisance_value in fit_results[
+            "fitted_nuisance_params"
+        ].items():
             name_latex = {
                 "M_B": r"M_B",
                 "alpha_salt2": r"\alpha",
@@ -1010,7 +1010,7 @@ def format_model_summary_text(
             )
 
     if dataset_type == "sne":
-        lines.append("$\\mathbf{SNe\\ Fit\\ Statistics:}$")
+        lines.append(r"$\mathbf{SNe\ Fit\ Statistics:}$")
         chi2_min = fit_results.get("chi2_min", np.nan)
         chi2_sne = fit_results.get("chi2_sne", chi2_min)
         lines.append(_format_numeric_line(r"$\chi^2_{SNe}$", chi2_sne))
@@ -1018,7 +1018,7 @@ def format_model_summary_text(
             chi2_tot = fit_results.get("chi2_total", np.nan)
             lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))
     elif dataset_type == "bao":
-        lines.append("$\\mathbf{BAO\\ Fit\\ Results:}$")
+        lines.append(r"$\mathbf{BAO\ Fit\ Results:}$")
         lines.append(
             _format_numeric_line(
                 r"$r_s$", kwargs.get("rs_Mpc", np.nan), unit="Mpc"
@@ -1030,7 +1030,7 @@ def format_model_summary_text(
             chi2_tot = kwargs.get("chi2_total", np.nan)
             lines.append(_format_numeric_line(r"$\chi^2_{tot}$", chi2_tot))
     elif dataset_type == "cmb":
-        lines.append("$\\mathbf{CMB\\ Fit\\ Statistics:}$")
+        lines.append(r"$\mathbf{CMB\ Fit\ Statistics:}$")
         chi2_cmb = kwargs.get("chi2_cmb", np.nan)
         lines.append(_format_numeric_line(r"$\chi^2_{CMB}$", chi2_cmb))
         if "chi2_total" in kwargs:

@@ -26,6 +26,7 @@ def test_detects_suspicious_backslash(tmp_path: Path):
 
     assert violations
     assert any("backslash" in v.message.lower() for v in violations)
+    assert all(v.severity == "warning" for v in violations)
 
 
 def test_allows_raw_strings(tmp_path: Path):

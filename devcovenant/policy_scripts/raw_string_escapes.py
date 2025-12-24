@@ -71,7 +71,7 @@ class RawStringEscapesCheck(PolicyCheck):
                             violations.append(
                                 Violation(
                                     policy_id=self.policy_id,
-                                    severity="info",
+                                    severity="warning",
                                     file_path=path,
                                     line_number=token.start[0],
                                     message=(

@@ -20,1323 +20,1639 @@ suffixes. Follow this template:
 ```
 ## Log changes here
 
+## Version 12.0.1
+- 2025-12-28 [semver:patch]: Relocated the canonical `run_tests.py` wrapper to
+  `tools/`, deleted the obsolete `scripts/` directory and updated every policy
+  and instruction that referenced the old path so the managed test runner lives
+  beside the status-update helper (AGENTS.md,
+  devcovenant/policy_scripts/test_status_tracking.py, tools/run_tests.py,
+  CHANGELOG.md, CITATION.cff, README.md, pyproject.toml,
+  copernican_lib/VERSION, DEVCOVENANT_LAW_MAPPING.md,
+  copernican_lib/gui/app.py, copernican_lib/gui/plot_viewer.py,
+  copernican_lib/latex_utils.py, copernican_lib/likelihoods/cmb.py,
+  copernican_lib/model_coder.py, copernican_lib/optim_utils.py,
+  copernican_lib/plotter.py, copernican_lib/plugins/__init__.py,
+  copernican_lib/posterior.py, copernican_lib/utils.py, devcovenant/README.md,
+  devcovenant/base.py, devcovenant/policy_scripts/managed_venv.py,
+  devcovenant/policy_scripts/name_clarity.py,
+  devcovenant/policy_scripts/raw_string_escapes.py,
+  devcovenant/policy_scripts/security_compliance_notes.py,
+  devcovenant/policy_scripts/security_scanner.py,
+  devcovenant/policy_scripts/start_script_guardrails.py,
+  devcovenant/policy_scripts/test_status_tracking.py,
+  devcovenant/policy_scripts/semantic_version_scope.py,
+  devcovenant/registry.json, devcovenant/test_status.json,
+  devcovenant/tests/test_policies/test_managed_venv.py,
+  devcovenant/tests/test_policies/test_name_clarity.py,
+  devcovenant/tests/test_policies/test_raw_string_escapes.py,
+  devcovenant/tests/test_policies/test_start_script_guardrails.py,
+  devcovenant/tests/test_policies/test_test_status_tracking.py,
+  devcovenant/tests/test_policies/test_semantic_version_scope.py,
+  docs/security_changes.md, tools/update_test_status.py,
+  rng_minigames/registry.json).
+- 2025-12-28 [semver:patch]: Tightened the `semantic-version-scope` policy so
+  changelog entries must use a single scope, bump `copernican_lib/VERSION`
+  whenever a scoped release is logged, and reject scope mismatches; docs and
+  tests describe the new behavior (AGENTS.md,
+  devcovenant/policy_scripts/semantic_version_scope.py,
+  devcovenant/tests/test_policies/test_semantic_version_scope.py,
+  devcovenant/README.md, CHANGELOG.md).
+- 2025-12-28 [semver:patch]: Wrapped every non-vendored Markdown document to a
+  79-character limit, refactored the license table to use reference links and
+  updated the DevCovenant README tables so documentation stays consistent with
+  the new width preference (THIRD_PARTY_LICENSES.md, devcovenant/README.md,
+  CHANGELOG.md, ABOUT.md, CONTRIBUTING.md, LICENSE.md,
+  data/cmb/planck2018lite/readme_baseline.md, data/sne/union3/README.md,
+  devcovenant/waivers/README.md, docs/api_overview.md, docs/architecture.md,
+  docs/bao_compound_dataset_format.md, docs/cli_guide.md, docs/data_overview.md,
+  docs/dataset_licenses.md, docs/dataset_metadata.md, docs/design_overview.md,
+  docs/documentation_policy.md, docs/gui_guide.md, docs/gui_overview.md,
+  docs/latex_syntax.md, docs/launcher_gui.md, docs/minigames.md,
+  docs/orchestration_services.md, docs/packaging.md, docs/run_manifest.md,
+  validation/README.md).
+
+## Version 12.0.0
+- 2025-12-28 [semver:major]: Promoted the suite to 12.0.0 so the sweeping
+  policy upgrades, CLI refactors and GUI/dataset revisions landed since 11.0.0
+  are published as a coordinated major release; the entry documents the
+  enforced run/build changes, GUI/menu fixes, security logging, and devcovenant
+  plumbing that shipped together (AGENTS.md, DEVCOVENANT_LAW_MAPPING.md,
+  CHANGELOG.md, copernican_lib/VERSION, README.md, pyproject.toml,
+  CITATION.cff, copernican_lib/gui/app.py, copernican_lib/gui/plot_viewer.py,
+  copernican_lib/latex_utils.py, copernican_lib/likelihoods/cmb.py,
+  copernican_lib/model_coder.py, copernican_lib/optim_utils.py,
+  copernican_lib/plotter.py, copernican_lib/plugins/__init__.py,
+  copernican_lib/posterior.py, copernican_lib/utils.py, devcovenant/README.md,
+  devcovenant/base.py, devcovenant/policy_scripts/managed_venv.py,
+  devcovenant/policy_scripts/name_clarity.py,
+  devcovenant/policy_scripts/raw_string_escapes.py,
+  devcovenant/policy_scripts/security_compliance_notes.py,
+  devcovenant/policy_scripts/security_scanner.py,
+  devcovenant/policy_scripts/start_script_guardrails.py,
+  devcovenant/policy_scripts/test_status_tracking.py,
+  devcovenant/policy_scripts/semantic_version_scope.py,
+  devcovenant/registry.json, devcovenant/test_status.json,
+  devcovenant/tests/test_policies/test_managed_venv.py,
+  devcovenant/tests/test_policies/test_name_clarity.py,
+  devcovenant/tests/test_policies/test_raw_string_escapes.py,
+  devcovenant/tests/test_policies/test_start_script_guardrails.py,
+  devcovenant/tests/test_policies/test_test_status_tracking.py,
+  devcovenant/tests/test_policies/test_semantic_version_scope.py,
+  docs/security_changes.md, tools/update_test_status.py,
+  rng_minigames/registry.json).
+
 ## Version 11.0.2
-- 2025-12-23: Clarified the CLI’s lazy-import placeholders, renamed the lock-hash helper argument, renamed the engine diagnostic helpers, and lifted the security/policy helper documentation so the SemVer bump, new coverage rules, and recent DevCovenant updates stay aligned in one release note (AGENTS.md, DEVCOVENANT_LAW_MAPPING.md, copernican_lib/gui/app.py, copernican_lib/model_coder.py, devcovenant/policy_scripts/name_clarity.py, devcovenant/registry.json, devcovenant/tests/test_policies/test_name_clarity.py, copernican.py, tools/update_lock.py, copernican_lib/VERSION, pyproject.toml, README.md, CITATION.cff, CHANGELOG.md, engines/cosmo_engine_mcmc.py, engines/cosmo_engine_nested.py).
-- 2025-12-23: Tidied the GUI builder with descriptive control names, explicit state expressions, and wrapped labels/buttons so the name-clarity and line-length warnings disappear from `copernican_lib/gui/app.py` while the changelog records the compliance update (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-23: Added a `SourceFileLoader` fallback so parser discovery still runs when `importlib.util` is unavailable, refreshed the Union3 parser digest, and aligned the GUI test suite with the new draft naming so legacy accessors were removed without needing compatibility shims (copernican_lib/dataset_registry.py, tests/test_gui_app.py, CHANGELOG.md).
-- 2025-12-24: Replaced the short `value`/`v` locals inside the DevCovenant renderer, parser and version-sync helpers, recomputed the registry hash, and documented the sync so the policy hash now matches the updated script text (devcovenant/engine.py, devcovenant/parser.py, devcovenant/policy_scripts/version_sync.py, devcovenant/registry.json, CHANGELOG.md).
-- 2025-12-24: Replaced terse locals across the posterior helpers, manifest saver, validator, dataset registry hash reports, LaTeX script maps and chain I/O fallback so the new descriptive names quiet the `name-clarity` info errors while the changelog records every touched utility (copernican_lib/posterior_explorer.py, copernican_lib/run_manifest.py, copernican_lib/model_spec_validator.py, copernican_lib/dataset_registry.py, copernican_lib/latex_utils.py, copernican_lib/chain_io.py, CHANGELOG.md).
-- 2025-12-24: Renamed the optimizer progress wrapper argument to `parameter_vector` so the function now documents the candidate parameters during each evaluation while the CLI progress indicator keeps reporting the live chi-squared (copernican_lib/optim_utils.py, CHANGELOG.md).
-- 2025-12-24: Renamed the Planck 2018lite, JLA 2014, Union3, BOSS DR12 and compound BAO parser locals so every loader now exposes descriptive DataFrame names without altering their output, making the data parsers compliant with the `name-clarity` policy (data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py, data/sne/jla2014/cosmo_parser_jla2014.py, data/sne/union3/cosmo_parser_union3.py, data/bao/bossdr12/cosmo_parser_bossdr12.py, data/bao/compound/cosmo_parser_compound.py, CHANGELOG.md).
-- 2025-12-24: Renamed the ArviZ posterior builder dictionary, output filename timestamp helper, prior validation parameters, CAMB background arrays and GUI Tk accessor so the Plotter, utils, priors, CMB likelihood and GUI entry modules now satisfy the `name-clarity` policy without altering their behaviour (copernican_lib/plotter.py, copernican_lib/utils.py, copernican_lib/priors.py, copernican_lib/likelihoods/cmb.py, copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-24: Renamed the generic `value`/`ts` locals used during run analysis serialization and summary formatting so `copernican_lib/analysis.py` now satisfies the `name-clarity` checks without altering the exported summaries or file outputs (copernican_lib/analysis.py, CHANGELOG.md).
-- 2025-12-24: Renamed the plotting axes, ArviZ helpers and renderer locals inside the Plotter module and the GUI `PlotViewer` so their identifiers describe the rendered axis, zoom deltas and Tkinter bridge while the corner/BAO grids keep the same styling (copernican_lib/plotter.py, copernican_lib/gui/plot_viewer.py, CHANGELOG.md).
-- 2025-12-24: Replaced the BAO/SNe likelihood helper inputs, diagnostic arrays and BAO regression tests with `redshifts`, `observable_*` and `observed` names so the loglike helpers, diagnostics and covariance tests note the same identifiers and the changelog spells out every touched file (copernican_lib/likelihoods/bao.py, copernican_lib/likelihoods/sne.py, copernican_lib/statistics.py, copernican_lib/diagnostics.py, tests/test_bao_covariance.py, tests/test_bossdr12_parser.py, tests/test_core.py, tests/test_likelihoods.py, CHANGELOG.md).
-- 2025-12-24: Renamed the CLI stages, settings merger and result serialization helpers so the launcher menus, settings override logic and summary writer now use descriptive local names and quiet the `name-clarity` notices (copernican_lib/cli/menus.py, copernican_lib/settings.py, copernican_lib/result_writer.py, CHANGELOG.md).
-- 2025-12-25: Reworded the corner histogram helpers and CMB plot rendering routines so every short identifier now describes the intended threshold, tick font size, residual, cosmic-variance band or summary metric while the shared `PlotViewer` pan handler uses explicit pan deltas and press-event state (copernican_lib/plotter.py, copernican_lib/gui/plot_viewer.py, CHANGELOG.md).
-- 2025-12-26: Replaced generic expressions and prior builders with descriptive names so the symbolic call compilation, logistic transforms and prior caching routines document their roles without altering the generated plugin code (copernican_lib/model_coder.py, copernican_lib/plugins/__init__.py, CHANGELOG.md).
-- 2025-12-26: Clarified the utility helpers by renaming version parsing locals, result-summary timestamps, diagnostics component iterators, optim-state trackers, logging handlers, pipeline report values, executor metadata and engine capability normalisers so each reported identifier now reflects its role without shifting behaviour (copernican_lib/version.py, copernican_lib/result_writer.py, copernican_lib/diagnostics.py, copernican_lib/optim_utils.py, copernican_lib/logger.py, copernican_lib/run_pipeline.py, copernican_lib/run_executor.py, copernican_lib/engine_capabilities.py, CHANGELOG.md).
-- 2025-12-27: Reworded PosteriorEvaluator, prior implementations and the CMB likelihood so every tracked parameter, transformed value and spectrum array name reveals its physics role while the tests and helpers reuse the same terminology (copernican_lib/posterior.py, copernican_lib/priors.py, copernican_lib/likelihoods/cmb.py, CHANGELOG.md).
-- 2025-12-28: Renamed the distance helpers, quadrature helpers and logistic transforms so every redshift/distance identifier and integration bound name in `copernican_lib/model_coder.py` clearly states its role while preserving the existing physics behavior (copernican_lib/model_coder.py, CHANGELOG.md).
+- 2025-12-28 [semver:patch]: Repaired the GUI imports, reran the style
+  formatters and resynced DevCovenant’s security/test-status policies so pre-
+  commit runs now pass cleanly with only informational hints; the update covers
+  the Go-to-Tk guard, CMB/model helper fixes, new test-status wrapper script,
+  refreshed security log and the registry hash updates needed for the new
+  policy set (AGENTS.md, DEVCOVENANT_LAW_MAPPING.md, copernican_lib/gui/app.py,
+  copernican_lib/gui/plot_viewer.py, copernican_lib/likelihoods/cmb.py,
+  copernican_lib/model_coder.py, copernican_lib/optim_utils.py,
+  copernican_lib/plotter.py, copernican_lib/plugins/__init__.py,
+  copernican_lib/posterior.py, devcovenant/policy_scripts/managed_venv.py,
+  devcovenant/policy_scripts/name_clarity.py,
+  devcovenant/policy_scripts/security_compliance_notes.py,
+  devcovenant/policy_scripts/security_scanner.py,
+  devcovenant/policy_scripts/start_script_guardrails.py,
+  devcovenant/policy_scripts/test_status_tracking.py,
+  devcovenant/registry.json, devcovenant/test_status.json,
+  devcovenant/tests/test_policies/test_managed_venv.py,
+  devcovenant/tests/test_policies/test_name_clarity.py,
+  devcovenant/tests/test_policies/test_start_script_guardrails.py,
+  devcovenant/tests/test_policies/test_test_status_tracking.py,
+  docs/security_changes.md, scripts/run_tests.py, scripts/run_tests.sh,
+  scripts/run_tests.bat, tools/update_test_status.py, CHANGELOG.md).
+- 2025-12-28 [semver:patch]: Added the semantic-version-scope policy plus
+  documentation/tests so SemVer bumps now validate against tagged changelog
+  entries while ignoring DevCovenant/rng_minigames-only changes (AGENTS.md,
+  devcovenant/policy_scripts/semantic_version_scope.py,
+  devcovenant/tests/test_policies/test_semantic_version_scope.py,
+  devcovenant/README.md, devcovenant/registry.json, CHANGELOG.md).
+- 2025-12-28: Raised the `raw-string-escapes` policy from informational to
+  warning severity, updated the documentation/tests, rehashed the registry and
+  re-recorded the latest suite run so bare backslashes now block commits unless
+  intentionally waived (AGENTS.md,
+  devcovenant/policy_scripts/raw_string_escapes.py,
+  devcovenant/tests/test_policies/test_raw_string_escapes.py,
+  devcovenant/registry.json, devcovenant/test_status.json, CHANGELOG.md).
+- 2025-12-28: Added `devcovenant/devcovignore.md`, documented the global ignore
+  list in AGENTS/devcovenant/README, moved enforcement into the DevCovenant
+  base layer, and dropped the redundant `DEVCOVENANT_LAW_MAPPING.md` summary so
+  every policy now inherits the shared exclusions automatically (AGENTS.md,
+  devcovenant/README.md, devcovenant/base.py, devcovenant/devcovignore.md,
+  DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
+- 2025-12-23: Clarified the CLI’s lazy-import placeholders, renamed the lock-
+  hash helper argument, renamed the engine diagnostic helpers, and lifted the
+  security/policy helper documentation so the SemVer bump, new coverage rules,
+  and recent DevCovenant updates stay aligned in one release note (AGENTS.md,
+  DEVCOVENANT_LAW_MAPPING.md, copernican_lib/gui/app.py,
+  copernican_lib/model_coder.py, devcovenant/policy_scripts/name_clarity.py,
+  devcovenant/registry.json,
+  devcovenant/tests/test_policies/test_name_clarity.py, copernican.py,
+  tools/update_lock.py, copernican_lib/VERSION, pyproject.toml, README.md,
+  CITATION.cff, CHANGELOG.md, engines/cosmo_engine_mcmc.py,
+  engines/cosmo_engine_nested.py).
+- 2025-12-23: Tidied the GUI builder with descriptive control names, explicit
+  state expressions, and wrapped labels/buttons so the name-clarity and line-
+  length warnings disappear from `copernican_lib/gui/app.py` while the
+  changelog records the compliance update (copernican_lib/gui/app.py,
+  CHANGELOG.md).
+- 2025-12-23: Added a `SourceFileLoader` fallback so parser discovery still
+  runs when `importlib.util` is unavailable, refreshed the Union3 parser
+  digest, and aligned the GUI test suite with the new draft naming so legacy
+  accessors were removed without needing compatibility shims
+  (copernican_lib/dataset_registry.py, tests/test_gui_app.py, CHANGELOG.md).
+- 2025-12-24: Replaced the short `value`/`v` locals inside the DevCovenant
+  renderer, parser and version-sync helpers, recomputed the registry hash, and
+  documented the sync so the policy hash now matches the updated script text
+  (devcovenant/engine.py, devcovenant/parser.py,
+  devcovenant/policy_scripts/version_sync.py, devcovenant/registry.json,
+  CHANGELOG.md).
+- 2025-12-24: Replaced terse locals across the posterior helpers, manifest
+  saver, validator, dataset registry hash reports, LaTeX script maps and chain
+  I/O fallback so the new descriptive names quiet the `name-clarity` info
+  errors while the changelog records every touched utility
+  (copernican_lib/posterior_explorer.py, copernican_lib/run_manifest.py,
+  copernican_lib/model_spec_validator.py, copernican_lib/dataset_registry.py,
+  copernican_lib/latex_utils.py, copernican_lib/chain_io.py, CHANGELOG.md).
+- 2025-12-24: Renamed the optimizer progress wrapper argument to
+  `parameter_vector` so the function now documents the candidate parameters
+  during each evaluation while the CLI progress indicator keeps reporting the
+  live chi-squared (copernican_lib/optim_utils.py, CHANGELOG.md).
+- 2025-12-24: Renamed the Planck 2018lite, JLA 2014, Union3, BOSS DR12 and
+  compound BAO parser locals so every loader now exposes descriptive DataFrame
+  names without altering their output, making the data parsers compliant with
+  the `name-clarity` policy
+  (data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py,
+  data/sne/jla2014/cosmo_parser_jla2014.py,
+  data/sne/union3/cosmo_parser_union3.py,
+  data/bao/bossdr12/cosmo_parser_bossdr12.py,
+  data/bao/compound/cosmo_parser_compound.py, CHANGELOG.md).
+- 2025-12-24: Renamed the ArviZ posterior builder dictionary, output filename
+  timestamp helper, prior validation parameters, CAMB background arrays and GUI
+  Tk accessor so the Plotter, utils, priors, CMB likelihood and GUI entry
+  modules now satisfy the `name-clarity` policy without altering their
+  behaviour (copernican_lib/plotter.py, copernican_lib/utils.py,
+  copernican_lib/priors.py, copernican_lib/likelihoods/cmb.py,
+  copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-24: Renamed the generic `value`/`ts` locals used during run analysis
+  serialization and summary formatting so `copernican_lib/analysis.py` now
+  satisfies the `name-clarity` checks without altering the exported summaries
+  or file outputs (copernican_lib/analysis.py, CHANGELOG.md).
+- 2025-12-24: Renamed the plotting axes, ArviZ helpers and renderer locals
+  inside the Plotter module and the GUI `PlotViewer` so their identifiers
+  describe the rendered axis, zoom deltas and Tkinter bridge while the
+  corner/BAO grids keep the same styling (copernican_lib/plotter.py,
+  copernican_lib/gui/plot_viewer.py, CHANGELOG.md).
+- 2025-12-24: Replaced the BAO/SNe likelihood helper inputs, diagnostic arrays
+  and BAO regression tests with `redshifts`, `observable_*` and `observed`
+  names so the loglike helpers, diagnostics and covariance tests note the same
+  identifiers and the changelog spells out every touched file
+  (copernican_lib/likelihoods/bao.py, copernican_lib/likelihoods/sne.py,
+  copernican_lib/statistics.py, copernican_lib/diagnostics.py,
+  tests/test_bao_covariance.py, tests/test_bossdr12_parser.py,
+  tests/test_core.py, tests/test_likelihoods.py, CHANGELOG.md).
+- 2025-12-24: Renamed the CLI stages, settings merger and result serialization
+  helpers so the launcher menus, settings override logic and summary writer now
+  use descriptive local names and quiet the `name-clarity` notices
+  (copernican_lib/cli/menus.py, copernican_lib/settings.py,
+  copernican_lib/result_writer.py, CHANGELOG.md).
+- 2025-12-25: Reworded the corner histogram helpers and CMB plot rendering
+  routines so every short identifier now describes the intended threshold, tick
+  font size, residual, cosmic-variance band or summary metric while the shared
+  `PlotViewer` pan handler uses explicit pan deltas and press-event state
+  (copernican_lib/plotter.py, copernican_lib/gui/plot_viewer.py, CHANGELOG.md).
+- 2025-12-26: Replaced generic expressions and prior builders with descriptive
+  names so the symbolic call compilation, logistic transforms and prior caching
+  routines document their roles without altering the generated plugin code
+  (copernican_lib/model_coder.py, copernican_lib/plugins/__init__.py,
+  CHANGELOG.md).
+- 2025-12-26: Clarified the utility helpers by renaming version parsing locals,
+  result-summary timestamps, diagnostics component iterators, optim-state
+  trackers, logging handlers, pipeline report values, executor metadata and
+  engine capability normalisers so each reported identifier now reflects its
+  role without shifting behaviour (copernican_lib/version.py,
+  copernican_lib/result_writer.py, copernican_lib/diagnostics.py,
+  copernican_lib/optim_utils.py, copernican_lib/logger.py,
+  copernican_lib/run_pipeline.py, copernican_lib/run_executor.py,
+  copernican_lib/engine_capabilities.py, CHANGELOG.md).
+- 2025-12-27: Reworded PosteriorEvaluator, prior implementations and the CMB
+  likelihood so every tracked parameter, transformed value and spectrum array
+  name reveals its physics role while the tests and helpers reuse the same
+  terminology (copernican_lib/posterior.py, copernican_lib/priors.py,
+  copernican_lib/likelihoods/cmb.py, CHANGELOG.md).
+- 2025-12-28: Renamed the distance helpers, quadrature helpers and logistic
+  transforms so every redshift/distance identifier and integration bound name
+  in `copernican_lib/model_coder.py` clearly states its role while preserving
+  the existing physics behavior (copernican_lib/model_coder.py, CHANGELOG.md).
+- 2025-12-28: Raised the `name-clarity` policy to warning severity, bumped the
+  policy implementation/tests and refreshed the registry hash so placeholder
+  identifiers now block commits instead of surfacing as informational hints
+  (AGENTS.md, devcovenant/policy_scripts/name_clarity.py,
+  devcovenant/tests/test_policies/test_name_clarity.py,
+  devcovenant/registry.json).
+- 2025-12-28: Added the managed-venv and test-status tracking policies plus the
+  `tools/update_test_status.py` helper so every code change records its latest
+  suite run and DevCovenant refuses to run outside the repo `.venv` (AGENTS.md,
+  DEVCOVENANT_LAW_MAPPING.md, devcovenant/test_status.json,
+  tools/update_test_status.py,
+  devcovenant/policy_scripts/test_status_tracking.py,
+  devcovenant/tests/test_policies/test_test_status_tracking.py,
+  devcovenant/policy_scripts/managed_venv.py,
+  devcovenant/tests/test_policies/test_managed_venv.py,
+  devcovenant/registry.json).
 
 ## Version 11.0.1
-- 2025-12-22: Added the `security-scanner` and `start-script-guardrails` policies plus the security log so every guarded file change now triggers a compliance scan, the launchers keep their sudo/notice snippets, and reviewers see the latest rationale before the automated run accepts the change (AGENTS.md, docs/security_changes.md, copernican_lib/model_coder.py, devcovenant/policy_scripts/security_scanner.py, devcovenant/policy_scripts/start_script_guardrails.py, devcovenant/tests/test_policies/test_security_scanner.py, devcovenant/tests/test_policies/test_start_script_guardrails.py, DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
+- 2025-12-22: Added the `security-scanner` and `start-script-guardrails`
+  policies plus the security log so every guarded file change now triggers a
+  compliance scan, the launchers keep their sudo/notice snippets, and reviewers
+  see the latest rationale before the automated run accepts the change
+  (AGENTS.md, docs/security_changes.md, copernican_lib/model_coder.py,
+  devcovenant/policy_scripts/security_scanner.py,
+  devcovenant/policy_scripts/start_script_guardrails.py,
+  devcovenant/tests/test_policies/test_security_scanner.py,
+  devcovenant/tests/test_policies/test_start_script_guardrails.py,
+  DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
 
-- 2025-12-22: Taught `name-clarity` to ignore vendored sources so third-party files keep their original identifiers, documented the exception, expanded the policy tests, and rehashed the registry to reflect the new description (AGENTS.md, CHANGELOG.md, devcovenant/policy_scripts/name_clarity.py, devcovenant/tests/test_policies/test_name_clarity.py, devcovenant/registry.json).
+- 2025-12-22: Taught `name-clarity` to ignore vendored sources so third-party
+  files keep their original identifiers, documented the exception, expanded the
+  policy tests, and rehashed the registry to reflect the new description
+  (AGENTS.md, CHANGELOG.md, devcovenant/policy_scripts/name_clarity.py,
+  devcovenant/tests/test_policies/test_name_clarity.py,
+  devcovenant/registry.json).
 
-- 2025-12-21: Replaced the compliance-focused Law 6 with the `security-compliance-notes` policy, added `docs/security_changes.md`, and taught DevCovenant to block launcher/security helper edits whenever the log isn't updated so the suite records the latest risk review (AGENTS.md, docs/security_changes.md, devcovenant/policy_scripts/security_compliance_notes.py, devcovenant/tests/test_policies/test_security_compliance_notes.py, DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
+- 2025-12-21: Replaced the compliance-focused Law 6 with the `security-
+  compliance-notes` policy, added `docs/security_changes.md`, and taught
+  DevCovenant to block launcher/security helper edits whenever the log isn't
+  updated so the suite records the latest risk review (AGENTS.md,
+  docs/security_changes.md,
+  devcovenant/policy_scripts/security_compliance_notes.py,
+  devcovenant/tests/test_policies/test_security_compliance_notes.py,
+  DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
 
 - 2025-12-20: Raised the `docstring-and-comment-coverage` policy to error
-            severity, synced the script/tests, and documented the
-            `name_clarity` helpers while polishing the raw-string/start-script
-            tests so the enforcement code now reports intentional hints
-            clearly before the style-only helpers run (AGENTS.md,
-            CHANGELOG.md,
-            devcovenant/policy_scripts/docstring_and_comment_coverage.py,
-            devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py,
-            devcovenant/policy_scripts/name_clarity.py,
-            devcovenant/policy_scripts/raw_string_escapes.py,
-            devcovenant/tests/test_policies/test_raw_string_escapes.py,
-            devcovenant/tests/test_policies/test_start_script_parity.py,
-            devcovenant/registry.json).
+  severity, synced the script/tests, and documented the `name_clarity` helpers
+  while polishing the raw-string/start-script tests so the enforcement code now
+  reports intentional hints clearly before the style-only helpers run
+  (AGENTS.md, CHANGELOG.md,
+  devcovenant/policy_scripts/docstring_and_comment_coverage.py,
+  devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py,
+  devcovenant/policy_scripts/name_clarity.py,
+  devcovenant/policy_scripts/raw_string_escapes.py,
+  devcovenant/tests/test_policies/test_raw_string_escapes.py,
+  devcovenant/tests/test_policies/test_start_script_parity.py,
+  devcovenant/registry.json).
 
 - 2025-12-14: Added docstrings for the CLI entry helpers, Run Builder/monitor
-            scaffolds and the `__main__.py` launcher so the policy now
-            records the intent of `copernican.py`, `copernican_lib/gui/app.py`
-            and the entry shim before future docstring fixes continue.
+  scaffolds and the `__main__.py` launcher so the policy now records the intent
+  of `copernican.py`, `copernican_lib/gui/app.py` and the entry shim before
+  future docstring fixes continue.
 
 - 2025-12-14: Added SemVer validation to the version-sync policy, removed the
-            `setuptools_scm` fallback, introduced `semver` as a runtime
-            dependency, and taught the docstring coverage check to audit every
-            non-test module while updating the policy docs and registry
-            (copernican_lib/version.py, requirements.in, requirements.lock,
-            pyproject.toml, THIRD_PARTY_LICENSES.md,
-            devcovenant/policy_scripts/version_sync.py,
-            devcovenant/tests/test_policies/test_version_sync.py,
-            devcovenant/policy_scripts/docstring_and_comment_coverage.py,
-            devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py,
-            tests/test_version_file.py, AGENTS.md,
-            DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
+  `setuptools_scm` fallback, introduced `semver` as a runtime dependency, and
+  taught the docstring coverage check to audit every non-test module while
+  updating the policy docs and registry (copernican_lib/version.py,
+  requirements.in, requirements.lock, pyproject.toml, THIRD_PARTY_LICENSES.md,
+  devcovenant/policy_scripts/version_sync.py,
+  devcovenant/tests/test_policies/test_version_sync.py,
+  devcovenant/policy_scripts/docstring_and_comment_coverage.py,
+  devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py,
+  tests/test_version_file.py, AGENTS.md, DEVCOVENANT_LAW_MAPPING.md,
+  CHANGELOG.md).
 
 - 2025-12-14: Added descriptive docstrings for the run-analysis helpers to
-            describe each helper’s role so `copernican_lib/analysis.py`
-            satisfies the docstring coverage policy before further updates
-            follow the same intent (copernican_lib/analysis.py, CHANGELOG.md).
+  describe each helper’s role so `copernican_lib/analysis.py` satisfies the
+  docstring coverage policy before further updates follow the same intent
+  (copernican_lib/analysis.py, CHANGELOG.md).
 
 - 2025-12-14: Documented the logger utilities and orchestration service hooks
-            so every proxy, helper and lifecycle method now records why the
-            GUI still reuses the shared logging/orchestration plumbing
-            (copernican_lib/logger.py, copernican_lib/orchestration.py,
-            CHANGELOG.md).
+  so every proxy, helper and lifecycle method now records why the GUI still
+  reuses the shared logging/orchestration plumbing (copernican_lib/logger.py,
+  copernican_lib/orchestration.py, CHANGELOG.md).
 
 - 2025-12-14: Documented the engine capability helpers, posterior/prior
-            tooling, policy engine, Union3 parser and nested engine adapters
-            so `copernican_lib/engine_capabilities.py`, `copernican_lib/posterior.py`,
-            `copernican_lib/priors.py`, `devcovenant/engine.py`,
-            `data/sne/union3/cosmo_parser_union3.py` and
-            `engines/cosmo_engine_nested.py` expose their intent for the
-            docstring coverage policy (CHANGELOG.md).
+  tooling, policy engine, Union3 parser and nested engine adapters so
+  `copernican_lib/engine_capabilities.py`, `copernican_lib/posterior.py`,
+  `copernican_lib/priors.py`, `devcovenant/engine.py`,
+  `data/sne/union3/cosmo_parser_union3.py` and `engines/cosmo_engine_nested.py`
+  expose their intent for the docstring coverage policy (CHANGELOG.md).
 
 - 2025-12-09: Simplified `README.md` navigation by replacing the redundant
-            table of contents with a highlights summary while keeping every
-            overview, GUI, analysis and validation explanation intact.
+  table of contents with a highlights summary while keeping every overview,
+  GUI, analysis and validation explanation intact.
 
 - 2025-12-18: Documented the plugin assembly utilities so every helper in
-            `copernican_lib/plugins/__init__.py` exposes its purpose before
-            engines or tests rely on the builder (AGENTS.md, CHANGELOG.md).
+  `copernican_lib/plugins/__init__.py` exposes its purpose before engines or
+  tests rely on the builder (AGENTS.md, CHANGELOG.md).
 
-- 2025-12-09: Updated `copernican_lib.plotter.plot_corner` so ArviZ now produces
-            the KDE/contour grid while the existing layout helpers still enforce
-            the footer guard bands and dataset citations; the extra footer line
-            records the ArviZ backend, a new `plot_parameter_histograms`
-            helper renders per-parameter grids with neutral info boxes, and the
-            pipeline saves both kinds of plots through `run_pipeline` so the GUI
-            viewer has fresh assets (copernican_lib/plotter.py,
-            copernican_lib/run_pipeline.py, docs/api_overview.md,
-            tests/test_plotter.py, README.md, CHANGELOG.md).
-- 2025-12-09: Added `copernican_lib.analysis.plot_posterior`,
-            which reads the archived `posterior-*.nc` files, reruns the ArviZ
-            corner/histogram grid plus the trace overview, and returns the
-            written paths so CLI/GUI workflows can re-use the same assets (copernican_lib/analysis.py,
-            copernican_lib/posterior_explorer.py, copernican.py,
-            README.md, docs/api_overview.md, docs/cli_guide.md,
-            tests/test_analysis.py, tests/test_cli/test_cli_utilities.py,
-            CHANGELOG.md).
-- 2025-12-12: Added four new DevCovenant policies (`read-only-directories`, `docstring-and-comment-coverage`, `dependency-license-sync`, `documentation-growth-tracking`) plus supporting scripts, tests, waiver/setup files and documentation so the manual laws for dataset immutability, docstrings, documentation growth and license auditing can retire (AGENTS.md, DEVCOVENANT_LAW_MAPPING.md, devcovenant/policy_scripts/read_only_directories.py, devcovenant/policy_scripts/docstring_and_comment_coverage.py, devcovenant/policy_scripts/dependency_license_sync.py, devcovenant/policy_scripts/documentation_growth_tracking.py, devcovenant/tests/test_policies/test_read_only_directories.py, devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py, devcovenant/tests/test_policies/test_dependency_license_sync.py, devcovenant/tests/test_policies/test_documentation_growth_tracking.py, devcovenant/read_only_directories.txt, devcovenant/waivers/README.md, devcovenant/README.md, CHANGELOG.md).
-- 2025-12-15: Expanded the `docstring-and-comment-coverage` policy so it now scans every non-test Python module (`*.py` outside `tests/`) for descriptive docstrings or adjacent guiding comments, matching the original law’s scope while keeping the notices at info level (AGENTS.md, DEVCOVENANT_LAW_MAPPING.md, devcovenant/policy_scripts/docstring_and_comment_coverage.py, CHANGELOG.md).
-- 2025-12-17: The docstring policy now inspects `all_files` during lint/startup runs, so even untouched modules are analyzed for missing docstrings/comments (devcovenant/policy_scripts/docstring_and_comment_coverage.py, devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py, AGENTS.md, devcovenant/README.md, CHANGELOG.md).
+- 2025-12-09: Updated `copernican_lib.plotter.plot_corner` so ArviZ now
+  produces the KDE/contour grid while the existing layout helpers still enforce
+  the footer guard bands and dataset citations; the extra footer line records
+  the ArviZ backend, a new `plot_parameter_histograms` helper renders per-
+  parameter grids with neutral info boxes, and the pipeline saves both kinds of
+  plots through `run_pipeline` so the GUI viewer has fresh assets
+  (copernican_lib/plotter.py, copernican_lib/run_pipeline.py,
+  docs/api_overview.md, tests/test_plotter.py, README.md, CHANGELOG.md).
+- 2025-12-09: Added `copernican_lib.analysis.plot_posterior`, which reads the
+  archived `posterior-*.nc` files, reruns the ArviZ corner/histogram grid plus
+  the trace overview, and returns the written paths so CLI/GUI workflows can
+  re-use the same assets (copernican_lib/analysis.py,
+  copernican_lib/posterior_explorer.py, copernican.py, README.md,
+  docs/api_overview.md, docs/cli_guide.md, tests/test_analysis.py,
+  tests/test_cli/test_cli_utilities.py, CHANGELOG.md).
+- 2025-12-12: Added four new DevCovenant policies (`read-only-directories`,
+  `docstring-and-comment-coverage`, `dependency-license-sync`, `documentation-
+  growth-tracking`) plus supporting scripts, tests, waiver/setup files and
+  documentation so the manual laws for dataset immutability, docstrings,
+  documentation growth and license auditing can retire (AGENTS.md,
+  DEVCOVENANT_LAW_MAPPING.md,
+  devcovenant/policy_scripts/read_only_directories.py,
+  devcovenant/policy_scripts/docstring_and_comment_coverage.py,
+  devcovenant/policy_scripts/dependency_license_sync.py,
+  devcovenant/policy_scripts/documentation_growth_tracking.py,
+  devcovenant/tests/test_policies/test_read_only_directories.py,
+  devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py,
+  devcovenant/tests/test_policies/test_dependency_license_sync.py,
+  devcovenant/tests/test_policies/test_documentation_growth_tracking.py,
+  devcovenant/read_only_directories.txt, devcovenant/waivers/README.md,
+  devcovenant/README.md, CHANGELOG.md).
+- 2025-12-15: Expanded the `docstring-and-comment-coverage` policy so it now
+  scans every non-test Python module (`*.py` outside `tests/`) for descriptive
+  docstrings or adjacent guiding comments, matching the original law’s scope
+  while keeping the notices at info level (AGENTS.md,
+  DEVCOVENANT_LAW_MAPPING.md,
+  devcovenant/policy_scripts/docstring_and_comment_coverage.py, CHANGELOG.md).
+- 2025-12-17: The docstring policy now inspects `all_files` during lint/startup
+  runs, so even untouched modules are analyzed for missing docstrings/comments
+  (devcovenant/policy_scripts/docstring_and_comment_coverage.py,
+  devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py,
+  AGENTS.md, devcovenant/README.md, CHANGELOG.md).
 - 2025-12-12: Added `copernican_lib.analysis` so run directories can be
-            summarised programmatically—log parsing now feeds chi-squared
-            breakdowns, BAO/CMB residuals, diagnostics (R-hat/ESS), dataset
-            counts and timing metadata into a single dataclass. The helper
-            exposes `RunAnalysisResult.to_dict` for serialisation and is
-            documented next to validation-focused tests (copernican_lib/analysis.py,
-            docs/api_overview.md, tests/test_analysis.py, CHANGELOG.md).
-- 2025-12-12: Introduced the GUI Analysis tab (between Engines and
-            Validation) with a tabbed scaffold mirroring Settings plus a
-            Run Summary page that loads manifests/logs, renders dataset counts,
-            diagnostics and chi² breakdowns, and lets operators reload,
-            export or copy the structured `analysis-summary_<ts>` files while
-            the other tabs stay scaffolded for future diagnostics/posterior
-            work (copernican_lib/gui/app.py, docs/gui_overview.md,
-            CHANGELOG.md).
-- 2025-12-11: Stabilized reference-model manifests (e.g. Planck 2018 Reference LambdaCDM) by having `engines/cosmo_engine_mcmc.py` mirror the fixed parameter vector, emit placeholder chains, and always report the configured worker pool count so diagnostics stay complete even when no active dimensions remain (engines/cosmo_engine_mcmc.py, CHANGELOG.md).
-- 2025-12-11: Split the GUI Run Monitor stream from the per-run reproducibility log by introducing a dedicated monitor logger at `logs/runs/*.txt`; the CLI still writes its full trace under each `output/copernican-run_<timestamp>/` folder so the archive and the UI view stay distinct (copernican_lib/gui/app.py, copernican_lib/logger.py, docs/gui_overview.md, docs/cli_guide.md, CHANGELOG.md).
+  summarised programmatically—log parsing now feeds chi-squared breakdowns,
+  BAO/CMB residuals, diagnostics (R-hat/ESS), dataset counts and timing
+  metadata into a single dataclass. The helper exposes
+  `RunAnalysisResult.to_dict` for serialisation and is documented next to
+  validation-focused tests (copernican_lib/analysis.py, docs/api_overview.md,
+  tests/test_analysis.py, CHANGELOG.md).
+- 2025-12-12: Introduced the GUI Analysis tab (between Engines and Validation)
+  with a tabbed scaffold mirroring Settings plus a Run Summary page that loads
+  manifests/logs, renders dataset counts, diagnostics and chi² breakdowns, and
+  lets operators reload, export or copy the structured `analysis-summary_<ts>`
+  files while the other tabs stay scaffolded for future diagnostics/posterior
+  work (copernican_lib/gui/app.py, docs/gui_overview.md, CHANGELOG.md).
+- 2025-12-11: Stabilized reference-model manifests (e.g. Planck 2018 Reference
+  LambdaCDM) by having `engines/cosmo_engine_mcmc.py` mirror the fixed
+  parameter vector, emit placeholder chains, and always report the configured
+  worker pool count so diagnostics stay complete even when no active dimensions
+  remain (engines/cosmo_engine_mcmc.py, CHANGELOG.md).
+- 2025-12-11: Split the GUI Run Monitor stream from the per-run reproducibility
+  log by introducing a dedicated monitor logger at `logs/runs/*.txt`; the CLI
+  still writes its full trace under each `output/copernican-run_<timestamp>/`
+  folder so the archive and the UI view stay distinct
+  (copernican_lib/gui/app.py, copernican_lib/logger.py, docs/gui_overview.md,
+  docs/cli_guide.md, CHANGELOG.md).
 
-- 2025-12-10: Added widget-liveness guards around Run Monitor and Validation widgets so the background refresh loop skips destroyed labels, progress bars and log consoles instead of triggering Tk errors when the user navigates away while a run is active, and documented the behavior in the GUI overview (copernican_lib/gui/app.py, docs/gui_overview.md, CHANGELOG.md).
-- 2025-12-10: Reworked `engines/cosmo_engine_mcmc.py` to detect when every parameter is fixed, mirror reference positions instead of launching the sampler, and reorganized the sampling/pool lifecycle so the production stage generates placeholder chains when the ensemble would otherwise be empty (engines/cosmo_engine_mcmc.py, CHANGELOG.md).
+- 2025-12-10: Added widget-liveness guards around Run Monitor and Validation
+  widgets so the background refresh loop skips destroyed labels, progress bars
+  and log consoles instead of triggering Tk errors when the user navigates away
+  while a run is active, and documented the behavior in the GUI overview
+  (copernican_lib/gui/app.py, docs/gui_overview.md, CHANGELOG.md).
+- 2025-12-10: Reworked `engines/cosmo_engine_mcmc.py` to detect when every
+  parameter is fixed, mirror reference positions instead of launching the
+  sampler, and reorganized the sampling/pool lifecycle so the production stage
+  generates placeholder chains when the ensemble would otherwise be empty
+  (engines/cosmo_engine_mcmc.py, CHANGELOG.md).
 - 2025-12-08: Added `copernican_lib.analysis.save_run_summary` to persist
-            structured `analysis-summary_<timestamp>` YAML/JSON exports and
-            documented how the helper consumes `RunAnalysisResult` plus log,
-            manifest and posterior metadata so other frontends can reuse the
-            same summary (copernican_lib/analysis.py,
-            docs/api_overview.md, tests/test_analysis.py, CHANGELOG.md).
+  structured `analysis-summary_<timestamp>` YAML/JSON exports and documented
+  how the helper consumes `RunAnalysisResult` plus log, manifest and posterior
+  metadata so other frontends can reuse the same summary
+  (copernican_lib/analysis.py, docs/api_overview.md, tests/test_analysis.py,
+  CHANGELOG.md).
 - 2025-12-08: Extended the GUI Analysis workspace with a Posteriors tab that
-            drives the shared `PlotViewer`, refreshes NetCDF snapshots via
-            `posterior_explorer.find_posterior_files`, and exposes autoscale/
-            zoom/pan controls so the trace/hist overview stays readable without
-            re-running the sampler (copernican_lib/gui/app.py,
-            copernican_lib/gui/plot_viewer.py,
-            docs/gui_overview.md, docs/api_overview.md, CHANGELOG.md).
+  drives the shared `PlotViewer`, refreshes NetCDF snapshots via
+  `posterior_explorer.find_posterior_files`, and exposes autoscale/ zoom/pan
+  controls so the trace/hist overview stays readable without re-running the
+  sampler (copernican_lib/gui/app.py, copernican_lib/gui/plot_viewer.py,
+  docs/gui_overview.md, docs/api_overview.md, CHANGELOG.md).
 - 2025-12-08: Added CLI switches for run summaries, comparisons and posterior
-            overviews so every Analysis tab workflow is now available via
-            `copernican.py --analysis-*` (copernican.py,
-            docs/cli_guide.md, README.md, CHANGELOG.md).
-- 2025-12-08: Added comparisons support to the Analysis workspace so users
-            can load two run directories, inspect Δχ²/parameter shifts and
-            dataset-count differences, and export structured JSON/YAML deltas via
-            the new `copernican_lib.analysis.compare_runs` helpers (copernican_lib/analysis.py,
-            copernican_lib/gui/app.py, docs/api_overview.md, docs/gui_overview.md,
-            CHANGELOG.md).
-- 2025-12-08: `copernican_lib.run_executor.execute_run_from_manifest` now saves a timestamped `run_manifest_<timestamp>.yml` inside every output directory before sampling, so CLI and validation runs always archive the manifest alongside their logs and chains while the documentation notes the behavior (copernican_lib/run_executor.py, README.md, docs/run_manifest.md, docs/cli_guide.md, tests/test_run_executor.py, CHANGELOG.md).
-- 2025-12-08: Let `pre-commit`'s formatting pass and drop the unused typing import so the GUI plot helpers keep their typing annotations tidy (copernican_lib/gui/plot_viewer.py, copernican_lib/posterior_explorer.py).
-- 2025-12-07: Reworked the CLI batch progress helper so the sampler emits concise counter lines instead of repeated percentages, removed the progress-line filter so every counter is archived, and taught the Validation monitor to retain its cached log/history plus the latest stage label after tab switches instead of showing the stale placeholder (copernican_lib/progress.py, copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-07: Removed stale duplicate helper files so only the canonical `copernican_lib/console_output.py` and `copernican_lib/progress.py` remain (copernican_lib/console_output 2.py, copernican_lib/progress 2.py).
-- 2025-12-07: Validation manifests now record their outputs under `validation/output/<manifest_stem>/validation_run_<timestamp>` and write `validation_run_<timestamp>.txt` logs so they mirror the regular run pipeline while the documentation reflects the new naming (validation/runner.py, copernican_lib/run_executor.py, README.md, docs/gui_overview.md, docs/gui_guide.md, docs/cli_guide.md, validation/README.md, CHANGELOG.md).
-- 2025-12-07: Replaced the CLI Stage 2 carriage-return spinner/bar with simple counter lines, removed the console logging suppression plumbing, kept the shared batch events intact for the GUI monitor and refreshed the GUI log filters plus every document that referenced the renderer (ABOUT.md, AGENTS.md, README.md, copernican_lib/console_output.py, copernican_lib/gui/app.py, copernican_lib/logger.py, copernican_lib/progress.py, docs/api_overview.md, docs/architecture.md, docs/design_overview.md, docs/gui_guide.md, docs/gui_overview.md, docs/launcher_gui.md, engines/cosmo_engine_mcmc.py, tests/test_engine_mcmc.py, requirements.lock, CHANGELOG.md).
+  overviews so every Analysis tab workflow is now available via `copernican.py
+  --analysis-*` (copernican.py, docs/cli_guide.md, README.md, CHANGELOG.md).
+- 2025-12-08: Added comparisons support to the Analysis workspace so users can
+  load two run directories, inspect Δχ²/parameter shifts and dataset-count
+  differences, and export structured JSON/YAML deltas via the new
+  `copernican_lib.analysis.compare_runs` helpers (copernican_lib/analysis.py,
+  copernican_lib/gui/app.py, docs/api_overview.md, docs/gui_overview.md,
+  CHANGELOG.md).
+- 2025-12-08: `copernican_lib.run_executor.execute_run_from_manifest` now saves
+  a timestamped `run_manifest_<timestamp>.yml` inside every output directory
+  before sampling, so CLI and validation runs always archive the manifest
+  alongside their logs and chains while the documentation notes the behavior
+  (copernican_lib/run_executor.py, README.md, docs/run_manifest.md,
+  docs/cli_guide.md, tests/test_run_executor.py, CHANGELOG.md).
+- 2025-12-08: Let `pre-commit`'s formatting pass and drop the unused typing
+  import so the GUI plot helpers keep their typing annotations tidy
+  (copernican_lib/gui/plot_viewer.py, copernican_lib/posterior_explorer.py).
+- 2025-12-07: Reworked the CLI batch progress helper so the sampler emits
+  concise counter lines instead of repeated percentages, removed the progress-
+  line filter so every counter is archived, and taught the Validation monitor
+  to retain its cached log/history plus the latest stage label after tab
+  switches instead of showing the stale placeholder
+  (copernican_lib/progress.py, copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-07: Removed stale duplicate helper files so only the canonical
+  `copernican_lib/console_output.py` and `copernican_lib/progress.py` remain
+  (copernican_lib/console_output 2.py, copernican_lib/progress 2.py).
+- 2025-12-07: Validation manifests now record their outputs under
+  `validation/output/<manifest_stem>/validation_run_<timestamp>` and write
+  `validation_run_<timestamp>.txt` logs so they mirror the regular run pipeline
+  while the documentation reflects the new naming (validation/runner.py,
+  copernican_lib/run_executor.py, README.md, docs/gui_overview.md,
+  docs/gui_guide.md, docs/cli_guide.md, validation/README.md, CHANGELOG.md).
+- 2025-12-07: Replaced the CLI Stage 2 carriage-return spinner/bar with simple
+  counter lines, removed the console logging suppression plumbing, kept the
+  shared batch events intact for the GUI monitor and refreshed the GUI log
+  filters plus every document that referenced the renderer (ABOUT.md,
+  AGENTS.md, README.md, copernican_lib/console_output.py,
+  copernican_lib/gui/app.py, copernican_lib/logger.py,
+  copernican_lib/progress.py, docs/api_overview.md, docs/architecture.md,
+  docs/design_overview.md, docs/gui_guide.md, docs/gui_overview.md,
+  docs/launcher_gui.md, engines/cosmo_engine_mcmc.py,
+  tests/test_engine_mcmc.py, requirements.lock, CHANGELOG.md).
 - 2025-12-06: Documented that the validation manifest now drives the fixed
-            Planck 2018 reference model against Union Through UNITY 2000 SNe
-            instead of Pantheon, and clarified the fixed-prior behavior across
-            the README, CLI/GUI guides, validation readme and reference model
-            (models/cosmo_model_ref_planck2018.yml,
-            validation/manifests/reference_planck2018.yml,
-            validation/README.md, README.md, docs/cli_guide.md,
-            docs/gui_overview.md, docs/gui_guide.md, CHANGELOG.md).
-- 2025-12-08: Updated the DevCovenant line-length and no-print policies to ignore
-            `copernican_lib/vendor/`, rewrote the policy scripts/tests to match,
-            refreshed `AGENTS.md`/`devcovenant/registry.json`, and noted the
-            existing CLI dependency change so the changelog covers every touched
-            file (copernican_lib/cli/dependencies.py, AGENTS.md,
-            devcovenant/policy_scripts/line_length_limit.py,
-            devcovenant/tests/test_policies/test_line_length_limit.py,
-            devcovenant/policy_scripts/no_print_in_library.py,
-            devcovenant/tests/test_policies/test_no_print_in_library.py,
-            devcovenant/registry.json, CHANGELOG.md).
+  Planck 2018 reference model against Union Through UNITY 2000 SNe instead of
+  Pantheon, and clarified the fixed-prior behavior across the README, CLI/GUI
+  guides, validation readme and reference model
+  (models/cosmo_model_ref_planck2018.yml,
+  validation/manifests/reference_planck2018.yml, validation/README.md,
+  README.md, docs/cli_guide.md, docs/gui_overview.md, docs/gui_guide.md,
+  CHANGELOG.md).
+- 2025-12-08: Updated the DevCovenant line-length and no-print policies to
+  ignore `copernican_lib/vendor/`, rewrote the policy scripts/tests to match,
+  refreshed `AGENTS.md`/`devcovenant/registry.json`, and noted the existing CLI
+  dependency change so the changelog covers every touched file
+  (copernican_lib/cli/dependencies.py, AGENTS.md,
+  devcovenant/policy_scripts/line_length_limit.py,
+  devcovenant/tests/test_policies/test_line_length_limit.py,
+  devcovenant/policy_scripts/no_print_in_library.py,
+  devcovenant/tests/test_policies/test_no_print_in_library.py,
+  devcovenant/registry.json, CHANGELOG.md).
 - 2025-12-08: Ensured the BAO likelihood extracts scalars from CAMB’s `rs_drag`
-            outputs instead of calling `float` on potential arrays, which removes
-            the NumPy deprecation warning while keeping the predictions unchanged
-            (copernican_lib/likelihoods/bao.py, CHANGELOG.md).
-- 2025-12-08: Suppressed ArviZ runtime warnings triggered by constant parameters
-            by ignoring `RuntimeWarning` during the rank/ESS calculations; the
-            diagnostics now still log summaries without spewing warnings for
-            fixed-parameter models (engines/cosmo_engine_mcmc.py,
-            CHANGELOG.md).
-- 2025-12-08: Removed the legacy staged menu entirely so no `COPERNICAN_ENABLE_STAGED_MENU`
-            flag or `--enable-legacy-stage-menu` option exists, ensuring the
-            launcher always follows the shared CLI/GUI flow; the documentation
-            and policies now describe the forward-only posture and the test
-            suite no longer toggles the retired menu (copernican.py, README.md,
-            AGENTS.md, docs/cli_guide.md, docs/gui_overview.md,
-            docs/orchestration_services.md, tests/cli/test_launcher_modes.py,
-            CHANGELOG.md).
+  outputs instead of calling `float` on potential arrays, which removes the
+  NumPy deprecation warning while keeping the predictions unchanged
+  (copernican_lib/likelihoods/bao.py, CHANGELOG.md).
+- 2025-12-08: Suppressed ArviZ runtime warnings triggered by constant
+  parameters by ignoring `RuntimeWarning` during the rank/ESS calculations; the
+  diagnostics now still log summaries without spewing warnings for fixed-
+  parameter models (engines/cosmo_engine_mcmc.py, CHANGELOG.md).
+- 2025-12-08: Removed the legacy staged menu entirely so no
+  `COPERNICAN_ENABLE_STAGED_MENU` flag or `--enable-legacy-stage-menu` option
+  exists, ensuring the launcher always follows the shared CLI/GUI flow; the
+  documentation and policies now describe the forward-only posture and the test
+  suite no longer toggles the retired menu (copernican.py, README.md,
+  AGENTS.md, docs/cli_guide.md, docs/gui_overview.md,
+  docs/orchestration_services.md, tests/cli/test_launcher_modes.py,
+  CHANGELOG.md).
 - 2025-12-08: Added `pythonmonkey==1.3.0` to the runtime dependency set so the
-            TkinterWeb KaTeX window can evaluate its JavaScript helpers; the
-            requirements files and license table now document the package that
-            ships along with the GUI (requirements.in, requirements.lock,
-            THIRD_PARTY_LICENSES.md, CHANGELOG.md).
+  TkinterWeb KaTeX window can evaluate its JavaScript helpers; the requirements
+  files and license table now document the package that ships along with the
+  GUI (requirements.in, requirements.lock, THIRD_PARTY_LICENSES.md,
+  CHANGELOG.md).
 - 2025-12-08: Made `BatchProgressBar.update` return and log the stage-specific
-            counter line on every percent advance so the CLI output matches
-            the documented “batch X” message and the listener-based tests stop
-            observing `None` (copernican_lib/progress.py, CHANGELOG.md).
+  counter line on every percent advance so the CLI output matches the
+  documented “batch X” message and the listener-based tests stop observing
+  `None` (copernican_lib/progress.py, CHANGELOG.md).
 - 2025-12-09: Persisted settings via `copernican_lib/settings.py` and the
-            generated `copernican_settings.yml`, and rewrote the Settings
-            screen as four tabbed panels (Logging, Datasets, GUI, Tools)
-            mirroring the Run Builder layout. Each tab now exposes the requested
-            purge/refresh/rebuild helpers plus environment hints and default
-            toggles, letting GUI and CLI launches share the same defaults
-            without reintroducing the staged menu (copernican_lib/settings.py,
-            copernican_lib/gui/app.py, README.md, docs/gui_overview.md,
-            docs/orchestration_services.md, CHANGELOG.md).
+  generated `copernican_settings.yml`, and rewrote the Settings screen as four
+  tabbed panels (Logging, Datasets, GUI, Tools) mirroring the Run Builder
+  layout. Each tab now exposes the requested purge/refresh/rebuild helpers plus
+  environment hints and default toggles, letting GUI and CLI launches share the
+  same defaults without reintroducing the staged menu
+  (copernican_lib/settings.py, copernican_lib/gui/app.py, README.md,
+  docs/gui_overview.md, docs/orchestration_services.md, CHANGELOG.md).
 - 2025-12-09: Program-level diagnostics now respect the stored settings
-            (retention count, log level and console capture) and close/delete
-            the parent log when a detached GUI handoff succeeds so only one
-            `logs/copernican_log_*.txt` remains while every console line,
-            including dataset discovery, is mirrored into that file
-            (copernican.py, copernican_lib/logger.py,
-            copernican_lib/gui/app.py, CHANGELOG.md).
+  (retention count, log level and console capture) and close/delete the parent
+  log when a detached GUI handoff succeeds so only one
+  `logs/copernican_log_*.txt` remains while every console line, including
+  dataset discovery, is mirrored into that file (copernican.py,
+  copernican_lib/logger.py, copernican_lib/gui/app.py, CHANGELOG.md).
 - 2025-12-07: Added a KaTeX/MathJax-powered equation preview beside the model
-            definition pane (covering the vendored TkinterWeb assets,
-            style/template helpers, and the license notice) and stabilized the
-            per-theory info boxes so they stay within a fixed-width column that
-            wraps long theory names/equations while preserving the right-hand
-            margin for every fit plot (copernican_lib/gui/app.py,
-            copernican_lib/plotter.py,
-            copernican_lib/vendor/tkinterweb/__init__.py,
-            copernican_lib/vendor/tkinterweb/*.py,
-            copernican_lib/vendor/tkinterweb_tkhtml/__init__.py,
-            THIRD_PARTY_LICENSES.md, CHANGELOG.md)
+  definition pane (covering the vendored TkinterWeb assets, style/template
+  helpers, and the license notice) and stabilized the per-theory info boxes so
+  they stay within a fixed-width column that wraps long theory names/equations
+  while preserving the right-hand margin for every fit plot
+  (copernican_lib/gui/app.py, copernican_lib/plotter.py,
+  copernican_lib/vendor/tkinterweb/__init__.py,
+  copernican_lib/vendor/tkinterweb/*.py,
+  copernican_lib/vendor/tkinterweb_tkhtml/__init__.py, THIRD_PARTY_LICENSES.md,
+  CHANGELOG.md)
 - 2025-12-06: Booted diagnostics logging immediately after the launcher option
-            is chosen so the console now shows “Copernican Suite has
-            initialised”, version, interpreter path, working directory, and
-            hardware/software details before the GUI/CLI logic begins, and the
-            manifest now records that the start scripts manage dependencies via
-            a simple sanity check message instead of running the previous
-            NumPy/SciPy microtest (copernican.py,
-            copernican_lib/logger.py, copernican_lib/gui/app.py, CHANGELOG.md)
-            The logging helper now mirrors every console stream (stdout and
-            stderr) into both the primary diagnostics log and the new program
-            logger so stack traces and TkinterWeb warnings appear in
-            `logs/copernican_log_*.txt` without requiring extra configuration
-            (copernican_lib/logger.py, CHANGELOG.md)
+  is chosen so the console now shows “Copernican Suite has initialised”,
+  version, interpreter path, working directory, and hardware/software details
+  before the GUI/CLI logic begins, and the manifest now records that the start
+  scripts manage dependencies via a simple sanity check message instead of
+  running the previous NumPy/SciPy microtest (copernican.py,
+  copernican_lib/logger.py, copernican_lib/gui/app.py, CHANGELOG.md) The
+  logging helper now mirrors every console stream (stdout and stderr) into both
+  the primary diagnostics log and the new program logger so stack traces and
+  TkinterWeb warnings appear in `logs/copernican_log_*.txt` without requiring
+  extra configuration (copernican_lib/logger.py, CHANGELOG.md)
 - 2025-12-06: Restored the model preview panel’s original height, moved the
-            Equations & expressions content into a dedicated pop-up window, and
-            added a KaTeX/plaintext fallback so the builder stays usable on
-            tall screens while still exposing every symbolic expression
-            (copernican_lib/gui/app.py, CHANGELOG.md)
+  Equations & expressions content into a dedicated pop-up window, and added a
+  KaTeX/plaintext fallback so the builder stays usable on tall screens while
+  still exposing every symbolic expression (copernican_lib/gui/app.py,
+  CHANGELOG.md)
 - 2025-12-06: Cached dataset discovery so the scanner only logs once per
-            repository while still allowing forced rechecks; GUI refreshes flag
-            the forced scan when prompted and CLI revalidation also re-runs the
-            parser registry, preventing the catalog from walking ``data/`` twice
-            in a single launch and keeping the list views snappy
-            (copernican_lib/dataset_registry.py, copernican_lib/gui/app.py,
-            copernican.py, tests/test_dataset_registry.py,
-            tests/test_parser_discovery.py, CHANGELOG.md)
+  repository while still allowing forced rechecks; GUI refreshes flag the
+  forced scan when prompted and CLI revalidation also re-runs the parser
+  registry, preventing the catalog from walking ``data/`` twice in a single
+  launch and keeping the list views snappy (copernican_lib/dataset_registry.py,
+  copernican_lib/gui/app.py, copernican.py, tests/test_dataset_registry.py,
+  tests/test_parser_discovery.py, CHANGELOG.md)
 - 2025-12-06: Ensured the vendored helper root inserts itself into ``sys.path``
-            so TkinterWeb and the other bundled widgets remain importable even
-            when GUI modules are deferred until after diagnostics logging
-            initializes (copernican_lib/vendor/__init__.py, CHANGELOG.md)
-- 2025-12-06: Moved the dataset registry import until after diagnostics
-            logging initializes, so “Dataset discovery…” messages now land
-            inside `logs/copernican-program_*.txt` instead of missing the
-            log entirely when they fire at startup
-            (copernican.py, CHANGELOG.md)
+  so TkinterWeb and the other bundled widgets remain importable even when GUI
+  modules are deferred until after diagnostics logging initializes
+  (copernican_lib/vendor/__init__.py, CHANGELOG.md)
+- 2025-12-06: Moved the dataset registry import until after diagnostics logging
+  initializes, so “Dataset discovery…” messages now land inside
+  `logs/copernican-program_*.txt` instead of missing the log entirely when they
+  fire at startup (copernican.py, CHANGELOG.md)
 - 2025-12-06: Added `pre-commit==4.5.0` to the tracked dependencies, recompiled
-            `requirements.lock`, taught the `tests/__init__.py` cleanup hook to
-            skip any pre-existing `copernican-run_*` folders, and restored the
-            preserved `output/copernican-run_20251205_191908/copernican-run_20251205_191908.txt`
-            log so genuine runs survive the automatic cleanup while tests still
-            tidy their own outputs (pyproject.toml, requirements.in,
-            requirements.lock, tests/__init__.py,
-            output/copernican-run_20251205_191908/copernican-run_20251205_191908.txt,
-            CHANGELOG.md)
+  `requirements.lock`, taught the `tests/__init__.py` cleanup hook to skip any
+  pre-existing `copernican-run_*` folders, and restored the preserved
+  `output/copernican-run_20251205_191908/copernican-run_20251205_191908.txt`
+  log so genuine runs survive the automatic cleanup while tests still tidy
+  their own outputs (pyproject.toml, requirements.in, requirements.lock,
+  tests/__init__.py, output/copernican-run_20251205_191908/copernican-
+  run_20251205_191908.txt, CHANGELOG.md)
 - 2025-12-07: Declared the Planck 2018 Reference ΛCDM priors as uniform with
-            identical lower and upper bounds so validation runs still draw the
-            reference lines/corner while the parameters remain locked, refreshed
-            the manifest’s dataset hashes to match the trimmed `data_files`
-            inventory, and documented the behaviour for future validation work
-            (models/cosmo_model_ref_planck2018.yml,
-            validation/manifests/reference_planck2018.yml,
-            validation/README.md, CHANGELOG.md)
-- 2025-12-06: Resolved the BAO radiation mismatch by documenting the
-            neutrino-corrected photon term, pointing
-            `calculate_bao_observables` at the CAMB background, and refreshing
-            every shared model YAML so each H(z)/r_s definition relies on
-            `Omega_gamma*(1 + 0.2271 * Neff)` prior to exporting plots or CSVs
-            (README.md, cosmo_model_template.yml,
-            copernican_lib/statistics.py, models/cosmo_model_lcdm.yml,
-            models/cosmo_model_lcdm_mnu.yml, models/cosmo_model_qauc.yml,
-            models/cosmo_model_qrsf.yml, models/cosmo_model_usmf2.yml,
-            models/cosmo_model_w0wa.yml, models/cosmo_model_wcdm.yml,
-            copernican.py, docs/cli_guide.md, docs/gui_guide.md,
-            tests/test_bossdr12_parser.py, tests/test_engine_mcmc.py,
-            CHANGELOG.md)
-- 2025-12-06: Renamed `predicts_bao` to `skip_bao`, inverted the expectation, and
-            documented the new flag plus schema, loader, and regression guidance
-            while flipping every sample YAML to `skip_bao: false` and updating
-            the model coder/tests accordingly (README.md,
-            cosmo_model_template.yml, copernican_lib/model_coder.py,
-            copernican_lib/model_spec_validator.py,
-            models/cosmo_model_lcdm.yml, models/cosmo_model_lcdm_mnu.yml,
-            models/cosmo_model_qauc.yml, models/cosmo_model_qrsf.yml,
-            models/cosmo_model_usmf2.yml, models/cosmo_model_w0wa.yml,
-            models/cosmo_model_wcdm.yml, tests/test_model_coder.py,
-            CHANGELOG.md)
-- 2025-12-06: Added the wCDM, w₀wₐ and neutrino-augmented ΛCDM samples, refreshed
-            their README description and documented the new files for the catalog
-            (models/cosmo_model_wcdm.yml, models/cosmo_model_w0wa.yml,
-            models/cosmo_model_lcdm_mnu.yml, copernican_lib/engine_plugin_validation.py,
-            README.md, CHANGELOG.md).
+  identical lower and upper bounds so validation runs still draw the reference
+  lines/corner while the parameters remain locked, refreshed the manifest’s
+  dataset hashes to match the trimmed `data_files` inventory, and documented
+  the behaviour for future validation work
+  (models/cosmo_model_ref_planck2018.yml,
+  validation/manifests/reference_planck2018.yml, validation/README.md,
+  CHANGELOG.md)
+- 2025-12-06: Resolved the BAO radiation mismatch by documenting the neutrino-
+  corrected photon term, pointing `calculate_bao_observables` at the CAMB
+  background, and refreshing every shared model YAML so each H(z)/r_s
+  definition relies on `Omega_gamma*(1 + 0.2271 * Neff)` prior to exporting
+  plots or CSVs (README.md, cosmo_model_template.yml,
+  copernican_lib/statistics.py, models/cosmo_model_lcdm.yml,
+  models/cosmo_model_lcdm_mnu.yml, models/cosmo_model_qauc.yml,
+  models/cosmo_model_qrsf.yml, models/cosmo_model_usmf2.yml,
+  models/cosmo_model_w0wa.yml, models/cosmo_model_wcdm.yml, copernican.py,
+  docs/cli_guide.md, docs/gui_guide.md, tests/test_bossdr12_parser.py,
+  tests/test_engine_mcmc.py, CHANGELOG.md)
+- 2025-12-06: Renamed `predicts_bao` to `skip_bao`, inverted the expectation,
+  and documented the new flag plus schema, loader, and regression guidance
+  while flipping every sample YAML to `skip_bao: false` and updating the model
+  coder/tests accordingly (README.md, cosmo_model_template.yml,
+  copernican_lib/model_coder.py, copernican_lib/model_spec_validator.py,
+  models/cosmo_model_lcdm.yml, models/cosmo_model_lcdm_mnu.yml,
+  models/cosmo_model_qauc.yml, models/cosmo_model_qrsf.yml,
+  models/cosmo_model_usmf2.yml, models/cosmo_model_w0wa.yml,
+  models/cosmo_model_wcdm.yml, tests/test_model_coder.py, CHANGELOG.md)
+- 2025-12-06: Added the wCDM, w₀wₐ and neutrino-augmented ΛCDM samples,
+  refreshed their README description and documented the new files for the
+  catalog (models/cosmo_model_wcdm.yml, models/cosmo_model_w0wa.yml,
+  models/cosmo_model_lcdm_mnu.yml, copernican_lib/engine_plugin_validation.py,
+  README.md, CHANGELOG.md).
 - 2025-12-06: Rebuilt the Validation workflow around manifest-driven runs,
-            added the fixed `models/cosmo_model_ref_planck2018.yml` reference,
-            documented the golden manifest plus output directory, and updated the
-            CLI `--run-validation` flag plus GUI Validation page so each run
-            streams its summary, writes to `VALIDATION.md`, and leaves outputs
-            under `validation/output/<manifest_stem>/copernican-run_<timestamp>/`.
-            The run monitor and validation log now expose “lock-to-latest” toggles
-            so viewers stay pinned when needed.
-            (copernican.py, copernican_lib/gui/app.py,
-            docs/cli_guide.md, docs/gui_guide.md, docs/gui_overview.md,
-            README.md, .gitignore, validation/README.md,
-            validation/runner.py, validation/manifests/reference_planck2018.yml,
-            validation/__init__.py, models/cosmo_model_ref_planck2018.yml,
-            VALIDATION.md, CHANGELOG.md).
+  added the fixed `models/cosmo_model_ref_planck2018.yml` reference, documented
+  the golden manifest plus output directory, and updated the CLI `--run-
+  validation` flag plus GUI Validation page so each run streams its summary,
+  writes to `VALIDATION.md`, and leaves outputs under
+  `validation/output/<manifest_stem>/copernican-run_<timestamp>/`. The run
+  monitor and validation log now expose “lock-to-latest” toggles so viewers
+  stay pinned when needed. (copernican.py, copernican_lib/gui/app.py,
+  docs/cli_guide.md, docs/gui_guide.md, docs/gui_overview.md, README.md,
+  .gitignore, validation/README.md, validation/runner.py,
+  validation/manifests/reference_planck2018.yml, validation/__init__.py,
+  models/cosmo_model_ref_planck2018.yml, VALIDATION.md, CHANGELOG.md).
 - 2025-12-07: Skipped cache directories and compiled artifacts when hashing
-            dataset assets so the recorded digests only describe the observational
-            files and validation manifests no longer list parser caches, and the
-            associated docs now explain the behaviour.
-            (copernican_lib/dataset_registry.py,
-            data/bao/bossdr12/metadata_bossdr12.yml,
-            data/bao/compound/metadata_compound.yml,
-            data/cmb/planck2018lite/metadata_planck2018lite.yml,
-            data/gw/placeholder/metadata_gw_placeholder.yml,
-            data/sne/jla2014/metadata_jla2014.yml,
-            data/sne/pantheon/metadata_pantheon.yml,
-            data/sne/union3/metadata_union3.yml,
-            validation/manifests/reference_planck2018.yml,
-            docs/data_overview.md, docs/architecture.md, CHANGELOG.md).
+  dataset assets so the recorded digests only describe the observational files
+  and validation manifests no longer list parser caches, and the associated
+  docs now explain the behaviour. (copernican_lib/dataset_registry.py,
+  data/bao/bossdr12/metadata_bossdr12.yml,
+  data/bao/compound/metadata_compound.yml,
+  data/cmb/planck2018lite/metadata_planck2018lite.yml,
+  data/gw/placeholder/metadata_gw_placeholder.yml,
+  data/sne/jla2014/metadata_jla2014.yml,
+  data/sne/pantheon/metadata_pantheon.yml, data/sne/union3/metadata_union3.yml,
+  validation/manifests/reference_planck2018.yml, docs/data_overview.md,
+  docs/architecture.md, CHANGELOG.md).
 - 2025-12-07: Added automatic cleanup of `copernican-run_*` folders after the
-            unittest/pytest suites run so the workspace stays clean between test
-            invocations (`tests/__init__.py`, CHANGELOG.md).
-- 2025-12-06: Removed the legacy playbook under `docs/validation/` and the
-            old `validation/lcdm_engine_validation.py` script now that the
-            manifest runner lives inside `validation/`, keeping the directory
-            layout clean (docs/validation/README.md,
-            docs/validation/lcdm_engine_validation.py,
-            validation/lcdm_engine_validation.py, CHANGELOG.md).
-- 2025-12-06: Let `Neff` float between 2.5 and 3.5 across the standard catalog so
-            CAMB sees the same relativistic density that the analytic integrals
-            expose (models/cosmo_model_lcdm.yml, models/cosmo_model_wcdm.yml,
-            models/cosmo_model_w0wa.yml, models/cosmo_model_lcdm_mnu.yml,
-            README.md, CHANGELOG.md).
+  unittest/pytest suites run so the workspace stays clean between test
+  invocations (`tests/__init__.py`, CHANGELOG.md).
+- 2025-12-06: Removed the legacy playbook under `docs/validation/` and the old
+  `validation/lcdm_engine_validation.py` script now that the manifest runner
+  lives inside `validation/`, keeping the directory layout clean
+  (docs/validation/README.md, docs/validation/lcdm_engine_validation.py,
+  validation/lcdm_engine_validation.py, CHANGELOG.md).
+- 2025-12-06: Let `Neff` float between 2.5 and 3.5 across the standard catalog
+  so CAMB sees the same relativistic density that the analytic integrals expose
+  (models/cosmo_model_lcdm.yml, models/cosmo_model_wcdm.yml,
+  models/cosmo_model_w0wa.yml, models/cosmo_model_lcdm_mnu.yml, README.md,
+  CHANGELOG.md).
 - 2025-12-05: Retired several legacy sample models so the catalog only ships
-            `cosmo_model_qrsf.yml`, rewrote the README summary, and logged the
-            deletions (models/cosmo_model_cfsc.yml,
-            models/cosmo_model_cpc.yml, models/cosmo_model_qrsfv2.yml,
-            models/cosmo_model_qrsfv3.yml, models/cosmo_model_qrsfv4.yml,
-            models/cosmo_model_qrsfv5.yml, models/cosmo_model_usmf4.yml,
-            README.md, CHANGELOG.md).
+  `cosmo_model_qrsf.yml`, rewrote the README summary, and logged the deletions
+  (models/cosmo_model_cfsc.yml, models/cosmo_model_cpc.yml,
+  models/cosmo_model_qrsfv2.yml, models/cosmo_model_qrsfv3.yml,
+  models/cosmo_model_qrsfv4.yml, models/cosmo_model_qrsfv5.yml,
+  models/cosmo_model_usmf4.yml, README.md, CHANGELOG.md).
 - 2025-12-05: Locked the changelog coverage policy to RNG-only logging, added
-            exclusivity tests and refreshed the policy registry so future RNG
-            changes stay isolated in their own log (AGENTS.md,
-            devcovenant/policy_scripts/changelog_coverage.py,
-            devcovenant/tests/test_policies/test_changelog_coverage.py,
-            devcovenant/registry.json, CHANGELOG.md).
-- 2025-12-05: RNG mini-game updates from 2025-12-03 through 2025-12-05 now live in `rng_minigames/CHANGELOG.md`.
-- 2025-12-05: Moved RNG documentation into per-game READMEs, pointed README/AGENTS/docs at the new location and updated the DevCovenant changelog policy to enforce the split (README.md, AGENTS.md, docs/gui_guide.md, docs/minigames.md, devcovenant/policy_scripts/changelog_coverage.py, devcovenant/tests/test_policies/test_changelog_coverage.py).
-- 2025-12-03: Added CLI utility flags for catalogue summaries, dataset revalidation and manifest listing/preview so terminal users can inspect inventories without launching the GUI (copernican.py, tests/test_cli/test_cli_utilities.py, docs/cli_guide.md, README.md, CHANGELOG.md).
-- 2025-12-03: Replaced the Run Builder dataset listboxes with 600 px wide dropdown menus so selections stay visible and accessible even when Tk list heights collapse (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Shrunk the Run Builder page buttons so their widths now match the Previous/Next/Cancel controls, keeping the jump bar consistent with the rest of the navigation chrome (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Added dedicated GUI and CLI guides plus a multi-page Help panel that renders those Markdown files with builder-style navigation buttons while standardising every navigation page header on the bolder Run Builder style (copernican_lib/gui/app.py, docs/gui_guide.md, docs/cli_guide.md, README.md, CHANGELOG.md).
-- 2025-12-03: Replaced the README and overview docs with the newer " 2" copies and deleted the stale originals so the latest manifest, API and GUI documentation is canonical (README.md, README 2.md, docs/api_overview.md, docs/api_overview 2.md, docs/data_overview.md, docs/data_overview 2.md, docs/gui_overview.md, docs/gui_overview 2.md, docs/orchestration_services.md, docs/orchestration_services 2.md, CHANGELOG.md).
-- 2025-12-03: Added catalogue health tiles on the GUI Home screen plus the new environment/version status bar so operators can revalidate datasets, inspect model compatibility counts, and confirm COPERNICAN_* overrides before launching runs (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Flattened the GUI status bar chrome so the environment strip blends with the main window instead of showing a raised border (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Nudged the horizontal separator and status bar text 5 px lower so the Home content and environment strip have consistent spacing (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Reduced the status bar height by 10 px while centering its text between the separator and window border for a tighter footer layout (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Pulled the separator and status text even closer to the window border so the footer is slimmer while keeping the version strip centered between the chrome (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Removed the outer window padding, made the separator span edge to edge, and thinned the status bar again so the footer no longer looks bulky (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Dropped the placeholder Recent Runs and Quick configurations blocks on the Home screen so those sections only appear when real history/config data exists (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Extended the version-sync policy to cover pyproject.toml and tightened the modules-or-tests enforcement so new or removed plugins must trigger test updates while pyproject.toml now matches version 11.0.1 (devcovenant/policy_scripts/version_sync.py, devcovenant/tests/test_policies/test_version_sync.py, devcovenant/policy_scripts/new_modules_need_tests.py, devcovenant/tests/test_policies/test_new_modules_need_tests.py, pyproject.toml, AGENTS.md, CHANGELOG.md).
-- 2025-12-03: Enhanced the version-sync policy again to flag any hard-coded suite version strings inside runtime modules and expanded its tests plus registry hashes so the check enforces the new rule (devcovenant/policy_scripts/version_sync.py, devcovenant/tests/test_policies/test_version_sync.py, devcovenant/registry.json, AGENTS.md, CHANGELOG.md).
-- 2025-12-03: Overhauled the README and docs to describe the current manifest, dataset, API, GUI, and architecture flows plus the new documentation guardrails so contributions match the Copernican standards (README.md, docs/architecture.md, docs/api_overview.md, docs/data_overview.md, docs/gui_overview.md, docs/orchestration_services.md, CHANGELOG.md).
-- 2025-12-03: Rebalanced the GUI navigation rail to 140 px with equal edge padding and return the launcher menu after the GUI window closes so operators can relaunch without restarting the helper (copernican_lib/gui/app.py, start.sh, start.command, start.bat, README.md, CHANGELOG.md).
-- 2025-12-03: Restored the Run Builder Data page so the SNe, BAO and CMB selectors share a scrollable row and the dataset details sit below the lists, keeping every choice visible (copernican_lib/gui/app.py, README.md, CHANGELOG.md).
-- 2025-12-03: Reintroduced the Engine knobs frame to show per-engine descriptions, defaults and entries and feed the entered values into the manifest so GUI and CLI runs share the same tuning metadata (copernican_lib/gui/app.py, README.md, CHANGELOG.md).
-- 2025-12-03: Synchronized the GUI builder step identifiers with the manifest confirmation tests and cleaned up trailing whitespace in the DevCovenant law mapping (copernican_lib/gui/app.py, DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
-- 2025-12-03: Restored the dynamic Engine settings panel so each backend exposes its knobs, recommendations and run-setting hints with a scrollable stage four layout (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Removed the redundant Engine knobs panel and moved each run-setting recommendation directly above its corresponding entry to keep the Stage 4 layout compact (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Reverted the experimental anchor logic on the model preview panel and shortened the preview text area by one line for a tighter default layout (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Doubled the left padding on the navigation rail so the buttons sit further from the window edge (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Reduced the status strip padding so the environment text sits closer to the window’s lower border (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Removed the root window’s bottom padding so the separator and status text align closely with the lower frame (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Simplified the status summary to stop after the venv indicator, switched separators to double spaces and tinted the strip labels with a neutral grey for both light/dark modes (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Updated the status bar branding to show “Copernican Suite … © Apostol Apostolov & Black Epsilon Ltd.” on the left and moved the Python/venv info to the right (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Increased the logo rail padding (extra 10 px above) and uncropped the image by expanding its holder so the bottom edge is visible (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Extended the navigation separator so its vertical bar meets the bottom status separator for cleaner alignment (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Locked the GUI to a minimum width of 800 px so the layout can’t collapse in narrow windows (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Stacked the dataset selectors vertically with fixed 500 px width listboxes that auto-size between one and five rows based on available entries (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Reintroduced engine capability detection so the Run Settings box reflects whichever engine is selected, showing engine-specific knobs (including nested settings) with parsed recommendations, bounded spinboxes and a checkbox for display-progress (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Swapped the Run Builder step jump buttons to Tk buttons so font highlighting works without Tk style errors (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Restored native ttk jump buttons without custom fonts so inactive steps use the standard disabled styling like the other controls (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Sized the Run Builder jump buttons to match the navigation controls and now leverage ttk’s disabled state so Manifest/Confirm grey out identically to Previous/Next/Cancel (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Raised the GUI root window above other apps (temporarily setting `-topmost`) so it appears in front of the launcher terminal when opened (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Trimmed the Run Builder header to display the active step name (“Run builder: Seed”) and resized the jump buttons to match Previous/Next/Cancel so the bar is consistent (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Fixed the dataset selectors so each listbox renders 1–5 rows at 500 px width with readable highlights instead of the clipped black slivers (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Updated the Manifest step helper text to the full storage warning copy requested for saved manifests (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Locked dataset listboxes to four rows to keep the selection highlight visible regardless of available entries (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Removed the stage headings from Run Builder pages and replaced them with consistent 30 px spacing so each step’s content lines up cleanly beneath the navigation controls (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Tuned the padding between the navigation buttons and separator to 24 px so the right-hand margin stays comfortably wider while retaining the tight left edge gap (copernican_lib/gui/app.py, README.md, CHANGELOG.md).
-- 2025-12-03: Rebalanced the GUI navigation spacing, expanded the data selectors with a provisional scrollbar, embedded the faster model preview pane and restored the engine knob descriptions on page 4 so users can read what each backend option controls (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-03: Tightened the GUI navigation padding, added the separator, and rebuilt the Run Builder pages so Manifest shows a preview, reminder and open action while engine settings sit on page 4 (copernican_lib/gui/app.py, CHANGELOG.md).
-- 2025-12-02: Documented that manifest-driven runs rebuild LCDM/alternative plugins before entering the shared pipeline so CLI and GUI launches are identical (README.md, docs/run_manifest.md, docs/orchestration_services.md).
-- 2025-12-02: Powered the manifest executor through the shared sampling pipeline so CLI runs now build vetted model plugins, import the requested engine and advance `copernican_lib.run_pipeline.execute_run_pipeline` after the dataset loaders finish (copernican_lib/run_executor.py, tests/test_run_executor.py).
-- 2025-12-02: Wrapped the CLI manifest warning and manifest runner helpers to respect the 79-character policy, then bumped the suite to 11.0.1 so metadata files stay in sync (copernican.py, copernican_lib/run_executor.py, copernican_lib/run_pipeline.py, copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
-- 2025-12-02: Documented the Run Builder Save Manifest gating, temporary workspace, confirmation flow and Cancel safeguards plus the new external-export dialog so operators know which files move when the pages open (AGENTS.md, README.md, docs/gui_overview.md, docs/run_manifest.md).
-- 2025-12-02: Fixed `finalize_run_workspace` so the manifest is renamed before its containing folder moves, preventing `FileNotFoundError` when the GUI starts runs and ensuring the temporary workspace survives until the CLI worker loads it (copernican_lib/run_lifecycle.py, tests/test_gui_app.py).
-- 2025-12-02: Pointed `copernican.main_workflow` at `copernican_lib.run_executor.execute_run_from_manifest` so manifest launches share the executor already used by the GUI and other orchestrators (copernican.py).
+  exclusivity tests and refreshed the policy registry so future RNG changes
+  stay isolated in their own log (AGENTS.md,
+  devcovenant/policy_scripts/changelog_coverage.py,
+  devcovenant/tests/test_policies/test_changelog_coverage.py,
+  devcovenant/registry.json, CHANGELOG.md).
+- 2025-12-05: RNG mini-game updates from 2025-12-03 through 2025-12-05 now live
+  in `rng_minigames/CHANGELOG.md`.
+- 2025-12-05: Moved RNG documentation into per-game READMEs, pointed
+  README/AGENTS/docs at the new location and updated the DevCovenant changelog
+  policy to enforce the split (README.md, AGENTS.md, docs/gui_guide.md,
+  docs/minigames.md, devcovenant/policy_scripts/changelog_coverage.py,
+  devcovenant/tests/test_policies/test_changelog_coverage.py).
+- 2025-12-03: Added CLI utility flags for catalogue summaries, dataset
+  revalidation and manifest listing/preview so terminal users can inspect
+  inventories without launching the GUI (copernican.py,
+  tests/test_cli/test_cli_utilities.py, docs/cli_guide.md, README.md,
+  CHANGELOG.md).
+- 2025-12-03: Replaced the Run Builder dataset listboxes with 600 px wide
+  dropdown menus so selections stay visible and accessible even when Tk list
+  heights collapse (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Shrunk the Run Builder page buttons so their widths now match the
+  Previous/Next/Cancel controls, keeping the jump bar consistent with the rest
+  of the navigation chrome (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Added dedicated GUI and CLI guides plus a multi-page Help panel
+  that renders those Markdown files with builder-style navigation buttons while
+  standardising every navigation page header on the bolder Run Builder style
+  (copernican_lib/gui/app.py, docs/gui_guide.md, docs/cli_guide.md, README.md,
+  CHANGELOG.md).
+- 2025-12-03: Replaced the README and overview docs with the newer " 2" copies
+  and deleted the stale originals so the latest manifest, API and GUI
+  documentation is canonical (README.md, README 2.md, docs/api_overview.md,
+  docs/api_overview 2.md, docs/data_overview.md, docs/data_overview 2.md,
+  docs/gui_overview.md, docs/gui_overview 2.md, docs/orchestration_services.md,
+  docs/orchestration_services 2.md, CHANGELOG.md).
+- 2025-12-03: Added catalogue health tiles on the GUI Home screen plus the new
+  environment/version status bar so operators can revalidate datasets, inspect
+  model compatibility counts, and confirm COPERNICAN_* overrides before
+  launching runs (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Flattened the GUI status bar chrome so the environment strip
+  blends with the main window instead of showing a raised border
+  (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Nudged the horizontal separator and status bar text 5 px lower so
+  the Home content and environment strip have consistent spacing
+  (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Reduced the status bar height by 10 px while centering its text
+  between the separator and window border for a tighter footer layout
+  (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Pulled the separator and status text even closer to the window
+  border so the footer is slimmer while keeping the version strip centered
+  between the chrome (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Removed the outer window padding, made the separator span edge to
+  edge, and thinned the status bar again so the footer no longer looks bulky
+  (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Dropped the placeholder Recent Runs and Quick configurations
+  blocks on the Home screen so those sections only appear when real
+  history/config data exists (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Extended the version-sync policy to cover pyproject.toml and
+  tightened the modules-or-tests enforcement so new or removed plugins must
+  trigger test updates while pyproject.toml now matches version 11.0.1
+  (devcovenant/policy_scripts/version_sync.py,
+  devcovenant/tests/test_policies/test_version_sync.py,
+  devcovenant/policy_scripts/new_modules_need_tests.py,
+  devcovenant/tests/test_policies/test_new_modules_need_tests.py,
+  pyproject.toml, AGENTS.md, CHANGELOG.md).
+- 2025-12-03: Enhanced the version-sync policy again to flag any hard-coded
+  suite version strings inside runtime modules and expanded its tests plus
+  registry hashes so the check enforces the new rule
+  (devcovenant/policy_scripts/version_sync.py,
+  devcovenant/tests/test_policies/test_version_sync.py,
+  devcovenant/registry.json, AGENTS.md, CHANGELOG.md).
+- 2025-12-03: Overhauled the README and docs to describe the current manifest,
+  dataset, API, GUI, and architecture flows plus the new documentation
+  guardrails so contributions match the Copernican standards (README.md,
+  docs/architecture.md, docs/api_overview.md, docs/data_overview.md,
+  docs/gui_overview.md, docs/orchestration_services.md, CHANGELOG.md).
+- 2025-12-03: Rebalanced the GUI navigation rail to 140 px with equal edge
+  padding and return the launcher menu after the GUI window closes so operators
+  can relaunch without restarting the helper (copernican_lib/gui/app.py,
+  start.sh, start.command, start.bat, README.md, CHANGELOG.md).
+- 2025-12-03: Restored the Run Builder Data page so the SNe, BAO and CMB
+  selectors share a scrollable row and the dataset details sit below the lists,
+  keeping every choice visible (copernican_lib/gui/app.py, README.md,
+  CHANGELOG.md).
+- 2025-12-03: Reintroduced the Engine knobs frame to show per-engine
+  descriptions, defaults and entries and feed the entered values into the
+  manifest so GUI and CLI runs share the same tuning metadata
+  (copernican_lib/gui/app.py, README.md, CHANGELOG.md).
+- 2025-12-03: Synchronized the GUI builder step identifiers with the manifest
+  confirmation tests and cleaned up trailing whitespace in the DevCovenant law
+  mapping (copernican_lib/gui/app.py, DEVCOVENANT_LAW_MAPPING.md,
+  CHANGELOG.md).
+- 2025-12-03: Restored the dynamic Engine settings panel so each backend
+  exposes its knobs, recommendations and run-setting hints with a scrollable
+  stage four layout (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Removed the redundant Engine knobs panel and moved each run-
+  setting recommendation directly above its corresponding entry to keep the
+  Stage 4 layout compact (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Reverted the experimental anchor logic on the model preview panel
+  and shortened the preview text area by one line for a tighter default layout
+  (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Doubled the left padding on the navigation rail so the buttons
+  sit further from the window edge (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Reduced the status strip padding so the environment text sits
+  closer to the window’s lower border (copernican_lib/gui/app.py,
+  CHANGELOG.md).
+- 2025-12-03: Removed the root window’s bottom padding so the separator and
+  status text align closely with the lower frame (copernican_lib/gui/app.py,
+  CHANGELOG.md).
+- 2025-12-03: Simplified the status summary to stop after the venv indicator,
+  switched separators to double spaces and tinted the strip labels with a
+  neutral grey for both light/dark modes (copernican_lib/gui/app.py,
+  CHANGELOG.md).
+- 2025-12-03: Updated the status bar branding to show “Copernican Suite … ©
+  Apostol Apostolov & Black Epsilon Ltd.” on the left and moved the Python/venv
+  info to the right (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Increased the logo rail padding (extra 10 px above) and uncropped
+  the image by expanding its holder so the bottom edge is visible
+  (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Extended the navigation separator so its vertical bar meets the
+  bottom status separator for cleaner alignment (copernican_lib/gui/app.py,
+  CHANGELOG.md).
+- 2025-12-03: Locked the GUI to a minimum width of 800 px so the layout can’t
+  collapse in narrow windows (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Stacked the dataset selectors vertically with fixed 500 px width
+  listboxes that auto-size between one and five rows based on available entries
+  (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Reintroduced engine capability detection so the Run Settings box
+  reflects whichever engine is selected, showing engine-specific knobs
+  (including nested settings) with parsed recommendations, bounded spinboxes
+  and a checkbox for display-progress (copernican_lib/gui/app.py,
+  CHANGELOG.md).
+- 2025-12-03: Swapped the Run Builder step jump buttons to Tk buttons so font
+  highlighting works without Tk style errors (copernican_lib/gui/app.py,
+  CHANGELOG.md).
+- 2025-12-03: Restored native ttk jump buttons without custom fonts so inactive
+  steps use the standard disabled styling like the other controls
+  (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Sized the Run Builder jump buttons to match the navigation
+  controls and now leverage ttk’s disabled state so Manifest/Confirm grey out
+  identically to Previous/Next/Cancel (copernican_lib/gui/app.py,
+  CHANGELOG.md).
+- 2025-12-03: Raised the GUI root window above other apps (temporarily setting
+  `-topmost`) so it appears in front of the launcher terminal when opened
+  (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Trimmed the Run Builder header to display the active step name
+  (“Run builder: Seed”) and resized the jump buttons to match
+  Previous/Next/Cancel so the bar is consistent (copernican_lib/gui/app.py,
+  CHANGELOG.md).
+- 2025-12-03: Fixed the dataset selectors so each listbox renders 1–5 rows at
+  500 px width with readable highlights instead of the clipped black slivers
+  (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Updated the Manifest step helper text to the full storage warning
+  copy requested for saved manifests (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Locked dataset listboxes to four rows to keep the selection
+  highlight visible regardless of available entries (copernican_lib/gui/app.py,
+  CHANGELOG.md).
+- 2025-12-03: Removed the stage headings from Run Builder pages and replaced
+  them with consistent 30 px spacing so each step’s content lines up cleanly
+  beneath the navigation controls (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Tuned the padding between the navigation buttons and separator to
+  24 px so the right-hand margin stays comfortably wider while retaining the
+  tight left edge gap (copernican_lib/gui/app.py, README.md, CHANGELOG.md).
+- 2025-12-03: Rebalanced the GUI navigation spacing, expanded the data
+  selectors with a provisional scrollbar, embedded the faster model preview
+  pane and restored the engine knob descriptions on page 4 so users can read
+  what each backend option controls (copernican_lib/gui/app.py, CHANGELOG.md).
+- 2025-12-03: Tightened the GUI navigation padding, added the separator, and
+  rebuilt the Run Builder pages so Manifest shows a preview, reminder and open
+  action while engine settings sit on page 4 (copernican_lib/gui/app.py,
+  CHANGELOG.md).
+- 2025-12-02: Documented that manifest-driven runs rebuild LCDM/alternative
+  plugins before entering the shared pipeline so CLI and GUI launches are
+  identical (README.md, docs/run_manifest.md, docs/orchestration_services.md).
+- 2025-12-02: Powered the manifest executor through the shared sampling
+  pipeline so CLI runs now build vetted model plugins, import the requested
+  engine and advance `copernican_lib.run_pipeline.execute_run_pipeline` after
+  the dataset loaders finish (copernican_lib/run_executor.py,
+  tests/test_run_executor.py).
+- 2025-12-02: Wrapped the CLI manifest warning and manifest runner helpers to
+  respect the 79-character policy, then bumped the suite to 11.0.1 so metadata
+  files stay in sync (copernican.py, copernican_lib/run_executor.py,
+  copernican_lib/run_pipeline.py, copernican_lib/VERSION, README.md,
+  CITATION.cff, CHANGELOG.md).
+- 2025-12-02: Documented the Run Builder Save Manifest gating, temporary
+  workspace, confirmation flow and Cancel safeguards plus the new external-
+  export dialog so operators know which files move when the pages open
+  (AGENTS.md, README.md, docs/gui_overview.md, docs/run_manifest.md).
+- 2025-12-02: Fixed `finalize_run_workspace` so the manifest is renamed before
+  its containing folder moves, preventing `FileNotFoundError` when the GUI
+  starts runs and ensuring the temporary workspace survives until the CLI
+  worker loads it (copernican_lib/run_lifecycle.py, tests/test_gui_app.py).
+- 2025-12-02: Pointed `copernican.main_workflow` at
+  `copernican_lib.run_executor.execute_run_from_manifest` so manifest launches
+  share the executor already used by the GUI and other orchestrators
+  (copernican.py).
 ## Version 11.0.0
 - 2025-12-02: Removed the staged interactive CLI and Stage 1–5 numbering,
-             introduced the manifest-driven entrypoint plus shared run
-             helpers, and documented the new workflow for GUI builders
-             (copernican.py, __main__.py, copernican_lib/engine_capabilities.py,
-             copernican_lib/run_config.py, copernican_lib/run_executor.py,
-             copernican_lib/run_lifecycle.py, copernican_lib/run_manifest.py,
-             copernican_lib/run_pipeline.py, copernican_lib/gui/app.py,
-             copernican_lib/gui/run_worker.py, README.md, tests/test_run_config.py,
-             tests/test_run_executor.py, tests/test_gui_run_worker.py).
+  introduced the manifest-driven entrypoint plus shared run helpers, and
+  documented the new workflow for GUI builders (copernican.py, __main__.py,
+  copernican_lib/engine_capabilities.py, copernican_lib/run_config.py,
+  copernican_lib/run_executor.py, copernican_lib/run_lifecycle.py,
+  copernican_lib/run_manifest.py, copernican_lib/run_pipeline.py,
+  copernican_lib/gui/app.py, copernican_lib/gui/run_worker.py, README.md,
+  tests/test_run_config.py, tests/test_run_executor.py,
+  tests/test_gui_run_worker.py).
 - 2025-12-02: Expanded the orchestration services note to describe the new
-             manifest executor plus run pipeline helpers so GUI clients can
-             reuse the same run control protocol (docs/orchestration_services.md).
+  manifest executor plus run pipeline helpers so GUI clients can reuse the same
+  run control protocol (docs/orchestration_services.md).
 - 2025-12-02: Updated all trusted parser digests after reformatting the bundled
-             parser modules to keep `TRUSTED_PARSER_DIGESTS` in sync with the
-             shipped files (data/sne/jla2014/cosmo_parser_jla2014.py,
-             data/sne/pantheon/cosmo_parser_pantheon.py,
-             data/bao/bossdr12/cosmo_parser_bossdr12.py,
-             data/bao/compound/cosmo_parser_compound.py,
-             data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py,
-             data/gw/placeholder/cosmo_parser_gw_placeholder.py,
-             data/sne/union3/cosmo_parser_union3.py,
-             copernican_lib/dataset_registry.py).
+  parser modules to keep `TRUSTED_PARSER_DIGESTS` in sync with the shipped
+  files (data/sne/jla2014/cosmo_parser_jla2014.py,
+  data/sne/pantheon/cosmo_parser_pantheon.py,
+  data/bao/bossdr12/cosmo_parser_bossdr12.py,
+  data/bao/compound/cosmo_parser_compound.py,
+  data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py,
+  data/gw/placeholder/cosmo_parser_gw_placeholder.py,
+  data/sne/union3/cosmo_parser_union3.py, copernican_lib/dataset_registry.py).
 - 2025-12-02: Corrected the alternative-model branch in the shared pipeline so
-             nested and MCMC sampler metadata log consistently while stressing
-             that direct CLI imports must set `COPERNICAN_ALLOW_DIRECT=1` before
-             invoking `copernican.main` (copernican_lib/run_pipeline.py,
-             tests/test_gui_run_worker.py, README.md, docs/orchestration_services.md).
+  nested and MCMC sampler metadata log consistently while stressing that direct
+  CLI imports must set `COPERNICAN_ALLOW_DIRECT=1` before invoking
+  `copernican.main` (copernican_lib/run_pipeline.py,
+  tests/test_gui_run_worker.py, README.md, docs/orchestration_services.md).
 
 ## Version 10.9.15
 - 2025-12-02: Removed the staged interactive CLI and Stage 1–5 numbering,
-             introduced the manifest-driven entrypoint plus shared run
-             helpers, and documented the new workflow for GUI builders
-             (copernican.py, __main__.py, copernican_lib/engine_capabilities.py,
-             copernican_lib/run_config.py, copernican_lib/run_executor.py,
-             copernican_lib/run_lifecycle.py, copernican_lib/run_manifest.py,
-             copernican_lib/run_pipeline.py, copernican_lib/gui/app.py,
-             copernican_lib/gui/run_worker.py, README.md, tests/test_run_config.py,
-             tests/test_run_executor.py, tests/test_gui_run_worker.py).
+  introduced the manifest-driven entrypoint plus shared run helpers, and
+  documented the new workflow for GUI builders (copernican.py, __main__.py,
+  copernican_lib/engine_capabilities.py, copernican_lib/run_config.py,
+  copernican_lib/run_executor.py, copernican_lib/run_lifecycle.py,
+  copernican_lib/run_manifest.py, copernican_lib/run_pipeline.py,
+  copernican_lib/gui/app.py, copernican_lib/gui/run_worker.py, README.md,
+  tests/test_run_config.py, tests/test_run_executor.py,
+  tests/test_gui_run_worker.py).
 - 2025-12-02: Expanded the orchestration services note to describe the new
-             manifest executor plus run pipeline helpers so GUI clients can
-             reuse the same run control protocol (docs/orchestration_services.md).
-- 2025-12-01: Reformatted every file beneath `copernican_lib/` and `tests/`
-              so the enforced 79-character style stays consistent across the
-              shared utilities and the reference suite (copernican_lib/chain_io.py,
-              copernican_lib/cli/dependencies.py,
-              copernican_lib/cli/menus.py,
-              copernican_lib/csv_writer.py,
-              copernican_lib/dataset_registry.py,
-              copernican_lib/diagnostics.py,
-              copernican_lib/engine_plugin_validation.py,
-              copernican_lib/error_handler.py,
-              copernican_lib/gui/app.py,
-              copernican_lib/latex_utils.py,
-              copernican_lib/likelihoods/_protocol.py,
-              copernican_lib/likelihoods/bao.py,
-              copernican_lib/likelihoods/cmb.py,
-              copernican_lib/likelihoods/joint.py,
-              copernican_lib/likelihoods/sne.py,
-              copernican_lib/optim_utils.py,
-              copernican_lib/orchestration.py,
-              copernican_lib/plotter.py,
-              copernican_lib/plugins/__init__.py,
-              copernican_lib/posterior.py,
-              copernican_lib/priors.py,
-              copernican_lib/progress.py,
-              copernican_lib/result_writer.py,
-              copernican_lib/run_manifest.py,
-              copernican_lib/statistics.py,
-              copernican_lib/utils.py,
-              copernican_lib/version.py,
-              tests/cli/test_dependencies_cli.py,
-              tests/cli/test_launcher_modes.py,
-              tests/cli/test_menus_cli.py,
-              tests/data/synthetic/cosmo_parser_synthetic.py,
-              tests/data/synthetic/model_plugin.py,
-              tests/engines/test_engine_nested.py,
-              tests/test_bao_covariance.py,
-              tests/test_bossdr12_parser.py,
-              tests/test_cmb_like.py,
-              tests/test_core.py,
-              tests/test_data_hashes.py,
-              tests/test_dataset_registry.py,
-              tests/test_diagnostics.py,
-              tests/test_engine_plugin_validation.py,
-              tests/test_likelihoods.py,
-              tests/test_menu.py,
-              tests/test_model_coder.py,
-              tests/test_model_priors.py,
-              tests/test_optim_utils.py,
-              tests/test_orchestration_services.py,
-              tests/test_packaging_configuration.py,
-              tests/test_parser_discovery.py,
-              tests/test_plotter.py,
-              tests/test_plugins.py,
-              tests/test_program_logging.py,
-              tests/test_result_writer.py,
-              tests/test_run_manifest.py,
-              tests/test_seed_option.py,
-              tests/test_start_scripts.py,
-              tests/test_update_lock.py,
-              tests/test_utils.py,
-              tests/test_version_env.py,
-              tests/test_version_fallback.py,
-              tests/test_version_file.py).
-- 2025-12-01: Bumped the release metadata to 10.9.15 so documentation,
-              citation headers and helpers keep the same version string, and
-              captured the GUI logo spacing/configuration plus the cached lock
-              helper in the shared changelog entry (copernican_lib/VERSION,
-              README.md, CITATION.cff, AGENTS.md, docs/gui_overview.md,
-              copernican_lib/gui/app.py, tools/update_lock.py).
+  manifest executor plus run pipeline helpers so GUI clients can reuse the same
+  run control protocol (docs/orchestration_services.md).
+- 2025-12-01: Reformatted every file beneath `copernican_lib/` and `tests/` so
+  the enforced 79-character style stays consistent across the shared utilities
+  and the reference suite (copernican_lib/chain_io.py,
+  copernican_lib/cli/dependencies.py, copernican_lib/cli/menus.py,
+  copernican_lib/csv_writer.py, copernican_lib/dataset_registry.py,
+  copernican_lib/diagnostics.py, copernican_lib/engine_plugin_validation.py,
+  copernican_lib/error_handler.py, copernican_lib/gui/app.py,
+  copernican_lib/latex_utils.py, copernican_lib/likelihoods/_protocol.py,
+  copernican_lib/likelihoods/bao.py, copernican_lib/likelihoods/cmb.py,
+  copernican_lib/likelihoods/joint.py, copernican_lib/likelihoods/sne.py,
+  copernican_lib/optim_utils.py, copernican_lib/orchestration.py,
+  copernican_lib/plotter.py, copernican_lib/plugins/__init__.py,
+  copernican_lib/posterior.py, copernican_lib/priors.py,
+  copernican_lib/progress.py, copernican_lib/result_writer.py,
+  copernican_lib/run_manifest.py, copernican_lib/statistics.py,
+  copernican_lib/utils.py, copernican_lib/version.py,
+  tests/cli/test_dependencies_cli.py, tests/cli/test_launcher_modes.py,
+  tests/cli/test_menus_cli.py, tests/data/synthetic/cosmo_parser_synthetic.py,
+  tests/data/synthetic/model_plugin.py, tests/engines/test_engine_nested.py,
+  tests/test_bao_covariance.py, tests/test_bossdr12_parser.py,
+  tests/test_cmb_like.py, tests/test_core.py, tests/test_data_hashes.py,
+  tests/test_dataset_registry.py, tests/test_diagnostics.py,
+  tests/test_engine_plugin_validation.py, tests/test_likelihoods.py,
+  tests/test_menu.py, tests/test_model_coder.py, tests/test_model_priors.py,
+  tests/test_optim_utils.py, tests/test_orchestration_services.py,
+  tests/test_packaging_configuration.py, tests/test_parser_discovery.py,
+  tests/test_plotter.py, tests/test_plugins.py, tests/test_program_logging.py,
+  tests/test_result_writer.py, tests/test_run_manifest.py,
+  tests/test_seed_option.py, tests/test_start_scripts.py,
+  tests/test_update_lock.py, tests/test_utils.py, tests/test_version_env.py,
+  tests/test_version_fallback.py, tests/test_version_file.py).
+- 2025-12-01: Bumped the release metadata to 10.9.15 so documentation, citation
+  headers and helpers keep the same version string, and captured the GUI logo
+  spacing/configuration plus the cached lock helper in the shared changelog
+  entry (copernican_lib/VERSION, README.md, CITATION.cff, AGENTS.md,
+  docs/gui_overview.md, copernican_lib/gui/app.py, tools/update_lock.py).
 - 2025-12-01: Anchored every per-run artefact to the run-start timestamp, saved
-             the sampler configuration into the manifest, and ensured GUI
-             workers log exceptions while keeping the CLI decoupled from the
-             staged menu by setting a headless-run flag
-             (copernican.py, copernican_lib/logger.py,
-             copernican_lib/gui/run_worker.py, tests/test_gui_run_worker.py).
+  the sampler configuration into the manifest, and ensured GUI workers log
+  exceptions while keeping the CLI decoupled from the staged menu by setting a
+  headless-run flag (copernican.py, copernican_lib/logger.py,
+  copernican_lib/gui/run_worker.py, tests/test_gui_run_worker.py).
 - 2025-12-01: Added Insert manifest and Import manifest GUI controls, taught
-             manifest import/export to round-trip run settings and documented
-             the workflow so both CLI and GUI manifests stay in sync
-             (copernican_lib/gui/app.py, README.md, docs/gui_overview.md,
-             docs/run_manifest.md, tests/test_gui_app.py).
+  manifest import/export to round-trip run settings and documented the workflow
+  so both CLI and GUI manifests stay in sync (copernican_lib/gui/app.py,
+  README.md, docs/gui_overview.md, docs/run_manifest.md,
+  tests/test_gui_app.py).
 - 2025-12-01: Bumped the release metadata to 10.9.14 so documentation and
-             citation headers reflect the timestamp and manifest updates
-             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+  citation headers reflect the timestamp and manifest updates
+  (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
 - 2025-12-01: Removed the stray “ 2” sibling files so only canonical artifacts
-            remain and appended the change here for clarity
-            (CHANGELOG.md, .gitattributes 2, .gitignore 2,
-            .pre-commit-config 2.yaml, AGENTS 2.md, CHANGELOG 2.md,
-            CITATION 2.cff, CONTRIBUTING 2.md, DEVCOVENANT_LAW_MAPPING 2.md,
-            LICENSE 2.md, MANIFEST 2.in, Makefile 2, PLAN 2.json, README 2.md,
-            THIRD_PARTY_LICENSES 2.md, copernican 2.py, cosmo_model_template 2.yml,
-            devcovenant_check 2.py, pyproject 2.toml, requirements 2.in,
-            requirements 2.lock, start 2.bat, start 2.command, start 2.sh).
+  remain and appended the change here for clarity (CHANGELOG.md, .gitattributes
+  2, .gitignore 2, .pre-commit-config 2.yaml, AGENTS 2.md, CHANGELOG 2.md,
+  CITATION 2.cff, CONTRIBUTING 2.md, DEVCOVENANT_LAW_MAPPING 2.md, LICENSE
+  2.md, MANIFEST 2.in, Makefile 2, PLAN 2.json, README 2.md,
+  THIRD_PARTY_LICENSES 2.md, copernican 2.py, cosmo_model_template 2.yml,
+  devcovenant_check 2.py, pyproject 2.toml, requirements 2.in, requirements
+  2.lock, start 2.bat, start 2.command, start 2.sh).
 ## Version 10.9.13
 - 2025-12-01: Removed the forced active-state color from the shared ttk button
-             style so conditionally enabled buttons inherit their OS-provided
-             text color while still greying out when disabled
-             (copernican_lib/gui/app.py).
+  style so conditionally enabled buttons inherit their OS-provided text color
+  while still greying out when disabled (copernican_lib/gui/app.py).
 - 2025-12-01: Bumped the release metadata to 10.9.13 so documentation and
-             citations match the styling change
-             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+  citations match the styling change (copernican_lib/VERSION, README.md,
+  CITATION.cff, CHANGELOG.md).
 ## Version 10.9.12
 - 2025-12-01: Run Builder navigation now greys out Previous on the first step
-             and Next on the final confirmation, the right-hand Start Run button
-             was removed so runs begin exclusively through the manifest action,
-             and the confirm-step button plus nav controls reuse the new greyed
-             style (copernican_lib/gui/app.py, docs/gui_overview.md).
+  and Next on the final confirmation, the right-hand Start Run button was
+  removed so runs begin exclusively through the manifest action, and the
+  confirm-step button plus nav controls reuse the new greyed style
+  (copernican_lib/gui/app.py, docs/gui_overview.md).
 - 2025-12-01: Bumped the release metadata to 10.9.12 so documentation and
-             citations match the refreshed builder UX
-             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+  citations match the refreshed builder UX (copernican_lib/VERSION, README.md,
+  CITATION.cff, CHANGELOG.md).
 ## Version 10.9.11
 - 2025-12-01: Unified the Run Monitor button styling so View/Open log and Open
-             run output use the same greyed-out ttk theme as the Cancel/Pause/Hard
-             Stop controls, and the output button now activates only once the run
-             folder exists (copernican_lib/gui/app.py).
+  run output use the same greyed-out ttk theme as the Cancel/Pause/Hard Stop
+  controls, and the output button now activates only once the run folder exists
+  (copernican_lib/gui/app.py).
 - 2025-12-01: Bumped the release metadata to 10.9.11 so documentation and
-             citation headers match the refreshed UI styling
-             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+  citation headers match the refreshed UI styling (copernican_lib/VERSION,
+  README.md, CITATION.cff, CHANGELOG.md).
 ## Version 10.9.10
 - 2025-12-01: Guarded Cancel/Hard Stop so they do nothing when a run is not
-             active, keeping the disabled buttons both grey and unclickable
-             while the monitor is idle (copernican_lib/gui/app.py).
+  active, keeping the disabled buttons both grey and unclickable while the
+  monitor is idle (copernican_lib/gui/app.py).
 - 2025-12-01: Bumped the release metadata to 10.9.10 so documentation and
-             citation headers match the hardened controls
-             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+  citation headers match the hardened controls (copernican_lib/VERSION,
+  README.md, CITATION.cff, CHANGELOG.md).
 - 2025-12-01: Allowed the Run Monitor’s “Open run output” button to stay active
-             whenever the current run folder exists, even after cancellation or
-             aborts, greying it out only when no manifest/run is present
-             (copernican_lib/gui/app.py).
+  whenever the current run folder exists, even after cancellation or aborts,
+  greying it out only when no manifest/run is present
+  (copernican_lib/gui/app.py).
 ## Version 10.9.9
 - 2025-12-01: Restored greyed-but-disabled run controls by mapping a ttk style
-             so Cancel/Pause/Hard Stop look inactive when disabled yet return to
-             the normal appearance the moment a run starts
-             (copernican_lib/gui/app.py).
+  so Cancel/Pause/Hard Stop look inactive when disabled yet return to the
+  normal appearance the moment a run starts (copernican_lib/gui/app.py).
 - 2025-12-01: Bumped the release metadata to 10.9.9 so documentation and
-             citation headers reflect the finalised control styling
-             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+  citation headers reflect the finalised control styling
+  (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
 ## Version 10.9.8
 - 2025-12-01: Retained the CLI progress filtering while restoring the standard
-             Cancel/Pause/Hard Stop buttons so they remain disabled/greyed when
-             inactive and return to their normal, clickable state once a run
-             starts (copernican_lib/gui/app.py, docs/gui_overview.md).
+  Cancel/Pause/Hard Stop buttons so they remain disabled/greyed when inactive
+  and return to their normal, clickable state once a run starts
+  (copernican_lib/gui/app.py, docs/gui_overview.md).
 - 2025-12-01: Bumped the release metadata to 10.9.8 so the documentation and
-             citation headers match the restored button behaviour
-             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+  citation headers match the restored button behaviour (copernican_lib/VERSION,
+  README.md, CITATION.cff, CHANGELOG.md).
 ## Version 10.9.7
 - 2025-12-01: Filtered the GUI worker stdout stream so the run log console only
-             shows the CLI batch summaries instead of the spinner-heavy progress
-             updates, and the Cancel/Pause/Hard Stop controls stay greyed but
-             clickable when idle while their tooltips remain discoverable
-             (copernican_lib/gui/app.py, docs/gui_overview.md).
+  shows the CLI batch summaries instead of the spinner-heavy progress updates,
+  and the Cancel/Pause/Hard Stop controls stay greyed but clickable when idle
+  while their tooltips remain discoverable (copernican_lib/gui/app.py,
+  docs/gui_overview.md).
 - 2025-12-01: Bumped the release metadata to 10.9.7 so the documentation and
-             citation headers match the new logging behaviour
-             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+  citation headers match the new logging behaviour (copernican_lib/VERSION,
+  README.md, CITATION.cff, CHANGELOG.md).
 ## Version 10.9.6
 - 2025-12-01: Added a dedicated Run Monitor navigation button with live
-             progress bars, run log filters, **View log** / **Open log…**
-             buttons, an “Open run output” quick action, and Cancel/Pause/Hard
-             Stop controls that only enable when a run is active (copernican_lib/gui/app.py).
+  progress bars, run log filters, **View log** / **Open log…** buttons, an
+  “Open run output” quick action, and Cancel/Pause/Hard Stop controls that only
+  enable when a run is active (copernican_lib/gui/app.py).
 - 2025-12-01: Introduced the About page, the Exit Suite shortcut, diagnostics
-             flush/open/view buttons, and suppressed progress-bar writes from
-             the CLI/GUI logs so only structured entries reach the log files
-             (ABOUT.md, copernican_lib/console_output.py,
-             copernican_lib/progress.py, copernican_lib/logger.py).
+  flush/open/view buttons, and suppressed progress-bar writes from the CLI/GUI
+  logs so only structured entries reach the log files (ABOUT.md,
+  copernican_lib/console_output.py, copernican_lib/progress.py,
+  copernican_lib/logger.py).
 - 2025-12-01: Bumped the release metadata to 10.9.6 so the documentation and
-             citation headers match the new behavior (copernican_lib/VERSION,
-             README.md, CITATION.cff, CHANGELOG.md).
+  citation headers match the new behavior (copernican_lib/VERSION, README.md,
+  CITATION.cff, CHANGELOG.md).
 - 2025-12-01: Reworked the install/uninstall helpers so they call pip through
-             the managed `.venv` interpreter and the metadata version string
-             now satisfies PEP 621, keeping the launcher scripts and packaging
-             metadata in sync (pyproject.toml, start.sh, start.command,
-             start.bat, CHANGELOG.md).
+  the managed `.venv` interpreter and the metadata version string now satisfies
+  PEP 621, keeping the launcher scripts and packaging metadata in sync
+  (pyproject.toml, start.sh, start.command, start.bat, CHANGELOG.md).
 
 ## Version 10.9.5
 - 2025-12-01: Start-up launchers now detect whether `copernican-suite` is
-             present before showing the menu, share a single option that
-             toggles between install/uninstall, and keep the rebuild path
-             executing with the original command-line arguments across macOS,
-             Unix and Windows (start.command, start.sh, start.bat,
-             pyproject.toml).
+  present before showing the menu, share a single option that toggles between
+  install/uninstall, and keep the rebuild path executing with the original
+  command-line arguments across macOS, Unix and Windows (start.command,
+  start.sh, start.bat, pyproject.toml).
 - 2025-12-01: Bumped the release metadata to 10.9.5 so the documentation and
-             citation headers match the new launcher behaviour
-             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+  citation headers match the new launcher behaviour (copernican_lib/VERSION,
+  README.md, CITATION.cff, CHANGELOG.md).
 - 2025-12-01: Extended the quick-start instructions and packaging notes so the
-             README, `docs/launcher_gui.md` and `docs/packaging.md` outline the
-             dynamic install/uninstall option and the preserved rebuild flow.
+  README, `docs/launcher_gui.md` and `docs/packaging.md` outline the dynamic
+  install/uninstall option and the preserved rebuild flow.
 
 ## Version 10.9.4
 - 2025-12-01: Added the Union3 parser so the suite now loads
-             `mu_mat_union3_cosmo=2_mu.fits`, attaches the matched covariance, and
-             preserves the MIT-licensed Unity citation for every run
-             (data/sne/union3/cosmo_parser_union3.py,
-             data/sne/union3/metadata_union3.yml, licenses/Union3-MIT.txt).
+  `mu_mat_union3_cosmo=2_mu.fits`, attaches the matched covariance, and
+  preserves the MIT-licensed Unity citation for every run
+  (data/sne/union3/cosmo_parser_union3.py, data/sne/union3/metadata_union3.yml,
+  licenses/Union3-MIT.txt).
 - 2025-12-01: Documented the Union3 rollout across the guides, license notes
-             and metadata records so the dataset appears like the other SNe
-             sources while consumers know where to find the licensing terms
-             (README.md, docs/data_overview.md, docs/dataset_metadata.md,
-             docs/dataset_licenses.md, THIRD_PARTY_LICENSES.md, CITATION.cff,
-             copernican_lib/VERSION, CHANGELOG.md).
+  and metadata records so the dataset appears like the other SNe sources while
+  consumers know where to find the licensing terms (README.md,
+  docs/data_overview.md, docs/dataset_metadata.md, docs/dataset_licenses.md,
+  THIRD_PARTY_LICENSES.md, CITATION.cff, copernican_lib/VERSION, CHANGELOG.md).
 - 2025-12-01: Added the managed environment management options back into the
-             start scripts, ensured argparse now reports that the launcher
-             operates inside `.venv`, and made both `pytest` and
-             `python -m unittest discover -v` first-class tests in the launcher,
-             documentation and CI so every commit runs both frameworks
-             (`start.sh`, `start.command`, `start.bat`, `.github/workflows/ci.yml`,
-             AGENTS.md, docs/packaging.md, README.md, docs/launcher_gui.md).
+  start scripts, ensured argparse now reports that the launcher operates inside
+  `.venv`, and made both `pytest` and `python -m unittest discover -v` first-
+  class tests in the launcher, documentation and CI so every commit runs both
+  frameworks (`start.sh`, `start.command`, `start.bat`,
+  `.github/workflows/ci.yml`, AGENTS.md, docs/packaging.md, README.md,
+  docs/launcher_gui.md).
 - 2025-12-01: Pruned the Union3 helper scripts (`helper_functions.py`,
-             `read_and_sample.py`, `simple_Gaussian_check.py`) so only the
-             parser/metadata remain registered while the supporting utilities
-             stay archived for future releases (data/sne/union3/helper_functions.py,
-             data/sne/union3/read_and_sample.py, data/sne/union3/simple_Gaussian_check.py).
+  `read_and_sample.py`, `simple_Gaussian_check.py`) so only the parser/metadata
+  remain registered while the supporting utilities stay archived for future
+  releases (data/sne/union3/helper_functions.py,
+  data/sne/union3/read_and_sample.py,
+  data/sne/union3/simple_Gaussian_check.py).
 
 ## Version 10.9.3
 - 2025-11-30: Documented that the Union3 `data/sne/union3/` folder currently
-             stores the UNITY release and preprocessing steps.
-             This makes it clear
-             a parser must wait for the compressed distances/covariance to be
-             reproduced before the dataset can be registered (README.md,
-             docs/data_overview.md, CHANGELOG.md).
+  stores the UNITY release and preprocessing steps. This makes it clear a
+  parser must wait for the compressed distances/covariance to be reproduced
+  before the dataset can be registered (README.md, docs/data_overview.md,
+  CHANGELOG.md).
 - 2025-11-30: Added the Union3 dataset metadata so the Unity-based sample is
-             registered ahead of its parser, capturing its authors, arXiv
-             citation and license note in `data/sne/union3/metadata_union3.yml`
-             and documenting the new source in `docs/data_overview.md` and
-             `README.md` (copernican_lib/VERSION, README.md, docs/data_overview.md,
-             data/sne/union3/metadata_union3.yml, CHANGELOG.md).
+  registered ahead of its parser, capturing its authors, arXiv citation and
+  license note in `data/sne/union3/metadata_union3.yml` and documenting the new
+  source in `docs/data_overview.md` and `README.md` (copernican_lib/VERSION,
+  README.md, docs/data_overview.md, data/sne/union3/metadata_union3.yml,
+  CHANGELOG.md).
 - 2025-11-30: Bumped the release metadata to 10.9.3 so documentation and
-             citation files stay aligned with the dataset addition
-             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+  citation files stay aligned with the dataset addition
+  (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
 
 ## Version 10.9.2
 - 2025-11-30: Restored Start Run after the monitoring refactor by fixing the
-             duplicated `progress_listener` argument, ensuring the session
-             config actually launches the CLI worker, widening the engine
-             selector drop-down, and mirroring the CLI sampler hints for steps,
-             burn-in, walkers and worker pools inside the Run Settings panel
-             (copernican_lib/gui/app.py, engines/cosmo_engine_mcmc.py,
-             copernican_lib/progress.py, README.md, docs/gui_overview.md).
+  duplicated `progress_listener` argument, ensuring the session config actually
+  launches the CLI worker, widening the engine selector drop-down, and
+  mirroring the CLI sampler hints for steps, burn-in, walkers and worker pools
+  inside the Run Settings panel (copernican_lib/gui/app.py,
+  engines/cosmo_engine_mcmc.py, copernican_lib/progress.py, README.md,
+  docs/gui_overview.md).
 - 2025-11-30: Bumped the release metadata to 10.9.2 so the docs and citation
-             files stay in sync with the GUI improvements
-             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+  files stay in sync with the GUI improvements (copernican_lib/VERSION,
+  README.md, CITATION.cff, CHANGELOG.md).
 
 ## Version 10.9.1
-- 2025-11-30: Rebuilt the Run Monitor so it mirrors the CLI sampler: dual
-             batch and walker progress bars stream the shared progress state,
-             the log console tails the live `logs/runs/*.txt` output,
-             `progress_state` exposes the JSON feeder, and both engines and the
-             CLI invoke the callback while the worker watches and publishes the
-             payload (copernican_lib/gui/app.py, copernican_lib/gui/run_worker.py,
-             copernican_lib/progress.py, copernican_lib/progress_state.py,
-             engines/cosmo_engine_mcmc.py, engines/cosmo_engine_nested.py,
-             copernican.py, tests/test_gui_app.py, tests/test_gui_run_worker.py,
-             tests/test_progress_state.py, README.md, docs/gui_overview.md).
+- 2025-11-30: Rebuilt the Run Monitor so it mirrors the CLI sampler: dual batch
+  and walker progress bars stream the shared progress state, the log console
+  tails the live `logs/runs/*.txt` output, `progress_state` exposes the JSON
+  feeder, and both engines and the CLI invoke the callback while the worker
+  watches and publishes the payload (copernican_lib/gui/app.py,
+  copernican_lib/gui/run_worker.py, copernican_lib/progress.py,
+  copernican_lib/progress_state.py, engines/cosmo_engine_mcmc.py,
+  engines/cosmo_engine_nested.py, copernican.py, tests/test_gui_app.py,
+  tests/test_gui_run_worker.py, tests/test_progress_state.py, README.md,
+  docs/gui_overview.md).
 - 2025-11-30: Bumped the release metadata to 10.9.1 so the docs and citation
-             files stay in sync with the GUI improvements
-             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+  files stay in sync with the GUI improvements (copernican_lib/VERSION,
+  README.md, CITATION.cff, CHANGELOG.md).
 
 ## Version 10.9.0
 - 2025-11-30: Hardened the GUI workflow so Start Run validates the active
-             selections before launching the CLI worker, widens and scrolls
-             the per-type dataset menus, improves metadata dialogs with the
-             requested 15/25-line sizing plus OS-level *Open file…* buttons,
-             adds dataset/model/engine folder fallbacks, keeps the Run Monitor
-             honest about pause support and fixes the worker import path while
-             adding coverage for the new module and GUI harness
-             (copernican_lib/gui/app.py, copernican_lib/gui/run_worker.py,
-             tests/test_gui_app.py, tests/test_gui_run_worker.py, README.md,
-             docs/gui_overview.md).
+  selections before launching the CLI worker, widens and scrolls the per-type
+  dataset menus, improves metadata dialogs with the requested 15/25-line sizing
+  plus OS-level *Open file…* buttons, adds dataset/model/engine folder
+  fallbacks, keeps the Run Monitor honest about pause support and fixes the
+  worker import path while adding coverage for the new module and GUI harness
+  (copernican_lib/gui/app.py, copernican_lib/gui/run_worker.py,
+  tests/test_gui_app.py, tests/test_gui_run_worker.py, README.md,
+  docs/gui_overview.md).
 - 2025-11-30: Bumped the release metadata to 10.9.0 so the docs and citation
-             files stay in sync with the GUI improvements
-             (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+  files stay in sync with the GUI improvements (copernican_lib/VERSION,
+  README.md, CITATION.cff, CHANGELOG.md).
 
 ## Version 10.8.7
-- 2025-11-30: Removed the GUI-only run simulation and replaced it with a managed
-             CLI worker subprocess so Start Run executes the real pipeline using
-             the current builder selections. The worker is configured via a
-             temporary JSON plan, streams stdout/stderr into the diagnostics
-             pane, honours Cancel/Hard Stop by terminating the child process and
-             auto-selects datasets, engines and sampler settings without any CLI
-             prompts (copernican_lib/gui/app.py, copernican_lib/gui/run_worker.py,
-             README.md, docs/gui_overview.md, AGENTS.md).
+- 2025-11-30: Removed the GUI-only run simulation and replaced it with a
+  managed CLI worker subprocess so Start Run executes the real pipeline using
+  the current builder selections. The worker is configured via a temporary JSON
+  plan, streams stdout/stderr into the diagnostics pane, honours Cancel/Hard
+  Stop by terminating the child process and auto-selects datasets, engines and
+  sampler settings without any CLI prompts (copernican_lib/gui/app.py,
+  copernican_lib/gui/run_worker.py, README.md, docs/gui_overview.md,
+  AGENTS.md).
 - 2025-11-30: Bumped the suite version to 10.8.7 so VERSION, README and
-             citations track the new GUI behaviour (copernican_lib/VERSION,
-             README.md, CITATION.cff, CHANGELOG.md).
+  citations track the new GUI behaviour (copernican_lib/VERSION, README.md,
+  CITATION.cff, CHANGELOG.md).
 
 ## Version 10.8.6
-- 2025-11-30: Tuned the GUI so metadata/YAML/module viewers stick to the longest
-             line width, keep scrollbars, obey the requested line-count rules and
-             add an **Open file…** button; dataset selectors now display wider
-             type-specific menus with per-entry summaries; the run monitor runs on
-             the Tk event loop with CLI-style phase updates instead of jumping to
-             the summary; and the Run Settings panel mirrors CLI guidance for
-             walkers, burn-in, production steps and worker pools using the same
-             heuristics (copernican_lib/gui/app.py, README.md, docs/gui_overview.md).
+- 2025-11-30: Tuned the GUI so metadata/YAML/module viewers stick to the
+  longest line width, keep scrollbars, obey the requested line-count rules and
+  add an **Open file…** button; dataset selectors now display wider type-
+  specific menus with per-entry summaries; the run monitor runs on the Tk event
+  loop with CLI-style phase updates instead of jumping to the summary; and the
+  Run Settings panel mirrors CLI guidance for walkers, burn-in, production
+  steps and worker pools using the same heuristics (copernican_lib/gui/app.py,
+  README.md, docs/gui_overview.md).
 - 2025-11-30: Bumped the suite version to 10.8.6 so README, CHANGELOG and
-             citation metadata stay in sync (copernican_lib/VERSION, README.md,
-             CITATION.cff, CHANGELOG.md).
+  citation metadata stay in sync (copernican_lib/VERSION, README.md,
+  CITATION.cff, CHANGELOG.md).
 
 ## Version 10.8.5
 - 2025-11-30: Improved the GUI experience by resizing metadata/YAML dialogs to
-             the longest line, adding OS-level *Open file…* actions, widening
-             dataset menus with type-specific lists and singular/plural
-             counters, surfacing heuristic run-setting recommendations,
-             simulating CLI-style run phases with live progress updates and
-             enriching manifest summaries (copernican_lib/gui/app.py,
-             README.md, docs/gui_overview.md, AGENTS.md).
+  the longest line, adding OS-level *Open file…* actions, widening dataset
+  menus with type-specific lists and singular/plural counters, surfacing
+  heuristic run-setting recommendations, simulating CLI-style run phases with
+  live progress updates and enriching manifest summaries
+  (copernican_lib/gui/app.py, README.md, docs/gui_overview.md, AGENTS.md).
 - 2025-11-30: Bumped the suite version to 10.8.5 so README, VERSION and
-             citations reflect the GUI refinements (copernican_lib/VERSION,
-             README.md, CITATION.cff, CHANGELOG.md).
+  citations reflect the GUI refinements (copernican_lib/VERSION, README.md,
+  CITATION.cff, CHANGELOG.md).
 
 ## Version 10.8.4
-- 2025-11-30: Solidified the GUI Run Builder so models and datasets are
-             single-selection lists, data appears in type-specific menus,
-             the newly added Run Settings panel captures walkers, burn-in,
-             production and pool hints, and the manifest plus documentation
-             describe the fresh behaviour (copernican_lib/gui/app.py,
-             README.md, docs/gui_overview.md, AGENTS.md, CHANGELOG.md).
+- 2025-11-30: Solidified the GUI Run Builder so models and datasets are single-
+  selection lists, data appears in type-specific menus, the newly added Run
+  Settings panel captures walkers, burn-in, production and pool hints, and the
+  manifest plus documentation describe the fresh behaviour
+  (copernican_lib/gui/app.py, README.md, docs/gui_overview.md, AGENTS.md,
+  CHANGELOG.md).
 - 2025-11-30: Bumped the suite version to 10.8.4 so runtime metadata stays
-             aligned with the new GUI improvements (copernican_lib/VERSION,
-             CITATION.cff, README.md, CHANGELOG.md).
+  aligned with the new GUI improvements (copernican_lib/VERSION, CITATION.cff,
+  README.md, CHANGELOG.md).
 
 ## Version 10.8.3
 - 2025-11-30: Upgraded the Tkinter GUI so the title bar shows the version from
-             `copernican_lib/VERSION`, the Home quick actions launch the Run
-             Builder, Run Monitor and output folder, Run Builder steps through
-             seed, models, datasets, engines and plans with real selectors,
-             Data/Models/Engines panels render scrollable catalogues with working
-             folder, metadata and revalidation buttons, the Settings view adds
-             output directory helpers and environment hints, and Help renders
-             `README.md` (banner included) inside a scrollable text widget
-             (copernican_lib/gui/app.py, README.md, docs/gui_overview.md,
-             AGENTS.md, CHANGELOG.md).
+  `copernican_lib/VERSION`, the Home quick actions launch the Run Builder, Run
+  Monitor and output folder, Run Builder steps through seed, models, datasets,
+  engines and plans with real selectors, Data/Models/Engines panels render
+  scrollable catalogues with working folder, metadata and revalidation buttons,
+  the Settings view adds output directory helpers and environment hints, and
+  Help renders `README.md` (banner included) inside a scrollable text widget
+  (copernican_lib/gui/app.py, README.md, docs/gui_overview.md, AGENTS.md,
+  CHANGELOG.md).
 - 2025-11-30: Bumped the suite version to 10.8.3 so the runtime, citation
-             metadata and release notes stay aligned (copernican_lib/VERSION,
-             CITATION.cff, README.md, CHANGELOG.md).
+  metadata and release notes stay aligned (copernican_lib/VERSION,
+  CITATION.cff, README.md, CHANGELOG.md).
 
 ## Version 10.8.2
-- 2025-11-30: Released version 10.8.2 with expanded diagnostics logging so
-              GUI handoffs, Tcl/Tk environment variables and Tk failures are
-              recorded in `logs/copernican-program_<ts>.txt`; the behavior is
-              documented in `docs/launcher_gui.md` and the README diagnostics
-              section (copernican.py, copernican_lib/gui/app.py,
-              docs/launcher_gui.md, README.md, start.sh, start.command,
-              start.bat, CHANGELOG.md).
+- 2025-11-30: Released version 10.8.2 with expanded diagnostics logging so GUI
+  handoffs, Tcl/Tk environment variables and Tk failures are recorded in
+  `logs/copernican-program_<ts>.txt`; the behavior is documented in
+  `docs/launcher_gui.md` and the README diagnostics section (copernican.py,
+  copernican_lib/gui/app.py, docs/launcher_gui.md, README.md, start.sh,
+  start.command, start.bat, CHANGELOG.md).
 - 2025-11-30: Fixed GUI navigation key bindings so the Tk event strings keep
-              their casing (preventing `bad event type or keysym "control"
-              on macOS`), allowing the inline window to initialise without the
-              binding errors that previously closed the dock icon (copernican_lib/gui/app.py,
-              CHANGELOG.md).
+  their casing (preventing `bad event type or keysym "control" on macOS`),
+  allowing the inline window to initialise without the binding errors that
+  previously closed the dock icon (copernican_lib/gui/app.py, CHANGELOG.md).
 - 2025-11-30: Reiterated that every task must re-read the laws and policies,
-             run the mandatory tooling (`pre-commit`, `devcovenant check`,
-             dependency lock rebuilds when necessary) and log law compliance in
-             the changelog entry itself so no law/policy is skipped (README.md,
-             CONTRIBUTING.md, CHANGELOG.md).
+  run the mandatory tooling (`pre-commit`, `devcovenant check`, dependency lock
+  rebuilds when necessary) and log law compliance in the changelog entry itself
+  so no law/policy is skipped (README.md, CONTRIBUTING.md, CHANGELOG.md).
 ## Version 10.8.1
 - 2025-11-30: Bumped the suite version to 10.8.1 so the release metadata,
-              documentation and citation records reflect the GUI and
-              documentation improvements (copernican_lib/VERSION, README.md,
-              CITATION.cff, CHANGELOG.md).
-- 2025-11-30: Fixed DevCovenant hash calculation bug where update-hashes
-              only hashed script content instead of policy text + script
-              content; corrected to use calculate_full_hash method from
-              registry module (devcovenant/update_hashes.py, CHANGELOG.md).
+  documentation and citation records reflect the GUI and documentation
+  improvements (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
+- 2025-11-30: Fixed DevCovenant hash calculation bug where update-hashes only
+  hashed script content instead of policy text + script content; corrected to
+  use calculate_full_hash method from registry module
+  (devcovenant/update_hashes.py, CHANGELOG.md).
 - 2025-11-30: Expanded the documentation commitment to highlight Law 11,
-             document the new launcher guidance and keep the corpus growing
-             while making the GUI option report status before handing off
-             to `copernican.py --gui` (AGENTS.md, README.md,
-             docs/documentation_policy.md, docs/gui_overview.md,
-             docs/launcher_gui.md, start.sh, start.command, start.bat,
-             CHANGELOG.md).
+  document the new launcher guidance and keep the corpus growing while making
+  the GUI option report status before handing off to `copernican.py --gui`
+  (AGENTS.md, README.md, docs/documentation_policy.md, docs/gui_overview.md,
+  docs/launcher_gui.md, start.sh, start.command, start.bat, CHANGELOG.md).
 - 2025-11-30: Rehashed the trusted parser scripts after their metadata cleanup
-              to keep dataset discovery working, explained how to update the
-              `TRUSTED_PARSER_DIGESTS` mapping in `docs/data_overview.md` and
-              recorded the new SHA256 values (copernican_lib/dataset_registry.py,
-              docs/data_overview.md, CHANGELOG.md).
+  to keep dataset discovery working, explained how to update the
+  `TRUSTED_PARSER_DIGESTS` mapping in `docs/data_overview.md` and recorded the
+  new SHA256 values (copernican_lib/dataset_registry.py, docs/data_overview.md,
+  CHANGELOG.md).
 - 2025-11-30: Ensured the launchers use `pythonw` (when available) with
-             `COPERNICAN_DETACH_GUI=0`, set `TCL_LIBRARY`/`TK_LIBRARY` to the
-             bundled runtime and documented the inline GUI workflow so Tk now
-             initialises successfully without spawning a second detached
-             process; the guidance lives in `docs/launcher_gui.md` and
-             `README.md` (start.sh, start.command, start.bat,
-             docs/launcher_gui.md, README.md, CHANGELOG.md).
-- 2025-11-30: Auto-formatted DevCovenant codebase with black, isort, and
-              ruff to pass lint checks (devcovenant/base.py,
-              devcovenant/policy_scripts/devcov_self_enforcement.py,
-              devcovenant/policy_scripts/line_length_limit.py,
-              devcovenant/policy_scripts/new_modules_need_tests.py,
-              devcovenant/policy_scripts/no_future_dates.py,
-              devcovenant/policy_scripts/no_git_conflict_markers.py,
-              devcovenant/policy_scripts/no_print_in_library.py,
-              devcovenant/policy_scripts/version_sync.py,
-              devcovenant/tests/test_parser.py,
-              devcovenant/tests/test_policies/test_changelog_coverage.py,
-              devcovenant/tests/test_policies/test_devcov_self_enforcement.py,
-              devcovenant/tests/test_policies/test_last_updated_placement.py,
-              devcovenant/tests/test_policies/test_line_length_limit.py,
-              devcovenant/tests/test_policies/test_no_git_conflict_markers.py,
-              devcovenant/tests/test_policies/test_no_print_in_library.py,
-              devcovenant/tests/test_policies/test_version_sync.py,
-              devcovenant/tests/test_engine.py,
-              devcovenant/tests/test_policies/test_new_modules_need_tests.py,
-              devcovenant/registry.py, devcovenant/cli.py,
-              devcovenant/parser.py, devcovenant/engine.py,
-              devcovenant/hooks/pre_commit.py, CHANGELOG.md).
+  `COPERNICAN_DETACH_GUI=0`, set `TCL_LIBRARY`/`TK_LIBRARY` to the bundled
+  runtime and documented the inline GUI workflow so Tk now initialises
+  successfully without spawning a second detached process; the guidance lives
+  in `docs/launcher_gui.md` and `README.md` (start.sh, start.command,
+  start.bat, docs/launcher_gui.md, README.md, CHANGELOG.md).
+- 2025-11-30: Auto-formatted DevCovenant codebase with black, isort, and ruff
+  to pass lint checks (devcovenant/base.py,
+  devcovenant/policy_scripts/devcov_self_enforcement.py,
+  devcovenant/policy_scripts/line_length_limit.py,
+  devcovenant/policy_scripts/new_modules_need_tests.py,
+  devcovenant/policy_scripts/no_future_dates.py,
+  devcovenant/policy_scripts/no_git_conflict_markers.py,
+  devcovenant/policy_scripts/no_print_in_library.py,
+  devcovenant/policy_scripts/version_sync.py, devcovenant/tests/test_parser.py,
+  devcovenant/tests/test_policies/test_changelog_coverage.py,
+  devcovenant/tests/test_policies/test_devcov_self_enforcement.py,
+  devcovenant/tests/test_policies/test_last_updated_placement.py,
+  devcovenant/tests/test_policies/test_line_length_limit.py,
+  devcovenant/tests/test_policies/test_no_git_conflict_markers.py,
+  devcovenant/tests/test_policies/test_no_print_in_library.py,
+  devcovenant/tests/test_policies/test_version_sync.py,
+  devcovenant/tests/test_engine.py,
+  devcovenant/tests/test_policies/test_new_modules_need_tests.py,
+  devcovenant/registry.py, devcovenant/cli.py, devcovenant/parser.py,
+  devcovenant/engine.py, devcovenant/hooks/pre_commit.py, CHANGELOG.md).
 - 2025-11-30: Fixed multiple syntax and import errors from previous Last
-              Updated removal: restored regex patterns in model_coder.py,
-              model_spec_validator.py, last_updated_placement.py; fixed
-              IndentationError in update_lock.py; removed unused variables;
-              deleted orphaned test files; added PyYAML to pre-commit hook
-              dependencies (copernican_lib/model_coder.py,
-              copernican_lib/model_spec_validator.py,
-              devcovenant/policy_scripts/last_updated_placement.py,
-              devcovenant/fixers/last_updated_placement.py,
-              tools/update_lock.py, .pre-commit-config.yaml,
-              devcovenant/tests/test_policies/test_no_future_dates.py,
-              CHANGELOG.md).
-- 2025-11-30: Consolidated Development Laws into DevCovenant policies;
-              removed redundant laws #1, #4, #7, #8, #15, #20, #24 from
-              numbered list and renumbered remaining 18 laws; added note
-              explaining DevCovenant automation (AGENTS.md, CHANGELOG.md).
-- 2025-11-30: Documented 4 new DevCovenant policies in AGENTS.md:
-              version-sync, no-future-dates, new-modules-need-tests,
-              no-print-in-library (AGENTS.md, devcovenant/registry.json,
-              CHANGELOG.md).
-- 2025-11-30: Created comprehensive Law-to-Policy mapping document
-              showing transition from numbered laws to automated DevCovenant
-              policies (DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
-- 2025-11-30: Removed Last Updated markers from 108 non-allowlisted files
-              per last-updated-placement policy (*.md, *.yml, *.py, *.yaml
-              across entire repository, CHANGELOG.md).
-- 2025-11-30: Fixed 5 line-length violations in copernican.py by breaking
-              long lines (copernican.py:757, 833, 858, 884, 908,
-              CHANGELOG.md).
-- 2025-11-30: Updated AGENTS.md Last Updated marker to 2025-11-30
-              (AGENTS.md, CHANGELOG.md).
+  Updated removal: restored regex patterns in model_coder.py,
+  model_spec_validator.py, last_updated_placement.py; fixed IndentationError in
+  update_lock.py; removed unused variables; deleted orphaned test files; added
+  PyYAML to pre-commit hook dependencies (copernican_lib/model_coder.py,
+  copernican_lib/model_spec_validator.py,
+  devcovenant/policy_scripts/last_updated_placement.py,
+  devcovenant/fixers/last_updated_placement.py, tools/update_lock.py, .pre-
+  commit-config.yaml, devcovenant/tests/test_policies/test_no_future_dates.py,
+  CHANGELOG.md).
+- 2025-11-30: Consolidated Development Laws into DevCovenant policies; removed
+  redundant laws #1, #4, #7, #8, #15, #20, #24 from numbered list and
+  renumbered remaining 18 laws; added note explaining DevCovenant automation
+  (AGENTS.md, CHANGELOG.md).
+- 2025-11-30: Documented 4 new DevCovenant policies in AGENTS.md: version-sync,
+  no-future-dates, new-modules-need-tests, no-print-in-library (AGENTS.md,
+  devcovenant/registry.json, CHANGELOG.md).
+- 2025-11-30: Created comprehensive Law-to-Policy mapping document showing
+  transition from numbered laws to automated DevCovenant policies
+  (DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
+- 2025-11-30: Removed Last Updated markers from 108 non-allowlisted files per
+  last-updated-placement policy (*.md, *.yml, *.py, *.yaml across entire
+  repository, CHANGELOG.md).
+- 2025-11-30: Fixed 5 line-length violations in copernican.py by breaking long
+  lines (copernican.py:757, 833, 858, 884, 908, CHANGELOG.md).
+- 2025-11-30: Updated AGENTS.md Last Updated marker to 2025-11-30 (AGENTS.md,
+  CHANGELOG.md).
 - 2025-11-30: Hardened DevCovenant startup checks to ignore third-party
-              directories, marked the documentation law as deprecated, and
-              refreshed the law-to-policy mapping (AGENTS.md,
-              DEVCOVENANT_LAW_MAPPING.md, devcovenant/engine.py,
-              copernican.py, CHANGELOG.md).
+  directories, marked the documentation law as deprecated, and refreshed the
+  law-to-policy mapping (AGENTS.md, DEVCOVENANT_LAW_MAPPING.md,
+  devcovenant/engine.py, copernican.py, CHANGELOG.md).
 
 ## Version 10.8.0
 - 2025-11-30: Bumped version to 10.8.0 for new DevCovenant policies
-              (copernican_lib/VERSION, README.md, CITATION.cff,
-              CHANGELOG.md).
+  (copernican_lib/VERSION, README.md, CITATION.cff, CHANGELOG.md).
 - 2025-11-30: Added update-hashes command to DevCovenant CLI for automatic
-              policy hash updates (devcovenant/update_hashes.py,
-              devcovenant/cli.py, CHANGELOG.md).
+  policy hash updates (devcovenant/update_hashes.py, devcovenant/cli.py,
+  CHANGELOG.md).
 - 2025-11-30: Deleted deprecated tools/check_meta.py and
-              tools/precommit_custom_checks.py - all checks now handled by
-              DevCovenant (tools/, CHANGELOG.md).
+  tools/precommit_custom_checks.py - all checks now handled by DevCovenant
+  (tools/, CHANGELOG.md).
 - 2025-11-30: Fixed pre-commit configuration to use system Python for
-              DevCovenant hook (.pre-commit-config.yaml, CHANGELOG.md).
+  DevCovenant hook (.pre-commit-config.yaml, CHANGELOG.md).
 - 2025-11-30: Fixed line length violations in test files
-              (devcovenant/tests/test_policies/test_new_modules_need_tests.py,
-              CHANGELOG.md).
+  (devcovenant/tests/test_policies/test_new_modules_need_tests.py,
+  CHANGELOG.md).
 
 ## Version 10.7.1
 - 2025-11-30: Expanded DevCovenant with four new policies to fully replace
-              legacy check scripts: no_future_dates.py, version_sync.py,
-              new_modules_need_tests.py, no_print_in_library.py
-              (devcovenant/policy_scripts/*.py, devcovenant/registry.json,
-              CHANGELOG.md).
-- 2025-11-30: Deprecated tools/check_meta.py and tools/precommit_custom_checks.py
-              in favor of DevCovenant policies (tools/*.py, CHANGELOG.md).
+  legacy check scripts: no_future_dates.py, version_sync.py,
+  new_modules_need_tests.py, no_print_in_library.py
+  (devcovenant/policy_scripts/*.py, devcovenant/registry.json, CHANGELOG.md).
+- 2025-11-30: Deprecated tools/check_meta.py and
+  tools/precommit_custom_checks.py in favor of DevCovenant policies
+  (tools/*.py, CHANGELOG.md).
 - 2025-11-30: Updated pre-commit configuration to use DevCovenant instead of
-              legacy precommit_custom_checks.py (.pre-commit-config.yaml,
-              CHANGELOG.md).
+  legacy precommit_custom_checks.py (.pre-commit-config.yaml, CHANGELOG.md).
 - 2025-11-30: Removed redundant Tests workflow; unit tests now run exclusively
-              in CI workflow (.github/workflows/tests.yml removed, CHANGELOG.md).
-- 2025-11-30: Fixed GUI parser digest computation to normalize line endings
-              for cross-platform hash consistency on Windows
-              (copernican_lib/gui/app.py, CHANGELOG.md).
+  in CI workflow (.github/workflows/tests.yml removed, CHANGELOG.md).
+- 2025-11-30: Fixed GUI parser digest computation to normalize line endings for
+  cross-platform hash consistency on Windows (copernican_lib/gui/app.py,
+  CHANGELOG.md).
 - 2025-11-30: Applied end-of-file-fixer to add final newline
-              (devcovenant/registry.json, CHANGELOG.md).
+  (devcovenant/registry.json, CHANGELOG.md).
 - 2025-11-30: Fixed black exclusion regex pattern to properly exclude
-              devcovenant policy scripts from reformatting
-              (pyproject.toml, CHANGELOG.md).
-- 2025-11-29: Excluded devcovenant policy scripts from black reformatting
-              to prevent CI formatter loops (pyproject.toml, CHANGELOG.md).
-- 2025-11-29: Applied code formatters (black, end-of-file-fixer) and
-              fixed test path resolution
-              (devcovenant/policy_scripts/changelog_coverage.py,
-              devcovenant/policy_scripts/last_updated_placement.py,
-              devcovenant/registry.json, devcovenant/tests/test_engine.py,
-              CHANGELOG.md).
-- 2025-11-29: Renamed policy scripts and tests to use underscores for
-              Python import compatibility
-              (devcovenant/policy_scripts/*.py renamed from hyphens to
-              underscores, devcovenant/tests/test_policies/*.py renamed,
-              devcovenant/engine.py, devcovenant/registry.py,
-              devcovenant/registry.json).
-- 2025-11-29: Fixed all E501 line length violations across devcovenant
-              and updated policy registry hashes
-              (devcovenant/engine.py, devcovenant/parser.py,
-              devcovenant/registry.py,
-              devcovenant/fixers/last_updated_placement.py,
-              devcovenant/policy_scripts/*.py,
-              devcovenant/tests/test_engine.py,
-              devcovenant/tests/test_policies/*.py,
-              devcovenant/registry.json, copernican.py).
+  devcovenant policy scripts from reformatting (pyproject.toml, CHANGELOG.md).
+- 2025-11-29: Excluded devcovenant policy scripts from black reformatting to
+  prevent CI formatter loops (pyproject.toml, CHANGELOG.md).
+- 2025-11-29: Applied code formatters (black, end-of-file-fixer) and fixed test
+  path resolution (devcovenant/policy_scripts/changelog_coverage.py,
+  devcovenant/policy_scripts/last_updated_placement.py,
+  devcovenant/registry.json, devcovenant/tests/test_engine.py, CHANGELOG.md).
+- 2025-11-29: Renamed policy scripts and tests to use underscores for Python
+  import compatibility (devcovenant/policy_scripts/*.py renamed from hyphens to
+  underscores, devcovenant/tests/test_policies/*.py renamed,
+  devcovenant/engine.py, devcovenant/registry.py, devcovenant/registry.json).
+- 2025-11-29: Fixed all E501 line length violations across devcovenant and
+  updated policy registry hashes (devcovenant/engine.py, devcovenant/parser.py,
+  devcovenant/registry.py, devcovenant/fixers/last_updated_placement.py,
+  devcovenant/policy_scripts/*.py, devcovenant/tests/test_engine.py,
+  devcovenant/tests/test_policies/*.py, devcovenant/registry.json,
+  copernican.py).
 
 ## Version 10.7.1 (previous)
-- 2025-11-29: Fixed linting and formatting issues in DevCovenant: added
-              noqa comments for intentional import order, fixed line length
-              violations, added Last Updated marker to README
-              (devcovenant/hooks/pre_commit.py, devcovenant_check.py,
-              devcovenant/README.md, devcovenant/cli.py,
-              devcovenant/engine.py, devcovenant/parser.py,
-              devcovenant/registry.py,
-              devcovenant/fixers/last_updated_placement.py,
-              devcovenant/policy_scripts/changelog-coverage.py,
-              devcovenant/policy_scripts/devcov-self-enforcement.py,
-              devcovenant/policy_scripts/last-updated-placement.py,
-              devcovenant/policy_scripts/line-length-limit.py,
-              devcovenant/policy_scripts/no-git-conflict-markers.py,
-              devcovenant/tests/test_engine.py,
-              devcovenant/tests/test_policies/test_changelog-coverage.py,
-              CHANGELOG.md).
-- 2025-11-29: Fixed DevCovenant policy violations: updated
-              no-git-conflict-markers policy to skip test files, renamed
-              test file to match naming convention, created missing test
-              files for all policy scripts, updated policy hashes
-              (devcovenant/policy_scripts/no-git-conflict-markers.py,
-              devcovenant/registry.json,
-              devcovenant/tests/test_policies/test_no-git-conflict-markers.py,
-              devcovenant/tests/test_policies/test_changelog-coverage.py,
-              devcovenant/tests/test_policies/test_line-length-limit.py,
-              devcovenant/tests/test_policies/test_last-updated-placement.py,
-              devcovenant/tests/test_policies/test_devcov-self-enforcement.py).
+- 2025-11-29: Fixed linting and formatting issues in DevCovenant: added noqa
+  comments for intentional import order, fixed line length violations, added
+  Last Updated marker to README (devcovenant/hooks/pre_commit.py,
+  devcovenant_check.py, devcovenant/README.md, devcovenant/cli.py,
+  devcovenant/engine.py, devcovenant/parser.py, devcovenant/registry.py,
+  devcovenant/fixers/last_updated_placement.py,
+  devcovenant/policy_scripts/changelog-coverage.py,
+  devcovenant/policy_scripts/devcov-self-enforcement.py,
+  devcovenant/policy_scripts/last-updated-placement.py,
+  devcovenant/policy_scripts/line-length-limit.py,
+  devcovenant/policy_scripts/no-git-conflict-markers.py,
+  devcovenant/tests/test_engine.py,
+  devcovenant/tests/test_policies/test_changelog-coverage.py, CHANGELOG.md).
+- 2025-11-29: Fixed DevCovenant policy violations: updated no-git-conflict-
+  markers policy to skip test files, renamed test file to match naming
+  convention, created missing test files for all policy scripts, updated policy
+  hashes (devcovenant/policy_scripts/no-git-conflict-markers.py,
+  devcovenant/registry.json, devcovenant/tests/test_policies/test_no-git-
+  conflict-markers.py, devcovenant/tests/test_policies/test_changelog-
+  coverage.py, devcovenant/tests/test_policies/test_line-length-limit.py,
+  devcovenant/tests/test_policies/test_last-updated-placement.py,
+  devcovenant/tests/test_policies/test_devcov-self-enforcement.py).
 - 2025-11-29: Shifted `Last Updated` enforcement to an allowlisted surface,
-              elevated the Versioning Policy to a binding law, marked `/data`
-              as read-only, bumped suite metadata to 10.7.1 and aligned
-              governance tooling and tests with the new rules (AGENTS.md,
-              README.md, CHANGELOG.md, CITATION.cff, PLAN.json,
-              copernican_lib/VERSION, tools/check_meta.py,
-              tools/precommit_custom_checks.py, tools/update_lock.py,
-              tests/test_check_meta.py, tests/test_precommit_custom_checks.py,
-              tests/test_core.py).
+  elevated the Versioning Policy to a binding law, marked `/data` as read-only,
+  bumped suite metadata to 10.7.1 and aligned governance tooling and tests with
+  the new rules (AGENTS.md, README.md, CHANGELOG.md, CITATION.cff, PLAN.json,
+  copernican_lib/VERSION, tools/check_meta.py,
+  tools/precommit_custom_checks.py, tools/update_lock.py,
+  tests/test_check_meta.py, tests/test_precommit_custom_checks.py,
+  tests/test_core.py).
 - 2025-11-29: Removed `Last Updated` banners from code, parser and engine
-              modules while keeping documentation surfaces intact
-              (copernican_lib/chain_io.py, copernican_lib/cli/__init__.py,
-              copernican_lib/cli/dependencies.py, copernican_lib/cli/menus.py,
-              copernican_lib/console_output.py, copernican_lib/dataset_registry.py,
-              copernican_lib/diagnostics.py,
-              copernican_lib/engine_plugin_validation.py,
-              copernican_lib/gui/__init__.py, copernican_lib/gui/app.py,
-              copernican_lib/likelihoods/__init__.py,
-              copernican_lib/likelihoods/_protocol.py,
-              copernican_lib/likelihoods/bao.py,
-              copernican_lib/likelihoods/cmb.py,
-              copernican_lib/likelihoods/joint.py,
-              copernican_lib/likelihoods/sne.py, copernican_lib/logger.py,
-              copernican_lib/model_coder.py,
-              copernican_lib/model_spec_validator.py,
-              copernican_lib/orchestration.py, copernican_lib/plotter.py,
-              copernican_lib/plugins/__init__.py, copernican_lib/posterior.py,
-              copernican_lib/priors.py, copernican_lib/progress.py,
-              copernican_lib/result_writer.py, copernican_lib/run_manifest.py,
-              copernican_lib/statistics.py, copernican_lib/utils.py,
-              validation/lcdm_engine_validation.py,
-              engines/cosmo_engine_mcmc.py, engines/cosmo_engine_nested.py,
-              data/bao/bossdr12/cosmo_parser_bossdr12.py,
-              data/bao/compound/cosmo_parser_compound.py,
-              data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py,
-              data/gw/placeholder/cosmo_parser_gw_placeholder.py,
-              data/sne/jla2014/cosmo_parser_jla2014.py,
-              data/sne/pantheon/cosmo_parser_pantheon.py,
-              cosmo_model_template.yml, copernican_lib/latex_mappings.yml,
-              models/cosmo_model_cpc.yml, models/cosmo_model_usmf4.yml,
-              models/cosmo_model_cfsc.yml, models/cache/cache_cosmo_model_lcdm.yml,
-              models/cache/cache_cosmo_model_cfsc.yml,
-              data/bao/bossdr12/metadata_bossdr12.yml,
-              data/bao/compound/compound.yml,
-              data/bao/compound/metadata_compound.yml,
-              data/cmb/planck2018lite/metadata_planck2018lite.yml,
-              data/sne/pantheon/metadata_pantheon.yml,
-              data/sne/jla2014/metadata_jla2014.yml,
-              data/gw/placeholder/metadata_gw_placeholder.yml,
-              tests/data/synthetic/metadata_synthetic.yml,
-              tests/data/synthetic/model.yml).
+  modules while keeping documentation surfaces intact
+  (copernican_lib/chain_io.py, copernican_lib/cli/__init__.py,
+  copernican_lib/cli/dependencies.py, copernican_lib/cli/menus.py,
+  copernican_lib/console_output.py, copernican_lib/dataset_registry.py,
+  copernican_lib/diagnostics.py, copernican_lib/engine_plugin_validation.py,
+  copernican_lib/gui/__init__.py, copernican_lib/gui/app.py,
+  copernican_lib/likelihoods/__init__.py,
+  copernican_lib/likelihoods/_protocol.py, copernican_lib/likelihoods/bao.py,
+  copernican_lib/likelihoods/cmb.py, copernican_lib/likelihoods/joint.py,
+  copernican_lib/likelihoods/sne.py, copernican_lib/logger.py,
+  copernican_lib/model_coder.py, copernican_lib/model_spec_validator.py,
+  copernican_lib/orchestration.py, copernican_lib/plotter.py,
+  copernican_lib/plugins/__init__.py, copernican_lib/posterior.py,
+  copernican_lib/priors.py, copernican_lib/progress.py,
+  copernican_lib/result_writer.py, copernican_lib/run_manifest.py,
+  copernican_lib/statistics.py, copernican_lib/utils.py,
+  validation/lcdm_engine_validation.py, engines/cosmo_engine_mcmc.py,
+  engines/cosmo_engine_nested.py, data/bao/bossdr12/cosmo_parser_bossdr12.py,
+  data/bao/compound/cosmo_parser_compound.py,
+  data/cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py,
+  data/gw/placeholder/cosmo_parser_gw_placeholder.py,
+  data/sne/jla2014/cosmo_parser_jla2014.py,
+  data/sne/pantheon/cosmo_parser_pantheon.py, cosmo_model_template.yml,
+  copernican_lib/latex_mappings.yml, models/cosmo_model_cpc.yml,
+  models/cosmo_model_usmf4.yml, models/cosmo_model_cfsc.yml,
+  models/cache/cache_cosmo_model_lcdm.yml,
+  models/cache/cache_cosmo_model_cfsc.yml,
+  data/bao/bossdr12/metadata_bossdr12.yml, data/bao/compound/compound.yml,
+  data/bao/compound/metadata_compound.yml,
+  data/cmb/planck2018lite/metadata_planck2018lite.yml,
+  data/sne/pantheon/metadata_pantheon.yml,
+  data/sne/jla2014/metadata_jla2014.yml,
+  data/gw/placeholder/metadata_gw_placeholder.yml,
+  tests/data/synthetic/metadata_synthetic.yml, tests/data/synthetic/model.yml).
 - 2025-11-29: Stripped `Last Updated` headers from test fixtures and refreshed
-              ancillary checks to reflect the new policy
-              (tests/cli/__init__.py, tests/cli/test_dependencies_cli.py,
-              tests/cli/test_launcher_modes.py, tests/cli/test_menus_cli.py,
-              tests/data/synthetic/cosmo_parser_synthetic.py,
-              tests/data/synthetic/model_plugin.py, tests/engines/__init__.py,
-              tests/engines/test_engine_nested.py, tests/test_bao_covariance.py,
-              tests/test_bossdr12_parser.py, tests/test_cmb_like.py,
-              tests/test_data_hashes.py, tests/test_dataset_registry.py,
-              tests/test_diagnostics.py, tests/test_engine_mcmc.py,
-              tests/test_engine_plugin_validation.py, tests/test_gui_app.py,
-              tests/test_likelihoods.py, tests/test_menu.py,
-              tests/test_model_coder.py, tests/test_model_priors.py,
-              tests/test_orchestration_services.py, tests/test_parser_discovery.py,
-              tests/test_plotter.py, tests/test_plugins.py,
-              tests/test_program_logging.py, tests/test_result_writer.py,
-              tests/test_run_manifest.py, tests/test_start_scripts.py,
-              tests/test_synthetic_integration.py, tests/test_update_lock.py,
-              tests/test_utils.py).
+  ancillary checks to reflect the new policy (tests/cli/__init__.py,
+  tests/cli/test_dependencies_cli.py, tests/cli/test_launcher_modes.py,
+  tests/cli/test_menus_cli.py, tests/data/synthetic/cosmo_parser_synthetic.py,
+  tests/data/synthetic/model_plugin.py, tests/engines/__init__.py,
+  tests/engines/test_engine_nested.py, tests/test_bao_covariance.py,
+  tests/test_bossdr12_parser.py, tests/test_cmb_like.py,
+  tests/test_data_hashes.py, tests/test_dataset_registry.py,
+  tests/test_diagnostics.py, tests/test_engine_mcmc.py,
+  tests/test_engine_plugin_validation.py, tests/test_gui_app.py,
+  tests/test_likelihoods.py, tests/test_menu.py, tests/test_model_coder.py,
+  tests/test_model_priors.py, tests/test_orchestration_services.py,
+  tests/test_parser_discovery.py, tests/test_plotter.py, tests/test_plugins.py,
+  tests/test_program_logging.py, tests/test_result_writer.py,
+  tests/test_run_manifest.py, tests/test_start_scripts.py,
+  tests/test_synthetic_integration.py, tests/test_update_lock.py,
+  tests/test_utils.py).
 - 2025-11-29: Removed legacy `Last Updated` banners from non-allowlisted
-              configuration and ensured the CI workflow carries the required
-              header while lock regeneration drops metadata entirely
-              (tools/update_lock.py, tests/test_update_lock.py,
-              requirements.lock, requirements.in, pyproject.toml, Makefile,
-              .gitignore, .gitattributes, .github/workflows/ci.yml).
+  configuration and ensured the CI workflow carries the required header while
+  lock regeneration drops metadata entirely (tools/update_lock.py,
+  tests/test_update_lock.py, requirements.lock, requirements.in,
+  pyproject.toml, Makefile, .gitignore, .gitattributes,
+  .github/workflows/ci.yml).
 
 ## Version 10.7.0
 - 2025-11-29: Added CLI flags for GUI, CLI and headless runs with manifest and
-              output directory overrides, detached GUI launchers across start
-              scripts, deterministic manifest saving and refreshed docs for
-              the 10.7.0 release (CHANGELOG.md, README.md, AGENTS.md,
-              CITATION.cff, copernican.py, copernican_lib/run_manifest.py,
-              copernican_lib/VERSION, docs/run_manifest.md, start.sh,
-              start.command, start.bat, tests/cli/test_launcher_modes.py,
-              tests/test_run_manifest.py)
+  output directory overrides, detached GUI launchers across start scripts,
+  deterministic manifest saving and refreshed docs for the 10.7.0 release
+  (CHANGELOG.md, README.md, AGENTS.md, CITATION.cff, copernican.py,
+  copernican_lib/run_manifest.py, copernican_lib/VERSION, docs/run_manifest.md,
+  start.sh, start.command, start.bat, tests/cli/test_launcher_modes.py,
+  tests/test_run_manifest.py)
 
 ## Version 10.6.0
 - 2025-11-25: Added GUI catalogue views for datasets, models and engines with
-              SHA256 digests, parser revalidation hooks, manifest duplication
-              into Run Builder and refreshed release metadata to 10.6.0
-              (CHANGELOG.md, README.md, CITATION.cff, copernican_lib/VERSION,
-              copernican_lib/gui/app.py, tests/test_gui_app.py,
-              docs/design_overview.md)
+  SHA256 digests, parser revalidation hooks, manifest duplication into Run
+  Builder and refreshed release metadata to 10.6.0 (CHANGELOG.md, README.md,
+  CITATION.cff, copernican_lib/VERSION, copernican_lib/gui/app.py,
+  tests/test_gui_app.py, docs/design_overview.md)
 
 ## Version 10.5.0
 - 2025-11-25: Started GUI diagnostics logging at launch with severity filters
-              and downloads, gated run-log creation on manifest confirmation
-              with streaming to the Run Monitor, added toast and inline alert
-              anchors with jump tooling, preserved structured logging for
-              CLI/CI consumers, refreshed docs and bumped release metadata to
-              10.5.0 (CHANGELOG.md, README.md, CITATION.cff,
-              copernican_lib/VERSION, copernican_lib/logger.py,
-              copernican_lib/gui/app.py, tests/test_gui_app.py,
-              docs/design_overview.md)
+  and downloads, gated run-log creation on manifest confirmation with streaming
+  to the Run Monitor, added toast and inline alert anchors with jump tooling,
+  preserved structured logging for CLI/CI consumers, refreshed docs and bumped
+  release metadata to 10.5.0 (CHANGELOG.md, README.md, CITATION.cff,
+  copernican_lib/VERSION, copernican_lib/logger.py, copernican_lib/gui/app.py,
+  tests/test_gui_app.py, docs/design_overview.md)
 - 2025-11-25: Normalised GUI logging test metadata and headers
-              (tests/test_gui_app.py) (OpenAI ChatGPT)
+  (tests/test_gui_app.py) (OpenAI ChatGPT)
 
 ## Version 10.4.0
 - 2025-11-25: Added start confirmation and manifest export/import to the GUI,
-              surfaced dataset hashes and engine/model metadata in the Run
-              Monitor, implemented pause, cancel and hard-stop retention
-              markers, refreshed manifest status helpers and bumped release
-              metadata to 10.4.0 (CHANGELOG.md, README.md, CITATION.cff,
-              copernican_lib/VERSION, copernican_lib/gui/app.py,
-              copernican_lib/run_manifest.py, tests/test_gui_app.py,
-              tests/test_run_manifest.py, tests/cli/test_menus_cli.py,
-              docs/run_manifest.md, docs/design_overview.md) (OpenAI ChatGPT)
+  surfaced dataset hashes and engine/model metadata in the Run Monitor,
+  implemented pause, cancel and hard-stop retention markers, refreshed manifest
+  status helpers and bumped release metadata to 10.4.0 (CHANGELOG.md,
+  README.md, CITATION.cff, copernican_lib/VERSION, copernican_lib/gui/app.py,
+  copernican_lib/run_manifest.py, tests/test_gui_app.py,
+  tests/test_run_manifest.py, tests/cli/test_menus_cli.py,
+  docs/run_manifest.md, docs/design_overview.md) (OpenAI ChatGPT)
 
 ## Version 10.3.1
 - 2025-11-25: Documented the mandatory changelog file-listing rule in
-              `AGENTS.md` and `README.md`, captured Black's GUI formatting,
-              bumped release metadata to 10.3.1 and recorded the touched
-              paths (CHANGELOG.md, AGENTS.md, README.md, CITATION.cff,
-              copernican_lib/VERSION, copernican_lib/gui/app.py)
-              (OpenAI ChatGPT)
+  `AGENTS.md` and `README.md`, captured Black's GUI formatting, bumped release
+  metadata to 10.3.1 and recorded the touched paths (CHANGELOG.md, AGENTS.md,
+  README.md, CITATION.cff, copernican_lib/VERSION, copernican_lib/gui/app.py)
+  (OpenAI ChatGPT)
 
 ## Version 10.3.0
 - 2025-11-25: Added a Tkinter GUI scaffold with navigation rail, Run Builder,
-              Run Monitor dashboard and summary view, enabled headless
-              fallbacks for CI, refreshed docs/tests and bumped release
-              metadata to 10.3.0 (OpenAI ChatGPT)
+  Run Monitor dashboard and summary view, enabled headless fallbacks for CI,
+  refreshed docs/tests and bumped release metadata to 10.3.0 (OpenAI ChatGPT)
 
 ## Version 10.2.0
 - 2025-11-24: Added GUI-safe orchestration service descriptors, a CLI/GUI
-              launcher shim with forward-only defaults, documented the staged
-              menu test hook, refreshed docs/tests and bumped release metadata
-              to 10.2.0 (OpenAI ChatGPT)
+  launcher shim with forward-only defaults, documented the staged menu test
+  hook, refreshed docs/tests and bumped release metadata to 10.2.0 (OpenAI
+  ChatGPT)
 - 2025-11-24: Reformatted `copernican_lib/orchestration.py` along with the
-              launcher and orchestration service tests to satisfy Black/Isort
-              and keep the policy hook aligned with the recorded changes
-              (OpenAI ChatGPT)
+  launcher and orchestration service tests to satisfy Black/Isort and keep the
+  policy hook aligned with the recorded changes (OpenAI ChatGPT)
 
 ## Version 10.1.3
 - 2025-11-24: Skipped relative imports in the dependency scanner to prevent
-              false missing-package alerts, guarded matplotlib cleanup against
-              early exits, refreshed documentation and tests (including
-              `tests/cli/test_dependencies_cli.py`), and bumped release
-              metadata to 10.1.3 (OpenAI ChatGPT)
+  false missing-package alerts, guarded matplotlib cleanup against early exits,
+  refreshed documentation and tests (including
+  `tests/cli/test_dependencies_cli.py`), and bumped release metadata to 10.1.3
+  (OpenAI ChatGPT)
 
 ## Version 10.1.2
 - 2025-11-24: Removed in-program dependency installation, updated CLI
-              dependency checks, launcher scripts, documentation and tests to
-              direct missing packages back to the start helpers, and bumped
-              release metadata to 10.1.2 (OpenAI ChatGPT)
+  dependency checks, launcher scripts, documentation and tests to direct
+  missing packages back to the start helpers, and bumped release metadata to
+  10.1.2 (OpenAI ChatGPT)
 
 ## Version 10.1.1
 - 2025-11-24: Restored the legacy ``copernican.select_seed`` entry point as a
-              shim over ``copernican_lib.cli.menus.select_seed`` so seed
-              prompts remain importable, refreshed the splash-banner test
-              version string, and synced README/CITATION/version metadata to
-              10.1.1 (OpenAI ChatGPT)
+  shim over ``copernican_lib.cli.menus.select_seed`` so seed prompts remain
+  importable, refreshed the splash-banner test version string, and synced
+  README/CITATION/version metadata to 10.1.1 (OpenAI ChatGPT)
 
 ## Version 10.1.0
 - 2025-11-24: Moved CLI dependency checks and menu rendering into
-              ``copernican_lib/cli`` helpers, slimmed ``copernican.py`` imports,
-              added focused CLI tests and bumped release metadata to 10.1.0
-              (OpenAI ChatGPT)
+  ``copernican_lib/cli`` helpers, slimmed ``copernican.py`` imports, added
+  focused CLI tests and bumped release metadata to 10.1.0 (OpenAI ChatGPT)
 
 ## Version 10.0.0
 - 2025-11-24: Added a rotating diagnostics log under `./logs/` that keeps
-              suite-level events separate from per-run logs, documented the
-              forward-only development stance, synced release metadata to
-              10.0.0 and introduced tests covering program-log rollover
-              (OpenAI ChatGPT)
+  suite-level events separate from per-run logs, documented the forward-only
+  development stance, synced release metadata to 10.0.0 and introduced tests
+  covering program-log rollover (OpenAI ChatGPT)
 
 ## Version 9.0.3
 - 2025-11-24: Restored TkAgg fallback resilience by retrying ``plt.subplots``
-              after switching to the Agg backend when Tk raises ``TclError``,
-              refreshed the Stage 5 README notes to describe the retry path
-              and bumped release metadata to 9.0.3 (OpenAI ChatGPT)
+  after switching to the Agg backend when Tk raises ``TclError``, refreshed the
+  Stage 5 README notes to describe the retry path and bumped release metadata
+  to 9.0.3 (OpenAI ChatGPT)
 
 ## Version 9.0.2
 - 2025-11-24: Warmed up the corner plot backend with a temporary figure to
-              avoid duplicate subplot creation on Tk-less Windows CI hosts,
-              documented the deterministic sizing behaviour in `README.md`,
-              and synced version metadata across `README.md`, `CITATION.cff`
-              and `copernican_lib/VERSION` to 9.0.2 (OpenAI ChatGPT)
+  avoid duplicate subplot creation on Tk-less Windows CI hosts, documented the
+  deterministic sizing behaviour in `README.md`, and synced version metadata
+  across `README.md`, `CITATION.cff` and `copernican_lib/VERSION` to 9.0.2
+  (OpenAI ChatGPT)
 
 ## Version 9.0.1
-- 2025-11-24: Strengthened the development rules, README and contributing
-              guide to emphasise that every change must be logged in
-              `CHANGELOG.md` alongside the touched files so the
-              `copernican-policy` hook stays green, refreshed the
-              gravitational-wave loader formatting to satisfy Black and bumped
-              version metadata to 9.0.1 (OpenAI ChatGPT)
+- 2025-11-24: Strengthened the development rules, README and contributing guide
+  to emphasise that every change must be logged in `CHANGELOG.md` alongside the
+  touched files so the `copernican-policy` hook stays green, refreshed the
+  gravitational-wave loader formatting to satisfy Black and bumped version
+  metadata to 9.0.1 (OpenAI ChatGPT)
 
 ## Version 9.0.0
-- 2025-11-24: Renamed the parser dictionaries to explicit
-              ``*_PARSER_REGISTRY`` identifiers, introduced the shared
-              ``PARSER_REGISTRIES`` index, retitled the observational
-              independence annotations as
-              ``OBSERVATION_INDEPENDENCE_NOTES`` and replaced the parser
-              discovery and menu helpers with clearer
-              ``discover_trusted_parsers`` and
-              ``prompt_dataset_selection`` entry points. Updated
-              documentation, tests and release metadata to reflect the
-              clarified naming (OpenAI ChatGPT)
+- 2025-11-24: Renamed the parser dictionaries to explicit ``*_PARSER_REGISTRY``
+  identifiers, introduced the shared ``PARSER_REGISTRIES`` index, retitled the
+  observational independence annotations as ``OBSERVATION_INDEPENDENCE_NOTES``
+  and replaced the parser discovery and menu helpers with clearer
+  ``discover_trusted_parsers`` and ``prompt_dataset_selection`` entry points.
+  Updated documentation, tests and release metadata to reflect the clarified
+  naming (OpenAI ChatGPT)
 
 ## Version 8.0.0
 - 2025-11-24: Replaced legacy naming across the engine plugin, dataset and
-              model specification layers by renaming the modules to
-              ``engine_plugin_validation``, ``dataset_registry`` and
-              ``model_spec_validator``, updated the associated APIs
-              (including ``validate_and_cache_model``), refreshed CLI code,
-              engines, parsers, documentation and tests to match the clearer
-              terminology, and bumped suite metadata to 8.0.0 (OpenAI ChatGPT)
+  model specification layers by renaming the modules to
+  ``engine_plugin_validation``, ``dataset_registry`` and
+  ``model_spec_validator``, updated the associated APIs (including
+  ``validate_and_cache_model``), refreshed CLI code, engines, parsers,
+  documentation and tests to match the clearer terminology, and bumped suite
+  metadata to 8.0.0 (OpenAI ChatGPT)
 - 2025-11-24: Reformatted the dataset registry and engine plugin validation
-              tests and reinforced the policy hook expectations so linting
-              gates remain green without manual reminders (OpenAI ChatGPT)
+  tests and reinforced the policy hook expectations so linting gates remain
+  green without manual reminders (OpenAI ChatGPT)
 
 ## Version 7.7.15
-- 2025-11-24: Renamed the sampling entry points to
-              ``fit_cosmology_parameters`` with deprecated
-              ``fit_sne_parameters`` shims, updated the CLI to resolve the new
-              name while warning on legacy usage, refreshed documentation and
-              tests to reflect the broader scope and bumped suite metadata to
-              7.7.15 (OpenAI ChatGPT)
+- 2025-11-24: Renamed the sampling entry points to ``fit_cosmology_parameters``
+  with deprecated ``fit_sne_parameters`` shims, updated the CLI to resolve the
+  new name while warning on legacy usage, refreshed documentation and tests to
+  reflect the broader scope and bumped suite metadata to 7.7.15 (OpenAI
+  ChatGPT)
 
 ## Version 7.7.14
 - 2025-11-23: Hardened the policy hook and CI gate so Last Updated headers are
-              fresh, changelog entries accompany file edits, README metadata
-              stays aligned with `copernican_lib/VERSION` and new modules ship
-              with accompanying tests; bumped suite metadata to 7.7.14 (OpenAI
-              ChatGPT)
+  fresh, changelog entries accompany file edits, README metadata stays aligned
+  with `copernican_lib/VERSION` and new modules ship with accompanying tests;
+  bumped suite metadata to 7.7.14 (OpenAI ChatGPT)
 
 ## Version 7.7.13
 - 2025-11-23: Added a cross-engine ΛCDM validation playbook covering trimmed
-              Pantheon+SH0ES and full BOSS DR12 BAO data, documented reference
-              χ² tolerances for both samplers and bumped suite metadata to
-              7.7.13 (OpenAI ChatGPT)
+  Pantheon+SH0ES and full BOSS DR12 BAO data, documented reference χ²
+  tolerances for both samplers and bumped suite metadata to 7.7.13 (OpenAI
+  ChatGPT)
 
 ## Version 7.7.12
 - 2025-11-23: Added a headless fallback to the corner-plot renderer so Tkless
-              CI runners switch to the Agg backend automatically, enforced LF
-              line endings for synthetic fixtures to keep cross-platform file
-              hashes stable and bumped suite metadata to 7.7.12 (OpenAI
-              ChatGPT)
+  CI runners switch to the Agg backend automatically, enforced LF line endings
+  for synthetic fixtures to keep cross-platform file hashes stable and bumped
+  suite metadata to 7.7.12 (OpenAI ChatGPT)
 
 ## Version 7.7.11
 - 2025-11-23: Ensured posterior NetCDF files carry provenance on both the
-              inference-data root and posterior group so model metadata remains
-              visible regardless of backend group support, documented the
-              change and bumped suite metadata to 7.7.11 (OpenAI ChatGPT)
+  inference-data root and posterior group so model metadata remains visible
+  regardless of backend group support, documented the change and bumped suite
+  metadata to 7.7.11 (OpenAI ChatGPT)
 
 ## Version 7.7.10
 - 2025-11-23: Scoped the synthetic CMB toggle to the synthetic integration
-              harness so BAO and CMB regression tests continue to exercise real
-              CAMB outputs, hardened the NetCDF fallback reader to handle
-              SciPy-backed files without groups and bumped suite metadata to
-              7.7.10 (OpenAI ChatGPT)
+  harness so BAO and CMB regression tests continue to exercise real CAMB
+  outputs, hardened the NetCDF fallback reader to handle SciPy-backed files
+  without groups and bumped suite metadata to 7.7.10 (OpenAI ChatGPT)
 
 ## Version 7.7.9
 - 2025-11-23: Added deterministic synthetic SNe, BAO and CMB fixtures under
-              ``tests/data`` plus an integration test that drives both the
-              default MCMC and nested engines through the manifest, summary
-              writer and hash logging paths to ensure reproducible outputs
-              (OpenAI ChatGPT)
+  ``tests/data`` plus an integration test that drives both the default MCMC and
+  nested engines through the manifest, summary writer and hash logging paths to
+  ensure reproducible outputs (OpenAI ChatGPT)
 - 2025-11-23: Synced ``CITATION.cff`` with the tracked version metadata to
-              satisfy the repository policy hooks and CI gating (OpenAI
-              ChatGPT)
+  satisfy the repository policy hooks and CI gating (OpenAI ChatGPT)
 
 ## Version 7.7.8
 - 2025-11-23: Refreshed README and design/api documentation to remove release
-              recaps, add deeper explanations of the Stage 1 configuration,
-              progress renderer, dataset integrity checks and plugin
-              interfaces, and aligned console logging comments and metadata
-              headers with current behaviour (OpenAI ChatGPT)
+  recaps, add deeper explanations of the Stage 1 configuration, progress
+  renderer, dataset integrity checks and plugin interfaces, and aligned console
+  logging comments and metadata headers with current behaviour (OpenAI ChatGPT)
 - 2025-11-22: Ensured the shared Stage 2 progress renderer clears its active
-              line and emits a spacer when batches close, keeping nested and
-              ensemble transcripts free of stale 0% bars and updating
-              accompanying documentation and metadata to 7.7.8 (OpenAI
-              ChatGPT)
+  line and emits a spacer when batches close, keeping nested and ensemble
+  transcripts free of stale 0% bars and updating accompanying documentation and
+  metadata to 7.7.8 (OpenAI ChatGPT)
 
 ## Version 7.7.7
 - 2025-11-20: Added a lightweight CMB stub pathway for CI and Windows runners
-              that cannot afford CAMB evaluations, wiring the MCMC regression
-              to the new hook so chi-squared tests exit quickly while keeping
-              production behaviour unchanged (OpenAI ChatGPT)
+  that cannot afford CAMB evaluations, wiring the MCMC regression to the new
+  hook so chi-squared tests exit quickly while keeping production behaviour
+  unchanged (OpenAI ChatGPT)
 
 ## Version 7.7.6
 - 2025-11-13: Added conservative diagnostics that keep the MCMC engine
-              functional when ArviZ is unavailable, taught the NetCDF writer to
-              persist samples through an xarray fallback and adjusted the joint
-              χ² regression to rely on fast synthetic CMB spectra so Stage 2
-              tests pass consistently (OpenAI ChatGPT)
+  functional when ArviZ is unavailable, taught the NetCDF writer to persist
+  samples through an xarray fallback and adjusted the joint χ² regression to
+  rely on fast synthetic CMB spectra so Stage 2 tests pass consistently (OpenAI
+  ChatGPT)
 
 ## Version 7.7.5
 - 2025-11-13: Prefixed the Stage 2 progress renderer with explicit carriage
-              returns and suppressed trailing end characters so nested sampling
-              logs no longer accumulate blank spacer rows, updated the unit
-              tests to assert the newline-free behaviour and refreshed suite
-              metadata to version 7.7.5 (OpenAI ChatGPT)
+  returns and suppressed trailing end characters so nested sampling logs no
+  longer accumulate blank spacer rows, updated the unit tests to assert the
+  newline-free behaviour and refreshed suite metadata to version 7.7.5 (OpenAI
+  ChatGPT)
 
 ## Version 7.7.4
 - 2025-11-12: Updated the shared Stage 2 progress renderer to emit trailing
-              carriage returns so nested sampling stays on a single console
-              line without leaving blank spacers, refreshed the tests to
-              assert the new end characters and documented the fix across the
-              README and design notes (OpenAI ChatGPT)
+  carriage returns so nested sampling stays on a single console line without
+  leaving blank spacers, refreshed the tests to assert the new end characters
+  and documented the fix across the README and design notes (OpenAI ChatGPT)
 
 ## Version 7.7.3
-- 2025-11-12: Smoothed the nested sampler's progress feed so the carriage-return
-              bar stays on a single line, introduced iteration-focused labels via
-              a configurable progress helper and refreshed documentation and
-              tests to cover the new rendering behaviour (OpenAI ChatGPT)
+- 2025-11-12: Smoothed the nested sampler's progress feed so the carriage-
+  return bar stays on a single line, introduced iteration-focused labels via a
+  configurable progress helper and refreshed documentation and tests to cover
+  the new rendering behaviour (OpenAI ChatGPT)
 
 ## Version 7.7.2
 - 2025-11-12: Wired the nested sampler into the shared Stage 2 progress
-              infrastructure so BatchProgressBar tracks every iteration,
-              added configuration plumbing so Stage 2 toggles progress across
-              both engines, expanded the regression suite with progress spies
-              and refreshed the documentation to describe the live updates
-              (OpenAI ChatGPT)
+  infrastructure so BatchProgressBar tracks every iteration, added
+  configuration plumbing so Stage 2 toggles progress across both engines,
+  expanded the regression suite with progress spies and refreshed the
+  documentation to describe the live updates (OpenAI ChatGPT)
 
 ## Version 7.7.1
 - 2025-11-12: Wrapped nested-sampling helper code to respect line-length
-              policies, refreshed documentation for the polish and restored
-              green lint checks (OpenAI ChatGPT)
+  policies, refreshed documentation for the polish and restored green lint
+  checks (OpenAI ChatGPT)
 
 ## Version 7.7.0
 - 2025-11-11: Added the `cosmo_engine_nested` backend with nested-sampling
-              configuration prompts, manifest/test coverage and documentation
-              updates (OpenAI ChatGPT)
+  configuration prompts, manifest/test coverage and documentation updates
+  (OpenAI ChatGPT)
 
 ## Version 7.6.23
 - 2025-11-11: Lowered the Stage 5 corner footer stack so elongated axis labels
@@ -1354,28 +1670,28 @@ suffixes. Follow this template:
   version 7.6.22 (OpenAI ChatGPT)
 
 ## Version 7.6.21
-- 2025-11-10: Extracted the Stage 2 progress renderer, spinner pump and notifier
-  bridge into `copernican_lib.progress`, restored live per-walker updates by
-  refitting the sampler hooks, added a suspension context so console logs never
-  leave stale bars behind, expanded the regression suite, refreshed
+- 2025-11-10: Extracted the Stage 2 progress renderer, spinner pump and
+  notifier bridge into `copernican_lib.progress`, restored live per-walker
+  updates by refitting the sampler hooks, added a suspension context so console
+  logs never leave stale bars behind, expanded the regression suite, refreshed
   documentation and bumped repository metadata to version 7.6.21 (OpenAI
   ChatGPT)
 
 ## Version 7.6.20
 - 2025-11-10: Forced the Stage 2 progress renderer to repaint on a timer even
   when walker callbacks pause, added an explicit clearing pass so completed
-  batches leave behind only blank spacer lines, extended the regression suite to
-  cover the forced repaints and console clearing logic, refreshed documentation
-  to describe the behaviour and bumped repository metadata to version 7.6.20
-  (OpenAI ChatGPT)
+  batches leave behind only blank spacer lines, extended the regression suite
+  to cover the forced repaints and console clearing logic, refreshed
+  documentation to describe the behaviour and bumped repository metadata to
+  version 7.6.20 (OpenAI ChatGPT)
 
 ## Version 7.6.19
-- 2025-11-10: Simplified the Stage 1 and Stage 2 banners to single-line spacers,
-  removed walker snapshot logging while keeping percentile diagnostics, stopped
-  mirroring progress bars into the log, introduced a background spinner pump so
-  live updates repaint multiple times per second, refreshed the documentation
-  and regression tests, and bumped repository metadata to version 7.6.19 (OpenAI
-  ChatGPT)
+- 2025-11-10: Simplified the Stage 1 and Stage 2 banners to single-line
+  spacers, removed walker snapshot logging while keeping percentile
+  diagnostics, stopped mirroring progress bars into the log, introduced a
+  background spinner pump so live updates repaint multiple times per second,
+  refreshed the documentation and regression tests, and bumped repository
+  metadata to version 7.6.19 (OpenAI ChatGPT)
 
 ## Version 7.6.18
 - 2025-11-10: Hardened the Stage 2 progress bar regression tests to cover the
@@ -1385,9 +1701,9 @@ suffixes. Follow this template:
 
 ## Version 7.6.17
 - 2025-11-10: Removed the Stage 2 progress bar brackets so console and log
-  captures share the same alignment, refreshed the unit tests and
-  documentation to assert the bracket-free layout and bumped repository
-  metadata to version 7.6.17 (OpenAI ChatGPT)
+  captures share the same alignment, refreshed the unit tests and documentation
+  to assert the bracket-free layout and bumped repository metadata to version
+  7.6.17 (OpenAI ChatGPT)
 
 ## Version 7.6.16
 - 2025-11-10: Extended the Stage 2 progress notifier with a timer-driven idle
@@ -1404,8 +1720,8 @@ suffixes. Follow this template:
 
 ## Version 7.6.14
 - 2025-11-10: Replaced the Stage 2 `tqdm` wrapper with a direct carriage-return
-  renderer so macOS and other terminals keep progress confined to a single
-  line while still repainting on every walker callback, removed the runtime
+  renderer so macOS and other terminals keep progress confined to a single line
+  while still repainting on every walker callback, removed the runtime
   dependency, refreshed the notifier-driven unit tests and updated suite
   documentation and metadata to 7.6.14 (OpenAI ChatGPT)
 
@@ -1439,8 +1755,8 @@ suffixes. Follow this template:
   and bumped project metadata to 7.6.10 (OpenAI ChatGPT)
 
 ## Version 7.6.9
-- 2025-11-09: Rebuilt the Stage 2 batch progress renderer with Unicode
-  partial-block glyphs so interactive terminals match the smooth updates already
+- 2025-11-09: Rebuilt the Stage 2 batch progress renderer with Unicode partial-
+  block glyphs so interactive terminals match the smooth updates already
   captured in logs, refreshed the accompanying unit tests, documentation and
   contributor guidance, and bumped project metadata to 7.6.9 (OpenAI ChatGPT)
 
@@ -1492,10 +1808,10 @@ suffixes. Follow this template:
   metadata to 7.6.2 (OpenAI ChatGPT)
 
 ## Version 7.6.1
-- 2025-11-09: Retired the Stage 2 runtime estimator, rebuilt the sampler progress
-  bars around a fifty-character display, repaired the QRSFv2 corner plot contour
-  level calculation and updated documentation, tests and metadata for version
-  7.6.1 (OpenAI ChatGPT)
+- 2025-11-09: Retired the Stage 2 runtime estimator, rebuilt the sampler
+  progress bars around a fifty-character display, repaired the QRSFv2 corner
+  plot contour level calculation and updated documentation, tests and metadata
+  for version 7.6.1 (OpenAI ChatGPT)
 
 ## Version 7.6.0
 - 2025-11-09: Extended the Stage 2 progress system to surface per-batch timing
@@ -1504,10 +1820,10 @@ suffixes. Follow this template:
   deterministic unit tests and documentation updates (OpenAI ChatGPT)
 
 ## Version 7.5.3
-- 2025-11-09: Updated the Stage 2 runtime estimator to benchmark a single
-  burn-in and production step per model, reuse ΛCDM timings when both plugins
-  share the same YAML definition, expand documentation and bump release
-  metadata to 7.5.3 so runtime forecasts remain trustworthy (OpenAI ChatGPT)
+- 2025-11-09: Updated the Stage 2 runtime estimator to benchmark a single burn-
+  in and production step per model, reuse ΛCDM timings when both plugins share
+  the same YAML definition, expand documentation and bump release metadata to
+  7.5.3 so runtime forecasts remain trustworthy (OpenAI ChatGPT)
 
 ## Version 7.5.2
 - 2025-11-09: Expanded Stage 1 documentation, refreshed inline comments around
@@ -1523,11 +1839,11 @@ suffixes. Follow this template:
 ## Version 7.5.0
 - 2025-11-09: Refined Stage 1 to present the random-seed menu after the
   configuration banner, added a restart/exit dialog when model validation fails
-  and surfaced detailed validation reasons via `PluginValidationError`.
-  Stage 2 now announces burn-in and production phases for each model, renders a
-  gradual progress bar for every sampler batch and exposes a live runtime
-  estimator from the sampler menu. Documentation, unit tests and release
-  metadata were updated to cover the new workflows (OpenAI ChatGPT)
+  and surfaced detailed validation reasons via `PluginValidationError`. Stage 2
+  now announces burn-in and production phases for each model, renders a gradual
+  progress bar for every sampler batch and exposes a live runtime estimator
+  from the sampler menu. Documentation, unit tests and release metadata were
+  updated to cover the new workflows (OpenAI ChatGPT)
 
 ## Version 7.4.6
 - 2025-11-09: Added a responsive sizing helper for Stage 5 corner plots that
@@ -1576,8 +1892,8 @@ suffixes. Follow this template:
 ## Version 7.4.2
 - 2025-11-08: Restored compatibility with legacy corner-plot validators that
   still return only samples and labels by deriving thinning statistics inside
-  `plotter.plot_corner`, logging the fallback, extending regression coverage and
-  refreshing the documentation set while bumping recorded metadata to 7.4.2
+  `plotter.plot_corner`, logging the fallback, extending regression coverage
+  and refreshing the documentation set while bumping recorded metadata to 7.4.2
   (OpenAI ChatGPT)
 
 ## Version 7.4.1
@@ -1614,7 +1930,9 @@ suffixes. Follow this template:
   the new helper before bumping the recorded version to 7.3.1 (OpenAI ChatGPT)
 
 ## Version 7.3.0
-- 2025-11-07: Rewrote the README introduction to highlight the suite's mission, components and supported datasets, synced the design overview summary and relocated release notes from the README into the changelog (OpenAI ChatGPT)
+- 2025-11-07: Rewrote the README introduction to highlight the suite's mission,
+  components and supported datasets, synced the design overview summary and
+  relocated release notes from the README into the changelog (OpenAI ChatGPT)
 
 - 2025-11-07: Integrated ArviZ convergence diagnostics into the ensemble MCMC
   engine, logging compact :math:`\hat{R}` and effective sample size summaries,
@@ -1624,10 +1942,11 @@ suffixes. Follow this template:
 
 ## Version 7.2.10
 - 2025-11-07: Seeded the MCMC engine's NumPy generator from the shared
-  ``copernican_lib.utils.get_random_seed`` value, added regression coverage that
-  replays ``fit_sne_parameters`` with a fixed seed to confirm the resulting
-  chains and log-probabilities remain identical, and documented the deterministic
-  contract across the run manifest and design overview guides (OpenAI ChatGPT)
+  ``copernican_lib.utils.get_random_seed`` value, added regression coverage
+  that replays ``fit_sne_parameters`` with a fixed seed to confirm the
+  resulting chains and log-probabilities remain identical, and documented the
+  deterministic contract across the run manifest and design overview guides
+  (OpenAI ChatGPT)
 
 ## Version 7.2.9
 - 2025-11-06: Extended the setuptools include guard to cover the ``models.*``
@@ -1645,10 +1964,10 @@ suffixes. Follow this template:
 
 ## Version 7.2.7
 - 2025-11-05: Deferred the ``piptools`` check in ``tools/update_lock.py`` so
-  importing the helper in regression tests no longer
-  triggers an unconditional ``SystemExit`` while preserving the actionable
-  guidance when ``pip-compile`` genuinely runs; expanded the accompanying test
-  suite and documentation to cover the lazy guard (OpenAI ChatGPT)
+  importing the helper in regression tests no longer triggers an unconditional
+  ``SystemExit`` while preserving the actionable guidance when ``pip-compile``
+  genuinely runs; expanded the accompanying test suite and documentation to
+  cover the lazy guard (OpenAI ChatGPT)
 
 ## Version 7.2.6
 - 2025-11-05: Rebuilt the lockfile workflow around `tools/update_lock.py`,
@@ -1686,8 +2005,8 @@ suffixes. Follow this template:
 ## Version 7.2.2
 - 2025-11-01: Restored the full neutrino-sector mapping for the CAMB helpers,
   mirrored the configuration across the cached background observables, added
-  regression coverage that compares helper outputs against direct CAMB calls and
-  refreshed the architecture notes to highlight the restored pass-through
+  regression coverage that compares helper outputs against direct CAMB calls
+  and refreshed the architecture notes to highlight the restored pass-through
   (OpenAI ChatGPT)
 
 ## Version 7.2.1
@@ -1696,8 +2015,8 @@ suffixes. Follow this template:
   CAMB parameters are unavailable, relaxed BAO covariance validation to fall
   back to diagonal errors for trusted datasets and bumped the recorded version
   to 7.2.1 (OpenAI ChatGPT)
-- 2025-11-01: Added regression coverage confirming the BAO likelihood falls back
-  to model distance functions when CAMB parameters are unavailable (OpenAI
+- 2025-11-01: Added regression coverage confirming the BAO likelihood falls
+  back to model distance functions when CAMB parameters are unavailable (OpenAI
   ChatGPT)
 
 ## Version 7.2.0
@@ -1710,11 +2029,11 @@ suffixes. Follow this template:
   version to 7.2.0 (OpenAI ChatGPT)
 
 ## Version 7.1.4
-- 2025-11-01: Extended the resilient quadrature helper with logistic
-  remapping for infinite bounds, automatic breakpoint seeding and expanded
-  regression coverage so USMFv2-class models complete without repeated
-  fallback warnings, and refreshed the documentation plus recorded version
-  metadata (OpenAI ChatGPT)
+- 2025-11-01: Extended the resilient quadrature helper with logistic remapping
+  for infinite bounds, automatic breakpoint seeding and expanded regression
+  coverage so USMFv2-class models complete without repeated fallback warnings,
+  and refreshed the documentation plus recorded version metadata (OpenAI
+  ChatGPT)
 
 ## Version 7.1.3
 - 2025-11-01: Hardened the symbolic quadrature pipeline with automatic limit
@@ -1732,18 +2051,18 @@ suffixes. Follow this template:
 
 ## Version 7.1.1
 - 2025-11-01: Normalised every runtime timestamp to Coordinated Universal Time
-  (UTC) across logging, manifests and filenames, updated metadata
-  validators and pre-commit checks to read the UTC clock, added targeted
-  unit coverage for the new helpers, refreshed documentation, and bumped
-  the recorded version (OpenAI ChatGPT)
+  (UTC) across logging, manifests and filenames, updated metadata validators
+  and pre-commit checks to read the UTC clock, added targeted unit coverage for
+  the new helpers, refreshed documentation, and bumped the recorded version
+  (OpenAI ChatGPT)
 
 ## Version 7.1.0
 - 2025-11-01: Added an interactive Stage 2 sampler configuration menu that
   records production steps, burn-in length, walker counts and pool sizes,
   ensured the MCMC engine honours explicit pool selections when sizing the
   ensemble, persisted the sampler plan in parameter summaries, refreshed
-  documentation, bumped the recorded version and extended regression tests
-  for the new metadata (OpenAI ChatGPT)
+  documentation, bumped the recorded version and extended regression tests for
+  the new metadata (OpenAI ChatGPT)
 
 ## Version 7.0.6
 - 2025-10-31: Retired the sound-horizon fallback, enforced explicit
@@ -1777,10 +2096,9 @@ suffixes. Follow this template:
 
 ## Version 7.0.1
 - 2025-10-31: Registered SymPy-generated distance helpers as module-level
-  callables so spawn-based pools launched from the macOS bootstrap
-  script remain stable, restored start.command usability, added
-  regression tests, and updated documentation and metadata (OpenAI
-  ChatGPT)
+  callables so spawn-based pools launched from the macOS bootstrap script
+  remain stable, restored start.command usability, added regression tests, and
+  updated documentation and metadata (OpenAI ChatGPT)
 
 ## Version 7.0.0
 - 2025-10-31: Replaced the legacy engine interface with the picklable
@@ -1791,28 +2109,28 @@ suffixes. Follow this template:
 
 ## Version 6.7.4
 - 2025-10-31: Made joint likelihood adapters and generated distance functions
-  picklable so spawn-based pools no longer crash, relaxed plugin validation when
-  distance metrics are disabled, added an optional burn-in override to
+  picklable so spawn-based pools no longer crash, relaxed plugin validation
+  when distance metrics are disabled, added an optional burn-in override to
   ``fit_sne_parameters`` and trimmed MCMC-heavy tests to keep CI fast. Updated
   documentation and metadata accordingly (OpenAI ChatGPT)
 
 ## Version 6.7.3
 - 2025-10-31: Replaced the nested posterior closure with a picklable adapter so
-  spawn-based multiprocessing pools can evaluate it, tightened unit coverage and
-  refreshed documentation and metadata (OpenAI ChatGPT)
+  spawn-based multiprocessing pools can evaluate it, tightened unit coverage
+  and refreshed documentation and metadata (OpenAI ChatGPT)
 
 ## Version 6.7.2
 - 2025-10-31: Removed `pip-tools` from runtime installs while retaining the
   familiar developer workflow, refactored the Stage 2 log-probability adapter
-  so multiprocessing workers can pickle it reliably, added regression tests
-  for the new helper, refreshed dependency documentation and bumped suite
-  metadata (OpenAI ChatGPT)
+  so multiprocessing workers can pickle it reliably, added regression tests for
+  the new helper, refreshed dependency documentation and bumped suite metadata
+  (OpenAI ChatGPT)
 
 ## Version 6.7.1
 - 2025-10-31: Ensured sampler progress logs enumerate every parameter, reused
-  diagnostic buffers to cut callback overhead, wrapped walker snapshots, updated
-  documentation, extended regression coverage and fixed lint issues (OpenAI
-  ChatGPT)
+  diagnostic buffers to cut callback overhead, wrapped walker snapshots,
+  updated documentation, extended regression coverage and fixed lint issues
+  (OpenAI ChatGPT)
 
 ## Version 6.7.0
 - 2025-10-31: Added granular sampler diagnostics with walker snapshots, auto-
@@ -1832,10 +2150,10 @@ suffixes. Follow this template:
   (OpenAI ChatGPT)
 
 ## Version 6.5.3
-- 2025-10-30: Ensured the managed launchers bootstrap `pip` with
-  `ensurepip` and a `get-pip.py` fallback so dependency installations never
-  fail on fresh interpreters, refreshed the quick-start documentation, and
-  bumped suite metadata (OpenAI ChatGPT)
+- 2025-10-30: Ensured the managed launchers bootstrap `pip` with `ensurepip`
+  and a `get-pip.py` fallback so dependency installations never fail on fresh
+  interpreters, refreshed the quick-start documentation, and bumped suite
+  metadata (OpenAI ChatGPT)
 
 ## Version 6.5.2
 - 2025-10-30: Hardened all launchers to purge Python 3.12 interpreters, added
@@ -1844,10 +2162,10 @@ suffixes. Follow this template:
 
 ## Version 6.5.1
 - 2025-10-30: Reverted the managed interpreter to Python 3.11 across all
-  launchers so CAMB wheels install on macOS again, tightened packaging
-  metadata to block Python 3.12 environments until upstream wheels ship,
-  updated CI matrices, documentation and metadata, and bumped the suite
-  version (OpenAI ChatGPT)
+  launchers so CAMB wheels install on macOS again, tightened packaging metadata
+  to block Python 3.12 environments until upstream wheels ship, updated CI
+  matrices, documentation and metadata, and bumped the suite version (OpenAI
+  ChatGPT)
 
 ## Version 6.5.0
 - 2025-10-30: Centralised SNe/BAO/CMB dataset loading, recorded dataset names,
@@ -1877,26 +2195,26 @@ suffixes. Follow this template:
   normalised incorrect timestamps across documentation, and refreshed metadata
   that slipped into the future (OpenAI ChatGPT)
 - 2025-10-30: Integrated JointLike-powered posterior assembly in the MCMC
-  engine, exposed `engine_plugin_validation.make_logposterior` for reusable prior
-  handling, expanded smoke tests with likelihood diagnostics, refreshed
+  engine, exposed `engine_plugin_validation.make_logposterior` for reusable
+  prior handling, expanded smoke tests with likelihood diagnostics, refreshed
   documentation metadata and bumped the suite version (OpenAI ChatGPT)
 
 ## Version 6.1.1
 - 2025-02-14: Restored import ordering in the likelihood package to satisfy
-  style linters, refreshed documentation metadata, and bumped the suite
-  version (OpenAI ChatGPT)
+  style linters, refreshed documentation metadata, and bumped the suite version
+  (OpenAI ChatGPT)
 
 ## Version 6.1.0
 - 2025-10-30: Introduced the `copernican_lib/likelihoods` package with reusable
   dataset log-likelihood helpers, migrated χ² logic out of `statistics.py`,
-  added a configurable joint likelihood aggregator, refreshed documentation
-  and bumped suite metadata (OpenAI ChatGPT)
+  added a configurable joint likelihood aggregator, refreshed documentation and
+  bumped suite metadata (OpenAI ChatGPT)
 
 ## Version 6.0.14
-- 2025-10-30: Normalised the dependency lock workflow by dropping the
-  Python interpreter banner, ensured the `make lock` helper keeps
-  cross-platform runs byte-identical, refreshed documentation and
-  bumped suite metadata (OpenAI ChatGPT)
+- 2025-10-30: Normalised the dependency lock workflow by dropping the Python
+  interpreter banner, ensured the `make lock` helper keeps cross-platform runs
+  byte-identical, refreshed documentation and bumped suite metadata (OpenAI
+  ChatGPT)
 
 ## Version 6.0.13
 - 2025-10-30: Normalised metadata and policy check outputs across Windows and
@@ -1916,11 +2234,10 @@ suffixes. Follow this template:
   recorded suite metadata (OpenAI ChatGPT)
 
 ## Version 6.0.10
-- 2025-10-30: Rebuilt the dependency lock against currently published
-  wheels, pinned the bootstrapper to `pip==24.2`, updated CI workflows to
-  honour the stable installer and refreshed documentation and metadata so
-  Windows, macOS and Linux jobs all resolve packages without source builds
-  (OpenAI ChatGPT)
+- 2025-10-30: Rebuilt the dependency lock against currently published wheels,
+  pinned the bootstrapper to `pip==24.2`, updated CI workflows to honour the
+  stable installer and refreshed documentation and metadata so Windows, macOS
+  and Linux jobs all resolve packages without source builds (OpenAI ChatGPT)
 
 ## Version 6.0.9
 - 2025-10-30: Added a cross-platform GitHub Actions CI matrix for Python 3.12,
@@ -1930,8 +2247,8 @@ suffixes. Follow this template:
 
 ## Version 6.0.8
 - 2025-10-30: Enforced Python 3.12+ across all start launchers, rebuilt the
-  dependency lock with the released ArviZ 0.22.0 for NumPy 2 support,
-  refreshed documentation and bumped suite metadata (OpenAI ChatGPT)
+  dependency lock with the released ArviZ 0.22.0 for NumPy 2 support, refreshed
+  documentation and bumped suite metadata (OpenAI ChatGPT)
 
 ## Version 6.0.7
 - 2025-10-30: Added a metadata validation script that enforces synchronized
@@ -1940,264 +2257,255 @@ suffixes. Follow this template:
   ChatGPT)
 
 ## Version 6.0.6
-- 2025-10-29: Added a guarded parameter extraction helper so BAO and CMB
-              stages skip models whose SNe fits fail instead of raising
-              KeyError, updated documentation and added regression tests for
-              the fallback path (OpenAI ChatGPT)
+- 2025-10-29: Added a guarded parameter extraction helper so BAO and CMB stages
+  skip models whose SNe fits fail instead of raising KeyError, updated
+  documentation and added regression tests for the fallback path (OpenAI
+  ChatGPT)
 
 ## Version 6.0.5
 - 2025-10-30: Classified numerically locked parameters before sampling,
-              introduced adaptive walker initialisation to defeat emcee's
-              condition-number guard and added regression tests covering the
-              helper utilities so arbitrary YAML models remain supported
-              (OpenAI ChatGPT)
+  introduced adaptive walker initialisation to defeat emcee's condition-number
+  guard and added regression tests covering the helper utilities so arbitrary
+  YAML models remain supported (OpenAI ChatGPT)
 
 ## Version 6.0.4
-- 2025-10-29: Hardened the MCMC sampler to exclude fixed-bound parameters
-              from the active subspace so constant entries no longer trigger
-              emcee's condition-number guard and added regression coverage for
-              the Conformal Stationary Field Cosmology plugin (OpenAI ChatGPT)
+- 2025-10-29: Hardened the MCMC sampler to exclude fixed-bound parameters from
+  the active subspace so constant entries no longer trigger emcee's condition-
+  number guard and added regression coverage for the Conformal Stationary Field
+  Cosmology plugin (OpenAI ChatGPT)
 
 ## Version 6.0.3
-- 2025-10-29: Rebuilt all non-\LambdaCDM model YAMLs with explicit
-              `python_var` mappings, safe expressions and documentation links
-              so they load without parser errors and serve as future-ready
-              examples (OpenAI ChatGPT)
+- 2025-10-29: Rebuilt all non-\LambdaCDM model YAMLs with explicit `python_var`
+  mappings, safe expressions and documentation links so they load without
+  parser errors and serve as future-ready examples (OpenAI ChatGPT)
 
 ## Version 6.0.2
-- 2025-10-29: Removed the tracked dependency cache directory and documented
-              the `.cache/` workflow so Git only sees per-user data
-              (OpenAI ChatGPT)
+- 2025-10-29: Removed the tracked dependency cache directory and documented the
+  `.cache/` workflow so Git only sees per-user data (OpenAI ChatGPT)
 
 ## Version 6.0.1
 - 2025-10-29: Restored the README `Last Updated` value to the human-specified
-              date, codified the timestamp verification guideline in
-              `AGENTS.md` and reaffirmed the need to understand prior human
-              changes before altering them (OpenAI ChatGPT)
-- 2025-10-29: Added a README banner reference for the refreshed
-              Copernican Suite artwork so the documentation opens
-              with the updated visual identity once the asset is
-              supplied (OpenAI ChatGPT)
+  date, codified the timestamp verification guideline in `AGENTS.md` and
+  reaffirmed the need to understand prior human changes before altering them
+  (OpenAI ChatGPT)
+- 2025-10-29: Added a README banner reference for the refreshed Copernican
+  Suite artwork so the documentation opens with the updated visual identity
+  once the asset is supplied (OpenAI ChatGPT)
 - 2025-10-30: Added a tracked VERSION file, taught the runtime helper to read
-              it before falling back to setuptools_scm, embedded the suite
-              version in run manifests, expanded packaging guidance and
-              refreshed documentation for the new workflow (OpenAI ChatGPT)
+  it before falling back to setuptools_scm, embedded the suite version in run
+  manifests, expanded packaging guidance and refreshed documentation for the
+  new workflow (OpenAI ChatGPT)
 - 2025-10-29: Retired the repository roadmap formerly stored in `PLAN.md`,
-              confirmed no remaining references and documented the removal
-              (OpenAI ChatGPT)
+  confirmed no remaining references and documented the removal (OpenAI ChatGPT)
 
 ## Version 6.0.0
 - 2025-10-28: Retired the combined optimiser module, promoted the MCMC sampler
-              to the default pluggable engine, updated the CLI, tests and
-              documentation to reflect the single-engine architecture and
-              reiterated verbose progress reporting (OpenAI ChatGPT)
+  to the default pluggable engine, updated the CLI, tests and documentation to
+  reflect the single-engine architecture and reiterated verbose progress
+  reporting (OpenAI ChatGPT)
 
 ## Version 5.0.0
 - 2025-10-27: Replaced the legacy combined optimiser with
-              ``engines.cosmo_engine``, added verbose percentage-based
-              progress reporting to the MCMC backend, refreshed all
-              documentation and bumped suite metadata (OpenAI ChatGPT)
+  ``engines.cosmo_engine``, added verbose percentage-based progress reporting
+  to the MCMC backend, refreshed all documentation and bumped suite metadata
+  (OpenAI ChatGPT)
 
 ## Version 4.3.26
-- 2025-10-26: Reseeded invalid MCMC walkers to eliminate emcee warnings,
-              copied SNe chi-squared totals into summary outputs, reused
-              posterior chains when `MODEL_FILENAME` matches so BAO/CMB
-              overlays and χ² values stay aligned during LCDM self-tests,
-              refreshed documentation and hardened tests for the new helper
-              (OpenAI ChatGPT)
+- 2025-10-26: Reseeded invalid MCMC walkers to eliminate emcee warnings, copied
+  SNe chi-squared totals into summary outputs, reused posterior chains when
+  `MODEL_FILENAME` matches so BAO/CMB overlays and χ² values stay aligned
+  during LCDM self-tests, refreshed documentation and hardened tests for the
+  new helper (OpenAI ChatGPT)
 
 ## Version 4.3.25
 - 2025-10-25: Extracted shared chi-squared helpers into
-              ``copernican_lib.statistics``, overhauled the MCMC engine to
-              initialise walkers uniformly, run a dedicated burn-in and record
-              diagnostics, reused SNe chains when models match so BAO/CMB
-              overlays align during self-comparisons, refreshed documentation
-              across the suite and bumped metadata (OpenAI ChatGPT)
+  ``copernican_lib.statistics``, overhauled the MCMC engine to initialise
+  walkers uniformly, run a dedicated burn-in and record diagnostics, reused SNe
+  chains when models match so BAO/CMB overlays align during self-comparisons,
+  refreshed documentation across the suite and bumped metadata (OpenAI ChatGPT)
 
 ## Version 4.3.24
-- 2025-10-23: Hardened plot summaries against missing chi-squared totals,
-              added regression tests, refreshed documentation and bumped the
-              suite metadata (OpenAI ChatGPT)
+- 2025-10-23: Hardened plot summaries against missing chi-squared totals, added
+  regression tests, refreshed documentation and bumped the suite metadata
+  (OpenAI ChatGPT)
 
 ## Version 4.3.23
 - 2025-10-23: Replaced the MCMC penalty sentinel with ``-np.inf``, updated
-              tests, documentation and metadata to describe the deterministic
-              rejection behaviour (OpenAI ChatGPT)
+  tests, documentation and metadata to describe the deterministic rejection
+  behaviour (OpenAI ChatGPT)
 
 ## Version 4.3.22
 - 2025-10-23: Added a cached dependency scan so repeated launches skip costly
-              AST parsing, introduced targeted tests, refreshed documentation
-              and metadata across the suite (OpenAI ChatGPT)
+  AST parsing, introduced targeted tests, refreshed documentation and metadata
+  across the suite (OpenAI ChatGPT)
 
 ## Version 4.3.21
 - 2025-10-22: Precomputed Windows bootstrap release metadata outside
-              conditional blocks so `%DOWNLOAD_URL%` expands reliably,
-              kept the empty-URL guard, verified the other launchers
-              remain stable and refreshed suite documentation
-              (OpenAI ChatGPT)
+  conditional blocks so `%DOWNLOAD_URL%` expands reliably, kept the empty-URL
+  guard, verified the other launchers remain stable and refreshed suite
+  documentation (OpenAI ChatGPT)
 
 ## Version 4.3.20
 - 2025-10-05: Moved the Windows launcher PowerShell invocations into helper
-              subroutines to avoid `cmd.exe` parsing bugs, confirmed the
-              bootstrap menu launches cleanly and refreshed documentation and
-              metadata (OpenAI ChatGPT)
+  subroutines to avoid `cmd.exe` parsing bugs, confirmed the bootstrap menu
+  launches cleanly and refreshed documentation and metadata (OpenAI ChatGPT)
 
 ## Version 4.3.19
 - 2025-09-30: Hardened the launchers to validate the Python download URL, pass
-              strict arguments to PowerShell and surface empty URL errors on
-              all platforms; documented the guard and bumped suite metadata
-              (OpenAI ChatGPT)
+  strict arguments to PowerShell and surface empty URL errors on all platforms;
+  documented the guard and bumped suite metadata (OpenAI ChatGPT)
 
 ## Version 4.3.18
-- 2025-09-28: Guarded the Windows launcher download flow by exporting the
-              URL through environment variables, validating it before the
-              PowerShell download step and extending documentation to
-              explain the hardened bootstrap (OpenAI ChatGPT)
+- 2025-09-28: Guarded the Windows launcher download flow by exporting the URL
+  through environment variables, validating it before the PowerShell download
+  step and extending documentation to explain the hardened bootstrap (OpenAI
+  ChatGPT)
 
 ## Version 4.3.17
-- 2025-09-26: Repaired the Windows launcher so it builds a valid
-              Python download URL, pre-creates the `.python` directory,
-              documents the fix and bumps the suite metadata
-              (OpenAI ChatGPT)
+- 2025-09-26: Repaired the Windows launcher so it builds a valid Python
+  download URL, pre-creates the `.python` directory, documents the fix and
+  bumps the suite metadata (OpenAI ChatGPT)
 
 ## Version 4.3.16
-- 2025-09-22: Reconfigured the pre-commit `make lock` hook to provision
-              `pip-tools` automatically so dependency refreshes succeed in CI
-              and during local linting (OpenAI ChatGPT)
+- 2025-09-22: Reconfigured the pre-commit `make lock` hook to provision `pip-
+  tools` automatically so dependency refreshes succeed in CI and during local
+  linting (OpenAI ChatGPT)
 
 ## Version 4.3.15
-- 2025-09-22: Switched the dependency lock automation to
-              `python -m piptools compile`, refreshed documentation and
-              regenerated the lock file to keep the managed environment
-              reproducible (OpenAI ChatGPT)
+- 2025-09-22: Switched the dependency lock automation to `python -m piptools
+  compile`, refreshed documentation and regenerated the lock file to keep the
+  managed environment reproducible (OpenAI ChatGPT)
 
 ## Version 4.3.14
 - 2025-09-22: Bundled pip-tools with locked dependencies, refreshed the lock
-               file, documentation and licensing metadata so `make lock`
-               always succeeds inside the managed environment (OpenAI ChatGPT)
+  file, documentation and licensing metadata so `make lock` always succeeds
+  inside the managed environment (OpenAI ChatGPT)
 
 ## Version 4.3.13
-- 2025-09-03: Closed NetCDF handle in MCMC test to resolve Windows temp file cleanup (OpenAI ChatGPT)
-- 2025-09-03: Installed pre-commit with dependencies in CI to fix missing cfgv import (OpenAI ChatGPT)
+- 2025-09-03: Closed NetCDF handle in MCMC test to resolve Windows temp file
+  cleanup (OpenAI ChatGPT)
+- 2025-09-03: Installed pre-commit with dependencies in CI to fix missing cfgv
+  import (OpenAI ChatGPT)
 
 ## Version 4.3.12
-- 2025-09-02: Removed dependency hash verification and related tooling, tests and documentation (OpenAI ChatGPT)
+- 2025-09-02: Removed dependency hash verification and related tooling, tests
+  and documentation (OpenAI ChatGPT)
 
 ## Version 4.3.11
-- 2025-09-02: Derived wheel tags from the running Python version to drop
-               hard-coded cp311 references in hash refresher and tests
-               (OpenAI ChatGPT)
+- 2025-09-02: Derived wheel tags from the running Python version to drop hard-
+  coded cp311 references in hash refresher and tests (OpenAI ChatGPT)
 
 ## Version 4.3.10
 - 2025-09-01: Pinned setuptools and extended hash refresher to cover cp311
-              wheels and other unsafe packages, preventing hash-mode
-              install failures (OpenAI ChatGPT)
+  wheels and other unsafe packages, preventing hash-mode install failures
+  (OpenAI ChatGPT)
 
 ## Version 4.3.9
 - 2025-09-01: Added pytest and Windows colorama dependency to lock file and
-              refreshed hashes to fix failing tests (OpenAI ChatGPT)
+  refreshed hashes to fix failing tests (OpenAI ChatGPT)
 
 ## Version 4.3.8
-- 2025-09-01: Included stable-ABI wheels in hash refresher and refreshed
-              pyerfa hashes for all platforms (OpenAI ChatGPT)
+- 2025-09-01: Included stable-ABI wheels in hash refresher and refreshed pyerfa
+  hashes for all platforms (OpenAI ChatGPT)
 
 ## Version 4.3.7
 - 2025-09-01: Added universal2 wheel support in hash helper and refreshed
-              dependency hashes (OpenAI ChatGPT)
+  dependency hashes (OpenAI ChatGPT)
 
 ## Version 4.3.6
 - 2025-09-01: Automated wheel hash recreation and fixed contourpy macOS ARM
-              hash to unblock CI (OpenAI ChatGPT)
+  hash to unblock CI (OpenAI ChatGPT)
 
 ## Version 4.3.5
-- 2025-09-01: Added macOS and Windows wheel hashes for contourpy==1.3.3
-              to support cross-platform installs (OpenAI ChatGPT)
+- 2025-09-01: Added macOS and Windows wheel hashes for contourpy==1.3.3 to
+  support cross-platform installs (OpenAI ChatGPT)
 
 ## Version 4.3.4
 - 2025-09-01: Refreshed dependency lock file (OpenAI ChatGPT)
 
 ## Version 4.3.3
 - 2025-09-01: Added automated hash locking and pre-commit hook for dependency
-              updates; documented new workflow (OpenAI ChatGPT)
+  updates; documented new workflow (OpenAI ChatGPT)
 
 ## Version 4.3.2
 - 2025-09-01: start scripts fetch Python 3.12.11 from astral-sh releases
-              (OpenAI ChatGPT)
+  (OpenAI ChatGPT)
 
 ## Version 4.3.1
-- 2025-08-30: Removed outdated CLI examples, revised menu and seed tests,
-              and clarified external authentication prompts in LICENSE
-              (OpenAI ChatGPT)
-- 2025-08-30: Split CI into dedicated lint and test workflows using
-              Python 3.12 (OpenAI ChatGPT)
+- 2025-08-30: Removed outdated CLI examples, revised menu and seed tests, and
+  clarified external authentication prompts in LICENSE (OpenAI ChatGPT)
+- 2025-08-30: Split CI into dedicated lint and test workflows using Python 3.12
+  (OpenAI ChatGPT)
 
 ## Version 4.3.0
 - 2025-08-30: Removed the command-line seed flag in favour of an interactive
-              seed prompt with manual and random options; updated manifest,
-              utilities, tests and documentation (OpenAI ChatGPT)
+  seed prompt with manual and random options; updated manifest, utilities,
+  tests and documentation (OpenAI ChatGPT)
 
 ## Version 4.2.1
-- 2025-08-30: Added package manager password notices in launchers and
-              updated README and LICENSE (OpenAI ChatGPT)
+- 2025-08-30: Added package manager password notices in launchers and updated
+  README and LICENSE (OpenAI ChatGPT)
 
 ## Version 4.2.0
 - 2025-08-31: Replaced CLI flags with menu-driven launchers and environment
-               variables; updated tests and documentation (OpenAI ChatGPT)
+  variables; updated tests and documentation (OpenAI ChatGPT)
 
 ## Version 4.1.0
 - 2025-08-30: Launchers bootstrap a private Python 3.12+ and ignore system
-              interpreters; updated documentation (OpenAI ChatGPT)
+  interpreters; updated documentation (OpenAI ChatGPT)
 
 ## Version 4.0.0
-- 2025-08-31: Require Python 3.12+, updated launchers and docs, added 3.12 wheel hashes (OpenAI ChatGPT)
+- 2025-08-31: Require Python 3.12+, updated launchers and docs, added 3.12
+  wheel hashes (OpenAI ChatGPT)
 - 2025-08-30: Added dependency update law and synced policies (OpenAI ChatGPT)
 
 ## Version 3.13.11
-- 2025-08-30: Added macOS NumPy hash to fix start script installs
-              (OpenAI ChatGPT)
+- 2025-08-30: Added macOS NumPy hash to fix start script installs (OpenAI
+  ChatGPT)
 ## Version 3.13.10
-- 2025-08-30: Vectorised distance integrals and finite penalties in MCMC
-              engine to prevent hangs and warnings (OpenAI ChatGPT)
+- 2025-08-30: Vectorised distance integrals and finite penalties in MCMC engine
+  to prevent hangs and warnings (OpenAI ChatGPT)
 ## Version 3.13.9
-- 2025-08-30: Pinned typing_extensions and dependency tree for hash-locked installs (OpenAI ChatGPT)
+- 2025-08-30: Pinned typing_extensions and dependency tree for hash-locked
+  installs (OpenAI ChatGPT)
 ## Version 3.13.8
 - 2025-08-29: Pinned h5py dependency for hash-locked installs (OpenAI ChatGPT)
 
 ## Version 3.13.7
-- 2025-08-29: Pinned xarray-einstats dependency to satisfy hash-locked installs (OpenAI ChatGPT)
+- 2025-08-29: Pinned xarray-einstats dependency to satisfy hash-locked installs
+  (OpenAI ChatGPT)
 
 ## Version 3.13.6
 - 2025-08-29: Allowed `COPERNICAN_VERSION` to override runtime version and
-               documented custom prerelease builds (OpenAI ChatGPT)
+  documented custom prerelease builds (OpenAI ChatGPT)
 
 ## Version 3.13.5
-- 2025-08-28: Pinned h5netcdf dependency for ArviZ to satisfy
-              hash-locked installs (OpenAI ChatGPT)
+- 2025-08-28: Pinned h5netcdf dependency for ArviZ to satisfy hash-locked
+  installs (OpenAI ChatGPT)
 
 ## Version 3.13.4
-- 2025-08-28: Pinned packaging dependency with hashes for reproducible
-              installs (OpenAI ChatGPT)
+- 2025-08-28: Pinned packaging dependency with hashes for reproducible installs
+  (OpenAI ChatGPT)
 
 ## Version 3.13.3
 - 2025-08-28: Added cross-platform wheel hashes and fixed Windows pip upgrade
-              in CI (OpenAI ChatGPT)
+  in CI (OpenAI ChatGPT)
 
 ## Version 3.13.2
-- 2025-08-28: Replaced ArviZ VCS dependency with pinned commit archive
-              (OpenAI ChatGPT)
+- 2025-08-28: Replaced ArviZ VCS dependency with pinned commit archive (OpenAI
+  ChatGPT)
 
 ## Version 3.13.1
 - 2025-08-28: Pinned ArviZ to upstream commit and simplified dependency
-              installation across launchers and CI (OpenAI ChatGPT)
+  installation across launchers and CI (OpenAI ChatGPT)
 
 ## Version 3.13.0
 - 2025-08-28: Added result writer for parameter summaries and exposed
-              covariance matrices from optimisation and MCMC engines
-              (OpenAI ChatGPT)
+  covariance matrices from optimisation and MCMC engines (OpenAI ChatGPT)
 
 ## Version 3.12.0
-- 2025-08-27: Added a command-line seed flag, seeded Python and engine RNGs
-               and logged the value in manifest and logs (OpenAI ChatGPT)
+- 2025-08-27: Added a command-line seed flag, seeded Python and engine RNGs and
+  logged the value in manifest and logs (OpenAI ChatGPT)
 
 ## Version 3.12.1
 - 2025-08-28: Enforced use of repository virtual environment, added laws on
@@ -2206,38 +2514,39 @@ suffixes. Follow this template:
 
 ## Version 3.11.2
 - 2025-08-27: Logged SHA256 digests for dataset files and propagated them
-               through the run manifest (OpenAI ChatGPT)
+  through the run manifest (OpenAI ChatGPT)
 
 ## Version 3.11.1
 - 2025-08-27: Added xarray to locked dependencies and documented automatic
   installation of emcee, xarray and ArviZ (OpenAI ChatGPT)
 
 ## Version 3.11.0
-- 2025-08-27: Added emcee-based MCMC engine, per-run output folders and
-              NetCDF chain writer (OpenAI ChatGPT)
+- 2025-08-27: Added emcee-based MCMC engine, per-run output folders and NetCDF
+  chain writer (OpenAI ChatGPT)
 
 ## Version 3.10.0
 - 2025-08-28: Added run manifest with dataset hashes and Git metadata, SHA256
   helper and accompanying tests and documentation (OpenAI ChatGPT)
-- 2025-08-27: Added parameter priors with parser and engine support (OpenAI ChatGPT)
+- 2025-08-27: Added parameter priors with parser and engine support (OpenAI
+  ChatGPT)
 
 ## Version 3.9.31
-- 2025-08-27: Parallelised combined χ² computation and added tests and
-              docs (OpenAI ChatGPT)
-- 2025-08-27: Added Last Updated fields and clarified development rules
-              (OpenAI ChatGPT)
+- 2025-08-27: Parallelised combined χ² computation and added tests and docs
+  (OpenAI ChatGPT)
+- 2025-08-27: Added Last Updated fields and clarified development rules (OpenAI
+  ChatGPT)
 
 ## Version 3.9.30
-- 2025-08-27: Refactored BAO χ² to accept arrays and updated tests
-              (OpenAI ChatGPT)
+- 2025-08-27: Refactored BAO χ² to accept arrays and updated tests (OpenAI
+  ChatGPT)
 
 ## Version 3.9.29
-- 2025-08-26: Externalised BAO plugin validation and updated tests
-              (OpenAI ChatGPT)
+- 2025-08-26: Externalised BAO plugin validation and updated tests (OpenAI
+  ChatGPT)
 
 ## Version 3.9.28
-- 2025-08-26: Throttled optimisation progress updates and added tests
-              (OpenAI ChatGPT)
+- 2025-08-26: Throttled optimisation progress updates and added tests (OpenAI
+  ChatGPT)
 
 ## Version 3.9.27
 - 2025-08-26: start.command handles unset VIRTUAL_ENV (OpenAI ChatGPT)
@@ -2246,78 +2555,78 @@ suffixes. Follow this template:
 
 ## Version 3.9.26
 - 2025-08-25: Routed optimisation progress to ``stdout`` so runs no longer
-              appear to hang on Linux (OpenAI ChatGPT)
+  appear to hang on Linux (OpenAI ChatGPT)
 
 ## Version 3.9.25
 - 2025-08-25: Flushed console output to prevent apparent hangs on Linux and
-              restricted detailed environment information to the log file
-              (OpenAI ChatGPT)
+  restricted detailed environment information to the log file (OpenAI ChatGPT)
 
 ## Version 3.9.24
-- 2025-08-25: start.sh guards against unset VIRTUAL_ENV to prevent
-              startup errors (OpenAI ChatGPT)
+- 2025-08-25: start.sh guards against unset VIRTUAL_ENV to prevent startup
+  errors (OpenAI ChatGPT)
 
 ## Version 3.9.23
 - 2025-08-25: Hardened parser discovery against symlink escapes and expanded
-              security tests (OpenAI ChatGPT)
+  security tests (OpenAI ChatGPT)
 
 ## Version 3.9.22
-- 2025-08-26: Capped expression complexity in get_camb_params and added
-              stress tests (OpenAI ChatGPT)
+- 2025-08-26: Capped expression complexity in get_camb_params and added stress
+  tests (OpenAI ChatGPT)
 
 ## Version 3.9.21
 - 2025-08-25: Prepended license notice to test modules (OpenAI ChatGPT)
 
 ## Version 3.9.20
 - 2025-08-25: start.sh installs project with --no-deps to avoid implicit
-              dependency resolution (OpenAI ChatGPT)
+  dependency resolution (OpenAI ChatGPT)
 
 ## Version 3.9.20
-- 2025-08-28: Added cross-platform wheel hashes for NumPy and SciPy in requirements.lock (AI assistant)
+- 2025-08-28: Added cross-platform wheel hashes for NumPy and SciPy in
+  requirements.lock (AI assistant)
 
 ## Version 3.9.19
 - 2025-08-24: start.command exits on unset variables for stricter error
-              handling (OpenAI ChatGPT)
+  handling (OpenAI ChatGPT)
 
 ## Version 3.9.18
 - 2025-08-24: start.bat and start.command install hashed dependencies and
-              isolate project install with --no-deps (OpenAI ChatGPT)
+  isolate project install with --no-deps (OpenAI ChatGPT)
 
 ## Version 3.9.17
 - 2025-08-24: Normalised parser hash computation for cross-platform
-               verification and refreshed trusted hashes (OpenAI ChatGPT)
+  verification and refreshed trusted hashes (OpenAI ChatGPT)
 - 2025-08-24: Clarified data directory policy to allow parser and metadata
-               edits (OpenAI ChatGPT)
+  edits (OpenAI ChatGPT)
 
 ## Version 3.9.16
 - 2025-08-24: Fixed BAO compound parser registration to honour dataset_id
-               (OpenAI ChatGPT)
+  (OpenAI ChatGPT)
 
 ## Version 3.9.15
-- 2025-08-23: Nested developer guide sections and required tests to pass
-               before commits (OpenAI ChatGPT)
+- 2025-08-23: Nested developer guide sections and required tests to pass before
+  commits (OpenAI ChatGPT)
 
 ## Version 3.9.14
-- 2025-08-23: Clarified development laws section link and heading
-               (OpenAI ChatGPT)
+- 2025-08-23: Clarified development laws section link and heading (OpenAI
+  ChatGPT)
 - 2025-08-23: Established documentation refresh policy and aligned version
-               numbers across metadata (OpenAI ChatGPT)
+  numbers across metadata (OpenAI ChatGPT)
 
 ## Version 3.9.13
-- 2025-08-23: start.sh exits on unset variables for stricter error handling
-               (AI assistant)
+- 2025-08-23: start.sh exits on unset variables for stricter error handling (AI
+  assistant)
 
 ## Version 3.9.12
-- 2025-08-23: Added security test ensuring rogue parsers are ignored
-               (AI assistant)
+- 2025-08-23: Added security test ensuring rogue parsers are ignored (AI
+  assistant)
 
 ## Version 3.9.11
-- 2025-08-23: Linted dataset parsers and removed data exclusion from
-  pre-commit (AI assistant)
+- 2025-08-23: Linted dataset parsers and removed data exclusion from pre-commit
+  (AI assistant)
 
 ## Version 3.9.10
-- 2025-08-23: Pinned pyproject dependencies to requirements.lock and
-  documented joint regeneration (AI assistant)
+- 2025-08-23: Pinned pyproject dependencies to requirements.lock and documented
+  joint regeneration (AI assistant)
 
 ## Version 3.9.9
 - 2025-08-23: start.sh installs dependencies with hash verification before
@@ -2344,12 +2653,12 @@ suffixes. Follow this template:
 - 2025-08-23: Prepended license notices to start scripts (AI assistant)
 - 2025-08-23: Locked runtime dependencies and enforced hash-verified
   installation (AI assistant)
-- 2025-08-23: Expanded documentation and updated dependency instructions
-  (AI assistant)
+- 2025-08-23: Expanded documentation and updated dependency instructions (AI
+  assistant)
 
 ## Version 3.9.3
-- 2025-08-23: Replaced ad-hoc metadata parser with strict YAML loader and
-  added tests rejecting invalid YAML (AI assistant)
+- 2025-08-23: Replaced ad-hoc metadata parser with strict YAML loader and added
+  tests rejecting invalid YAML (AI assistant)
 
 ## Version 3.9.2
 - 2025-08-23: Updated README version and Last Updated date (AI assistant)
@@ -2358,19 +2667,19 @@ suffixes. Follow this template:
 - 2025-08-22: Updated licenses for GW and siren placeholders (AI assistant)
 
 ## Version 3.9.1
-- 2025-08-22: Replaced ``eval`` in CAMB parameter parsing with a safe
-  AST-based evaluator and added malicious expression tests (AI assistant)
+- 2025-08-22: Replaced ``eval`` in CAMB parameter parsing with a safe AST-based
+  evaluator and added malicious expression tests (AI assistant)
 
 ## Version 3.9.0
-- 2025-08-22: Documented third-party licenses and linked from README
-  (AI assistant)
+- 2025-08-22: Documented third-party licenses and linked from README (AI
+  assistant)
 - 2025-08-22: Added LICENSE.md references to module headers (AI assistant)
 - 2025-08-22: Prompted before installing dependencies and added `--yes` flag
   for CI automation (AI assistant)
 
 ## Version 3.8.4
-- 2025-08-22: Added dataset license references and updated documentation
-  (AI assistant)
+- 2025-08-22: Added dataset license references and updated documentation (AI
+  assistant)
 
 ## Version 3.8.3
 - 2025-08-22: Updated README version to 3.8.3 (AI assistant)
@@ -2382,8 +2691,8 @@ suffixes. Follow this template:
   `copernican_lib/utils.py` and `engines/cosmo_engine_comb.py` (AI assistant)
 
 ## Version 3.8.1
-- 2025-08-21: Removed unused `get_user_input_filepath` and `validate_and_cache_model_header`
-  helpers from `copernican.py` (AI assistant)
+- 2025-08-21: Removed unused `get_user_input_filepath` and
+  `validate_and_cache_model_header` helpers from `copernican.py` (AI assistant)
 
 ## Version 3.8.0
 - 2025-08-21: Added NumPy/SciPy sanity checks before heavy computations to
@@ -2394,25 +2703,24 @@ suffixes. Follow this template:
   for CI reproducibility (AI assistant)
 
 ## Version 3.6.27
-- 2025-08-21: Logged Python version, OS, CPU and package versions
-  after logging setup (AI assistant)
+- 2025-08-21: Logged Python version, OS, CPU and package versions after logging
+  setup (AI assistant)
 
 ## Version 3.6.26
 - 2025-08-21: Added crash signal handlers dumping stack traces to log and
   console (AI assistant)
 
 ## Version 3.6.25
-- 2025-08-20: start.command recreates missing virtual environments and
-  advises reinstalling Python when activation scripts remain absent (AI
-  assistant)
+- 2025-08-20: start.command recreates missing virtual environments and advises
+  reinstalling Python when activation scripts remain absent (AI assistant)
 
 ## Version 3.6.24
 - 2025-08-19: start.bat verifies '.venv\Scripts\activate.bat' exists,
-  recreating the environment once and advising on missing 'venv' support
-  before exiting (AI assistant)
-- 2025-08-19: start.sh retries virtual environment creation when the
-  activation script is missing and advises installing 'python3.11-venv'
-  if the second attempt fails (AI assistant)
+  recreating the environment once and advising on missing 'venv' support before
+  exiting (AI assistant)
+- 2025-08-19: start.sh retries virtual environment creation when the activation
+  script is missing and advises installing 'python3.11-venv' if the second
+  attempt fails (AI assistant)
 
 ## Version 3.6.23
 - 2025-08-19: Read ``latex_mappings.yml`` using UTF-8 for cross-platform
@@ -2434,8 +2742,8 @@ suffixes. Follow this template:
   '.venv' and prints installation hint (AI assistant)
 
 ## Version 3.6.19
-- 2025-08-18: start.sh resolves absolute path before re-executing
-  (AI assistant)
+- 2025-08-18: start.sh resolves absolute path before re-executing (AI
+  assistant)
 
 ## Version 3.6.18
 - 2025-08-18: start.command resolves absolute path; README notes macOS should
@@ -2446,38 +2754,38 @@ suffixes. Follow this template:
   `.venv` setup and OS install hints (AI assistant)
 
 ## Version 3.6.16
-- 2025-08-18: Parse interpreter '--version' in start scripts and use
-  'py -3.11' for virtual environments (AI assistant)
+- 2025-08-18: Parse interpreter '--version' in start scripts and use 'py -3.11'
+  for virtual environments (AI assistant)
 
 ## Version 3.6.15
 - 2025-08-18: start.command and start.bat check for Python 3.11+ and show
   install hints before creating the virtual environment (AI assistant)
 
 ## Version 3.6.14
-- 2025-08-17: start.sh enforces Python 3.11+ and prints OS install hints
-  (AI assistant)
+- 2025-08-17: start.sh enforces Python 3.11+ and prints OS install hints (AI
+  assistant)
 
 ## Version 3.6.13
-- 2025-08-16: Expanded README and in-source docstrings; broadened
-  documentation across `docs/` (AI assistant)
+- 2025-08-16: Expanded README and in-source docstrings; broadened documentation
+  across `docs/` (AI assistant)
 - 2025-08-15: Expanded packaging guide with Python 3.11 install and build docs
   (AI assistant)
 - 2025-08-15: Archived PyInstaller spec files and streamlined CI to use a
   cached `.venv` for linting and tests (AI assistant)
 - 2025-08-15: Replaced PyInstaller references with start script and `.venv`
   instructions in documentation (AI assistant)
-- 2025-08-15: Automatically install missing packages and enforce `.venv`
-  usage during dependency checks (AI assistant)
+- 2025-08-15: Automatically install missing packages and enforce `.venv` usage
+  during dependency checks (AI assistant)
 - 2025-08-15: Start scripts now create and reuse a local virtual environment,
   installing dependencies automatically (AI assistant)
-- 2025-08-13: Added regression tests for BOSS DR12 BAO parsing and LCDM
-  chi-squared residuals (AI assistant)
+- 2025-08-13: Added regression tests for BOSS DR12 BAO parsing and LCDM chi-
+  squared residuals (AI assistant)
 
-- 2025-08-13: Use full BAO covariance when available and test coverage
-  (AI assistant)
+- 2025-08-13: Use full BAO covariance when available and test coverage (AI
+  assistant)
 - 2025-08-12: Forward CLI args in start.command; wrap comments (AI assistant)
-- 2025-08-11: Improve CI to export Python path, build universal2 macOS
-  binaries and verify Copernican.app artifact (AI assistant)
+- 2025-08-11: Improve CI to export Python path, build universal2 macOS binaries
+  and verify Copernican.app artifact (AI assistant)
 - 2025-08-11: Wrapped long lines across docs and scripts for readability (AI
   assistant)
 
@@ -2488,11 +2796,11 @@ suffixes. Follow this template:
   documenting the compound BAO dataset (AI assistant)
 - 2025-08-12: Revamped test suite with verbose logging, bounded optimiser
   iterations and explicit dataset paths (AI assistant)
-- 2025-08-13: Standardised `dataset_id` metadata and output filenames
-  (AI assistant)
+- 2025-08-13: Standardised `dataset_id` metadata and output filenames (AI
+  assistant)
 
-- 2025-08-14: Require `dataset_id` for data loaders, revamp registries,
-  update tests and documentation (AI assistant)
+- 2025-08-14: Require `dataset_id` for data loaders, revamp registries, update
+  tests and documentation (AI assistant)
 
 ## Version 3.6.12
 
@@ -2507,8 +2815,8 @@ suffixes. Follow this template:
 ## Version 3.6.11
 
 - 2025-08-11: Update documentation version strings to 3.6.11 (AI assistant)
-- 2025-08-11: Remove ``target_arch`` from macOS spec on non-mac systems to
-  fix Linux and Windows CI builds (AI assistant)
+- 2025-08-11: Remove ``target_arch`` from macOS spec on non-mac systems to fix
+  Linux and Windows CI builds (AI assistant)
 - 2025-08-11: Make macOS PyInstaller spec use universal2 only on macOS to
   prevent CI failures (AI assistant)
 - 2025-08-11: Propagate ``target_arch`` to the macOS bundle to keep universal2
@@ -2529,18 +2837,15 @@ suffixes. Follow this template:
 
 - 2025-08-10: Prepared 3.6.8 release and opened new Unreleased section (AI
   assistant)
-- 2025-08-10: Added 79-char line-length rule to development laws (AI
-  assistant)
+- 2025-08-10: Added 79-char line-length rule to development laws (AI assistant)
 - 2025-08-11: Declared `setuptools_scm` as a runtime dependency (AI assistant)
 - 2025-08-10: Updated README version and clarified `setuptools_scm`-based
   versioning (AI assistant)
-- 2025-08-10: Gracefully handle missing `setuptools_scm` by importing it
-  lazily
+- 2025-08-10: Gracefully handle missing `setuptools_scm` by importing it lazily
   (AI assistant)
 - 2025-08-10: Removed tracked `copernican_suite.egg-info` and added to
   `.gitignore` (AI assistant)
-- 2025-08-10: Derived fallback version from Git worktree using
-  `setuptools_scm`
+- 2025-08-10: Derived fallback version from Git worktree using `setuptools_scm`
   (AI assistant)
 - 2025-08-09: Formatted version and engine exports for style (AI assistant)
 - 2025-08-09: Wrapped test file imports, docstrings and assertions for 79-char
@@ -2557,9 +2862,9 @@ suffixes. Follow this template:
 - **PATCH**: backward-compatible bug fixes and documentation updates.
 
 ## Version 3.6.7
-- 2025-08-09: Refactored `model_coder` to replace lambda assignments,
-  aligned Flake8 line length with Black and shortened long lines for
-  lint compliance (AI assistant)
+- 2025-08-09: Refactored `model_coder` to replace lambda assignments, aligned
+  Flake8 line length with Black and shortened long lines for lint compliance
+  (AI assistant)
 - 2025-08-09: Wrapped long lines in `copernican_lib/csv_writer.py`,
   `model_coder.py`, `model_spec_validator.py`, `optim_utils.py` and `utils.py`
   for 79-column compliance (AI assistant)
@@ -2589,12 +2894,11 @@ suffixes. Follow this template:
 
 ## Version 3.6.1
 - 2025-08-09: Delegated the test-suite menu option to `python -m unittest
-              discover`, expanded regression and interface tests, and
-              updated CI to run the full suite on every push (AI assistant)
+  discover`, expanded regression and interface tests, and updated CI to run the
+  full suite on every push (AI assistant)
 
 ## Version 3.6.0
-- 2025-08-09: Centralised version handling via `copernican_lib.version`,
-  routed
+- 2025-08-09: Centralised version handling via `copernican_lib.version`, routed
   modules through the helper, configured `setuptools_scm` fallback and
   documented SemVer bump rules (AI assistant)
 
@@ -2613,10 +2917,9 @@ suffixes. Follow this template:
 ## Version 3.5.0
 - 2025-08-07: Added comprehensive development plan summarizing project goals
   (AI assistant)
-- 2025-08-05: Expanded subscript and superscript tables to cover full Latin
-  and
-  Greek alphabets, digits and common operators; updated docs and bumped
-  version (AI assistant)
+- 2025-08-05: Expanded subscript and superscript tables to cover full Latin and
+  Greek alphabets, digits and common operators; updated docs and bumped version
+  (AI assistant)
 
 ## Version 3.4.4
 - 2025-08-04: Replaced unsupported ``\textbf`` footer styling with ``\mathbf``
@@ -2631,8 +2934,7 @@ suffixes. Follow this template:
   bumped version (AI assistant)
 
 ## Version 3.4.1
-- 2025-08-04: Added rule requiring concise, descriptive function and
-  identifier
+- 2025-08-04: Added rule requiring concise, descriptive function and identifier
   names and synchronized documentation (AI assistant)
 
 ## Version 3.4.0
@@ -2642,8 +2944,7 @@ suffixes. Follow this template:
 
 ## Version 3.3.8
 - 2025-08-04: Replaced dataset name attributes with `dataset_name_sanitized`,
-  preserved original `dataset_name`, and refreshed documentation (AI
-  assistant)
+  preserved original `dataset_name`, and refreshed documentation (AI assistant)
 
 ## Version 3.3.7
 - 2025-08-04: Updated metadata key references to use `author` and refreshed
@@ -2667,8 +2968,8 @@ suffixes. Follow this template:
 
 ## Version 3.3.2
 - 2025-08-03: Corrected BOSS DR12 BAO conversion to include redshift scaling,
-  fixed compound parser scaling bug and added escape-sequence guideline;
-  bumped version (AI assistant)
+  fixed compound parser scaling bug and added escape-sequence guideline; bumped
+  version (AI assistant)
 
 ## Version 3.3.1
 - 2025-08-03: Renamed BAO test dataset to compound dataset, improved BAO
@@ -2697,8 +2998,7 @@ suffixes. Follow this template:
   files and documented LaTeX syntax (AI assistant)
 
 ## Version 3.0.1
-- 2025-07-31: Fixed CAMB parameter map exponent syntax in
-  cosmo_model_usmf2.yml
+- 2025-07-31: Fixed CAMB parameter map exponent syntax in cosmo_model_usmf2.yml
   to prevent runtime errors (AI assistant)
 
 ## Version 3.0.0
@@ -2716,8 +3016,7 @@ suffixes. Follow this template:
   parsing (AI assistant)
 - 2025-07-30: Expanded inline comments and documentation to clarify workflow
   logic (AI assistant)
-- 2025-07-30: Synchronized development laws between README.md and AGENTS.md
-  (AI
+- 2025-07-30: Synchronized development laws between README.md and AGENTS.md (AI
   assistant)
 - 2025-07-30: Removed unused JLA covariance fallback logic (AI assistant)
 
@@ -2775,8 +3074,7 @@ suffixes. Follow this template:
 
 ## Version 1.18.3
 - 2025-07-29: Fallback sound-horizon integral now looks for `Omega_b`,
-  `Omega_gamma` and `z_rec`/`z_recomb` instead of legacy aliases (AI
-  assistant)
+  `Omega_gamma` and `z_rec`/`z_recomb` instead of legacy aliases (AI assistant)
 
 ## Version 1.18.2
 - 2025-07-29: Fixed parsing failures by removing \rm from parameter names in
@@ -2787,13 +3085,11 @@ suffixes. Follow this template:
   models and documentation (AI assistant)
 
 ## Version 1.18.0
-- 2025-07-28: Removed math delimiters and double backslash requirement in
-  model
+- 2025-07-28: Removed math delimiters and double backslash requirement in model
   files; added implicit multiplication (AI assistant)
 
 ## Version 1.17.0
-- 2025-07-28: Extended latex_mappings with extra symbols, functions and
-  macros;
+- 2025-07-28: Extended latex_mappings with extra symbols, functions and macros;
   bumped version (AI assistant)
 
 ## Version 1.16.0
@@ -2801,8 +3097,7 @@ suffixes. Follow this template:
   assistant)
 
 ## Version 1.15.0
-- 2025-07-28: Added automatic python_var generation and improved LaTeX
-  handling
+- 2025-07-28: Added automatic python_var generation and improved LaTeX handling
   (AI assistant)
 
 ## Version 1.14.11
@@ -2849,8 +3144,7 @@ suffixes. Follow this template:
   assistant)
 
 ## Version 1.14.2
-- 2025-07-26: Lightened grid lines, widened plot margins and fixed BAO info
-  box
+- 2025-07-26: Lightened grid lines, widened plot margins and fixed BAO info box
   equation parsing (AI assistant)
 
 ## Version 1.14.1
@@ -2866,8 +3160,7 @@ suffixes. Follow this template:
   assistant)
 
 ## Version 1.13.1
-- 2025-07-25: Renamed test BAO dataset and updated documentation (AI
-  assistant)
+- 2025-07-25: Renamed test BAO dataset and updated documentation (AI assistant)
 
 ## Version 1.13.0
 - 2025-07-24: Enforced automatic SemVer bumps and updated version references
@@ -2878,15 +3171,13 @@ suffixes. Follow this template:
   folder and added CONTRIBUTING guide (AI assistant)
 
 ## Version 1.12.8
-- 2025-07-19: Updated logger to avoid duplicate console output and capture
-  user
+- 2025-07-19: Updated logger to avoid duplicate console output and capture user
   input (AI assistant)
 - 2025-07-19: Footer lines now rendered with smaller font to prevent overlap
   (AI assistant)
 
 ## Version 1.12.7
-- 2025-07-16: Log now records console output verbatim and strips absolute
-  paths
+- 2025-07-16: Log now records console output verbatim and strips absolute paths
   (AI assistant)
 
 ## Version 1.12.6
@@ -2896,32 +3187,27 @@ suffixes. Follow this template:
 ## Version 1.12.5
 - 2025-07-16: Ignored virtual env directories when scanning imports for
   dependency check (AI assistant)
-- 2025-07-16: Removed automatic dependency installation and virtual
-  environment
+- 2025-07-16: Removed automatic dependency installation and virtual environment
   logic (AI assistant)
 - 2025-07-16: Implemented BAO residual plots with smoothed averages (AI
   assistant)
-- 2025-07-16: Added smoothed residual averages to all plots and extended
-  footer
+- 2025-07-16: Added smoothed residual averages to all plots and extended footer
   wrapping (AI assistant)
 - 2025-07-16: Dependency check now prints install command with only missing
   packages (AI assistant)
 - 2025-07-16: Dependency checker parses imports via AST and prints OS-aware
   install instructions (AI assistant)
-- 2025-07-16: Fixed logger crash and missing AST import in dependency check
-  (AI
+- 2025-07-16: Fixed logger crash and missing AST import in dependency check (AI
   assistant)
 
 ## Version 1.12.4
-- 2025-07-15: Fixed CMB spectrum scaling bug and added Dl verification test
-  (AI
+- 2025-07-15: Fixed CMB spectrum scaling bug and added Dl verification test (AI
   assistant)
 - 2025-07-15: Updated documentation and developer guide with raw string rule
   (AI assistant)
 - 2025-07-15: Converted math docstrings to raw strings to silence escape
   warnings (AI assistant)
-- 2025-07-15: Fixed dependency check for Python 3.13 `find_spec` ValueError
-  (AI
+- 2025-07-15: Fixed dependency check for Python 3.13 `find_spec` ValueError (AI
   assistant)
 
 ## Version 1.12.3
@@ -2948,15 +3234,13 @@ suffixes. Follow this template:
 - 2025-07-09: Simplified plot footers and updated documentation (AI assistant)
 
 ## Version 1.11.7
-- 2025-07-09: Renamed Pantheon+ files and made parser auto-detect dataset
-  names
+- 2025-07-09: Renamed Pantheon+ files and made parser auto-detect dataset names
   (AI assistant)
 - 2025-07-09: Moved chi-squared helpers back into the engine and removed
   chi2_helper module (AI assistant)
 
 ## Version 1.11.6
-- 2025-07-09: Removed deprecated 1.4b and numba engines and set combined
-  engine
+- 2025-07-09: Removed deprecated 1.4b and numba engines and set combined engine
   as default (AI assistant)
 
 ## Version 1.11.5
@@ -2974,8 +3258,7 @@ suffixes. Follow this template:
   parser updated (AI assistant)
 
 ## Version 1.11.3
-- 2025-07-07: Fixed missing extra CMB parameters in run_cmb_analysis and
-  bumped
+- 2025-07-07: Fixed missing extra CMB parameters in run_cmb_analysis and bumped
   version (AI assistant)
 
 ## Version 1.11.2
@@ -3023,10 +3306,8 @@ suffixes. Follow this template:
   (AI assistant)
 - 2025-07-07: Revised AGENTS overview and expanded README with developer guide
   (AI assistant)
-- 2025-07-07: Fixed test discovery and Matplotlib cleanup when running the
-              test suite via the menu option (AI assistant)
-  (AI
-  assistant)
+- 2025-07-07: Fixed test discovery and Matplotlib cleanup when running the test
+  suite via the menu option (AI assistant) (AI assistant)
 
 ## Version 1.8.3-beta (Development Release)
 - 2025-07-06: Rewrote combined engine for true joint optimisation (AI
@@ -3101,8 +3382,7 @@ suffixes. Follow this template:
 - 2025-07-05: Updated documentation and model guide. (AI assistant)
 - 2025-07-05: Clarified CMB requirements in cosmo_model_guide and bumped guide
   version. (AI assistant)
-- 2025-07-05: Documented automatic startup test suite in README. (AI
-  assistant)
+- 2025-07-05: Documented automatic startup test suite in README. (AI assistant)
 
 ## Version 1.7.4-beta (Development Release)
 - 2025-07-05: Fixed unit conversion (K\u00b2 \u2192 \u03bcK\u00b2) by applying
@@ -3113,8 +3393,7 @@ suffixes. Follow this template:
 ## Version 1.7.3-beta (Development Release)
 - 2025-07-05: Fixed Planck covariance reader for ASCII data and ensured CMB
   parameters use SNe best-fit values (AI assistant)
-- 2025-07-05: Corrected Planck covariance parsing for binary Fortran record
-  (AI
+- 2025-07-05: Corrected Planck covariance parsing for binary Fortran record (AI
   assistant)
 - 2025-07-05: Re-added integral expression support using numerical quadrature
   (AI assistant)
@@ -3126,8 +3405,7 @@ suffixes. Follow this template:
 
 ## Version 1.7.2-beta (Development Release)
 - 2025-07-05: Fixed Planck covariance parser using np.loadtxt (AI assistant)
-- 2025-07-05: Added default CAMB parameter mapping from SNe fits (AI
-  assistant)
+- 2025-07-05: Added default CAMB parameter mapping from SNe fits (AI assistant)
 - 2025-07-05: Handled binary Planck covariance matrix fallback (AI assistant)
 
 ## Version 1.7.1-beta (Development Release)
@@ -3163,10 +3441,8 @@ suffixes. Follow this template:
 
 ## Version 1.6.5 (Patch Release)
 - 2025-06-23: Fixed plot info boxes to display equations from the selected
-  alternative theory and ensured Greek letters render correctly (AI
-  assistant)
-- 2025-06-23: Updated README and AGENTS documentation for corrected JSON
-  schema
+  alternative theory and ensured Greek letters render correctly (AI assistant)
+- 2025-06-23: Updated README and AGENTS documentation for corrected JSON schema
   and version bump (AI assistant)
 
 ## Version 1.6.4 (Patch Release)
@@ -3232,21 +3508,16 @@ suffixes. Follow this template:
   gravitational-wave standard siren inputs. Added placeholder parser coverage
   and loader functions for these data types.
 - Updated documentation for version 1.5f.
-- Hotfix 5: Removed automatic dependency installer. Users are now instructed
-  to
+- Hotfix 5: Removed automatic dependency installer. Users are now instructed to
   run a printed `pip install` command when packages are missing.
-- Hotfix 7: `Hz_expression` added to JSON models and compiled automatically
-  for
+- Hotfix 7: `Hz_expression` added to JSON models and compiled automatically for
   distance predictions.
 - Hotfix 8: Sound horizon `r_s` is now computed automatically when possible
-  using
-  a fallback integral if `rs_expression` is missing.
+  using a fallback integral if `rs_expression` is missing.
 - Hotfix 9: Parser auto-discovery now searches the project's top-level
-  `parsers`
-  directory instead of a nonexistent `scripts/parsers` folder.
+  `parsers` directory instead of a nonexistent `scripts/parsers` folder.
 - Hotfix 10: Fixed BAO smooth curve generation by allowing `_dm` to accept
-  array
-  redshift values.
+  array redshift values.
 
 ## Version 1.5e (Development Release)
 - Added Numba-based engine and modular utility wrappers.
@@ -3259,14 +3530,12 @@ suffixes. Follow this template:
   packages are missing.
 
 ## Version 1.5c (Development Release)
-- Completed Phase 3: engine_plugin_validation now validates plugins and engines use
-  the
-  new abstraction layer.
+- Completed Phase 3: engine_plugin_validation now validates plugins and engines
+  use the new abstraction layer.
 - Updated documentation and headers for version 1.5c.
 
 ## Version 1.5b (Development Release)
-- Completed Phase 2: parser caches validated JSON and coder generates
-  callables
+- Completed Phase 2: parser caches validated JSON and coder generates callables
   with sanity checks.
 - Updated documentation and headers for version 1.5b.
 

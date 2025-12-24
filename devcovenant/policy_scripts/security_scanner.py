@@ -2,7 +2,7 @@
 
 import re
 from pathlib import PurePosixPath
-from typing import Iterable, List, Sequence
+from typing import List, Sequence
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 

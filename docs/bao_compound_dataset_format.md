@@ -15,8 +15,8 @@ large public releases. A covariance matrix is intentionally omitted;
 uncertainties are treated as uncorrelated.
 
 The accompanying parser registers itself under the dataset ID
-`compound_bao_set` so ``load_bao_data('compound_bao_set')`` locates it
-directly without discovery.
+`compound_bao_set` so ``load_bao_data('compound_bao_set')`` locates it directly
+without discovery.
 
 Example `compound.yml`:
 ```yaml
@@ -59,39 +59,35 @@ notes: Observable types: DV_over_rs (D_V(z)/r_s), DM_over_rs (D_M(z)/r_s),
 
 ## Usage
 
-The compound dataset is primarily intended for automated tests and examples.
-It demonstrates how BAO observables are encoded without requiring
-gigabyte-scale survey releases. When developing a new parser, model the output
-DataFrame on the structure produced by this example: one row per measurement
-with columns for the observable, its uncertainty and any fiducial sound
-horizon.
+The compound dataset is primarily intended for automated tests and examples. It
+demonstrates how BAO observables are encoded without requiring gigabyte-scale
+survey releases. When developing a new parser, model the output DataFrame on
+the structure produced by this example: one row per measurement with columns
+for the observable, its uncertainty and any fiducial sound horizon.
 
 When a real dataset supplies a covariance matrix the parser should attach the
 inverse matrix to `df.attrs['covariance_matrix_inv']`. For uncorrelated data,
-as
-shown here, omitting the matrix is sufficient and the engine will fall back to
-diagonal errors.
-During analysis the engine now populates a `model_prediction` column on the
-returned DataFrame. The Stage 2 workflow reuses the same SNe chain whenever
-both models point to the identical plugin, ensuring these predictions align
-perfectly between baseline and alternative theory curves in diagnostic plots.
-The matching chi-squared totals recorded in BAO CSV exports confirm that
-LCDM-versus-LCDM checks now keep the red and blue curves coincident.
-All observable types use the naming convention `DV_over_rs`, `DM_over_rs` or
-`DH_over_rs` to indicate $D_V$, $D_M$ or $D_H$ divided by the sound horizon.
-The parser converts the YAML to a Pandas `DataFrame` and the data loader
-attaches the metadata to the `.attrs` attribute. In addition to the
-original `dataset_name`, a `dataset_id` is supplied for constructing
-output filenames. The same `metadata_*.yml` structure with `dataset_name`,
+as shown here, omitting the matrix is sufficient and the engine will fall back
+to diagonal errors. During analysis the engine now populates a
+`model_prediction` column on the returned DataFrame. The Stage 2 workflow
+reuses the same SNe chain whenever both models point to the identical plugin,
+ensuring these predictions align perfectly between baseline and alternative
+theory curves in diagnostic plots. The matching chi-squared totals recorded in
+BAO CSV exports confirm that LCDM-versus-LCDM checks now keep the red and blue
+curves coincident. All observable types use the naming convention `DV_over_rs`,
+`DM_over_rs` or `DH_over_rs` to indicate $D_V$, $D_M$ or $D_H$ divided by the
+sound horizon. The parser converts the YAML to a Pandas `DataFrame` and the
+data loader attaches the metadata to the `.attrs` attribute. In addition to the
+original `dataset_name`, a `dataset_id` is supplied for constructing output
+filenames. The same `metadata_*.yml` structure with `dataset_name`,
 `dataset_id`, `description`, `notes` and `citation` is used for **all**
 datasets so plot footers render the dataset name in bold, followed by its
 description, notes and a separate citation line.
 
 ### Extending the Dataset
 
-Additional points can be appended to `data_points` to experiment with new
-BAO measurements.  Keep observable names consistent and supply a metadata
-file describing the provenance of the added entries.  The lightweight
-format allows tests to cover edge cases—such as missing columns or
-unexpected types—without shipping large survey catalogues in the
-repository.
+Additional points can be appended to `data_points` to experiment with new BAO
+measurements.  Keep observable names consistent and supply a metadata file
+describing the provenance of the added entries.  The lightweight format allows
+tests to cover edge cases—such as missing columns or unexpected types—without
+shipping large survey catalogues in the repository.

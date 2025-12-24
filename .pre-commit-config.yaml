@@ -45,10 +45,8 @@ repos:
         pass_filenames: false
       - id: copernican-policy
         name: enforce Copernican repository policies (DevCovenant)
-        entry: python devcovenant_check.py check
-        language: python
-        additional_dependencies:
-          - PyYAML==6.0.1
+        entry: env VIRTUAL_ENV=.venv ./.venv/bin/python devcovenant_check.py check
+        language: system
         types: [text]
         pass_filenames: false
         always_run: true

@@ -1,8 +1,8 @@
 # Emoji Meteors
 
 Emoji Meteors is the quickest way to capture a playful Copernican seed. Five
-animal emojis fall across a twilight sky; you “pet” them by clicking directly on
-each sprite. The exact order of the pets, the time you needed to collect the
+animal emojis fall across a twilight sky; you “pet” them by clicking directly
+on each sprite. The exact order of the pets, the time you needed to collect the
 set and the emoji identities form the payload that is hashed into the final
 seed. Because the mini-game runs inside the deterministic `rng_minigames/`
 framework, two identical play sessions always produce the same result.

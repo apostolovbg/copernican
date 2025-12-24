@@ -299,10 +299,7 @@ class _VolumeAveragedDistance:
         comoving_distance = self._dm(redshift_value, *params)
         hubble_value = self._hz_fn(redshift_value, *params)
         dv_term = (
-            comoving_distance**2
-            * 299792.458
-            * redshift_value
-            / hubble_value
+            comoving_distance**2 * 299792.458 * redshift_value / hubble_value
         )
 
         if np.isscalar(redshift_value):
@@ -335,7 +332,7 @@ class SoundHorizonComputationError(RuntimeError):
 class _SoundHorizonFromExpression:
     """Wrap a symbolic sound-horizon function in a picklable callable."""
 
-    __slots__ = ("_fn",)
+    __slots__ = ("_callable_fn",)
 
     def __init__(self, callable_fn):
         """Wrap the symbolic sound-horizon callable for later use."""
@@ -448,7 +445,7 @@ def _map_points_for_positive_infinity(
 ) -> tuple[float, ...]:
     """Project finite breakpoints to the logistic domain for ``b = +inf``."""
 
-    mapped = []
+    mapped: list[float] = []
     for breakpoint_value in points:
         try:
             delta = float(breakpoint_value) - float(lower)
@@ -459,9 +456,9 @@ def _map_points_for_positive_infinity(
         mapped_value = delta / (1.0 + delta)
         if 0.0 < mapped_value < 1.0:
             mapped.append(mapped_value)
-        mapped.extend(_LOGISTIC_SUPPORT_POINTS)
-        mapped = tuple(dict.fromkeys(sorted(mapped)))
-        return mapped
+    mapped.extend(_LOGISTIC_SUPPORT_POINTS)
+    mapped = tuple(dict.fromkeys(sorted(mapped)))
+    return mapped
 
 
 def _map_points_for_negative_infinity(
@@ -573,8 +570,7 @@ def _robust_quad(
     """Execute ``quad`` with retries, segmentation and infinity transforms."""
 
     if allow_infinite and (
-        not _is_finite_bound(lower_bound)
-        or not _is_finite_bound(upper_bound)
+        not _is_finite_bound(lower_bound) or not _is_finite_bound(upper_bound)
     ):
         return _handle_infinite_interval(
             func,
@@ -709,8 +705,7 @@ def _robust_quad_core(
         warnings.simplefilter("ignore", IntegrationWarning)
         finite_points = (
             points
-            if _is_finite_bound(lower_bound)
-            and _is_finite_bound(upper_bound)
+            if _is_finite_bound(lower_bound) and _is_finite_bound(upper_bound)
             else ()
         )
         result = _call_quad(
@@ -731,6 +726,7 @@ def _robust_quad_core(
         attempts=attempts,
         last_result=result,
     )
+
 
 def _handle_infinite_interval(
     func,
@@ -835,9 +831,7 @@ def _integrate_infinite_segment(
             if t_safe >= 1.0:
                 t_safe = float(np.nextafter(1.0, 0.0))
             original_value = finite_upper - (1.0 - t_safe) / t_safe
-            return func(
-                original_value, *forwarded_args
-            ) * (1.0 / (t_safe**2))
+            return func(original_value, *forwarded_args) * (1.0 / (t_safe**2))
 
         return _robust_quad(
             transformed,
@@ -864,9 +858,9 @@ def _integrate_infinite_segment(
             if t_safe >= 1.0:
                 t_safe = float(np.nextafter(1.0, 0.0))
             original_value = finite_lower + t_safe / (1.0 - t_safe)
-            return func(
-                original_value, *forwarded_args
-            ) * (1.0 / (1.0 - t_safe) ** 2)
+            return func(original_value, *forwarded_args) * (
+                1.0 / (1.0 - t_safe) ** 2
+            )
 
         return _robust_quad(
             transformed,

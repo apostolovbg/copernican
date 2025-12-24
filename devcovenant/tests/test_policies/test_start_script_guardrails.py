@@ -28,20 +28,12 @@ def test_detects_missing_guardrails(tmp_path: Path):
 def test_allows_scripts_with_guardrails(tmp_path: Path):
     """Scripts that include every guard snippet pass."""
     start_sh = _write_script(
-        tmp_path,
-        "start.sh",
-        "pkg_notice()\nsudo -k -p 'pwd' ...\n"
+        tmp_path, "start.sh", "pkg_notice()\nsudo -k -p 'pwd' ...\n"
     )
     start_command = _write_script(
-        tmp_path,
-        "start.command",
-        "pkg_notice()\nsudo -k -p 'pwd' ...\n"
+        tmp_path, "start.command", "pkg_notice()\nsudo -k -p 'pwd' ...\n"
     )
-    start_bat = _write_script(
-        tmp_path,
-        "start.bat",
-        "set PKG_NOTICE=ok\n"
-    )
+    start_bat = _write_script(tmp_path, "start.bat", "set PKG_NOTICE=ok\n")
     checker = StartScriptGuardrailsCheck()
     context = CheckContext(
         repo_root=tmp_path,

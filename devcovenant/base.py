@@ -4,7 +4,7 @@ Base classes and interfaces for devcovenant policies and fixers.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional
 
 
@@ -26,6 +26,54 @@ class CheckContext:
     all_files: List[Path] = field(default_factory=list)
     git_diff: Optional[str] = None
     mode: str = "normal"
+    _ignore_patterns: List[str] = field(
+        default_factory=list, init=False, repr=False
+    )
+
+    def __post_init__(self) -> None:
+        """Load ignore patterns and sanitize file lists."""
+        self._ignore_patterns = self._load_ignore_patterns()
+        self.changed_files = [
+            path for path in self.changed_files if not self.is_ignored(path)
+        ]
+        self.all_files = [
+            path for path in self.all_files if not self.is_ignored(path)
+        ]
+
+    def _load_ignore_patterns(self) -> List[str]:
+        """Read ignore patterns from ``devcovignore.md``."""
+        ignore_file = self.repo_root / "devcovenant" / "devcovignore.md"
+        patterns: List[str] = []
+        if not ignore_file.exists():
+            return patterns
+        try:
+            for raw_line in ignore_file.read_text(
+                encoding="utf-8"
+            ).splitlines():
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                normalized = line.lstrip("/")
+                if normalized.endswith("/"):
+                    normalized = normalized.rstrip("/") + "/**"
+                patterns.append(normalized)
+        except OSError:
+            return patterns
+        return patterns
+
+    def is_ignored(self, path: Path) -> bool:
+        """Return True when *path* matches an ignore rule."""
+        if not self._ignore_patterns:
+            return False
+        try:
+            rel_path = path.relative_to(self.repo_root)
+        except ValueError:
+            rel_path = path
+        rel_posix = PurePosixPath(rel_path.as_posix())
+        for pattern in self._ignore_patterns:
+            if rel_posix.match(pattern):
+                return True
+        return False
 
 
 @dataclass

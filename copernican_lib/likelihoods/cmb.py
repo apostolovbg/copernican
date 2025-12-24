@@ -294,7 +294,7 @@ def _cached_background(
     term = comoving_distance_array * comoving_distance_array
     term *= z_arr
     with np.errstate(divide="ignore", invalid="ignore"):
-        term = term * dh
+        term = term * hubble_distance_array
     volume_average_distance_array = np.full_like(term, np.nan, dtype=float)
     mask = np.isfinite(term) & (term >= 0.0)
     volume_average_distance_array[mask] = np.power(term[mask], 1.0 / 3.0)
@@ -344,9 +344,7 @@ def compute_camb_background_observables(
         angular_distance_tuple,
         volume_average_distance_tuple,
         hubble_parameter_tuple,
-    ) = _cached_background(
-        ("background", items, z_tuple)
-    )
+    ) = _cached_background(("background", items, z_tuple))
     return {
         "rs_drag": float(rs_drag),
         "DM": np.asarray(comoving_distance_tuple, dtype=float),
@@ -493,7 +491,7 @@ class CMBLike(LikelihoodProtocol):
         """Extract immutable arrays so log-likelihood evaluation stays lean."""
 
         cmb_df = self.cmb_data_df
-        if df is None or df.empty:
+        if cmb_df is None or cmb_df.empty:
             self._setup_error = "(cmb_like): CMB data is empty."
             self._ells = np.empty(0, dtype=int)
             self._observed = np.empty(0, dtype=float)

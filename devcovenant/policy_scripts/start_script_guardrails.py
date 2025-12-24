@@ -1,6 +1,5 @@
 """Ensure launchers retain mandated guardrails (sudo prompts + notices)."""
 
-from pathlib import Path
 from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation

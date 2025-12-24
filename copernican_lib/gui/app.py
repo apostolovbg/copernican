@@ -34,27 +34,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence
 
-try:
-    import tkinter as tkinter_module
-    from tkinter import filedialog as filedialog_module
-    from tkinter import messagebox as messagebox_module
-    from tkinter import ttk as ttk_module
-except Exception:  # pragma: no cover - executed only when Tk is missing
-    tkinter_module = None
-    ttk_module = None
-    filedialog_module = None
-    messagebox_module = None
-
-tk_gui = tkinter_module
-ttk = ttk_module
-filedialog = filedialog_module
-messagebox = messagebox_module
-
-if tk_gui is not None:
-    from copernican_lib.vendor.tkinterweb import HtmlFrame
-else:
-    HtmlFrame = None
-
 import matplotlib.image as mpimage
 import yaml
 from matplotlib.figure import Figure
@@ -86,6 +65,27 @@ from copernican_lib.run_lifecycle import (
     delete_manifest_workspace,
     finalize_run_workspace,
 )
+
+try:
+    import tkinter as tkinter_module
+    from tkinter import filedialog as filedialog_module
+    from tkinter import messagebox as messagebox_module
+    from tkinter import ttk as ttk_module
+except Exception:  # pragma: no cover - executed only when Tk is missing
+    tkinter_module = None
+    ttk_module = None
+    filedialog_module = None
+    messagebox_module = None
+
+tk_gui = tkinter_module
+ttk = ttk_module
+filedialog = filedialog_module
+messagebox = messagebox_module
+
+if tk_gui is not None:
+    from copernican_lib.vendor.tkinterweb import HtmlFrame
+else:
+    HtmlFrame = None
 
 _KATEX_VERSION = "0.16.4"
 _EQUATION_EMPTY_BODY = (
@@ -430,16 +430,14 @@ class CopernicanGUI:
         self.engine_capabilities: EngineCapabilities | None = None
         self._engine_setting_vars: dict[str, tkinter_module.Variable] = {}
         self._engine_setting_specs: dict[str, EngineSetting] = {}
-        self._engine_run_settings_frame: ttkinter_module.LabelFrame | None = (
-            None
-        )
+        self._engine_run_settings_frame: ttk_module.LabelFrame | None = None
         self._current_engine_module: str | None = None
         self.selected_datasets: list[dict[str, str]] = []
         self.help_page_index = 0
         self._current_help_page_id = _HELP_PAGES[0]["id"]
-        self._help_page_buttons: dict[str, ttkinter_module.Button] = {}
+        self._help_page_buttons: dict[str, ttk_module.Button] = {}
         self._help_text_widget: tkinter_module.Text | None = None
-        self._help_title_label: ttkinter_module.Label | None = None
+        self._help_title_label: ttk_module.Label | None = None
         self.pending_manifest: Optional[dict] = None
         self.manifest_workspace: ManifestWorkspace | None = None
         self._staged_confirm_manifest: Optional[dict] = None
@@ -467,55 +465,53 @@ class CopernicanGUI:
         self.last_log_jump: str | None = None
         self._run_process: subprocess.Popen[str] | None = None
         self._run_config_path: str | None = None
-        self._status_label: ttkinter_module.Label | None = None
+        self._status_label: ttk_module.Label | None = None
         self._progress_state_path: str | None = None
         self._progress_snapshot: dict | None = None
         self._progress_poll_thread: threading.Thread | None = None
         self._progress_poll_stop: threading.Event | None = None
         self._monitor_refresh_job: str | None = None
-        self._progress_status_label: ttkinter_module.Label | None = None
-        self._batch_progressbar: ttkinter_module.Progressbar | None = None
-        self._walker_progressbar: ttkinter_module.Progressbar | None = None
+        self._progress_status_label: ttk_module.Label | None = None
+        self._batch_progressbar: ttk_module.Progressbar | None = None
+        self._walker_progressbar: ttk_module.Progressbar | None = None
         self._monitor_log_widget: tkinter_module.Text | None = None
-        self._monitor_filter_label: ttkinter_module.Label | None = None
-        self._monitor_log_view_button: ttkinter_module.Button | None = None
-        self._monitor_log_open_button: ttkinter_module.Button | None = None
+        self._monitor_filter_label: ttk_module.Label | None = None
+        self._monitor_log_view_button: ttk_module.Button | None = None
+        self._monitor_log_open_button: ttk_module.Button | None = None
         self._monitor_log_lock_var: tkinter_module.BooleanVar | None = None
-        self._monitor_control_buttons: list[ttkinter_module.Button] = []
+        self._monitor_control_buttons: list[ttk_module.Button] = []
         self._monitor_button_style_name = "Copernican.RunControl.TButton"
         self._monitor_button_style_ready = False
-        self._validation_progress_status_label: (
-            ttkinter_module.Label | None
-        ) = None
-        self._validation_batch_progressbar: (
-            ttkinter_module.Progressbar | None
-        ) = None
-        self._validation_walker_progressbar: (
-            ttkinter_module.Progressbar | None
-        ) = None
+        self._validation_progress_status_label: ttk_module.Label | None = None
+        self._validation_batch_progressbar: ttk_module.Progressbar | None = (
+            None
+        )
+        self._validation_walker_progressbar: ttk_module.Progressbar | None = (
+            None
+        )
         self._validation_progress_env_backup: str | None = None
         self._diagnostics_log_widget: tkinter_module.Text | None = None
-        self._validation_status_label: ttkinter_module.Label | None = None
+        self._validation_status_label: ttk_module.Label | None = None
         self._validation_text_widget: tkinter_module.Text | None = None
         self._validation_log_lock_var: tkinter_module.BooleanVar | None = None
-        self._validation_button: ttkinter_module.Button | None = None
-        self._validation_cancel_button: ttkinter_module.Button | None = None
-        self._validation_clear_button: ttkinter_module.Button | None = None
+        self._validation_button: ttk_module.Button | None = None
+        self._validation_cancel_button: ttk_module.Button | None = None
+        self._validation_clear_button: ttk_module.Button | None = None
         self._validation_process: subprocess.Popen[str] | None = None
         self._validation_stdout_thread: threading.Thread | None = None
         self._validation_running = False
         self._validation_status_base = "Status: idle"
         self._validation_log_lines: list[str] = []
         self._validation_last_stage_label: str | None = None
-        self._diagnostics_filter_label: ttkinter_module.Label | None = None
-        self._cancel_button: ttkinter_module.Button | None = None
-        self._pause_button: ttkinter_module.Button | None = None
-        self._hard_stop_button: ttkinter_module.Button | None = None
-        self._run_output_button: ttkinter_module.Button | None = None
+        self._diagnostics_filter_label: ttk_module.Label | None = None
+        self._cancel_button: ttk_module.Button | None = None
+        self._pause_button: ttk_module.Button | None = None
+        self._hard_stop_button: ttk_module.Button | None = None
+        self._run_output_button: ttk_module.Button | None = None
         self.logo_image: tkinter_module.PhotoImage | None = None
-        self._status_bar_frame: ttkinter_module.Frame | None = None
-        self._brand_status_label: ttkinter_module.Label | None = None
-        self._environment_status_label: ttkinter_module.Label | None = None
+        self._status_bar_frame: ttk_module.Frame | None = None
+        self._brand_status_label: ttk_module.Label | None = None
+        self._environment_status_label: ttk_module.Label | None = None
         self._settings_sections = [
             {
                 "id": "logs",
@@ -654,15 +650,13 @@ class CopernicanGUI:
             },
         ]
         self._analysis_current_index = 0
-        self._analysis_section_buttons: list[ttkinter_module.Button] = []
-        self._analysis_action_buttons: list[ttkinter_module.Button] = []
-        self._analysis_header_label: ttkinter_module.Label | None = None
-        self._analysis_description_label: ttkinter_module.Label | None = None
-        self._analysis_page_body: ttkinter_module.Frame | None = None
+        self._analysis_section_buttons: list[ttk_module.Button] = []
+        self._analysis_action_buttons: list[ttk_module.Button] = []
+        self._analysis_header_label: ttk_module.Label | None = None
+        self._analysis_description_label: ttk_module.Label | None = None
+        self._analysis_page_body: ttk_module.Frame | None = None
         self._analysis_run_path_var: tkinter_module.StringVar | None = None
-        self._analysis_summary_status_label: ttkinter_module.Label | None = (
-            None
-        )
+        self._analysis_summary_status_label: ttk_module.Label | None = None
         self._analysis_summary_text_widget: tkinter_module.Text | None = None
         self._analysis_summary_result: analysis.RunAnalysisResult | None = None
         self._analysis_comparison_base_var: tkinter_module.StringVar | None = (
@@ -674,9 +668,7 @@ class CopernicanGUI:
         self._analysis_comparison_text_widget: tkinter_module.Text | None = (
             None
         )
-        self._analysis_comparison_status_label: (
-            ttkinter_module.Label | None
-        ) = None
+        self._analysis_comparison_status_label: ttk_module.Label | None = None
         self._analysis_comparison_result: dict[str, Any] | None = None
         self._analysis_comparison_pair: (
             tuple[analysis.RunAnalysisResult, analysis.RunAnalysisResult]
@@ -686,24 +678,20 @@ class CopernicanGUI:
         self._analysis_posterior_file_var: tkinter_module.StringVar | None = (
             None
         )
-        self._analysis_posterior_combobox: ttkinter_module.Combobox | None = (
-            None
-        )
+        self._analysis_posterior_combobox: ttk_module.Combobox | None = None
         self._analysis_plot_viewer: PlotViewer | None = None
-        self._analysis_posterior_status_label: ttkinter_module.Label | None = (
-            None
-        )
+        self._analysis_posterior_status_label: ttk_module.Label | None = None
         self._analysis_current_posterior_path: Path | None = None
         self._analysis_corner_files: list[Path] = []
         self._analysis_histogram_files: list[Path] = []
-        self._settings_section_buttons: list[ttkinter_module.Button] = []
+        self._settings_section_buttons: list[ttk_module.Button] = []
         self._settings_current_index = 0
-        self._settings_header_label: ttkinter_module.Label | None = None
-        self._settings_description_label: ttkinter_module.Label | None = None
-        self._settings_page_body: ttkinter_module.Frame | None = None
-        self._settings_defaults_button: ttkinter_module.Button | None = None
-        self._settings_cancel_button: ttkinter_module.Button | None = None
-        self._settings_save_button: ttkinter_module.Button | None = None
+        self._settings_header_label: ttk_module.Label | None = None
+        self._settings_description_label: ttk_module.Label | None = None
+        self._settings_page_body: ttk_module.Frame | None = None
+        self._settings_defaults_button: ttk_module.Button | None = None
+        self._settings_cancel_button: ttk_module.Button | None = None
+        self._settings_save_button: ttk_module.Button | None = None
         self._settings_dirty = False
         self._suppress_setting_events = False
         self._saved_settings = copy.deepcopy(settings_mod.get_settings())
@@ -716,7 +704,7 @@ class CopernicanGUI:
         console_output.write("GUI: inventory refreshed and navigation ready.")
         self.help_banner_image = None
         self._load_saved_manifest_workspace()
-        self._builder_step_buttons: list[ttkinter_module.Button] = []
+        self._builder_step_buttons: list[ttk_module.Button] = []
 
     def _bootstrap_logging(self) -> None:
         """Start the diagnostics log and capture environment details."""
@@ -746,7 +734,7 @@ class CopernicanGUI:
             return
         if not self.render or ttk_module is None or self.root is None:
             return
-        style = ttkinter_module.Style(self.root)
+        style = ttk_module.Style(self.root)
         style.configure(self._monitor_button_style_name)
         style.map(
             self._monitor_button_style_name,
@@ -768,10 +756,10 @@ class CopernicanGUI:
         self,
         frame: tkinter_module.Frame,
         title: str,
-    ) -> ttkinter_module.Label:
+    ) -> ttk_module.Label:
         """Render a standard page header label."""
 
-        label = ttkinter_module.Label(
+        label = ttk_module.Label(
             frame,
             text=title,
             font=("Helvetica", 16),
@@ -1552,7 +1540,7 @@ class CopernicanGUI:
         if resizable_vertical:
             min_height = min_lines * line_height + chrome_height
             window.minsize(width=initial_width, height=min_height)
-        container = ttkinter_module.Frame(window, padding=(8, 6))
+        container = ttk_module.Frame(window, padding=(8, 6))
         container.pack(fill="both", expand=True)
         window.columnconfigure(0, weight=1)
         window.rowconfigure(0, weight=1)
@@ -1566,21 +1554,21 @@ class CopernicanGUI:
         text.insert("1.0", content)
         text.configure(state="disabled")
         text.grid(row=0, column=0, sticky="nsew")
-        scrollbar = ttkinter_module.Scrollbar(
+        scrollbar = ttk_module.Scrollbar(
             container, orient="vertical", command=text.yview
         )
         text.configure(yscrollcommand=scrollbar.set)
         scrollbar.grid(row=0, column=1, sticky="ns")
-        buttons = ttkinter_module.Frame(container)
+        buttons = ttk_module.Frame(container)
         buttons.grid(row=1, column=0, columnspan=2, pady=(8, 8))
-        close_button = ttkinter_module.Button(
+        close_button = ttk_module.Button(
             buttons,
             text="Close",
             command=window.destroy,
         )
         close_button.pack(side="left", padx=4)
         if source_path:
-            ttkinter_module.Button(
+            ttk_module.Button(
                 buttons,
                 text="Open file…",
                 command=lambda: self._open_path_with_system(source_path),
@@ -1591,7 +1579,7 @@ class CopernicanGUI:
     ) -> tkinter_module.Frame:
         """Return a frame that scrolls vertically with the given parent."""
 
-        container = ttkinter_module.Frame(parent)
+        container = ttk_module.Frame(parent)
         container.pack(fill="both", expand=True)
         canvas_kwargs: dict[str, int | str] = {
             "borderwidth": 0,
@@ -1600,10 +1588,10 @@ class CopernicanGUI:
         if height is not None:
             canvas_kwargs["height"] = height
         canvas = tkinter_module.Canvas(container, **canvas_kwargs)
-        scrollbar = ttkinter_module.Scrollbar(
+        scrollbar = ttk_module.Scrollbar(
             container, orient="vertical", command=canvas.yview
         )
-        inner_frame = ttkinter_module.Frame(canvas)
+        inner_frame = ttk_module.Frame(canvas)
         canvas.create_window((0, 0), window=inner_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
         inner_frame.bind(
@@ -1735,7 +1723,7 @@ class CopernicanGUI:
         if not self.render or tk_gui is None:
             return
         self._load_logo_image()
-        logo_holder = ttkinter_module.Frame(nav_frame)
+        logo_holder = ttk_module.Frame(nav_frame)
         logo_holder.pack(fill="x", pady=(20, _LOGO_PADDING + 10))
         logo_holder.pack_propagate(False)
         base_side = _LOGO_SIDE
@@ -1746,7 +1734,7 @@ class CopernicanGUI:
         holder_height = image_height + 2 * _LOGO_PADDING + 6
         holder_width = image_width + 2 * _LOGO_PADDING
         logo_holder.configure(height=holder_height)
-        square = ttkinter_module.Frame(
+        square = ttk_module.Frame(
             logo_holder,
             width=holder_width,
             height=holder_height,
@@ -1762,13 +1750,13 @@ class CopernicanGUI:
         square.columnconfigure(0, weight=1)
         square.rowconfigure(0, weight=1)
         if self.logo_image:
-            logo_widget = ttkinter_module.Label(
+            logo_widget = ttk_module.Label(
                 square,
                 image=self.logo_image,
             )
             logo_widget.image = self.logo_image
         else:
-            logo_widget = ttkinter_module.Label(
+            logo_widget = ttk_module.Label(
                 square,
                 text="Copernican",
                 anchor="center",
@@ -2001,15 +1989,15 @@ class CopernicanGUI:
 
         if not self.render or self.root is None:
             return
-        nav_frame = ttkinter_module.Frame(self.root, padding=(24, 12, 24, 12))
+        nav_frame = ttk_module.Frame(self.root, padding=(24, 12, 24, 12))
         nav_frame.configure(width=_NAV_PANE_WIDTH)
         nav_frame.grid(row=0, column=0, sticky="nsw")
         nav_frame.grid_propagate(False)
         self.root.grid_columnconfigure(0, minsize=_NAV_PANE_WIDTH)
-        separator = ttkinter_module.Separator(self.root, orient="vertical")
+        separator = ttk_module.Separator(self.root, orient="vertical")
         separator.grid(row=0, column=1, rowspan=2, sticky="ns")
         self.root.grid_columnconfigure(1, minsize=2)
-        self.content_area = ttkinter_module.Frame(
+        self.content_area = ttk_module.Frame(
             self.root,
             padding=(12, 12, 12, 12),
         )
@@ -2020,13 +2008,13 @@ class CopernicanGUI:
         self.root.grid_rowconfigure(2, weight=0)
 
         self._build_navigation_logo(nav_frame)
-        nav_body = ttkinter_module.Frame(nav_frame)
+        nav_body = ttk_module.Frame(nav_frame)
         nav_body.pack(fill="both", expand=True)
-        exit_frame = ttkinter_module.Frame(nav_frame)
+        exit_frame = ttk_module.Frame(nav_frame)
         exit_frame.pack(fill="x", side="bottom")
         for nav_item in self.nav_items:
             target_frame = exit_frame if nav_item.name == "exit" else nav_body
-            button = ttkinter_module.Button(
+            button = ttk_module.Button(
                 target_frame,
                 text=nav_item.label,
                 command=lambda i=nav_item: i.action(self),
@@ -2034,7 +2022,7 @@ class CopernicanGUI:
             )
             button.pack(fill="x", pady=4)
 
-        separator_bottom = ttkinter_module.Separator(
+        separator_bottom = ttk_module.Separator(
             self.root,
             orient="horizontal",
         )
@@ -2059,7 +2047,7 @@ class CopernicanGUI:
             return
         for child in self.content_area.winfo_children():
             child.destroy()
-        frame = ttkinter_module.Frame(self.content_area, padding=(8, 8))
+        frame = ttk_module.Frame(self.content_area, padding=(8, 8))
         frame.pack(fill="both", expand=True)
         frame_builder(frame)
 
@@ -2070,7 +2058,7 @@ class CopernicanGUI:
             return
         if self._status_bar_frame is not None:
             return
-        status_bar = ttkinter_module.Frame(
+        status_bar = ttk_module.Frame(
             self.root,
             padding=(8, 0, 8, 2),
             relief="flat",
@@ -2085,7 +2073,7 @@ class CopernicanGUI:
         )
         status_bar.columnconfigure(0, weight=1)
         status_bar.columnconfigure(1, weight=1)
-        self._brand_status_label = ttkinter_module.Label(
+        self._brand_status_label = ttk_module.Label(
             status_bar,
             text="",
             foreground="#6c6c6c",
@@ -2093,7 +2081,7 @@ class CopernicanGUI:
             takefocus=True,
         )
         self._brand_status_label.grid(row=0, column=0, sticky="w", pady=(0, 0))
-        self._environment_status_label = ttkinter_module.Label(
+        self._environment_status_label = ttk_module.Label(
             status_bar,
             text="",
             anchor="e",
@@ -2187,12 +2175,12 @@ class CopernicanGUI:
         def builder(frame: tkinter_module.Frame) -> None:
             """Render the project home view inside the main panel."""
             self._page_header(frame, "Project Home")
-            tiles = ttkinter_module.Frame(frame)
+            tiles = ttk_module.Frame(frame)
             tiles.pack(fill="x", pady=(0, 12))
             tiles.columnconfigure(0, weight=1)
             tiles.columnconfigure(1, weight=1)
             catalogue_health = self._catalogue_health_summary()
-            cat_card = ttkinter_module.LabelFrame(
+            cat_card = ttk_module.LabelFrame(
                 tiles, text="Catalogue health", padding=(10, 8)
             )
             cat_card.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
@@ -2200,7 +2188,7 @@ class CopernicanGUI:
                 f"{catalogue_health['dataset_count']} dataset(s) "
                 f"/ {len(catalogue_health['untrusted'])} trust alert(s)"
             )
-            dataset_label = ttkinter_module.Label(
+            dataset_label = ttk_module.Label(
                 cat_card,
                 text=dataset_summary,
                 takefocus=True,
@@ -2214,13 +2202,13 @@ class CopernicanGUI:
                 )
             else:
                 type_summary = "No datasets discovered."
-            type_label = ttkinter_module.Label(
+            type_label = ttk_module.Label(
                 cat_card,
                 text=type_summary,
                 takefocus=True,
             )
             type_label.pack(anchor="w", pady=(2, 4))
-            filter_row = ttkinter_module.Frame(cat_card)
+            filter_row = ttk_module.Frame(cat_card)
             filter_row.pack(anchor="w", pady=(0, 6))
             filter_actions = [
                 ("All data", ()),
@@ -2229,7 +2217,7 @@ class CopernicanGUI:
                 ("CMB", ("cmb",)),
             ]
             for label_text, filter_types in filter_actions:
-                ttkinter_module.Button(
+                ttk_module.Button(
                     filter_row,
                     text=label_text,
                     command=(
@@ -2240,21 +2228,21 @@ class CopernicanGUI:
                     takefocus=True,
                 ).pack(side="left", padx=2)
             if catalogue_health["notes"]:
-                ttkinter_module.Label(
+                ttk_module.Label(
                     cat_card,
                     text="; ".join(catalogue_health["notes"]),
                     wraplength=320,
                     takefocus=True,
                 ).pack(anchor="w", pady=(0, 4))
             if catalogue_health["untrusted"]:
-                ttkinter_module.Label(
+                ttk_module.Label(
                     cat_card,
                     text="Revalidate untrusted datasets:",
                     takefocus=True,
                 ).pack(anchor="w", pady=(4, 0))
                 for offender in catalogue_health["untrusted"][:3]:
                     display_name = offender["name"] or offender["id"]
-                    ttkinter_module.Button(
+                    ttk_module.Button(
                         cat_card,
                         text=f"Revalidate {display_name}",
                         command=lambda dataset_id=offender[
@@ -2263,7 +2251,7 @@ class CopernicanGUI:
                         takefocus=True,
                     ).pack(anchor="w", pady=2)
             models_health = self._model_engine_health_summary()
-            models_card = ttkinter_module.LabelFrame(
+            models_card = ttk_module.LabelFrame(
                 tiles, text="Models & Engines", padding=(10, 8)
             )
             models_card.grid(row=0, column=1, sticky="nsew")
@@ -2277,7 +2265,7 @@ class CopernicanGUI:
                 if models_health["model_badges"]
                 else "No compatibility badges recorded."
             )
-            ttkinter_module.Label(
+            ttk_module.Label(
                 models_card,
                 text=(
                     f"{models_health['model_count']} model(s) / "
@@ -2285,7 +2273,7 @@ class CopernicanGUI:
                 ),
                 takefocus=True,
             ).pack(anchor="w")
-            ttkinter_module.Label(
+            ttk_module.Label(
                 models_card,
                 text=badge_summary,
                 wraplength=320,
@@ -2303,72 +2291,72 @@ class CopernicanGUI:
                 )
             else:
                 stale_engines_text = "None"
-            ttkinter_module.Label(
+            ttk_module.Label(
                 models_card,
                 text=f"Stale models: {stale_models_text}",
                 wraplength=320,
                 takefocus=True,
             ).pack(anchor="w")
-            ttkinter_module.Label(
+            ttk_module.Label(
                 models_card,
                 text=f"Stale engines: {stale_engines_text}",
                 wraplength=320,
                 takefocus=True,
             ).pack(anchor="w")
-            action_row = ttkinter_module.Frame(models_card)
+            action_row = ttk_module.Frame(models_card)
             action_row.pack(anchor="w", pady=(6, 0))
-            ttkinter_module.Button(
+            ttk_module.Button(
                 action_row,
                 text="View models",
                 command=self.show_models,
                 takefocus=True,
             ).pack(side="left", padx=2)
-            ttkinter_module.Button(
+            ttk_module.Button(
                 action_row,
                 text="View engines",
                 command=self.show_engines,
                 takefocus=True,
             ).pack(side="left", padx=2)
             if self.recent_runs or self.pinned_configs:
-                ttkinter_module.Separator(frame, orient="horizontal").pack(
+                ttk_module.Separator(frame, orient="horizontal").pack(
                     fill="x", pady=(4, 8)
                 )
             if self.recent_runs:
-                recent_runs_label = ttkinter_module.Label(
+                recent_runs_label = ttk_module.Label(
                     frame,
                     text="Recent runs",
                     takefocus=True,
                 )
                 recent_runs_label.pack(anchor="w")
                 for run in self.recent_runs:
-                    run_label = ttkinter_module.Label(
+                    run_label = ttk_module.Label(
                         frame,
                         text=run,
                         takefocus=True,
                     )
                     run_label.pack(anchor="w")
             if self.pinned_configs:
-                config_label = ttkinter_module.Label(
+                config_label = ttk_module.Label(
                     frame,
                     text="Quick configurations",
                     takefocus=True,
                 )
                 config_label.pack(anchor="w", pady=(12, 0))
                 for config in self.pinned_configs:
-                    config_entry_label = ttkinter_module.Label(
+                    config_entry_label = ttk_module.Label(
                         frame,
                         text=config,
                         takefocus=True,
                     )
                     config_entry_label.pack(anchor="w")
-            quick_actions_label = ttkinter_module.Label(
+            quick_actions_label = ttk_module.Label(
                 frame,
                 text="Quick actions",
                 takefocus=True,
             )
             quick_actions_label.pack(anchor="w", pady=(12, 0))
             for label_text, callback in self.quick_actions:
-                action_button = ttkinter_module.Button(
+                action_button = ttk_module.Button(
                     frame,
                     text=label_text,
                     command=callback,
@@ -2387,43 +2375,43 @@ class CopernicanGUI:
             self._validation_batch_progressbar = None
             self._validation_walker_progressbar = None
             self._page_header(frame, "Validation")
-            self._validation_status_label = ttkinter_module.Label(
+            self._validation_status_label = ttk_module.Label(
                 frame,
                 text=self._validation_status_base,
                 takefocus=True,
             )
             self._validation_status_label.pack(anchor="w")
-            progress_frame = ttkinter_module.Frame(frame)
+            progress_frame = ttk_module.Frame(frame)
             progress_frame.pack(fill="x", pady=(8, 8))
-            self._validation_progress_status_label = ttkinter_module.Label(
+            self._validation_progress_status_label = ttk_module.Label(
                 progress_frame,
                 text="Stage: Idle",
                 font=("Helvetica", 12, "bold"),
                 takefocus=True,
             )
             self._validation_progress_status_label.pack(anchor="w")
-            ttkinter_module.Label(
+            ttk_module.Label(
                 progress_frame,
                 text="Overall validation progress",
                 takefocus=True,
             ).pack(anchor="w", pady=(4, 0))
-            self._validation_batch_progressbar = ttkinter_module.Progressbar(
+            self._validation_batch_progressbar = ttk_module.Progressbar(
                 progress_frame, maximum=100, length=360
             )
             self._validation_batch_progressbar.pack(fill="x", pady=(2, 0))
-            ttkinter_module.Label(
+            ttk_module.Label(
                 progress_frame,
                 text="Per-manifest progress",
                 takefocus=True,
             ).pack(anchor="w", pady=(6, 0))
-            self._validation_walker_progressbar = ttkinter_module.Progressbar(
+            self._validation_walker_progressbar = ttk_module.Progressbar(
                 progress_frame, maximum=100, length=360
             )
             self._validation_walker_progressbar.pack(fill="x", pady=(2, 0))
-            controls = ttkinter_module.Frame(frame)
+            controls = ttk_module.Frame(frame)
             controls.pack(fill="x", pady=(8, 4))
             button_style = self._monitor_button_kwargs()
-            self._validation_button = ttkinter_module.Button(
+            self._validation_button = ttk_module.Button(
                 controls,
                 text="Run validation suite",
                 command=self._start_validation_run,
@@ -2431,7 +2419,7 @@ class CopernicanGUI:
                 **button_style,
             )
             self._validation_button.pack(side="left", padx=4)
-            self._validation_cancel_button = ttkinter_module.Button(
+            self._validation_cancel_button = ttk_module.Button(
                 controls,
                 text="Cancel validation",
                 command=self._cancel_validation_run,
@@ -2439,7 +2427,7 @@ class CopernicanGUI:
                 **button_style,
             )
             self._validation_cancel_button.pack(side="left", padx=4)
-            self._validation_clear_button = ttkinter_module.Button(
+            self._validation_clear_button = ttk_module.Button(
                 controls,
                 text="Clear validation",
                 command=self._clear_validation_results,
@@ -2447,7 +2435,7 @@ class CopernicanGUI:
                 **button_style,
             )
             self._validation_clear_button.pack(side="left", padx=4)
-            summary_frame = ttkinter_module.LabelFrame(
+            summary_frame = ttk_module.LabelFrame(
                 frame,
                 text="Validation log",
             )
@@ -2455,18 +2443,18 @@ class CopernicanGUI:
             summary_frame.columnconfigure(0, weight=1)
             summary_frame.rowconfigure(0, weight=0)
             summary_frame.rowconfigure(1, weight=0)
-            lock_frame = ttkinter_module.Frame(summary_frame)
+            lock_frame = ttk_module.Frame(summary_frame)
             lock_frame.grid(row=0, column=0, sticky="w", pady=(0, 4))
             self._validation_log_lock_var = tkinter_module.BooleanVar(
                 value=True
             )
-            ttkinter_module.Checkbutton(
+            ttk_module.Checkbutton(
                 lock_frame,
                 text="Lock summary to latest entry",
                 variable=self._validation_log_lock_var,
                 takefocus=True,
             ).pack(side="left")
-            text_panel = ttkinter_module.Frame(summary_frame)
+            text_panel = ttk_module.Frame(summary_frame)
             text_panel.grid(row=1, column=0, sticky="nsew")
             text_panel.columnconfigure(0, weight=1)
             text_panel.rowconfigure(0, weight=1)
@@ -2480,13 +2468,13 @@ class CopernicanGUI:
                 height=20,
             )
             text_widget.grid(row=0, column=0, sticky="nsew")
-            vscroll = ttkinter_module.Scrollbar(
+            vscroll = ttk_module.Scrollbar(
                 text_panel,
                 orient="vertical",
                 command=text_widget.yview,
             )
             vscroll.grid(row=0, column=1, sticky="ns")
-            hscroll = ttkinter_module.Scrollbar(
+            hscroll = ttk_module.Scrollbar(
                 text_panel,
                 orient="horizontal",
                 command=text_widget.xview,
@@ -2521,12 +2509,12 @@ class CopernicanGUI:
             section = self._analysis_sections[self._analysis_current_index]
             header_text = f"Analysis: {section['label']}"
             self._analysis_header_label = self._page_header(frame, header_text)
-            tab_bar = ttkinter_module.Frame(frame)
+            tab_bar = ttk_module.Frame(frame)
             tab_bar.pack(fill="x", pady=(0, 8))
             self._analysis_section_buttons = []
             button_style = self._monitor_button_kwargs()
             for index, sec in enumerate(self._analysis_sections):
-                button = ttkinter_module.Button(
+                button = ttk_module.Button(
                     tab_bar,
                     text=sec["label"],
                     command=lambda idx=index: self._navigate_analysis_section(
@@ -2537,18 +2525,18 @@ class CopernicanGUI:
                 )
                 button.pack(side="left", padx=4)
                 self._analysis_section_buttons.append(button)
-            self._analysis_description_label = ttkinter_module.Label(
+            self._analysis_description_label = ttk_module.Label(
                 frame,
                 text=section["description"],
                 wraplength=720,
                 takefocus=True,
             )
             self._analysis_description_label.pack(anchor="w", pady=(0, 8))
-            action_row = ttkinter_module.Frame(frame)
+            action_row = ttk_module.Frame(frame)
             action_row.pack(fill="x", pady=(0, 20))
             self._analysis_action_buttons = []
             for _ in range(3):
-                button = ttkinter_module.Button(
+                button = ttk_module.Button(
                     action_row,
                     text="",
                     command=self._analysis_placeholder_action,
@@ -2557,7 +2545,7 @@ class CopernicanGUI:
                 )
                 button.pack(side="left", padx=4)
                 self._analysis_action_buttons.append(button)
-            body = ttkinter_module.Frame(frame)
+            body = ttk_module.Frame(frame)
             body.pack(fill="both", expand=True)
             self._analysis_page_body = body
             self._refresh_analysis_section()
@@ -2619,7 +2607,7 @@ class CopernicanGUI:
         """Render the Run Summary tab content."""
 
         if tk_gui is None:
-            ttkinter_module.Label(
+            ttk_module.Label(
                 container,
                 text="GUI is unavailable in this environment.",
                 wraplength=720,
@@ -2631,20 +2619,20 @@ class CopernicanGUI:
             run_path_var = tkinter_module.StringVar()
             self._analysis_run_path_var = run_path_var
 
-        row = ttkinter_module.Frame(container)
+        row = ttk_module.Frame(container)
         row.pack(fill="x", pady=(0, 6))
-        ttkinter_module.Label(row, text="Run directory:").pack(side="left")
-        entry = ttkinter_module.Entry(row, textvariable=run_path_var, width=60)
+        ttk_module.Label(row, text="Run directory:").pack(side="left")
+        entry = ttk_module.Entry(row, textvariable=run_path_var, width=60)
         entry.pack(side="left", fill="x", expand=True, padx=(4, 4))
         entry.bind("<Return>", lambda event: self._load_analysis_summary())
-        ttkinter_module.Button(
+        ttk_module.Button(
             row,
             text="Browse…",
             command=self._browse_analysis_run_dir,
             takefocus=True,
             **self._monitor_button_kwargs(),
         ).pack(side="left")
-        ttkinter_module.Button(
+        ttk_module.Button(
             row,
             text="Load summary",
             command=self._load_analysis_summary,
@@ -2652,7 +2640,7 @@ class CopernicanGUI:
             **self._monitor_button_kwargs(),
         ).pack(side="left", padx=(4, 0))
 
-        self._analysis_summary_status_label = ttkinter_module.Label(
+        self._analysis_summary_status_label = ttk_module.Label(
             container,
             text="Select a run output directory and load its summary.",
             wraplength=720,
@@ -2660,7 +2648,7 @@ class CopernicanGUI:
         )
         self._analysis_summary_status_label.pack(anchor="w", pady=(4, 6))
 
-        text_panel = ttkinter_module.Frame(container)
+        text_panel = ttk_module.Frame(container)
         text_panel.pack(fill="both", expand=True)
         text_panel.columnconfigure(0, weight=1)
         text_panel.rowconfigure(0, weight=1)
@@ -2677,13 +2665,13 @@ class CopernicanGUI:
             self._analysis_summary_text_widget.grid(
                 row=0, column=0, sticky="nsew"
             )
-            vscroll = ttkinter_module.Scrollbar(
+            vscroll = ttk_module.Scrollbar(
                 text_panel,
                 orient="vertical",
                 command=self._analysis_summary_text_widget.yview,
             )
             vscroll.grid(row=0, column=1, sticky="ns")
-            hscroll = ttkinter_module.Scrollbar(
+            hscroll = ttk_module.Scrollbar(
                 text_panel,
                 orient="horizontal",
                 command=self._analysis_summary_text_widget.xview,
@@ -2694,7 +2682,7 @@ class CopernicanGUI:
             )
             self._analysis_summary_text_widget.configure(state="disabled")
 
-            summary_label = ttkinter_module.Label(
+            summary_label = ttk_module.Label(
                 container,
                 text=(
                     "Loaded summaries show run metadata, diagnostics and "
@@ -2713,7 +2701,7 @@ class CopernicanGUI:
         """Render the Posteriors tab with the shared plot viewer."""
 
         if tk_gui is None:
-            ttkinter_module.Label(
+            ttk_module.Label(
                 container,
                 text="GUI is unavailable in this environment.",
                 wraplength=720,
@@ -2726,7 +2714,7 @@ class CopernicanGUI:
             if run_dir
             else "Current run: <select from Run Summary>"
         )
-        run_label_widget = ttkinter_module.Label(
+        run_label_widget = ttk_module.Label(
             container,
             text=run_label,
             wraplength=720,
@@ -2734,16 +2722,16 @@ class CopernicanGUI:
         )
         run_label_widget.pack(anchor="w", pady=(0, 4))
 
-        selection_row = ttkinter_module.Frame(container)
+        selection_row = ttk_module.Frame(container)
         selection_row.pack(fill="x", pady=(0, 4))
-        run_label_field = ttkinter_module.Label(
+        run_label_field = ttk_module.Label(
             selection_row,
             text="Posterior file:",
         )
         run_label_field.pack(side="left")
         if self._analysis_posterior_file_var is None:
             self._analysis_posterior_file_var = tkinter_module.StringVar()
-        combobox = ttkinter_module.Combobox(
+        combobox = ttk_module.Combobox(
             selection_row,
             textvariable=self._analysis_posterior_file_var,
             values=[path.name for path in self._analysis_posterior_files],
@@ -2752,7 +2740,7 @@ class CopernicanGUI:
         )
         combobox.pack(side="left", fill="x", expand=True, padx=(4, 0))
         self._analysis_posterior_combobox = combobox
-        ttkinter_module.Button(
+        ttk_module.Button(
             selection_row,
             text="Load",
             command=self._analysis_load_selected_posterior,
@@ -2760,7 +2748,7 @@ class CopernicanGUI:
             **self._monitor_button_kwargs(),
         ).pack(side="left", padx=(4, 0))
 
-        self._analysis_posterior_status_label = ttkinter_module.Label(
+        self._analysis_posterior_status_label = ttk_module.Label(
             container,
             text=(
                 "Find a run directory and load one of its posterior "
@@ -2771,14 +2759,14 @@ class CopernicanGUI:
         )
         self._analysis_posterior_status_label.pack(anchor="w", pady=(4, 6))
 
-        viewer_holder = ttkinter_module.Frame(container)
+        viewer_holder = ttk_module.Frame(container)
         viewer_holder.pack(fill="both", expand=True)
         viewer_holder.columnconfigure(0, weight=1)
         viewer_holder.rowconfigure(0, weight=1)
         try:
             viewer = PlotViewer(viewer_holder)
         except RuntimeError as exc:  # pragma: no cover - unlikely in Tk env
-            ttkinter_module.Label(
+            ttk_module.Label(
                 viewer_holder,
                 text=f"Plot viewer unavailable: {exc}",
                 wraplength=720,
@@ -2788,25 +2776,25 @@ class CopernicanGUI:
             viewer.grid(row=0, column=0, sticky="nsew")
             self._analysis_plot_viewer = viewer
 
-        controls = ttkinter_module.Frame(container)
+        controls = ttk_module.Frame(container)
         controls.pack(fill="x", pady=(6, 0))
-        ttkinter_module.Button(
+        ttk_module.Button(
             controls,
             text="Fit all",
             command=self._analysis_fit_posterior_full,
             takefocus=True,
             **self._monitor_button_kwargs(),
         ).pack(side="left")
-        ttkinter_module.Label(
+        ttk_module.Label(
             controls,
             text="Enable zoom mode above to pan the figure by dragging.",
             wraplength=520,
             takefocus=True,
         ).pack(side="left", padx=(12, 0))
 
-        asset_controls = ttkinter_module.Frame(container)
+        asset_controls = ttk_module.Frame(container)
         asset_controls.pack(fill="x", pady=(4, 0))
-        corner_button = ttkinter_module.Button(
+        corner_button = ttk_module.Button(
             asset_controls,
             text="Show corner plot",
             command=self._analysis_show_corner_plot,
@@ -2814,7 +2802,7 @@ class CopernicanGUI:
             **self._monitor_button_kwargs(),
         )
         corner_button.pack(side="left")
-        histogram_button = ttkinter_module.Button(
+        histogram_button = ttk_module.Button(
             asset_controls,
             text="Show histograms",
             command=self._analysis_show_histogram_plot,
@@ -2834,7 +2822,7 @@ class CopernicanGUI:
         """Render the Comparisons tab content that diff two runs."""
 
         if tk_gui is None:
-            ttkinter_module.Label(
+            ttk_module.Label(
                 container,
                 text="GUI is unavailable in this environment.",
                 wraplength=720,
@@ -2850,15 +2838,13 @@ class CopernicanGUI:
             label_text: str, selector_var: tkinter_module.StringVar
         ) -> None:
             """Render a labelled entry plus browse button for run paths."""
-            row = ttkinter_module.Frame(container)
+            row = ttk_module.Frame(container)
             row.pack(fill="x", pady=(0, 4))
-            ttkinter_module.Label(row, text=label_text).pack(side="left")
-            entry = ttkinter_module.Entry(
-                row, textvariable=selector_var, width=60
-            )
+            ttk_module.Label(row, text=label_text).pack(side="left")
+            entry = ttk_module.Entry(row, textvariable=selector_var, width=60)
             entry.pack(side="left", fill="x", expand=True, padx=(4, 4))
             entry.bind("<Return>", lambda event: self._analysis_compare_runs())
-            ttkinter_module.Button(
+            ttk_module.Button(
                 row,
                 text="Browse…",
                 command=lambda: self._analysis_browse_comparison_path(
@@ -2875,7 +2861,7 @@ class CopernicanGUI:
             "Alternative run directory:", self._analysis_comparison_alt_var
         )
 
-        self._analysis_comparison_status_label = ttkinter_module.Label(
+        self._analysis_comparison_status_label = ttk_module.Label(
             container,
             text="Provide both directories and refresh to see deltas.",
             wraplength=720,
@@ -2883,7 +2869,7 @@ class CopernicanGUI:
         )
         self._analysis_comparison_status_label.pack(anchor="w", pady=(4, 6))
 
-        panel = ttkinter_module.Frame(container)
+        panel = ttk_module.Frame(container)
         panel.pack(fill="both", expand=True)
         panel.columnconfigure(0, weight=1)
         panel.rowconfigure(0, weight=1)
@@ -2897,13 +2883,13 @@ class CopernicanGUI:
             height=16,
         )
         text_widget.grid(row=0, column=0, sticky="nsew")
-        vscroll = ttkinter_module.Scrollbar(
+        vscroll = ttk_module.Scrollbar(
             panel,
             orient="vertical",
             command=text_widget.yview,
         )
         vscroll.grid(row=0, column=1, sticky="ns")
-        hscroll = ttkinter_module.Scrollbar(
+        hscroll = ttk_module.Scrollbar(
             panel,
             orient="horizontal",
             command=text_widget.xview,
@@ -2915,7 +2901,7 @@ class CopernicanGUI:
         text_widget.configure(state="disabled")
         self._analysis_comparison_text_widget = text_widget
 
-        ttkinter_module.Label(
+        ttk_module.Label(
             container,
             text=(
                 "Comparisons highlight duration deltas, dataset row counts "
@@ -2958,7 +2944,7 @@ class CopernicanGUI:
             initialdir=self._output_root()
         )
         if directory:
-            var.set(directory)
+            path_var.set(directory)
 
     def _analysis_set_comparison_status(
         self, message: str, *, severity: str = "INFO"
@@ -3091,7 +3077,7 @@ class CopernicanGUI:
     ) -> None:
         """Render a placeholder tab that is pending implementation."""
 
-        ttkinter_module.Label(
+        ttk_module.Label(
             container,
             text=(
                 f"{label} tools are coming soon. "
@@ -3100,7 +3086,7 @@ class CopernicanGUI:
             wraplength=720,
             justify="left",
         ).pack(anchor="w")
-        ttkinter_module.Label(
+        ttk_module.Label(
             container,
             text="Use the numbered buttons above once those tabs are live.",
             wraplength=720,
@@ -4084,12 +4070,12 @@ class CopernicanGUI:
             """Render the Run Builder navigation controls and status."""
             current_step = self.builder_steps[self.current_step_index]
             self._page_header(frame, f"Run builder: {current_step}")
-            step_frame = ttkinter_module.Frame(frame)
+            step_frame = ttk_module.Frame(frame)
             step_frame.pack(fill="x", pady=(0, 12))
             self._builder_step_buttons = []
             jump_button_style = self._monitor_button_kwargs()
             for index, step in enumerate(self.builder_steps):
-                indicator = ttkinter_module.Button(
+                indicator = ttk_module.Button(
                     step_frame,
                     text=step,
                     command=lambda idx=index: self.jump_to_step(idx),
@@ -4100,7 +4086,7 @@ class CopernicanGUI:
                 self._builder_step_buttons.append(indicator)
             status_message = self._builder_status_message()
             if status_message:
-                body = ttkinter_module.Label(
+                body = ttk_module.Label(
                     frame,
                     text=status_message,
                     wraplength=720,
@@ -4109,10 +4095,10 @@ class CopernicanGUI:
                 )
                 body.pack(anchor="w", pady=(8, 8))
 
-            controls = ttkinter_module.Frame(frame)
+            controls = ttk_module.Frame(frame)
             controls.pack(anchor="w")
             nav_button_style = self._monitor_button_kwargs()
-            ttkinter_module.Button(
+            ttk_module.Button(
                 controls,
                 text="Previous",
                 command=self.previous_step,
@@ -4131,7 +4117,7 @@ class CopernicanGUI:
                 self.current_step_index == manifest_index
                 and self.manifest_workspace is None
             )
-            ttkinter_module.Button(
+            ttk_module.Button(
                 controls,
                 text="Next",
                 command=self._handle_builder_next,
@@ -4143,7 +4129,7 @@ class CopernicanGUI:
                 takefocus=True,
                 **nav_button_style,
             ).pack(side="left", padx=4)
-            ttkinter_module.Button(
+            ttk_module.Button(
                 controls,
                 text="Cancel",
                 command=self.cancel_builder,
@@ -4155,7 +4141,7 @@ class CopernicanGUI:
                 takefocus=True,
                 **nav_button_style,
             ).pack(side="left", padx=4)
-            content_container = ttkinter_module.Frame(frame)
+            content_container = ttk_module.Frame(frame)
             content_container.pack(fill="both", expand=True)
             scroll_panel = self._create_scrollable_panel(content_container)
             self._build_run_builder_step(scroll_panel)
@@ -4311,8 +4297,8 @@ class CopernicanGUI:
         container: tkinter_module.Frame,
     ) -> None:
         """Render the Seed step UI, including seed entry and buttons."""
-        ttkinter_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
-        ttkinter_module.Label(
+        ttk_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
+        ttk_module.Label(
             container,
             text=(
                 "Choose a deterministic seed, use the timestamp generator, or "
@@ -4329,13 +4315,13 @@ class CopernicanGUI:
             self._refresh_builder_step_indicators()
 
         seed_var.trace_add("write", _update_seed)
-        entry = ttkinter_module.Entry(
+        entry = ttk_module.Entry(
             container,
             textvariable=seed_var,
             width=24,
         )
         entry.pack(anchor="w", pady=(6, 8))
-        button_column = ttkinter_module.Frame(container)
+        button_column = ttk_module.Frame(container)
         button_column.pack(anchor="w", fill="x", pady=(0, 8))
 
         def _add_seed_button(
@@ -4343,7 +4329,7 @@ class CopernicanGUI:
             action: Callable[[], None],
         ) -> None:
             """Add a configured button to the temporary seed button column."""
-            seed_button = ttkinter_module.Button(
+            seed_button = ttk_module.Button(
                 button_column,
                 text=label,
                 command=action,
@@ -4365,7 +4351,7 @@ class CopernicanGUI:
 
         def _add_seed_button(label: str, action: Callable[[], None]) -> None:
             """Place a seed shortcut button inside the provided container."""
-            ttkinter_module.Button(
+            ttk_module.Button(
                 container,
                 text=label,
                 command=action,
@@ -4423,8 +4409,8 @@ class CopernicanGUI:
         container: tkinter_module.Frame,
     ) -> None:
         """Render the Models step UI for selecting and previewing a model."""
-        ttkinter_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
-        ttkinter_module.Label(
+        ttk_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
+        ttk_module.Label(
             container,
             text="Pick one YAML-defined model to include in the run.",
             wraplength=720,
@@ -4434,15 +4420,15 @@ class CopernicanGUI:
             self.model_index.values(), key=lambda entry: entry["id"]
         )
         if not available:
-            ttkinter_module.Label(
+            ttk_module.Label(
                 container,
                 text="No models available; refresh inventory and try again.",
                 takefocus=True,
             ).pack(anchor="w", pady=(6, 0))
             return
-        list_container = ttkinter_module.Frame(container)
+        list_container = ttk_module.Frame(container)
         list_container.pack(fill="both", expand=True, pady=(8, 4))
-        list_frame = ttkinter_module.Frame(list_container)
+        list_frame = ttk_module.Frame(list_container)
         list_frame.pack(side="left", fill="both", expand=True)
         listbox = tkinter_module.Listbox(
             list_frame,
@@ -4451,12 +4437,12 @@ class CopernicanGUI:
             exportselection=False,
         )
         listbox.pack(side="left", fill="both", expand=True)
-        scrollbar = ttkinter_module.Scrollbar(
+        scrollbar = ttk_module.Scrollbar(
             list_frame, orient="vertical", command=listbox.yview
         )
         scrollbar.pack(side="right", fill="y")
         listbox.configure(yscrollcommand=scrollbar.set)
-        button_frame = ttkinter_module.Frame(list_container)
+        button_frame = ttk_module.Frame(list_container)
         button_frame.pack(side="left", fill="y", padx=(8, 0), anchor="n")
 
         def _view_selected_model() -> None:
@@ -4485,17 +4471,17 @@ class CopernicanGUI:
                 return
             self._open_path_with_system(entry["path"])
 
-        ttkinter_module.Button(
+        ttk_module.Button(
             button_frame,
             text="View model",
             command=_view_selected_model,
         ).pack(fill="x", pady=(0, 4))
-        ttkinter_module.Button(
+        ttk_module.Button(
             button_frame,
             text="Open model YML...",
             command=_open_selected_model_file,
         ).pack(fill="x")
-        summary = ttkinter_module.Label(
+        summary = ttk_module.Label(
             container,
             text="",
             wraplength=720,
@@ -4510,7 +4496,7 @@ class CopernicanGUI:
             ):
                 listbox.select_set(index)
 
-        preview_frame = ttkinter_module.LabelFrame(
+        preview_frame = ttk_module.LabelFrame(
             container,
             text="Model preview",
             padding=(8, 6),
@@ -4520,7 +4506,7 @@ class CopernicanGUI:
         preview_frame.columnconfigure(1, weight=2)
         preview_frame.rowconfigure(0, weight=1)
 
-        preview_panel = ttkinter_module.Frame(preview_frame)
+        preview_panel = ttk_module.Frame(preview_frame)
         preview_panel.grid(row=0, column=0, sticky="nsew")
         preview_panel.columnconfigure(0, weight=1)
         preview_panel.rowconfigure(0, weight=1)
@@ -4532,11 +4518,11 @@ class CopernicanGUI:
             height=18,
         )
         preview_text.grid(row=0, column=0, sticky="nsew")
-        vscroll = ttkinter_module.Scrollbar(
+        vscroll = ttk_module.Scrollbar(
             preview_panel, orient="vertical", command=preview_text.yview
         )
         vscroll.grid(row=0, column=1, sticky="ns")
-        hscroll = ttkinter_module.Scrollbar(
+        hscroll = ttk_module.Scrollbar(
             preview_panel, orient="horizontal", command=preview_text.xview
         )
         hscroll.grid(row=1, column=0, sticky="ew")
@@ -4545,9 +4531,9 @@ class CopernicanGUI:
             xscrollcommand=hscroll.set,
         )
 
-        action_frame = ttkinter_module.Frame(container)
+        action_frame = ttk_module.Frame(container)
         action_frame.pack(fill="x", pady=(4, 4))
-        ttkinter_module.Button(
+        ttk_module.Button(
             action_frame,
             text="Equations & expressions…",
             command=self._show_equations_window,
@@ -4622,7 +4608,7 @@ class CopernicanGUI:
         window.transient(self.root)
         window.rowconfigure(0, weight=1)
         window.columnconfigure(0, weight=1)
-        body = ttkinter_module.Frame(window, padding=(12, 12, 12, 12))
+        body = ttk_module.Frame(window, padding=(12, 12, 12, 12))
         body.grid(row=0, column=0, sticky="nsew")
         body.rowconfigure(0, weight=1)
         body.columnconfigure(0, weight=1)
@@ -4684,10 +4670,10 @@ class CopernicanGUI:
             for section, equation_value in equations.items():
                 if isinstance(equation_value, str):
                     _append(section, equation_value)
-                elif isinstance(value, Sequence) and not isinstance(
-                    value, str
+                elif isinstance(equation_value, Sequence) and not isinstance(
+                    equation_value, str
                 ):
-                    for idx, entry in enumerate(value):
+                    for idx, entry in enumerate(equation_value):
                         _append(f"{section} {idx + 1}", entry)
         return expressions
 
@@ -4757,8 +4743,8 @@ class CopernicanGUI:
         container: tkinter_module.Frame,
     ) -> None:
         """Render dataset selection panels grouped by observation type."""
-        ttkinter_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
-        ttkinter_module.Label(
+        ttk_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
+        ttk_module.Label(
             container,
             text=(
                 "Pick one dataset per observation type "
@@ -4773,7 +4759,7 @@ class CopernicanGUI:
             self.catalogue_index.values(), key=lambda entry: entry["id"]
         )
         if not entries:
-            ttkinter_module.Label(
+            ttk_module.Label(
                 container,
                 text="No datasets registered; run inventory refresh first.",
                 takefocus=True,
@@ -4790,9 +4776,9 @@ class CopernicanGUI:
             for dtype in type_groups
             if dtype not in ("sne", "bao", "cmb")
         )
-        catalogue_panel = ttkinter_module.Frame(container)
+        catalogue_panel = ttk_module.Frame(container)
         catalogue_panel.pack(fill="x", pady=(6, 0))
-        dropdown_widgets: dict[str, ttkinter_module.Combobox] = {}
+        dropdown_widgets: dict[str, ttk_module.Combobox] = {}
         id_lookup: dict[str, tuple[str, int]] = {}
 
         def _add_dataset_section(
@@ -4803,7 +4789,7 @@ class CopernicanGUI:
             width_px: int = 500,
         ) -> None:
             """Insert a dataset selector row for the given observation type."""
-            ttkinter_module.Label(
+            ttk_module.Label(
                 parent,
                 text=(
                     f"{dtype.upper()} datasets – {len(records)} "
@@ -4811,14 +4797,14 @@ class CopernicanGUI:
                 ),
                 takefocus=True,
             ).pack(anchor="w", pady=(4, 2))
-            combo_frame = ttkinter_module.Frame(parent, width=width_px)
+            combo_frame = ttk_module.Frame(parent, width=width_px)
             combo_frame.pack(anchor="w", pady=(0, 16))
             placeholder = "Select dataset…"
             values = [
                 f"{record['id']} – {record.get('name', record['id'])}"
                 for record in records
             ]
-            combo = ttkinter_module.Combobox(
+            combo = ttk_module.Combobox(
                 combo_frame,
                 values=[placeholder] + values,
                 state="readonly",
@@ -4832,7 +4818,7 @@ class CopernicanGUI:
 
         for dtype in ordered_types:
             _add_dataset_section(catalogue_panel, dtype, type_groups[dtype])
-        detail_label = ttkinter_module.Label(
+        detail_label = ttk_module.Label(
             container,
             text="Select datasets to preview details.",
             wraplength=720,
@@ -4908,7 +4894,7 @@ class CopernicanGUI:
                 combo = dropdown_widgets[dtype]
                 combo.current(index + 1)
         _refresh_data_selection()
-        action_row = ttkinter_module.Frame(container)
+        action_row = ttk_module.Frame(container)
         action_row.pack(anchor="w")
 
         def _open_focused_folder() -> None:
@@ -4953,17 +4939,17 @@ class CopernicanGUI:
                     context="data",
                 )
 
-        ttkinter_module.Button(
+        ttk_module.Button(
             action_row,
             text="Open folder",
             command=_open_focused_folder,
         ).pack(side="left", padx=2)
-        ttkinter_module.Button(
+        ttk_module.Button(
             action_row,
             text="View metadata",
             command=_view_focused_metadata,
         ).pack(side="left", padx=2)
-        ttkinter_module.Button(
+        ttk_module.Button(
             action_row,
             text="Revalidate parser",
             command=_revalidate_focused_parser,
@@ -4974,8 +4960,8 @@ class CopernicanGUI:
         container: tkinter_module.Frame,
     ) -> None:
         """Render the engine picker and run settings controls."""
-        ttkinter_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
-        ttkinter_module.Label(
+        ttk_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
+        ttk_module.Label(
             container,
             text=("Choose the computational backend to run your models."),
             wraplength=720,
@@ -4985,7 +4971,7 @@ class CopernicanGUI:
             self.engine_index.values(), key=lambda entry: entry["label"]
         )
         if not options:
-            ttkinter_module.Label(
+            ttk_module.Label(
                 container,
                 text=(
                     "No engines discovered; ensure the engines folder is "
@@ -5010,7 +4996,7 @@ class CopernicanGUI:
             choices[0],
         )
         combo_var = tkinter_module.StringVar(value=initial_display)
-        combo = ttkinter_module.Combobox(
+        combo = ttk_module.Combobox(
             container,
             textvariable=combo_var,
             values=choices,
@@ -5057,7 +5043,7 @@ class CopernicanGUI:
             self._refresh_builder_step_indicators()
 
         combo.bind("<<ComboboxSelected>>", _apply_engine_selection)
-        detail_label = ttkinter_module.Label(
+        detail_label = ttk_module.Label(
             container,
             text="Select an engine to see details.",
             wraplength=720,
@@ -5065,7 +5051,7 @@ class CopernicanGUI:
         )
         detail_label.pack(anchor="w", pady=(4, 4))
         _apply_engine_selection()
-        button_frame = ttkinter_module.Frame(container)
+        button_frame = ttk_module.Frame(container)
         button_frame.pack(anchor="w", pady=(4, 0))
 
         def _open_selected_engine_folder() -> None:
@@ -5100,12 +5086,12 @@ class CopernicanGUI:
                     context="engine",
                 )
 
-        ttkinter_module.Button(
+        ttk_module.Button(
             button_frame,
             text="Open engine folder",
             command=_open_selected_engine_folder,
         ).pack(side="left", padx=2)
-        ttkinter_module.Button(
+        ttk_module.Button(
             button_frame,
             text="View module",
             command=_view_selected_engine_module,
@@ -5121,7 +5107,7 @@ class CopernicanGUI:
         if self._engine_run_settings_frame is not None:
             self._engine_run_settings_frame.destroy()
             self._engine_run_settings_frame = None
-        settings_frame = ttkinter_module.LabelFrame(
+        settings_frame = ttk_module.LabelFrame(
             container,
             text="Run settings",
         )
@@ -5129,7 +5115,7 @@ class CopernicanGUI:
         self._engine_run_settings_frame = settings_frame
         capabilities = self.engine_capabilities
         if not capabilities or not capabilities.settings:
-            ttkinter_module.Label(
+            ttk_module.Label(
                 settings_frame,
                 text="This engine exposes no adjustable settings.",
                 wraplength=720,
@@ -5159,17 +5145,17 @@ class CopernicanGUI:
                     )
                     self._engine_setting_vars[setting.key] = setting_var
                 elif not setting_var.get():
-                    var.set(str(initial_value))
+                    setting_var.set(str(initial_value))
             self._engine_setting_specs[setting.key] = setting
-            row = ttkinter_module.Frame(settings_frame)
+            row = ttk_module.Frame(settings_frame)
             row.pack(anchor="w", pady=(4, 0))
-            ttkinter_module.Label(
+            ttk_module.Label(
                 row,
                 text=f"{setting.label}:",
                 width=24,
                 takefocus=True,
             ).pack(side="left")
-            field_frame = ttkinter_module.Frame(row)
+            field_frame = ttk_module.Frame(row)
             field_frame.pack(side="left", padx=(6, 0))
             draft_field = self._draft_field_for_setting(setting.key)
 
@@ -5187,9 +5173,9 @@ class CopernicanGUI:
                 variable.trace_add("write", _update)
 
             if dtype == "bool":
-                control = ttkinter_module.Checkbutton(
+                control = ttk_module.Checkbutton(
                     field_frame,
-                    variable=var,
+                    variable=setting_var,
                     takefocus=True,
                     command=partial(
                         self._handle_engine_setting_update, setting.key
@@ -5224,27 +5210,29 @@ class CopernicanGUI:
                     from_=min_value,
                     to=max_value,
                     increment=increment,
-                    textvariable=var,
+                    textvariable=setting_var,
                     width=14,
                     validate="focusout",
                     validatecommand=(validate_cmd, "%P", setting.key),
                 )
                 control.pack(anchor="w")
-                if isinstance(var, tkinter_module.StringVar):
-                    _bind_update(var, setting.key)
+                if isinstance(setting_var, tkinter_module.StringVar):
+                    _bind_update(setting_var, setting.key)
             if dtype == "bool":
                 pass
-            elif draft_field and isinstance(var, tkinter_module.StringVar):
+            elif draft_field and isinstance(
+                setting_var, tkinter_module.StringVar
+            ):
 
                 def _sync_draft(
                     *_: object,
                     attr: str = draft_field,
-                    variable: tkinter_module.StringVar = var,
+                    variable: tkinter_module.StringVar = setting_var,
                 ) -> None:
                     """Mirror widget values to the manifest draft."""
                     setattr(self.draft, attr, variable.get())
 
-                var.trace_add("write", _sync_draft)
+                setting_var.trace_add("write", _sync_draft)
             metadata: list[str] = []
             if setting.description:
                 metadata.append(setting.description)
@@ -5255,7 +5243,7 @@ class CopernicanGUI:
             if recommendations and setting.key in recommendations:
                 metadata.append(recommendations[setting.key])
             if metadata:
-                ttkinter_module.Label(
+                ttk_module.Label(
                     settings_frame,
                     text=" ".join(metadata),
                     wraplength=720,
@@ -5400,8 +5388,8 @@ class CopernicanGUI:
         container: tkinter_module.Frame,
     ) -> None:
         """Render the manifest description/editor step for the builder."""
-        ttkinter_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
-        ttkinter_module.Label(
+        ttk_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
+        ttk_module.Label(
             container,
             text="Describe the production plan or testing notes for this run.",
             wraplength=720,
@@ -5414,13 +5402,13 @@ class CopernicanGUI:
             self.draft.plan = plan_var.get()
 
         plan_var.trace_add("write", _update_plan)
-        ttkinter_module.Entry(
+        ttk_module.Entry(
             container,
             textvariable=plan_var,
             width=80,
         ).pack(anchor="w", pady=(6, 0))
 
-        manifest_frame = ttkinter_module.LabelFrame(
+        manifest_frame = ttk_module.LabelFrame(
             container,
             text="Manifest",
         )
@@ -5430,13 +5418,13 @@ class CopernicanGUI:
             if self.manifest_workspace
             else "Manifest not saved yet."
         )
-        ttkinter_module.Label(
+        ttk_module.Label(
             manifest_frame,
             text=status_text,
             wraplength=720,
             takefocus=True,
         ).pack(anchor="w", pady=(0, 4))
-        preview_panel = ttkinter_module.Frame(manifest_frame)
+        preview_panel = ttk_module.Frame(manifest_frame)
         preview_panel.pack(fill="both", expand=True)
         preview_panel.columnconfigure(0, weight=1)
         preview_panel.rowconfigure(0, weight=1)
@@ -5448,13 +5436,13 @@ class CopernicanGUI:
             height=16,
         )
         manifest_text_widget.grid(row=0, column=0, sticky="nsew")
-        vscroll = ttkinter_module.Scrollbar(
+        vscroll = ttk_module.Scrollbar(
             preview_panel,
             orient="vertical",
             command=manifest_text_widget.yview,
         )
         vscroll.grid(row=0, column=1, sticky="ns")
-        hscroll = ttkinter_module.Scrollbar(
+        hscroll = ttk_module.Scrollbar(
             preview_panel,
             orient="horizontal",
             command=manifest_text_widget.xview,
@@ -5470,14 +5458,14 @@ class CopernicanGUI:
             reminder_text = self._MANIFEST_REMINDER_MESSAGE
         else:
             reminder_text = "Manifest saved; proceed to confirmation."
-        ttkinter_module.Label(
+        ttk_module.Label(
             container,
             text=reminder_text,
             wraplength=720,
             takefocus=True,
         ).pack(anchor="w", pady=(8, 0))
 
-        actions_frame = ttkinter_module.Frame(container)
+        actions_frame = ttk_module.Frame(container)
         actions_frame.pack(anchor="w", pady=(12, 0))
 
         def _save_manifest_action() -> None:
@@ -5500,25 +5488,25 @@ class CopernicanGUI:
             if self.manifest_workspace is not None
             else tkinter_module.DISABLED
         )
-        ttkinter_module.Button(
+        ttk_module.Button(
             actions_frame,
             text="Save manifest",
             command=_save_manifest_action,
             state=save_state,
         ).pack(side="left", padx=(0, 4))
-        ttkinter_module.Button(
+        ttk_module.Button(
             actions_frame,
             text="Save and confirm",
             command=self._save_manifest_and_proceed,
             state=save_state,
         ).pack(side="left", padx=(0, 4))
-        ttkinter_module.Button(
+        ttk_module.Button(
             actions_frame,
             text="Save to external folder...",
             command=self._save_manifest_to_external_folder,
             state=save_state,
         ).pack(side="left", padx=(0, 4))
-        ttkinter_module.Button(
+        ttk_module.Button(
             actions_frame,
             text="Clear manifest",
             command=lambda: (
@@ -5527,7 +5515,7 @@ class CopernicanGUI:
             ),
             state=clear_state,
         ).pack(side="left", padx=(0, 4))
-        ttkinter_module.Button(
+        ttk_module.Button(
             actions_frame,
             text="Open manifest...",
             command=self._open_manifest_file,
@@ -5577,8 +5565,8 @@ class CopernicanGUI:
     ) -> None:
         """Show the confirmation summary and start-run controls."""
         self._stage_confirm_manifest()
-        ttkinter_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
-        summary_frame = ttkinter_module.Frame(container)
+        ttk_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
+        summary_frame = ttk_module.Frame(container)
         summary_frame.pack(anchor="w")
         summary_entries = [
             ("Seed", self.draft.seed or "unset"),
@@ -5603,20 +5591,20 @@ class CopernicanGUI:
             ]
         )
         for label, entry_value in summary_entries:
-            ttkinter_module.Label(
+            ttk_module.Label(
                 summary_frame,
                 text=f"{label}: {entry_value}",
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w")
-        button_frame = ttkinter_module.Frame(container)
+        button_frame = ttk_module.Frame(container)
         button_frame.pack(anchor="w", pady=(12, 0))
         start_state = (
             tkinter_module.NORMAL
             if self.manifest_workspace is not None
             else tkinter_module.DISABLED
         )
-        ttkinter_module.Button(
+        ttk_module.Button(
             button_frame,
             text="Start run",
             command=self.confirm_start_run,
@@ -5651,7 +5639,7 @@ class CopernicanGUI:
         def builder(frame: tkinter_module.Frame) -> None:
             """Render the dataset catalogue view with filters."""
             self._page_header(frame, "Data catalogue")
-            ttkinter_module.Label(
+            ttk_module.Label(
                 frame,
                 text=(
                     "Datasets remain selectable from the Run Builder while "
@@ -5661,15 +5649,15 @@ class CopernicanGUI:
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w", pady=(4, 8))
-            filters = ttkinter_module.Frame(frame)
+            filters = ttk_module.Frame(frame)
             filters.pack(anchor="w", pady=(0, 8))
-            filters_label = ttkinter_module.Label(
+            filters_label = ttk_module.Label(
                 filters,
                 text="Filters:",
                 takefocus=True,
             )
             filters_label.pack(side="left", padx=(0, 4))
-            ttkinter_module.Button(
+            ttk_module.Button(
                 filters,
                 text="All",
                 command=lambda: (
@@ -5679,7 +5667,7 @@ class CopernicanGUI:
                 takefocus=True,
             ).pack(side="left", padx=2)
             for key in ("sne", "bao", "cmb"):
-                ttkinter_module.Button(
+                ttk_module.Button(
                     filters,
                     text=key.upper(),
                     command=lambda k=key: (
@@ -5689,7 +5677,7 @@ class CopernicanGUI:
                     takefocus=True,
                 ).pack(side="left", padx=2)
             active = self.filter_catalogue(self.last_filter_types or [])
-            ttkinter_module.Label(
+            ttk_module.Label(
                 frame,
                 text=(
                     f"Showing {len(active)} dataset(s); trust alerts: "
@@ -5699,13 +5687,13 @@ class CopernicanGUI:
             ).pack(anchor="w", pady=(0, 6))
             catalogue_panel = self._create_scrollable_panel(frame)
             for dataset in active:
-                entry_frame = ttkinter_module.LabelFrame(
+                entry_frame = ttk_module.LabelFrame(
                     catalogue_panel,
                     text=f"{dataset['name']} ({dataset['id']})",
                     padding=(8, 6),
                 )
                 entry_frame.pack(fill="x", pady=4)
-                ttkinter_module.Label(
+                ttk_module.Label(
                     entry_frame,
                     text=" | ".join(dataset.get("badges", [])),
                     takefocus=True,
@@ -5714,7 +5702,7 @@ class CopernicanGUI:
                 license_value = dataset.get("license", "unspecified")
                 parser_digest = dataset.get("parser_digest", "n/a")
                 metadata_digest = dataset.get("metadata_digest", "")
-                ttkinter_module.Label(
+                ttk_module.Label(
                     entry_frame,
                     text=(
                         f"Citation: {citation_value}\n"
@@ -5726,14 +5714,14 @@ class CopernicanGUI:
                     justify="left",
                     takefocus=True,
                 ).pack(anchor="w", pady=(4, 4))
-                ttkinter_module.Label(
+                ttk_module.Label(
                     entry_frame,
                     text="Independence notes: "
                     + "; ".join(dataset.get("independence", [])),
                     wraplength=720,
                     takefocus=True,
                 ).pack(anchor="w", pady=(0, 4))
-                actions = ttkinter_module.Frame(entry_frame)
+                actions = ttk_module.Frame(entry_frame)
                 actions.pack(anchor="w")
                 dataset_id = dataset["id"]
 
@@ -5748,7 +5736,7 @@ class CopernicanGUI:
                         subject=f"dataset {dataset_label}",
                     )
 
-                ttkinter_module.Button(
+                ttk_module.Button(
                     actions,
                     text="Open folder",
                     command=_open_current_folder,
@@ -5765,13 +5753,13 @@ class CopernicanGUI:
                     """Revalidate the parser for the displayed dataset."""
                     self._revalidate_dataset_action(dataset_id)
 
-                ttkinter_module.Button(
+                ttk_module.Button(
                     actions,
                     text="View metadata",
                     command=_view_current_metadata,
                     takefocus=True,
                 ).pack(side="left", padx=2)
-                ttkinter_module.Button(
+                ttk_module.Button(
                     actions,
                     text="Revalidate parser",
                     command=_revalidate_current_parser,
@@ -5788,7 +5776,7 @@ class CopernicanGUI:
         def builder(frame: tkinter_module.Frame) -> None:
             """Render the model catalogue with metadata and hash info."""
             self._page_header(frame, "Models")
-            ttkinter_module.Label(
+            ttk_module.Label(
                 frame,
                 text=(
                     "Model YAML files drive compatibility badges and priors. "
@@ -5798,7 +5786,7 @@ class CopernicanGUI:
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w", pady=(4, 8))
-            ttkinter_module.Label(
+            ttk_module.Label(
                 frame,
                 text=f"Discovered {len(self.model_index)} model(s)",
                 takefocus=True,
@@ -5807,18 +5795,18 @@ class CopernicanGUI:
             for model in sorted(
                 self.model_index.values(), key=lambda entry: entry["id"]
             ):
-                entry_frame = ttkinter_module.LabelFrame(
+                entry_frame = ttk_module.LabelFrame(
                     catalogue_panel,
                     text=f"{model['id']} ({model['filename']})",
                     padding=(8, 6),
                 )
                 entry_frame.pack(fill="x", pady=4)
-                ttkinter_module.Label(
+                ttk_module.Label(
                     entry_frame,
                     text="Badges: " + ", ".join(model.get("badges", [])),
                     takefocus=True,
                 ).pack(anchor="w")
-                ttkinter_module.Label(
+                ttk_module.Label(
                     entry_frame,
                     text=(
                         f"SHA256: {model.get('hash', '')}\n"
@@ -5829,7 +5817,7 @@ class CopernicanGUI:
                     takefocus=True,
                     justify="left",
                 ).pack(anchor="w", pady=(4, 4))
-                actions = ttkinter_module.Frame(entry_frame)
+                actions = ttk_module.Frame(entry_frame)
                 actions.pack(anchor="w")
                 model_folder = os.path.dirname(model["path"])
                 model_id = model["id"]
@@ -5848,13 +5836,13 @@ class CopernicanGUI:
                         model_id, f"Model definition: {model_id}"
                     )
 
-                ttkinter_module.Button(
+                ttk_module.Button(
                     actions,
                     text="Open model folder",
                     command=_open_model_folder,
                     takefocus=True,
                 ).pack(side="left", padx=2)
-                ttkinter_module.Button(
+                ttk_module.Button(
                     actions,
                     text="View YAML",
                     command=_view_model_yaml,
@@ -5871,7 +5859,7 @@ class CopernicanGUI:
         def builder(frame: tkinter_module.Frame) -> None:
             """Render the engine catalogue with badges and hashes."""
             self._page_header(frame, "Engines")
-            ttkinter_module.Label(
+            ttk_module.Label(
                 frame,
                 text=(
                     "Engines expose dataset compatibility and sampler labels. "
@@ -5881,7 +5869,7 @@ class CopernicanGUI:
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w", pady=(4, 8))
-            ttkinter_module.Label(
+            ttk_module.Label(
                 frame,
                 text=f"Discovered {len(self.engine_index)} engine(s)",
                 takefocus=True,
@@ -5890,18 +5878,18 @@ class CopernicanGUI:
             for engine in sorted(
                 self.engine_index.values(), key=lambda entry: entry["label"]
             ):
-                entry_frame = ttkinter_module.LabelFrame(
+                entry_frame = ttk_module.LabelFrame(
                     catalogue_panel,
                     text=f"{engine['label']} ({engine['filename']})",
                     padding=(8, 6),
                 )
                 entry_frame.pack(fill="x", pady=4)
-                ttkinter_module.Label(
+                ttk_module.Label(
                     entry_frame,
                     text="Badges: " + ", ".join(engine.get("badges", [])),
                     takefocus=True,
                 ).pack(anchor="w")
-                ttkinter_module.Label(
+                ttk_module.Label(
                     entry_frame,
                     text=(
                         f"Version: {engine.get('version', 'unknown')}\n"
@@ -5911,7 +5899,7 @@ class CopernicanGUI:
                     takefocus=True,
                     justify="left",
                 ).pack(anchor="w", pady=(4, 4))
-                actions = ttkinter_module.Frame(entry_frame)
+                actions = ttk_module.Frame(entry_frame)
                 actions.pack(anchor="w")
                 engine_folder = os.path.dirname(engine["path"])
                 engine_id = engine["id"]
@@ -5931,13 +5919,13 @@ class CopernicanGUI:
                         engine_id, f"Engine module: {engine_label}"
                     )
 
-                ttkinter_module.Button(
+                ttk_module.Button(
                     actions,
                     text="Open engine folder",
                     command=_open_engine_folder,
                     takefocus=True,
                 ).pack(side="left", padx=2)
-                ttkinter_module.Button(
+                ttk_module.Button(
                     actions,
                     text="View module",
                     command=_view_engine_module,
@@ -6122,14 +6110,14 @@ class CopernicanGUI:
         dialog.transient(self.root)
         dialog.grab_set()
         dialog.columnconfigure(0, weight=1)
-        ttkinter_module.Label(
+        ttk_module.Label(
             dialog,
             text="You must either save or revert changes to navigate away.",
             wraplength=320,
             justify="left",
             takefocus=True,
         ).grid(row=0, column=0, padx=12, pady=(12, 8), sticky="w")
-        button_frame = ttkinter_module.Frame(dialog)
+        button_frame = ttk_module.Frame(dialog)
         button_frame.grid(row=1, column=0, pady=(0, 12), padx=12)
 
         choice: dict[str, str | None] = {"value": None}
@@ -6145,13 +6133,13 @@ class CopernicanGUI:
             choice["value"] = decision
             _close()
 
-        ttkinter_module.Button(
+        ttk_module.Button(
             button_frame,
             text="Revert",
             command=lambda: _select("revert"),
             takefocus=True,
         ).pack(side="left", padx=4)
-        ttkinter_module.Button(
+        ttk_module.Button(
             button_frame,
             text="Save and continue",
             command=lambda: _select("save"),
@@ -6202,12 +6190,12 @@ class CopernicanGUI:
                 frame,
                 f"Settings: {section_label}",
             )
-            tab_bar = ttkinter_module.Frame(frame)
+            tab_bar = ttk_module.Frame(frame)
             tab_bar.pack(fill="x", pady=(0, 8))
             self._settings_section_buttons = []
             button_style = self._monitor_button_kwargs()
             for index, section in enumerate(self._settings_sections):
-                button = ttkinter_module.Button(
+                button = ttk_module.Button(
                     tab_bar,
                     text=section["label"],
                     command=lambda idx=index: self._navigate_settings_section(
@@ -6218,7 +6206,7 @@ class CopernicanGUI:
                 )
                 button.pack(side="left", padx=4)
                 self._settings_section_buttons.append(button)
-            self._settings_description_label = ttkinter_module.Label(
+            self._settings_description_label = ttk_module.Label(
                 frame,
                 text=self._settings_sections[self._settings_current_index][
                     "description"
@@ -6227,9 +6215,9 @@ class CopernicanGUI:
                 takefocus=True,
             )
             self._settings_description_label.pack(anchor="w", pady=(0, 8))
-            action_row = ttkinter_module.Frame(frame)
+            action_row = ttk_module.Frame(frame)
             action_row.pack(fill="x", pady=(0, 32))
-            self._settings_defaults_button = ttkinter_module.Button(
+            self._settings_defaults_button = ttk_module.Button(
                 action_row,
                 text="Defaults",
                 command=self._reset_settings_to_defaults,
@@ -6237,7 +6225,7 @@ class CopernicanGUI:
                 **button_style,
             )
             self._settings_defaults_button.pack(side="left", padx=4)
-            self._settings_cancel_button = ttkinter_module.Button(
+            self._settings_cancel_button = ttk_module.Button(
                 action_row,
                 text="Cancel",
                 command=self._reset_settings_to_saved,
@@ -6245,7 +6233,7 @@ class CopernicanGUI:
                 **button_style,
             )
             self._settings_cancel_button.pack(side="left", padx=4)
-            self._settings_save_button = ttkinter_module.Button(
+            self._settings_save_button = ttk_module.Button(
                 action_row,
                 text="Save",
                 command=self._persist_pending_settings,
@@ -6253,7 +6241,7 @@ class CopernicanGUI:
                 **button_style,
             )
             self._settings_save_button.pack(side="left", padx=4)
-            body = ttkinter_module.Frame(frame)
+            body = ttk_module.Frame(frame)
             body.pack(fill="both", expand=True)
             self._settings_page_body = body
             self._set_settings_dirty(self._settings_dirty)
@@ -6267,9 +6255,9 @@ class CopernicanGUI:
     ) -> None:
         """Render the controls used to shape the diagnostics log."""
 
-        row = ttkinter_module.Frame(container)
+        row = ttk_module.Frame(container)
         row.pack(fill="x", pady=(0, 6))
-        retention_label = ttkinter_module.Label(
+        retention_label = ttk_module.Label(
             row,
             text="Log retention (files):",
         )
@@ -6283,29 +6271,29 @@ class CopernicanGUI:
                 width=4,
                 textvariable=retention_var,
             ).pack(side="left", padx=6)
-        ttkinter_module.Label(
+        ttk_module.Label(
             row,
             text="Keep the most recent diagnostics log files before pruning.",
             wraplength=420,
             justify="left",
         ).pack(anchor="w", pady=(4, 0))
 
-        level_row = ttkinter_module.Frame(container)
+        level_row = ttk_module.Frame(container)
         level_row.pack(fill="x", pady=(0, 6))
-        ttkinter_module.Label(
+        ttk_module.Label(
             level_row,
             text="Log level:",
         ).pack(side="left")
         level_var = self._ensure_setting_var("logs", "log_level")
         if level_var is not None:
-            ttkinter_module.Combobox(
+            ttk_module.Combobox(
                 level_row,
                 values=("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"),
                 state="readonly",
                 width=12,
                 textvariable=level_var,
             ).pack(side="left", padx=6)
-        ttkinter_module.Label(
+        ttk_module.Label(
             container,
             text="Higher severity thresholds keep the file lean while still "
             "capturing key events.",
@@ -6315,16 +6303,16 @@ class CopernicanGUI:
 
         capture_var = self._ensure_setting_var("logs", "capture_console")
         if capture_var is not None:
-            ttkinter_module.Checkbutton(
+            ttk_module.Checkbutton(
                 container,
                 text="Mirror stdout/stderr into the diagnostics log",
                 variable=capture_var,
                 takefocus=True,
             ).pack(anchor="w", pady=(0, 6))
 
-        button_frame = ttkinter_module.Frame(container)
+        button_frame = ttk_module.Frame(container)
         button_frame.pack(fill="x", pady=(10, 0))
-        ttkinter_module.Button(
+        ttk_module.Button(
             button_frame,
             text="Purge program logs",
             command=self._purge_program_logs,
@@ -6342,7 +6330,7 @@ class CopernicanGUI:
             "datasets", "auto_dataset_discovery"
         )
         if auto_var is not None:
-            ttkinter_module.Checkbutton(
+            ttk_module.Checkbutton(
                 container,
                 text="Enable automatic dataset discovery",
                 variable=auto_var,
@@ -6352,7 +6340,7 @@ class CopernicanGUI:
             "datasets", "dataset_hash_auto_rebuild"
         )
         if rebuild_var is not None:
-            ttkinter_module.Checkbutton(
+            ttk_module.Checkbutton(
                 container,
                 text="Rebuild dataset hashes automatically",
                 variable=rebuild_var,
@@ -6362,9 +6350,9 @@ class CopernicanGUI:
             "datasets", "dataset_hash_ttl_hours"
         )
         if ttl_var is not None:
-            ttl_frame = ttkinter_module.Frame(container)
+            ttl_frame = ttk_module.Frame(container)
             ttl_frame.pack(fill="x", pady=(4, 6))
-            hash_label = ttkinter_module.Label(
+            hash_label = ttk_module.Label(
                 ttl_frame,
                 text="Hash TTL (hours):",
             )
@@ -6376,13 +6364,13 @@ class CopernicanGUI:
                 width=4,
                 textvariable=ttl_var,
             ).pack(side="left", padx=6)
-            ttkinter_module.Label(
+            ttk_module.Label(
                 ttl_frame,
                 text="Rebuild caches after this many hours when flagged.",
                 wraplength=520,
                 justify="left",
             ).pack(anchor="w", pady=(4, 0))
-        ttkinter_module.Button(
+        ttk_module.Button(
             container,
             text="Recalculate digests",
             command=self._rebuild_dataset_hashes_action,
@@ -6398,7 +6386,7 @@ class CopernicanGUI:
 
         detach_var = self._ensure_setting_var("gui", "detach_gui")
         if detach_var is not None:
-            ttkinter_module.Checkbutton(
+            ttk_module.Checkbutton(
                 container,
                 text="Detach GUI launches by default",
                 variable=detach_var,
@@ -6406,7 +6394,7 @@ class CopernicanGUI:
             ).pack(anchor="w", pady=(0, 4))
         venv_var = self._ensure_setting_var("gui", "require_managed_venv")
         if venv_var is not None:
-            ttkinter_module.Checkbutton(
+            ttk_module.Checkbutton(
                 container,
                 text="Require the managed .venv before running",
                 variable=venv_var,
@@ -6414,14 +6402,14 @@ class CopernicanGUI:
             ).pack(anchor="w", pady=(0, 4))
         hints_var = self._ensure_setting_var("gui", "show_environment_hints")
         if hints_var is not None:
-            ttkinter_module.Checkbutton(
+            ttk_module.Checkbutton(
                 container,
                 text="Show environment hints in the status bar",
                 variable=hints_var,
                 takefocus=True,
             ).pack(anchor="w", pady=(0, 4))
 
-        env_frame = ttkinter_module.LabelFrame(
+        env_frame = ttk_module.LabelFrame(
             container,
             text="Environment hints",
         )
@@ -6438,7 +6426,7 @@ class CopernicanGUI:
             ),
         ]
         for env_name, env_value in env_values:
-            ttkinter_module.Label(
+            ttk_module.Label(
                 env_frame,
                 text=f"{env_name}: {env_value}",
                 wraplength=720,
@@ -6457,16 +6445,16 @@ class CopernicanGUI:
             text: str, command: Callable[[], None], desc: str
         ) -> None:
             """Add a helper row with an action button and description."""
-            row = ttkinter_module.Frame(container)
+            row = ttk_module.Frame(container)
             row.pack(fill="x", pady=(0, 14))
-            ttkinter_module.Button(
+            ttk_module.Button(
                 row,
                 text=text,
                 command=command,
                 takefocus=True,
                 **button_style,
             ).pack(anchor="w", padx=(0, 6), pady=(0, 6))
-            ttkinter_module.Label(
+            ttk_module.Label(
                 row,
                 text=desc,
                 wraplength=720,
@@ -6613,7 +6601,7 @@ class CopernicanGUI:
             self._help_title_label = self._page_header(
                 frame, self._help_header_text()
             )
-            ttkinter_module.Label(
+            ttk_module.Label(
                 frame,
                 text=(
                     "Select a Copernican guide to review the GUI workflow or "
@@ -6623,11 +6611,11 @@ class CopernicanGUI:
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w", pady=(4, 8))
-            button_row = ttkinter_module.Frame(frame)
+            button_row = ttk_module.Frame(frame)
             button_row.pack(fill="x", pady=(0, 12))
             button_style = self._monitor_button_kwargs()
             for page in _HELP_PAGES:
-                button = ttkinter_module.Button(
+                button = ttk_module.Button(
                     button_row,
                     text=page["label"],
                     command=lambda pid=page["id"]: self._select_help_page(pid),
@@ -6637,10 +6625,10 @@ class CopernicanGUI:
                 )
                 button.pack(side="left", padx=4)
                 self._help_page_buttons[page["id"]] = button
-            content_frame = ttkinter_module.Frame(frame)
+            content_frame = ttk_module.Frame(frame)
             content_frame.pack(fill="both", expand=True)
             if not (self.render and tk_gui is not None):
-                ttkinter_module.Label(
+                ttk_module.Label(
                     content_frame,
                     text=(
                         "Help content is available from docs/gui_guide.md and "
@@ -6653,12 +6641,12 @@ class CopernicanGUI:
                 return
             self._load_help_banner()
             if self.help_banner_image:
-                banner_label = ttkinter_module.Label(
+                banner_label = ttk_module.Label(
                     content_frame, image=self.help_banner_image
                 )
                 banner_label.image = self.help_banner_image
                 banner_label.pack(pady=(0, 8))
-            text_frame = ttkinter_module.Frame(content_frame)
+            text_frame = ttk_module.Frame(content_frame)
             text_frame.pack(fill="both", expand=True)
             text_frame.columnconfigure(0, weight=1)
             text_frame.rowconfigure(0, weight=1)
@@ -6673,7 +6661,7 @@ class CopernicanGUI:
             text_widget.grid(
                 row=0, column=0, sticky="nsew", padx=(0, 0), pady=(0, 0)
             )
-            scrollbar = ttkinter_module.Scrollbar(
+            scrollbar = ttk_module.Scrollbar(
                 text_frame,
                 orient="vertical",
                 command=text_widget.yview,
@@ -6731,91 +6719,91 @@ class CopernicanGUI:
             self._monitor_log_widget = None
             self._monitor_filter_label = None
             self._page_header(frame, "Run Monitor")
-            self._status_label = ttkinter_module.Label(
+            self._status_label = ttk_module.Label(
                 frame,
                 text=self._status_text(),
                 takefocus=True,
             )
             self._status_label.pack(anchor="w")
-            progress_frame = ttkinter_module.Frame(frame)
+            progress_frame = ttk_module.Frame(frame)
             progress_frame.pack(fill="x", pady=(8, 8))
-            self._progress_status_label = ttkinter_module.Label(
+            self._progress_status_label = ttk_module.Label(
                 progress_frame,
                 text="Stage: Idle",
                 font=("Helvetica", 12, "bold"),
                 takefocus=True,
             )
             self._progress_status_label.pack(anchor="w")
-            ttkinter_module.Label(
+            ttk_module.Label(
                 progress_frame,
                 text="Overall batch progress",
                 takefocus=True,
             ).pack(anchor="w", pady=(4, 0))
-            self._batch_progressbar = ttkinter_module.Progressbar(
+            self._batch_progressbar = ttk_module.Progressbar(
                 progress_frame, maximum=100, length=360
             )
             self._batch_progressbar.pack(fill="x", pady=(2, 0))
-            ttkinter_module.Label(
+            ttk_module.Label(
                 progress_frame,
                 text="Walker progress",
                 takefocus=True,
             ).pack(anchor="w", pady=(6, 0))
-            self._walker_progressbar = ttkinter_module.Progressbar(
+            self._walker_progressbar = ttk_module.Progressbar(
                 progress_frame, maximum=100, length=360
             )
             self._walker_progressbar.pack(fill="x", pady=(2, 0))
-            meta_frame = ttkinter_module.Frame(frame)
+            meta_frame = ttk_module.Frame(frame)
             meta_frame.pack(anchor="w", pady=(4, 4))
-            ttkinter_module.Label(
+            ttk_module.Label(
                 meta_frame,
                 text="Active manifest metadata:",
                 takefocus=True,
             ).pack(anchor="w")
             for line in self.summary.manifest_metadata:
-                metadata_label = ttkinter_module.Label(
+                metadata_label = ttk_module.Label(
                     meta_frame,
                     text=line,
                     takefocus=True,
                 )
                 metadata_label.pack(anchor="w")
-            log_frame = ttkinter_module.LabelFrame(frame, text="Run logs")
+            log_frame = ttk_module.LabelFrame(frame, text="Run logs")
             log_frame.pack(fill="both", expand=True, pady=(8, 4))
-            self._monitor_filter_label = ttkinter_module.Label(
+            self._monitor_filter_label = ttk_module.Label(
                 log_frame,
                 text=f"Filter: {self.monitor_filter_level}+",
                 takefocus=True,
             )
             self._monitor_filter_label.pack(anchor="w")
-            log_filters = ttkinter_module.Frame(log_frame)
+            log_filters = ttk_module.Frame(log_frame)
             log_filters.pack(anchor="w", pady=(2, 4))
-            ttkinter_module.Button(
+            ttk_module.Button(
                 log_filters,
                 text="Info",
                 command=lambda: self.set_monitor_filter("INFO"),
                 takefocus=True,
             ).pack(side="left", padx=2)
-            ttkinter_module.Button(
+            ttk_module.Button(
                 log_filters,
                 text="Warnings",
                 command=lambda: self.set_monitor_filter("WARNING"),
                 takefocus=True,
             ).pack(side="left", padx=2)
-            ttkinter_module.Button(
+            ttk_module.Button(
                 log_filters,
                 text="Errors",
                 command=lambda: self.set_monitor_filter("ERROR"),
                 takefocus=True,
             ).pack(side="left", padx=2)
-            lock_frame = ttkinter_module.Frame(log_frame)
+            lock_frame = ttk_module.Frame(log_frame)
             lock_frame.pack(anchor="w", pady=(0, 4))
             self._monitor_log_lock_var = tkinter_module.BooleanVar(value=True)
-            ttkinter_module.Checkbutton(
+            ttk_module.Checkbutton(
                 lock_frame,
                 text="Lock log to latest entry",
                 variable=self._monitor_log_lock_var,
                 takefocus=True,
             ).pack(side="left")
-            text_panel = ttkinter_module.Frame(log_frame)
+            text_panel = ttk_module.Frame(log_frame)
             text_panel.pack(fill="both", expand=True)
             text_panel.columnconfigure(0, weight=1)
             text_panel.rowconfigure(0, weight=1)
@@ -6829,13 +6817,13 @@ class CopernicanGUI:
                 height=12,
             )
             text_widget.grid(row=0, column=0, sticky="nsew")
-            vscroll = ttkinter_module.Scrollbar(
+            vscroll = ttk_module.Scrollbar(
                 text_panel,
                 orient="vertical",
                 command=text_widget.yview,
             )
             vscroll.grid(row=0, column=1, sticky="ns")
-            hscroll = ttkinter_module.Scrollbar(
+            hscroll = ttk_module.Scrollbar(
                 text_panel,
                 orient="horizontal",
                 command=text_widget.xview,
@@ -6846,10 +6834,10 @@ class CopernicanGUI:
             )
             text_widget.configure(state="disabled")
             self._monitor_log_widget = text_widget
-            log_actions = ttkinter_module.Frame(log_frame)
+            log_actions = ttk_module.Frame(log_frame)
             log_actions.pack(anchor="w", pady=(4, 0))
             button_style = self._monitor_button_kwargs()
-            self._monitor_log_view_button = ttkinter_module.Button(
+            self._monitor_log_view_button = ttk_module.Button(
                 log_actions,
                 text="View log",
                 command=self._view_run_log,
@@ -6857,7 +6845,7 @@ class CopernicanGUI:
                 **button_style,
             )
             self._monitor_log_view_button.pack(side="left", padx=2)
-            self._monitor_log_open_button = ttkinter_module.Button(
+            self._monitor_log_open_button = ttk_module.Button(
                 log_actions,
                 text="Open log…",
                 command=self._open_run_log_file,
@@ -6865,12 +6853,12 @@ class CopernicanGUI:
                 **button_style,
             )
             self._monitor_log_open_button.pack(side="left", padx=2)
-            alerts = ttkinter_module.LabelFrame(frame, text="Active alerts")
+            alerts = ttk_module.LabelFrame(frame, text="Active alerts")
             alerts.pack(fill="x", pady=(4, 8))
             for alert in self.alerts[-5:]:
-                alert_row = ttkinter_module.Frame(alerts)
+                alert_row = ttk_module.Frame(alerts)
                 alert_row.pack(anchor="w", fill="x", pady=(2, 0))
-                ttkinter_module.Label(
+                ttk_module.Label(
                     alert_row,
                     text=(
                         f"{alert.severity}: {alert.message} "
@@ -6885,16 +6873,16 @@ class CopernicanGUI:
                     """Scroll the log view to the specified anchor."""
                     self.jump_to_log_anchor(anchor)
 
-                ttkinter_module.Button(
+                ttk_module.Button(
                     alert_row,
                     text="Jump to log",
                     command=_jump,
                     takefocus=True,
                 ).pack(side="left", padx=2)
-            controls = ttkinter_module.Frame(frame)
+            controls = ttk_module.Frame(frame)
             controls.pack(anchor="w")
             button_style = self._monitor_button_kwargs()
-            self._run_output_button = ttkinter_module.Button(
+            self._run_output_button = ttk_module.Button(
                 controls,
                 text="Open run output",
                 command=self.open_current_run_output,
@@ -6902,7 +6890,7 @@ class CopernicanGUI:
                 **button_style,
             )
             self._run_output_button.pack(side="left", padx=4)
-            self._cancel_button = ttkinter_module.Button(
+            self._cancel_button = ttk_module.Button(
                 controls,
                 text="Cancel",
                 command=self.cancel_run,
@@ -6910,7 +6898,7 @@ class CopernicanGUI:
                 **button_style,
             )
             self._cancel_button.pack(side="left", padx=4)
-            self._pause_button = ttkinter_module.Button(
+            self._pause_button = ttk_module.Button(
                 controls,
                 text="Pause",
                 command=self.pause_run,
@@ -6918,7 +6906,7 @@ class CopernicanGUI:
                 **button_style,
             )
             self._pause_button.pack(side="left", padx=4)
-            self._hard_stop_button = ttkinter_module.Button(
+            self._hard_stop_button = ttk_module.Button(
                 controls,
                 text="Hard Stop",
                 command=self.stop_run,
@@ -6961,7 +6949,7 @@ class CopernicanGUI:
         control_state = (
             tkinter_module.NORMAL if run_active else tkinter_module.DISABLED
         )
-        alive_control_buttons: list[ttkinter_module.Button] = []
+        alive_control_buttons: list[ttk_module.Button] = []
         for button in self._monitor_control_buttons:
             if self._widget_is_alive(button):
                 button.configure(state=control_state)
@@ -6999,41 +6987,41 @@ class CopernicanGUI:
         def builder(frame: tkinter_module.Frame) -> None:
             """Render the run summary view with output links and metadata."""
             self._page_header(frame, "Run Summary")
-            outputs_label = ttkinter_module.Label(
+            outputs_label = ttk_module.Label(
                 frame,
                 text="Outputs",
                 takefocus=True,
             )
             outputs_label.pack(anchor="w")
             for link in self.summary.output_links:
-                link_label = ttkinter_module.Label(
+                link_label = ttk_module.Label(
                     frame,
                     text=link,
                     takefocus=True,
                 )
                 link_label.pack(anchor="w")
-            actions_label = ttkinter_module.Label(
+            actions_label = ttk_module.Label(
                 frame,
                 text="Manifest actions",
                 takefocus=True,
             )
             actions_label.pack(anchor="w", pady=(12, 0))
             for action in self.summary.manifest_actions:
-                action_button = ttkinter_module.Button(
+                action_button = ttk_module.Button(
                     frame,
                     text=action,
                     command=self._noop,
                     takefocus=True,
                 )
                 action_button.pack(anchor="w", pady=2)
-            metadata_label = ttkinter_module.Label(
+            metadata_label = ttk_module.Label(
                 frame,
                 text="Manifest metadata",
                 takefocus=True,
             )
             metadata_label.pack(anchor="w", pady=(12, 0))
             for line in self.summary.manifest_metadata:
-                metadata_entry_label = ttkinter_module.Label(
+                metadata_entry_label = ttk_module.Label(
                     frame,
                     text=line,
                     takefocus=True,

@@ -131,7 +131,7 @@ class NameClarityCheck(PolicyCheck):
     """Warn when placeholder or overly short identifiers are introduced."""
 
     policy_id = "name-clarity"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def check(self, context: CheckContext) -> List[Violation]:
         """Run the check across all matching Python files."""
@@ -170,7 +170,7 @@ class NameClarityCheck(PolicyCheck):
                 violations.append(
                     Violation(
                         policy_id=self.policy_id,
-                        severity="info",
+                        severity="warning",
                         file_path=path,
                         line_number=lineno,
                         message=(

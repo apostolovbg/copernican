@@ -9,8 +9,9 @@ guidelines.
 
 - `rng_minigames/README.md` – architectural overview, embedding guidance and
   registry notes.
-- `rng_minigames/emoji_meteors/README.md`, `rng_minigames/constellation/README.md`
-  and `rng_minigames/alien_invasion/README.md` – game-specific docs that describe
+- `rng_minigames/emoji_meteors/README.md`,
+  `rng_minigames/constellation/README.md` and
+  `rng_minigames/alien_invasion/README.md` – game-specific docs that describe
   controls, accessibility considerations and configuration files.
 - `rng_minigames/alien_invasion/ai_settings.yml` – tune the autopilot’s
   exploration rate, hidden-layer widths (comma-separated list for multi-layer
@@ -25,7 +26,7 @@ guidelines.
   Update-and-save is all that’s required; the launcher reloads the settings on
   every run. Global explosion parameters now govern both player and enemy
   blasts, while `player_explosion.hold_seconds` sets the defeat animation delay
-  before an auto-reset and `debris.damages_all` enables or disables
-  friendly-fire shrapnel.
+  before an auto-reset and `debris.damages_all` enables or disables friendly-
+  fire shrapnel.
 - `rng_minigames/CHANGELOG.md` – dedicated history for everything that changes
   inside the RNG bundle.

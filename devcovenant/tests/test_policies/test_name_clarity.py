@@ -21,6 +21,7 @@ def test_detects_placeholder_identifiers(tmp_path: Path):
     violations = NameClarityCheck().check(context)
     assert len(violations) >= 2
     assert any("foo" in v.message for v in violations)
+    assert all(v.severity == "warning" for v in violations)
 
 
 def test_accepts_short_loop_counters(tmp_path: Path):

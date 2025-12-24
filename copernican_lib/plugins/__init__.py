@@ -366,9 +366,9 @@ class EnginePlugin:
 def sanitize_equation(equation_line: str) -> str:
     """Return a Matplotlib-friendly LaTeX string."""
 
-    if not isinstance(eq_line, str):
+    if not isinstance(equation_line, str):
         return ""
-    equation = eq_line.strip()
+    equation = equation_line.strip()
     equation = re.sub(r"^\$+", "", equation)
     equation = re.sub(r"\$+$", "", equation)
     return f"${equation.strip()}$" if equation else ""
@@ -403,7 +403,7 @@ def _prepare_priors(
             transforms.append(None)
         prior_objects.append(prior_obj)
         if isinstance(prior_obj, prior_lib.FixedPrior):
-            prior_value = prior_obj.value
+            prior_value = prior_obj.fixed_value
             python_var = param.get("python_var") or param.get("name")
             if python_var:
                 fixed_params[python_var] = prior_value

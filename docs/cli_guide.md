@@ -42,26 +42,24 @@ The CLI mirrors the Run Builder pages:
    Parsers are verified by SHA256 digest before their modules are imported.
 4. **Engine selection** – Choose a sampler backend from `engines/`. The default
    is `engines/cosmo_engine_mcmc.py` unless you override it. Engine metadata
-   (walkers, burn-in, production steps, pool size) is gathered immediately after
-   the engine choice.
-   When a selected engine detects that every parameter is fixed (for example,
-   when the validation manifest runs `Planck 2018 Reference LambdaCDM`), the
-   sampler now mirrors the reference values, fabricates identical chains, and
-   still reports the configured worker pool count. This keeps diagnostics,
-   plots and manifest metadata consistent even though no sampling steps are
-   actually executed.
-5. **Run plan / Manifest** – Provide notes for the run plan. The CLI then writes
-   a manifest under `output/copernican_run_NEW_CONFIG/` using the same naming
-   convention as the GUI. The manifest records dataset hashes, model metadata,
-   engine knobs and Git information.
-   The CLI run log for each manifest resides under the resulting
-   `output/copernican-run_<timestamp>/` folder as `copernican-run_<timestamp>.txt`.
-   GUI-launched runs also write a lighter monitoring log to `logs/runs/*.txt`
-   so the Run Monitor can tail progress without editing the reproducibility
-   artifacts.
+   (walkers, burn-in, production steps, pool size) is gathered immediately
+   after the engine choice. When a selected engine detects that every parameter
+   is fixed (for example, when the validation manifest runs `Planck 2018
+   Reference LambdaCDM`), the sampler now mirrors the reference values,
+   fabricates identical chains, and still reports the configured worker pool
+   count. This keeps diagnostics, plots and manifest metadata consistent even
+   though no sampling steps are actually executed.
+5. **Run plan / Manifest** – Provide notes for the run plan. The CLI then
+   writes a manifest under `output/copernican_run_NEW_CONFIG/` using the same
+   naming convention as the GUI. The manifest records dataset hashes, model
+   metadata, engine knobs and Git information. The CLI run log for each
+   manifest resides under the resulting `output/copernican-run_<timestamp>/`
+   folder as `copernican-run_<timestamp>.txt`. GUI-launched runs also write a
+   lighter monitoring log to `logs/runs/*.txt` so the Run Monitor can tail
+   progress without editing the reproducibility artifacts.
 6. **Confirm and Launch** – The CLI displays a summary, asks for confirmation
-   and starts the worker. Logs stream to stdout and to
-   `logs/copernican-run_<timestamp>.txt` in parallel.
+   and starts the worker. Logs stream to stdout and to `logs/copernican-
+   run_<timestamp>.txt` in parallel.
 
 Every stage logs progress and flushes stdout so long optimisations remain
 responsive even on remote terminals. Menu prompts use numbered options to keep
@@ -76,43 +74,42 @@ flags execute their action and exit immediately:
 - `--revalidate-dataset DATASET_ID` – Re-runs the parser hash check for a
   specific dataset id and warns when the digest diverges from the trusted
   value.
-- `--list-manifests` – Lists timestamped run folders under the selected
-  output directory and shows the most recent manifest file in each folder.
+- `--list-manifests` – Lists timestamped run folders under the selected output
+  directory and shows the most recent manifest file in each folder.
 - `--show-manifest PATH` – Pretty-prints a saved manifest file so you can
   inspect it without opening a GUI metadata viewer.
 - `--run-validation` – Executes the golden manifests under
-  `validation/manifests/` (currently `reference_planck2018.yml`), runs the fixed
-  `models/cosmo_model_ref_planck2018.yml`, writes the NEW_CONFIG/results into
-  `validation/output/<manifest_stem>/validation_run_<timestamp>/` and saves the
-  textual summary to `VALIDATION.md` before exiting.
-  The manifest evaluates this fixed reference model against Union Through UNITY
-  2000 SNe, BOSS DR12 BAO and Planck 2018 Lite, and every parameter uses a
-  `fixed` prior so the sampler still emits its reference trace and the plots keep
-  drawing the comparison lines even though the values never wander from the
-  Planck 2018 anchor.
-  The executor now persists a `run_manifest_<timestamp>.yml` copy inside each
-  validation run directory so the manifest that drove the analysis stays
-  alongside the outputs.
+  `validation/manifests/` (currently `reference_planck2018.yml`), runs the
+  fixed `models/cosmo_model_ref_planck2018.yml`, writes the NEW_CONFIG/results
+  into `validation/output/<manifest_stem>/validation_run_<timestamp>/` and
+  saves the textual summary to `VALIDATION.md` before exiting. The manifest
+  evaluates this fixed reference model against Union Through UNITY 2000 SNe,
+  BOSS DR12 BAO and Planck 2018 Lite, and every parameter uses a `fixed` prior
+  so the sampler still emits its reference trace and the plots keep drawing the
+  comparison lines even though the values never wander from the Planck 2018
+  anchor. The executor now persists a `run_manifest_<timestamp>.yml` copy
+  inside each validation run directory so the manifest that drove the analysis
+  stays alongside the outputs.
 
 ### Analysis helpers
 
-- `--analysis-summary RUN_DIR` reads the manifest, parameter summary and log for
-  the chosen run directory, prints the dataset counts, R-hat/ESS diagnostics and
-  per-model χ² breakdown, and lets you export structured
-  `analysis-summary_<timestamp>.yml/.json` files by also passing
-  `--analysis-summary-output <dir>` and optional `--analysis-summary-formats
-  yml,json`.
-- `--analysis-compare BASE_DIR ALT_DIR` runs the structured comparator described
-  in `copernican_lib.analysis`, prints the resulting JSON/YAML fragment with
-  duration, dataset count and parameter deltas, and writes the same filer when
-  combined with `--analysis-compare-output <dir>`.
-- `--analysis-posterior RUN_DIR` reruns `copernican_lib.analysis.plot_posterior`,
-  producing the ArviZ-powered overview, corner and histogram figures from the
-  latest `posterior-*.nc` snapshot.  `--analysis-posterior-output` accepts either
-  a directory (defaulting to the run folder) or a `.png` path. When given a
-  directory all generated assets go inside it; supplying a `.png` stores the
-  overview figure at that path while the corner/histogram files still accompany
-  it in the same directory.
+- `--analysis-summary RUN_DIR` reads the manifest, parameter summary and log
+  for the chosen run directory, prints the dataset counts, R-hat/ESS
+  diagnostics and per-model χ² breakdown, and lets you export structured
+  `analysis-summary_<timestamp>.yml/.json` files by also passing `--analysis-
+  summary-output <dir>` and optional `--analysis-summary-formats yml,json`.
+- `--analysis-compare BASE_DIR ALT_DIR` runs the structured comparator
+  described in `copernican_lib.analysis`, prints the resulting JSON/YAML
+  fragment with duration, dataset count and parameter deltas, and writes the
+  same filer when combined with `--analysis-compare-output <dir>`.
+- `--analysis-posterior RUN_DIR` reruns
+  `copernican_lib.analysis.plot_posterior`, producing the ArviZ-powered
+  overview, corner and histogram figures from the latest `posterior-*.nc`
+  snapshot.  `--analysis-posterior-output` accepts either a directory
+  (defaulting to the run folder) or a `.png` path. When given a directory all
+  generated assets go inside it; supplying a `.png` stores the overview figure
+  at that path while the corner/histogram files still accompany it in the same
+  directory.
 
 ## Executing Saved Manifests
 Both the CLI and GUI rely on
@@ -124,28 +121,28 @@ Both the CLI and GUI rely on
 3. (Optional) Set `--output-dir` to store outputs in a deterministic folder for
    CI environments.
 
-`copernican_lib.run_executor.execute_run_from_manifest` also saves a timestamped
-`run_manifest_<timestamp>.yml` inside the provided output directory before
-sampling begins, so CLI and validation runs archive the manifest even when they
-only receive a reference to an existing YAML file.
+`copernican_lib.run_executor.execute_run_from_manifest` also saves a
+timestamped `run_manifest_<timestamp>.yml` inside the provided output directory
+before sampling begins, so CLI and validation runs archive the manifest even
+when they only receive a reference to an existing YAML file.
 
 The executor rebuilds the declared models via
 `copernican_lib.plugins.build_engine_plugin`, reloads datasets using the
-recorded hashes, and hands sampling to the selected engine. Progress updates and
-log output match the GUI’s Run Monitor display.
+recorded hashes, and hands sampling to the selected engine. Progress updates
+and log output match the GUI’s Run Monitor display.
 
 ## Environment Variables
 
-- `COPERNICAN_STRICT_WARNINGS=1` – Elevates Python warnings to errors, useful in
-  CI pipelines.
+- `COPERNICAN_STRICT_WARNINGS=1` – Elevates Python warnings to errors, useful
+  in CI pipelines.
 - `COPERNICAN_SEED=<value>` – Pre-fills the seed question.
 - `COPERNICAN_DEP_CACHE_DIR=<path>` – Overrides the default `.cache/` location
   used by the dependency scanner.
 - `COPERNICAN_DETACH_GUI=1` – Forces the GUI to detach if you need to keep the
   CLI prompt free while the window runs.
 
-The staged CLI menu has been retired; there is no longer a `COPERNICAN_ENABLE_STAGED_MENU`
-flag or equivalent toggle.
+The staged CLI menu has been retired; there is no longer a
+`COPERNICAN_ENABLE_STAGED_MENU` flag or equivalent toggle.
 
 Review `AGENTS.md` for the rest of the configuration knobs, especially the
 launcher policies and DevCovenant rules enforced in CI.

@@ -1,6 +1,6 @@
 """Warn when security-critical files change without updating the log."""
 
-from pathlib import PurePosixPath, Path
+from pathlib import Path, PurePosixPath
 from typing import Iterable, List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
