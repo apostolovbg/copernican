@@ -70,6 +70,16 @@ suffixes. Follow this template:
   docs/latex_syntax.md, docs/launcher_gui.md, docs/minigames.md,
   docs/orchestration_services.md, docs/packaging.md, docs/run_manifest.md,
   validation/README.md).
+- 2025-12-28 [semver:patch]: Patched manifest-driven reproducibility by seeding
+  the global RNG when executing manifests, hardened GUI thread hand-offs and
+  worker launch environment handling, corrected PlotViewer typing, refreshed
+  packaging and GUI docs, aligned the Last Updated policy prose with the
+  enforced allowlist, removed lingering references to the retired
+  law-mapping file, and updated the citation metadata to the actual release
+  date (copernican_lib/run_executor.py, tests/test_run_executor.py,
+  copernican_lib/gui/app.py, copernican_lib/gui/plot_viewer.py,
+  docs/packaging.md, docs/gui_guide.md, AGENTS.md,
+  docs/documentation_policy.md, CITATION.cff).
 
 ## Version 12.0.0
 - 2025-12-28 [semver:major]: Promoted the suite to 12.0.0 so the sweeping
