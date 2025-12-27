@@ -20,7 +20,8 @@ plus buttons for every page:
 - **Data / Models / Engines** – Expose searchable catalogues sourced from the
   cached registries. Each page includes open-folder actions, metadata panes,
   parser revalidation controls and trust notes so you can inspect assets before
-  entering the builder. -- **Validation** – Executes `python copernican.py
+  entering the builder.
+- **Validation** – Executes `python copernican.py
   --run-validation`, streams the CLI output into a Run Monitor–style log box,
   saves outputs under
   `validation/output/<manifest_stem>/validation_run_<timestamp>/` and writes

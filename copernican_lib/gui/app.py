@@ -3587,7 +3587,9 @@ class CopernicanGUI:
         for line in process.stdout:
             cleaned = line.rstrip()
             if cleaned:
-                self._append_validation_log_line(cleaned)
+                self._call_on_ui_thread(
+                    self._append_validation_log_line, cleaned
+                )
 
     def _monitor_validation_process(
         self, process: subprocess.Popen[str]
@@ -7184,6 +7186,7 @@ class CopernicanGUI:
                 stdin=subprocess.DEVNULL,
                 text=True,
                 bufsize=1,
+                env=env,
             )
         except Exception as exc:
             self.create_toast(
@@ -7234,27 +7237,37 @@ class CopernicanGUI:
         self._run_config_path = None
         self._run_process = None
         if return_code == 0:
-            self.update_progress(100)
-            if self.status is RunStatus.RUNNING:
-                self.status = RunStatus.IDLE
-                self.current_phase = "Completed"
-                self._refresh_status_label()
-                self.create_toast(
-                    "Run completed successfully.",
-                    severity="INFO",
-                    context="run",
-                )
-                self.show_summary()
+            self._call_on_ui_thread(self._handle_worker_success)
         else:
-            if self.status is RunStatus.RUNNING:
-                self.status = RunStatus.ABORTED
-                self.current_phase = "Failed"
-                self._refresh_status_label()
-                self.create_toast(
-                    "Run aborted; review logs for details.",
-                    severity="ERROR",
-                    context="run",
-                )
+            self._call_on_ui_thread(self._handle_worker_failure)
+
+    def _handle_worker_success(self) -> None:
+        """Refresh UI elements after a successful run."""
+
+        self.update_progress(100)
+        if self.status is RunStatus.RUNNING:
+            self.status = RunStatus.IDLE
+            self.current_phase = "Completed"
+            self._refresh_status_label()
+            self.create_toast(
+                "Run completed successfully.",
+                severity="INFO",
+                context="run",
+            )
+            self.show_summary()
+
+    def _handle_worker_failure(self) -> None:
+        """Refresh UI elements after a failed run."""
+
+        if self.status is RunStatus.RUNNING:
+            self.status = RunStatus.ABORTED
+            self.current_phase = "Failed"
+            self._refresh_status_label()
+            self.create_toast(
+                "Run aborted; review logs for details.",
+                severity="ERROR",
+                context="run",
+            )
 
     def _start_progress_poller(self) -> None:
         """Kick off the progress file watcher when UI is active."""
@@ -7311,11 +7324,8 @@ class CopernicanGUI:
                 self._validation_last_stage_label = stage_name
         if snapshot.get("stage_label"):
             self.current_phase = snapshot["stage_label"]
-        if self.render and self.root is not None:
-            self.root.after(0, self._refresh_monitor_widgets)
-        else:
-            self._refresh_monitor_widgets()
-        self._refresh_validation_progress_widgets()
+        self._call_on_ui_thread(self._refresh_monitor_widgets)
+        self._call_on_ui_thread(self._refresh_validation_progress_widgets)
 
     def _stage_label_text(self, snapshot: dict | None) -> str:
         """Return the textual stage label derived from the snapshot."""
@@ -7336,6 +7346,16 @@ class CopernicanGUI:
             return bool(widget.winfo_exists())
         except tkinter_module.TclError:
             return False
+
+    def _call_on_ui_thread(
+        self, func: Callable[..., object], *args, **kwargs
+    ) -> None:
+        """Run *func* on the Tk main loop when rendering is active."""
+
+        if self.render and self.root is not None:
+            self.root.after(0, partial(func, *args, **kwargs))
+        else:
+            func(*args, **kwargs)
 
     def _refresh_monitor_widgets(self) -> None:
         """Update the progress bars, status label and log console."""

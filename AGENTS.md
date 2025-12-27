@@ -606,13 +606,12 @@ enforcement: active
 waiver: false
 ```
 
-Refresh documentation and `Last Updated` markers only on allowlisted surfaces.
-Keep `Last Updated` headers on: Markdown files, YAML files, `CITATION.cff`,
-`copernican.py` and the three `start.*` launchers. Remove these markers from
-other formats—including `.py` and `.json` sources—and avoid adding them outside
-the allowlist. When editing an allowlisted file, update its `Last Updated`
-marker within the first three lines using an ISO-8601 date without a time
-component.
+Refresh documentation and `Last Updated` markers only when editing the
+allowlisted files: `AGENTS.md`, `CITATION.cff`, `copernican.py`, `start.sh`,
+`start.bat` and `start.command`. Remove these markers from every other surface
+and do not introduce new ones elsewhere. When touching an allowlisted file,
+update its `Last Updated` marker within the first three lines using an ISO-8601
+date with no time component.
 
 ---
 

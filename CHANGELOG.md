@@ -27,8 +27,8 @@ suffixes. Follow this template:
   beside the status-update helper (AGENTS.md,
   devcovenant/policy_scripts/test_status_tracking.py, tools/run_tests.py,
   CHANGELOG.md, CITATION.cff, README.md, pyproject.toml,
-  copernican_lib/VERSION, DEVCOVENANT_LAW_MAPPING.md,
-  copernican_lib/gui/app.py, copernican_lib/gui/plot_viewer.py,
+  copernican_lib/VERSION, copernican_lib/gui/app.py,
+  copernican_lib/gui/plot_viewer.py,
   copernican_lib/latex_utils.py, copernican_lib/likelihoods/cmb.py,
   copernican_lib/model_coder.py, copernican_lib/optim_utils.py,
   copernican_lib/plotter.py, copernican_lib/plugins/__init__.py,
@@ -76,8 +76,8 @@ suffixes. Follow this template:
   policy upgrades, CLI refactors and GUI/dataset revisions landed since 11.0.0
   are published as a coordinated major release; the entry documents the
   enforced run/build changes, GUI/menu fixes, security logging, and devcovenant
-  plumbing that shipped together (AGENTS.md, DEVCOVENANT_LAW_MAPPING.md,
-  CHANGELOG.md, copernican_lib/VERSION, README.md, pyproject.toml,
+  plumbing that shipped together (AGENTS.md, CHANGELOG.md,
+  copernican_lib/VERSION, README.md, pyproject.toml,
   CITATION.cff, copernican_lib/gui/app.py, copernican_lib/gui/plot_viewer.py,
   copernican_lib/latex_utils.py, copernican_lib/likelihoods/cmb.py,
   copernican_lib/model_coder.py, copernican_lib/optim_utils.py,
@@ -107,7 +107,7 @@ suffixes. Follow this template:
   commit runs now pass cleanly with only informational hints; the update covers
   the Go-to-Tk guard, CMB/model helper fixes, new test-status wrapper script,
   refreshed security log and the registry hash updates needed for the new
-  policy set (AGENTS.md, DEVCOVENANT_LAW_MAPPING.md, copernican_lib/gui/app.py,
+  policy set (AGENTS.md, copernican_lib/gui/app.py,
   copernican_lib/gui/plot_viewer.py, copernican_lib/likelihoods/cmb.py,
   copernican_lib/model_coder.py, copernican_lib/optim_utils.py,
   copernican_lib/plotter.py, copernican_lib/plugins/__init__.py,
@@ -142,12 +142,12 @@ suffixes. Follow this template:
   base layer, and dropped the redundant `DEVCOVENANT_LAW_MAPPING.md` summary so
   every policy now inherits the shared exclusions automatically (AGENTS.md,
   devcovenant/README.md, devcovenant/base.py, devcovenant/devcovignore.md,
-  DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
+  CHANGELOG.md).
 - 2025-12-23: Clarified the CLI’s lazy-import placeholders, renamed the lock-
   hash helper argument, renamed the engine diagnostic helpers, and lifted the
   security/policy helper documentation so the SemVer bump, new coverage rules,
   and recent DevCovenant updates stay aligned in one release note (AGENTS.md,
-  DEVCOVENANT_LAW_MAPPING.md, copernican_lib/gui/app.py,
+  copernican_lib/gui/app.py,
   copernican_lib/model_coder.py, devcovenant/policy_scripts/name_clarity.py,
   devcovenant/registry.json,
   devcovenant/tests/test_policies/test_name_clarity.py, copernican.py,
@@ -256,7 +256,7 @@ suffixes. Follow this template:
 - 2025-12-28: Added the managed-venv and test-status tracking policies plus the
   `tools/update_test_status.py` helper so every code change records its latest
   suite run and DevCovenant refuses to run outside the repo `.venv` (AGENTS.md,
-  DEVCOVENANT_LAW_MAPPING.md, devcovenant/test_status.json,
+  devcovenant/test_status.json,
   tools/update_test_status.py,
   devcovenant/policy_scripts/test_status_tracking.py,
   devcovenant/tests/test_policies/test_test_status_tracking.py,
@@ -274,7 +274,7 @@ suffixes. Follow this template:
   devcovenant/policy_scripts/start_script_guardrails.py,
   devcovenant/tests/test_policies/test_security_scanner.py,
   devcovenant/tests/test_policies/test_start_script_guardrails.py,
-  DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
+  CHANGELOG.md).
 
 - 2025-12-22: Taught `name-clarity` to ignore vendored sources so third-party
   files keep their original identifiers, documented the exception, expanded the
@@ -290,7 +290,7 @@ suffixes. Follow this template:
   docs/security_changes.md,
   devcovenant/policy_scripts/security_compliance_notes.py,
   devcovenant/tests/test_policies/test_security_compliance_notes.py,
-  DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
+  CHANGELOG.md).
 
 - 2025-12-20: Raised the `docstring-and-comment-coverage` policy to error
   severity, synced the script/tests, and documented the `name_clarity` helpers
@@ -319,8 +319,7 @@ suffixes. Follow this template:
   devcovenant/tests/test_policies/test_version_sync.py,
   devcovenant/policy_scripts/docstring_and_comment_coverage.py,
   devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py,
-  tests/test_version_file.py, AGENTS.md, DEVCOVENANT_LAW_MAPPING.md,
-  CHANGELOG.md).
+  tests/test_version_file.py, AGENTS.md, CHANGELOG.md).
 
 - 2025-12-14: Added descriptive docstrings for the run-analysis helpers to
   describe each helper’s role so `copernican_lib/analysis.py` satisfies the
@@ -367,7 +366,6 @@ suffixes. Follow this template:
   growth-tracking`) plus supporting scripts, tests, waiver/setup files and
   documentation so the manual laws for dataset immutability, docstrings,
   documentation growth and license auditing can retire (AGENTS.md,
-  DEVCOVENANT_LAW_MAPPING.md,
   devcovenant/policy_scripts/read_only_directories.py,
   devcovenant/policy_scripts/docstring_and_comment_coverage.py,
   devcovenant/policy_scripts/dependency_license_sync.py,
@@ -382,7 +380,6 @@ suffixes. Follow this template:
   scans every non-test Python module (`*.py` outside `tests/`) for descriptive
   docstrings or adjacent guiding comments, matching the original law’s scope
   while keeping the notices at info level (AGENTS.md,
-  DEVCOVENANT_LAW_MAPPING.md,
   devcovenant/policy_scripts/docstring_and_comment_coverage.py, CHANGELOG.md).
 - 2025-12-17: The docstring policy now inspects `all_files` during lint/startup
   runs, so even untouched modules are analyzed for missing docstrings/comments
@@ -750,9 +747,8 @@ suffixes. Follow this template:
   manifest so GUI and CLI runs share the same tuning metadata
   (copernican_lib/gui/app.py, README.md, CHANGELOG.md).
 - 2025-12-03: Synchronized the GUI builder step identifiers with the manifest
-  confirmation tests and cleaned up trailing whitespace in the DevCovenant law
-  mapping (copernican_lib/gui/app.py, DEVCOVENANT_LAW_MAPPING.md,
-  CHANGELOG.md).
+  confirmation tests and cleaned up trailing whitespace in the legacy
+  DevCovenant law mapping summary (copernican_lib/gui/app.py, CHANGELOG.md).
 - 2025-12-03: Restored the dynamic Engine settings panel so each backend
   exposes its knobs, recommendations and run-setting hints with a scrollable
   stage four layout (copernican_lib/gui/app.py, CHANGELOG.md).
@@ -950,8 +946,8 @@ suffixes. Follow this template:
 - 2025-12-01: Removed the stray “ 2” sibling files so only canonical artifacts
   remain and appended the change here for clarity (CHANGELOG.md, .gitattributes
   2, .gitignore 2, .pre-commit-config 2.yaml, AGENTS 2.md, CHANGELOG 2.md,
-  CITATION 2.cff, CONTRIBUTING 2.md, DEVCOVENANT_LAW_MAPPING 2.md, LICENSE
-  2.md, MANIFEST 2.in, Makefile 2, PLAN 2.json, README 2.md,
+  CITATION 2.cff, CONTRIBUTING 2.md, legacy DevCovenant law mapping copy,
+  LICENSE 2.md, MANIFEST 2.in, Makefile 2, PLAN 2.json, README 2.md,
   THIRD_PARTY_LICENSES 2.md, copernican 2.py, cosmo_model_template 2.yml,
   devcovenant_check 2.py, pyproject 2.toml, requirements 2.in, requirements
   2.lock, start 2.bat, start 2.command, start 2.sh).
@@ -1265,9 +1261,9 @@ suffixes. Follow this template:
 - 2025-11-30: Documented 4 new DevCovenant policies in AGENTS.md: version-sync,
   no-future-dates, new-modules-need-tests, no-print-in-library (AGENTS.md,
   devcovenant/registry.json, CHANGELOG.md).
-- 2025-11-30: Created comprehensive Law-to-Policy mapping document showing
-  transition from numbered laws to automated DevCovenant policies
-  (DEVCOVENANT_LAW_MAPPING.md, CHANGELOG.md).
+- 2025-11-30: Created a comprehensive law-to-policy mapping document showing
+  the transition from numbered laws to automated DevCovenant policies
+  (CHANGELOG.md).
 - 2025-11-30: Removed Last Updated markers from 108 non-allowlisted files per
   last-updated-placement policy (*.md, *.yml, *.py, *.yaml across entire
   repository, CHANGELOG.md).
@@ -1277,8 +1273,8 @@ suffixes. Follow this template:
   CHANGELOG.md).
 - 2025-11-30: Hardened DevCovenant startup checks to ignore third-party
   directories, marked the documentation law as deprecated, and refreshed the
-  law-to-policy mapping (AGENTS.md, DEVCOVENANT_LAW_MAPPING.md,
-  devcovenant/engine.py, copernican.py, CHANGELOG.md).
+  law-to-policy mapping (AGENTS.md, devcovenant/engine.py, copernican.py,
+  CHANGELOG.md).
 
 ## Version 10.8.0
 - 2025-11-30: Bumped version to 10.8.0 for new DevCovenant policies

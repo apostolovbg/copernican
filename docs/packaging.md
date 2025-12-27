@@ -73,7 +73,7 @@ transient requirement.
 Inside `.venv` run:
 
 ```bash
-pip build .
+python -m build
 ```
 
 The command writes source archives and wheels to the `dist/` directory.
@@ -104,7 +104,7 @@ example, a build off ``work`` might use:
 
 ```bash
 export COPERNICAN_VERSION="1.2.1-alpha+work.$(git rev-parse --short HEAD)"
-pip build .
+python -m build
 ```
 
 ## Verify the build

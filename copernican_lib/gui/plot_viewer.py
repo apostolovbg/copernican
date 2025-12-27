@@ -33,8 +33,7 @@ class PlotViewer(ttk.Frame):
         self._zoom_active = False
         self._pan_press_event = None
         self._original_limits: dict[
-            tuple[float, float],
-            tuple[tuple[float, float], tuple[float, float]],
+            int, tuple[tuple[float, float], tuple[float, float]]
         ] = {}
         self.canvas.mpl_connect("button_press_event", self._on_press)
         self.canvas.mpl_connect("button_release_event", self._on_release)

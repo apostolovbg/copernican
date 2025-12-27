@@ -8,9 +8,12 @@ more than fix typos.
 ## Required Steps
 - Update `README.md`, `AGENTS.md` and any affected files under `docs/`.
 - Expand the scope or depth of documentation so it grows alongside the code.
-- Synchronise version strings and `Last Updated` fields across all documents.
-- Keep every `Last Updated` marker within the first three lines of its file and
-  record only the ISO calendar date (YYYY-MM-DD) with no time component.
+- Synchronise version strings across `README.md`, `AGENTS.md` and all updated
+  `docs/` entries whenever a feature ships.
+- Maintain `Last Updated` markers only on `AGENTS.md`, `CITATION.cff`,
+  `copernican.py`, `start.sh`, `start.bat` and `start.command`. Keep each
+  marker within the first three lines and record only the ISO calendar date
+  (YYYY-MM-DD) without a time component when editing those allowlisted files.
 - Record the changes in `CHANGELOG.md`.
 - Document user-facing console behaviour changes, including logging output and
   progress indicators, so users understand new interactions. The retirement of

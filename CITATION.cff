@@ -1,9 +1,9 @@
-# Last Updated: 2025-12-28
+# Last Updated: 2025-12-25
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "Copernican Suite"
 version: "12.0.1"
-date-released: "2025-12-28"
+date-released: "2025-12-25"
 
 authors:
   - family-names: "Apostolov"
@@ -15,7 +15,7 @@ preferred-citation:
   type: software
   title: "Copernican Suite"
   version: "12.0.1"
-  date-released: "2025-12-28"
+  date-released: "2025-12-25"
   authors:
     - family-names: "Apostolov"
       given-names: "Apostol"

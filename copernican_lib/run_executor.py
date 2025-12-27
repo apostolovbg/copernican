@@ -122,6 +122,7 @@ def execute_run_from_manifest(
     log = log_mod.get_logger()
     console_output.write("Manifest-driven run path invoked.")
     config = build_config_from_manifest(manifest)
+    utils.set_random_seed(config.seed)
     log.info(
         "Executing manifest run: seed=%s, models=%s, engine=%s",
         config.seed,
