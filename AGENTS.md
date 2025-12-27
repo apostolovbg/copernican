@@ -429,16 +429,17 @@ their own scope.
 
 #### 1. **At the START of Every Work Session** (REQUIRED)
 
-**Before beginning any work on the repository**, run: **Run `pre-commit run
---all-files`**
+**Before beginning any work on the repository**, immediately run:
+`pre-commit run --all-files` followed by `python tools/run_tests.py`.
 
 DevCovenant runs as part of pre-commit. The repository should pass the other
 pre-commit hooks anyway if everything has been clean on last commit.
 
-Running pre-commit with DevCovenant at the beginning of work ensures:
+Running the full hook suite and tests at the beginning of work ensures:
 - All policies are synchronized with their implementation scripts
 - Any updated policies trigger immediate script updates
 - The AI is aware of all current policies before proceeding
+- The end-to-end test suite exercises the current state before changes begin
 
 **What happens:**
 - DevCovenant parses all policy definitions from this file
@@ -513,6 +514,15 @@ After editing a policy in this file:
 - Read all violation messages carefully - they guide you to the fix
 - Use `--fix` flag to auto-fix when available: `python devcovenant_check.py
   check --fix`
+
+#### 5. **Before responding to ANY user request** (REQUIRED)
+
+Re-run `pre-commit run --all-files` **and** `python tools/run_tests.py`
+immediately before crafting the reply, even if the user only asked a question
+or the change touched documentation only. This full sweep re-runs
+DevCovenant across the entire repository and exercises the entire test suite so
+global policies (e.g., `no-future-dates`) re-check historical files and tests
+cannot silently regress.
 
 ### Policy Format
 
@@ -714,7 +724,11 @@ waiver: false
 
 `Last Updated` timestamps and date fields must never extend into the future.
 Future dates indicate dating errors or premature commits. All dates must be
-validated against the current date before being recorded.
+validated against the current date before being recorded. Always run
+`pre-commit run --all-files` (or `python devcovenant_check.py check --mode=lint`)
+before responding so the policy scans the entire changelog, citation metadata
+and every other file, catching stale or future timestamps even when those files
+were not edited in the current diff.
 
 ---
 

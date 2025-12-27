@@ -21,7 +21,7 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.1
-- 2025-12-28 [semver:patch]: Relocated the canonical `run_tests.py` wrapper to
+- 2025-12-27 [semver:patch]: Relocated the canonical `run_tests.py` wrapper to
   `tools/`, deleted the obsolete `scripts/` directory and updated every policy
   and instruction that referenced the old path so the managed test runner lives
   beside the status-update helper (AGENTS.md,
@@ -50,14 +50,14 @@ suffixes. Follow this template:
   devcovenant/tests/test_policies/test_semantic_version_scope.py,
   docs/security_changes.md, tools/update_test_status.py,
   rng_minigames/registry.json).
-- 2025-12-28 [semver:patch]: Tightened the `semantic-version-scope` policy so
+- 2025-12-27 [semver:patch]: Tightened the `semantic-version-scope` policy so
   changelog entries must use a single scope, bump `copernican_lib/VERSION`
   whenever a scoped release is logged, and reject scope mismatches; docs and
   tests describe the new behavior (AGENTS.md,
   devcovenant/policy_scripts/semantic_version_scope.py,
   devcovenant/tests/test_policies/test_semantic_version_scope.py,
   devcovenant/README.md, CHANGELOG.md).
-- 2025-12-28 [semver:patch]: Wrapped every non-vendored Markdown document to a
+- 2025-12-27 [semver:patch]: Wrapped every non-vendored Markdown document to a
   79-character limit, refactored the license table to use reference links and
   updated the DevCovenant README tables so documentation stays consistent with
   the new width preference (THIRD_PARTY_LICENSES.md, devcovenant/README.md,
@@ -70,7 +70,7 @@ suffixes. Follow this template:
   docs/latex_syntax.md, docs/launcher_gui.md, docs/minigames.md,
   docs/orchestration_services.md, docs/packaging.md, docs/run_manifest.md,
   validation/README.md).
-- 2025-12-28 [semver:patch]: Patched manifest-driven reproducibility by seeding
+- 2025-12-27 [semver:patch]: Patched manifest-driven reproducibility by seeding
   the global RNG when executing manifests, hardened GUI thread hand-offs and
   worker launch environment handling, corrected PlotViewer typing, refreshed
   packaging and GUI docs, aligned the Last Updated policy prose with the
@@ -82,7 +82,7 @@ suffixes. Follow this template:
   docs/documentation_policy.md, CITATION.cff).
 
 ## Version 12.0.0
-- 2025-12-28 [semver:major]: Promoted the suite to 12.0.0 so the sweeping
+- 2025-12-27 [semver:major]: Promoted the suite to 12.0.0 so the sweeping
   policy upgrades, CLI refactors and GUI/dataset revisions landed since 11.0.0
   are published as a coordinated major release; the entry documents the
   enforced run/build changes, GUI/menu fixes, security logging, and devcovenant

@@ -14,9 +14,7 @@ except ImportError:  # pragma: no cover - dependency not installed
     VersionInfo = None  # type: ignore[assignment]
 
 
-_SEMVER_TAG_RE = re.compile(
-    r"\[semver:(major|minor|patch)\]", re.IGNORECASE
-)
+_SEMVER_TAG_RE = re.compile(r"\[semver:(major|minor|patch)\]", re.IGNORECASE)
 _VERSION_HEADER_RE = re.compile(
     r"^##\s+Version\s+(\d+\.\d+\.\d+)", re.MULTILINE
 )
