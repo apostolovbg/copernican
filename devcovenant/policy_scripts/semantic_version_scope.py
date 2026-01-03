@@ -33,8 +33,22 @@ class SemanticVersionScopeCheck(PolicyCheck):
         """Validate the latest changelog tags against the version bump."""
         violations: List[Violation] = []
         repo_root = context.repo_root
-        version_path = repo_root / "copernican_lib" / "VERSION"
-        changelog_path = repo_root / "CHANGELOG.md"
+        cfg = context.get_policy_config(self.policy_id)
+        version_rel = Path(cfg.get("version_file", "copernican_lib/VERSION"))
+        changelog_rel = Path(cfg.get("changelog_file", "CHANGELOG.md"))
+        override_rel = Path(
+            cfg.get(
+                "override_file",
+                ".devcovenant/waivers/semantic-version-scope.txt",
+            )
+        )
+        ignored_prefixes = tuple(
+            cfg.get("ignored_prefixes", list(_IGNORED_PREFIXES))
+        )
+        version_path = repo_root / version_rel
+        changelog_path = repo_root / changelog_rel
+        version_label = version_rel.as_posix()
+        override_label = override_rel.as_posix()
 
         if not version_path.exists():
             return violations
@@ -50,7 +64,11 @@ class SemanticVersionScopeCheck(PolicyCheck):
             return violations
 
         if not self._has_relevant_changes(
-            changed_files, repo_root, version_path, changelog_path
+            changed_files,
+            repo_root,
+            version_path,
+            changelog_path,
+            ignored_prefixes,
         ):
             return violations
 
@@ -119,7 +137,7 @@ class SemanticVersionScopeCheck(PolicyCheck):
                     message=(
                         "Top changelog entry "
                         f"({latest_recorded}) does not match "
-                        f"copernican_lib/VERSION ({current_version})."
+                        f"{version_label} ({current_version})."
                     ),
                 )
             )
@@ -161,7 +179,7 @@ class SemanticVersionScopeCheck(PolicyCheck):
             return violations
 
         required_level, marker_levels = self._determine_required_level(
-            repo_root, latest_block or ""
+            repo_root, latest_block or "", override_rel
         )
         if required_level is None:
             violations.append(
@@ -172,8 +190,7 @@ class SemanticVersionScopeCheck(PolicyCheck):
                     message=(
                         "Add at least one `[semver:patch|minor|major]` tag to "
                         "the latest changelog entry or specify "
-                        "`override=<level>` in "
-                        ".devcovenant/waivers/semantic-version-scope.txt."
+                        f"`override=<level>` in `{override_label}`."
                     ),
                 )
             )
@@ -191,7 +208,7 @@ class SemanticVersionScopeCheck(PolicyCheck):
                     file_path=version_path,
                     message=(
                         "CHANGELOG declares a release scope but "
-                        "copernican_lib/VERSION was not updated; bump the "
+                        f"{version_label} was not updated; bump the "
                         "version file alongside the changelog entry."
                     ),
                 )
@@ -241,7 +258,7 @@ class SemanticVersionScopeCheck(PolicyCheck):
                     file_path=version_path,
                     message=(
                         "Changelog tags demand a "
-                        f"{required_name} bump but copernican_lib/VERSION is "
+                        f"{required_name} bump but {version_label} is "
                         f"recorded as a {actual_name} change."
                     ),
                 )
@@ -255,6 +272,7 @@ class SemanticVersionScopeCheck(PolicyCheck):
         repo_root: Path,
         version_path: Path,
         changelog_path: Path,
+        ignored_prefixes: tuple[str, ...],
     ) -> bool:
         """Return True when files outside the ignored prefixes changed."""
         for path in changed_files:
@@ -267,7 +285,7 @@ class SemanticVersionScopeCheck(PolicyCheck):
             except ValueError:
                 rel = path
             parts = rel.parts
-            if parts and parts[0] in _IGNORED_PREFIXES:
+            if parts and parts[0] in ignored_prefixes:
                 continue
             return True
         return False
@@ -290,15 +308,10 @@ class SemanticVersionScopeCheck(PolicyCheck):
         return block, versions
 
     def _determine_required_level(
-        self, repo_root: Path, latest_block: str
+        self, repo_root: Path, latest_block: str, override_rel: Path
     ) -> Tuple[Optional[int], List[int]]:
         """Return the SemVer level required for this release."""
-        override_path = (
-            repo_root
-            / ".devcovenant"
-            / "waivers"
-            / "semantic-version-scope.txt"
-        )
+        override_path = repo_root / override_rel
         override_level = self._read_override(override_path)
         if override_level is not None:
             return override_level, [override_level]

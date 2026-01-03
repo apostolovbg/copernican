@@ -28,16 +28,18 @@ WATCHED_FILES = {
 }
 
 
-def _requires_status_update(rel_path: Path) -> bool:
+def _requires_status_update(
+    rel_path: Path, watched_roots: set[str], watched_files: set[str]
+) -> bool:
     """Return True when *rel_path* should trigger a test status refresh."""
     if not rel_path.parts:
         return False
     if rel_path == STATUS_RELATIVE:
         return False
     first = rel_path.parts[0]
-    if first in WATCHED_ROOTS:
+    if first in watched_roots:
         return True
-    if rel_path.name in WATCHED_FILES:
+    if rel_path.name in watched_files:
         return True
     return False
 
@@ -84,18 +86,24 @@ class TestStatusTrackingCheck(PolicyCheck):
         changed_files: Iterable[Path] = context.changed_files or []
         relevant_change = False
         status_changed = False
+        cfg = context.get_policy_config(self.policy_id)
+        status_relative = Path(
+            cfg.get("test_status_file", str(STATUS_RELATIVE))
+        )
+        watched_roots = set(cfg.get("watched_roots", list(WATCHED_ROOTS)))
+        watched_files = set(cfg.get("watched_files", list(WATCHED_FILES)))
 
         for path in changed_files:
             try:
                 rel = path.relative_to(repo_root)
             except ValueError:
                 continue
-            if rel == STATUS_RELATIVE:
+            if rel == status_relative:
                 status_changed = True
-            if _requires_status_update(rel):
+            if _requires_status_update(rel, watched_roots, watched_files):
                 relevant_change = True
 
-        status_path = repo_root / STATUS_RELATIVE
+        status_path = repo_root / status_relative
         if not relevant_change:
             return []
 

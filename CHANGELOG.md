@@ -21,6 +21,27 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.1
+- 2026-01-03 [semver:patch]: Parameterised DevCovenant so policy manifests,
+  changelog rules, dependency scanners and launcher guards read their inputs
+  from `config.yaml`, rewired the engine to pass configuration into every
+  policy, documented the new knobs, and added a regression suite for the
+  configurable DevFlow gate (CHANGELOG.md, devcovenant/config.yaml,
+  devcovenant/base.py, devcovenant/engine.py, devcovenant/README.md,
+  devcovenant/policy_scripts/changelog_coverage.py,
+  devcovenant/policy_scripts/dependency_license_sync.py,
+  devcovenant/policy_scripts/devflow_run_gates.py,
+  devcovenant/policy_scripts/documentation_growth_tracking.py,
+  devcovenant/policy_scripts/managed_venv.py,
+  devcovenant/policy_scripts/new_modules_need_tests.py,
+  devcovenant/policy_scripts/no_print_in_library.py,
+  devcovenant/policy_scripts/security_compliance_notes.py,
+  devcovenant/policy_scripts/semantic_version_scope.py,
+  devcovenant/policy_scripts/start_script_guardrails.py,
+  devcovenant/policy_scripts/start_script_parity.py,
+  devcovenant/policy_scripts/test_status_tracking.py,
+  devcovenant/policy_scripts/version_sync.py,
+  devcovenant/tests/test_policies/test_devflow_run_gates.py,
+  devcovenant/test_status.json, devcovenant/registry.json).
 - 2025-12-27 [semver:patch]: Relocated the canonical `run_tests.py` wrapper to
   `tools/`, deleted the obsolete `scripts/` directory and updated every policy
   and instruction that referenced the old path so the managed test runner lives
@@ -75,8 +96,9 @@ suffixes. Follow this template:
   worker launch environment handling, corrected PlotViewer typing, refreshed
   packaging and GUI docs, aligned the Last Updated policy prose with the
   enforced allowlist, removed lingering references to the retired
-  law-mapping file, and updated the citation metadata to the actual release
-  date (copernican_lib/run_executor.py, tests/test_run_executor.py,
+  law-mapping file, tightened the pre-commit/test cadence expectations, and
+  updated the citation metadata to the actual release date
+  (copernican_lib/run_executor.py, tests/test_run_executor.py,
   copernican_lib/gui/app.py, copernican_lib/gui/plot_viewer.py,
   docs/packaging.md, docs/gui_guide.md, AGENTS.md,
   docs/documentation_policy.md, CITATION.cff).

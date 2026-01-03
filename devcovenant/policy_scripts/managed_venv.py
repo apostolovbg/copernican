@@ -19,11 +19,18 @@ class ManagedVenvCheck(PolicyCheck):
     def check(self, context: CheckContext) -> List[Violation]:
         """Error when DevCovenant runs outside `<repo>/.venv`."""
         repo_root = context.repo_root.resolve()
-        expected_path = (repo_root / ".venv").resolve()
-        if not expected_path.exists():
+        cfg = context.get_policy_config(self.policy_id)
+        expected_entries = cfg.get(
+            "expected_virtualenvs",
+            [".venv"],
+        )
+        expected_paths = [
+            (repo_root / Path(entry)).resolve() for entry in expected_entries
+        ]
+        if not any(path.exists() for path in expected_paths):
             return []
 
-        if self._in_expected_venv(expected_path):
+        if self._in_expected_venv(expected_paths):
             return []
 
         message = (
@@ -35,13 +42,13 @@ class ManagedVenvCheck(PolicyCheck):
             Violation(
                 policy_id=self.policy_id,
                 severity="error",
-                file_path=repo_root / ".venv",
+                file_path=expected_paths[0],
                 line_number=1,
                 message=message,
             )
         ]
 
-    def _in_expected_venv(self, expected: Path) -> bool:
+    def _in_expected_venv(self, expected_paths: List[Path]) -> bool:
         """Return True when the active interpreter lives inside *expected*."""
         env_path = os.environ.get("VIRTUAL_ENV")
         candidates = []
@@ -54,6 +61,7 @@ class ManagedVenvCheck(PolicyCheck):
                 resolved = candidate.resolve()
             except OSError:
                 continue
-            if expected in resolved.parents or resolved == expected:
-                return True
+            for directory in expected_paths:
+                if directory in resolved.parents or resolved == directory:
+                    return True
         return False

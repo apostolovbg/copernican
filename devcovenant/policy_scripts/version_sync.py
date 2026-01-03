@@ -34,10 +34,16 @@ class VersionSyncCheck(PolicyCheck):
         """Check for version synchronization across metadata files."""
         violations: List[Violation] = []
 
-        version_file = context.repo_root / "copernican_lib" / "VERSION"
-        readme_file = context.repo_root / "README.md"
-        citation_file = context.repo_root / "CITATION.cff"
-        pyproject_file = context.repo_root / "pyproject.toml"
+        cfg = context.get_policy_config(self.policy_id)
+        version_rel = Path(cfg.get("version_file", "copernican_lib/VERSION"))
+        readme_rel = Path(cfg.get("readme_file", "README.md"))
+        citation_rel = Path(cfg.get("citation_file", "CITATION.cff"))
+        pyproject_rel = Path(cfg.get("pyproject_file", "pyproject.toml"))
+        version_file = context.repo_root / version_rel
+        readme_file = context.repo_root / readme_rel
+        citation_file = context.repo_root / citation_rel
+        pyproject_file = context.repo_root / pyproject_rel
+        version_label = version_rel.as_posix()
 
         # Verify required files exist
         required_targets = (
@@ -128,7 +134,7 @@ class VersionSyncCheck(PolicyCheck):
                         file_path=readme_file,
                         message=(
                             f"Version {readme_version} does not match "
-                            f"copernican_lib/VERSION ({version})"
+                            f"{version_label} ({version})"
                         ),
                     )
                 )
@@ -162,7 +168,7 @@ class VersionSyncCheck(PolicyCheck):
                         file_path=pyproject_file,
                         message=(
                             f"pyproject.toml version {pyproject_version} "
-                            f"does not match copernican_lib/VERSION "
+                            f"does not match {version_label} "
                             f"({version})"
                         ),
                     )
@@ -222,7 +228,12 @@ class VersionSyncCheck(PolicyCheck):
 
         # Prevent runtime code from hard-coding the suite version.
         runtime_hits: List[Path] = []
-        for runtime_file in self._runtime_python_files(context.repo_root):
+        runtime_files = self._runtime_python_files(
+            context.repo_root,
+            cfg.get("runtime_entrypoints", ["copernican.py"]),
+            cfg.get("runtime_roots", ["copernican_lib", "engines"]),
+        )
+        for runtime_file in runtime_files:
             try:
                 contents = runtime_file.read_text(encoding="utf-8")
             except OSError as exc:
@@ -252,7 +263,9 @@ class VersionSyncCheck(PolicyCheck):
                 )
             )
 
-        previous_version = self._previous_version(context.repo_root)
+        previous_version = self._previous_version(
+            context.repo_root, version_rel.as_posix()
+        )
         if previous_version and previous_version != version:
             try:
                 previous_semver = VersionInfo.parse(previous_version)
@@ -264,7 +277,7 @@ class VersionSyncCheck(PolicyCheck):
                         file_path=version_file,
                         message=(
                             "Previous version recorded in Git is not valid "
-                            "SemVer; update copernican_lib/VERSION before "
+                            f"SemVer; update {version_label} before "
                             "bumping again."
                         ),
                     )
@@ -297,15 +310,21 @@ class VersionSyncCheck(PolicyCheck):
             return None
         return project.get("version")
 
-    def _runtime_python_files(self, repo_root: Path) -> List[Path]:
+    def _runtime_python_files(
+        self,
+        repo_root: Path,
+        entrypoints: List[str],
+        runtime_roots: List[str],
+    ) -> List[Path]:
         """Return Python files that represent runtime entrypoints."""
         runtime_files: List[Path] = []
 
-        copernican_entry = repo_root / "copernican.py"
-        if copernican_entry.is_file():
-            runtime_files.append(copernican_entry)
+        for entry in entrypoints:
+            entry_path = repo_root / entry
+            if entry_path.is_file():
+                runtime_files.append(entry_path)
 
-        for folder_name in ("copernican_lib", "engines"):
+        for folder_name in runtime_roots:
             root = repo_root / folder_name
             if not root.exists():
                 continue
@@ -313,12 +332,14 @@ class VersionSyncCheck(PolicyCheck):
 
         return runtime_files
 
-    def _previous_version(self, repo_root: Path) -> Optional[str]:
+    def _previous_version(
+        self, repo_root: Path, version_rel: str
+    ) -> Optional[str]:
         """Return the version string from the previous commit if available."""
 
         try:
             completed = subprocess.run(
-                ["git", "show", "HEAD:copernican_lib/VERSION"],
+                ["git", "show", f"HEAD:{version_rel}"],
                 cwd=repo_root,
                 check=True,
                 stdout=subprocess.PIPE,

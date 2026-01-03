@@ -6,11 +6,15 @@ across platforms and properly routing output through dedicated utilities.
 """
 
 import re
+from pathlib import Path
 from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
 PRINT_PATTERN = re.compile(r"(?<![\w.])print\s*\(")
+DEFAULT_ALLOWED = {"copernican_lib/console_output.py"}
+DEFAULT_TARGET_ROOTS = {"copernican_lib", "engines"}
+DEFAULT_VENDOR_PATHS = {"copernican_lib/vendor"}
 
 
 class NoPrintInLibraryCheck(PolicyCheck):
@@ -23,10 +27,14 @@ class NoPrintInLibraryCheck(PolicyCheck):
         """Check for print() usage in library code."""
         violations = []
 
-        # Define allowed files (console_output.py can use print)
+        cfg = context.get_policy_config(self.policy_id)
+        allowed_rel = set(cfg.get("allowed_files", list(DEFAULT_ALLOWED)))
         allowed = {
-            context.repo_root / "copernican_lib" / "console_output.py",
+            (context.repo_root / Path(rel_path)).resolve()
+            for rel_path in allowed_rel
         }
+        target_roots = set(cfg.get("target_roots", list(DEFAULT_TARGET_ROOTS)))
+        vendor_paths = set(cfg.get("vendor_paths", list(DEFAULT_VENDOR_PATHS)))
 
         file_paths = context.changed_files or context.all_files
 
@@ -40,26 +48,25 @@ class NoPrintInLibraryCheck(PolicyCheck):
                 continue
 
             # Skip bundled vendor code under copernican_lib/vendor/
-            if (
-                len(rel.parts) >= 2
-                and rel.parts[0] == "copernican_lib"
-                and rel.parts[1] == "vendor"
+            rel_posix = rel.as_posix()
+            if any(
+                rel_posix == vendor or rel_posix.startswith(f"{vendor}/")
+                for vendor in vendor_paths
             ):
                 continue
 
             # Only check copernican_lib/ and engines/
-            if not rel.parts or rel.parts[0] not in (
-                "copernican_lib",
-                "engines",
-            ):
+            if not rel.parts or rel.parts[0] not in target_roots:
                 continue
 
+            resolved = path.resolve()
+
             # Skip allowed files
-            if path in allowed:
+            if resolved in allowed:
                 continue
 
             try:
-                text = path.read_text(encoding="utf-8", errors="replace")
+                text = resolved.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
 

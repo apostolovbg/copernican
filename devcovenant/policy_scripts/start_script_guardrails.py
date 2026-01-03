@@ -20,8 +20,21 @@ class StartScriptGuardrailsCheck(PolicyCheck):
     def check(self, context: CheckContext) -> List[Violation]:
         """Report missing guardrail snippets inside start scripts."""
         violations: List[Violation] = []
+        cfg = context.get_policy_config(self.policy_id)
+        scripts = cfg.get("scripts")
+        if scripts is None:
+            scripts = [
+                {"path": name, "required": patterns}
+                for name, patterns in REQUIRED_PATTERNS.items()
+            ]
 
-        for name, patterns in REQUIRED_PATTERNS.items():
+        for script_entry in scripts:
+            name = script_entry.get("path")
+            patterns = script_entry.get(
+                "required", REQUIRED_PATTERNS.get(name, [])
+            )
+            if not name or not patterns:
+                continue
             target = context.repo_root / name
             if not target.exists():
                 continue

@@ -21,12 +21,15 @@ USER_VISIBLE_FILES = {
 }
 
 
-def _is_user_visible(rel_path: PurePosixPath) -> bool:
+def _is_user_visible(
+    rel_path: PurePosixPath,
+    dirs: List[str],
+    files: List[str],
+) -> bool:
     """Return True if the relative path affects end-user workflows or docs."""
-    if rel_path.parts:
-        if rel_path.parts[0] in USER_VISIBLE_DIRS:
-            return True
-    if rel_path.name in USER_VISIBLE_FILES:
+    if rel_path.parts and rel_path.parts[0] in dirs:
+        return True
+    if rel_path.name in files:
         return True
     return False
 
@@ -41,6 +44,9 @@ class DocumentationGrowthTrackingCheck(PolicyCheck):
         """Emit a reminder when user-visible surfaces were touched."""
         files = context.changed_files or []
         impacted: List[PurePosixPath] = []
+        cfg = context.get_policy_config(self.policy_id)
+        user_dirs = cfg.get("user_visible_dirs", list(USER_VISIBLE_DIRS))
+        user_files = cfg.get("user_visible_files", list(USER_VISIBLE_FILES))
 
         for path in files:
             try:
@@ -49,7 +55,7 @@ class DocumentationGrowthTrackingCheck(PolicyCheck):
                 continue
 
             rel_posix = PurePosixPath(rel.as_posix())
-            if _is_user_visible(rel_posix):
+            if _is_user_visible(rel_posix, user_dirs, user_files):
                 impacted.append(rel_posix)
 
         if not impacted:

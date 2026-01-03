@@ -1033,55 +1033,59 @@ class TrailingWhitespaceFixer(PolicyFixer):
 
 ### Configuration File
 
-Edit `devcovenant/config.yaml`:
+Edit `devcovenant/config.yaml` to tune DevCovenant for your repository. The
+file now exposes **global paths**, **engine options** and **per-policy blocks**
+so every formerly hard-coded identifier can be overridden:
 
 ```yaml
-# DevCovenant Configuration
+paths:
+  policy_definitions: AGENTS.md
+  registry_file: devcovenant/registry.json
 
 engine:
-  # Allow AI to automatically update policy scripts when hash mismatches detected
   master_update: true
-
-  # Fix violations at this severity level and above before commit
-  # Options: critical, error, warning, info
   fix_threshold: warning
-
-  # Block commit if violations at this severity level or above
-  # Options: critical, error, warning, info
   fail_threshold: error
-
-  # Enable auto-fixers when available
   auto_fix_enabled: true
-
-  # Run policy checks in parallel for performance
   parallel_checks: true
-
-  # Verbose output for AI guidance
   verbose: true
+  file_suffixes:
+    - .py
+    - .md
+    - .yml
+    - .yaml
 
 self_enforcement:
-  # devcovenant enforces its own policies on itself
   enabled: true
-
-  # Prefix for devcovenant's own policies in AGENTS.md
   policy_prefix: "devcov-"
 
 hooks:
-  # Enable pre-commit hook
   pre_commit: true
-
-  # Enable pre-push hook (optional)
   pre_push: false
 
 reporting:
-  # Show links to policy documentation in violation messages
   show_policy_links: true
-
-  # Maintain audit trail of policy updates
   audit_trail: true
-
-  # Use colored output (ANSI colors)
   use_colors: true
+
+policies:
+  devflow-run-gates:
+    test_status_file: devcovenant/test_status.json
+    required_commands:
+      - pytest
+      - python -m unittest discover
+    code_extensions:
+      - .py
+      - .pyi
+  changelog-coverage:
+    main_changelog: CHANGELOG.md
+    skipped_files:
+      - CHANGELOG.md
+    collections:
+      - prefix: rng_minigames/
+        changelog: rng_minigames/CHANGELOG.md
+        exclusive: true
+  # ...see below for every policy-specific option
 ```
 
 ### Configuration Options Explained
@@ -1095,6 +1099,8 @@ reporting:
 - **`auto_fix_enabled`** *(default `true`)* — Toggles all auto-fixers.
 - **`parallel_checks`** *(default `true`)* — Runs policy checks in parallel
   for faster feedback.
+- **`file_suffixes`** *(default `[.py, .md, .yml, .yaml]`)* — Controls which
+  files are scanned when building the repository inventory for policy checks.
 - **`verbose`** *(default `true`)* — Prints detailed progress messages.
 - **`self_enforcement`** *(default `true`)* — Enables DevCovenant's
   self-checks.
@@ -1104,6 +1110,73 @@ reporting:
 - **`audit_trail`** *(default `true`)* — Tracks policy updates in the registry.
 - **`use_colors`** *(default `true`)* — Emits ANSI color codes in the CLI
   output.
+- **`paths.policy_definitions`** *(default `AGENTS.md`)* — Points the parser to
+  your canonical policy document.
+- **`paths.registry_file`** *(default `devcovenant/registry.json`)* — Allows
+  relocating the hash registry (for monorepos or workspace layouts).
+- **`policies.<policy-id>`** — Every policy can be tuned without editing the
+  Python script (see below).
+
+### Per-policy options
+
+Each policy inherits defaults that match the Copernican repository, but you can
+redefine them under `policies.<policy-id>`:
+
+- **`changelog-coverage`**  
+  - `main_changelog`: root changelog path.  
+  - `skipped_files`: filenames ignored by the policy.  
+  - `collections`: list of dictionaries describing additional changelog
+    partitions (`prefix`, `changelog`, `exclusive`).
+- **`documentation-growth-tracking`**  
+  - `user_visible_dirs` / `user_visible_files`: directories and files that
+    trigger documentation reminders.
+- **`dependency-license-sync`**  
+  - `dependency_files`: manifest files guarded by the policy.  
+  - `third_party_file`: consolidated license table.  
+  - `licenses_dir`: directory containing per-package licenses.  
+  - `report_heading`: heading text that marks the “License Report” section.
+- **`devflow-run-gates`**  
+  - `test_status_file`: JSON file storing the last test run (defaults to
+    `devcovenant/test_status.json`).  
+  - `required_commands`: lower-case strings that must appear in
+    `commands`.  
+  - `code_extensions`: extensions considered “code changes” for enforcing test
+    runs.
+- **`test-status-tracking`**  
+  - `test_status_file`: mirrors the gate above.  
+  - `watched_roots` / `watched_files`: modifications here require a fresh
+    recorded test run.
+- **`managed-venv`**  
+  - `expected_virtualenvs`: list of repository-relative directories that host
+    valid virtual environments (default: `.venv`).
+- **`new-modules-need-tests`**  
+  - `module_roots`: directories whose Python modules must ship with tests.  
+  - `tests_root`: location that should change whenever modules are added or
+    removed.
+- **`no-print-in-library`**  
+  - `target_roots`: runtime packages to scan for `print()` calls.  
+  - `vendor_paths`: prefixes that should be ignored (vendored dependencies).  
+  - `allowed_files`: explicit exceptions (e.g., a console output helper).
+- **`security-compliance-notes`**  
+  - `guarded_paths`: directories/files representing security-critical assets.  
+  - `log_path`: markdown file that must record any guarded edits.
+- **`start-script-guardrails`**  
+  - `scripts`: list of `{path, required}` patterns that enforce sudo prompts,
+    package manager notices, etc.
+- **`start-script-parity`**  
+  - `scripts`: list of launcher names that must evolve together.
+- **`version-sync`**  
+  - `version_file`, `readme_file`, `citation_file`,
+    `pyproject_file`: the documents compared for consistency.  
+  - `runtime_entrypoints`: top-level Python files that should not hard-code the
+    suite version.  
+  - `runtime_roots`: package directories scanned for hard-coded versions.
+- **`semantic-version-scope`**  
+  - `version_file`, `changelog_file`, `ignored_prefixes`, `override_file`:
+    fine-tune the SemVer scope policy for any repo layout.
+- **`changelog-coverage`** (collections) and the other policies follow the same
+  pattern: add a block under `policies.<policy-id>` and override whichever keys
+  you need.
 
 ### Global Ignore List
 

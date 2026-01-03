@@ -68,13 +68,18 @@ class NewModulesNeedTestsCheck(PolicyCheck):
             modified,
             deleted,
         ) = self._collect_repo_changes(context.repo_root)
+        cfg = context.get_policy_config(self.policy_id)
+        module_roots = set(
+            cfg.get("module_roots", ["copernican_lib", "engines"])
+        )
+        tests_root = cfg.get("tests_root", "tests")
 
         def _is_library_or_engine_module(relative: Path) -> bool:
             """Return True when motion paths point at core Python modules."""
             return (
                 relative.suffix == ".py"
                 and relative.parts
-                and relative.parts[0] in ("copernican_lib", "engines")
+                and relative.parts[0] in module_roots
             )
 
         def _collect_changed_tests(paths: Set[Path]) -> List[Path]:
@@ -85,7 +90,7 @@ class NewModulesNeedTestsCheck(PolicyCheck):
                     rel = path.relative_to(context.repo_root)
                 except ValueError:
                     continue
-                if rel.parts and rel.parts[0] == "tests":
+                if rel.parts and rel.parts[0] == tests_root:
                     tests.append(path)
             return tests
 
@@ -125,7 +130,7 @@ class NewModulesNeedTestsCheck(PolicyCheck):
                     severity="error",
                     file_path=new_modules[0],
                     message=(
-                        f"Add or update tests under tests/ "
+                        f"Add or update tests under {tests_root}/ "
                         f"for new modules: {targets}"
                     ),
                 )
@@ -144,8 +149,8 @@ class NewModulesNeedTestsCheck(PolicyCheck):
                     severity="error",
                     file_path=removed_modules[0],
                     message=(
-                        f"Adjust tests under tests/ when removing modules: "
-                        f"{targets}"
+                        f"Adjust tests under {tests_root}/ "
+                        f"when removing modules: {targets}"
                     ),
                 )
             )

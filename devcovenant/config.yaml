@@ -1,46 +1,168 @@
 # DevCovenant Configuration
 
+paths:
+  # Markdown document that carries the policy definitions.
+  policy_definitions: AGENTS.md
+  # Registry file storing the synchronized policy hashes.
+  registry_file: devcovenant/registry.json
+
 engine:
-  # Allow AI to automatically update policy scripts when hash mismatches detected
   master_update: true
-
-  # Fix violations at this severity level and above before commit
-  # Options: critical, error, warning, info
   fix_threshold: warning
-
-  # Block commit if violations at this severity level or above
-  # Options: critical, error, warning, info
   fail_threshold: error
-
-  # Enable auto-fixers when available
   auto_fix_enabled: true
-
-  # Run policy checks in parallel for performance
   parallel_checks: true
-
-  # Verbose output for AI guidance
   verbose: true
+  # File suffixes traversed when gathering the repo inventory.
+  file_suffixes:
+    - .py
+    - .md
+    - .yml
+    - .yaml
 
 self_enforcement:
-  # devcovenant enforces its own policies on itself
   enabled: true
-
-  # Prefix for devcovenant's own policies in AGENTS.md
   policy_prefix: "devcov-"
 
 hooks:
-  # Enable pre-commit hook
   pre_commit: true
-
-  # Enable pre-push hook (optional)
   pre_push: false
 
 reporting:
-  # Show links to policy documentation in violation messages
   show_policy_links: true
-
-  # Maintain audit trail of policy updates
   audit_trail: true
-
-  # Use colored output (ANSI colors)
   use_colors: true
+
+policies:
+  changelog-coverage:
+    main_changelog: CHANGELOG.md
+    skipped_files:
+      - CHANGELOG.md
+      - rng_minigames/CHANGELOG.md
+      - .gitignore
+      - .pre-commit-config.yaml
+    collections:
+      - prefix: rng_minigames/
+        changelog: rng_minigames/CHANGELOG.md
+        exclusive: true
+
+  documentation-growth-tracking:
+    user_visible_dirs:
+      - copernican_lib
+      - engines
+      - models
+      - docs
+    user_visible_files:
+      - README.md
+      - AGENTS.md
+      - copernican.py
+      - start.sh
+      - start.command
+      - start.bat
+
+  dependency-license-sync:
+    dependency_files:
+      - requirements.in
+      - requirements.lock
+      - pyproject.toml
+    third_party_file: THIRD_PARTY_LICENSES.md
+    licenses_dir: licenses
+    report_heading: "## License Report"
+
+  devflow-run-gates:
+    test_status_file: devcovenant/test_status.json
+    required_commands:
+      - pytest
+      - python -m unittest discover
+    code_extensions:
+      - .py
+      - .pyi
+      - .rs
+      - .c
+      - .cpp
+      - .h
+      - .hpp
+
+  test-status-tracking:
+    test_status_file: devcovenant/test_status.json
+    watched_roots:
+      - copernican_lib
+      - engines
+      - rng_minigames
+      - data
+      - tests
+      - devcovenant
+      - tools
+      - scripts
+    watched_files:
+      - copernican.py
+      - pyproject.toml
+      - requirements.in
+      - requirements.lock
+
+  managed-venv:
+    expected_virtualenvs:
+      - .venv
+
+  new-modules-need-tests:
+    module_roots:
+      - copernican_lib
+      - engines
+    tests_root: tests
+
+  no-print-in-library:
+    allowed_files:
+      - copernican_lib/console_output.py
+    target_roots:
+      - copernican_lib
+      - engines
+    vendor_paths:
+      - copernican_lib/vendor
+
+  security-compliance-notes:
+    guarded_paths:
+      - start.sh
+      - start.command
+      - start.bat
+      - copernican_lib/security
+      - docs/security
+    log_path: docs/security_changes.md
+
+  start-script-guardrails:
+    scripts:
+      - path: start.sh
+        required:
+          - sudo -k
+          - pkg_notice
+      - path: start.command
+        required:
+          - sudo -k
+          - pkg_notice
+      - path: start.bat
+        required:
+          - PKG_NOTICE
+
+  start-script-parity:
+    scripts:
+      - start.sh
+      - start.command
+      - start.bat
+
+  version-sync:
+    version_file: copernican_lib/VERSION
+    readme_file: README.md
+    citation_file: CITATION.cff
+    pyproject_file: pyproject.toml
+    runtime_entrypoints:
+      - copernican.py
+    runtime_roots:
+      - copernican_lib
+      - engines
+
+  semantic-version-scope:
+    version_file: copernican_lib/VERSION
+    changelog_file: CHANGELOG.md
+    ignored_prefixes:
+      - devcovenant
+      - rng_minigames
+    override_file: .devcovenant/waivers/semantic-version-scope.txt

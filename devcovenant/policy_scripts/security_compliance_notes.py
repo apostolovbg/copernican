@@ -16,19 +16,23 @@ SECURITY_PATTERNS = (
 SECURITY_LOG = Path("docs/security_changes.md")
 
 
-def _is_security_path(rel_path: PurePosixPath) -> bool:
+def _is_security_path(
+    rel_path: PurePosixPath, guarded_paths: List[str]
+) -> bool:
     """Return True when the relative path touches a guarded area."""
     rel_str = rel_path.as_posix()
-    for pattern in SECURITY_PATTERNS:
+    for pattern in guarded_paths:
         if rel_str == pattern or rel_str.startswith(f"{pattern}/"):
             return True
     return False
 
 
-def _has_security_allocation(paths: Iterable[PurePosixPath]) -> bool:
+def _has_security_allocation(
+    paths: Iterable[PurePosixPath], log_path: PurePosixPath
+) -> bool:
     """Return True when the security log itself is modified."""
     for path in paths:
-        if path == PurePosixPath(SECURITY_LOG.as_posix()):
+        if path == log_path:
             return True
     return False
 
@@ -45,6 +49,10 @@ class SecurityComplianceNotesCheck(PolicyCheck):
         violations: List[Violation] = []
         security_paths: List[PurePosixPath] = []
         touched_paths: List[PurePosixPath] = []
+        cfg = context.get_policy_config(self.policy_id)
+        guarded_paths = cfg.get("guarded_paths", list(SECURITY_PATTERNS))
+        log_rel = Path(cfg.get("log_path", str(SECURITY_LOG)))
+        log_posix = PurePosixPath(log_rel.as_posix())
 
         for path in files:
             if not path.is_file():
@@ -55,18 +63,20 @@ class SecurityComplianceNotesCheck(PolicyCheck):
                 continue
             rel_posix = PurePosixPath(rel.as_posix())
             touched_paths.append(rel_posix)
-            if _is_security_path(rel_posix):
+            if _is_security_path(rel_posix, guarded_paths):
                 security_paths.append(rel_posix)
 
-        if security_paths and not _has_security_allocation(touched_paths):
+        if security_paths and not _has_security_allocation(
+            touched_paths, log_posix
+        ):
             violations.append(
                 Violation(
                     policy_id=self.policy_id,
                     severity="error",
-                    file_path=context.repo_root / SECURITY_LOG,
+                    file_path=context.repo_root / log_rel,
                     message=(
                         "Security-critical files changed without a new entry "
-                        "in `docs/security_changes.md`."
+                        f"in `{log_rel}`."
                     ),
                 )
             )

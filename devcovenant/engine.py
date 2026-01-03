@@ -54,8 +54,9 @@ class DevCovenantEngine:
         self.config_path = self.devcovenant_dir / "config.yaml"
         self.registry_path = self.devcovenant_dir / "registry.json"
 
-        # Load configuration
+        # Load configuration and apply overrides
         self.config = self._load_config()
+        self._apply_config_paths()
 
         # Initialize parser and registry
         self.parser = PolicyParser(self.agents_md_path)
@@ -71,6 +72,16 @@ class DevCovenantEngine:
             with open(self.config_path, "r", encoding="utf-8") as f:
                 return yaml.safe_load(f) or {}
         return {}
+
+    def _apply_config_paths(self) -> None:
+        """Apply configurable path overrides after the config loads."""
+        paths_cfg = self.config.get("paths", {})
+        policy_doc = paths_cfg.get("policy_definitions")
+        if policy_doc:
+            self.agents_md_path = self.repo_root / Path(policy_doc)
+        registry_file = paths_cfg.get("registry_file")
+        if registry_file:
+            self.registry_path = self.repo_root / Path(registry_file)
 
     def check(self, mode: str = "normal") -> "CheckResult":
         """
@@ -246,8 +257,11 @@ class DevCovenantEngine:
             except Exception:
                 pass
         else:
-            # Check all Python files
-            suffixes = {".py", ".md", ".yml", ".yaml"}
+            suffixes = set(
+                self.config.get("engine", {}).get(
+                    "file_suffixes", [".py", ".md", ".yml", ".yaml"]
+                )
+            )
             all_files = self._collect_all_files(suffixes)
 
         return CheckContext(
@@ -255,6 +269,7 @@ class DevCovenantEngine:
             changed_files=changed_files,
             all_files=all_files,
             mode=mode,
+            config=self.config,
         )
 
     def _collect_all_files(self, suffixes: Set[str]) -> List[Path]:

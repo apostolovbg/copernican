@@ -11,12 +11,12 @@ LICENSES_DIR = "licenses"
 LICENSE_REPORT_HEADING = "## License Report"
 
 
-def _extract_license_report(text: str) -> str:
+def _extract_license_report(text: str, heading: str) -> str:
     """Extract the text inside the License Report section."""
     lines = text.splitlines()
     start = None
     for index, line in enumerate(lines):
-        if line.strip().lower() == LICENSE_REPORT_HEADING.lower():
+        if line.strip().lower() == heading.lower():
             start = index
             break
 
@@ -31,9 +31,7 @@ def _extract_license_report(text: str) -> str:
     for line in remaining:
         stripped = line.strip()
         header_prefix = stripped.startswith("## ")
-        header_not_report = not stripped.lower().startswith(
-            LICENSE_REPORT_HEADING.lower()
-        )
+        header_not_report = not stripped.lower().startswith(heading.lower())
         if header_prefix and header_not_report:
             break
         section_lines.append(line)
@@ -58,16 +56,22 @@ class DependencyLicenseSyncCheck(PolicyCheck):
         if not files:
             return []
 
+        cfg = context.get_policy_config(self.policy_id)
+        dependency_files = set(cfg.get("dependency_files", DEPENDENCY_FILES))
+        third_party_rel = Path(cfg.get("third_party_file", str(THIRD_PARTY)))
+        licenses_dir = cfg.get("licenses_dir", LICENSES_DIR)
+        report_heading = cfg.get("report_heading", LICENSE_REPORT_HEADING)
+
         changed_dependency_files = {
-            path.name for path in files if path.name in DEPENDENCY_FILES
+            path.name for path in files if path.name in dependency_files
         }
         if not changed_dependency_files:
             return []
 
         violations = []
 
-        third_party_path = context.repo_root / THIRD_PARTY
-        if not any(path.name == THIRD_PARTY.name for path in files):
+        third_party_path = context.repo_root / third_party_rel
+        if not any(path.name == third_party_rel.name for path in files):
             violations.append(
                 Violation(
                     policy_id=self.policy_id,
@@ -85,7 +89,7 @@ class DependencyLicenseSyncCheck(PolicyCheck):
                 rel = path.relative_to(context.repo_root)
             except ValueError:
                 continue
-            if rel.parts and rel.parts[0] == LICENSES_DIR:
+            if rel.parts and rel.parts[0] == licenses_dir:
                 license_dir_touched = True
                 break
 
@@ -94,14 +98,16 @@ class DependencyLicenseSyncCheck(PolicyCheck):
                 Violation(
                     policy_id=self.policy_id,
                     severity="error",
-                    message="License files under licenses/ must be refreshed.",
+                    message=(
+                        "License files under "
+                        f"{licenses_dir}/ must be refreshed."
+                    ),
                 )
             )
 
         if third_party_path.is_file():
-            report = _extract_license_report(
-                third_party_path.read_text(encoding="utf-8")
-            )
+            raw_report = third_party_path.read_text(encoding="utf-8")
+            report = _extract_license_report(raw_report, report_heading)
         else:
             report = ""
 
@@ -111,8 +117,8 @@ class DependencyLicenseSyncCheck(PolicyCheck):
                     policy_id=self.policy_id,
                     severity="error",
                     message=(
-                        "Add a '## License Report' section to "
-                        "`THIRD_PARTY_LICENSES.md` that chronicles dependency "
+                        f"Add a '{report_heading}' section to "
+                        f"`{third_party_rel}` that chronicles dependency "
                         "updates."
                     ),
                 )

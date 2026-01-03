@@ -26,6 +26,7 @@ class CheckContext:
     all_files: List[Path] = field(default_factory=list)
     git_diff: Optional[str] = None
     mode: str = "normal"
+    config: Dict[str, Any] = field(default_factory=dict)
     _ignore_patterns: List[str] = field(
         default_factory=list, init=False, repr=False
     )
@@ -74,6 +75,13 @@ class CheckContext:
             if rel_posix.match(pattern):
                 return True
         return False
+
+    def get_policy_config(self, policy_id: str) -> Dict[str, Any]:
+        """Return the configuration dictionary for a specific policy."""
+        policies = self.config.get("policies", {}) if self.config else {}
+        entry = policies.get(policy_id, {})
+        # Always return a dictionary to avoid cascading None checks.
+        return entry if isinstance(entry, dict) else {}
 
 
 @dataclass

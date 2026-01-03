@@ -15,19 +15,19 @@ class StartScriptParityCheck(PolicyCheck):
 
     def check(self, context: CheckContext) -> List[Violation]:
         """Warn when only a subset of the launchers changes."""
+        cfg = context.get_policy_config(self.policy_id)
+        scripts = set(cfg.get("scripts", list(START_SCRIPTS)))
         changed_scripts: Set[str] = set()
         for path in context.changed_files or []:
             name = path.name
-            if name in START_SCRIPTS:
+            if name in scripts:
                 changed_scripts.add(name)
 
         if not changed_scripts:
             return []
 
         existing_scripts = {
-            name
-            for name in START_SCRIPTS
-            if (context.repo_root / name).exists()
+            name for name in scripts if (context.repo_root / name).exists()
         }
 
         missing = sorted(existing_scripts - changed_scripts)
