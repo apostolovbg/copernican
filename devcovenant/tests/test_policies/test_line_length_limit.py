@@ -68,3 +68,102 @@ def test_vendor_files_ignored():
         assert len(violations) == 0
     finally:
         shutil.rmtree(temp_dir)
+
+
+def test_markdown_checked_by_default():
+    """Markdown documentation should now be subject to the same limit."""
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".md", delete=False
+    ) as handle:
+        handle.write("# " + "x" * 90 + "\n")
+        temp_path = Path(handle.name)
+
+    try:
+        checker = LineLengthLimitCheck()
+        context = CheckContext(
+            repo_root=temp_path.parent, all_files=[temp_path]
+        )
+        violations = checker.check(context)
+        assert violations, "Markdown lines over 79 chars must violate policy"
+    finally:
+        temp_path.unlink(missing_ok=True)
+
+
+def test_configurable_suffixes_and_threshold():
+    """Custom suffix and limit should be honoured via configuration."""
+    temp_dir = Path(tempfile.mkdtemp())
+    try:
+        notes = temp_dir / "notes.txt"
+        notes.write_text("line:" + "a" * 20 + "\n", encoding="utf-8")
+
+        checker = LineLengthLimitCheck()
+        context = CheckContext(
+            repo_root=temp_dir,
+            all_files=[notes],
+            config={
+                "policies": {
+                    "line-length-limit": {
+                        "max_length": 10,
+                        "include_suffixes": [".txt"],
+                        "skip_prefixes": [],
+                    }
+                }
+            },
+        )
+        checker.set_options(
+            {},
+            context.get_policy_config("line-length-limit"),
+        )
+        violations = checker.check(context)
+        assert violations, "Custom suffix + limit should trigger a violation"
+    finally:
+        shutil.rmtree(temp_dir)
+
+
+def test_custom_skip_prefix():
+    """Custom skip prefixes should exempt directories when configured."""
+    temp_dir = Path(tempfile.mkdtemp())
+    try:
+        target = temp_dir / "docs" / "generated" / "file.md"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("# " + "x" * 120 + "\n", encoding="utf-8")
+
+        checker = LineLengthLimitCheck()
+        context = CheckContext(
+            repo_root=temp_dir,
+            all_files=[target],
+            config={
+                "policies": {
+                    "line-length-limit": {
+                        "include_suffixes": [".md"],
+                        "skip_prefixes": ["docs/generated"],
+                    }
+                }
+            },
+        )
+        checker.set_options(
+            {},
+            context.get_policy_config("line-length-limit"),
+        )
+        violations = checker.check(context)
+        assert not violations, "Custom skip prefix should suppress violations"
+    finally:
+        shutil.rmtree(temp_dir)
+
+
+def test_metadata_options_drive_scope(tmp_path: Path) -> None:
+    """Policy-def metadata should configure suffixes and thresholds."""
+    notes = tmp_path / "notes.txt"
+    notes.write_text("header " + "x" * 20 + "\n", encoding="utf-8")
+
+    checker = LineLengthLimitCheck()
+    checker.set_options(
+        {"include_suffixes": [".txt"], "max_length": 10, "skip_prefixes": []},
+        {},
+    )
+    context = CheckContext(
+        repo_root=tmp_path,
+        all_files=[notes],
+    )
+    violations = checker.check(context)
+    assert violations, "Metadata-driven suffixes should trigger violations"

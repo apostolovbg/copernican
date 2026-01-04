@@ -624,6 +624,17 @@ auto_fix: [true|false] updated: [true|false] applies_to: [file-pattern]
 - **`waiver`** *(optional)* — `true` when deviations can be recorded in
   `.devcovenant/waivers/<policy-id>.txt`.
 
+### Metadata-driven options
+
+Any extra `key: value` pairs that appear inside the `policy-def` code fence
+become structured policy options. Comma-separated values (for example,
+`required_commands: pytest,python -m unittest discover`) are parsed into lists,
+booleans recognize `true`/`false`, and numeric strings become integers/floats.
+DevCovenant feeds those options into each policy check via
+`PolicyCheck.get_option("key", default)`. Repository-level overrides defined in
+`devcovenant/config.yaml` still win over metadata, so AGENTS.md describes the
+defaults while `config.yaml` captures local deviations.
+
 Fiducial policies emit informational reminders without blocking commits (you
 can promote them to `active` enforcement once the reminders are addressed).
 Waiver-enabled policies (e.g., `read-only-directories`) expect the agent to add
@@ -736,7 +747,11 @@ class [PolicyName]Check(PolicyCheck):
         violations = []
 
         # Determine which files to check
-        files_to_check = context.changed_files if context.changed_files else context.all_files
+        files_to_check = (
+            context.changed_files
+            if context.changed_files
+            else context.all_files
+        )
 
         for file_path in files_to_check:
             # Apply file filtering based on policy
@@ -762,7 +777,9 @@ class [PolicyName]Check(PolicyCheck):
         # Example: Only check Python files
         return file_path.suffix == ".py"
 
-    def _check_file(self, file_path: Path, context: CheckContext) -> List[Violation]:
+    def _check_file(
+        self, file_path: Path, context: CheckContext
+    ) -> List[Violation]:
         """
         Check a single file for violations.
 
@@ -789,7 +806,10 @@ class [PolicyName]Check(PolicyCheck):
                         file_path=file_path,
                         line_number=None,  # Set if known
                         message="Forbidden pattern detected",
-                        suggestion="Remove the forbidden pattern and use approved alternative",
+                        suggestion=(
+                            "Remove the forbidden pattern and use an "
+                            "approved alternative"
+                        ),
                         can_auto_fix=False,
                     )
                 )
@@ -800,6 +820,13 @@ class [PolicyName]Check(PolicyCheck):
 
         return violations
 ```
+
+Policy checks automatically receive any metadata and configuration overrides
+defined for their policy. Retrieve them with
+`self.get_option("option-name", default)`—metadata from `AGENTS.md` supplies
+the defaults, while `devcovenant/config.yaml` entries override those values
+when present. This keeps policy logic focused on validation instead of
+file-path plumbing.
 
 ### Advanced Example: Line-by-Line Checking
 
@@ -833,8 +860,13 @@ class NoTodoCommentsCheck(PolicyCheck):
                                 severity="warning",
                                 file_path=file_path,
                                 line_number=line_num,
-                                message=f"TODO/FIXME comment found: {line.strip()}",
-                                suggestion="Create a GitHub issue and reference it in the comment",
+                                message=(
+                                    f"TODO/FIXME comment found: {line.strip()}"
+                                ),
+                                suggestion=(
+                                    "Create a GitHub issue and reference it "
+                                    "in the comment"
+                                ),
                                 can_auto_fix=False,
                             )
                         )
@@ -859,13 +891,17 @@ from devcovenant.policy_scripts.no_todo_comments import NoTodoCommentsCheck
 
 def test_detects_todo_comments():
     """Test that TODO comments are detected."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".py", delete=False
+    ) as f:
         f.write("# TODO: Fix this later\ndef foo():\n    pass\n")
         temp_path = Path(f.name)
 
     try:
         checker = NoTodoCommentsCheck()
-        context = CheckContext(repo_root=temp_path.parent, all_files=[temp_path])
+        context = CheckContext(
+            repo_root=temp_path.parent, all_files=[temp_path]
+        )
         violations = checker.check(context)
 
         assert len(violations) == 1
@@ -876,13 +912,17 @@ def test_detects_todo_comments():
 
 def test_clean_file_passes():
     """Test that files without TODOs pass."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".py", delete=False
+    ) as f:
         f.write("def foo():\n    return 42\n")
         temp_path = Path(f.name)
 
     try:
         checker = NoTodoCommentsCheck()
-        context = CheckContext(repo_root=temp_path.parent, all_files=[temp_path])
+        context = CheckContext(
+            repo_root=temp_path.parent, all_files=[temp_path]
+        )
         violations = checker.check(context)
 
         assert len(violations) == 0
@@ -963,7 +1003,10 @@ class [PolicyName]Fixer(PolicyFixer):
 
                 return FixResult(
                     success=True,
-                    message=f"Fixed {violation.policy_id} in {violation.file_path}",
+                    message=(
+                        f"Fixed {violation.policy_id} in "
+                        f"{violation.file_path}"
+                    ),
                     files_modified=[violation.file_path],
                 )
             else:
@@ -1000,7 +1043,10 @@ class TrailingWhitespaceFixer(PolicyFixer):
     policy_id = "no-trailing-whitespace"
 
     def can_fix(self, violation: Violation) -> bool:
-        return violation.policy_id == self.policy_id and violation.file_path is not None
+        return (
+            violation.policy_id == self.policy_id
+            and violation.file_path is not None
+        )
 
     def fix(self, violation: Violation) -> FixResult:
         if not violation.file_path:
@@ -1011,7 +1057,9 @@ class TrailingWhitespaceFixer(PolicyFixer):
                 lines = f.readlines()
 
             # Remove trailing whitespace from each line
-            fixed_lines = [re.sub(r"\s+$", "", line, flags=re.MULTILINE) for line in lines]
+            fixed_lines = [
+                re.sub(r"\s+$", "", line, flags=re.MULTILINE) for line in lines
+            ]
 
             # Write back
             with open(violation.file_path, "w", encoding="utf-8") as f:
@@ -1019,7 +1067,10 @@ class TrailingWhitespaceFixer(PolicyFixer):
 
             return FixResult(
                 success=True,
-                message=f"Removed trailing whitespace from {violation.file_path}",
+                message=(
+                    "Removed trailing whitespace from "
+                    f"{violation.file_path}"
+                ),
                 files_modified=[violation.file_path],
             )
 
@@ -1119,8 +1170,12 @@ policies:
 
 ### Per-policy options
 
-Each policy inherits defaults that match the Copernican repository, but you can
-redefine them under `policies.<policy-id>`:
+Each policy inherits defaults declared next to its `policy-def` block in
+`AGENTS.md`. Those metadata entries become runtime options exposed through
+`PolicyCheck.get_option()`, and any overrides placed under
+`policies.<policy-id>` in `devcovenant/config.yaml` take precedence. The list
+below documents the recognized keys for each policy so you know what can be
+tuned without editing Python scripts:
 
 - **`changelog-coverage`**  
   - `main_changelog`: root changelog path.  
@@ -1135,6 +1190,18 @@ redefine them under `policies.<policy-id>`:
   - `third_party_file`: consolidated license table.  
   - `licenses_dir`: directory containing per-package licenses.  
   - `report_heading`: heading text that marks the “License Report” section.
+- **`line-length-limit`**  
+  - `max_length`: column limit (defaults to 79).  
+  - `include_suffixes`: file extensions that must obey the limit (for example,
+    `.py`, `.md`, `.rst`, `.txt`).  
+  - `skip_prefixes`: directory prefixes that remain exempt (vendor trees or
+    frozen dataset bundles such as `copernican_lib/vendor` and `data/`).
+- **`docstring-and-comment-coverage`**  
+  - `include_suffixes`: language extensions that should carry doc coverage
+    (default: `.py`).  
+  - `skip_prefixes`: relative path prefixes that are exempt (vendored code).  
+  - `skip_components`: path components (such as `tests`) that should be ignored
+    regardless of depth.
 - **`devflow-run-gates`**  
   - `test_status_file`: JSON file storing the last test run (defaults to
     `devcovenant/test_status.json`).  

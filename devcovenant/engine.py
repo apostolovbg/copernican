@@ -6,7 +6,7 @@ import importlib.util
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 import yaml
 
@@ -19,6 +19,18 @@ class DevCovenantEngine:
     """
     Main engine for devcovenant policy enforcement.
     """
+
+    _RESERVED_METADATA_KEYS = {
+        "id",
+        "status",
+        "severity",
+        "auto_fix",
+        "updated",
+        "applies_to",
+        "hash",
+        "enforcement",
+        "waiver",
+    }
 
     # Directories we never traverse for policy checks
     _IGNORED_DIRS = frozenset(
@@ -209,6 +221,11 @@ class DevCovenantEngine:
             try:
                 checker = self._load_policy_script(policy.policy_id)
                 if checker:
+                    options = self._extract_policy_options(policy)
+                    config_overrides = context.get_policy_config(
+                        policy.policy_id
+                    )
+                    checker.set_options(options, config_overrides)
                     policy_violations = checker.check(context)
                     violations.extend(policy_violations)
                     if not policy_violations:
@@ -346,6 +363,45 @@ class DevCovenantEngine:
                     return attr()
 
         return None
+
+    def _extract_policy_options(
+        self, policy: PolicyDefinition
+    ) -> Dict[str, Any]:
+        """Pull custom metadata options from a policy definition."""
+
+        options: Dict[str, Any] = {}
+        for key, raw_value in policy.raw_metadata.items():
+            if key.lower() in self._RESERVED_METADATA_KEYS:
+                continue
+            options[key] = self._parse_metadata_value(raw_value)
+        return options
+
+    @staticmethod
+    def _parse_metadata_value(raw_value: str) -> Any:
+        """Decode scalar/list metadata from the policy-def block."""
+
+        text = (raw_value or "").strip()
+        if not text:
+            return ""
+
+        lowered = text.lower()
+        if lowered in {"true", "false"}:
+            return lowered == "true"
+
+        if "," in text:
+            return [item.strip() for item in text.split(",") if item.strip()]
+
+        try:
+            return int(text)
+        except ValueError:
+            pass
+
+        try:
+            return float(text)
+        except ValueError:
+            pass
+
+        return text
 
     def report_violations(self, violations: List[Violation], mode: str):
         """

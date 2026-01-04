@@ -82,3 +82,30 @@ def test_all_files_scanned_when_no_changes(tmp_path: Path):
     violations = checker.check(context)
 
     assert any("Module lacks" in v.message for v in violations)
+
+
+def test_metadata_skip_prefixes(tmp_path: Path):
+    """Policy-def options should allow excluding directories."""
+    target = tmp_path / "docs" / "api" / "module.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("def foo():\n    return 1\n", encoding="utf-8")
+
+    checker = DocstringAndCommentCoverageCheck()
+    checker.set_options(
+        {
+            "skip_prefixes": ["docs"],
+            "skip_components": [],
+            "include_suffixes": [".py"],
+        },
+        {},
+    )
+    context = CheckContext(
+        repo_root=tmp_path,
+        changed_files=[target],
+        all_files=[target],
+    )
+    violations = checker.check(context)
+
+    assert (
+        violations == []
+    ), "Metadata skip_prefixes should allow repo-specific exemptions"

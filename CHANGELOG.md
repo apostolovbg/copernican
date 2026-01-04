@@ -42,6 +42,27 @@ suffixes. Follow this template:
   devcovenant/policy_scripts/version_sync.py,
   devcovenant/tests/test_policies/test_devflow_run_gates.py,
   devcovenant/test_status.json, devcovenant/registry.json).
+- 2026-01-03 [semver:patch]: Extended the 79-character guardrail to all
+  documentation so Markdown and README files adopt the same wrapping rules as
+  runtime code, updated the policy text, configuration defaults and README, and
+  expanded the tests to cover Markdown files plus configurable suffixes/skip
+  prefixes (AGENTS.md, devcovenant/config.yaml, devcovenant/README.md,
+  devcovenant/policy_scripts/line_length_limit.py,
+  devcovenant/tests/test_policies/test_line_length_limit.py).
+- 2026-01-03 [semver:patch]: Moved repeatable policy scope settings into the
+  `policy-def` metadata so the line-length, docstring coverage and DevFlow gate
+  checks read their file lists, directories and command requirements straight
+  from AGENTS.md, added the new DevFlow policy definition, wired `get_option`
+  helpers through the engine, documented the precedence rules, trimmed
+  redundant config stanzas and expanded the regression suite to prove the new
+  wiring (AGENTS.md, devcovenant/base.py, devcovenant/engine.py,
+  devcovenant/config.yaml, devcovenant/README.md,
+  devcovenant/policy_scripts/docstring_and_comment_coverage.py,
+  devcovenant/policy_scripts/devflow_run_gates.py,
+  devcovenant/policy_scripts/line_length_limit.py,
+  devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py,
+  devcovenant/tests/test_policies/test_devflow_run_gates.py,
+  devcovenant/tests/test_policies/test_line_length_limit.py).
 - 2025-12-27 [semver:patch]: Relocated the canonical `run_tests.py` wrapper to
   `tools/`, deleted the obsolete `scripts/` directory and updated every policy
   and instruction that referenced the old path so the managed test runner lives
@@ -85,7 +106,8 @@ suffixes. Follow this template:
   CHANGELOG.md, ABOUT.md, CONTRIBUTING.md, LICENSE.md,
   data/cmb/planck2018lite/readme_baseline.md, data/sne/union3/README.md,
   devcovenant/waivers/README.md, docs/api_overview.md, docs/architecture.md,
-  docs/bao_compound_dataset_format.md, docs/cli_guide.md, docs/data_overview.md,
+  docs/bao_compound_dataset_format.md, docs/cli_guide.md,
+  docs/data_overview.md,
   docs/dataset_licenses.md, docs/dataset_metadata.md, docs/design_overview.md,
   docs/documentation_policy.md, docs/gui_guide.md, docs/gui_overview.md,
   docs/latex_syntax.md, docs/launcher_gui.md, docs/minigames.md,

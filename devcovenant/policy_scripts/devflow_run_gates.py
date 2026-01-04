@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import time
 from pathlib import Path
 from typing import Iterable, List
@@ -23,25 +22,43 @@ _DEFAULT_EXTENSIONS = {
 _DEFAULT_COMMANDS = ["pytest", "python -m unittest discover"]
 
 
-def _resolve_status_path(ctx: CheckContext) -> Path:
+def _resolve_status_path(policy: "DevflowRunGates") -> Path:
     """Return the configured test status path relative to the repository."""
-    cfg = ctx.get_policy_config("devflow-run-gates")
-    raw = cfg.get("test_status_file", str(_DEFAULT_STATUS))
+    raw = policy.get_option("test_status_file", str(_DEFAULT_STATUS))
     return Path(raw)
 
 
-def _code_extensions(ctx: CheckContext) -> set[str]:
+def _code_extensions(policy: "DevflowRunGates") -> set[str]:
     """Return the set of extensions considered code for gating purposes."""
-    cfg = ctx.get_policy_config("devflow-run-gates")
-    entries = cfg.get("code_extensions", list(_DEFAULT_EXTENSIONS))
-    return {entry.lower() for entry in entries}
+    entries_option = policy.get_option(
+        "code_extensions", list(_DEFAULT_EXTENSIONS)
+    )
+    if isinstance(entries_option, str):
+        entries = [entries_option]
+    else:
+        entries = list(entries_option or [])
+    return {
+        entry.strip().lower()
+        for entry in entries
+        if isinstance(entry, str) and entry.strip()
+    }
 
 
-def _required_commands(ctx: CheckContext) -> list[str]:
+def _required_commands(policy: "DevflowRunGates") -> list[str]:
     """Return ordered commands that must appear in the status file."""
-    cfg = ctx.get_policy_config("devflow-run-gates")
-    commands = cfg.get("required_commands", list(_DEFAULT_COMMANDS))
-    return [command.lower() for command in commands]
+    commands_option = policy.get_option(
+        "required_commands", list(_DEFAULT_COMMANDS)
+    )
+    if isinstance(commands_option, str):
+        commands = [commands_option]
+    else:
+        commands = list(commands_option or [])
+    cleaned = [
+        command.strip()
+        for command in commands
+        if isinstance(command, str) and command.strip()
+    ]
+    return [command.lower() for command in cleaned]
 
 
 def _load_test_status(status_file: Path) -> dict | None:
@@ -84,9 +101,9 @@ class DevflowRunGates(PolicyCheck):
 
         violations: List[Violation] = []
         repo_root = ctx.repo_root
-        status_rel = _resolve_status_path(ctx)
-        extensions = _code_extensions(ctx)
-        required_commands = _required_commands(ctx)
+        status_rel = _resolve_status_path(self)
+        extensions = _code_extensions(self)
+        required_commands = _required_commands(self)
 
         # The pre-commit run is happening now; nothing extra to record beyond
         # enforcing the test gate for code changes.

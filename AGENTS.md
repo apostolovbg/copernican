@@ -216,7 +216,8 @@ data/             - Observation files under ``data/<type>/<source>/``. Each
                     full `author` list and BibTeX keys such as `title`,
                     `volume`, `journal` and `DOI`. Metadata is loaded
                     exclusively by
-                    `copernican_lib/dataset_registry.py` after each parser runs.
+                    `copernican_lib/dataset_registry.py` after each parser
+                    runs.
   cmb/planck2018lite/ - Planck 2018 lite TT/TE/EE spectra and covariance
 output/           - Per-run folders with plots, tables and NetCDF chains
 AGENTS.md         - Development specification and contributor rules
@@ -537,6 +538,10 @@ Each policy has a `policy-def` block with these flags:
 - **updated**: `true` when policy text changes (triggers AI script update)
 - **applies_to**: File patterns (optional, e.g., `*.py`, `devcovenant/**/*`)
 - **hash**: Automatically maintained hash of policy + script
+- Additional `key: value` rows inside the block become policy-specific options
+  that are exposed to scripts via `PolicyCheck.get_option()`. Use them for
+  knobs such as file suffixes, directory allowlists and required commands so
+  scopes stay declarative.
 
 ### Development Policies
 
@@ -592,14 +597,25 @@ status: active
 severity: warning
 auto_fix: false
 updated: false
-applies_to: *.py
+applies_to: *
 enforcement: active
 waiver: false
+max_length: 79
+include_suffixes: .py,.md,.rst,.txt
+skip_prefixes: copernican_lib/vendor,data
 ```
 
 Keep individual lines under 79 characters to maintain readability. This applies
-to all Python source files **except** the bundled vendor tree under
-`copernican_lib/vendor/`.
+to **all** documentation and source files across the repository (Copernican,
+DevCovenant and `rng_minigames/`). Third-party code under
+`copernican_lib/vendor/` remains excluded because line wrapping there would
+fork upstream dependencies, and the archived dataset documentation under
+`data/` stays untouched so we never fork those upstream bundles, but every
+other surface—including Markdown
+documentation—must wrap at 79 characters.
+The `max_length`, `include_suffixes` and `skip_prefixes` metadata fields inside
+the policy block control which files participate, allowing other repositories
+to re-scope the rule without touching the Python enforcement code.
 
 ---
 
@@ -647,6 +663,34 @@ DevCovenant enforces its own policies on itself. All policy scripts must:
 
 ---
 
+## Policy: DevFlow Run Gates
+
+```policy-def
+id: devflow-run-gates
+status: active
+severity: error
+auto_fix: false
+updated: false
+applies_to: *
+enforcement: active
+waiver: false
+test_status_file: devcovenant/test_status.json
+required_commands: pytest,python -m unittest discover
+code_extensions: .py,.pyi,.rs,.c,.cpp,.h,.hpp
+```
+
+Every coding session begins and ends with `pre-commit run --all-files`, and the
+session must also record a full `python tools/run_tests.py` invocation after
+code edits. The DevFlow gate enforces that cadence by inspecting
+`devcovenant/test_status.json`, confirming the recorded commands include every
+entry from `required_commands` and asserting the timestamp post-dates the most
+recent code change touching any extension listed in `code_extensions`. The
+policy metadata exposes those knobs so other repositories can redirect the
+status file, tailor the commands or expand the definition of “code” without
+editing the policy script.
+
+---
+
 ## Policy: Version Synchronization
 
 ```policy-def
@@ -655,7 +699,7 @@ status: updated
 severity: error
 auto_fix: false
 updated: false
-applies_to: copernican_lib/VERSION,README.md,CITATION.cff,pyproject.toml
+applies_to: *
 enforcement: active
 waiver: false
 ```
@@ -680,7 +724,7 @@ status: active
 severity: error
 auto_fix: false
 updated: false
-applies_to: CHANGELOG.md,copernican_lib/VERSION,README.md,CITATION.cff,pyproject.toml
+applies_to: *
 enforcement: active
 waiver: true
 ```
@@ -723,11 +767,11 @@ waiver: false
 ```
 
 `Last Updated` timestamps and date fields must never extend into the future.
-Future dates indicate dating errors or premature commits. All dates must be
-validated against the current date before being recorded. Always run
-`pre-commit run --all-files` (or `python devcovenant_check.py check --mode=lint`)
-before responding so the policy scans the entire changelog, citation metadata
-and every other file, catching stale or future timestamps even when those files
+Future dates indicate dating errors or premature commits. Validate every date
+against the current day before recording it. Always run `pre-commit run
+--all-files` (or `python devcovenant_check.py check --mode=lint`) before
+responding so the policy scans the entire changelog, citation metadata and
+every other file, catching stale or future timestamps even when those files
 were not edited in the current diff.
 
 ---
@@ -740,7 +784,7 @@ status: active
 severity: error
 auto_fix: false
 updated: false
-applies_to: copernican_lib/**/*.py,engines/**/*.py
+applies_to: *
 enforcement: active
 waiver: false
 ```
@@ -763,7 +807,7 @@ status: active
 severity: error
 auto_fix: false
 updated: false
-applies_to: copernican_lib/**/*.py,engines/**/*.py
+applies_to: *
 enforcement: active
 waiver: false
 ```
@@ -811,6 +855,9 @@ updated: false
 applies_to: *.py
 enforcement: active
 waiver: false
+include_suffixes: .py
+skip_prefixes: copernican_lib/vendor
+skip_components: tests
 ```
 
 Every non-test Python module across the repository should include a descriptive
@@ -823,6 +870,9 @@ Missing documentation now triggers an error-level violation so that gaps in
 coverage are addressed promptly. Running DevCovenant in a non-`pre-commit` mode
 (e.g., `lint` or `startup`) virtually inspects *all* matching `.py` files so
 the policy uncovers gaps beyond just the staged files.
+Projects can tune the scope through the `include_suffixes`, `skip_prefixes`
+and `skip_components` metadata fields in this policy’s definition—no Python
+changes are required when vendored paths or test folders differ.
 
 ---
 
@@ -899,7 +949,7 @@ status: active
 severity: error
 auto_fix: false
 updated: false
-applies_to: requirements.in,requirements.lock,pyproject.toml,THIRD_PARTY_LICENSES.md,licenses/*
+applies_to: *
 enforcement: active
 waiver: false
 ```
@@ -921,7 +971,7 @@ status: active
 severity: info
 auto_fix: false
 updated: false
-applies_to: README.md,AGENTS.md,docs/**/*.md,copernican.py,start.sh,start.command,start.bat
+applies_to: *
 enforcement: active
 waiver: false
 ```

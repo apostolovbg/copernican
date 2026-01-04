@@ -137,6 +137,11 @@ class PolicyCheck(ABC):
     policy_id: str = ""
     version: str = "1.0.0"
 
+    def __init__(self) -> None:
+        """Initialise storage for metadata/config-driven options."""
+        self.metadata_options: Dict[str, Any] = {}
+        self.policy_config: Dict[str, Any] = {}
+
     @abstractmethod
     def check(self, context: CheckContext) -> List[Violation]:
         """
@@ -162,6 +167,39 @@ class PolicyCheck(ABC):
             "version": self.version,
             "class": self.__class__.__name__,
         }
+
+    def set_options(
+        self,
+        metadata_options: Dict[str, Any] | None,
+        config_overrides: Dict[str, Any] | None,
+    ) -> None:
+        """
+        Store policy options coming from AGENTS.md and config.yaml.
+
+        Metadata options originate from the policy-def block, while
+        config overrides map to devcovenant/config.yaml entries.
+        """
+
+        self.metadata_options = metadata_options or {}
+        self.policy_config = config_overrides or {}
+
+    def get_option(self, key: str, default: Any = None) -> Any:
+        """
+        Return a merged option value.
+
+        Config overrides in devcovenant/config.yaml win over
+        policy-def metadata, which in turn falls back to the default.
+        """
+
+        if key in self.policy_config:
+            candidate = self.policy_config[key]
+            if candidate is not None:
+                return candidate
+        if key in self.metadata_options:
+            candidate = self.metadata_options[key]
+            if candidate is not None:
+                return candidate
+        return default
 
 
 class PolicyFixer(ABC):

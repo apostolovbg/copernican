@@ -152,7 +152,10 @@ session looks like this:
 
 ```python
 from copernican_lib import (
-    model_spec_validator, model_coder, engine_plugin_validation, dataset_registry
+    dataset_registry,
+    engine_plugin_validation,
+    model_coder,
+    model_spec_validator,
 )
 import engines.cosmo_engine_mcmc as engine
 
@@ -183,8 +186,10 @@ tools can parse it without importing NumPy or pandas.
 
 Example::
 
-from copernican_lib import result_writer summary = {"LCDM": engine_results}
-result_writer.save_summary(summary, "output/run")
+    from copernican_lib import result_writer
+
+    summary = {"LCDM": engine_results}
+    result_writer.save_summary(summary, "output/run")
 
 ## Run Analysis Helpers
 

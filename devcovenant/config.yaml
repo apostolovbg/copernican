@@ -69,20 +69,6 @@ policies:
     licenses_dir: licenses
     report_heading: "## License Report"
 
-  devflow-run-gates:
-    test_status_file: devcovenant/test_status.json
-    required_commands:
-      - pytest
-      - python -m unittest discover
-    code_extensions:
-      - .py
-      - .pyi
-      - .rs
-      - .c
-      - .cpp
-      - .h
-      - .hpp
-
   test-status-tracking:
     test_status_file: devcovenant/test_status.json
     watched_roots:

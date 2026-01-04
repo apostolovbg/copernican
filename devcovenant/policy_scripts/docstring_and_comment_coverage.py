@@ -36,17 +36,24 @@ def _has_comment_before(
     return False
 
 
-def _should_inspect(rel_path: PurePosixPath) -> bool:
+def _should_inspect(
+    rel_path: PurePosixPath,
+    skip_prefixes: Set[str],
+    skip_components: Set[str],
+) -> bool:
     """Determine whether the file falls under the policy scope."""
     if not rel_path.parts:
         return False
-    # Skip vendor folders
-    if rel_path.parts[0] == "copernican_lib" and len(rel_path.parts) > 1:
-        if rel_path.parts[1] == "vendor":
+    rel_posix = rel_path.as_posix()
+    for prefix in skip_prefixes:
+        normalized = prefix.strip("/ ")
+        if not normalized:
+            continue
+        if rel_posix == normalized or rel_posix.startswith(f"{normalized}/"):
             return False
-    # Skip any tests directory
-    if "tests" in rel_path.parts:
-        return False
+    for component in skip_components:
+        if component and component in rel_path.parts:
+            return False
     return True
 
 
@@ -55,16 +62,56 @@ class DocstringAndCommentCoverageCheck(PolicyCheck):
 
     policy_id = "docstring-and-comment-coverage"
     version = "1.0.0"
+    DEFAULT_SUFFIXES = [".py"]
+    DEFAULT_SKIP_PREFIXES = ["copernican_lib/vendor"]
+    DEFAULT_SKIP_COMPONENTS = ["tests"]
 
     def check(self, context: CheckContext):
         """Detect functions, classes or modules without documentation."""
         files = context.all_files or context.changed_files or []
         violations = []
 
+        suffixes_option = self.get_option(
+            "include_suffixes", self.DEFAULT_SUFFIXES
+        )
+        if isinstance(suffixes_option, str):
+            suffixes = [suffixes_option]
+        else:
+            suffixes = list(suffixes_option or [])
+        suffixes = [
+            (suffix if suffix.startswith(".") else f".{suffix}")
+            .strip()
+            .lower()
+            for suffix in suffixes
+            if isinstance(suffix, str) and suffix.strip()
+        ]
+
+        skip_prefixes_option = self.get_option(
+            "skip_prefixes", self.DEFAULT_SKIP_PREFIXES
+        )
+        if isinstance(skip_prefixes_option, str):
+            raw_prefixes = [skip_prefixes_option]
+        else:
+            raw_prefixes = list(skip_prefixes_option or [])
+        skip_prefixes = {
+            entry.strip("/ ") for entry in raw_prefixes if entry.strip()
+        }
+
+        skip_components_option = self.get_option(
+            "skip_components", self.DEFAULT_SKIP_COMPONENTS
+        )
+        if isinstance(skip_components_option, str):
+            raw_components = [skip_components_option]
+        else:
+            raw_components = list(skip_components_option or [])
+        skip_components = {
+            entry.strip() for entry in raw_components if entry.strip()
+        }
+
         for path in files:
             if not path.is_file():
                 continue
-            if path.suffix != ".py":
+            if path.suffix.lower() not in suffixes:
                 continue
 
             try:
@@ -73,7 +120,7 @@ class DocstringAndCommentCoverageCheck(PolicyCheck):
                 continue
 
             rel_posix = PurePosixPath(rel.as_posix())
-            if not _should_inspect(rel_posix):
+            if not _should_inspect(rel_posix, skip_prefixes, skip_components):
                 continue
 
             try:

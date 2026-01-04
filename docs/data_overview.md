@@ -153,7 +153,16 @@ refresh a hash:
 1. Compute the new digest with newline normalisation, for example:
 
 ```
-python - <<'PY'\nimport hashlib\nfrom pathlib import Path\npath = Path('data/sne/jla2014/cosmo_parser_jla2014.py')\nhashlib.sha256(path.read_bytes().replace(b\"\\r\\n\", b\"\\n\")).hexdigest()\nPY
+python - <<'PY'
+import hashlib
+from pathlib import Path
+
+path = Path("data/sne/jla2014/cosmo_parser_jla2014.py")
+digest = hashlib.sha256(
+    path.read_bytes().replace(b"\r\n", b"\n")
+).hexdigest()
+print(digest)
+PY
 ```
 
 2. Replace the old digest entry in `TRUSTED_PARSER_DIGESTS`.

@@ -81,5 +81,33 @@ def test_custom_status_path(tmp_path: Path) -> None:
     status_path.write_text(json.dumps(payload), encoding="utf-8")
 
     check = DevflowRunGates()
+    check.set_options({}, ctx.get_policy_config("devflow-run-gates"))
     violations = check.check(ctx)
     assert not violations, "Custom path should be respected"
+
+
+def test_metadata_config_overrides(tmp_path: Path) -> None:
+    """Policy-def metadata should configure file paths and commands."""
+    ctx = make_ctx(tmp_path, ["src/example.py"])
+    status_path = tmp_path / "alt" / "status.json"
+    status_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "last_run_utc": "2025-12-27T00:00:00Z",
+        "last_run_epoch": time.time() + 10,
+        "commands": ["pytest"],
+    }
+    status_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    check = DevflowRunGates()
+    check.set_options(
+        {
+            "test_status_file": "alt/status.json",
+            "required_commands": ["pytest"],
+            "code_extensions": [".py"],
+        },
+        {},
+    )
+    violations = check.check(ctx)
+    assert (
+        violations == []
+    ), "Metadata-provided options should satisfy path/command checks"
