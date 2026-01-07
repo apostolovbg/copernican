@@ -6,8 +6,21 @@ from devcovenant.base import CheckContext
 from devcovenant.policy_scripts.security_scanner import SecurityScannerCheck
 
 
+def _configured_policy() -> SecurityScannerCheck:
+    policy = SecurityScannerCheck()
+    policy.set_options(
+        {
+            "include_suffixes": [".py"],
+            "exclude_globs": ["tests/**", "**/tests/**"],
+            "exclude_prefixes": ["project_lib/vendor"],
+        },
+        {},
+    )
+    return policy
+
+
 def _write_module(tmp_path: Path, name: str, source: str) -> Path:
-    target = tmp_path / "copernican_lib" / name
+    target = tmp_path / "project_lib" / name
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(source, encoding="utf-8")
     return target
@@ -18,7 +31,7 @@ def test_detects_insecure_eval(tmp_path: Path):
     source = "def foo():\n    return eval('2+2')\n"
     target = _write_module(tmp_path, "helper.py", source)
 
-    checker = SecurityScannerCheck()
+    checker = _configured_policy()
     context = CheckContext(repo_root=tmp_path, changed_files=[target])
     violations = checker.check(context)
 
@@ -31,7 +44,7 @@ def test_allows_safe_modules(tmp_path: Path):
     source = "def foo():\n    return 4\n"
     target = _write_module(tmp_path, "helper.py", source)
 
-    checker = SecurityScannerCheck()
+    checker = _configured_policy()
     context = CheckContext(repo_root=tmp_path, changed_files=[target])
     assert checker.check(context) == []
 
@@ -42,6 +55,6 @@ def test_ignores_tests(tmp_path: Path):
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text("exec('42')\n", encoding="utf-8")
 
-    checker = SecurityScannerCheck()
+    checker = _configured_policy()
     context = CheckContext(repo_root=tmp_path, changed_files=[target])
     assert checker.check(context) == []

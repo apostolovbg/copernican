@@ -207,8 +207,8 @@ Policies have status values that control their lifecycle:
 devcovenant/
 ├── __init__.py              # Package initialization
 ├── README.md                # This file
-├── config.yaml              # Configuration settings
-├── devcovignore.md          # Gitignore-style global policy exclusions
+├── config.yaml              # Engine + policy configuration
+│                            # (incl. ignore globs)
 ├── registry.json            # Policy hash registry (auto-generated)
 │
 ├── base.py                  # Base classes and data structures
@@ -639,13 +639,37 @@ Fiducial policies emit informational reminders without blocking commits (you
 can promote them to `active` enforcement once the reminders are addressed).
 Waiver-enabled policies (e.g., `read-only-directories`) expect the agent to add
 the approved exceptions to the matching file under `.devcovenant/waivers/`
-before editing the protected paths. The read-only directory list itself is
-stored in `devcovenant/read_only_directories.txt` and read on every run so the
-policy re-registers the protected patterns automatically.
+before editing the protected paths. The read-only directory patterns themselves
+now live in the policy metadata (e.g., `protected_globs`, `exempt_globs`), so
+AGENTS.md stays the single source for scope defaults while waivers cover one-
+off edits.
 
 The `docstring-and-comment-coverage` policy always scans any `.py` file outside
 `tests/` (in addition to the staged files), so running DevCovenant in `lint` or
 `startup` mode inspects the entire workspace for missing docstrings/comments.
+
+#### Standard selector metadata
+
+Policies filtering files by path, suffix or glob should reuse the shared
+selector keys:
+
+- `include_suffixes`, `include_prefixes`, `include_globs` — positive filters.
+- `exclude_suffixes`, `exclude_prefixes`, `exclude_globs` — negative filters.
+- `force_include_globs` — overrides exclusions for specific patterns.
+- `watch_files`, `watch_dirs` — explicit per-file/per-directory watch lists.
+- `protected_globs` / `exempt_globs`, `guarded_paths`, `user_visible_dirs` —
+  policy-specific selectors that still follow the same matching semantics for
+  read-only, security or documentation scopes.
+
+Each entry accepts either a comma-separated string (e.g.,
+`include_suffixes: .py,.md`) or a YAML list. Paths and globs use forward
+slashes so the metadata reads consistently across platforms. The new
+`devcovenant/selectors.py` helper exposes a `SelectorSet` that policies can
+instantiate via `SelectorSet.from_policy(self)` to evaluate all selectors with
+uniform precedence rules (force-include > exclude > include). Tests in
+`devcovenant/tests/test_selectors.py` demonstrate the expected behavior. Future
+policies should default to these keys so contributors can reuse the same
+configuration surface everywhere.
 
 ### Example Policies
 
@@ -1078,6 +1102,28 @@ class TrailingWhitespaceFixer(PolicyFixer):
             return FixResult(success=False, message=f"Failed: {e}")
 ```
 
+### Bundled Auto-Fixers
+
+`devcovenant check --fix` now loads every fixer under `devcovenant/fixers/`
+and re-runs the policy suite after applying changes. The following fixers ship
+with the suite:
+
+- `no-future-dates` – rewrites future timestamps to the current UTC date.
+- `raw-string-escapes` – double-escapes backslashes in offending literals.
+- `start-script-parity` – mirrors the edited launcher into the other
+  `start.*` entry points.
+- `dependency-license-sync` – appends dated notes to
+  `THIRD_PARTY_LICENSES.md` and touches the `licenses/` directory whenever
+  dependencies change.
+- `start-script-guardrails` – injects the canonical `pkg_notice` /
+  `sudo -k` snippets (or `PKG_NOTICE` on Windows) so password prompts remain.
+- `last-updated-placement` – strips stray “Last Updated” lines from files that
+  are not on the allowlist.
+
+Policies declaring `auto_fix: true` in `AGENTS.md` should expose enough context
+via the `Violation.context` dictionary for their fixers to work without
+inspecting git metadata.
+
 ---
 
 ## Configuration
@@ -1180,8 +1226,9 @@ tuned without editing Python scripts:
 - **`changelog-coverage`**  
   - `main_changelog`: root changelog path.  
   - `skipped_files`: filenames ignored by the policy.  
-  - `collections`: list of dictionaries describing additional changelog
-    partitions (`prefix`, `changelog`, `exclusive`).
+  - `collections`: list describing additional changelog partitions. When using
+    metadata, encode each entry as `prefix:changelog:exclusive` (for example,
+    `rng_minigames/:rng_minigames/CHANGELOG.md:true`).
 - **`documentation-growth-tracking`**  
   - `user_visible_dirs` / `user_visible_files`: directories and files that
     trigger documentation reminders.
@@ -1194,12 +1241,15 @@ tuned without editing Python scripts:
   - `max_length`: column limit (defaults to 79).  
   - `include_suffixes`: file extensions that must obey the limit (for example,
     `.py`, `.md`, `.rst`, `.txt`).  
-  - `skip_prefixes`: directory prefixes that remain exempt (vendor trees or
-    frozen dataset bundles such as `copernican_lib/vendor` and `data/`).
+- `exclude_prefixes`: directory prefixes that remain exempt (vendored trees,
+    archived datasets, etc.).  
+  - `force_include_globs`: glob patterns to re-include even when they live
+    under a skipped prefix (the default brings `data/**/cosmo_parser_*.py`
+    back into scope).
 - **`docstring-and-comment-coverage`**  
   - `include_suffixes`: language extensions that should carry doc coverage
     (default: `.py`).  
-  - `skip_prefixes`: relative path prefixes that are exempt (vendored code).  
+- `exclude_prefixes`: relative path prefixes that are exempt (vendored code).  
   - `skip_components`: path components (such as `tests`) that should be ignored
     regardless of depth.
 - **`devflow-run-gates`**  
@@ -1224,12 +1274,17 @@ tuned without editing Python scripts:
   - `target_roots`: runtime packages to scan for `print()` calls.  
   - `vendor_paths`: prefixes that should be ignored (vendored dependencies).  
   - `allowed_files`: explicit exceptions (e.g., a console output helper).
+- **`read-only-directories`**  
+  - `protected_globs`: gitignore-style globs that stay read-only.  
+  - `exempt_globs`: glob patterns that remain editable even when they live
+    under a protected tree (dataset parsers by default).
 - **`security-compliance-notes`**  
   - `guarded_paths`: directories/files representing security-critical assets.  
   - `log_path`: markdown file that must record any guarded edits.
 - **`start-script-guardrails`**  
   - `scripts`: list of `{path, required}` patterns that enforce sudo prompts,
-    package manager notices, etc.
+    package manager notices, etc. When editing via metadata, encode entries as
+    `path:snippet|snippet` and separate scripts with `;`.
 - **`start-script-parity`**  
   - `scripts`: list of launcher names that must evolve together.
 - **`version-sync`**  
@@ -1247,23 +1302,48 @@ tuned without editing Python scripts:
 
 ### Global Ignore List
 
-Repository-wide exclusions live in `devcovenant/devcovignore.md`. The file uses
-`.gitignore` syntax (one pattern per line, comments start with `#`) and is read
-by `CheckContext` before any policy runs. Paths matching a pattern are removed
-from both `changed_files` and `all_files`, so every policy automatically skips
-vendored code, generated artifacts or other shared exclusions. The current file
-ship with:
-
-```
-copernican_lib/vendor/**
-tests/**
-**/tests/**
-```
-
-Update `devcovignore.md` whenever a new global exclusion is required instead of
-duplicating logic inside each policy script.
+Repository-wide exclusions now live under `ignore.patterns` in
+`devcovenant/config.yaml`. Each entry accepts `.gitignore` syntax (one pattern
+per line, `#` for comments) and is read by `CheckContext` before any policy
+runs. Paths matching a pattern are removed from both `changed_files` and
+`all_files`, so every policy automatically skips vendored code, generated
+artifacts or other shared exclusions. Update the configuration whenever a new
+global exclusion is required instead of duplicating logic inside each policy
+script.
 
 ---
+
+## Migration Playbook
+
+DevCovenant ships inside Copernican, but the entire system is portable. Use
+this playbook to install it elsewhere without re-writing any scripts:
+
+1. **Copy the engine** – Add the `devcovenant/` directory to the destination
+   repository (or install it as a package), commit
+   `devcovenant/config.yaml`, and wire the CLI into your tooling (`python
+   devcovenant/cli.py` or `pre-commit`).
+2. **Point at your policies** – Update `paths.policy_definitions` to reference
+   the host project’s canonical policy document (for example
+   `CONTRIBUTING.md`) and relocate `paths.registry_file` as needed.
+3. **Describe scopes declaratively** – Define each policy’s selectors inside
+   its `policy-def` block using the standard keys (`include_*`, `exclude_*`,
+   `force_include_globs`, `watch_files`, `protected_globs`, etc.). These
+   defaults document the intended scope for humans and become runtime options
+   for the engine.
+4. **Override via config** – For repository-specific tweaks, add entries under
+   `policies.<policy-id>` inside `devcovenant/config.yaml`. Config overrides
+   always beat metadata, so forks can retarget a policy without editing the
+   base document.
+5. **Set global ignores** – Move any former `.gitignore`-style waivers into
+   `ignore.patterns` so `CheckContext` prunes them before checks run.
+6. **Regenerate the registry** – Run `pre-commit run --all-files` or `python
+   devcovenant_check.py check --mode=startup` to produce the policy hashes,
+   then update or add tests (see `devcovenant/tests/`) so the selectors and
+   new scopes are covered.
+
+With the metadata, config overrides and selector helpers aligned, DevCovenant
+behaves exactly the same on any repository—the only customization lives in
+declarative metadata rather than hard-coded constants.
 
 ### Semantic Version Scope Markers
 

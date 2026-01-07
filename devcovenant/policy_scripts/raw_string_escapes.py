@@ -1,28 +1,15 @@
-"""Warn when string literals use bare backslashes instead of raw strings.
-Encourage raw or explicitly escaped forms for safe literals.
-"""
+"""Warn when targeted string literals use bare backslashes instead of
+raw strings."""
 
 import re
 import tokenize
-from pathlib import Path
 from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
+from devcovenant.selectors import SelectorSet
 
 _STRING_PREFIX_RE = re.compile(r"(?P<prefix>[rubfRUBF]*)(?P<quote>['\"]{1,3})")
 _SUSPICIOUS_ESCAPE_RE = re.compile(r"\\(?![\\'\"abfnrtv0-7xuUN])")
-
-
-def _should_inspect(rel_path: Path) -> bool:
-    """Decide if the file should be scanned for raw-string escapes."""
-    if rel_path.parts and rel_path.parts[0] == "copernican_lib":
-        if len(rel_path.parts) > 1 and rel_path.parts[1] == "vendor":
-            return False
-    if "tests" in rel_path.parts:
-        return False
-    if rel_path.suffix != ".py":
-        return False
-    return True
 
 
 def _is_raw_literal(token_value: str) -> bool:
@@ -43,19 +30,24 @@ class RawStringEscapesCheck(PolicyCheck):
 
     policy_id = "raw-string-escapes"
     version = "1.0.0"
+    DEFAULT_SUFFIXES = [".py"]
+
+    def _build_selector(self) -> SelectorSet:
+        """Return the selector describing files to scan."""
+        defaults = {
+            "include_suffixes": self.DEFAULT_SUFFIXES,
+        }
+        return SelectorSet.from_policy(self, defaults=defaults)
 
     def check(self, context: CheckContext) -> List[Violation]:
         """Inspect tokens for suspicious escape sequences."""
         files = context.all_files or context.changed_files or []
         violations: List[Violation] = []
+        selector = self._build_selector()
         for path in files:
             if not path.is_file():
                 continue
-            try:
-                rel = path.relative_to(context.repo_root)
-            except ValueError:
-                continue
-            if not _should_inspect(rel):
+            if not selector.matches(path, context.repo_root):
                 continue
 
             try:
@@ -80,6 +72,11 @@ class RawStringEscapesCheck(PolicyCheck):
                                         " the slash to avoid accidental"
                                         " escapes."
                                     ),
+                                    can_auto_fix=True,
+                                    context={
+                                        "start": token.start,
+                                        "end": token.end,
+                                    },
                                 )
                             )
             except (OSError, tokenize.TokenError):

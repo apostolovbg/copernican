@@ -1,9 +1,5 @@
-"""DevCovenant policy: Ensure version sync across metadata files.
-
-This policy ensures the canonical version in copernican_lib/VERSION
-matches the metadata declarations in README.md, pyproject.toml and
-CITATION.cff, preventing version drift across the project docs and tools.
-"""
+"""Ensure every metadata file listed in the policy options shares one
+version."""
 
 import re
 import subprocess
@@ -25,7 +21,7 @@ except ImportError:  # pragma: no cover - dependency misconfigured
 
 
 class VersionSyncCheck(PolicyCheck):
-    """Ensure README, pyproject, CITATION and VERSION agree on the version."""
+    """Ensure every configured surface reports the same SemVer string."""
 
     policy_id = "version-sync"
     version = "1.2.0"
@@ -34,11 +30,12 @@ class VersionSyncCheck(PolicyCheck):
         """Check for version synchronization across metadata files."""
         violations: List[Violation] = []
 
-        cfg = context.get_policy_config(self.policy_id)
-        version_rel = Path(cfg.get("version_file", "copernican_lib/VERSION"))
-        readme_rel = Path(cfg.get("readme_file", "README.md"))
-        citation_rel = Path(cfg.get("citation_file", "CITATION.cff"))
-        pyproject_rel = Path(cfg.get("pyproject_file", "pyproject.toml"))
+        version_rel = Path(self.get_option("version_file", "VERSION"))
+        readme_rel = Path(self.get_option("readme_file", "README.md"))
+        citation_rel = Path(self.get_option("citation_file", "CITATION.cff"))
+        pyproject_rel = Path(
+            self.get_option("pyproject_file", "pyproject.toml")
+        )
         version_file = context.repo_root / version_rel
         readme_file = context.repo_root / readme_rel
         citation_file = context.repo_root / citation_rel
@@ -228,10 +225,21 @@ class VersionSyncCheck(PolicyCheck):
 
         # Prevent runtime code from hard-coding the suite version.
         runtime_hits: List[Path] = []
+        entry_option = self.get_option("runtime_entrypoints", [])
+        roots_option = self.get_option("runtime_roots", [])
+        if isinstance(entry_option, str):
+            runtime_entrypoints = [entry_option]
+        else:
+            runtime_entrypoints = list(entry_option or [])
+        if isinstance(roots_option, str):
+            runtime_roots = [roots_option]
+        else:
+            runtime_roots = list(roots_option or [])
+
         runtime_files = self._runtime_python_files(
             context.repo_root,
-            cfg.get("runtime_entrypoints", ["copernican.py"]),
-            cfg.get("runtime_roots", ["copernican_lib", "engines"]),
+            runtime_entrypoints,
+            runtime_roots,
         )
         for runtime_file in runtime_files:
             try:
@@ -258,7 +266,8 @@ class VersionSyncCheck(PolicyCheck):
                     file_path=runtime_file,
                     message=(
                         f"Hard-coded suite version {version}; "
-                        "call copernican_lib.version.get_version() instead"
+                        "import the shared version helper instead of "
+                        "embedding literals."
                     ),
                 )
             )

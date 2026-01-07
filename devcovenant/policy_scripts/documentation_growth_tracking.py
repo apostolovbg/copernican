@@ -5,21 +5,6 @@ from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
-USER_VISIBLE_DIRS = {
-    "copernican_lib",
-    "engines",
-    "models",
-    "docs",
-}
-USER_VISIBLE_FILES = {
-    "README.md",
-    "AGENTS.md",
-    "copernican.py",
-    "start.sh",
-    "start.command",
-    "start.bat",
-}
-
 
 def _is_user_visible(
     rel_path: PurePosixPath,
@@ -44,9 +29,23 @@ class DocumentationGrowthTrackingCheck(PolicyCheck):
         """Emit a reminder when user-visible surfaces were touched."""
         files = context.changed_files or []
         impacted: List[PurePosixPath] = []
-        cfg = context.get_policy_config(self.policy_id)
-        user_dirs = cfg.get("user_visible_dirs", list(USER_VISIBLE_DIRS))
-        user_files = cfg.get("user_visible_files", list(USER_VISIBLE_FILES))
+        user_dirs_opt = self.get_option("user_visible_dirs", [])
+        user_files_opt = self.get_option("user_visible_files", [])
+
+        def _as_list(raw) -> List[str]:
+            """Return a simple list of strings parsed from metadata/config."""
+            if isinstance(raw, str):
+                return [raw]
+            if isinstance(raw, list):
+                return [str(entry) for entry in raw]
+            return [str(raw)] if raw else []
+
+        user_dirs = [
+            entry.strip() for entry in _as_list(user_dirs_opt) if entry
+        ]
+        user_files = [
+            entry.strip() for entry in _as_list(user_files_opt) if entry
+        ]
 
         for path in files:
             try:
@@ -61,14 +60,15 @@ class DocumentationGrowthTrackingCheck(PolicyCheck):
         if not impacted:
             return []
 
+        targets = ", ".join(sorted(user_dirs + user_files)) or "the docs set"
         return [
             Violation(
                 policy_id=self.policy_id,
                 severity="info",
                 message=(
-                    "User-facing code or docs changed. Please expand "
-                    "README.md, AGENTS.md or the relevant docs/ entry "
-                    "with a new paragraph or example so the corpus grows."
+                    "User-facing code or docs changed. Expand the configured "
+                    f"documentation set ({targets}) with fresh context before "
+                    "committing."
                 ),
             )
         ]

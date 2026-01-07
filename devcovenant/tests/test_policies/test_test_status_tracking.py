@@ -16,23 +16,41 @@ def _write(path: Path, content: str) -> Path:
     return path
 
 
+def _policy() -> TestStatusTrackingCheck:
+    policy = TestStatusTrackingCheck()
+    policy.set_options(
+        {
+            "watch_dirs": [
+                "project_lib",
+                "engines",
+                "tests",
+                "tools",
+                "scripts",
+            ],
+            "watch_files": ["project.py", "pyproject.toml"],
+        },
+        {},
+    )
+    return policy
+
+
 def test_flags_missing_status_update(tmp_path: Path):
     code_path = _write(
-        tmp_path / "copernican_lib" / "module.py",
+        tmp_path / "project_lib" / "module.py",
         "def demo():\n    return 1\n",
     )
     context = CheckContext(
         repo_root=tmp_path,
         changed_files=[code_path, tmp_path / "scripts" / "run_tests.sh"],
     )
-    violations = TestStatusTrackingCheck().check(context)
+    violations = _policy().check(context)
     assert violations
     assert "test status" in violations[0].message.lower()
 
 
 def test_accepts_recent_status(tmp_path: Path):
     code_path = _write(
-        tmp_path / "copernican_lib" / "module.py",
+        tmp_path / "project_lib" / "module.py",
         "def demo():\n    return 1\n",
     )
     status_path = tmp_path / STATUS_RELATIVE
@@ -47,12 +65,12 @@ def test_accepts_recent_status(tmp_path: Path):
         repo_root=tmp_path,
         changed_files=[code_path, status_path],
     )
-    assert TestStatusTrackingCheck().check(context) == []
+    assert _policy().check(context) == []
 
 
 def test_rejects_invalid_payload(tmp_path: Path):
     code_path = _write(
-        tmp_path / "copernican_lib" / "module.py",
+        tmp_path / "project_lib" / "module.py",
         "def demo():\n    return 1\n",
     )
     status_path = _write(
@@ -63,6 +81,6 @@ def test_rejects_invalid_payload(tmp_path: Path):
         repo_root=tmp_path,
         changed_files=[code_path, status_path],
     )
-    violations = TestStatusTrackingCheck().check(context)
+    violations = _policy().check(context)
     assert violations
     assert "invalid" in violations[0].message.lower()

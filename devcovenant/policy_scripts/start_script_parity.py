@@ -1,10 +1,11 @@
-"""Ensure the three start launchers stay synchronized."""
+"""Ensure every launcher listed in the metadata changes together."""
 
 from typing import List, Set
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
+from devcovenant.selectors import build_watchlists
 
-START_SCRIPTS = {"start.sh", "start.command", "start.bat"}
+START_SCRIPTS = ("start.sh", "start.command", "start.bat")
 
 
 class StartScriptParityCheck(PolicyCheck):
@@ -15,8 +16,9 @@ class StartScriptParityCheck(PolicyCheck):
 
     def check(self, context: CheckContext) -> List[Violation]:
         """Warn when only a subset of the launchers changes."""
-        cfg = context.get_policy_config(self.policy_id)
-        scripts = set(cfg.get("scripts", list(START_SCRIPTS)))
+        defaults = {"watch_files": START_SCRIPTS}
+        watch_files, _ = build_watchlists(self, defaults=defaults)
+        scripts = set(watch_files or START_SCRIPTS)
         changed_scripts: Set[str] = set()
         for path in context.changed_files or []:
             name = path.name
@@ -48,5 +50,10 @@ class StartScriptParityCheck(PolicyCheck):
                 severity="error",
                 file_path=representative,
                 message=message,
+                can_auto_fix=True,
+                context={
+                    "changed": sorted(changed_scripts),
+                    "missing": missing,
+                },
             )
         ]

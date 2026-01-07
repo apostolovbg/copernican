@@ -1,10 +1,10 @@
 """Detect suspicious symbols that historically trigger compliance risks."""
 
 import re
-from pathlib import PurePosixPath
 from typing import List, Sequence
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
+from devcovenant.selectors import SelectorSet
 
 PATTERNS = [
     (
@@ -28,22 +28,6 @@ PATTERNS = [
 ALLOW_COMMENT = "security-scanner: allow"
 
 
-def _should_scan(rel_path: PurePosixPath) -> bool:
-    """Return True when the path points to a module we should scan."""
-    if rel_path.suffix != ".py":
-        return False
-    if (
-        rel_path.parts
-        and rel_path.parts[0] == "copernican_lib"
-        and len(rel_path.parts) > 1
-    ):
-        if rel_path.parts[1] == "vendor":
-            return False
-    if "tests" in rel_path.parts:
-        return False
-    return True
-
-
 class SecurityScannerCheck(PolicyCheck):
     """Flag known insecure constructs that breach compliance guidelines."""
 
@@ -54,16 +38,18 @@ class SecurityScannerCheck(PolicyCheck):
         """Search repository Python modules for risky expressions."""
         violations: List[Violation] = []
         files = context.all_files or context.changed_files or []
+        selector = SelectorSet.from_policy(
+            self, defaults={"include_suffixes": [".py"]}
+        )
 
         for path in files:
             if not path.is_file():
                 continue
             try:
-                rel = path.relative_to(context.repo_root)
+                path.relative_to(context.repo_root)
             except ValueError:
                 continue
-            rel_posix = PurePosixPath(rel.as_posix())
-            if not _should_scan(rel_posix):
+            if not selector.matches(path, context.repo_root):
                 continue
 
             text = path.read_text(encoding="utf-8")

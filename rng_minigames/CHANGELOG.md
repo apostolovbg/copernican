@@ -1,5 +1,15 @@
 # RNG Mini-games Changelog
 
+- 2026-01-07: Recorded the DevCovenant metadata documentation refresh that
+  touched this file so the RNG bundle’s history stays complete
+  (`rng_minigames/CHANGELOG.md`).
+- 2026-01-05: Restored the registry descriptor’s trailing newline so the
+  DevCovenant fixers stop touching the bundle during hook runs
+  (`rng_minigames/registry.json`).
+- 2026-01-03: Normalised the registry descriptor to keep a trailing newline so
+  DevCovenant’s file guards stop reformatting the bundle during hook runs
+  (`rng_minigames/registry.json`).
+
 - 2025-12-15: Polished the RNG bundle for the new name-clarity guard rails by
   aliasing Tk helpers uniformly, expanding velocity/shield identifiers, and
   normalising the registry descriptor/manifest while keeping the tests aligned
@@ -9,7 +19,9 @@
   `rng_minigames/alien_invasion/hall_of_fame.py`,
   `rng_minigames/constellation/game.py`, `rng_minigames/emoji_meteors/game.py`,
   `rng_minigames/registry.py`, `rng_minigames/tests/test_registry_and_ai.py`,
-  `rng_minigames/registry.json`). -## Version 11.0.1
+  `rng_minigames/registry.json`).
+
+## Version 11.0.1
 - 2025-12-14: Added docstrings to the Alien Invasion AI helpers, game logic
 - 2025-12-14: Added docstrings to the Alien Invasion AI helpers, game logic and
   registry utilities so the RNG bundle now documents its behaviours before the

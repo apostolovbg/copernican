@@ -13,18 +13,30 @@ from devcovenant.policy_scripts.no_print_in_library import (
 class TestNoPrintInLibraryPolicy(unittest.TestCase):
     """Test suite for NoPrintInLibraryCheck."""
 
+    def _policy(self) -> NoPrintInLibraryCheck:
+        policy = NoPrintInLibraryCheck()
+        policy.set_options(
+            {
+                "include_prefixes": ["project_lib", "engines"],
+                "exclude_prefixes": ["project_lib/vendor"],
+                "allowed_files": ["project_lib/console_output.py"],
+            },
+            {},
+        )
+        return policy
+
     def test_detects_print_in_library(self):
         """Policy should detect print() usage in library code."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_root = Path(tmpdir)
 
-            lib_dir = repo_root / "copernican_lib"
+            lib_dir = repo_root / "project_lib"
             lib_dir.mkdir()
             test_file = lib_dir / "module.py"
             test_file.write_text('def foo():\n    print("hello")\n')
 
             context = CheckContext(repo_root=repo_root, all_files=[test_file])
-            policy = NoPrintInLibraryCheck()
+            policy = self._policy()
             violations = policy.check(context)
 
             self.assertEqual(len(violations), 1)
@@ -41,7 +53,7 @@ class TestNoPrintInLibraryPolicy(unittest.TestCase):
             test_file.write_text('def test_foo():\n    print("hello")\n')
 
             context = CheckContext(repo_root=repo_root, all_files=[test_file])
-            policy = NoPrintInLibraryCheck()
+            policy = self._policy()
             violations = policy.check(context)
 
             self.assertEqual(len(violations), 0)
@@ -51,7 +63,7 @@ class TestNoPrintInLibraryPolicy(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_root = Path(tmpdir)
 
-            lib_dir = repo_root / "copernican_lib"
+            lib_dir = repo_root / "project_lib"
             lib_dir.mkdir()
             console_file = lib_dir / "console_output.py"
             console_file.write_text("def write(msg):\n    print(msg)\n")
@@ -59,7 +71,7 @@ class TestNoPrintInLibraryPolicy(unittest.TestCase):
             context = CheckContext(
                 repo_root=repo_root, all_files=[console_file]
             )
-            policy = NoPrintInLibraryCheck()
+            policy = self._policy()
             violations = policy.check(context)
 
             self.assertEqual(len(violations), 0)
@@ -69,7 +81,7 @@ class TestNoPrintInLibraryPolicy(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_root = Path(tmpdir)
 
-            vendor_dir = repo_root / "copernican_lib" / "vendor"
+            vendor_dir = repo_root / "project_lib" / "vendor"
             vendor_dir.mkdir(parents=True)
             vendor_file = vendor_dir / "vendor_module.py"
             vendor_file.write_text('print("vendor")\n')
@@ -77,7 +89,7 @@ class TestNoPrintInLibraryPolicy(unittest.TestCase):
             context = CheckContext(
                 repo_root=repo_root, all_files=[vendor_file]
             )
-            policy = NoPrintInLibraryCheck()
+            policy = self._policy()
             violations = policy.check(context)
 
             self.assertEqual(len(violations), 0)

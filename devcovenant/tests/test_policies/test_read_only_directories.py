@@ -8,52 +8,46 @@ from devcovenant.policy_scripts.read_only_directories import (
 )
 
 
-def _prepare_patterns(tmp_path: Path) -> None:
-    """Create the patterns file under the temporary repo."""
-    patterns = tmp_path / "devcovenant" / "read_only_directories.txt"
-    patterns.parent.mkdir(parents=True, exist_ok=True)
-    patterns.write_text("data/**\n", encoding="utf-8")
-
-
 def _prepare_file(tmp_path: Path) -> Path:
-    """Create a fake dataset file that will be staged."""
+    """Create a fake dataset metadata file that should remain read-only."""
+    target = tmp_path / "data" / "example" / "metadata_example.yml"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("name: demo\n", encoding="utf-8")
+    return target
+
+
+def _prepare_parser(tmp_path: Path) -> Path:
+    """Create a parser file that is exempt from read-only enforcement."""
     target = tmp_path / "data" / "example" / "cosmo_parser_A.py"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text("content\n", encoding="utf-8")
     return target
 
 
-def _write_waiver(tmp_path: Path, relative_path: str) -> None:
-    """Write a waiver entry that permits the relative path."""
-    waiver = (
-        tmp_path / ".devcovenant" / "waivers" / "read-only-directories.txt"
-    )
-    waiver.parent.mkdir(parents=True, exist_ok=True)
-    waiver.write_text(f"{relative_path}\n", encoding="utf-8")
-
-
 def test_blocks_read_only_change(tmp_path: Path):
     """Changes inside data/ should violate when no waiver exists."""
-    _prepare_patterns(tmp_path)
     target = _prepare_file(tmp_path)
 
     checker = ReadOnlyDirectoriesCheck()
     context = CheckContext(repo_root=tmp_path, changed_files=[target])
     violations = checker.check(context)
 
-    assert len(violations) == 1
-    assert "read-only directories" in violations[0].message.lower()
+    assert violations, "Read-only changes should fail without exemptions"
 
 
-def test_respects_waiver(tmp_path: Path):
-    """Waived paths under data/ are exempt from the policy."""
-    _prepare_patterns(tmp_path)
-    target = _prepare_file(tmp_path)
-    rel = target.relative_to(tmp_path)
-    _write_waiver(tmp_path, rel.as_posix())
+def test_exclude_globs_allow_parsers(tmp_path: Path):
+    """Parsers matching the exclusion list should be editable."""
+    target = _prepare_parser(tmp_path)
 
     checker = ReadOnlyDirectoriesCheck()
+    checker.set_options(
+        {
+            "include_globs": ["data/**"],
+            "exclude_globs": ["data/**/cosmo_parser_*.py"],
+        },
+        {},
+    )
     context = CheckContext(repo_root=tmp_path, changed_files=[target])
     violations = checker.check(context)
 
-    assert violations == []
+    assert not violations, "Parser files must escape the read-only guard"

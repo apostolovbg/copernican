@@ -8,11 +8,23 @@ from devcovenant.policy_scripts.documentation_growth_tracking import (
 )
 
 
+def _checker() -> DocumentationGrowthTrackingCheck:
+    checker = DocumentationGrowthTrackingCheck()
+    checker.set_options(
+        {
+            "user_visible_files": ["README.md"],
+            "user_visible_dirs": ["docs"],
+        },
+        {},
+    )
+    return checker
+
+
 def test_reminder_for_user_facing_file(tmp_path: Path):
     """README updates should trigger the reminder."""
     target = tmp_path / "README.md"
     target.write_text("Updated docs\n", encoding="utf-8")
-    checker = DocumentationGrowthTrackingCheck()
+    checker = _checker()
     context = CheckContext(repo_root=tmp_path, changed_files=[target])
     violations = checker.check(context)
 
@@ -25,6 +37,6 @@ def test_no_reminder_for_internal_file(tmp_path: Path):
     target = tmp_path / "tests" / "helper.py"
     target.parent.mkdir(parents=True)
     target.write_text("print('ok')\n", encoding="utf-8")
-    checker = DocumentationGrowthTrackingCheck()
+    checker = _checker()
     context = CheckContext(repo_root=tmp_path, changed_files=[target])
     assert checker.check(context) == []

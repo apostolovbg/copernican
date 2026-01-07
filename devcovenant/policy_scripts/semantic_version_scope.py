@@ -1,4 +1,5 @@
-"""Ensure version bumps match the declared SemVer scope in the changelog."""
+"""Ensure `version_file` bumps align with the SemVer tags in
+`changelog_file`."""
 
 from __future__ import annotations
 
@@ -20,7 +21,6 @@ _VERSION_HEADER_RE = re.compile(
 )
 _LEVELS = {"patch": 0, "minor": 1, "major": 2}
 _LEVEL_NAMES = {value: key for key, value in _LEVELS.items()}
-_IGNORED_PREFIXES = ("devcovenant", "rng_minigames")
 
 
 class SemanticVersionScopeCheck(PolicyCheck):
@@ -33,18 +33,19 @@ class SemanticVersionScopeCheck(PolicyCheck):
         """Validate the latest changelog tags against the version bump."""
         violations: List[Violation] = []
         repo_root = context.repo_root
-        cfg = context.get_policy_config(self.policy_id)
-        version_rel = Path(cfg.get("version_file", "copernican_lib/VERSION"))
-        changelog_rel = Path(cfg.get("changelog_file", "CHANGELOG.md"))
+        version_rel = Path(self.get_option("version_file", "VERSION"))
+        changelog_rel = Path(self.get_option("changelog_file", "CHANGELOG.md"))
         override_rel = Path(
-            cfg.get(
+            self.get_option(
                 "override_file",
                 ".devcovenant/waivers/semantic-version-scope.txt",
             )
         )
-        ignored_prefixes = tuple(
-            cfg.get("ignored_prefixes", list(_IGNORED_PREFIXES))
-        )
+        prefixes_option = self.get_option("ignored_prefixes", [])
+        if isinstance(prefixes_option, str):
+            ignored_prefixes = (prefixes_option,)
+        else:
+            ignored_prefixes = tuple(prefixes_option or ())
         version_path = repo_root / version_rel
         changelog_path = repo_root / changelog_rel
         version_label = version_rel.as_posix()

@@ -56,11 +56,21 @@ class DependencyLicenseSyncCheck(PolicyCheck):
         if not files:
             return []
 
-        cfg = context.get_policy_config(self.policy_id)
-        dependency_files = set(cfg.get("dependency_files", DEPENDENCY_FILES))
-        third_party_rel = Path(cfg.get("third_party_file", str(THIRD_PARTY)))
-        licenses_dir = cfg.get("licenses_dir", LICENSES_DIR)
-        report_heading = cfg.get("report_heading", LICENSE_REPORT_HEADING)
+        dependency_files_opt = self.get_option(
+            "dependency_files", DEPENDENCY_FILES
+        )
+        if isinstance(dependency_files_opt, str):
+            dependency_files = {dependency_files_opt}
+        else:
+            dependency_files = set(dependency_files_opt or DEPENDENCY_FILES)
+
+        third_party_rel = Path(
+            self.get_option("third_party_file", str(THIRD_PARTY))
+        )
+        licenses_dir = self.get_option("licenses_dir", LICENSES_DIR)
+        report_heading = self.get_option(
+            "report_heading", LICENSE_REPORT_HEADING
+        )
 
         changed_dependency_files = {
             path.name for path in files if path.name in dependency_files
@@ -69,6 +79,13 @@ class DependencyLicenseSyncCheck(PolicyCheck):
             return []
 
         violations = []
+        license_dir_path = context.repo_root / licenses_dir
+        context_payload = {
+            "changed_dependency_files": sorted(changed_dependency_files),
+            "third_party_file": str(third_party_rel),
+            "licenses_dir": str(licenses_dir),
+            "report_heading": report_heading,
+        }
 
         third_party_path = context.repo_root / third_party_rel
         if not any(path.name == third_party_rel.name for path in files):
@@ -76,10 +93,13 @@ class DependencyLicenseSyncCheck(PolicyCheck):
                 Violation(
                     policy_id=self.policy_id,
                     severity="error",
+                    file_path=third_party_path,
                     message=(
                         "Dependencies changed without updating "
                         "the license table `THIRD_PARTY_LICENSES.md`."
                     ),
+                    can_auto_fix=True,
+                    context={**context_payload, "issue": "third_party"},
                 )
             )
 
@@ -98,10 +118,13 @@ class DependencyLicenseSyncCheck(PolicyCheck):
                 Violation(
                     policy_id=self.policy_id,
                     severity="error",
+                    file_path=license_dir_path,
                     message=(
                         "License files under "
                         f"{licenses_dir}/ must be refreshed."
                     ),
+                    can_auto_fix=True,
+                    context={**context_payload, "issue": "licenses_dir"},
                 )
             )
 
@@ -116,25 +139,39 @@ class DependencyLicenseSyncCheck(PolicyCheck):
                 Violation(
                     policy_id=self.policy_id,
                     severity="error",
+                    file_path=third_party_path,
                     message=(
                         f"Add a '{report_heading}' section to "
                         f"`{third_party_rel}` that chronicles dependency "
                         "updates."
                     ),
+                    can_auto_fix=True,
+                    context={**context_payload, "issue": "missing_report"},
                 )
             )
         else:
-            for dep_file in sorted(changed_dependency_files):
-                if not _contains_reference(report, dep_file):
-                    violations.append(
-                        Violation(
-                            policy_id=self.policy_id,
-                            severity="error",
-                            message=(
-                                "The license report must mention changes to "
-                                f"`{dep_file}` when dependencies are altered."
-                            ),
-                        )
+            missing_references = [
+                dep_file
+                for dep_file in sorted(changed_dependency_files)
+                if not _contains_reference(report, dep_file)
+            ]
+            if missing_references:
+                violations.append(
+                    Violation(
+                        policy_id=self.policy_id,
+                        severity="error",
+                        file_path=third_party_path,
+                        message=(
+                            "The license report must mention each changed "
+                            "dependency manifest."
+                        ),
+                        can_auto_fix=True,
+                        context={
+                            **context_payload,
+                            "issue": "missing_reference",
+                            "missing_references": missing_references,
+                        },
                     )
+                )
 
         return violations

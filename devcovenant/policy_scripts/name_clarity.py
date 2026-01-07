@@ -1,9 +1,10 @@
-"""Warn when placeholder or overly short identifiers appear."""
+"""Warn when placeholder or overly short identifiers appear in scope."""
 
 import ast
 from typing import List, Sequence
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
+from devcovenant.selectors import SelectorSet
 
 BLACKLIST = {
     "foo",
@@ -132,28 +133,24 @@ class NameClarityCheck(PolicyCheck):
 
     policy_id = "name-clarity"
     version = "1.1.0"
+    DEFAULT_SUFFIXES = [".py"]
+
+    def _selector(self) -> SelectorSet:
+        """Return selector describing files enforced by the policy."""
+        return SelectorSet.from_policy(
+            self, defaults={"include_suffixes": self.DEFAULT_SUFFIXES}
+        )
 
     def check(self, context: CheckContext) -> List[Violation]:
         """Run the check across all matching Python files."""
         files = context.all_files or context.changed_files or []
         violations: List[Violation] = []
+        selector = self._selector()
 
         for path in files:
-            if path.suffix != ".py":
-                continue
             if not path.is_file():
                 continue
-            try:
-                rel = path.relative_to(context.repo_root)
-            except ValueError:
-                continue
-            if "tests" in rel.parts:
-                continue
-            if (
-                len(rel.parts) >= 2
-                and rel.parts[0] == "copernican_lib"
-                and rel.parts[1] == "vendor"
-            ):
+            if not selector.matches(path, context.repo_root):
                 continue
 
             text = path.read_text(encoding="utf-8")

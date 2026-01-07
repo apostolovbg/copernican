@@ -57,11 +57,18 @@ def test_vendor_files_ignored():
     """Vendor files should be skipped even when lines are long."""
     temp_dir = Path(tempfile.mkdtemp())
     try:
-        vendor_file = temp_dir / "copernican_lib" / "vendor" / "bundle.py"
+        vendor_file = temp_dir / "project_lib" / "vendor" / "bundle.py"
         vendor_file.parent.mkdir(parents=True, exist_ok=True)
         vendor_file.write_text("# " + "x" * 200 + "\n")
 
         checker = LineLengthLimitCheck()
+        checker.set_options(
+            {
+                "include_suffixes": [".py"],
+                "exclude_prefixes": ["project_lib/vendor"],
+            },
+            {},
+        )
         context = CheckContext(repo_root=temp_dir, all_files=[vendor_file])
         violations = checker.check(context)
 
@@ -105,7 +112,7 @@ def test_configurable_suffixes_and_threshold():
                     "line-length-limit": {
                         "max_length": 10,
                         "include_suffixes": [".txt"],
-                        "skip_prefixes": [],
+                        "exclude_prefixes": [],
                     }
                 }
             },
@@ -136,7 +143,7 @@ def test_custom_skip_prefix():
                 "policies": {
                     "line-length-limit": {
                         "include_suffixes": [".md"],
-                        "skip_prefixes": ["docs/generated"],
+                        "exclude_prefixes": ["docs/generated"],
                     }
                 }
             },
@@ -158,7 +165,19 @@ def test_metadata_options_drive_scope(tmp_path: Path) -> None:
 
     checker = LineLengthLimitCheck()
     checker.set_options(
-        {"include_suffixes": [".txt"], "max_length": 10, "skip_prefixes": []},
+        {
+            "include_suffixes": [".py"],
+            "exclude_prefixes": ["data"],
+            "force_include_globs": ["data/**/cosmo_parser_demo.py"],
+        },
+        {},
+    )
+    checker.set_options(
+        {
+            "include_suffixes": [".txt"],
+            "max_length": 10,
+            "exclude_prefixes": [],
+        },
         {},
     )
     context = CheckContext(
@@ -167,3 +186,20 @@ def test_metadata_options_drive_scope(tmp_path: Path) -> None:
     )
     violations = checker.check(context)
     assert violations, "Metadata-driven suffixes should trigger violations"
+
+
+def test_force_include_globs_override_skip(tmp_path: Path) -> None:
+    """Files under skipped prefixes can be re-included via glob patterns."""
+    target = tmp_path / "data" / "set" / "cosmo_parser_demo.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("# " + "y" * 200 + "\n", encoding="utf-8")
+
+    checker = LineLengthLimitCheck()
+    context = CheckContext(
+        repo_root=tmp_path,
+        all_files=[target],
+    )
+    violations = checker.check(context)
+    assert (
+        violations
+    ), "force_include_globs should re-check parsers under read-only trees"

@@ -3,6 +3,9 @@
 from pathlib import Path
 
 from devcovenant.base import CheckContext
+from devcovenant.fixers.dependency_license_sync import (
+    DependencyLicenseSyncFixer,
+)
 from devcovenant.policy_scripts.dependency_license_sync import (
     DependencyLicenseSyncCheck,
 )
@@ -87,4 +90,29 @@ def test_report_mentions_all_changed_files(tmp_path: Path):
     )
     violations = checker.check(context)
 
-    assert any("requirements.lock" in v.message for v in violations)
+    assert any(
+        "requirements.lock" in (v.context.get("missing_references") or [])
+        for v in violations
+    )
+
+
+def test_auto_fix_updates_license_report(tmp_path: Path):
+    """Auto-fix should append report entries and touch licenses/."""
+    repo = _setup_repo(tmp_path)
+    checker = DependencyLicenseSyncCheck()
+    context = CheckContext(
+        repo_root=repo,
+        changed_files=[repo / "requirements.lock"],
+    )
+    violations = checker.check(context)
+    assert violations
+    fixer = DependencyLicenseSyncFixer()
+    fixer.repo_root = repo
+    for violation in violations:
+        result = fixer.fix(violation)
+        assert result.success
+    third_party = repo / "THIRD_PARTY_LICENSES.md"
+    report = third_party.read_text()
+    assert "requirements.lock" in report
+    sentinel = repo / "licenses" / "AUTO_LICENSE_SYNC.txt"
+    assert sentinel.exists()

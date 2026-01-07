@@ -15,7 +15,7 @@ def _write_version_files(
     marker: str,
 ) -> tuple[Path, Path, Path]:
     """Create VERSION and CHANGELOG fixtures."""
-    version_file = tmp_path / "copernican_lib" / "VERSION"
+    version_file = tmp_path / "project_lib" / "VERSION"
     version_file.parent.mkdir(parents=True, exist_ok=True)
     version_file.write_text(current_version, encoding="utf-8")
 
@@ -35,9 +35,22 @@ def _write_version_files(
         encoding="utf-8",
     )
 
-    other_file = tmp_path / "copernican_lib" / "module.py"
+    other_file = tmp_path / "project_lib" / "module.py"
     other_file.write_text("# helper\n", encoding="utf-8")
     return version_file, changelog, other_file
+
+
+def _configured_policy() -> SemanticVersionScopeCheck:
+    """Return a policy configured for project_lib."""
+    policy = SemanticVersionScopeCheck()
+    policy.set_options(
+        {
+            "version_file": "project_lib/VERSION",
+            "ignored_prefixes": ["devcovenant"],
+        },
+        {},
+    )
+    return policy
 
 
 def test_minor_marker_requires_minor_bump(tmp_path: Path) -> None:
@@ -53,7 +66,7 @@ def test_minor_marker_requires_minor_bump(tmp_path: Path) -> None:
         repo_root=tmp_path,
         changed_files=[version_file, changelog, other_file],
     )
-    check = SemanticVersionScopeCheck()
+    check = _configured_policy()
     violations = check.check(context)
 
     assert violations
@@ -73,7 +86,7 @@ def test_minor_bump_passes_with_matching_marker(tmp_path: Path) -> None:
         repo_root=tmp_path,
         changed_files=[version_file, changelog, other_file],
     )
-    check = SemanticVersionScopeCheck()
+    check = _configured_policy()
 
     assert check.check(context) == []
 
@@ -97,7 +110,7 @@ def test_override_file_sets_required_scope(tmp_path: Path) -> None:
         changed_files=[version_file, changelog, other_file],
     )
 
-    check = SemanticVersionScopeCheck()
+    check = _configured_policy()
     assert check.check(context) == []
 
 
@@ -118,7 +131,7 @@ def test_policy_skips_when_only_devconvenant_changes(tmp_path: Path) -> None:
         changed_files=[version_file, devcov_file],
     )
 
-    check = SemanticVersionScopeCheck()
+    check = _configured_policy()
     assert check.check(context) == []
 
 
@@ -135,7 +148,7 @@ def test_requires_version_bump_when_changelog_changes(tmp_path: Path) -> None:
         repo_root=tmp_path,
         changed_files=[changelog, other_file],
     )
-    check = SemanticVersionScopeCheck()
+    check = _configured_policy()
     violations = check.check(context)
 
     assert violations
@@ -156,7 +169,7 @@ def test_mixed_scope_markers_are_rejected(tmp_path: Path) -> None:
         repo_root=tmp_path,
         changed_files=[version_file, changelog, other_file],
     )
-    check = SemanticVersionScopeCheck()
+    check = _configured_policy()
     violations = check.check(context)
 
     assert violations

@@ -3,6 +3,9 @@
 from pathlib import Path
 
 from devcovenant.base import CheckContext
+from devcovenant.fixers.start_script_guardrails import (
+    StartScriptGuardrailsFixer,
+)
 from devcovenant.policy_scripts.start_script_guardrails import (
     StartScriptGuardrailsCheck,
 )
@@ -41,3 +44,18 @@ def test_allows_scripts_with_guardrails(tmp_path: Path):
     )
 
     assert checker.check(context) == []
+
+
+def test_auto_fix_injects_guardrails(tmp_path: Path):
+    script = _write_script(tmp_path, "start.command", "#!/bin/bash\n")
+    context = CheckContext(repo_root=tmp_path, changed_files=[script])
+    checker = StartScriptGuardrailsCheck()
+    violations = checker.check(context)
+    assert violations
+    fixer = StartScriptGuardrailsFixer()
+    fixer.repo_root = tmp_path
+    result = fixer.fix(violations[0])
+    assert result.success
+    content = script.read_text()
+    assert "pkg_notice()" in content
+    assert "sudo -k" in content

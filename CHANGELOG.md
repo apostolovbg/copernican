@@ -21,6 +21,32 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.1
+- 2026-01-07 [semver:patch]: Enabled DevCovenant’s `--fix` flow by wiring the
+  engine to load bundled fixers, added auto-fixers for future dates, raw string
+  escapes, start-script parity/guardrails and dependency-license-sync, updated
+  the policy docs to advertise the new automation and expanded the regression
+  suite to exercise each fixer (AGENTS.md, CHANGELOG.md,
+  devcovenant/README.md, devcovenant/cli.py, devcovenant/engine.py,
+  devcovenant/policy_scripts/no_future_dates.py,
+  devcovenant/policy_scripts/raw_string_escapes.py,
+  devcovenant/policy_scripts/start_script_parity.py,
+  devcovenant/policy_scripts/dependency_license_sync.py,
+  devcovenant/policy_scripts/start_script_guardrails.py,
+  devcovenant/fixers/dependency_license_sync.py,
+  devcovenant/fixers/no_future_dates.py,
+  devcovenant/fixers/raw_string_escapes.py,
+  devcovenant/fixers/start_script_guardrails.py,
+  devcovenant/fixers/start_script_parity.py,
+  devcovenant/tests/test_policies/test_no_future_dates.py,
+  devcovenant/tests/test_policies/test_raw_string_escapes.py,
+  devcovenant/tests/test_policies/test_start_script_parity.py,
+  devcovenant/tests/test_policies/test_dependency_license_sync.py,
+  devcovenant/tests/test_policies/test_start_script_guardrails.py).
+- 2026-01-07 [semver:patch]: Captured the new selector vocabulary, config
+  override flow and migration playbook inside the primary docs and logged the
+  work in both changelog series so DevCovenant can be dropped into any repo
+  without editing Python (AGENTS.md, CHANGELOG.md,
+  devcovenant/README.md, rng_minigames/CHANGELOG.md).
 - 2026-01-03 [semver:patch]: Parameterised DevCovenant so policy manifests,
   changelog rules, dependency scanners and launcher guards read their inputs
   from `config.yaml`, rewired the engine to pass configuration into every
@@ -42,6 +68,42 @@ suffixes. Follow this template:
   devcovenant/policy_scripts/version_sync.py,
   devcovenant/tests/test_policies/test_devflow_run_gates.py,
   devcovenant/test_status.json, devcovenant/registry.json).
+- 2026-01-09 [semver:patch]: Completed the spin-off hardening by moving every
+  Copernican-specific selector, guardrail and watchlist into
+  `devcovenant/config.yaml`, deleting the legacy `devcovignore.md`, teaching
+  the engine/context to honor the new config-driven ignore set, sanitizing the
+  policy scripts/tests so no path defaults remain in code, and documenting the
+  new knobs throughout the spec (AGENTS.md, CHANGELOG.md,
+  devcovenant/config.yaml,
+  devcovenant/README.md, devcovenant/devcovignore.md,
+  devcovenant/base.py, devcovenant/engine.py,
+  devcovenant/policy_scripts/line_length_limit.py,
+  devcovenant/policy_scripts/docstring_and_comment_coverage.py,
+  devcovenant/policy_scripts/raw_string_escapes.py,
+  devcovenant/policy_scripts/read_only_directories.py,
+  devcovenant/policy_scripts/new_modules_need_tests.py,
+  devcovenant/policy_scripts/no_print_in_library.py,
+  devcovenant/policy_scripts/documentation_growth_tracking.py,
+  devcovenant/policy_scripts/security_compliance_notes.py,
+  devcovenant/policy_scripts/security_scanner.py,
+  devcovenant/policy_scripts/test_status_tracking.py,
+  devcovenant/policy_scripts/version_sync.py,
+  devcovenant/policy_scripts/semantic_version_scope.py,
+  devcovenant/policy_scripts/name_clarity.py,
+  devcovenant/policy_scripts/last_updated_placement.py,
+  devcovenant/tests/test_policies/test_new_modules_need_tests.py,
+  devcovenant/tests/test_policies/test_name_clarity.py,
+  devcovenant/tests/test_policies/test_no_print_in_library.py,
+  devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py,
+  devcovenant/tests/test_policies/test_raw_string_escapes.py,
+  devcovenant/tests/test_policies/test_line_length_limit.py,
+  devcovenant/tests/test_policies/test_version_sync.py,
+  devcovenant/tests/test_policies/test_semantic_version_scope.py,
+  devcovenant/tests/test_policies/test_security_scanner.py,
+  devcovenant/tests/test_policies/test_test_status_tracking.py,
+  devcovenant/tests/test_policies/test_documentation_growth_tracking.py,
+  devcovenant/tests/test_policies/test_security_compliance_notes.py,
+  devcovenant/tests/test_selectors.py).
 - 2026-01-03 [semver:patch]: Extended the 79-character guardrail to all
   documentation so Markdown and README files adopt the same wrapping rules as
   runtime code, updated the policy text, configuration defaults and README, and
@@ -49,6 +111,28 @@ suffixes. Follow this template:
   prefixes (AGENTS.md, devcovenant/config.yaml, devcovenant/README.md,
   devcovenant/policy_scripts/line_length_limit.py,
   devcovenant/tests/test_policies/test_line_length_limit.py).
+- 2026-01-03 [semver:patch]: Generalised DevCovenant policy scopes so paths,
+  guardrails and version synchronization are declared via metadata rather than
+  hard-coded constants, added parser exemptions to the read-only guard, wired
+  parsers back into the 79-character limit, and documented the new knobs and
+  file formats (AGENTS.md, CHANGELOG.md, devcovenant/README.md,
+  devcovenant/config.yaml, devcovenant/policy_scripts/changelog_coverage.py,
+  devcovenant/policy_scripts/dependency_license_sync.py,
+  devcovenant/policy_scripts/documentation_growth_tracking.py,
+  devcovenant/policy_scripts/line_length_limit.py,
+  devcovenant/policy_scripts/managed_venv.py,
+  devcovenant/policy_scripts/new_modules_need_tests.py,
+  devcovenant/policy_scripts/no_print_in_library.py,
+  devcovenant/policy_scripts/read_only_directories.py,
+  devcovenant/policy_scripts/security_compliance_notes.py,
+  devcovenant/policy_scripts/semantic_version_scope.py,
+  devcovenant/policy_scripts/start_script_guardrails.py,
+  devcovenant/policy_scripts/start_script_parity.py,
+  devcovenant/policy_scripts/test_status_tracking.py,
+  devcovenant/policy_scripts/version_sync.py,
+  devcovenant/tests/test_policies/test_line_length_limit.py,
+  devcovenant/tests/test_policies/test_read_only_directories.py,
+  devcovenant/read_only_directories.txt).
 - 2026-01-03 [semver:patch]: Moved repeatable policy scope settings into the
   `policy-def` metadata so the line-length, docstring coverage and DevFlow gate
   checks read their file lists, directories and command requirements straight
@@ -63,6 +147,38 @@ suffixes. Follow this template:
   devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py,
   devcovenant/tests/test_policies/test_devflow_run_gates.py,
   devcovenant/tests/test_policies/test_line_length_limit.py).
+- 2026-01-03 [semver:patch]: Purged the remaining hard-coded path references
+  from DevCovenant’s policy descriptions, updated the read-only guardrail
+  messaging to refer to metadata, documented the new configuration model, and
+  repaired the RNG changelog formatting glitch so vendor docs stay immutable
+  (AGENTS.md, devcovenant/policy_scripts/read_only_directories.py,
+  devcovenant/README.md, rng_minigames/CHANGELOG.md).
+- 2026-01-05 [semver:patch]: Introduced the shared selector schema so metadata
+  keys like `include_prefixes`, `exclude_globs`, `watch_files` and
+  `force_include_globs` behave consistently, added the reusable
+  `devcovenant/selectors.py` helper plus regression tests, documented the new
+  vocabulary in AGENTS/config/README, and paved the way for the Phase 3 policy
+  migration (AGENTS.md, devcovenant/selectors.py,
+  devcovenant/config.yaml, devcovenant/README.md,
+  devcovenant/tests/test_selectors.py).
+- 2026-01-07 [semver:patch]: Completed the selector migration by wiring the
+  line-length, docstring coverage, raw-string, read-only, start-script parity,
+  new-modules, test-status and no-print policies to the unified include/exclude
+  metadata, renamed the policy definitions, refreshed their tests and dropped
+  the legacy read-only waiver flow (AGENTS.md, devcovenant/README.md,
+  devcovenant/policy_scripts/line_length_limit.py,
+  devcovenant/policy_scripts/docstring_and_comment_coverage.py,
+  devcovenant/policy_scripts/raw_string_escapes.py,
+  devcovenant/policy_scripts/read_only_directories.py,
+  devcovenant/policy_scripts/new_modules_need_tests.py,
+  devcovenant/policy_scripts/no_print_in_library.py,
+  devcovenant/policy_scripts/start_script_parity.py,
+  devcovenant/policy_scripts/test_status_tracking.py,
+  devcovenant/tests/test_policies/test_line_length_limit.py,
+  devcovenant/tests/test_policies/test_docstring_and_comment_coverage.py,
+  devcovenant/tests/test_policies/test_read_only_directories.py,
+  devcovenant/tests/test_policies/test_line_length_limit.py,
+  devcovenant/tests/test_policies/test_test_status_tracking.py).
 - 2025-12-27 [semver:patch]: Relocated the canonical `run_tests.py` wrapper to
   `tools/`, deleted the obsolete `scripts/` directory and updated every policy
   and instruction that referenced the old path so the managed test runner lives
@@ -90,8 +206,7 @@ suffixes. Follow this template:
   devcovenant/tests/test_policies/test_start_script_guardrails.py,
   devcovenant/tests/test_policies/test_test_status_tracking.py,
   devcovenant/tests/test_policies/test_semantic_version_scope.py,
-  docs/security_changes.md, tools/update_test_status.py,
-  rng_minigames/registry.json).
+  docs/security_changes.md, tools/update_test_status.py).
 - 2025-12-27 [semver:patch]: Tightened the `semantic-version-scope` policy so
   changelog entries must use a single scope, bump `copernican_lib/VERSION`
   whenever a scoped release is logged, and reject scope mismatches; docs and
@@ -152,8 +267,7 @@ suffixes. Follow this template:
   devcovenant/tests/test_policies/test_start_script_guardrails.py,
   devcovenant/tests/test_policies/test_test_status_tracking.py,
   devcovenant/tests/test_policies/test_semantic_version_scope.py,
-  docs/security_changes.md, tools/update_test_status.py,
-  rng_minigames/registry.json).
+  docs/security_changes.md, tools/update_test_status.py).
 
 ## Version 11.0.2
 - 2025-12-28 [semver:patch]: Repaired the GUI imports, reran the style

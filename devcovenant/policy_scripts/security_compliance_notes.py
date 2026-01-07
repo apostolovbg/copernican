@@ -5,16 +5,6 @@ from typing import Iterable, List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
-SECURITY_PATTERNS = (
-    "start.sh",
-    "start.command",
-    "start.bat",
-    "copernican_lib/security",
-    "docs/security",
-)
-
-SECURITY_LOG = Path("docs/security_changes.md")
-
 
 def _is_security_path(
     rel_path: PurePosixPath, guarded_paths: List[str]
@@ -49,9 +39,12 @@ class SecurityComplianceNotesCheck(PolicyCheck):
         violations: List[Violation] = []
         security_paths: List[PurePosixPath] = []
         touched_paths: List[PurePosixPath] = []
-        cfg = context.get_policy_config(self.policy_id)
-        guarded_paths = cfg.get("guarded_paths", list(SECURITY_PATTERNS))
-        log_rel = Path(cfg.get("log_path", str(SECURITY_LOG)))
+        guarded_option = self.get_option("guarded_paths", [])
+        if isinstance(guarded_option, str):
+            guarded_paths = [guarded_option]
+        else:
+            guarded_paths = list(guarded_option or [])
+        log_rel = Path(self.get_option("log_path", "security_changes.md"))
         log_posix = PurePosixPath(log_rel.as_posix())
 
         for path in files:

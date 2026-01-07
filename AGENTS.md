@@ -47,23 +47,27 @@ Engines panes render scrollable catalogues with working folder, metadata and
 parser revalidation buttons, Settings exposes diagnostics filters, output-
 directory helpers and environment hints, and Help renders `README.md` (banner
 and all) inside a scrollable text widget so the documentation is available
-without leaving the GUI. Full details live in `docs/gui_overview.md`. The Save
-Manifest page only enables once the seed, model, dataset and engine panels hold
-selections; saving writes the active manifest to
+without leaving the GUI.
+Full details live in `docs/gui_overview.md`.
+The Save Manifest page only enables once the seed, model, dataset and engine
+panels hold selections; saving writes the active manifest to
 `output/copernican_run_NEW_CONFIG/run_manifest_NEW_CONFIG.yml`, updates the
 summary metadata and unlocks the confirmation step. Starting the run renames
 that workspace to `copernican-run_<timestamp>` so the CLI worker always reads
 the timestamped manifest while Cancel/Clear removes the temporary folder so no
 drafts linger. Metadata/YAML dialogs size themselves to the longest line, add
 an **Open file…** action that launches the source asset in the OS default
-editor, and Start Run now delegates to `copernican_lib.gui.run_worker`, which
-invokes the real CLI workflow in a child process using the builder selections.
-The worker’s stdout/stderr feed the diagnostics pane while Cancel and Hard Stop
-terminate the child so runs remain interruptible from the GUI. CLI manifest
-launches now share the same
+editor, and Start Run now delegates to `copernican_lib.gui.run_worker`,
+which invokes the real CLI workflow in a child process using the builder
+selections.
+The worker’s stdout/stderr feed the diagnostics pane while
+Cancel and Hard Stop terminate the child so runs remain interruptible from the
+GUI.
+CLI manifest launches now share the same
 `copernican_lib.run_executor.execute_run_from_manifest` helper as the GUI so
 the orchestration logic stays centralized and the manifest runner can be reused
-by other frontends without duplicating the workflow. The navigation rail itself
+by other frontends without duplicating the workflow.
+The navigation rail itself
 now reserves 240 px so a padded Copernican logo square rendered from
 `img/logogui.png` sits above the Home button with equal spacing to the
 surrounding chrome before the other navigation controls begin. The icon now
@@ -104,22 +108,28 @@ and `_CORNER_FOOTER_CLEARANCE` constants in their tests and update the shared
 documentation whenever the guard bands or title anchor move.
 
 A ``COPERNICAN_SEED`` environment variable overrides the interactive seed
-prompt.  When unset, the program asks users to accept the default ``0``, enter
-their own value or generate a random seed.  The final choice is stored in the
-run manifest and logged so analyses can be reproduced.  The launcher keeps a
-blank spacer after logging initialisation—replacing the retired "Copernican has
-initialised" banner—so the Stage 1 configuration menu aligns with historical
-spacing without repeating redundant text. GUI users can also forge
-deterministic seeds via the mini-games described under `rng_minigames/`. The
-top-level README covers the embedding API, while each folder (Emoji Meteors,
-Constellation, Alien Invasion, etc.) contains its own README with gameplay
-notes, accessibility tips and configuration files. Because the project is
+prompt.
+When unset, the program asks users to accept the default ``0``, enter their own
+value or generate a random seed.
+The final choice is stored in the run manifest and logged so analyses can be
+reproduced.
+The launcher keeps a blank spacer after logging
+initialisation—replacing the retired "Copernican has initialised" banner—so
+the Stage 1 configuration menu aligns with historical spacing without
+repeating redundant text.
+GUI users can also forge deterministic seeds via the mini-games described under
+`rng_minigames/`.
+The top-level README covers the embedding API, while each folder (Emoji
+Meteors, Constellation, Alien Invasion, etc.) contains its own README with
+gameplay notes, accessibility tips and configuration files.
+Because the project is
 vendorable, contributors must keep those README files and
 `rng_minigames/CHANGELOG.md` current whenever they add content, tune the
-autopilot or edit the visuals. The Copernican README/AGENTS entries now only
-reference the bundle, so all authoritative documentation lives beside the code.
-Alien Invasion’s autopilot (**Let AI take care**, **Let AI learn**, **Let AI
-forget**) and modal controls (**Pause/Resume**, Hall of Fame) are documented in
+autopilot or edit the visuals.
+The Copernican README/AGENTS entries now only reference the bundle, so all
+authoritative documentation lives beside the code. Alien Invasion’s autopilot
+(**Let AI take care**, **Let AI learn**, **Let AI forget**) and modal controls
+(**Pause/Resume**, Hall of Fame) are documented in
 `rng_minigames/alien_invasion/README.md`.
 
 The program enables Python's ``faulthandler`` at startup and registers
@@ -157,25 +167,30 @@ indicators and continues to return ``-np.inf`` whenever a proposal falls
 outside declared parameter bounds or yields a non-finite chi-squared so the
 sampler rejects invalid walkers deterministically.
 
-Version 7.6.3 removes the retired runtime estimator entirely. Stage 2 now
-streams per-walker updates into the fifty-character progress bars so operators
-see continuous movement without speculative timing extrapolations. The release
-also reiterates that ArviZ remains a hard dependency: convergence diagnostics
-must succeed for every batch, and provisioning fails fast when the package is
-missing. When both model plugins resolve to the same YAML file the helper
-reuses the ΛCDM measurement directly instead of executing the alternative
-branch a second time.
+Version 7.6.3 removes the retired runtime estimator entirely.
+Stage 2 now streams per-walker updates into the fifty-character progress bars
+so operators see continuous movement without speculative timing extrapolations.
+The release also reiterates that ArviZ remains a hard dependency: convergence
+diagnostics must succeed for every batch, and provisioning fails fast when the
+package is missing.
+When both model plugins resolve to the same YAML file the helper reuses the
+ΛCDM measurement directly instead of executing the alternative branch a second
+time.
 
-Version 7.6.11 raised that standard further by routing Stage 2 progress through
-`tqdm`, Version 7.6.12 locked the smooth animation in place by disabling the
+Version 7.6.11 raised that standard further by routing Stage 2 progress
+through `tqdm`.
+Version 7.6.12 locked the smooth animation in place by disabling the
 library's adaptive throttling and mirroring the Unicode glyphs inside the live
-display, Version 7.6.13 added a dedicated walker-progress meter plus an
-animated spinner, and Version 7.6.14 retires `tqdm` entirely in favour of a
-native carriage-return renderer so macOS, Linux and Windows terminals repaint
-every walker update on a single console line while the logged Unicode glyphs
-remain identical to the interactive output. Recent refactors now replace that
-renderer with line-based counter updates, keeping the same ``batch_start``,
-``progress_update`` and ``batch_finish`` records for the GUI while eliminating
+display.
+Version 7.6.13 added a dedicated walker-progress meter plus an animated
+spinner, and Version 7.6.14 retires `tqdm` entirely in favour of a native
+carriage-return renderer so macOS, Linux and Windows terminals repaint every
+walker update on a single console line while the logged Unicode glyphs remain
+identical to the interactive output.
+Recent refactors now replace that renderer with line-based counter updates,
+keeping the same ``batch_start``, ``progress_update`` and ``batch_finish``
+records for the GUI while eliminating the spinner pump and carriage-return
+artifacts from the console logs.
 the spinner pump and carriage-return artifacts from the console logs.
 
 Version 7.1.1 standardises every runtime timestamp on Coordinated Universal
@@ -417,12 +432,12 @@ will compromise the maintainability of the Copernican Suite!!!
 
 ### DevCovenant Ignore List
 
-DevCovenant uses `/devcovenant/devcovignore.md` (gitignore syntax) to skip
-generated assets, vendored code and global exclusions. The file currently lists
-`copernican_lib/vendor/**`, `tests/**` and `**/tests/**`, so individual policy
-scripts no longer duplicate ignore logic. Update that file whenever new paths
-must be excluded from *all* policies; per-policy overrides now focus solely on
-their own scope.
+Repository-wide exclusions now live under `ignore.patterns` inside
+`devcovenant/config.yaml`. Each entry accepts gitignore-style globbing (e.g.,
+`copernican_lib/vendor/**`, `tests/**`, `**/tests/**`) and automatically feeds
+the engine so policy scripts can skip those paths without duplicating
+hard-coded lists. Adjust the configuration whenever a new path must be ignored
+for every policy; per-policy overrides still live with their specific metadata.
 
 ### When to Run DevCovenant (AI Agents)
 
@@ -543,6 +558,70 @@ Each policy has a `policy-def` block with these flags:
   knobs such as file suffixes, directory allowlists and required commands so
   scopes stay declarative.
 
+Selectors in these metadata blocks should prefer the shared naming scheme
+(`include_suffixes`, `exclude_prefixes`, `force_include_globs`,
+`watch_files`, etc.) documented in `devcovenant/README.md` so contributors can
+predict how policies interpret prefixes, suffixes and glob filters.
+
+#### Standard selector metadata
+
+Policies that scope work by path should stick to the canonical selector keys
+so developers get the same mental model everywhere:
+
+- `include_prefixes`, `include_suffixes`, `include_globs` — primary filters
+  that opt files into the rule.
+- `exclude_prefixes`, `exclude_suffixes`, `exclude_globs` — negative filters
+  that carve out directories, generated code or vendor trees.
+- `force_include_globs` — re-introduces specific globs when they would
+  otherwise be excluded (for example, dataset parsers that live under a
+  read-only directory).
+- `watch_files`, `watch_dirs` — explicit lists of files or directories that
+  should always be examined, even if they fall outside the other selectors.
+- `protected_globs` / `exempt_globs`, `guarded_paths`, `user_visible_dirs` —
+  policy-specific selectors that follow the same gitignore/glob semantics to
+  describe read-only, security or documentation scopes.
+
+The shared `SelectorSet` helper in `devcovenant/selectors.py` enforces
+`force-include → exclude → include` precedence so each policy inherits the same
+matching rules. When adding new selectors, follow this naming style and update
+`devcovenant/tests/test_selectors.py` so downstream repositories can reason
+about the matcher without reading every policy script.
+
+#### Repository overrides and migrations
+
+Defaults declared in AGENTS.md describe Copernican’s needs, but every selector
+can be overridden in `devcovenant/config.yaml`. Place repository-specific
+overrides under `policies.<policy-id>` so forks can point the same policy at a
+different directory tree without touching any Python. Global exclusions that
+used to live in `devcovignore.md` now belong to `ignore.patterns` in
+`config.yaml`, and read-only directories—including parser exemptions—are
+tracked via `include_globs` / `exclude_globs` metadata instead of ad-hoc text.
+Keep AGENTS.md authoritative for the default scopes, and document any local
+override in `config.yaml` so the configuration stays self-describing.
+
+### Adopting DevCovenant in other repositories
+
+1. Copy the `devcovenant/` directory into the destination repository and
+   install the pre-commit hook (see `devcovenant/README.md#installation`).
+2. Point `paths.policy_definitions` in `devcovenant/config.yaml` at the host
+   project’s canonical policy document (for example `CONTRIBUTING.md`) and
+   adjust `paths.registry_file`, `engine.file_suffixes` and `ignore.patterns`
+   to reflect the new layout.
+3. Define each policy’s selector metadata directly in that policy’s
+   `policy-def` block using the standard keys listed above. These defaults are
+   recorded in the documentation so humans understand the scope even before
+   reading `config.yaml`.
+4. Add any repository-specific tweaks under `policies.<policy-id>` inside
+   `config.yaml`. These overrides take precedence over AGENTS.md so forks can
+   retarget policies without editing the original prose.
+5. Run `pre-commit run --all-files` (or `python devcovenant_check.py check
+   --mode=startup`) to regenerate the registry and confirm that the metadata,
+   scripts and configuration are in sync. Update hashes/tests whenever policy
+   text changes, exactly as described earlier in this document.
+
+Once these steps pass, DevCovenant enforces the new repository with the same
+consistency guarantees as Copernican while keeping all knobs declarative.
+
 ### Development Policies
 
 ## Policy: Changelog Coverage
@@ -556,18 +635,19 @@ updated: false
 applies_to: *
 enforcement: active
 waiver: false
+main_changelog: CHANGELOG.md
+collections: rng_minigames/:rng_minigames/CHANGELOG.md:true
 ```
 
-All changed files must be documented in the appropriate changelog. Files under
-`rng_minigames/` (including its tests and documentation) must appear only in
-`rng_minigames/CHANGELOG.md` and must not be listed in the root `CHANGELOG.md`.
-All other changes belong in the root `CHANGELOG.md`. Compare `git diff --name-
-only` against the newest entry in the relevant file before every commit. Legacy
-`dev_note` headers should be migrated to the changelog when touched.
-**Explicitly enumerate every changed file in each entry**—the lint hook fails
-whenever any touched path is missing from the changelog summary. **Explicitly
-enumerate every changed file in each entry**—the lint hook fails whenever any
-touched path is missing from the changelog summary.
+All changed files must be documented in the appropriate changelog.
+Paths that match a prefix listed under `collections` go to the companion log
+for that collection, and everything else belongs in `main_changelog`.
+Entries listed in `skipped_files` (lockfiles, existing changelog files, etc.)
+remain exempt.
+Compare `git diff --name-only` against the newest entry in the relevant
+changelog before every commit and **explicitly enumerate every changed
+file**—the lint hook fails whenever a touched path is missing from the
+changelog summary.
 
 ---
 
@@ -602,20 +682,16 @@ enforcement: active
 waiver: false
 max_length: 79
 include_suffixes: .py,.md,.rst,.txt
-skip_prefixes: copernican_lib/vendor,data
+exclude_prefixes: copernican_lib/vendor,data
+force_include_globs: data/*/cosmo_parser_*.py
 ```
 
-Keep individual lines under 79 characters to maintain readability. This applies
-to **all** documentation and source files across the repository (Copernican,
-DevCovenant and `rng_minigames/`). Third-party code under
-`copernican_lib/vendor/` remains excluded because line wrapping there would
-fork upstream dependencies, and the archived dataset documentation under
-`data/` stays untouched so we never fork those upstream bundles, but every
-other surface—including Markdown
-documentation—must wrap at 79 characters.
-The `max_length`, `include_suffixes` and `skip_prefixes` metadata fields inside
-the policy block control which files participate, allowing other repositories
-to re-scope the rule without touching the Python enforcement code.
+Keep individual lines under 79 characters to maintain readability. This policy
+targets the suffixes declared in `include_suffixes`, skips anything under
+`exclude_prefixes`, and re-introduces specific globs through
+`force_include_globs` even when those paths would otherwise be excluded.
+Adjust `max_length` or the metadata lists to match another repository’s
+requirements.
 
 ---
 
@@ -702,17 +778,23 @@ updated: false
 applies_to: *
 enforcement: active
 waiver: false
+version_file: copernican_lib/VERSION
+readme_file: README.md
+citation_file: CITATION.cff
+pyproject_file: pyproject.toml
+runtime_entrypoints: copernican.py
+runtime_roots: copernican_lib,engines
 ```
 
 The project follows Semantic Versioning (`MAJOR.MINOR.PATCH`). Record the
-active version both at the top of `README.md` and inside
-`copernican_lib/VERSION`, and keep those declarations in sync with
-`pyproject.toml` and `CITATION.cff`. Runtime code must obtain the current
-version via ``copernican_lib.version.get_version`` instead of embedding
-strings. This policy uses the `semver` helper to validate the canonical string
-and to compare it against the previous commit’s recorded version. Any mismatch,
-invalid SemVer format, or non-increasing bump causes a violation so version
-numbers never regress or drift from the documented sources.
+active version in every file listed under `version_file`, `readme_file`,
+`citation_file` and `pyproject_file`, and keep those declarations in sync.
+Runtime code in the `runtime_entrypoints` and `runtime_roots` must import the
+shared helper instead of embedding ad-hoc strings. DevCovenant validates the
+canonical string and compares it against the previous commit’s recorded
+version. Any mismatch, invalid SemVer format, or non-increasing bump causes a
+violation so version numbers never regress or drift from the documented
+sources.
 
 ---
 
@@ -727,11 +809,15 @@ updated: false
 applies_to: *
 enforcement: active
 waiver: true
+version_file: copernican_lib/VERSION
+changelog_file: CHANGELOG.md
+ignored_prefixes: devcovenant,rng_minigames
+override_file: .devcovenant/waivers/semantic-version-scope.txt
 ```
 
-Whenever `copernican_lib/VERSION` changes, the release bump must follow
-SemVer’s MAJOR.MINOR.PATCH rules. The newest changelog section (`## Version
-X.Y.Z`) must declare at least one `[semver:patch]`, `[semver:minor]` or
+Whenever the file listed under `version_file` changes, the release bump must
+follow SemVer’s MAJOR.MINOR.PATCH rules. The newest changelog section (`##
+Version X.Y.Z`) must declare at least one `[semver:patch]`, `[semver:minor]` or
 `[semver:major]` tag describing the most significant change in that release,
 and those tags must reflect the stated scope:
 
@@ -740,12 +826,13 @@ and those tags must reflect the stated scope:
 - **Major** – any backwards-incompatible change to CLI flows, YAML schemas,
   parsers, manifests, or output formats.
 
-The checker compares the newest version to the previous entry in `CHANGELOG.md`
-and fails when the bump is smaller than the tagged scope. Changes limited to
-`devcovenant/**` or `rng_minigames/**` do not force a Copernican release and
-are ignored by this policy. If an extraordinary release needs a different
-scope, add `.devcovenant/waivers/semantic-version-scope.txt` with
-`override=<level>` (`patch`, `minor` or `major`) and remove it immediately
+The checker compares the newest version to the previous entry in the metadata-
+defined `changelog_file` and fails when the bump is smaller than the tagged
+scope. Changes limited to any prefix listed in `ignored_prefixes` do not force
+a release and are ignored by this policy. If an extraordinary release needs a
+different scope, add `.devcovenant/waivers/semantic-version-scope.txt` (the
+default `override_file`) with `override=<level>` (`patch`, `minor` or `major`)
+and remove it immediately
 after the release. Every release entry must use a single `[semver:*]` scope and
 the bump recorded in `copernican_lib/VERSION` must match the declared
 scope—logging a scope in the changelog without bumping the version file is
@@ -759,7 +846,7 @@ rejected.
 id: no-future-dates
 status: active
 severity: error
-auto_fix: false
+auto_fix: true
 updated: false
 applies_to: *
 enforcement: active
@@ -773,6 +860,8 @@ against the current day before recording it. Always run `pre-commit run
 responding so the policy scans the entire changelog, citation metadata and
 every other file, catching stale or future timestamps even when those files
 were not edited in the current diff.
+Running `devcovenant_check.py check --fix` rewrites any offending date to the
+current UTC day so mechanical typos are corrected automatically.
 
 ---
 
@@ -787,15 +876,20 @@ updated: false
 applies_to: *
 enforcement: active
 waiver: false
+include_prefixes: copernican_lib,engines
+include_suffixes: .py
+watch_dirs: tests
 ```
 
-New Python modules under `copernican_lib/` and `engines/` must be accompanied
-by new or updated tests under `tests/`. This prevents untested code from
-entering the repository and maintains code quality standards. Tests should
-evolve with the code. No code should be tailored to satisfy tests - rather, as
-code is being ammended, tests should follow in unison. When removing a module,
-the tests or parts of tests associated with it should be removed or ammended
-accordingly.
+New Python modules under any path listed in `include_prefixes` (and matching
+`include_suffixes`) must be accompanied by new or updated tests rooted under
+the metadata-defined `watch_dirs`. This prevents untested code
+from entering the repository and maintains code quality standards. Tests should
+evolve with the code. No code should be tailored to satisfy tests—instead,
+tests should follow in unison as the implementation changes. When removing a
+module, the tests or parts of tests associated with it should be removed or
+amended accordingly. Customize the include/selectors and `watch_dirs` to match
+another repository’s layout.
 
 ---
 
@@ -810,14 +904,16 @@ updated: false
 applies_to: *
 enforcement: active
 waiver: false
+include_prefixes: copernican_lib,engines
+exclude_prefixes: copernican_lib/vendor
+allowed_files: copernican_lib/console_output.py
 ```
 
-Library and engine code must use the managed console output helper
-(`copernican_lib/console_output.py`) instead of bare `print()` calls. This
-keeps diagnostics consistent across platforms and properly routes output
-through dedicated utilities. Exception: `console_output.py` itself may use
-`print()`. Vendor code under `copernican_lib/vendor/` is excluded from this
-requirement.
+Library and engine code must use the managed console output helper listed in
+`allowed_files` instead of bare `print()` calls. This keeps diagnostics
+consistent across platforms and properly routes output through the shared
+utilities. Paths registered under `exclude_prefixes` remain exempt so vendored
+code retains its upstream behavior.
 
 ---
 ## Policy: Read-Only Directories
@@ -830,17 +926,16 @@ auto_fix: false
 updated: false
 applies_to: *
 enforcement: active
-waiver: true
+waiver: false
+include_globs: data/**
+exclude_globs: data/**/cosmo_parser_*.py
 ```
 
-Read-only paths are enumerated in `devcovenant/read_only_directories.txt` using
-gitignore-style globs (e.g. `data/**` or `data/*/cosmo_parser_*.py`). The
-policy re-reads that file on every run so the protected directories stay
-registered automatically. Editing a protected path is blocked unless you create
-`.devcovenant/waivers/read-only-directories.txt` with the allowed relative
-paths or glob patterns; keep the waiver specific to the approved dataset/parser
-change and remove it once the work is complete so the guard returns to its
-normal state.
+Read-only paths are defined by the `include_globs` metadata. Paths matching
+`exclude_globs` remain editable so code-bearing assets can still be linted and
+tested even when they sit under a protected directory. Editing a protected path
+now fails immediately so metadata remains the single source of truth for
+read-only coverage.
 
 ---
 
@@ -856,23 +951,25 @@ applies_to: *.py
 enforcement: active
 waiver: false
 include_suffixes: .py
-skip_prefixes: copernican_lib/vendor
-skip_components: tests
+exclude_prefixes: copernican_lib/vendor
+exclude_globs: tests/**,**/tests/**
 ```
 
-Every non-test Python module across the repository should include a descriptive
-docstring or an adjacent explanatory comment for modules, classes and
-functions. The checker uses the `all_files` snapshot when available, so every
-`.py` outside `tests/` (excluding vendor code) gets evaluated even before it is
-staged. The policy accepts short docstrings or inline comments positioned
-immediately before the definition so the team can grow coverage gradually.
+Every targeted Python module should include a descriptive docstring or an
+adjacent explanatory comment for modules, classes and functions.
+The checker uses the `all_files` snapshot when available, so every file
+matching `include_suffixes` (minus any `exclude_prefixes`/`exclude_globs`)
+gets evaluated even before it is staged.
+The policy accepts short docstrings or inline comments positioned immediately
+before each definition so the team can grow coverage gradually.
 Missing documentation now triggers an error-level violation so that gaps in
-coverage are addressed promptly. Running DevCovenant in a non-`pre-commit` mode
-(e.g., `lint` or `startup`) virtually inspects *all* matching `.py` files so
-the policy uncovers gaps beyond just the staged files.
-Projects can tune the scope through the `include_suffixes`, `skip_prefixes`
-and `skip_components` metadata fields in this policy’s definition—no Python
-changes are required when vendored paths or test folders differ.
+coverage are addressed promptly.
+Running DevCovenant in a non-`pre-commit` mode (e.g., `lint` or `startup`)
+virtually inspects *all* matching files so the policy uncovers gaps beyond just
+the staged files.
+Tune `include_suffixes`, `exclude_prefixes` and `exclude_globs` inside the
+policy definition whenever a repository needs different boundaries.
+definition whenever a repository needs different boundaries.
 
 ---
 
@@ -882,19 +979,24 @@ changes are required when vendored paths or test folders differ.
 id: raw-string-escapes
 status: active
 severity: warning
-auto_fix: false
+auto_fix: true
 updated: false
 applies_to: *.py
 enforcement: active
 waiver: false
+include_suffixes: .py
+exclude_prefixes: copernican_lib/vendor
+exclude_globs: tests/**,**/tests/**
 ```
 
-String literals outside `tests/` and `copernican_lib/vendor/` must either be
-prefixed with `r` or use explicit escape sequences for each backslash. The
-policy scans every matching `.py` file and warns when a bare backslash appears
-without being part of a known escape sequence, encouraging raw strings or
-double-escaped paths. The severity is now warning-level so commits block until
-the literal is fixed or intentionally waived.
+String literals inside the selector-defined scope must either be prefixed with
+`r` or use explicit escape sequences for each backslash. The policy scans every
+matching file (respecting the global DevCovenant ignore list) and warns when a
+bare backslash appears without being part of a known escape sequence,
+encouraging raw strings or double-escaped paths. The severity is warning-level
+so commits block until the literal is fixed or intentionally waived.
+Auto-fix mode doubles the offending backslashes so the literal is safe to
+commit without hand-editing.
 
 ---
 
@@ -904,17 +1006,20 @@ the literal is fixed or intentionally waived.
 id: start-script-parity
 status: active
 severity: error
-auto_fix: false
+auto_fix: true
 updated: false
 applies_to: start.sh,start.command,start.bat
 enforcement: active
 waiver: false
+watch_files: start.sh,start.command,start.bat
 ```
 
-Changes touching any of the three `start.*` launchers must consider the others.
+Changes touching any launcher listed in `watch_files` must consider the others.
 If one launcher is updated while its siblings remain untouched, the policy
 raises an error reminding the maintainer to mirror the changes so the GUI
 handoff remains consistent across platforms.
+Auto-fix mirrors the edited launcher across the remaining start scripts so
+platform shims stay synchronized automatically.
 
 ---
 
@@ -936,8 +1041,8 @@ New Python symbols should avoid placeholder or overly short names (e.g., `foo`,
 `lint`/`startup`) and reminds authors whenever an identifier is either
 blacklisted or shorter than three characters outside conventional loop
 counters; add a `# name-clarity: allow` comment to suppress intentional
-exceptions. `copernican_lib/vendor/` is exempted so upstream packages keep
-their original identifiers.
+exceptions. Paths excluded via `ignore.patterns` in `config.yaml` are skipped
+so vendored code keeps its original identifiers.
 
 ---
 
@@ -947,19 +1052,28 @@ their original identifiers.
 id: dependency-license-sync
 status: active
 severity: error
-auto_fix: false
+auto_fix: true
 updated: false
 applies_to: *
 enforcement: active
 waiver: false
+dependency_files: requirements.in,requirements.lock,pyproject.toml
+third_party_file: THIRD_PARTY_LICENSES.md
+licenses_dir: licenses
+report_heading: ## License Report
 ```
 
-Every dependency addition, removal or version change must simultaneously update
-`THIRD_PARTY_LICENSES.md` and the corresponding files under `licenses/`, plus
-include a `## License Report` section that mentions each modified dependency
-file. The policy checks the tracked dependency inputs, the license table, and
-the `licenses/` directory so CI always captures the dependency list and any new
-license obligations in lockstep.
+Every dependency addition, removal or version change must update the files
+listed under `dependency_files`, refresh the aggregated table in
+`third_party_file`, and ensure the `licenses_dir/` tree includes the refreshed
+license texts. The `report_heading` section inside `third_party_file` must
+mention each modified dependency manifest so reviewers can trace the changes.
+The policy inspects the tracked dependency inputs, the license table, and the
+license directory so CI always captures the dependency list and any new license
+obligations in lockstep.
+Running `--fix` appends a dated entry to the license report for each changed
+dependency manifest and drops a marker inside `licenses/` so the directory and
+table both reflect the refresh.
 
 ---
 
@@ -976,12 +1090,13 @@ enforcement: active
 waiver: false
 ```
 
-When user-visible files or launchers change, the documentation corpus must
-“strictly grow” by adding a new paragraph, subsection or example that explains
-the updated behavior, workflow or configuration. This active info-level
-reminder policy simply surfaces the policy text and points editors at the
-relevant docs so they remember to expand the prose before we raise the
-severity.
+When files inside the metadata-defined `user_visible_dirs` or individual
+`user_visible_files` change, the documentation corpus must “strictly grow”
+by adding a new paragraph, subsection or example that explains the updated
+behavior, workflow or configuration.
+This active info-level reminder simply surfaces the policy text and points
+editors at the relevant docs so they remember to expand the prose before we
+raise the severity.
 
 ---
 
@@ -998,13 +1113,13 @@ enforcement: active
 waiver: false
 ```
 
-Security-critical files (launchers, guards, helpers under `docs/security` and
-`copernican_lib/security`) must be accompanied by a short entry in
-`docs/security_changes.md` describing the compliance or mitigation rationale.
-The policy ensures the security log grows whenever those guarded files change
-so reviewers can confirm the latest requirements were considered before a
-change lands. When `docs/security_changes.md` is untouched while a guarded file
-changes, DevCovenant blocks the commit and requests the missing entry.
+Security-critical files listed under `guarded_paths` (launchers, security docs,
+etc.) must be accompanied by a short entry in `log_path` describing the
+compliance or mitigation rationale. The policy ensures the security log grows
+whenever those guarded files change so reviewers can confirm the latest
+requirements were considered before a change lands. When `log_path` is
+untouched while a guarded file changes, DevCovenant blocks the commit and
+requests the missing entry.
 
 ---
 
@@ -1021,11 +1136,12 @@ enforcement: active
 waiver: false
 ```
 
-Automated scanning flags known compliance risks—`eval`, `exec`, `pickle.loads`
-or `subprocess.run(..., shell=True)`—inside repository modules. The policy runs
-on every Python file (excluding tests/vendor code) and halts the commit with a
-clear message whenever a risky construct is found, nudging contributors to pick
-a safer implementation before the change lands.
+Automated scanning flags known compliance risks—`eval`, `exec`,
+`pickle.loads` or
+`subprocess.run(..., shell=True)`—inside repository modules.
+The policy runs on every Python file (excluding tests/vendor code) and halts
+the commit with a clear message whenever a risky construct is found, nudging
+contributors to pick a safer implementation before the change lands.
 
 ---
 
@@ -1035,18 +1151,20 @@ a safer implementation before the change lands.
 id: start-script-guardrails
 status: active
 severity: error
-auto_fix: false
+auto_fix: true
 updated: false
 applies_to: start.sh,start.command,start.bat
 enforcement: active
 waiver: false
 ```
 
-Every launcher keeps essential guardrails intact. Unix/macos scripts must
-retain the `sudo -k` prompt and the `pkg_notice` helper, while the Windows
-batch launcher must still define `PKG_NOTICE`. If any script loses those
-snippets, the policy raises an error so the security guidance cannot disappear
-silently.
+Every launcher keeps essential guardrails intact. Each entry in the `scripts`
+metadata lists the file path and the required snippets (separated by `|`). If
+any script loses a required snippet, the policy raises an error so the security
+guidance cannot disappear silently.
+When the fixer runs, it injects the canonical guardrail snippets (including
+`pkg_notice` and the `sudo -k` helper) or reintroduces the `PKG_NOTICE`
+definition in `start.bat`, keeping every launcher aligned automatically.
 
 ---
 
@@ -1061,15 +1179,18 @@ updated: false
 applies_to: devcovenant/test_status.json
 enforcement: active
 waiver: false
+test_status_file: devcovenant/test_status.json
 ```
 
 Every commit that touches Copernican’s code, tests or orchestration helpers
 must record the most recent full-suite run in `devcovenant/test_status.json`.
 Run `python tools/run_tests.py` so the default suites (`pytest` followed by
 `python -m unittest discover`) execute and `tools/update_test_status.py`
-records the UTC timestamp, git SHA and executed command. When DevCovenant sees
-relevant files change without a corresponding status update, the policy blocks
-the commit so reviewers always know when the suite last passed.
+records the UTC timestamp, git SHA and executed command.
+When DevCovenant sees relevant files change without a corresponding status
+update, the policy blocks the commit so reviewers always know when the suite
+last passed. The lists under `watch_dirs` and `watch_files` control which paths
+trigger the reminder.
 
 ---
 
@@ -1084,10 +1205,12 @@ updated: false
 applies_to: *
 enforcement: active
 waiver: false
+expected_virtualenvs: .venv
 ```
 
-DevCovenant verifies it is running from the repository’s managed `.venv`. If
-the current interpreter or `VIRTUAL_ENV` does not resolve inside
-`<repo>/.venv`, the policy fails with instructions to relaunch via `start.sh`,
-`start.command` or `start.bat`. This prevents accidental edits from system
-interpreters and keeps the dependency set consistent across contributors.
+DevCovenant verifies it is running from the repository’s managed virtual
+environment. If the current interpreter or `VIRTUAL_ENV` does not resolve
+inside one of the entries listed under `expected_virtualenvs`, the policy fails
+with instructions to relaunch via the appropriate start script. This prevents
+accidental edits from system interpreters and keeps the dependency set
+consistent across contributors.

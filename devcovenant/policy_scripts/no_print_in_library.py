@@ -1,8 +1,8 @@
-"""DevCovenant policy: Prevent direct print() usage in library modules.
+"""
+Policy: No Print in Library
 
-This policy ensures that library and engine code uses the managed console
-output helper instead of bare print() calls, keeping diagnostics consistent
-across platforms and properly routing output through dedicated utilities.
+Require modules rooted in `target_roots` to use the shared helper listed in
+`allowed_files` while skipping vendor paths supplied via `vendor_paths`.
 """
 
 import re
@@ -10,11 +10,9 @@ from pathlib import Path
 from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
+from devcovenant.selectors import SelectorSet
 
 PRINT_PATTERN = re.compile(r"(?<![\w.])print\s*\(")
-DEFAULT_ALLOWED = {"copernican_lib/console_output.py"}
-DEFAULT_TARGET_ROOTS = {"copernican_lib", "engines"}
-DEFAULT_VENDOR_PATHS = {"copernican_lib/vendor"}
 
 
 class NoPrintInLibraryCheck(PolicyCheck):
@@ -23,40 +21,31 @@ class NoPrintInLibraryCheck(PolicyCheck):
     policy_id = "no-print-in-library"
     version = "1.0.0"
 
+    def _selector(self) -> SelectorSet:
+        """Return the selector describing modules under enforcement."""
+        return SelectorSet.from_policy(self)
+
     def check(self, context: CheckContext) -> List[Violation]:
         """Check for print() usage in library code."""
         violations = []
 
-        cfg = context.get_policy_config(self.policy_id)
-        allowed_rel = set(cfg.get("allowed_files", list(DEFAULT_ALLOWED)))
+        allowed_option = self.get_option("allowed_files", [])
+        if isinstance(allowed_option, str):
+            allowed_rel = {allowed_option}
+        else:
+            allowed_rel = set(allowed_option or [])
         allowed = {
             (context.repo_root / Path(rel_path)).resolve()
             for rel_path in allowed_rel
         }
-        target_roots = set(cfg.get("target_roots", list(DEFAULT_TARGET_ROOTS)))
-        vendor_paths = set(cfg.get("vendor_paths", list(DEFAULT_VENDOR_PATHS)))
-
+        selector = self._selector()
         file_paths = context.changed_files or context.all_files
 
         for path in file_paths:
             if not path.is_file() or path.suffix != ".py":
                 continue
 
-            try:
-                rel = path.relative_to(context.repo_root)
-            except ValueError:
-                continue
-
-            # Skip bundled vendor code under copernican_lib/vendor/
-            rel_posix = rel.as_posix()
-            if any(
-                rel_posix == vendor or rel_posix.startswith(f"{vendor}/")
-                for vendor in vendor_paths
-            ):
-                continue
-
-            # Only check copernican_lib/ and engines/
-            if not rel.parts or rel.parts[0] not in target_roots:
+            if not selector.matches(path, context.repo_root):
                 continue
 
             resolved = path.resolve()
@@ -77,8 +66,8 @@ class NoPrintInLibraryCheck(PolicyCheck):
                         severity="error",
                         file_path=path,
                         message=(
-                            "Replace print() with "
-                            "copernican_lib.console_output.write"
+                            "Replace print() with the configured "
+                            "console-output helper."
                         ),
                     )
                 )

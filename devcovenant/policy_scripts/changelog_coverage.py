@@ -1,13 +1,13 @@
 """
 Policy: Changelog Coverage
 
-Ensures Copernican changes land in CHANGELOG.md and RNG mini-game changes
-land in rng_minigames/CHANGELOG.md.
+Routes each changed file to the proper changelog based on the metadata-defined
+`main_changelog`, `skipped_files` and `collections` options.
 """
 
 import subprocess
 from pathlib import Path
-from typing import List
+from typing import Any, List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
 
@@ -49,41 +49,35 @@ class ChangelogCoverageCheck(PolicyCheck):
             List of violations (empty if all files are documented)
         """
         violations: List[Violation] = []
-        cfg = context.get_policy_config(self.policy_id)
         main_changelog_rel = Path(
-            cfg.get("main_changelog", "CHANGELOG.md")
+            self.get_option("main_changelog", "CHANGELOG.md")
         )
-        skip_files = set(
-            cfg.get(
-                "skipped_files",
+        skip_option = self.get_option(
+            "skipped_files",
+            [
+                "CHANGELOG.md",
+                "rng_minigames/CHANGELOG.md",
+                ".gitignore",
+                ".pre-commit-config.yaml",
+            ],
+        )
+        if isinstance(skip_option, str):
+            skip_files = {
+                entry.strip()
+                for entry in skip_option.split(",")
+                if entry.strip()
+            }
+        else:
+            skip_files = set(skip_option or [])
+
+        collections = self._resolve_collections(
+            self.get_option(
+                "collections",
                 [
-                    "CHANGELOG.md",
-                    "rng_minigames/CHANGELOG.md",
-                    ".gitignore",
-                    ".pre-commit-config.yaml",
+                    "rng_minigames/:rng_minigames/CHANGELOG.md:true",
                 ],
             )
         )
-        collections_cfg = cfg.get("collections", [
-            {
-                "prefix": "rng_minigames/",
-                "changelog": "rng_minigames/CHANGELOG.md",
-                "exclusive": True,
-            }
-        ])
-        collections: List[dict] = []
-        for entry in collections_cfg:
-            prefix = entry.get("prefix", "")
-            changelog = entry.get("changelog")
-            if not changelog:
-                continue
-            collections.append(
-                {
-                    "prefix": prefix or "",
-                    "changelog": Path(changelog),
-                    "exclusive": entry.get("exclusive", True),
-                }
-            )
 
         try:
             result = subprocess.run(
@@ -263,3 +257,54 @@ class ChangelogCoverageCheck(PolicyCheck):
                     )
 
         return violations
+
+    def _resolve_collections(self, raw: Any) -> List[dict]:
+        """Normalize metadata-configured collection entries."""
+        default = [
+            {
+                "prefix": "rng_minigames/",
+                "changelog": Path("rng_minigames/CHANGELOG.md"),
+                "exclusive": True,
+            }
+        ]
+        if raw is None:
+            return default
+        collections: List[dict] = []
+        if isinstance(raw, list):
+            entries = raw
+        elif isinstance(raw, str):
+            entries = [
+                item.strip() for item in raw.split(";") if item.strip()
+            ]
+        else:
+            entries = default
+        for entry in entries:
+            if isinstance(entry, dict):
+                prefix = entry.get("prefix", "")
+                changelog = entry.get("changelog")
+                if not changelog:
+                    continue
+                collections.append(
+                    {
+                        "prefix": prefix or "",
+                        "changelog": Path(changelog),
+                        "exclusive": entry.get("exclusive", True),
+                    }
+                )
+            elif isinstance(entry, str):
+                parts = entry.split(":")
+                if len(parts) < 2:
+                    continue
+                prefix = parts[0]
+                changelog = parts[1]
+                exclusive = True
+                if len(parts) >= 3:
+                    exclusive = parts[2].lower() != "false"
+                collections.append(
+                    {
+                        "prefix": prefix,
+                        "changelog": Path(changelog),
+                        "exclusive": exclusive,
+                    }
+                )
+        return collections or default

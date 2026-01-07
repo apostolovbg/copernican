@@ -42,24 +42,23 @@ class CheckContext:
         ]
 
     def _load_ignore_patterns(self) -> List[str]:
-        """Read ignore patterns from ``devcovignore.md``."""
-        ignore_file = self.repo_root / "devcovenant" / "devcovignore.md"
+        """Return ignore patterns defined in the configuration."""
+        config_section = (self.config or {}).get("ignore", {})
+        raw_patterns = config_section.get("patterns", [])
+        if isinstance(raw_patterns, str):
+            candidates = [entry.strip() for entry in raw_patterns.split(",")]
+        elif isinstance(raw_patterns, List):
+            candidates = [str(entry).strip() for entry in raw_patterns]
+        else:
+            candidates = [str(raw_patterns).strip()] if raw_patterns else []
         patterns: List[str] = []
-        if not ignore_file.exists():
-            return patterns
-        try:
-            for raw_line in ignore_file.read_text(
-                encoding="utf-8"
-            ).splitlines():
-                line = raw_line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                normalized = line.lstrip("/")
-                if normalized.endswith("/"):
-                    normalized = normalized.rstrip("/") + "/**"
-                patterns.append(normalized)
-        except OSError:
-            return patterns
+        for entry in candidates:
+            pattern = entry.replace("\\", "/").lstrip("/")
+            if not pattern or pattern.startswith("#"):
+                continue
+            if pattern.endswith("/"):
+                pattern = pattern.rstrip("/") + "/**"
+            patterns.append(pattern)
         return patterns
 
     def is_ignored(self, path: Path) -> bool:

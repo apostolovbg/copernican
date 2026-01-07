@@ -18,13 +18,26 @@ class TestVersionSyncPolicy(unittest.TestCase):
         pyproject.write_text(f'[project]\nversion = "{version}"\n')
         return pyproject
 
+    def _policy(self) -> VersionSyncCheck:
+        """Return a policy configured for project_lib."""
+        policy = VersionSyncCheck()
+        policy.set_options(
+            {
+                "version_file": "project_lib/VERSION",
+                "runtime_entrypoints": ["project.py"],
+                "runtime_roots": ["project_lib"],
+            },
+            {},
+        )
+        return policy
+
     def test_detects_version_mismatch(self):
         """Policy should detect version mismatches."""
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_root = Path(tmpdir)
 
             # Create VERSION file
-            version_dir = repo_root / "copernican_lib"
+            version_dir = repo_root / "project_lib"
             version_dir.mkdir()
             version_file = version_dir / "VERSION"
             version_file.write_text("1.0.0\n")
@@ -37,10 +50,9 @@ class TestVersionSyncPolicy(unittest.TestCase):
             citation = repo_root / "CITATION.cff"
             citation.write_text('version: "1.0.0"\nversion: "1.0.0"\n')
             self._write_pyproject(repo_root, "1.0.0")
-            self._write_pyproject(repo_root, "1.0.0")
 
             context = CheckContext(repo_root=repo_root)
-            policy = VersionSyncCheck()
+            policy = self._policy()
             violations = policy.check(context)
 
             self.assertGreater(len(violations), 0)
@@ -50,7 +62,7 @@ class TestVersionSyncPolicy(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_root = Path(tmpdir)
 
-            version_dir = repo_root / "copernican_lib"
+            version_dir = repo_root / "project_lib"
             version_dir.mkdir()
             version_file = version_dir / "VERSION"
             version_file.write_text("1.0.0\n")
@@ -62,7 +74,7 @@ class TestVersionSyncPolicy(unittest.TestCase):
             citation.write_text('version: "1.0.0"\nversion: "1.0.0"\n')
 
             context = CheckContext(repo_root=repo_root)
-            policy = VersionSyncCheck()
+            policy = self._policy()
             violations = policy.check(context)
 
             version_errs = [
@@ -75,7 +87,7 @@ class TestVersionSyncPolicy(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_root = Path(tmpdir)
 
-            version_dir = repo_root / "copernican_lib"
+            version_dir = repo_root / "project_lib"
             version_dir.mkdir()
             version_file = version_dir / "VERSION"
             version_file.write_text("1.0.0\n")
@@ -89,7 +101,7 @@ class TestVersionSyncPolicy(unittest.TestCase):
             self._write_pyproject(repo_root, "2.0.0")
 
             context = CheckContext(repo_root=repo_root)
-            policy = VersionSyncCheck()
+            policy = self._policy()
             violations = policy.check(context)
 
             mismatch = [
@@ -102,7 +114,7 @@ class TestVersionSyncPolicy(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_root = Path(tmpdir)
 
-            version_dir = repo_root / "copernican_lib"
+            version_dir = repo_root / "project_lib"
             version_dir.mkdir()
             version_file = version_dir / "VERSION"
             version_file.write_text("1.0.0\n")
@@ -115,11 +127,11 @@ class TestVersionSyncPolicy(unittest.TestCase):
 
             self._write_pyproject(repo_root, "1.0.0")
 
-            runtime_file = repo_root / "copernican.py"
+            runtime_file = repo_root / "project.py"
             runtime_file.write_text('APP_VERSION = "1.0.0"\n')
 
             context = CheckContext(repo_root=repo_root)
-            policy = VersionSyncCheck()
+            policy = self._policy()
             violations = policy.check(context)
 
             hardcoded = [
@@ -135,7 +147,7 @@ class TestVersionSyncPolicy(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_root = Path(tmpdir)
 
-            version_dir = repo_root / "copernican_lib"
+            version_dir = repo_root / "project_lib"
             version_dir.mkdir()
             version_file = version_dir / "VERSION"
             version_file.write_text("1.0.0\n")
@@ -149,7 +161,7 @@ class TestVersionSyncPolicy(unittest.TestCase):
             self._write_pyproject(repo_root, "1.0.0")
 
             context = CheckContext(repo_root=repo_root)
-            policy = VersionSyncCheck()
+            policy = self._policy()
             with mock.patch.object(
                 policy, "_previous_version", return_value="1.0.1"
             ):

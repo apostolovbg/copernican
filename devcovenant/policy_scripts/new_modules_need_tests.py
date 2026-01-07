@@ -1,17 +1,12 @@
-"""DevCovenant policy: Ensure new or removed Python modules ship with tests.
-
-This policy ensures that new Python modules under copernican_lib/ and
-engines/ are accompanied by new or updated tests under tests/, preventing
-untested code from entering the repository. Tests should evolve with the code,
-and removing a module must adjust its associated tests rather than leaving
-stale coverage behind.
-"""
+"""Ensure modules under `module_roots` keep tests rooted beneath
+`tests_root`."""
 
 import subprocess
 from pathlib import Path
 from typing import List, Set
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
+from devcovenant.selectors import SelectorSet, build_watchlists
 
 
 class NewModulesNeedTestsCheck(PolicyCheck):
@@ -68,51 +63,49 @@ class NewModulesNeedTestsCheck(PolicyCheck):
             modified,
             deleted,
         ) = self._collect_repo_changes(context.repo_root)
-        cfg = context.get_policy_config(self.policy_id)
-        module_roots = set(
-            cfg.get("module_roots", ["copernican_lib", "engines"])
+        module_selector = SelectorSet.from_policy(
+            self, defaults={"include_suffixes": [".py"]}
         )
-        tests_root = cfg.get("tests_root", "tests")
+        _, watch_dirs = build_watchlists(
+            self, defaults={"watch_dirs": ["tests"]}
+        )
+        tests_dirs = watch_dirs or ["tests"]
+        tests_label = (
+            ", ".join(sorted(tests_dirs))
+            if len(tests_dirs) > 1
+            else tests_dirs[0]
+        )
 
-        def _is_library_or_engine_module(relative: Path) -> bool:
+        def _is_library_or_engine_module(path: Path) -> bool:
             """Return True when motion paths point at core Python modules."""
-            return (
-                relative.suffix == ".py"
-                and relative.parts
-                and relative.parts[0] in module_roots
-            )
+            if path.suffix != ".py":
+                return False
+            return module_selector.matches(path, context.repo_root)
 
         def _collect_changed_tests(paths: Set[Path]) -> List[Path]:
             """Collect touched files that live under tests/."""
             tests = []
             for path in paths:
                 try:
-                    rel = path.relative_to(context.repo_root)
+                    rel = path.relative_to(context.repo_root).as_posix()
                 except ValueError:
                     continue
-                if rel.parts and rel.parts[0] == tests_root:
+                if any(
+                    rel == test_dir or rel.startswith(f"{test_dir}/")
+                    for test_dir in tests_dirs
+                ):
                     tests.append(path)
             return tests
 
         # Find new Python modules outside tests/
         new_modules = []
         for path in added:
-            try:
-                rel = path.relative_to(context.repo_root)
-            except ValueError:
-                continue
-
-            if _is_library_or_engine_module(rel):
+            if _is_library_or_engine_module(path):
                 new_modules.append(path)
 
         removed_modules = []
         for path in deleted:
-            try:
-                rel = path.relative_to(context.repo_root)
-            except ValueError:
-                continue
-
-            if _is_library_or_engine_module(rel):
+            if _is_library_or_engine_module(path):
                 removed_modules.append(path)
 
         tests_changed = _collect_changed_tests(added | modified | deleted)
@@ -130,7 +123,7 @@ class NewModulesNeedTestsCheck(PolicyCheck):
                     severity="error",
                     file_path=new_modules[0],
                     message=(
-                        f"Add or update tests under {tests_root}/ "
+                        f"Add or update tests under {tests_label}/ "
                         f"for new modules: {targets}"
                     ),
                 )
@@ -149,7 +142,7 @@ class NewModulesNeedTestsCheck(PolicyCheck):
                     severity="error",
                     file_path=removed_modules[0],
                     message=(
-                        f"Adjust tests under {tests_root}/ "
+                        f"Adjust tests under {tests_label}/ "
                         f"when removing modules: {targets}"
                     ),
                 )

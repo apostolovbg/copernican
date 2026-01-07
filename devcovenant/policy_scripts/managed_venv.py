@@ -1,4 +1,5 @@
-"""Ensure DevCovenant runs inside the managed .venv."""
+"""Ensure DevCovenant runs inside the virtualenvs listed via
+`expected_virtualenvs`."""
 
 from __future__ import annotations
 
@@ -19,11 +20,14 @@ class ManagedVenvCheck(PolicyCheck):
     def check(self, context: CheckContext) -> List[Violation]:
         """Error when DevCovenant runs outside `<repo>/.venv`."""
         repo_root = context.repo_root.resolve()
-        cfg = context.get_policy_config(self.policy_id)
-        expected_entries = cfg.get(
+        entries_option = self.get_option(
             "expected_virtualenvs",
             [".venv"],
         )
+        if isinstance(entries_option, str):
+            expected_entries = [entries_option]
+        else:
+            expected_entries = list(entries_option or [".venv"])
         expected_paths = [
             (repo_root / Path(entry)).resolve() for entry in expected_entries
         ]

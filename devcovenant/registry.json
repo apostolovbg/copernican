@@ -1,118 +1,118 @@
 {
   "policies": {
     "changelog-coverage": {
-      "hash": "ce22fa8c0c9a34d68a43376c287ba2589573d3c13c184c45c5ee5d316da93d2a",
-      "last_updated": "2026-01-03T15:54:06.306764+00:00",
+      "hash": "4c1db01dca3eb2d9aab816c83826b3218a171af01eaaed16f09eef16fd59f7cc",
+      "last_updated": "2026-01-05T21:55:20.293103+00:00",
       "script_path": "devcovenant/policy_scripts/changelog_coverage.py"
     },
     "no-git-conflict-markers": {
       "hash": "ba2568b917e4b9f016c84d149c7ba9be8a0cc22379cf48536f8e8a280f1eb480",
-      "last_updated": "2026-01-03T15:54:06.311819+00:00",
+      "last_updated": "2026-01-05T21:55:20.297337+00:00",
       "script_path": "devcovenant/policy_scripts/no_git_conflict_markers.py"
     },
     "line-length-limit": {
-      "hash": "5cc8941524471007a4b30e88adccd4315ebd1f0cb1b187f124d0eae3e27dacb5",
-      "last_updated": "2026-01-03T15:54:06.312425+00:00",
+      "hash": "16fbcf1557cad062334d50219622f11da2f09bdc004aa198d2538d51d54720c3",
+      "last_updated": "2026-01-05T21:55:20.297825+00:00",
       "script_path": "devcovenant/policy_scripts/line_length_limit.py"
     },
     "last-updated-placement": {
       "hash": "7b2b7fb23e3d75fefdb885575cafc92162331f52b9ddc0a1a279a59675db08f2",
-      "last_updated": "2026-01-03T15:54:06.313028+00:00",
+      "last_updated": "2026-01-05T21:55:20.300143+00:00",
       "script_path": "devcovenant/policy_scripts/last_updated_placement.py"
     },
     "devcov-self-enforcement": {
       "hash": "d6e3cad49a394187095ad4e4d9b1d47a206e088e0951f954ffdcf6e5fec2e98c",
-      "last_updated": "2026-01-03T15:54:06.313573+00:00",
+      "last_updated": "2026-01-05T21:55:20.301546+00:00",
       "script_path": "devcovenant/policy_scripts/devcov_self_enforcement.py"
     },
     "no-future-dates": {
       "hash": "636080691d533789e3aedda407b7ce67efa063b08c775d24cac154eac22602ca",
-      "last_updated": "2026-01-03T15:54:06.319787+00:00",
+      "last_updated": "2026-01-05T21:55:20.304479+00:00",
       "script_path": "devcovenant/policy_scripts/no_future_dates.py"
     },
     "version-sync": {
-      "hash": "99af28dd7f3ee5b916483b1d14a490180e16aff951edeaec00235860afa08134",
-      "last_updated": "2026-01-03T15:54:06.316147+00:00",
+      "hash": "1911e4971e4f0b5da21996f314e06277a216ad55a8a241b2788fa53a13a0f360",
+      "last_updated": "2026-01-05T21:55:20.302860+00:00",
       "script_path": "devcovenant/policy_scripts/version_sync.py"
     },
     "new-modules-need-tests": {
-      "hash": "0c792f741ed48f1ef2a8d0b35876e00c0a8b453634093fcaa01f12eb9d47bbe3",
-      "last_updated": "2026-01-03T15:54:06.320545+00:00",
+      "hash": "4cd382af214c0bb732b611688688c693ba3fb61dabfce6b919721a9e093af365",
+      "last_updated": "2026-01-05T21:55:20.305877+00:00",
       "script_path": "devcovenant/policy_scripts/new_modules_need_tests.py"
     },
     "no-print-in-library": {
-      "hash": "e943acf756651d053838238b4b6416ee9bf470981e425425314cadfbec5038d9",
-      "last_updated": "2026-01-03T15:54:06.321391+00:00",
+      "hash": "dcbd2324ec484e6cd3c17a26eb3b5cdcfdaafbbb927346cff2c129a2b6d133bf",
+      "last_updated": "2026-01-05T21:55:20.306330+00:00",
       "script_path": "devcovenant/policy_scripts/no_print_in_library.py"
     },
     "read-only-directories": {
-      "hash": "2460e2cf4b73df3d58ef1864d9a9ee51a3dde74153f2bc58e5e56d3e9c85a388",
-      "last_updated": "2026-01-03T15:54:06.322873+00:00",
+      "hash": "c3391f78ba2bfe97bd8a66781f57b0bd6c3f7b955997baed084f5f8ad02edf25",
+      "last_updated": "2026-01-05T21:55:20.308083+00:00",
       "script_path": "devcovenant/policy_scripts/read_only_directories.py"
     },
     "docstring-and-comment-coverage": {
       "hash": "0d6f2948ef51906df0eaf517f8ee93ce419558c1f0d80ccd1c00abac4d6c3c44",
-      "last_updated": "2026-01-03T15:54:06.323540+00:00",
+      "last_updated": "2026-01-05T21:55:20.309375+00:00",
       "script_path": "devcovenant/policy_scripts/docstring_and_comment_coverage.py"
     },
     "dependency-license-sync": {
-      "hash": "c748ea4bd2371ae081e0b3ddd6a5d8413c2ecee9b52617a95369c1b45ae5f925",
-      "last_updated": "2026-01-03T15:54:06.326099+00:00",
+      "hash": "29a3fa821f833b321e173c18475e7f364f33cff7043fb15014f1faabb58a3ed8",
+      "last_updated": "2026-01-05T21:55:20.311378+00:00",
       "script_path": "devcovenant/policy_scripts/dependency_license_sync.py"
     },
     "documentation-growth-tracking": {
-      "hash": "3ddb205aba6dc422cb1a6d9c5a25f4263d54c0b39bdf60a36c844a8fcb5a770c",
-      "last_updated": "2026-01-03T15:54:06.327898+00:00",
+      "hash": "f5fc16183d7dec68cf49988fc795b66318d87918e42c1fc468ad3f991af85b83",
+      "last_updated": "2026-01-05T21:55:20.311961+00:00",
       "script_path": "devcovenant/policy_scripts/documentation_growth_tracking.py"
     },
     "raw-string-escapes": {
       "hash": "3bd3af42cbfa12dc775ad0e14c81d45b96885836172175d1494af89de14dcc85",
-      "last_updated": "2026-01-03T15:54:06.324095+00:00",
+      "last_updated": "2026-01-05T21:55:20.309856+00:00",
       "script_path": "devcovenant/policy_scripts/raw_string_escapes.py"
     },
     "start-script-parity": {
-      "hash": "c03552477414945ae797232e365d8ca47fc340e4fa9f21c367e6dc629d1e1ff8",
-      "last_updated": "2026-01-03T15:54:06.324588+00:00",
+      "hash": "c0b84ca3982250ab500c18f903502760a3ad93519f020ed07254864efeb76983",
+      "last_updated": "2026-01-05T21:55:20.310322+00:00",
       "script_path": "devcovenant/policy_scripts/start_script_parity.py"
     },
     "name-clarity": {
       "hash": "954faa55151078f34f343d18eae504082160d3d2296134c7eaaecff00ce4241c",
-      "last_updated": "2026-01-03T15:54:06.325136+00:00",
+      "last_updated": "2026-01-05T21:55:20.310853+00:00",
       "script_path": "devcovenant/policy_scripts/name_clarity.py"
     },
     "security-compliance-notes": {
-      "hash": "9813603e1b28c51357a667208d0b2a3fc7135cf475e6e0c008cc34299313e37e",
-      "last_updated": "2026-01-03T15:54:06.331139+00:00",
+      "hash": "8cbdd85e65c9f9c92b679831f1946347a4530c52d04df233bd43293de33996c8",
+      "last_updated": "2026-01-05T21:55:20.312496+00:00",
       "script_path": "devcovenant/policy_scripts/security_compliance_notes.py"
     },
     "security-scanner": {
       "hash": "48f0cf11e807a2f0e35353fa7fba015751f8fa90988ebac21a586bc5c0238903",
-      "last_updated": "2026-01-03T15:54:06.334653+00:00",
+      "last_updated": "2026-01-05T21:55:20.313149+00:00",
       "script_path": "devcovenant/policy_scripts/security_scanner.py"
     },
     "start-script-guardrails": {
-      "hash": "978b4a757d153da3f8e8a2e59d7ef7717794d02deba44037c9a106cc059c42af",
-      "last_updated": "2026-01-03T15:54:06.337533+00:00",
+      "hash": "ae26d750392ac803637c51dcbf51d00ba9f399e3e90ae860950881fb37385613",
+      "last_updated": "2026-01-05T21:55:20.313615+00:00",
       "script_path": "devcovenant/policy_scripts/start_script_guardrails.py"
     },
     "test-status-tracking": {
-      "hash": "afbc67ced9c10c87421c8bddf39b9acd0f36141a8d15b2966b5a8d63d7666d1d",
-      "last_updated": "2026-01-03T15:54:06.341075+00:00",
+      "hash": "d6a62720bc7d7e406675f3a102dba78397c04850ec2441509e17282d959f5fc3",
+      "last_updated": "2026-01-05T21:55:20.314232+00:00",
       "script_path": "devcovenant/policy_scripts/test_status_tracking.py"
     },
     "managed-venv": {
-      "hash": "5a65e8933359a70280dd04b9fdf0871aca03d6deba75a74addf94c611ce92b84",
-      "last_updated": "2026-01-03T15:54:06.345707+00:00",
+      "hash": "ca049757c3efade58ee8a61f8cc9e0d10f18b0dc30ea262857b31f064c49b1ac",
+      "last_updated": "2026-01-05T21:55:20.314962+00:00",
       "script_path": "devcovenant/policy_scripts/managed_venv.py"
     },
     "semantic-version-scope": {
-      "hash": "d5404475e0348b8d0e8fa39836e426ea2daab55b92965f0e416882000c68af4d",
-      "last_updated": "2026-01-03T15:54:06.316874+00:00",
+      "hash": "d94994c76eb6245fd24c215c7822e3b513c6b3cbed1e38140b0b2df56e9aa253",
+      "last_updated": "2026-01-05T21:55:20.303986+00:00",
       "script_path": "devcovenant/policy_scripts/semantic_version_scope.py"
     },
     "devflow-run-gates": {
       "hash": "4bb0329df00ad35f13371ef548341d8b3c5c9c727f0bc43d6b81bc6e9136fad5",
-      "last_updated": "2026-01-03T15:54:06.314192+00:00",
+      "last_updated": "2026-01-05T21:55:20.302215+00:00",
       "script_path": "devcovenant/policy_scripts/devflow_run_gates.py"
     }
   },

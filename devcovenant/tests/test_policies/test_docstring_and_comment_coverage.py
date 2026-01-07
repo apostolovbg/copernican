@@ -9,7 +9,7 @@ from devcovenant.policy_scripts.docstring_and_comment_coverage import (
 
 
 def _create_file(tmp_path: Path, source: str) -> Path:
-    target = tmp_path / "copernican_lib" / "helpers" / "example.py"
+    target = tmp_path / "project_lib" / "helpers" / "example.py"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(source, encoding="utf-8")
     return target
@@ -93,8 +93,8 @@ def test_metadata_skip_prefixes(tmp_path: Path):
     checker = DocstringAndCommentCoverageCheck()
     checker.set_options(
         {
-            "skip_prefixes": ["docs"],
-            "skip_components": [],
+            "exclude_prefixes": ["docs"],
+            "exclude_globs": [],
             "include_suffixes": [".py"],
         },
         {},
@@ -107,5 +107,5 @@ def test_metadata_skip_prefixes(tmp_path: Path):
     violations = checker.check(context)
 
     assert (
-        violations == []
-    ), "Metadata skip_prefixes should allow repo-specific exemptions"
+        not violations
+    ), "Metadata exclusions should allow repo-specific gaps"

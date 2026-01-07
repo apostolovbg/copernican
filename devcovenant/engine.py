@@ -2,15 +2,18 @@
 Main DevCovenant engine - orchestrates policy checking and enforcement.
 """
 
+import importlib
 import importlib.util
+import inspect
 import os
+import pkgutil
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 import yaml
 
-from .base import CheckContext, PolicyCheck, Violation
+from .base import CheckContext, PolicyCheck, PolicyFixer, Violation
 from .parser import PolicyDefinition, PolicyParser
 from .registry import PolicyRegistry, PolicySyncIssue
 
@@ -33,7 +36,7 @@ class DevCovenantEngine:
     }
 
     # Directories we never traverse for policy checks
-    _IGNORED_DIRS = frozenset(
+    _BASE_IGNORED_DIRS = frozenset(
         {
             ".git",
             ".venv",
@@ -43,7 +46,6 @@ class DevCovenantEngine:
             "build",
             "dist",
             "node_modules",
-            "copernican_suite.egg-info",
             "__pycache__",
             ".cache",
             ".venv.lock",
@@ -69,6 +71,8 @@ class DevCovenantEngine:
         # Load configuration and apply overrides
         self.config = self._load_config()
         self._apply_config_paths()
+        self._ignored_dirs = set(self._BASE_IGNORED_DIRS)
+        self._merge_configured_ignored_dirs()
 
         # Initialize parser and registry
         self.parser = PolicyParser(self.agents_md_path)
@@ -77,6 +81,7 @@ class DevCovenantEngine:
         # Statistics
         self.passed_count = 0
         self.failed_count = 0
+        self.fixers: List[PolicyFixer] = self._load_fixers()
 
     def _load_config(self) -> Dict:
         """Load configuration from config.yaml."""
@@ -95,7 +100,54 @@ class DevCovenantEngine:
         if registry_file:
             self.registry_path = self.repo_root / Path(registry_file)
 
-    def check(self, mode: str = "normal") -> "CheckResult":
+    def _merge_configured_ignored_dirs(self) -> None:
+        """Extend the default ignored directory set via configuration."""
+        engine_cfg = self.config.get("engine", {}) if self.config else {}
+        extra_dirs = engine_cfg.get("ignore_dirs", [])
+        if isinstance(extra_dirs, str):
+            candidates = [extra_dirs]
+        elif isinstance(extra_dirs, list):
+            candidates = extra_dirs
+        else:
+            candidates = [extra_dirs] if extra_dirs else []
+        for entry in candidates:
+            name = str(entry).strip()
+            if name:
+                self._ignored_dirs.add(name)
+
+    def _load_fixers(self) -> List[PolicyFixer]:
+        """Dynamically import all policy fixers bundled with DevCovenant."""
+        fixers: List[PolicyFixer] = []
+        try:
+            package = importlib.import_module("devcovenant.fixers")
+        except ModuleNotFoundError:
+            return fixers
+
+        for module_info in pkgutil.iter_modules(package.__path__):
+            if module_info.ispkg or module_info.name.startswith("_"):
+                continue
+            module_name = f"devcovenant.fixers.{module_info.name}"
+            try:
+                module = importlib.import_module(module_name)
+            except Exception:
+                continue
+            for member in module.__dict__.values():
+                if (
+                    inspect.isclass(member)
+                    and issubclass(member, PolicyFixer)
+                    and member is not PolicyFixer
+                ):
+                    try:
+                        instance = member()
+                        setattr(instance, "repo_root", self.repo_root)
+                        fixers.append(instance)
+                    except Exception:
+                        continue
+        return fixers
+
+    def check(
+        self, mode: str = "normal", apply_fixes: bool = False
+    ) -> "CheckResult":
         """
         Main entry point for policy checking.
 
@@ -119,7 +171,21 @@ class DevCovenantEngine:
                 )
 
         # Load and run policy checks
-        violations = self.run_policy_checks(policies, mode)
+        context = self._build_check_context(mode)
+        self.passed_count = 0
+        self.failed_count = 0
+        violations = self.run_policy_checks(policies, mode, context)
+
+        auto_fix_enabled = self.config.get("engine", {}).get(
+            "auto_fix_enabled", True
+        )
+        if apply_fixes and auto_fix_enabled:
+            fixes_applied = self.apply_auto_fixes(violations)
+            if fixes_applied:
+                context = self._build_check_context(mode)
+                self.passed_count = 0
+                self.failed_count = 0
+                violations = self.run_policy_checks(policies, mode, context)
 
         # Report violations
         self.report_violations(violations, mode)
@@ -195,7 +261,10 @@ class DevCovenantEngine:
             print()
 
     def run_policy_checks(
-        self, policies: List[PolicyDefinition], mode: str
+        self,
+        policies: List[PolicyDefinition],
+        mode: str,
+        context: Optional[CheckContext] = None,
     ) -> List[Violation]:
         """
         Load and run all policy check scripts.
@@ -209,8 +278,9 @@ class DevCovenantEngine:
         """
         violations = []
 
-        # Build check context
-        context = self._build_check_context(mode)
+        # Build check context when not provided
+        if context is None:
+            context = self._build_check_context(mode)
 
         for policy in policies:
             # Skip inactive policies
@@ -309,13 +379,52 @@ class DevCovenantEngine:
 
         return matched
 
+    def apply_auto_fixes(self, violations: List[Violation]) -> bool:
+        """
+        Attempt to auto-fix any violations that advertise a fixer.
+
+        Returns:
+            True when at least one file was modified.
+        """
+        if not violations or not self.fixers:
+            return False
+
+        applied = False
+        print("\n🔧 Running auto-fixers...\n")
+        for violation in violations:
+            if not violation.can_auto_fix:
+                continue
+            for fixer in self.fixers:
+                if not fixer.can_fix(violation):
+                    continue
+                result = fixer.fix(violation)
+                message = result.message or ""
+                if result.success:
+                    if message:
+                        print(f"  • {message}")
+                    if result.files_modified:
+                        applied = True
+                else:
+                    print(
+                        f"  • Auto-fix failed for {violation.policy_id}: "
+                        f"{message or 'unknown error'}"
+                    )
+                break
+
+        if applied:
+            print("\n🔁 Re-running policy checks after auto-fix.\n")
+        else:
+            print("⚪ No auto-fixable violations were modified.\n")
+
+        return applied
+
     def _should_descend_dir(self, candidate: Path) -> bool:
         """
         Decide whether to continue walking into a directory.
         """
         name = candidate.name
 
-        if name in self._IGNORED_DIRS:
+        if name in self._ignored_dirs:
             return False
 
         # Always skip __pycache__ variants

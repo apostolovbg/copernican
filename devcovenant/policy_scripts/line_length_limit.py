@@ -1,25 +1,31 @@
 """
 Policy: Line Length Limit
 
-Ensures lines are under 79 characters for readability.
+Apply the configured `max_length` to the files selected by the unified
+include/exclude metadata (suffixes, prefixes and globs).
 """
 
 from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
+from devcovenant.selectors import SelectorSet
 
 
 class LineLengthLimitCheck(PolicyCheck):
-    """
-    Check that lines are under 79 characters.
-    """
+    """Check that each targeted file honors the line-length limit."""
 
     policy_id = "line-length-limit"
     version = "1.0.0"
 
     MAX_LINE_LENGTH = 79
     DEFAULT_SUFFIXES = [".py", ".md", ".rst", ".txt"]
-    DEFAULT_SKIP_PREFIXES = ["copernican_lib/vendor", "data"]
+
+    def _build_selector(self) -> SelectorSet:
+        """Return the selector constructed from policy metadata."""
+        defaults = {
+            "include_suffixes": self.DEFAULT_SUFFIXES,
+        }
+        return SelectorSet.from_policy(self, defaults=defaults)
 
     def check(self, context: CheckContext) -> List[Violation]:
         """
@@ -33,49 +39,17 @@ class LineLengthLimitCheck(PolicyCheck):
         """
         max_length = int(self.get_option("max_length", self.MAX_LINE_LENGTH))
 
-        suffixes = self.get_option("include_suffixes", self.DEFAULT_SUFFIXES)
-        if isinstance(suffixes, str):
-            suffix_list = [suffixes]
-        else:
-            suffix_list = list(suffixes or [])
-        suffixes = [
-            (suffix if suffix.startswith(".") else f".{suffix}")
-            .strip()
-            .lower()
-            for suffix in suffix_list
-            if isinstance(suffix, str) and suffix.strip()
-        ]
-
-        skip_prefixes_option = self.get_option(
-            "skip_prefixes", self.DEFAULT_SKIP_PREFIXES
-        )
-        if isinstance(skip_prefixes_option, str):
-            skip_prefixes = [skip_prefixes_option]
-        else:
-            skip_prefixes = list(skip_prefixes_option or [])
-        skip_prefixes = [prefix.strip("/ ") for prefix in skip_prefixes]
-
         violations = []
 
+        selector = self._build_selector()
         files_pool = context.changed_files or context.all_files or []
         files_to_check = [
-            path for path in files_pool if path.suffix.lower() in suffixes
+            path
+            for path in files_pool
+            if path.is_file() and selector.matches(path, context.repo_root)
         ]
 
         for file_path in files_to_check:
-            try:
-                rel_path = file_path.relative_to(context.repo_root)
-            except ValueError:
-                continue
-
-            rel_posix = rel_path.as_posix()
-            if any(
-                rel_posix == prefix or rel_posix.startswith(f"{prefix}/")
-                for prefix in skip_prefixes
-                if prefix
-            ):
-                continue
-
             try:
                 with open(file_path, "r", encoding="utf-8") as f:
                     lines = f.readlines()

@@ -1,4 +1,7 @@
 # DevCovenant Configuration
+# Selector metadata accepts comma-separated strings or YAML lists (see
+# devcovenant/README.md for the canonical `include_*`/`exclude_*` keys). Use
+# the same names here when overriding policy defaults.
 
 paths:
   # Markdown document that carries the policy definitions.
@@ -19,6 +22,19 @@ engine:
     - .md
     - .yml
     - .yaml
+  ignore_dirs:
+    - .git
+    - .venv
+    - .python
+    - output
+    - logs
+    - build
+    - dist
+    - node_modules
+    - __pycache__
+    - .cache
+    - .venv.lock
+    - copernican_suite.egg-info
 
 self_enforcement:
   enabled: true
@@ -33,19 +49,68 @@ reporting:
   audit_trail: true
   use_colors: true
 
-policies:
-  changelog-coverage:
-    main_changelog: CHANGELOG.md
-    skipped_files:
-      - CHANGELOG.md
-      - rng_minigames/CHANGELOG.md
-      - .gitignore
-      - .pre-commit-config.yaml
-    collections:
-      - prefix: rng_minigames/
-        changelog: rng_minigames/CHANGELOG.md
-        exclusive: true
+ignore:
+  patterns:
+    - "copernican_lib/vendor/**"
+    - "tests/**"
+    - "**/tests/**"
 
+policies:
+  line-length-limit:
+    max_length: 79
+    include_suffixes:
+      - .py
+      - .md
+      - .rst
+      - .txt
+    exclude_prefixes:
+      - copernican_lib/vendor
+      - data
+    force_include_globs:
+      - "data/**/cosmo_parser_*.py"
+  docstring-and-comment-coverage:
+    include_suffixes:
+      - .py
+    exclude_prefixes:
+      - copernican_lib/vendor
+    exclude_globs:
+      - "tests/**"
+      - "**/tests/**"
+  raw-string-escapes:
+    include_suffixes:
+      - .py
+    exclude_prefixes:
+      - copernican_lib/vendor
+    exclude_globs:
+      - "tests/**"
+      - "**/tests/**"
+  read-only-directories:
+    include_globs:
+      - "data/**"
+    exclude_globs:
+      - "data/**/cosmo_parser_*.py"
+  new-modules-need-tests:
+    include_prefixes:
+      - copernican_lib
+      - engines
+    include_suffixes:
+      - .py
+    watch_dirs:
+      - tests
+      - devcovenant/tests
+  no-print-in-library:
+    include_prefixes:
+      - copernican_lib
+      - engines
+    exclude_prefixes:
+      - copernican_lib/vendor
+    allowed_files:
+      - copernican_lib/console_output.py
+  start-script-parity:
+    watch_files:
+      - start.sh
+      - start.command
+      - start.bat
   documentation-growth-tracking:
     user_visible_dirs:
       - copernican_lib
@@ -59,52 +124,6 @@ policies:
       - start.sh
       - start.command
       - start.bat
-
-  dependency-license-sync:
-    dependency_files:
-      - requirements.in
-      - requirements.lock
-      - pyproject.toml
-    third_party_file: THIRD_PARTY_LICENSES.md
-    licenses_dir: licenses
-    report_heading: "## License Report"
-
-  test-status-tracking:
-    test_status_file: devcovenant/test_status.json
-    watched_roots:
-      - copernican_lib
-      - engines
-      - rng_minigames
-      - data
-      - tests
-      - devcovenant
-      - tools
-      - scripts
-    watched_files:
-      - copernican.py
-      - pyproject.toml
-      - requirements.in
-      - requirements.lock
-
-  managed-venv:
-    expected_virtualenvs:
-      - .venv
-
-  new-modules-need-tests:
-    module_roots:
-      - copernican_lib
-      - engines
-    tests_root: tests
-
-  no-print-in-library:
-    allowed_files:
-      - copernican_lib/console_output.py
-    target_roots:
-      - copernican_lib
-      - engines
-    vendor_paths:
-      - copernican_lib/vendor
-
   security-compliance-notes:
     guarded_paths:
       - start.sh
@@ -113,7 +132,58 @@ policies:
       - copernican_lib/security
       - docs/security
     log_path: docs/security_changes.md
-
+  security-scanner:
+    include_suffixes:
+      - .py
+    exclude_prefixes:
+      - copernican_lib/vendor
+    exclude_globs:
+      - "tests/**"
+      - "**/tests/**"
+  name-clarity:
+    include_suffixes:
+      - .py
+    exclude_prefixes:
+      - copernican_lib/vendor
+    exclude_globs:
+      - "tests/**"
+      - "**/tests/**"
+  test-status-tracking:
+    test_status_file: devcovenant/test_status.json
+    watch_dirs:
+      - copernican_lib
+      - engines
+      - rng_minigames
+      - data
+      - tests
+      - devcovenant
+      - tools
+      - scripts
+    watch_files:
+      - copernican.py
+      - pyproject.toml
+      - requirements.in
+      - requirements.lock
+  managed-venv:
+    expected_virtualenvs:
+      - .venv
+  version-sync:
+    version_file: copernican_lib/VERSION
+    readme_file: README.md
+    citation_file: CITATION.cff
+    pyproject_file: pyproject.toml
+    runtime_entrypoints:
+      - copernican.py
+    runtime_roots:
+      - copernican_lib
+      - engines
+  semantic-version-scope:
+    version_file: copernican_lib/VERSION
+    changelog_file: CHANGELOG.md
+    override_file: .devcovenant/waivers/semantic-version-scope.txt
+    ignored_prefixes:
+      - devcovenant
+      - rng_minigames
   start-script-guardrails:
     scripts:
       - path: start.sh
@@ -127,28 +197,11 @@ policies:
       - path: start.bat
         required:
           - PKG_NOTICE
-
-  start-script-parity:
-    scripts:
+  last-updated-placement:
+    allowed_files:
+      - AGENTS.md
+      - CITATION.cff
+      - copernican.py
       - start.sh
       - start.command
       - start.bat
-
-  version-sync:
-    version_file: copernican_lib/VERSION
-    readme_file: README.md
-    citation_file: CITATION.cff
-    pyproject_file: pyproject.toml
-    runtime_entrypoints:
-      - copernican.py
-    runtime_roots:
-      - copernican_lib
-      - engines
-
-  semantic-version-scope:
-    version_file: copernican_lib/VERSION
-    changelog_file: CHANGELOG.md
-    ignored_prefixes:
-      - devcovenant
-      - rng_minigames
-    override_file: .devcovenant/waivers/semantic-version-scope.txt

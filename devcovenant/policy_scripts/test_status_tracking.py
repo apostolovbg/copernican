@@ -8,24 +8,9 @@ from pathlib import Path
 from typing import Iterable, List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
+from devcovenant.selectors import build_watchlists
 
 STATUS_RELATIVE = Path("devcovenant") / "test_status.json"
-WATCHED_ROOTS = {
-    "copernican_lib",
-    "engines",
-    "rng_minigames",
-    "data",
-    "tests",
-    "devcovenant",
-    "tools",
-    "scripts",
-}
-WATCHED_FILES = {
-    "copernican.py",
-    "pyproject.toml",
-    "requirements.in",
-    "requirements.lock",
-}
 
 
 def _requires_status_update(
@@ -86,12 +71,12 @@ class TestStatusTrackingCheck(PolicyCheck):
         changed_files: Iterable[Path] = context.changed_files or []
         relevant_change = False
         status_changed = False
-        cfg = context.get_policy_config(self.policy_id)
         status_relative = Path(
-            cfg.get("test_status_file", str(STATUS_RELATIVE))
+            self.get_option("test_status_file", str(STATUS_RELATIVE))
         )
-        watched_roots = set(cfg.get("watched_roots", list(WATCHED_ROOTS)))
-        watched_files = set(cfg.get("watched_files", list(WATCHED_FILES)))
+        watch_files, watch_dirs = build_watchlists(self, defaults={})
+        watched_roots = set(watch_dirs)
+        watched_files = set(Path(entry).name for entry in watch_files)
 
         for path in changed_files:
             try:
@@ -103,10 +88,10 @@ class TestStatusTrackingCheck(PolicyCheck):
             if _requires_status_update(rel, watched_roots, watched_files):
                 relevant_change = True
 
-        status_path = repo_root / status_relative
         if not relevant_change:
             return []
 
+        status_path = repo_root / status_relative
         if not status_changed:
             return [
                 Violation(

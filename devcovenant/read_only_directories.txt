@@ -1,5 +1,0 @@
-# Read-only directory patterns for the read-only-directories DevCovenant policy.
-# Lines follow gitignore-style globbing relative to the repository root.
-# Blank lines and lines starting with "#" are ignored.
-data/**
-data/*/cosmo_parser_*.py
