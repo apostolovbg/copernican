@@ -40,9 +40,7 @@ class NoFutureDatesFixer(PolicyFixer):
         # Prefer replacing on the recorded line to avoid touching other dates.
         if violation.line_number:
             lines = text.splitlines(keepends=True)
-            line_index = min(
-                max(violation.line_number - 1, 0), len(lines) - 1
-            )
+            line_index = min(max(violation.line_number - 1, 0), len(lines) - 1)
             line = lines[line_index]
             if match_text in line:
                 lines[line_index] = line.replace(match_text, today, 1)

@@ -170,9 +170,7 @@ class SelectorSet:
             ),
         )
 
-    def matches(
-        self, path: Path, repo_root: Path | None = None
-    ) -> bool:
+    def matches(self, path: Path, repo_root: Path | None = None) -> bool:
         """
         Return True when *path* falls inside the selector scope.
 

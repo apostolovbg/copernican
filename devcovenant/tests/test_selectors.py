@@ -1,8 +1,6 @@
 """Tests for the shared selector helpers."""
 
-from pathlib import Path
 
-import pytest
 
 from devcovenant.base import PolicyCheck
 from devcovenant.selectors import SelectorSet, build_watchlists

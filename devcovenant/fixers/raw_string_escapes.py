@@ -8,9 +8,7 @@ from pathlib import Path
 from typing import Tuple
 
 from devcovenant.base import FixResult, PolicyFixer, Violation
-from devcovenant.policy_scripts.raw_string_escapes import (
-    _SUSPICIOUS_ESCAPE_RE,
-)
+from devcovenant.policy_scripts.raw_string_escapes import _SUSPICIOUS_ESCAPE_RE
 
 
 class RawStringEscapesFixer(PolicyFixer):

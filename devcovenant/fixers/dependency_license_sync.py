@@ -22,9 +22,8 @@ class DependencyLicenseSyncFixer(PolicyFixer):
 
     def can_fix(self, violation: Violation) -> bool:
         """Only run when dependency manifests are known."""
-        return (
-            violation.policy_id == self.policy_id
-            and bool(violation.context.get("changed_dependency_files"))
+        return violation.policy_id == self.policy_id and bool(
+            violation.context.get("changed_dependency_files")
         )
 
     def fix(self, violation: Violation) -> FixResult:
@@ -66,9 +65,7 @@ class DependencyLicenseSyncFixer(PolicyFixer):
             files_modified=modified,
         )
 
-    def _sync_license_report(
-        self, target: Path, context: dict
-    ) -> FixResult:
+    def _sync_license_report(self, target: Path, context: dict) -> FixResult:
         """Ensure the license report records each changed dependency file."""
         target.parent.mkdir(parents=True, exist_ok=True)
         try:
