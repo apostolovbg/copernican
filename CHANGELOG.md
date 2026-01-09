@@ -21,6 +21,8 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.1
+- 2026-01-09 [semver:patch]: Added ruff-format to the pre-commit toolchain
+  for formatting parity (./.pre-commit-config.yaml).
 - 2026-01-07 [semver:patch]: Enabled DevCovenant’s `--fix` flow by wiring the
   engine to load bundled fixers, added auto-fixers for future dates, raw string
   escapes, start-script parity/guardrails and dependency-license-sync, updated
