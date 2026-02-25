@@ -1,23 +1,31 @@
 """
 Policy: Line Length Limit
 
-Ensures lines are under 79 characters for readability.
+Apply the configured `max_length` to the files selected by the unified
+include/exclude metadata (suffixes, prefixes and globs).
 """
 
 from typing import List
 
 from devcovenant.base import CheckContext, PolicyCheck, Violation
+from devcovenant.selectors import SelectorSet
 
 
 class LineLengthLimitCheck(PolicyCheck):
-    """
-    Check that lines are under 79 characters.
-    """
+    """Check that each targeted file honors the line-length limit."""
 
     policy_id = "line-length-limit"
     version = "1.0.0"
 
     MAX_LINE_LENGTH = 79
+    DEFAULT_SUFFIXES = [".py", ".md", ".rst", ".txt"]
+
+    def _build_selector(self) -> SelectorSet:
+        """Return the selector constructed from policy metadata."""
+        defaults = {
+            "include_suffixes": self.DEFAULT_SUFFIXES,
+        }
+        return SelectorSet.from_policy(self, defaults=defaults)
 
     def check(self, context: CheckContext) -> List[Violation]:
         """
@@ -29,18 +37,17 @@ class LineLengthLimitCheck(PolicyCheck):
         Returns:
             List of violations
         """
+        max_length = int(self.get_option("max_length", self.MAX_LINE_LENGTH))
+
         violations = []
 
-        # Determine which files to check (only Python files)
-        files_to_check = []
-        if context.changed_files:
-            files_to_check = [
-                f for f in context.changed_files if f.suffix == ".py"
-            ]
-        else:
-            files_to_check = [
-                f for f in context.all_files if f.suffix == ".py"
-            ]
+        selector = self._build_selector()
+        files_pool = context.changed_files or context.all_files or []
+        files_to_check = [
+            path
+            for path in files_pool
+            if path.is_file() and selector.matches(path, context.repo_root)
+        ]
 
         for file_path in files_to_check:
             try:
@@ -54,7 +61,7 @@ class LineLengthLimitCheck(PolicyCheck):
                 # Remove trailing newline for length check
                 line_content = line.rstrip("\n")
 
-                if len(line_content) > self.MAX_LINE_LENGTH:
+                if len(line_content) > max_length:
                     # Count how many lines are too long to avoid spam
                     # Only report first 5 per file
                     file_violations = [
@@ -70,7 +77,7 @@ class LineLengthLimitCheck(PolicyCheck):
                             file_path=file_path,
                             line_number=line_num,
                             message=(
-                                f"Line exceeds {self.MAX_LINE_LENGTH} "
+                                f"Line exceeds {max_length} "
                                 f"characters (current: {len(line_content)})"
                             ),
                             suggestion=(

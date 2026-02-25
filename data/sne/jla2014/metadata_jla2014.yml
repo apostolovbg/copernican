@@ -38,6 +38,9 @@ publisher: EDP Sciences
 year: 2014
 month: aug
 pages: A22
+data_files:
+  - tablef3.dat
+  - tablef4.fit
 notes: >-
   Light-curve parameters are converted to distance moduli using fixed SALT2
   nuisance parameters. The systematic covariance from tablef4.fit is

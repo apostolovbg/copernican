@@ -18,6 +18,7 @@ from copernican_lib import logger as log_mod
 from copernican_lib import (
     model_coder,
     model_spec_validator,
+    run_manifest,
     run_pipeline,
     utils,
 )
@@ -46,10 +47,10 @@ def _model_name_index() -> dict[str, Path]:
             continue
         try:
             raw = path.read_text(encoding="utf-8")
-            data = yaml.safe_load(raw) or {}
+            model_metadata = yaml.safe_load(raw) or {}
         except Exception:
-            data = {}
-        model_name = str(data.get("model_name") or path.stem).strip()
+            model_metadata = {}
+        model_name = str(model_metadata.get("model_name") or path.stem).strip()
         stems = {path.stem, model_name}
         if path.stem.startswith("cosmo_model_"):
             stems.add(path.stem.split("cosmo_model_", 1)[-1])
@@ -108,12 +109,20 @@ def execute_run_from_manifest(
     progress_callback: Callable[[dict[str, object]], None] | None = None,
     strict_warnings: bool = False,
     run_start_ts: str | None = None,
+    log_prefix: str = "copernican-run",
 ) -> None:
-    """Execute the run described by ``manifest``."""
+    """Execute the run described by ``manifest``.
+
+    The ``log_prefix`` argument controls the prefix of the generated
+    ``<prefix>_<timestamp>.txt`` file written inside ``output_root`` so
+    validation runs can keep their own naming without altering the shared
+    manifest executor.
+    """
 
     log = log_mod.get_logger()
     console_output.write("Manifest-driven run path invoked.")
     config = build_config_from_manifest(manifest)
+    utils.set_random_seed(config.seed)
     log.info(
         "Executing manifest run: seed=%s, models=%s, engine=%s",
         config.seed,
@@ -133,11 +142,28 @@ def execute_run_from_manifest(
     )
     if strict_warnings:
         log.info("Strict warnings enforced via manifest run.")
+    output_root.mkdir(parents=True, exist_ok=True)
     actual_ts = _resolve_run_timestamp(output_root, run_start_ts)
+    manifest_filename = f"run_manifest_{actual_ts}.yml"
+    manifest_target = output_root / manifest_filename
+    try:
+        run_manifest.save_manifest(
+            manifest,
+            str(output_root),
+            target_path=manifest_target,
+        )
+    except Exception as exc:
+        log.warning(
+            "Failed to copy manifest into %s: %s",
+            manifest_target,
+            exc,
+        )
+    else:
+        log.info("Persisted manifest at %s", manifest_target)
     run_log = log_mod.setup_logging(
         log_dir=str(output_root),
         base_dir=str(script_dir),
-        log_tag=f"copernican-run_{actual_ts}.txt",
+        log_tag=f"{log_prefix}_{actual_ts}.txt",
     )
     console_output.write(
         f"Output directory: {output_root}",
@@ -191,6 +217,7 @@ def execute_run_from_manifest(
 
 
 def _describe_datasets(datasets: Sequence[DatasetDescriptor]) -> None:
+    """Log the metadata for selected datasets before running."""
     log = log_mod.get_logger()
     for descriptor in datasets:
         log.info(
@@ -204,6 +231,7 @@ def _describe_datasets(datasets: Sequence[DatasetDescriptor]) -> None:
 def _load_dataset_from_descriptor(
     descriptor: DatasetDescriptor,
 ):
+    """Load a dataset using its descriptor and registered loaders."""
     loader_map = {
         "sne": dataset_registry.load_sne_data,
         "bao": dataset_registry.load_bao_data,
@@ -230,6 +258,7 @@ def _load_dataset_from_descriptor(
 
 
 def _resolve_run_timestamp(output_root: Path, override: str | None) -> str:
+    """Return either the override timestamp or derive one from the folder."""
     if override:
         return override
     name = output_root.name

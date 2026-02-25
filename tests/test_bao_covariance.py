@@ -54,17 +54,17 @@ class BaoCovarianceTestCase(unittest.TestCase):
     def test_covariance_changes_chi2(self):
         """Using the covariance matrix yields a distinct chi-squared value."""
         rs = 150.0
-        z = self.df["redshift"].to_numpy(dtype=float)
-        obs_type = self.df["observable_type"].to_numpy()
-        obs_val = self.df["value"].to_numpy(dtype=float)
-        obs_err = self.df["error"].to_numpy(dtype=float)
+        redshifts_array = self.df["redshift"].to_numpy(dtype=float)
+        observable_types_array = self.df["observable_type"].to_numpy()
+        observable_values_array = self.df["value"].to_numpy(dtype=float)
+        observable_errors_array = self.df["error"].to_numpy(dtype=float)
         cov_inv = self.df.attrs.get("covariance_matrix_inv")
 
         chi2_cov = chi_squared_bao(
-            z,
-            obs_type,
-            obs_val,
-            obs_err,
+            redshifts_array,
+            observable_types_array,
+            observable_values_array,
+            observable_errors_array,
             self.plugin,
             (),
             rs,
@@ -72,24 +72,26 @@ class BaoCovarianceTestCase(unittest.TestCase):
         )
 
         chi2_diag = chi_squared_bao(
-            z,
-            obs_type,
-            obs_val,
-            obs_err,
+            redshifts_array,
+            observable_types_array,
+            observable_values_array,
+            observable_errors_array,
             self.plugin,
             (),
             rs,
         )
 
-        pred = np.zeros(len(z), dtype=float)
-        mask = obs_type == "DH_over_rs"
+        pred = np.zeros(len(redshifts_array), dtype=float)
+        mask = observable_types_array == "DH_over_rs"
         if np.any(mask):
-            hz = self.plugin.get_Hz_per_Mpc(z[mask])
+            hz = self.plugin.get_Hz_per_Mpc(redshifts_array[mask])
             pred[mask] = 299792.458 / hz / rs
-        resid = obs_val - pred
+        resid = observable_values_array - pred
 
         chi2_cov_manual = float(resid @ cov_inv @ resid)
-        chi2_diag_manual = float(np.sum((resid / obs_err) ** 2))
+        chi2_diag_manual = float(
+            np.sum((resid / observable_errors_array) ** 2)
+        )
 
         self.assertAlmostEqual(chi2_cov, chi2_cov_manual)
         self.assertAlmostEqual(chi2_diag, chi2_diag_manual)

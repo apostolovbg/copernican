@@ -111,6 +111,8 @@ class CAMBParameterEvaluator:
     _replacements: dict[str, str] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
+        """Prepare internal helpers after dataclass creation."""
+
         object.__setattr__(
             self, "_logger", logging.getLogger(self.logger_name)
         )
@@ -124,6 +126,8 @@ class CAMBParameterEvaluator:
         )
 
     def __call__(self, values: Sequence[float]) -> dict[str, float]:
+        """Evaluate the parameter map using the supplied parameter values."""
+
         env = {
             name: float(val) for name, val in zip(self.parameter_names, values)
         }
@@ -137,6 +141,8 @@ class CAMBParameterEvaluator:
         return results
 
     def _replace_latex(self, expr: str) -> str:
+        """Swap LaTeX placeholders with Python-friendly variable names."""
+
         cleaned = expr
         for latex, name in self._replacements.items():
             pattern = re.compile(
@@ -146,6 +152,8 @@ class CAMBParameterEvaluator:
         return cleaned
 
     def _eval_expression(self, expr: str, env: Mapping[str, float]) -> float:
+        """Parse and evaluate a mathematical expression securely."""
+
         try:
             node = ast.parse(expr, mode="eval")
         except SyntaxError as exc:  # pragma: no cover - guarded by validation
@@ -165,6 +173,8 @@ class CAMBParameterEvaluator:
         *,
         depth: int,
     ) -> float:
+        """Recursively compute the AST node value with safety guards."""
+
         if depth > 20:
             raise ValueError("expression too complex")
         if isinstance(node, ast.Constant):
@@ -178,20 +188,20 @@ class CAMBParameterEvaluator:
                 return _ALLOWED_CONSTANTS[node.id]
             raise ValueError(f"name '{node.id}' not allowed")
         if isinstance(node, ast.BinOp):
-            op = _BIN_OPS.get(type(node.op))
-            if op is None:
+            operator_func = _BIN_OPS.get(type(node.op))
+            if operator_func is None:
                 raise ValueError("operator not allowed")
             left = self._eval_node(node.left, env, depth=depth + 1)
             right = self._eval_node(node.right, env, depth=depth + 1)
-            if op is math.fsum:
+            if operator_func is math.fsum:
                 return math.fsum((left, right))
-            return op(left, right)
+            return operator_func(left, right)
         if isinstance(node, ast.UnaryOp):
-            op = _UNARY_OPS.get(type(node.op))
-            if op is None:
+            operator_func = _UNARY_OPS.get(type(node.op))
+            if operator_func is None:
                 raise ValueError("operator not allowed")
             operand = self._eval_node(node.operand, env, depth=depth + 1)
-            return op(operand)
+            return operator_func(operand)
         if isinstance(node, ast.Call):
             if not isinstance(node.func, ast.Name):
                 raise ValueError("invalid function call")
@@ -228,15 +238,23 @@ class FrozenMapping(Mapping[str, Any]):
         self._data = dict(source or {})
 
     def __getitem__(self, key: str) -> Any:
+        """Return the stored value for *key* (supports pickling)."""
+
         return self._data[key]
 
     def __iter__(self) -> Iterator[str]:
+        """Yield the recorded keys for mapping iteration."""
+
         return iter(self._data)
 
     def __len__(self) -> int:
+        """Return the number of stored entries."""
+
         return len(self._data)
 
     def __repr__(self) -> str:
+        """Show a repr that reveals the wrapped data."""
+
         return f"FrozenMapping({self._data!r})"
 
     def __getstate__(self) -> dict[str, Any]:
@@ -294,6 +312,8 @@ class EnginePlugin:
     )
 
     def __post_init__(self) -> None:
+        """Normalise extras and prepare the CAMB parameter evaluator."""
+
         self.extras = FrozenMapping(self.extras)
         if self.valid_for_cmb and not self.CMB_PARAM_MAP:
             LOGGER.warning(
@@ -312,6 +332,8 @@ class EnginePlugin:
             object.__setattr__(self, "_camb_evaluator", None)
 
     def __getattr__(self, name: str) -> Any:
+        """Delegate attribute lookups to the extras mapping when missing."""
+
         if name == "extras":
             raise AttributeError(name)
 
@@ -326,6 +348,8 @@ class EnginePlugin:
             raise AttributeError(name) from exc
 
     def __dir__(self) -> list[str]:
+        """Include extras keys alongside the normal attribute list."""
+
         default = set(super().__dir__())
         default.update(self.extras.keys())
         return sorted(default)
@@ -339,15 +363,15 @@ class EnginePlugin:
         return evaluator(values)
 
 
-def sanitize_equation(eq_line: str) -> str:
+def sanitize_equation(equation_line: str) -> str:
     """Return a Matplotlib-friendly LaTeX string."""
 
-    if not isinstance(eq_line, str):
+    if not isinstance(equation_line, str):
         return ""
-    eq = eq_line.strip()
-    eq = re.sub(r"^\$+", "", eq)
-    eq = re.sub(r"\$+$", "", eq)
-    return f"${eq.strip()}$" if eq else ""
+    equation = equation_line.strip()
+    equation = re.sub(r"^\$+", "", equation)
+    equation = re.sub(r"\$+$", "", equation)
+    return f"${equation.strip()}$" if equation else ""
 
 
 def _prepare_priors(
@@ -358,6 +382,7 @@ def _prepare_priors(
     tuple[Callable[[float], Any] | None, ...] | None,
     Mapping[str, float],
 ]:
+    """Build prior metadata, transform callables and fixed constants."""
     prior_mappings: list[Mapping[str, Any]] = []
     prior_objects: list[prior_lib.BasePrior | None] = []
     transforms: list[Callable[[float], Any] | None] = []
@@ -378,14 +403,14 @@ def _prepare_priors(
             transforms.append(None)
         prior_objects.append(prior_obj)
         if isinstance(prior_obj, prior_lib.FixedPrior):
-            value = prior_obj.value
+            prior_value = prior_obj.fixed_value
             python_var = param.get("python_var") or param.get("name")
             if python_var:
-                fixed_params[python_var] = value
-                fixed_params[python_var.upper()] = value
+                fixed_params[python_var] = prior_value
+                fixed_params[python_var.upper()] = prior_value
             latex_name = param.get("latex_name")
             if isinstance(latex_name, str) and latex_name:
-                fixed_params[latex_name.strip("$")] = value
+                fixed_params[latex_name.strip("$")] = prior_value
 
     if any(transform is not None for transform in transforms):
         transform_tuple: tuple[Callable[[float], Any] | None, ...] | None = (

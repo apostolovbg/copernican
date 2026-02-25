@@ -117,8 +117,8 @@ class PolicyParser:
                 continue
 
             if ":" in line:
-                key, value = line.split(":", 1)
-                metadata[key.strip()] = value.strip()
+                key, metadata_value = line.split(":", 1)
+                metadata[key.strip()] = metadata_value.strip()
 
         return metadata
 

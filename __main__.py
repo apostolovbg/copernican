@@ -1,3 +1,5 @@
+"""Command-line entry point that delegates to the Copernican launcher."""
+
 import sys
 
 from copernican import main

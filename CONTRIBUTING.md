@@ -1,10 +1,10 @@
 # Contributing to the Copernican Suite
 
-Thank you for considering a contribution. Before opening a pull request,
-please read `AGENTS.md` for the full development specification. Log every
-change in `CHANGELOG.md` with the date, author and the files or subsystems you
-touched, and compare `git diff --name-only` with your entry before pushing so
-the `copernican-policy` hook remains satisfied. The quick checklist is:
+Thank you for considering a contribution. Before opening a pull request, please
+read `AGENTS.md` for the full development specification. Log every change in
+`CHANGELOG.md` with the date, author and the files or subsystems you touched,
+and compare `git diff --name-only` with your entry before pushing so the
+`copernican-policy` hook remains satisfied. The quick checklist is:
 
 1. Run `pre-commit run --all-files` to apply Black, Isort, Ruff, Flake8 and the
    Copernican policy hook that validates version metadata, date fields and
@@ -21,8 +21,9 @@ Contributions must comply with the Copernican Suite License, which forbids
 redistributing the suite in full and prohibits patent claims.
 
 ## Compliance as Workflow
-Treat the AGENTS laws and DevCovenant policies as the workflow itself: read them
-before working, obey them while coding, and re-run the mandated commands before
-every commit (`pre-commit run --all-files`, `python3 devcovenant_check.py check
---mode=startup` and dependency lock updates when requirements change). Log the
-action in `CHANGELOG.md` including the law number/policy ID to prove compliance.
+Treat the AGENTS laws and DevCovenant policies as the workflow itself: read
+them before working, obey them while coding, and re-run the mandated commands
+before every commit (`pre-commit run --all-files`, `python3
+devcovenant_check.py check --mode=startup` and dependency lock updates when
+requirements change). Log the action in `CHANGELOG.md` including the law
+number/policy ID to prove compliance.

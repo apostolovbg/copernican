@@ -29,7 +29,7 @@ from . import console_output as console
 
 def minimize_with_progress(
     func: Callable[[Iterable, Any], float],
-    x0: Iterable,
+    initial_guess: Iterable,
     bounds: Iterable[Tuple[float, float]],
     args: Tuple = (),
     options: Optional[dict] = None,
@@ -46,7 +46,7 @@ def minimize_with_progress(
     ----------
     func : callable
         Objective function returning a numeric value.
-    x0 : sequence
+    initial_guess : sequence
         Initial parameter guesses for the optimiser.
     bounds : sequence of tuple
         Bounds for each parameter.
@@ -73,10 +73,10 @@ def minimize_with_progress(
         occurred.
     evals : int
         Total number of function evaluations performed.
-    best_val : float
+    best_objective_value : float
         Lowest finite objective value seen during the search.
-    best_params : list of float
-        Parameter vector associated with ``best_val``.
+    best_parameter_vector : list of float
+        Parameter vector associated with ``best_objective_value``.
     """
 
     logger = logging.getLogger()
@@ -92,26 +92,26 @@ def minimize_with_progress(
             "built for your system.",
             exc_info=exc,
         )
-        return None, 0, float("inf"), list(x0)
+        return None, 0, float("inf"), list(initial_guess)
     eval_count = {"count": 0}
-    best_val = [np.inf]
-    best_params = [list(x0)]
+    best_objective_value = [np.inf]
+    best_parameter_vector = [list(initial_guess)]
     start_time = time.time()
     last_update = start_time
     last_eval = 0
 
-    def wrapped(p, *wrapped_args):
+    def wrapped(parameter_vector, *wrapped_args):
         """Internal function that records progress."""
 
         nonlocal last_update, last_eval
 
         eval_count["count"] += 1
-        val = func(p, *wrapped_args)
-        if not np.isfinite(val):
-            val = np.inf
-        if val < best_val[0]:
-            best_val[0] = float(val)
-            best_params[0] = list(p)
+        objective_value = func(parameter_vector, *wrapped_args)
+        if not np.isfinite(objective_value):
+            objective_value = np.inf
+        if objective_value < best_objective_value[0]:
+            best_objective_value[0] = float(objective_value)
+            best_parameter_vector[0] = list(parameter_vector)
 
         now = time.time()
         need_update = False
@@ -128,20 +128,20 @@ def minimize_with_progress(
             )
             console.write(
                 f"  {label} Evals: {eval_count['count']:<5} | Best Chi2: "
-                f"{best_val[0]:.4f} | Speed: {rate:<15}",
+                f"{best_objective_value[0]:.4f} | Speed: {rate:<15}",
                 end="\r",
                 error=False,
             )
             last_update = now
             last_eval = eval_count["count"]
 
-        return val if np.isfinite(val) else 1e12
+        return objective_value if np.isfinite(objective_value) else 1e12
 
     result = None
     try:
         result = minimize(
             wrapped,
-            x0,
+            initial_guess,
             args=args,
             method=method,
             bounds=bounds,
@@ -161,4 +161,9 @@ def minimize_with_progress(
             eval_count["count"],
         )
 
-    return result, eval_count["count"], best_val[0], best_params[0]
+    return (
+        result,
+        eval_count["count"],
+        best_objective_value[0],
+        best_parameter_vector[0],
+    )

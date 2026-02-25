@@ -68,16 +68,28 @@ class NoFutureDatesCheck(PolicyCheck):
                     continue
 
                 if candidate > today:
+                    line_number = text.count("\n", 0, match.start()) + 1
+                    violation_context = {
+                        "match": match.group(0),
+                        "field": (
+                            "last-updated"
+                            if "last updated" in context_line
+                            else "date-released"
+                        ),
+                    }
                     violations.append(
                         Violation(
                             policy_id=self.policy_id,
                             severity="error",
                             file_path=path,
+                            line_number=line_number,
                             message=(
                                 f"Contains future date "
                                 f"{candidate.isoformat()} "
                                 f"(today is {today.isoformat()})"
                             ),
+                            can_auto_fix=True,
+                            context=violation_context,
                         )
                     )
                     break  # Only report once per file

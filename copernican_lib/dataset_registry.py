@@ -16,16 +16,36 @@ statistical independence statements. The additional metadata is consumed by the
 run manifest builder and keeps the suite honest about likelihood assumptions.
 """
 import hashlib
-import importlib
 import logging
 import os
+import types
 from collections.abc import Callable
+from importlib.machinery import SourceFileLoader
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from . import console_output as console
 from .utils import check_dataset_id, compute_sha256, load_metadata_from_dir
+
+_DATA_FILE_EXTENSIONS = {
+    ".dat",
+    ".cov",
+    ".txt",
+    ".csv",
+    ".fits",
+    ".fit",
+    ".npz",
+    ".npy",
+    ".h5",
+    ".yaml",
+    ".yml",
+}
+_DOCUMENTATION_PREFIXES = ("readme", "license", "notes", "citation")
+
+_DISCOVERY_ROOT: str | None = None
+_DISCOVERY_PERFORMED = False
 
 # Each parser is registered via a decorator so that ``copernican.py`` can list
 # available data sources dynamically. The loaders below simply call the
@@ -192,22 +212,22 @@ TRUSTED_PARSER_DIGESTS = {
         "a2abf7b2bc92f6ef60b81b6a3f91f440fff9661905d92468c52153db20983a99"
     ),
     "sne/jla2014/cosmo_parser_jla2014.py": (
-        "3fb85d6ce4b8de95f6d66851fa8114146feb6d5319d13f395f76a0a0c94f6a99"
+        "80e0dc13052cde00b59d25bb5015d48959e14302ec73e2f540dd3193248f1062"
     ),
     "bao/bossdr12/cosmo_parser_bossdr12.py": (
-        "56dc89bee0c7ccc164f46f6c03b268398b554d2e32af852bbc81da3179de707e"
+        "8c616a272133ca7c2ab86ae48139ae3f297734014f0806ed4f6538152957bbaf"
     ),
     "bao/compound/cosmo_parser_compound.py": (
-        "d125f0fc6e9ce1d8c6f27466660a4a3d00386e01132274a8c880c4cf1cf975a5"
+        "84960483a29c6691e99ae8fc6eb5f741952ab281c6a44a5a0ded5e98ccebbe69"
     ),
     "cmb/planck2018lite/cosmo_parser_cmb_planck2018lite.py": (
-        "7c5d70d7b63b921bfffe4d910b334a490b81155d93c9a60de481278f3605352d"
+        "8ce91c97a5cb67a68b04803b010fb46d0a337c289ad4fa8aeda98cf37b2af60a"
     ),
     "gw/placeholder/cosmo_parser_gw_placeholder.py": (
         "0af702546dcc5fac872fa7b68892176ec2400789b18f22e1dce0759093c3ef08"
     ),
     "sne/union3/cosmo_parser_union3.py": (
-        "5664f326ddaa8371f7797aa5fdce9fc71e8f0c2227a058f410032dc12a992eaa"
+        "7b5891a3677457ee3444689af79dc8ea648536c75568b1294b4aa1d406e1450a"
     ),
 }
 
@@ -228,7 +248,9 @@ def _file_sha256(path: str) -> str:
 
 
 # --- Dynamic Discovery of Parser Modules ---
-def discover_trusted_parsers(base_dir: str | None = None):
+def discover_trusted_parsers(
+    base_dir: str | None = None, *, force: bool = False
+):
     """Import parser modules and populate registries with dataset metadata.
 
     The scan walks ``data/`` recursively, ignoring ``placeholder`` folders so
@@ -249,6 +271,12 @@ def discover_trusted_parsers(base_dir: str | None = None):
     # verify that candidate entries never escape the repository via symlinks
     # or ".." components.
     base_dir = os.path.realpath(base_dir)
+    global _DISCOVERY_PERFORMED, _DISCOVERY_ROOT
+    if not force and _DISCOVERY_PERFORMED and _DISCOVERY_ROOT == base_dir:
+        return
+    console.write("Dataset discovery: scanning data/ for trusted parsers...")
+    _DISCOVERY_PERFORMED = True
+    _DISCOVERY_ROOT = base_dir
     for dtype in ("sne", "bao", "cmb", "gw"):
         type_dir = os.path.join(base_dir, dtype)
         # Skip symlinks or paths that resolve outside the data directory.
@@ -281,6 +309,10 @@ def discover_trusted_parsers(base_dir: str | None = None):
                     src_dir,
                 )
                 continue
+            console.write(
+                f"Dataset discovery: found {dataset_id} "
+                f"({dataset_name}) in {dtype.upper()}."
+            )
             placeholder_key = os.path.basename(src_dir)
             for fname in os.listdir(src_dir):
                 if fname.startswith("cosmo_parser_") and fname.endswith(".py"):
@@ -310,23 +342,17 @@ def discover_trusted_parsers(base_dir: str | None = None):
                             actual_hash,
                         )
                         continue
-                    spec = importlib.util.spec_from_file_location(
-                        module_name,
-                        file_path,
-                    )
-                    if spec and spec.loader:
-                        module = importlib.util.module_from_spec(spec)
-                        try:
-                            spec.loader.exec_module(module)
-                        except Exception as e:
-                            logging.getLogger().error(
-                                "Failed loading parser module %s: %s",
-                                file_path,
-                                e,
-                            )
-                    else:
+                    module_loader = SourceFileLoader(module_name, file_path)
+                    module = types.ModuleType(module_name)
+                    module.__file__ = file_path
+                    module.__package__ = module_name.rpartition(".")[0]
+                    try:
+                        module_loader.exec_module(module)
+                    except Exception as e:
                         logging.getLogger().error(
-                            "Missing loader for parser module %s", file_path
+                            "Failed loading parser module %s: %s",
+                            file_path,
+                            e,
                         )
                     registry = get_parser_registry(dtype)
                     key = None
@@ -407,24 +433,26 @@ def prompt_dataset_selection(parser_registry, data_type_name):
 
 
 # --- Verbose dataset info helper ---
-def _log_dataset_info(df, data_type, logger):
-    """Log summary and covariance usage for ``df``."""
+def _log_dataset_info(dataset_df, data_type, logger):
+    """Log summary and covariance usage for ``dataset_df``."""
     # Centralised helper so that every loader reports consistent
     # information about the dataset and whether a covariance matrix was
     # actually used.  ``load_*_data`` attaches all metadata via
     # :func:`load_metadata_from_dir` so the log entries rely solely on the
     # DataFrame attributes.
-    if df is None or df.empty:
+    if dataset_df is None or dataset_df.empty:
         return
     # Prefer the human-readable dataset name but fall back to ``dataset_id``
     # when only the identifier is available. Loaders attach both fields so
     # that logs remain descriptive while filenames stay concise.
-    name = df.attrs.get("dataset_name", df.attrs.get("dataset_id", ""))
-    logger.info(
-        f"Loaded {data_type} dataset '{name}' with {len(df)} rows.",
+    name = dataset_df.attrs.get(
+        "dataset_name", dataset_df.attrs.get("dataset_id", "")
     )
-    if "covariance_matrix_inv" in df.attrs:
-        if df.attrs["covariance_matrix_inv"] is not None:
+    logger.info(
+        f"Loaded {data_type} dataset '{name}' with {len(dataset_df)} rows.",
+    )
+    if "covariance_matrix_inv" in dataset_df.attrs:
+        if dataset_df.attrs["covariance_matrix_inv"] is not None:
             logger.info(
                 f"{data_type} covariance matrix inverted successfully.",
             )
@@ -433,7 +461,7 @@ def _log_dataset_info(df, data_type, logger):
                 f"{data_type} parser provided no usable covariance matrix; "
                 "using diagonal errors only.",
             )
-    cond_number = df.attrs.get("covariance_condition_number")
+    cond_number = dataset_df.attrs.get("covariance_condition_number")
     if cond_number is not None:
         logger.info(
             "%s covariance condition number: %.3e",
@@ -442,10 +470,10 @@ def _log_dataset_info(df, data_type, logger):
         )
 
 
-def _validate_bao_covariance(df, logger):
+def _validate_bao_covariance(dataset_df, logger):
     """Ensure BAO covariance matrices are symmetric and positive definite."""
 
-    inv_cov = df.attrs.get("covariance_matrix_inv")
+    inv_cov = dataset_df.attrs.get("covariance_matrix_inv")
     if inv_cov is None:
         logger.warning(
             "BAO dataset is missing an inverse covariance matrix; "
@@ -471,30 +499,209 @@ def _validate_bao_covariance(df, logger):
         )
         return False
     cond_number = float(np.linalg.cond(inv_arr))
-    df.attrs["covariance_condition_number"] = cond_number
+    dataset_df.attrs["covariance_condition_number"] = cond_number
     logger.info("BAO covariance condition number: %.3e", cond_number)
     return True
 
 
-def _attach_file_hashes(df, data_dir, logger):
-    """Compute SHA256 hashes for files in ``data_dir`` and log them.
+def _attach_file_hashes(dataset_df, data_dir, metadata, logger):
+    """Compute SHA256 hashes for trusted dataset files and log them."""
 
-    The resulting mapping is stored on ``df.attrs['file_hashes']`` so later
-    stages such as the run manifest can embed the exact input digests.  Each
-    hash is logged for audit purposes to aid reproducibility.
-    """
-
-    file_hashes = {}
-    for root, _, files in os.walk(data_dir):
-        for fname in sorted(files):
-            if fname.endswith(".py"):
-                continue
-            path = os.path.join(root, fname)
-            rel = os.path.relpath(path, data_dir)
-            file_hashes[rel] = compute_sha256(path)
-    df.attrs["file_hashes"] = file_hashes
+    file_hashes = collect_dataset_hashes(data_dir, metadata or {}, logger)
+    dataset_df.attrs["file_hashes"] = file_hashes
     for rel, digest in file_hashes.items():
         logger.info("SHA256 %s: %s", rel, digest)
+
+
+def collect_dataset_hashes(
+    data_dir: str,
+    metadata: dict | None = None,
+    logger: logging.Logger | None = None,
+) -> dict[str, str]:
+    """Return the SHA256 hashes for the relevant files in ``data_dir``."""
+
+    metadata = metadata or {}
+    data_dir_path = Path(data_dir)
+    dataset_label = metadata.get(
+        "dataset_name", data_dir_path.name if metadata else data_dir_path.name
+    )
+    console.write(
+        f"Dataset hashing: {dataset_label} ({data_dir_path.name}) starting..."
+    )
+    if not data_dir_path.is_dir():
+        if logger:
+            logger.warning(
+                "Dataset directory %s unavailable for hashing", data_dir
+            )
+        return {}
+    resolved_dir = data_dir_path.resolve()
+    targets = _resolve_hash_targets(resolved_dir, metadata, logger)
+    console.write(
+        f"Dataset hashing: {dataset_label} ({data_dir_path.name}) "
+        f"found {len(targets)} target file(s)."
+    )
+    hashes: dict[str, str] = {}
+    for target in sorted(targets, key=lambda p: p.as_posix()):
+        rel = _relative_to_dir(resolved_dir, target)
+        if rel is None:
+            continue
+        if not target.is_file():
+            if logger:
+                logger.warning(
+                    "Hash target %s is not a file; skipping", target
+                )
+            continue
+        hashes[rel] = compute_sha256(str(target))
+    return hashes
+
+
+def _resolve_hash_targets(
+    data_dir_path: Path, metadata: dict, logger: logging.Logger | None
+) -> set[Path]:
+    """Return the set of file paths whose hashes should be recorded."""
+
+    try:
+        entries = list(data_dir_path.iterdir())
+    except OSError as exc:
+        if logger:
+            logger.warning(
+                "Failed to list dataset directory %s for hashing: %s",
+                data_dir_path,
+                exc,
+            )
+        return set()
+
+    metadata_paths = _metadata_files(entries)
+    parser_paths = _parser_files(entries)
+    targets: set[Path] = {
+        path.resolve() for path in (*metadata_paths, *parser_paths)
+    }
+    explicit_data = _explicit_data_files(data_dir_path, metadata, logger)
+    if explicit_data:
+        targets.update(explicit_data)
+    else:
+        fallback = _fallback_data_files(entries, metadata_paths, parser_paths)
+        targets.update(path.resolve() for path in fallback)
+    return targets
+
+
+def _metadata_files(entries: list[Path]) -> list[Path]:
+    """Return metadata YAML files from ``entries``."""
+
+    return sorted(
+        entry
+        for entry in entries
+        if entry.is_file()
+        and entry.name.startswith("metadata")
+        and entry.suffix.lower() in (".yml", ".yaml")
+    )
+
+
+def _parser_files(entries: list[Path]) -> list[Path]:
+    """Return parser scripts from ``entries``."""
+
+    return sorted(
+        entry
+        for entry in entries
+        if entry.is_file()
+        and entry.name.startswith("cosmo_parser_")
+        and entry.suffix == ".py"
+    )
+
+
+def _explicit_data_files(
+    data_dir_path: Path,
+    metadata: dict,
+    logger: logging.Logger | None,
+) -> set[Path]:
+    """Resolve ``metadata['data_files']`` entries to absolute paths."""
+
+    data_files = metadata.get("data_files")
+    if data_files is None:
+        return set()
+    if isinstance(data_files, str):
+        candidates = [data_files]
+    else:
+        try:
+            candidates = list(data_files)
+        except TypeError:
+            return set()
+
+    resolved: set[Path] = set()
+    for entry in candidates:
+        if not isinstance(entry, str):
+            continue
+        candidate = Path(entry)
+        if candidate.is_absolute():
+            if logger:
+                logger.warning(
+                    "Ignoring absolute data_files entry %r for %s",
+                    entry,
+                    data_dir_path,
+                )
+            continue
+        target = (data_dir_path / candidate).resolve()
+        try:
+            target.relative_to(data_dir_path)
+        except ValueError:
+            if logger:
+                logger.warning(
+                    "data_files entry %r escapes %s; skipping",
+                    entry,
+                    data_dir_path,
+                )
+            continue
+        if not target.exists():
+            if logger:
+                logger.warning(
+                    "data_files entry %r missing in %s",
+                    entry,
+                    data_dir_path,
+                )
+            continue
+        if not target.is_file():
+            if logger:
+                logger.warning(
+                    "data_files entry %r is not a file in %s; skipping",
+                    entry,
+                    data_dir_path,
+                )
+            continue
+        resolved.add(target)
+    return resolved
+
+
+def _fallback_data_files(
+    entries: list[Path], metadata_paths: list[Path], parser_paths: list[Path]
+) -> list[Path]:
+    """Return fallback files to hash when metadata lacks ``data_files``."""
+
+    metadata_names = {entry.name for entry in metadata_paths}
+    parser_names = {entry.name for entry in parser_paths}
+    candidates = []
+    for entry in entries:
+        if not entry.is_file():
+            continue
+        if entry.name in metadata_names or entry.name in parser_names:
+            continue
+        name_lower = entry.name.lower()
+        if any(
+            name_lower.startswith(prefix) for prefix in _DOCUMENTATION_PREFIXES
+        ):
+            continue
+        if entry.suffix.lower() not in _DATA_FILE_EXTENSIONS:
+            continue
+        candidates.append(entry)
+    return sorted(candidates, key=lambda path: path.name.lower())
+
+
+def _relative_to_dir(base: Path, target: Path) -> str | None:
+    """Return a posix relative path from ``base`` to ``target``."""
+
+    try:
+        return target.relative_to(base).as_posix()
+    except ValueError:
+        return None
 
 
 def _load_dataset(
@@ -573,7 +780,7 @@ def _load_dataset(
                 label,
             )
             if data_dir:
-                _attach_file_hashes(data_df, data_dir, logger)
+                _attach_file_hashes(data_df, data_dir, meta, logger)
             _log_dataset_info(data_df, label, logger)
         elif data_df is None:
             logger.error(
@@ -658,7 +865,7 @@ def load_gw_data(dataset_id=None, **kwargs):
                 "data points.",
                 len(data_df),
             )
-            _attach_file_hashes(data_df, data_dir, logger)
+            _attach_file_hashes(data_df, data_dir, meta, logger)
             _log_dataset_info(
                 data_df, "Gravitational-wave standard siren", logger
             )

@@ -87,6 +87,23 @@ def extract_cosmological_param_vector(
     return [params[name] for name in names]
 
 
+def _posterior_metadata(sne_data_df: Any) -> dict[str, str]:
+    """Return metadata used for posterior-related plots."""
+
+    return {
+        "dataset_id": (
+            f"{sne_data_df.attrs.get('dataset_id', 'joint')}-posterior"
+        ),
+        "dataset_name": (
+            f"{sne_data_df.attrs.get('dataset_name', 'Joint dataset')} "
+            "Posterior Samples"
+        ),
+        "description": "Posterior summary for corner/histogram plots.",
+        "citation": sne_data_df.attrs.get("citation", ""),
+        "notes": sne_data_df.attrs.get("notes", ""),
+    }
+
+
 def _maybe_plot_corner(
     fit_results: Mapping[str, Any],
     plugin: Any,
@@ -95,26 +112,39 @@ def _maybe_plot_corner(
     output_dir: str,
     timestamp: str,
 ) -> None:
+    """Render a corner plot when samples exist for ``fit_results``."""
     samples = fit_results.get("samples")
     if samples is None:
         return
     param_names = fit_results.get("param_names")
-    posterior_attrs = {
-        "dataset_id": (
-            f"{sne_data_df.attrs.get('dataset_id', 'joint')}-posterior"
-        ),
-        "dataset_name": (
-            f"{sne_data_df.attrs.get('dataset_name', 'Joint dataset')} "
-            "Posterior Samples"
-        ),
-        "description": ("Corner plot summarising the joint posterior."),
-        "citation": sne_data_df.attrs.get("citation", ""),
-        "notes": sne_data_df.attrs.get("notes", ""),
-    }
+    posterior_attrs = _posterior_metadata(sne_data_df)
     plotter.plot_corner(
         samples,
         plugin,
         posterior_attrs,
+        plot_dir=output_dir,
+        parameter_names=param_names,
+        timestamp=timestamp,
+    )
+
+
+def _maybe_plot_parameter_histograms(
+    fit_results: Mapping[str, Any],
+    plugin: Any,
+    label: str,
+    sne_data_df: Any,
+    output_dir: str,
+    timestamp: str,
+) -> None:
+    """Render histogram plots when posterior samples are available."""
+    samples = fit_results.get("samples")
+    if samples is None:
+        return
+    param_names = fit_results.get("param_names")
+    plotter.plot_parameter_histograms(
+        samples,
+        plugin,
+        _posterior_metadata(sne_data_df),
         plot_dir=output_dir,
         parameter_names=param_names,
         timestamp=timestamp,
@@ -343,6 +373,7 @@ def execute_run_pipeline(
         fit_results,
         z_smooth_arr: np.ndarray | None,
     ):
+        """Produce BAO predictions and diagnostics for ``model_plugin``."""
         summary = {
             "sne_fit_results": fit_results,
             "pred_df": None,
@@ -552,7 +583,23 @@ def execute_run_pipeline(
         output_dir,
         run_start_ts,
     )
+    _maybe_plot_parameter_histograms(
+        lcdm_fit_results,
+        lcdm,
+        lcdm.MODEL_NAME,
+        sne_data_df,
+        output_dir,
+        run_start_ts,
+    )
     _maybe_plot_corner(
+        alt_model_fit_results,
+        alt_model_plugin,
+        alt_model_plugin.MODEL_NAME,
+        sne_data_df,
+        output_dir,
+        run_start_ts,
+    )
+    _maybe_plot_parameter_histograms(
         alt_model_fit_results,
         alt_model_plugin,
         alt_model_plugin.MODEL_NAME,
@@ -575,21 +622,36 @@ def execute_run_pipeline(
         cmb_res,
         plugin,
     ):
+        """Dump a summary report of the latest fit."""
         console_output.write(f"--- {label} Fit Report ---\n")
+        chi2_sne = float("nan")
+        chi2_total = float("nan")
         if fit_res:
             from copernican_lib import latex_utils
 
             p_names = getattr(plugin, "PARAMETER_NAMES", [])
             p_latex = getattr(plugin, "PARAMETER_LATEX_NAMES", [])
+            fitted = fit_res.get("fitted_cosmological_params", {})
+            printed_any = False
             for name, latex_name in zip(p_names, p_latex):
-                val = fit_res.get("fitted_cosmological_params", {}).get(name)
-                if val is not None:
-                    disp = latex_utils.latex_to_unicode(latex_name)
-            console_output.write(f"  {disp} = {val:.5g}")
-        chi2_sne = fit_res.get(
-            "chi2_sne", fit_res.get("chi2_min", float("nan"))
-        )
-        chi2_total = fit_res.get("chi2_total", float("nan"))
+                param_value = fitted.get(name)
+                if param_value is None:
+                    continue
+                disp = latex_utils.latex_to_unicode(latex_name)
+                console_output.write(f"  {disp} = {param_value:.5g}")
+                printed_any = True
+            if not printed_any:
+                console_output.write(
+                    "  Parameters unavailable in fit results."
+                )
+            chi2_sne = fit_res.get(
+                "chi2_sne", fit_res.get("chi2_min", float("nan"))
+            )
+            chi2_total = fit_res.get("chi2_total", float("nan"))
+        else:
+            console_output.write(
+                "  Fit results unavailable (fixed parameters?)."
+            )
         console_output.write(f"  χ²_Total = {chi2_total:.2f}")
         console_output.write(f"  χ²_SNe = {chi2_sne:.2f}")
         if bao_res:

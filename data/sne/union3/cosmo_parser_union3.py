@@ -21,6 +21,7 @@ def _find_matching_fits(data_dir: str) -> list[str]:
     """Return FITS files that look like the compressed `mu_mat` outputs."""
 
     def looks_like_mu_mat(name: str) -> bool:
+        """Return True when a file name matches the mu_mat pattern."""
         lower = name.lower()
         return lower.endswith(".fits") and "mu_mat" in lower
 
@@ -91,7 +92,7 @@ def parse_union3(data_dir: str, **kwargs) -> pd.DataFrame | None:
         )
 
     record_names = [f"Union3_bin_{idx + 1}" for idx in range(redshift.size)]
-    df = pd.DataFrame(
+    distance_df = pd.DataFrame(
         {
             "Name": record_names,
             "zcmb": redshift,
@@ -100,9 +101,9 @@ def parse_union3(data_dir: str, **kwargs) -> pd.DataFrame | None:
         }
     )
 
-    df.attrs["covariance_matrix_inv"] = inv_covariance
-    df.attrs["covariance_matrix"] = covariance
-    df.attrs["diag_errors_for_plot"] = diag_errors
-    df.attrs["redshift_nodes"] = redshift
-    df.attrs["mu_matrix_path"] = path
-    return df
+    distance_df.attrs["covariance_matrix_inv"] = inv_covariance
+    distance_df.attrs["covariance_matrix"] = covariance
+    distance_df.attrs["diag_errors_for_plot"] = diag_errors
+    distance_df.attrs["redshift_nodes"] = redshift
+    distance_df.attrs["mu_matrix_path"] = path
+    return distance_df

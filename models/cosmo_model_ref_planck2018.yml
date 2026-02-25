@@ -1,0 +1,114 @@
+model_name: Planck 2018 Reference LambdaCDM
+version: '1.0'
+description: >-
+  Reference base-ΛCDM parameter set pinned to the Planck 2018 TT,TE,EE+lowE
+  best-fit values reported in Planck Collaboration VI (2018, Table 2). All
+  cosmological degrees of freedom are fixed so runs reproduce the legacy inference
+  that validated the Copernican likelihood implementations.
+abstract: >-
+  Fixed-parameter ΛCDM calibrated to Planck 2018. This model anchors the
+  validation manifests and is not intended for exploration; every parameter is
+  held at the published best-fit value so golden manifests remain reproducible.
+parameters:
+- name: Hubble constant
+  bounds:
+  - 67.66
+  - 67.66
+  unit: km/s/Mpc
+  latex_name: H_0
+  definition: Hubble expansion rate today.
+  prior:
+    type: fixed
+    value: 67.66
+- name: Matter density
+  bounds:
+  - 0.3111
+  - 0.3111
+  latex_name: Omega_{m0}
+  definition: Cold matter content today.
+  prior:
+    type: fixed
+    value: 0.3111
+- name: Baryon density
+  bounds:
+  - 0.04897
+  - 0.04897
+  latex_name: Omega_b
+  definition: Baryonic matter density today.
+  prior:
+    type: fixed
+    value: 0.04897
+- name: Photon density
+  bounds:
+  - 5.38e-05
+  - 5.38e-05
+  latex_name: Omega_{\gamma}
+  definition: Photon density parameter at z=0.
+  prior:
+    type: fixed
+    value: 5.38e-05
+- name: Effective neutrino species
+  python_var: Neff
+  bounds:
+  - 3.044
+  - 3.044
+  latex_name: N_{\rm eff}
+  definition: Planck’s inferred effective neutrino count.
+  prior:
+    type: fixed
+    value: 3.044
+- name: Recombination redshift
+  bounds:
+  - 1089.92
+  - 1089.92
+  latex_name: z_{\rm rec}
+  definition: Redshift at photon decoupling.
+  prior:
+    type: fixed
+    value: 1089.92
+Hz_expression: >-
+  H(z) = H_0 * sqrt(
+    Omega_{m0}*(1 + z)**3
+    + Omega_{\gamma}*(1 + 0.2271 * Neff)*(1 + z)**4
+    + (1 - Omega_{m0} - Omega_{\gamma}*(1 + 0.2271 * Neff))
+  )
+equations:
+  sne:
+  - d_L(z) = (1+z) \int_0^z \frac{c\,dz'}{H(z')}
+  - \mu(z) = 5\log_{10}[d_L(z)/{\rm Mpc}] + 25
+  bao:
+  - D_M(z) = \int_0^z \frac{c}{H(z')}
+  - D_H(z) = \frac{c}{H(z)}
+  - D_V(z) = [D_M(z)**2 * D_H(z)]**(1/3)
+rs_expression: >-
+  r_s = Integral(
+    299792.458 / sqrt(
+      3 * (1 + 3 * Omega_b / (4 * Omega_{\gamma}) / (1 + z))
+    ) / (
+      H_0 * sqrt(
+        Omega_{m0} * (1 + z)**3
+        + Omega_{\gamma} * (1 + 0.2271 * Neff) * (1 + z)**4
+        + (1 - Omega_{m0} - Omega_{\gamma} * (1 + 0.2271 * Neff))
+      )
+    ), (z, z_rec, oo)
+  )
+skip_bao: false
+valid_for_bao: true
+valid_for_cmb: true
+cmb:
+  param_map:
+    H0: H_0
+    ombh2: Omega_b * (H_0/100)**2
+    omch2: (Omega_{m0} - Omega_b) * (H_0/100)**2
+    tau: 0.054
+    As: 2.1e-09
+    ns: 0.965
+    Neff: Neff
+    num_massive_neutrinos: 3
+    sum_mnu: 0.06
+notes: >-
+  Every parameter is anchored to Planck Collaboration VI (2018) Table 2
+  (TT,TE,EE+lowE) base-ΛCDM best-fit values. These priors are declared as
+  fixed values so the samplers treat them like any other variable (which keeps
+  the plots and trace lines visible) while remaining numerically locked for
+  validation.

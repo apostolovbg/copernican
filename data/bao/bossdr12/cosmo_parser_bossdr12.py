@@ -210,15 +210,15 @@ def parse_boss_dr12(data_dir, **kwargs):
     # ------------------------------------------------------------------
     records = []
     for i, z in enumerate(redshifts):
-        dm = y_vec[3 * i]
-        dh = y_vec[3 * i + 1]
-        dv = y_vec[3 * i + 2]
+        dm_over_rs_value = y_vec[3 * i]
+        dh_over_rs_value = y_vec[3 * i + 1]
+        dv_over_rs_value = y_vec[3 * i + 2]
         records.append(
             {
                 "name": f"BOSS DR12 z={z} (DM/rs)",
                 "redshift": z,
                 "observable_type": "DM_over_rs",
-                "value": dm,
+                "value": dm_over_rs_value,
                 "error": diag[3 * i],
             }
         )
@@ -227,7 +227,7 @@ def parse_boss_dr12(data_dir, **kwargs):
                 "name": f"BOSS DR12 z={z} (DH/rs)",
                 "redshift": z,
                 "observable_type": "DH_over_rs",
-                "value": dh,
+                "value": dh_over_rs_value,
                 "error": diag[3 * i + 1],
             }
         )
@@ -236,15 +236,15 @@ def parse_boss_dr12(data_dir, **kwargs):
                 "name": f"BOSS DR12 z={z} (DV/rs)",
                 "redshift": z,
                 "observable_type": "DV_over_rs",
-                "value": dv,
+                "value": dv_over_rs_value,
                 "error": diag[3 * i + 2],
             }
         )
 
-    df = pd.DataFrame.from_records(records)
-    df.sort_values("redshift", inplace=True, ignore_index=True)
-    df.attrs["covariance_matrix_inv"] = cov_inv
-    df.attrs["diag_errors_for_plot"] = diag
+    bao_dataframe = pd.DataFrame.from_records(records)
+    bao_dataframe.sort_values("redshift", inplace=True, ignore_index=True)
+    bao_dataframe.attrs["covariance_matrix_inv"] = cov_inv
+    bao_dataframe.attrs["diag_errors_for_plot"] = diag
     # Metadata such as dataset name and citation is attached by
     # ``load_bao_data`` after this function returns.
-    return df
+    return bao_dataframe

@@ -283,7 +283,7 @@ def test_run_monitor_lifecycle() -> None:
 def test_manifest_import_export_round_trip() -> None:
     gui = CopernicanGUI(render=False)
     gui.draft.model = "ModelB"
-    gui.draft.data = "Dataset"
+    gui.draft.dataset = "Dataset"
     gui.draft.engine = "engine"
     gui.draft.walkers = "33"
     gui.draft.burn_in = "20"
@@ -327,7 +327,7 @@ def test_duplicate_manifest_prefills_builder(tmp_path: Path) -> None:
     manifest = gui._generate_manifest_snapshot()
     path = run_manifest.save_manifest(manifest, tmp_path)
     gui.duplicate_manifest_for_editing(path)
-    assert "planck_2018_lite" in gui.draft.data
+    assert "planck_2018_lite" in gui.draft.dataset
     assert gui.draft.plan.startswith("Duplicate & Edit")
 
 

@@ -24,7 +24,7 @@ class SNeLike(LikelihoodProtocol):
     """Evaluate the Supernova Ia log-likelihood for a given dataset."""
 
     mu_model: Callable[..., np.ndarray]
-    data: pd.DataFrame
+    observations: pd.DataFrame
     enabled: bool = True
     _state: LikelihoodState = field(
         default_factory=LikelihoodState,
@@ -40,10 +40,12 @@ class SNeLike(LikelihoodProtocol):
     def __post_init__(self) -> None:
         """Cache immutable arrays so log-likelihood calls avoid copies."""
 
-        df = self.data
+        observations_df = self.observations
         required = ("zcmb", "mu_obs")
-        if not all(col in df.columns for col in required):
-            missing = tuple(col for col in required if col not in df.columns)
+        if not all(col in observations_df.columns for col in required):
+            missing = tuple(
+                col for col in required if col not in observations_df.columns
+            )
             self._setup_error = "SNe DataFrame missing required columns %s" % (
                 missing,
             )
@@ -54,8 +56,12 @@ class SNeLike(LikelihoodProtocol):
             self._residual_buffer = np.empty(0, dtype=float)
             return
 
-        self._z_values = df["zcmb"].to_numpy(dtype=float, copy=True)
-        self._mu_observed = df["mu_obs"].to_numpy(dtype=float, copy=True)
+        self._z_values = observations_df["zcmb"].to_numpy(
+            dtype=float, copy=True
+        )
+        self._mu_observed = observations_df["mu_obs"].to_numpy(
+            dtype=float, copy=True
+        )
         if np.any(~np.isfinite(self._z_values)) or np.any(
             ~np.isfinite(self._mu_observed)
         ):
@@ -63,14 +69,14 @@ class SNeLike(LikelihoodProtocol):
                 "SNe data contains non-finite zcmb or mu_obs values"
             )
 
-        cov_attr = df.attrs.get("covariance_matrix_inv")
+        cov_attr = observations_df.attrs.get("covariance_matrix_inv")
         self._covariance_matrix_inv = None
         if cov_attr is not None:
             self._covariance_matrix_inv = np.asarray(cov_attr, dtype=float)
 
         self._diag_errors = None
-        if "e_mu_obs" in df.columns:
-            errs = df["e_mu_obs"].to_numpy(dtype=float, copy=True)
+        if "e_mu_obs" in observations_df.columns:
+            errs = observations_df["e_mu_obs"].to_numpy(dtype=float, copy=True)
             errs = np.where(~np.isfinite(errs) | (errs <= 0), 1e-12, errs)
             self._diag_errors = errs
 

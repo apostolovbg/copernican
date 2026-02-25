@@ -86,7 +86,7 @@ MODEL_SCHEMA = {
         "rs_expression": {"type": "string"},
         "cmb": {"type": "object"},
         "gravitational_waves": {"type": "object"},
-        "predicts_bao": {"type": "boolean"},
+        "skip_bao": {"type": "boolean"},
         # Optional human-readable fields used by upcoming UI modules
         "abstract": {"type": "string"},
         "description": {"type": "string"},
@@ -116,7 +116,7 @@ def validate_and_cache_model(path, cache_dir):
     path = Path(path)
     try:
         with path.open("r") as f:
-            data = yaml.safe_load(f)
+            model_spec = yaml.safe_load(f)
     except (OSError, yaml.YAMLError) as e:
         error_handler.report_error(f"Failed to read model YAML '{path}': {e}")
         raise
@@ -127,7 +127,7 @@ def validate_and_cache_model(path, cache_dir):
     # repeated validation is unnecessary.
     if _mp.current_process().name == "MainProcess":
         try:
-            validate(instance=data, schema=MODEL_SCHEMA)
+            validate(instance=model_spec, schema=MODEL_SCHEMA)
         except ValidationError as e:
             msg = f"Model YAML validation error: {e.message}"
             error_handler.report_error(msg)
@@ -136,10 +136,10 @@ def validate_and_cache_model(path, cache_dir):
     # Auto-generate missing python_var fields from LaTeX names
     used_vars = {
         param.get("python_var")
-        for param in data.get("parameters", [])
+        for param in model_spec.get("parameters", [])
         if param.get("python_var")
     }
-    for param in data.get("parameters", []):
+    for param in model_spec.get("parameters", []):
         if "latex_name" not in param:
             raise ValueError("Missing required latex_name for parameter")
         if not param.get("python_var"):
@@ -223,9 +223,13 @@ def validate_and_cache_model(path, cache_dir):
             param.pop("transform", None)
 
     # Ensure mathematical fields are wrapped with '$$' for downstream tools
-    data["Hz_expression"] = _ensure_delim(data.get("Hz_expression"))
-    data["rs_expression"] = _ensure_delim(data.get("rs_expression"))
-    eq_sections = data.get("equations", {})
+    model_spec["Hz_expression"] = _ensure_delim(
+        model_spec.get("Hz_expression")
+    )
+    model_spec["rs_expression"] = _ensure_delim(
+        model_spec.get("rs_expression")
+    )
+    eq_sections = model_spec.get("equations", {})
     for key, arr in eq_sections.items():
         if isinstance(arr, list):
             eq_sections[key] = [_ensure_delim(e) for e in arr]
@@ -234,5 +238,5 @@ def validate_and_cache_model(path, cache_dir):
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache_path = cache_dir / f"cache_{path.name}"
     with cache_path.open("w", encoding="utf-8") as f:
-        yaml.safe_dump(data, f, sort_keys=False, allow_unicode=True)
+        yaml.safe_dump(model_spec, f, sort_keys=False, allow_unicode=True)
     return str(cache_path)

@@ -60,8 +60,8 @@ def bao_residual_diagnostics(
         ]
 
     model_vals = predictions["model_prediction"].to_numpy(dtype=float)
-    obs_vals = predictions["value"].to_numpy(dtype=float)
-    residuals = model_vals - obs_vals
+    observed_values = predictions["value"].to_numpy(dtype=float)
+    residuals = model_vals - observed_values
     rms, max_abs, median, n_points = _residual_statistics(residuals)
     if n_points == 0:
         return [f"{model_name} BAO residuals unavailable (non-finite values)."]
@@ -76,8 +76,8 @@ def bao_residual_diagnostics(
     if "observable_type" in predictions:
         for obs_type, group in predictions.groupby("observable_type"):
             group_vals = group["model_prediction"].to_numpy(dtype=float)
-            group_obs = group["value"].to_numpy(dtype=float)
-            group_resid = group_vals - group_obs
+            group_observed = group["value"].to_numpy(dtype=float)
+            group_resid = group_vals - group_observed
             g_rms, g_max, g_median, g_n = _residual_statistics(group_resid)
             if g_n == 0:
                 continue
@@ -107,8 +107,8 @@ def cmb_residual_diagnostics(
         theory_map["TT"] = np.asarray(theory, dtype=float)
     else:
         theory_map = {}
-        for key, val in theory.items():
-            theory_map[key] = np.asarray(val, dtype=float)
+        for key, component_values in theory.items():
+            theory_map[key] = np.asarray(component_values, dtype=float)
 
     component_columns = {
         "TT": "Dl_obs",

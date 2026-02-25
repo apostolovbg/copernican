@@ -1,0 +1,7 @@
+# Alien Invasion runtime artifacts
+alien_invasion/ai_settings.yml
+alien_invasion/_storage/
+alien_invasion/_storage/*
+alien_invasion/_storage/**
+alien_invasion/_storage/alien_invasion_ai_state.yml
+alien_invasion/_storage/alien_invasion_hof.yml

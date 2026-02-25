@@ -13,17 +13,29 @@ summarises three GUI-safe services:
 3. **Run control**: `copernican_lib.result_writer.save_summary` serialises
    sampler outputs while `copernican_lib.cli.dependencies.get_runtime_options`
    keeps the runtime flags and logging posture aligned with the CLI. Manifest
-   runners should now call `copernican_lib.run_executor.execute_run_from_manifest`
-   so the shared pipeline in `copernican_lib/run_pipeline.py`, the dataset
-   rebuild helpers in `copernican_lib/run_config.py`, and the YAML-backed model
-   plugins all execute uniformly for both GUI and headless runs.
+   runners should now call
+   `copernican_lib.run_executor.execute_run_from_manifest` so the shared
+   pipeline in `copernican_lib/run_pipeline.py`, the dataset rebuild helpers in
+   `copernican_lib/run_config.py`, and the YAML-backed model plugins all
+   execute uniformly for both GUI and headless runs.
+
+`copernican.main_workflow`, the console script entrypoint, now relays manifests
+directly to `copernican_lib.run_executor.execute_run_from_manifest` so every
+manifest-driven launch—CLI or GUI—shares the same runner.
+
+The Settings surface persists choices through `copernican_lib/settings.py` and
+the generated `copernican_settings.yml` file at the repository root (the file
+is per-user, gitignored and can be relocated via `COPERNICAN_SETTINGS_PATH`).
+The Logging, Datasets, GUI and Tools tabs reuse the shared services listed
+above so deterministic launches keep the same retention levels, dataset hashes
+and GUI flags whether they start from the command line or the Tkinter shell.
 
 `copernican.py --gui` prints this service map without entering the interactive
-menus. GUI launchers should construct an
-`orchestration.InProcessRunController` with run, pause, resume and cancel hooks
-that call into the shared helpers above. The `RunRequest`, `RunHandle` and
-`RunStatus` dataclasses document the minimum payloads required to drive the
-existing pipeline while letting the GUI stream logs or status updates.
+menus. GUI launchers should construct an `orchestration.InProcessRunController`
+with run, pause, resume and cancel hooks that call into the shared helpers
+above. The `RunRequest`, `RunHandle` and `RunStatus` dataclasses document the
+minimum payloads required to drive the existing pipeline while letting the GUI
+stream logs or status updates.
 
 The GUI worker (`copernican_lib/gui/run_worker.py`) simply loads the JSON
 configuration produced by the Run Builder, sets `COPERNICAN_ALLOW_DIRECT=1`,
@@ -31,7 +43,7 @@ and invokes `copernican.main` with `--manifest`. Any test or helper that
 imports `copernican` directly should mirror that guard so the manifest CLI
 remains usable without re-enabling the legacy menu workflow.
 
-Forward-only remains the default: the staged menu is disabled unless a caller
-sets `COPERNICAN_ENABLE_STAGED_MENU=1` or passes `--enable-legacy-stage-menu`.
-CI can toggle that flag to exercise historical prompts without reintroducing
-backward-compatible branches for regular users.
+Forward-only remains the default: the staged menu has been retired and the
+codebase no longer exposes `COPERNICAN_ENABLE_STAGED_MENU` or `--enable-legacy-
+stage-menu`. CI workflows now exercise the unified GUI/CLI pipeline without
+branching into archived prompts.

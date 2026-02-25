@@ -75,7 +75,7 @@ def check_dataset_id(dataset_id: str) -> str:
     cannot corrupt directory structures.
     """
 
-    forbidden = set(' \\/:*?"<>|')
+    forbidden = set(r' \\/:*?"<>|')
     return "".join(ch for ch in dataset_id if ch not in forbidden)
 
 
@@ -112,8 +112,8 @@ def generate_filename(
         if sanitized_model
         else f"{sanitized_type}-{checked_id}"
     )
-    ts = timestamp or get_timestamp()
-    return f"{base_name}_{ts}.{ext}"
+    timestamp_suffix = timestamp or get_timestamp()
+    return f"{base_name}_{timestamp_suffix}.{ext}"
 
 
 def ensure_dir_exists(directory):

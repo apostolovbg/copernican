@@ -70,10 +70,10 @@ class LikelihoodTestCase(unittest.TestCase):
         bao_df = self._prepare_bao()
         rs_value = self.plugin.get_sound_horizon_rs_Mpc(*params)
         bao_like = likelihoods.BAOLike(
-            z=bao_df["redshift"].to_numpy(dtype=float),
-            obs_type=bao_df["observable_type"].to_numpy(),
-            obs_val=bao_df["value"].to_numpy(dtype=float),
-            obs_err=bao_df["error"].to_numpy(dtype=float),
+            redshifts=bao_df["redshift"].to_numpy(dtype=float),
+            observable_types=bao_df["observable_type"].to_numpy(),
+            observable_values=bao_df["value"].to_numpy(dtype=float),
+            observable_errors=bao_df["error"].to_numpy(dtype=float),
             model_plugin=self.plugin,
             covariance_matrix_inv=bao_df.attrs.get("covariance_matrix_inv"),
             rs_override=rs_value,
@@ -128,10 +128,10 @@ class LikelihoodTestCase(unittest.TestCase):
         bao_df = self._prepare_bao()
         fallback_plugin = TrackingPlugin(self.plugin)
         bao_like = likelihoods.BAOLike(
-            z=bao_df["redshift"].to_numpy(dtype=float),
-            obs_type=bao_df["observable_type"].to_numpy(),
-            obs_val=bao_df["value"].to_numpy(dtype=float),
-            obs_err=bao_df["error"].to_numpy(dtype=float),
+            redshifts=bao_df["redshift"].to_numpy(dtype=float),
+            observable_types=bao_df["observable_type"].to_numpy(),
+            observable_values=bao_df["value"].to_numpy(dtype=float),
+            observable_errors=bao_df["error"].to_numpy(dtype=float),
             model_plugin=fallback_plugin,
             covariance_matrix_inv=bao_df.attrs.get("covariance_matrix_inv"),
         )
@@ -173,10 +173,10 @@ class LikelihoodTestCase(unittest.TestCase):
         bao_df = self._prepare_bao()
         divergent_plugin = DivergentSoundHorizonPlugin(self.plugin)
         bao_like = likelihoods.BAOLike(
-            z=bao_df["redshift"].to_numpy(dtype=float),
-            obs_type=bao_df["observable_type"].to_numpy(),
-            obs_val=bao_df["value"].to_numpy(dtype=float),
-            obs_err=bao_df["error"].to_numpy(dtype=float),
+            redshifts=bao_df["redshift"].to_numpy(dtype=float),
+            observable_types=bao_df["observable_type"].to_numpy(),
+            observable_values=bao_df["value"].to_numpy(dtype=float),
+            observable_errors=bao_df["error"].to_numpy(dtype=float),
             model_plugin=divergent_plugin,
             covariance_matrix_inv=bao_df.attrs.get("covariance_matrix_inv"),
         )
@@ -197,10 +197,10 @@ class LikelihoodTestCase(unittest.TestCase):
         bao_df = self._prepare_bao()
         rs_value = self.plugin.get_sound_horizon_rs_Mpc(*params)
         bao_like = likelihoods.BAOLike(
-            z=bao_df["redshift"].to_numpy(dtype=float),
-            obs_type=bao_df["observable_type"].to_numpy(),
-            obs_val=bao_df["value"].to_numpy(dtype=float),
-            obs_err=bao_df["error"].to_numpy(dtype=float),
+            redshifts=bao_df["redshift"].to_numpy(dtype=float),
+            observable_types=bao_df["observable_type"].to_numpy(),
+            observable_values=bao_df["value"].to_numpy(dtype=float),
+            observable_errors=bao_df["error"].to_numpy(dtype=float),
             model_plugin=self.plugin,
             covariance_matrix_inv=bao_df.attrs.get("covariance_matrix_inv"),
             rs_override=rs_value,
@@ -237,10 +237,10 @@ class LikelihoodTestCase(unittest.TestCase):
         bao_df = self._prepare_bao()
         rs_value = self.plugin.get_sound_horizon_rs_Mpc(*params)
         bao_like = likelihoods.BAOLike(
-            z=bao_df["redshift"].to_numpy(dtype=float),
-            obs_type=bao_df["observable_type"].to_numpy(),
-            obs_val=bao_df["value"].to_numpy(dtype=float),
-            obs_err=bao_df["error"].to_numpy(dtype=float),
+            redshifts=bao_df["redshift"].to_numpy(dtype=float),
+            observable_types=bao_df["observable_type"].to_numpy(),
+            observable_values=bao_df["value"].to_numpy(dtype=float),
+            observable_errors=bao_df["error"].to_numpy(dtype=float),
             model_plugin=self.plugin,
             covariance_matrix_inv=bao_df.attrs.get("covariance_matrix_inv"),
             rs_override=rs_value,
@@ -283,30 +283,30 @@ class LikelihoodTestCase(unittest.TestCase):
         )
 
         bao_df = self._prepare_bao()
-        z = bao_df["redshift"].to_numpy(dtype=float)
-        obs_type = bao_df["observable_type"].to_numpy()
-        obs_val = bao_df["value"].to_numpy(dtype=float)
-        obs_err = bao_df["error"].to_numpy(dtype=float)
+        redshifts_array = bao_df["redshift"].to_numpy(dtype=float)
+        observable_types_array = bao_df["observable_type"].to_numpy()
+        observable_values_array = bao_df["value"].to_numpy(dtype=float)
+        observable_errors_array = bao_df["error"].to_numpy(dtype=float)
         cov = bao_df.attrs.get("covariance_matrix_inv")
         rs_value = self.plugin.get_sound_horizon_rs_Mpc(*params)
         bao_like = likelihoods.BAOLike(
-            z=z,
-            obs_type=obs_type,
-            obs_val=obs_val,
-            obs_err=obs_err,
+            redshifts=redshifts_array,
+            observable_types=observable_types_array,
+            observable_values=observable_values_array,
+            observable_errors=observable_errors_array,
             model_plugin=self.plugin,
             covariance_matrix_inv=cov,
             rs_override=rs_value,
         )
         bao_baseline = bao_like.loglike(params)
-        z[:] = 0.0
-        obs_val[:] = obs_val + 50.0
+        redshifts_array[:] = 0.0
+        observable_values_array[:] = observable_values_array + 50.0
         self.assertAlmostEqual(bao_like.loglike(params), bao_baseline)
         bao_mutated = likelihoods.BAOLike(
-            z=z,
-            obs_type=obs_type,
-            obs_val=obs_val,
-            obs_err=obs_err,
+            redshifts=redshifts_array,
+            observable_types=observable_types_array,
+            observable_values=observable_values_array,
+            observable_errors=observable_errors_array,
             model_plugin=self.plugin,
             covariance_matrix_inv=cov,
             rs_override=rs_value,

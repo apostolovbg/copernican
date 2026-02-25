@@ -234,8 +234,8 @@ def save_manifest(
         target = Path(target_path)
         target.parent.mkdir(parents=True, exist_ok=True)
     else:
-        ts = utils.get_timestamp()
-        target = Path(output_dir) / f"run_manifest_{ts}.yml"
+        timestamp = utils.get_timestamp()
+        target = Path(output_dir) / f"run_manifest_{timestamp}.yml"
     with open(target, "w", encoding="utf-8") as fh:
         yaml.safe_dump(manifest, fh, sort_keys=False)
     return str(target)

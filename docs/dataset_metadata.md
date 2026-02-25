@@ -1,8 +1,8 @@
 # Dataset Metadata Fields
 
-Each dataset folder contains a `metadata_*.yml` file that describes the
-source. All fields are optional except for `dataset_name`, `dataset_id`,
-`description` and `license`.
+Each dataset folder contains a `metadata_*.yml` file that describes the source.
+All fields are optional except for `dataset_name`, `dataset_id`, `description`
+and `license`.
 
 Run ``python -m tools.check_meta`` after updating any of these metadata files
 or their documentation headers. The helper measures "today" in Coordinated
@@ -19,11 +19,11 @@ citation: FirstAuthor et al. 2024 - Journal 12 (2024) 34-56 - DOI: 10.x/y
 license: Free to use with attribution
 ```
 
-- `dataset_name` -- Short human-readable identifier used in logs, plot
-  footers and CSV headers.
-- `dataset_id` -- Short identifier used in filenames. It must omit spaces
-  and forbidden characters: `/`, `\`, `:`, `*`, `?`, `"`, `<`, `>` and
-  `|`, yet still convey which dataset is referenced.
+- `dataset_name` -- Short human-readable identifier used in logs, plot footers
+  and CSV headers.
+- `dataset_id` -- Short identifier used in filenames. It must omit spaces and
+  forbidden characters: `/`, `\`, `:`, `*`, `?`, `"`, `<`, `>` and `|`, yet
+  still convey which dataset is referenced.
 - `description` -- Brief explanation of the dataset origin.
 - `citation` -- Formatted as "FirstAuthor et al. - J. Vol (Year) Pages - DOI:
   URL".
@@ -42,27 +42,25 @@ license: Free to use with attribution
 - `year` -- Publication year.
 - `month` -- Publication month (three-letter abbreviation).
 - `pages` -- Page range or article number.
-- `notes` -- Additional free-form comments displayed on the second line of
-  plot
+- `notes` -- Additional free-form comments displayed on the second line of plot
   footers.
 
 The metadata file is loaded automatically by the data loaders via
 `copernican_lib.utils.load_metadata_from_dir` after the parser returns and
-attached to the parsed `DataFrame` through the ``.attrs`` dictionary.
-Loaders store both the human-readable `dataset_name` and the filename
-friendly `dataset_id`. Plot footers render the dataset name in bold,
-followed by `: description notes` on the second line and the citation on
-a third line. Custom fields are preserved and can be used by new engines
-or analysis scripts.
+attached to the parsed `DataFrame` through the ``.attrs`` dictionary. Loaders
+store both the human-readable `dataset_name` and the filename friendly
+`dataset_id`. Plot footers render the dataset name in bold, followed by `:
+description notes` on the second line and the citation on a third line. Custom
+fields are preserved and can be used by new engines or analysis scripts.
 
 ### Best Practices
 
-- Keep descriptions short yet informative; the second footer line wraps at
-  190 characters, so overly long notes may span several lines.
+- Keep descriptions short yet informative; the second footer line wraps at 190
+  characters, so overly long notes may span several lines.
 - Use the full author list to ensure proper attribution in publications that
   derive from the suite's outputs.
-- Unknown fields are preserved by the loader, making it safe to add
-  experiment-specific keys for downstream tools.
+- Unknown fields are preserved by the loader, making it safe to add experiment-
+  specific keys for downstream tools.
 - BAO datasets expose a `model_prediction` column during analysis. The
   prediction now remains identical for baseline and alternative models when
   their plugins match because the Stage 2 sampler reuses the first SNe chain.
@@ -77,15 +75,16 @@ or analysis scripts.
 - Use the `notes` field to explain that `mu_mat_union3_cosmo=2_mu.fits`
   contains the redshift nodes, compressed distance modulus column and inverse
   covariance block consumed by `cosmo_parser_union3.py`.
-- Point readers to [`licenses/Union3-MIT.txt`](../licenses/Union3-MIT.txt) whenever
-  spelling out the dataset's usage terms in release notes or documentation.
+- Point readers to [`licenses/Union3-MIT.txt`](../licenses/Union3-MIT.txt)
+  whenever spelling out the dataset's usage terms in release notes or
+  documentation.
 
 ### Model Parameter Priors
 
 Model YAML files now support a `prior` block for each parameter. Priors carry
 their `type` and relevant numeric fields: Gaussian priors require `mean` and
-`sigma`, uniform priors use `lower` and `upper`, and log-uniform priors
-demand strictly positive `lower`/`upper` pairs. Parsed models expose these
-details so engines can apply them during optimisation while
+`sigma`, uniform priors use `lower` and `upper`, and log-uniform priors demand
+strictly positive `lower`/`upper` pairs. Parsed models expose these details so
+engines can apply them during optimisation while
 `copernican_lib.priors.LogUniformPrior` injects the accompanying log-space
 transform automatically.

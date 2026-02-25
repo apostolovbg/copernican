@@ -286,7 +286,8 @@ if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then
             1)
                 echo "Launching the Copernican GUI inline; close the window to return."
                 COPERNICAN_STRICT_WARNINGS=$STRICT COPERNICAN_DETACH_GUI=0 \
-                    exec "$GUI_BINARY" copernican.py --gui
+                    "$GUI_BINARY" copernican.py --gui
+                echo "Copernican GUI closed; returning to the launcher menu."
                 ;;
             2)
                 COPERNICAN_STRICT_WARNINGS=$STRICT \

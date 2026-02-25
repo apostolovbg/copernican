@@ -49,7 +49,7 @@ def main():
 
     # Execute command
     if args.command == "check":
-        result = engine.check(mode=args.mode)
+        result = engine.check(mode=args.mode, apply_fixes=args.fix)
 
         # Exit with error code if blocked
         if result.should_block or result.has_sync_issues():

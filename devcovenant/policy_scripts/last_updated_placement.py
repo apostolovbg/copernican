@@ -18,16 +18,6 @@ class LastUpdatedPlacementCheck(PolicyCheck):
     policy_id = "last-updated-placement"
     version = "1.0.0"
 
-    # Allowlisted files that should have Last Updated markers
-    ALLOWLIST = [
-        "AGENTS.md",
-        "CITATION.cff",
-        "copernican.py",
-        "start.sh",
-        "start.bat",
-        "start.command",
-    ]
-
     # Pattern to detect Last Updated markers
     LAST_UPDATED_PATTERN = re.compile(
         r"(\*\*Last Updated:\*\*|Last Updated:|# Last Updated)", re.IGNORECASE
@@ -52,6 +42,16 @@ class LastUpdatedPlacementCheck(PolicyCheck):
         else:
             files_to_check = context.all_files
 
+        allowed_entries = self.get_option("allowed_files", [])
+        if isinstance(allowed_entries, str):
+            allowlist = {allowed_entries.strip()}
+        else:
+            allowlist = {
+                str(entry).strip()
+                for entry in (allowed_entries or [])
+                if str(entry).strip()
+            }
+
         for file_path in files_to_check:
             # Skip non-text files
             text_extensions = [
@@ -63,9 +63,7 @@ class LastUpdatedPlacementCheck(PolicyCheck):
 
             # Check if file is in allowlist
             relative_path = str(file_path.relative_to(context.repo_root))
-            is_allowlisted = any(
-                allowed in relative_path for allowed in self.ALLOWLIST
-            )
+            is_allowlisted = relative_path in allowlist
 
             try:
                 with open(file_path, "r", encoding="utf-8") as f:
@@ -78,7 +76,7 @@ class LastUpdatedPlacementCheck(PolicyCheck):
             for line_num, line in enumerate(lines, start=1):
                 if self.LAST_UPDATED_PATTERN.search(line):
                     if not is_allowlisted:
-                        allowed = ', '.join(self.ALLOWLIST)
+                        allowed = ", ".join(sorted(allowlist)) or "none"
                         violations.append(
                             Violation(
                                 policy_id=self.policy_id,

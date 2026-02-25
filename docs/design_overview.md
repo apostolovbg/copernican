@@ -6,9 +6,9 @@ infrastructure, and the `engines/`, `models/` and `data/` directories plug into
 that foundation to deliver repeatable analyses.
 
 The `copernican_lib/cli/` namespace now houses the dependency scanner and menu
-renderers invoked by the launcher. Keeping those prompts in a dedicated
-package trims the startup import surface so users reach the Stage 1 seed dialog
-faster while retaining the existing logging, validation and manifest pipelines
+renderers invoked by the launcher. Keeping those prompts in a dedicated package
+trims the startup import surface so users reach the Stage 1 seed dialog faster
+while retaining the existing logging, validation and manifest pipelines
 described throughout this document.
 
 ## Architectural map
@@ -24,21 +24,20 @@ described throughout this document.
   posterior construction, validation checks, plotting helpers and diagnostics.
   Engines and parsers import from this package instead of reimplementing
   numerical plumbing. Shared progress helpers live in
-  `copernican_lib.progress`, along with the spinner pump, notifier bridge and
-  suspension context that keeps console output coherent even when diagnostics
-  print between walker updates. The helpers record the first render emitted by
-  each batch and always wipe the console line with a spacer on teardown so
-  captured transcripts never trap stale 0% bars.
+  `copernican_lib.progress`, which now exposes `BatchProgressBar`. The helper
+  writes simple counter lines such as “Burn-in stage batch 1: 3/200 steps
+  completed (1%)”, preserves the listener contract and exposes a no-op
+  suspension context so diagnostics can print between updates without the old
+  carriage-return renderer.
 * `engines/` contains back ends such as the default ``cosmo_engine_mcmc.py``.
   Engines consume `EnginePlugin` definitions, evaluate joint likelihoods
   spanning SNe Ia, BAO and CMB data and surface ArviZ-powered convergence
   diagnostics for downstream tooling. When ArviZ is unavailable the code falls
-  back to a conservative Gelman–Rubin summary while logging the downgrade.
-  CI runners that cannot call CAMB can opt into the ``COPERNICAN_FAKE_CMB``
+  back to a conservative Gelman–Rubin summary while logging the downgrade. CI
+  runners that cannot call CAMB can opt into the ``COPERNICAN_FAKE_CMB``
   shortcut while production evaluations still query the physics engine. Nested
-  sampling and ensemble MCMC both rely on the shared Stage 2 renderer so the
-  carriage-return bar, spinner and walker metrics stay consistent regardless of
-  backend.
+  sampling and ensemble MCMC both rely on the shared Stage 2 helper so the
+  counter lines and listener events stay consistent regardless of backend.
 * `models/` holds YAML descriptions that declare bounds, priors, transforms and
   dataset compatibility. Each file is compiled into a picklable
   :class:`copernican_lib.plugins.EnginePlugin` so multiprocessing pools can
@@ -103,9 +102,9 @@ Stage 1 focuses on reproducibility and validation:
   NumPy-ready callables through :mod:`copernican_lib.model_coder`. Engine
   plugins built with
   :func:`copernican_lib.engine_plugin_validation.build_plugin` collect bounds,
-  priors, transforms and optional CMB parameter mappings.
-  Validation errors are aggregated and displayed as bullet points before the
-  user is asked whether to restart Stage 1 or exit entirely.
+  priors, transforms and optional CMB parameter mappings. Validation errors are
+  aggregated and displayed as bullet points before the user is asked whether to
+  restart Stage 1 or exit entirely.
 * Engine selection is dynamic: any file matching `engines/cosmo_engine_*.py`
   appears in the menu. Prompts reflect the selected backend so ensemble MCMC
   users configure burn-in, walkers and worker pools while nested sampling users
@@ -123,15 +122,16 @@ and assembles the combined SNe, BAO and CMB likelihoods via
 :class:`copernican_lib.posterior.PosteriorEvaluator` so multiprocessing pools
 can reuse the same callable safely.
 
-The shared renderer in :mod:`copernican_lib.progress` keeps interactive output
-stable across engines. It paints a fifty-character carriage-return bar with
-Unicode sub-blocks, a walker-progress meter and an animated spinner. Updates
-flush on every write to keep terminals responsive, while a suspension context
-allows diagnostic messages to print without corrupting the bar. When a batch
-ends the renderer clears the line and inserts a spacer so transcripts never
-contain half-drawn bars. If ArviZ is installed the engine records R-hat and
-effective sample sizes for every parameter on each batch; otherwise it logs a
-conservative Gelman–Rubin fallback.
+The shared helper in :mod:`copernican_lib.progress` keeps interactive output
+stable across engines. It writes counter lines such as “Burn-in stage batch 1:
+3/200 steps completed (1%)”, emits the same ``batch_start``,
+``progress_update`` and ``batch_finish`` events that feed the GUI progress
+panels, and still offers a suspension context so diagnostics can print between
+updates without disrupting the counter output. When a batch ends it logs a
+completion line before the next batch begins, giving both terminals and log
+files a clear record of progress. If ArviZ is installed the engine records
+R-hat and effective sample sizes for every parameter on each batch; otherwise
+it logs a conservative Gelman–Rubin fallback.
 
 ### Stage 3–4 post-processing
 
@@ -146,11 +146,11 @@ remain explicit in manifests and plots.
 ### Stage 5 visualisation
 
 Stage 5 produces publication-ready figures. `copernican_lib.plotter` responds
-to the number of parameters by adjusting canvas size, font scale and
-corner-plot grid dimensions. Footer guard bands keep three lines of metadata
-clear of the axes: the model comparison, dataset description and citation.
-Footer spacing maintains both a fixed gap above the axes and a clearance above
-the canvas edge so long labels or future gravitational-wave annotations do not
+to the number of parameters by adjusting canvas size, font scale and corner-
+plot grid dimensions. Footer guard bands keep three lines of metadata clear of
+the axes: the model comparison, dataset description and citation. Footer
+spacing maintains both a fixed gap above the axes and a clearance above the
+canvas edge so long labels or future gravitational-wave annotations do not
 collide with data. The corner-plot validator thins samples when necessary,
 labels every parameter using the names stored on the plugin and exposes a
 legacy wrapper so older tooling can still import `_validate_corner_inputs`
@@ -208,8 +208,8 @@ during CI runs.
 
 `tools/update_lock.py` and the accompanying `make lock` target regenerate the
 pinned `requirements.lock` file using `pip-tools`, avoiding implicit Python
-version headers so CI runs remain deterministic. A small helper ensures
-`pip-tools==7.4.1` is available before the lock step executes, even in clean CI
+version headers so CI runs remain deterministic. A small helper ensures `pip-
+tools==7.4.1` is available before the lock step executes, even in clean CI
 environments. The packaging guide in `docs/packaging.md` details how to build
 wheels and source distributions while keeping runtime metadata aligned with the
 tracked version file.

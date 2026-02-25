@@ -294,7 +294,8 @@ if "%CHOICE%"=="1" (
     set COPERNICAN_DETACH_GUI=0
     echo Launching the Copernican GUI inline; close the window to return.
     "%GUI_BIN%" copernican.py --gui
-    goto :eof
+    echo Copernican GUI closed; returning to the launcher menu.
+    goto loop
 )
 if "%CHOICE%"=="2" (
     set COPERNICAN_STRICT_WARNINGS=%STRICT%

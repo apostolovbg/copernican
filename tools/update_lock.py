@@ -57,11 +57,11 @@ def _read_cached_input_hash(root: Path) -> str | None:
     return path.read_text(encoding="utf-8").strip()
 
 
-def _write_cached_input_hash(root: Path, value: str) -> None:
+def _write_cached_input_hash(root: Path, hash_digest: str) -> None:
     """Persist the current ``requirements.in`` hash for future runs."""
 
     _ensure_cache_dir(root)
-    _input_hash_path(root).write_text(value, encoding="utf-8")
+    _input_hash_path(root).write_text(hash_digest, encoding="utf-8")
 
 
 def _compute_requirements_hash(path: Path) -> str:

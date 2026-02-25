@@ -24,6 +24,8 @@ archivePrefix: arXiv
 primaryClass: astro-ph.CO
 arXiv: https://arxiv.org/abs/2311.12098
 url: https://arxiv.org/abs/2311.12098
+data_files:
+  - mu_mat_union3_cosmo=2_mu.fits
 notes: >-
   The parser now reads `mu_mat_union3_cosmo=2_mu.fits`, which contains the
   node redshifts in the first row, the compressed distance modulus column, and

@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.cache/
+*.log
+*.tmp
+*.bak
+.pytest_cache/
+devcovenant_check.log

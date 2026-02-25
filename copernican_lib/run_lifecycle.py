@@ -107,6 +107,17 @@ def finalize_run_workspace(
     new_folder = workspace.folder.parent / _workspace_folder_name(
         folder_prefix, start_timestamp
     )
+    if new_folder.exists():
+        suffix = 1
+        while True:
+            candidate = (
+                workspace.folder.parent
+                / f"{folder_prefix}_{start_timestamp}_{suffix:02d}"
+            )
+            if not candidate.exists():
+                new_folder = candidate
+                break
+            suffix += 1
     workspace.folder.rename(new_folder)
     final_manifest = new_folder / manifest_name
     return ManifestWorkspace(

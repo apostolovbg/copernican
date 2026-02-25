@@ -17,42 +17,48 @@ import inspect
 import json
 import logging
 import os
+import platform
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 import threading
 import time
+from collections import Counter
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import partial
+from html import escape
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Callable, Dict, Mapping, Optional
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence
 
-try:
-    import tkinter as tk
-    from tkinter import filedialog, messagebox, ttk
-except Exception:  # pragma: no cover - executed only when Tk is missing
-    tk = None
-    ttk = None
-    filedialog = None
-    messagebox = None
-
+import matplotlib.image as mpimage
 import yaml
+from matplotlib.figure import Figure
 
+import rng_minigames
 from copernican_lib import (
+    analysis,
     console_output,
     dataset_registry,
     logger,
+    model_spec_validator,
+    posterior_explorer,
     progress_state,
     run_manifest,
-    utils,
-    version,
 )
+from copernican_lib import settings as settings_mod
+from copernican_lib import utils
+from copernican_lib import validation as validation_utils
+from copernican_lib import version
 from copernican_lib.engine_capabilities import (
     EngineCapabilities,
+    EngineSetting,
     get_engine_capabilities,
 )
+from copernican_lib.gui.plot_viewer import PlotViewer
 from copernican_lib.run_lifecycle import (
     ManifestWorkspace,
     create_manifest_workspace,
@@ -60,26 +66,183 @@ from copernican_lib.run_lifecycle import (
     finalize_run_workspace,
 )
 
+try:
+    import tkinter as tkinter_module
+    from tkinter import filedialog as filedialog_module
+    from tkinter import messagebox as messagebox_module
+    from tkinter import ttk as ttk_module
+except Exception:  # pragma: no cover - executed only when Tk is missing
+    tkinter_module = None
+    ttk_module = None
+    filedialog_module = None
+    messagebox_module = None
+
+tk_gui = tkinter_module
+ttk = ttk_module
+filedialog = filedialog_module
+messagebox = messagebox_module
+
+if tk_gui is not None:
+    from copernican_lib.vendor.tkinterweb import HtmlFrame
+else:
+    HtmlFrame = None
+
+_KATEX_VERSION = "0.16.4"
+_EQUATION_EMPTY_BODY = (
+    "<p class='hint'>Select a model to preview its symbolic equations.</p>"
+)
+_EQUATION_WINDOW_SHIM = r"""
+  <script>
+    (function() {
+      const globalObj =
+        typeof globalThis !== "undefined" ? globalThis : this;
+      if (typeof window === "undefined") {
+        window = globalObj;
+      }
+      if (typeof document === "undefined") {
+        document = globalObj.document || {
+          createElement() {
+            const node = {
+              style: {},
+              appendChild() {},
+              removeChild() {},
+              setAttribute() {},
+              innerHTML: "",
+              className: "",
+            };
+            node.getBoundingClientRect = () => ({ width: 0, height: 0 });
+            return node;
+          },
+          body: {
+            appendChild() {},
+            removeChild() {},
+          },
+        };
+      }
+    })();
+  </script>"""
+
+_EQUATION_HTML_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/katex@{version}/dist/katex.min.css"
+  >
+{shim}
+  <style>
+    body {{
+      margin: 0;
+      padding: 12px;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      background-color: transparent;
+      color: #111;
+    }}
+    .model-name {{
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      word-break: break-word;
+    }}
+    .expressions {{
+      margin-top: 0.5rem;
+    }}
+    .expression-block {{
+      margin-bottom: 0.95rem;
+    }}
+    .expression-title {{
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 0.18rem;
+      word-break: break-word;
+    }}
+    .equation {{
+      min-height: 1.4em;
+      width: 100%;
+      word-break: break-word;
+      white-space: normal;
+    }}
+    .hint {{
+      color: #666;
+      font-style: italic;
+      margin-top: 0.5rem;
+    }}
+  </style>
+</head>
+<body>
+  <div class="model-name">{model_name}</div>
+  <div class="expressions">
+    {expressions}
+  </div>
+  <script
+    defer
+    src="https://cdn.jsdelivr.net/npm/katex@{version}/dist/katex.min.js"
+  ></script>
+  <script defer>
+    (() => {{
+      const containers = document.querySelectorAll(".equation");
+      const fit = node => {{
+        let size = parseFloat(getComputedStyle(node).fontSize) || 18;
+        while (node.scrollWidth > node.clientWidth && size > 10) {{
+          size -= 1;
+          node.style.fontSize = size + "px";
+        }}
+      }};
+      const render = () => {{
+        containers.forEach(node => {{
+          const latex = node.getAttribute("data-latex") || "";
+          if (window.katex) {{
+            try {{
+              katex.render(
+                latex,
+                node,
+                {{ throwOnError: false, displayMode: true }},
+              );
+            }} catch (_error) {{
+              node.textContent = latex;
+            }}
+          }} else {{
+            node.textContent = latex;
+          }}
+          fit(node);
+        }});
+      }};
+      window.addEventListener("load", render);
+      window.addEventListener("resize", () => {{
+        containers.forEach(node => {{
+          node.style.fontSize = "";
+          fit(node);
+        }});
+      }});
+    }})();
+  </script>
+</body>
+</html>"""
 log_mod = logger
 
-_PROGRESS_SPINNER_CHARS = frozenset("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
-_NAV_PANE_WIDTH = 240
+_NAV_PANE_WIDTH = 140
 _LOGO_PADDING = 12
 _LOGO_SIDE = _NAV_PANE_WIDTH // 4
+_ENGINE_SETTING_LIMITS: dict[str, dict[str, dict[str, float | int | str]]] = {
+    "engines.cosmo_engine_mcmc": {
+        "n_steps": {"min": 1, "max": 500_000},
+        "burn_in_steps": {"min": 0, "max": 100_000},
+        "n_walkers": {"min": 1, "max": 10_000},
+        "pool_size": {"min": 1, "max": "cpu"},
+    },
+    "engines.cosmo_engine_nested": {
+        "n_live_points": {"min": 1, "max": 20_000},
+        "max_iterations": {"min": 1, "max": 1_000_000},
+        "evidence_tolerance": {"min": 1e-6, "max": 1.0},
+        "enlargement_fraction": {"min": 0.1, "max": 10.0},
+    },
+}
 
-
-def _is_progress_line(line: str) -> bool:
-    """Return True for stdout lines that stream the CLI progress bar."""
-
-    stripped = line.strip()
-    if not stripped:
-        return True
-    lower = stripped.lower()
-    if "progress:" in lower and "batch" in lower:
-        return True
-    if any(char in stripped for char in _PROGRESS_SPINNER_CHARS):
-        return True
-    return False
+_HELP_PAGES = [
+    {"id": "gui", "label": "GUI guide", "path": "docs/gui_guide.md"},
+    {"id": "cli", "label": "CLI guide", "path": "docs/cli_guide.md"},
+]
 
 
 class RunStatus(Enum):
@@ -99,7 +262,7 @@ class RunDraft:
 
     seed: str = ""
     model: str = ""
-    data: str = ""
+    dataset: str = ""
     engine: str = ""
     plan: str = ""
     notes: str = ""
@@ -153,6 +316,7 @@ class _MemoryLogHandler(logging.Handler):
     """Capture structured log lines for on-screen diagnostics."""
 
     def __init__(self, *, prefix: str) -> None:
+        """Initialize the handler and store the log anchor prefix."""
         super().__init__(level=logging.INFO)
         self.prefix = prefix
         self.entries: list[LogEntry] = []
@@ -195,13 +359,15 @@ class CopernicanGUI:
     """
 
     nav_items: list[NavigationItem]
+    _CONFIRM_STEP_NAME = "Confirm"
+    _CONFIRM_HEADER_TEXT = "Confirm and start"
     builder_steps: list[str] = [
         "Seed",
         "Models",
         "Data",
         "Engine",
-        "Save Manifest",
-        "Confirm",
+        "Manifest",
+        _CONFIRM_STEP_NAME,
     ]
     _TEMP_MANIFEST_FOLDER = "copernican_run_NEW_CONFIG"
     _TEMP_MANIFEST_FILE = "run_manifest_NEW_CONFIG.yml"
@@ -219,6 +385,9 @@ class CopernicanGUI:
     _MANIFEST_REQUIRED_MESSAGE = (
         "Save the manifest before advancing to confirmation."
     )
+    _MANIFEST_REMINDER_MESSAGE = (
+        "To start a run, you need to save the manifest."
+    )
     _PROGRESS_POLL_INTERVAL = 0.5
     severity_order: dict[str, int] = {
         "DEBUG": 0,
@@ -229,10 +398,11 @@ class CopernicanGUI:
     }
 
     def __init__(self, render: bool = True) -> None:
-        self.render = render and tk is not None
-        self.root: Optional[tk.Tk] = None
-        self.frames: Dict[str, tk.Frame] = {}
-        self.content_area: Optional[tk.Frame] = None
+        """Initialize GUI state, frames and backend selectors."""
+        self.render = render and tk_gui is not None
+        self.root: Optional[tkinter_module.Tk] = None
+        self.frames: Dict[str, tkinter_module.Frame] = {}
+        self.content_area: Optional[tkinter_module.Frame] = None
         self.status: RunStatus = RunStatus.IDLE
         self.recent_runs: list[str] = []
         self.pinned_configs: list[str] = []
@@ -251,10 +421,23 @@ class CopernicanGUI:
         self.current_phase = "Idle"
         self.selected_models: list[str] = []
         self.selected_engine: str = ""
+        self.selected_engine_kind: str = "mcmc"
         self._selected_model_entry: dict | None = None
         self._selected_engine_entry: dict | None = None
+        self._equation_html_frame: HtmlFrame | None = None
+        self._equations_window: tkinter_module.Toplevel | None = None
+        self._equations_text_widget: tkinter_module.Text | None = None
         self.engine_capabilities: EngineCapabilities | None = None
+        self._engine_setting_vars: dict[str, tkinter_module.Variable] = {}
+        self._engine_setting_specs: dict[str, EngineSetting] = {}
+        self._engine_run_settings_frame: ttk_module.LabelFrame | None = None
+        self._current_engine_module: str | None = None
         self.selected_datasets: list[dict[str, str]] = []
+        self.help_page_index = 0
+        self._current_help_page_id = _HELP_PAGES[0]["id"]
+        self._help_page_buttons: dict[str, ttk_module.Button] = {}
+        self._help_text_widget: tkinter_module.Text | None = None
+        self._help_title_label: ttk_module.Label | None = None
         self.pending_manifest: Optional[dict] = None
         self.manifest_workspace: ManifestWorkspace | None = None
         self._staged_confirm_manifest: Optional[dict] = None
@@ -275,54 +458,270 @@ class CopernicanGUI:
         self.diagnostics_filter_level = "INFO"
         self.monitor_filter_level = "INFO"
         self.diagnostics_clipboard = ""
+        self._minigame_catalog = rng_minigames.load_registry()
         self.run_clipboard = ""
         self.alerts: list[UIMessage] = []
         self.inline_messages: list[UIMessage] = []
         self.last_log_jump: str | None = None
         self._run_process: subprocess.Popen[str] | None = None
         self._run_config_path: str | None = None
-        self._status_label: ttk.Label | None = None
+        self._status_label: ttk_module.Label | None = None
         self._progress_state_path: str | None = None
         self._progress_snapshot: dict | None = None
         self._progress_poll_thread: threading.Thread | None = None
         self._progress_poll_stop: threading.Event | None = None
         self._monitor_refresh_job: str | None = None
-        self._progress_status_label: ttk.Label | None = None
-        self._batch_progressbar: ttk.Progressbar | None = None
-        self._walker_progressbar: ttk.Progressbar | None = None
-        self._monitor_log_widget: tk.Text | None = None
-        self._monitor_filter_label: ttk.Label | None = None
-        self._monitor_log_view_button: ttk.Button | None = None
-        self._monitor_log_open_button: ttk.Button | None = None
-        self._monitor_control_buttons: list[ttk.Button] = []
+        self._progress_status_label: ttk_module.Label | None = None
+        self._batch_progressbar: ttk_module.Progressbar | None = None
+        self._walker_progressbar: ttk_module.Progressbar | None = None
+        self._monitor_log_widget: tkinter_module.Text | None = None
+        self._monitor_filter_label: ttk_module.Label | None = None
+        self._monitor_log_view_button: ttk_module.Button | None = None
+        self._monitor_log_open_button: ttk_module.Button | None = None
+        self._monitor_log_lock_var: tkinter_module.BooleanVar | None = None
+        self._monitor_control_buttons: list[ttk_module.Button] = []
         self._monitor_button_style_name = "Copernican.RunControl.TButton"
         self._monitor_button_style_ready = False
-        self._diagnostics_log_widget: tk.Text | None = None
-        self._diagnostics_filter_label: ttk.Label | None = None
-        self._cancel_button: ttk.Button | None = None
-        self._pause_button: ttk.Button | None = None
-        self._hard_stop_button: ttk.Button | None = None
-        self._run_output_button: ttk.Button | None = None
-        self.logo_image: tk.PhotoImage | None = None
+        self._validation_progress_status_label: ttk_module.Label | None = None
+        self._validation_batch_progressbar: ttk_module.Progressbar | None = (
+            None
+        )
+        self._validation_walker_progressbar: ttk_module.Progressbar | None = (
+            None
+        )
+        self._validation_progress_env_backup: str | None = None
+        self._diagnostics_log_widget: tkinter_module.Text | None = None
+        self._validation_status_label: ttk_module.Label | None = None
+        self._validation_text_widget: tkinter_module.Text | None = None
+        self._validation_log_lock_var: tkinter_module.BooleanVar | None = None
+        self._validation_button: ttk_module.Button | None = None
+        self._validation_cancel_button: ttk_module.Button | None = None
+        self._validation_clear_button: ttk_module.Button | None = None
+        self._validation_process: subprocess.Popen[str] | None = None
+        self._validation_stdout_thread: threading.Thread | None = None
+        self._validation_running = False
+        self._validation_status_base = "Status: idle"
+        self._validation_log_lines: list[str] = []
+        self._validation_last_stage_label: str | None = None
+        self._diagnostics_filter_label: ttk_module.Label | None = None
+        self._cancel_button: ttk_module.Button | None = None
+        self._pause_button: ttk_module.Button | None = None
+        self._hard_stop_button: ttk_module.Button | None = None
+        self._run_output_button: ttk_module.Button | None = None
+        self.logo_image: tkinter_module.PhotoImage | None = None
+        self._status_bar_frame: ttk_module.Frame | None = None
+        self._brand_status_label: ttk_module.Label | None = None
+        self._environment_status_label: ttk_module.Label | None = None
+        self._settings_sections = [
+            {
+                "id": "logs",
+                "label": "Logging",
+                "description": (
+                    "Control the diagnostics archive retention count and "
+                    "severity threshold while mirroring console output into "
+                    "the log before pruning old files."
+                ),
+                "builder": self._build_settings_logs_page,
+            },
+            {
+                "id": "datasets",
+                "label": "Datasets",
+                "description": (
+                    "Toggle automatic discovery, manage dataset hash caching "
+                    "and recalculate digests on demand to keep the catalogue "
+                    "aligned with the registered parsers."
+                ),
+                "builder": self._build_settings_datasets_page,
+            },
+            {
+                "id": "gui",
+                "label": "GUI",
+                "description": (
+                    "Adjust detachment, managed environment requirements and "
+                    "the environment hints shown in the status bar."
+                ),
+                "builder": self._build_settings_gui_page,
+            },
+            {
+                "id": "tools",
+                "label": "Tools",
+                "description": (
+                    "Run cache rebuilds, parser revalidation or reset the Run "
+                    "Builder workspace without leaving the settings screen."
+                ),
+                "builder": self._build_settings_tools_page,
+            },
+        ]
+        self._analysis_sections = [
+            {
+                "id": "run_summary",
+                "label": "Run Summary",
+                "description": (
+                    "Select an existing output folder, inspect the summary "
+                    "metadata and load diagnostics/χ² breakdowns without "
+                    "replaying the CLI log."
+                ),
+                "builder": self._build_analysis_run_summary_page,
+                "actions": [
+                    {
+                        "label": "Reload summary",
+                        "command": self._load_analysis_summary,
+                    },
+                    {
+                        "label": "Export summary",
+                        "command": self._export_analysis_summary,
+                    },
+                    {
+                        "label": "Copy JSON",
+                        "command": self._copy_analysis_summary_to_clipboard,
+                    },
+                ],
+            },
+            {
+                "id": "diagnostics",
+                "label": "Diagnostics",
+                "description": (
+                    "Diagnostics explorers and runtime alerts will surface "
+                    "here once implemented."
+                ),
+                "builder": lambda frame: self._build_analysis_placeholder_page(
+                    frame, "Diagnostics"
+                ),
+                "actions": [
+                    {
+                        "label": "1",
+                        "command": self._analysis_placeholder_action,
+                    },
+                    {
+                        "label": "2",
+                        "command": self._analysis_placeholder_action,
+                    },
+                    {
+                        "label": "3",
+                        "command": self._analysis_placeholder_action,
+                    },
+                ],
+            },
+            {
+                "id": "posteriors",
+                "label": "Posteriors",
+                "description": (
+                    "Posterior explorers, plots and trace analysis will "
+                    "appear here in future phases."
+                ),
+                "builder": self._build_analysis_posterior_page,
+                "actions": [
+                    {
+                        "label": "Refresh files",
+                        "command": self._refresh_analysis_posterior_list,
+                    },
+                    {
+                        "label": "Fit to screen",
+                        "command": self._analysis_fit_posterior_to_screen,
+                    },
+                    {
+                        "label": "Toggle zoom",
+                        "command": self._analysis_toggle_posterior_zoom,
+                    },
+                ],
+            },
+            {
+                "id": "comparisons",
+                "label": "Comparisons",
+                "description": (
+                    "Compare two run directories side by side "
+                    "to see Δχ², parameter shifts and dataset counts."
+                ),
+                "builder": self._build_analysis_comparison_page,
+                "actions": [
+                    {
+                        "label": "Refresh diff",
+                        "command": self._analysis_compare_runs,
+                    },
+                    {
+                        "label": "Export summary",
+                        "command": self._export_analysis_comparison,
+                    },
+                    {
+                        "label": "Copy JSON",
+                        "command": self._copy_analysis_comparison_to_clipboard,
+                    },
+                ],
+            },
+        ]
+        self._analysis_current_index = 0
+        self._analysis_section_buttons: list[ttk_module.Button] = []
+        self._analysis_action_buttons: list[ttk_module.Button] = []
+        self._analysis_header_label: ttk_module.Label | None = None
+        self._analysis_description_label: ttk_module.Label | None = None
+        self._analysis_page_body: ttk_module.Frame | None = None
+        self._analysis_run_path_var: tkinter_module.StringVar | None = None
+        self._analysis_summary_status_label: ttk_module.Label | None = None
+        self._analysis_summary_text_widget: tkinter_module.Text | None = None
+        self._analysis_summary_result: analysis.RunAnalysisResult | None = None
+        self._analysis_comparison_base_var: tkinter_module.StringVar | None = (
+            None
+        )
+        self._analysis_comparison_alt_var: tkinter_module.StringVar | None = (
+            None
+        )
+        self._analysis_comparison_text_widget: tkinter_module.Text | None = (
+            None
+        )
+        self._analysis_comparison_status_label: ttk_module.Label | None = None
+        self._analysis_comparison_result: dict[str, Any] | None = None
+        self._analysis_comparison_pair: (
+            tuple[analysis.RunAnalysisResult, analysis.RunAnalysisResult]
+            | None
+        ) = None
+        self._analysis_posterior_files: list[Path] = []
+        self._analysis_posterior_file_var: tkinter_module.StringVar | None = (
+            None
+        )
+        self._analysis_posterior_combobox: ttk_module.Combobox | None = None
+        self._analysis_plot_viewer: PlotViewer | None = None
+        self._analysis_posterior_status_label: ttk_module.Label | None = None
+        self._analysis_current_posterior_path: Path | None = None
+        self._analysis_corner_files: list[Path] = []
+        self._analysis_histogram_files: list[Path] = []
+        self._settings_section_buttons: list[ttk_module.Button] = []
+        self._settings_current_index = 0
+        self._settings_header_label: ttk_module.Label | None = None
+        self._settings_description_label: ttk_module.Label | None = None
+        self._settings_page_body: ttk_module.Frame | None = None
+        self._settings_defaults_button: ttk_module.Button | None = None
+        self._settings_cancel_button: ttk_module.Button | None = None
+        self._settings_save_button: ttk_module.Button | None = None
+        self._settings_dirty = False
+        self._suppress_setting_events = False
+        self._saved_settings = copy.deepcopy(settings_mod.get_settings())
+        self._pending_settings = copy.deepcopy(self._saved_settings)
+        self._settings_vars: dict[str, dict[str, tkinter_module.Variable]] = {}
         self._bootstrap_logging()
         self._build_navigation()
         self._initialise_rendering()
         self.refresh_inventory()
+        console_output.write("GUI: inventory refreshed and navigation ready.")
         self.help_banner_image = None
         self._load_saved_manifest_workspace()
+        self._builder_step_buttons: list[ttk_module.Button] = []
 
     def _bootstrap_logging(self) -> None:
         """Start the diagnostics log and capture environment details."""
 
-        base_dir = os.getcwd()
-        self.application_log_path = logger.setup_program_logging(
-            log_dir="logs",
-            base_dir=base_dir,
-        )
         program_logger = logger.get_program_logger()
+        if not log_mod.get_program_log_path():
+            log_mod.setup_program_logging(
+                log_dir=str(self._repo_root() / "logs"),
+                base_dir=str(self._repo_root()),
+            )
+        self.application_log_path = log_mod.get_program_log_path() or ""
         self.application_log_handler = _MemoryLogHandler(prefix="app")
         self._attach_handler(program_logger, self.application_log_handler)
-        logger.log_environment_info(target_logger=program_logger)
+        logger.log_environment_info(
+            target_logger=program_logger,
+            console=False,
+        )
         self._log_program_event(
             "GUI launch completed; diagnostics stream active",
             logging.INFO,
@@ -333,9 +732,9 @@ class CopernicanGUI:
 
         if self._monitor_button_style_ready:
             return
-        if not self.render or ttk is None or self.root is None:
+        if not self.render or ttk_module is None or self.root is None:
             return
-        style = ttk.Style(self.root)
+        style = ttk_module.Style(self.root)
         style.configure(self._monitor_button_style_name)
         style.map(
             self._monitor_button_style_name,
@@ -352,6 +751,22 @@ class CopernicanGUI:
         if self._monitor_button_style_ready:
             return {"style": self._monitor_button_style_name}
         return {}
+
+    def _page_header(
+        self,
+        frame: tkinter_module.Frame,
+        title: str,
+    ) -> ttk_module.Label:
+        """Render a standard page header label."""
+
+        label = ttk_module.Label(
+            frame,
+            text=title,
+            font=("Helvetica", 16),
+            takefocus=True,
+        )
+        label.pack(anchor="w", pady=(0, 8))
+        return label
 
     def _attach_handler(
         self, logger_obj: logging.Logger, handler: _MemoryLogHandler
@@ -411,25 +826,19 @@ class CopernicanGUI:
     def _start_run_logging(self, manifest: dict) -> None:
         """Initialise run-level logging after confirmation."""
 
-        os.makedirs("logs/runs", exist_ok=True)
         log_tag = f"copernican-run_{utils.get_timestamp()}.txt"
-        self.run_log_path = os.path.join("logs", "runs", log_tag)
+        self.run_logger, self.run_log_path = logger.setup_monitor_logging(
+            log_dir="logs/runs",
+            log_tag=log_tag,
+        )
         self._current_run_output_dir = os.path.join(
             "output", Path(log_tag).stem
         )
-        self.run_logger = logging.getLogger("copernican.gui.run")
-        self.run_logger.setLevel(logging.INFO)
-        self.run_logger.propagate = False
-        for handler in list(self.run_logger.handlers):
-            self.run_logger.removeHandler(handler)
-        file_handler = logging.FileHandler(self.run_log_path)
+        self.run_log_handler = _MemoryLogHandler(prefix="run")
         formatter = logging.Formatter(
             "%(asctime)s - %(levelname)s - %(message)s"
         )
         formatter.converter = time.gmtime
-        file_handler.setFormatter(formatter)
-        self.run_logger.addHandler(file_handler)
-        self.run_log_handler = _MemoryLogHandler(prefix="run")
         self.run_log_handler.setFormatter(formatter)
         self._attach_handler(self.run_logger, self.run_log_handler)
         selection = manifest.get("selection", {})
@@ -492,20 +901,24 @@ class CopernicanGUI:
         """Update the severity filter applied in Diagnostics."""
 
         self.diagnostics_filter_level = severity.upper()
-        if self._diagnostics_filter_label:
+        if self._widget_is_alive(self._diagnostics_filter_label):
             self._diagnostics_filter_label.configure(
                 text=f"Filter: {self.diagnostics_filter_level}+"
             )
+        else:
+            self._diagnostics_filter_label = None
         self._refresh_diagnostics_widget()
 
     def set_monitor_filter(self, severity: str) -> None:
         """Update the Run Monitor severity filter."""
 
         self.monitor_filter_level = severity.upper()
-        if self._monitor_filter_label:
+        if self._widget_is_alive(self._monitor_filter_label):
             self._monitor_filter_label.configure(
                 text=f"Filter: {self.monitor_filter_level}+"
             )
+        else:
+            self._monitor_filter_label = None
         self._refresh_run_log_widget()
 
     def copy_application_logs(self) -> str:
@@ -597,12 +1010,22 @@ class CopernicanGUI:
             )
             return
         try:
-            self.root = tk.Tk()
+            self.root = tkinter_module.Tk()
             self.root.title(f"Copernican Suite {self.gui_version}")
-            self.root.geometry("1200x800")
-            self.root.configure(padx=12, pady=12)
+            screen_width = max(self.root.winfo_screenwidth(), 1)
+            screen_height = max(self.root.winfo_screenheight(), 1)
+            preferred_width, preferred_height = (
+                (1200, 900)
+                if screen_width > 1280 and screen_height > 900
+                else (1100, 670)
+            )
+            self.root.geometry(f"{preferred_width}x{preferred_height}")
+            self.root.minsize(width=900, height=670)
+            self.root.configure(padx=0, pady=0)
             self._ensure_monitor_button_styles()
             self._build_layout()
+            if self.root is not None:
+                self.root.after(10, self._raise_root_window)
         except Exception as exc:  # pragma: no cover - only hits Tk failures
             console_output.write(
                 (
@@ -628,6 +1051,23 @@ class CopernicanGUI:
                 )
             except Exception:
                 pass
+
+    def _raise_root_window(self) -> None:
+        """Bring the GUI window to the foreground when it launches."""
+
+        if not self.render or self.root is None:
+            return
+        try:
+            self.root.deiconify()
+            self.root.lift()
+            self.root.focus_force()
+            self.root.attributes("-topmost", True)
+            self.root.after(
+                1500,
+                lambda: self.root and self.root.attributes("-topmost", False),
+            )
+        except Exception:
+            pass
 
     def _data_root(self) -> str:
         """Return the absolute data directory used for catalogue scans.
@@ -672,24 +1112,13 @@ class CopernicanGUI:
             return None
         return str(candidates[0])
 
-    def _collect_dataset_hashes(self, data_dir: str) -> dict[str, str]:
-        """Compute SHA256 digests for non-parser files under ``data_dir``.
+    def _collect_dataset_hashes(
+        self, data_dir: str, metadata: dict
+    ) -> dict[str, str]:
+        """Mirror the CLI hashing rules so the catalogue lists identical
+        digests."""
 
-        The manifest builder expects per-file hashes so duplicated runs can
-        prove they consumed identical inputs.  The GUI mirrors
-        :func:`dataset_registry._attach_file_hashes` here so the catalogue view
-        can surface the same digests without forcing a full data load.
-        """
-
-        hashes: dict[str, str] = {}
-        for root, _, files in os.walk(data_dir):
-            for fname in sorted(files):
-                if fname.endswith(".py"):
-                    continue
-                path = os.path.join(root, fname)
-                rel = os.path.relpath(path, data_dir)
-                hashes[rel] = utils.compute_sha256(path)
-        return hashes
+        return dataset_registry.collect_dataset_hashes(data_dir, metadata)
 
     def _compatibility_badges(self, dataset_key: str, meta: dict) -> list[str]:
         """Return badges describing dataset compatibility and claims.
@@ -709,7 +1138,9 @@ class CopernicanGUI:
             badges.append(str(meta.get("version")))
         return badges
 
-    def _discover_dataset_catalogue(self) -> dict[str, dict]:
+    def _discover_dataset_catalogue(
+        self, force_discovery: bool = False
+    ) -> dict[str, dict]:
         """Return dataset metadata indexed by dataset identifier.
 
         Discovery defers to :func:`dataset_registry.discover_trusted_parsers`
@@ -718,7 +1149,10 @@ class CopernicanGUI:
         compatibility badges for the detail panes.
         """
 
-        dataset_registry.discover_trusted_parsers(self._data_root())
+        dataset_registry.discover_trusted_parsers(
+            self._data_root(),
+            force=force_discovery,
+        )
         catalogue: dict[str, dict] = {}
         registries = dataset_registry.get_parser_registries()
         for dtype, registry in registries.items():
@@ -778,7 +1212,7 @@ class CopernicanGUI:
                     "parser_digest": parser_digest,
                     "expected_digest": expected_digest,
                     "parser_trusted": parser_trusted,
-                    "hashes": self._collect_dataset_hashes(data_dir),
+                    "hashes": self._collect_dataset_hashes(data_dir, meta),
                     "badges": self._compatibility_badges(dtype, meta),
                     "independence": independence_notes,
                 }
@@ -828,6 +1262,7 @@ class CopernicanGUI:
                 "badges": badges,
                 "hash": utils.compute_sha256(str(path)),
                 "parameter_count": len(parameters),
+                "metadata": meta,
             }
         return models
 
@@ -865,7 +1300,7 @@ class CopernicanGUI:
             }
         return engines
 
-    def refresh_inventory(self) -> None:
+    def refresh_inventory(self, force_discovery: bool = False) -> None:
         """Refresh catalogue, model and engine metadata for list views.
 
         The method runs at startup and when panels request a revalidation.  It
@@ -875,9 +1310,74 @@ class CopernicanGUI:
         """
 
         self.validation_notes = []
-        self.catalogue_index = self._discover_dataset_catalogue()
+        self.catalogue_index = self._discover_dataset_catalogue(
+            force_discovery=force_discovery
+        )
         self.model_index = self._discover_model_library()
         self.engine_index = self._discover_engine_library()
+
+    def _catalogue_health_summary(self) -> dict[str, object]:
+        """Return dataset, trust and filter metadata for the Home dashboard."""
+
+        datasets = list(self.catalogue_index.values())
+        type_counter = Counter(
+            (entry.get("type") or "unknown").upper() for entry in datasets
+        )
+        untrusted = [
+            {
+                "id": entry.get("id", ""),
+                "type": entry.get("type", "unknown"),
+                "name": entry.get("name", entry.get("id", "")),
+            }
+            for entry in datasets
+            if not entry.get("parser_trusted", True)
+        ]
+        return {
+            "dataset_count": len(datasets),
+            "type_counter": type_counter,
+            "untrusted": untrusted,
+            "notes": self.validation_notes[:3],
+        }
+
+    def _model_engine_health_summary(self) -> dict[str, object]:
+        """Return compatibility and version health for models and engines."""
+
+        model_badges = Counter()
+        stale_models: list[tuple[str, str]] = []
+        for entry in self.model_index.values():
+            for badge in entry.get("badges", []):
+                model_badges[badge.upper()] += 1
+            version_label = (entry.get("version") or "").lower()
+            if not version_label or version_label in {
+                "unknown",
+                "unavailable",
+            }:
+                stale_models.append(
+                    (
+                        entry.get("id") or entry.get("filename", "model"),
+                        "missing",
+                    )
+                )
+        stale_engines: list[tuple[str, str]] = []
+        for entry in self.engine_index.values():
+            version_label = (entry.get("version") or "").lower()
+            if not version_label or version_label in {
+                "unknown",
+                "unavailable",
+            }:
+                stale_engines.append(
+                    (
+                        entry.get("label") or entry.get("id", "engine"),
+                        "missing",
+                    )
+                )
+        return {
+            "model_count": len(self.model_index),
+            "engine_count": len(self.engine_index),
+            "model_badges": model_badges,
+            "stale_models": stale_models,
+            "stale_engines": stale_engines,
+        }
 
     def filter_catalogue(self, types: list[str] | None = None) -> list[dict]:
         """Return datasets matching ``types`` while recording the filter."""
@@ -893,6 +1393,12 @@ class CopernicanGUI:
             for entry in self.catalogue_index.values()
             if entry.get("type", "").lower() in resolved
         ]
+
+    def _show_data_with_filter(self, dataset_types: list[str]) -> None:
+        """Filter the catalogue and open the Data tab."""
+
+        self.filter_catalogue(dataset_types)
+        self.show_data_overview()
 
     def open_folder(self, path: str) -> str:
         """Return ``path`` after confirming it exists for quick actions."""
@@ -946,6 +1452,42 @@ class CopernicanGUI:
                 f"Unable to open folder {path}: {exc}", error=True
             )
 
+    def _launch_minigame(
+        self, minigame_id: str, seed_var: "tkinter_module.StringVar"
+    ) -> None:
+        """Import and launch a mini-game on-demand."""
+
+        try:
+            launcher = rng_minigames.load_launcher(minigame_id)
+        except KeyError:
+            self.create_toast(
+                f"Unknown mini-game '{minigame_id}'.",
+                severity="ERROR",
+                context="seed",
+            )
+            return
+        except Exception as exc:  # pragma: no cover - import failure path
+            log_mod.error(
+                "Failed to import mini-game %s: %s",
+                minigame_id,
+                exc,
+            )
+            self.create_toast(
+                f"Could not load mini-game: {exc}",
+                severity="ERROR",
+                context="seed",
+            )
+            return
+        context = rng_minigames.MinigameContext(
+            set_seed=lambda value: seed_var.set(value),
+            notify=lambda msg, severity="INFO": self.create_toast(
+                msg, severity=severity, context="seed"
+            ),
+            render=self.render,
+            tk_root=self.root,
+        )
+        launcher(context)
+
     def open_output_directory(self) -> str:
         """Ensure the output directory exists and open it for the user."""
 
@@ -974,7 +1516,7 @@ class CopernicanGUI:
         if not self.render or self.root is None:
             console_output.write(f"{title}:\n{content}")
             return
-        window = tk.Toplevel(self.root)
+        window = tkinter_module.Toplevel(self.root)
         window.title(title)
         window.transient(self.root)
         raw_lines = content.splitlines() or [""]
@@ -998,43 +1540,58 @@ class CopernicanGUI:
         if resizable_vertical:
             min_height = min_lines * line_height + chrome_height
             window.minsize(width=initial_width, height=min_height)
-        container = ttk.Frame(window, padding=(8, 6))
+        container = ttk_module.Frame(window, padding=(8, 6))
         container.pack(fill="both", expand=True)
         window.columnconfigure(0, weight=1)
         window.rowconfigure(0, weight=1)
         container.columnconfigure(0, weight=1)
         container.rowconfigure(0, weight=1)
-        text = tk.Text(container, wrap="word", height=display_lines or 1)
+        text = tkinter_module.Text(
+            container,
+            wrap="word",
+            height=display_lines or 1,
+        )
         text.insert("1.0", content)
         text.configure(state="disabled")
         text.grid(row=0, column=0, sticky="nsew")
-        scrollbar = ttk.Scrollbar(
+        scrollbar = ttk_module.Scrollbar(
             container, orient="vertical", command=text.yview
         )
         text.configure(yscrollcommand=scrollbar.set)
         scrollbar.grid(row=0, column=1, sticky="ns")
-        buttons = ttk.Frame(container)
+        buttons = ttk_module.Frame(container)
         buttons.grid(row=1, column=0, columnspan=2, pady=(8, 8))
-        ttk.Button(buttons, text="Close", command=window.destroy).pack(
-            side="left", padx=4
+        close_button = ttk_module.Button(
+            buttons,
+            text="Close",
+            command=window.destroy,
         )
+        close_button.pack(side="left", padx=4)
         if source_path:
-            ttk.Button(
+            ttk_module.Button(
                 buttons,
                 text="Open file…",
                 command=lambda: self._open_path_with_system(source_path),
             ).pack(side="left", padx=4)
 
-    def _create_scrollable_panel(self, parent: tk.Frame) -> tk.Frame:
+    def _create_scrollable_panel(
+        self, parent: tkinter_module.Frame, *, height: int | None = None
+    ) -> tkinter_module.Frame:
         """Return a frame that scrolls vertically with the given parent."""
 
-        container = ttk.Frame(parent)
+        container = ttk_module.Frame(parent)
         container.pack(fill="both", expand=True)
-        canvas = tk.Canvas(container, borderwidth=0, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(
+        canvas_kwargs: dict[str, int | str] = {
+            "borderwidth": 0,
+            "highlightthickness": 0,
+        }
+        if height is not None:
+            canvas_kwargs["height"] = height
+        canvas = tkinter_module.Canvas(container, **canvas_kwargs)
+        scrollbar = ttk_module.Scrollbar(
             container, orient="vertical", command=canvas.yview
         )
-        inner_frame = ttk.Frame(canvas)
+        inner_frame = ttk_module.Frame(canvas)
         canvas.create_window((0, 0), window=inner_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
         inner_frame.bind(
@@ -1097,6 +1654,9 @@ class CopernicanGUI:
         """Run parser trust validation and share the result."""
 
         try:
+            console_output.write(
+                f"GUI: revalidation requested for dataset {dataset_id}."
+            )
             record = self.revalidate_dataset(dataset_id)
         except KeyError as exc:
             self.create_toast(
@@ -1116,7 +1676,11 @@ class CopernicanGUI:
     def _load_help_banner(self) -> None:
         """Load the README banner image for the Help panel."""
 
-        if self.help_banner_image is not None or not self.render or tk is None:
+        if (
+            self.help_banner_image is not None
+            or not self.render
+            or tk_gui is None
+        ):
             return
         banner_path = (
             Path(__file__).resolve().parents[2] / "docs" / "banner_github.png"
@@ -1124,7 +1688,9 @@ class CopernicanGUI:
         if not banner_path.exists():
             return
         try:
-            self.help_banner_image = tk.PhotoImage(file=str(banner_path))
+            self.help_banner_image = tkinter_module.PhotoImage(
+                file=str(banner_path)
+            )
         except Exception as exc:
             logger.get_program_logger().warning(
                 "Failed to load help banner image: %s", exc
@@ -1139,46 +1705,58 @@ class CopernicanGUI:
     def _load_logo_image(self) -> None:
         """Load the navigation logo when rendering is enabled."""
 
-        if self.logo_image is not None or not self.render or tk is None:
+        if self.logo_image is not None or not self.render or tk_gui is None:
             return
         logo_path = self._logo_image_path()
         if not logo_path.exists():
             return
         try:
-            self.logo_image = tk.PhotoImage(file=str(logo_path))
+            self.logo_image = tkinter_module.PhotoImage(file=str(logo_path))
         except Exception as exc:
             logger.get_program_logger().warning(
                 "Failed to load navigation logo: %s", exc
             )
 
-    def _build_navigation_logo(self, nav_frame: tk.Frame) -> None:
+    def _build_navigation_logo(self, nav_frame: tkinter_module.Frame) -> None:
         """Add the padded logo square above the navigation buttons."""
 
-        if not self.render or tk is None:
+        if not self.render or tk_gui is None:
             return
         self._load_logo_image()
-        logo_holder = ttk.Frame(nav_frame)
-        logo_holder.pack(fill="x", pady=(0, _LOGO_PADDING))
+        logo_holder = ttk_module.Frame(nav_frame)
+        logo_holder.pack(fill="x", pady=(20, _LOGO_PADDING + 10))
         logo_holder.pack_propagate(False)
-        logo_holder.configure(height=_LOGO_SIDE + 2 * _LOGO_PADDING)
-        square = ttk.Frame(
+        base_side = _LOGO_SIDE
+        image_width = self.logo_image.width() if self.logo_image else base_side
+        image_height = (
+            self.logo_image.height() if self.logo_image else base_side
+        )
+        holder_height = image_height + 2 * _LOGO_PADDING + 6
+        holder_width = image_width + 2 * _LOGO_PADDING
+        logo_holder.configure(height=holder_height)
+        square = ttk_module.Frame(
             logo_holder,
-            width=_LOGO_SIDE + 2 * _LOGO_PADDING,
-            height=_LOGO_SIDE + 2 * _LOGO_PADDING,
-            padding=_LOGO_PADDING,
+            width=holder_width,
+            height=holder_height,
+            padding=(
+                _LOGO_PADDING,
+                _LOGO_PADDING,
+                _LOGO_PADDING,
+                _LOGO_PADDING - 6,
+            ),
         )
         square.pack_propagate(False)
         square.pack(anchor="center")
         square.columnconfigure(0, weight=1)
         square.rowconfigure(0, weight=1)
         if self.logo_image:
-            logo_widget = ttk.Label(
+            logo_widget = ttk_module.Label(
                 square,
                 image=self.logo_image,
             )
             logo_widget.image = self.logo_image
         else:
-            logo_widget = ttk.Label(
+            logo_widget = ttk_module.Label(
                 square,
                 text="Copernican",
                 anchor="center",
@@ -1186,19 +1764,19 @@ class CopernicanGUI:
             )
         logo_widget.grid(row=0, column=0, sticky="nsew")
 
-    def _load_help_markdown(self) -> str:
-        """Return the contents of README.md for the Help panel."""
+    def _load_help_markdown(self, relative_path: str) -> str:
+        """Return the contents of the requested markdown asset."""
 
-        readme_path = Path(__file__).resolve().parents[2] / "README.md"
+        doc_path = Path(__file__).resolve().parents[2] / relative_path
         try:
-            return readme_path.read_text(encoding="utf-8")
+            return doc_path.read_text(encoding="utf-8")
         except Exception as exc:
-            message = f"Unable to read README.md for Help panel: {exc}"
+            message = f"Unable to read {relative_path} for Help panel: {exc}"
             logger.get_program_logger().warning(message)
             return message
 
     def _render_markdown_in_text_widget(
-        self, widget: tk.Text, markdown: str
+        self, widget: tkinter_module.Text, markdown: str
     ) -> None:
         """Render simplified Markdown into the provided text widget."""
 
@@ -1277,7 +1855,7 @@ class CopernicanGUI:
 
     def _insert_inline_text(
         self,
-        widget: tk.Text,
+        widget: tkinter_module.Text,
         text: str,
         base_tags: tuple[str, ...],
         pattern: re.Pattern,
@@ -1295,6 +1873,54 @@ class CopernicanGUI:
             last = end
         widget.insert("end", text[last:], base_tags)
 
+    def _help_page_record(self, page_id: str | None = None) -> dict[str, str]:
+        """Return the help page metadata for the provided identifier."""
+
+        target_id = page_id or self._current_help_page_id
+        for index, page in enumerate(_HELP_PAGES):
+            if page["id"] == target_id:
+                self.help_page_index = index
+                return page
+        self.help_page_index = 0
+        self._current_help_page_id = _HELP_PAGES[0]["id"]
+        return _HELP_PAGES[0]
+
+    def _help_header_text(self) -> str:
+        """Return the title string for the current help page."""
+
+        record = self._help_page_record()
+        return f"Help: {record['label']}"
+
+    def _select_help_page(self, page_id: str) -> None:
+        """Switch the help content to a new page and refresh widgets."""
+
+        self._current_help_page_id = page_id
+        self._help_page_record(page_id)
+        self._refresh_help_page_view()
+
+    def _refresh_help_page_view(self) -> None:
+        """Update the help header, buttons and rendered markdown."""
+
+        record = self._help_page_record()
+        if self._help_title_label is not None:
+            self._help_title_label.configure(text=self._help_header_text())
+        for page in _HELP_PAGES:
+            button = self._help_page_buttons.get(page["id"])
+            if not button:
+                continue
+            if page["id"] == self._current_help_page_id:
+                button.state(["disabled"])
+            else:
+                button.state(["!disabled"])
+        if self._help_text_widget is None or not self.render or tk_gui is None:
+            return
+        markdown = self._load_help_markdown(record["path"])
+        self._help_text_widget.configure(state="normal")
+        self._help_text_widget.delete("1.0", tkinter_module.END)
+        self._render_markdown_in_text_widget(self._help_text_widget, markdown)
+        self._help_text_widget.yview_moveto(0.0)
+        self._help_text_widget.configure(state="disabled")
+
     def view_metadata_file(self, asset_id: str) -> str:
         """Return cached metadata content for the requested asset."""
 
@@ -1304,10 +1930,14 @@ class CopernicanGUI:
     def revalidate_dataset(self, dataset_id: str) -> dict[str, str]:
         """Re-run parser trust checks and return the refreshed record."""
 
-        self.refresh_inventory()
+        self.refresh_inventory(force_discovery=True)
         if dataset_id not in self.catalogue_index:
             raise KeyError(dataset_id)
         record = self.catalogue_index[dataset_id]
+        console_output.write(
+            f"GUI: dataset {dataset_id} diagnostics refreshed "
+            f"(parser digest {record.get('parser_digest', 'n/a')})."
+        )
         if record.get("expected_digest") and record.get("parser_digest"):
             if record["expected_digest"] != record["parser_digest"]:
                 note = (
@@ -1337,6 +1967,16 @@ class CopernicanGUI:
             NavigationItem("models", "Models", CopernicanGUI.show_models),
             NavigationItem("engines", "Engines", CopernicanGUI.show_engines),
             NavigationItem(
+                "analysis",
+                "Analysis",
+                CopernicanGUI.show_analysis,
+            ),
+            NavigationItem(
+                "validation",
+                "Validation",
+                CopernicanGUI.show_validation,
+            ),
+            NavigationItem(
                 "settings", "Settings", CopernicanGUI.show_settings
             ),
             NavigationItem("help", "Help", CopernicanGUI.show_help),
@@ -1349,82 +1989,1836 @@ class CopernicanGUI:
 
         if not self.render or self.root is None:
             return
-        nav_frame = ttk.Frame(self.root, padding=(8, 8))
+        nav_frame = ttk_module.Frame(self.root, padding=(24, 12, 24, 12))
         nav_frame.configure(width=_NAV_PANE_WIDTH)
         nav_frame.grid(row=0, column=0, sticky="nsw")
         nav_frame.grid_propagate(False)
         self.root.grid_columnconfigure(0, minsize=_NAV_PANE_WIDTH)
-        self.content_area = ttk.Frame(self.root, padding=(12, 12))
-        self.content_area.grid(row=0, column=1, sticky="nsew")
-        self.root.grid_columnconfigure(1, weight=1)
+        separator = ttk_module.Separator(self.root, orient="vertical")
+        separator.grid(row=0, column=1, rowspan=2, sticky="ns")
+        self.root.grid_columnconfigure(1, minsize=2)
+        self.content_area = ttk_module.Frame(
+            self.root,
+            padding=(12, 12, 12, 12),
+        )
+        self.content_area.grid(row=0, column=2, sticky="nsew")
+        self.root.grid_columnconfigure(2, weight=1)
         self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_rowconfigure(1, weight=0)
+        self.root.grid_rowconfigure(2, weight=0)
 
         self._build_navigation_logo(nav_frame)
-        for item in self.nav_items:
-            button = ttk.Button(
-                nav_frame,
-                text=item.label,
-                command=lambda i=item: i.action(self),
+        nav_body = ttk_module.Frame(nav_frame)
+        nav_body.pack(fill="both", expand=True)
+        exit_frame = ttk_module.Frame(nav_frame)
+        exit_frame.pack(fill="x", side="bottom")
+        for nav_item in self.nav_items:
+            target_frame = exit_frame if nav_item.name == "exit" else nav_body
+            button = ttk_module.Button(
+                target_frame,
+                text=nav_item.label,
+                command=lambda i=nav_item: i.action(self),
                 takefocus=True,
             )
             button.pack(fill="x", pady=4)
 
+        separator_bottom = ttk_module.Separator(
+            self.root,
+            orient="horizontal",
+        )
+        separator_bottom.grid(
+            row=1,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(4, 0),
+        )
+        self._build_status_bar()
         self.show_home()
+        self._refresh_environment_status()
 
-    def _swap_content(self, frame_builder: Callable[[tk.Frame], None]) -> None:
+    def _swap_content(
+        self,
+        frame_builder: Callable[[tkinter_module.Frame], None],
+    ) -> None:
         """Replace the right-hand content area with a new frame."""
 
         if not self.render or self.content_area is None:
             return
         for child in self.content_area.winfo_children():
             child.destroy()
-        frame = ttk.Frame(self.content_area, padding=(8, 8))
+        frame = ttk_module.Frame(self.content_area, padding=(8, 8))
         frame.pack(fill="both", expand=True)
         frame_builder(frame)
+
+    def _build_status_bar(self) -> None:
+        """Create the bottom status bar that shows environment metadata."""
+
+        if not self.render or self.root is None:
+            return
+        if self._status_bar_frame is not None:
+            return
+        status_bar = ttk_module.Frame(
+            self.root,
+            padding=(8, 0, 8, 2),
+            relief="flat",
+            borderwidth=0,
+        )
+        status_bar.grid(
+            row=2,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(0, 0),
+        )
+        status_bar.columnconfigure(0, weight=1)
+        status_bar.columnconfigure(1, weight=1)
+        self._brand_status_label = ttk_module.Label(
+            status_bar,
+            text="",
+            foreground="#6c6c6c",
+            anchor="w",
+            takefocus=True,
+        )
+        self._brand_status_label.grid(row=0, column=0, sticky="w", pady=(0, 0))
+        self._environment_status_label = ttk_module.Label(
+            status_bar,
+            text="",
+            anchor="e",
+            foreground="#6c6c6c",
+            takefocus=True,
+        )
+        self._environment_status_label.grid(
+            row=0, column=1, sticky="e", pady=(0, 0)
+        )
+        self._refresh_brand_status()
+        self._status_bar_frame = status_bar
+
+    def _environment_summary_text(self) -> str:
+        """Return text describing the active Copernican environment."""
+
+        python_label = platform.python_version()
+        python_impl = platform.python_implementation()
+        python_text = f"{python_impl} {python_label}"
+        venv_path = os.environ.get("VIRTUAL_ENV") or ""
+        if venv_path:
+            venv_name = Path(venv_path).name
+            if venv_name == ".venv":
+                venv_text = "Managed .venv active"
+            else:
+                venv_text = f"VIRTUAL_ENV={venv_name}"
+        else:
+            venv_text = "Managed .venv inactive"
+        summary_parts = [python_text, venv_text]
+        return "  ".join(summary_parts)
+
+    def _brand_status_text(self) -> str:
+        """Return text describing the brand for the status strip."""
+
+        return (
+            f"Copernican Suite {self.gui_version}  "
+            "\u00A9 Apostol Apostolov & Black Epsilon Ltd."
+        )
+
+    def _refresh_environment_status(self) -> None:
+        """Update the environment strip text."""
+
+        self._refresh_brand_status()
+        if self._environment_status_label is None:
+            return
+        self._environment_status_label.configure(
+            text=self._environment_summary_text()
+        )
+
+    def _builder_status_message(self) -> str:
+        """Return contextual instructions for the Run Builder header."""
+
+        if self.current_step_index <= 3:
+            return (
+                "Work through the pages to assemble a reproducible manifest.\n"
+                "After you have input all the settings, you will be able "
+                "to proceed and save your manifest for a run."
+            )
+        current_step = self.builder_steps[self.current_step_index]
+        if current_step == "Manifest":
+            if self.manifest_workspace is None:
+                return (
+                    "Your manifest is currently only in Copernican's head. "
+                    "You have to save it on your hard drive, solid state "
+                    "drive, liquid state, gas or plasma drive to proceed to "
+                    "Confirm and start your inference run."
+                )
+            return (
+                "Now Copernican knows what to work with and won't look at the "
+                "wrong model while you are sleeping. No need to babysit it "
+                "anymore—just proceed to Confirm and run."
+            )
+        if current_step == self._CONFIRM_STEP_NAME:
+            return (
+                "If you are reading this, you are either on the brink of a "
+                "groundbreaking discovery, or this diabolical software really "
+                "works. The former is far more probable. Take a look at your "
+                "run specs and start your run!"
+            )
+        return ""
+
+    def _refresh_brand_status(self) -> None:
+        """Update the left-aligned brand status label."""
+
+        if self._brand_status_label is None:
+            return
+        self._brand_status_label.configure(text=self._brand_status_text())
 
     def show_home(self) -> None:
         """Render the project home panel with recents and quick actions."""
 
-        if not self.recent_runs:
-            self.recent_runs = [
-                "copernican-run_20251124_120000",
-                "copernican-run_20251124_094500",
-            ]
-        if not self.pinned_configs:
-            self.pinned_configs = [
-                "LambdaCDM baseline",
-                "Joint likelihood sandbox",
-            ]
-
-        def builder(frame: tk.Frame) -> None:
-            header = ttk.Label(
-                frame, text="Project Home", font=("Helvetica", 16)
+        def builder(frame: tkinter_module.Frame) -> None:
+            """Render the project home view inside the main panel."""
+            self._page_header(frame, "Project Home")
+            tiles = ttk_module.Frame(frame)
+            tiles.pack(fill="x", pady=(0, 12))
+            tiles.columnconfigure(0, weight=1)
+            tiles.columnconfigure(1, weight=1)
+            catalogue_health = self._catalogue_health_summary()
+            cat_card = ttk_module.LabelFrame(
+                tiles, text="Catalogue health", padding=(10, 8)
             )
-            header.pack(anchor="w", pady=(0, 8))
-            ttk.Label(frame, text="Recent runs", takefocus=True).pack(
-                anchor="w"
+            cat_card.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+            dataset_summary = (
+                f"{catalogue_health['dataset_count']} dataset(s) "
+                f"/ {len(catalogue_health['untrusted'])} trust alert(s)"
             )
-            for run in self.recent_runs:
-                ttk.Label(frame, text=run, takefocus=True).pack(anchor="w")
-            ttk.Label(
-                frame,
-                text="Pinned configurations",
+            dataset_label = ttk_module.Label(
+                cat_card,
+                text=dataset_summary,
                 takefocus=True,
-            ).pack(anchor="w", pady=(12, 0))
-            for config in self.pinned_configs:
-                ttk.Label(frame, text=config, takefocus=True).pack(anchor="w")
-            ttk.Label(frame, text="Quick actions", takefocus=True).pack(
-                anchor="w", pady=(12, 0)
             )
-            for label, callback in self.quick_actions:
-                ttk.Button(
+            dataset_label.pack(anchor="w")
+            type_counter = Counter(catalogue_health.get("type_counter") or {})
+            if type_counter:
+                type_summary = ", ".join(
+                    f"{name}: {count}"
+                    for name, count in sorted(type_counter.items())
+                )
+            else:
+                type_summary = "No datasets discovered."
+            type_label = ttk_module.Label(
+                cat_card,
+                text=type_summary,
+                takefocus=True,
+            )
+            type_label.pack(anchor="w", pady=(2, 4))
+            filter_row = ttk_module.Frame(cat_card)
+            filter_row.pack(anchor="w", pady=(0, 6))
+            filter_actions = [
+                ("All data", ()),
+                ("SNe", ("sne",)),
+                ("BAO", ("bao",)),
+                ("CMB", ("cmb",)),
+            ]
+            for label_text, filter_types in filter_actions:
+                ttk_module.Button(
+                    filter_row,
+                    text=label_text,
+                    command=(
+                        lambda types=filter_types: self._show_data_with_filter(
+                            list(types)
+                        )
+                    ),
+                    takefocus=True,
+                ).pack(side="left", padx=2)
+            if catalogue_health["notes"]:
+                ttk_module.Label(
+                    cat_card,
+                    text="; ".join(catalogue_health["notes"]),
+                    wraplength=320,
+                    takefocus=True,
+                ).pack(anchor="w", pady=(0, 4))
+            if catalogue_health["untrusted"]:
+                ttk_module.Label(
+                    cat_card,
+                    text="Revalidate untrusted datasets:",
+                    takefocus=True,
+                ).pack(anchor="w", pady=(4, 0))
+                for offender in catalogue_health["untrusted"][:3]:
+                    display_name = offender["name"] or offender["id"]
+                    ttk_module.Button(
+                        cat_card,
+                        text=f"Revalidate {display_name}",
+                        command=lambda dataset_id=offender[
+                            "id"
+                        ]: self._handle_home_revalidate(dataset_id),
+                        takefocus=True,
+                    ).pack(anchor="w", pady=2)
+            models_health = self._model_engine_health_summary()
+            models_card = ttk_module.LabelFrame(
+                tiles, text="Models & Engines", padding=(10, 8)
+            )
+            models_card.grid(row=0, column=1, sticky="nsew")
+            badge_summary = (
+                ", ".join(
+                    f"{badge}: {count}"
+                    for badge, count in sorted(
+                        models_health["model_badges"].items()
+                    )
+                )
+                if models_health["model_badges"]
+                else "No compatibility badges recorded."
+            )
+            ttk_module.Label(
+                models_card,
+                text=(
+                    f"{models_health['model_count']} model(s) / "
+                    f"{models_health['engine_count']} engine(s)"
+                ),
+                takefocus=True,
+            ).pack(anchor="w")
+            ttk_module.Label(
+                models_card,
+                text=badge_summary,
+                wraplength=320,
+                takefocus=True,
+            ).pack(anchor="w", pady=(2, 4))
+            if models_health["stale_models"]:
+                stale_models_text = ", ".join(
+                    entry[0] for entry in models_health["stale_models"][:3]
+                )
+            else:
+                stale_models_text = "None"
+            if models_health["stale_engines"]:
+                stale_engines_text = ", ".join(
+                    entry[0] for entry in models_health["stale_engines"][:2]
+                )
+            else:
+                stale_engines_text = "None"
+            ttk_module.Label(
+                models_card,
+                text=f"Stale models: {stale_models_text}",
+                wraplength=320,
+                takefocus=True,
+            ).pack(anchor="w")
+            ttk_module.Label(
+                models_card,
+                text=f"Stale engines: {stale_engines_text}",
+                wraplength=320,
+                takefocus=True,
+            ).pack(anchor="w")
+            action_row = ttk_module.Frame(models_card)
+            action_row.pack(anchor="w", pady=(6, 0))
+            ttk_module.Button(
+                action_row,
+                text="View models",
+                command=self.show_models,
+                takefocus=True,
+            ).pack(side="left", padx=2)
+            ttk_module.Button(
+                action_row,
+                text="View engines",
+                command=self.show_engines,
+                takefocus=True,
+            ).pack(side="left", padx=2)
+            if self.recent_runs or self.pinned_configs:
+                ttk_module.Separator(frame, orient="horizontal").pack(
+                    fill="x", pady=(4, 8)
+                )
+            if self.recent_runs:
+                recent_runs_label = ttk_module.Label(
                     frame,
-                    text=label,
+                    text="Recent runs",
+                    takefocus=True,
+                )
+                recent_runs_label.pack(anchor="w")
+                for run in self.recent_runs:
+                    run_label = ttk_module.Label(
+                        frame,
+                        text=run,
+                        takefocus=True,
+                    )
+                    run_label.pack(anchor="w")
+            if self.pinned_configs:
+                config_label = ttk_module.Label(
+                    frame,
+                    text="Quick configurations",
+                    takefocus=True,
+                )
+                config_label.pack(anchor="w", pady=(12, 0))
+                for config in self.pinned_configs:
+                    config_entry_label = ttk_module.Label(
+                        frame,
+                        text=config,
+                        takefocus=True,
+                    )
+                    config_entry_label.pack(anchor="w")
+            quick_actions_label = ttk_module.Label(
+                frame,
+                text="Quick actions",
+                takefocus=True,
+            )
+            quick_actions_label.pack(anchor="w", pady=(12, 0))
+            for label_text, callback in self.quick_actions:
+                action_button = ttk_module.Button(
+                    frame,
+                    text=label_text,
                     command=callback,
                     takefocus=True,
-                ).pack(anchor="w", pady=2)
+                )
+                action_button.pack(anchor="w", pady=2)
 
         self._swap_content(builder)
+
+    def show_validation(self) -> None:
+        """Display the lightweight validation runner and latest summary."""
+
+        def builder(frame: tkinter_module.Frame) -> None:
+            """Render the validation runner dashboard and controls."""
+            self._validation_progress_status_label = None
+            self._validation_batch_progressbar = None
+            self._validation_walker_progressbar = None
+            self._page_header(frame, "Validation")
+            self._validation_status_label = ttk_module.Label(
+                frame,
+                text=self._validation_status_base,
+                takefocus=True,
+            )
+            self._validation_status_label.pack(anchor="w")
+            progress_frame = ttk_module.Frame(frame)
+            progress_frame.pack(fill="x", pady=(8, 8))
+            self._validation_progress_status_label = ttk_module.Label(
+                progress_frame,
+                text="Stage: Idle",
+                font=("Helvetica", 12, "bold"),
+                takefocus=True,
+            )
+            self._validation_progress_status_label.pack(anchor="w")
+            ttk_module.Label(
+                progress_frame,
+                text="Overall validation progress",
+                takefocus=True,
+            ).pack(anchor="w", pady=(4, 0))
+            self._validation_batch_progressbar = ttk_module.Progressbar(
+                progress_frame, maximum=100, length=360
+            )
+            self._validation_batch_progressbar.pack(fill="x", pady=(2, 0))
+            ttk_module.Label(
+                progress_frame,
+                text="Per-manifest progress",
+                takefocus=True,
+            ).pack(anchor="w", pady=(6, 0))
+            self._validation_walker_progressbar = ttk_module.Progressbar(
+                progress_frame, maximum=100, length=360
+            )
+            self._validation_walker_progressbar.pack(fill="x", pady=(2, 0))
+            controls = ttk_module.Frame(frame)
+            controls.pack(fill="x", pady=(8, 4))
+            button_style = self._monitor_button_kwargs()
+            self._validation_button = ttk_module.Button(
+                controls,
+                text="Run validation suite",
+                command=self._start_validation_run,
+                takefocus=True,
+                **button_style,
+            )
+            self._validation_button.pack(side="left", padx=4)
+            self._validation_cancel_button = ttk_module.Button(
+                controls,
+                text="Cancel validation",
+                command=self._cancel_validation_run,
+                takefocus=True,
+                **button_style,
+            )
+            self._validation_cancel_button.pack(side="left", padx=4)
+            self._validation_clear_button = ttk_module.Button(
+                controls,
+                text="Clear validation",
+                command=self._clear_validation_results,
+                takefocus=True,
+                **button_style,
+            )
+            self._validation_clear_button.pack(side="left", padx=4)
+            summary_frame = ttk_module.LabelFrame(
+                frame,
+                text="Validation log",
+            )
+            summary_frame.pack(fill="x", pady=(8, 0))
+            summary_frame.columnconfigure(0, weight=1)
+            summary_frame.rowconfigure(0, weight=0)
+            summary_frame.rowconfigure(1, weight=0)
+            lock_frame = ttk_module.Frame(summary_frame)
+            lock_frame.grid(row=0, column=0, sticky="w", pady=(0, 4))
+            self._validation_log_lock_var = tkinter_module.BooleanVar(
+                value=True
+            )
+            ttk_module.Checkbutton(
+                lock_frame,
+                text="Lock summary to latest entry",
+                variable=self._validation_log_lock_var,
+                takefocus=True,
+            ).pack(side="left")
+            text_panel = ttk_module.Frame(summary_frame)
+            text_panel.grid(row=1, column=0, sticky="nsew")
+            text_panel.columnconfigure(0, weight=1)
+            text_panel.rowconfigure(0, weight=1)
+            text_widget = tkinter_module.Text(
+                text_panel,
+                wrap="none",
+                padx=8,
+                pady=6,
+                borderwidth=0,
+                highlightthickness=0,
+                height=20,
+            )
+            text_widget.grid(row=0, column=0, sticky="nsew")
+            vscroll = ttk_module.Scrollbar(
+                text_panel,
+                orient="vertical",
+                command=text_widget.yview,
+            )
+            vscroll.grid(row=0, column=1, sticky="ns")
+            hscroll = ttk_module.Scrollbar(
+                text_panel,
+                orient="horizontal",
+                command=text_widget.xview,
+            )
+            hscroll.grid(row=1, column=0, sticky="ew")
+            text_widget.configure(
+                yscrollcommand=vscroll.set, xscrollcommand=hscroll.set
+            )
+            text_widget.configure(state="disabled")
+            self._validation_text_widget = text_widget
+            existing_summary = validation_utils.read_validation_summary()
+            if not self._validation_running:
+                self._validation_status_base = (
+                    "Status: summary available"
+                    if existing_summary
+                    else "Status: idle"
+                )
+            if existing_summary and not self._validation_log_lines:
+                self._append_validation_summary_text(existing_summary)
+            self._refresh_validation_log_widget_from_history()
+            self._update_validation_status_label(self._progress_snapshot)
+            self._update_validation_control_states()
+            self._refresh_validation_progress_widgets()
+
+        self._swap_content(builder)
+
+    def show_analysis(self) -> None:
+        """Display an analysis workspace with tabbed sections."""
+
+        def builder(frame: tkinter_module.Frame) -> None:
+            """Render the analysis workspace tabs and body content."""
+            section = self._analysis_sections[self._analysis_current_index]
+            header_text = f"Analysis: {section['label']}"
+            self._analysis_header_label = self._page_header(frame, header_text)
+            tab_bar = ttk_module.Frame(frame)
+            tab_bar.pack(fill="x", pady=(0, 8))
+            self._analysis_section_buttons = []
+            button_style = self._monitor_button_kwargs()
+            for index, sec in enumerate(self._analysis_sections):
+                button = ttk_module.Button(
+                    tab_bar,
+                    text=sec["label"],
+                    command=lambda idx=index: self._navigate_analysis_section(
+                        idx
+                    ),
+                    takefocus=True,
+                    **button_style,
+                )
+                button.pack(side="left", padx=4)
+                self._analysis_section_buttons.append(button)
+            self._analysis_description_label = ttk_module.Label(
+                frame,
+                text=section["description"],
+                wraplength=720,
+                takefocus=True,
+            )
+            self._analysis_description_label.pack(anchor="w", pady=(0, 8))
+            action_row = ttk_module.Frame(frame)
+            action_row.pack(fill="x", pady=(0, 20))
+            self._analysis_action_buttons = []
+            for _ in range(3):
+                button = ttk_module.Button(
+                    action_row,
+                    text="",
+                    command=self._analysis_placeholder_action,
+                    takefocus=True,
+                    **button_style,
+                )
+                button.pack(side="left", padx=4)
+                self._analysis_action_buttons.append(button)
+            body = ttk_module.Frame(frame)
+            body.pack(fill="both", expand=True)
+            self._analysis_page_body = body
+            self._refresh_analysis_section()
+
+        if not self.render or self.root is None:
+            return
+        self._swap_content(builder)
+
+    def _navigate_analysis_section(self, index: int) -> None:
+        """Switch to a different analysis section tab."""
+
+        if index == self._analysis_current_index:
+            return
+        self._analysis_current_index = index
+        self._refresh_analysis_section()
+
+    def _refresh_analysis_section(self) -> None:
+        """Update labels, buttons and builder content for the current tab."""
+
+        if not self._analysis_sections:
+            return
+        section = self._analysis_sections[self._analysis_current_index]
+        if self._analysis_header_label is not None:
+            self._analysis_header_label.configure(
+                text=f"Analysis: {section['label']}"
+            )
+        if self._analysis_description_label is not None:
+            self._analysis_description_label.configure(
+                text=section["description"]
+            )
+        for index, button in enumerate(self._analysis_section_buttons):
+            if index == self._analysis_current_index:
+                button.state(["disabled"])
+            else:
+                button.state(["!disabled"])
+        self._refresh_analysis_action_buttons(section["actions"])
+        if self._analysis_page_body is not None:
+            for child in self._analysis_page_body.winfo_children():
+                child.destroy()
+            section["builder"](self._analysis_page_body)
+
+    def _refresh_analysis_action_buttons(
+        self, actions: Sequence[Mapping[str, Any]]
+    ) -> None:
+        """Update the action buttons beneath the description."""
+
+        for button, action in zip(self._analysis_action_buttons, actions):
+            button.configure(text=action["label"], command=action["command"])
+
+    def _analysis_placeholder_action(self) -> None:
+        """No-op placeholder invoked by unfinished action buttons."""
+
+        return
+
+    def _build_analysis_run_summary_page(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
+        """Render the Run Summary tab content."""
+
+        if tk_gui is None:
+            ttk_module.Label(
+                container,
+                text="GUI is unavailable in this environment.",
+                wraplength=720,
+            ).pack(anchor="w")
+            return
+
+        run_path_var = self._analysis_run_path_var
+        if run_path_var is None:
+            run_path_var = tkinter_module.StringVar()
+            self._analysis_run_path_var = run_path_var
+
+        row = ttk_module.Frame(container)
+        row.pack(fill="x", pady=(0, 6))
+        ttk_module.Label(row, text="Run directory:").pack(side="left")
+        entry = ttk_module.Entry(row, textvariable=run_path_var, width=60)
+        entry.pack(side="left", fill="x", expand=True, padx=(4, 4))
+        entry.bind("<Return>", lambda event: self._load_analysis_summary())
+        ttk_module.Button(
+            row,
+            text="Browse…",
+            command=self._browse_analysis_run_dir,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        ).pack(side="left")
+        ttk_module.Button(
+            row,
+            text="Load summary",
+            command=self._load_analysis_summary,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        ).pack(side="left", padx=(4, 0))
+
+        self._analysis_summary_status_label = ttk_module.Label(
+            container,
+            text="Select a run output directory and load its summary.",
+            wraplength=720,
+            takefocus=True,
+        )
+        self._analysis_summary_status_label.pack(anchor="w", pady=(4, 6))
+
+        text_panel = ttk_module.Frame(container)
+        text_panel.pack(fill="both", expand=True)
+        text_panel.columnconfigure(0, weight=1)
+        text_panel.rowconfigure(0, weight=1)
+        if tk_gui is not None:
+            self._analysis_summary_text_widget = tkinter_module.Text(
+                text_panel,
+                wrap="none",
+                padx=8,
+                pady=6,
+                borderwidth=0,
+                highlightthickness=0,
+                height=18,
+            )
+            self._analysis_summary_text_widget.grid(
+                row=0, column=0, sticky="nsew"
+            )
+            vscroll = ttk_module.Scrollbar(
+                text_panel,
+                orient="vertical",
+                command=self._analysis_summary_text_widget.yview,
+            )
+            vscroll.grid(row=0, column=1, sticky="ns")
+            hscroll = ttk_module.Scrollbar(
+                text_panel,
+                orient="horizontal",
+                command=self._analysis_summary_text_widget.xview,
+            )
+            hscroll.grid(row=1, column=0, sticky="ew")
+            self._analysis_summary_text_widget.configure(
+                yscrollcommand=vscroll.set, xscrollcommand=hscroll.set
+            )
+            self._analysis_summary_text_widget.configure(state="disabled")
+
+            summary_label = ttk_module.Label(
+                container,
+                text=(
+                    "Loaded summaries show run metadata, diagnostics and "
+                    "chi² breakdowns sourced from the manifest, parameter "
+                    "summary and log."
+                ),
+                wraplength=720,
+                justify="left",
+            )
+            summary_label.pack(anchor="w", pady=(8, 0))
+
+    def _build_analysis_posterior_page(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
+        """Render the Posteriors tab with the shared plot viewer."""
+
+        if tk_gui is None:
+            ttk_module.Label(
+                container,
+                text="GUI is unavailable in this environment.",
+                wraplength=720,
+            ).pack(anchor="w")
+            return
+
+        run_dir = self._analysis_run_dir()
+        run_label = (
+            f"Current run: {run_dir}"
+            if run_dir
+            else "Current run: <select from Run Summary>"
+        )
+        run_label_widget = ttk_module.Label(
+            container,
+            text=run_label,
+            wraplength=720,
+            takefocus=True,
+        )
+        run_label_widget.pack(anchor="w", pady=(0, 4))
+
+        selection_row = ttk_module.Frame(container)
+        selection_row.pack(fill="x", pady=(0, 4))
+        run_label_field = ttk_module.Label(
+            selection_row,
+            text="Posterior file:",
+        )
+        run_label_field.pack(side="left")
+        if self._analysis_posterior_file_var is None:
+            self._analysis_posterior_file_var = tkinter_module.StringVar()
+        combobox = ttk_module.Combobox(
+            selection_row,
+            textvariable=self._analysis_posterior_file_var,
+            values=[path.name for path in self._analysis_posterior_files],
+            state="readonly",
+            width=48,
+        )
+        combobox.pack(side="left", fill="x", expand=True, padx=(4, 0))
+        self._analysis_posterior_combobox = combobox
+        ttk_module.Button(
+            selection_row,
+            text="Load",
+            command=self._analysis_load_selected_posterior,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        ).pack(side="left", padx=(4, 0))
+
+        self._analysis_posterior_status_label = ttk_module.Label(
+            container,
+            text=(
+                "Find a run directory and load one of its posterior "
+                "snapshots."
+            ),
+            wraplength=720,
+            takefocus=True,
+        )
+        self._analysis_posterior_status_label.pack(anchor="w", pady=(4, 6))
+
+        viewer_holder = ttk_module.Frame(container)
+        viewer_holder.pack(fill="both", expand=True)
+        viewer_holder.columnconfigure(0, weight=1)
+        viewer_holder.rowconfigure(0, weight=1)
+        try:
+            viewer = PlotViewer(viewer_holder)
+        except RuntimeError as exc:  # pragma: no cover - unlikely in Tk env
+            ttk_module.Label(
+                viewer_holder,
+                text=f"Plot viewer unavailable: {exc}",
+                wraplength=720,
+            ).grid(row=0, column=0, sticky="nsew")
+            self._analysis_plot_viewer = None
+        else:
+            viewer.grid(row=0, column=0, sticky="nsew")
+            self._analysis_plot_viewer = viewer
+
+        controls = ttk_module.Frame(container)
+        controls.pack(fill="x", pady=(6, 0))
+        ttk_module.Button(
+            controls,
+            text="Fit all",
+            command=self._analysis_fit_posterior_full,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        ).pack(side="left")
+        ttk_module.Label(
+            controls,
+            text="Enable zoom mode above to pan the figure by dragging.",
+            wraplength=520,
+            takefocus=True,
+        ).pack(side="left", padx=(12, 0))
+
+        asset_controls = ttk_module.Frame(container)
+        asset_controls.pack(fill="x", pady=(4, 0))
+        corner_button = ttk_module.Button(
+            asset_controls,
+            text="Show corner plot",
+            command=self._analysis_show_corner_plot,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        )
+        corner_button.pack(side="left")
+        histogram_button = ttk_module.Button(
+            asset_controls,
+            text="Show histograms",
+            command=self._analysis_show_histogram_plot,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        )
+        histogram_button.pack(side="left", padx=(8, 0))
+
+        self._analysis_current_posterior_path = None
+        self._analysis_refresh_plot_assets()
+        self._refresh_analysis_posterior_list()
+
+    def _build_analysis_comparison_page(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
+        """Render the Comparisons tab content that diff two runs."""
+
+        if tk_gui is None:
+            ttk_module.Label(
+                container,
+                text="GUI is unavailable in this environment.",
+                wraplength=720,
+            ).pack(anchor="w")
+            return
+
+        if self._analysis_comparison_base_var is None:
+            self._analysis_comparison_base_var = tkinter_module.StringVar()
+        if self._analysis_comparison_alt_var is None:
+            self._analysis_comparison_alt_var = tkinter_module.StringVar()
+
+        def _render_selector(
+            label_text: str, selector_var: tkinter_module.StringVar
+        ) -> None:
+            """Render a labelled entry plus browse button for run paths."""
+            row = ttk_module.Frame(container)
+            row.pack(fill="x", pady=(0, 4))
+            ttk_module.Label(row, text=label_text).pack(side="left")
+            entry = ttk_module.Entry(row, textvariable=selector_var, width=60)
+            entry.pack(side="left", fill="x", expand=True, padx=(4, 4))
+            entry.bind("<Return>", lambda event: self._analysis_compare_runs())
+            ttk_module.Button(
+                row,
+                text="Browse…",
+                command=lambda: self._analysis_browse_comparison_path(
+                    selector_var
+                ),
+                takefocus=True,
+                **self._monitor_button_kwargs(),
+            ).pack(side="left")
+
+        _render_selector(
+            "Base run directory:", self._analysis_comparison_base_var
+        )
+        _render_selector(
+            "Alternative run directory:", self._analysis_comparison_alt_var
+        )
+
+        self._analysis_comparison_status_label = ttk_module.Label(
+            container,
+            text="Provide both directories and refresh to see deltas.",
+            wraplength=720,
+            takefocus=True,
+        )
+        self._analysis_comparison_status_label.pack(anchor="w", pady=(4, 6))
+
+        panel = ttk_module.Frame(container)
+        panel.pack(fill="both", expand=True)
+        panel.columnconfigure(0, weight=1)
+        panel.rowconfigure(0, weight=1)
+        text_widget = tkinter_module.Text(
+            panel,
+            wrap="none",
+            padx=8,
+            pady=6,
+            borderwidth=0,
+            highlightthickness=0,
+            height=16,
+        )
+        text_widget.grid(row=0, column=0, sticky="nsew")
+        vscroll = ttk_module.Scrollbar(
+            panel,
+            orient="vertical",
+            command=text_widget.yview,
+        )
+        vscroll.grid(row=0, column=1, sticky="ns")
+        hscroll = ttk_module.Scrollbar(
+            panel,
+            orient="horizontal",
+            command=text_widget.xview,
+        )
+        hscroll.grid(row=1, column=0, sticky="ew")
+        text_widget.configure(
+            yscrollcommand=vscroll.set, xscrollcommand=hscroll.set
+        )
+        text_widget.configure(state="disabled")
+        self._analysis_comparison_text_widget = text_widget
+
+        ttk_module.Label(
+            container,
+            text=(
+                "Comparisons highlight duration deltas, dataset row counts "
+                "and χ²/parameter shifts between two runs."
+            ),
+            wraplength=720,
+            justify="left",
+        ).pack(anchor="w", pady=(6, 0))
+
+        self._analysis_comparison_result = None
+        self._analysis_comparison_pair = None
+        self._analysis_set_comparison_status(
+            "Configure the runs above and press 'Refresh diff'."
+        )
+
+    def _analysis_path_from_var(
+        self, path_var: tkinter_module.StringVar | None
+    ) -> Path | None:
+        """Resolve the selected run directory from a StringVar."""
+
+        if path_var:
+            raw = path_var.get().strip()
+            if raw:
+                return Path(raw).expanduser()
+        return None
+
+    def _analysis_browse_comparison_path(
+        self, path_var: tkinter_module.StringVar
+    ) -> None:
+        """Open a directory chooser and store the result in ``var``."""
+
+        if filedialog_module is None:
+            self.create_toast(
+                "File dialogs are unavailable in this environment.",
+                severity="ERROR",
+                context="analysis",
+            )
+            return
+        directory = filedialog_module.askdirectory(
+            initialdir=self._output_root()
+        )
+        if directory:
+            path_var.set(directory)
+
+    def _analysis_set_comparison_status(
+        self, message: str, *, severity: str = "INFO"
+    ) -> None:
+        """Update the status label for the Comparisons tab."""
+
+        if self._analysis_comparison_status_label is not None:
+            self._analysis_comparison_status_label.configure(text=message)
+        if severity.upper() == "ERROR":
+            logger.get_program_logger().warning(
+                "Analysis comparison: %s", message
+            )
+
+    def _analysis_compare_runs(self) -> None:
+        """Analyse the two selected runs and populate the comparison pane."""
+
+        base_path = self._analysis_path_from_var(
+            self._analysis_comparison_base_var
+        )
+        alt_path = self._analysis_path_from_var(
+            self._analysis_comparison_alt_var
+        )
+        if not base_path or not alt_path:
+            self._analysis_set_comparison_status(
+                "Select both run directories before comparing.",
+                severity="ERROR",
+            )
+            return
+        if not base_path.is_dir() or not alt_path.is_dir():
+            self._analysis_set_comparison_status(
+                "One of the specified paths is not a directory.",
+                severity="ERROR",
+            )
+            return
+        try:
+            base_result = analysis.analyze_run(base_path)
+            alt_result = analysis.analyze_run(alt_path)
+            comparison = analysis.compare_runs(base_result, alt_result)
+        except Exception as exc:
+            self.create_toast(
+                f"Comparison failed: {exc}",
+                severity="ERROR",
+                context="analysis",
+            )
+            self._analysis_set_comparison_status(
+                "Comparison failed; check the logs.",
+                severity="ERROR",
+            )
+            return
+        self._analysis_comparison_result = comparison
+        self._analysis_comparison_pair = (base_result, alt_result)
+        if self._analysis_comparison_text_widget is not None:
+            payload = json.dumps(comparison, indent=2)
+            comparison_widget = self._analysis_comparison_text_widget
+            comparison_widget.configure(state="normal")
+            comparison_widget.delete("1.0", tkinter_module.END)
+            comparison_widget.insert("1.0", payload)
+            comparison_widget.configure(state="disabled")
+        self._analysis_set_comparison_status("Comparison ready.")
+
+    def _export_analysis_comparison(self) -> None:
+        """Export the cached comparison payload to a directory."""
+
+        if not self._analysis_comparison_pair:
+            self._analysis_set_comparison_status(
+                "Run a comparison before exporting.", severity="ERROR"
+            )
+            return
+        if filedialog is None:
+            self.create_toast(
+                "File dialogs are unavailable in this environment.",
+                severity="ERROR",
+                context="analysis",
+            )
+            return
+        target_dir = filedialog.askdirectory(
+            initialdir=self._output_root(),
+        )
+        if not target_dir:
+            return
+        base_result, alt_result = self._analysis_comparison_pair
+        try:
+            saved = analysis.save_comparison_summary(
+                base_result, alt_result, target_dir
+            )
+        except Exception as exc:
+            self.create_toast(
+                f"Export failed: {exc}",
+                severity="ERROR",
+                context="analysis",
+            )
+            self._analysis_set_comparison_status(
+                "Export failed.", severity="ERROR"
+            )
+            return
+        self.create_toast(
+            "Analysis comparison exported.",
+            severity="INFO",
+            context="analysis",
+        )
+        self._analysis_set_comparison_status(
+            "Comparison exported to "
+            + ", ".join(str(path) for path in saved.values())
+        )
+
+    def _copy_analysis_comparison_to_clipboard(self) -> None:
+        """Copy the JSON comparison payload into the clipboard."""
+
+        if not self._analysis_comparison_result or tk_gui is None:
+            self._analysis_set_comparison_status(
+                "Run a comparison before copying.", severity="ERROR"
+            )
+            return
+        payload = json.dumps(self._analysis_comparison_result, indent=2)
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(payload)
+        except Exception as exc:
+            self.create_toast(
+                f"Clipboard copy failed: {exc}",
+                severity="ERROR",
+                context="analysis",
+            )
+            self._analysis_set_comparison_status("Clipboard copy failed.")
+            return
+        self._analysis_set_comparison_status("Comparison copied to clipboard.")
+
+    def _build_analysis_placeholder_page(
+        self, container: tkinter_module.Frame, label: str
+    ) -> None:
+        """Render a placeholder tab that is pending implementation."""
+
+        ttk_module.Label(
+            container,
+            text=(
+                f"{label} tools are coming soon. "
+                "Check the run summary first."
+            ),
+            wraplength=720,
+            justify="left",
+        ).pack(anchor="w")
+        ttk_module.Label(
+            container,
+            text="Use the numbered buttons above once those tabs are live.",
+            wraplength=720,
+            justify="left",
+        ).pack(anchor="w", pady=(4, 0))
+
+    def _analysis_run_dir(self) -> Path | None:
+        """Return the currently targeted run directory for analysis helpers."""
+
+        if self._analysis_run_path_var:
+            raw = self._analysis_run_path_var.get().strip()
+            if raw:
+                return Path(raw).expanduser()
+        if self._analysis_summary_result:
+            return self._analysis_summary_result.run_dir
+        return None
+
+    def _analysis_set_posterior_status(
+        self, message: str, *, severity: str = "INFO"
+    ) -> None:
+        """Update the status label for the Posterior tab."""
+
+        if self._analysis_posterior_status_label is not None:
+            self._analysis_posterior_status_label.configure(text=message)
+        if severity.upper() == "ERROR":
+            logger.get_program_logger().warning(
+                "Analysis posteriors: %s", message
+            )
+
+    def _analysis_refresh_plot_assets(self) -> None:
+        """Refresh references to saved corner/histogram PNGs for the run."""
+
+        run_dir = self._analysis_run_dir()
+        self._analysis_corner_files = []
+        self._analysis_histogram_files = []
+        if not run_dir or not run_dir.is_dir():
+            return
+
+        try:
+            self._analysis_corner_files = sorted(
+                run_dir.glob("corner-plot-*.png"),
+                key=lambda entry: entry.stat().st_mtime,
+            )
+            self._analysis_histogram_files = sorted(
+                run_dir.glob("parameter-histograms-*.png"),
+                key=lambda entry: entry.stat().st_mtime,
+            )
+        except OSError:
+            pass
+
+    def _analysis_latest_plot(self, files: list[Path]) -> Path | None:
+        """Return the newest file from the supplied plot list."""
+        if not files:
+            return None
+        try:
+            return max(files, key=lambda entry: entry.stat().st_mtime)
+        except OSError:
+            return files[-1]
+
+    def _analysis_load_image(self, path: Path, title: str) -> None:
+        """Load *path* into the plot viewer with the supplied *title*."""
+        viewer = self._analysis_plot_viewer
+        if viewer is None:
+            self._analysis_set_posterior_status(
+                "Plot viewer unavailable.", severity="ERROR"
+            )
+            return
+        try:
+            image = mpimage.imread(str(path))
+        except Exception as exc:
+            self._analysis_set_posterior_status(
+                f"Failed to load {path.name}: {exc}", severity="ERROR"
+            )
+            return
+        figure = Figure(figsize=(8, 6))
+        plot_axes = figure.subplots()
+        plot_axes.imshow(image)
+        plot_axes.axis("off")
+        figure.suptitle(title, fontsize=14)
+        viewer.load_figure(figure)
+        viewer.fit_to_screen()
+        self._analysis_current_posterior_path = path
+        self._analysis_set_posterior_status(f"Showing {path.name} ({title}).")
+
+    def _analysis_show_corner_plot(self) -> None:
+        """Display the latest corner plot for the selected run."""
+        self._analysis_refresh_plot_assets()
+        path = self._analysis_latest_plot(self._analysis_corner_files)
+        if path is None:
+            self._analysis_set_posterior_status(
+                "No saved corner plot found for that run.", severity="ERROR"
+            )
+            return
+        self._analysis_load_image(path, "Corner plot")
+
+    def _analysis_show_histogram_plot(self) -> None:
+        """Display the latest histogram plot for the selected run."""
+        self._analysis_refresh_plot_assets()
+        path = self._analysis_latest_plot(self._analysis_histogram_files)
+        if path is None:
+            self._analysis_set_posterior_status(
+                "No saved histogram plot found for that run.", severity="ERROR"
+            )
+            return
+        self._analysis_load_image(path, "Parameter histograms")
+
+    def _analysis_summary_for_run(
+        self, run_dir: Path
+    ) -> analysis.RunAnalysisResult | None:
+        """Return a cached summary for ``run_dir`` or recreate it."""
+
+        current = self._analysis_summary_result
+        if current and current.run_dir == run_dir:
+            return current
+        try:
+            result = analysis.analyze_run(run_dir)
+        except Exception as exc:
+            self.create_toast(
+                f"Failed to analyse run for posteriors: {exc}",
+                severity="ERROR",
+                context="analysis",
+            )
+            self._analysis_set_posterior_status(
+                "Failed to analyse run directory; check the logs.",
+                severity="ERROR",
+            )
+            return None
+        self._analysis_summary_result = result
+        if self._analysis_run_path_var is not None:
+            self._analysis_run_path_var.set(str(run_dir))
+        self._analysis_refresh_plot_assets()
+        return result
+
+    def _refresh_analysis_posterior_list(self) -> None:
+        """Refresh the list of posterior NetCDF files for the current run."""
+
+        run_dir = self._analysis_run_dir()
+        if not run_dir:
+            self._analysis_posterior_files = []
+            if self._analysis_posterior_combobox is not None:
+                self._analysis_posterior_combobox["values"] = []
+            self._analysis_set_posterior_status(
+                "Provide a run directory to discover posterior files.",
+                severity="ERROR",
+            )
+            return
+        if not run_dir.is_dir():
+            self._analysis_set_posterior_status(
+                "Selected run path is not a directory.", severity="ERROR"
+            )
+            return
+        files = posterior_explorer.find_posterior_files(run_dir)
+        self._analysis_posterior_files = files
+        names = [path.name for path in files]
+        if self._analysis_posterior_combobox is not None:
+            self._analysis_posterior_combobox["values"] = names
+        if self._analysis_posterior_file_var is not None:
+            self._analysis_posterior_file_var.set(names[0] if names else "")
+        self._analysis_set_posterior_status(
+            f"{len(names)} posterior file(s) available."
+        )
+
+    def _analysis_load_selected_posterior(self) -> None:
+        """Load the chosen posterior file and render it inside the viewer."""
+
+        run_dir = self._analysis_run_dir()
+        if not run_dir:
+            self._analysis_set_posterior_status(
+                "Select a run directory before loading posteriors.",
+                severity="ERROR",
+            )
+            return
+        if not run_dir.is_dir():
+            self._analysis_set_posterior_status(
+                "The configured run path does not exist.", severity="ERROR"
+            )
+            return
+        if not self._analysis_posterior_files:
+            self._refresh_analysis_posterior_list()
+        if not self._analysis_posterior_files:
+            self._analysis_set_posterior_status(
+                "No posterior files were found for that run.", severity="ERROR"
+            )
+            return
+        selection = (
+            self._analysis_posterior_file_var.get()
+            if self._analysis_posterior_file_var
+            else ""
+        )
+        target = None
+        for candidate in self._analysis_posterior_files:
+            if candidate.name == selection:
+                target = candidate
+                break
+        if target is None:
+            target = self._analysis_posterior_files[0]
+        result = self._analysis_summary_for_run(run_dir)
+        if result is None:
+            return
+        try:
+            figure = posterior_explorer.create_posterior_overview_figure(
+                result, target
+            )
+        except Exception as exc:
+            self._analysis_set_posterior_status(
+                f"Failed to render {target.name}: {exc}", severity="ERROR"
+            )
+            return
+        viewer = self._analysis_plot_viewer
+        if viewer is None:
+            self._analysis_set_posterior_status(
+                "Plot viewer is unavailable.", severity="ERROR"
+            )
+            return
+        viewer.load_figure(figure)
+        viewer.fit_to_screen()
+        self._analysis_current_posterior_path = target
+        self._analysis_set_posterior_status(f"Showing {target.name}.")
+        self._analysis_refresh_plot_assets()
+
+    def _analysis_fit_posterior_to_screen(self) -> None:
+        """Autoscale the current figure in the viewer."""
+
+        viewer = self._analysis_plot_viewer
+        if viewer is None:
+            self._analysis_set_posterior_status(
+                "Load a posterior before fitting the view.",
+                severity="ERROR",
+            )
+            return
+        viewer.fit_to_screen()
+        self._analysis_set_posterior_status("Figure fitted to screen.")
+
+    def _analysis_fit_posterior_full(self) -> None:
+        """Restore the original figure limits captured at draw time."""
+
+        viewer = self._analysis_plot_viewer
+        if viewer is None:
+            self._analysis_set_posterior_status(
+                "Load a posterior before restoring the view.",
+                severity="ERROR",
+            )
+            return
+        viewer.fit_all()
+        self._analysis_set_posterior_status(
+            "View restored to original limits."
+        )
+
+    def _analysis_toggle_posterior_zoom(self) -> None:
+        """Toggle pan/zoom mode for the viewer."""
+
+        viewer = self._analysis_plot_viewer
+        if viewer is None:
+            self._analysis_set_posterior_status(
+                "Load a posterior before enabling zoom.", severity="ERROR"
+            )
+            return
+        viewer.toggle_zoom()
+        state = "enabled" if viewer.zoom_active else "disabled"
+        self._analysis_set_posterior_status(f"Zoom mode {state}.")
+
+    def _browse_analysis_run_dir(self) -> None:
+        """Ask the user to pick a run output folder."""
+
+        if filedialog is None:
+            self.create_toast(
+                "File dialogs are unavailable in this environment.",
+                severity="ERROR",
+                context="analysis",
+            )
+            return
+        directory = filedialog.askdirectory(initialdir=self._output_root())
+        if directory:
+            if self._analysis_run_path_var is None:
+                self._analysis_run_path_var = tkinter_module.StringVar(
+                    value=directory
+                )
+            else:
+                self._analysis_run_path_var.set(directory)
+
+    def _load_analysis_summary(self) -> None:
+        """
+        Load the selected run directory, analyse it and render the results.
+        """
+
+        if tk_gui is None:
+            return
+        run_path = (
+            (self._analysis_run_path_var.get().strip())
+            if self._analysis_run_path_var
+            else ""
+        )
+        if not run_path:
+            self._set_analysis_status(
+                "Please choose a run directory first.", severity="ERROR"
+            )
+            return
+        path = Path(run_path).expanduser()
+        if not path.is_dir():
+            self._set_analysis_status(
+                "Selected path does not exist or is not a directory.",
+                severity="ERROR",
+            )
+            return
+        try:
+            result = analysis.analyze_run(path)
+        except Exception as exc:
+            self.create_toast(
+                f"Failed to load run summary: {exc}",
+                severity="ERROR",
+                context="analysis",
+            )
+            self._set_analysis_status(
+                "Summary load failed; check the logs for details.",
+                severity="ERROR",
+            )
+            return
+        self._analysis_summary_result = result
+        formatted = analysis.format_run_summary_text(result)
+        if self._analysis_summary_text_widget is not None:
+            summary_widget = self._analysis_summary_text_widget
+            summary_widget.configure(state="normal")
+            summary_widget.delete("1.0", tkinter_module.END)
+            summary_widget.insert("1.0", formatted)
+            summary_widget.configure(state="disabled")
+        if self._analysis_run_path_var is not None:
+            self._analysis_run_path_var.set(str(result.run_dir))
+        self._set_analysis_status("Run summary loaded successfully.")
+
+    def _export_analysis_summary(self) -> None:
+        """Export the currently loaded summary to disk."""
+
+        if self._analysis_summary_result is None:
+            self._set_analysis_status(
+                "Load a run summary before exporting.",
+                severity="ERROR",
+            )
+            return
+        if filedialog is None:
+            self.create_toast(
+                "File dialogs are unavailable in this environment.",
+                severity="ERROR",
+                context="analysis",
+            )
+            return
+        target_dir = filedialog.askdirectory(initialdir=self._output_root())
+        if not target_dir:
+            return
+        try:
+            saved = analysis.save_run_summary(
+                self._analysis_summary_result.run_dir, target_dir
+            )
+        except Exception as exc:
+            self.create_toast(
+                f"Export failed: {exc}",
+                severity="ERROR",
+                context="analysis",
+            )
+            self._set_analysis_status("Export failed.")
+            return
+        self.create_toast(
+            "Analysis summary exported.",
+            severity="INFO",
+            context="analysis",
+        )
+        self._set_analysis_status(
+            "Summary exported to "
+            + ", ".join(str(path) for path in saved.values())
+        )
+
+    def _copy_analysis_summary_to_clipboard(self) -> None:
+        """Copy the JSON summary to the clipboard."""
+
+        if self._analysis_summary_result is None or tk_gui is None:
+            self._set_analysis_status(
+                "Load a run summary before copying.", severity="ERROR"
+            )
+            return
+        payload = json.dumps(self._analysis_summary_result.to_dict(), indent=2)
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(payload)
+        except Exception as exc:
+            self.create_toast(
+                f"Clipboard copy failed: {exc}",
+                severity="ERROR",
+                context="analysis",
+            )
+            self._set_analysis_status("Clipboard copy failed.")
+            return
+        self._set_analysis_status("Summary copied to clipboard.")
+
+    def _set_analysis_status(
+        self, message: str, *, severity: str = "INFO"
+    ) -> None:
+        """Update the per-tab status label."""
+
+        if self._analysis_summary_status_label is not None:
+            self._analysis_summary_status_label.configure(text=message)
+        if severity.upper() == "ERROR":
+            logger.get_program_logger().warning("Analysis tab: %s", message)
+
+    def _start_validation_run(self) -> None:
+        """Kick off the validation suite inside a background thread."""
+
+        if self.status in (RunStatus.RUNNING, RunStatus.CONFIGURING):
+            self._notify_pipeline_conflict(
+                "Production run active",
+                "The pipeline is busy with a production run. Please wait "
+                "for it to finish or cancel it so a validation run can be "
+                "started.",
+                context="validation",
+            )
+            return
+        if self._validation_running:
+            return
+        self._validation_running = True
+        if self._validation_button:
+            self._validation_button.configure(state=tkinter_module.DISABLED)
+        self._validation_status_base = "Status: running validation…"
+        self._update_validation_status_label(self._progress_snapshot)
+        self._prepare_validation_progress_monitor()
+        self._refresh_validation_progress_widgets()
+        self._reset_validation_log_widget(
+            "Validation log streaming; progress updates appear below."
+        )
+        self._update_validation_control_states()
+        console_output.write("GUI: validation suite queued for execution.")
+        self._launch_validation_worker()
+
+    def _notify_pipeline_conflict(
+        self, title: str, message: str, *, context: str
+    ) -> None:
+        """Warn when a concurrent pipeline operation blocks the request."""
+
+        if self.render and messagebox:
+            messagebox.showwarning(title, message, parent=self.root)
+        self.create_toast(message, severity="WARNING", context=context)
+
+    def _launch_validation_worker(self) -> None:
+        """Start the CLI helper that runs the validation suite."""
+
+        if self._validation_process is not None:
+            return
+        command = [
+            sys.executable,
+            "-m",
+            "copernican",
+            "--run-validation",
+        ]
+        env = os.environ.copy()
+        env.setdefault("COPERNICAN_DETACH_GUI", "0")
+        env.setdefault("COPERNICAN_HEADLESS_RUN", "1")
+        if self._progress_state_path:
+            env["COPERNICAN_GUI_PROGRESS_PATH"] = self._progress_state_path
+        else:
+            env.pop("COPERNICAN_GUI_PROGRESS_PATH", None)
+        try:
+            process = subprocess.Popen(
+                command,
+                cwd=str(self._repo_root()),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                env=env,
+            )
+        except Exception as exc:
+            self.create_toast(
+                f"Failed to launch validation: {exc}",
+                severity="ERROR",
+                context="validation",
+            )
+            self._validation_running = False
+            self._cleanup_validation_progress_monitor()
+            self._update_validation_control_states()
+            return
+        self._validation_process = process
+        self._validation_stdout_thread = threading.Thread(
+            target=self._stream_validation_output,
+            args=(process,),
+            daemon=True,
+        )
+        self._validation_stdout_thread.start()
+        threading.Thread(
+            target=self._monitor_validation_process,
+            args=(process,),
+            daemon=True,
+        ).start()
+
+    def _stream_validation_output(
+        self, process: subprocess.Popen[str]
+    ) -> None:
+        """Append the worker stdout lines to the validation log."""
+
+        if process.stdout is None:
+            return
+        for line in process.stdout:
+            cleaned = line.rstrip()
+            if cleaned:
+                self._call_on_ui_thread(
+                    self._append_validation_log_line, cleaned
+                )
+
+    def _monitor_validation_process(
+        self, process: subprocess.Popen[str]
+    ) -> None:
+        """Watch the validation worker and react when it exits."""
+
+        return_code = process.wait()
+        summary = validation_utils.read_validation_summary()
+        if self.content_area is None:
+            self._complete_validation_run(return_code, summary)
+            return
+        self.content_area.after(
+            0, lambda: self._complete_validation_run(return_code, summary)
+        )
+
+    def _complete_validation_run(self, code: int, summary: str) -> None:
+        """Update the validation view after the worker finishes."""
+
+        self._validation_running = False
+        status = "passed" if code == 0 else "failed"
+        self._validation_status_base = f"Status: validation {status}"
+        self._update_validation_status_label(self._progress_snapshot)
+        self._append_validation_summary_text(
+            summary or "Validation completed without producing summary text."
+        )
+        console_output.write(
+            f"GUI validation: completed with code {code} and summary length "
+            f"{len(summary)}."
+        )
+        self._cleanup_validation_progress_monitor()
+        self._validation_process = None
+        self._validation_stdout_thread = None
+        self._update_validation_control_states()
+
+    def _append_validation_summary_text(self, summary: str) -> None:
+        """Append the validation summary text to the log widget."""
+
+        for line in summary.splitlines():
+            self._append_validation_log_line(line)
+
+    def _append_validation_log_line(self, line: str) -> None:
+        """Append a single log *line* to the validation text widget."""
+
+        self._validation_log_lines.append(line)
+        if not self._validation_text_widget:
+            return
+        lock_tail = self._validation_log_lock_var is None or bool(
+            self._validation_log_lock_var.get()
+        )
+        self._validation_text_widget.configure(state="normal")
+        self._validation_text_widget.insert("end", f"{line}\n")
+        self._validation_text_widget.configure(state="disabled")
+        if lock_tail:
+            try:
+                self._validation_text_widget.yview_moveto(1.0)
+            except Exception:
+                pass
+
+    def _reset_validation_log_widget(self, message: str | None = None) -> None:
+        """Clear the log widget so new entries can stream in."""
+
+        if not self._validation_text_widget:
+            return
+        self._validation_log_lines.clear()
+        self._validation_text_widget.configure(state="normal")
+        self._validation_text_widget.delete("1.0", tkinter_module.END)
+        if message:
+            self._append_validation_log_line(message)
+        self._validation_text_widget.configure(state="disabled")
+        if (
+            self._validation_log_lock_var
+            and self._validation_log_lock_var.get()
+        ):
+            try:
+                self._validation_text_widget.yview_moveto(1.0)
+            except Exception:
+                pass
+
+    def _refresh_validation_log_widget_from_history(self) -> None:
+        """Repopulate the log widget when the UI is rebuilt."""
+
+        if not self._validation_text_widget:
+            return
+        self._validation_text_widget.configure(state="normal")
+        self._validation_text_widget.delete("1.0", tkinter_module.END)
+        for line in self._validation_log_lines:
+            self._validation_text_widget.insert("end", f"{line}\n")
+        self._validation_text_widget.configure(state="disabled")
+        if (
+            self._validation_log_lock_var
+            and self._validation_log_lock_var.get()
+        ):
+            try:
+                self._validation_text_widget.yview_moveto(1.0)
+            except Exception:
+                pass
+
+    def _update_validation_control_states(self) -> None:
+        """Enable/disable buttons depending on the validation state."""
+
+        if self._validation_button:
+            self._validation_button.configure(
+                state=(
+                    tkinter_module.DISABLED
+                    if self._validation_running
+                    else tkinter_module.NORMAL
+                )
+            )
+        if self._validation_cancel_button:
+            self._validation_cancel_button.configure(
+                state=(
+                    tkinter_module.NORMAL
+                    if self._validation_running
+                    else tkinter_module.DISABLED
+                )
+            )
+        if self._validation_clear_button:
+            self._validation_clear_button.configure(
+                state=(
+                    tkinter_module.DISABLED
+                    if self._validation_running
+                    else tkinter_module.NORMAL
+                )
+            )
+
+    def _cancel_validation_run(self) -> None:
+        """Signal the running validation worker to stop early."""
+
+        if not self._validation_running or self._validation_process is None:
+            return
+        try:
+            self._validation_process.terminate()
+        except Exception as exc:
+            self.create_toast(
+                f"Failed to cancel validation: {exc}",
+                severity="WARNING",
+                context="validation",
+            )
+            return
+        self.create_toast(
+            "Validation cancellation requested.",
+            severity="INFO",
+            context="validation",
+        )
+
+    def _clear_validation_results(self) -> None:
+        """Remove every generated validation artifact and reset the view."""
+
+        if self._validation_running:
+            self.create_toast(
+                "Stop the validation run before clearing outputs.",
+                severity="WARNING",
+                context="validation",
+            )
+            return
+        output_dir = self._repo_root() / "validation" / "output"
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
+        if validation_utils.VALIDATION_FILE.exists():
+            validation_utils.VALIDATION_FILE.unlink(missing_ok=True)
+        self._reset_validation_log_widget(
+            "Validation outputs cleared. Run the suite to regenerate the log."
+        )
+        self._validation_status_base = "Status: idle"
+        self._update_validation_status_label(self._progress_snapshot)
+        self.create_toast(
+            "Validation reports and outputs removed.",
+            severity="INFO",
+            context="validation",
+        )
+        self._update_validation_control_states()
+
+        self._refresh_environment_status()
+
+    def _prepare_validation_progress_monitor(self) -> None:
+        """Configure progress state tracking for the validation runner."""
+
+        if self._progress_state_path:
+            return
+        progress_path = self._prepare_progress_path()
+        self._progress_state_path = progress_path
+        progress_state.clear_progress(progress_path)
+        self._validation_progress_env_backup = os.environ.get(
+            "COPERNICAN_GUI_PROGRESS_PATH"
+        )
+        os.environ["COPERNICAN_GUI_PROGRESS_PATH"] = progress_path
+        self._start_progress_poller()
+        self._refresh_validation_progress_widgets()
+
+    def _cleanup_validation_progress_monitor(self) -> None:
+        """Stop monitoring and remove the temporary progress state."""
+
+        self._stop_progress_poller()
+        if self._progress_state_path:
+            progress_state.clear_progress(self._progress_state_path)
+            self._progress_state_path = None
+        if self._validation_progress_env_backup is not None:
+            os.environ["COPERNICAN_GUI_PROGRESS_PATH"] = (
+                self._validation_progress_env_backup
+            )
+            self._validation_progress_env_backup = None
+        else:
+            os.environ.pop("COPERNICAN_GUI_PROGRESS_PATH", None)
+        self._progress_snapshot = None
+        self._validation_last_stage_label = None
+
+    def _handle_home_revalidate(self, dataset_id: str) -> None:
+        """Revalidate an untrusted dataset from the Home dashboard."""
+
+        try:
+            record = self.revalidate_dataset(dataset_id)
+        except KeyError:
+            self.create_toast(
+                f"{dataset_id} is not present in the catalogue.",
+                severity="ERROR",
+                context="data",
+            )
+            self.show_home()
+            return
+        if record.get("parser_trusted"):
+            severity = "INFO"
+            message = f"{dataset_id} passed parser validation."
+        else:
+            severity = "WARNING"
+            message = (
+                f"{dataset_id} is still untrusted; verify parser digests."
+            )
+        self.create_toast(message, severity=severity, context="data")
+        self.show_home()
 
     def _is_seed_step_complete(self) -> bool:
         """Return True once the seed input has some text."""
@@ -1465,7 +3859,7 @@ class CopernicanGUI:
             or self.selected_engine
             or self.selected_datasets
             or self.draft.seed.strip()
-            or self.draft.data.strip()
+            or self.draft.dataset.strip()
         )
 
     def _can_enter_confirm(self) -> bool:
@@ -1504,7 +3898,7 @@ class CopernicanGUI:
         )
 
     def _handle_builder_next(self) -> None:
-        """Guard the transition from Engine to Save Manifest."""
+        """Guard the transition from Engine to Manifest."""
 
         engine_index = self.builder_steps.index("Engine")
         if (
@@ -1513,9 +3907,9 @@ class CopernicanGUI:
         ):
             self._notify_builder_completion_required()
             return
-        save_index = self.builder_steps.index("Save Manifest")
+        manifest_index = self.builder_steps.index("Manifest")
         if (
-            self.current_step_index == save_index
+            self.current_step_index == manifest_index
             and self.manifest_workspace is None
         ):
             self._notify_manifest_save_required()
@@ -1558,10 +3952,17 @@ class CopernicanGUI:
         self.draft = RunDraft()
         self.selected_models = []
         self.selected_engine = ""
+        self.selected_engine_kind = "mcmc"
         self._selected_model_entry = None
         self._selected_engine_entry = None
-        self.selected_datasets = []
         self.engine_capabilities = None
+        if self._engine_run_settings_frame is not None:
+            self._engine_run_settings_frame.destroy()
+        self._engine_setting_vars.clear()
+        self._engine_setting_specs.clear()
+        self._engine_run_settings_frame = None
+        self._current_engine_module = None
+        self.selected_datasets = []
         self._staged_confirm_manifest = None
 
     def _clear_manifest_configuration(self) -> None:
@@ -1579,7 +3980,7 @@ class CopernicanGUI:
 
         workspace = self._persist_manifest_workspace(notify=True)
         if workspace:
-            confirm_index = self.builder_steps.index("Confirm")
+            confirm_index = self.builder_steps.index(self._CONFIRM_STEP_NAME)
             self.current_step_index = confirm_index
             self.show_run_builder()
 
@@ -1667,86 +4068,117 @@ class CopernicanGUI:
 
         self.refresh_inventory()
 
-        def builder(frame: tk.Frame) -> None:
-            header = ttk.Label(
-                frame, text="Run Builder", font=("Helvetica", 16)
-            )
-            header.pack(anchor="w", pady=(0, 8))
-            step_frame = ttk.Frame(frame)
+        def builder(frame: tkinter_module.Frame) -> None:
+            """Render the Run Builder navigation controls and status."""
+            current_step = self.builder_steps[self.current_step_index]
+            self._page_header(frame, f"Run builder: {current_step}")
+            step_frame = ttk_module.Frame(frame)
             step_frame.pack(fill="x", pady=(0, 12))
-            confirm_index = self.builder_steps.index("Confirm")
-            confirm_ready = self._can_enter_confirm()
+            self._builder_step_buttons = []
+            jump_button_style = self._monitor_button_kwargs()
             for index, step in enumerate(self.builder_steps):
-                indicator_state = (
-                    tk.DISABLED
-                    if index == confirm_index and not confirm_ready
-                    else tk.NORMAL
-                )
-                indicator = ttk.Button(
+                indicator = ttk_module.Button(
                     step_frame,
-                    text=f"{index + 1}. {step}",
+                    text=step,
                     command=lambda idx=index: self.jump_to_step(idx),
-                    state=indicator_state,
+                    takefocus=True,
+                    **jump_button_style,
+                )
+                indicator.pack(side="left", padx=4)
+                self._builder_step_buttons.append(indicator)
+            status_message = self._builder_status_message()
+            if status_message:
+                body = ttk_module.Label(
+                    frame,
+                    text=status_message,
+                    wraplength=720,
+                    justify="left",
                     takefocus=True,
                 )
-                indicator.pack(side="left", padx=2)
-            body = ttk.Label(
-                frame,
-                text=(
-                    "Work through the stages to assemble a reproducible run "
-                    "manifest. The controls below let you move between steps, "
-                    "save your progress or cancel entirely."
-                ),
-                wraplength=720,
-                takefocus=True,
-            )
-            body.pack(anchor="w", pady=(8, 8))
+                body.pack(anchor="w", pady=(8, 8))
 
-            controls = ttk.Frame(frame)
+            controls = ttk_module.Frame(frame)
             controls.pack(anchor="w")
             nav_button_style = self._monitor_button_kwargs()
-            ttk.Button(
+            ttk_module.Button(
                 controls,
                 text="Previous",
                 command=self.previous_step,
                 state=(
-                    tk.DISABLED if self.current_step_index == 0 else tk.NORMAL
+                    tkinter_module.DISABLED
+                    if self.current_step_index == 0
+                    else tkinter_module.NORMAL
                 ),
                 takefocus=True,
                 **nav_button_style,
             ).pack(side="left", padx=4)
-            save_index = self.builder_steps.index("Save Manifest")
+            manifest_index = self.builder_steps.index("Manifest")
             next_disabled = self.current_step_index >= len(
                 self.builder_steps
             ) - 1 or (
-                self.current_step_index == save_index
+                self.current_step_index == manifest_index
                 and self.manifest_workspace is None
             )
-            ttk.Button(
+            ttk_module.Button(
                 controls,
                 text="Next",
                 command=self._handle_builder_next,
-                state=tk.DISABLED if next_disabled else tk.NORMAL,
+                state=(
+                    tkinter_module.DISABLED
+                    if next_disabled
+                    else tkinter_module.NORMAL
+                ),
                 takefocus=True,
                 **nav_button_style,
             ).pack(side="left", padx=4)
-            ttk.Button(
+            ttk_module.Button(
                 controls,
                 text="Cancel",
                 command=self.cancel_builder,
                 state=(
-                    tk.NORMAL if self._has_configuration() else tk.DISABLED
+                    tkinter_module.NORMAL
+                    if self._has_configuration()
+                    else tkinter_module.DISABLED
                 ),
                 takefocus=True,
                 **nav_button_style,
             ).pack(side="left", padx=4)
-            content_panel = ttk.Frame(frame, padding=(0, 8))
-            content_panel.pack(fill="both", expand=True)
-            self._build_run_builder_step(content_panel)
+            content_container = ttk_module.Frame(frame)
+            content_container.pack(fill="both", expand=True)
+            scroll_panel = self._create_scrollable_panel(content_container)
+            self._build_run_builder_step(scroll_panel)
+            self._refresh_builder_step_indicators()
 
         self._swap_content(builder)
 
-    def _build_run_builder_step(self, container: tk.Frame) -> None:
+    def _refresh_builder_step_indicators(self) -> None:
+        """Update builder jump buttons so only the active step is bold."""
+
+        if not self.render or not self._builder_step_buttons:
+            return
+        manifest_index = self.builder_steps.index("Manifest")
+        confirm_index = self.builder_steps.index(self._CONFIRM_STEP_NAME)
+        for index, button in enumerate(self._builder_step_buttons):
+            if index == manifest_index:
+                desired_state = (
+                    tkinter_module.NORMAL
+                    if self._builder_ready()
+                    else tkinter_module.DISABLED
+                )
+            elif index == confirm_index:
+                desired_state = (
+                    tkinter_module.NORMAL
+                    if self._can_enter_confirm()
+                    else tkinter_module.DISABLED
+                )
+            else:
+                desired_state = tkinter_module.NORMAL
+            if desired_state == tkinter_module.NORMAL:
+                button.state(["!disabled"])
+            else:
+                button.state(["disabled"])
+
+    def _build_run_builder_step(self, container: tkinter_module.Frame) -> None:
         """Render the content for the current builder step."""
 
         handlers = [
@@ -1754,7 +4186,7 @@ class CopernicanGUI:
             self._render_builder_step_models,
             self._render_builder_step_data,
             self._render_builder_step_engine,
-            self._render_builder_step_plan,
+            self._render_builder_step_manifest,
             self._render_builder_step_confirm,
         ]
         if 0 <= self.current_step_index < len(handlers):
@@ -1810,6 +4242,7 @@ class CopernicanGUI:
             return default_steps, default_walkers, default_pool
 
         def _default_value(name: str, fallback: int) -> int:
+            """Return the default parameter value declared by the engine."""
             param = signature.parameters.get(name)
             if param is None or param.default is inspect._empty:
                 return fallback
@@ -1861,58 +4294,125 @@ class CopernicanGUI:
             "cpu_label": cpu_label,
         }
 
-    def _render_builder_step_seed(self, container: tk.Frame) -> None:
-        ttk.Label(
-            container,
-            text="Seed selection",
-            font=("Helvetica", 14, "bold"),
-            takefocus=True,
-        ).pack(anchor="w", pady=(0, 6))
-        ttk.Label(
+    def _render_builder_step_seed(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
+        """Render the Seed step UI, including seed entry and buttons."""
+        ttk_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
+        ttk_module.Label(
             container,
             text=(
-                "Choose a deterministic seed or let the system generate one. "
-                "Hints are logged in the run manifest for reproducibility."
+                "Choose a deterministic seed, use the timestamp generator, or "
+                "play one of the mini-games to forge a reproducible value."
             ),
             wraplength=720,
             takefocus=True,
         ).pack(anchor="w")
-        seed_var = tk.StringVar(value=self.draft.seed)
+        seed_var = tkinter_module.StringVar(value=self.draft.seed)
 
         def _update_seed(*_args: object) -> None:
+            """Mirror entry text to the draft seed as it changes."""
             self.draft.seed = seed_var.get().strip()
+            self._refresh_builder_step_indicators()
 
         seed_var.trace_add("write", _update_seed)
-        entry = ttk.Entry(container, textvariable=seed_var, width=24)
-        entry.pack(anchor="w", pady=(6, 8))
-        button_row = ttk.Frame(container)
-        button_row.pack(anchor="w")
-        ttk.Button(
-            button_row,
-            text="Default (0)",
-            command=lambda: seed_var.set("0"),
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            button_row,
-            text="Random timestamp",
-            command=lambda: seed_var.set(str(int(time.time()))),
-        ).pack(side="left", padx=2)
-        env_seed = os.environ.get("COPERNICAN_SEED")
-        if env_seed:
-            ttk.Button(
-                button_row,
-                text="Use COPERNICAN_SEED",
-                command=lambda: seed_var.set(env_seed),
-            ).pack(side="left", padx=2)
-
-    def _render_builder_step_models(self, container: tk.Frame) -> None:
-        ttk.Label(
+        entry = ttk_module.Entry(
             container,
-            text="Model selection",
-            font=("Helvetica", 14, "bold"),
-            takefocus=True,
-        ).pack(anchor="w", pady=(0, 6))
-        ttk.Label(
+            textvariable=seed_var,
+            width=24,
+        )
+        entry.pack(anchor="w", pady=(6, 8))
+        button_column = ttk_module.Frame(container)
+        button_column.pack(anchor="w", fill="x", pady=(0, 8))
+
+        def _add_seed_button(
+            label: str,
+            action: Callable[[], None],
+        ) -> None:
+            """Add a configured button to the temporary seed button column."""
+            seed_button = ttk_module.Button(
+                button_column,
+                text=label,
+                command=action,
+            )
+            seed_button.pack(anchor="w", pady=2, ipadx=8, ipady=4)
+
+        env_seed = os.environ.get("COPERNICAN_SEED")
+        self._build_seed_button_column(button_column, seed_var, env_seed)
+
+    def _build_seed_button_column(
+        self,
+        container: tkinter_module.Frame,
+        seed_var: "tkinter_module.StringVar",
+        env_seed: str | None,
+    ) -> None:
+        """Rebuild the mini-game seed buttons when the catalog changes."""
+        for child in container.winfo_children():
+            child.destroy()
+
+        def _add_seed_button(label: str, action: Callable[[], None]) -> None:
+            """Place a seed shortcut button inside the provided container."""
+            ttk_module.Button(
+                container,
+                text=label,
+                command=action,
+            ).pack(anchor="w", pady=2, ipadx=8, ipady=4)
+
+        _add_seed_button("Default (0)", lambda: seed_var.set("0"))
+        _add_seed_button(
+            "Random timestamp",
+            lambda: seed_var.set(str(int(time.time()))),
+        )
+        for descriptor in self._minigame_catalog:
+            _add_seed_button(
+                descriptor.name,
+                lambda game_id=descriptor.game_id: self._launch_minigame(
+                    game_id, seed_var
+                ),
+            )
+        if env_seed:
+            _add_seed_button(
+                "Use COPERNICAN_SEED",
+                lambda: seed_var.set(env_seed),
+            )
+        _add_seed_button(
+            "Refresh RNG mini-games",
+            lambda: self._refresh_minigame_catalog(
+                container, seed_var, env_seed
+            ),
+        )
+
+    def _refresh_minigame_catalog(
+        self,
+        container: tkinter_module.Frame,
+        seed_var: "tkinter_module.StringVar",
+        env_seed: str | None,
+    ) -> None:
+        """Reload the RNG mini-game registry and refresh the buttons."""
+        try:
+            self._minigame_catalog = rng_minigames.refresh_registry()
+        except Exception as exc:
+            self.create_toast(
+                f"Mini-game refresh failed: {exc}",
+                severity="ERROR",
+                context="seed",
+            )
+            return
+        self.create_toast(
+            "Mini-games refreshed from rng_minigames/",
+            severity="INFO",
+            context="seed",
+        )
+        self._build_seed_button_column(container, seed_var, env_seed)
+
+    def _render_builder_step_models(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
+        """Render the Models step UI for selecting and previewing a model."""
+        ttk_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
+        ttk_module.Label(
             container,
             text="Pick one YAML-defined model to include in the run.",
             wraplength=720,
@@ -1922,38 +4422,148 @@ class CopernicanGUI:
             self.model_index.values(), key=lambda entry: entry["id"]
         )
         if not available:
-            ttk.Label(
+            ttk_module.Label(
                 container,
                 text="No models available; refresh inventory and try again.",
                 takefocus=True,
             ).pack(anchor="w", pady=(6, 0))
             return
-        list_container = ttk.Frame(container)
-        list_container.pack(fill="x", pady=(8, 4))
-        listbox = tk.Listbox(
-            list_container,
-            height=6,
+        list_container = ttk_module.Frame(container)
+        list_container.pack(fill="both", expand=True, pady=(8, 4))
+        list_frame = ttk_module.Frame(list_container)
+        list_frame.pack(side="left", fill="both", expand=True)
+        listbox = tkinter_module.Listbox(
+            list_frame,
+            height=8,
             selectmode="browse",
             exportselection=False,
         )
         listbox.pack(side="left", fill="both", expand=True)
-        scrollbar = ttk.Scrollbar(
-            list_container, orient="vertical", command=listbox.yview
+        scrollbar = ttk_module.Scrollbar(
+            list_frame, orient="vertical", command=listbox.yview
         )
         scrollbar.pack(side="right", fill="y")
         listbox.configure(yscrollcommand=scrollbar.set)
-        initial_model = (
-            self.selected_models[0] if self.selected_models else None
+        button_frame = ttk_module.Frame(list_container)
+        button_frame.pack(side="left", fill="y", padx=(8, 0), anchor="n")
+
+        def _view_selected_model() -> None:
+            """Preview the currently selected model metadata."""
+            entry = self._selected_model_entry
+            if not entry:
+                self.create_toast(
+                    "Select a model before viewing its definition.",
+                    severity="WARNING",
+                    context="models",
+                )
+                return
+            self._present_metadata(
+                entry["id"], f"Model definition: {entry['id']}"
+            )
+
+        def _open_selected_model_file() -> None:
+            """Launch the selected model file in the OS default editor."""
+            entry = self._selected_model_entry
+            if not entry:
+                self.create_toast(
+                    "Select a model before opening its YAML file.",
+                    severity="WARNING",
+                    context="models",
+                )
+                return
+            self._open_path_with_system(entry["path"])
+
+        ttk_module.Button(
+            button_frame,
+            text="View model",
+            command=_view_selected_model,
+        ).pack(fill="x", pady=(0, 4))
+        ttk_module.Button(
+            button_frame,
+            text="Open model YML...",
+            command=_open_selected_model_file,
+        ).pack(fill="x")
+        summary = ttk_module.Label(
+            container,
+            text="",
+            wraplength=720,
+            takefocus=True,
         )
-        summary = ttk.Label(container, text="", wraplength=720, takefocus=True)
         summary.pack(anchor="w", pady=(4, 4))
 
         for index, model in enumerate(available):
             listbox.insert("end", f"{model['id']} ({model['filename']})")
-            if model["id"] == initial_model:
+            if model["id"] == (
+                self.selected_models[0] if self.selected_models else None
+            ):
                 listbox.select_set(index)
 
-        def _refresh_model_selection(_: tk.Event | None = None) -> None:
+        preview_frame = ttk_module.LabelFrame(
+            container,
+            text="Model preview",
+            padding=(8, 6),
+        )
+        preview_frame.pack(fill="both", expand=True, pady=(8, 0))
+        preview_frame.columnconfigure(0, weight=3)
+        preview_frame.columnconfigure(1, weight=2)
+        preview_frame.rowconfigure(0, weight=1)
+
+        preview_panel = ttk_module.Frame(preview_frame)
+        preview_panel.grid(row=0, column=0, sticky="nsew")
+        preview_panel.columnconfigure(0, weight=1)
+        preview_panel.rowconfigure(0, weight=1)
+        preview_text = tkinter_module.Text(
+            preview_panel,
+            wrap="none",
+            borderwidth=1,
+            relief="solid",
+            height=18,
+        )
+        preview_text.grid(row=0, column=0, sticky="nsew")
+        vscroll = ttk_module.Scrollbar(
+            preview_panel, orient="vertical", command=preview_text.yview
+        )
+        vscroll.grid(row=0, column=1, sticky="ns")
+        hscroll = ttk_module.Scrollbar(
+            preview_panel, orient="horizontal", command=preview_text.xview
+        )
+        hscroll.grid(row=1, column=0, sticky="ew")
+        preview_text.configure(
+            yscrollcommand=vscroll.set,
+            xscrollcommand=hscroll.set,
+        )
+
+        action_frame = ttk_module.Frame(container)
+        action_frame.pack(fill="x", pady=(4, 4))
+        ttk_module.Button(
+            action_frame,
+            text="Equations & expressions…",
+            command=self._show_equations_window,
+        ).pack(side="right")
+
+        def _refresh_model_preview(entry: dict | None = None) -> None:
+            """Update the model YAML preview and equation panel."""
+            preview_text.configure(state="normal")
+            preview_text.delete("1.0", "end")
+            if entry:
+                try:
+                    content = self._read_asset_text(entry["path"])
+                except Exception as exc:
+                    content = f"Unable to load {entry['id']}: {exc}"
+                preview_text.insert("1.0", content)
+            else:
+                preview_text.insert(
+                    "1.0",
+                    "Select a model to preview its YAML definition.",
+                )
+            preview_text.configure(state="disabled")
+            preview_text.yview_moveto(0)
+            self._refresh_equation_panel(entry)
+
+        def _refresh_model_selection(
+            _: tkinter_module.Event | None = None,
+        ) -> None:
+            """React to model list changes and refresh selection state."""
             indices = listbox.curselection()
             if indices:
                 entry = available[indices[0]]
@@ -1962,23 +4572,181 @@ class CopernicanGUI:
                 self.draft.model = selected_model
                 self._selected_model_entry = entry
                 summary.config(text=f"Selected model: {selected_model}")
+                _refresh_model_preview(entry)
             else:
                 self.selected_models = []
                 self.draft.model = ""
                 self._selected_model_entry = None
                 summary.config(text="No model selected yet.")
+                _refresh_model_preview(None)
+            self._refresh_builder_step_indicators()
 
         listbox.bind("<<ListboxSelect>>", _refresh_model_selection)
         _refresh_model_selection()
 
-    def _render_builder_step_data(self, container: tk.Frame) -> None:
-        ttk.Label(
-            container,
-            text="Data selection",
-            font=("Helvetica", 14, "bold"),
-            takefocus=True,
-        ).pack(anchor="w", pady=(0, 6))
-        ttk.Label(
+    def _show_equations_window(self) -> None:
+        """Open a standalone window that displays the current model's
+        equations."""
+
+        if not self.render or self.root is None:
+            return
+        entry = self._selected_model_entry
+        if not entry:
+            self.create_toast(
+                "Select a model before viewing its equations.",
+                severity="WARNING",
+                context="models",
+            )
+            return
+        if self._equations_window is not None:
+            self._equations_window.deiconify()
+            self._equations_window.lift()
+            self._refresh_equation_panel(entry)
+            return
+        window = tkinter_module.Toplevel(self.root)
+        window.title(f"Equations & expressions — {entry['id']}")
+        window.geometry("460x400")
+        window.minsize(360, 260)
+        window.transient(self.root)
+        window.rowconfigure(0, weight=1)
+        window.columnconfigure(0, weight=1)
+        body = ttk_module.Frame(window, padding=(12, 12, 12, 12))
+        body.grid(row=0, column=0, sticky="nsew")
+        body.rowconfigure(0, weight=1)
+        body.columnconfigure(0, weight=1)
+        if HtmlFrame is not None:
+            html = HtmlFrame(
+                body,
+                horizontal_scrollbar=False,
+                vertical_scrollbar="auto",
+                javascript_enabled=True,
+            )
+            html.grid(row=0, column=0, sticky="nsew")
+            self._equation_html_frame = html
+            self._equations_text_widget = None
+        else:
+            text_widget = tkinter_module.Text(
+                body,
+                wrap="word",
+                borderwidth=1,
+                relief="solid",
+            )
+            text_widget.grid(row=0, column=0, sticky="nsew")
+            text_widget.configure(state="disabled")
+            self._equations_text_widget = text_widget
+            self._equation_html_frame = None
+        window.protocol(
+            "WM_DELETE_WINDOW",
+            lambda: self._close_equations_window(window),
+        )
+        self._equations_window = window
+        self._refresh_equation_panel(entry)
+
+    def _close_equations_window(self, window: tkinter_module.Toplevel) -> None:
+        """Cleanup references when the equations window closes."""
+
+        if self._equations_window is window:
+            self._equations_window = None
+        self._equation_html_frame = None
+        self._equations_text_widget = None
+        window.destroy()
+
+    def _collect_model_expressions(
+        self, metadata: Mapping[str, Any] | None
+    ) -> list[tuple[str, str]]:
+        """Return a list of (title, LaTeX) tuples for the equation panel."""
+
+        expressions: list[tuple[str, str]] = []
+
+        def _append(title: str, expression_value: Any | None) -> None:
+            """Add a non-empty expression entry to the list."""
+            if isinstance(expression_value, str) and expression_value.strip():
+                expressions.append((title, expression_value.strip()))
+
+        meta = metadata or {}
+        _append("H(z)", meta.get("Hz_expression"))
+        _append("Sound horizon", meta.get("rs_expression"))
+
+        equations = meta.get("equations")
+        if isinstance(equations, Mapping):
+            for section, equation_value in equations.items():
+                if isinstance(equation_value, str):
+                    _append(section, equation_value)
+                elif isinstance(equation_value, Sequence) and not isinstance(
+                    equation_value, str
+                ):
+                    for idx, entry in enumerate(equation_value):
+                        _append(f"{section} {idx + 1}", entry)
+        return expressions
+
+    def _format_plain_expression_text(self, entry: dict | None) -> str:
+        """Return a textual summary of the expressions for fallback views."""
+
+        metadata = entry.get("metadata") if entry else None
+        expressions = self._collect_model_expressions(metadata)
+        if not expressions:
+            return "Select a model to preview its symbolic equations."
+        return "\n\n".join(f"{title}:\n{expr}" for title, expr in expressions)
+
+    def _build_equation_html(self, entry: dict | None) -> str:
+        """
+        Return an HTML document that renders the model's LaTeX expressions.
+        """
+
+        if entry is None:
+            expressions_html = _EQUATION_EMPTY_BODY
+            model_name = "Model preview unloaded"
+        else:
+            metadata = entry.get("metadata")
+            expressions = self._collect_model_expressions(metadata)
+            if expressions:
+                expressions_html = "".join(
+                    (
+                        "<div class='expression-block'>"
+                        f"<div class='expression-title'>{escape(title)}</div>"
+                        f"<div class='equation' data-latex=\"{escape(expr)}\">"
+                        f"{escape(expr)}</div>"
+                        "</div>"
+                    )
+                    for title, expr in expressions
+                )
+            else:
+                expressions_html = _EQUATION_EMPTY_BODY
+            model_name = (metadata or {}).get("model_name") or entry.get(
+                "id", ""
+            )
+
+        return _EQUATION_HTML_TEMPLATE.format(
+            version=_KATEX_VERSION,
+            shim=_EQUATION_WINDOW_SHIM,
+            model_name=escape(model_name),
+            expressions=expressions_html,
+        )
+
+    def _refresh_equation_panel(self, entry: dict | None = None) -> None:
+        """Update the KaTeX HTML view based on the selected model."""
+
+        if self._equations_window is not None and entry:
+            self._equations_window.title(
+                f"Equations & expressions — {entry['id']}"
+            )
+        if self._equation_html_frame is not None:
+            html = self._build_equation_html(entry)
+            self._equation_html_frame.load_html(html)
+        if self._equations_text_widget is not None:
+            body = self._format_plain_expression_text(entry)
+            self._equations_text_widget.configure(state="normal")
+            self._equations_text_widget.delete("1.0", "end")
+            self._equations_text_widget.insert("1.0", body)
+            self._equations_text_widget.configure(state="disabled")
+
+    def _render_builder_step_data(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
+        """Render dataset selection panels grouped by observation type."""
+        ttk_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
+        ttk_module.Label(
             container,
             text=(
                 "Pick one dataset per observation type "
@@ -1993,7 +4761,7 @@ class CopernicanGUI:
             self.catalogue_index.values(), key=lambda entry: entry["id"]
         )
         if not entries:
-            ttk.Label(
+            ttk_module.Label(
                 container,
                 text="No datasets registered; run inventory refresh first.",
                 takefocus=True,
@@ -2010,66 +4778,68 @@ class CopernicanGUI:
             for dtype in type_groups
             if dtype not in ("sne", "bao", "cmb")
         )
-        detail_label = ttk.Label(
+        catalogue_panel = ttk_module.Frame(container)
+        catalogue_panel.pack(fill="x", pady=(6, 0))
+        dropdown_widgets: dict[str, ttk_module.Combobox] = {}
+        id_lookup: dict[str, tuple[str, int]] = {}
+
+        def _add_dataset_section(
+            parent: tkinter_module.Frame,
+            dtype: str,
+            records: list[dict],
+            *,
+            width_px: int = 500,
+        ) -> None:
+            """Insert a dataset selector row for the given observation type."""
+            ttk_module.Label(
+                parent,
+                text=(
+                    f"{dtype.upper()} datasets – {len(records)} "
+                    f"{'candidate' if len(records) == 1 else 'candidates'}"
+                ),
+                takefocus=True,
+            ).pack(anchor="w", pady=(4, 2))
+            combo_frame = ttk_module.Frame(parent, width=width_px)
+            combo_frame.pack(anchor="w", pady=(0, 16))
+            placeholder = "Select dataset…"
+            values = [
+                f"{record['id']} – {record.get('name', record['id'])}"
+                for record in records
+            ]
+            combo = ttk_module.Combobox(
+                combo_frame,
+                values=[placeholder] + values,
+                state="readonly",
+                width=max(40, width_px // 9),
+            )
+            combo.current(0)
+            combo.pack(fill="both", expand=True)
+            dropdown_widgets[dtype] = combo
+            for index, record in enumerate(records):
+                id_lookup[record["id"]] = (dtype, index)
+
+        for dtype in ordered_types:
+            _add_dataset_section(catalogue_panel, dtype, type_groups[dtype])
+        detail_label = ttk_module.Label(
             container,
             text="Select datasets to preview details.",
             wraplength=720,
             takefocus=True,
         )
         detail_label.pack(anchor="w", pady=(6, 6))
-        catalogue_panel = self._create_scrollable_panel(container)
-        listboxes: dict[str, tk.Listbox] = {}
-        id_lookup: dict[str, tuple[str, int]] = {}
-        for dtype in ordered_types:
-            records = type_groups[dtype]
-            section = ttk.LabelFrame(
-                catalogue_panel,
-                text=f"{dtype.upper()} datasets",
-                padding=(6, 4),
-            )
-            section.pack(fill="x", pady=4)
-            ttk.Label(
-                section,
-                text=(
-                    f"{len(records)} "
-                    f"{'candidate' if len(records) == 1 else 'candidates'}"
-                ),
-                takefocus=True,
-            ).pack(anchor="w")
-            list_frame = ttk.Frame(section)
-            list_frame.pack(fill="x", pady=(4, 0))
-            listbox = tk.Listbox(
-                list_frame,
-                height=min(8, max(4, len(records))),
-                selectmode="browse",
-                exportselection=False,
-                width=96,
-            )
-            listbox.pack(side="left", fill="both", expand=True)
-            scroll = ttk.Scrollbar(
-                list_frame, orient="vertical", command=listbox.yview
-            )
-            scroll.pack(side="right", fill="y")
-            listbox.configure(yscrollcommand=scroll.set)
-            for index, record in enumerate(records):
-                listbox.insert(
-                    "end",
-                    f"{record['id']} – {record.get('name', record['id'])}",
-                )
-                id_lookup[record["id"]] = (dtype, index)
-            listboxes[dtype] = listbox
         selection_map: dict[str, dict] = {}
         focus_state: dict[str, dict | None] = {"record": None}
 
         def _refresh_data_selection() -> None:
+            """Update the builder draft whenever dataset choices change."""
             selection_map.clear()
             selected_records: list[dict] = []
             for dtype in ordered_types:
-                listbox = listboxes[dtype]
-                indices = listbox.curselection()
-                if not indices:
+                combo = dropdown_widgets[dtype]
+                index = combo.current()
+                if index is None or index <= 0:
                     continue
-                record = type_groups[dtype][indices[0]]
+                record = type_groups[dtype][index - 1]
                 selection_map[dtype] = record
                 selected_records.append(record)
             self.selected_datasets = [
@@ -2077,7 +4847,7 @@ class CopernicanGUI:
                 for record in selected_records
             ]
             ids = [record["id"] for record in selected_records]
-            self.draft.data = ", ".join(ids)
+            self.draft.dataset = ", ".join(ids)
             if selected_records:
                 focus_state["record"] = selected_records[0]
                 first = selected_records[0]
@@ -2098,31 +4868,39 @@ class CopernicanGUI:
                         "inspect it."
                     )
                 )
+            self._refresh_builder_step_indicators()
 
-        def _update_focus(dtype: str) -> None:
-            listbox = listboxes[dtype]
-            indices = listbox.curselection()
-            if indices:
-                focus_state["record"] = type_groups[dtype][indices[0]]
+        def _make_bind(dtype: str) -> None:
+            """Attach selection listeners to each dataset combobox."""
+            combo = dropdown_widgets[dtype]
 
-        for dtype, listbox in listboxes.items():
-            listbox.bind(
-                "<<ListboxSelect>>",
-                lambda _evt, t=dtype: (
-                    _update_focus(t),
-                    _refresh_data_selection(),
-                ),
-            )
+            def _on_select(_event: tkinter_module.Event | None = None) -> None:
+                """Refresh the focus record when a selection occurs."""
+                index = combo.current()
+                focus_state["record"] = (
+                    type_groups[dtype][index - 1]
+                    if index and index > 0
+                    else None
+                )
+                _refresh_data_selection()
+
+            combo.bind("<<ComboboxSelected>>", _on_select)
+
+        for dtype in ordered_types:
+            _make_bind(dtype)
+
         for dataset in self.selected_datasets:
             lookup = id_lookup.get(dataset["id"])
             if lookup:
                 dtype, index = lookup
-                listboxes[dtype].select_set(index)
+                combo = dropdown_widgets[dtype]
+                combo.current(index + 1)
         _refresh_data_selection()
-        action_row = ttk.Frame(container)
+        action_row = ttk_module.Frame(container)
         action_row.pack(anchor="w")
 
         def _open_focused_folder() -> None:
+            """Open the folder of the currently highlighted dataset."""
             record = focus_state["record"]
             if record:
                 self._open_folder_or_warn(
@@ -2138,6 +4916,7 @@ class CopernicanGUI:
                 )
 
         def _view_focused_metadata() -> None:
+            """Show metadata for the highlighted dataset."""
             record = focus_state["record"]
             if record:
                 self._present_metadata(
@@ -2151,6 +4930,7 @@ class CopernicanGUI:
                 )
 
         def _revalidate_focused_parser() -> None:
+            """Re-run parser trust checks for the focused dataset."""
             record = focus_state["record"]
             if record:
                 self._revalidate_dataset_action(record["id"])
@@ -2161,30 +4941,29 @@ class CopernicanGUI:
                     context="data",
                 )
 
-        ttk.Button(
+        ttk_module.Button(
             action_row,
             text="Open folder",
             command=_open_focused_folder,
         ).pack(side="left", padx=2)
-        ttk.Button(
+        ttk_module.Button(
             action_row,
             text="View metadata",
             command=_view_focused_metadata,
         ).pack(side="left", padx=2)
-        ttk.Button(
+        ttk_module.Button(
             action_row,
             text="Revalidate parser",
             command=_revalidate_focused_parser,
         ).pack(side="left", padx=2)
 
-    def _render_builder_step_engine(self, container: tk.Frame) -> None:
-        ttk.Label(
-            container,
-            text="Engine selection",
-            font=("Helvetica", 14, "bold"),
-            takefocus=True,
-        ).pack(anchor="w", pady=(0, 6))
-        ttk.Label(
+    def _render_builder_step_engine(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
+        """Render the engine picker and run settings controls."""
+        ttk_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
+        ttk_module.Label(
             container,
             text=("Choose the computational backend to run your models."),
             wraplength=720,
@@ -2194,7 +4973,7 @@ class CopernicanGUI:
             self.engine_index.values(), key=lambda entry: entry["label"]
         )
         if not options:
-            ttk.Label(
+            ttk_module.Label(
                 container,
                 text=(
                     "No engines discovered; ensure the engines folder is "
@@ -2218,8 +4997,8 @@ class CopernicanGUI:
             ),
             choices[0],
         )
-        combo_var = tk.StringVar(value=initial_display)
-        combo = ttk.Combobox(
+        combo_var = tkinter_module.StringVar(value=initial_display)
+        combo = ttk_module.Combobox(
             container,
             textvariable=combo_var,
             values=choices,
@@ -2228,25 +5007,45 @@ class CopernicanGUI:
         )
         combo.pack(anchor="w", pady=(6, 6))
 
-        def _apply_engine_selection(_: tk.Event | None = None) -> None:
+        def _apply_engine_selection(
+            _: tkinter_module.Event | None = None,
+        ) -> None:
+            """Refresh the UI when a different engine is selected."""
             selection = combo_var.get()
             record = display_map.get(selection)
             if record:
+                if self._current_engine_module != record["id"]:
+                    self._engine_setting_vars.clear()
+                    self._engine_setting_specs.clear()
+                self._current_engine_module = record["id"]
                 self.selected_engine = record["id"]
                 self.draft.engine = record["id"]
                 self._selected_engine_entry = record
-                self.engine_capabilities = self._load_engine_capabilities(
+                capabilities, engine_kind = self._load_engine_capabilities(
                     record["id"]
                 )
+                self.engine_capabilities = capabilities
+                self.selected_engine_kind = engine_kind
                 detail_label.config(
                     text=(
                         f"{record['label']} uses module {record['id']} "
                         f"with SHA256 {record.get('hash', '')}."
                     )
                 )
+            else:
+                self.engine_capabilities = None
+                self.selected_engine_kind = "mcmc"
+                self._engine_setting_vars.clear()
+                self._engine_setting_specs.clear()
+                self._current_engine_module = None
+                detail_label.config(
+                    text="Select an engine to see details.",
+                )
+            self._render_engine_run_settings(container)
+            self._refresh_builder_step_indicators()
 
         combo.bind("<<ComboboxSelected>>", _apply_engine_selection)
-        detail_label = ttk.Label(
+        detail_label = ttk_module.Label(
             container,
             text="Select an engine to see details.",
             wraplength=720,
@@ -2254,10 +5053,11 @@ class CopernicanGUI:
         )
         detail_label.pack(anchor="w", pady=(4, 4))
         _apply_engine_selection()
-        button_frame = ttk.Frame(container)
+        button_frame = ttk_module.Frame(container)
         button_frame.pack(anchor="w", pady=(4, 0))
 
         def _open_selected_engine_folder() -> None:
+            """Open the folder containing the selected engine module."""
             selection = combo_var.get()
             record = display_map.get(selection)
             if record:
@@ -2274,6 +5074,7 @@ class CopernicanGUI:
                 )
 
         def _view_selected_engine_module() -> None:
+            """Present metadata for the selected engine module."""
             selection = combo_var.get()
             record = display_map.get(selection)
             if record:
@@ -2287,206 +5088,427 @@ class CopernicanGUI:
                     context="engine",
                 )
 
-        ttk.Button(
+        ttk_module.Button(
             button_frame,
             text="Open engine folder",
             command=_open_selected_engine_folder,
         ).pack(side="left", padx=2)
-        ttk.Button(
+        ttk_module.Button(
             button_frame,
             text="View module",
             command=_view_selected_engine_module,
         ).pack(side="left", padx=2)
         _apply_engine_selection()
 
-    def _render_engine_run_settings(self, container: tk.Frame) -> None:
+    def _render_engine_run_settings(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
         """Render engine-run tuning inputs next to the engine selector."""
 
-        settings_frame = ttk.LabelFrame(
+        if self._engine_run_settings_frame is not None:
+            self._engine_run_settings_frame.destroy()
+            self._engine_run_settings_frame = None
+        settings_frame = ttk_module.LabelFrame(
             container,
             text="Run settings",
         )
         settings_frame.pack(fill="x", pady=(8, 0))
-        recommendations = self._compute_run_recommendations()
-        hints = [
-            (
-                "Production steps control the total sampler iterations. "
-                "Recommended default: "
-                f"{recommendations['recommended_steps']}."
-            ),
-            (
-                "Burn-in steps discard early samples so the chain can "
-                "stabilise. Recommended warm-up: "
-                f"{recommendations['burn_in_recommended']}. "
-                f"Quicker option: {recommendations['quick_burn']}."
-            ),
-            (
-                "Walkers sample the posterior in parallel; more walkers "
-                f"boost convergence. Required minimum: "
-                f"{recommendations['minimum_walkers']}."
-            ),
-            (
-                "Worker pools accelerate sampling by spreading walkers across "
-                "processes. Recommended pool size: "
-                f"{recommendations['pool_max']} "
-                f"(detected CPUs: {recommendations['cpu_label']}). "
-                "Enter 0 to disable multiprocessing entirely."
-            ),
-        ]
-        for tip in hints:
-            ttk.Label(
+        self._engine_run_settings_frame = settings_frame
+        capabilities = self.engine_capabilities
+        if not capabilities or not capabilities.settings:
+            ttk_module.Label(
                 settings_frame,
-                text=tip,
+                text="This engine exposes no adjustable settings.",
                 wraplength=720,
-                justify="left",
                 takefocus=True,
             ).pack(anchor="w", pady=(6, 0))
-        field_specs = [
-            (
-                "Walkers",
-                "walkers",
-                "Number of ensemble walkers",
-                (
-                    f"Minimum: {recommendations['minimum_walkers']}  "
-                    f"Recommended: {recommendations['recommended_walkers']}"
-                ),
-            ),
-            (
-                "Burn-in steps",
-                "burn_in",
-                "Iterations used for burn-in",
-                (
-                    "Recommended warm-up: "
-                    f"{recommendations['burn_in_recommended']}  "
-                    f"Quicker option: {recommendations['quick_burn']}"
-                ),
-            ),
-            (
-                "Production steps",
-                "production_steps",
-                "Iterations used during production",
-                (
-                    "Recommended default: "
-                    f"{recommendations['recommended_steps']}  "
-                    f"Minimum suggested: {recommendations['production_min']}"
-                ),
-            ),
-            (
-                "Pool size",
-                "pool_size",
-                "Multiprocessing pool size",
-                (
-                    f"Recommended pool: {recommendations['pool_max']}  "
-                    f"Detected CPUs: {recommendations['cpu_label']}"
-                ),
-            ),
-        ]
-
-        def _track(attribute: str, string_var: tk.StringVar) -> None:
-            string_var.trace_add(
-                "write",
-                lambda *_: setattr(self.draft, attribute, string_var.get()),
+            return
+        recommendations: dict[str, str] | None = None
+        if self.selected_engine_kind == "mcmc":
+            recommendations = self._mcmc_recommendation_texts(
+                self._compute_run_recommendations()
             )
 
-        for label_text, field_name, helper, recommendation in field_specs:
-            var = tk.StringVar(value=getattr(self.draft, field_name))
-            _track(field_name, var)
-            field_row = ttk.Frame(settings_frame)
-            field_row.pack(anchor="w", pady=(4, 0))
-            ttk.Label(
-                field_row,
-                text=f"{label_text}:",
-                width=16,
+        for setting in capabilities.settings:
+            dtype = (setting.dtype or "str").lower()
+            setting_var = self._engine_setting_vars.get(setting.key)
+            initial_value = self._initial_engine_setting_value(setting)
+            if dtype == "bool":
+                if not isinstance(setting_var, tkinter_module.BooleanVar):
+                    setting_var = tkinter_module.BooleanVar(
+                        value=bool(initial_value)
+                    )
+                    self._engine_setting_vars[setting.key] = setting_var
+            else:
+                if not isinstance(setting_var, tkinter_module.StringVar):
+                    setting_var = tkinter_module.StringVar(
+                        value=str(initial_value)
+                    )
+                    self._engine_setting_vars[setting.key] = setting_var
+                elif not setting_var.get():
+                    setting_var.set(str(initial_value))
+            self._engine_setting_specs[setting.key] = setting
+            row = ttk_module.Frame(settings_frame)
+            row.pack(anchor="w", pady=(4, 0))
+            ttk_module.Label(
+                row,
+                text=f"{setting.label}:",
+                width=24,
                 takefocus=True,
             ).pack(side="left")
-            ttk.Entry(
-                field_row,
-                textvariable=var,
-                width=16,
-            ).pack(side="left")
-            ttk.Label(
-                field_row,
-                text=helper,
-                wraplength=420,
-                takefocus=True,
-            ).pack(side="left", padx=(8, 0))
-            ttk.Label(
-                settings_frame,
-                text=recommendation,
-                wraplength=720,
-                takefocus=True,
-            ).pack(anchor="w", padx=(16, 0))
+            field_frame = ttk_module.Frame(row)
+            field_frame.pack(side="left", padx=(6, 0))
+            draft_field = self._draft_field_for_setting(setting.key)
 
-    def _render_builder_step_plan(self, container: tk.Frame) -> None:
-        ttk.Label(
-            container,
-            text="Run plan",
-            font=("Helvetica", 14, "bold"),
-            takefocus=True,
-        ).pack(anchor="w", pady=(0, 6))
-        ttk.Label(
+            def _bind_update(
+                variable: tkinter_module.Variable,
+                key: str,
+            ) -> None:
+                """Attach a listener that mirrors widget writes
+                into settings."""
+
+                def _update(*_: object) -> None:
+                    """Trigger the engine-setting update handler."""
+                    self._handle_engine_setting_update(key)
+
+                variable.trace_add("write", _update)
+
+            if dtype == "bool":
+                control = ttk_module.Checkbutton(
+                    field_frame,
+                    variable=setting_var,
+                    takefocus=True,
+                    command=partial(
+                        self._handle_engine_setting_update, setting.key
+                    ),
+                )
+                control.pack(anchor="w")
+            else:
+                min_value, max_value = self._engine_setting_bounds(setting)
+                increment = 1 if dtype == "int" else 0.1
+
+                def _validate(value_if_allowed: str, key: str) -> bool:
+                    """Clamp engine setting inputs between the declared
+                    bounds."""
+                    if not value_if_allowed.strip():
+                        return True
+                    try:
+                        parsed = (
+                            int(value_if_allowed)
+                            if dtype == "int"
+                            else float(value_if_allowed)
+                        )
+                    except ValueError:
+                        return False
+                    if parsed < min_value or parsed > max_value:
+                        return False
+                    self._handle_engine_setting_update(key)
+                    return True
+
+                validate_cmd = field_frame.register(_validate)
+                control = tkinter_module.Spinbox(
+                    field_frame,
+                    from_=min_value,
+                    to=max_value,
+                    increment=increment,
+                    textvariable=setting_var,
+                    width=14,
+                    validate="focusout",
+                    validatecommand=(validate_cmd, "%P", setting.key),
+                )
+                control.pack(anchor="w")
+                if isinstance(setting_var, tkinter_module.StringVar):
+                    _bind_update(setting_var, setting.key)
+            if dtype == "bool":
+                pass
+            elif draft_field and isinstance(
+                setting_var, tkinter_module.StringVar
+            ):
+
+                def _sync_draft(
+                    *_: object,
+                    attr: str = draft_field,
+                    variable: tkinter_module.StringVar = setting_var,
+                ) -> None:
+                    """Mirror widget values to the manifest draft."""
+                    setattr(self.draft, attr, variable.get())
+
+                setting_var.trace_add("write", _sync_draft)
+            metadata: list[str] = []
+            if setting.description:
+                metadata.append(setting.description)
+            if setting.default is not None:
+                metadata.append(f"Default: {setting.default}")
+            if setting.hint:
+                metadata.append(f"Recommendation: {setting.hint}")
+            if recommendations and setting.key in recommendations:
+                metadata.append(recommendations[setting.key])
+            if metadata:
+                ttk_module.Label(
+                    settings_frame,
+                    text=" ".join(metadata),
+                    wraplength=720,
+                    justify="left",
+                    takefocus=True,
+                ).pack(anchor="w", padx=(16, 0), pady=(0, 2))
+            self._handle_engine_setting_update(setting.key)
+
+    def _load_engine_capabilities(
+        self, module_name: str
+    ) -> tuple[EngineCapabilities | None, str]:
+        """Return engine capability descriptors and its kind."""
+
+        engine_kind = "mcmc"
+        try:
+            module = importlib.import_module(module_name)
+        except Exception as exc:
+            logger.get_program_logger().warning(
+                "Failed to import engine %s: %s", module_name, exc
+            )
+            return None, engine_kind
+        engine_kind = getattr(module, "ENGINE_KIND", "mcmc").lower()
+        try:
+            capabilities = get_engine_capabilities(module)
+        except Exception as exc:
+            logger.get_program_logger().warning(
+                "Failed to load engine capabilities for %s: %s",
+                module_name,
+                exc,
+            )
+            capabilities = None
+        return capabilities, engine_kind
+
+    def _draft_field_for_setting(self, key: str) -> str | None:
+        """Return the draft field name linked to the given engine key."""
+        mapping = {
+            "n_walkers": "walkers",
+            "burn_in_steps": "burn_in",
+            "n_steps": "production_steps",
+            "pool_size": "pool_size",
+        }
+        return mapping.get(key)
+
+    def _initial_engine_setting_value(self, setting: EngineSetting) -> object:
+        """Return the initial value to display for a given engine setting."""
+        field = self._draft_field_for_setting(setting.key)
+        if field:
+            current = getattr(self.draft, field, "")
+            if current:
+                dtype = (setting.dtype or "str").lower()
+                if dtype == "bool":
+                    return current.lower() in {"1", "true", "yes", "on"}
+                return current
+        if setting.default is not None:
+            if (setting.dtype or "").lower() == "bool":
+                return bool(setting.default)
+            return str(setting.default)
+        return False if (setting.dtype or "").lower() == "bool" else ""
+
+    def _handle_engine_setting_update(self, key: str) -> None:
+        """Hook fired whenever an engine setting var changes."""
+
+        field = self._draft_field_for_setting(key)
+        if not field:
+            return
+        setting_var = self._engine_setting_vars.get(key)
+        if setting_var is None:
+            return
+        setting_value = setting_var.get()
+        if isinstance(setting_var, tkinter_module.BooleanVar):
+            setattr(self.draft, field, "true" if setting_value else "false")
+        else:
+            setattr(self.draft, field, setting_value)
+
+    def _mcmc_recommendation_texts(
+        self, values: dict[str, int | str]
+    ) -> dict[str, str]:
+        """Describe recommended ranges for MCMC run settings."""
+        return {
+            "n_steps": (
+                "Production steps control the sampler iterations. "
+                f"Recommended default: {values['recommended_steps']}. "
+                f"Minimum suggested: {values['production_min']}."
+            ),
+            "burn_in_steps": (
+                "Burn-in discards early samples so the chain stabilises. "
+                f"Recommended warm-up: {values['burn_in_recommended']}. "
+                f"Quicker option: {values['quick_burn']}."
+            ),
+            "n_walkers": (
+                "Walkers explore the posterior in parallel; "
+                f"minimum required: {values['minimum_walkers']}. "
+                f"Recommended ensemble: {values['recommended_walkers']}."
+            ),
+            "pool_size": (
+                "Pools spread walkers across processes. "
+                f"Recommended size: {values['pool_max']} "
+                f"(detected CPUs: {values['cpu_label']}). "
+                "Enter 0 to disable multiprocessing entirely."
+            ),
+        }
+
+    def _engine_setting_bounds(
+        self, setting: EngineSetting
+    ) -> tuple[float, float]:
+        """Return enforced numeric bounds for an engine setting."""
+        module_limits = _ENGINE_SETTING_LIMITS.get(
+            self._current_engine_module or "", {}
+        )
+        setting_limits = module_limits.get(setting.key, {})
+        min_value = setting_limits.get("min")
+        max_value = setting_limits.get("max")
+
+        def _resolve(
+            bound_input: float | int | str | None,
+        ) -> float | int | None:
+            """Convert special labels into numeric capability bounds."""
+            if isinstance(bound_input, str) and bound_input == "cpu":
+                cores = os.cpu_count() or 1
+                return max(1, cores)
+            return bound_input
+
+        min_value = _resolve(min_value)
+        max_value = _resolve(max_value)
+        dtype = (setting.dtype or "str").lower()
+        if dtype == "int":
+            if min_value is None:
+                min_value = 0
+            if max_value is None:
+                max_value = sys.maxsize
+            return float(int(min_value)), float(int(max_value))
+        if dtype == "float":
+            if min_value is None:
+                min_value = 0.0
+            if max_value is None:
+                max_value = 1_000_000.0
+            return float(min_value), float(max_value)
+        return 0.0, float(sys.maxsize)
+
+    def _render_builder_step_manifest(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
+        """Render the manifest description/editor step for the builder."""
+        ttk_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
+        ttk_module.Label(
             container,
             text="Describe the production plan or testing notes for this run.",
             wraplength=720,
             takefocus=True,
         ).pack(anchor="w")
-        plan_var = tk.StringVar(value=self.draft.plan)
+        plan_var = tkinter_module.StringVar(value=self.draft.plan)
 
         def _update_plan(*_args: object) -> None:
+            """Mirror the plan input back into the draft manifest."""
             self.draft.plan = plan_var.get()
 
         plan_var.trace_add("write", _update_plan)
-        ttk.Entry(
+        ttk_module.Entry(
             container,
             textvariable=plan_var,
             width=80,
         ).pack(anchor="w", pady=(6, 0))
 
-        manifest_frame = ttk.LabelFrame(
+        manifest_frame = ttk_module.LabelFrame(
             container,
             text="Manifest",
         )
-        manifest_frame.pack(fill="x", pady=(12, 0))
+        manifest_frame.pack(fill="both", expand=True, pady=(12, 0))
         status_text = (
             f"Saved: {self.manifest_workspace.manifest_path}"
             if self.manifest_workspace
             else "Manifest not saved yet."
         )
-        ttk.Label(
+        ttk_module.Label(
             manifest_frame,
             text=status_text,
             wraplength=720,
             takefocus=True,
         ).pack(anchor="w", pady=(0, 4))
+        preview_panel = ttk_module.Frame(manifest_frame)
+        preview_panel.pack(fill="both", expand=True)
+        preview_panel.columnconfigure(0, weight=1)
+        preview_panel.rowconfigure(0, weight=1)
+        manifest_text_widget = tkinter_module.Text(
+            preview_panel,
+            wrap="none",
+            borderwidth=1,
+            relief="solid",
+            height=16,
+        )
+        manifest_text_widget.grid(row=0, column=0, sticky="nsew")
+        vscroll = ttk_module.Scrollbar(
+            preview_panel,
+            orient="vertical",
+            command=manifest_text_widget.yview,
+        )
+        vscroll.grid(row=0, column=1, sticky="ns")
+        hscroll = ttk_module.Scrollbar(
+            preview_panel,
+            orient="horizontal",
+            command=manifest_text_widget.xview,
+        )
+        hscroll.grid(row=1, column=0, sticky="ew")
+        manifest_text_widget.configure(
+            yscrollcommand=vscroll.set, xscrollcommand=hscroll.set
+        )
+        manifest_text_widget.insert("1.0", self._manifest_preview_text())
+        manifest_text_widget.configure(state="disabled")
 
-        actions_frame = ttk.Frame(container)
+        if self.manifest_workspace is None:
+            reminder_text = self._MANIFEST_REMINDER_MESSAGE
+        else:
+            reminder_text = "Manifest saved; proceed to confirmation."
+        ttk_module.Label(
+            container,
+            text=reminder_text,
+            wraplength=720,
+            takefocus=True,
+        ).pack(anchor="w", pady=(8, 0))
+
+        actions_frame = ttk_module.Frame(container)
         actions_frame.pack(anchor="w", pady=(12, 0))
 
         def _save_manifest_action() -> None:
+            """Persist the current manifest and return to the builder."""
             self._persist_manifest_workspace(notify=True)
             self.show_run_builder()
 
-        save_state = tk.NORMAL if self._builder_ready() else tk.DISABLED
-        clear_state = tk.NORMAL if self._has_configuration() else tk.DISABLED
-        ttk.Button(
+        save_state = (
+            tkinter_module.NORMAL
+            if self._builder_ready()
+            else tkinter_module.DISABLED
+        )
+        clear_state = (
+            tkinter_module.NORMAL
+            if self._has_configuration()
+            else tkinter_module.DISABLED
+        )
+        open_state = (
+            tkinter_module.NORMAL
+            if self.manifest_workspace is not None
+            else tkinter_module.DISABLED
+        )
+        ttk_module.Button(
             actions_frame,
             text="Save manifest",
             command=_save_manifest_action,
             state=save_state,
         ).pack(side="left", padx=(0, 4))
-        ttk.Button(
+        ttk_module.Button(
             actions_frame,
             text="Save and confirm",
             command=self._save_manifest_and_proceed,
             state=save_state,
         ).pack(side="left", padx=(0, 4))
-        ttk.Button(
+        ttk_module.Button(
             actions_frame,
             text="Save to external folder...",
             command=self._save_manifest_to_external_folder,
             state=save_state,
         ).pack(side="left", padx=(0, 4))
-        ttk.Button(
+        ttk_module.Button(
             actions_frame,
             text="Clear manifest",
             command=lambda: (
@@ -2495,44 +5517,40 @@ class CopernicanGUI:
             ),
             state=clear_state,
         ).pack(side="left", padx=(0, 4))
+        ttk_module.Button(
+            actions_frame,
+            text="Open manifest...",
+            command=self._open_manifest_file,
+            state=open_state,
+        ).pack(side="left", padx=(0, 4))
 
-        capabilities_frame = ttk.LabelFrame(
-            container,
-            text="Engine capabilities",
-        )
-        capabilities_frame.pack(fill="x", pady=(12, 0))
-        if not self.engine_capabilities:
-            ttk.Label(
-                capabilities_frame,
-                text="No engine capability metadata available yet.",
-                wraplength=720,
-                takefocus=True,
-            ).pack(anchor="w")
-        else:
-            if self.engine_capabilities.settings:
-                for setting in self.engine_capabilities.settings:
-                    ttk.Label(
-                        capabilities_frame,
-                        text=(
-                            f"{setting.label} ({setting.key}): "
-                            f"{setting.description}"
-                        ),
-                        wraplength=720,
-                        takefocus=True,
-                    ).pack(anchor="w", pady=(0, 2))
-            chunk_labels = [
-                chunk.label
-                for chunk in self.engine_capabilities.progress_chunks
-            ]
-            if chunk_labels:
-                ttk.Label(
-                    capabilities_frame,
-                    text=("Progress chunks: " f"{', '.join(chunk_labels)}"),
-                    wraplength=720,
-                    takefocus=True,
-                ).pack(anchor="w", pady=(4, 0))
+    def _manifest_preview_text(self) -> str:
+        """Return a textual snapshot for the manifest preview area."""
 
-        self._render_engine_run_settings(container)
+        manifest = self.pending_manifest
+        if manifest is None:
+            manifest = self._ensure_manifest_snapshot()
+        if manifest is None:
+            return (
+                "Manifest preview unavailable; complete the builder to "
+                "generate a snapshot."
+            )
+        try:
+            return yaml.safe_dump(manifest, sort_keys=False)
+        except Exception:
+            return json.dumps(manifest, indent=2)
+
+    def _open_manifest_file(self) -> None:
+        """Open the currently saved manifest using the OS default handler."""
+
+        if self.manifest_workspace is None:
+            self.create_toast(
+                "Save a manifest before opening it.",
+                severity="WARNING",
+                context="run",
+            )
+            return
+        self._open_path_with_system(str(self.manifest_workspace.manifest_path))
 
     def _stage_confirm_manifest(self) -> None:
         """Capture builder selections as a manifest snapshot for later use."""
@@ -2543,15 +5561,14 @@ class CopernicanGUI:
             return
         self._staged_confirm_manifest = copy.deepcopy(manifest)
 
-    def _render_builder_step_confirm(self, container: tk.Frame) -> None:
+    def _render_builder_step_confirm(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
+        """Show the confirmation summary and start-run controls."""
         self._stage_confirm_manifest()
-        ttk.Label(
-            container,
-            text="Confirm and start",
-            font=("Helvetica", 14, "bold"),
-            takefocus=True,
-        ).pack(anchor="w", pady=(0, 6))
-        summary_frame = ttk.Frame(container)
+        ttk_module.Frame(container, height=30).pack(fill="x", pady=(0, 6))
+        summary_frame = ttk_module.Frame(container)
         summary_frame.pack(anchor="w")
         summary_entries = [
             ("Seed", self.draft.seed or "unset"),
@@ -2575,19 +5592,21 @@ class CopernicanGUI:
                 ("Pool size", self.draft.pool_size or "unset"),
             ]
         )
-        for label, value in summary_entries:
-            ttk.Label(
+        for label, entry_value in summary_entries:
+            ttk_module.Label(
                 summary_frame,
-                text=f"{label}: {value}",
+                text=f"{label}: {entry_value}",
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w")
-        button_frame = ttk.Frame(container)
+        button_frame = ttk_module.Frame(container)
         button_frame.pack(anchor="w", pady=(12, 0))
         start_state = (
-            tk.NORMAL if self.manifest_workspace is not None else tk.DISABLED
+            tkinter_module.NORMAL
+            if self.manifest_workspace is not None
+            else tkinter_module.DISABLED
         )
-        ttk.Button(
+        ttk_module.Button(
             button_frame,
             text="Start run",
             command=self.confirm_start_run,
@@ -2619,11 +5638,10 @@ class CopernicanGUI:
 
         self.refresh_inventory()
 
-        def builder(frame: tk.Frame) -> None:
-            ttk.Label(frame, text="Data catalogue", takefocus=True).pack(
-                anchor="w"
-            )
-            ttk.Label(
+        def builder(frame: tkinter_module.Frame) -> None:
+            """Render the dataset catalogue view with filters."""
+            self._page_header(frame, "Data catalogue")
+            ttk_module.Label(
                 frame,
                 text=(
                     "Datasets remain selectable from the Run Builder while "
@@ -2633,12 +5651,15 @@ class CopernicanGUI:
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w", pady=(4, 8))
-            filters = ttk.Frame(frame)
+            filters = ttk_module.Frame(frame)
             filters.pack(anchor="w", pady=(0, 8))
-            ttk.Label(filters, text="Filters:", takefocus=True).pack(
-                side="left", padx=(0, 4)
+            filters_label = ttk_module.Label(
+                filters,
+                text="Filters:",
+                takefocus=True,
             )
-            ttk.Button(
+            filters_label.pack(side="left", padx=(0, 4))
+            ttk_module.Button(
                 filters,
                 text="All",
                 command=lambda: (
@@ -2648,7 +5669,7 @@ class CopernicanGUI:
                 takefocus=True,
             ).pack(side="left", padx=2)
             for key in ("sne", "bao", "cmb"):
-                ttk.Button(
+                ttk_module.Button(
                     filters,
                     text=key.upper(),
                     command=lambda k=key: (
@@ -2658,7 +5679,7 @@ class CopernicanGUI:
                     takefocus=True,
                 ).pack(side="left", padx=2)
             active = self.filter_catalogue(self.last_filter_types or [])
-            ttk.Label(
+            ttk_module.Label(
                 frame,
                 text=(
                     f"Showing {len(active)} dataset(s); trust alerts: "
@@ -2668,13 +5689,13 @@ class CopernicanGUI:
             ).pack(anchor="w", pady=(0, 6))
             catalogue_panel = self._create_scrollable_panel(frame)
             for dataset in active:
-                entry_frame = ttk.LabelFrame(
+                entry_frame = ttk_module.LabelFrame(
                     catalogue_panel,
                     text=f"{dataset['name']} ({dataset['id']})",
                     padding=(8, 6),
                 )
                 entry_frame.pack(fill="x", pady=4)
-                ttk.Label(
+                ttk_module.Label(
                     entry_frame,
                     text=" | ".join(dataset.get("badges", [])),
                     takefocus=True,
@@ -2683,7 +5704,7 @@ class CopernicanGUI:
                 license_value = dataset.get("license", "unspecified")
                 parser_digest = dataset.get("parser_digest", "n/a")
                 metadata_digest = dataset.get("metadata_digest", "")
-                ttk.Label(
+                ttk_module.Label(
                     entry_frame,
                     text=(
                         f"Citation: {citation_value}\n"
@@ -2695,27 +5716,29 @@ class CopernicanGUI:
                     justify="left",
                     takefocus=True,
                 ).pack(anchor="w", pady=(4, 4))
-                ttk.Label(
+                ttk_module.Label(
                     entry_frame,
                     text="Independence notes: "
                     + "; ".join(dataset.get("independence", [])),
                     wraplength=720,
                     takefocus=True,
                 ).pack(anchor="w", pady=(0, 4))
-                actions = ttk.Frame(entry_frame)
+                actions = ttk_module.Frame(entry_frame)
                 actions.pack(anchor="w")
                 dataset_id = dataset["id"]
 
                 def _open_current_folder(
-                    path: str = dataset["path"], ds: str = dataset_id
+                    path: str = dataset["path"],
+                    dataset_label: str = dataset_id,
                 ) -> None:
+                    """Open the dataset directory currently listed."""
                     self._open_folder_or_warn(
                         path,
                         context="data",
-                        subject=f"dataset {ds}",
+                        subject=f"dataset {dataset_label}",
                     )
 
-                ttk.Button(
+                ttk_module.Button(
                     actions,
                     text="Open folder",
                     command=_open_current_folder,
@@ -2723,20 +5746,22 @@ class CopernicanGUI:
                 ).pack(side="left", padx=2)
 
                 def _view_current_metadata() -> None:
+                    """Show metadata for the dataset currently displayed."""
                     self._present_metadata(
                         dataset_id, f"Dataset metadata: {dataset_id}"
                     )
 
                 def _revalidate_current_parser() -> None:
+                    """Revalidate the parser for the displayed dataset."""
                     self._revalidate_dataset_action(dataset_id)
 
-                ttk.Button(
+                ttk_module.Button(
                     actions,
                     text="View metadata",
                     command=_view_current_metadata,
                     takefocus=True,
                 ).pack(side="left", padx=2)
-                ttk.Button(
+                ttk_module.Button(
                     actions,
                     text="Revalidate parser",
                     command=_revalidate_current_parser,
@@ -2750,9 +5775,10 @@ class CopernicanGUI:
 
         self.refresh_inventory()
 
-        def builder(frame: tk.Frame) -> None:
-            ttk.Label(frame, text="Models", takefocus=True).pack(anchor="w")
-            ttk.Label(
+        def builder(frame: tkinter_module.Frame) -> None:
+            """Render the model catalogue with metadata and hash info."""
+            self._page_header(frame, "Models")
+            ttk_module.Label(
                 frame,
                 text=(
                     "Model YAML files drive compatibility badges and priors. "
@@ -2762,7 +5788,7 @@ class CopernicanGUI:
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w", pady=(4, 8))
-            ttk.Label(
+            ttk_module.Label(
                 frame,
                 text=f"Discovered {len(self.model_index)} model(s)",
                 takefocus=True,
@@ -2771,18 +5797,18 @@ class CopernicanGUI:
             for model in sorted(
                 self.model_index.values(), key=lambda entry: entry["id"]
             ):
-                entry_frame = ttk.LabelFrame(
+                entry_frame = ttk_module.LabelFrame(
                     catalogue_panel,
                     text=f"{model['id']} ({model['filename']})",
                     padding=(8, 6),
                 )
                 entry_frame.pack(fill="x", pady=4)
-                ttk.Label(
+                ttk_module.Label(
                     entry_frame,
                     text="Badges: " + ", ".join(model.get("badges", [])),
                     takefocus=True,
                 ).pack(anchor="w")
-                ttk.Label(
+                ttk_module.Label(
                     entry_frame,
                     text=(
                         f"SHA256: {model.get('hash', '')}\n"
@@ -2793,12 +5819,13 @@ class CopernicanGUI:
                     takefocus=True,
                     justify="left",
                 ).pack(anchor="w", pady=(4, 4))
-                actions = ttk.Frame(entry_frame)
+                actions = ttk_module.Frame(entry_frame)
                 actions.pack(anchor="w")
                 model_folder = os.path.dirname(model["path"])
                 model_id = model["id"]
 
                 def _open_model_folder() -> None:
+                    """Open the directory containing the selected model."""
                     self._open_folder_or_warn(
                         model_folder,
                         context="models",
@@ -2806,17 +5833,18 @@ class CopernicanGUI:
                     )
 
                 def _view_model_yaml() -> None:
+                    """Show the YAML content of the selected model."""
                     self._present_metadata(
                         model_id, f"Model definition: {model_id}"
                     )
 
-                ttk.Button(
+                ttk_module.Button(
                     actions,
                     text="Open model folder",
                     command=_open_model_folder,
                     takefocus=True,
                 ).pack(side="left", padx=2)
-                ttk.Button(
+                ttk_module.Button(
                     actions,
                     text="View YAML",
                     command=_view_model_yaml,
@@ -2830,9 +5858,10 @@ class CopernicanGUI:
 
         self.refresh_inventory()
 
-        def builder(frame: tk.Frame) -> None:
-            ttk.Label(frame, text="Engines", takefocus=True).pack(anchor="w")
-            ttk.Label(
+        def builder(frame: tkinter_module.Frame) -> None:
+            """Render the engine catalogue with badges and hashes."""
+            self._page_header(frame, "Engines")
+            ttk_module.Label(
                 frame,
                 text=(
                     "Engines expose dataset compatibility and sampler labels. "
@@ -2842,7 +5871,7 @@ class CopernicanGUI:
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w", pady=(4, 8))
-            ttk.Label(
+            ttk_module.Label(
                 frame,
                 text=f"Discovered {len(self.engine_index)} engine(s)",
                 takefocus=True,
@@ -2851,18 +5880,18 @@ class CopernicanGUI:
             for engine in sorted(
                 self.engine_index.values(), key=lambda entry: entry["label"]
             ):
-                entry_frame = ttk.LabelFrame(
+                entry_frame = ttk_module.LabelFrame(
                     catalogue_panel,
                     text=f"{engine['label']} ({engine['filename']})",
                     padding=(8, 6),
                 )
                 entry_frame.pack(fill="x", pady=4)
-                ttk.Label(
+                ttk_module.Label(
                     entry_frame,
                     text="Badges: " + ", ".join(engine.get("badges", [])),
                     takefocus=True,
                 ).pack(anchor="w")
-                ttk.Label(
+                ttk_module.Label(
                     entry_frame,
                     text=(
                         f"Version: {engine.get('version', 'unknown')}\n"
@@ -2872,13 +5901,14 @@ class CopernicanGUI:
                     takefocus=True,
                     justify="left",
                 ).pack(anchor="w", pady=(4, 4))
-                actions = ttk.Frame(entry_frame)
+                actions = ttk_module.Frame(entry_frame)
                 actions.pack(anchor="w")
                 engine_folder = os.path.dirname(engine["path"])
                 engine_id = engine["id"]
                 engine_label = engine["label"] or engine["stem"]
 
                 def _open_engine_folder() -> None:
+                    """Open the directory containing the current engine."""
                     self._open_folder_or_warn(
                         engine_folder,
                         context="engines",
@@ -2886,17 +5916,18 @@ class CopernicanGUI:
                     )
 
                 def _view_engine_module() -> None:
+                    """Show the metadata for the engine module."""
                     self._present_metadata(
                         engine_id, f"Engine module: {engine_label}"
                     )
 
-                ttk.Button(
+                ttk_module.Button(
                     actions,
                     text="Open engine folder",
                     command=_open_engine_folder,
                     takefocus=True,
                 ).pack(side="left", padx=2)
-                ttk.Button(
+                ttk_module.Button(
                     actions,
                     text="View module",
                     command=_view_engine_module,
@@ -2905,239 +5936,742 @@ class CopernicanGUI:
 
         self._swap_content(builder)
 
+    def _handle_setting_change(
+        self, section: str, key: str, *_args: Any
+    ) -> None:
+        """Persist the updated widget value into the pending settings."""
+
+        if self._suppress_setting_events:
+            return
+        section_vars = self._settings_vars.get(section, {})
+        setting_var = section_vars.get(key)
+        if setting_var is None:
+            return
+        if isinstance(setting_var, tkinter_module.BooleanVar):
+            new_value = bool(setting_var.get())
+        elif isinstance(setting_var, tkinter_module.IntVar):
+            try:
+                new_value = int(setting_var.get())
+            except (TypeError, ValueError):
+                new_value = 0
+        else:
+            new_value = str(setting_var.get())
+        old_value = self._pending_settings.get(section, {}).get(key)
+        if old_value == new_value:
+            return
+        self._pending_settings[section][key] = new_value
+        self._mark_settings_dirty()
+
+    def _ensure_setting_var(
+        self, section: str, key: str
+    ) -> tkinter_module.Variable | None:
+        """Return or create the Tk variable for *section/key*."""
+
+        if not self.render or tk_gui is None:
+            return None
+        section_vars = self._settings_vars.setdefault(section, {})
+        if key in section_vars:
+            return section_vars[key]
+        pending_value = self._pending_settings.get(section, {}).get(key)
+        if isinstance(pending_value, bool):
+            setting_var = tkinter_module.BooleanVar(value=pending_value)
+        elif isinstance(pending_value, int):
+            setting_var = tkinter_module.IntVar(value=pending_value)
+        elif isinstance(pending_value, float):
+            setting_var = tkinter_module.DoubleVar(value=pending_value)
+        else:
+            setting_var = tkinter_module.StringVar(value=str(pending_value))
+        setting_var.trace_add(
+            "write",
+            partial(self._handle_setting_change, section, key),
+        )
+        section_vars[key] = setting_var
+        return setting_var
+
+    def _refresh_setting_vars(self) -> None:
+        """Synchronise the Tk variables with the pending settings."""
+
+        if self._suppress_setting_events:
+            return
+        self._suppress_setting_events = True
+        try:
+            for section, values in self._pending_settings.items():
+                section_vars = self._settings_vars.get(section, {})
+                for key, setting_var in section_vars.items():
+                    pending_value = values.get(key)
+                    if isinstance(setting_var, tkinter_module.BooleanVar):
+                        setting_var.set(bool(pending_value))
+                    elif isinstance(setting_var, tkinter_module.IntVar):
+                        try:
+                            setting_var.set(int(pending_value))
+                        except (TypeError, ValueError):
+                            setting_var.set(0)
+                    elif isinstance(setting_var, tkinter_module.DoubleVar):
+                        try:
+                            setting_var.set(float(pending_value))
+                        except (TypeError, ValueError):
+                            setting_var.set(0.0)
+                    else:
+                        setting_var.set(str(pending_value))
+        finally:
+            self._suppress_setting_events = False
+
+    def _set_settings_dirty(self, dirty_value: bool) -> None:
+        """Update the dirty flag and refresh the action button states."""
+
+        self._settings_dirty = dirty_value
+        self._update_settings_action_states()
+
+    def _update_settings_action_states(self) -> None:
+        """Toggle the Save/Cancel buttons based on dirty state."""
+
+        if self._settings_save_button is not None:
+            if self._settings_dirty:
+                self._settings_save_button.state(["!disabled"])
+            else:
+                self._settings_save_button.state(["disabled"])
+        if self._settings_cancel_button is not None:
+            if self._settings_dirty:
+                self._settings_cancel_button.state(["!disabled"])
+            else:
+                self._settings_cancel_button.state(["disabled"])
+
+    def _mark_settings_dirty(self) -> None:
+        """Mark the settings as modified if they are not already."""
+
+        if not self._settings_dirty:
+            self._set_settings_dirty(True)
+
+    def _refresh_settings_section_indicators(self) -> None:
+        """Highlight which settings section is active."""
+
+        # Buttons remain active; the current page is already indicated
+        # by the header.
+
+    def _render_settings_section(self) -> None:
+        """Rebuild the active section's content."""
+
+        if self._settings_page_body is None:
+            return
+        for child in self._settings_page_body.winfo_children():
+            child.destroy()
+        section = self._settings_sections[self._settings_current_index]
+        if self._settings_header_label is not None:
+            self._settings_header_label.configure(
+                text=f"Settings: {section['label']}"
+            )
+        if self._settings_description_label is not None:
+            self._settings_description_label.configure(
+                text=section["description"]
+            )
+        section["builder"](self._settings_page_body)
+        self._refresh_settings_section_indicators()
+
+    def _navigate_settings_section(self, index: int) -> None:
+        """Switch to another tab, guarding against unsaved changes."""
+
+        if index == self._settings_current_index:
+            return
+        if not self._confirm_settings_navigation():
+            return
+        self._settings_current_index = index
+        self._render_settings_section()
+
+    def _confirm_settings_navigation(self) -> bool:
+        """Ensure the user saves or reverts before leaving a dirty section."""
+
+        if not self._settings_dirty:
+            return True
+        decision = self._prompt_settings_discard_dialog()
+        if decision == "save":
+            self._persist_pending_settings(notify=False)
+            return True
+        if decision == "revert":
+            self._reset_settings_to_saved()
+            return True
+        return False
+
+    def _prompt_settings_discard_dialog(self) -> str | None:
+        """Ask the operator whether to save or revert unsaved changes."""
+
+        if not (
+            self.render
+            and tk_gui is not None
+            and messagebox is not None
+            and self.root is not None
+        ):
+            self.create_toast(
+                "Save or revert settings before navigating away.",
+                severity="WARNING",
+                context="settings",
+            )
+            return None
+
+        dialog = tkinter_module.Toplevel(self.root)
+        dialog.title("Unsaved settings")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        dialog.columnconfigure(0, weight=1)
+        ttk_module.Label(
+            dialog,
+            text="You must either save or revert changes to navigate away.",
+            wraplength=320,
+            justify="left",
+            takefocus=True,
+        ).grid(row=0, column=0, padx=12, pady=(12, 8), sticky="w")
+        button_frame = ttk_module.Frame(dialog)
+        button_frame.grid(row=1, column=0, pady=(0, 12), padx=12)
+
+        choice: dict[str, str | None] = {"value": None}
+
+        def _close() -> None:
+            """Close the unsaved settings dialog."""
+            if dialog.grab_current() is dialog:
+                dialog.grab_release()
+            dialog.destroy()
+
+        def _select(decision: str) -> None:
+            """Capture the user's decision in the confirmation dialog."""
+            choice["value"] = decision
+            _close()
+
+        ttk_module.Button(
+            button_frame,
+            text="Revert",
+            command=lambda: _select("revert"),
+            takefocus=True,
+        ).pack(side="left", padx=4)
+        ttk_module.Button(
+            button_frame,
+            text="Save and continue",
+            command=lambda: _select("save"),
+            takefocus=True,
+        ).pack(side="left", padx=4)
+        dialog.protocol("WM_DELETE_WINDOW", _close)
+        dialog.wait_window()
+        return choice["value"]
+
+    def _persist_pending_settings(self, *, notify: bool = True) -> None:
+        """Save the pending settings to disk."""
+
+        settings_mod.save_settings(self._pending_settings)
+        self._saved_settings = copy.deepcopy(self._pending_settings)
+        self._set_settings_dirty(False)
+        if notify:
+            self.create_toast(
+                "Settings saved.",
+                severity="INFO",
+                context="settings",
+            )
+
+    def _reset_settings_to_saved(self) -> None:
+        """Revert the UI to the last-saved values."""
+
+        self._pending_settings = copy.deepcopy(self._saved_settings)
+        self._refresh_setting_vars()
+        self._set_settings_dirty(False)
+        self._render_settings_section()
+
+    def _reset_settings_to_defaults(self) -> None:
+        """Load the defaults so operators can start over."""
+
+        self._pending_settings = copy.deepcopy(settings_mod.DEFAULT_SETTINGS)
+        self._refresh_setting_vars()
+        self._set_settings_dirty(True)
+        self._render_settings_section()
+
     def show_settings(self) -> None:
-        """Display settings placeholder panel."""
+        """Display the configurable settings panel with section tabs."""
 
-        def builder(frame: tk.Frame) -> None:
-            ttk.Label(frame, text="Settings", takefocus=True).pack(anchor="w")
-            ttk.Label(
+        def builder(frame: tkinter_module.Frame) -> None:
+            """Render the settings tabs and actions for the current section."""
+            section_label = self._settings_sections[
+                self._settings_current_index
+            ]["label"]
+            self._settings_header_label = self._page_header(
                 frame,
-                text=(
-                    "Adjust notification and logging preferences before "
-                    "launching runs. Diagnostics stream from GUI launch "
-                    "throughout the session so early environment checks "
-                    "remain available."
-                ),
-                wraplength=720,
-                takefocus=True,
-            ).pack(anchor="w", pady=(4, 8))
-            diag_frame = ttk.LabelFrame(frame, text="Diagnostics")
-            diag_frame.pack(fill="x", pady=(4, 4))
-            ttk.Label(
-                diag_frame,
-                text=f"App log path: {self.application_log_path}",
-                wraplength=720,
-                takefocus=True,
-            ).pack(anchor="w")
-            self._diagnostics_filter_label = ttk.Label(
-                diag_frame,
-                text=f"Filter: {self.diagnostics_filter_level}+",
-                takefocus=True,
+                f"Settings: {section_label}",
             )
-            self._diagnostics_filter_label.pack(anchor="w", pady=(2, 0))
-            filter_frame = ttk.Frame(diag_frame)
-            filter_frame.pack(anchor="w", pady=(4, 4))
-            ttk.Button(
-                filter_frame,
-                text="Show all",
-                command=lambda: self.set_diagnostics_filter("INFO"),
-                takefocus=True,
-            ).pack(side="left", padx=2)
-            ttk.Button(
-                filter_frame,
-                text="Errors only",
-                command=lambda: self.set_diagnostics_filter("ERROR"),
-                takefocus=True,
-            ).pack(side="left", padx=2)
-            text_panel = ttk.Frame(diag_frame)
-            text_panel.pack(fill="both", expand=True)
-            text_panel.columnconfigure(0, weight=1)
-            text_panel.rowconfigure(0, weight=1)
-            diag_text = tk.Text(
-                text_panel,
-                wrap="none",
-                padx=8,
-                pady=6,
-                borderwidth=0,
-                highlightthickness=0,
-                height=10,
-            )
-            diag_text.grid(row=0, column=0, sticky="nsew")
-            vscroll = ttk.Scrollbar(
-                text_panel, orient="vertical", command=diag_text.yview
-            )
-            vscroll.grid(row=0, column=1, sticky="ns")
-            hscroll = ttk.Scrollbar(
-                text_panel, orient="horizontal", command=diag_text.xview
-            )
-            hscroll.grid(row=1, column=0, sticky="ew")
-            diag_text.configure(
-                yscrollcommand=vscroll.set, xscrollcommand=hscroll.set
-            )
-            diag_text.configure(state="disabled")
-            self._diagnostics_log_widget = diag_text
-            actions = ttk.Frame(diag_frame)
-            actions.pack(anchor="w", pady=(6, 0))
-            ttk.Button(
-                actions,
-                text="View diagnostics log",
-                command=self._view_diagnostics_log,
-                takefocus=True,
-            ).pack(side="left", padx=2)
-            ttk.Button(
-                actions,
-                text="Open diagnostics log…",
-                command=self._open_diagnostics_log,
-                takefocus=True,
-            ).pack(side="left", padx=2)
-            ttk.Button(
-                actions,
-                text="Flush log",
-                command=self._flush_application_log,
-                takefocus=True,
-            ).pack(side="left", padx=2)
-
-            output_frame = ttk.LabelFrame(frame, text="Output directory")
-            output_frame.pack(fill="x", pady=(6, 4))
-            output_root = self._output_root()
-            output_var = tk.StringVar(value=output_root)
-            ttk.Entry(
-                output_frame,
-                textvariable=output_var,
-                width=64,
-            ).pack(anchor="w", pady=(4, 0))
-
-            def _apply_output_path() -> None:
-                target = output_var.get().strip() or output_root
-                os.makedirs(target, exist_ok=True)
-                self.create_toast(
-                    f"Output directory ready at {target}",
-                    severity="INFO",
-                    context="settings",
-                )
-
-            output_buttons = ttk.Frame(output_frame)
-            output_buttons.pack(anchor="w", pady=(4, 0))
-
-            def _open_output_directory() -> None:
-                target = output_var.get().strip() or output_root
-                os.makedirs(target, exist_ok=True)
-                try:
-                    self.open_folder(target)
-                except FileNotFoundError:
-                    self.create_toast(
-                        f"Output directory missing at {target}",
-                        severity="ERROR",
-                        context="settings",
-                    )
-
-            ttk.Button(
-                output_buttons,
-                text="Open directory",
-                command=_open_output_directory,
-                takefocus=True,
-            ).pack(side="left", padx=2)
-            ttk.Button(
-                output_buttons,
-                text="Create/refresh",
-                command=_apply_output_path,
-                takefocus=True,
-            ).pack(side="left", padx=2)
-
-            env_frame = ttk.LabelFrame(frame, text="Environment hints")
-            env_frame.pack(fill="x", pady=(6, 4))
-            env_values = [
-                (
-                    "COPERNICAN_SEED",
-                    os.environ.get("COPERNICAN_SEED", "unset"),
-                ),
-                (
-                    "COPERNICAN_STRICT_WARNINGS",
-                    os.environ.get("COPERNICAN_STRICT_WARNINGS", "0"),
-                ),
-                (
-                    "COPERNICAN_ENABLE_STAGED_MENU",
-                    os.environ.get("COPERNICAN_ENABLE_STAGED_MENU", "0"),
-                ),
-                (
-                    "COPERNICAN_DETACH_GUI",
-                    os.environ.get("COPERNICAN_DETACH_GUI", "0"),
-                ),
-            ]
-            for name, value in env_values:
-                ttk.Label(
-                    env_frame,
-                    text=f"{name}: {value}",
-                    wraplength=720,
+            tab_bar = ttk_module.Frame(frame)
+            tab_bar.pack(fill="x", pady=(0, 8))
+            self._settings_section_buttons = []
+            button_style = self._monitor_button_kwargs()
+            for index, section in enumerate(self._settings_sections):
+                button = ttk_module.Button(
+                    tab_bar,
+                    text=section["label"],
+                    command=lambda idx=index: self._navigate_settings_section(
+                        idx
+                    ),
                     takefocus=True,
-                ).pack(anchor="w")
+                    **button_style,
+                )
+                button.pack(side="left", padx=4)
+                self._settings_section_buttons.append(button)
+            self._settings_description_label = ttk_module.Label(
+                frame,
+                text=self._settings_sections[self._settings_current_index][
+                    "description"
+                ],
+                wraplength=720,
+                takefocus=True,
+            )
+            self._settings_description_label.pack(anchor="w", pady=(0, 8))
+            action_row = ttk_module.Frame(frame)
+            action_row.pack(fill="x", pady=(0, 32))
+            self._settings_defaults_button = ttk_module.Button(
+                action_row,
+                text="Defaults",
+                command=self._reset_settings_to_defaults,
+                takefocus=True,
+                **button_style,
+            )
+            self._settings_defaults_button.pack(side="left", padx=4)
+            self._settings_cancel_button = ttk_module.Button(
+                action_row,
+                text="Cancel",
+                command=self._reset_settings_to_saved,
+                takefocus=True,
+                **button_style,
+            )
+            self._settings_cancel_button.pack(side="left", padx=4)
+            self._settings_save_button = ttk_module.Button(
+                action_row,
+                text="Save",
+                command=self._persist_pending_settings,
+                takefocus=True,
+                **button_style,
+            )
+            self._settings_save_button.pack(side="left", padx=4)
+            body = ttk_module.Frame(frame)
+            body.pack(fill="both", expand=True)
+            self._settings_page_body = body
+            self._set_settings_dirty(self._settings_dirty)
+            self._render_settings_section()
 
         self._swap_content(builder)
 
-    def show_help(self) -> None:
-        """Display contextual help panel."""
+    def _build_settings_logs_page(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
+        """Render the controls used to shape the diagnostics log."""
 
-        def builder(frame: tk.Frame) -> None:
-            ttk.Label(
-                frame,
-                text="Copernican Suite Documentation",
-                font=("Helvetica", 16),
+        row = ttk_module.Frame(container)
+        row.pack(fill="x", pady=(0, 6))
+        retention_label = ttk_module.Label(
+            row,
+            text="Log retention (files):",
+        )
+        retention_label.pack(side="left")
+        retention_var = self._ensure_setting_var("logs", "log_retention_count")
+        if retention_var is not None:
+            tkinter_module.Spinbox(
+                row,
+                from_=1,
+                to=99,
+                width=4,
+                textvariable=retention_var,
+            ).pack(side="left", padx=6)
+        ttk_module.Label(
+            row,
+            text="Keep the most recent diagnostics log files before pruning.",
+            wraplength=420,
+            justify="left",
+        ).pack(anchor="w", pady=(4, 0))
+
+        level_row = ttk_module.Frame(container)
+        level_row.pack(fill="x", pady=(0, 6))
+        ttk_module.Label(
+            level_row,
+            text="Log level:",
+        ).pack(side="left")
+        level_var = self._ensure_setting_var("logs", "log_level")
+        if level_var is not None:
+            ttk_module.Combobox(
+                level_row,
+                values=("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"),
+                state="readonly",
+                width=12,
+                textvariable=level_var,
+            ).pack(side="left", padx=6)
+        ttk_module.Label(
+            container,
+            text="Higher severity thresholds keep the file lean while still "
+            "capturing key events.",
+            wraplength=720,
+            justify="left",
+        ).pack(anchor="w", pady=(0, 8))
+
+        capture_var = self._ensure_setting_var("logs", "capture_console")
+        if capture_var is not None:
+            ttk_module.Checkbutton(
+                container,
+                text="Mirror stdout/stderr into the diagnostics log",
+                variable=capture_var,
+                takefocus=True,
+            ).pack(anchor="w", pady=(0, 6))
+
+        button_frame = ttk_module.Frame(container)
+        button_frame.pack(fill="x", pady=(10, 0))
+        ttk_module.Button(
+            button_frame,
+            text="Purge program logs",
+            command=self._purge_program_logs,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        ).pack(side="left")
+
+    def _build_settings_datasets_page(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
+        """Render dataset discovery toggles and digest helpers."""
+
+        auto_var = self._ensure_setting_var(
+            "datasets", "auto_dataset_discovery"
+        )
+        if auto_var is not None:
+            ttk_module.Checkbutton(
+                container,
+                text="Enable automatic dataset discovery",
+                variable=auto_var,
+                takefocus=True,
+            ).pack(anchor="w", pady=(0, 4))
+        rebuild_var = self._ensure_setting_var(
+            "datasets", "dataset_hash_auto_rebuild"
+        )
+        if rebuild_var is not None:
+            ttk_module.Checkbutton(
+                container,
+                text="Rebuild dataset hashes automatically",
+                variable=rebuild_var,
+                takefocus=True,
+            ).pack(anchor="w", pady=(0, 4))
+        ttl_var = self._ensure_setting_var(
+            "datasets", "dataset_hash_ttl_hours"
+        )
+        if ttl_var is not None:
+            ttl_frame = ttk_module.Frame(container)
+            ttl_frame.pack(fill="x", pady=(4, 6))
+            hash_label = ttk_module.Label(
+                ttl_frame,
+                text="Hash TTL (hours):",
+            )
+            hash_label.pack(side="left")
+            tkinter_module.Spinbox(
+                ttl_frame,
+                from_=1,
+                to=168,
+                width=4,
+                textvariable=ttl_var,
+            ).pack(side="left", padx=6)
+            ttk_module.Label(
+                ttl_frame,
+                text="Rebuild caches after this many hours when flagged.",
+                wraplength=520,
+                justify="left",
+            ).pack(anchor="w", pady=(4, 0))
+        ttk_module.Button(
+            container,
+            text="Recalculate digests",
+            command=self._rebuild_dataset_hashes_action,
+            takefocus=True,
+            **self._monitor_button_kwargs(),
+        ).pack(anchor="w", pady=(8, 0))
+
+    def _build_settings_gui_page(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
+        """Surface GUI-specific toggles and environment hints."""
+
+        detach_var = self._ensure_setting_var("gui", "detach_gui")
+        if detach_var is not None:
+            ttk_module.Checkbutton(
+                container,
+                text="Detach GUI launches by default",
+                variable=detach_var,
+                takefocus=True,
+            ).pack(anchor="w", pady=(0, 4))
+        venv_var = self._ensure_setting_var("gui", "require_managed_venv")
+        if venv_var is not None:
+            ttk_module.Checkbutton(
+                container,
+                text="Require the managed .venv before running",
+                variable=venv_var,
+                takefocus=True,
+            ).pack(anchor="w", pady=(0, 4))
+        hints_var = self._ensure_setting_var("gui", "show_environment_hints")
+        if hints_var is not None:
+            ttk_module.Checkbutton(
+                container,
+                text="Show environment hints in the status bar",
+                variable=hints_var,
+                takefocus=True,
+            ).pack(anchor="w", pady=(0, 4))
+
+        env_frame = ttk_module.LabelFrame(
+            container,
+            text="Environment hints",
+        )
+        env_frame.pack(fill="x", pady=(8, 4))
+        env_values = [
+            ("COPERNICAN_SEED", os.environ.get("COPERNICAN_SEED", "unset")),
+            (
+                "COPERNICAN_STRICT_WARNINGS",
+                os.environ.get("COPERNICAN_STRICT_WARNINGS", "0"),
+            ),
+            (
+                "COPERNICAN_DETACH_GUI",
+                os.environ.get("COPERNICAN_DETACH_GUI", "0"),
+            ),
+        ]
+        for env_name, env_value in env_values:
+            ttk_module.Label(
+                env_frame,
+                text=f"{env_name}: {env_value}",
+                wraplength=720,
                 takefocus=True,
             ).pack(anchor="w")
-            ttk.Label(
+
+    def _build_settings_tools_page(
+        self,
+        container: tkinter_module.Frame,
+    ) -> None:
+        """Expose shared maintenance helpers."""
+
+        button_style = self._monitor_button_kwargs()
+
+        def _tool_row(
+            text: str, command: Callable[[], None], desc: str
+        ) -> None:
+            """Add a helper row with an action button and description."""
+            row = ttk_module.Frame(container)
+            row.pack(fill="x", pady=(0, 14))
+            ttk_module.Button(
+                row,
+                text=text,
+                command=command,
+                takefocus=True,
+                **button_style,
+            ).pack(anchor="w", padx=(0, 6), pady=(0, 6))
+            ttk_module.Label(
+                row,
+                text=desc,
+                wraplength=720,
+                justify="left",
+            ).pack(anchor="w", padx=(0, 6), pady=(0, 10))
+
+        _tool_row(
+            "Rebuild model cache",
+            self._rebuild_model_cache_action,
+            "Re-validate every YAML model and regenerate the sanitized cache.",
+        )
+        _tool_row(
+            "Revalidate parsers",
+            self._revalidate_all_parsers_action,
+            (
+                "Force the parser registry to re-run trust checks before "
+                "refreshing the catalogue."
+            ),
+        )
+        _tool_row(
+            "Reset Run Builder",
+            self._reset_builder_workspace_action,
+            "Clear the Run Builder selections and draft manifest.",
+        )
+
+    def _purge_program_logs(self) -> None:
+        """Delete archived diagnostics logs except the active one."""
+
+        logs_dir = Path(__file__).resolve().parents[2] / "logs"
+        current_path = log_mod.get_program_log_path()
+        skip_path = Path(current_path) if current_path else None
+        removed = 0
+        for candidate in sorted(logs_dir.glob("copernican_log_*.txt")):
+            if skip_path and candidate.samefile(skip_path):
+                continue
+            try:
+                candidate.unlink()
+            except OSError as exc:
+                logger.get_program_logger().warning(
+                    "Failed to remove program log %s: %s", candidate, exc
+                )
+                continue
+            removed += 1
+        if removed:
+            message = f"Purged {removed} archived log file(s)."
+        else:
+            message = "No archived program logs were removed."
+        self.create_toast(message, severity="INFO", context="settings")
+
+    def _rebuild_dataset_hashes_action(self) -> None:
+        """Force the catalogue to recompute every dataset digest."""
+
+        try:
+            self.refresh_inventory(force_discovery=True)
+        except Exception as exc:
+            self.create_toast(
+                f"Failed to refresh dataset digests: {exc}",
+                severity="ERROR",
+                context="settings",
+            )
+            logger.get_program_logger().warning(
+                "Failed to refresh dataset hashes", exc_info=exc
+            )
+            return
+        self.create_toast(
+            "Dataset digests refreshed.",
+            severity="INFO",
+            context="settings",
+        )
+
+    def _revalidate_all_parsers_action(self) -> None:
+        """Re-run parser trust checks across every observation."""
+
+        try:
+            dataset_registry.discover_trusted_parsers(
+                self._data_root(),
+                force=True,
+            )
+            self.refresh_inventory(force_discovery=True)
+        except Exception as exc:
+            self.create_toast(
+                f"Parser revalidation failed: {exc}",
+                severity="ERROR",
+                context="settings",
+            )
+            logger.get_program_logger().warning(
+                "Parser revalidation failed", exc_info=exc
+            )
+            return
+        self.create_toast(
+            "Parsers revalidated successfully.",
+            severity="INFO",
+            context="settings",
+        )
+
+    def _rebuild_model_cache_action(self) -> None:
+        """Recreate the cached YAML models from disk."""
+
+        models_root = Path(self._models_root())
+        cache_dir = models_root / "cache"
+        rebuilt = 0
+        try:
+            for yaml_path in sorted(models_root.glob("*.yml")):
+                if yaml_path.name.startswith("__"):
+                    continue
+                model_spec_validator.validate_and_cache_model(
+                    yaml_path, cache_dir
+                )
+                rebuilt += 1
+        except Exception as exc:
+            self.create_toast(
+                f"Model cache rebuild failed: {exc}",
+                severity="ERROR",
+                context="settings",
+            )
+            logger.get_program_logger().warning(
+                "Model cache rebuild failed", exc_info=exc
+            )
+            return
+        self.create_toast(
+            f"Rebuilt cache for {rebuilt} model(s).",
+            severity="INFO",
+            context="settings",
+        )
+
+    def _reset_builder_workspace_action(self) -> None:
+        """Clear the Run Builder selections along with the draft manifest."""
+
+        self._clear_builder_selections()
+        self.manifest_workspace = None
+        self.create_toast(
+            "Run Builder selections reset.",
+            severity="INFO",
+            context="settings",
+        )
+
+    def show_help(self) -> None:
+        """Display contextual help panel with GUI and CLI guides."""
+
+        def builder(frame: tkinter_module.Frame) -> None:
+            """Render the help navigation buttons and markdown viewer."""
+            self._help_page_buttons = {}
+            self._help_text_widget = None
+            self._help_title_label = self._page_header(
+                frame, self._help_header_text()
+            )
+            ttk_module.Label(
                 frame,
                 text=(
-                    "The repository README is rendered below so you can read "
-                    "the same guidance that ships with the suite."
+                    "Select a Copernican guide to review the GUI workflow or "
+                    "the CLI manifest pipeline. The Help view renders the "
+                    "Markdown guides exactly as they ship in docs/."
                 ),
                 wraplength=720,
                 takefocus=True,
             ).pack(anchor="w", pady=(4, 8))
-            content_frame = ttk.Frame(frame)
+            button_row = ttk_module.Frame(frame)
+            button_row.pack(fill="x", pady=(0, 12))
+            button_style = self._monitor_button_kwargs()
+            for page in _HELP_PAGES:
+                button = ttk_module.Button(
+                    button_row,
+                    text=page["label"],
+                    command=lambda pid=page["id"]: self._select_help_page(pid),
+                    width=12,
+                    takefocus=True,
+                    **button_style,
+                )
+                button.pack(side="left", padx=4)
+                self._help_page_buttons[page["id"]] = button
+            content_frame = ttk_module.Frame(frame)
             content_frame.pack(fill="both", expand=True)
-            if self.render and tk is not None:
-                self._load_help_banner()
-                if self.help_banner_image:
-                    banner_label = ttk.Label(
-                        content_frame, image=self.help_banner_image
-                    )
-                    banner_label.image = self.help_banner_image
-                    banner_label.pack(pady=(0, 8))
-                text_frame = ttk.Frame(content_frame)
-                text_frame.pack(fill="both", expand=True)
-                text_frame.columnconfigure(0, weight=1)
-                text_frame.rowconfigure(0, weight=1)
-                text_widget = tk.Text(
-                    text_frame,
-                    wrap="word",
-                    padx=8,
-                    pady=6,
-                    borderwidth=0,
-                    highlightthickness=0,
-                )
-                text_widget.grid(
-                    row=0, column=0, sticky="nsew", padx=(0, 0), pady=(0, 0)
-                )
-                scrollbar = ttk.Scrollbar(
-                    text_frame,
-                    orient="vertical",
-                    command=text_widget.yview,
-                )
-                scrollbar.grid(row=0, column=1, sticky="ns")
-                text_widget.configure(yscrollcommand=scrollbar.set)
-                markdown = self._load_help_markdown()
-                self._render_markdown_in_text_widget(text_widget, markdown)
-                text_widget.configure(state="disabled")
-            else:
-                ttk.Label(
+            if not (self.render and tk_gui is not None):
+                ttk_module.Label(
                     content_frame,
                     text=(
-                        "Help content is available from README.md in the "
-                        "project root."
+                        "Help content is available from docs/gui_guide.md and "
+                        "docs/cli_guide.md in the project root."
                     ),
                     wraplength=720,
                     takefocus=True,
                 ).pack(anchor="w")
+                self._refresh_help_page_view()
+                return
+            self._load_help_banner()
+            if self.help_banner_image:
+                banner_label = ttk_module.Label(
+                    content_frame, image=self.help_banner_image
+                )
+                banner_label.image = self.help_banner_image
+                banner_label.pack(pady=(0, 8))
+            text_frame = ttk_module.Frame(content_frame)
+            text_frame.pack(fill="both", expand=True)
+            text_frame.columnconfigure(0, weight=1)
+            text_frame.rowconfigure(0, weight=1)
+            text_widget = tkinter_module.Text(
+                text_frame,
+                wrap="word",
+                padx=8,
+                pady=6,
+                borderwidth=0,
+                highlightthickness=0,
+            )
+            text_widget.grid(
+                row=0, column=0, sticky="nsew", padx=(0, 0), pady=(0, 0)
+            )
+            scrollbar = ttk_module.Scrollbar(
+                text_frame,
+                orient="vertical",
+                command=text_widget.yview,
+            )
+            scrollbar.grid(row=0, column=1, sticky="ns")
+            text_widget.configure(yscrollcommand=scrollbar.set)
+            self._help_text_widget = text_widget
+            self._refresh_help_page_view()
 
         self._swap_content(builder)
 
@@ -3178,94 +6712,104 @@ class CopernicanGUI:
     def show_run_monitor(self) -> None:
         """Display live run status controls."""
 
-        def builder(frame: tk.Frame) -> None:
+        def builder(frame: tkinter_module.Frame) -> None:
+            """Render the run monitor view with progress bars and logs."""
             self._status_label = None
             self._progress_status_label = None
             self._batch_progressbar = None
             self._walker_progressbar = None
             self._monitor_log_widget = None
             self._monitor_filter_label = None
-            header = ttk.Label(
-                frame, text="Run Monitor", font=("Helvetica", 16)
-            )
-            header.pack(anchor="w", pady=(0, 8))
-            self._status_label = ttk.Label(
+            self._page_header(frame, "Run Monitor")
+            self._status_label = ttk_module.Label(
                 frame,
                 text=self._status_text(),
                 takefocus=True,
             )
             self._status_label.pack(anchor="w")
-            progress_frame = ttk.Frame(frame)
+            progress_frame = ttk_module.Frame(frame)
             progress_frame.pack(fill="x", pady=(8, 8))
-            self._progress_status_label = ttk.Label(
+            self._progress_status_label = ttk_module.Label(
                 progress_frame,
                 text="Stage: Idle",
                 font=("Helvetica", 12, "bold"),
                 takefocus=True,
             )
             self._progress_status_label.pack(anchor="w")
-            ttk.Label(
+            ttk_module.Label(
                 progress_frame,
                 text="Overall batch progress",
                 takefocus=True,
             ).pack(anchor="w", pady=(4, 0))
-            self._batch_progressbar = ttk.Progressbar(
+            self._batch_progressbar = ttk_module.Progressbar(
                 progress_frame, maximum=100, length=360
             )
             self._batch_progressbar.pack(fill="x", pady=(2, 0))
-            ttk.Label(
+            ttk_module.Label(
                 progress_frame,
                 text="Walker progress",
                 takefocus=True,
             ).pack(anchor="w", pady=(6, 0))
-            self._walker_progressbar = ttk.Progressbar(
+            self._walker_progressbar = ttk_module.Progressbar(
                 progress_frame, maximum=100, length=360
             )
             self._walker_progressbar.pack(fill="x", pady=(2, 0))
-            meta_frame = ttk.Frame(frame)
+            meta_frame = ttk_module.Frame(frame)
             meta_frame.pack(anchor="w", pady=(4, 4))
-            ttk.Label(
+            ttk_module.Label(
                 meta_frame,
                 text="Active manifest metadata:",
                 takefocus=True,
             ).pack(anchor="w")
             for line in self.summary.manifest_metadata:
-                ttk.Label(meta_frame, text=line, takefocus=True).pack(
-                    anchor="w"
+                metadata_label = ttk_module.Label(
+                    meta_frame,
+                    text=line,
+                    takefocus=True,
                 )
-            log_frame = ttk.LabelFrame(frame, text="Run logs")
+                metadata_label.pack(anchor="w")
+            log_frame = ttk_module.LabelFrame(frame, text="Run logs")
             log_frame.pack(fill="both", expand=True, pady=(8, 4))
-            self._monitor_filter_label = ttk.Label(
+            self._monitor_filter_label = ttk_module.Label(
                 log_frame,
                 text=f"Filter: {self.monitor_filter_level}+",
                 takefocus=True,
             )
             self._monitor_filter_label.pack(anchor="w")
-            log_filters = ttk.Frame(log_frame)
+            log_filters = ttk_module.Frame(log_frame)
             log_filters.pack(anchor="w", pady=(2, 4))
-            ttk.Button(
+            ttk_module.Button(
                 log_filters,
                 text="Info",
                 command=lambda: self.set_monitor_filter("INFO"),
                 takefocus=True,
             ).pack(side="left", padx=2)
-            ttk.Button(
+            ttk_module.Button(
                 log_filters,
                 text="Warnings",
                 command=lambda: self.set_monitor_filter("WARNING"),
                 takefocus=True,
             ).pack(side="left", padx=2)
-            ttk.Button(
+            ttk_module.Button(
                 log_filters,
                 text="Errors",
                 command=lambda: self.set_monitor_filter("ERROR"),
                 takefocus=True,
             ).pack(side="left", padx=2)
-            text_panel = ttk.Frame(log_frame)
+            lock_frame = ttk_module.Frame(log_frame)
+            lock_frame.pack(anchor="w", pady=(0, 4))
+            self._monitor_log_lock_var = tkinter_module.BooleanVar(value=True)
+            ttk_module.Checkbutton(
+                lock_frame,
+                text="Lock log to latest entry",
+                variable=self._monitor_log_lock_var,
+                takefocus=True,
+            ).pack(side="left")
+            text_panel = ttk_module.Frame(log_frame)
             text_panel.pack(fill="both", expand=True)
             text_panel.columnconfigure(0, weight=1)
             text_panel.rowconfigure(0, weight=1)
-            text_widget = tk.Text(
+            text_widget = tkinter_module.Text(
                 text_panel,
                 wrap="none",
                 padx=8,
@@ -3275,13 +6819,13 @@ class CopernicanGUI:
                 height=12,
             )
             text_widget.grid(row=0, column=0, sticky="nsew")
-            vscroll = ttk.Scrollbar(
+            vscroll = ttk_module.Scrollbar(
                 text_panel,
                 orient="vertical",
                 command=text_widget.yview,
             )
             vscroll.grid(row=0, column=1, sticky="ns")
-            hscroll = ttk.Scrollbar(
+            hscroll = ttk_module.Scrollbar(
                 text_panel,
                 orient="horizontal",
                 command=text_widget.xview,
@@ -3292,10 +6836,10 @@ class CopernicanGUI:
             )
             text_widget.configure(state="disabled")
             self._monitor_log_widget = text_widget
-            log_actions = ttk.Frame(log_frame)
+            log_actions = ttk_module.Frame(log_frame)
             log_actions.pack(anchor="w", pady=(4, 0))
             button_style = self._monitor_button_kwargs()
-            self._monitor_log_view_button = ttk.Button(
+            self._monitor_log_view_button = ttk_module.Button(
                 log_actions,
                 text="View log",
                 command=self._view_run_log,
@@ -3303,7 +6847,7 @@ class CopernicanGUI:
                 **button_style,
             )
             self._monitor_log_view_button.pack(side="left", padx=2)
-            self._monitor_log_open_button = ttk.Button(
+            self._monitor_log_open_button = ttk_module.Button(
                 log_actions,
                 text="Open log…",
                 command=self._open_run_log_file,
@@ -3311,12 +6855,12 @@ class CopernicanGUI:
                 **button_style,
             )
             self._monitor_log_open_button.pack(side="left", padx=2)
-            alerts = ttk.LabelFrame(frame, text="Active alerts")
+            alerts = ttk_module.LabelFrame(frame, text="Active alerts")
             alerts.pack(fill="x", pady=(4, 8))
             for alert in self.alerts[-5:]:
-                alert_row = ttk.Frame(alerts)
+                alert_row = ttk_module.Frame(alerts)
                 alert_row.pack(anchor="w", fill="x", pady=(2, 0))
-                ttk.Label(
+                ttk_module.Label(
                     alert_row,
                     text=(
                         f"{alert.severity}: {alert.message} "
@@ -3328,18 +6872,19 @@ class CopernicanGUI:
                 jump_target = alert.anchor
 
                 def _jump(anchor: str = jump_target) -> None:
+                    """Scroll the log view to the specified anchor."""
                     self.jump_to_log_anchor(anchor)
 
-                ttk.Button(
+                ttk_module.Button(
                     alert_row,
                     text="Jump to log",
                     command=_jump,
                     takefocus=True,
                 ).pack(side="left", padx=2)
-            controls = ttk.Frame(frame)
+            controls = ttk_module.Frame(frame)
             controls.pack(anchor="w")
             button_style = self._monitor_button_kwargs()
-            self._run_output_button = ttk.Button(
+            self._run_output_button = ttk_module.Button(
                 controls,
                 text="Open run output",
                 command=self.open_current_run_output,
@@ -3347,7 +6892,7 @@ class CopernicanGUI:
                 **button_style,
             )
             self._run_output_button.pack(side="left", padx=4)
-            self._cancel_button = ttk.Button(
+            self._cancel_button = ttk_module.Button(
                 controls,
                 text="Cancel",
                 command=self.cancel_run,
@@ -3355,7 +6900,7 @@ class CopernicanGUI:
                 **button_style,
             )
             self._cancel_button.pack(side="left", padx=4)
-            self._pause_button = ttk.Button(
+            self._pause_button = ttk_module.Button(
                 controls,
                 text="Pause",
                 command=self.pause_run,
@@ -3363,7 +6908,7 @@ class CopernicanGUI:
                 **button_style,
             )
             self._pause_button.pack(side="left", padx=4)
-            self._hard_stop_button = ttk.Button(
+            self._hard_stop_button = ttk_module.Button(
                 controls,
                 text="Hard Stop",
                 command=self.stop_run,
@@ -3385,64 +6930,105 @@ class CopernicanGUI:
     def _status_text(self) -> str:
         """Return the formatted status line for the run monitor."""
 
-        suffix = (
-            f" – {self.current_phase}"
-            if getattr(self, "current_phase", "")
-            else ""
-        )
+        if getattr(self, "current_phase", ""):
+            suffix = f" – {self.current_phase}"
+        else:
+            suffix = ""
         return f"Status: {self.status.value}{suffix}"
 
     def _refresh_status_label(self) -> None:
         """Update the status label text if it is visible."""
 
-        if self._status_label is not None:
+        if self._widget_is_alive(self._status_label):
             self._status_label.configure(text=self._status_text())
+        else:
+            self._status_label = None
 
     def _update_monitor_controls_state(self) -> None:
         """Enable or disable monitor buttons based on current state."""
 
         run_active = self.status is RunStatus.RUNNING
-        control_state = tk.NORMAL if run_active else tk.DISABLED
+        control_state = (
+            tkinter_module.NORMAL if run_active else tkinter_module.DISABLED
+        )
+        alive_control_buttons: list[ttk_module.Button] = []
         for button in self._monitor_control_buttons:
-            if button:
+            if self._widget_is_alive(button):
                 button.configure(state=control_state)
+                alive_control_buttons.append(button)
+        self._monitor_control_buttons = alive_control_buttons
         log_available = bool(self.run_log_path)
-        log_state = tk.NORMAL if log_available else tk.DISABLED
-        if self._monitor_log_view_button:
+        log_state = (
+            tkinter_module.NORMAL if log_available else tkinter_module.DISABLED
+        )
+        if self._widget_is_alive(self._monitor_log_view_button):
             self._monitor_log_view_button.configure(state=log_state)
-        if self._monitor_log_open_button:
+        else:
+            self._monitor_log_view_button = None
+        if self._widget_is_alive(self._monitor_log_open_button):
             self._monitor_log_open_button.configure(state=log_state)
+        else:
+            self._monitor_log_open_button = None
         output_available = bool(
             self._current_run_output_dir
         ) and os.path.isdir(self._current_run_output_dir)
-        if self._run_output_button:
+        if self._widget_is_alive(self._run_output_button):
             self._run_output_button.configure(
-                state=tk.NORMAL if output_available else tk.DISABLED
+                state=(
+                    tkinter_module.NORMAL
+                    if output_available
+                    else tkinter_module.DISABLED
+                )
             )
+        else:
+            self._run_output_button = None
 
     def show_summary(self) -> None:
         """Display the completion summary with manifest reuse actions."""
 
-        def builder(frame: tk.Frame) -> None:
-            header = ttk.Label(
-                frame, text="Run Summary", font=("Helvetica", 16)
+        def builder(frame: tkinter_module.Frame) -> None:
+            """Render the run summary view with output links and metadata."""
+            self._page_header(frame, "Run Summary")
+            outputs_label = ttk_module.Label(
+                frame,
+                text="Outputs",
+                takefocus=True,
             )
-            header.pack(anchor="w", pady=(0, 8))
-            ttk.Label(frame, text="Outputs", takefocus=True).pack(anchor="w")
+            outputs_label.pack(anchor="w")
             for link in self.summary.output_links:
-                ttk.Label(frame, text=link, takefocus=True).pack(anchor="w")
-            ttk.Label(frame, text="Manifest actions", takefocus=True).pack(
-                anchor="w", pady=(12, 0)
+                link_label = ttk_module.Label(
+                    frame,
+                    text=link,
+                    takefocus=True,
+                )
+                link_label.pack(anchor="w")
+            actions_label = ttk_module.Label(
+                frame,
+                text="Manifest actions",
+                takefocus=True,
             )
+            actions_label.pack(anchor="w", pady=(12, 0))
             for action in self.summary.manifest_actions:
-                ttk.Button(
-                    frame, text=action, command=self._noop, takefocus=True
-                ).pack(anchor="w", pady=2)
-            ttk.Label(frame, text="Manifest metadata", takefocus=True).pack(
-                anchor="w", pady=(12, 0)
+                action_button = ttk_module.Button(
+                    frame,
+                    text=action,
+                    command=self._noop,
+                    takefocus=True,
+                )
+                action_button.pack(anchor="w", pady=2)
+            metadata_label = ttk_module.Label(
+                frame,
+                text="Manifest metadata",
+                takefocus=True,
             )
+            metadata_label.pack(anchor="w", pady=(12, 0))
             for line in self.summary.manifest_metadata:
-                ttk.Label(frame, text=line, takefocus=True).pack(anchor="w")
+                metadata_entry_label = ttk_module.Label(
+                    frame,
+                    text=line,
+                    takefocus=True,
+                )
+                metadata_entry_label.pack(anchor="w")
 
         self._swap_content(builder)
 
@@ -3463,7 +7049,7 @@ class CopernicanGUI:
     def jump_to_step(self, step_index: int) -> None:
         """Jump directly to any builder step."""
 
-        confirm_index = self.builder_steps.index("Confirm")
+        confirm_index = self.builder_steps.index(self._CONFIRM_STEP_NAME)
         if step_index == confirm_index and not self._can_enter_confirm():
             self._notify_manifest_save_required()
             return
@@ -3540,22 +7126,6 @@ class CopernicanGUI:
                     return entry
         raise RuntimeError("Select an engine before starting the run.")
 
-    def _load_engine_capabilities(
-        self, module_name: str
-    ) -> EngineCapabilities | None:
-        """Return engine metadata descriptors when available."""
-
-        try:
-            module = importlib.import_module(module_name)
-            return get_engine_capabilities(module)
-        except Exception as exc:
-            logger.get_program_logger().warning(
-                "Failed to load engine capabilities for %s: %s",
-                module_name,
-                exc,
-            )
-        return None
-
     def _prepare_progress_path(self) -> str:
         """Return the path where the CLI worker writes GUI progress."""
 
@@ -3616,6 +7186,7 @@ class CopernicanGUI:
                 stdin=subprocess.DEVNULL,
                 text=True,
                 bufsize=1,
+                env=env,
             )
         except Exception as exc:
             self.create_toast(
@@ -3650,8 +7221,6 @@ class CopernicanGUI:
                 continue
             if cleaned.startswith("\r"):
                 continue
-            if _is_progress_line(cleaned):
-                continue
             self._log_run_event(cleaned, logging.INFO)
 
     def _wait_for_worker(self, process: subprocess.Popen[str]) -> None:
@@ -3668,27 +7237,37 @@ class CopernicanGUI:
         self._run_config_path = None
         self._run_process = None
         if return_code == 0:
-            self.update_progress(100)
-            if self.status is RunStatus.RUNNING:
-                self.status = RunStatus.IDLE
-                self.current_phase = "Completed"
-                self._refresh_status_label()
-                self.create_toast(
-                    "Run completed successfully.",
-                    severity="INFO",
-                    context="run",
-                )
-                self.show_summary()
+            self._call_on_ui_thread(self._handle_worker_success)
         else:
-            if self.status is RunStatus.RUNNING:
-                self.status = RunStatus.ABORTED
-                self.current_phase = "Failed"
-                self._refresh_status_label()
-                self.create_toast(
-                    "Run aborted; review logs for details.",
-                    severity="ERROR",
-                    context="run",
-                )
+            self._call_on_ui_thread(self._handle_worker_failure)
+
+    def _handle_worker_success(self) -> None:
+        """Refresh UI elements after a successful run."""
+
+        self.update_progress(100)
+        if self.status is RunStatus.RUNNING:
+            self.status = RunStatus.IDLE
+            self.current_phase = "Completed"
+            self._refresh_status_label()
+            self.create_toast(
+                "Run completed successfully.",
+                severity="INFO",
+                context="run",
+            )
+            self.show_summary()
+
+    def _handle_worker_failure(self) -> None:
+        """Refresh UI elements after a failed run."""
+
+        if self.status is RunStatus.RUNNING:
+            self.status = RunStatus.ABORTED
+            self.current_phase = "Failed"
+            self._refresh_status_label()
+            self.create_toast(
+                "Run aborted; review logs for details.",
+                severity="ERROR",
+                context="run",
+            )
 
     def _start_progress_poller(self) -> None:
         """Kick off the progress file watcher when UI is active."""
@@ -3739,47 +7318,132 @@ class CopernicanGUI:
         """Store the latest progress record and refresh the monitor."""
 
         self._progress_snapshot = snapshot
+        if snapshot:
+            stage_name = snapshot.get("stage_label")
+            if stage_name:
+                self._validation_last_stage_label = stage_name
         if snapshot.get("stage_label"):
             self.current_phase = snapshot["stage_label"]
-        if self.render and self.root is not None:
-            self.root.after(0, self._refresh_monitor_widgets)
-        else:
-            self._refresh_monitor_widgets()
+        self._call_on_ui_thread(self._refresh_monitor_widgets)
+        self._call_on_ui_thread(self._refresh_validation_progress_widgets)
 
-    def _refresh_monitor_widgets(self) -> None:
-        """Update the progress bars, status label and log console."""
+    def _stage_label_text(self, snapshot: dict | None) -> str:
+        """Return the textual stage label derived from the snapshot."""
 
-        snapshot = self._progress_snapshot
         stage_label = "Stage: Idle"
         if snapshot:
             label = snapshot.get("stage_label", "Stage")
             event = snapshot.get("event", "").replace("_", " ")
             stage_label = f"{label} – {event}".strip(" –")
-            if snapshot.get("stage_label"):
-                self.current_phase = snapshot["stage_label"]
-        if self._progress_status_label:
+        return stage_label
+
+    def _widget_is_alive(self, widget: tkinter_module.Widget | None) -> bool:
+        """Return True if the widget has not been destroyed."""
+
+        if widget is None:
+            return False
+        try:
+            return bool(widget.winfo_exists())
+        except tkinter_module.TclError:
+            return False
+
+    def _call_on_ui_thread(
+        self, func: Callable[..., object], *args, **kwargs
+    ) -> None:
+        """Run *func* on the Tk main loop when rendering is active."""
+
+        if self.render and self.root is not None:
+            self.root.after(0, partial(func, *args, **kwargs))
+        else:
+            func(*args, **kwargs)
+
+    def _refresh_monitor_widgets(self) -> None:
+        """Update the progress bars, status label and log console."""
+
+        snapshot = self._progress_snapshot
+        stage_label = self._stage_label_text(snapshot)
+        if snapshot and snapshot.get("stage_label"):
+            self.current_phase = snapshot["stage_label"]
+        if self._widget_is_alive(self._progress_status_label):
             self._progress_status_label.configure(text=stage_label)
-        if self._batch_progressbar:
+        else:
+            self._progress_status_label = None
+        if self._widget_is_alive(self._batch_progressbar):
             percent = snapshot.get("batch_percent", 0) if snapshot else 0
             self._batch_progressbar["value"] = min(max(percent, 0), 100)
-        if self._walker_progressbar:
+        else:
+            self._batch_progressbar = None
+        if self._widget_is_alive(self._walker_progressbar):
             walker_percent = (
                 snapshot.get("walker_percent", 0) if snapshot else 0
             )
             self._walker_progressbar["value"] = min(
                 max(walker_percent, 0), 100
             )
+        else:
+            self._walker_progressbar = None
         self._refresh_status_label()
         self._refresh_run_log_widget()
         self._update_monitor_controls_state()
 
+    def _refresh_validation_progress_widgets(self) -> None:
+        """Update the validation progress UI with the latest snapshot."""
+
+        snapshot = self._progress_snapshot
+        stage_label = self._stage_label_text(snapshot)
+        if self._widget_is_alive(self._validation_progress_status_label):
+            self._validation_progress_status_label.configure(text=stage_label)
+        else:
+            self._validation_progress_status_label = None
+        if self._widget_is_alive(self._validation_batch_progressbar):
+            percent = snapshot.get("batch_percent", 0) if snapshot else 0
+            self._validation_batch_progressbar["value"] = min(
+                max(percent, 0), 100
+            )
+        else:
+            self._validation_batch_progressbar = None
+        if self._widget_is_alive(self._validation_walker_progressbar):
+            walker_percent = (
+                snapshot.get("walker_percent", 0) if snapshot else 0
+            )
+            self._validation_walker_progressbar["value"] = min(
+                max(walker_percent, 0), 100
+            )
+        else:
+            self._validation_walker_progressbar = None
+        self._update_validation_status_label(snapshot)
+
+    def _update_validation_status_label(
+        self, snapshot: dict | None = None
+    ) -> None:
+        """Keep the validation status label aligned with the base text."""
+
+        if not self._widget_is_alive(self._validation_status_label):
+            self._validation_status_label = None
+            return
+        text = self._validation_status_base
+        if self._validation_running:
+            stage_snapshot = snapshot
+            if stage_snapshot is None and self._validation_last_stage_label:
+                stage_snapshot = {
+                    "stage_label": self._validation_last_stage_label
+                }
+            stage_label = self._stage_label_text(stage_snapshot)
+            if stage_label and stage_label != "Stage: Idle":
+                text = f"{text} – {stage_label}"
+        self._validation_status_label.configure(text=text)
+
     def _refresh_run_log_widget(self) -> None:
         """Populate the run log text widget with the latest entries."""
 
-        if self._monitor_log_widget is None:
+        if not self._widget_is_alive(self._monitor_log_widget):
+            self._monitor_log_widget = None
             return
         entries = self.get_run_log_entries()
-        prev_view = self._monitor_log_widget.yview()
+        lock_tail = self._monitor_log_lock_var is None or bool(
+            self._monitor_log_lock_var.get()
+        )
+        prev_view = None if lock_tail else self._monitor_log_widget.yview()
         self._monitor_log_widget.configure(state="normal")
         self._monitor_log_widget.delete("1.0", "end")
         for entry in entries[-200:]:
@@ -3788,7 +7452,12 @@ class CopernicanGUI:
                 f"[{entry.anchor}] {entry.formatted}\n",
             )
         self._monitor_log_widget.configure(state="disabled")
-        if prev_view:
+        if lock_tail:
+            try:
+                self._monitor_log_widget.yview_moveto(1.0)
+            except Exception:
+                pass
+        elif prev_view:
             try:
                 self._monitor_log_widget.yview_moveto(
                     max(0.0, min(prev_view[0], 1.0))
@@ -3990,11 +7659,11 @@ class CopernicanGUI:
 
         return Path(__file__).resolve().parents[2]
 
-    def _safe_int(self, value: str, default: int | None) -> int | None:
-        """Return ``int(value)`` or ``default`` when parsing fails."""
+    def _safe_int(self, text_value: str, default: int | None) -> int | None:
+        """Return ``int(text_value)`` or ``default`` when parsing fails."""
 
         try:
-            stripped = value.strip()
+            stripped = text_value.strip()
         except AttributeError:
             return default
         if not stripped:
@@ -4031,10 +7700,50 @@ class CopernicanGUI:
             "display_progress": True,
         }
 
-    def update_progress(self, value: int) -> None:
+    def _collect_engine_setting_values(self) -> dict[str, object]:
+        """Return sanitized values entered into engine setting controls."""
+
+        values: dict[str, object] = {}
+        for key, setting_var in self._engine_setting_vars.items():
+            spec = self._engine_setting_specs.get(key)
+            if isinstance(setting_var, tkinter_module.BooleanVar):
+                values[key] = bool(setting_var.get())
+                continue
+            raw_value = setting_var.get().strip()
+            if not raw_value:
+                continue
+            dtype = spec.dtype if spec else "str"
+            values[key] = self._parse_engine_setting_value(raw_value, dtype)
+        return values
+
+    @staticmethod
+    def _parse_engine_setting_value(raw_value: str, dtype: str) -> object:
+        """Convert a string knob value into the declared dtype."""
+
+        dtype_key = dtype.lower()
+        if dtype_key == "int":
+            try:
+                return int(raw_value)
+            except ValueError:
+                return raw_value
+        if dtype_key == "float":
+            try:
+                return float(raw_value)
+            except ValueError:
+                return raw_value
+        if dtype_key == "bool":
+            normalized = raw_value.lower()
+            if normalized in {"1", "true", "yes", "on"}:
+                return True
+            if normalized in {"0", "false", "no", "off"}:
+                return False
+            return raw_value
+        return raw_value
+
+    def update_progress(self, progress_value: int) -> None:
         """Update the monitor progress meter."""
 
-        self.progress = max(0, min(100, value))
+        self.progress = max(0, min(100, progress_value))
         self._log_run_event(
             f"Run progress updated to {self.progress}%", logging.INFO
         )
@@ -4254,6 +7963,16 @@ class CopernicanGUI:
     def confirm_start_run(self) -> None:
         """Generate a manifest snapshot and defer output creation."""
 
+        if self._validation_running:
+            self._notify_pipeline_conflict(
+                "Validation running",
+                "The pipeline is busy with a validation run. Please wait "
+                "for it to finish or cancel it, so a production run can "
+                "be started.",
+                context="run",
+            )
+            return
+
         if self.manifest_workspace is None or self.pending_manifest is None:
             self.create_toast(
                 "Cannot start run without saving the manifest first.",
@@ -4360,7 +8079,7 @@ class CopernicanGUI:
         if models:
             self.draft.model = ", ".join(models)
         if datasets:
-            self.draft.data = ", ".join(datasets)
+            self.draft.dataset = ", ".join(datasets)
         if self.selected_engine:
             self.draft.engine = self.selected_engine
         confirmation = manifest.get("confirmation", {})
@@ -4429,13 +8148,32 @@ class CopernicanGUI:
     def _collect_run_settings_snapshot(self) -> dict[str, object] | None:
         """Return canonical run settings from the builder inputs."""
 
+        snapshot: dict[str, object] = {}
         try:
             engine_entry = self._resolve_engine_entry()
-            plan = self._build_sampling_plan_values(engine_entry["id"])
-            snapshot = dict(plan)
-            return snapshot
         except Exception:
-            pass
+            engine_entry = None
+        engine_kind = "mcmc"
+        if engine_entry:
+            try:
+                module = importlib.import_module(engine_entry["id"])
+                engine_kind = getattr(module, "ENGINE_KIND", "mcmc").lower()
+            except Exception:
+                engine_kind = "mcmc"
+            if engine_kind == "mcmc":
+                try:
+                    snapshot = dict(
+                        self._build_sampling_plan_values(engine_entry["id"])
+                    )
+                except Exception:
+                    snapshot = {}
+            else:
+                snapshot["engine_kind"] = engine_kind
+        knob_settings = self._collect_engine_setting_values()
+        if knob_settings:
+            snapshot.update(knob_settings)
+        if snapshot:
+            return snapshot
         fallback_fields = {
             "n_walkers": self.draft.walkers,
             "burn_in_steps": self.draft.burn_in,
@@ -4443,10 +8181,10 @@ class CopernicanGUI:
             "pool_size": self.draft.pool_size,
         }
         sanitized: dict[str, object] = {}
-        for key, value in fallback_fields.items():
-            if not isinstance(value, str):
+        for key, field_value in fallback_fields.items():
+            if not isinstance(field_value, str):
                 continue
-            trimmed = value.strip()
+            trimmed = field_value.strip()
             if not trimmed:
                 continue
             parsed = self._safe_int(trimmed, None)
@@ -4461,11 +8199,12 @@ class CopernicanGUI:
         """Populate draft controls from manifest run settings."""
 
         def _set(field: str, key: str) -> None:
-            value = settings.get(key)
-            if value is None:
+            """Copy a numeric run-setting from the manifest snapshot."""
+            setting_value = settings.get(key)
+            if setting_value is None:
                 setattr(self.draft, field, "")
             else:
-                setattr(self.draft, field, str(value))
+                setattr(self.draft, field, str(setting_value))
 
         _set("walkers", "n_walkers")
         _set("burn_in", "burn_in_steps")
@@ -4502,8 +8241,8 @@ class CopernicanGUI:
         datasets: list[dict[str, object]] = []
         source_datasets = self.selected_datasets or [
             {
-                "id": self.draft.data or "dataset",
-                "name": self.draft.data or "dataset",
+                "id": self.draft.dataset or "dataset",
+                "name": self.draft.dataset or "dataset",
                 "version": "unversioned",
                 "path": "",
                 "hashes": {},

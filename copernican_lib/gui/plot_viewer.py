@@ -1,0 +1,124 @@
+"""Reusable Matplotlib viewer used across the GUI."""
+
+from __future__ import annotations
+
+import logging
+
+import matplotlib.pyplot as plt
+
+try:
+    import tkinter as tk_module
+    from tkinter import ttk
+except ImportError:  # pragma: no cover - GUI disabled
+    tk_module = None
+    ttk = None
+
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+
+logger = logging.getLogger(__name__)
+
+
+class PlotViewer(ttk.Frame):
+    """A canvas that displays Matplotlib figures with pan/zoom controls."""
+
+    def __init__(self, master, *, figure: Figure | None = None):
+        """Initialize the plot viewer canvas and event handlers."""
+        if tk_module is None or ttk is None:
+            raise RuntimeError("Tkinter is required for the plot viewer.")
+        super().__init__(master)
+        self.figure: Figure = figure or plt.Figure(figsize=(6, 4))
+        self.canvas = FigureCanvasTkAgg(self.figure, master=self)
+        self.canvas.get_tk_widget().pack(fill="both", expand=True)
+        self._zoom_active = False
+        self._pan_press_event = None
+        self._original_limits: dict[
+            int, tuple[tuple[float, float], tuple[float, float]]
+        ] = {}
+        self.canvas.mpl_connect("button_press_event", self._on_press)
+        self.canvas.mpl_connect("button_release_event", self._on_release)
+        self.canvas.mpl_connect("motion_notify_event", self._on_motion)
+        self.canvas.mpl_connect("draw_event", self._save_original_limits)
+
+    def load_figure(self, figure: Figure) -> None:
+        """Replace the current figure with ``figure``."""
+
+        self.figure = figure
+        self.canvas.figure = figure
+        self._zoom_active = False
+        self._pan_press_event = None
+        self._save_original_limits(None)
+        self.canvas.draw_idle()
+
+    def fit_to_screen(self) -> None:
+        """Autoscale all axes to their data limits."""
+
+        for axis_obj in self.figure.axes:
+            axis_obj.relim()
+            axis_obj.autoscale_view()
+        self.canvas.draw_idle()
+
+    def fit_all(self) -> None:
+        """Restore the original limits captured when the figure was drawn."""
+
+        if not self._original_limits:
+            self.fit_to_screen()
+            return
+        for axis_obj in self.figure.axes:
+            limits = self._original_limits.get(id(axis_obj))
+            if not limits:
+                continue
+            axis_obj.set_xlim(limits[0])
+            axis_obj.set_ylim(limits[1])
+        self.canvas.draw_idle()
+
+    def toggle_zoom(self) -> None:
+        """Toggle the zoom/pan interaction."""
+
+        self._zoom_active = not self._zoom_active
+        state = "active" if self._zoom_active else "inactive"
+        logger.debug("Plot viewer zoom mode %s", state)
+
+    @property
+    def zoom_active(self) -> bool:
+        """Return True when zoom/pan interaction is enabled."""
+
+        return self._zoom_active
+
+    def _save_original_limits(self, event) -> None:
+        """Remember the axes limits for later restoration."""
+
+        self._original_limits = {}
+        for axis_obj in self.figure.axes:
+            self._original_limits[id(axis_obj)] = (
+                axis_obj.get_xlim(),
+                axis_obj.get_ylim(),
+            )
+
+    def _on_press(self, event) -> None:
+        """Record the press event to start drag panning."""
+        if not self._zoom_active or event.inaxes is None:
+            return
+        self._pan_press_event = event
+
+    def _on_release(self, event) -> None:
+        """Clear the stored press event at the end of a pan."""
+        if not self._zoom_active:
+            return
+        self._pan_press_event = None
+
+    def _on_motion(self, event) -> None:
+        """Pan the axes as the mouse moves while zoom is active."""
+        if not self._zoom_active or self._pan_press_event is None:
+            return
+        if event.inaxes is None or self._pan_press_event.inaxes is None:
+            return
+        pan_delta_x = event.xdata - self._pan_press_event.xdata
+        pan_delta_y = event.ydata - self._pan_press_event.ydata
+        target_axis = event.inaxes
+        xlim = target_axis.get_xlim()
+        ylim = target_axis.get_ylim()
+        target_axis.set_xlim(xlim[0] - pan_delta_x, xlim[1] - pan_delta_x)
+        target_axis.set_ylim(ylim[0] - pan_delta_y, ylim[1] - pan_delta_y)
+        self._pan_press_event = event
+        self.canvas.draw_idle()

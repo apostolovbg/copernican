@@ -17,12 +17,11 @@ bounds and optional reparameterisation transforms while exposing diagnostic
 metadata alongside sampled chains.
 
 Version 7.6.20 removes walker snapshot logging entirely, dedicates the output
-channel to concise diagnostics, keeps a background repaint pump alive so the
-spinner and bar animate even when sampler steps take several seconds to
-complete, and clears each console line when a batch finishes so transcripts
-never retain stale progress bars. The bar no longer mirrors its state to the
-log file, leaving the console display as the single source of progress updates
-while the logger concentrates on statistical summaries.
+channel to concise diagnostics, and now emits simple counter lines instead of
+maintaining a repaint pump. The carriage-return spinner has been retired but
+each batch still announces its completion so transcripts never retain stale
+bars. The counter updates log the stage label, completed steps and percentage,
+keeping the GUI monitor and log in sync while the logger focuses on statistics.
 
 Version 7.2.10 extends the reproducibility contract by constructing every
 NumPy :class:`~numpy.random.Generator` from the shared
@@ -37,7 +36,6 @@ from __future__ import annotations
 import logging
 import math
 import multiprocessing as mp
-import threading
 import warnings
 from typing import Any, Callable, Iterable, Iterator, Sequence
 
@@ -54,9 +52,9 @@ except Exception:  # pragma: no cover - SciPy layout varies
         pass
 
 try:
-    import arviz as az
+    import arviz as arviz_module
 except ModuleNotFoundError:  # pragma: no cover - optional fallback for tests
-    az = None
+    arviz_module = None
 import emcee
 import numpy as np
 import pandas as pd
@@ -67,11 +65,7 @@ from copernican_lib.engine_capabilities import (
     EngineSetting,
 )
 from copernican_lib.likelihoods import BAOLike, CMBLike, JointLike, SNeLike
-from copernican_lib.progress import (
-    BatchProgressBar,
-    StepProgressEmitter,
-    configure_sampler_progress_reporting,
-)
+from copernican_lib.progress import BatchProgressBar
 from copernican_lib.statistics import (
     calculate_bao_observables,
     chi_squared_bao,
@@ -173,6 +167,7 @@ class _ActiveLogProbability:
         template_params: np.ndarray,
         active_indices: np.ndarray,
     ) -> None:
+        """Save the wrapped posterior metadata for multiprocessing."""
         # ``posterior`` already encapsulates priors and likelihood terms via
         # ``_build_joint_logposterior``.  We retain it verbatim and only manage
         # the vector assembly around it.
@@ -202,12 +197,12 @@ class _ActiveLogProbability:
         """Evaluate the posterior for ``position`` in the active subspace."""
 
         full = self.assemble_full(position)
-        value = self._posterior(full)
+        posterior_value = self._posterior(full)
         # ``emcee`` expects a Python ``float`` rather than a NumPy scalar for
         # predictable ``isfinite`` checks.  Coercing here guarantees downstream
         # consumers see the same type under both serial and multiprocessing
         # execution.
-        return float(value)
+        return float(posterior_value)
 
 
 class _JointLogLikelihood:
@@ -227,6 +222,7 @@ class _JointLogLikelihood:
             Iterable[Callable[[float], tuple[float, float]]] | None
         ),
     ) -> None:
+        """Record the joint likelihood plus bounds/transforms for __call__."""
         self._joint_like = joint_like
         self.parameter_bounds = list(parameter_bounds or [])
         if parameter_transforms is not None:
@@ -257,6 +253,7 @@ class _SamplingProgressReporter:
         progress_granularity: int = 20,
         max_params_to_show: int | None = None,
     ) -> None:
+        """Capture sampling state and formatting hints for progress reports."""
         self._param_names = list(param_names)
         self._template = np.asarray(template_params, dtype=float)
         self._active_indices = np.asarray(active_indices, dtype=int)
@@ -594,10 +591,6 @@ def _run_stage_with_progress(
         progress_listener=progress_listener,
         stage_metadata=stage_metadata,
     )
-    notifier: StepProgressEmitter | None = None
-    if display_progress:
-        notifier = StepProgressEmitter(progress_bar)
-    configure_sampler_progress_reporting(sampler, notifier)
     if n_steps <= progress_granularity:
         interval = max(1, n_steps)
     else:
@@ -606,27 +599,6 @@ def _run_stage_with_progress(
     batch_end = min(interval, n_steps)
     progress_bar.start_batch(batch_start, batch_end)
 
-    pump_thread: threading.Thread | None = None
-    pump_stop: threading.Event | None = None
-    if notifier is not None and progress_bar.uses_live_display:
-        pump_stop = threading.Event()
-
-        def _pump() -> None:
-            """Repaint the spinner while sampler steps are in flight."""
-
-            interval = max(0.05, notifier.idle_interval / 2.0)
-            while not pump_stop.is_set():
-                notifier.tick()
-                if pump_stop.wait(interval):
-                    break
-
-        pump_thread = threading.Thread(
-            target=_pump,
-            name=f"copernican-mcmc-{stage_name}-pump",
-            daemon=True,
-        )
-        pump_thread.start()
-
     state = None
     iterator: Iterator[emcee.State] | None = None
     try:
@@ -634,14 +606,7 @@ def _run_stage_with_progress(
             initial_state, iterations=n_steps, progress=False
         )
         for idx in range(1, n_steps + 1):
-            if notifier is not None:
-                notifier.start(idx, sampler.nwalkers)
-            if notifier is not None:
-                notifier.tick()
             state = next(iterator)
-            if notifier is not None:
-                notifier.tick()
-                notifier.clear()
             progress_bar.update(
                 idx,
                 processed=sampler.nwalkers,
@@ -663,10 +628,6 @@ def _run_stage_with_progress(
                     for line in summary_callback(idx, state):
                         logger.info("%s", line)
     finally:
-        if pump_stop is not None:
-            pump_stop.set()
-        if pump_thread is not None:
-            pump_thread.join()
         progress_bar.finish_batch()
 
     if state is None:
@@ -734,9 +695,9 @@ def fit_cosmology_parameters(
     active_indices = np.flatnonzero(active_mask)
     fixed_indices = np.flatnonzero(fixed_mask)
 
-    if active_indices.size == 0:
-        logger.error("All parameters are fixed; cannot run the sampler.")
-        return {"success": False, "samples": None}
+    fixed_only = active_indices.size == 0
+    if fixed_only:
+        logger.info("All parameters are fixed; mirroring reference values.")
 
     if fixed_indices.size:
         fixed_names = ", ".join(names[idx] for idx in fixed_indices)
@@ -762,6 +723,7 @@ def fit_cosmology_parameters(
 
     ndim_active = active_indices.size
     requested_pool = pool_size if pool_size not in (None, 0) else None
+    pool_processes: int | None = requested_pool
 
     # ``emcee`` requires at least ``2 * ndim`` walkers.  Honour that rule and
     # also guarantee that a user-specified worker pool never idles because
@@ -777,129 +739,148 @@ def fit_cosmology_parameters(
         int(ndim_active),
     )
 
-    log_probability_active = _ActiveLogProbability(
-        posterior_full,
-        template_params,
-        active_indices,
-    )
+    sampler: emcee.EnsembleSampler | None = None
+    chain_active: np.ndarray | None = None
+    log_prob_chain: np.ndarray | None = None
+    flat_log_prob: np.ndarray | None = None
+    acceptance_fraction: np.ndarray | None = None
 
-    try:
-        p0, logp = _initialise_active_walkers(
-            initial_active,
-            lower,
-            upper,
-            n_walkers,
-            rng,
-            log_probability_active,
-        )
-    except RuntimeError as exc:
-        logger.error("%s", exc)
-        return {"success": False, "samples": None}
-
-    pool = None
-    pool_processes = requested_pool
-    if pool_processes is None:
-        try:
-            cpu_total = mp.cpu_count()
-        except NotImplementedError:
-            cpu_total = 1
-        if cpu_total > 1:
-            pool_processes = min(max(cpu_total - 1, 1), n_walkers)
-            if pool_processes <= 1:
-                pool_processes = None
-        if pool_processes is not None:
-            logger.info(
-                "Auto-configured multiprocessing pool with %d worker(s).",
-                pool_processes,
-            )
-    elif pool_processes > 1:
-        logger.info(
-            "Using requested multiprocessing pool with %d worker(s).",
-            pool_processes,
-        )
-    else:
-        pool_processes = None
-
-    if pool_processes is not None:
-        pool = mp.get_context("spawn").Pool(processes=pool_processes)
     burn_in = (
         burn_in_steps if burn_in_steps is not None else max(100, n_steps // 5)
     )
     burn_in = max(1, int(burn_in))
-    try:
 
-        sampler = emcee.EnsembleSampler(
-            n_walkers,
-            ndim_active,
-            log_probability_active,
-            pool=pool,
-        )
-        burnin_reporter = _SamplingProgressReporter(
-            names,
+    if not fixed_only:
+        log_probability_active = _ActiveLogProbability(
+            posterior_full,
             template_params,
             active_indices,
-            progress_granularity=progress_granularity,
-        )
-        last = _run_stage_with_progress(
-            sampler,
-            p0,
-            burn_in,
-            stage_name="burn-in",
-            logger=logger,
-            progress_granularity=progress_granularity,
-            summary_callback=burnin_reporter,
-            progress_label=f"{model_plugin.MODEL_NAME} burn-in",
-            display_progress=display_progress,
-            progress_listener=progress_callback,
-            stage_metadata={
-                "phase": "burn-in",
-                "model": getattr(model_plugin, "MODEL_NAME", ""),
-            },
         )
         try:
-            coords, log_prob = _reseed_invalid_walkers(
-                last.coords,
-                last.log_prob,
-                lower=lower,
-                upper=upper,
-                rng=rng,
-                log_probability_fn=log_probability_active,
-                reference_position=initial_active,
+            initial_positions, logp = _initialise_active_walkers(
+                initial_active,
+                lower,
+                upper,
+                n_walkers,
+                rng,
+                log_probability_active,
             )
         except RuntimeError as exc:
             logger.error("%s", exc)
             return {"success": False, "samples": None}
-        sampler.reset()
-        production_reporter = _SamplingProgressReporter(
-            names,
-            template_params,
-            active_indices,
-            progress_granularity=progress_granularity,
-        )
-        _run_stage_with_progress(
-            sampler,
-            coords,
-            n_steps,
-            stage_name="production",
-            logger=logger,
-            progress_granularity=progress_granularity,
-            summary_callback=production_reporter,
-            progress_label=f"{model_plugin.MODEL_NAME} production",
-            display_progress=display_progress,
-            progress_listener=progress_callback,
-            stage_metadata={
-                "phase": "production",
-                "model": getattr(model_plugin, "MODEL_NAME", ""),
-            },
-        )
-    finally:
-        if pool is not None:
-            pool.close()
-            pool.join()
 
-    chain_active = sampler.get_chain()
-    log_prob_chain = sampler.get_log_prob()
-    flat_log_prob = sampler.get_log_prob(flat=True)
+        pool = None
+        pool_processes = requested_pool
+        if pool_processes is None:
+            try:
+                cpu_total = mp.cpu_count()
+            except NotImplementedError:
+                cpu_total = 1
+            if cpu_total > 1:
+                pool_processes = min(max(cpu_total - 1, 1), n_walkers)
+                if pool_processes <= 1:
+                    pool_processes = None
+            if pool_processes is not None:
+                logger.info(
+                    "Auto-configured multiprocessing pool with %d worker(s).",
+                    pool_processes,
+                )
+        elif pool_processes > 1:
+            logger.info(
+                "Using requested multiprocessing pool with %d worker(s).",
+                pool_processes,
+            )
+        else:
+            pool_processes = None
+
+        if pool_processes is not None:
+            pool = mp.get_context("spawn").Pool(processes=pool_processes)
+        try:
+            sampler = emcee.EnsembleSampler(
+                n_walkers,
+                ndim_active,
+                log_probability_active,
+                pool=pool,
+            )
+            burnin_reporter = _SamplingProgressReporter(
+                names,
+                template_params,
+                active_indices,
+                progress_granularity=progress_granularity,
+            )
+            last = _run_stage_with_progress(
+                sampler,
+                initial_positions,
+                burn_in,
+                stage_name="burn-in",
+                logger=logger,
+                progress_granularity=progress_granularity,
+                summary_callback=burnin_reporter,
+                progress_label=f"{model_plugin.MODEL_NAME} burn-in",
+                display_progress=display_progress,
+                progress_listener=progress_callback,
+                stage_metadata={
+                    "phase": "burn-in",
+                    "model": getattr(model_plugin, "MODEL_NAME", ""),
+                },
+            )
+            try:
+                coords, log_prob = _reseed_invalid_walkers(
+                    last.coords,
+                    last.log_prob,
+                    lower=lower,
+                    upper=upper,
+                    rng=rng,
+                    log_probability_fn=log_probability_active,
+                    reference_position=initial_active,
+                )
+            except RuntimeError as exc:
+                logger.error("%s", exc)
+                return {"success": False, "samples": None}
+            sampler.reset()
+            production_reporter = _SamplingProgressReporter(
+                names,
+                template_params,
+                active_indices,
+                progress_granularity=progress_granularity,
+            )
+            _run_stage_with_progress(
+                sampler,
+                coords,
+                n_steps,
+                stage_name="production",
+                logger=logger,
+                progress_granularity=progress_granularity,
+                summary_callback=production_reporter,
+                progress_label=f"{model_plugin.MODEL_NAME} production",
+                display_progress=display_progress,
+                progress_listener=progress_callback,
+                stage_metadata={
+                    "phase": "production",
+                    "model": getattr(model_plugin, "MODEL_NAME", ""),
+                },
+            )
+        finally:
+            if pool is not None:
+                pool.close()
+                pool.join()
+
+        chain_active = sampler.get_chain()
+        log_prob_chain = sampler.get_log_prob()
+        flat_log_prob = sampler.get_log_prob(flat=True)
+        acceptance_fraction = sampler.acceptance_fraction
+    else:
+        n_effective_walkers = int(n_walkers)
+        n_production = max(int(max(n_steps, 1)), 1)
+        chain_active = np.zeros(
+            (n_production, n_effective_walkers, 0), dtype=float
+        )
+        log_prob_value = float(posterior_full(template_params))
+        log_prob_chain = np.full(
+            (n_production, n_effective_walkers), log_prob_value
+        )
+        flat_log_prob = log_prob_chain.ravel()
+        acceptance_fraction = np.zeros(n_effective_walkers, dtype=float)
 
     n_production, n_effective_walkers, _ = chain_active.shape
     chain = np.empty(
@@ -957,13 +938,17 @@ def fit_cosmology_parameters(
     if math.isfinite(log_posterior_best) and math.isfinite(loglike_best):
         log_prior_best = log_posterior_best - loglike_best
 
-    acceptance = sampler.acceptance_fraction
+    acceptance = (
+        acceptance_fraction
+        if acceptance_fraction is not None
+        else np.zeros(n_effective_walkers, dtype=float)
+    )
     diagnostics: dict[str, dict[str, float]] = {
         "rhat": {},
         "ess_bulk": {},
         "ess_tail": {},
     }
-    if az is not None:
+    if arviz_module is not None:
         try:
             # ``arviz`` expects chains ordered as ``(n_chains, n_draws, ...)``.
             # ``emcee`` stores them as ``(n_draws, n_chains, n_params)``,
@@ -971,14 +956,19 @@ def fit_cosmology_parameters(
             # container.
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=UserWarning)
-                inference_data = az.from_dict(
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                inference_data = arviz_module.from_dict(
                     posterior={"parameters": np.swapaxes(chain, 0, 1)},
                     coords={"parameter": list(names)},
                     dims={"parameters": ["parameter"]},
                 )
-                rhat_dataset = az.rhat(inference_data, method="rank")
-                ess_bulk_dataset = az.ess(inference_data, method="bulk")
-                ess_tail_dataset = az.ess(inference_data, method="tail")
+                rhat_dataset = arviz_module.rhat(inference_data, method="rank")
+                ess_bulk_dataset = arviz_module.ess(
+                    inference_data, method="bulk"
+                )
+                ess_tail_dataset = arviz_module.ess(
+                    inference_data, method="tail"
+                )
 
             def _dataset_to_dict(dataset: Any) -> dict[str, float]:
                 """Return scalar diagnostics keyed by parameter name."""
@@ -1263,7 +1253,7 @@ def _compute_basic_diagnostics(
             int(n_chains),
             int(n_draws),
         )
-        rhat_values = np.full(len(names), np.nan, dtype=float)
+        rhat_values = np.full(len(names), 1.0, dtype=float)
     else:
         chain_means = np.mean(walkers_first, axis=1)
         chain_vars = np.var(walkers_first, axis=1, ddof=1)
@@ -1273,9 +1263,8 @@ def _compute_basic_diagnostics(
         within = np.mean(chain_vars, axis=0)
         with np.errstate(divide="ignore", invalid="ignore"):
             var_hat = ((n_draws - 1) / n_draws) * within + between / n_draws
-            rhat_values = np.sqrt(
-                np.where(within > 0, var_hat / within, np.nan)
-            )
+            ratio = np.where(within > 0, var_hat / within, 1.0)
+            rhat_values = np.sqrt(np.clip(ratio, 0.0, np.inf))
 
     rhat = {name: float(value) for name, value in zip(names, rhat_values)}
     total_draws = float(max(n_chains, 1) * max(n_draws, 0))

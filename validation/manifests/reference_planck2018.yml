@@ -1,0 +1,92 @@
+copernican:
+  version: 11.0.1
+models:
+- name: Planck 2018 Reference LambdaCDM
+  version: '1.0'
+  filename: cosmo_model_ref_planck2018.yml
+  priors: {}
+engine:
+  name: engines.cosmo_engine_mcmc
+  version: validation
+seed: 0
+datasets:
+  union3_2025:
+    name: Union Through UNITY 2000 SNe
+    version: '2025.1'
+    path: /Users/apostolov/Documents/GitHub/copernican/data/sne/union3
+    hashes:
+      cosmo_parser_union3.py: 5664f326ddaa8371f7797aa5fdce9fc71e8f0c2227a058f410032dc12a992eaa
+      metadata_union3.yml: 74ac21fa162fcc1c58319726abe35560573ec3c5204aa263195cd2d1a3c3dcdd
+      mu_mat_union3_cosmo=2_mu.fits: ef98b7dde1025ee7134f3242aaea3f1f0ed3f2b29a718458c550a8e4e24d0349
+    independence:
+    - Type Ia supernova distance moduli are treated as statistically independent from
+      BAO and CMB observables once their published covariance matrices are accounted
+      for.
+    condition_number: null
+    type: sne
+  boss_dr12_bao:
+    name: BOSS DR12 BAO Consensus
+    version: DR12
+    path: /Users/apostolov/Documents/GitHub/copernican/data/bao/bossdr12
+    hashes:
+      BAO_consensus_covtot_dM_Hz.txt: 05c04829c8edc117870efe809494593a23de6c35547f8b66760a5250804b65cf
+      BAO_consensus_covtot_dV_FAP.txt: cf5b760b34f4335bd90490fcce4540dbac0b0b54e3240544c4af133dd45c8300
+      BAO_consensus_results_dM_Hz.txt: 30e784fa08e7eddb2fdd1ab09411424e67aa9b75df58f4bb330a889c9b9c478e
+      BAO_consensus_results_dV_FAP.txt: e507d65dacedc814892609d2decca9990a954ef5836da79b57c663885fce4ef8
+      cosmo_parser_compound.py: d125f0fc6e9ce1d8c6f27466660a4a3d00386e01132274a8c880c4cf1cf975a5
+      compound.yml: 13d8a665a340e1b8596d4f65ce0133cd159836a2e2ecb149f7fcabf2c29ce8b2
+      metadata_compound.yml: dfa973d365beaed6dda5169da1d55b2c2086e6fce5b2665913467a92de85d402
+    independence:
+    - BAO distance measurements are assumed independent of SNe and CMB datasets because
+      overlapping systematics are negligible at the current precision level.
+    condition_number: null
+    type: bao
+  planck_2018_lite:
+    name: Planck 2018 Lite TT/TE/EE
+    version: '2018'
+    path: /Users/apostolov/Documents/GitHub/copernican/data/cmb/planck2018lite
+    hashes:
+      c_matrix_plik_v22.dat: ad90378c50bd67841764179c90ae6711fa4317c649966ab2b0712143b31e0a32
+      cl_cmb_plik_v22.dat: dac0d9d493213e77c940a10a968cf0da3c5730bae60e1356c4cd8bcff96377ff
+      cosmo_parser_cmb_planck2018lite.py: 7c5d70d7b63b921bfffe4d910b334a490b81155d93c9a60de481278f3605352d
+      metadata_planck2018lite.yml: 37d799a9f0f5aa97dce6b2c0bef0f08f09de9527561209ebc835c19c1f75fcd0
+    independence:
+    - Planck-lite CMB spectra are modelled as independent from SNe and BAO summaries;
+      cross-covariances are ignored consistently with published likelihood treatments.
+    condition_number: null
+    type: cmb
+status:
+  state: pending
+  outputs: unprepared
+selection:
+  models:
+  - cosmo_model_ref_planck2018
+  engine:
+    name: engines.cosmo_engine_mcmc
+    version: validation
+  datasets:
+  - union3_2025
+  - boss_dr12_bao
+  - planck_2018_lite
+configuration:
+  models:
+  - cosmo_model_ref_planck2018
+  engine:
+    name: engines.cosmo_engine_mcmc
+    version: validation
+  datasets:
+  - union3_2025
+  - boss_dr12_bao
+  - planck_2018_lite
+  notes: Reference validation manifest for Planck 2018 base-ΛCDM.
+  run_settings:
+    engine_kind: mcmc
+    n_steps: 50
+    burn_in_steps: 10
+    n_walkers: 64
+    pool_size: 4
+    display_progress: true
+confirmation:
+  seed: 0
+  notes: ''
+  plan: ''

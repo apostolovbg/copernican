@@ -46,8 +46,10 @@ def parse_planck2018lite(data_dir, **kwargs):
         block_ee = raw.iloc[idx_te:].reset_index(drop=True)
 
         ell_tt = block_tt[0].values.astype(int)
-        df = pd.DataFrame({"ell": ell_tt})
-        df["Dl_obs"] = ell_tt * (ell_tt + 1) * block_tt[1].values / (2 * np.pi)
+        spectrum_df = pd.DataFrame({"ell": ell_tt})
+        spectrum_df["Dl_obs"] = (
+            ell_tt * (ell_tt + 1) * block_tt[1].values / (2 * np.pi)
+        )
 
         # Build TE and EE columns aligned to the TT ell grid. Where the TE/EE
         # block does not provide a value (the high-\ell tail), NaN is used.
@@ -58,19 +60,19 @@ def parse_planck2018lite(data_dir, **kwargs):
         ee_map = ell_ee * (ell_ee + 1) * block_ee[1].values / (2 * np.pi)
         ee_err = ell_ee * (ell_ee + 1) * block_ee[2].values / (2 * np.pi)
 
-        df["Dl_te_obs"] = np.full_like(ell_tt, np.nan, dtype=float)
-        df["Dl_ee_obs"] = np.full_like(ell_tt, np.nan, dtype=float)
-        df["e_te_obs"] = np.full_like(ell_tt, np.nan, dtype=float)
-        df["e_ee_obs"] = np.full_like(ell_tt, np.nan, dtype=float)
+        spectrum_df["Dl_te_obs"] = np.full_like(ell_tt, np.nan, dtype=float)
+        spectrum_df["Dl_ee_obs"] = np.full_like(ell_tt, np.nan, dtype=float)
+        spectrum_df["e_te_obs"] = np.full_like(ell_tt, np.nan, dtype=float)
+        spectrum_df["e_ee_obs"] = np.full_like(ell_tt, np.nan, dtype=float)
 
         idx_te = np.searchsorted(ell_tt, ell_te)
         idx_ee = np.searchsorted(ell_tt, ell_ee)
-        df.loc[idx_te, "Dl_te_obs"] = te_map
-        df.loc[idx_te, "e_te_obs"] = te_err
-        df.loc[idx_ee, "Dl_ee_obs"] = ee_map
-        df.loc[idx_ee, "e_ee_obs"] = ee_err
+        spectrum_df.loc[idx_te, "Dl_te_obs"] = te_map
+        spectrum_df.loc[idx_te, "e_te_obs"] = te_err
+        spectrum_df.loc[idx_ee, "Dl_ee_obs"] = ee_map
+        spectrum_df.loc[idx_ee, "e_ee_obs"] = ee_err
 
-        n = len(ell_tt)
+        ell_count = len(ell_tt)
 
         # The covariance matrix file is stored as a Fortran unformatted binary
         # record. Determine the endianness from the leading 4-byte header and
@@ -116,7 +118,7 @@ def parse_planck2018lite(data_dir, **kwargs):
             )
             return None
 
-        cov_matrix = cov_arr.reshape(n_full, n_full)[:n, :n]
+        cov_matrix = cov_arr.reshape(n_full, n_full)[:ell_count, :ell_count]
         # Convert covariance from $C_\ell$ to $D_\ell$ in $\mu K^2$.
         factors = ell_tt * (ell_tt + 1) / (2 * np.pi)
         cov_matrix = cov_matrix * np.outer(factors, factors)
@@ -144,13 +146,13 @@ def parse_planck2018lite(data_dir, **kwargs):
             logger.warning(f"{e} Falling back to diagonal errors.")
             cov_inv = None
 
-        df.attrs["covariance_matrix_inv"] = cov_inv
-        df.attrs["diag_errors_for_plot"] = diag_errors
-        df.attrs["is_cmb"] = True
+        spectrum_df.attrs["covariance_matrix_inv"] = cov_inv
+        spectrum_df.attrs["diag_errors_for_plot"] = diag_errors
+        spectrum_df.attrs["is_cmb"] = True
         # Metadata including dataset name and citation is attached by
         # ``load_cmb_data`` after this function returns.
         # Map the order of CAMB parameters used by the engine
-        df.attrs["param_names"] = [
+        spectrum_df.attrs["param_names"] = [
             "H0",
             "ombh2",
             "omch2",
@@ -159,7 +161,7 @@ def parse_planck2018lite(data_dir, **kwargs):
             "As",
             "ns",
         ]
-        return df
+        return spectrum_df
     except Exception as e:
         logger.error(f"Error parsing Planck2018lite data: {e}", exc_info=True)
         return None

@@ -23,6 +23,7 @@ class EngineSetting:
     hint: str | None = None
 
     def __post_init__(self) -> None:
+        """Validate that dtype belongs to the supported set."""
         dtype = self.dtype.lower()
         if dtype not in _ALLOWED_TYPES:
             raise ValueError(
@@ -51,6 +52,7 @@ class EngineCapabilities:
 def _ensure_limit(
     collection: Sequence[Any], *, limit: int, label: str
 ) -> None:
+    """Raise when ``collection`` exceeds the specified ``limit``."""
     if len(collection) > limit:
         raise ValueError(
             f"{label} must contain at most {limit} entries; "
@@ -59,32 +61,36 @@ def _ensure_limit(
 
 
 def _normalize_setting(
-    value: EngineSetting | Mapping[str, Any]
+    candidate_setting: EngineSetting | Mapping[str, Any]
 ) -> EngineSetting:
-    if isinstance(value, EngineSetting):
-        return value
-    if isinstance(value, Mapping):
+    """Normalize an entry into a canonical :class:`EngineSetting`."""
+    if isinstance(candidate_setting, EngineSetting):
+        return candidate_setting
+    if isinstance(candidate_setting, Mapping):
         return EngineSetting(
-            key=value["key"],
-            label=value["label"],
-            description=value.get("description", ""),
-            dtype=value.get("dtype", value.get("type", "str")),
-            default=value.get("default"),
-            hint=value.get("hint"),
+            key=candidate_setting["key"],
+            label=candidate_setting["label"],
+            description=candidate_setting.get("description", ""),
+            dtype=candidate_setting.get(
+                "dtype", candidate_setting.get("type", "str")
+            ),
+            default=candidate_setting.get("default"),
+            hint=candidate_setting.get("hint"),
         )
     raise TypeError("ENGINE_SETTINGS entries must be EngineSetting or mapping")
 
 
 def _normalize_chunk(
-    value: EngineProgressChunk | Mapping[str, Any]
+    candidate_chunk: EngineProgressChunk | Mapping[str, Any]
 ) -> EngineProgressChunk:
-    if isinstance(value, EngineProgressChunk):
-        return value
-    if isinstance(value, Mapping):
+    """Normalize a configuration entry into an :class:`EngineProgressChunk`."""
+    if isinstance(candidate_chunk, EngineProgressChunk):
+        return candidate_chunk
+    if isinstance(candidate_chunk, Mapping):
         return EngineProgressChunk(
-            name=value["name"],
-            label=value["label"],
-            description=value.get("description", ""),
+            name=candidate_chunk["name"],
+            label=candidate_chunk["label"],
+            description=candidate_chunk.get("description", ""),
         )
     raise TypeError("ENGINE_PROGRESS_CHUNKS entries must be chunk or mapping")
 

@@ -12,11 +12,14 @@ output/
 output/.DS_Store
 .logs/
 logs/
+validation/output/
 .vscode/
 /.vscode
 copernican_suite.egg-info
 .venv/
 build/
+/copernican_settings.yml
+/.matplotlib-cache
 /.python
 .cache/dependency_scan.json
 # Local dependency cache generated at runtime; keep it untracked so every
@@ -27,3 +30,4 @@ build/
 /logs
 /logs/
 logs/
+VALIDATION.md

@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from devcovenant.base import CheckContext
+from devcovenant.fixers.no_future_dates import NoFutureDatesFixer
 from devcovenant.policy_scripts.no_future_dates import NoFutureDatesCheck
 
 
@@ -46,3 +47,22 @@ class TestNoFutureDatesPolicy(unittest.TestCase):
             violations = policy.check(context)
 
             self.assertEqual(len(violations), 0)
+
+    def test_auto_fix_replaces_future_date(self):
+        """Auto-fix brings a future timestamp back to today."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+            test_file = repo_root / "CHANGELOG.md"
+            future_date = (
+                dt.datetime.now(dt.timezone.utc).date() + dt.timedelta(days=7)
+            ).isoformat()
+            test_file.write_text(f"Last Updated: {future_date}\n")
+
+            context = CheckContext(repo_root=repo_root, all_files=[test_file])
+            violations = NoFutureDatesCheck().check(context)
+            self.assertEqual(len(violations), 1)
+            fixer = NoFutureDatesFixer()
+            result = fixer.fix(violations[0])
+            self.assertTrue(result.success)
+            updated = test_file.read_text()
+            self.assertNotIn(future_date, updated)

@@ -132,8 +132,8 @@ def normalise_failure_reasons(details: Iterable[str] | str) -> list[str]:
         raw_parts = text.replace(";", "\n").splitlines()
     else:
         raw_parts = []
-        for item in details:
-            raw_parts.extend(str(item).splitlines())
+        for detail_line in details:
+            raw_parts.extend(str(detail_line).splitlines())
 
     reasons: list[str] = []
     for part in raw_parts:
