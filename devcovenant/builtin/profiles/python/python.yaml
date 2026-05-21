@@ -1,0 +1,359 @@
+version: 1
+profile: python
+category: language
+suffixes:
+  - .py
+  - .pyi
+  - .pyw
+  - .ipynb
+ignore_dirs:
+  - .venv
+  - __pycache__
+  - .pytest_cache
+  - .mypy_cache
+  - build
+  - dist
+clean_overlays:
+  cache_dirs:
+    - .pytype
+  cache_globs:
+    - '.ipynb_checkpoints'
+    - '**/.ipynb_checkpoints'
+    - 'coverage.xml'
+assets:
+  - path: requirements.in
+    template: requirements.in
+  - path: .python-version
+    template: .python-version
+  - path: bandit.yaml
+    template: bandit.yaml
+  - path: pyproject.toml
+    template: pyproject.toml
+workflow_runs:
+  - id: tests
+    enabled: true
+    after: verify
+    before: close
+    order: 100
+    runner:
+      kind: command_group
+      commands:
+        - python3 -m unittest discover -v
+    success_contract:
+      kind: all_commands_exit_zero
+    recording:
+      record_in_session: true
+      summary_label: Tests
+      output_mode_config_field: engine.tests_output_mode
+      event_adapter_group: run_events
+      write_runtime_profile: true
+pre_commit:
+  repos:
+    - repo: https://github.com/psf/black
+      rev: 24.4.2
+      hooks:
+        - id: black
+          args: [--line-length, "79"]
+    - repo: https://github.com/pycqa/isort
+      rev: 5.12.0
+      hooks:
+        - id: isort
+          args: [--profile, black, --line-length, "79"]
+    - repo: https://github.com/astral-sh/ruff-pre-commit
+      rev: v0.4.4
+      hooks:
+        - id: ruff
+          args: [--fix, --exit-non-zero-on-fix, --line-length, "79"]
+        - id: ruff-format
+          args: [--line-length, "79"]
+    - repo: https://github.com/pycqa/flake8
+      rev: 6.1.0
+      hooks:
+        - id: flake8
+          args: [--max-line-length=79, "--extend-ignore=E203,W503"]
+translators:
+  - id: python
+    extensions:
+      - .py
+      - .pyi
+      - .pyw
+    can_handle:
+      strategy: module_function
+      entrypoint: python_translator.py:can_handle
+    translate:
+      strategy: module_function
+      entrypoint: python_translator.py:translate
+policy_overlays:
+  dependency-management:
+    surfaces:
+      - id: root_workspace
+        lock_file: requirements.lock
+        direct_dependency_files:
+          - requirements.in
+        dependency_files:
+          - requirements.in
+          - devcovenant/runtime-requirements.lock
+        third_party_file: licenses/THIRD_PARTY_LICENSES.md
+        licenses_dir: licenses
+        report_heading: '## License Report'
+        manage_licenses_readme: true
+        generate_hashes: true
+        audit_service: pypi
+        required_paths:
+          - requirements.in
+          - devcovenant/runtime-requirements.lock
+        hash_targets:
+          - id: linux-py311
+            marker: sys_platform == "linux" and python_version == "3.11"
+            pip:
+              platform: manylinux2014_x86_64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: linux-py312
+            marker: sys_platform == "linux" and python_version == "3.12"
+            pip:
+              platform: manylinux2014_x86_64
+              implementation: cp
+              python_version: '3.12'
+              abi: cp312
+          - id: linux-py313
+            marker: sys_platform == "linux" and python_version == "3.13"
+            pip:
+              platform: manylinux2014_x86_64
+              implementation: cp
+              python_version: '3.13'
+              abi: cp313
+          - id: linux-py314
+            marker: sys_platform == "linux" and python_version == "3.14"
+            pip:
+              platform: manylinux2014_x86_64
+              implementation: cp
+              python_version: '3.14'
+              abi: cp314
+          - id: windows-py311
+            marker: sys_platform == "win32" and python_version == "3.11"
+            pip:
+              platform: win_amd64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: windows-py312
+            marker: sys_platform == "win32" and python_version == "3.12"
+            pip:
+              platform: win_amd64
+              implementation: cp
+              python_version: '3.12'
+              abi: cp312
+          - id: windows-py313
+            marker: sys_platform == "win32" and python_version == "3.13"
+            pip:
+              platform: win_amd64
+              implementation: cp
+              python_version: '3.13'
+              abi: cp313
+          - id: windows-py314
+            marker: sys_platform == "win32" and python_version == "3.14"
+            pip:
+              platform: win_amd64
+              implementation: cp
+              python_version: '3.14'
+              abi: cp314
+          - id: macos-py311
+            marker: sys_platform == "darwin" and python_version == "3.11"
+            pip:
+              platform: macosx_11_0_x86_64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: macos-py312
+            marker: sys_platform == "darwin" and python_version == "3.12"
+            pip:
+              platform: macosx_11_0_x86_64
+              implementation: cp
+              python_version: '3.12'
+              abi: cp312
+          - id: macos-py313
+            marker: sys_platform == "darwin" and python_version == "3.13"
+            pip:
+              platform: macosx_11_0_x86_64
+              implementation: cp
+              python_version: '3.13'
+              abi: cp313
+          - id: macos-py314
+            marker: sys_platform == "darwin" and python_version == "3.14"
+            pip:
+              platform: macosx_11_0_x86_64
+              implementation: cp
+              python_version: '3.14'
+              abi: cp314
+      - id: package_runtime
+        lock_file: '{{ PROJECT_NAME_PATH }}/runtime-requirements.lock'
+        direct_dependency_files:
+          - pyproject.toml
+        dependency_files:
+          - pyproject.toml
+        third_party_file: >-
+          {{ PROJECT_NAME_PATH }}/licenses/THIRD_PARTY_LICENSES.md
+        licenses_dir: '{{ PROJECT_NAME_PATH }}/licenses'
+        report_heading: '## License Report'
+        manage_licenses_readme: true
+        generate_hashes: true
+        audit_service: pypi
+        required_paths:
+          - pyproject.toml
+          - '{{ PROJECT_NAME_PATH }}'
+        hash_targets:
+          - id: linux-py311
+            marker: sys_platform == "linux" and python_version == "3.11"
+            pip:
+              platform: manylinux2014_x86_64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: linux-py312
+            marker: sys_platform == "linux" and python_version == "3.12"
+            pip:
+              platform: manylinux2014_x86_64
+              implementation: cp
+              python_version: '3.12'
+              abi: cp312
+          - id: linux-py313
+            marker: sys_platform == "linux" and python_version == "3.13"
+            pip:
+              platform: manylinux2014_x86_64
+              implementation: cp
+              python_version: '3.13'
+              abi: cp313
+          - id: linux-py314
+            marker: sys_platform == "linux" and python_version == "3.14"
+            pip:
+              platform: manylinux2014_x86_64
+              implementation: cp
+              python_version: '3.14'
+              abi: cp314
+          - id: windows-py311
+            marker: sys_platform == "win32" and python_version == "3.11"
+            pip:
+              platform: win_amd64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: windows-py312
+            marker: sys_platform == "win32" and python_version == "3.12"
+            pip:
+              platform: win_amd64
+              implementation: cp
+              python_version: '3.12'
+              abi: cp312
+          - id: windows-py313
+            marker: sys_platform == "win32" and python_version == "3.13"
+            pip:
+              platform: win_amd64
+              implementation: cp
+              python_version: '3.13'
+              abi: cp313
+          - id: windows-py314
+            marker: sys_platform == "win32" and python_version == "3.14"
+            pip:
+              platform: win_amd64
+              implementation: cp
+              python_version: '3.14'
+              abi: cp314
+          - id: macos-py311
+            marker: sys_platform == "darwin" and python_version == "3.11"
+            pip:
+              platform: macosx_11_0_x86_64
+              implementation: cp
+              python_version: '3.11'
+              abi: cp311
+          - id: macos-py312
+            marker: sys_platform == "darwin" and python_version == "3.12"
+            pip:
+              platform: macosx_11_0_x86_64
+              implementation: cp
+              python_version: '3.12'
+              abi: cp312
+          - id: macos-py313
+            marker: sys_platform == "darwin" and python_version == "3.13"
+            pip:
+              platform: macosx_11_0_x86_64
+              implementation: cp
+              python_version: '3.13'
+              abi: cp313
+          - id: macos-py314
+            marker: sys_platform == "darwin" and python_version == "3.14"
+            pip:
+              platform: macosx_11_0_x86_64
+              implementation: cp
+              python_version: '3.14'
+              abi: cp314
+  documentation-growth-tracking:
+    user_facing_suffixes:
+      - .py
+  line-length-limit:
+    include_suffixes:
+      - .py
+  version-sync:
+    target_roles:
+      - package_manifest
+    role_extractors:
+      - package_manifest=>manifest_project_version
+    role_legality_schemes:
+      - package_manifest=>pep440
+    target_role_files:
+      - package_manifest=>pyproject.toml
+  security-scanner:
+    include_suffixes:
+      - .py
+    scanners:
+      - id: bandit
+        kind: bandit
+        config_file: bandit.yaml
+        include_suffixes:
+          - .py
+  modules-need-tests:
+    include_suffixes:
+      - .py
+    watch_dirs:
+      - tests
+    tests_watch_dirs:
+      - tests
+    mirror_test_name_templates:
+      - python=>test_{stem}.py
+      - python=>{stem}_test.py
+    test_style_requirements:
+      - python=>python_unittest
+  tests-coverage:
+    include_suffixes:
+      - .py
+    watch_dirs:
+      - tests
+    tests_watch_dirs:
+      - tests
+    assertion_signal_patterns:
+      - python=>\bassert\b
+      - python=>\bself\.assert[A-Za-z_]*\s*\(
+    tautology_patterns:
+      - python=>^\s*assert\s+True\s*$
+      - python=>^\s*self\.assertTrue\s*\(\s*True\s*\)\s*$
+    symbol_kinds:
+      - function
+      - class
+    symbol_name_min_length: 3
+    symbol_assertion_window: 2
+  docstring-and-comment-coverage:
+    include_suffixes:
+      - .py
+  name-clarity:
+    include_suffixes:
+      - .py
+  no-print-outside-output-runtime:
+    sink_call_targets:
+      - python=>print
+      - python=>builtins.print
+
+run_events:
+  - id: python
+    entrypoint: "devcovenant.core.run_events:\
+    python_run_event_adapter_factory"

@@ -1,0 +1,17 @@
+# Copy this directory to `devcovenant/custom/profiles/userproject/` when a
+# repository needs a starting custom profile.
+# It is a copy-ready bootstrap template, not a profile to activate directly.
+# Keep inherited values inherited. Add only repo-specific facts here.
+# Typical ownership in the copied custom profile:
+# - top-level `project-governance` for project identity
+# - `policy_overlays.version-sync` / `version-governance` for version paths
+# - `policy_overlays.dependency-management` only when surface paths differ
+# - extra hooks, workflow runs, or managed-environment expectations that are
+#   specific to the repository
+version: 1
+profile: userproject
+category: application
+suffixes: []
+ignore_dirs: []
+assets: []
+policy_overlays: {}

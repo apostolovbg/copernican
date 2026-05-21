@@ -1,0 +1,184 @@
+title: Project Specification
+target_path: SPEC.md
+doc_id: SPEC
+doc_type: specification
+project_version: true
+last_updated: true
+devcovenant_version: true
+project_governance_headers: true
+import_seed: true
+authoritative_source: true
+managed_block: |-
+  This opening section is managed by DevCovenant.
+  Use `SPEC.md` only for durable project rules below this block.
+body: |-
+  Use this document for durable product requirements and stable project
+  decisions.
+  Keep active execution work in `PLAN.md`, change history in `CHANGELOG.md`,
+  and required workflow law in `AGENTS.md`.
+
+  ## Table of Contents
+  1. [Overview](#overview)
+  2. [Workflow](#workflow)
+  3. [Project Intent](#project-intent)
+  4. [Goals](#goals)
+  5. [Non-Goals](#non-goals)
+  6. [Users and Actors](#users-and-actors)
+  7. [Core Workflows](#core-workflows)
+  8. [Functional Requirements](#functional-requirements)
+  9. [Non-Functional Requirements](#non-functional-requirements)
+  10. [Data and State](#data-and-state)
+  11. [Interfaces and Dependencies](#interfaces-and-dependencies)
+  12. [Constraints and Assumptions](#constraints-and-assumptions)
+  13. [Acceptance Criteria](#acceptance-criteria)
+  14. [Open Questions](#open-questions)
+  15. [Pointers](#pointers)
+
+  ## Overview
+  - Project summary: explain what the project is and who it helps.
+
+  - Primary problem: explain the main problem or opportunity.
+
+  - Current scope: explain what is in scope for the current release line.
+
+  - Success signal: explain what would clearly prove the project is working.
+
+  ## Workflow
+  - Keep durable product requirements here.
+
+  - Keep active execution work in `PLAN.md`.
+
+  - Update this spec when stable product rules change.
+
+  - Update operational docs in the same slice when runtime behavior changes.
+
+  - Treat this spec as durable product guidance, not as a temporary audit
+    notebook or release checklist.
+
+  ## Project Intent
+  Explain the durable intent of the project in plain language.
+  Describe what it should make possible, for whom, and why it is worth
+  building.
+
+  ## Goals
+  - list the main outcomes the project must achieve
+
+  - list the next important outcome
+
+  - list the outcome that defines a healthy release line
+
+  Goals should describe outcomes, not implementation tasks.
+
+  ## Non-Goals
+  - list what the project is intentionally not trying to do
+
+  - list the tempting scope you are deliberately excluding
+
+  - list the support or product promise you do not want readers to assume
+
+  This section prevents scope drift by stating what the project is
+  intentionally not trying to do.
+
+  ## Users and Actors
+  - Primary user or actor: explain who interacts with the system most
+    directly.
+
+  - Secondary user or actor: explain who else matters.
+
+  - Operational actor: explain the admin, operator, automation, or
+    integration role.
+
+  For each actor, describe what they need from the system.
+
+  ## Core Workflows
+  1. Name the first core workflow.
+     - Trigger: explain what starts it.
+
+     - Main path: explain what normally happens.
+
+     - Result: explain what the user or system gets.
+  2. Name the next core workflow.
+     - Trigger: explain what starts it.
+
+     - Main path: explain what normally happens.
+
+     - Result: explain what the user or system gets.
+
+  ## Functional Requirements
+  - write the first durable behavior the product must provide
+
+  - write the next durable behavior the product must provide
+
+  - write the behavior that would break the product promise if it were missing
+
+  Write these as durable behavioral statements.
+  Prefer requirements that can later be tested or demonstrated.
+
+  ## Non-Functional Requirements
+  - Performance: record latency, throughput, scale, or responsiveness
+    expectations.
+
+  - Reliability: record availability, recovery, or failure-handling
+    expectations.
+
+  - Security: record authentication, authorization, audit, or
+    data-protection needs.
+
+  - Maintainability: record clarity, modularity, testability, or operational
+    needs.
+
+  - Usability: record user-facing clarity and workflow expectations.
+
+  ## Data and State
+  - Important entities: name the core records, objects, or documents.
+
+  - Important state transitions: explain how those entities change over time.
+
+  - Persistence rules: explain what must be stored, derived, or ephemeral.
+
+  - Audit or history needs: explain what must be traceable later.
+
+  ## Interfaces and Dependencies
+  - External interfaces: list the API, CLI, UI, file, queue, or webhook
+    boundaries the project exposes.
+
+  - Internal interfaces: list the major module or service boundaries.
+
+  - Dependencies: list the systems, libraries, or services the project relies
+    on.
+
+  - Compatibility expectations: list the versions, protocols, or platform
+    constraints that matter.
+
+  ## Constraints and Assumptions
+  - Constraint: record the technical, legal, operational, or organizational
+    limit.
+
+  - Assumption: record what the project currently assumes to be true.
+
+  - Explicit tradeoff: record what is being optimized and what is being
+    accepted.
+
+  ## Acceptance Criteria
+  - write the first check that would prove the spec is satisfied
+
+  - write the next check that would prove the spec is satisfied
+
+  - write the check that would clearly show the project is ready
+
+  This section should let someone decide whether the project meets the spec
+  without having to guess what success means.
+
+  ## Open Questions
+  - list the first real open question
+
+  - list the next real open question
+
+  - list the question that still blocks confidence or clarity
+
+  Keep unresolved questions here only while they are still real.
+  Once answered, fold the answer into the relevant section above.
+
+  ## Pointers
+  Add pointers to the docs that hold operational detail, architecture notes,
+  API descriptions, or supporting decision records.

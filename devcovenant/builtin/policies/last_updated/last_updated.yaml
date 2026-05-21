@@ -1,0 +1,49 @@
+id: last-updated
+text: |
+  Docs must include a `Last Updated` header in the generated header zone so
+  readers can trust recency. The auto-fix updates UTC dates for touched
+  allowlisted docs while respecting allowlist selectors.
+metadata:
+  id: last-updated
+  severity: error
+  auto_fix: 'true'
+  enforcement: active
+  include_suffixes:
+    - .md
+  allowed_globs:
+    - devcovenant/README.md
+    - devcovenant/core/README.md
+    - devcovenant/custom/README.md
+    - devcovenant/registry/README.md
+    - devcovenant/logs/README.md
+    - devcovenant/builtin/policies/README.md
+    - devcovenant/builtin/profiles/README.md
+    - devcovenant/custom/policies/README.md
+    - devcovenant/custom/profiles/README.md
+    - devcovenant/docs/*.md
+    - devcovenant/docs/**/*.md
+  allowed_files: []
+  allowed_suffixes: []
+  required_files: []
+  required_globs:
+    - devcovenant/README.md
+    - devcovenant/core/README.md
+    - devcovenant/custom/README.md
+    - devcovenant/registry/README.md
+    - devcovenant/logs/README.md
+    - devcovenant/builtin/policies/README.md
+    - devcovenant/builtin/profiles/README.md
+    - devcovenant/custom/policies/README.md
+    - devcovenant/custom/profiles/README.md
+    - devcovenant/docs/*.md
+    - devcovenant/docs/**/*.md
+  selector_roles:
+    - include
+    - allowed
+    - required
+  include_globs:
+    - '*.md'
+  include_files: []
+  include_dirs: []
+  allowed_dirs: []
+  required_dirs: []

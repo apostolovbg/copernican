@@ -1,0 +1,6 @@
+platform :ios, '14.0'
+target 'DevcovenantObjCApp' do
+  use_frameworks!
+  # Add pods here, e.g.:
+  # pod 'AFNetworking', '~> 4.0'
+end

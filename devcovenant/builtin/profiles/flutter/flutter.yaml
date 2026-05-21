@@ -1,0 +1,58 @@
+version: 1
+profile: flutter
+category: framework
+suffixes:
+  - .dart
+ignore_dirs:
+  - .dart_tool
+  - build
+clean_overlays:
+  build_dirs:
+    - .dart_tool
+    - build
+gitignore_fragments:
+  - .dart_tool/
+  - .packages
+  - pubspec.lock
+  - build/
+  - .flutter-plugins
+  - .flutter-plugins-dependencies
+  - .metadata
+  - ios/Pods/
+  - ios/Podfile.lock
+  - android/.gradle/
+  - android/local.properties
+assets:
+  - path: pubspec.yaml
+    template: pubspec.yaml
+  - path: pubspec.lock
+    template: pubspec.lock
+policy_overlays:
+  dependency-management:
+    dependency_role_files:
+      - package_manifest=>pubspec.yaml
+      - resolved=>pubspec.lock
+  documentation-growth-tracking:
+    user_facing_suffixes:
+      - .dart
+  line-length-limit:
+    include_suffixes:
+      - .dart
+workflow_runs:
+  - id: tests
+    enabled: true
+    after: verify
+    before: close
+    order: 100
+    runner:
+      kind: command_group
+      commands:
+        - flutter test
+    success_contract:
+      kind: all_commands_exit_zero
+    recording:
+      record_in_session: true
+      summary_label: Tests
+      output_mode_config_field: engine.tests_output_mode
+      event_adapter_group: run_events
+      write_runtime_profile: true

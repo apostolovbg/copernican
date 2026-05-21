@@ -1,0 +1,139 @@
+version: 1
+profile: typescript
+category: language
+suffixes:
+  - .ts
+  - .tsx
+ignore_dirs:
+  - node_modules
+  - dist
+  - build
+clean_overlays:
+  cache_dirs:
+    - coverage
+    - .parcel-cache
+    - .next
+    - .nuxt
+    - .svelte-kit
+    - .turbo
+  cache_globs:
+    - '*.tsbuildinfo'
+assets:
+  - path: package.json
+    template: package.json
+  - path: tsconfig.json
+    template: tsconfig.json
+pre_commit:
+  repos:
+    - repo: https://github.com/pre-commit/mirrors-prettier
+      rev: v3.3.3
+      hooks:
+        - id: prettier
+          files: \.(ts|tsx)$
+translators:
+  - id: typescript
+    extensions:
+      - .ts
+      - .tsx
+    can_handle:
+      strategy: module_function
+      entrypoint: typescript_translator.py:can_handle
+    translate:
+      strategy: module_function
+      entrypoint: typescript_translator.py:translate
+policy_overlays:
+  dependency-management:
+    dependency_role_files:
+      - intent=>package.json
+      - resolved=>package-lock.json
+      - resolved=>yarn.lock
+      - resolved=>pnpm-lock.yaml
+  name-clarity:
+    include_suffixes:
+      - .ts
+      - .tsx
+  docstring-and-comment-coverage:
+    include_suffixes:
+      - .ts
+      - .tsx
+  modules-need-tests:
+    include_suffixes:
+      - .ts
+      - .tsx
+    watch_dirs:
+      - tests
+    tests_watch_dirs:
+      - tests
+    mirror_test_name_templates:
+      - typescript=>{stem}.test.ts
+      - typescript=>{stem}.spec.ts
+      - typescript=>test_{stem}.ts
+      - typescript=>{stem}.test.tsx
+      - typescript=>{stem}.spec.tsx
+  tests-coverage:
+    include_suffixes:
+      - .ts
+      - .tsx
+    watch_dirs:
+      - tests
+    tests_watch_dirs:
+      - tests
+    assertion_signal_patterns:
+      - typescript=>\bexpect\s*\(
+      - typescript=>\bassert(?:\.[A-Za-z_]+)?\s*\(
+    tautology_patterns:
+      - typescript=>^\s*assert\s*\(\s*true\s*\)\s*;?\s*$
+      - typescript=>^\s*expect\s*\(\s*true\s*\)\s*$
+    symbol_kinds:
+      - function
+      - class
+    symbol_name_min_length: 3
+    symbol_assertion_window: 2
+  security-scanner:
+    include_suffixes:
+      - .ts
+      - .tsx
+  documentation-growth-tracking:
+    user_facing_suffixes:
+      - .ts
+      - .tsx
+    user_facing_keywords:
+      - api
+      - endpoint
+      - endpoints
+      - route
+      - routes
+      - controller
+      - controllers
+      - handler
+      - handlers
+      - component
+      - components
+  line-length-limit:
+    include_suffixes:
+      - .ts
+      - .tsx
+  no-print-outside-output-runtime:
+    sink_attr_targets:
+      - typescript=>console.log
+      - typescript=>console.info
+      - typescript=>console.warn
+      - typescript=>console.error
+workflow_runs:
+  - id: tests
+    enabled: true
+    after: verify
+    before: close
+    order: 100
+    runner:
+      kind: command_group
+      commands:
+        - npm test
+    success_contract:
+      kind: all_commands_exit_zero
+    recording:
+      record_in_session: true
+      summary_label: Tests
+      output_mode_config_field: engine.tests_output_mode
+      event_adapter_group: run_events
+      write_runtime_profile: true

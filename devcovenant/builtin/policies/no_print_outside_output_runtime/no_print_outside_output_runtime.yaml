@@ -1,0 +1,35 @@
+id: no-print-outside-output-runtime
+text: |
+  Enforce metadata-driven direct-output sink boundaries across configured
+  languages. Language sink definitions come from profile overlays, while
+  repository profiles define in-scope selectors and boundary allowlists.
+metadata:
+  id: no-print-outside-output-runtime
+  severity: error
+  auto_fix: 'false'
+  enforcement: active
+  enabled: 'true'
+  custom: 'false'
+  selector_roles:
+    - include
+    - exclude
+    - force_include
+  include_suffixes: []
+  include_prefixes: []
+  include_globs: []
+  exclude_suffixes: []
+  exclude_prefixes: []
+  exclude_globs: []
+  force_include_globs: []
+  include_files: []
+  include_dirs: []
+  exclude_files: []
+  exclude_dirs: []
+  force_include_files: []
+  force_include_dirs: []
+  sink_call_targets: []
+  sink_attr_targets: []
+  sink_macro_targets: []
+  allowed_symbol_targets: []
+  allowed_file_globs: []
+  allow_waiver_comment: ''

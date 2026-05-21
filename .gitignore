@@ -1,3 +1,92 @@
+# DevCovenant base ignores
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*.tmp
+*.bak
+.env
+.env.*
+!.env.example
+build/
+dist/
+out/
+coverage/
+htmlcov/
+reports/
+*.egg-info/
+pip-wheel-metadata/
+*.log
+.venv/
+.python/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.tox/
+.nox/
+.hypothesis/
+.coverage
+.coverage.*
+.cache/
+.ruff_cache/
+tmp/
+temp/
+devcovenant/registry/runtime/
+devcovenant/logs/**
+!devcovenant/logs/
+!devcovenant/logs/README.md
+
+# Profile: devcovuser
+vendor
+third_party
+node_modules
+
+# Profile: github
+.gha-pycache/
+
+# Profile: python
+.venv
+__pycache__
+.pytest_cache
+.mypy_cache
+build
+dist
+
+# Profile: docs
+_site
+site
+build
+
+# Profile: userproject
+data
+
+# OS-specific ignores (DevCovenant)
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+Icon?
+*.lnk
+$RECYCLE.BIN/
+.directory
+.Trash-*
+.fuse_hidden*
+.nfs*
+
+# --- User entries (preserved) ---
+
 **/.DS_Store
 *.pyc
 .DS_Store
@@ -31,3 +120,5 @@ build/
 /logs/
 logs/
 VALIDATION.md
+
+# --- End user entries ---

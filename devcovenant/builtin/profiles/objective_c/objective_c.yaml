@@ -1,0 +1,61 @@
+version: 1
+profile: objective_c
+category: language
+suffixes:
+  - .m
+  - .mm
+  - .h
+ignore_dirs:
+  - build
+clean_overlays:
+  build_dirs:
+    - build
+    - .build
+assets:
+  - path: Podfile
+    template: Podfile
+translators:
+  - id: objective_c
+    extensions:
+      - .m
+      - .mm
+      - .h
+    can_handle:
+      strategy: module_function
+      entrypoint: objective_c_translator.py:can_handle
+    translate:
+      strategy: module_function
+      entrypoint: objective_c_translator.py:translate
+policy_overlays:
+  documentation-growth-tracking:
+    user_facing_suffixes:
+      - .m
+      - .mm
+      - .h
+  line-length-limit:
+    include_suffixes:
+      - .m
+      - .mm
+      - .h
+  dependency-management:
+    dependency_role_files:
+      - intent=>Podfile
+      - resolved=>Podfile.lock
+workflow_runs:
+  - id: tests
+    enabled: true
+    after: verify
+    before: close
+    order: 100
+    runner:
+      kind: command_group
+      commands:
+        - xcodebuild test
+    success_contract:
+      kind: all_commands_exit_zero
+    recording:
+      record_in_session: true
+      summary_label: Tests
+      output_mode_config_field: engine.tests_output_mode
+      event_adapter_group: run_events
+      write_runtime_profile: true

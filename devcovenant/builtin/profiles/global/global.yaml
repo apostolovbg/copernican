@@ -1,0 +1,65 @@
+version: 1
+profile: global
+category: core
+suffixes: []
+ignore_dirs: []
+clean_overlays:
+  build_dirs:
+    - build
+    - dist
+    - pip-wheel-metadata
+  build_globs:
+    - '*.egg-info'
+    - '**/*.egg-info'
+  cache_dirs:
+    - .pytest_cache
+    - .ruff_cache
+    - .mypy_cache
+    - .tox
+    - .nox
+    - .hypothesis
+    - htmlcov
+  cache_globs:
+    - '.coverage'
+    - '.coverage.*'
+    - '**/__pycache__'
+  runtime_registry_dirs:
+    - devcovenant/registry/runtime
+  logs_globs:
+    - devcovenant/logs/*
+  protected_dirs:
+    - .git
+  protected_globs:
+    - devcovenant/logs/README.md
+    - devcovenant/registry/README.md
+    - devcovenant/registry/registry.yaml
+gitignore_template: gitignore.yaml
+pre_commit:
+  repos:
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v4.6.0
+      hooks:
+        - id: check-merge-conflict
+        - id: check-yaml
+        - id: end-of-file-fixer
+        - id: trailing-whitespace
+          args: [--markdown-linebreak-ext=md]
+    - repo: local
+      hooks:
+        - id: devcovenant
+          name: enforce repository policies (DevCovenant)
+          entry: python3 -m devcovenant.cli check
+          language: system
+          types: [text]
+          pass_filenames: false
+          always_run: true
+policy_overlays:
+  changelog-coverage:
+    skipped_files:
+      - devcovenant/config.yaml
+  documentation-growth-tracking:
+    user_facing_exclude_files:
+      - devcovenant/config.yaml
+  line-length-limit:
+    exclude_globs:
+      - devcovenant/logs/**

@@ -1,0 +1,83 @@
+version: 1
+profile: java
+category: language
+suffixes:
+  - .java
+ignore_dirs:
+  - target
+  - build
+clean_overlays:
+  build_dirs:
+    - .gradle
+    - target
+    - out
+assets:
+  - path: build.gradle
+    template: build.gradle
+pre_commit:
+  repos:
+    - repo: https://github.com/macisamuele/language-formatters-pre-commit
+      rev: v2.13.0
+      hooks:
+        - id: pretty-format-java
+translators:
+  - id: java
+    extensions:
+      - .java
+    can_handle:
+      strategy: module_function
+      entrypoint: java_translator.py:can_handle
+    translate:
+      strategy: module_function
+      entrypoint: java_translator.py:translate
+policy_overlays:
+  dependency-management:
+    dependency_role_files:
+      - package_manifest=>pom.xml
+      - package_manifest=>build.gradle
+  name-clarity:
+    include_suffixes:
+      - .java
+  docstring-and-comment-coverage:
+    include_suffixes:
+      - .java
+  modules-need-tests:
+    include_suffixes:
+      - .java
+  security-scanner:
+    include_suffixes:
+      - .java
+  documentation-growth-tracking:
+    user_facing_suffixes:
+      - .java
+    user_facing_keywords:
+      - controller
+      - controllers
+      - service
+      - services
+      - endpoint
+      - endpoints
+      - handler
+      - handlers
+  line-length-limit:
+    include_suffixes:
+      - .java
+workflow_runs:
+  - id: tests
+    enabled: true
+    after: verify
+    before: close
+    order: 100
+    runner:
+      kind: command_group
+      commands:
+        - mvn test
+        - gradle test
+    success_contract:
+      kind: all_commands_exit_zero
+    recording:
+      record_in_session: true
+      summary_label: Tests
+      output_mode_config_field: engine.tests_output_mode
+      event_adapter_group: run_events
+      write_runtime_profile: true

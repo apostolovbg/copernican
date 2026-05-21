@@ -1,0 +1,36 @@
+id: version-sync
+text: |
+  All version-bearing targets must match the canonical version file (default
+  `VERSION` or a configured override).
+  Target selection is role-based via `target_roles` and role selectors
+  (`target_role_files`, `target_role_globs`, `target_role_dirs`) with
+  `role=>selector` entries. Version extraction is role-driven via
+  `role_extractors` and explicit extractor names
+  (`project_version_line`, `devcovenant_version_line`,
+  `changelog_header_version`, `manifest_project_version`). Manifest
+  extraction remains format-aware (TOML/JSON/YAML) while selector routing
+  stays role-based. Version-sync validates and compares every extracted
+  value through the active `version-governance` scheme so canonical docs,
+  managed-doc `DevCovenant Version` headers, changelog entries, manifests,
+  and any opted-in legal text stay synchronized even when repositories use
+  non-SemVer version formats. Optional `role_legality_schemes` entries add
+  stricter ecosystem legality for selected roles without collapsing
+  repo-level version governance back into one packaging-only scheme.
+  Autofix repairs mismatched declared targets by rewriting the target's
+  version token to the current canonical version.
+metadata:
+  id: version-sync
+  severity: error
+  auto_fix: 'true'
+  enforcement: active
+  version_file: ''
+  target_roles: []
+  role_extractors: []
+  role_legality_schemes: []
+  target_role_files: []
+  target_role_globs: []
+  target_role_dirs: []
+  changelog_file: ''
+  changelog_header_prefix: ''
+  selector_roles:
+    - target

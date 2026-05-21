@@ -1,0 +1,82 @@
+version: 1
+profile: frappe
+category: framework
+suffixes:
+  - .py
+  - .js
+  - .json
+  - .md
+ignore_dirs:
+  - .venv
+  - __pycache__
+  - .pytest_cache
+  - .mypy_cache
+  - build
+  - dist
+  - node_modules
+  - sites
+assets:
+  - path: hooks.py
+    template: hooks.py
+  - path: modules.txt
+    template: modules.txt
+policy_overlays:
+  dependency-management:
+    dependency_role_files:
+      - intent=>requirements.in
+      - resolved=>requirements.lock
+      - package_manifest=>pyproject.toml
+      - intent=>package.json
+      - resolved=>package-lock.json
+      - resolved=>yarn.lock
+      - resolved=>pnpm-lock.yaml
+  documentation-growth-tracking:
+    user_facing_suffixes:
+      - .py
+      - .js
+      - .json
+      - .md
+    user_facing_keywords:
+      - endpoint
+      - endpoints
+      - handler
+      - handlers
+  line-length-limit:
+    include_suffixes:
+      - .py
+      - .js
+      - .json
+      - .md
+  security-scanner:
+    include_suffixes:
+      - .py
+      - .js
+  name-clarity:
+    include_suffixes:
+      - .py
+  docstring-and-comment-coverage:
+    include_suffixes:
+      - .py
+  modules-need-tests:
+    include_suffixes:
+      - .py
+      - .js
+workflow_runs:
+  - id: tests
+    enabled: true
+    after: verify
+    before: close
+    order: 100
+    runner:
+      kind: command_group
+      commands:
+        - python3 -m unittest discover -v
+        - npm test
+    success_contract:
+      kind: all_commands_exit_zero
+    recording:
+      record_in_session: true
+      summary_label: Tests
+      output_mode_config_field: engine.tests_output_mode
+      event_adapter_group: run_events
+      write_runtime_profile: true

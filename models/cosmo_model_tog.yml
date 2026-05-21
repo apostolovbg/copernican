@@ -1,0 +1,160 @@
+model_name: Temporal Opposition Geometry CAMB
+version: '0.2'
+description: >-
+  Temporal Opposition Geometry (TOG) encodes the hypothesis that time is not a
+  fourth spatial axis but a Lorentz-opposed temporal direction. This CAMB-enabled
+  Copernican implementation keeps the temporal-opposition deformation in the
+  suite-native background expansion while mapping the shared base cosmological
+  parameters into CAMB for CMB likelihood evaluation.
+abstract: >-
+  A flat FLRW background model with standard matter/radiation content plus a
+  temporal-opposition deformation parameter epsilon_T. The model reduces to
+  LambdaCDM when epsilon_T = 0. In the current Copernican CAMB bridge, CMB
+  evaluation uses the LambdaCDM-compatible projection of the shared parameters;
+  SNe and BAO evaluate the full epsilon_T-deformed H(z).
+
+parameters:
+  - name: Hubble constant
+    python_var: H0
+    bounds: [50.0, 80.0]
+    unit: km/s/Mpc
+    latex_name: 'H_0'
+    definition: Present-day Hubble expansion rate.
+    prior:
+      type: gaussian
+      mean: 68.0
+      sigma: 4.0
+
+  - name: Matter density
+    python_var: Omega_m0
+    bounds: [0.05, 0.45]
+    unit: ''
+    latex_name: '\Omega_{m0}'
+    definition: Present-day total non-relativistic matter density fraction.
+    prior:
+      type: uniform
+      lower: 0.05
+      upper: 0.45
+
+  - name: Baryon density
+    python_var: Omega_b
+    bounds: [0.03, 0.06]
+    unit: ''
+    latex_name: '\Omega_b'
+    definition: Present-day baryonic matter density fraction.
+    prior:
+      type: uniform
+      lower: 0.03
+      upper: 0.06
+
+  - name: Photon density
+    python_var: Omega_gamma
+    bounds: [5.38e-05, 5.38e-05]
+    unit: ''
+    latex_name: '\Omega_{\gamma}'
+    definition: Fixed photon density parameter at z=0.
+    prior:
+      type: fixed
+      value: 5.38e-05
+
+  - name: Effective number of relativistic neutrino species
+    python_var: Neff
+    bounds: [2.5, 3.5]
+    unit: ''
+    latex_name: 'N_{\rm eff}'
+    definition: Effective relativistic neutrino count used in radiation and CAMB mapping.
+    prior:
+      type: uniform
+      lower: 2.5
+      upper: 3.5
+
+  - name: Temporal opposition deformation
+    python_var: epsilon_T
+    bounds: [-0.35, 0.35]
+    unit: ''
+    latex_name: '\epsilon_T'
+    definition: Dimensionless deformation of the opposed-time sector; epsilon_T = 0 recovers LambdaCDM.
+    prior:
+      type: gaussian
+      mean: 0.0
+      sigma: 0.08
+
+  - name: Recombination redshift
+    python_var: z_rec
+    bounds: [1089.92, 1089.92]
+    unit: ''
+    latex_name: 'z_{\rm rec}'
+    definition: Fixed photon-decoupling redshift used as the sound-horizon lower limit.
+    prior:
+      type: fixed
+      value: 1089.92
+
+  - name: Speed of light
+    python_var: c_light
+    bounds: [299792.458, 299792.458]
+    unit: km/s
+    latex_name: 'c'
+    definition: Fixed speed of light used by distance and sound-horizon expressions.
+    prior:
+      type: fixed
+      value: 299792.458
+
+Hz_expression: >-
+  H(z) = H0 * sqrt(
+    Omega_m0 * (1 + z)**3
+    + Omega_gamma * (1 + 0.2271 * Neff) * (1 + z)**4
+    + (1 - Omega_m0 - Omega_gamma * (1 + 0.2271 * Neff))
+      * (1 + z)**(3 * epsilon_T)
+  )
+
+equations:
+  sne:
+    - 'd_L(z) = (1 + z) \int_0^z \frac{c_light\,dz^\prime}{H(z^\prime)}'
+    - '\mu(z) = 5\log_{10}[d_L(z)/{\rm Mpc}] + 25'
+  bao:
+    - 'D_M(z) = \int_0^z \frac{c_light\,dz^\prime}{H(z^\prime)}'
+    - 'D_H(z) = \frac{c_light}{H(z)}'
+    - 'D_V(z) = [D_M(z)**2 * D_H(z)]**(1/3)'
+
+rs_expression: >-
+  r_s = Integral(
+    c_light / sqrt(
+      3 * (1 + 3 * Omega_b / (4 * Omega_gamma) / (1 + z))
+    ) / (
+      H0 * sqrt(
+        Omega_m0 * (1 + z)**3
+        + Omega_gamma * (1 + 0.2271 * Neff) * (1 + z)**4
+        + (1 - Omega_m0 - Omega_gamma * (1 + 0.2271 * Neff))
+          * (1 + z)**(3 * epsilon_T)
+      )
+    ), (z, z_rec, oo)
+  )
+
+skip_bao: false
+valid_for_bao: true
+valid_for_distance_metrics: true
+valid_for_cmb: true
+
+cmb:
+  param_map:
+    H0: H0
+    ombh2: Omega_b * (H0/100)**2
+    omch2: (Omega_m0 - Omega_b) * (H0/100)**2
+    tau: 0.054
+    As: 2.1e-09
+    ns: 0.965
+    Neff: Neff
+    num_massive_neutrinos: 3
+    sum_mnu: 0.06
+
+notes: >-
+  CAMB is enabled through the standard Copernican cmb.param_map. In the current
+  Copernican CAMB helper, epsilon_T is not forwarded into CAMB because the
+  helper does not yet expose CAMB dark-energy controls such as set_dark_energy.
+  Therefore CMB constrains H0, Omega_b, Omega_m0 and Neff through the
+  LambdaCDM-compatible projection, while SNe and BAO use the full
+  epsilon_T-deformed H(z). To make CMB constrain epsilon_T directly, extend
+  copernican_lib/likelihoods/cmb.py so _make_camb_params maps a YAML key such as
+  w or epsilon_T into CAMB's dark-energy parameterisation.
+
+date: '2026-05-21'

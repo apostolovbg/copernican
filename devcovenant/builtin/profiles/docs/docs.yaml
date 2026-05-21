@@ -1,0 +1,18 @@
+version: 1
+profile: docs
+category: ops
+suffixes:
+  - .md
+  - .rst
+  - .txt
+ignore_dirs:
+  - _site
+  - site
+  - build
+assets: []
+policy_overlays:
+  line-length-limit:
+    include_suffixes:
+      - .md
+      - .rst
+      - .txt

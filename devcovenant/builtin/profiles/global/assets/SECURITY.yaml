@@ -1,0 +1,55 @@
+title: Security Policy
+target_path: SECURITY.md
+doc_id: SECURITY
+doc_type: security-policy
+project_version: true
+last_updated: true
+devcovenant_version: true
+project_governance_headers: false
+import_seed: true
+authoritative_source: true
+managed_block: |-
+  This opening section is managed by DevCovenant.
+  Use this document for security reporting and disclosure notes.
+body: |-
+  # Security Policy
+
+  ## Table of Contents
+  - [Overview](#overview)
+  - [Reporting A Vulnerability](#reporting-a-vulnerability)
+  - [What To Include](#what-to-include)
+  - [Disclosure Expectations](#disclosure-expectations)
+  - [Workflow](#workflow)
+
+  ## Overview
+  Use this document for repository-specific security reporting,
+  disclosure expectations, and remediation notes.
+
+  ## Reporting A Vulnerability
+  For non-sensitive defects, use the normal repository issue tracker.
+
+  For potentially sensitive findings:
+  - avoid publishing exploit details before maintainers can scope the issue
+  - use the repository host's private security-reporting path when available
+  - otherwise open a minimal public issue that requests a private contact path
+
+  ## What To Include
+  A useful report should include:
+  - the affected version or commit
+  - operating system and runtime versions
+  - exact reproduction steps
+  - expected behavior, actual behavior, and practical impact
+  - whether the issue depends on local secrets, private files, or deployment
+    context
+
+  Redact secrets before sharing logs, configs, or screenshots.
+
+  ## Disclosure Expectations
+  The normal posture is:
+  - reproduce and scope the issue first
+  - keep exploit details narrow until a fix or mitigation exists
+  - publish clear remediation guidance when the fix is ready
+
+  ## Workflow
+  Use `PRIVACY.md` when reports include logs or runtime artifacts.
+  Use `SUPPORT.md` for ordinary non-security help requests.

@@ -1,0 +1,60 @@
+id: managed-environment
+text: |
+  DevCovenant must run from one execution environment described by this
+  policy's metadata. `expected_paths` and `expected_interpreters` point to
+  that target environment, while optional `command_search_paths` add extra
+  PATH entries for resolving required commands and optional
+  `cleanup_protected_paths` define extra roots that cleanup must never delete.
+  `required_commands` declare the commands that must resolve once the target
+  interpreter is selected, using the managed PATH plus any declared command
+  search paths. `manual_commands` document how a human can create or repair
+  the environment, and stage-scoped `managed_commands` define how
+  DevCovenant may prepare it automatically. Command templates may reference
+  `{current_python}` and `{current_bin}` for the currently running
+  interpreter, and `{managed_python}`, `{managed_bin}`, `{managed_root}`,
+  `{repo_root}` for the selected target environment. User-facing guidance
+  renders those path tokens with display-safe paths so local absolute roots do
+  not leak into routine messages.
+  The target environment may live inside the repository or outside it, as long
+  as the metadata declares the interpreter path or environment root that
+  DevCovenant should use. The policy itself is environment-neutral: a
+  repository may declare a local `.venv`, a bench-managed environment, a
+  container-managed environment, a system interpreter, or another tool-owned
+  layout in its active profile stack. DevCovenant should not assume the
+  builtin defaults profile picks one of those layouts for it.
+  Active managed-environment policy reuses the current interpreter when it
+  already satisfies the contract, re-executes CLI commands in the selected
+  interpreter when needed, and only runs bootstrap commands when the target
+  environment is still missing or invalid. Stage-scoped `managed_commands`
+  accept `open`, `run`, `close`, `bootstrap`, `managed`, and `all` prefixes;
+  bootstrap-mode commands may still reuse `open` bootstrap commands once
+  when the target environment is not ready. When no automatic bootstrap
+  commands are declared, `bootstrap` stage operations may keep using the
+  current interpreter only when `allow_current_interpreter_fallback` is
+  explicitly true; otherwise `open`, `run`, `close`, and `managed` remain
+  strict about the target environment so incomplete profiles fail loudly
+  instead of falling through to wrapper adapters or alternate policy
+  sources. If the resolved interpreter is missing or not executable,
+  DevCovenant fails explicitly instead of falling through to wrapper
+  adapters or alternate policy sources. When enabled with empty metadata,
+  the policy emits a warning so teams fill the required context.
+metadata:
+  id: managed-environment
+  severity: error
+  auto_fix: 'false'
+  enforcement: active
+  enabled: 'false'
+  expected_paths: []
+  expected_interpreters: []
+  command_search_paths: []
+  cleanup_protected_paths: []
+  required_commands: []
+  allow_current_interpreter_fallback: false
+  manual_commands: []
+  managed_commands: []
+runtime_actions:
+  - id: resolve-stage
+    description: >-
+      Resolve the managed interpreter and execution-stage handling for one
+      CLI invocation.
+    mutates_repo: false

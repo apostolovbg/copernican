@@ -1,0 +1,9 @@
+id: no-future-dates
+text: |
+  Dates in changelogs or documentation must not be in the future. Auto-fixers
+  should correct accidental placeholders to today’s date.
+metadata:
+  id: no-future-dates
+  severity: error
+  auto_fix: 'true'
+  enforcement: active

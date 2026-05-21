@@ -1,0 +1,67 @@
+title: Changelog
+target_path: CHANGELOG.md
+doc_id: CHANGELOG
+doc_type: changelog
+project_version: true
+last_updated: true
+devcovenant_version: true
+project_governance_headers: true
+import_seed: true
+authoritative_source: true
+managed_block: |-
+  ## DevCovenant Change Logging Rules
+  This opening section is managed by DevCovenant for repositories that
+  use DevCovenant.
+  Add one entry for each substantive change under the current version header.
+  Keep entries newest-first and record dates in ISO format (`YYYY-MM-DD`).
+  Each entry must include Change/Why/Impact summary lines with action verbs.
+  Keep one blank line after each version heading and between dated entries.
+  Example:
+  ```
+  ## Version 1.2.3
+
+  - 2026-01-23:
+    Change: Fixed null-pointer crash in invoice import.
+    Why: Production job failed when optional contact data was missing.
+    Impact: Imports complete for records with partial contact details.
+    Files:
+    billing/imports/parser.py
+    billing/imports/test_parser.py
+    docs/imports.md
+    Long paths should be wrapped with a trailing \
+    backslash and continued on the next indented line.
+    Example:
+    services/customer/contact/normalization/\
+      fallback_rules.py
+
+  - 2026-01-22:
+    Change: Fixed duplicate email notifications on retry.
+    Why: Retry worker re-enqueued already-confirmed notification events.
+    Impact: Users receive one email per successful notification event.
+    Files:
+    notifications/worker.py
+    notifications/retry.py
+    notifications/test_retry.py
+
+  ## Version 1.2.2
+
+  - 2026-01-21:
+    Change: Added initial release for invoice import and notification flow.
+    Why: Defined a first production-ready baseline for billing automation.
+    Impact: Teams can import invoices and send notifications end-to-end.
+    Files:
+    billing/imports/parser.py
+    notifications/worker.py
+    CHANGELOG.md
+  ```
+body: |-
+  ## Log changes here
+
+  {{ RELEASE_HEADING }}
+
+  - YYYY-MM-DD:
+    Change: Describe the concrete change with an action verb.
+    Why: Describe why the change was needed.
+    Impact: Describe how behavior or maintenance changed.
+    Files:
+    path/to/file

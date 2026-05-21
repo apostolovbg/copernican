@@ -1,0 +1,69 @@
+version: 1
+profile: opencl
+category: language
+suffixes:
+  - .cl
+  - .ocl
+  - .opencl
+ignore_dirs:
+  - build
+  - dist
+  - out
+  - .cache
+assets: []
+translators:
+  - id: opencl
+    extensions:
+      - .cl
+      - .ocl
+      - .opencl
+    can_handle:
+      strategy: module_function
+      entrypoint: opencl_translator.py:can_handle
+    translate:
+      strategy: module_function
+      entrypoint: opencl_translator.py:translate
+policy_overlays:
+  name-clarity:
+    include_suffixes:
+      - .cl
+      - .ocl
+      - .opencl
+  docstring-and-comment-coverage:
+    include_suffixes:
+      - .cl
+      - .ocl
+      - .opencl
+  security-scanner:
+    include_suffixes:
+      - .cl
+      - .ocl
+      - .opencl
+  documentation-growth-tracking:
+    user_facing_suffixes:
+      - .cl
+      - .ocl
+      - .opencl
+    user_facing_keywords:
+      - kernel
+      - kernels
+      - buffer
+      - buffers
+      - device
+      - devices
+      - queue
+      - queues
+      - compute
+      - accelerator
+  line-length-limit:
+    include_suffixes:
+      - .cl
+      - .ocl
+      - .opencl
+  no-print-outside-output-runtime:
+    include_suffixes:
+      - .cl
+      - .ocl
+      - .opencl
+    sink_call_targets:
+      - opencl=>printf

@@ -1,0 +1,62 @@
+id: changelog-coverage
+text: |
+  Every change must be logged in a new changelog entry dated today, under the
+  current version, with a three-line summary labeled Change/Why/Impact. Each
+  summary line must include an action verb listed in the summary_verbs
+  metadata and a Files block that lists only the touched paths for this
+  change. The policy compares the top changelog entry against the gate-open
+  top-entry fingerprint to require a fresh entry for each work session, while
+  resolving changed paths from the active gate session. If the top version
+  changes during the session, the new version section must be prepended above
+  the preserved previous top version section and that preserved pre-session
+  top entry must remain first in the previous section instead of relabeling
+  old entries. Recognized version headings must be followed by a blank line
+  before the first dated entry, and consecutive dated entries in the same
+  section must be separated by a blank line. This rule depends on section
+  placement, not on bump wording inside the entry text.
+  Collection prefixes (when enabled) must be logged in their own changelog;
+  prefixed files may not appear in the root changelog. This keeps release
+  notes daily, file-complete, and traceable.
+metadata:
+  id: changelog-coverage
+  severity: error
+  auto_fix: 'false'
+  enforcement: active
+  main_changelog: []
+  skipped_files: []
+  skipped_globs:
+    - .vscode/**
+    - .idea/**
+    - .venv/**
+    - .python/**
+    - build/**
+    - dist/**
+    - __pycache__/**
+    - '*.egg-info/**'
+    - pip-wheel-metadata/**
+    - .pytest_cache/**
+    - .ruff_cache/**
+    - .mypy_cache/**
+    - .tox/**
+    - .nox/**
+    - .hypothesis/**
+    - .coverage
+    - .coverage.*
+    - htmlcov/**
+    - devcovenant/logs/**
+    - devcovenant/registry/runtime/**
+  skipped_prefixes: []
+  summary_labels: []
+  summary_verbs: []
+  gate_status_file: ''
+  collections: []
+runtime_actions:
+  - id: reset-baseline
+    description: >-
+      Reset changelog baseline preservation for the active gate session.
+    mutates_repo: true
+commands:
+  - name: reset-baseline
+    help: Reset changelog baseline preservation for the active gate session.
+    runtime_action: reset-baseline
+    mutates_repo: true

@@ -1,0 +1,26 @@
+id: read-only-directories
+text: |
+  Protect declared read-only directories from modification. If a directory must
+  be editable, update this policy definition first.
+metadata:
+  id: read-only-directories
+  severity: error
+  auto_fix: 'false'
+  enforcement: active
+  include_globs: []
+  include_suffixes: []
+  include_prefixes: []
+  exclude_suffixes: []
+  exclude_prefixes: []
+  exclude_globs: []
+  force_include_globs: []
+  selector_roles:
+    - include
+    - exclude
+    - force_include
+  include_files: []
+  include_dirs: []
+  exclude_files: []
+  exclude_dirs: []
+  force_include_files: []
+  force_include_dirs: []

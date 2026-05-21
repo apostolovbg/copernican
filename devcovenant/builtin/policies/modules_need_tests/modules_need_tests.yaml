@@ -1,0 +1,33 @@
+id: modules-need-tests
+text: |
+  In-scope non-test modules must have corresponding tests under configured
+  test roots. The rule is metadata-driven and supports mirror enforcement for
+  selected source roots. The policy enforces structural source-to-test
+  alignment and rejects stale mirrored tests. Placeholder tests are not
+  allowed. Python test files must use unittest.TestCase-style definitions;
+  workflow execution runs the declared unittest command directly.
+metadata:
+  id: modules-need-tests
+  severity: error
+  auto_fix: 'false'
+  enforcement: active
+  include_suffixes: []
+  include_prefixes: []
+  exclude_prefixes: []
+  exclude_globs: []
+  watch_dirs: []
+  tests_watch_dirs: []
+  mirror_roots: []
+  mirror_test_name_templates: []
+  test_style_requirements:
+    - python=>python_unittest
+  include_globs: []
+  exclude_suffixes: []
+  force_include_globs: []
+  watch_files: []
+  placeholder_test_methods:
+    - test_placeholder
+  placeholder_text_markers:
+    - placeholder-marker-alpha
+    - placeholder-marker-beta
+    - placeholder-marker-gamma

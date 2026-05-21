@@ -1,0 +1,40 @@
+version: 1
+profile: kubernetes
+category: ops
+suffixes:
+  - .yml
+  - .yaml
+ignore_dirs:
+  - charts
+assets:
+  - path: Chart.yaml
+    template: Chart.yaml
+  - path: values.yaml
+    template: values.yaml
+policy_overlays:
+  documentation-growth-tracking:
+    user_facing_suffixes:
+      - .yml
+      - .yaml
+  line-length-limit:
+    include_suffixes:
+      - .yml
+      - .yaml
+workflow_runs:
+  - id: tests
+    enabled: true
+    after: verify
+    before: close
+    order: 100
+    runner:
+      kind: command_group
+      commands:
+        - helm lint
+    success_contract:
+      kind: all_commands_exit_zero
+    recording:
+      record_in_session: true
+      summary_label: Tests
+      output_mode_config_field: engine.tests_output_mode
+      event_adapter_group: run_events
+      write_runtime_profile: true

@@ -1,0 +1,68 @@
+version: 1
+profile: ruby
+category: language
+suffixes:
+  - .rb
+  - .rake
+ignore_dirs:
+  - .bundle
+  - vendor/bundle
+clean_overlays:
+  cache_dirs:
+    - .bundle
+assets:
+  - path: Gemfile
+    template: Gemfile
+  - path: Gemfile.lock
+    template: Gemfile.lock
+translators:
+  - id: ruby
+    extensions:
+      - .rb
+      - .rake
+    can_handle:
+      strategy: module_function
+      entrypoint: ruby_translator.py:can_handle
+    translate:
+      strategy: module_function
+      entrypoint: ruby_translator.py:translate
+policy_overlays:
+  dependency-management:
+    dependency_role_files:
+      - intent=>Gemfile
+      - resolved=>Gemfile.lock
+  documentation-growth-tracking:
+    user_facing_suffixes:
+      - .rb
+      - .rake
+    user_facing_keywords:
+      - controller
+      - controllers
+      - service
+      - services
+      - route
+      - routes
+      - endpoint
+      - endpoints
+  line-length-limit:
+    include_suffixes:
+      - .rb
+      - .rake
+workflow_runs:
+  - id: tests
+    enabled: true
+    after: verify
+    before: close
+    order: 100
+    runner:
+      kind: command_group
+      commands:
+        - bundle exec rake test
+    success_contract:
+      kind: all_commands_exit_zero
+    recording:
+      record_in_session: true
+      summary_label: Tests
+      output_mode_config_field: engine.tests_output_mode
+      event_adapter_group: run_events
+      write_runtime_profile: true

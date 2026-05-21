@@ -1,6 +1,0 @@
-{
-  "last_run": "2026-01-07T11:22:34.355125+00:00",
-  "command": "pytest && python -m unittest discover",
-  "sha": "7e194fe8a8ec71f28e104d4f98161d740e1f59e0",
-  "notes": ""
-}

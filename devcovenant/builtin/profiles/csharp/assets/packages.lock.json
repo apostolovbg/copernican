@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "dependencies": {
+    "Microsoft.NET.Test.Sdk": {
+      "type": "Direct",
+      "requested": "[17.8.0, )",
+      "resolved": "17.8.0"
+    }
+  }
+}

@@ -1,0 +1,114 @@
+version: 1
+profile: go
+category: language
+suffixes:
+  - .go
+ignore_dirs:
+  - bin
+  - pkg
+  - vendor
+clean_overlays:
+  cache_globs:
+    - 'coverage.out'
+assets:
+  - path: go.mod
+    template: go.mod
+  - path: go.sum
+    template: go.sum
+pre_commit:
+  repos:
+    - repo: https://github.com/dnephin/pre-commit-golang
+      rev: v0.5.1
+      hooks:
+        - id: go-fmt
+        - id: go-vet
+translators:
+  - id: go
+    extensions:
+      - .go
+    can_handle:
+      strategy: module_function
+      entrypoint: go_translator.py:can_handle
+    translate:
+      strategy: module_function
+      entrypoint: go_translator.py:translate
+policy_overlays:
+  dependency-management:
+    dependency_role_files:
+      - intent=>go.mod
+      - resolved=>go.sum
+  name-clarity:
+    include_suffixes:
+      - .go
+  docstring-and-comment-coverage:
+    include_suffixes:
+      - .go
+  modules-need-tests:
+    include_suffixes:
+      - .go
+    watch_dirs:
+      - tests
+    tests_watch_dirs:
+      - tests
+    mirror_test_name_templates:
+      - go=>{stem}_test.go
+  tests-coverage:
+    include_suffixes:
+      - .go
+    watch_dirs:
+      - tests
+    tests_watch_dirs:
+      - tests
+    assertion_signal_patterns:
+      - go=>\bt\.(?:Error|Errorf|Fatal|Fatalf)\s*\(
+      - go=>\b(?:assert|require)\.[A-Za-z_]+\s*\(
+    tautology_patterns:
+      - go=>^\s*assert\.True\s*\(\s*t\s*,\s*true\s*\)\s*$
+      - go=>^\s*require\.True\s*\(\s*t\s*,\s*true\s*\)\s*$
+    symbol_kinds:
+      - function
+    symbol_name_min_length: 3
+    symbol_assertion_window: 2
+  security-scanner:
+    include_suffixes:
+      - .go
+  documentation-growth-tracking:
+    user_facing_suffixes:
+      - .go
+    user_facing_keywords:
+      - handler
+      - handlers
+      - middleware
+      - service
+      - services
+      - endpoint
+      - endpoints
+  line-length-limit:
+    include_suffixes:
+      - .go
+  no-print-outside-output-runtime:
+    sink_call_targets:
+      - go=>fmt.Print
+      - go=>fmt.Printf
+      - go=>fmt.Println
+      - go=>log.Print
+      - go=>log.Printf
+      - go=>log.Println
+workflow_runs:
+  - id: tests
+    enabled: true
+    after: verify
+    before: close
+    order: 100
+    runner:
+      kind: command_group
+      commands:
+        - go test ./...
+    success_contract:
+      kind: all_commands_exit_zero
+    recording:
+      record_in_session: true
+      summary_label: Tests
+      output_mode_config_field: engine.tests_output_mode
+      event_adapter_group: run_events
+      write_runtime_profile: true

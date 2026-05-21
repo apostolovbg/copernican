@@ -1,0 +1,34 @@
+id: raw-string-escapes
+text: |
+  Warn when in-scope string literals contain suspicious bare backslashes.
+  Detection is language-aware: Python uses tokenizer spans, while other
+  languages use metadata-driven literal and escape patterns.
+metadata:
+  id: raw-string-escapes
+  severity: warning
+  auto_fix: 'false'
+  enforcement: active
+  include_suffixes:
+    - .py
+    - .pyi
+    - .pyw
+    - .js
+    - .jsx
+    - .ts
+    - .tsx
+    - .go
+    - .rs
+    - .java
+    - .cs
+    - .kt
+    - .swift
+    - .php
+    - .rb
+  selector_roles:
+    - include
+    - exclude
+    - force_include
+  language_suffixes: []
+  literal_patterns: []
+  raw_literal_patterns: []
+  suspicious_escape_patterns: []

@@ -1,4 +1,16 @@
-# Contributing to the Copernican Suite
+# Contributing
+**Doc ID:** CONTRIBUTING
+**Doc Type:** contributing-guide
+**Project Version:** 12.0.1
+**Last Updated:** 2026-05-21
+**DevCovenant Version:** 1.0.1b5
+
+<!-- DEVCOV:BEGIN -->
+This opening section is managed by DevCovenant.
+It defines the standard contributor workflow used by repositories that use
+DevCovenant. Add repository-specific contributor notes below the managed
+section.
+<!-- DEVCOV:END -->
 
 Thank you for considering a contribution. Before opening a pull request, please
 read `AGENTS.md` for the full development specification. Log every change in

@@ -1,0 +1,97 @@
+version: 1
+profile: userproject
+category: application
+suffixes: []
+ignore_dirs:
+  - data
+assets: []
+project-governance:
+  project_name: Copernican Suite
+  project_description: A Python toolkit for evaluating cosmological models against SNe Ia, BAO, and CMB observations.
+  copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of Bulgaria
+  stage: stable
+  maintenance_stance: active
+  compatibility_policy: forward-only
+  versioning_mode: versioned
+  changelog_file: CHANGELOG.md
+policy_overlays:
+  dependency-management:
+    surfaces:
+      - id: root_workspace
+        lock_file: requirements.lock
+        direct_dependency_files:
+          - requirements.in
+          - copernican_lib/runtime-requirements.lock
+        dependency_files:
+          - requirements.in
+          - devcovenant/runtime-requirements.lock
+          - copernican_lib/runtime-requirements.lock
+        third_party_file: licenses/THIRD_PARTY_LICENSES.md
+        licenses_dir: licenses
+        required_paths:
+          - requirements.in
+          - devcovenant/runtime-requirements.lock
+          - copernican_lib/runtime-requirements.lock
+      - id: package_runtime
+        lock_file: copernican_lib/runtime-requirements.lock
+        third_party_file: copernican_lib/licenses/THIRD_PARTY_LICENSES.md
+        licenses_dir: copernican_lib/licenses
+        required_paths:
+          - pyproject.toml
+          - copernican_lib
+  version-governance:
+    scheme: semver
+    version_file: copernican_lib/VERSION
+    changelog_file: CHANGELOG.md
+    changelog_header_prefix: '## Version'
+    canonical_versions_required: true
+    enforce_bumping: true
+    semver_scope_tags_required: true
+    ignored_prefixes:
+      - devcovenant
+  version-sync:
+    version_file: copernican_lib/VERSION
+    changelog_file: CHANGELOG.md
+    changelog_header_prefix: '## Version'
+    target_roles:
+      - docs
+      - changelog
+      - package_manifest
+      - citation
+    role_extractors:
+      - docs=>project_version_line
+      - changelog=>changelog_header_version
+      - package_manifest=>manifest_project_version
+      - citation=>manifest_project_version
+    role_legality_schemes:
+      - package_manifest=>pep440
+      - citation=>pep440
+    target_role_files:
+      - docs=>README.md
+      - docs=>AGENTS.md
+      - docs=>CONTRIBUTING.md
+      - changelog=>CHANGELOG.md
+      - package_manifest=>pyproject.toml
+      - citation=>CITATION.cff
+  line-length-limit:
+    force_include_globs:
+      - devcovenant/**/*.py
+      - devcovenant/**/*.md
+      - tests/**/*.py
+      - tests/**/*.md
+  name-clarity:
+    force_include_globs:
+      - devcovenant/**/*.py
+      - tests/**/*.py
+  docstring-and-comment-coverage:
+    force_include_globs:
+      - devcovenant/**/*.py
+      - tests/**/*.py
+  security-scanner:
+    force_include_globs:
+      - devcovenant/**/*.py
+      - tests/**/*.py
+  no-raw-errors:
+    force_include_globs:
+      - devcovenant/**/*.py
+      - tests/**/*.py

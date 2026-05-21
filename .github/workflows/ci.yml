@@ -1,77 +1,34 @@
-# CI pipeline covering multiplatform and Python 3.11
 name: CI
-
 on:
   push:
-    branches:
-      - main
   pull_request:
-
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 jobs:
-  tests:
-    # Execute the same validation flow on each supported OS for parity with
-    # downstream user environments.
-    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
-        python-version:
-          - "3.11"
+  governance:
+    name: Governance
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        # Provision the requested interpreter and restore pip's wheel cache so
-        # dependency installation benefits from reuse across workflow runs.
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-
-      - name: Cache CAMB data directory
-        # CAMB downloads are expensive; cache them per runner OS to avoid
-        # repeated transfers when cosmology engines rely on CAMB tables.
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.camb
-            ~\AppData\Local\camb
-          key: camb-${{ runner.os }}
-
-      - name: Install dependencies
-        # Install the locked dependencies, the editable package and the build
-        # backend so the project under test matches developer environments.
-        run: |
-          python -m pip install pip==24.2
-          python -m pip install -r requirements.lock
-          python -m pip install -e .
-          python -m pip install build
-
-      - name: Run pytest suite
-        # Execute the full pytest suite quietly to surface regressions while
-        # keeping the log output concise.
-        run: python -m pytest -q
-
-      - name: Run unittest suite
-        # Run the bundled unittest discover flow so both frameworks are exercised.
-        run: python -m unittest discover -v
-
-      - name: Build distribution artifacts
-        # Produce both the source distribution and universal wheel to confirm
-        # packaging succeeds before publishing.
-        run: python -m build
-
-      - name: Upload build artifacts
-        # Retain the generated distributions so reviewers can inspect the
-        # packaging results from each operating system.
-        uses: actions/upload-artifact@v4
-        with:
-          name: copernican-${{ matrix.os }}-py${{ matrix.python-version }}
-          path: dist
-          if-no-files-found: error
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+    - name: Set up Python
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+      with:
+        python-version: '3.14'
+    - name: Configure Python cache root
+      run: |
+        echo "PYTHONPYCACHEPREFIX=$RUNNER_TEMP/devcovenant-pycache" \
+          >> "$GITHUB_ENV"
+    - name: Install DevCovenant runtime dependencies
+      run: |
+        python -m pip install -r devcovenant/runtime-requirements.lock
+    - name: Run DevCovenant open gate
+      run: python -m devcovenant gate --open
+    - name: Run DevCovenant verify gate
+      run: python -m devcovenant gate --verify
+    - name: Run DevCovenant workflow runs
+      run: python -m devcovenant run
+    - name: Run DevCovenant close gate
+      run: python -m devcovenant gate --close

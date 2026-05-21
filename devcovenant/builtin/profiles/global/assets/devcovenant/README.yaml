@@ -1,0 +1,45 @@
+title: devcovenant
+target_path: devcovenant/README.md
+doc_id: README
+doc_type: repo-readme
+project_version: true
+last_updated: true
+devcovenant_version: true
+import_seed: false
+authoritative_source: false
+managed_block: ''
+body: |-
+  devcovenant is a repository governance framework.
+  It keeps repository workflow, policy prose, and evidence artifacts aligned.
+
+  ## Overview
+  Use this README as the operator guide to the installed devcovenant runtime in
+  the governed project.
+  Keep policy source in `AGENTS.md`, durable requirements in `SPEC.md`, and
+  active execution work in `PLAN.md` when those docs are present.
+
+  ## Quick Start
+  Explain the smallest correct command flow for using DevCovenant in this
+  project.
+  Include `install`, config review, `deploy`, and the standard gate sequence
+  when they apply.
+
+  ## Workflow
+  Document the normal command order for repository work.
+  Keep the wording direct and operational.
+
+  ## Commands
+  List the commands most operators actually need, such as `check`, the gate
+  commands, `run`, `refresh`, and the main lifecycle commands.
+
+  ## Configuration Checkpoints
+  Summarize the few config decisions that matter most on first review, such as
+  `developer_mode`, the active profile stack, runtime paths, workflow knobs,
+  doc assets, policy activation, and output settings.
+
+  ## Evidence Artifacts
+  Explain where run logs and related session state live and what to inspect
+  first when something fails.
+
+  ## License
+  Document repository licensing terms here.

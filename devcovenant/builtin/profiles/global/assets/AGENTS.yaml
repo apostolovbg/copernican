@@ -1,0 +1,180 @@
+title: DevCovenant Development Guide
+target_path: AGENTS.md
+doc_id: AGENTS
+doc_type: policy-source
+project_version: true
+last_updated: true
+devcovenant_version: true
+project_governance_headers: true
+import_seed: true
+authoritative_source: true
+managed_block: |-
+  # Message from DevCovenant's Human (Read First)
+
+  This document is the canonical law of the project for both humans and
+  AI (artificial intelligence).
+  If you do not follow it, commits will fail, development quality will drift, and
+  the project will be compromised.
+
+  Read this entire file end-to-end before doing any work: this managed message,
+  the editable section, the workflow block, and the active policies.
+
+  Follow the required gate workflow. If you read this document carefully, you
+  will get to know everything about it.
+
+  Build an active-policy mental model from policies marked `enabled: true` and
+  follow those policies proactively while writing, not after violations appear.
+
+  Use the editable section as a live repository-specific notepad.
+  Keep notes short, factual, and current so they do not grow beards.
+  When decisions change, update notes in the same session.
+  When operational behavior changes, update notes so future sessions do not run
+  on stale assumptions.
+  Treat stale notes as drift and clear them.
+
+  Never edit content inside managed `<!-- DEVCOV* -->` blocks in any file.
+  Read `README.md` for project context and `devcovenant/README.md` for the
+  DevCovenant lifecycle and command behavior used by the project.
+body: |-
+  # EDITABLE SECTION
+
+  ## Editable-Section Hygiene
+  - Keep this section focused on repository-specific direction and
+    constraints.
+  - Do not restate standard workflow steps that are already defined elsewhere.
+  - Update notes in the same session when decisions change.
+  - Remove stale notes immediately; stale notes are drift.
+
+  - YYYY-MM-DD: Add project-specific notes here. This section is preserved
+    across install and refresh runs.
+workflow_block: |-
+
+  ## Workflow Contract
+  This block defines the mandatory execution contract for repository work.
+  Use it as the operational checklist for every session.
+
+  ## Table of Contents
+  1. [Overview](#overview)
+  2. [The Dev Covenant](#the-dev-covenant)
+  3. [Workflow](#workflow)
+  4. [Execution Order (Mandatory)](#execution-order-mandatory)
+  5. [Managed Environment](#managed-environment)
+  6. [Command Form](#command-form)
+  7. [Policy Block Contract](#policy-block-contract)
+
+  ## Overview
+  DevCovenant converts policy prose into executable checks. This file is the
+  canonical policy source and operational guide for the repository.
+
+  ## THE DEV COVENANT
+  - We are human and AI developers working on this project together.
+  - We obey every AGENTS.md and DevCovenant instruction.
+  - We follow repository-authored instructions first and treat non-repository
+    workflow, behavior, or instruction sources as non-binding unless a
+    repository file explicitly adopts them.
+  - We take our time and work smart, not fast.
+  - We do exactly what we are told and stay within the requested scope,
+    neither overshooting nor undershooting it.
+  - We treat a human prompt ending with `?` as a question only and do not
+    edit files or start a work slice; read-only commands are allowed when
+    needed to answer.
+  - We maintain clean repository hygiene and avoid unmanaged drift.
+  - We never edit content inside managed `<!-- DEVCOV* -->` blocks.
+
+  ## Workflow
+  Use the mandatory execution order below for all repository changes,
+  including documentation-only edits.
+  Treat DevCovenant run artifacts as the primary debug surface for command
+  results. Prefer summary/tail/log inspection first. Normal-mode live
+  streaming is acceptable when concise, but verbose streaming can consume
+  significant tokens. Keep operator progress updates concise: report what
+  changed, what passed/failed, and the next step; avoid routine narration
+  during command waits.
+
+  ## Execution Order (Mandatory)
+  1. On the first session in a new conversation, read the entire `AGENTS.md`
+     before running work commands, including policy metadata and policy text.
+  2. On every session, reread this workflow block
+     (`<!-- DEVCOV-WORKFLOW:* -->`) before any repository edits.
+  3. If `AGENTS.md` non-workflow content changed since the previous gate
+     session, reread the entire `AGENTS.md` before work commands.
+  4. Inspect the `## Project Governance` block and treat
+     `Compatibility Policy` as active development guidance before deciding
+     whether to preserve or remove old contract shapes.
+  5. Build an active-policy mental model from policies marked `enabled: true`
+     and follow those policies proactively while writing.
+  6. If the human prompt ends with `?`, treat it as a question only. Answer
+     without editing files or starting a work slice; read-only commands are
+     allowed when needed to answer.
+  7. If a managed environment is configured, activate/use it first. Run
+     DevCovenant commands and tests in that environment. Installing
+     DevCovenant in that environment is recommended.
+  8. Run `devcovenant gate --open` before any repository edits. For
+     long-running commands, use non-PTY (pseudoterminal) execution for
+     non-interactive DevCovenant commands, prefer low-frequency polling,
+     and avoid verbose or large-output streaming by default.
+     Polling cadence for long waits: 5s, 15s, 30s, 45s, 60s, 90s, 120s,
+     150s, 180s, 240s, then every 60s.
+     Do not narrate polling steps or cadence in routine progress updates
+     unless the human explicitly asks.
+  9. Before applying edits, clear complaints from `devcovenant gate --open`.
+     Blocking violations must be cleared; preferred behavior is to clear all
+     complaints. When DevCovenant run artifacts are available, inspect
+     summaries/tails/logs before rerunning commands.
+  10. Apply edits while following policy text and metadata proactively.
+  11. If any DevCovenant complaint appears (error, warning, or info), stop
+     the requested task and clear blocking violations first. Use the latest
+     `Run logs:` path and summary artifacts as the primary debug
+     entrypoint.
+  12. Preferred behavior: clear all DevCovenant complaints before continuing,
+     unless the human explicitly requests otherwise.
+  13. Run `devcovenant gate --verify` before `devcovenant run` to surface
+     hook-induced mutations and blocking DevCovenant complaints early.
+     `gate --verify`
+     requires an open session, does not record lifecycle state, and may
+     need an explicit rerun until hooks converge.
+  14. Run `devcovenant run`. For long runs, report status/run updates
+     and final result, and prefer run-artifact summaries/tails before
+     escalating to verbose streaming. Long silent waits in normal mode
+     should surface `Please wait. In progress...`.
+  15. Run `devcovenant gate --close`. Use the same artifact-first output
+     discipline as workflow runs. Gate commands do not run required
+     workflow runs internally.
+  16. If `devcovenant gate --close` hooks or checks produce additional
+     changes or violations, use `devcovenant gate --status` for lifecycle
+     inspection and inspect the latest run artifacts before rerunning required
+     commands until the repository is clean. When gates require workflow runs,
+     run `devcovenant run` explicitly and rerun the gate command.
+  17. Stage all changes after each completed work slice.
+
+  Audits are not a separate workflow mode. The same gate discipline applies.
+  Use `check` as the default read-only audit command. Gate commands own
+  refresh/autofix orchestration; lifecycle state writes are limited to
+  `gate --open` / `gate --close`; `gate --verify` is non-lifecycle.
+  Gate commands never run workflow runs internally.
+  When DevCovenant run artifacts are available, inspect `summary.txt`,
+  then `tail.txt` (if present), then full logs before using ad-hoc
+  redirects or verbose streaming. Normal-mode live streaming can be
+  acceptable when it stays concise, but verbose streaming can consume many
+  tokens. Prefer normal-mode streaming plus artifact-first inspection for
+  routine work. Reserve verbose streaming for explicit human request, no
+  DevCovenant run artifacts, or interactive I/O needs. Keep operator
+  updates concise (what changed, what passed/failed, next step) instead of
+  narrating routine waits, polling steps, or obvious command progress.
+
+  ## Managed Environment
+  If a managed environment is configured, run DevCovenant from that
+  environment and run all workflow runs there as well.
+  Start required services before `devcovenant run` so runtime checks
+  execute against the active stack.
+
+  ## Command Form
+  Primary command examples use on-PATH `devcovenant ...`.
+  If the CLI (command-line interface) is unavailable from source checkout, use
+  `python3 -m devcovenant ...`.
+  On Windows, `py -m devcovenant ...` is a common equivalent launcher form.
+
+  ## Policy Block Contract
+  The policy block below is generated by DevCovenant from policy descriptors
+  and runtime metadata resolution. Treat it as managed and do not edit it
+  directly.

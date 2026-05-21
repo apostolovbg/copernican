@@ -1,0 +1,53 @@
+title: Privacy and Data Handling
+target_path: PRIVACY.md
+doc_id: PRIVACY
+doc_type: privacy-policy
+project_version: true
+last_updated: true
+devcovenant_version: true
+project_governance_headers: false
+import_seed: true
+authoritative_source: true
+managed_block: |-
+  This opening section is managed by DevCovenant.
+  Use this document for privacy and local data-handling notes.
+body: |-
+  # Privacy and Data Handling
+
+  ## Table of Contents
+  - [Overview](#overview)
+  - [Local Runtime Artifacts](#local-runtime-artifacts)
+  - [Sharing Guidance](#sharing-guidance)
+  - [What DevCovenant Does Not Do](#what-devcovenant-does-not-do)
+  - [Workflow](#workflow)
+
+  ## Overview
+  DevCovenant stores local runtime evidence so operators can inspect what
+  happened during a work slice.
+  Use this document to explain what local artifacts may contain and what to
+  review before sharing them.
+
+  ## Local Runtime Artifacts
+  Typical local artifacts include:
+  - run summaries and logs under `devcovenant/logs/`
+  - runtime ledgers under `devcovenant/registry/runtime/`
+  - path-and-hash session evidence used for workflow freshness
+
+  Raw command output may contain secrets if a child tool prints them.
+  Review logs before sharing them outside the repository.
+
+  ## Sharing Guidance
+  Prefer the smallest artifact set that still explains the issue.
+  Start with the command you ran, `summary.txt`, and `tail.txt` when available.
+  Redact secrets, private paths, and unrelated local data first.
+
+  ## What DevCovenant Does Not Do
+  DevCovenant itself does not add outbound telemetry or remote analytics to
+  normal command execution.
+  External tools you choose to run through DevCovenant may have their own
+  network or data-handling behavior.
+
+  ## Workflow
+  Use `SECURITY.md` when the report is security-sensitive.
+  Use `SUPPORT.md` for ordinary support requests after reviewing the artifacts
+  you plan to share.

@@ -1,0 +1,52 @@
+title: Support and Maintenance
+target_path: SUPPORT.md
+doc_id: SUPPORT
+doc_type: support-policy
+project_version: true
+last_updated: true
+devcovenant_version: true
+project_governance_headers: false
+import_seed: true
+authoritative_source: true
+managed_block: |-
+  This opening section is managed by DevCovenant.
+  Use this document for support and maintenance expectations.
+body: |-
+  # Support and Maintenance
+
+  ## Table of Contents
+  - [Overview](#overview)
+  - [How To Ask For Help](#how-to-ask-for-help)
+  - [What To Include](#what-to-include)
+  - [Support Scope](#support-scope)
+  - [Workflow](#workflow)
+
+  ## Overview
+  Use this document for repository-specific support expectations,
+  maintenance scope, and reporting guidance.
+
+  ## How To Ask For Help
+  Use the public repository issue tracker for:
+  - bug reports
+  - usage questions
+  - unclear documentation
+  - workflow or governance regressions
+
+  Use `SECURITY.md` instead for security-sensitive defects.
+
+  ## What To Include
+  A useful support report should include:
+  - the version or commit you are using
+  - the exact command you ran
+  - the active profiles or relevant config overrides
+  - the smallest reproduction you can provide
+  - `summary.txt` and `tail.txt` when a run-log folder exists
+
+  ## Support Scope
+  Reasonable support scope includes the current maintained product surface,
+  documented workflow behavior, built-in policies, and built-in profiles.
+  Custom extensions may require more repository-specific investigation.
+
+  ## Workflow
+  Use `PRIVACY.md` before attaching logs or snapshots.
+  Use `SECURITY.md` first when the issue may cross into security.

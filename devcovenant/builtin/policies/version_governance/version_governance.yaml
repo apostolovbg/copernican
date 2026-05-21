@@ -1,0 +1,34 @@
+id: version-governance
+text: |
+  When enabled, this policy governs repository version format and optional
+  version progression under the configured `scheme`. Repositories may enable
+  `enforce_bumping` to require forward version movement, while format-only
+  custom schemes may leave bump enforcement disabled. Scheme adapters may be
+  builtin or repo-defined and may add extra release rules to the latest
+  changelog entry.
+  Activation is controlled by `config.yaml -> policy_state`. Repositories
+  should choose `version-governance.scheme` explicitly in profile or config
+  metadata, then tune bump enforcement to match the selected scheme.
+metadata:
+  id: version-governance
+  severity: error
+  auto_fix: 'false'
+  enforcement: active
+  scheme: ''
+  enforce_bumping: 'false'
+  canonical_versions_required: 'false'
+  version_file: ''
+  changelog_file: ''
+  changelog_header_prefix: ''
+  ignored_prefixes: []
+  semver_scope_tags_required: 'false'
+  pep440_allow_prereleases: 'true'
+  pep440_allow_dev_releases: 'true'
+  pep440_allow_post_releases: 'true'
+  calver_pattern: ''
+  custom_regex_pattern: ''
+  custom_adapter_path: ''
+  selector_roles: ignored
+  ignored_globs: []
+  ignored_files: []
+  ignored_dirs: []

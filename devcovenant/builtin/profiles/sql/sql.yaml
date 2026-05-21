@@ -1,0 +1,26 @@
+version: 1
+profile: sql
+category: language
+suffixes:
+  - .sql
+ignore_dirs: []
+assets:
+  - path: schema.sql
+    template: schema.sql
+translators:
+  - id: sql
+    extensions:
+      - .sql
+    can_handle:
+      strategy: module_function
+      entrypoint: sql_translator.py:can_handle
+    translate:
+      strategy: module_function
+      entrypoint: sql_translator.py:translate
+policy_overlays:
+  documentation-growth-tracking:
+    user_facing_suffixes:
+      - .sql
+  line-length-limit:
+    include_suffixes:
+      - .sql

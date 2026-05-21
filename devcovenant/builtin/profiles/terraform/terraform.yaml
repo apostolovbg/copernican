@@ -1,0 +1,46 @@
+version: 1
+profile: terraform
+category: ops
+suffixes:
+  - .tf
+  - .tfvars
+  - .hcl
+ignore_dirs:
+  - .terraform
+clean_overlays:
+  build_dirs:
+    - .terraform
+assets:
+  - path: main.tf
+    template: main.tf
+  - path: variables.tf
+    template: variables.tf
+workflow_runs:
+  - id: tests
+    enabled: true
+    after: verify
+    before: close
+    order: 100
+    runner:
+      kind: command_group
+      commands:
+        - terraform validate
+    success_contract:
+      kind: all_commands_exit_zero
+    recording:
+      record_in_session: true
+      summary_label: Tests
+      output_mode_config_field: engine.tests_output_mode
+      event_adapter_group: run_events
+      write_runtime_profile: true
+policy_overlays:
+  documentation-growth-tracking:
+    user_facing_suffixes:
+      - .tf
+      - .tfvars
+      - .hcl
+  line-length-limit:
+    include_suffixes:
+      - .tf
+      - .tfvars
+      - .hcl

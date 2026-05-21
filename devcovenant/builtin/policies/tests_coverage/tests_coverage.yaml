@@ -1,0 +1,38 @@
+id: tests-coverage
+text: |
+  In-scope modules with related tests must include assertion signals in those
+  related test files. This policy enforces assertion-quality coverage for
+  structural source-to-test relationships, while modules-need-tests enforces
+  source-to-test structural alignment itself.
+  Tautological assertions (for example always-true checks) do not count as
+  assertion signal unless explicitly annotated as fixture-only using comment
+  marker `DEVCOV_FIXTURE_OK: <reason>` immediately above the assertion.
+metadata:
+  id: tests-coverage
+  severity: error
+  auto_fix: 'false'
+  enforcement: active
+  enabled: true
+  enforce_symbol_fidelity: true
+  symbol_kinds:
+    - function
+    - class
+  symbol_name_min_length: 3
+  symbol_assertion_window: 2
+  fixture_marker_pattern: '\bDEVCOV_FIXTURE_OK:\s*(?P<reason>\S.*)'
+  assertion_signal_patterns:
+    - '*=>\bassert\b'
+  tautology_patterns:
+    - '*=>^\s*assert\s*\(\s*true\s*\)\s*;?\s*$'
+    - '*=>^\s*assert\s+true\s*;?\s*$'
+    - 'rust=>^\s*assert!\s*\(\s*true\s*\)\s*;?\s*$'
+  include_suffixes: []
+  include_prefixes: []
+  exclude_prefixes: []
+  exclude_globs: []
+  watch_dirs: []
+  tests_watch_dirs: []
+  include_globs: []
+  exclude_suffixes: []
+  force_include_globs: []
+  watch_files: []

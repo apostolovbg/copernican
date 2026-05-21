@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  governance:
+    name: Governance
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        # v6
+        with:
+          python-version: "3.14"
+
+      - name: Configure Python cache root
+        run: |
+          echo "PYTHONPYCACHEPREFIX=$RUNNER_TEMP/devcovenant-pycache" \
+            >> "$GITHUB_ENV"
+
+      - name: Install DevCovenant runtime dependencies
+        run: |
+          python -m pip install -r devcovenant/runtime-requirements.lock
+
+      - name: Run DevCovenant open gate
+        run: python -m devcovenant gate --open
+
+      - name: Run DevCovenant verify gate
+        run: python -m devcovenant gate --verify
+
+      - name: Run DevCovenant workflow runs
+        run: python -m devcovenant run
+
+      - name: Run DevCovenant close gate
+        run: python -m devcovenant gate --close

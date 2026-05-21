@@ -1,0 +1,75 @@
+version: 1
+profile: fastapi
+category: framework
+suffixes:
+  - .py
+  - .json
+  - .yaml
+  - .yml
+ignore_dirs:
+  - .venv
+  - __pycache__
+  - .pytest_cache
+  - .mypy_cache
+  - build
+  - dist
+assets:
+  - path: main.py
+    template: main.py
+  - path: openapi.json
+    template: openapi.json
+policy_overlays:
+  dependency-management:
+    dependency_role_files:
+      - intent=>requirements.in
+      - resolved=>requirements.lock
+      - package_manifest=>pyproject.toml
+  documentation-growth-tracking:
+    user_facing_suffixes:
+      - .py
+      - .json
+      - .yaml
+      - .yml
+    user_facing_keywords:
+      - endpoint
+      - endpoints
+      - route
+      - routes
+      - handler
+      - handlers
+  line-length-limit:
+    include_suffixes:
+      - .py
+      - .json
+      - .yaml
+      - .yml
+  security-scanner:
+    include_suffixes:
+      - .py
+  name-clarity:
+    include_suffixes:
+      - .py
+  docstring-and-comment-coverage:
+    include_suffixes:
+      - .py
+  modules-need-tests:
+    include_suffixes:
+      - .py
+workflow_runs:
+  - id: tests
+    enabled: true
+    after: verify
+    before: close
+    order: 100
+    runner:
+      kind: command_group
+      commands:
+        - python3 -m unittest discover -v
+    success_contract:
+      kind: all_commands_exit_zero
+    recording:
+      record_in_session: true
+      summary_label: Tests
+      output_mode_config_field: engine.tests_output_mode
+      event_adapter_group: run_events
+      write_runtime_profile: true

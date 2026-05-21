@@ -1,0 +1,27 @@
+id: name-clarity
+text: |
+  Identifiers should be descriptive enough to communicate intent without
+  reading their implementation. Avoid cryptic or overly short names unless
+  explicitly justified.
+metadata:
+  id: name-clarity
+  severity: warning
+  auto_fix: 'false'
+  enforcement: active
+  exclude_prefixes: []
+  include_suffixes: []
+  include_prefixes: []
+  include_globs: []
+  exclude_suffixes: []
+  exclude_globs: []
+  force_include_globs: []
+  selector_roles:
+    - exclude
+    - include
+    - force_include
+  exclude_files: []
+  exclude_dirs: []
+  include_files: []
+  include_dirs: []
+  force_include_files: []
+  force_include_dirs: []

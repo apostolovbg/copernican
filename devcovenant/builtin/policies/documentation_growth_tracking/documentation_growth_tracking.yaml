@@ -1,0 +1,129 @@
+id: documentation-growth-tracking
+text: |
+  When user-facing files change (as defined by the user-facing selectors and
+  keywords), the documentation set listed here must be updated. User-facing
+  includes API surfaces, integration touchpoints, and any behavior that affects
+  the user's experience or workflow. Updated docs should mention the relevant
+  components by name so readers can find changes quickly. The policy also
+  enforces documentation quality standards such as clear core headings,
+  minimum depth, and readable structure. When `doc_routes` is configured,
+  each user-facing change must match at least one route and touch all mapped
+  docs.
+metadata:
+  id: documentation-growth-tracking
+  severity: warning
+  auto_fix: 'false'
+  enforcement: active
+  selector_roles:
+    - user_facing
+    - user_visible
+    - doc_quality
+  include_prefixes: []
+  exclude_prefixes: []
+  user_facing_prefixes: []
+  user_facing_exclude_prefixes: []
+  user_facing_suffixes: []
+  user_facing_files: []
+  user_facing_globs: []
+  user_facing_keywords:
+    - api
+    - endpoint
+    - endpoints
+    - route
+    - routes
+    - routing
+    - service
+    - services
+    - controller
+    - controllers
+    - handler
+    - handlers
+    - client
+    - clients
+    - webhook
+    - webhooks
+    - integration
+    - integrations
+    - sdk
+    - cli
+    - ui
+    - view
+    - views
+    - page
+    - pages
+    - screen
+    - screens
+    - form
+    - forms
+    - workflow
+    - workflows
+  user_visible_files: []
+  doc_quality_files: []
+  required_headings:
+    - Overview
+  require_toc: 'false'
+  min_section_count: '3'
+  min_word_count: '120'
+  doc_routes: []
+  require_mentions: 'true'
+  mention_min_length: '3'
+  mention_stopwords:
+    - devcovenant
+    - tools
+    - common
+    - custom
+    - policy
+    - policies
+    - script
+    - scripts
+    - py
+    - js
+    - ts
+    - json
+    - yml
+    - yaml
+    - toml
+    - md
+    - readme
+    - plan
+    - spec
+  include_suffixes: []
+  include_globs: []
+  exclude_suffixes: []
+  exclude_globs: []
+  force_include_globs: []
+  user_facing_exclude_globs:
+    - .vscode/**
+    - .idea/**
+    - .venv/**
+    - .python/**
+    - build/**
+    - dist/**
+    - __pycache__/**
+    - '*.egg-info/**'
+    - pip-wheel-metadata/**
+    - .pytest_cache/**
+    - .ruff_cache/**
+    - .mypy_cache/**
+    - .tox/**
+    - .nox/**
+    - .hypothesis/**
+    - .coverage
+    - .coverage.*
+    - htmlcov/**
+    - devcovenant/logs/**
+    - devcovenant/registry/runtime/**
+  user_facing_exclude_suffixes: []
+  user_facing_dirs: []
+  user_visible_globs: []
+  user_visible_dirs: []
+  doc_quality_globs: []
+  doc_quality_dirs: []
+  include_files: []
+  include_dirs: []
+  exclude_files: []
+  exclude_dirs: []
+  user_facing_exclude_files: []
+  user_facing_exclude_dirs: []
+  force_include_files: []
+  force_include_dirs: []

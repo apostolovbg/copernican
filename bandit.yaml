@@ -1,0 +1,7 @@
+# Keep Bandit focused on meaningful runtime-hardening findings.
+#
+# B105 is intentionally skipped because ordinary control tokens such as
+# "start", "critical", "stdout", and "false" are frequently misclassified as
+# secret material.
+skips:
+  - B105

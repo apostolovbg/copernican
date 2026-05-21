@@ -1,0 +1,24 @@
+version: 1
+profile: python_venv
+category: tooling
+suffixes: []
+ignore_dirs: []
+assets: []
+policy_overlays:
+  managed-environment:
+    expected_paths:
+      - .venv
+    expected_interpreters:
+      - .venv/bin/python
+      - .venv/Scripts/python.exe
+    command_search_paths: []
+    required_commands:
+      - pre-commit
+    manual_commands:
+      - '{current_python} -m venv .venv'
+      - '{managed_python} -m pip install -r requirements.lock'
+    managed_commands:
+      - bootstrap=>{current_python} -m venv .venv
+      - bootstrap=>{managed_python} -m pip install -r requirements.lock
+      - open=>{current_python} -m venv .venv
+      - open=>{managed_python} -m pip install -r requirements.lock

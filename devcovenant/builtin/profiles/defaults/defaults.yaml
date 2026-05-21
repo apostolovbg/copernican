@@ -1,0 +1,483 @@
+version: 1
+profile: defaults
+category: core
+suffixes: []
+ignore_dirs: []
+policy_overlays:
+  documentation-growth-tracking:
+    user_facing_files:
+      - .pre-commit-config.yaml
+      - pyproject.toml
+    user_facing_globs:
+      - .github/workflows/*.yml
+      - .github/workflows/*.yaml
+    user_facing_exclude_prefixes:
+      - tests
+    user_facing_exclude_dirs:
+      - tests/**
+    user_facing_suffixes:
+      - .py
+      - .js
+      - .ts
+      - .tsx
+      - .vue
+      - .go
+      - .rs
+      - .java
+      - .kt
+      - .swift
+      - .rb
+      - .php
+      - .cs
+      - .yml
+      - .yaml
+      - .json
+      - .toml
+    user_visible_files:
+      - README.md
+      - CONTRIBUTING.md
+      - AGENTS.md
+      - SPEC.md
+      - PLAN.md
+    doc_quality_files:
+      - README.md
+      - CONTRIBUTING.md
+      - AGENTS.md
+      - SPEC.md
+      - PLAN.md
+  version-sync:
+    version_file: VERSION
+    changelog_file: CHANGELOG.md
+    changelog_header_prefix: '## Version'
+    target_roles:
+      - docs
+      - changelog
+    role_extractors:
+      - docs=>project_version_line
+      - changelog=>changelog_header_version
+    target_role_files:
+      - docs=>README.md
+      - docs=>AGENTS.md
+      - docs=>CONTRIBUTING.md
+      - docs=>SPEC.md
+      - docs=>PLAN.md
+      - changelog=>CHANGELOG.md
+    target_role_globs: []
+    target_role_dirs: []
+  version-governance:
+    enforce_bumping: true
+    canonical_versions_required: false
+    version_file: VERSION
+    changelog_file: CHANGELOG.md
+    changelog_header_prefix: '## Version'
+    pep440_allow_prereleases: true
+    pep440_allow_dev_releases: true
+    pep440_allow_post_releases: true
+  last-updated:
+    include_suffixes:
+      - .md
+    include_globs:
+      - '*.md'
+    allowed_globs:
+      - README.md
+      - AGENTS.md
+      - CONTRIBUTING.md
+      - CHANGELOG.md
+      - SPEC.md
+      - PLAN.md
+    required_globs:
+      - README.md
+      - AGENTS.md
+      - CONTRIBUTING.md
+      - CHANGELOG.md
+      - SPEC.md
+      - PLAN.md
+  changelog-coverage:
+    main_changelog:
+      - CHANGELOG.md
+    skipped_files:
+      - CHANGELOG.md
+      - devcovenant/registry/registry.yaml
+      - .gitignore
+      - .pre-commit-config.yaml
+      - .github/workflows/ci.yml
+    header_doc_suffixes:
+      - .md
+      - .rst
+      - .txt
+    header_keys:
+      - Last Updated
+      - Project Version
+      - Project Stage
+      - Maintenance Stance
+      - Compatibility Policy
+      - Versioning Mode
+      - Project Codename
+      - Build Identity
+      - DevCovenant Version
+    header_scan_lines: 4
+    summary_labels:
+      - Change
+      - Why
+      - Impact
+    gate_status_file: devcovenant/registry/runtime/gate_status.json
+    summary_verbs:
+      - add
+      - added
+      - address
+      - addressed
+      - adjust
+      - adjusted
+      - align
+      - aligned
+      - amend
+      - amended
+      - automate
+      - automated
+      - bootstrap
+      - build
+      - built
+      - bump
+      - bumped
+      - cache
+      - clean
+      - cleaned
+      - clarify
+      - clarified
+      - consolidate
+      - consolidated
+      - configure
+      - correct
+      - corrected
+      - create
+      - created
+      - define
+      - defined
+      - deserialize
+      - deprecate
+      - deprecated
+      - detect
+      - document
+      - documented
+      - drop
+      - dropped
+      - enable
+      - enabled
+      - enforce
+      - enforced
+      - expand
+      - expanded
+      - extract
+      - fix
+      - fixed
+      - harden
+      - hardened
+      - implement
+      - improve
+      - improved
+      - instrument
+      - integrate
+      - introduce
+      - introduced
+      - invalidate
+      - lock
+      - materialize
+      - merge
+      - migrate
+      - migrated
+      - normalize
+      - normalized
+      - optimize
+      - pin
+      - preserve
+      - prevent
+      - profile
+      - publish
+      - reconcile
+      - regenerate
+      - refactor
+      - refactored
+      - release
+      - remove
+      - removed
+      - rename
+      - renamed
+      - replace
+      - replaced
+      - resolve
+      - restructure
+      - restructured
+      - revert
+      - revise
+      - revised
+      - sanitize
+      - scaffold
+      - serialize
+      - simplify
+      - simplified
+      - split
+      - stabilize
+      - stabilized
+      - streamline
+      - streamlined
+      - support
+      - supported
+      - sync
+      - tune
+      - unpin
+      - update
+      - updated
+      - upgrade
+      - upgraded
+      - validate
+      - validated
+      - verify
+      - verified
+      - wrap
+      - wrapped
+      - allow
+      - allowed
+      - analyze
+      - analyzed
+      - annotate
+      - annotated
+      - assess
+      - assessed
+      - audit
+      - audited
+      - calculate
+      - calculated
+      - check
+      - checked
+      - choose
+      - chosen
+      - close
+      - closed
+      - collect
+      - collected
+      - compare
+      - compared
+      - complete
+      - completed
+      - compose
+      - composed
+      - constrain
+      - constrained
+      - convert
+      - converted
+      - copy
+      - copied
+      - cover
+      - covered
+      - delete
+      - deleted
+      - derive
+      - derived
+      - describe
+      - described
+      - design
+      - designed
+      - diagnose
+      - diagnosed
+      - disable
+      - disabled
+      - ensure
+      - ensured
+      - estimate
+      - estimated
+      - evaluate
+      - evaluated
+      - execute
+      - executed
+      - explain
+      - explained
+      - expose
+      - exposed
+      - finalize
+      - finalized
+      - make
+      - made
+      - map
+      - mapped
+      - mark
+      - marked
+      - measure
+      - measured
+      - organize
+      - organized
+      - prioritize
+      - prioritized
+      - promote
+      - promoted
+      - prune
+      - pruned
+      - prove
+      - proved
+      - record
+      - recorded
+      - reduce
+      - reduced
+      - reject
+      - rejected
+      - repair
+      - repaired
+      - report
+      - reported
+      - reset
+      - restore
+      - restored
+      - retain
+      - retained
+      - review
+      - reviewed
+      - rewrite
+      - rewrote
+      - select
+      - selected
+      - sequence
+      - sequenced
+      - show
+      - showed
+      - sort
+      - sorted
+      - stage
+      - staged
+      - standardize
+      - standardized
+      - strengthen
+      - strengthened
+      - suppress
+      - suppressed
+      - test
+      - tested
+    required_globs:
+      - README.md
+      - AGENTS.md
+      - CONTRIBUTING.md
+      - CHANGELOG.md
+      - SPEC.md
+      - PLAN.md
+  line-length-limit:
+    max_length: 79
+    allow_long_url_lines: true
+    url_prefixes:
+      - 'https://'
+      - 'http://'
+      - 'ftp://'
+      - 'ftps://'
+      - 'sftp://'
+      - 'ssh://'
+      - 'ws://'
+      - 'wss://'
+      - 'file://'
+      - 'git://'
+      - 'svn://'
+      - 'mailto:'
+      - 'tel:'
+      - 'magnet:'
+      - 'torrent:'
+      - 'data:'
+      - 'urn:'
+    allow_long_lines: true
+    long_lines_contain: []
+    long_lines_between: []
+    include_suffixes:
+      - .py
+      - .md
+      - .rst
+      - .txt
+      - .yml
+      - .yaml
+      - .json
+      - .toml
+      - .cff
+    include_globs:
+      - '*.py'
+      - '*.md'
+      - '*.rst'
+      - '*.txt'
+      - '*.yml'
+      - '*.yaml'
+      - '*.json'
+      - '*.toml'
+      - '*.cff'
+    exclude_prefixes:
+      - build
+      - dist
+      - node_modules
+    exclude_globs:
+      - build/**
+      - dist/**
+      - node_modules/**
+      - '*.egg-info/**'
+      - '**/*.egg-info/**'
+  name-clarity:
+    exclude_prefixes:
+      - build
+      - dist
+      - node_modules
+    exclude_globs:
+      - build/**
+      - dist/**
+      - node_modules/**
+  security-scanner:
+    exclude_globs:
+      - tests/**
+      - '**/tests/**'
+  no-raw-errors:
+    include_suffixes:
+      - .py
+    include_globs:
+      - '*.py'
+    exclude_prefixes:
+      - build
+      - dist
+      - node_modules
+    exclude_globs:
+      - build/**
+      - dist/**
+      - node_modules/**
+    forbid_bare_except: true
+    forbid_raise_exception: true
+    forbid_broad_exception_handlers: true
+    forbid_silent_exception_pass: true
+    broad_exception_waiver_markers:
+      - DEVCOV_ALLOW_BROAD_ONCE
+    broad_exception_waiver_between:
+      - DEVCOV_BROAD_BEGIN=>DEVCOV_BROAD_END
+  modules-need-tests:
+    exclude_prefixes:
+      - build
+      - dist
+      - node_modules
+      - tests
+    watch_dirs:
+      - tests
+    tests_watch_dirs:
+      - tests
+  tests-coverage:
+    exclude_prefixes:
+      - build
+      - dist
+      - node_modules
+      - tests
+    watch_dirs:
+      - tests
+    tests_watch_dirs:
+      - tests
+project-governance:
+  changelog_file: CHANGELOG.md
+  unversioned_label: Unversioned
+  unreleased_heading: '## Unreleased'
+  allowed_stages:
+    - prototype
+    - alpha
+    - beta
+    - stable
+    - deprecated
+    - archived
+  allowed_maintenance_stances:
+    - active
+    - maintenance
+    - frozen
+    - sunset

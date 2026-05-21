@@ -1,4 +1,61 @@
 # Changelog
+**Doc ID:** CHANGELOG
+**Doc Type:** changelog
+**Project Version:** 12.0.1
+**Project Stage:** stable
+**Maintenance Stance:** active
+**Compatibility Policy:** forward-only
+**Versioning Mode:** versioned
+**Last Updated:** 2026-05-21
+**DevCovenant Version:** 1.0.1b5
+
+<!-- DEVCOV:BEGIN -->
+## DevCovenant Change Logging Rules
+This opening section is managed by DevCovenant for repositories that
+use DevCovenant.
+Add one entry for each substantive change under the current version header.
+Keep entries newest-first and record dates in ISO format (`YYYY-MM-DD`).
+Each entry must include Change/Why/Impact summary lines with action verbs.
+Keep one blank line after each version heading and between dated entries.
+Example:
+```
+## Version 1.2.3
+
+- 2026-01-23:
+  Change: Fixed null-pointer crash in invoice import.
+  Why: Production job failed when optional contact data was missing.
+  Impact: Imports complete for records with partial contact details.
+  Files:
+  billing/imports/parser.py
+  billing/imports/test_parser.py
+  docs/imports.md
+  Long paths should be wrapped with a trailing \
+  backslash and continued on the next indented line.
+  Example:
+  services/customer/contact/normalization/\
+    fallback_rules.py
+
+- 2026-01-22:
+  Change: Fixed duplicate email notifications on retry.
+  Why: Retry worker re-enqueued already-confirmed notification events.
+  Impact: Users receive one email per successful notification event.
+  Files:
+  notifications/worker.py
+  notifications/retry.py
+  notifications/test_retry.py
+
+## Version 1.2.2
+
+- 2026-01-21:
+  Change: Added initial release for invoice import and notification flow.
+  Why: Defined a first production-ready baseline for billing automation.
+  Impact: Teams can import invoices and send notifications end-to-end.
+  Files:
+  billing/imports/parser.py
+  notifications/worker.py
+  CHANGELOG.md
+```
+<!-- DEVCOV:END -->
 
 ## How to Log Changes
 Add one line for each substantive commit or pull request directly under the
@@ -21,6 +78,11 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.1
+- 2026-05-21 [semver:patch]: Migrated Copernican to the latest DevCovenant
+  layout, added the repo-owned `userproject` profile, wired the managed
+  environment to `.venv`, and moved the Copernican identity and version
+  wiring into the new governance stack (`devcovenant/config.yaml`,
+  `devcovenant/custom/profiles/userproject/userproject.yaml`, `AGENTS.md`).
 - 2026-01-09 [semver:patch]: Added ruff-format to the pre-commit toolchain
   for formatting parity (./.pre-commit-config.yaml).
 - 2026-01-07 [semver:patch]: Enabled DevCovenant’s `--fix` flow by wiring the

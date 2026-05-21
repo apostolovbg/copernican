@@ -1,0 +1,33 @@
+id: docstring-and-comment-coverage
+text: |
+  Source files must include a docstring or nearby explanatory comment so
+  intent stays visible even as code evolves. Adapters decide how each
+  language satisfies the requirement.
+metadata:
+  id: docstring-and-comment-coverage
+  severity: error
+  auto_fix: 'false'
+  enforcement: active
+  include_suffixes: []
+  exclude_prefixes:
+    - build
+    - dist
+    - node_modules
+  include_prefixes: []
+  include_globs: []
+  exclude_suffixes: []
+  exclude_globs:
+    - build/**
+    - dist/**
+    - node_modules/**
+  force_include_globs: []
+  selector_roles:
+    - include
+    - exclude
+    - force_include
+  include_files: []
+  include_dirs: []
+  exclude_files: []
+  exclude_dirs: []
+  force_include_files: []
+  force_include_dirs: []

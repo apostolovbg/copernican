@@ -1,0 +1,76 @@
+version: 1
+profile: devcovuser
+category: core
+suffixes: []
+ignore_dirs:
+  - vendor
+  - third_party
+  - node_modules
+policy_overlays:
+  changelog-coverage:
+    skipped_prefixes:
+      - devcovenant
+      - tests/devcovenant
+    skipped_globs:
+      - "*_old.*"
+  documentation-growth-tracking:
+    exclude_prefixes:
+      - devcovenant
+      - tests/devcovenant
+    user_facing_exclude_prefixes:
+      - devcovenant
+      - tests/devcovenant
+  line-length-limit:
+    exclude_prefixes:
+      - devcovenant
+    force_include_globs:
+      - devcovenant/custom/**
+      - tests/devcovenant/custom/**
+  name-clarity:
+    exclude_prefixes:
+      - devcovenant
+    force_include_globs:
+      - devcovenant/custom/**/*.py
+      - tests/devcovenant/custom/**/*.py
+  docstring-and-comment-coverage:
+    exclude_prefixes:
+      - devcovenant
+    force_include_globs:
+      - devcovenant/custom/**/*.py
+      - tests/devcovenant/custom/**/*.py
+  security-scanner:
+    exclude_prefixes:
+      - devcovenant
+    force_include_globs:
+      - devcovenant/custom/**/*.py
+      - tests/devcovenant/custom/**/*.py
+  no-raw-errors:
+    exclude_prefixes:
+      - devcovenant
+    force_include_globs:
+      - devcovenant/custom/**/*.py
+      - tests/devcovenant/custom/**/*.py
+  modules-need-tests:
+    exclude_prefixes:
+      - build
+      - dist
+      - node_modules
+      - tests
+      - devcovenant
+    force_include_globs:
+      - devcovenant/custom/**/*.py
+    watch_dirs:
+      - tests
+    tests_watch_dirs:
+      - tests
+    mirror_roots:
+      - devcovenant/custom=>tests/devcovenant/custom
+  tests-coverage:
+    exclude_prefixes:
+      - build
+      - dist
+      - node_modules
+      - tests
+      - devcovenant
+    force_include_globs:
+      - devcovenant/custom/**/*.py

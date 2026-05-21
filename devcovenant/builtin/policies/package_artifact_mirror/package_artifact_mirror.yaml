@@ -1,0 +1,19 @@
+id: package-artifact-mirror
+text: |
+  Ensure package-shipped artifacts that are true mirrors stay in exact sync
+  with their canonical repository-root sources. `file_mirrors` and
+  `dir_mirrors` declare `source=>target` pairs. `dir_skip_paths` declares
+  repo-relative mirror exceptions in `source_dir=>relative/path` form.
+  Dependency lockfiles and third-party license inventories are not mirrors
+  unless the repository explicitly declares them here. Auto-fix rewrites the
+  configured exact mirrors from their source paths, preserves separately
+  mirrored files that live inside mirrored directories, preserves package-owned
+  skipped paths, and removes stale mirrored files.
+metadata:
+  id: package-artifact-mirror
+  severity: error
+  auto_fix: 'true'
+  enforcement: active
+  file_mirrors: []
+  dir_mirrors: []
+  dir_skip_paths: []
