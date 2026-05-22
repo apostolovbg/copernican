@@ -90,7 +90,7 @@ def load_registry() -> List[MinigameDescriptor]:
         return refresh_registry()
     try:
         entries = json.loads(REGISTRY_FILE.read_text())
-    except Exception:
+    except (json.JSONDecodeError, OSError, TypeError, ValueError):
         return refresh_registry()
     return [_descriptor_from_entry(entry) for entry in entries]
 

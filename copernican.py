@@ -212,7 +212,7 @@ def _build_gui_progress_callback(
         payload.setdefault("timestamp", utils.get_timestamp())
         try:
             progress_state.record_progress(target, payload)
-        except Exception as exc:  # pragma: no cover - defensive logging
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:  # pragma: no cover - defensive logging
             logger = log_mod.get_program_logger()
             logger.debug("Failed to update GUI progress state: %s", exc)
 
@@ -433,7 +433,7 @@ def _collect_engine_index(
             module = importlib.import_module(module_name)
             label = getattr(module, "ENGINE_LABEL", path.stem)
             version_label = getattr(module, "ENGINE_VERSION", "unknown")
-        except Exception:
+        except (AttributeError, ImportError, ModuleNotFoundError, RuntimeError):
             module = None
             label = path.stem
             version_label = "unavailable"
@@ -668,7 +668,7 @@ def _print_manifest_file(path: Path) -> bool:
         return False
     try:
         manifest_data = run_manifest.load_manifest(str(path))
-    except Exception as exc:
+    except (OSError, RuntimeError, TypeError, UnicodeError, ValueError, yaml.YAMLError) as exc:
         console.write(f"Failed to load manifest {path}: {exc}", error=True)
         return False
     console.write("")
@@ -687,7 +687,7 @@ def _run_validation_cli() -> bool:
     repo_root = Path(__file__).resolve().parent
     try:
         code, summary = run_validation_suite(script_dir=repo_root)
-    except Exception as exc:
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
         code = 1
         summary = f"Validation runner could not start: {exc}"
         console.write(summary, error=True)
@@ -722,7 +722,7 @@ def _run_analysis_summary_cli(
         return False
     try:
         result = analysis.analyze_run(run_dir)
-    except Exception as exc:
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
         console.write(
             f"Failed to analyse run {run_dir}: {exc}", error=True
         )
@@ -741,7 +741,7 @@ def _run_analysis_summary_cli(
                 formats=formats,
                 result=result,
             )
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
             console.write(
                 f"Failed to export run summary: {exc}", error=True
             )
@@ -771,7 +771,7 @@ def _run_analysis_compare_cli(
         base_result = analysis.analyze_run(base_dir)
         alt_result = analysis.analyze_run(alt_dir)
         comparison = analysis.compare_runs(base_result, alt_result)
-    except Exception as exc:
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
         console.write(f"Comparison failed: {exc}", error=True)
         return False
 
@@ -788,7 +788,7 @@ def _run_analysis_compare_cli(
                 output_dir,
                 formats=formats,
             )
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
             console.write(
                 f"Failed to export comparison summary: {exc}", error=True
             )
@@ -815,7 +815,7 @@ def _run_analysis_posterior_cli(
 
     try:
         result = analysis.analyze_run(run_dir)
-    except Exception as exc:
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
         console.write(
             f"Failed to analyse run for posterior: {exc}", error=True
         )
@@ -841,7 +841,7 @@ def _run_analysis_posterior_cli(
             result=result,
             overview_path=output_dest,
         )
-    except Exception as exc:
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
         console.write(f"Failed to render posterior: {exc}", error=True)
         return False
 
@@ -943,7 +943,7 @@ def _handle_fatal_signal(signum: int, _frame: object) -> None:
             with open(CURRENT_LOG_FILE, "a", encoding="utf-8") as fh:
                 fh.write(msg + "\n")
                 faulthandler.dump_traceback(file=fh, all_threads=True)
-        except Exception as exc:
+        except (OSError, ValueError) as exc:
             if logger:
                 # Preserve the failure details in the central log.
                 logger.exception(
@@ -1273,7 +1273,13 @@ def _spawn_detached_gui(argv: list[str], launch: LaunchRequest) -> bool:
                 "closing the launcher terminal."
             )
             return True
-        except Exception as exc:  # pragma: no cover - defensive guard
+        except (
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+            subprocess.SubprocessError,
+        ) as exc:  # pragma: no cover - defensive guard
             failures.append(f"{candidate}: {exc}")
             program_logger.warning(
                 "Failed to detach GUI with %s: %s", candidate, exc
@@ -1371,7 +1377,7 @@ def _cleanup_program_logger(remove_log: bool = False) -> None:
     for handler in list(program_logger.handlers):
         try:
             handler.close()
-        except Exception:
+        except (OSError, RuntimeError, ValueError):
             pass
         program_logger.removeHandler(handler)
     PROGRAM_LOGGER = None
@@ -1413,7 +1419,7 @@ def _get_cpu_info() -> tuple[str, str]:
         freq_info = psutil.cpu_freq()
         if freq_info:
             freq = freq_info.current / 1000.0
-    except Exception as exc:
+    except (AttributeError, ImportError, OSError, RuntimeError, ValueError) as exc:
         if logger:
             # ``psutil`` is optional; log and continue with unknown frequency.
             logger.warning(
@@ -1434,7 +1440,7 @@ def _get_cpu_info() -> tuple[str, str]:
                         cpu = line.split(":", 1)[1].strip()
                     if line.startswith("cpu MHz") and freq is None:
                         freq = float(line.split(":", 1)[1]) / 1000.0
-        except Exception as exc:
+        except (OSError, UnicodeError, ValueError) as exc:
             if logger:
                 # Reading ``/proc/cpuinfo`` can fail in restricted
                 # environments; log and fall back to placeholders.
@@ -1546,7 +1552,7 @@ def _finalize_cli_run() -> None:
         )
         try:
             plt.show(block=True)
-        except Exception as e_show:
+        except (OSError, RuntimeError, TypeError, ValueError) as e_show:
             console.write(f"Error during final plt.show(): {e_show}")
     console.write("")
 
@@ -1567,7 +1573,7 @@ def _run_cli_launch(
     try:
         main_workflow(manifest_path=launch_request.manifest_path)
         return 0
-    except Exception as exc:  # pragma: no cover - deferred logging
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:  # pragma: no cover - deferred logging
         _handle_cli_exception(exc)
         return 1
     finally:

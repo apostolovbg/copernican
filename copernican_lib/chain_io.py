@@ -23,13 +23,13 @@ import xarray as xr
 # ArviZ expects ``scipy.signal.gaussian`` which moved in newer SciPy.
 try:  # pragma: no cover - compatibility shim
     from scipy.signal import gaussian  # type: ignore # noqa: F401
-except Exception:  # pragma: no cover - SciPy layout varies
+except ImportError:  # pragma: no cover - SciPy layout varies
     try:
         import scipy.signal as _signal
         from scipy.signal.windows import gaussian  # type: ignore # noqa: F401
 
         _signal.gaussian = gaussian
-    except Exception:  # pragma: no cover
+    except (AttributeError, ImportError):  # pragma: no cover
         pass
 
 try:
@@ -96,7 +96,7 @@ def save_posterior(
         try:
             idata.to_netcdf(filepath)
             logger.info("Posterior samples saved to %s", filepath)
-        except Exception as exc:  # pragma: no cover - file errors uncommon
+        except (OSError, ValueError) as exc:  # pragma: no cover
             logger.error("Failed saving posterior to %s: %s", filepath, exc)
         return
 
@@ -125,7 +125,7 @@ def save_posterior(
             "(ArviZ missing)",
             filepath,
         )
-    except Exception as exc:  # pragma: no cover - file errors uncommon
+    except (OSError, ValueError) as exc:  # pragma: no cover
         logger.error("Failed saving posterior to %s: %s", filepath, exc)
 
 

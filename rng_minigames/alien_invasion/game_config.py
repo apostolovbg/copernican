@@ -55,7 +55,7 @@ def _write_default_settings(path: Path) -> None:
         path.write_text(
             yaml.safe_dump(DEFAULT_SETTINGS, sort_keys=False).strip() + "\n"
         )
-    except Exception:
+    except (OSError, TypeError, ValueError, yaml.YAMLError):
         pass
 
 
@@ -69,7 +69,7 @@ def load_settings() -> Dict[str, Any]:
     except FileNotFoundError:
         disk_settings = {}
         _write_default_settings(path)
-    except Exception:
+    except (OSError, TypeError, ValueError, yaml.YAMLError):
         disk_settings = {}
         _write_default_settings(path)
     if not path.exists():

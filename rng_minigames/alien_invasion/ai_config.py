@@ -64,7 +64,7 @@ def _write_default_settings_file(path: Path) -> None:
         path.write_text(
             yaml.safe_dump(DEFAULT_SETTINGS, sort_keys=False).strip() + "\n"
         )
-    except Exception:
+    except (OSError, TypeError, ValueError, yaml.YAMLError):
         pass
 
 
@@ -78,7 +78,7 @@ def load_settings() -> Dict[str, Any]:
     else:
         try:
             raw = yaml.safe_load(path.read_text()) or {}
-        except Exception:
+        except (OSError, TypeError, ValueError, yaml.YAMLError):
             raw = {}
             _write_default_settings_file(path)
     return _merge(DEFAULT_SETTINGS, raw)

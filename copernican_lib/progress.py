@@ -127,7 +127,7 @@ class BatchProgressBar:
         }
         try:
             self._progress_listener(record)
-        except Exception:
+        except (RuntimeError, TypeError, ValueError, KeyError):
             pass
 
     def start_batch(self, batch_start: int, batch_end: int) -> None:

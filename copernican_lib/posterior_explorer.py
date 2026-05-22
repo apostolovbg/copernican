@@ -30,7 +30,7 @@ def load_inference_data(path: Path | str) -> xr.Dataset:
     if arviz_module is not None:
         try:
             return arviz_module.from_netcdf(str(path)).posterior
-        except Exception:
+        except (OSError, RuntimeError, ValueError):
             pass
     return xr.open_dataset(path, engine="scipy")
 

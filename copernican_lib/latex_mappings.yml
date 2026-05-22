@@ -45,13 +45,6 @@ symbol_replacements:
   \Omega_{b0}: Omega_b0
   \Omega_{r0}: Omega_r0
   \infty: sympy.oo
-  \varepsilon: varepsilon
-  \vartheta: vartheta
-  \varpi: varpi
-  \varrho: varrho
-  \varsigma: varsigma
-  \Upsilon: Upsilon
-  \omicron: omicron
   \Omega_{k0}: Omega_k0
   \Omega_{\Lambda0}: Omega_Lambda0
   \Omega_{\gamma}: Omega_gamma

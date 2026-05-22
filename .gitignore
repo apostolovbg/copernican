@@ -60,6 +60,7 @@ build
 
 # Profile: userproject
 data
+models/cache
 cache
 vendor
 third_party

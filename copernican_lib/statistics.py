@@ -144,7 +144,14 @@ def calculate_bao_observables(
     if get_camb_params is not None:
         try:
             camb_params = get_camb_params(cosmo_params)
-        except Exception as exc:
+        except (
+            AttributeError,
+            ImportError,
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:
             logger.warning(
                 "Failed to obtain CAMB parameters for BAO predictions: %s",
                 exc,
@@ -275,7 +282,14 @@ def calculate_bao_observables(
                 rs_value = float(
                     model_plugin.get_sound_horizon_rs_Mpc(*cosmo_params)
                 )
-            except Exception as exc:
+            except (
+                AttributeError,
+                ImportError,
+                OSError,
+                RuntimeError,
+                TypeError,
+                ValueError,
+            ) as exc:
                 logger.error(
                     "Failed to calculate r_s for model '%s': %s",
                     model_name,
@@ -329,7 +343,17 @@ def calculate_bao_observables(
                     bao_pred_df.loc[index, "model_prediction"] = (
                         model_pred_numerator / rs_value
                     )
-            except Exception:
+            except (
+                AttributeError,
+                IndexError,
+                ImportError,
+                KeyError,
+                OSError,
+                RuntimeError,
+                TypeError,
+                ValueError,
+                ZeroDivisionError,
+            ):
                 logger.exception(
                     "statistics.calculate_bao_observables: "
                     "BAO prediction failed for %s at z=%s in model '%s'",
@@ -374,7 +398,14 @@ def calculate_bao_observables(
                     "dh_over_rs": dh_smooth / rs_value,
                     "dv_over_rs": dv_smooth / rs_value,
                 }
-            except Exception as exc:
+            except (
+                AttributeError,
+                ImportError,
+                OSError,
+                RuntimeError,
+                TypeError,
+                ValueError,
+            ) as exc:
                 logger.error(
                     "Failed to calculate smooth BAO curves for %s: %s",
                     model_name,

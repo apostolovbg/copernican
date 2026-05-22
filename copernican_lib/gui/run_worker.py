@@ -40,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
             return copernican.main(run_args)
         except SystemExit as exc:  # pragma: no cover - propagated status
             return int(exc.code or 0)
-        except Exception:
+        except (OSError, RuntimeError, TypeError, ValueError):
             logging.getLogger().critical(
                 "GUI worker encountered an unhandled exception.",
                 exc_info=True,

@@ -72,7 +72,7 @@ def run_validation_suite(
                 run_start_ts=timestamp,
                 log_prefix="validation_run",
             )
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             exit_code = 1
             _LOGGER.exception(
                 "Validation manifest %s failed", manifest_path.name

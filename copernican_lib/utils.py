@@ -180,7 +180,7 @@ def set_random_seed(seed: int = 0) -> None:
         if hasattr(camb, "set_random_seed"):
             camb.set_random_seed(seed)
             logger.info("CAMB RNG seed set to %s", seed)
-    except Exception:
+    except ImportError:
         logger.debug("CAMB RNG seeding unavailable", exc_info=True)
     logger.info("Global RNG seed set to %s", seed)
 

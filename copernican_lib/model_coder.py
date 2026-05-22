@@ -169,7 +169,7 @@ class _GeneratedCallable:
             }
             # security-scanner: allow generated code execution
             # after validation.
-            exec(compiled, env)
+            exec(compiled, env)  # nosec B102 - validated generated code.
             generated = env[func_name]
         else:
             generated = sp.lambdify(
@@ -1072,7 +1072,15 @@ def generate_callables(cache_path):
                         "Derived r_s from symbolic rs_expression in model "
                         "YAML.",
                     )
-                except Exception as e:
+                except (
+                    AttributeError,
+                    KeyError,
+                    NameError,
+                    SyntaxError,
+                    TypeError,
+                    ValueError,
+                    ZeroDivisionError,
+                ) as e:
                     msg = f"Failed to parse rs_expression: {e}"
                     error_handler.report_error(msg)
                     raise ValueError(msg) from e
@@ -1092,7 +1100,15 @@ def generate_callables(cache_path):
                     "are disabled."
                 )
                 model_data["valid_for_bao"] = False
-        except Exception as e:
+        except (
+            AttributeError,
+            KeyError,
+            NameError,
+            SyntaxError,
+            TypeError,
+            ValueError,
+            ZeroDivisionError,
+        ) as e:
             msg = f"Failed to parse Hz_expression: {e}"
             error_handler.report_error(msg)
             raise ValueError(msg) from e
@@ -1126,14 +1142,31 @@ def generate_callables(cache_path):
                 )
                 test_args = (0.5,) + mid_params
                 compiled_callable(*test_args)
-            except Exception as eval_e:
+            except (
+                ArithmeticError,
+                AttributeError,
+                KeyError,
+                NameError,
+                SyntaxError,
+                TypeError,
+                ValueError,
+                ZeroDivisionError,
+            ) as eval_e:
                 error_handler.report_error(
                     f"Generated function '{name}' raised an error when "
                     f"tested: {eval_e}"
                 )
             funcs[name] = compiled_callable
             code_dict[name] = str(sym_expr)
-        except Exception as e:
+        except (
+            AttributeError,
+            KeyError,
+            NameError,
+            SyntaxError,
+            TypeError,
+            ValueError,
+            ZeroDivisionError,
+        ) as e:
             msg = f"Failed to parse equation '{name}': {e}"
             error_handler.report_error(msg)
             raise ValueError(msg) from e
@@ -1142,7 +1175,6 @@ def generate_callables(cache_path):
         "distance_modulus_model" not in funcs
         and "get_luminosity_distance_Mpc" in funcs
     ):
-
         funcs["distance_modulus_model"] = _DistanceModulusFromLuminosity(
             funcs["get_luminosity_distance_Mpc"]
         )

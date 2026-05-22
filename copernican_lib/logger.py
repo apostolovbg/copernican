@@ -334,7 +334,7 @@ def log_environment_info(
         try:
             mod = importlib.import_module(name)
             pkgs[name] = getattr(mod, "__version__", "unknown")
-        except Exception:
+        except ImportError:
             pkgs[name] = "not installed"
     logger.info("Environment details:", **log_kwargs)
     logger.info(f"  Python: {py_ver}", **log_kwargs)

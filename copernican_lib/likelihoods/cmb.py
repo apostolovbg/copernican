@@ -415,7 +415,14 @@ def compute_cmb_spectrum_from_dict(
         lmax = int(np.max(list(ells)))
         cache_key = ("dict", items, lmax, tuple(sorted(spectra)))
         full = _cached_cmb(cache_key)
-    except Exception as exc:  # pragma: no cover - camb errors are logged
+    except (
+        AttributeError,
+        ImportError,
+        OSError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+    ) as exc:  # pragma: no cover - camb errors are logged
         logger.error("(compute_cmb_spectrum_from_dict): %s", exc)
         return np.full_like(np.asarray(list(ells)), np.nan, dtype=float)
 
@@ -438,7 +445,14 @@ def compute_cmb_spectrum_cached(
     logger = logging.getLogger()
     try:
         camb_params = plugin.get_camb_params(cosmo_params)
-    except Exception as exc:
+    except (
+        AttributeError,
+        ImportError,
+        OSError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+    ) as exc:
         logger.error("(compute_cmb_spectrum_cached): %s", exc)
         return np.full_like(np.asarray(list(ells)), np.nan, dtype=float)
 
@@ -538,7 +552,14 @@ class CMBLike(LikelihoodProtocol):
 
         try:
             camb_params = self.plugin.get_camb_params(params)
-        except Exception:
+        except (
+            AttributeError,
+            ImportError,
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ):
             self._state = LikelihoodState()
             return float("-inf")
 
@@ -581,7 +602,12 @@ class CMBLike(LikelihoodProtocol):
             chi2 = float(
                 self._residual_buffer @ cov_inv @ self._residual_buffer
             )
-        except Exception as exc:
+        except (
+            FloatingPointError,
+            np.linalg.LinAlgError,
+            RuntimeError,
+            ValueError,
+        ) as exc:
             logger.error("(cmb_like): Linear algebra failure: %s", exc)
             self._state = LikelihoodState()
             return float("-inf")

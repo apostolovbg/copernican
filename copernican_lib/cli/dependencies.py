@@ -52,7 +52,7 @@ def run_startup_tests() -> bool:
             [sys.executable, "-m", "unittest", "discover", "-v"],
             check=False,
         )
-    except Exception as exc:  # pragma: no cover - defensive guard
+    except (OSError, subprocess.SubprocessError) as exc:  # pragma: no cover
         console.write(f"Error running startup tests: {exc}")
         return False
     return result.returncode == 0
@@ -282,7 +282,7 @@ def check_dependencies() -> None:
         except ValueError:
             try:
                 importlib.import_module(pkg)
-            except Exception:
+            except (ImportError, ModuleNotFoundError):
                 missing.append(pkg)
 
     if missing:

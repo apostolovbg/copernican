@@ -47,7 +47,7 @@ def _normalize_hidden_layers(raw: Any) -> List[int]:
             return
         try:
             number = int(entry)
-        except Exception:
+        except (TypeError, ValueError):
             return
         number = max(1, min(MAX_LAYER_WIDTH, number))
         values.append(number)
@@ -430,7 +430,7 @@ class AlienInvasionAI:
             return
         try:
             saved_state = yaml.safe_load(self.state_path.read_text()) or {}
-        except Exception:
+        except (OSError, TypeError, ValueError, yaml.YAMLError):
             return
         if "weights" in saved_state:
             self.state["weights"].update(saved_state["weights"])
@@ -464,7 +464,7 @@ class AlienInvasionAI:
         }
         try:
             self.state_path.write_text(yaml.safe_dump(payload))
-        except Exception:
+        except (OSError, TypeError, ValueError, yaml.YAMLError):
             pass
 
     def forget(self) -> None:
@@ -475,7 +475,7 @@ class AlienInvasionAI:
         try:
             if self.state_path.exists():
                 self.state_path.unlink()
-        except Exception:
+        except OSError:
             pass
 
     #
@@ -608,7 +608,7 @@ class AlienInvasionAI:
                 "weights": [layer_one_weights, layer_two_weights],
                 "biases": [layer_one_biases, layer_two_biases],
             }
-        except Exception:
+        except (KeyError, OSError, RuntimeError, TypeError, ValueError):
             return _init_network(configured)
 
     def _feature_vector(self, features: Dict[str, float]) -> List[float]:

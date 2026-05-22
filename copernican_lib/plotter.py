@@ -446,7 +446,7 @@ def _smooth_line(
         x_new = np.linspace(x_sorted[0], x_sorted[-1], points)
         y_new = spline(x_new)
         return x_new, y_new
-    except Exception as exc:
+    except (AttributeError, RuntimeError, TypeError, ValueError) as exc:
         get_logger().warning(f"Could not smooth line: {exc}")
         return x, y
 
@@ -471,7 +471,7 @@ def get_binned_average(
             "Scipy not found, cannot plot binned residual averages.",
         )
         return np.array([]), np.array([])
-    except Exception as exc:
+    except (AttributeError, RuntimeError, TypeError, ValueError) as exc:
         get_logger().warning(
             f"Could not calculate binned average due to an error: {exc}"
         )
@@ -1362,7 +1362,7 @@ def plot_hubble_diagram(
     try:
         plt.savefig(os.path.join(plot_dir, filename), dpi=300)
         logger.info(f"Hubble diagram saved to {filename}")
-    except Exception as exc:
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
         logger.error(f"Error saving Hubble diagram: {exc}")
     finally:
         plt.close(fig)
@@ -1709,7 +1709,7 @@ def plot_bao_observables(
     try:
         plt.savefig(os.path.join(plot_dir, filename), dpi=300)
         logger.info(f"BAO plot saved to {filename}")
-    except Exception as exc:
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
         logger.error(f"Error saving BAO plot: {exc}")
     finally:
         plt.close(fig)
@@ -1750,7 +1750,12 @@ def plot_cmb_spectrum(
         try:
             cov = np.linalg.inv(cmb_data_df.attrs["covariance_matrix_inv"])
             diag_errors_plot = np.sqrt(np.diag(cov))
-        except Exception as exc:
+        except (
+            FloatingPointError,
+            np.linalg.LinAlgError,
+            RuntimeError,
+            ValueError,
+        ) as exc:
             logger.warning(
                 f"Could not derive CMB errors from covariance: {exc}",
             )
@@ -2077,7 +2082,7 @@ def plot_cmb_spectrum(
     try:
         plt.savefig(os.path.join(plot_dir, filename), dpi=300)
         logger.info(f"CMB plot saved to {filename}")
-    except Exception as exc:
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
         logger.error(f"Error saving CMB plot: {exc}")
     finally:
         plt.close(fig)
@@ -2246,7 +2251,7 @@ def plot_corner(
         try:
             probe_fig = plt.figure()
             plt.close(probe_fig)
-        except Exception as error:
+        except (AttributeError, OSError, RuntimeError, ValueError) as error:
             logger.warning(
                 "Corner plot backend %s failed (%s); forcing Agg fallback.",
                 backend,
@@ -2328,7 +2333,14 @@ def plot_corner(
                     var_names,
                     bins,
                 )
-        except Exception as exc:  # pragma: no cover - ArviZ-specific failures
+        except (
+            AttributeError,
+            ImportError,
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:  # pragma: no cover - ArviZ-specific failures
             logger.warning(
                 "ArviZ corner rendering failed (%s); falling back "
                 "to legacy grid.",
@@ -2399,7 +2411,7 @@ def plot_corner(
     try:
         plt.savefig(os.path.join(plot_dir, filename), dpi=300)
         logger.info(f"Corner plot saved to {filename}")
-    except Exception as exc:  # pragma: no cover - log path only
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:  # pragma: no cover - log path only
         logger.error(f"Error saving corner plot: {exc}")
     finally:
         plt.close(fig)
@@ -2635,7 +2647,7 @@ def plot_parameter_histograms(
     try:
         plt.savefig(os.path.join(plot_dir, filename), dpi=300)
         logger.info(f"Parameter histograms saved to {filename}")
-    except Exception as exc:
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
         logger.error(f"Error saving parameter histograms: {exc}")
     finally:
         plt.close(fig)

@@ -7,7 +7,7 @@ import random
 try:  # pragma: no cover - Tk only available when GUI rendering is enabled
     import tkinter as tkinter_module
     from tkinter import ttk
-except Exception:  # pragma: no cover - executed on headless environments
+except ImportError:  # pragma: no cover - executed on headless environments
     tkinter_module = None
     ttk = None
 

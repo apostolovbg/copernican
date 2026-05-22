@@ -55,7 +55,7 @@ def _git_info() -> dict:
             .decode()
             .strip()
         )
-    except Exception:
+    except (OSError, subprocess.CalledProcessError):
         commit = "unknown"
     try:
         subprocess.check_output(
@@ -65,7 +65,7 @@ def _git_info() -> dict:
         dirty = False
     except subprocess.CalledProcessError:
         dirty = True
-    except Exception:
+    except OSError:
         dirty = True
     return {"commit": commit, "dirty": dirty}
 
@@ -87,7 +87,7 @@ def _camb_info(models: Iterable[tuple[object, str]]) -> dict | None:
         import camb  # type: ignore
 
         version = getattr(camb, "__version__", "unknown")
-    except Exception:
+    except ImportError:
         version = "unavailable"
 
     configuration = cmb_module.describe_camb_configuration()

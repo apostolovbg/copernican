@@ -97,7 +97,7 @@ class SNeLike(LikelihoodProtocol):
 
         try:
             mu_model = self.mu_model(self._z_values, *params)
-        except Exception:  # pragma: no cover - logged upstream
+        except (RuntimeError, TypeError, ValueError, ZeroDivisionError):
             self._state = LikelihoodState()
             return float("-inf")
 
@@ -133,7 +133,12 @@ class SNeLike(LikelihoodProtocol):
                     self._residual_buffer @ cov_inv @ self._residual_buffer
                 )
                 metadata["covariance"] = "full"
-            except Exception as exc:
+            except (
+                np.linalg.LinAlgError,
+                RuntimeError,
+                TypeError,
+                ValueError,
+            ) as exc:
                 logger.warning(
                     "Falling back to diagonal covariance due to issue: %s",
                     exc,

@@ -5,7 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Sequence
 
-from devcovenant.core.policy_contract import CheckContext, PolicyCheck, Violation
+from devcovenant.core.policy_contract import (
+    CheckContext,
+    PolicyCheck,
+    Violation,
+)
 
 _DEFAULT_LAUNCHERS = ("start.bat", "start.sh", "start.command")
 _SHARED_VISIBLE_FRAGMENTS = (
@@ -24,7 +28,7 @@ _SHARED_VISIBLE_FRAGMENTS = (
 )
 _PER_FILE_FRAGMENTS = {
     "start.bat": (
-        'set /p CHOICE=Write the number of choice:',
+        "set /p CHOICE=Write the number of choice:",
         "echo 1^) Start Copernican Suite (GUI)",
         "echo 2^) Start Copernican Suite (CLI)",
         "echo 5^) Environment and dependency management",
@@ -115,9 +119,7 @@ class StartScriptParityCheck(PolicyCheck):
                         policy_id=self.policy_id,
                         severity="error",
                         file_path=path,
-                        message=(
-                            f"Missing launcher script: {launcher_name}."
-                        ),
+                        message=(f"Missing launcher script: {launcher_name}."),
                         suggestion=(
                             "Restore the launcher and keep its menu copy in "
                             "lock-step with the other entrypoints."

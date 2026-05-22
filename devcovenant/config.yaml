@@ -1066,10 +1066,10 @@ autogen_metadata_overlays:
   docstring-and-comment-coverage:
     exclude_prefixes:
     - devcovenant
+    - tests
     force_include_globs:
     - devcovenant/custom/**/*.py
     - tests/devcovenant/custom/**/*.py
-    - tests/**/*.py
     include_suffixes:
     - .py
   documentation-growth-tracking:
@@ -1270,6 +1270,7 @@ autogen_metadata_overlays:
     - dist
     - node_modules
     - devcovenant
+    - tests
     forbid_bare_except: 'true'
     forbid_broad_exception_handlers: 'true'
     forbid_raise_exception: 'true'
@@ -1277,7 +1278,6 @@ autogen_metadata_overlays:
     force_include_globs:
     - devcovenant/custom/**/*.py
     - tests/devcovenant/custom/**/*.py
-    - tests/**/*.py
     include_globs:
     - '*.py'
     include_suffixes:

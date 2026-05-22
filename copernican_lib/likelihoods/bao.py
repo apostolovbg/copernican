@@ -135,7 +135,14 @@ class BAOLike(LikelihoodProtocol):
         if self._get_camb_params is not None:
             try:
                 camb_params = self._get_camb_params(params)
-            except Exception as exc:
+            except (
+                AttributeError,
+                ImportError,
+                OSError,
+                RuntimeError,
+                TypeError,
+                ValueError,
+            ) as exc:
                 logger.warning(
                     "(bao_like): Failed to obtain CAMB parameters; %s",
                     exc,
@@ -147,7 +154,14 @@ class BAOLike(LikelihoodProtocol):
                             camb_params,
                             self._z_values,
                         )
-                    except Exception as exc:
+                    except (
+                        AttributeError,
+                        ImportError,
+                        OSError,
+                        RuntimeError,
+                        TypeError,
+                        ValueError,
+                    ) as exc:
                         logger.warning(
                             "(bao_like): CAMB background failed; falling back "
                             "to model distances: %s",
@@ -191,7 +205,16 @@ class BAOLike(LikelihoodProtocol):
                         }
                     )
                     return float("-inf")
-                except Exception as exc:
+                except (
+                    AttributeError,
+                    ImportError,
+                    OSError,
+                    RuntimeError,
+                    TypeError,
+                    ValueError,
+                    ZeroDivisionError,
+                    OverflowError,
+                ) as exc:
                     logger.warning(
                         "(bao_like): Sound horizon fallback failed: %s",
                         exc,
@@ -256,7 +279,7 @@ class BAOLike(LikelihoodProtocol):
                     self._residual_buffer @ cov_inv @ self._residual_buffer
                 )
                 metadata["covariance"] = "full"
-            except Exception as exc:
+            except (RuntimeError, TypeError, ValueError, np.linalg.LinAlgError) as exc:
                 logger.warning(
                     "(bao_like): Falling back to diagonal covariance: %s",
                     exc,
@@ -329,7 +352,14 @@ class BAOLike(LikelihoodProtocol):
                 exc,
             )
             return None
-        except Exception:
+        except (
+            AttributeError,
+            ImportError,
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ):
             return None
 
         if (
@@ -355,7 +385,14 @@ class BAOLike(LikelihoodProtocol):
                     ),
                     dtype=float,
                 )
-            except Exception:
+            except (
+                AttributeError,
+                ImportError,
+                OSError,
+                RuntimeError,
+                TypeError,
+                ValueError,
+            ):
                 dv_vals = np.full_like(dm_vals, np.nan, dtype=float)
             if dv_vals.shape != dm_vals.shape:
                 dv_vals = np.full_like(dm_vals, np.nan, dtype=float)
@@ -380,7 +417,14 @@ class BAOLike(LikelihoodProtocol):
                     ),
                     dtype=float,
                 )
-            except Exception:
+            except (
+                AttributeError,
+                ImportError,
+                OSError,
+                RuntimeError,
+                TypeError,
+                ValueError,
+            ):
                 da_vals = dm_vals / (1.0 + self._z_values)
             if da_vals.shape != dm_vals.shape:
                 with np.errstate(divide="ignore", invalid="ignore"):

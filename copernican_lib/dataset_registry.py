@@ -16,6 +16,7 @@ statistical independence statements. The additional metadata is consumed by the
 run manifest builder and keeps the suite honest about likelihood assumptions.
 
 """
+
 import hashlib
 import logging
 import os
@@ -349,7 +350,14 @@ def discover_trusted_parsers(
                     module.__package__ = module_name.rpartition(".")[0]
                     try:
                         module_loader.exec_module(module)
-                    except Exception as e:
+                    except (
+                        ImportError,
+                        OSError,
+                        RuntimeError,
+                        SyntaxError,
+                        TypeError,
+                        ValueError,
+                    ) as e:
                         logging.getLogger().error(
                             "Failed loading parser module %s: %s",
                             file_path,
@@ -792,7 +800,16 @@ def _load_dataset(
                 f"{label} parser '{dataset_id}' returned an empty DataFrame.",
             )
         return data_df
-    except Exception as exc:  # pragma: no cover - defensive logging
+    except (
+        AttributeError,
+        IndexError,
+        ImportError,
+        KeyError,
+        OSError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+    ) as exc:  # pragma: no cover - defensive logging
         logger.critical(
             "CRITICAL Error during %s data parsing (%s): %s",
             label,
@@ -879,7 +896,16 @@ def load_gw_data(dataset_id=None, **kwargs):
                 f"GW parser '{dataset_id}' returned an empty DataFrame.",
             )
         return data_df
-    except Exception as e:
+    except (
+        AttributeError,
+        IndexError,
+        ImportError,
+        KeyError,
+        OSError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+    ) as e:
         err_msg = (
             "CRITICAL Error during gravitational-wave standard siren data "
             f"parsing ({dataset_id}): {e}"

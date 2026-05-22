@@ -5,7 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Sequence
 
-from devcovenant.core.policy_contract import CheckContext, PolicyCheck, Violation
+from devcovenant.core.policy_contract import (
+    CheckContext,
+    PolicyCheck,
+    Violation,
+)
 
 _DEFAULT_LAUNCHERS = ("start.bat", "start.sh", "start.command")
 _WINDOWS_REQUIRED_FRAGMENTS = (
@@ -19,7 +23,7 @@ _WINDOWS_REQUIRED_FRAGMENTS = (
     'set "PY_VERSION_CHECK=import sys;print(1 if (3,11)<=sys.version_info<"',
     'if not exist "%PYDIR%" mkdir "%PYDIR%"',
     'if "%DOWNLOAD_URL%"=="" (',
-    'if defined VIRTUAL_ENV',
+    "if defined VIRTUAL_ENV",
     'if not "%COPERNICAN_PYOK%"=="1" if exist "%PYDIR%" rmdir /s /q "%PYDIR%"',
     "Package managers may request your password.",
     "Suite never reads or stores it.",
@@ -111,9 +115,7 @@ class StartScriptGuardrailsCheck(PolicyCheck):
                         policy_id=self.policy_id,
                         severity="error",
                         file_path=path,
-                        message=(
-                            f"Missing launcher script: {launcher_name}."
-                        ),
+                        message=(f"Missing launcher script: {launcher_name}."),
                         suggestion=(
                             "Restore the launcher and keep its guardrails in "
                             "sync with the other entrypoints."
@@ -139,4 +141,3 @@ class StartScriptGuardrailsCheck(PolicyCheck):
                     )
 
         return violations
-

@@ -15,7 +15,7 @@ For most users they are reference material rather than files
 that need direct maintenance.
 
 ## Contents
-- `THIRD_PARTY_LICENSES.md` in this directory records the dependency inputs and
+- `THIRD_PARTY_LICENSES.md` records the dependency inputs and
   generated license inventory for this dependency surface.
 - `*.txt` files store the generated upstream license texts that
   match the current direct dependency set.

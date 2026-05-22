@@ -48,7 +48,7 @@ def _model_name_index() -> dict[str, Path]:
         try:
             raw = path.read_text(encoding="utf-8")
             model_metadata = yaml.safe_load(raw) or {}
-        except Exception:
+        except (OSError, UnicodeError, ValueError, yaml.YAMLError):
             model_metadata = {}
         model_name = str(model_metadata.get("model_name") or path.stem).strip()
         stems = {path.stem, model_name}
@@ -152,7 +152,7 @@ def execute_run_from_manifest(
             str(output_root),
             target_path=manifest_target,
         )
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         log.warning(
             "Failed to copy manifest into %s: %s",
             manifest_target,
@@ -183,7 +183,7 @@ def execute_run_from_manifest(
 
     try:
         engine_module = import_module(config.engine.module_name)
-    except Exception as exc:
+    except (ImportError, ModuleNotFoundError) as exc:
         log.error(
             "Failed to import engine module %s: %s",
             config.engine.module_name,
@@ -246,7 +246,13 @@ def _load_dataset_from_descriptor(
         return None
     try:
         return loader(dataset_id=descriptor.dataset_id)
-    except Exception as exc:
+    except (
+        ImportError,
+        OSError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+    ) as exc:
         log_mod.get_logger().error(
             "Failed to load %s dataset '%s': %s",
             descriptor.dataset_type,

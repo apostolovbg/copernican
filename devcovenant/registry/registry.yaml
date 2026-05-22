@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: b1dca4eb76082baeece9c05948773aff65f23957c7c274697de9c1aa7fb5a4d7
+  policy_registry_input_hash: fa7f3922a93da9261074f3c0bca6d8c9cbac54df82d22b0f325c1fa83ac0584d
 project-governance:
   project_name: Copernican Suite
   project_description: A Python toolkit for evaluating cosmological models against
@@ -4635,6 +4635,7 @@ policies:
       - dist
       - node_modules
       - devcovenant
+      - tests
       include_prefixes: []
       include_globs:
       - '*.py'
@@ -4644,11 +4645,10 @@ policies:
       - dist/**
       - node_modules/**
       - devcovenant/**
+      - tests/**
       force_include_globs:
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
-      - devcovenant/**/*.py
-      - tests/**/*.py
       selector_roles:
       - include
       - exclude
@@ -4740,12 +4740,14 @@ policies:
         profile_overlays:
           values:
           - devcovenant
+          - tests
           behavior: append
           replaced_inherited_values:
           - ()
         autogen_overlays:
           values:
           - devcovenant
+          - tests
           behavior: append
           replaced_inherited_values:
           - ()
@@ -4755,6 +4757,7 @@ policies:
           - dist
           - node_modules
           - devcovenant
+          - tests
       include_prefixes:
         descriptor:
           values:
@@ -4803,6 +4806,7 @@ policies:
         derived_selectors:
           values:
           - devcovenant/**
+          - tests/**
           behavior: derive
           replaced_inherited_values:
           - ()
@@ -4812,6 +4816,7 @@ policies:
           - dist/**
           - node_modules/**
           - devcovenant/**
+          - tests/**
       force_include_globs:
         descriptor:
           values:
@@ -4823,8 +4828,6 @@ policies:
           values:
           - devcovenant/custom/**/*.py
           - tests/devcovenant/custom/**/*.py
-          - devcovenant/**/*.py
-          - tests/**/*.py
           behavior: append
           replaced_inherited_values:
           - ()
@@ -4832,8 +4835,6 @@ policies:
           values:
           - devcovenant/custom/**/*.py
           - tests/devcovenant/custom/**/*.py
-          - devcovenant/**/*.py
-          - tests/**/*.py
           behavior: append
           replaced_inherited_values:
           - ()
@@ -4841,8 +4842,6 @@ policies:
           values:
           - devcovenant/custom/**/*.py
           - tests/devcovenant/custom/**/*.py
-          - devcovenant/**/*.py
-          - tests/**/*.py
       selector_roles:
         descriptor:
           values:
@@ -4960,6 +4959,7 @@ policies:
       - dist
       - node_modules
       - devcovenant
+      - tests
       include_prefixes: []
       include_globs: &id015
       - '*.py'
@@ -4969,11 +4969,10 @@ policies:
       - dist/**
       - node_modules/**
       - devcovenant/**
+      - tests/**
       force_include_globs: &id017
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
-      - devcovenant/**/*.py
-      - tests/**/*.py
       selector_roles: &id018
       - include
       - exclude
@@ -5001,11 +5000,10 @@ policies:
     assets:
     - build/**
     - devcovenant/**
-    - devcovenant/**/*.py
     - devcovenant/custom/**/*.py
     - dist/**
     - node_modules/**
-    - tests/**/*.py
+    - tests/**
     - tests/devcovenant/custom/**/*.py
     origin: builtin
     script_exists: true
@@ -6888,8 +6886,6 @@ policies:
       force_include_globs:
       - devcovenant/custom/**
       - tests/devcovenant/custom/**
-      - devcovenant/**/*.py
-      - devcovenant/**/*.md
       - tests/**/*.py
       - tests/**/*.md
       selector_roles:
@@ -7365,8 +7361,6 @@ policies:
           values:
           - devcovenant/custom/**
           - tests/devcovenant/custom/**
-          - devcovenant/**/*.py
-          - devcovenant/**/*.md
           - tests/**/*.py
           - tests/**/*.md
           behavior: append
@@ -7376,8 +7370,6 @@ policies:
           values:
           - devcovenant/custom/**
           - tests/devcovenant/custom/**
-          - devcovenant/**/*.py
-          - devcovenant/**/*.md
           - tests/**/*.py
           - tests/**/*.md
           behavior: append
@@ -7387,8 +7379,6 @@ policies:
           values:
           - devcovenant/custom/**
           - tests/devcovenant/custom/**
-          - devcovenant/**/*.py
-          - devcovenant/**/*.md
           - tests/**/*.py
           - tests/**/*.md
       selector_roles:
@@ -7630,8 +7620,6 @@ policies:
       force_include_globs: &id044
       - devcovenant/custom/**
       - tests/devcovenant/custom/**
-      - devcovenant/**/*.py
-      - devcovenant/**/*.md
       - tests/**/*.py
       - tests/**/*.md
       selector_roles: &id045
@@ -7708,8 +7696,6 @@ policies:
     - build/**
     - data:/**
     - devcovenant/**
-    - devcovenant/**/*.md
-    - devcovenant/**/*.py
     - devcovenant/custom/**
     - devcovenant/licenses/*.txt
     - devcovenant/logs/**
@@ -8709,7 +8695,6 @@ policies:
       force_include_globs:
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
-      - devcovenant/**/*.py
       - tests/**/*.py
       selector_roles:
       - exclude
@@ -8903,7 +8888,6 @@ policies:
           values:
           - devcovenant/custom/**/*.py
           - tests/devcovenant/custom/**/*.py
-          - devcovenant/**/*.py
           - tests/**/*.py
           behavior: append
           replaced_inherited_values:
@@ -8912,7 +8896,6 @@ policies:
           values:
           - devcovenant/custom/**/*.py
           - tests/devcovenant/custom/**/*.py
-          - devcovenant/**/*.py
           - tests/**/*.py
           behavior: append
           replaced_inherited_values:
@@ -8921,7 +8904,6 @@ policies:
           values:
           - devcovenant/custom/**/*.py
           - tests/devcovenant/custom/**/*.py
-          - devcovenant/**/*.py
           - tests/**/*.py
       selector_roles:
         descriptor:
@@ -9052,7 +9034,6 @@ policies:
       force_include_globs: &id069
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
-      - devcovenant/**/*.py
       - tests/**/*.py
       selector_roles: &id070
       - exclude
@@ -9081,7 +9062,6 @@ policies:
     assets:
     - build/**
     - devcovenant/**
-    - devcovenant/**/*.py
     - devcovenant/custom/**/*.py
     - dist/**
     - node_modules/**
@@ -9625,16 +9605,16 @@ policies:
       - dist
       - node_modules
       - devcovenant
+      - tests
       exclude_globs:
       - build/**
       - dist/**
       - node_modules/**
       - devcovenant/**
+      - tests/**
       force_include_globs:
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
-      - devcovenant/**/*.py
-      - tests/**/*.py
       include_files: []
       include_dirs: []
       exclude_files: []
@@ -9813,6 +9793,7 @@ policies:
           - dist
           - node_modules
           - devcovenant
+          - tests
           behavior: append
           replaced_inherited_values:
           - ()
@@ -9822,6 +9803,7 @@ policies:
           - dist
           - node_modules
           - devcovenant
+          - tests
           behavior: append
           replaced_inherited_values:
           - ()
@@ -9831,6 +9813,7 @@ policies:
           - dist
           - node_modules
           - devcovenant
+          - tests
       exclude_globs:
         descriptor:
           values:
@@ -9857,6 +9840,7 @@ policies:
         derived_selectors:
           values:
           - devcovenant/**
+          - tests/**
           behavior: derive
           replaced_inherited_values:
           - ()
@@ -9866,6 +9850,7 @@ policies:
           - dist/**
           - node_modules/**
           - devcovenant/**
+          - tests/**
       force_include_globs:
         descriptor:
           values:
@@ -9877,8 +9862,6 @@ policies:
           values:
           - devcovenant/custom/**/*.py
           - tests/devcovenant/custom/**/*.py
-          - devcovenant/**/*.py
-          - tests/**/*.py
           behavior: append
           replaced_inherited_values:
           - ()
@@ -9886,8 +9869,6 @@ policies:
           values:
           - devcovenant/custom/**/*.py
           - tests/devcovenant/custom/**/*.py
-          - devcovenant/**/*.py
-          - tests/**/*.py
           behavior: append
           replaced_inherited_values:
           - ()
@@ -9895,8 +9876,6 @@ policies:
           values:
           - devcovenant/custom/**/*.py
           - tests/devcovenant/custom/**/*.py
-          - devcovenant/**/*.py
-          - tests/**/*.py
       include_files:
         descriptor:
           values:
@@ -10102,16 +10081,16 @@ policies:
       - dist
       - node_modules
       - devcovenant
+      - tests
       exclude_globs: &id077
       - build/**
       - dist/**
       - node_modules/**
       - devcovenant/**
+      - tests/**
       force_include_globs: &id078
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
-      - devcovenant/**/*.py
-      - tests/**/*.py
       include_files: []
       include_dirs: []
       exclude_files: []
@@ -10149,11 +10128,10 @@ policies:
     assets:
     - build/**
     - devcovenant/**
-    - devcovenant/**/*.py
     - devcovenant/custom/**/*.py
     - dist/**
     - node_modules/**
-    - tests/**/*.py
+    - tests/**
     - tests/devcovenant/custom/**/*.py
     origin: builtin
     script_exists: true
@@ -10873,7 +10851,6 @@ policies:
       force_include_globs:
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
-      - devcovenant/**/*.py
       - tests/**/*.py
       selector_roles:
       - exclude
@@ -11061,7 +11038,6 @@ policies:
           values:
           - devcovenant/custom/**/*.py
           - tests/devcovenant/custom/**/*.py
-          - devcovenant/**/*.py
           - tests/**/*.py
           behavior: append
           replaced_inherited_values:
@@ -11070,7 +11046,6 @@ policies:
           values:
           - devcovenant/custom/**/*.py
           - tests/devcovenant/custom/**/*.py
-          - devcovenant/**/*.py
           - tests/**/*.py
           behavior: append
           replaced_inherited_values:
@@ -11079,7 +11054,6 @@ policies:
           values:
           - devcovenant/custom/**/*.py
           - tests/devcovenant/custom/**/*.py
-          - devcovenant/**/*.py
           - tests/**/*.py
       selector_roles:
         descriptor:
@@ -11243,7 +11217,6 @@ policies:
       force_include_globs: &id089
       - devcovenant/custom/**/*.py
       - tests/devcovenant/custom/**/*.py
-      - devcovenant/**/*.py
       - tests/**/*.py
       selector_roles: &id090
       - exclude
@@ -11280,7 +11253,6 @@ policies:
     - '**/tests/**'
     - bandit.yaml
     - devcovenant/**
-    - devcovenant/**/*.py
     - devcovenant/custom/**/*.py
     - tests/**
     - tests/**/*.py
@@ -12842,6 +12814,345 @@ policies:
     script_exists: true
     hash: 71c0dacd56a276ac347155fbfedd104d762795075a892725e0e2851f94b81748
     script_path: builtin/version_sync.py
+  start-script-guardrails:
+    enabled: true
+    custom: true
+    description: Start Script Guardrails
+    policy_text: |-
+      Keep the launcher scripts on the managed Python 3.11 bootstrap path and
+      retain the explicit safety checks that prevent blank download URLs, stale
+      virtual environments, and accidental system-Python leakage. The launchers
+      also need to preserve the package-manager notice so privilege escalation
+      remains explicit.
+    metadata:
+      id: start-script-guardrails
+      severity: error
+      auto_fix: 'false'
+      enforcement: active
+      enabled: 'true'
+      custom: 'true'
+      launcher_files:
+      - start.bat
+      - start.sh
+      - start.command
+      selector_roles:
+      - launcher
+      launcher_globs: []
+      launcher_dirs: []
+    metadata_resolution:
+      id:
+        descriptor:
+          values:
+          - start-script-guardrails
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        runtime_identity:
+          values:
+          - start-script-guardrails
+          behavior: replace
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - start-script-guardrails
+      severity:
+        descriptor:
+          values:
+          - error
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - error
+      auto_fix:
+        descriptor:
+          values:
+          - 'false'
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - 'false'
+      enforcement:
+        descriptor:
+          values:
+          - active
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - active
+      enabled:
+        descriptor:
+          values:
+          - 'true'
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        policy_state:
+          values:
+          - 'true'
+          behavior: replace
+          replaced_inherited_values:
+          - 'true'
+        effective:
+          values:
+          - 'true'
+      custom:
+        descriptor:
+          values:
+          - 'true'
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        runtime_custom_source:
+          values:
+          - 'true'
+          behavior: replace
+          replaced_inherited_values:
+          - ()
+          note: Resolved from active custom policy script.
+        effective:
+          values:
+          - 'true'
+      launcher_files:
+        descriptor:
+          values:
+          - start.bat
+          - start.sh
+          - start.command
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - start.bat
+          - start.sh
+          - start.command
+      selector_roles:
+        derived_selectors:
+          values:
+          - launcher
+          behavior: derive
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - launcher
+      launcher_globs:
+        effective:
+          values:
+          - '[]'
+      launcher_dirs:
+        effective:
+          values:
+          - '[]'
+    metadata_warnings: []
+    runtime_actions: []
+    commands: []
+    runtime_metadata_options:
+      id: start-script-guardrails
+      severity: error
+      auto_fix: false
+      enforcement: active
+      enabled: true
+      custom: true
+      launcher_files: &id110
+      - start.bat
+      - start.sh
+      - start.command
+      selector_roles: &id111
+      - launcher
+      launcher_globs: []
+      launcher_dirs: []
+    runtime_config_overrides: {}
+    runtime_effective_options:
+      id: start-script-guardrails
+      severity: error
+      auto_fix: false
+      enforcement: active
+      enabled: true
+      custom: true
+      launcher_files: *id110
+      selector_roles: *id111
+    assets: []
+    origin: custom
+    script_exists: true
+    hash: b36a4a5b036823f7d7d505a04caed2bc13525fafbf65332ca12f305c3b64d988
+    script_path: custom/start_script_guardrails.py
+  start-script-parity:
+    enabled: true
+    custom: true
+    description: Start Script Parity
+    policy_text: |-
+      Keep the Copernican launcher scripts in sync on their visible menu labels,
+      prompts, and launcher flow. The Windows batch file, Unix shell script, and
+      macOS command launcher should present the same user-facing contract so
+      platform-specific entrypoints do not drift apart.
+    metadata:
+      id: start-script-parity
+      severity: error
+      auto_fix: 'false'
+      enforcement: active
+      enabled: 'true'
+      custom: 'true'
+      launcher_files:
+      - start.bat
+      - start.sh
+      - start.command
+      selector_roles:
+      - launcher
+      launcher_globs: []
+      launcher_dirs: []
+    metadata_resolution:
+      id:
+        descriptor:
+          values:
+          - start-script-parity
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        runtime_identity:
+          values:
+          - start-script-parity
+          behavior: replace
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - start-script-parity
+      severity:
+        descriptor:
+          values:
+          - error
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - error
+      auto_fix:
+        descriptor:
+          values:
+          - 'false'
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - 'false'
+      enforcement:
+        descriptor:
+          values:
+          - active
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - active
+      enabled:
+        descriptor:
+          values:
+          - 'true'
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        policy_state:
+          values:
+          - 'true'
+          behavior: replace
+          replaced_inherited_values:
+          - 'true'
+        effective:
+          values:
+          - 'true'
+      custom:
+        descriptor:
+          values:
+          - 'true'
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        runtime_custom_source:
+          values:
+          - 'true'
+          behavior: replace
+          replaced_inherited_values:
+          - ()
+          note: Resolved from active custom policy script.
+        effective:
+          values:
+          - 'true'
+      launcher_files:
+        descriptor:
+          values:
+          - start.bat
+          - start.sh
+          - start.command
+          behavior: base
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - start.bat
+          - start.sh
+          - start.command
+      selector_roles:
+        derived_selectors:
+          values:
+          - launcher
+          behavior: derive
+          replaced_inherited_values:
+          - ()
+        effective:
+          values:
+          - launcher
+      launcher_globs:
+        effective:
+          values:
+          - '[]'
+      launcher_dirs:
+        effective:
+          values:
+          - '[]'
+    metadata_warnings: []
+    runtime_actions: []
+    commands: []
+    runtime_metadata_options:
+      id: start-script-parity
+      severity: error
+      auto_fix: false
+      enforcement: active
+      enabled: true
+      custom: true
+      launcher_files: &id112
+      - start.bat
+      - start.sh
+      - start.command
+      selector_roles: &id113
+      - launcher
+      launcher_globs: []
+      launcher_dirs: []
+    runtime_config_overrides: {}
+    runtime_effective_options:
+      id: start-script-parity
+      severity: error
+      auto_fix: false
+      enforcement: active
+      enabled: true
+      custom: true
+      launcher_files: *id112
+      selector_roles: *id113
+    assets: []
+    origin: custom
+    script_exists: true
+    hash: 8d90247980aec23d3378cd3aea06555c2aed69f99f5859688d962898e02c61c4
+    script_path: custom/start_script_parity.py
 profiles:
   csharp:
     version: 1
@@ -15603,6 +15914,11 @@ profiles:
     suffixes: []
     ignore_dirs:
     - data
+    - models/cache
+    - cache
+    - vendor
+    - third_party
+    - node_modules
     assets: []
     project-governance:
       project_name: Copernican Suite
@@ -15676,26 +15992,42 @@ profiles:
         - citation=>CITATION.cff
       line-length-limit:
         force_include_globs:
-        - devcovenant/**/*.py
-        - devcovenant/**/*.md
+        - devcovenant/custom/**
         - tests/**/*.py
         - tests/**/*.md
       name-clarity:
         force_include_globs:
-        - devcovenant/**/*.py
+        - devcovenant/custom/**/*.py
         - tests/**/*.py
       docstring-and-comment-coverage:
+        exclude_prefixes:
+        - tests
         force_include_globs:
-        - devcovenant/**/*.py
-        - tests/**/*.py
+        - devcovenant/custom/**/*.py
       security-scanner:
         force_include_globs:
-        - devcovenant/**/*.py
+        - devcovenant/custom/**/*.py
         - tests/**/*.py
       no-raw-errors:
+        exclude_prefixes:
+        - tests
         force_include_globs:
-        - devcovenant/**/*.py
-        - tests/**/*.py
+        - devcovenant/custom/**/*.py
+      modules-need-tests:
+        exclude_prefixes:
+        - build
+        - dist
+        - node_modules
+        - tests
+        - devcovenant
+        force_include_globs:
+        - devcovenant/custom/**/*.py
+        watch_dirs:
+        - tests
+        tests_watch_dirs:
+        - tests
+        mirror_roots:
+        - devcovenant/custom=>tests/devcovenant/custom
     source: custom
     path: devcovenant/custom/profiles/userproject
     assets_available: []

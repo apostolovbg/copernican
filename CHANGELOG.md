@@ -79,6 +79,71 @@ suffixes. Follow this template:
 
 ## Version 12.0.1
 - 2026-05-22 [semver:patch]:
+  Change: Added mirrored smoke tests and package markers for the missing
+    source modules, updated the repo plan/spec docs, and removed the stray
+    `test___init__.py` drift files.
+  Why: Restore the mirrored test layout, satisfy the version-sync document
+    checks, and keep the DevCovenant-managed profile aligned with the current
+    repo shape.
+  Impact: The test tree now mirrors the source package layout more closely,
+    the missing plan/spec documents exist, and the YAML/model-coder gate
+    blockers are reduced.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  SPEC.md
+  copernican_lib/latex_mappings.yml
+  copernican_lib/model_coder.py
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  tests/copernican/__init__.py
+  tests/copernican/test_copernican.py
+  tests/copernican_lib/__init__.py
+  tests/copernican_lib/cli/__init__.py
+  tests/copernican_lib/cli/test_menus.py
+  tests/copernican_lib/gui/__init__.py
+  tests/copernican_lib/gui/test_plot_viewer.py
+  tests/copernican_lib/likelihoods/__init__.py
+  tests/copernican_lib/likelihoods/test__protocol.py
+  tests/copernican_lib/likelihoods/test_joint.py
+  tests/copernican_lib/likelihoods/test_sne.py
+  tests/copernican_lib/test_chain_io.py
+  tests/copernican_lib/test_console_output.py
+  tests/copernican_lib/test_csv_writer.py
+  tests/copernican_lib/test_engine_capabilities.py
+  tests/copernican_lib/test_error_handler.py
+  tests/copernican_lib/test_latex_utils.py
+  tests/copernican_lib/test_logger.py
+  tests/copernican_lib/test_model_spec_validator.py
+  tests/copernican_lib/test_posterior.py
+  tests/copernican_lib/test_posterior_explorer.py
+  tests/copernican_lib/test_run_lifecycle.py
+  tests/copernican_lib/test_run_pipeline.py
+  tests/copernican_lib/test_settings.py
+  tests/copernican_lib/test_statistics.py
+  tests/devcovenant/__init__.py
+  tests/devcovenant/custom/__init__.py
+  tests/devcovenant/custom/policies/__init__.py
+  tests/devcovenant/custom/policies/start_script_guardrails/__init__.py
+  tests/devcovenant/custom/policies/start_script_parity/__init__.py
+  tests/devcovenant/custom/policies/start_script_guardrails/test___init__.py
+  tests/devcovenant/custom/policies/start_script_parity/test___init__.py
+  tests/engines/test_cosmo_engine_mcmc.py
+  tests/engines/test_cosmo_engine_nested.py
+  tests/rng_minigames/__init__.py
+  tests/rng_minigames/alien_invasion/__init__.py
+  tests/rng_minigames/alien_invasion/test_ai_agent.py
+  tests/rng_minigames/alien_invasion/test_ai_config.py
+  tests/rng_minigames/alien_invasion/test_game.py
+  tests/rng_minigames/alien_invasion/test_game_config.py
+  tests/rng_minigames/alien_invasion/test_hall_of_fame.py
+  tests/rng_minigames/constellation/__init__.py
+  tests/rng_minigames/constellation/test_game.py
+  tests/rng_minigames/emoji_meteors/__init__.py
+  tests/rng_minigames/emoji_meteors/test_game.py
+  tests/rng_minigames/test_api.py
+  tests/validation/__init__.py
+  tests/validation/test_runner.py
+- 2026-05-22 [semver:patch]:
   Change: Updated the DevCovenant repo profile to ignore generic cache and
     vendor trees and to stop force-including `devcovenant/**/*.py` and
     `devcovenant/**/*.md` in the repository policy overlays.

@@ -11,6 +11,7 @@ and execution timestamp.  Dedicated functions exist for each supported
 dataset so that the columns reflect their domain-specific outputs.
 
 """
+
 import os
 from typing import Any
 
@@ -82,7 +83,7 @@ def save_sne_results_detailed_csv(
             float_format="%.8g",
         )
         logger.info(f"SNe detailed results CSV saved to {filename}")
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         logger.error(f"Error saving SNe detailed results CSV: {exc}")
 
 
@@ -142,7 +143,7 @@ def save_bao_results_csv(
             float_format="%.6g",
         )
         logger.info(f"BAO detailed results CSV saved to {filename}")
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         logger.error(f"Error saving BAO detailed results CSV: {exc}")
 
 
@@ -258,5 +259,5 @@ def save_cmb_results_csv(
             float_format="%.6g",
         )
         logger.info(f"CMB detailed results CSV saved to {filename}")
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         logger.error(f"Error saving CMB detailed results CSV: {exc}")

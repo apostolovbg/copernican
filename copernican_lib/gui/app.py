@@ -71,7 +71,7 @@ try:
     from tkinter import filedialog as filedialog_module
     from tkinter import messagebox as messagebox_module
     from tkinter import ttk as ttk_module
-except Exception:  # pragma: no cover - executed only when Tk is missing
+except ImportError:  # pragma: no cover - executed only when Tk is missing
     tkinter_module = None
     ttk_module = None
     filedialog_module = None
@@ -81,6 +81,7 @@ tk_gui = tkinter_module
 ttk = ttk_module
 filedialog = filedialog_module
 messagebox = messagebox_module
+tk_tcl_error = getattr(tkinter_module, "TclError", RuntimeError)
 
 if tk_gui is not None:
     from copernican_lib.vendor.tkinterweb import HtmlFrame
@@ -1026,7 +1027,7 @@ class CopernicanGUI:
             self._build_layout()
             if self.root is not None:
                 self.root.after(10, self._raise_root_window)
-        except Exception as exc:  # pragma: no cover - only hits Tk failures
+        except (RuntimeError, OSError, ValueError, tk_tcl_error) as exc:  # pragma: no cover - only hits Tk failures
             console_output.write(
                 (
                     "Tkinter failed to initialise; continuing without "
@@ -1049,7 +1050,7 @@ class CopernicanGUI:
                     sys.executable,
                     exc_info=True,
                 )
-            except Exception:
+            except (OSError, RuntimeError, ValueError):
                 pass
 
     def _raise_root_window(self) -> None:
@@ -1066,7 +1067,7 @@ class CopernicanGUI:
                 1500,
                 lambda: self.root and self.root.attributes("-topmost", False),
             )
-        except Exception:
+        except (RuntimeError, ValueError, tk_tcl_error):
             pass
 
     def _data_root(self) -> str:
@@ -1278,7 +1279,7 @@ class CopernicanGUI:
                 module = importlib.import_module(module_name)
                 label = getattr(module, "ENGINE_LABEL", path.stem)
                 version = getattr(module, "ENGINE_VERSION", "unknown")
-            except Exception:
+            except (AttributeError, ImportError, ModuleNotFoundError, RuntimeError):
                 module = None
                 label = path.stem
                 version = "unavailable"
@@ -1447,7 +1448,7 @@ class CopernicanGUI:
                 subprocess.run(["open", path], check=False)
             else:
                 subprocess.run(["xdg-open", path], check=False)
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             console_output.write(
                 f"Unable to open folder {path}: {exc}", error=True
             )
@@ -1466,7 +1467,7 @@ class CopernicanGUI:
                 context="seed",
             )
             return
-        except Exception as exc:  # pragma: no cover - import failure path
+        except (AttributeError, ImportError, ModuleNotFoundError, RuntimeError) as exc:  # pragma: no cover - import failure path
             log_mod.error(
                 "Failed to import mini-game %s: %s",
                 minigame_id,
@@ -1505,7 +1506,7 @@ class CopernicanGUI:
                 subprocess.run(["open", path], check=False)
             else:
                 subprocess.run(["xdg-open", path], check=False)
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             console_output.write(f"Unable to open {path}: {exc}", error=True)
 
     def _show_metadata_dialog(
@@ -1691,7 +1692,7 @@ class CopernicanGUI:
             self.help_banner_image = tkinter_module.PhotoImage(
                 file=str(banner_path)
             )
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError, tk_tcl_error) as exc:
             logger.get_program_logger().warning(
                 "Failed to load help banner image: %s", exc
             )
@@ -1712,7 +1713,7 @@ class CopernicanGUI:
             return
         try:
             self.logo_image = tkinter_module.PhotoImage(file=str(logo_path))
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError, tk_tcl_error) as exc:
             logger.get_program_logger().warning(
                 "Failed to load navigation logo: %s", exc
             )
@@ -1770,7 +1771,7 @@ class CopernicanGUI:
         doc_path = Path(__file__).resolve().parents[2] / relative_path
         try:
             return doc_path.read_text(encoding="utf-8")
-        except Exception as exc:
+        except (OSError, UnicodeError, RuntimeError, ValueError) as exc:
             message = f"Unable to read {relative_path} for Help panel: {exc}"
             logger.get_program_logger().warning(message)
             return message
@@ -2983,7 +2984,7 @@ class CopernicanGUI:
             base_result = analysis.analyze_run(base_path)
             alt_result = analysis.analyze_run(alt_path)
             comparison = analysis.compare_runs(base_result, alt_result)
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self.create_toast(
                 f"Comparison failed: {exc}",
                 severity="ERROR",
@@ -3030,7 +3031,7 @@ class CopernicanGUI:
             saved = analysis.save_comparison_summary(
                 base_result, alt_result, target_dir
             )
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self.create_toast(
                 f"Export failed: {exc}",
                 severity="ERROR",
@@ -3062,7 +3063,7 @@ class CopernicanGUI:
         try:
             self.root.clipboard_clear()
             self.root.clipboard_append(payload)
-        except Exception as exc:
+        except (RuntimeError, ValueError, tk_tcl_error) as exc:
             self.create_toast(
                 f"Clipboard copy failed: {exc}",
                 severity="ERROR",
@@ -3156,7 +3157,7 @@ class CopernicanGUI:
             return
         try:
             image = mpimage.imread(str(path))
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             self._analysis_set_posterior_status(
                 f"Failed to load {path.name}: {exc}", severity="ERROR"
             )
@@ -3203,7 +3204,7 @@ class CopernicanGUI:
             return current
         try:
             result = analysis.analyze_run(run_dir)
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self.create_toast(
                 f"Failed to analyse run for posteriors: {exc}",
                 severity="ERROR",
@@ -3290,7 +3291,7 @@ class CopernicanGUI:
             figure = posterior_explorer.create_posterior_overview_figure(
                 result, target
             )
-        except Exception as exc:
+        except (AttributeError, ImportError, OSError, RuntimeError, TypeError, ValueError) as exc:
             self._analysis_set_posterior_status(
                 f"Failed to render {target.name}: {exc}", severity="ERROR"
             )
@@ -3393,7 +3394,7 @@ class CopernicanGUI:
             return
         try:
             result = analysis.analyze_run(path)
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self.create_toast(
                 f"Failed to load run summary: {exc}",
                 severity="ERROR",
@@ -3439,7 +3440,7 @@ class CopernicanGUI:
             saved = analysis.save_run_summary(
                 self._analysis_summary_result.run_dir, target_dir
             )
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self.create_toast(
                 f"Export failed: {exc}",
                 severity="ERROR",
@@ -3469,7 +3470,7 @@ class CopernicanGUI:
         try:
             self.root.clipboard_clear()
             self.root.clipboard_append(payload)
-        except Exception as exc:
+        except (RuntimeError, ValueError, tk_tcl_error) as exc:
             self.create_toast(
                 f"Clipboard copy failed: {exc}",
                 severity="ERROR",
@@ -3554,7 +3555,7 @@ class CopernicanGUI:
                 bufsize=1,
                 env=env,
             )
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError, subprocess.SubprocessError) as exc:
             self.create_toast(
                 f"Failed to launch validation: {exc}",
                 severity="ERROR",
@@ -3645,7 +3646,7 @@ class CopernicanGUI:
         if lock_tail:
             try:
                 self._validation_text_widget.yview_moveto(1.0)
-            except Exception:
+            except (RuntimeError, ValueError, tk_tcl_error):
                 pass
 
     def _reset_validation_log_widget(self, message: str | None = None) -> None:
@@ -3665,7 +3666,7 @@ class CopernicanGUI:
         ):
             try:
                 self._validation_text_widget.yview_moveto(1.0)
-            except Exception:
+            except (RuntimeError, ValueError, tk_tcl_error):
                 pass
 
     def _refresh_validation_log_widget_from_history(self) -> None:
@@ -3684,7 +3685,7 @@ class CopernicanGUI:
         ):
             try:
                 self._validation_text_widget.yview_moveto(1.0)
-            except Exception:
+            except (RuntimeError, ValueError, tk_tcl_error):
                 pass
 
     def _update_validation_control_states(self) -> None:
@@ -3722,7 +3723,7 @@ class CopernicanGUI:
             return
         try:
             self._validation_process.terminate()
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             self.create_toast(
                 f"Failed to cancel validation: {exc}",
                 severity="WARNING",
@@ -4048,7 +4049,7 @@ class CopernicanGUI:
             return
         try:
             self.import_manifest(path)
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError, yaml.YAMLError) as exc:
             self.create_toast(
                 f"Failed to import manifest: {exc}",
                 severity="ERROR",
@@ -4227,7 +4228,7 @@ class CopernicanGUI:
             return default_steps, default_walkers, default_pool
         try:
             module = importlib.import_module(module_name)
-        except Exception:
+        except (AttributeError, ImportError, ModuleNotFoundError, RuntimeError):
             return default_steps, default_walkers, default_pool
         fit_fn = getattr(
             module,
@@ -4238,7 +4239,7 @@ class CopernicanGUI:
             return default_steps, default_walkers, default_pool
         try:
             signature = inspect.signature(fit_fn)
-        except Exception:
+        except (AttributeError, RuntimeError, TypeError, ValueError):
             return default_steps, default_walkers, default_pool
 
         def _default_value(name: str, fallback: int) -> int:
@@ -4392,7 +4393,7 @@ class CopernicanGUI:
         """Reload the RNG mini-game registry and refresh the buttons."""
         try:
             self._minigame_catalog = rng_minigames.refresh_registry()
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self.create_toast(
                 f"Mini-game refresh failed: {exc}",
                 severity="ERROR",
@@ -4548,7 +4549,7 @@ class CopernicanGUI:
             if entry:
                 try:
                     content = self._read_asset_text(entry["path"])
-                except Exception as exc:
+                except (OSError, UnicodeError, RuntimeError, ValueError) as exc:
                     content = f"Unable to load {entry['id']}: {exc}"
                 preview_text.insert("1.0", content)
             else:
@@ -5262,7 +5263,7 @@ class CopernicanGUI:
         engine_kind = "mcmc"
         try:
             module = importlib.import_module(module_name)
-        except Exception as exc:
+        except (AttributeError, ImportError, ModuleNotFoundError, RuntimeError) as exc:
             logger.get_program_logger().warning(
                 "Failed to import engine %s: %s", module_name, exc
             )
@@ -5270,7 +5271,14 @@ class CopernicanGUI:
         engine_kind = getattr(module, "ENGINE_KIND", "mcmc").lower()
         try:
             capabilities = get_engine_capabilities(module)
-        except Exception as exc:
+        except (
+            AttributeError,
+            ImportError,
+            ModuleNotFoundError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:
             logger.get_program_logger().warning(
                 "Failed to load engine capabilities for %s: %s",
                 module_name,
@@ -5537,7 +5545,14 @@ class CopernicanGUI:
             )
         try:
             return yaml.safe_dump(manifest, sort_keys=False)
-        except Exception:
+        except (
+            OSError,
+            RuntimeError,
+            TypeError,
+            UnicodeError,
+            ValueError,
+            yaml.YAMLError,
+        ):
             return json.dumps(manifest, indent=2)
 
     def _open_manifest_file(self) -> None:
@@ -6511,7 +6526,7 @@ class CopernicanGUI:
 
         try:
             self.refresh_inventory(force_discovery=True)
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self.create_toast(
                 f"Failed to refresh dataset digests: {exc}",
                 severity="ERROR",
@@ -6536,7 +6551,15 @@ class CopernicanGUI:
                 force=True,
             )
             self.refresh_inventory(force_discovery=True)
-        except Exception as exc:
+        except (
+            AttributeError,
+            ImportError,
+            ModuleNotFoundError,
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:
             self.create_toast(
                 f"Parser revalidation failed: {exc}",
                 severity="ERROR",
@@ -6566,7 +6589,7 @@ class CopernicanGUI:
                     yaml_path, cache_dir
                 )
                 rebuilt += 1
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self.create_toast(
                 f"Model cache rebuild failed: {exc}",
                 severity="ERROR",
@@ -6706,7 +6729,7 @@ class CopernicanGUI:
             import copernican
 
             copernican.exit_clean(0)
-        except Exception:
+        except (OSError, RuntimeError, ValueError):
             sys.exit(0)
 
     def show_run_monitor(self) -> None:
@@ -7188,7 +7211,7 @@ class CopernicanGUI:
                 bufsize=1,
                 env=env,
             )
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError, subprocess.SubprocessError) as exc:
             self.create_toast(
                 f"Failed to start run: {exc}",
                 severity="ERROR",
@@ -7455,14 +7478,14 @@ class CopernicanGUI:
         if lock_tail:
             try:
                 self._monitor_log_widget.yview_moveto(1.0)
-            except Exception:
+            except (RuntimeError, ValueError, tk_tcl_error):
                 pass
         elif prev_view:
             try:
                 self._monitor_log_widget.yview_moveto(
                     max(0.0, min(prev_view[0], 1.0))
                 )
-            except Exception:
+            except (RuntimeError, ValueError, tk_tcl_error):
                 pass
 
     def _schedule_monitor_refresh(self) -> None:
@@ -7550,7 +7573,7 @@ class CopernicanGUI:
             return
         try:
             self._open_path_with_system(self.run_log_path)
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             self.create_toast(
                 f"Unable to open run log: {exc}",
                 severity="ERROR",
@@ -7576,7 +7599,7 @@ class CopernicanGUI:
                 self._diagnostics_log_widget.yview_moveto(
                     max(0.0, min(prev_view[0], 1.0))
                 )
-            except Exception:
+            except (RuntimeError, ValueError, tk_tcl_error):
                 pass
 
     def _view_diagnostics_log(self) -> None:
@@ -7614,7 +7637,7 @@ class CopernicanGUI:
             return
         try:
             self._open_path_with_system(self.application_log_path)
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             self.create_toast(
                 f"Unable to open diagnostics log: {exc}",
                 severity="ERROR",
@@ -7628,7 +7651,7 @@ class CopernicanGUI:
         for handler in list(program_logger.handlers):
             try:
                 handler.flush()
-            except Exception:
+            except (OSError, RuntimeError, ValueError):
                 pass
         if self.application_log_handler:
             self.application_log_handler.entries.clear()
@@ -7649,7 +7672,7 @@ class CopernicanGUI:
                 self._run_process.kill()
             else:
                 self._run_process.terminate()
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             self._log_run_event(
                 f"Failed to terminate worker: {exc}", logging.WARNING
             )
@@ -7895,7 +7918,7 @@ class CopernicanGUI:
 
         try:
             manifest = self._generate_manifest_snapshot()
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self.create_toast(
                 f"Manifest generation failed: {exc}",
                 severity="ERROR",
@@ -7925,7 +7948,13 @@ class CopernicanGUI:
                     workspace.folder,
                     target_path=workspace.manifest_path,
                 )
-            except Exception as exc:
+            except (
+                OSError,
+                RuntimeError,
+                TypeError,
+                ValueError,
+                yaml.YAMLError,
+            ) as exc:
                 self.create_toast(
                     f"Failed to overwrite manifest: {exc}",
                     severity="ERROR",
@@ -7941,7 +7970,13 @@ class CopernicanGUI:
                     folder_name=self._TEMP_MANIFEST_FOLDER,
                     manifest_filename=self._TEMP_MANIFEST_FILE,
                 )
-            except Exception as exc:
+            except (
+                OSError,
+                RuntimeError,
+                TypeError,
+                ValueError,
+                yaml.YAMLError,
+            ) as exc:
                 self.create_toast(
                     f"Failed to save manifest: {exc}",
                     severity="ERROR",
@@ -7992,7 +8027,7 @@ class CopernicanGUI:
         )
         try:
             worker_config = self._build_worker_config()
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
             self._log_run_event(str(exc), logging.ERROR)
             self.create_toast(
                 f"Run aborted: {exc}",
@@ -8151,21 +8186,21 @@ class CopernicanGUI:
         snapshot: dict[str, object] = {}
         try:
             engine_entry = self._resolve_engine_entry()
-        except Exception:
+        except (OSError, RuntimeError, TypeError, ValueError):
             engine_entry = None
         engine_kind = "mcmc"
         if engine_entry:
             try:
                 module = importlib.import_module(engine_entry["id"])
                 engine_kind = getattr(module, "ENGINE_KIND", "mcmc").lower()
-            except Exception:
+            except (AttributeError, ImportError, ModuleNotFoundError, RuntimeError):
                 engine_kind = "mcmc"
             if engine_kind == "mcmc":
                 try:
                     snapshot = dict(
                         self._build_sampling_plan_values(engine_entry["id"])
                     )
-                except Exception:
+                except (OSError, RuntimeError, TypeError, ValueError):
                     snapshot = {}
             else:
                 snapshot["engine_kind"] = engine_kind

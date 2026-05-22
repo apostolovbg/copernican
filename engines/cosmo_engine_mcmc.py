@@ -42,13 +42,13 @@ from typing import Any, Callable, Iterable, Iterator, Sequence
 # ArviZ expects ``scipy.signal.gaussian`` which moved in newer SciPy releases.
 try:  # pragma: no cover - compatibility shim
     from scipy.signal import gaussian  # type: ignore # noqa: F401
-except Exception:  # pragma: no cover - SciPy layout varies
+except ImportError:  # pragma: no cover - SciPy layout varies
     try:
         import scipy.signal as _signal
         from scipy.signal.windows import gaussian  # type: ignore # noqa: F401
 
         _signal.gaussian = gaussian
-    except Exception:  # pragma: no cover
+    except (AttributeError, ImportError):  # pragma: no cover
         pass
 
 try:
@@ -1013,7 +1013,7 @@ def fit_cosmology_parameters(
                     float(np.median(bulk_values)),
                     float(np.median(tail_values)),
                 )
-        except Exception as exc:  # pragma: no cover - defensive logging path
+        except (AttributeError, RuntimeError, TypeError, ValueError) as exc:  # pragma: no cover - defensive logging path
             logger.warning(
                 "Falling back to internal diagnostics after ArviZ failure: %s",
                 exc,
@@ -1045,7 +1045,7 @@ def fit_cosmology_parameters(
     if n_production >= min_autocorr_window:
         try:
             autocorr = sampler.get_autocorr_time()
-        except Exception:
+        except (AttributeError, emcee.autocorr.AutocorrError, RuntimeError, ValueError):
             autocorr = None
     else:
         logger.debug(

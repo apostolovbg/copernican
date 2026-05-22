@@ -485,7 +485,14 @@ def execute_run_pipeline(
             return summary
         try:
             camb_params = model_plugin.get_camb_params(cosmo_params)
-        except Exception as exc:
+        except (
+            AttributeError,
+            ImportError,
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:
             logger.warning(
                 "%s failed to build CAMB parameters: %s",
                 model_plugin.MODEL_NAME,

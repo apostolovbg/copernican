@@ -35,7 +35,7 @@ def _read_version_file() -> Optional[str]:
     package = __package__ or "copernican_lib"
     try:
         candidates.append(resources.files(package).joinpath(VERSION_FILENAME))
-    except Exception:  # pragma: no cover - importlib.resources fallback
+    except (AttributeError, ImportError, ValueError):
         pass
     candidates.append(Path(__file__).with_name(VERSION_FILENAME))
 
@@ -47,7 +47,7 @@ def _read_version_file() -> Optional[str]:
                 version_text = Path(candidate).read_text(encoding="utf-8")
         except FileNotFoundError:
             continue
-        except Exception:
+        except (OSError, UnicodeError, ValueError):
             continue
         version_str = version_text.strip()
         if version_str:

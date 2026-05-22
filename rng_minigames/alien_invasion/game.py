@@ -14,9 +14,10 @@ import yaml
 try:  # pragma: no cover - Tk only available with GUI rendering
     import tkinter as tkinter_module
     from tkinter import ttk as tkinter_ttk
-except Exception:  # pragma: no cover - executed when Tk is unavailable
+except ImportError:  # pragma: no cover - executed when Tk is unavailable
     tkinter_module = None
     tkinter_ttk = None
+tk_tcl_error = getattr(tkinter_module, "TclError", RuntimeError)
 
 from rng_minigames.api import MinigameContext
 
@@ -80,7 +81,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             learning_history_path.write_text(
                 yaml.safe_dump(learning_alltime_stats, sort_keys=False)
             )
-        except Exception:
+        except (OSError, TypeError, ValueError, yaml.YAMLError):
             pass
 
     def _load_learning_history() -> dict[str, float | int]:
@@ -89,7 +90,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             return dict(ALLTIME_LEARNING_DEFAULTS)
         try:
             raw = yaml.safe_load(learning_history_path.read_text()) or {}
-        except Exception:
+        except (OSError, TypeError, ValueError, yaml.YAMLError):
             raw = {}
         stats: dict[str, float | int] = {}
         for key, default in ALLTIME_LEARNING_DEFAULTS.items():
@@ -165,7 +166,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         if learning_speed_var is not None:
             try:
                 candidate_speed = int(learning_speed_var.get())
-            except Exception:
+            except (TypeError, ValueError):
                 candidate_speed = learning_speed_multiplier
         candidate_speed = _clamp_learning_speed(candidate_speed)
         learning_speed_multiplier = candidate_speed
@@ -179,7 +180,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             current = learning_speed_var.get()
             try:
                 requested_speed = int(current)
-            except Exception:
+            except (TypeError, ValueError):
                 requested_speed = learning_speed_multiplier
             requested_speed = _clamp_learning_speed(requested_speed)
             learning_speed_multiplier = requested_speed
@@ -865,7 +866,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         if player_auto_reset_handle:
             try:
                 canvas.after_cancel(player_auto_reset_handle)
-            except Exception:
+            except (RuntimeError, ValueError, tk_tcl_error):
                 pass
             player_auto_reset_handle = None
 
@@ -894,7 +895,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         if player_explosion_handle:
             try:
                 canvas.after_cancel(player_explosion_handle)
-            except Exception:
+            except (RuntimeError, ValueError, tk_tcl_error):
                 pass
         player_explosion_handle = None
         player_explosion_end = None
@@ -1542,7 +1543,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             if handle:
                 try:
                     canvas.after_cancel(handle)
-                except Exception:
+                except (RuntimeError, ValueError, tk_tcl_error):
                     pass
         tick_handle = fire_handle = charge_handle = general_fire_handle = None
 
@@ -1564,7 +1565,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
         if learning_restart_handle:
             try:
                 canvas.after_cancel(learning_restart_handle)
-            except Exception:
+            except (RuntimeError, ValueError, tk_tcl_error):
                 pass
             learning_restart_handle = None
 
@@ -2525,7 +2526,7 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             if self.handle:
                 try:
                     canvas.after_cancel(self.handle)
-                except Exception:  # pragma: no cover - Tk teardown
+                except (RuntimeError, ValueError, tk_tcl_error):  # pragma: no cover - Tk teardown
                     pass
                 self.handle = None
             ai_button.configure(text="Let AI take care")

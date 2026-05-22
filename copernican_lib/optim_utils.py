@@ -85,7 +85,7 @@ def minimize_with_progress(
         from scipy import linalg as _linalg
 
         _linalg.det([[1.0]])
-    except Exception as exc:  # pragma: no cover - depends on environment
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError) as exc:  # pragma: no cover - depends on environment
         logger.error(
             "Basic NumPy/SciPy check failed. This may indicate CPU feature "
             "mismatches or a corrupted install. Reinstall with wheels "
@@ -147,7 +147,7 @@ def minimize_with_progress(
             bounds=bounds,
             options=options or {},
         )
-    except Exception as exc:  # pragma: no cover - hard to trigger in tests
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:  # pragma: no cover - hard to trigger in tests
         logger.error(
             f"Exception during {label.lower()} minimize call: {exc}",
             exc_info=True,

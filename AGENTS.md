@@ -795,6 +795,7 @@ exclude_prefixes:
 - dist
 - node_modules
 - devcovenant
+- tests
 include_prefixes: []
 include_globs:
 - '*.py'
@@ -804,11 +805,10 @@ exclude_globs:
 - dist/**
 - node_modules/**
 - devcovenant/**
+- tests/**
 force_include_globs:
 - devcovenant/custom/**/*.py
 - tests/devcovenant/custom/**/*.py
-- devcovenant/**/*.py
-- tests/**/*.py
 selector_roles:
 - include
 - exclude
@@ -1182,8 +1182,6 @@ exclude_suffixes: []
 force_include_globs:
 - devcovenant/custom/**
 - tests/devcovenant/custom/**
-- devcovenant/**/*.py
-- devcovenant/**/*.md
 - tests/**/*.py
 - tests/**/*.md
 selector_roles:
@@ -1395,7 +1393,6 @@ exclude_globs:
 force_include_globs:
 - devcovenant/custom/**/*.py
 - tests/devcovenant/custom/**/*.py
-- devcovenant/**/*.py
 - tests/**/*.py
 selector_roles:
 - exclude
@@ -1502,16 +1499,16 @@ exclude_prefixes:
 - dist
 - node_modules
 - devcovenant
+- tests
 exclude_globs:
 - build/**
 - dist/**
 - node_modules/**
 - devcovenant/**
+- tests/**
 force_include_globs:
 - devcovenant/custom/**/*.py
 - tests/devcovenant/custom/**/*.py
-- devcovenant/**/*.py
-- tests/**/*.py
 include_files: []
 include_dirs: []
 exclude_files: []
@@ -1664,7 +1661,6 @@ exclude_prefixes:
 force_include_globs:
 - devcovenant/custom/**/*.py
 - tests/devcovenant/custom/**/*.py
-- devcovenant/**/*.py
 - tests/**/*.py
 selector_roles:
 - exclude
@@ -1692,6 +1688,61 @@ separate workflow glue. Use only documented reviewed allow markers such
 as translator `security-scanner: allow` comments or backend-native
 suppressions like `# nosec` when a security review approves the
 exception.
+
+
+---
+
+## Policy: Start Script Guardrails
+
+```policy-def
+id: start-script-guardrails
+severity: error
+auto_fix: 'false'
+enforcement: active
+enabled: 'true'
+custom: 'true'
+launcher_files:
+- start.bat
+- start.sh
+- start.command
+selector_roles:
+- launcher
+launcher_globs: []
+launcher_dirs: []
+```
+
+Keep the launcher scripts on the managed Python 3.11 bootstrap path and
+retain the explicit safety checks that prevent blank download URLs, stale
+virtual environments, and accidental system-Python leakage. The launchers
+also need to preserve the package-manager notice so privilege escalation
+remains explicit.
+
+
+---
+
+## Policy: Start Script Parity
+
+```policy-def
+id: start-script-parity
+severity: error
+auto_fix: 'false'
+enforcement: active
+enabled: 'true'
+custom: 'true'
+launcher_files:
+- start.bat
+- start.sh
+- start.command
+selector_roles:
+- launcher
+launcher_globs: []
+launcher_dirs: []
+```
+
+Keep the Copernican launcher scripts in sync on their visible menu labels,
+prompts, and launcher flow. The Windows batch file, Unix shell script, and
+macOS command launcher should present the same user-facing contract so
+platform-specific entrypoints do not drift apart.
 
 
 ---

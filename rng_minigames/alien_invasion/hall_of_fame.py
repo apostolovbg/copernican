@@ -11,7 +11,7 @@ import yaml
 try:  # pragma: no cover - Tk may be unavailable during tests
     import tkinter as tkinter_module
     from tkinter import ttk
-except Exception:  # pragma: no cover - executed when Tk is missing
+except ImportError:  # pragma: no cover - executed when Tk is missing
     tkinter_module = None
     ttk = None
 
@@ -97,7 +97,7 @@ class HallOfFame:
             return
         try:
             raw_payload = yaml.safe_load(self.path.read_text()) or {}
-        except Exception:
+        except (OSError, TypeError, ValueError, yaml.YAMLError):
             self.entries = []
             self._save()
             return
@@ -119,5 +119,5 @@ class HallOfFame:
         payload = {"entries": self.entries}
         try:
             self.path.write_text(yaml.safe_dump(payload))
-        except Exception:
+        except (OSError, TypeError, ValueError, yaml.YAMLError):
             pass

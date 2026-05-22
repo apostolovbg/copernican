@@ -9,7 +9,7 @@ import time
 try:  # pragma: no cover - Tk is optional
     import tkinter as tkinter_module
     from tkinter import ttk
-except Exception:  # pragma: no cover - executed when Tk is missing
+except ImportError:  # pragma: no cover - executed when Tk is missing
     tkinter_module = None
     ttk = None
 

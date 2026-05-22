@@ -55,7 +55,14 @@ class PosteriorEvaluator:
                 continue
             try:
                 result = transform(raw_param)
-            except Exception as exc:  # pragma: no cover - defensive guard
+            except (
+                ArithmeticError,
+                OverflowError,
+                RuntimeError,
+                TypeError,
+                ValueError,
+                ZeroDivisionError,
+            ) as exc:  # pragma: no cover - defensive guard
                 self.logger.debug(
                     "(PosteriorEvaluator): transform %d failed: %s", idx, exc
                 )
