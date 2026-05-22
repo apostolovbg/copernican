@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-05-21
+**Last Updated:** 2026-05-22
 **DevCovenant Version:** 1.0.1b5
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,19 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.1
+- 2026-05-22 [semver:patch]:
+  Change: Updated the DevCovenant repo profile to ignore generic cache and
+    vendor trees and to stop force-including `devcovenant/**/*.py` and
+    `devcovenant/**/*.md` in the repository policy overlays.
+  Why: Keep policy checks scoped to repo-owned surfaces and stop churn on
+    disposable cache paths and DevCovenant internals.
+  Impact: Future refreshes will keep cache directories out of the generated
+    ignore sets and keep DevCovenant policy scans on the custom surface.
+  Files:
+  .gitignore
+  .pre-commit-config.yaml
+  devcovenant/config.yaml
+  devcovenant/custom/profiles/userproject/userproject.yaml
 - 2026-05-21 [semver:patch]: Migrated Copernican to the latest DevCovenant
   layout, added the repo-owned `userproject` profile, wired the managed
   environment to `.venv`, and moved the Copernican identity and version

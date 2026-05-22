@@ -71,6 +71,7 @@ exclude: |-
     | _site
     | site
     | data
+    | cache
     | \.git
     | \.python
     | output

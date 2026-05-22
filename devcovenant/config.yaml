@@ -1067,7 +1067,6 @@ autogen_metadata_overlays:
     force_include_globs:
     - devcovenant/custom/**/*.py
     - tests/devcovenant/custom/**/*.py
-    - devcovenant/**/*.py
     - tests/**/*.py
     include_suffixes:
     - .py
@@ -1156,8 +1155,6 @@ autogen_metadata_overlays:
     force_include_globs:
     - devcovenant/custom/**
     - tests/devcovenant/custom/**
-    - devcovenant/**/*.py
-    - devcovenant/**/*.md
     - tests/**/*.py
     - tests/**/*.md
     include_globs:
@@ -1250,7 +1247,6 @@ autogen_metadata_overlays:
     force_include_globs:
     - devcovenant/custom/**/*.py
     - tests/devcovenant/custom/**/*.py
-    - devcovenant/**/*.py
     - tests/**/*.py
     include_suffixes:
     - .py
@@ -1279,7 +1275,6 @@ autogen_metadata_overlays:
     force_include_globs:
     - devcovenant/custom/**/*.py
     - tests/devcovenant/custom/**/*.py
-    - devcovenant/**/*.py
     - tests/**/*.py
     include_globs:
     - '*.py'
@@ -1294,7 +1289,6 @@ autogen_metadata_overlays:
     force_include_globs:
     - devcovenant/custom/**/*.py
     - tests/devcovenant/custom/**/*.py
-    - devcovenant/**/*.py
     - tests/**/*.py
     include_suffixes:
     - .py

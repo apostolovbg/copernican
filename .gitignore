@@ -60,6 +60,10 @@ build
 
 # Profile: userproject
 data
+cache
+vendor
+third_party
+node_modules
 
 # OS-specific ignores (DevCovenant)
 .DS_Store

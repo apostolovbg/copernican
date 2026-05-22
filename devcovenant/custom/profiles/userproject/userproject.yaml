@@ -4,6 +4,10 @@ category: application
 suffixes: []
 ignore_dirs:
   - data
+  - cache
+  - vendor
+  - third_party
+  - node_modules
 assets: []
 project-governance:
   project_name: Copernican Suite
@@ -75,23 +79,22 @@ policy_overlays:
       - citation=>CITATION.cff
   line-length-limit:
     force_include_globs:
-      - devcovenant/**/*.py
-      - devcovenant/**/*.md
+      - devcovenant/custom/**
       - tests/**/*.py
       - tests/**/*.md
   name-clarity:
     force_include_globs:
-      - devcovenant/**/*.py
+      - devcovenant/custom/**/*.py
       - tests/**/*.py
   docstring-and-comment-coverage:
     force_include_globs:
-      - devcovenant/**/*.py
+      - devcovenant/custom/**/*.py
       - tests/**/*.py
   security-scanner:
     force_include_globs:
-      - devcovenant/**/*.py
+      - devcovenant/custom/**/*.py
       - tests/**/*.py
   no-raw-errors:
     force_include_globs:
-      - devcovenant/**/*.py
+      - devcovenant/custom/**/*.py
       - tests/**/*.py
