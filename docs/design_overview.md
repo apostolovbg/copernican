@@ -206,13 +206,11 @@ during CI runs.
 
 ## Dependency management and packaging
 
-`tools/update_lock.py` and the accompanying `make lock` target regenerate the
-pinned `requirements.lock` file using `pip-tools`, avoiding implicit Python
-version headers so CI runs remain deterministic. A small helper ensures `pip-
-tools==7.4.1` is available before the lock step executes, even in clean CI
-environments. The packaging guide in `docs/packaging.md` details how to build
-wheels and source distributions while keeping runtime metadata aligned with the
-tracked version file.
+The DevCovenant dependency-management surface regenerates the pinned
+`requirements.lock` file and matching license inventory so dependency refreshes
+stay deterministic. The packaging guide in `docs/packaging.md` details how to
+build wheels and source distributions while keeping runtime metadata aligned
+with the tracked version file.
 
 ## Launcher parity and CI
 

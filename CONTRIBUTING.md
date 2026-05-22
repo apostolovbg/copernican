@@ -35,7 +35,7 @@ redistributing the suite in full and prohibits patent claims.
 ## Compliance as Workflow
 Treat the AGENTS laws and DevCovenant policies as the workflow itself: read
 them before working, obey them while coding, and re-run the mandated commands
-before every commit (`pre-commit run --all-files`, `python3
-devcovenant_check.py check --mode=startup` and dependency lock updates when
-requirements change). Log the action in `CHANGELOG.md` including the law
-number/policy ID to prove compliance.
+before every commit (`pre-commit run --all-files` and the DevCovenant gate
+workflow, plus dependency lock updates when requirements change). Log the
+action in `CHANGELOG.md` including the law number/policy ID to prove
+compliance.

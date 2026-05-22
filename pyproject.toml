@@ -74,7 +74,7 @@ exclude = [
 ]
 
 [tool.setuptools.data-files]
-"licenses" = ["THIRD_PARTY_LICENSES.md", "licenses/*"]
+"licenses" = ["licenses/*"]
 
 [tool.setuptools.package-data]
 "copernican_lib" = ["VERSION"]

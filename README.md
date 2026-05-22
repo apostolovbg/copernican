@@ -90,8 +90,9 @@ enforces its laws through pre-commit checks.
    validation suite.
  - `docs/`: Guides covering architecture, GUI/CLI workflows, manifest
    structure, launchers, datasets and the documentation policy itself.
- - `AGENTS.md`, `CHANGELOG.md`, `THIRD_PARTY_LICENSES.md`, `CITATION.cff`:
-   Governance, release history and citation/licensing metadata.
+- `AGENTS.md`, `CHANGELOG.md`, `licenses/THIRD_PARTY_LICENSES.md`,
+  `CITATION.cff`:
+  Governance, release history and citation/licensing metadata.
 
 ## Run Builder & GUI
 The navigation rail keeps quick actions and an always-visible logo square, so
@@ -155,8 +156,9 @@ overlapping validation jobs cannot start.
 
 ## Documentation & policy
 Release notes live in `CHANGELOG.md`, licensing details appear in
-`THIRD_PARTY_LICENSES.md`, and the GUI Help panel renders `README.md` (banner
-included) plus the CLI/GUI guides from `docs/gui_guide.md` and
+`licenses/THIRD_PARTY_LICENSES.md`, and the GUI Help panel renders
+`README.md` (banner included) plus the CLI/GUI guides from
+`docs/gui_guide.md` and
 `docs/cli_guide.md`. The brand-new Analysis workspace and launcher wiring are
 covered by `docs/gui_overview.md` and `docs/launcher_gui.md`, while dataset and
 manifest hygiene appear across `docs/data_overview.md`, `docs/run_manifest.md`

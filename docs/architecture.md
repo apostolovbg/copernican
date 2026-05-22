@@ -120,11 +120,11 @@ as policy enforcement and dataset validation.
 ## Policies and Documentation Guardrails
 
 - `AGENTS.md` + DevCovenant enforce changelog coverage, documentation updates,
-  line length, module tests, parser hashes, policy script syncing, and other
-  laws (commenting, documentation ties, etc.).
-- Every policy change that sets `updated: true` requires scripting & tests
-  before progressing; this is enforced via `python devcovenant_check.py check
-  --mode=startup` and `devcovenant_check.py update-hashes`.
+  line length, module tests, parser hashes, policy syncing, and other laws
+  (commenting, documentation ties, etc.).
+- Every policy change that sets `updated: true` requires scripting and tests
+  before progressing; this is enforced via the DevCovenant gate workflow and
+  dependency-management refresh path.
 - Documentation updates must update both `README.md` and the related `docs/`
   file while noting touched paths in `CHANGELOG.md`.
 - Datasets, parsers, and metadata remain read-only except when explicitly

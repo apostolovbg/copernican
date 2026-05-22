@@ -2,7 +2,8 @@
 
 Each observational source shipped inside `data/` lists its own usage terms via
 `metadata_*.yml`. The Copernican Suite also aggregates the license texts for
-runtime dependencies in [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md)
+runtime dependencies in
+[`licenses/THIRD_PARTY_LICENSES.md`](../licenses/THIRD_PARTY_LICENSES.md)
 and under [`licenses/`](licenses/).
 
 The Union Through UNITY 2000 SNe sample (Union3) is available under an MIT

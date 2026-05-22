@@ -57,11 +57,11 @@ copernican-suite` before showing the menu so the entry always matches the
 package state, giving you one clear path to install the release wheel or remove
 it before testing fresh code.
 
-`requirements.lock` pins exact versions for all runtime dependencies. Adding or
-updating a package requires editing this file and the license summary in
-`THIRD_PARTY_LICENSES.md`. This release refreshed nearly every pin to match
-published wheels, so remember to keep the license table in sync when adjusting
-future dependencies.
+`requirements.lock` pins exact versions for all runtime dependencies. Adding
+or updating a package requires editing this file and the license summary in
+`licenses/THIRD_PARTY_LICENSES.md`. This release refreshed nearly every pin to
+match published wheels, so remember to keep the license table in sync when
+adjusting future dependencies.
 
 Development helpers such as `pre-commit` are installed without the `--no-deps`
 flag so their own dependencies are pulled in automatically. This keeps the
