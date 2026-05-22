@@ -4,6 +4,7 @@ category: application
 suffixes: []
 ignore_dirs:
   - data
+  - models/cache
   - cache
   - vendor
   - third_party

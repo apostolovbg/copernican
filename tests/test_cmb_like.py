@@ -1,6 +1,4 @@
-"""Unit tests for CAMB-backed CMB helpers.
-
-"""
+"""Unit tests for CAMB-backed CMB helpers."""
 
 from __future__ import annotations
 

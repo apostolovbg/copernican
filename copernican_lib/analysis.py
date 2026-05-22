@@ -284,7 +284,7 @@ def parse_log(log_path: Path) -> Mapping[str, Any]:
                 key, metric_value = map(str.strip, content.split("=", 1))
                 log_models[current_model_key]["chi2"][
                     _sanitize_metric_name(key)
-                ] = (_parse_float(metric_value) or 0.0)
+                ] = _parse_float(metric_value) or 0.0
 
     if end_time is None and last_ts is not None:
         end_time = last_ts
@@ -304,7 +304,7 @@ def parse_log(log_path: Path) -> Mapping[str, Any]:
 
 
 def _ensure_mapping(
-    maybe_mapping: Optional[Mapping[str, Any]]
+    maybe_mapping: Optional[Mapping[str, Any]],
 ) -> Mapping[str, Any]:
     """Return the supplied mapping or an empty dict when it is None."""
     return maybe_mapping or {}

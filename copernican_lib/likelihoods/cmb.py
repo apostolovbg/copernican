@@ -55,7 +55,7 @@ def _normalise_value(entry_value: Any) -> Any:
 
 
 def _normalise_items(
-    param_dict: Mapping[str, Any]
+    param_dict: Mapping[str, Any],
 ) -> tuple[tuple[str, Any], ...]:
     """Convert ``param_dict`` into a deterministic tuple of items."""
 
@@ -230,7 +230,7 @@ def _make_camb_params(
 
 @lru_cache(maxsize=128)
 def _cached_cmb(
-    key: tuple[str, tuple[tuple[str, Any], ...], int, tuple[str, ...]]
+    key: tuple[str, tuple[tuple[str, Any], ...], int, tuple[str, ...]],
 ):
     """Return unlensed CAMB spectra for a given cache key."""
 
@@ -251,7 +251,7 @@ def _cached_cmb(
 
 @lru_cache(maxsize=128)
 def _cached_background(
-    key: tuple[str, tuple[tuple[str, Any], ...], tuple[float, ...]]
+    key: tuple[str, tuple[tuple[str, Any], ...], tuple[float, ...]],
 ) -> tuple[
     float,
     tuple[float, ...],

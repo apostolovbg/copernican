@@ -1,6 +1,4 @@
-"""Tests for the parameter summary writer.
-
-"""
+"""Tests for the parameter summary writer."""
 
 import json
 import logging

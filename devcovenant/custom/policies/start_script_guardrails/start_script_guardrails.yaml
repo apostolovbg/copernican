@@ -1,0 +1,19 @@
+id: start-script-guardrails
+text: |
+  Keep the launcher scripts on the managed Python 3.11 bootstrap path and
+  retain the explicit safety checks that prevent blank download URLs, stale
+  virtual environments, and accidental system-Python leakage. The launchers
+  also need to preserve the package-manager notice so privilege escalation
+  remains explicit.
+metadata:
+  id: start-script-guardrails
+  severity: error
+  auto_fix: 'false'
+  enforcement: active
+  enabled: 'true'
+  custom: 'true'
+  launcher_files:
+    - start.bat
+    - start.sh
+    - start.command
+

@@ -1,6 +1,4 @@
-"""Unit tests for likelihood helper classes.
-
-"""
+"""Unit tests for likelihood helper classes."""
 
 from __future__ import annotations
 

@@ -14,6 +14,7 @@ single-function entry points. Each observable category attaches a uniform set
 of attributes including reproducibility hashes, dataset versions and explicit
 statistical independence statements. The additional metadata is consumed by the
 run manifest builder and keeps the suite honest about likelihood assumptions.
+
 """
 import hashlib
 import logging

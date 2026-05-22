@@ -1787,7 +1787,9 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             descriptor = (
                 "Colonel"
                 if record.get("rank") == "colonel"
-                else "Major" if record.get("rank") == "major" else "Cruiser"
+                else "Major"
+                if record.get("rank") == "major"
+                else "Cruiser"
             )
             action_var.set(
                 f"{descriptor} absorbed the hit ({remaining_hp}/"

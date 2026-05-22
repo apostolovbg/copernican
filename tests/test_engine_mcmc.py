@@ -1,6 +1,4 @@
-"""Integration tests for the ensemble MCMC engine.
-
-"""
+"""Integration tests for the ensemble MCMC engine."""
 
 import contextlib
 import logging

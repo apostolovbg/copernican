@@ -2117,7 +2117,7 @@ class CopernicanGUI:
 
         return (
             f"Copernican Suite {self.gui_version}  "
-            "\u00A9 Apostol Apostolov & Black Epsilon Ltd."
+            "\u00a9 Apostol Apostolov & Black Epsilon Ltd."
         )
 
     def _refresh_environment_status(self) -> None:

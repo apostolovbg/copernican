@@ -1,6 +1,4 @@
-"""Regression tests for logging diagnostics helpers.
-
-"""
+"""Regression tests for logging diagnostics helpers."""
 
 import unittest
 

@@ -1,6 +1,4 @@
-"""Tests for UTC-normalised timestamp helpers.
-
-"""
+"""Tests for UTC-normalised timestamp helpers."""
 
 from __future__ import annotations
 

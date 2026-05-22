@@ -1,6 +1,4 @@
-"""Tests for the run manifest helper.
-
-"""
+"""Tests for the run manifest helper."""
 
 import os
 import tempfile

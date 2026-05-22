@@ -417,6 +417,8 @@ policy_state:
   raw-string-escapes: true
   read-only-directories: true
   security-scanner: true
+  start-script-guardrails: true
+  start-script-parity: true
   tests-coverage: true
   version-governance: true
   version-sync: true

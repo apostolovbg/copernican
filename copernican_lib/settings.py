@@ -57,7 +57,8 @@ def _merge_settings(
             merged.get(key), dict
         ):
             merged[key] = _merge_settings(
-                merged[key].copy(), override_value  # type: ignore[arg-type]
+                merged[key].copy(),
+                override_value,  # type: ignore[arg-type]
             )
         else:
             merged[key] = override_value

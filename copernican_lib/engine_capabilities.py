@@ -61,7 +61,7 @@ def _ensure_limit(
 
 
 def _normalize_setting(
-    candidate_setting: EngineSetting | Mapping[str, Any]
+    candidate_setting: EngineSetting | Mapping[str, Any],
 ) -> EngineSetting:
     """Normalize an entry into a canonical :class:`EngineSetting`."""
     if isinstance(candidate_setting, EngineSetting):
@@ -81,7 +81,7 @@ def _normalize_setting(
 
 
 def _normalize_chunk(
-    candidate_chunk: EngineProgressChunk | Mapping[str, Any]
+    candidate_chunk: EngineProgressChunk | Mapping[str, Any],
 ) -> EngineProgressChunk:
     """Normalize a configuration entry into an :class:`EngineProgressChunk`."""
     if isinstance(candidate_chunk, EngineProgressChunk):
