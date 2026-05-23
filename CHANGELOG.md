@@ -1,7 +1,7 @@
 # Changelog
 **Doc ID:** CHANGELOG
 **Doc Type:** changelog
-**Project Version:** 12.0.6
+**Project Version:** 12.0.7
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -76,6 +76,23 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 12.0.7
+
+- 2026-05-23 [semver:patch]:
+  Change: Added reviewed subprocess suppressions to the intentional
+    launcher and git-probe boundaries.
+  Why: Document the approved process boundaries without widening policy
+    scope.
+  Impact: Suppresses the remaining Bandit findings for the reviewed
+    launcher and git metadata calls while preserving behavior.
+  Files:
+  CHANGELOG.md
+  copernican_lib/VERSION
+  copernican.py
+  copernican_lib/gui/app.py
+  copernican_lib/run_manifest.py
+  pyproject.toml
 
 ## Version 12.0.6
 

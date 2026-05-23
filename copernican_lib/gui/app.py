@@ -20,7 +20,7 @@ import os
 import platform
 import re
 import shutil
-import subprocess
+import subprocess  # nosec
 import sys
 import tempfile
 import threading
@@ -1455,9 +1455,9 @@ class CopernicanGUI:
             if os.name == "nt":
                 os.startfile(path)
             elif sys.platform == "darwin":
-                subprocess.run(["open", path], check=False)
+                subprocess.run(["open", path], check=False)  # nosec
             else:
-                subprocess.run(["xdg-open", path], check=False)
+                subprocess.run(["xdg-open", path], check=False)  # nosec
         except (OSError, RuntimeError, ValueError) as exc:
             console_output.write(
                 f"Unable to open folder {path}: {exc}", error=True
@@ -1518,9 +1518,9 @@ class CopernicanGUI:
             if sys.platform.startswith("win"):
                 os.startfile(path)  # type: ignore[attr-defined]
             elif sys.platform == "darwin":
-                subprocess.run(["open", path], check=False)
+                subprocess.run(["open", path], check=False)  # nosec
             else:
-                subprocess.run(["xdg-open", path], check=False)
+                subprocess.run(["xdg-open", path], check=False)  # nosec
         except (OSError, RuntimeError, ValueError) as exc:
             console_output.write(f"Unable to open {path}: {exc}", error=True)
 
@@ -3568,7 +3568,7 @@ class CopernicanGUI:
         else:
             env.pop("COPERNICAN_GUI_PROGRESS_PATH", None)
         try:
-            process = subprocess.Popen(
+            process = subprocess.Popen(  # nosec
                 command,
                 cwd=str(self._repo_root()),
                 stdout=subprocess.PIPE,
@@ -7250,7 +7250,7 @@ class CopernicanGUI:
         env = os.environ.copy()
         env.setdefault("COPERNICAN_DETACH_GUI", "0")
         try:
-            process = subprocess.Popen(
+            process = subprocess.Popen(  # nosec
                 command,
                 cwd=str(self._repo_root()),
                 stdout=subprocess.PIPE,

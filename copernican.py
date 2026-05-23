@@ -34,7 +34,7 @@ import os
 import platform
 import shutil
 import signal
-import subprocess
+import subprocess  # nosec
 import sys
 import logging
 from collections import Counter
@@ -1256,7 +1256,7 @@ def _launch_detached_process(
         kwargs["creationflags"] = creation_flags
     else:
         kwargs["start_new_session"] = True
-    subprocess.Popen(command, **kwargs)
+    subprocess.Popen(command, **kwargs)  # nosec
 
 
 def _spawn_detached_gui(argv: list[str], launch: LaunchRequest) -> bool:

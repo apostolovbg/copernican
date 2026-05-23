@@ -10,7 +10,7 @@ back unambiguously.
 from __future__ import annotations
 
 import os
-import subprocess
+import subprocess  # nosec
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
@@ -49,7 +49,7 @@ def _git_info() -> dict:
 
     try:
         commit = (
-            subprocess.check_output(
+            subprocess.check_output(  # nosec
                 ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
             )
             .decode()
@@ -58,7 +58,7 @@ def _git_info() -> dict:
     except (OSError, subprocess.CalledProcessError):
         commit = "unknown"
     try:
-        subprocess.check_output(
+        subprocess.check_output(  # nosec
             ["git", "diff-index", "--quiet", "HEAD", "--"],
             stderr=subprocess.DEVNULL,
         )
