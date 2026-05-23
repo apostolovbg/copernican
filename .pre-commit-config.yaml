@@ -73,7 +73,6 @@ exclude: |-
     | data
     | models/cache
     | cache
-    | \.matplotlib\-cache
     | licenses
     | \.git
     | \.python
