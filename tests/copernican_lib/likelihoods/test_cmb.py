@@ -24,7 +24,7 @@ class CMBBackgroundTestCase(unittest.TestCase):
     def setUpClass(cls) -> None:
         """Prepare a ΛCDM plugin for evaluating CAMB helpers."""
 
-        repo_root = Path(__file__).resolve().parents[1]
+        repo_root = Path(__file__).resolve().parents[3]
         os.environ.setdefault("VIRTUAL_ENV", str(repo_root / ".venv"))
         yaml_path = repo_root / "models" / "cosmo_model_lcdm.yml"
         cache_dir = repo_root / "models" / "cache"

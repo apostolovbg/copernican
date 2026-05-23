@@ -1,7 +1,7 @@
 # Project Specification
 **Doc ID:** SPEC
 **Doc Type:** project-spec
-**Project Version:** 12.0.1
+**Project Version:** 12.0.2
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only

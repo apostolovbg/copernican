@@ -19,6 +19,7 @@ import logging
 import os
 import platform
 import sys
+import threading
 import time
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -30,6 +31,7 @@ from .utils import ensure_dir_exists, get_timestamp
 _PROGRAM_LOGGER_NAME = "copernican.program"
 _PROGRAM_LOGGER: logging.Logger | None = None
 _PROGRAM_LOG_PATH: str | None = None
+_CONSOLE_CAPTURE_STATE = threading.local()
 
 
 class _PathFilter(logging.Filter):
@@ -61,6 +63,35 @@ class _ConsoleFilter(logging.Filter):
         return not getattr(record, "console_capture", False)
 
 
+def _close_handlers(logger: logging.Logger) -> None:
+    """Detach and close handlers that are being replaced."""
+
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+        handler.close()
+
+
+def _console_capture_active() -> bool:
+    """Return ``True`` while mirrored console output is being logged."""
+
+    return bool(getattr(_CONSOLE_CAPTURE_STATE, "active", False))
+
+
+def _set_console_capture_active(active: bool) -> None:
+    """Track whether console mirroring is already in progress."""
+
+    _CONSOLE_CAPTURE_STATE.active = active
+
+
+def _ensure_program_log_dir() -> None:
+    """Recreate the active program log directory when it was removed."""
+
+    if _PROGRAM_LOG_PATH is None:
+        return
+    log_dir = Path(_PROGRAM_LOG_PATH).expanduser().parent
+    ensure_dir_exists(str(log_dir))
+
+
 def _patch_builtins(base_dir: str) -> None:
     """Mirror print and input to the logger with path sanitisation."""
 
@@ -85,16 +116,23 @@ def _patch_builtins(base_dir: str) -> None:
         cleaned = _shorten(text).rstrip("\n")
         if not cleaned.strip():
             return
-        logger.info(
-            cleaned,
-            extra={"console_capture": True},
-        )
-        program_logger = _PROGRAM_LOGGER
-        if program_logger is not None:
-            program_logger.info(
+        if _console_capture_active():
+            return
+        _set_console_capture_active(True)
+        try:
+            logger.info(
                 cleaned,
                 extra={"console_capture": True},
             )
+            program_logger = _PROGRAM_LOGGER
+            if program_logger is not None:
+                _ensure_program_log_dir()
+                program_logger.info(
+                    cleaned,
+                    extra={"console_capture": True},
+                )
+        finally:
+            _set_console_capture_active(False)
 
     def print_patch(*args, **kwargs):
         """Proxy ``print`` that mirrors output to the log file."""
@@ -189,8 +227,7 @@ def setup_program_logging(
     level = getattr(logging, level_name, logging.INFO)
     logger_obj.setLevel(level)
     logger_obj.propagate = False
-    for handler in logger_obj.handlers[:]:
-        logger_obj.removeHandler(handler)
+    _close_handlers(logger_obj)
 
     max_bytes = max(1, int(rollover_mb * 1024 * 1024))
     rotating_handler = RotatingFileHandler(
@@ -241,8 +278,7 @@ def setup_logging(
     ensure_dir_exists(log_dir)
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
-    for handler in logger.handlers[:]:
-        logger.removeHandler(handler)
+    _close_handlers(logger)
 
     # Name log file using an execution timestamp or explicit tag
     file_tag = log_tag or f"copernican-run_{get_timestamp()}.txt"
@@ -293,8 +329,7 @@ def setup_monitor_logging(
     logger_obj = logging.getLogger("copernican.gui.run")
     logger_obj.setLevel(logging.INFO)
     logger_obj.propagate = False
-    for handler in list(logger_obj.handlers):
-        logger_obj.removeHandler(handler)
+    _close_handlers(logger_obj)
 
     tag = log_tag or f"monitor_{get_timestamp()}.txt"
     if not tag.endswith(".txt"):

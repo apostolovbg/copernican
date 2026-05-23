@@ -22,7 +22,7 @@ class LikelihoodTestCase(unittest.TestCase):
     def setUpClass(cls):
         """Load a validated ΛCDM plugin for likelihood evaluation."""
 
-        repo_root = Path(__file__).resolve().parents[1]
+        repo_root = Path(__file__).resolve().parents[2]
         os.environ.setdefault("VIRTUAL_ENV", str(repo_root / ".venv"))
 
         models_dir = repo_root / "models"

@@ -23,7 +23,8 @@ class TestResultWriter(unittest.TestCase):
     """Ensure that result summaries are written with expected structure."""
 
     def _build_lcdm_plugin(self):
-        models_dir = os.path.join(os.path.dirname(__file__), "..", "models")
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        models_dir = os.path.join(repo_root, "models")
         yaml_path = os.path.join(models_dir, "cosmo_model_lcdm.yml")
         cache_dir = os.path.join(models_dir, "cache")
         cache_path = model_spec_validator.validate_and_cache_model(
