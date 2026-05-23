@@ -1,13 +1,13 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: ca74f644f35e8b48427bfc94a2239e07a8081d2fcc21f6335762e786052c89c2
+  policy_registry_input_hash: f4a8109fc3a6c856d9b268833be7963ae5f9f29582ffbf759a38661f4a973f1a
 project-governance:
   project_name: Copernican Suite
   project_description: A Python toolkit for evaluating cosmological models against
     SNe Ia, BAO, and CMB observations.
   copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of Bulgaria
-  project_version: 12.0.2
+  project_version: 12.0.3
   stage: stable
   maintenance_stance: active
   compatibility_policy: forward-only
