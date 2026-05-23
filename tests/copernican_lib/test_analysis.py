@@ -39,7 +39,9 @@ def _build_run_result(run_dir: Path) -> analysis.RunAnalysisResult:
 class TestAnalysis(unittest.TestCase):
     """Exercise posterior plotting helpers."""
 
-    def test_plot_posterior_generates_corner_histogram_and_overview(self) -> None:
+    def test_plot_posterior_generates_corner_histogram_and_overview(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             run_dir = Path(tmpdir) / "posterior-run"
             run_dir.mkdir()

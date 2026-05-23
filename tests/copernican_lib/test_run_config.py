@@ -43,7 +43,9 @@ class TestRunConfig(unittest.TestCase):
         config = build_config_from_manifest(self.simple_manifest)
         self.assertEqual(config.seed, 42)
         self.assertEqual(config.models, ["LambdaCDM"])
-        self.assertEqual(config.engine.module_name, "engines.cosmo_engine_mcmc")
+        self.assertEqual(
+            config.engine.module_name, "engines.cosmo_engine_mcmc"
+        )
         self.assertEqual(config.engine.version, "7.6.20")
         self.assertEqual(config.run_settings.engine_kind, "mcmc")
         self.assertEqual(config.run_settings.settings["n_steps"], 200)

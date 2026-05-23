@@ -62,22 +62,18 @@ policy_overlays:
       - docs
       - changelog
       - package_manifest
-      - citation
     role_extractors:
       - docs=>project_version_line
       - changelog=>changelog_header_version
       - package_manifest=>manifest_project_version
-      - citation=>manifest_project_version
     role_legality_schemes:
       - package_manifest=>pep440
-      - citation=>pep440
     target_role_files:
       - docs=>README.md
       - docs=>AGENTS.md
       - docs=>CONTRIBUTING.md
       - changelog=>CHANGELOG.md
       - package_manifest=>pyproject.toml
-      - citation=>CITATION.cff
   line-length-limit:
     force_include_globs:
       - devcovenant/custom/**

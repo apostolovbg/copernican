@@ -168,7 +168,12 @@ def calculate_bao_observables(
                         redshifts,
                     )
                 except (
-                    Exception
+                    AttributeError,
+                    ImportError,
+                    OSError,
+                    RuntimeError,
+                    TypeError,
+                    ValueError,
                 ) as exc:  # pragma: no cover - CAMB errors are logged
                     logger.warning(
                         "Failed to compute CAMB background for BAO plots: %s",

@@ -114,7 +114,9 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         self.assertTrue(module.ENGINE_PROGRESS_CHUNKS)
 
     def test_active_log_probability_rebuilds_full_vector(self) -> None:
-        posterior = lambda arr: float(np.sum(arr))
+        def posterior(arr):
+            return float(np.sum(arr))
+
         adapter = _ActiveLogProbability(
             posterior,
             np.array([1.0, 2.0, 3.0]),
@@ -419,9 +421,7 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             upper=upper,
             rng=rng,
             log_probability_fn=lambda pos: posterior(pos),
-            reference_position=np.asarray(
-                plugin.INITIAL_GUESSES, dtype=float
-            ),
+            reference_position=np.asarray(plugin.INITIAL_GUESSES, dtype=float),
         )
         self.assertTrue(np.all(np.isfinite(new_coords)))
         self.assertTrue(np.all(np.isfinite(new_log_prob)))
@@ -481,7 +481,9 @@ class TestCosmoEngineMcmc(unittest.TestCase):
         trial = template[active_indices]
         assembled = adapter.assemble_full(trial)
         self.assertTrue(np.allclose(assembled[active_indices], trial))
-        self.assertTrue(np.allclose(assembled[fixed_mask], template[fixed_mask]))
+        self.assertTrue(
+            np.allclose(assembled[fixed_mask], template[fixed_mask])
+        )
         value = adapter(trial)
         self.assertIsInstance(value, float)
         self.assertTrue(math.isfinite(value) or math.isneginf(value))
@@ -492,7 +494,9 @@ class TestCosmoEngineMcmc(unittest.TestCase):
             upper[~fixed_mask],
         )
         assembled_clipped = adapter.assemble_full(clipped)
-        self.assertTrue(np.allclose(assembled_clipped[active_indices], clipped))
+        self.assertTrue(
+            np.allclose(assembled_clipped[active_indices], clipped)
+        )
 
     def test_sampler_runs_with_spawn_pool(self) -> None:
         plugin = _build_model_plugin("cosmo_model_lcdm.yml")

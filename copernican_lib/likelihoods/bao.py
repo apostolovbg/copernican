@@ -279,7 +279,12 @@ class BAOLike(LikelihoodProtocol):
                     self._residual_buffer @ cov_inv @ self._residual_buffer
                 )
                 metadata["covariance"] = "full"
-            except (RuntimeError, TypeError, ValueError, np.linalg.LinAlgError) as exc:
+            except (
+                RuntimeError,
+                TypeError,
+                ValueError,
+                np.linalg.LinAlgError,
+            ) as exc:
                 logger.warning(
                     "(bao_like): Falling back to diagonal covariance: %s",
                     exc,

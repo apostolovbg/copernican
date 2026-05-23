@@ -1,7 +1,7 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: fa7f3922a93da9261074f3c0bca6d8c9cbac54df82d22b0f325c1fa83ac0584d
+  policy_registry_input_hash: fce45862ff8389bb654a1809b7643c7a47c2a7e334df4defe542fa58b8d3fcac
 project-governance:
   project_name: Copernican Suite
   project_description: A Python toolkit for evaluating cosmological models against
@@ -12402,15 +12402,12 @@ policies:
       - docs
       - changelog
       - package_manifest
-      - citation
       role_extractors:
       - docs=>project_version_line
       - changelog=>changelog_header_version
       - package_manifest=>manifest_project_version
-      - citation=>manifest_project_version
       role_legality_schemes:
       - package_manifest=>pep440
-      - citation=>pep440
       target_role_files:
       - docs=>README.md
       - docs=>AGENTS.md
@@ -12419,7 +12416,6 @@ policies:
       - docs=>PLAN.md
       - changelog=>CHANGELOG.md
       - package_manifest=>pyproject.toml
-      - citation=>CITATION.cff
       target_role_globs: []
       target_role_dirs: []
       changelog_file: CHANGELOG.md
@@ -12507,7 +12503,6 @@ policies:
           - docs
           - changelog
           - package_manifest
-          - citation
           behavior: append
           replaced_inherited_values:
           - ()
@@ -12516,7 +12511,6 @@ policies:
           - docs
           - changelog
           - package_manifest
-          - citation
           behavior: append
           replaced_inherited_values:
           - ()
@@ -12525,7 +12519,6 @@ policies:
           - docs
           - changelog
           - package_manifest
-          - citation
       role_extractors:
         descriptor:
           values:
@@ -12538,7 +12531,6 @@ policies:
           - docs=>project_version_line
           - changelog=>changelog_header_version
           - package_manifest=>manifest_project_version
-          - citation=>manifest_project_version
           behavior: append
           replaced_inherited_values:
           - ()
@@ -12547,7 +12539,6 @@ policies:
           - docs=>project_version_line
           - changelog=>changelog_header_version
           - package_manifest=>manifest_project_version
-          - citation=>manifest_project_version
           behavior: append
           replaced_inherited_values:
           - ()
@@ -12556,7 +12547,6 @@ policies:
           - docs=>project_version_line
           - changelog=>changelog_header_version
           - package_manifest=>manifest_project_version
-          - citation=>manifest_project_version
       role_legality_schemes:
         descriptor:
           values:
@@ -12567,21 +12557,18 @@ policies:
         profile_overlays:
           values:
           - package_manifest=>pep440
-          - citation=>pep440
           behavior: append
           replaced_inherited_values:
           - ()
         autogen_overlays:
           values:
           - package_manifest=>pep440
-          - citation=>pep440
           behavior: append
           replaced_inherited_values:
           - ()
         effective:
           values:
           - package_manifest=>pep440
-          - citation=>pep440
       target_role_files:
         descriptor:
           values:
@@ -12598,7 +12585,6 @@ policies:
           - docs=>PLAN.md
           - changelog=>CHANGELOG.md
           - package_manifest=>pyproject.toml
-          - citation=>CITATION.cff
           behavior: append
           replaced_inherited_values:
           - ()
@@ -12611,7 +12597,6 @@ policies:
           - docs=>PLAN.md
           - changelog=>CHANGELOG.md
           - package_manifest=>pyproject.toml
-          - citation=>CITATION.cff
           behavior: append
           replaced_inherited_values:
           - ()
@@ -12624,7 +12609,6 @@ policies:
           - docs=>PLAN.md
           - changelog=>CHANGELOG.md
           - package_manifest=>pyproject.toml
-          - citation=>CITATION.cff
       target_role_globs:
         descriptor:
           values:
@@ -12758,15 +12742,12 @@ policies:
       - docs
       - changelog
       - package_manifest
-      - citation
       role_extractors: &id106
       - docs=>project_version_line
       - changelog=>changelog_header_version
       - package_manifest=>manifest_project_version
-      - citation=>manifest_project_version
       role_legality_schemes: &id107
       - package_manifest=>pep440
-      - citation=>pep440
       target_role_files: &id108
       - docs=>README.md
       - docs=>AGENTS.md
@@ -12775,7 +12756,6 @@ policies:
       - docs=>PLAN.md
       - changelog=>CHANGELOG.md
       - package_manifest=>pyproject.toml
-      - citation=>CITATION.cff
       target_role_globs: []
       target_role_dirs: []
       changelog_file: CHANGELOG.md
@@ -12982,7 +12962,7 @@ policies:
     assets: []
     origin: custom
     script_exists: true
-    hash: b36a4a5b036823f7d7d505a04caed2bc13525fafbf65332ca12f305c3b64d988
+    hash: 17ef4af089aa73da64265fe26c7a1d251f8bf299bf662b7c0c9385570d5bdf9b
     script_path: custom/start_script_guardrails.py
   start-script-parity:
     enabled: true
@@ -15974,22 +15954,18 @@ profiles:
         - docs
         - changelog
         - package_manifest
-        - citation
         role_extractors:
         - docs=>project_version_line
         - changelog=>changelog_header_version
         - package_manifest=>manifest_project_version
-        - citation=>manifest_project_version
         role_legality_schemes:
         - package_manifest=>pep440
-        - citation=>pep440
         target_role_files:
         - docs=>README.md
         - docs=>AGENTS.md
         - docs=>CONTRIBUTING.md
         - changelog=>CHANGELOG.md
         - package_manifest=>pyproject.toml
-        - citation=>CITATION.cff
       line-length-limit:
         force_include_globs:
         - devcovenant/custom/**

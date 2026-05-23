@@ -2,10 +2,9 @@
 
 import os
 import tempfile
+import unittest
 from pathlib import Path
 from types import MethodType, SimpleNamespace
-
-import pytest
 
 from copernican_lib import run_manifest
 from copernican_lib.gui import CopernicanGUI, RunStatus
@@ -34,7 +33,105 @@ def _stub_worker_launch(gui: CopernicanGUI) -> None:
     )
 
 
-def test_catalogue_metadata_and_filters() -> None:
+def _tmp_path_or_default(tmp_path: Path | None) -> Path:
+    """Return a usable temporary directory path for unittest methods."""
+
+    if tmp_path is None:
+        return Path(tempfile.mkdtemp())
+    return tmp_path
+
+
+class TestCopernicanGUI(unittest.TestCase):
+    """Exercise the Tkinter GUI scaffold."""
+
+    def test_catalogue_metadata_and_filters(self) -> None:
+        _case_catalogue_metadata_and_filters(self)
+
+    def test_model_and_engine_metadata_actions(self) -> None:
+        _case_model_and_engine_metadata_actions(self)
+
+    def test_builder_navigation_and_draft(self) -> None:
+        _case_builder_navigation_and_draft(self)
+
+    def test_builder_next_requires_all_pages_selected(self) -> None:
+        _case_builder_next_requires_all_pages_selected(self)
+
+    def test_builder_next_advances_when_pages_ready(
+        self,
+        tmp_path: Path | None = None,
+    ) -> None:
+        _case_builder_next_advances_when_pages_ready(self, tmp_path)
+
+    def test_save_manifest_creates_new_config_folder(
+        self,
+        tmp_path: Path | None = None,
+    ) -> None:
+        _case_save_manifest_creates_new_config_folder(self, tmp_path)
+
+    def test_clear_manifest_resets_state(
+        self,
+        tmp_path: Path | None = None,
+    ) -> None:
+        _case_clear_manifest_resets_state(self, tmp_path)
+
+    def test_save_manifest_to_external(
+        self,
+        tmp_path: Path | None = None,
+    ) -> None:
+        _case_save_manifest_to_external(self, tmp_path)
+
+    def test_auto_loads_saved_temp_manifest(
+        self,
+        tmp_path: Path | None = None,
+    ) -> None:
+        _case_auto_loads_saved_temp_manifest(self, tmp_path)
+
+    def test_confirm_step_requires_saved_manifest(
+        self,
+        tmp_path: Path | None = None,
+    ) -> None:
+        _case_confirm_step_requires_saved_manifest(self, tmp_path)
+
+    def test_confirm_start_run_renames_manifest(
+        self,
+        tmp_path: Path | None = None,
+    ) -> None:
+        _case_confirm_start_run_renames_manifest(self, tmp_path)
+
+    def test_cancel_inactive_without_configuration(self) -> None:
+        _case_cancel_inactive_without_configuration(self)
+
+    def test_run_monitor_lifecycle(self) -> None:
+        _case_run_monitor_lifecycle(self)
+
+    def test_manifest_import_export_round_trip(self) -> None:
+        _case_manifest_import_export_round_trip(self)
+
+    def test_insert_manifest_from_builder_prepares_pending_manifest(
+        self,
+    ) -> None:
+        _case_insert_manifest_from_builder_prepares_pending_manifest(self)
+
+    def test_duplicate_manifest_prefills_builder(
+        self,
+        tmp_path: Path | None = None,
+    ) -> None:
+        _case_duplicate_manifest_prefills_builder(self, tmp_path)
+
+    def test_application_diagnostics_logging(
+        self,
+        tmp_path: Path | None = None,
+    ) -> None:
+        _case_application_diagnostics_logging(self, tmp_path)
+
+    def test_run_log_confirmation_and_anchor_jump(
+        self,
+        tmp_path: Path | None = None,
+    ) -> None:
+        _case_run_log_confirmation_and_anchor_jump(self, tmp_path)
+
+
+def _case_catalogue_metadata_and_filters(self) -> None:
     gui = CopernicanGUI(render=False)
     gui.refresh_inventory()
     assert gui.catalogue_index
@@ -50,7 +147,7 @@ def test_catalogue_metadata_and_filters() -> None:
     assert record["hashes"]
 
 
-def test_model_and_engine_metadata_actions() -> None:
+def _case_model_and_engine_metadata_actions(self) -> None:
     gui = CopernicanGUI(render=False)
     gui.refresh_inventory()
     assert gui.model_index
@@ -65,7 +162,7 @@ def test_model_and_engine_metadata_actions() -> None:
     assert gui.open_folder(Path(model_entry["path"]).parent.as_posix())
 
 
-def test_builder_navigation_and_draft() -> None:
+def _case_builder_navigation_and_draft(self) -> None:
     gui = CopernicanGUI(render=False)
     assert gui.current_step_index == 0
     gui.next_step()
@@ -81,10 +178,10 @@ def test_builder_navigation_and_draft() -> None:
     assert gui.draft.completed_step == 0
 
 
-def test_builder_next_requires_all_pages_selected() -> None:
+def _case_builder_next_requires_all_pages_selected(self) -> None:
     gui = CopernicanGUI(render=False)
     if gui.builder_steps.index("Engine") != 3:
-        pytest.skip("Expected engine step at index 3")
+        self.skipTest("Expected engine step at index 3")
     gui.current_step_index = gui.builder_steps.index("Engine")
     starting_alerts = len(gui.alerts)
     gui._handle_builder_next()
@@ -93,11 +190,15 @@ def test_builder_next_requires_all_pages_selected() -> None:
     assert "Seed" in gui.alerts[-1].message
 
 
-def test_builder_next_advances_when_pages_ready(tmp_path: Path) -> None:
+def _case_builder_next_advances_when_pages_ready(
+    self,
+    tmp_path: Path | None = None,
+) -> None:
     gui = CopernicanGUI(render=False)
     _prime_gui_selections(gui)
     gui.draft.seed = "42"
     assert not gui._builder_ready()
+    tmp_path = _tmp_path_or_default(tmp_path)
     dataset_path = tmp_path / "dataset.txt"
     dataset_path.write_text("data", encoding="utf-8")
     gui.register_dataset(
@@ -125,7 +226,11 @@ def _prepare_gui_with_dataset(tmp_path: Path) -> CopernicanGUI:
     return gui
 
 
-def test_save_manifest_creates_new_config_folder(tmp_path: Path) -> None:
+def _case_save_manifest_creates_new_config_folder(
+    self,
+    tmp_path: Path | None = None,
+) -> None:
+    tmp_path = _tmp_path_or_default(tmp_path)
     gui = _prepare_gui_with_dataset(tmp_path)
     workspace = gui._persist_manifest_workspace()
     assert workspace is not None
@@ -134,7 +239,11 @@ def test_save_manifest_creates_new_config_folder(tmp_path: Path) -> None:
     assert workspace.manifest_path.exists()
 
 
-def test_clear_manifest_resets_state(tmp_path: Path) -> None:
+def _case_clear_manifest_resets_state(
+    self,
+    tmp_path: Path | None = None,
+) -> None:
+    tmp_path = _tmp_path_or_default(tmp_path)
     gui = _prepare_gui_with_dataset(tmp_path)
     workspace = gui._persist_manifest_workspace()
     assert workspace is not None
@@ -147,7 +256,11 @@ def test_clear_manifest_resets_state(tmp_path: Path) -> None:
     assert gui.selected_engine == ""
 
 
-def test_save_manifest_to_external(tmp_path: Path) -> None:
+def _case_save_manifest_to_external(
+    self,
+    tmp_path: Path | None = None,
+) -> None:
+    tmp_path = _tmp_path_or_default(tmp_path)
     gui = _prepare_gui_with_dataset(tmp_path)
     target = tmp_path / "external_manifest.yml"
     gui._save_manifest_to_external_folder(output_path=str(target))
@@ -155,8 +268,12 @@ def test_save_manifest_to_external(tmp_path: Path) -> None:
     assert exported
 
 
-def test_auto_loads_saved_temp_manifest(tmp_path: Path) -> None:
+def _case_auto_loads_saved_temp_manifest(
+    self,
+    tmp_path: Path | None = None,
+) -> None:
     old_cwd = os.getcwd()
+    tmp_path = _tmp_path_or_default(tmp_path)
     output_dir = tmp_path / "output"
     workspace = output_dir / "copernican_run_NEW_CONFIG"
     workspace.mkdir(parents=True)
@@ -207,7 +324,10 @@ def test_auto_loads_saved_temp_manifest(tmp_path: Path) -> None:
         gui = CopernicanGUI(render=False)
         assert gui.manifest_workspace is not None
         assert gui.pending_manifest is not None
-        assert gui.manifest_workspace.manifest_path == manifest_path
+        assert (
+            gui.manifest_workspace.manifest_path.resolve()
+            == manifest_path.resolve()
+        )
         assert gui.summary.manifest_actions[-1].startswith(
             "Loaded saved manifest"
         )
@@ -215,7 +335,11 @@ def test_auto_loads_saved_temp_manifest(tmp_path: Path) -> None:
         os.chdir(old_cwd)
 
 
-def test_confirm_step_requires_saved_manifest(tmp_path: Path) -> None:
+def _case_confirm_step_requires_saved_manifest(
+    self,
+    tmp_path: Path | None = None,
+) -> None:
+    tmp_path = _tmp_path_or_default(tmp_path)
     gui = CopernicanGUI(render=False)
     confirm_index = gui.builder_steps.index("Confirm")
     initial_alerts = len(gui.alerts)
@@ -229,7 +353,11 @@ def test_confirm_step_requires_saved_manifest(tmp_path: Path) -> None:
     assert gui.current_step_index == confirm_index
 
 
-def test_confirm_start_run_renames_manifest(tmp_path: Path) -> None:
+def _case_confirm_start_run_renames_manifest(
+    self,
+    tmp_path: Path | None = None,
+) -> None:
+    tmp_path = _tmp_path_or_default(tmp_path)
     gui = _prepare_gui_with_dataset(tmp_path)
     _stub_worker_launch(gui)
     workspace = gui._persist_manifest_workspace()
@@ -244,14 +372,14 @@ def test_confirm_start_run_renames_manifest(tmp_path: Path) -> None:
     assert not old_folder.exists()
 
 
-def test_cancel_inactive_without_configuration() -> None:
+def _case_cancel_inactive_without_configuration(self) -> None:
     gui = CopernicanGUI(render=False)
     assert not gui._has_configuration()
     gui.selected_models = ["LambdaCDM"]
     assert gui._has_configuration()
 
 
-def test_run_monitor_lifecycle() -> None:
+def _case_run_monitor_lifecycle(self) -> None:
     gui = CopernicanGUI(render=False)
     _prime_gui_selections(gui)
     _stub_worker_launch(gui)
@@ -280,7 +408,7 @@ def test_run_monitor_lifecycle() -> None:
     os.unlink(fh.name)
 
 
-def test_manifest_import_export_round_trip() -> None:
+def _case_manifest_import_export_round_trip(self) -> None:
     gui = CopernicanGUI(render=False)
     gui.draft.model = "ModelB"
     gui.draft.dataset = "Dataset"
@@ -302,7 +430,7 @@ def test_manifest_import_export_round_trip() -> None:
         assert gui.draft.pool_size == "4"
 
 
-def test_insert_manifest_from_builder_prepares_pending_manifest() -> None:
+def _case_insert_manifest_from_builder_prepares_pending_manifest(self) -> None:
     gui = CopernicanGUI(render=False)
     _prime_gui_selections(gui)
     gui.draft.walkers = "48"
@@ -314,7 +442,11 @@ def test_insert_manifest_from_builder_prepares_pending_manifest() -> None:
     assert gui.summary.manifest_metadata
 
 
-def test_duplicate_manifest_prefills_builder(tmp_path: Path) -> None:
+def _case_duplicate_manifest_prefills_builder(
+    self,
+    tmp_path: Path | None = None,
+) -> None:
+    tmp_path = _tmp_path_or_default(tmp_path)
     gui = CopernicanGUI(render=False)
     gui.selected_models = ["LambdaCDM"]
     gui.selected_engine = "cosmo_engine_mcmc"
@@ -331,7 +463,11 @@ def test_duplicate_manifest_prefills_builder(tmp_path: Path) -> None:
     assert gui.draft.plan.startswith("Duplicate & Edit")
 
 
-def test_application_diagnostics_logging(tmp_path: Path) -> None:
+def _case_application_diagnostics_logging(
+    self,
+    tmp_path: Path | None = None,
+) -> None:
+    tmp_path = _tmp_path_or_default(tmp_path)
     gui = CopernicanGUI(render=False)
     assert gui.application_log_path
     assert os.path.exists(gui.application_log_path)
@@ -345,7 +481,11 @@ def test_application_diagnostics_logging(tmp_path: Path) -> None:
     assert os.path.exists(export_path)
 
 
-def test_run_log_confirmation_and_anchor_jump(tmp_path: Path) -> None:
+def _case_run_log_confirmation_and_anchor_jump(
+    self,
+    tmp_path: Path | None = None,
+) -> None:
+    tmp_path = _tmp_path_or_default(tmp_path)
     gui = CopernicanGUI(render=False)
     _prime_gui_selections(gui)
     _stub_worker_launch(gui)

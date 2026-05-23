@@ -1880,15 +1880,12 @@ target_roles:
 - docs
 - changelog
 - package_manifest
-- citation
 role_extractors:
 - docs=>project_version_line
 - changelog=>changelog_header_version
 - package_manifest=>manifest_project_version
-- citation=>manifest_project_version
 role_legality_schemes:
 - package_manifest=>pep440
-- citation=>pep440
 target_role_files:
 - docs=>README.md
 - docs=>AGENTS.md
@@ -1897,7 +1894,6 @@ target_role_files:
 - docs=>PLAN.md
 - changelog=>CHANGELOG.md
 - package_manifest=>pyproject.toml
-- citation=>CITATION.cff
 target_role_globs: []
 target_role_dirs: []
 changelog_file: CHANGELOG.md

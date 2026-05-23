@@ -38,7 +38,14 @@ class TestGuiRunWorker(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertEqual(
                 called,
-                [["--manifest", str(manifest), "--output-dir", config["output_dir"]]],
+                [
+                    [
+                        "--manifest",
+                        str(manifest),
+                        "--output-dir",
+                        config["output_dir"],
+                    ]
+                ],
             )
 
 

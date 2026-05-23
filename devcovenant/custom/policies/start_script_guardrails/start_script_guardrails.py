@@ -38,7 +38,10 @@ _POSIX_REQUIRED_FRAGMENTS = (
     'TCL_LIBRARY="$(pwd)/.python/lib/tcl8.6"',
     'TK_LIBRARY="$(pwd)/.python/lib/tk8.6"',
     "python_in_311_series()",
-    'if [ -n "${VIRTUAL_ENV:-}" ] && [ "$VIRTUAL_ENV" != "$EXPECTED_VENV" ]; then',
+    (
+        'if [ -n "${VIRTUAL_ENV:-}" ] '
+        '&& [ "$VIRTUAL_ENV" != "$EXPECTED_VENV" ]; then'
+    ),
     'if [ "${VIRTUAL_ENV:-}" = "$EXPECTED_VENV" ]; then',
     'curl -fL "https://bootstrap.pypa.io/get-pip.py"',
     "A package manager may request your password.",

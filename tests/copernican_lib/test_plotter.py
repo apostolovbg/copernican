@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import tkinter
 import types
+import unittest
 from typing import Any
 
 import numpy as np
@@ -35,7 +36,130 @@ class _CornerPlugin(_DummyPlugin):
     PARAMETER_LATEX_NAMES = [r"\alpha", r"\beta", r"\gamma"]
 
 
-def test_format_model_summary_text_handles_missing_chi2_total() -> None:
+def _tmp_path_or_default(tmp_path) -> Any:
+    """Return a usable temporary directory path for unittest methods."""
+
+    if tmp_path is None:
+        import tempfile
+        from pathlib import Path
+
+        return Path(tempfile.mkdtemp())
+    return tmp_path
+
+
+class TestPlotter(unittest.TestCase):
+    """Exercise plotter helpers and generated figures."""
+
+    def test_format_model_summary_text_handles_missing_chi2_total(
+        self,
+    ) -> None:
+        _case_format_model_summary_text_handles_missing_chi2_total(self)
+
+    def test_format_model_summary_text_numeric_rendering(self) -> None:
+        _case_format_model_summary_text_numeric_rendering(self)
+
+    def test_plot_corner_renders_expected_file(
+        self,
+        tmp_path=None,
+    ) -> None:
+        _case_plot_corner_renders_expected_file(self, tmp_path)
+
+    def test_plot_parameter_histograms_renders_expected_file(
+        self,
+        tmp_path=None,
+    ) -> None:
+        _case_plot_parameter_histograms_renders_expected_file(
+            self,
+            tmp_path,
+        )
+
+    def test_plot_corner_scales_layout_with_dimension(
+        self,
+        tmp_path=None,
+        monkeypatch: pytest.MonkeyPatch | None = None,
+    ) -> None:
+        _case_plot_corner_scales_layout_with_dimension(
+            self,
+            tmp_path,
+            monkeypatch,
+        )
+
+    def test_plot_corner_positions_title_and_footer(
+        self,
+        tmp_path=None,
+        monkeypatch: pytest.MonkeyPatch | None = None,
+    ) -> None:
+        _case_plot_corner_positions_title_and_footer(
+            self,
+            tmp_path,
+            monkeypatch,
+        )
+
+    def test_format_corner_footer_stats_reports_processing(self) -> None:
+        _case_format_corner_footer_stats_reports_processing(self)
+
+    def test_plot_corner_downsamples_large_chains(
+        self,
+        tmp_path=None,
+        monkeypatch: pytest.MonkeyPatch | None = None,
+    ) -> None:
+        _case_plot_corner_downsamples_large_chains(
+            self,
+            tmp_path,
+            monkeypatch,
+        )
+
+    def test_plot_corner_falls_back_to_agg_backend(
+        self,
+        tmp_path=None,
+        monkeypatch: pytest.MonkeyPatch | None = None,
+    ) -> None:
+        _case_plot_corner_falls_back_to_agg_backend(
+            self,
+            tmp_path,
+            monkeypatch,
+        )
+
+    def test_plot_corner_handles_legacy_validator_signature(
+        self,
+        tmp_path=None,
+        monkeypatch: pytest.MonkeyPatch | None = None,
+    ) -> None:
+        _case_plot_corner_handles_legacy_validator_signature(
+            self,
+            tmp_path,
+            monkeypatch,
+        )
+
+    def test_density_levels_are_strictly_increasing(self) -> None:
+        _case_density_levels_are_strictly_increasing(self)
+
+    def test_build_contour_levels_produce_increasing_sequences(self) -> None:
+        _case_build_contour_levels_produce_increasing_sequences(self)
+
+    def test_plot_corner_omits_dataset_metadata_from_footer(
+        self,
+        tmp_path=None,
+        monkeypatch: pytest.MonkeyPatch | None = None,
+    ) -> None:
+        _case_plot_corner_omits_dataset_metadata_from_footer(
+            self,
+            tmp_path,
+            monkeypatch,
+        )
+
+    def test_build_footer_lines_preserves_citation_by_default(self) -> None:
+        _case_build_footer_lines_preserves_citation_by_default(self)
+
+    def test_build_footer_lines_omits_citation_when_dataset_details_disabled(
+        self,
+    ) -> None:
+        _case_build_footer_lines_omits_citation_when_dataset_details_disabled(
+            self,
+        )
+
+
+def _case_format_model_summary_text_handles_missing_chi2_total(self) -> None:
     """Ensure missing totals render as ``N/A`` instead of raising errors."""
 
     fit_results = {
@@ -55,41 +179,41 @@ def test_format_model_summary_text_handles_missing_chi2_total() -> None:
     assert "$\\chi^2_{CMB}$ = N/A" in summary
 
 
-@pytest.mark.parametrize(
-    "value,expected_fragment",
-    [
-        (42.0, "$\\chi^2_{SNe}$ = 42.00"),
-        (float("nan"), "$\\chi^2_{SNe}$ = N/A"),
-    ],
-)
-def test_format_model_summary_text_numeric_rendering(
-    value: float, expected_fragment: str
-) -> None:
+def _case_format_model_summary_text_numeric_rendering(self) -> None:
     """Verify numeric chi-squared statistics include two decimal places."""
 
-    fit_results = {
-        "fitted_cosmological_params": types.MappingProxyType({}),
-        "chi2_min": value,
-        "chi2_sne": value,
-        "chi2_total": value,
-    }
+    for value, expected_fragment in (
+        (42.0, "$\\chi^2_{SNe}$ = 42.00"),
+        (float("nan"), "$\\chi^2_{SNe}$ = N/A"),
+    ):
+        with self.subTest(value=value):
+            fit_results = {
+                "fitted_cosmological_params": types.MappingProxyType({}),
+                "chi2_min": value,
+                "chi2_sne": value,
+                "chi2_total": value,
+            }
 
-    summary = plotter.format_model_summary_text(
-        _DummyPlugin,
-        "sne",
-        fit_results,
-    )
+            summary = plotter.format_model_summary_text(
+                _DummyPlugin,
+                "sne",
+                fit_results,
+            )
 
-    assert expected_fragment in summary
-    if expected_fragment.endswith("N/A"):
-        assert "$\\chi^2_{tot}$ = N/A" in summary
-    else:
-        assert "$\\chi^2_{tot}$ = 42.00" in summary
+            assert expected_fragment in summary
+            if expected_fragment.endswith("N/A"):
+                assert "$\\chi^2_{tot}$ = N/A" in summary
+            else:
+                assert "$\\chi^2_{tot}$ = 42.00" in summary
 
 
-def test_plot_corner_renders_expected_file(tmp_path) -> None:
+def _case_plot_corner_renders_expected_file(
+    self,
+    tmp_path=None,
+) -> None:
     """Ensure the new corner plot helper writes a PNG with suite styling."""
 
+    tmp_path = _tmp_path_or_default(tmp_path)
     samples = np.zeros((10, 4, 3))
     samples[:, :, 0] = np.linspace(0.0, 1.0, 10)[:, None]
     samples[:, :, 1] = np.linspace(-1.0, 1.0, 10)[:, None]
@@ -121,9 +245,13 @@ def test_plot_corner_renders_expected_file(tmp_path) -> None:
     assert (tmp_path / expected_name).exists()
 
 
-def test_plot_parameter_histograms_renders_expected_file(tmp_path) -> None:
+def _case_plot_parameter_histograms_renders_expected_file(
+    self,
+    tmp_path=None,
+) -> None:
     """Ensure the parameter histogram helper writes a PNG summary."""
 
+    tmp_path = _tmp_path_or_default(tmp_path)
     rng = np.random.default_rng(8)
     samples = rng.normal(size=(10, 2, 3))
 
@@ -153,10 +281,17 @@ def test_plot_parameter_histograms_renders_expected_file(tmp_path) -> None:
     assert (tmp_path / expected_name).exists()
 
 
-def test_plot_corner_scales_layout_with_dimension(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
+def _case_plot_corner_scales_layout_with_dimension(
+    self,
+    tmp_path=None,
+    monkeypatch: pytest.MonkeyPatch | None = None,
 ) -> None:
     """Verify responsive geometry shrinks panels and fonts for larger grids."""
+
+    tmp_path = _tmp_path_or_default(tmp_path)
+    if monkeypatch is None:
+        monkeypatch = pytest.MonkeyPatch()
+        self.addCleanup(monkeypatch.undo)
 
     rng = np.random.default_rng(4)
     small_samples = rng.normal(size=(6, 2, 2))
@@ -308,10 +443,17 @@ def test_plot_corner_scales_layout_with_dimension(
         assert margins["top"] == pytest.approx(expected_top)
 
 
-def test_plot_corner_positions_title_and_footer(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
+def _case_plot_corner_positions_title_and_footer(
+    self,
+    tmp_path=None,
+    monkeypatch: pytest.MonkeyPatch | None = None,
 ) -> None:
     """The title and footer should respect the configured clearances."""
+
+    tmp_path = _tmp_path_or_default(tmp_path)
+    if monkeypatch is None:
+        monkeypatch = pytest.MonkeyPatch()
+        self.addCleanup(monkeypatch.undo)
 
     rng = np.random.default_rng(2)
     samples = rng.normal(size=(12, 2, 3))
@@ -405,7 +547,7 @@ def test_plot_corner_positions_title_and_footer(
     assert actual_span == pytest.approx(expected_span)
 
 
-def test_format_corner_footer_stats_reports_processing() -> None:
+def _case_format_corner_footer_stats_reports_processing(self) -> None:
     """Summaries should mention sample counts, stride and thinning."""
 
     stats = {
@@ -426,10 +568,17 @@ def test_format_corner_footer_stats_reports_processing() -> None:
     assert any("Legacy validator" in line for line in rendered)
 
 
-def test_plot_corner_downsamples_large_chains(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
+def _case_plot_corner_downsamples_large_chains(
+    self,
+    tmp_path=None,
+    monkeypatch: pytest.MonkeyPatch | None = None,
 ) -> None:
     """Confirm extremely long chains are thinned before plotting."""
+
+    tmp_path = _tmp_path_or_default(tmp_path)
+    if monkeypatch is None:
+        monkeypatch = pytest.MonkeyPatch()
+        self.addCleanup(monkeypatch.undo)
 
     rng = np.random.default_rng(0)
     samples = rng.normal(size=(200, 10, 3))
@@ -487,10 +636,17 @@ def test_plot_corner_downsamples_large_chains(
     assert any("Corner plot generation" in line for line, _ in extra_lines)
 
 
-def test_plot_corner_falls_back_to_agg_backend(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
+def _case_plot_corner_falls_back_to_agg_backend(
+    self,
+    tmp_path=None,
+    monkeypatch: pytest.MonkeyPatch | None = None,
 ) -> None:
     """Switch to the Agg backend when GUI rendering fails."""
+
+    tmp_path = _tmp_path_or_default(tmp_path)
+    if monkeypatch is None:
+        monkeypatch = pytest.MonkeyPatch()
+        self.addCleanup(monkeypatch.undo)
 
     rng = np.random.default_rng(3)
     samples = rng.normal(size=(10, 2, 2))
@@ -532,10 +688,17 @@ def test_plot_corner_falls_back_to_agg_backend(
     assert switched == ["Agg"]
 
 
-def test_plot_corner_handles_legacy_validator_signature(
-    tmp_path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+def _case_plot_corner_handles_legacy_validator_signature(
+    self,
+    tmp_path=None,
+    monkeypatch: pytest.MonkeyPatch | None = None,
 ) -> None:
     """Ensure Stage 5 tolerates two-value legacy validators."""
+
+    tmp_path = _tmp_path_or_default(tmp_path)
+    if monkeypatch is None:
+        monkeypatch = pytest.MonkeyPatch()
+        self.addCleanup(monkeypatch.undo)
 
     rng = np.random.default_rng(42)
     samples = rng.normal(size=(5, 2, 2))
@@ -560,14 +723,13 @@ def test_plot_corner_handles_legacy_validator_signature(
     monkeypatch.setattr(plotter, "_prepare_corner_inputs", _legacy_validator)
     monkeypatch.setattr(plotter, "_validate_corner_inputs", _legacy_validator)
 
-    with caplog.at_level("INFO"):
-        plotter.plot_corner(
-            samples,
-            _CornerPlugin,
-            attrs,
-            plot_dir=str(tmp_path),
-            timestamp="20251108_000000",
-        )
+    plotter.plot_corner(
+        samples,
+        _CornerPlugin,
+        attrs,
+        plot_dir=str(tmp_path),
+        timestamp="20251108_000000",
+    )
 
     expected_name = plot_utils.generate_filename(
         "corner-plot",
@@ -579,7 +741,7 @@ def test_plot_corner_handles_legacy_validator_signature(
     assert (tmp_path / expected_name).exists()
 
 
-def test_density_levels_are_strictly_increasing() -> None:
+def _case_density_levels_are_strictly_increasing(self) -> None:
     """Ensure contour thresholds never repeat when histogram bins coincide."""
 
     hist = np.full((2, 2), 0.25)
@@ -587,7 +749,7 @@ def test_density_levels_are_strictly_increasing() -> None:
     assert levels[0] < levels[1]
 
 
-def test_build_contour_levels_produce_increasing_sequences() -> None:
+def _case_build_contour_levels_produce_increasing_sequences(self) -> None:
     """Even plateaued histograms should yield strictly increasing levels."""
 
     hist = np.array([[0.4, 0.4], [0.4, 0.1]])
@@ -598,10 +760,17 @@ def test_build_contour_levels_produce_increasing_sequences() -> None:
     assert filled[0] == pytest.approx(0.0)
 
 
-def test_plot_corner_omits_dataset_metadata_from_footer(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
+def _case_plot_corner_omits_dataset_metadata_from_footer(
+    self,
+    tmp_path=None,
+    monkeypatch: pytest.MonkeyPatch | None = None,
 ) -> None:
     """Corner plots should no longer repeat dataset descriptions in footers."""
+
+    tmp_path = _tmp_path_or_default(tmp_path)
+    if monkeypatch is None:
+        monkeypatch = pytest.MonkeyPatch()
+        self.addCleanup(monkeypatch.undo)
 
     rng = np.random.default_rng(7)
     samples = rng.normal(size=(20, 3, 3))
@@ -641,7 +810,7 @@ def test_plot_corner_omits_dataset_metadata_from_footer(
     assert any("Corner plot generation" in line for line in footer_text)
 
 
-def test_build_footer_lines_preserves_citation_by_default() -> None:
+def _case_build_footer_lines_preserves_citation_by_default(self) -> None:
     """Citation strings should remain when dataset details are shown."""
 
     attrs = {
@@ -657,9 +826,9 @@ def test_build_footer_lines_preserves_citation_by_default() -> None:
     assert any("Corner validation stub" in line for line, _ in footer_lines)
 
 
-def test_build_footer_lines_omits_citation_when_dataset_details_disabled() -> (
-    None
-):
+def _case_build_footer_lines_omits_citation_when_dataset_details_disabled(
+    self,
+) -> None:
     """Suppressing dataset details should also hide citation metadata."""
 
     attrs = {

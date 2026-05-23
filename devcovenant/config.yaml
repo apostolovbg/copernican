@@ -1346,10 +1346,8 @@ autogen_metadata_overlays:
     - docs=>project_version_line
     - changelog=>changelog_header_version
     - package_manifest=>manifest_project_version
-    - citation=>manifest_project_version
     role_legality_schemes:
     - package_manifest=>pep440
-    - citation=>pep440
     target_role_files:
     - docs=>README.md
     - docs=>AGENTS.md
@@ -1358,12 +1356,10 @@ autogen_metadata_overlays:
     - docs=>PLAN.md
     - changelog=>CHANGELOG.md
     - package_manifest=>pyproject.toml
-    - citation=>CITATION.cff
     target_roles:
     - docs
     - changelog
     - package_manifest
-    - citation
     version_file: copernican_lib/VERSION
 
 # Human-owned subsection.

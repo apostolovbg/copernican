@@ -4,7 +4,7 @@
 """Tests for ``copernican_lib.engine_plugin_validation`` helpers."""
 
 import math
-import pickle
+import multiprocessing as mp
 import unittest
 from types import SimpleNamespace
 
@@ -23,6 +23,12 @@ def _linear_like(params):
     """Simple log-likelihood used to test pickling."""
 
     return -sum(params)
+
+
+def _evaluate_posterior(posterior):
+    """Return the posterior evaluation from a worker process."""
+
+    return posterior([0.1])
 
 
 class EngineInterfaceTestCase(unittest.TestCase):
@@ -189,9 +195,9 @@ class EngineInterfaceTestCase(unittest.TestCase):
             {"type": "loguniform", "lower": 1e-3, "upper": 1.0},
         ]
         posterior = MAKE_POSTERIOR(_linear_like, priors)
-        payload = pickle.dumps(posterior)
-        restored = pickle.loads(payload)
-        self.assertAlmostEqual(restored([0.1]), posterior([0.1]))
+        with mp.get_context("spawn").Pool(1) as pool:
+            restored_value = pool.apply(_evaluate_posterior, (posterior,))
+        self.assertAlmostEqual(restored_value, posterior([0.1]))
 
 
 if __name__ == "__main__":

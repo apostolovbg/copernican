@@ -8,9 +8,11 @@ import unittest
 from pathlib import Path
 
 from devcovenant.core.policy_contract import CheckContext
-from devcovenant.custom.policies.start_script_parity.start_script_parity import (
-    StartScriptParityCheck,
+from devcovenant.custom.policies.start_script_parity import (
+    start_script_parity as parity_module,
 )
+
+StartScriptParityCheck = parity_module.StartScriptParityCheck
 
 
 def _find_repo_root() -> Path:

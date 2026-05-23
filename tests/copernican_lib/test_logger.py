@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from copernican_lib import logger as module
 from copernican_lib import logger as log_mod
+from copernican_lib import logger as module
 
 
 class TestImportModule(unittest.TestCase):

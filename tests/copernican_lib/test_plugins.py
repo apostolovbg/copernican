@@ -3,7 +3,7 @@
 
 """Regression tests for :mod:`copernican_lib.plugins` pickling helpers."""
 
-import pickle
+import multiprocessing as mp
 import unittest
 
 from copernican_lib import plugins
@@ -60,6 +60,16 @@ def helper_extra_function():
     return "extra"
 
 
+def _inspect_plugin(plugin: plugins.EnginePlugin):
+    """Return round-trip observations from a worker process."""
+
+    return (
+        isinstance(plugin.extras, plugins.FrozenMapping),
+        plugin.extras["custom_extra"](),
+        plugin.FIXED_PARAMS["H0"],
+    )
+
+
 def _build_sample_plugin() -> plugins.EnginePlugin:
     """Create a minimal plugin suitable for pickling tests."""
 
@@ -99,14 +109,16 @@ class FrozenMappingTests(unittest.TestCase):
         """EnginePlugin should survive pickle round-trips under spawn pools."""
 
         plugin = _build_sample_plugin()
-        payload = pickle.dumps(plugin)
-        clone = pickle.loads(payload)
+        with mp.get_context("spawn").Pool(1) as pool:
+            is_frozen, custom_value, fixed_h0 = pool.apply(
+                _inspect_plugin,
+                (plugin,),
+            )
 
         self.assertIsInstance(plugin.extras, plugins.FrozenMapping)
-        self.assertIsInstance(clone.extras, plugins.FrozenMapping)
-        self.assertIn("custom_extra", clone.extras)
-        self.assertEqual(clone.extras["custom_extra"](), "extra")
-        self.assertAlmostEqual(clone.FIXED_PARAMS["H0"], 70.0)
+        self.assertTrue(is_frozen)
+        self.assertEqual(custom_value, "extra")
+        self.assertAlmostEqual(fixed_h0, 70.0)
 
     def test_frozen_mapping_to_dict_returns_copy(self) -> None:
         """The FrozenMapping copy helper must not expose internal state."""

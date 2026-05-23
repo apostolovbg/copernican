@@ -4,7 +4,7 @@
 """Security tests for ``model_coder`` expression handling."""
 
 import math
-import pickle
+import multiprocessing as mp
 import tempfile
 import unittest
 import warnings
@@ -16,6 +16,12 @@ import yaml
 from scipy.integrate import IntegrationWarning, quad
 
 from copernican_lib import model_coder
+
+
+def _evaluate_generated_callable(fn):
+    """Return the generated helper evaluation from a worker process."""
+
+    return fn(1)
 
 
 class TestModelCoderSecurity(unittest.TestCase):
@@ -39,14 +45,9 @@ class TestModelCoderSecurity(unittest.TestCase):
         z = sp.symbols("z")
         expr = z + 1
         fn = model_coder._compile_sympy_expr(expr, (z,), name_hint="picklable")
-        payload = pickle.dumps(fn)
-        self.assertIsInstance(payload, bytes)
-        restored = pickle.loads(payload)
-        self.assertIsInstance(
-            restored,
-            model_coder._GeneratedCallable,
-        )
-        self.assertEqual(restored(1), 2)
+        with mp.get_context("spawn").Pool(1) as pool:
+            restored_value = pool.apply(_evaluate_generated_callable, (fn,))
+        self.assertEqual(restored_value, 2)
         self.assertIsInstance(
             fn,
             model_coder._GeneratedCallable,

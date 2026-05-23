@@ -19,12 +19,12 @@ except ImportError:  # pragma: no cover - executed when Tk is unavailable
     tkinter_ttk = None
 tk_tcl_error = getattr(tkinter_module, "TclError", RuntimeError)
 
-from rng_minigames.api import MinigameContext
+from rng_minigames.api import MinigameContext  # noqa: E402
 
-from .ai_agent import AlienInvasionAI
-from .ai_config import load_settings as load_ai_settings
-from .game_config import load_settings as load_game_settings
-from .hall_of_fame import HallOfFame
+from .ai_agent import AlienInvasionAI  # noqa: E402
+from .ai_config import load_settings as load_ai_settings  # noqa: E402
+from .game_config import load_settings as load_game_settings  # noqa: E402
+from .hall_of_fame import HallOfFame  # noqa: E402
 
 
 def launch_alien_invasion(context: MinigameContext) -> None:
@@ -1785,13 +1785,13 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             record["health_points"] -= 1
             remaining_hp = record["health_points"]
             _update_enemy_shield_visual(enemy_id)
-            descriptor = (
-                "Colonel"
-                if record.get("rank") == "colonel"
-                else "Major"
-                if record.get("rank") == "major"
-                else "Cruiser"
-            )
+            rank = record.get("rank")
+            if rank == "colonel":
+                descriptor = "Colonel"
+            elif rank == "major":
+                descriptor = "Major"
+            else:
+                descriptor = "Cruiser"
             action_var.set(
                 f"{descriptor} absorbed the hit ({remaining_hp}/"
                 f"{record['max_health_points']} shields)."
@@ -2526,7 +2526,11 @@ def launch_alien_invasion(context: MinigameContext) -> None:
             if self.handle:
                 try:
                     canvas.after_cancel(self.handle)
-                except (RuntimeError, ValueError, tk_tcl_error):  # pragma: no cover - Tk teardown
+                except (
+                    RuntimeError,
+                    ValueError,
+                    tk_tcl_error,
+                ):  # pragma: no cover - Tk teardown
                     pass
                 self.handle = None
             ai_button.configure(text="Let AI take care")

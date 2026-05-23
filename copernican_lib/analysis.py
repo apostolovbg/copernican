@@ -282,9 +282,14 @@ def parse_log(log_path: Path) -> Mapping[str, Any]:
                 if not ("chi" in content.lower() or "χ" in content):
                     continue
                 key, metric_value = map(str.strip, content.split("=", 1))
+                parsed_metric_value = _parse_float(metric_value)
                 log_models[current_model_key]["chi2"][
                     _sanitize_metric_name(key)
-                ] = _parse_float(metric_value) or 0.0
+                ] = (
+                    parsed_metric_value
+                    if parsed_metric_value is not None
+                    else 0.0
+                )
 
     if end_time is None and last_ts is not None:
         end_time = last_ts

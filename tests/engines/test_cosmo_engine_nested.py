@@ -57,17 +57,17 @@ class TestCosmoEngineNested(unittest.TestCase):
 
     def test_logsumexp_pair_handles_finite_and_infinite_inputs(self) -> None:
         self.assertAlmostEqual(
-            module._logsumexp_pair(0.0, 0.0),  # pylint: disable=protected-access
+            module._logsumexp_pair(0.0, 0.0),
             0.6931471805599453,
         )
         self.assertEqual(
-            module._logsumexp_pair(float("-inf"), 3.0),  # pylint: disable=protected-access
+            module._logsumexp_pair(float("-inf"), 3.0),
             3.0,
         )
 
     def test_joint_log_likelihood_delegates_to_inner_like(self) -> None:
         joint_like = _DummyJointLike()
-        adapter = module._JointLogLikelihood(  # pylint: disable=protected-access
+        adapter = module._JointLogLikelihood(
             joint_like,
             parameter_bounds=[(0.0, 1.0)],
             parameter_transforms=["transform"],

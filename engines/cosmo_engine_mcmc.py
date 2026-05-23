@@ -1013,7 +1013,12 @@ def fit_cosmology_parameters(
                     float(np.median(bulk_values)),
                     float(np.median(tail_values)),
                 )
-        except (AttributeError, RuntimeError, TypeError, ValueError) as exc:  # pragma: no cover - defensive logging path
+        except (
+            AttributeError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:  # pragma: no cover - defensive logging path
             logger.warning(
                 "Falling back to internal diagnostics after ArviZ failure: %s",
                 exc,
@@ -1045,7 +1050,12 @@ def fit_cosmology_parameters(
     if n_production >= min_autocorr_window:
         try:
             autocorr = sampler.get_autocorr_time()
-        except (AttributeError, emcee.autocorr.AutocorrError, RuntimeError, ValueError):
+        except (
+            AttributeError,
+            emcee.autocorr.AutocorrError,
+            RuntimeError,
+            ValueError,
+        ):
             autocorr = None
     else:
         logger.debug(

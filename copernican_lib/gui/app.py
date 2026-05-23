@@ -1027,7 +1027,12 @@ class CopernicanGUI:
             self._build_layout()
             if self.root is not None:
                 self.root.after(10, self._raise_root_window)
-        except (RuntimeError, OSError, ValueError, tk_tcl_error) as exc:  # pragma: no cover - only hits Tk failures
+        except (
+            RuntimeError,
+            OSError,
+            ValueError,
+            tk_tcl_error,
+        ) as exc:  # pragma: no cover - only hits Tk failures
             console_output.write(
                 (
                     "Tkinter failed to initialise; continuing without "
@@ -1279,7 +1284,12 @@ class CopernicanGUI:
                 module = importlib.import_module(module_name)
                 label = getattr(module, "ENGINE_LABEL", path.stem)
                 version = getattr(module, "ENGINE_VERSION", "unknown")
-            except (AttributeError, ImportError, ModuleNotFoundError, RuntimeError):
+            except (
+                AttributeError,
+                ImportError,
+                ModuleNotFoundError,
+                RuntimeError,
+            ):
                 module = None
                 label = path.stem
                 version = "unavailable"
@@ -1467,7 +1477,12 @@ class CopernicanGUI:
                 context="seed",
             )
             return
-        except (AttributeError, ImportError, ModuleNotFoundError, RuntimeError) as exc:  # pragma: no cover - import failure path
+        except (
+            AttributeError,
+            ImportError,
+            ModuleNotFoundError,
+            RuntimeError,
+        ) as exc:  # pragma: no cover - import failure path
             log_mod.error(
                 "Failed to import mini-game %s: %s",
                 minigame_id,
@@ -3291,7 +3306,14 @@ class CopernicanGUI:
             figure = posterior_explorer.create_posterior_overview_figure(
                 result, target
             )
-        except (AttributeError, ImportError, OSError, RuntimeError, TypeError, ValueError) as exc:
+        except (
+            AttributeError,
+            ImportError,
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+        ) as exc:
             self._analysis_set_posterior_status(
                 f"Failed to render {target.name}: {exc}", severity="ERROR"
             )
@@ -3555,7 +3577,13 @@ class CopernicanGUI:
                 bufsize=1,
                 env=env,
             )
-        except (OSError, RuntimeError, TypeError, ValueError, subprocess.SubprocessError) as exc:
+        except (
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+            subprocess.SubprocessError,
+        ) as exc:
             self.create_toast(
                 f"Failed to launch validation: {exc}",
                 severity="ERROR",
@@ -4049,7 +4077,13 @@ class CopernicanGUI:
             return
         try:
             self.import_manifest(path)
-        except (OSError, RuntimeError, TypeError, ValueError, yaml.YAMLError) as exc:
+        except (
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+            yaml.YAMLError,
+        ) as exc:
             self.create_toast(
                 f"Failed to import manifest: {exc}",
                 severity="ERROR",
@@ -4228,7 +4262,12 @@ class CopernicanGUI:
             return default_steps, default_walkers, default_pool
         try:
             module = importlib.import_module(module_name)
-        except (AttributeError, ImportError, ModuleNotFoundError, RuntimeError):
+        except (
+            AttributeError,
+            ImportError,
+            ModuleNotFoundError,
+            RuntimeError,
+        ):
             return default_steps, default_walkers, default_pool
         fit_fn = getattr(
             module,
@@ -4549,7 +4588,12 @@ class CopernicanGUI:
             if entry:
                 try:
                     content = self._read_asset_text(entry["path"])
-                except (OSError, UnicodeError, RuntimeError, ValueError) as exc:
+                except (
+                    OSError,
+                    UnicodeError,
+                    RuntimeError,
+                    ValueError,
+                ) as exc:
                     content = f"Unable to load {entry['id']}: {exc}"
                 preview_text.insert("1.0", content)
             else:
@@ -5263,7 +5307,12 @@ class CopernicanGUI:
         engine_kind = "mcmc"
         try:
             module = importlib.import_module(module_name)
-        except (AttributeError, ImportError, ModuleNotFoundError, RuntimeError) as exc:
+        except (
+            AttributeError,
+            ImportError,
+            ModuleNotFoundError,
+            RuntimeError,
+        ) as exc:
             logger.get_program_logger().warning(
                 "Failed to import engine %s: %s", module_name, exc
             )
@@ -7211,7 +7260,13 @@ class CopernicanGUI:
                 bufsize=1,
                 env=env,
             )
-        except (OSError, RuntimeError, TypeError, ValueError, subprocess.SubprocessError) as exc:
+        except (
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+            subprocess.SubprocessError,
+        ) as exc:
             self.create_toast(
                 f"Failed to start run: {exc}",
                 severity="ERROR",
@@ -8193,7 +8248,12 @@ class CopernicanGUI:
             try:
                 module = importlib.import_module(engine_entry["id"])
                 engine_kind = getattr(module, "ENGINE_KIND", "mcmc").lower()
-            except (AttributeError, ImportError, ModuleNotFoundError, RuntimeError):
+            except (
+                AttributeError,
+                ImportError,
+                ModuleNotFoundError,
+                RuntimeError,
+            ):
                 engine_kind = "mcmc"
             if engine_kind == "mcmc":
                 try:

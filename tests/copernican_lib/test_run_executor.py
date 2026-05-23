@@ -44,13 +44,13 @@ class TestRunExecutor(unittest.TestCase):
                     "name": "Pantheon",
                     "type": "sne",
                     "version": "1.0",
-                    "path": "/tmp",
+                    "path": tempfile.gettempdir(),
                 },
                 "bao/bossdr12": {
                     "name": "BOSS DR12",
                     "type": "bao",
                     "version": "1.0",
-                    "path": "/tmp",
+                    "path": tempfile.gettempdir(),
                 },
             },
             "configuration": {"run_settings": {"engine_kind": "mcmc"}},
@@ -94,6 +94,7 @@ class TestRunExecutor(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with contextlib.ExitStack() as stack:
+                self._enter_common_patches(stack)
                 stack.enter_context(
                     mock.patch.object(
                         run_executor.dataset_registry,
@@ -108,7 +109,6 @@ class TestRunExecutor(unittest.TestCase):
                         lambda **kwargs: fake_loader(),
                     )
                 )
-                self._enter_common_patches(stack)
                 stack.enter_context(
                     mock.patch.object(
                         run_executor.run_pipeline,

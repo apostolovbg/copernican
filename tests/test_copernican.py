@@ -16,7 +16,7 @@ import yaml
 
 os.environ.setdefault("COPERNICAN_ALLOW_DIRECT", "1")
 
-import copernican
+import copernican  # noqa: E402
 
 
 def _create_run_dir(tmp_path, name, chi2_total, rows, h0_value):
@@ -82,12 +82,12 @@ class TestCliUtilities(unittest.TestCase):
     """Exercise the CLI-facing helper commands."""
 
     def test_catalogue_summary_reports_counts(self):
-        summary = copernican._gather_catalogue_summary()  # pylint: disable=protected-access
+        summary = copernican._gather_catalogue_summary()
         self.assertGreater(summary["dataset_count"], 0)
         self.assertTrue(summary["type_counter"])
 
     def test_model_engine_summary_reports_counts(self):
-        stats = copernican._gather_model_engine_summary()  # pylint: disable=protected-access
+        stats = copernican._gather_model_engine_summary()
         self.assertGreater(stats["model_count"], 0)
         self.assertGreater(stats["engine_count"], 0)
 
@@ -103,35 +103,30 @@ class TestCliUtilities(unittest.TestCase):
             manifest_second.write_text("seed: 1\n", encoding="utf-8")
             os.utime(manifest_first, (time.time() - 100, time.time() - 100))
             os.utime(manifest_second, (time.time(), time.time()))
-            records = copernican._discover_manifest_records(  # pylint: disable=protected-access
-                Path(tmpdir)
-            )
+            records = copernican._discover_manifest_records(Path(tmpdir))
             self.assertEqual(
                 [directory.name for directory, _ in records],
                 [second.name, first.name],
             )
 
     def test_cli_revalidate_dataset_reports_missing(self):
-        self.assertFalse(
-            copernican._cli_revalidate_dataset("missing-dataset")  # pylint: disable=protected-access
-        )
+        self.assertFalse(copernican._cli_revalidate_dataset("missing-dataset"))
 
     def test_cli_revalidate_dataset_known_dataset(self):
-        self.assertTrue(
-            copernican._cli_revalidate_dataset("planck_2018_lite")  # pylint: disable=protected-access
-        )
+        self.assertTrue(copernican._cli_revalidate_dataset("planck_2018_lite"))
 
     def test_analysis_summary_cli_exports(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            run_dir = _create_run_dir(Path(tmpdir), "analysis-summary", 360.11, 5, 67.2)
-            output_dir = Path(tmpdir) / "analysis-summary-output"
-            self.assertTrue(
-                copernican._run_analysis_summary_cli(  # pylint: disable=protected-access
-                    run_dir,
-                    output_dir,
-                    ("yml",),
-                )
+            run_dir = _create_run_dir(
+                Path(tmpdir), "analysis-summary", 360.11, 5, 67.2
             )
+            output_dir = Path(tmpdir) / "analysis-summary-output"
+            summary_exported = copernican._run_analysis_summary_cli(
+                run_dir,
+                output_dir,
+                ("yml",),
+            )
+            self.assertTrue(summary_exported)
             summary_files = list(output_dir.glob("analysis-summary_*.yml"))
             self.assertTrue(summary_files)
 
@@ -140,29 +135,31 @@ class TestCliUtilities(unittest.TestCase):
             base_dir = _create_run_dir(Path(tmpdir), "base", 360.11, 5, 67.2)
             alt_dir = _create_run_dir(Path(tmpdir), "alt", 362.22, 4, 67.8)
             output_dir = Path(tmpdir) / "comparison-output"
-            self.assertTrue(
-                copernican._run_analysis_compare_cli(  # pylint: disable=protected-access
-                    base_dir,
-                    alt_dir,
-                    output_dir,
-                    ("yml",),
-                )
+            comparison_exported = copernican._run_analysis_compare_cli(
+                base_dir,
+                alt_dir,
+                output_dir,
+                ("yml",),
             )
-            comparison_files = list(output_dir.glob("analysis-comparison_*.yml"))
+            self.assertTrue(comparison_exported)
+            comparison_files = list(
+                output_dir.glob("analysis-comparison_*.yml")
+            )
             self.assertTrue(comparison_files)
 
     def test_analysis_posterior_cli_creates_plot(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            run_dir = _create_run_dir(Path(tmpdir), "posterior", 360.11, 5, 67.2)
+            run_dir = _create_run_dir(
+                Path(tmpdir), "posterior", 360.11, 5, 67.2
+            )
             _add_posterior_file(run_dir)
             output_file = Path(tmpdir) / "posterior.png"
-            self.assertTrue(
-                copernican._run_analysis_posterior_cli(  # pylint: disable=protected-access
-                    run_dir,
-                    None,
-                    output_file,
-                )
+            posterior_exported = copernican._run_analysis_posterior_cli(
+                run_dir,
+                None,
+                output_file,
             )
+            self.assertTrue(posterior_exported)
             self.assertTrue(output_file.exists())
             corner_files = list(Path(tmpdir).glob("corner-plot-*.png"))
             hist_files = list(Path(tmpdir).glob("parameter-histograms-*.png"))

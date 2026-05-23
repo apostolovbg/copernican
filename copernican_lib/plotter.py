@@ -2411,7 +2411,12 @@ def plot_corner(
     try:
         plt.savefig(os.path.join(plot_dir, filename), dpi=300)
         logger.info(f"Corner plot saved to {filename}")
-    except (OSError, RuntimeError, TypeError, ValueError) as exc:  # pragma: no cover - log path only
+    except (
+        OSError,
+        RuntimeError,
+        TypeError,
+        ValueError,
+    ) as exc:  # pragma: no cover - log path only
         logger.error(f"Error saving corner plot: {exc}")
     finally:
         plt.close(fig)
