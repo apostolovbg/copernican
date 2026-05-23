@@ -1,7 +1,7 @@
 # Changelog
 **Doc ID:** CHANGELOG
 **Doc Type:** changelog
-**Project Version:** 12.0.2
+**Project Version:** 12.0.3
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -76,6 +76,30 @@ suffixes. Follow this template:
 
 ```
 ## Log changes here
+
+## Version 12.0.3
+
+- 2026-05-23 [semver:patch]:
+  Change: Tightened the DevCovenant cache ignore surface and converted the
+    mirrored GUI and plotter tests to explicit unittest assertions.
+  Why: Stop the gate from scanning `.matplotlib-cache` artifacts and remove
+    broad test asserts that triggered security-scanner warnings.
+  Impact: Reduce cache churn and Bandit noise while preserving the existing
+    GUI and plotter behavior checks.
+  Files:
+  CHANGELOG.md
+  AGENTS.md
+  .gitignore
+  .pre-commit-config.yaml
+  devcovenant/config.yaml
+  devcovenant/custom/profiles/userproject/userproject.yaml
+  devcovenant/registry/registry.yaml
+  copernican_lib/VERSION
+  PLAN.md
+  SPEC.md
+  pyproject.toml
+  tests/copernican_lib/gui/test_app.py
+  tests/copernican_lib/test_plotter.py
 
 ## Version 12.0.2
 

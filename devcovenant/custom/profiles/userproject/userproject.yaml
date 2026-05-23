@@ -6,6 +6,7 @@ ignore_dirs:
   - data
   - models/cache
   - cache
+  - .matplotlib-cache
   - licenses
   - vendor
   - third_party
@@ -76,10 +77,15 @@ policy_overlays:
       - changelog=>CHANGELOG.md
       - package_manifest=>pyproject.toml
   line-length-limit:
+    exclude_globs:
+      - .matplotlib-cache/**
     force_include_globs:
       - devcovenant/custom/**
       - tests/**/*.py
       - tests/**/*.md
+  changelog-coverage:
+    skipped_globs:
+      - .matplotlib-cache/**
   name-clarity:
     force_include_globs:
       - devcovenant/custom/**/*.py
