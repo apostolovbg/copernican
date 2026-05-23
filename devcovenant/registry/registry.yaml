@@ -1,13 +1,13 @@
 metadata:
   schema_version: 1
   registry_layout: single-root
-  policy_registry_input_hash: fce45862ff8389bb654a1809b7643c7a47c2a7e334df4defe542fa58b8d3fcac
+  policy_registry_input_hash: ca74f644f35e8b48427bfc94a2239e07a8081d2fcc21f6335762e786052c89c2
 project-governance:
   project_name: Copernican Suite
   project_description: A Python toolkit for evaluating cosmological models against
     SNe Ia, BAO, and CMB observations.
   copyright_notice: 2025 Apostol Apostolov and Black Epsilon Ltd., Republic of Bulgaria
-  project_version: 12.0.1
+  project_version: 12.0.2
   stage: stable
   maintenance_stance: active
   compatibility_policy: forward-only
@@ -229,6 +229,7 @@ policies:
       - devcovenant/logs/**
       - devcovenant/registry/runtime/**
       - '*_old.*'
+      - .matplotlib-cache/**
       - devcovenant/**
       - tests/devcovenant/**
       skipped_prefixes:
@@ -637,12 +638,14 @@ policies:
         profile_overlays:
           values:
           - '*_old.*'
+          - .matplotlib-cache/**
           behavior: append
           replaced_inherited_values:
           - ()
         autogen_overlays:
           values:
           - '*_old.*'
+          - .matplotlib-cache/**
           behavior: append
           replaced_inherited_values:
           - ()
@@ -676,6 +679,7 @@ policies:
           - devcovenant/logs/**
           - devcovenant/registry/runtime/**
           - '*_old.*'
+          - .matplotlib-cache/**
           - devcovenant/**
           - tests/devcovenant/**
       skipped_prefixes:
@@ -1690,6 +1694,7 @@ policies:
       - devcovenant/logs/**
       - devcovenant/registry/runtime/**
       - '*_old.*'
+      - .matplotlib-cache/**
       - devcovenant/**
       - tests/devcovenant/**
       skipped_prefixes: &id004
@@ -1992,6 +1997,7 @@ policies:
     - .github/workflows/ci.yml
     - .hypothesis/**
     - .idea/**
+    - .matplotlib-cache/**
     - .md
     - .mypy_cache/**
     - .nox/**
@@ -6870,6 +6876,7 @@ policies:
       - devcovenant/registry/runtime/**
       - node_modules/**
       - '**/*.egg-info/**'
+      - .matplotlib-cache/**
       - devcovenant/**
       include_prefixes: []
       include_globs:
@@ -7237,6 +7244,7 @@ policies:
           - node_modules/**
           - '*.egg-info/**'
           - '**/*.egg-info/**'
+          - .matplotlib-cache/**
           behavior: append
           replaced_inherited_values:
           - ()
@@ -7248,6 +7256,7 @@ policies:
           - node_modules/**
           - '*.egg-info/**'
           - '**/*.egg-info/**'
+          - .matplotlib-cache/**
           behavior: append
           replaced_inherited_values:
           - ()
@@ -7283,6 +7292,7 @@ policies:
           - devcovenant/registry/runtime/**
           - node_modules/**
           - '**/*.egg-info/**'
+          - .matplotlib-cache/**
           - devcovenant/**
       include_prefixes:
         descriptor:
@@ -7604,6 +7614,7 @@ policies:
       - devcovenant/registry/runtime/**
       - node_modules/**
       - '**/*.egg-info/**'
+      - .matplotlib-cache/**
       - devcovenant/**
       include_prefixes: []
       include_globs: &id043
@@ -7681,6 +7692,7 @@ policies:
     - .hypothesis/**
     - .idea/**
     - .json
+    - .matplotlib-cache/**
     - .md
     - .mypy_cache/**
     - .nox/**
@@ -15896,6 +15908,7 @@ profiles:
     - data
     - models/cache
     - cache
+    - .matplotlib-cache
     - licenses
     - vendor
     - third_party
@@ -15968,10 +15981,15 @@ profiles:
         - changelog=>CHANGELOG.md
         - package_manifest=>pyproject.toml
       line-length-limit:
+        exclude_globs:
+        - .matplotlib-cache/**
         force_include_globs:
         - devcovenant/custom/**
         - tests/**/*.py
         - tests/**/*.md
+      changelog-coverage:
+        skipped_globs:
+        - .matplotlib-cache/**
       name-clarity:
         force_include_globs:
         - devcovenant/custom/**/*.py

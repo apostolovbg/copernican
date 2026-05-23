@@ -1,7 +1,7 @@
 # DevCovenant Development Guide
 **Doc ID:** AGENTS
 **Doc Type:** policy-source
-**Project Version:** 12.0.2
+**Project Version:** 12.0.3
 **Project Stage:** stable
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
@@ -186,7 +186,7 @@ directly.
 <!-- DEVCOV:BEGIN -->
 ## Project Governance
 This block reflects the repository's active project-governance state.
-- Project Version: 12.0.2
+- Project Version: 12.0.3
 - Project Stage: stable
 - Maintenance Stance: active
 - Compatibility Policy: forward-only
@@ -237,6 +237,7 @@ skipped_globs:
 - devcovenant/logs/**
 - devcovenant/registry/runtime/**
 - '*_old.*'
+- .matplotlib-cache/**
 - devcovenant/**
 - tests/devcovenant/**
 skipped_prefixes:
@@ -1166,6 +1167,7 @@ exclude_globs:
 - devcovenant/registry/runtime/**
 - node_modules/**
 - '**/*.egg-info/**'
+- .matplotlib-cache/**
 - devcovenant/**
 include_prefixes: []
 include_globs:

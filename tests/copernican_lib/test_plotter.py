@@ -175,8 +175,8 @@ def _case_format_model_summary_text_handles_missing_chi2_total(self) -> None:
         chi2_total=None,
     )
 
-    assert "$\\chi^2_{tot}$ = N/A" in summary
-    assert "$\\chi^2_{CMB}$ = N/A" in summary
+    self.assertIn("$\\chi^2_{tot}$ = N/A", summary)
+    self.assertIn("$\\chi^2_{CMB}$ = N/A", summary)
 
 
 def _case_format_model_summary_text_numeric_rendering(self) -> None:
@@ -200,11 +200,11 @@ def _case_format_model_summary_text_numeric_rendering(self) -> None:
                 fit_results,
             )
 
-            assert expected_fragment in summary
+            self.assertIn(expected_fragment, summary)
             if expected_fragment.endswith("N/A"):
-                assert "$\\chi^2_{tot}$ = N/A" in summary
+                self.assertIn("$\\chi^2_{tot}$ = N/A", summary)
             else:
-                assert "$\\chi^2_{tot}$ = 42.00" in summary
+                self.assertIn("$\\chi^2_{tot}$ = 42.00", summary)
 
 
 def _case_plot_corner_renders_expected_file(
@@ -242,7 +242,7 @@ def _case_plot_corner_renders_expected_file(
         model_name="vs-TestModel",
         timestamp=timestamp,
     )
-    assert (tmp_path / expected_name).exists()
+    self.assertTrue((tmp_path / expected_name).exists())
 
 
 def _case_plot_parameter_histograms_renders_expected_file(
@@ -278,7 +278,7 @@ def _case_plot_parameter_histograms_renders_expected_file(
         model_name="vs-TestModel",
         timestamp=timestamp,
     )
-    assert (tmp_path / expected_name).exists()
+    self.assertTrue((tmp_path / expected_name).exists())
 
 
 def _case_plot_corner_scales_layout_with_dimension(
@@ -375,40 +375,50 @@ def _case_plot_corner_scales_layout_with_dimension(
         timestamp="20251108_000100",
     )
 
-    assert len(layout_calls) == 2
+    self.assertEqual(len(layout_calls), 2)
     small_layout = layout_calls[0][2]
     large_layout = layout_calls[1][2]
 
     small_figsize = small_layout[0]
     large_figsize = large_layout[0]
 
-    assert small_figsize[0] == pytest.approx(small_figsize[1])
-    assert large_figsize[0] == pytest.approx(large_figsize[1])
-    assert large_figsize[0] == pytest.approx(12.0)
-    assert small_figsize[0] < large_figsize[0]
+    self.assertTrue(small_figsize[0] == pytest.approx(small_figsize[1]))
+    self.assertTrue(large_figsize[0] == pytest.approx(large_figsize[1]))
+    self.assertTrue(large_figsize[0] == pytest.approx(12.0))
+    self.assertLess(small_figsize[0], large_figsize[0])
 
-    assert small_layout[1]["label"] > large_layout[1]["label"]
-    assert small_layout[1]["ticks"] > large_layout[1]["ticks"]
-    assert large_layout[1]["ticks"] >= 8.0
+    self.assertGreater(small_layout[1]["label"], large_layout[1]["label"])
+    self.assertGreater(small_layout[1]["ticks"], large_layout[1]["ticks"])
+    self.assertGreaterEqual(large_layout[1]["ticks"], 8.0)
 
-    assert recorded_figsizes[0] == small_figsize
-    assert recorded_figsizes[1] == large_figsize
+    self.assertEqual(recorded_figsizes[0], small_figsize)
+    self.assertEqual(recorded_figsizes[1], large_figsize)
 
     small_line_height = small_layout[2]
     large_line_height = large_layout[2]
-    assert small_line_height == pytest.approx(
-        plotter._CORNER_BASE_LINE_HEIGHT,
-        rel=0.01,
+    self.assertTrue(
+        small_line_height
+        == pytest.approx(
+            plotter._CORNER_BASE_LINE_HEIGHT,
+            rel=0.01,
+        )
     )
-    assert large_line_height >= plotter._CORNER_BASE_LINE_HEIGHT
+    self.assertGreaterEqual(
+        large_line_height, plotter._CORNER_BASE_LINE_HEIGHT
+    )
 
     small_footer_pad = small_layout[4]
     large_footer_pad = large_layout[4]
-    assert small_footer_pad == pytest.approx(
-        plotter._CORNER_FOOTER_PADDING,
-        rel=1e-9,
+    self.assertTrue(
+        small_footer_pad
+        == pytest.approx(
+            plotter._CORNER_FOOTER_PADDING,
+            rel=1e-9,
+        )
     )
-    assert large_footer_pad == pytest.approx(small_footer_pad, rel=1e-9)
+    self.assertTrue(
+        large_footer_pad == pytest.approx(small_footer_pad, rel=1e-9)
+    )
 
     base_panel_width = 3.6
     for n_params, footer_lines, layout in layout_calls:
@@ -417,18 +427,23 @@ def _case_plot_corner_scales_layout_with_dimension(
         footer_pad = layout[4]
         footer_block = footer_lines * line_height
         axes_bottom = margins["bottom"]
-        assert axes_bottom >= plotter._CORNER_MIN_BOTTOM - 1e-9
-        assert axes_bottom <= plotter._CORNER_MAX_BOTTOM + 1e-9
-        assert (
+        self.assertGreaterEqual(axes_bottom, plotter._CORNER_MIN_BOTTOM - 1e-9)
+        self.assertLessEqual(axes_bottom, plotter._CORNER_MAX_BOTTOM + 1e-9)
+        self.assertTrue(
             axes_bottom - footer_block
             >= plotter._CORNER_FOOTER_CLEARANCE - 1e-9
         )
-        assert footer_pad == pytest.approx(plotter._CORNER_FOOTER_PADDING)
+        self.assertTrue(
+            footer_pad == pytest.approx(plotter._CORNER_FOOTER_PADDING)
+        )
         footer_start = axes_bottom - footer_pad
         lowest_line = footer_start - (footer_lines - 1) * line_height
-        assert lowest_line >= plotter._CORNER_FOOTER_CLEARANCE - 1e-6
-        assert axes_bottom - footer_start == pytest.approx(
-            plotter._CORNER_FOOTER_PADDING
+        self.assertGreaterEqual(
+            lowest_line, plotter._CORNER_FOOTER_CLEARANCE - 1e-6
+        )
+        self.assertTrue(
+            axes_bottom - footer_start
+            == pytest.approx(plotter._CORNER_FOOTER_PADDING)
         )
 
         side_length = layout[0][0]
@@ -440,7 +455,7 @@ def _case_plot_corner_scales_layout_with_dimension(
             0.91,
             0.945,
         )
-        assert margins["top"] == pytest.approx(expected_top)
+        self.assertTrue(margins["top"] == pytest.approx(expected_top))
 
 
 def _case_plot_corner_positions_title_and_footer(
@@ -503,11 +518,13 @@ def _case_plot_corner_positions_title_and_footer(
         timestamp="20251108_000200",
     )
 
-    assert recorded_suptitles
+    self.assertTrue(recorded_suptitles)
     suptitle_kwargs = recorded_suptitles[-1]
-    assert suptitle_kwargs.get("y") == pytest.approx(plotter._CORNER_TITLE_Y)
+    self.assertTrue(
+        suptitle_kwargs.get("y") == pytest.approx(plotter._CORNER_TITLE_Y)
+    )
 
-    assert "value" in captured_layout
+    self.assertIn("value", captured_layout)
     _, footer_lines, layout = captured_layout["value"]
     margins = layout[3]
     line_height = layout[2]
@@ -516,11 +533,13 @@ def _case_plot_corner_positions_title_and_footer(
     footer_positions = [
         value for value in recorded_text_y if value <= margins["bottom"] + 1e-6
     ]
-    assert footer_positions
+    self.assertTrue(footer_positions)
     first_line = max(footer_positions)
     lowest_line = min(footer_positions)
     gap_to_axes = margins["bottom"] - first_line
-    assert footer_pad == pytest.approx(plotter._CORNER_FOOTER_PADDING)
+    self.assertTrue(
+        footer_pad == pytest.approx(plotter._CORNER_FOOTER_PADDING)
+    )
 
     stack_offset = max(footer_lines - 1, 0) * line_height
     expected_first_line = margins["bottom"] - footer_pad - stack_offset
@@ -538,13 +557,15 @@ def _case_plot_corner_positions_title_and_footer(
         expected_lowest_line += delta
 
     expected_gap = margins["bottom"] - expected_first_line
-    assert gap_to_axes == pytest.approx(expected_gap)
-    assert first_line == pytest.approx(expected_first_line)
-    assert lowest_line == pytest.approx(expected_lowest_line)
-    assert lowest_line >= plotter._CORNER_FOOTER_CLEARANCE - 1e-6
+    self.assertTrue(gap_to_axes == pytest.approx(expected_gap))
+    self.assertTrue(first_line == pytest.approx(expected_first_line))
+    self.assertTrue(lowest_line == pytest.approx(expected_lowest_line))
+    self.assertGreaterEqual(
+        lowest_line, plotter._CORNER_FOOTER_CLEARANCE - 1e-6
+    )
     expected_span = (footer_lines - 1) * line_height
     actual_span = first_line - lowest_line
-    assert actual_span == pytest.approx(expected_span)
+    self.assertTrue(actual_span == pytest.approx(expected_span))
 
 
 def _case_format_corner_footer_stats_reports_processing(self) -> None:
@@ -562,10 +583,10 @@ def _case_format_corner_footer_stats_reports_processing(self) -> None:
     lines = plotter._format_corner_footer_stats(stats)
     rendered = [line for line, _ in lines]
 
-    assert any("300 samples used" in line for line in rendered)
-    assert any("stride 3" in line for line in rendered)
-    assert any("Automatic thinning" in line for line in rendered)
-    assert any("Legacy validator" in line for line in rendered)
+    self.assertTrue(any("300 samples used" in line for line in rendered))
+    self.assertTrue(any("stride 3" in line for line in rendered))
+    self.assertTrue(any("Automatic thinning" in line for line in rendered))
+    self.assertTrue(any("Legacy validator" in line for line in rendered))
 
 
 def _case_plot_corner_downsamples_large_chains(
@@ -629,11 +650,13 @@ def _case_plot_corner_downsamples_large_chains(
     )
 
     stats = captured["stats"]
-    assert stats["downsampled"] is True
-    assert stats["processed_count"] <= plotter.MAX_CORNER_SAMPLES
+    self.assertTrue(stats["downsampled"] is True)
+    self.assertLessEqual(stats["processed_count"], plotter.MAX_CORNER_SAMPLES)
     extra_lines = recorded["extra"]
-    assert extra_lines is not None
-    assert any("Corner plot generation" in line for line, _ in extra_lines)
+    self.assertIsNotNone(extra_lines)
+    self.assertTrue(
+        any("Corner plot generation" in line for line, _ in extra_lines)
+    )
 
 
 def _case_plot_corner_falls_back_to_agg_backend(
@@ -684,8 +707,8 @@ def _case_plot_corner_falls_back_to_agg_backend(
         timestamp="20251108_000000",
     )
 
-    assert attempts["count"] == 2
-    assert switched == ["Agg"]
+    self.assertEqual(attempts["count"], 2)
+    self.assertEqual(switched, ["Agg"])
 
 
 def _case_plot_corner_handles_legacy_validator_signature(
@@ -738,7 +761,7 @@ def _case_plot_corner_handles_legacy_validator_signature(
         model_name="vs-TestModel",
         timestamp="20251108_000000",
     )
-    assert (tmp_path / expected_name).exists()
+    self.assertTrue((tmp_path / expected_name).exists())
 
 
 def _case_density_levels_are_strictly_increasing(self) -> None:
@@ -746,7 +769,7 @@ def _case_density_levels_are_strictly_increasing(self) -> None:
 
     hist = np.full((2, 2), 0.25)
     levels = plotter._density_levels(hist, (0.5, 0.9))
-    assert levels[0] < levels[1]
+    self.assertLess(levels[0], levels[1])
 
 
 def _case_build_contour_levels_produce_increasing_sequences(self) -> None:
@@ -755,9 +778,9 @@ def _case_build_contour_levels_produce_increasing_sequences(self) -> None:
     hist = np.array([[0.4, 0.4], [0.4, 0.1]])
     filled, lines = plotter._build_contour_levels(hist, (0.68, 0.95))
 
-    assert np.all(np.diff(filled) > 0.0)
-    assert np.all(np.diff(lines) > 0.0)
-    assert filled[0] == pytest.approx(0.0)
+    self.assertTrue(np.all(np.diff(filled) > 0.0))
+    self.assertTrue(np.all(np.diff(lines) > 0.0))
+    self.assertTrue(filled[0] == pytest.approx(0.0))
 
 
 def _case_plot_corner_omits_dataset_metadata_from_footer(
@@ -803,11 +826,17 @@ def _case_plot_corner_omits_dataset_metadata_from_footer(
         timestamp="20251109_120000",
     )
 
-    assert captured["include_dataset_details"] is False
+    self.assertTrue(captured["include_dataset_details"] is False)
     footer_text = [line for line, _ in captured["lines"]]
-    assert all("Observational dataset" not in line for line in footer_text)
-    assert all("Corner validation stub" not in line for line in footer_text)
-    assert any("Corner plot generation" in line for line in footer_text)
+    self.assertTrue(
+        all("Observational dataset" not in line for line in footer_text)
+    )
+    self.assertTrue(
+        all("Corner validation stub" not in line for line in footer_text)
+    )
+    self.assertTrue(
+        any("Corner plot generation" in line for line in footer_text)
+    )
 
 
 def _case_build_footer_lines_preserves_citation_by_default(self) -> None:
@@ -823,7 +852,9 @@ def _case_build_footer_lines_preserves_citation_by_default(self) -> None:
         _CornerPlugin, attrs, "20250101_000000"
     )
 
-    assert any("Corner validation stub" in line for line, _ in footer_lines)
+    self.assertTrue(
+        any("Corner validation stub" in line for line, _ in footer_lines)
+    )
 
 
 def _case_build_footer_lines_omits_citation_when_dataset_details_disabled(
@@ -847,7 +878,7 @@ def _case_build_footer_lines_omits_citation_when_dataset_details_disabled(
     )
 
     footer_text = [line for line, _ in footer_lines]
-    assert footer_text[0].startswith("ΛCDM vs")
-    assert "Corner validation stub" not in "\n".join(footer_text)
+    self.assertTrue(footer_text[0].startswith("ΛCDM vs"))
+    self.assertNotIn("Corner validation stub", "\n".join(footer_text))
     generation_line = "Corner plot generation: 12 samples used"
-    assert footer_text.count(generation_line) == 1
+    self.assertEqual(footer_text.count(generation_line), 1)
