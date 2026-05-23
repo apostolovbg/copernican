@@ -134,52 +134,48 @@ class TestCopernicanGUI(unittest.TestCase):
 def _case_catalogue_metadata_and_filters(self) -> None:
     gui = CopernicanGUI(render=False)
     gui.refresh_inventory()
-    self.assertTrue(gui.catalogue_index)
+    assert gui.catalogue_index
     planck = gui.catalogue_index.get("planck_2018_lite")
-    self.assertIsNotNone(planck)
-    self.assertTrue(planck["parser_trusted"])
-    self.assertTrue(planck["metadata_digest"])
+    assert planck is not None
+    assert planck["parser_trusted"]
+    assert planck["metadata_digest"]
     filtered = gui.filter_catalogue(["cmb"])
-    self.assertTrue(
-        any(entry["id"] == "planck_2018_lite" for entry in filtered)
-    )
+    assert any(entry["id"] == "planck_2018_lite" for entry in filtered)
     contents = gui.view_metadata_file("planck_2018_lite")
-    self.assertIn("dataset_name", contents)
+    assert "dataset_name" in contents
     record = gui.revalidate_dataset("planck_2018_lite")
-    self.assertTrue(record["hashes"])
+    assert record["hashes"]
 
 
 def _case_model_and_engine_metadata_actions(self) -> None:
     gui = CopernicanGUI(render=False)
     gui.refresh_inventory()
-    self.assertTrue(gui.model_index)
+    assert gui.model_index
     model_entry = next(iter(gui.model_index.values()))
-    self.assertTrue(model_entry["hash"])
+    assert model_entry["hash"]
     model_text = gui.view_metadata_file(model_entry["id"])
-    self.assertTrue(model_text)
+    assert model_text
     engine_entry = next(iter(gui.engine_index.values()))
     engine_text = gui.view_metadata_file(engine_entry["id"])
-    self.assertTrue(engine_entry["hash"])
-    self.assertTrue(engine_text)
-    self.assertTrue(
-        gui.open_folder(Path(model_entry["path"]).parent.as_posix())
-    )
+    assert engine_entry["hash"]
+    assert engine_text
+    assert gui.open_folder(Path(model_entry["path"]).parent.as_posix())
 
 
 def _case_builder_navigation_and_draft(self) -> None:
     gui = CopernicanGUI(render=False)
-    self.assertEqual(gui.current_step_index, 0)
+    assert gui.current_step_index == 0
     gui.next_step()
-    self.assertEqual(gui.current_step_index, 1)
+    assert gui.current_step_index == 1
     gui.jump_to_step(3)
-    self.assertEqual(gui.current_step_index, 3)
+    assert gui.current_step_index == 3
     draft = gui.save_draft()
-    self.assertEqual(draft.completed_step, 3)
+    assert draft.completed_step == 3
     gui.previous_step()
-    self.assertEqual(gui.current_step_index, 2)
+    assert gui.current_step_index == 2
     gui.cancel_builder()
-    self.assertEqual(gui.current_step_index, 0)
-    self.assertEqual(gui.draft.completed_step, 0)
+    assert gui.current_step_index == 0
+    assert gui.draft.completed_step == 0
 
 
 def _case_builder_next_requires_all_pages_selected(self) -> None:
@@ -189,9 +185,9 @@ def _case_builder_next_requires_all_pages_selected(self) -> None:
     gui.current_step_index = gui.builder_steps.index("Engine")
     starting_alerts = len(gui.alerts)
     gui._handle_builder_next()
-    self.assertEqual(gui.current_step_index, gui.builder_steps.index("Engine"))
-    self.assertEqual(len(gui.alerts), starting_alerts + 1)
-    self.assertIn("Seed", gui.alerts[-1].message)
+    assert gui.current_step_index == gui.builder_steps.index("Engine")
+    assert len(gui.alerts) == starting_alerts + 1
+    assert "Seed" in gui.alerts[-1].message
 
 
 def _case_builder_next_advances_when_pages_ready(
@@ -201,7 +197,7 @@ def _case_builder_next_advances_when_pages_ready(
     gui = CopernicanGUI(render=False)
     _prime_gui_selections(gui)
     gui.draft.seed = "42"
-    self.assertFalse(gui._builder_ready())
+    assert not gui._builder_ready()
     tmp_path = _tmp_path_or_default(tmp_path)
     dataset_path = tmp_path / "dataset.txt"
     dataset_path.write_text("data", encoding="utf-8")
@@ -210,12 +206,10 @@ def _case_builder_next_advances_when_pages_ready(
         path=str(dataset_path),
         name="Dataset",
     )
-    self.assertTrue(gui._builder_ready())
+    assert gui._builder_ready()
     gui.current_step_index = gui.builder_steps.index("Engine")
     gui._handle_builder_next()
-    self.assertEqual(
-        gui.current_step_index, gui.builder_steps.index("Engine") + 1
-    )
+    assert gui.current_step_index == gui.builder_steps.index("Engine") + 1
 
 
 def _prepare_gui_with_dataset(tmp_path: Path) -> CopernicanGUI:
@@ -239,12 +233,10 @@ def _case_save_manifest_creates_new_config_folder(
     tmp_path = _tmp_path_or_default(tmp_path)
     gui = _prepare_gui_with_dataset(tmp_path)
     workspace = gui._persist_manifest_workspace()
-    self.assertIsNotNone(workspace)
-    self.assertEqual(workspace.folder.name, "copernican_run_NEW_CONFIG")
-    self.assertEqual(
-        workspace.manifest_path.name, "run_manifest_NEW_CONFIG.yml"
-    )
-    self.assertTrue(workspace.manifest_path.exists())
+    assert workspace is not None
+    assert workspace.folder.name == "copernican_run_NEW_CONFIG"
+    assert workspace.manifest_path.name == "run_manifest_NEW_CONFIG.yml"
+    assert workspace.manifest_path.exists()
 
 
 def _case_clear_manifest_resets_state(
@@ -254,14 +246,14 @@ def _case_clear_manifest_resets_state(
     tmp_path = _tmp_path_or_default(tmp_path)
     gui = _prepare_gui_with_dataset(tmp_path)
     workspace = gui._persist_manifest_workspace()
-    self.assertIsNotNone(workspace)
+    assert workspace is not None
     folder = workspace.folder
     gui._clear_manifest_configuration()
-    self.assertIsNone(gui.manifest_workspace)
-    self.assertFalse(folder.exists())
-    self.assertEqual(gui.current_step_index, 0)
-    self.assertEqual(gui.selected_models, [])
-    self.assertEqual(gui.selected_engine, "")
+    assert gui.manifest_workspace is None
+    assert not folder.exists()
+    assert gui.current_step_index == 0
+    assert gui.selected_models == []
+    assert gui.selected_engine == ""
 
 
 def _case_save_manifest_to_external(
@@ -273,7 +265,7 @@ def _case_save_manifest_to_external(
     target = tmp_path / "external_manifest.yml"
     gui._save_manifest_to_external_folder(output_path=str(target))
     exported = list(tmp_path.glob("external_manifest.yml"))
-    self.assertTrue(exported)
+    assert exported
 
 
 def _case_auto_loads_saved_temp_manifest(
@@ -330,16 +322,14 @@ def _case_auto_loads_saved_temp_manifest(
     try:
         os.chdir(tmp_path)
         gui = CopernicanGUI(render=False)
-        self.assertIsNotNone(gui.manifest_workspace)
-        self.assertIsNotNone(gui.pending_manifest)
-        self.assertEqual(
-            gui.manifest_workspace.manifest_path.resolve(),
-            manifest_path.resolve(),
+        assert gui.manifest_workspace is not None
+        assert gui.pending_manifest is not None
+        assert (
+            gui.manifest_workspace.manifest_path.resolve()
+            == manifest_path.resolve()
         )
-        self.assertTrue(
-            gui.summary.manifest_actions[-1].startswith(
-                "Loaded saved manifest"
-            )
+        assert gui.summary.manifest_actions[-1].startswith(
+            "Loaded saved manifest"
         )
     finally:
         os.chdir(old_cwd)
@@ -354,13 +344,13 @@ def _case_confirm_step_requires_saved_manifest(
     confirm_index = gui.builder_steps.index("Confirm")
     initial_alerts = len(gui.alerts)
     gui.jump_to_step(confirm_index)
-    self.assertNotEqual(gui.current_step_index, confirm_index)
-    self.assertEqual(len(gui.alerts), initial_alerts + 1)
-    self.assertEqual(gui.alerts[-1].message, gui._MANIFEST_REQUIRED_MESSAGE)
+    assert gui.current_step_index != confirm_index
+    assert len(gui.alerts) == initial_alerts + 1
+    assert gui.alerts[-1].message == gui._MANIFEST_REQUIRED_MESSAGE
     gui = _prepare_gui_with_dataset(tmp_path)
     gui._persist_manifest_workspace()
     gui.jump_to_step(confirm_index)
-    self.assertEqual(gui.current_step_index, confirm_index)
+    assert gui.current_step_index == confirm_index
 
 
 def _case_confirm_start_run_renames_manifest(
@@ -371,24 +361,22 @@ def _case_confirm_start_run_renames_manifest(
     gui = _prepare_gui_with_dataset(tmp_path)
     _stub_worker_launch(gui)
     workspace = gui._persist_manifest_workspace()
-    self.assertIsNotNone(workspace)
+    assert workspace is not None
     old_folder = workspace.folder
     gui.confirm_start_run()
-    self.assertIsNotNone(gui.manifest_workspace)
-    self.assertTrue(
-        gui.manifest_workspace.folder.name.startswith("copernican-run_")
+    assert gui.manifest_workspace is not None
+    assert gui.manifest_workspace.folder.name.startswith("copernican-run_")
+    assert gui.manifest_workspace.manifest_path.name.startswith(
+        "run_manifest_"
     )
-    self.assertTrue(
-        gui.manifest_workspace.manifest_path.name.startswith("run_manifest_")
-    )
-    self.assertFalse(old_folder.exists())
+    assert not old_folder.exists()
 
 
 def _case_cancel_inactive_without_configuration(self) -> None:
     gui = CopernicanGUI(render=False)
-    self.assertFalse(gui._has_configuration())
+    assert not gui._has_configuration()
     gui.selected_models = ["LambdaCDM"]
-    self.assertTrue(gui._has_configuration())
+    assert gui._has_configuration()
 
 
 def _case_run_monitor_lifecycle(self) -> None:
@@ -402,21 +390,21 @@ def _case_run_monitor_lifecycle(self) -> None:
     gui.draft.seed = "3"
     gui._persist_manifest_workspace()
     gui.confirm_start_run()
-    self.assertTrue(gui.status is RunStatus.RUNNING)
-    self.assertIsNotNone(gui.pending_manifest)
-    self.assertIs(gui.output_directory_prepared, True)
+    assert gui.status is RunStatus.RUNNING
+    assert gui.pending_manifest is not None
+    assert gui.output_directory_prepared is True
     gui.update_progress(50)
-    self.assertEqual(gui.progress, 50)
+    assert gui.progress == 50
     gui.pause_run()
-    self.assertTrue(gui.status is RunStatus.RUNNING)
-    self.assertTrue(gui.alerts[-1].message.startswith("Pause/resume"))
+    assert gui.status is RunStatus.RUNNING
+    assert gui.alerts[-1].message.startswith("Pause/resume")
     gui.cancel_run(disposition="archived")
-    self.assertEqual(gui.pending_manifest["status"]["state"], "cancelled")
+    assert gui.pending_manifest["status"]["state"] == "cancelled"
     gui.stop_run(disposition="deleted")
-    self.assertTrue(gui.status is RunStatus.ABORTED)
+    assert gui.status is RunStatus.ABORTED
     gui.update_progress(120)
-    self.assertTrue(gui.status is RunStatus.IDLE)
-    self.assertTrue(gui.summary.output_links)
+    assert gui.status is RunStatus.IDLE
+    assert gui.summary.output_links
     os.unlink(fh.name)
 
 
@@ -432,14 +420,14 @@ def _case_manifest_import_export_round_trip(self) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         path = gui.export_manifest(tmpdir)
         loaded = run_manifest.load_manifest(path)
-        self.assertTrue(loaded["selection"]["models"])
+        assert loaded["selection"]["models"]
         imported = gui.import_manifest(path)
-        self.assertTrue(imported["selection"]["engine"]["name"])
-        self.assertTrue(gui.selected_models)
-        self.assertEqual(gui.draft.walkers, "33")
-        self.assertEqual(gui.draft.burn_in, "20")
-        self.assertEqual(gui.draft.production_steps, "100")
-        self.assertEqual(gui.draft.pool_size, "4")
+        assert imported["selection"]["engine"]["name"]
+        assert gui.selected_models
+        assert gui.draft.walkers == "33"
+        assert gui.draft.burn_in == "20"
+        assert gui.draft.production_steps == "100"
+        assert gui.draft.pool_size == "4"
 
 
 def _case_insert_manifest_from_builder_prepares_pending_manifest(self) -> None:
@@ -447,11 +435,11 @@ def _case_insert_manifest_from_builder_prepares_pending_manifest(self) -> None:
     _prime_gui_selections(gui)
     gui.draft.walkers = "48"
     gui.insert_manifest_from_builder()
-    self.assertIsNotNone(gui.pending_manifest)
+    assert gui.pending_manifest is not None
     config = gui.pending_manifest.get("configuration", {})
     run_settings = config.get("run_settings", {})
-    self.assertEqual(run_settings.get("n_walkers"), 48)
-    self.assertTrue(gui.summary.manifest_metadata)
+    assert run_settings.get("n_walkers") == 48
+    assert gui.summary.manifest_metadata
 
 
 def _case_duplicate_manifest_prefills_builder(
@@ -471,8 +459,8 @@ def _case_duplicate_manifest_prefills_builder(
     manifest = gui._generate_manifest_snapshot()
     path = run_manifest.save_manifest(manifest, tmp_path)
     gui.duplicate_manifest_for_editing(path)
-    self.assertIn("planck_2018_lite", gui.draft.dataset)
-    self.assertTrue(gui.draft.plan.startswith("Duplicate & Edit"))
+    assert "planck_2018_lite" in gui.draft.dataset
+    assert gui.draft.plan.startswith("Duplicate & Edit")
 
 
 def _case_application_diagnostics_logging(
@@ -481,16 +469,16 @@ def _case_application_diagnostics_logging(
 ) -> None:
     tmp_path = _tmp_path_or_default(tmp_path)
     gui = CopernicanGUI(render=False)
-    self.assertTrue(gui.application_log_path)
-    self.assertTrue(os.path.exists(gui.application_log_path))
+    assert gui.application_log_path
+    assert os.path.exists(gui.application_log_path)
     gui.create_toast("App diagnostics ready", severity="INFO", context="app")
     gui.set_diagnostics_filter("ERROR")
     gui.create_toast("App failure", severity="ERROR", context="app")
     filtered = gui.get_application_log_entries()
-    self.assertTrue(filtered)
-    self.assertTrue(any(entry.severity == "ERROR" for entry in filtered))
+    assert filtered
+    assert any(entry.severity == "ERROR" for entry in filtered)
     export_path = gui.export_application_logs(tmp_path)
-    self.assertTrue(os.path.exists(export_path))
+    assert os.path.exists(export_path)
 
 
 def _case_run_log_confirmation_and_anchor_jump(
@@ -501,19 +489,19 @@ def _case_run_log_confirmation_and_anchor_jump(
     gui = CopernicanGUI(render=False)
     _prime_gui_selections(gui)
     _stub_worker_launch(gui)
-    self.assertIsNone(gui.run_log_path)
+    assert gui.run_log_path is None
     gui._persist_manifest_workspace()
     gui.confirm_start_run()
-    self.assertIsNotNone(gui.run_log_path)
-    self.assertTrue(os.path.exists(gui.run_log_path))
+    assert gui.run_log_path is not None
+    assert os.path.exists(gui.run_log_path)
     entries = gui.get_run_log_entries()
-    self.assertTrue(entries)
-    self.assertTrue(entries[0].anchor.startswith("run-"))
+    assert entries
+    assert entries[0].anchor.startswith("run-")
     gui.start_run()
     gui.update_progress(100)
     exported = gui.export_run_logs(tmp_path)
-    self.assertTrue(os.path.exists(exported))
+    assert os.path.exists(exported)
     if gui.alerts:
         anchor = gui.alerts[-1].anchor
         snippet = gui.jump_to_log_anchor(anchor)
-        self.assertIsNotNone(snippet)
+        assert snippet is not None
