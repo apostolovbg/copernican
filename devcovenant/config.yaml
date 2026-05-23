@@ -524,6 +524,7 @@ autogen_metadata_overlays:
     - .github/workflows/ci.yml
     skipped_globs:
     - '*_old.*'
+    - .matplotlib-cache/**
     skipped_prefixes:
     - devcovenant
     - tests/devcovenant
@@ -1149,6 +1150,7 @@ autogen_metadata_overlays:
     - node_modules/**
     - '*.egg-info/**'
     - '**/*.egg-info/**'
+    - .matplotlib-cache/**
     exclude_prefixes:
     - build
     - dist
